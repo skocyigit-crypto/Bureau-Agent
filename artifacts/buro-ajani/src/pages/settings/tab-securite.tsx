@@ -10,6 +10,7 @@ import securityServerImg from "@/assets/images/security-server.png";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useVisibleInterval } from "@/hooks/use-visible-interval";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -254,7 +255,6 @@ function GuardianWafPanel() {
   const [refreshing, setRefreshing] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [activeTab, setActiveTab] = useState<"events" | "banned" | "profiles">("events");
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { toast } = useToast();
 
   const fetchAll = useCallback(async (silent = false) => {
@@ -278,14 +278,13 @@ function GuardianWafPanel() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  useEffect(() => {
-    if (autoRefresh) {
-      timerRef.current = setInterval(() => fetchAll(true), 8000);
-    } else if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [autoRefresh, fetchAll]);
+  // 8 s x 4 endpoints = 1 800 requetes/heure, de loin le sondage le plus lourd
+  // de l'application. Porte a 20 s et suspendu quand l'onglet est masque: cet
+  // ecran laisse ouvert en arriere-plan maintenait a lui seul une instance
+  // Cloud Run eveillee en permanence. 20 s reste largement assez reactif pour
+  // un tableau de bord de securite, et le bouton de rafraichissement manuel
+  // couvre le besoin d'immediat.
+  useVisibleInterval(() => { void fetchAll(true); }, autoRefresh ? 20000 : null, { runOnMount: false });
 
   const handleUnban = async (ip: string) => {
     try {

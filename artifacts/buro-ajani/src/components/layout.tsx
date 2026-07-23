@@ -223,8 +223,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
         .catch(() => {});
     };
     fetchQueueCount();
-    const interval = setInterval(fetchQueueCount, 60_000);
-    return () => { cancelled = true; clearInterval(interval); };
+    // Suspendu quand l'onglet est masque: un badge invisible n'a pas besoin
+    // d'etre rafraichi, et chaque requete garde une instance Cloud Run
+    // eveillee (donc facturee). Le compteur est reactualise des le retour au
+    // premier plan.
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const start = () => { if (!interval) interval = setInterval(fetchQueueCount, 60_000); };
+    const stop = () => { if (interval) { clearInterval(interval); interval = null; } };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") { fetchQueueCount(); start(); } else stop();
+    };
+    if (document.visibilityState === "visible") start();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibility);
+      stop();
+    };
   }, [location]);
 
   useEffect(() => {

@@ -301,14 +301,30 @@ function App() {
 
   useEffect(() => {
     if (authState !== "authenticated") return;
-    const interval = setInterval(async () => {
+    const check = async () => {
       try {
         const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
         const res = await fetch(`${baseUrl}/api/auth/me`, { credentials: "include" });
         if (!res.ok) setSessionExpired(true);
-      } catch {}
-    }, 5 * 60 * 1000);
-    return () => clearInterval(interval);
+      } catch { /* hors ligne: on ne declare pas la session expiree */ }
+    };
+    // Verification suspendue quand l'onglet est masque: sonder la session d'un
+    // onglet que personne ne regarde ne sert a rien et maintient une instance
+    // Cloud Run eveillee. Au retour au premier plan on verifie immediatement —
+    // c'est justement le moment ou l'utilisateur va agir, donc le moment utile
+    // pour detecter une session expiree.
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const start = () => { if (!interval) interval = setInterval(() => { void check(); }, 5 * 60 * 1000); };
+    const stop = () => { if (interval) { clearInterval(interval); interval = null; } };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") { void check(); start(); } else stop();
+    };
+    if (document.visibilityState === "visible") start();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      stop();
+    };
   }, [authState]);
 
   const handleLogin = (user: any) => {

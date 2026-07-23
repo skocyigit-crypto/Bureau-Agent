@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
+  AppState,
   FlatList,
   Platform,
   Pressable,
@@ -163,9 +164,23 @@ export default function NotificationsScreen() {
   }, [fetchAuth]);
 
   useEffect(() => {
+    // Sondage suspendu hors premier plan: 30 s en arriere-plan represente
+    // 120 requetes/heure qui reveillent une instance Cloud Run pour un ecran
+    // que personne ne regarde.
+    const start = () => {
+      if (!pollRef.current) pollRef.current = setInterval(() => buildNotifications(true), POLL_INTERVAL);
+    };
+    const stop = () => {
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    };
+
     buildNotifications();
-    pollRef.current = setInterval(() => buildNotifications(true), POLL_INTERVAL);
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+    start();
+
+    const sub = AppState.addEventListener("change", (s) => {
+      if (s === "active") { buildNotifications(true); start(); } else stop();
+    });
+    return () => { stop(); sub.remove(); };
   }, [buildNotifications]);
 
   function onRefresh() { setRefreshing(true); buildNotifications(); }

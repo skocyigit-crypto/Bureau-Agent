@@ -50,8 +50,23 @@ export function NotificationBell() {
       }
     }
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 5 * 60 * 1000);
-    return () => { mounted = false; controller.abort(); clearInterval(interval); };
+    // Suspendu sur onglet masque (meme raison que les autres sondages: une
+    // requete depuis un onglet invisible garde une instance Cloud Run
+    // facturee). Rafraichi des le retour au premier plan.
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const start = () => { if (!interval) interval = setInterval(fetchNotifications, 5 * 60 * 1000); };
+    const stop = () => { if (interval) { clearInterval(interval); interval = null; } };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") { fetchNotifications(); start(); } else stop();
+    };
+    if (document.visibilityState === "visible") start();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      mounted = false;
+      controller.abort();
+      document.removeEventListener("visibilitychange", onVisibility);
+      stop();
+    };
   }, []);
 
   useEffect(() => {

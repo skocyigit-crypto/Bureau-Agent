@@ -36,12 +36,22 @@ export function usePendingApprovals(): { pending: number; refresh: () => void } 
   }, [fetchAuth, isAuthenticated]);
 
   useEffect(() => {
+    // Le sondage ne tourne que lorsque l'application est au premier plan.
+    // En arriere-plan il n'y a aucun badge a afficher, et chaque requete
+    // reveille une instance Cloud Run qui est alors facturee.
+    let timer: ReturnType<typeof setInterval> | null = null;
+    const start = () => { if (!timer) timer = setInterval(refresh, POLL_MS); };
+    const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
+
     refresh();
-    const timer = setInterval(refresh, POLL_MS);
+    start();
+
     // Un retour au premier plan rafraichit immediatement: l'utilisateur a pu
     // approuver depuis le bureau entre-temps.
-    const sub = AppState.addEventListener("change", (s) => { if (s === "active") refresh(); });
-    return () => { clearInterval(timer); sub.remove(); };
+    const sub = AppState.addEventListener("change", (s) => {
+      if (s === "active") { refresh(); start(); } else stop();
+    });
+    return () => { stop(); sub.remove(); };
   }, [refresh]);
 
   return { pending, refresh };
