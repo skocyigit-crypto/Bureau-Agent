@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation, useRoute } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AlertTriangle } from "lucide-react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -108,17 +109,57 @@ const queryClient = new QueryClient({
   },
 });
 
+/**
+ * Motifs de blocage que l'utilisateur ne peut PAS resoudre depuis l'ecran de
+ * licence. Le rediriger la-bas ne ferait que l'y bloquer aussi (un `agent` n'y
+ * a meme pas acces): on affiche l'explication a la place.
+ */
+const BLOCKING_REASONS: Record<string, { title: string; message: string }> = {
+  no_org: {
+    title: "Compte non rattache a une organisation",
+    message: "Votre compte existe mais n'est lie a aucune organisation, ce qui empeche l'application de charger vos donnees. Demandez a votre administrateur de rattacher votre compte a l'organisation.",
+  },
+  org_inactive: {
+    title: "Organisation desactivee",
+    message: "L'organisation a laquelle votre compte est rattache a ete desactivee. Contactez votre administrateur pour la reactiver.",
+  },
+};
+
 function LicenseGate({ children }: { children: React.ReactNode }) {
   const license = useLicenseCheck();
   const [, navigate] = useLocation();
+  const blocking = !license.loading && !license.allowed ? BLOCKING_REASONS[license.reason] : undefined;
 
   useEffect(() => {
-    if (!license.loading && !license.allowed) {
+    // On ne redirige QUE pour les motifs que l'ecran de licence peut traiter
+    // (abonnement expire, suspendu...). Pour un compte sans organisation ou une
+    // organisation desactivee, cet ecran ne peut rien: l'utilisateur y voyait
+    // une page vide ou une erreur de chargement, sans jamais savoir pourquoi
+    // l'application ne s'ouvrait pas.
+    if (!license.loading && !license.allowed && !blocking) {
       navigate("/gestion-licence");
     }
-  }, [license.loading, license.allowed, navigate]);
+  }, [license.loading, license.allowed, blocking, navigate]);
 
   if (license.loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
+
+  if (blocking) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] p-6">
+        <div className="max-w-md w-full text-center space-y-4">
+          <div className="w-14 h-14 rounded-full bg-amber-500/15 flex items-center justify-center mx-auto">
+            <AlertTriangle className="w-7 h-7 text-amber-500" />
+          </div>
+          <h2 className="text-xl font-semibold">{blocking.title}</h2>
+          <p className="text-sm text-muted-foreground leading-relaxed">{blocking.message}</p>
+          <p className="text-xs text-muted-foreground/70">
+            Support : <a className="underline" href="mailto:support@agentdebureau.fr">support@agentdebureau.fr</a>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (!license.allowed) return null;
 
   return <>{children}</>;

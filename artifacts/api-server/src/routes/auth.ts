@@ -596,6 +596,19 @@ router.post("/auth/users", adminEmailLimiter, async (req: Request, res: Response
     if (!(await assertUserQuotaNotExceeded(req, res, organisationId))) return;
   }
 
+  // ── GUARD: un utilisateur DOIT etre rattache a une organisation ────────────
+  // Voir l'explication detaillee sur /auth/users/create-and-send: un compte
+  // cree avec organisation_id = NULL se connecte mais ne peut plus rien faire,
+  // et l'application reste figee sans message.
+  const targetOrgId = organisationId ?? (Number.isInteger(Number(req.body?.organisationId)) ? Number(req.body.organisationId) : null);
+  if (!targetOrgId) {
+    res.status(400).json({
+      error: "Organisation requise",
+      message: "Ce compte doit etre rattache a une organisation. Precisez 'organisationId' (obligatoire lorsque vous etes super-admin, car votre session n'est liee a aucune organisation).",
+    });
+    return;
+  }
+
   // ── GUARD: rate-limit user creation ────────────────────────────────────────
   if (!checkSensitiveRateLimit(req, res, "create_user", 30, 60_000)) return;
 
@@ -623,7 +636,7 @@ router.post("/auth/users", adminEmailLimiter, async (req: Request, res: Response
       role: role || "agent",
       departement,
       organisation: organisation || "SK GROUP",
-      organisationId: organisationId || null,
+      organisationId: targetOrgId,
       telephone,
       avatar,
     }).returning({
@@ -926,6 +939,23 @@ router.post("/auth/users/create-and-send", adminEmailLimiter, async (req: Reques
     if (!(await assertUserQuotaNotExceeded(req, res, organisationId))) return;
   }
 
+  // ── GUARD: un utilisateur DOIT etre rattache a une organisation ────────────
+  // `organisationId` vient de la session du createur. Un super-admin n'etant
+  // rattache a aucune organisation, sa session n'en contient pas: le compte
+  // etait alors cree avec organisation_id = NULL. Il pouvait se connecter
+  // (login 200) mais requireTenant refusait ensuite CHAQUE appel d'API en 403,
+  // et l'interface restait bloquee sans aucun message — le symptome
+  // "l'application ne s'ouvre pas, elle fige".
+  // On exige donc une organisation explicite quand la session n'en fournit pas.
+  const targetOrgId = organisationId ?? (Number.isInteger(Number(req.body?.organisationId)) ? Number(req.body.organisationId) : null);
+  if (!targetOrgId) {
+    res.status(400).json({
+      error: "Organisation requise",
+      message: "Ce compte doit etre rattache a une organisation. Precisez 'organisationId' (obligatoire lorsque vous etes super-admin, car votre session n'est liee a aucune organisation).",
+    });
+    return;
+  }
+
   // ── GUARD: rate-limit ───────────────────────────────────────────────────────
   if (!checkSensitiveRateLimit(req, res, "create_user", 30, 60_000)) return;
 
@@ -954,7 +984,7 @@ router.post("/auth/users/create-and-send", adminEmailLimiter, async (req: Reques
       role: role || "agent",
       departement,
       organisation: organisation || "SK GROUP",
-      organisationId: organisationId || null,
+      organisationId: targetOrgId,
       telephone,
       avatar,
     }).returning({
