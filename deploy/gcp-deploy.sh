@@ -163,7 +163,7 @@ gcloud run deploy "${API_SERVICE}" \
   --add-cloudsql-instances="${SQL_CONNECTION_NAME}" \
   --update-env-vars="NODE_ENV=production,ADMIN_EMAIL=${ADMIN_EMAIL}" \
   --update-secrets="${SECRET_REFS}" \
-  --min-instances=0 --max-instances=3 --memory=512Mi --cpu=1 \
+  --min-instances=0 --max-instances=3 --memory=1Gi --cpu=1 \
   --port=8080
 
 API_URL="$(gcloud run services describe "${API_SERVICE}" --region="${REGION}" --project "${PROJECT}" --format='value(status.url)')"

@@ -158,16 +158,21 @@ const runtimeAgent: HealthAgent = {
       const rssMb = Math.round(m.rss / 1024 / 1024);
       const heapMb = Math.round(m.heapUsed / 1024 / 1024);
       const heapTotalMb = Math.round(m.heapTotal / 1024 / 1024);
-      // Cloud Run alloue 512Mi au service api: au-dela de ~400 Mo le conteneur
-      // risque d'etre tue (OOM) sans message clair cote application.
-      const status: CheckStatus = rssMb > 400 ? "degrade" : "ok";
+      // La limite du conteneur n'est pas lisible depuis le processus: on la
+      // prend dans MEMORY_LIMIT_MB. Defaut 1024 Mo = l'allocation reelle du
+      // service Cloud Run. Un seuil code en dur serait pire qu'inutile: cale
+      // trop bas, l'agent crierait au feu en permanence et on finirait par
+      // ignorer ses alertes — y compris les vraies.
+      const limitMb = parseInt(process.env.MEMORY_LIMIT_MB || "1024", 10);
+      const pct = Math.round((rssMb / limitMb) * 100);
+      const status: CheckStatus = pct >= 80 ? "degrade" : "ok";
       return {
         check: "memory",
         status,
-        severity: rssMb > 460 ? "critique" : rssMb > 400 ? "haute" : "basse",
-        summary: `Memoire: ${rssMb} Mo (tas ${heapMb}/${heapTotalMb} Mo).`,
-        remediation: status === "ok" ? "" : "Proche de la limite du conteneur (512 Mi): risque d'arret brutal (OOM). Augmenter --memory ou chercher une fuite.",
-        metrics: { rssMb, heapUsedMb: heapMb, heapTotalMb },
+        severity: pct >= 92 ? "critique" : pct >= 80 ? "haute" : "basse",
+        summary: `Memoire: ${rssMb} Mo sur ${limitMb} Mo (${pct}%), tas ${heapMb}/${heapTotalMb} Mo.`,
+        remediation: status === "ok" ? "" : "Proche de la limite du conteneur: risque d'arret brutal (OOM). Augmenter --memory sur Cloud Run ou chercher une fuite.",
+        metrics: { rssMb, heapUsedMb: heapMb, heapTotalMb, limitMb, usagePct: pct },
       };
     }));
 
