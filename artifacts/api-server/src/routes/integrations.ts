@@ -805,9 +805,14 @@ router.post("/:integrationId/connect", async (req, res) => {
       },
     });
 
+  // Le message annoncait "La connexion sera etablie sous peu" — or rien
+  // n'etablit cette connexion: aucun service, aucune tache planifiee ne lit la
+  // table integration_connections. La configuration est bien conservee
+  // (chiffree) pour le jour ou l'integration sera implementee, mais le dire
+  // autrement serait promettre une synchronisation qui n'arrivera pas.
   res.json({
-    status: "en_attente",
-    message: `Configuration de ${integration.name} enregistree. La connexion sera etablie sous peu.`,
+    status: "enregistre",
+    message: `Configuration de ${integration.name} enregistree. Cette integration n'est pas encore active : aucune synchronisation n'aura lieu pour l'instant.`,
     integrationId,
     integrationName: integration.name,
   });
@@ -842,6 +847,18 @@ router.post("/:integrationId/disconnect", async (req, res) => {
   });
 });
 
+/**
+ * Test de connexion — repond honnetement que l'integration n'est pas active.
+ *
+ * Cette route renvoyait auparavant `status: "succes"` avec une latence tiree au
+ * hasard (`Math.random()`), sans lire la configuration ni contacter quoi que ce
+ * soit. Un utilisateur voyait "Connexion verifiee" pour un logiciel auquel rien
+ * ne le reliait — le pire cas possible pour un bouton de test, puisqu'il donne
+ * une fausse assurance au lieu de signaler l'absence d'integration.
+ *
+ * Les integrations reellement branchees (IA, e-mail, telephonie, Google) ont
+ * leurs propres tests qui, eux, appellent le fournisseur.
+ */
 router.post("/:integrationId/test", (req, res) => {
   const { integrationId } = req.params;
   const integration = SOFTWARE_CATALOG.find(s => s.id === integrationId);
@@ -849,13 +866,13 @@ router.post("/:integrationId/test", (req, res) => {
     res.status(404).json({ error: "Integration inconnue." }); return;
   }
 
-  res.json({
-    status: "succes",
-    message: `Connexion a ${integration.name} testee avec succes.`,
-    latency: Math.floor(Math.random() * 200) + 50,
+  res.status(501).json({
+    status: "non_disponible",
+    message: `L'integration ${integration.name} n'est pas encore active : la configuration est enregistree, mais aucune synchronisation n'est en place. Aucun test de connexion n'est donc possible.`,
   });
 });
 
+/** Meme raison que /test: rien n'etait lance, la reponse laissait croire le contraire. */
 router.post("/:integrationId/sync", (req, res) => {
   const { integrationId } = req.params;
   const integration = SOFTWARE_CATALOG.find(s => s.id === integrationId);
@@ -863,10 +880,9 @@ router.post("/:integrationId/sync", (req, res) => {
     res.status(404).json({ error: "Integration inconnue." }); return;
   }
 
-  res.json({
-    status: "en_cours",
-    message: `Synchronisation de ${integration.name} lancee.`,
-    startedAt: new Date().toISOString(),
+  res.status(501).json({
+    status: "non_disponible",
+    message: `La synchronisation avec ${integration.name} n'est pas encore disponible.`,
   });
 });
 

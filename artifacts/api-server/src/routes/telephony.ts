@@ -492,16 +492,65 @@ router.post("/telephony/providers/:id/test", async (req, res): Promise<void> => 
     const hasVoice = info?.capabilities.includes("voice");
     const hasSms = info?.capabilities.includes("sms");
 
+    const configValid = validateProviderConfig(provider.provider, config).valid;
+
+    // Test REEL aupres du fournisseur quand c'est possible.
+    //
+    // Cette route se contentait auparavant de verifier que les champs etaient
+    // remplis, puis repondait "Configuration verifiee avec succes": un jeton
+    // revoque ou errone passait donc pour valide, et l'echec n'apparaissait
+    // qu'au premier appel client. On interroge desormais le fournisseur avec
+    // les identifiants stockes. Pour ceux qu'on ne sait pas encore sonder, on
+    // le DIT au lieu de laisser croire a une verification.
+    let credentialsChecked = false;
+    let credentialsValid: boolean | null = null;
+    let providerMessage = "";
+
+    try {
+      if (provider.provider === "twilio" && config.accountSid && config.authToken) {
+        const auth = Buffer.from(`${config.accountSid}:${config.authToken}`).toString("base64");
+        const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(String(config.accountSid))}.json`, {
+          headers: { Authorization: `Basic ${auth}` },
+          signal: AbortSignal.timeout(10000),
+        });
+        credentialsChecked = true;
+        credentialsValid = r.ok;
+        providerMessage = r.ok
+          ? "Identifiants Twilio valides (compte joignable)."
+          : `Twilio a refuse les identifiants (HTTP ${r.status}).`;
+      } else if (provider.provider === "vonage" && config.apiKey && config.apiSecret) {
+        const r = await fetch(
+          `https://rest.nexmo.com/account/get-balance?api_key=${encodeURIComponent(String(config.apiKey))}&api_secret=${encodeURIComponent(String(config.apiSecret))}`,
+          { signal: AbortSignal.timeout(10000) },
+        );
+        credentialsChecked = true;
+        credentialsValid = r.ok;
+        providerMessage = r.ok
+          ? "Identifiants Vonage valides (compte joignable)."
+          : `Vonage a refuse les identifiants (HTTP ${r.status}).`;
+      } else {
+        providerMessage = "Champs de configuration presents. Les identifiants n'ont PAS ete verifies aupres du fournisseur : ce test n'est pas encore disponible pour ce fournisseur.";
+      }
+    } catch (err) {
+      credentialsChecked = true;
+      credentialsValid = null;
+      providerMessage = `Le fournisseur n'a pas repondu (${err instanceof Error ? err.message : "erreur reseau"}). Les identifiants peuvent malgre tout etre corrects.`;
+    }
+
     res.json({
       provider: provider.provider,
       label: provider.label,
       status: provider.isActive ? "actif" : "inactif",
       capabilities: provider.capabilities,
       phoneNumbers: provider.phoneNumbers,
-      configValid: validateProviderConfig(provider.provider, config).valid,
-      voiceReady: hasVoice && !!config.fromNumber,
-      smsReady: hasSms && !!config.fromNumber,
-      message: "Configuration verifiee avec succes",
+      configValid,
+      credentialsChecked,
+      credentialsValid,
+      // "Pret" exige des identifiants confirmes quand on sait les verifier:
+      // un numero renseigne ne prouve rien si le compte refuse la connexion.
+      voiceReady: Boolean(hasVoice && config.fromNumber && credentialsValid !== false),
+      smsReady: Boolean(hasSms && config.fromNumber && credentialsValid !== false),
+      message: providerMessage,
     });
   } catch (err: any) {
     req.log.error({ err }, "Erreur test fournisseur telephonie");

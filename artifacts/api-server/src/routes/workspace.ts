@@ -168,6 +168,19 @@ router.post("/connect/:platform/:serviceId", requireRole("administrateur", "supe
     const service = platformServices.find(s => s.id === serviceId);
     if (!service) { res.status(404).json({ error: "Service inconnu." }); return; }
 
+    // Microsoft et Apple: aucun flux OAuth n'existe dans l'application. Cette
+    // route se contentait d'ecrire status:"connecte" sans le moindre jeton,
+    // et l'ecran affichait "Service connecte avec succes" — l'utilisateur
+    // croyait sa boite Outlook reliee alors que rien ne l'etait. Pire, l'ecran
+    // de decouverte (routes/discovery.ts) relit ces lignes comme preuve qu'un
+    // service est actif. On refuse donc de fabriquer cet etat.
+    if (platform !== "google") {
+      res.status(501).json({
+        error: `La connexion ${PLATFORM_NAMES[platform] ?? platform} n'est pas encore disponible : elle necessite une autorisation OAuth qui n'est pas implementee.`,
+      });
+      return;
+    }
+
     const now = new Date();
     await db.insert(platformConnectionsTable).values({
       organisationId: orgId,
@@ -242,6 +255,15 @@ router.post("/connect-all/:platform", requireRole("administrateur", "super_admin
     const platformServices = ALL_PLATFORM_SERVICES[platform];
     if (!platformServices) { res.status(404).json({ error: "Plateforme inconnue." }); return; }
 
+    // Meme raison que /connect/:platform/:serviceId: sans OAuth, marquer des
+    // dizaines de services "connectes" d'un clic ne relie rien du tout.
+    if (platform !== "google") {
+      res.status(501).json({
+        error: `La connexion ${PLATFORM_NAMES[platform] ?? platform} n'est pas encore disponible : elle necessite une autorisation OAuth qui n'est pas implementee.`,
+      });
+      return;
+    }
+
     const now = new Date();
     for (const svc of platformServices) {
       await db.insert(platformConnectionsTable).values({
@@ -312,24 +334,27 @@ router.post("/sync/:platform", requireRole("administrateur", "super_admin"), asy
       .set({ lastSync: now, updatedAt: now })
       .where(and(eq(platformConnectionsTable.organisationId, orgId), eq(platformConnectionsTable.platform, platform), eq(platformConnectionsTable.status, "connecte")));
 
-    const itemCounts: Record<string, number> = {};
-    for (const conn of connected) {
-      itemCounts[conn.serviceId] = Math.floor(Math.random() * 50) + 1;
-    }
-
+    // Aucun compteur invente ici.
+    //
+    // Cette route generait auparavant un nombre d'elements aleatoire par
+    // service (Math.random()) et l'ecrivait dans platform_sync_logs, affiche
+    // ensuite comme "Journal des connexions". C'etait de la donnee fabriquee
+    // presentee comme un historique verifiable — inacceptable dans un journal.
+    // Tant qu'aucune synchronisation reelle n'est implementee, on se contente
+    // d'horodater et on le dit.
     await db.insert(platformSyncLogsTable).values({
       organisationId: orgId,
       platform, serviceId: "all", action: "synchronisation", status: "succes",
-      details: `${connected.length} services synchronises pour ${PLATFORM_NAMES[platform]}.`,
-      itemsProcessed: String(Object.values(itemCounts).reduce((a, b) => a + b, 0)),
+      details: `Horodatage mis a jour pour ${connected.length} service(s) ${PLATFORM_NAMES[platform]}. Aucun transfert de donnees: la synchronisation reelle n'est pas encore implementee.`,
+      itemsProcessed: "0",
     });
 
     res.json({
       status: "termine",
-      message: `Synchronisation terminee pour ${connected.length} services.`,
+      message: `Horodatage mis a jour pour ${connected.length} service(s). La synchronisation des donnees n'est pas encore disponible.`,
       syncedAt: now,
       servicesSync: connected.length,
-      itemCounts,
+      itemCounts: {},
     });
   } catch (error: any) {
     logger.error({ err: error }, "Sync error:");
