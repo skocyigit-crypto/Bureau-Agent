@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { RefreshCw, X, Download, Sparkles, AlertTriangle, ChevronDown, ChevronUp, Rocket, Shield, Zap, Bug } from "lucide-react";
 
-const POLL_INTERVAL_MS = 60 * 1000;
+// 5 min et non 1 min: ce sondage interroge DEUX endpoints a chaque tour, soit
+// 120 requetes/heure par onglet uniquement pour verifier s'il existe une
+// nouvelle version — de loin le sondage le plus couteux de l'application, pour
+// une information qui ne change que lors d'un deploiement. Il est de plus
+// suspendu quand l'onglet est masque (cf. plus bas).
+const POLL_INTERVAL_MS = 5 * 60 * 1000;
 
 interface ReleaseInfo {
   id: number;
@@ -83,13 +88,37 @@ export function UpdateBanner() {
   }, []);
 
   useEffect(() => {
+    // Le sondage ne tourne QUE si l'onglet est visible: un onglet en
+    // arriere-plan n'a aucune banniere a afficher, et ses requetes suffisent a
+    // maintenir une instance Cloud Run eveillee (donc facturee). Au retour au
+    // premier plan on verifie immediatement, l'utilisateur ne perd rien.
+    const startPolling = () => {
+      if (timerRef.current) return;
+      timerRef.current = setInterval(checkForUpdates, POLL_INTERVAL_MS);
+    };
+    const stopPolling = () => {
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    };
+
     const delay = setTimeout(() => {
       checkForUpdates();
-      timerRef.current = setInterval(checkForUpdates, POLL_INTERVAL_MS);
+      startPolling();
     }, 5000);
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        checkForUpdates();
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
       clearTimeout(delay);
-      if (timerRef.current) clearInterval(timerRef.current);
+      document.removeEventListener("visibilitychange", onVisibility);
+      stopPolling();
     };
   }, [checkForUpdates]);
 

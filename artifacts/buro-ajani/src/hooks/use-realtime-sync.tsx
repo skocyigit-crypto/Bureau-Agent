@@ -155,15 +155,40 @@ export function useRealtimeSync() {
   useEffect(() => {
     connect();
 
+    // Onglet masque: on FERME le flux au lieu de le laisser ouvert.
+    //
+    // Une connexion SSE ouverte empeche Cloud Run d'arreter l'instance: un
+    // onglet oublie en arriere-plan facturait donc un serveur en continu. Un
+    // onglet masque n'a de toute facon aucun affichage a rafraichir, et le
+    // retour au premier plan rebranche le flux et rejoue une synchronisation
+    // (la reconnexion invalide les caches, cf. connect()).
+    //
+    // Delai de grace: un passage rapide d'onglet ne doit pas provoquer un
+    // cycle fermeture/reouverture a chaque alt-tab.
+    const HIDDEN_GRACE_MS = 60_000;
+    let hiddenTimer: ReturnType<typeof setTimeout> | null = null;
+
     const handleVisibility = () => {
-      if (document.visibilityState === "visible" && !esRef.current) {
-        connect();
+      if (document.visibilityState === "visible") {
+        if (hiddenTimer) { clearTimeout(hiddenTimer); hiddenTimer = null; }
+        if (!esRef.current) connect();
+        return;
       }
+      if (hiddenTimer) return;
+      hiddenTimer = setTimeout(() => {
+        hiddenTimer = null;
+        if (reconnectTimer.current) { clearTimeout(reconnectTimer.current); reconnectTimer.current = null; }
+        if (esRef.current) {
+          esRef.current.close();
+          esRef.current = null;
+        }
+      }, HIDDEN_GRACE_MS);
     };
     document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibility);
+      if (hiddenTimer) clearTimeout(hiddenTimer);
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       if (esRef.current) {
         esRef.current.close();

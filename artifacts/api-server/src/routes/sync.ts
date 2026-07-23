@@ -27,8 +27,32 @@ router.get("/sync/events", (req, res): void => {
     }
   }, 25000);
 
+  // Duree de vie maximale du flux.
+  //
+  // Sans elle, un simple onglet laisse ouvert (meme en arriere-plan) maintient
+  // une connexion indefiniment: Cloud Run ne peut jamais arreter l'instance et
+  // la facture court en continu, ce qui annule tout l'interet de
+  // min-instances=0. Au bout du delai on ferme proprement; le client se
+  // reconnecte tout seul (use-realtime-sync.tsx gere deja la reprise), donc le
+  // temps reel n'est pas perdu — l'instance obtient juste une fenetre pour
+  // s'eteindre si plus personne ne travaille.
+  const maxMs = Number(process.env.SSE_MAX_DURATION_MS || 30 * 60 * 1000);
+  const maxLifetime = setTimeout(() => {
+    try {
+      // `retry` indique au navigateur d'attendre avant de revenir: sur un
+      // onglet inactif, cela evite qu'il se rebranche instantanement et
+      // reveille l'instance pour rien.
+      res.write("retry: 60000\n");
+      res.write(`data: ${JSON.stringify({ type: "ping", action: "reconnect", ts: Date.now() })}\n\n`);
+    } catch { /* le flux est peut-etre deja mort */ }
+    clearInterval(heartbeat);
+    unsubscribe();
+    res.end();
+  }, maxMs);
+
   req.on("close", () => {
     clearInterval(heartbeat);
+    clearTimeout(maxLifetime);
     unsubscribe();
   });
 });
