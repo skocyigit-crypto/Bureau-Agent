@@ -3,6 +3,7 @@ import { requireAuth, requireSuperAdmin } from "../middleware/auth";
 import { requireTenant } from "../middleware/tenant";
 import { licenseCheck } from "../middleware/license-check";
 import healthRouter from "./health";
+import cronTickRouter from "./cron-tick";
 import authRouter from "./auth";
 import registerRouter from "./register";
 import callsRouter from "./calls";
@@ -95,6 +96,8 @@ import aiProvidersRouter from "./ai-providers";
 const router: IRouter = Router();
 
 router.use(healthRouter);
+// Declencheur Cloud Scheduler: pas de session, protege par secret partage.
+router.use(cronTickRouter);
 router.use(authRouter);
 router.use(registerRouter);
 router.use(demoRequestRouter);

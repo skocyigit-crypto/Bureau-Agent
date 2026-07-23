@@ -29,6 +29,7 @@ import {
   errorRateAgent,
   dataIntegrityAgent,
 } from "./health-agents-external";
+import { registerRunnableCron } from "./cron-registry";
 
 export type CheckStatus = "ok" | "degrade" | "echec" | "inconnu";
 export type CheckSeverity = "basse" | "moyenne" | "haute" | "critique";
@@ -313,7 +314,7 @@ export function withHeartbeat(
   // qu'on veut detecter.
   void registerCron(name, intervalSec);
 
-  return () => {
+  const run = () => {
     void (async () => {
       try {
         await tick();
@@ -323,6 +324,13 @@ export function withHeartbeat(
       }
     })();
   };
+
+  // Inscription au registre pour permettre un declenchement EXTERNE
+  // (Cloud Scheduler -> /api/cron/tick). Sans cela, une instance arretee par
+  // Cloud Run emporte ses setInterval avec elle et la tache ne tourne plus.
+  registerRunnableCron(name, intervalMs, run);
+
+  return run;
 }
 
 const schedulerAgent: HealthAgent = {
