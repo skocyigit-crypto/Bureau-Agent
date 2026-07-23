@@ -3,10 +3,79 @@
 # both container images and deploys both Cloud Run services in sequence, so
 # the web service always points at the api revision from the SAME commit.
 steps:
+  # Deployment gate. Cloud Build triggers are independent from GitHub Actions;
+  # without this step a commit can reach Cloud Run while its CI typecheck is
+  # still running (or has already failed).
+  - id: quality-gate
+    name: 'node:24-bookworm-slim'
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        corepack enable
+        corepack prepare pnpm@9.15.0 --activate
+        pnpm install --frozen-lockfile
+        pnpm run typecheck
+        pnpm run security:audit
+
+  - id: start-test-db
+    name: 'gcr.io/cloud-builders/docker'
+    args:
+      - run
+      - --detach
+      - --name=agent-bureau-ci-postgres
+      - --network=cloudbuild
+      - --health-cmd=pg_isready -U postgres -d agent_de_bureau_test
+      - --health-interval=2s
+      - --health-timeout=3s
+      - --health-retries=30
+      - -e
+      - POSTGRES_USER=postgres
+      - -e
+      - POSTGRES_PASSWORD=postgres
+      - -e
+      - POSTGRES_DB=agent_de_bureau_test
+      - postgres:16
+    waitFor: ['quality-gate']
+
+  - id: test-gate
+    name: 'node:24-bookworm-slim'
+    entrypoint: bash
+    env:
+      - 'DATABASE_URL=postgresql://postgres:postgres@agent-bureau-ci-postgres:5432/agent_de_bureau_test'
+      - 'AI_INTEGRATIONS_GEMINI_BASE_URL=http://127.0.0.1:9/unused'
+      - 'AI_INTEGRATIONS_GEMINI_API_KEY=ci-placeholder'
+      - 'AI_INTEGRATIONS_OPENAI_BASE_URL=http://127.0.0.1:9/unused'
+      - 'AI_INTEGRATIONS_OPENAI_API_KEY=ci-placeholder'
+    args:
+      - -ceu
+      - |
+        corepack enable
+        corepack prepare pnpm@9.15.0 --activate
+        for attempt in $(seq 1 30); do
+          node -e "const net=require('net');const s=net.connect(5432,'agent-bureau-ci-postgres',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1))" && break
+          if [ "$attempt" = 30 ]; then echo "Test database did not become ready"; exit 1; fi
+          sleep 2
+        done
+        cd lib/db
+        node ./scripts/ensure-search-extensions.mjs
+        node ./scripts/ensure-unique-constraint-names.mjs
+        node ./scripts/ensure-automation-logs-rule-id.mjs
+        node ./scripts/ensure-fk-orphans.mjs
+        pnpm exec drizzle-kit push --force --config ./drizzle.config.ts
+        node ./scripts/ensure-audit-append-only.mjs
+        cd ../..
+        pnpm --filter @workspace/api-server run test
+        pnpm --filter @workspace/mobile run test
+        pnpm --filter @workspace/tanitim run test
+        pnpm --filter @workspace/demo-handoff run test
+    waitFor: ['start-test-db']
+
   - id: build-api
     name: 'gcr.io/cloud-builders/docker'
     env: ['DOCKER_BUILDKIT=1']
     args: ['build', '-f', 'deploy/Dockerfile.api', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/api:${SHORT_SHA}', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/api:latest', '.']
+    waitFor: ['test-gate']
 
   - id: push-api
     name: 'gcr.io/cloud-builders/docker'
@@ -29,7 +98,7 @@ steps:
     name: 'gcr.io/cloud-builders/docker'
     env: ['DOCKER_BUILDKIT=1']
     args: ['build', '-f', 'deploy/Dockerfile.web.cloudrun', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/web:${SHORT_SHA}', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/web:latest', '.']
-    waitFor: ['-']
+    waitFor: ['test-gate']
 
   - id: push-web
     name: 'gcr.io/cloud-builders/docker'
@@ -52,7 +121,7 @@ steps:
     name: 'gcr.io/cloud-builders/docker'
     env: ['DOCKER_BUILDKIT=1']
     args: ['build', '-f', 'deploy/Dockerfile.tanitim.cloudrun', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/tanitim:${SHORT_SHA}', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/tanitim:latest', '.']
-    waitFor: ['-']
+    waitFor: ['test-gate']
 
   - id: push-tanitim
     name: 'gcr.io/cloud-builders/docker'

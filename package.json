@@ -8,7 +8,9 @@
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
-    "test": "pnpm -r --if-present --workspace-concurrency=1 run test"
+    "test": "pnpm -r --if-present --workspace-concurrency=1 run test",
+    "test:local": "node ./scripts/run-tests-local.mjs",
+    "security:audit": "pnpm audit --prod --audit-level high"
   },
   "private": true,
   "devDependencies": {

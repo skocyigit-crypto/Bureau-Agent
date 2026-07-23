@@ -111,7 +111,7 @@ const FAQ_ITEMS: { q: string; a: string }[] = [
   },
   {
     q: "Quelles integrations sont disponibles?",
-    a: "Ajant Bureau propose 58 integrations natives : Google Workspace (26 services avec Hub integre), Microsoft 365 (19 services) et Apple/iCloud (13 services). Plus Salesforce, HubSpot, Slack, Notion, Zapier et bien d'autres. API ouverte pour connecter vos propres outils."
+    a: "Aujourd'hui : Google Workspace (Gmail, Agenda, Drive) via OAuth securise, la telephonie avec 6 operateurs (Twilio, Vonage, Telnyx, Plivo, Sinch, Bandwidth), l'envoi d'e-mails (Resend), les paiements (Stripe) et trois fournisseurs d'IA (Gemini, OpenAI, Anthropic). D'autres connexions, dont Microsoft 365, Apple/iCloud et plusieurs CRM, sont en cours de developpement."
   },
   {
     q: "Proposez-vous une application mobile?",
@@ -868,18 +868,25 @@ export default function Home() {
             comme de vrais temoignages. A reintroduire uniquement avec de vrais
             clients ayant donne leur accord. */}
 
-        {/* 11. INTEGRATIONS SECTION */}
+        {/* 11. INTEGRATIONS SECTION
+            Refonte pour ne presenter QUE les integrations reellement
+            fonctionnelles. L'ancienne version annoncait "58 integrations
+            natives" avec Microsoft 365, Apple/iCloud et un catalogue
+            (Salesforce, Slack, HubSpot...) dont aucun n'est implemente — le
+            backend renvoie d'ailleurs 501 pour ces connexions. On distingue
+            desormais clairement "Disponibles" et "A venir". */}
         <section id="integrations" className="py-24 bg-muted/30 border-y border-border">
           <div className="container mx-auto px-4 text-center">
-            <span className="text-accent font-bold tracking-widest uppercase text-sm mb-4 block">Ecosysteme Complet</span>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-primary mb-4">58 integrations natives</h2>
-            <p className="text-lg text-muted-foreground mb-12 max-w-2xl mx-auto">Connectez l'ensemble de vos outils professionnels en un clic. Trois ecosystemes, une seule plateforme.</p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto mb-12">
+            <span className="text-accent font-bold tracking-widest uppercase text-sm mb-4 block">Ecosysteme</span>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-primary mb-4">Vos outils, connectes</h2>
+            <p className="text-lg text-muted-foreground mb-12 max-w-2xl mx-auto">Les integrations disponibles aujourd'hui, et celles en cours de developpement.</p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto mb-12">
               {[
-                { name: "Google Workspace", count: 26, color: "bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800", tools: ["Gmail", "Calendar", "Drive", "Meet", "Docs", "Sheets"] },
-                { name: "Microsoft 365", count: 19, color: "bg-[#0078D4]/5 border-[#0078D4]/20", tools: ["Outlook", "Teams", "OneDrive", "Word", "Excel", "SharePoint"] },
-                { name: "Apple / iCloud", count: 13, color: "bg-gray-50 border-gray-200 dark:bg-gray-900/20 dark:border-gray-700", tools: ["iCloud Mail", "Calendrier", "iCloud Drive", "FaceTime", "Pages", "Notes"] },
+                { name: "Google Workspace", note: "OAuth securise", color: "bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800", tools: ["Gmail", "Agenda", "Drive"] },
+                { name: "Telephonie", note: "6 operateurs", color: "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800", tools: ["Twilio", "Vonage", "Telnyx", "Plivo", "Sinch", "Bandwidth"] },
+                { name: "E-mail & Paiement", note: "cle par organisation", color: "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800", tools: ["Resend", "Stripe"] },
+                { name: "Intelligence artificielle", note: "3 fournisseurs", color: "bg-violet-50 border-violet-200 dark:bg-violet-950/20 dark:border-violet-800", tools: ["Gemini", "OpenAI", "Anthropic"] },
               ].map((platform, i) => (
                 <motion.div
                   key={i}
@@ -891,25 +898,27 @@ export default function Home() {
                 >
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-bold text-lg text-foreground">{platform.name}</h3>
-                    <span className="text-sm font-bold text-accent">{platform.count} services</span>
+                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1"><CheckCircle2 className="w-4 h-4" /> Disponible</span>
                   </div>
+                  <p className="text-xs text-muted-foreground mb-4">{platform.note}</p>
                   <div className="flex flex-wrap gap-2">
                     {platform.tools.map((tool, j) => (
                       <span key={j} className="px-3 py-1 bg-background/80 border border-border rounded-lg text-xs font-medium text-muted-foreground">{tool}</span>
                     ))}
-                    <span className="px-3 py-1 bg-accent/10 border border-accent/20 rounded-lg text-xs font-bold text-accent">+{platform.count - platform.tools.length}</span>
                   </div>
                 </motion.div>
               ))}
             </div>
 
-            <div className="flex flex-wrap justify-center items-center gap-4 md:gap-6">
-              {['Salesforce', 'Slack', 'Zoom', 'HubSpot', 'Notion', 'Zapier', 'Resend', 'Stripe'].map((integration, i) => (
-                <div key={i} className="px-5 py-2.5 bg-card border border-border rounded-xl shadow-sm font-bold text-sm text-muted-foreground hover:text-primary hover:border-primary hover:shadow-md transition-all cursor-pointer">
-                  {integration}
-                </div>
-              ))}
-              <span className="text-sm text-muted-foreground font-medium">+ 13 autres</span>
+            <div className="max-w-3xl mx-auto">
+              <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-4">En cours de developpement</p>
+              <div className="flex flex-wrap justify-center items-center gap-3">
+                {['Microsoft 365', 'Apple / iCloud', 'Salesforce', 'HubSpot', 'Slack', 'Notion', 'Zapier'].map((integration, i) => (
+                  <div key={i} className="px-4 py-2 bg-card border border-dashed border-border rounded-xl text-sm font-medium text-muted-foreground/70">
+                    {integration}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>

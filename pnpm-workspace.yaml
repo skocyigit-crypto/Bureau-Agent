@@ -36,6 +36,16 @@ onlyBuiltDependencies:
 
 overrides:
   '@esbuild-kit/esm-loader': npm:tsx@^4.21.0
+  # Security floors for vulnerable transitive dependencies. Keep each
+  # version-qualified override inside the major requested by its parent so
+  # pnpm cannot silently introduce a breaking major upgrade.
+  '@babel/core': '>=7.29.6'
+  body-parser: '>=2.3.0'
+  brace-expansion@1: '>=1.1.16'
+  brace-expansion@2: '>=2.1.2'
+  brace-expansion@3: '>=3.0.2'
+  brace-expansion@4: '>=4.0.2'
+  brace-expansion@5: '>=5.0.7'
   '@expo/ngrok-bin>@expo/ngrok-bin-darwin-arm64': '-'
   '@expo/ngrok-bin>@expo/ngrok-bin-darwin-x64': '-'
   '@expo/ngrok-bin>@expo/ngrok-bin-freebsd-ia32': '-'
@@ -84,7 +94,10 @@ overrides:
   esbuild>@esbuild/win32-ia32: '-'
   esbuild>@esbuild/win32-x64: '-'
   fast-uri: '>=3.1.2'
+  ip-address: '>=10.1.1'
   jest-util>picomatch: '>=4.0.4'
+  js-yaml@3: '>=3.15.0'
+  js-yaml@4: '>=4.3.0'
   js-cookie: '>=3.0.7'
   lightningcss>lightningcss-android-arm64: '-'
   lightningcss>lightningcss-darwin-arm64: '-'
@@ -99,6 +112,7 @@ overrides:
   lodash: '>=4.18.0'
   micromatch>picomatch: '>=4.0.4'
   path-to-regexp: '>=8.4.0'
+  postcss: '>=8.5.12'
   # picomatch ReDoS (GHSA, fixed >=4.0.4). The version-keyed `picomatch@4`
   # override below does NOT reach the deep transitive instances on its own,
   # so the precise nested-path overrides above (jest-util>picomatch,
@@ -110,6 +124,7 @@ overrides:
   # resolved — purely security floors. Revisit if a future dep pins an
   # older major (js-cookie@2 / protobufjs@6) and conflicts.
   protobufjs: '^7.5.6'
+  qs: '>=6.15.2'
   rollup>@rollup/rollup-android-arm-eabi: '-'
   rollup>@rollup/rollup-android-arm64: '-'
   rollup>@rollup/rollup-darwin-arm64: '-'
@@ -134,3 +149,10 @@ overrides:
   rollup>@rollup/rollup-win32-ia32-msvc: '-'
   rollup>@rollup/rollup-win32-x64-gnu: '-'
   rollup>@rollup/rollup-win32-x64-msvc: '-'
+  shell-quote: '>=1.9.0'
+  tar@7: '>=7.5.19'
+  undici@6: '>=6.27.0'
+  uuid@11: '>=11.1.1'
+  ws@6: '>=6.2.4'
+  ws@7: '>=7.5.11'
+  yaml: '>=2.8.3'
