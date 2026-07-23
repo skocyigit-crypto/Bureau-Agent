@@ -381,7 +381,11 @@ export default function WorkforceAgentScreen() {
 
   const { phases, agentLog, employees, teamScore, employeeCount, managerName, date } = data;
   const risk = phases.scout?.risk_seviyesi ?? "sari";
-  const riskCfg = RISK_CONFIG[risk];
+  // Repli si le backend renvoie une valeur inattendue: `?? "sari"` ne couvre
+  // que null/undefined, une autre chaine donnerait riskCfg = undefined et
+  // riskCfg.bg planterait TOUT l'ecran (crash RN, pas juste un panneau vide).
+  // Les autres lookups du fichier utilisent deja ce repli.
+  const riskCfg = RISK_CONFIG[risk] ?? RISK_CONFIG.sari;
   const totalAgentTime = agentLog.reduce((s, l) => s + l.durationMs, 0);
 
   return (

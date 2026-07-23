@@ -85,7 +85,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (apiToken && !headers["Authorization"] && !headers["authorization"]) {
       headers["Authorization"] = `Bearer ${apiToken}`;
     }
-    return fetch(url, { ...options, headers });
+    const res = await fetch(url, { ...options, headers });
+
+    // Deconnexion centralisee sur 401.
+    //
+    // Le token n'etait verifie qu'au demarrage a froid (restoreSession). Si le
+    // Bearer expirait ou etait revoque en cours de session, chaque ecran
+    // recevait un 401 et affichait des donnees vides ou une erreur generique,
+    // l'utilisateur restant "connecte" indefiniment sans comprendre pourquoi
+    // plus rien ne se chargeait. On efface donc la session ici, a la source: le
+    // gardien d'authentification (app/index.tsx) renvoie alors vers l'ecran de
+    // connexion. On ignore le 401 de /auth/me et /auth/login eux-memes, qui font
+    // partie du flux normal de verification/connexion.
+    if (res.status === 401 && apiTokenRef.current) {
+      const isAuthProbe = url.includes("/api/auth/me") || url.includes("/api/auth/login");
+      if (!isAuthProbe) {
+        await clearSessionToken().catch(() => {});
+        setApiToken(null);
+        setUser(null);
+      }
+    }
+    return res;
   }, [apiToken]);
 
   useEffect(() => {
