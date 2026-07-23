@@ -33,7 +33,7 @@ const IDLE_TX_TIMEOUT_MS = parseInt(process.env.DB_IDLE_IN_TX_TIMEOUT_MS || "600
 // un pool de 20 x plusieurs instances epuisait instantanement les slots et
 // TOUTES les requetes repondaient 500 ("remaining connection slots are
 // reserved..."). 8 par instance laisse de la marge meme pendant un rollout.
-const POOL_MAX = parseInt(process.env.DB_POOL_MAX || "8", 10);
+const POOL_MAX = parseInt(process.env.DB_POOL_MAX || "15", 10);
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,

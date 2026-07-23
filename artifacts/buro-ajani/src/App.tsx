@@ -88,7 +88,15 @@ import DepensesPage from "@/pages/depenses";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 2,
+      // Ne PAS rejouer les erreurs 4xx: elles sont definitives (403 licence
+      // bloquee, 401 session expiree, 404). Les rejouer triplait la charge
+      // exactement quand le serveur etait deja en difficulte, et retardait
+      // l'affichage du vrai message d'erreur de plusieurs secondes.
+      retry: (failureCount, error: unknown) => {
+        const status = (error as { status?: number })?.status;
+        if (typeof status === "number" && status >= 400 && status < 500) return false;
+        return failureCount < 2;
+      },
       retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
       staleTime: 30_000,
       refetchOnWindowFocus: true,
@@ -116,10 +124,28 @@ function LicenseGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/**
+ * Enveloppe un composant de page dans le controle de licence.
+ *
+ * Le resultat est MEMOISE par composant. Sans cela, chaque appel renvoyait une
+ * nouvelle fonction: comme ces appels ont lieu dans le rendu de `AppRoutes`
+ * (qui se re-rend a chaque changement d'URL), React voyait un type d'element
+ * different a chaque fois et demontait/remontait toute la page. Chaque remontage
+ * remettait `useLicenseCheck` a `loading: true` — donc un spinner — et relancait
+ * l'appel de verification plus toutes les requetes de la page. Sur un compte non
+ * super-admin, ou chaque requete coute deux allers-retours supplementaires en
+ * base, cela suffisait a saturer le pool a repetition.
+ */
+const licenseGateCache = new Map<React.ComponentType, React.ComponentType<any>>();
+
 function withLicenseGate(Component: React.ComponentType) {
-  return function GatedComponent(props: any) {
+  const cached = licenseGateCache.get(Component);
+  if (cached) return cached;
+  const Gated = function GatedComponent(props: any) {
     return <LicenseGate><Component {...props} /></LicenseGate>;
   };
+  licenseGateCache.set(Component, Gated);
+  return Gated;
 }
 
 function AnimatedRouteContent({ children }: { children: React.ReactNode }) {

@@ -55,13 +55,54 @@ export function licenseCheck(req: Request, res: Response, next: NextFunction): v
     });
 }
 
-export async function checkLicense(orgId: number, method: string, path: string): Promise<{ allowed: boolean; reason?: string; message?: string }> {
+/**
+ * Cache de l'etat de licence par organisation.
+ *
+ * Sans lui, CHAQUE requete d'un utilisateur non super-admin declenchait deux
+ * allers-retours en base (organisation + abonnement) avant meme d'atteindre son
+ * handler. Au demarrage, l'application emet une quinzaine de requetes en
+ * parallele: cela faisait 45 acquisitions de connexion pour un pool bien plus
+ * petit. Le pool saturait, les requetes expiraient au bout de 10 s, React Query
+ * les rejouait — l'application restait bloquee plusieurs minutes.
+ *
+ * Le super-admin n'etait pas touche puisqu'il court-circuite ce controle: d'ou
+ * un bug qui ne se voyait que chez les utilisateurs des organisations clientes.
+ *
+ * TTL court (30 s): une suspension d'abonnement prend effet en moins d'une
+ * minute, ce qui est largement suffisant pour un controle d'acces commercial,
+ * et `invalidateLicenseCache` permet de le rendre immediat.
+ */
+const LICENSE_TTL_MS = 30_000;
+type LicenseState = { org: typeof organisationsTable.$inferSelect | null; sub: typeof subscriptionsTable.$inferSelect | null };
+const licenseCache = new Map<number, { state: LicenseState; at: number }>();
+
+/** A appeler quand un abonnement ou une organisation change (suspension, reactivation). */
+export function invalidateLicenseCache(orgId?: number): void {
+  if (orgId === undefined) licenseCache.clear();
+  else licenseCache.delete(orgId);
+}
+
+async function loadLicenseState(orgId: number): Promise<LicenseState> {
+  const hit = licenseCache.get(orgId);
+  if (hit && Date.now() - hit.at < LICENSE_TTL_MS) return hit.state;
+
   const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, orgId));
+  const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, orgId));
+  const state: LicenseState = { org: org ?? null, sub: sub ?? null };
+
+  // Borne de securite: en multi-tenant, un cache non borne grossit avec le
+  // nombre d'organisations vues par l'instance.
+  if (licenseCache.size > 500) licenseCache.clear();
+  licenseCache.set(orgId, { state, at: Date.now() });
+  return state;
+}
+
+export async function checkLicense(orgId: number, method: string, path: string): Promise<{ allowed: boolean; reason?: string; message?: string }> {
+  const { org, sub } = await loadLicenseState(orgId);
   if (!org || !org.actif) {
     return { allowed: false, reason: "org_inactive", message: "Votre organisation est inactive. Contactez l'administrateur." };
   }
 
-  const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, orgId));
   if (!sub) return { allowed: true };
 
   // Data protection: GET requests + data export endpoints toujours autorises

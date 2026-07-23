@@ -9,6 +9,7 @@ const router = Router();
 
 import { escapeHtml } from "../lib/html-escape";
 import { enqueueProposal } from "../services/proposal-queue";
+import { invalidateLicenseCache } from "../middleware/license-check";
 
 const APP_URL = process.env.PUBLIC_URL || process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "agentdebureau.fr"}`;
 
@@ -756,6 +757,9 @@ router.post("/license-management/orgs/:id/suspend", async (req: Request, res: Re
     if (!conf.ok) { res.status(400).json({ error: conf.error }); return; }
     const previousState = { status: sub.status, suspendedAt: sub.suspendedAt, suspensionReason: sub.suspensionReason };
     await db.update(subscriptionsTable).set({ status: "suspended", suspendedAt: new Date(), suspensionReason: "manual", updatedAt: new Date() }).where(eq(subscriptionsTable.organisationId, targetOrgId));
+    // L'etat de licence est mis en cache 30 s cote middleware: sans cette
+    // invalidation, une suspension ne prendrait effet qu'apres expiration.
+    invalidateLicenseCache(targetOrgId);
     await logAudit(targetOrgId, "manual_suspended_by_admin", `Suspendu manuellement par super_admin (org: ${org.name}): ${reason}`, adminUserId, { reason, previousState, orgName: org.name, ipAddress: req.ip ?? null });
     res.json({ success: true, previousState, dataAccess: "Donnees preservees — acces lecture seule maintenu pour l'organisation" });
   } catch (err: any) { logger.error({ err }, "Erreur suspend"); res.status(500).json({ error: "Erreur" }); }
@@ -772,6 +776,8 @@ router.post("/license-management/orgs/:id/reactivate", async (req: Request, res:
     const { org, sub } = loaded;
     const previousState = { status: sub.status, suspendedAt: sub.suspendedAt, suspensionReason: sub.suspensionReason, paymentFailedCount: sub.paymentFailedCount };
     await db.update(subscriptionsTable).set({ status: "active", suspendedAt: null, suspensionReason: null, paymentFailedCount: 0, updatedAt: new Date() }).where(eq(subscriptionsTable.organisationId, targetOrgId));
+    // Reactivation immediate, sans attendre l'expiration du cache.
+    invalidateLicenseCache(targetOrgId);
     await logAudit(targetOrgId, "manual_reactivated_by_admin", `Reactive manuellement par super_admin (org: ${org.name})`, req.session?.userId, { previousState, orgName: org.name, ipAddress: req.ip ?? null });
     res.json({ success: true, previousState });
   } catch (err: any) { logger.error({ err }, "Erreur reactivate"); res.status(500).json({ error: "Erreur" }); }
