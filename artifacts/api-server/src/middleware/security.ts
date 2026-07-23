@@ -306,6 +306,16 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction):
     return next();
   }
 
+  // Bypass pour le declencheur de taches planifiees (Cloud Scheduler): il
+  // n'envoie pas d'Origin et n'utilise aucun cookie de session. La protection
+  // CSRF vise les requetes emises par un navigateur avec les cookies de la
+  // victime; ici l'authentification repose sur un secret d'en-tete
+  // (CRON_TRIGGER_SECRET, compare en temps constant dans routes/cron-tick.ts),
+  // qu'un site tiers ne peut pas connaitre ni faire envoyer par un navigateur.
+  if (req.path === "/cron/tick" || req.originalUrl === "/api/cron/tick") {
+    return next();
+  }
+
   // Bypass pour le webhook WhatsApp (Twilio) : signature Twilio verifiee
   // dans le handler, pas d'Origin envoye par Twilio. On limite au chemin
   // exact + methode POST pour ne pas elargir la surface a de futurs sous-
