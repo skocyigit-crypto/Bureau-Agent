@@ -272,6 +272,33 @@ export async function recordCronHeartbeat(
   }
 }
 
+/**
+ * Enveloppe le `tick` d'une tache planifiee pour qu'elle signale son passage.
+ *
+ * A preferer a un appel manuel a recordCronHeartbeat en fin de tick: place ici,
+ * le battement est enregistre meme si le tick leve une exception (le cas
+ * justement interessant), et il n'y a rien a ne pas oublier dans le corps de
+ * la tache. Usage:
+ *   setInterval(withHeartbeat("app-audit", TICK_MS, tick), TICK_MS);
+ */
+export function withHeartbeat(
+  name: string,
+  intervalMs: number,
+  tick: () => Promise<void>,
+): () => void {
+  const intervalSec = Math.round(intervalMs / 1000);
+  return () => {
+    void (async () => {
+      try {
+        await tick();
+        await recordCronHeartbeat(name, intervalSec);
+      } catch (err) {
+        await recordCronHeartbeat(name, intervalSec, err instanceof Error ? err.message : "erreur inconnue");
+      }
+    })();
+  };
+}
+
 const schedulerAgent: HealthAgent = {
   id: "scheduler",
   name: "Taches planifiees",

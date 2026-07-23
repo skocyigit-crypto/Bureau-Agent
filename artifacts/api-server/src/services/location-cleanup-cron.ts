@@ -12,6 +12,7 @@
 import { lt, sql } from "drizzle-orm";
 import { db, locationEventsTable, userLocationStateTable } from "@workspace/db";
 import { logger } from "../lib/logger";
+import { withHeartbeat } from "./health-agents";
 
 const RETENTION_DAYS = 30;
 const TICK_MS = 6 * 60 * 60 * 1000; // 6 saatte bir
@@ -50,7 +51,7 @@ export function startLocationCleanupCron(): void {
   setTimeout(() => {
     void tick();
   }, 60_000);
-  timer = setInterval(() => void tick(), TICK_MS);
+  timer = setInterval(withHeartbeat("location-cleanup", TICK_MS, tick), TICK_MS);
   // unref: cron kapanis sirasinda process'i bloke etmesin.
   if (typeof timer.unref === "function") timer.unref();
   logger.info({ retentionDays: RETENTION_DAYS, tickMs: TICK_MS }, "[location-cleanup-cron] started");

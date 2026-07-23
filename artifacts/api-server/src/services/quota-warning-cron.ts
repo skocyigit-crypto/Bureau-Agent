@@ -3,6 +3,7 @@ import { and, eq, gte, sql, count as sqlCount } from "drizzle-orm";
 import { sendEmail } from "./email";
 import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
+import { withHeartbeat } from "./health-agents";
 
 const WARN_THRESHOLD = 0.8;
 const COOLDOWN_HOURS = 72;
@@ -95,7 +96,7 @@ async function tick() {
 export function startQuotaWarningCron(): void {
   if (timer) return;
   setTimeout(() => { void tick(); }, 60 * 1000);
-  timer = setInterval(() => { void tick(); }, 12 * 60 * 60 * 1000);
+  timer = setInterval(withHeartbeat("quota-warning", 12 * 60 * 60 * 1000, tick), 12 * 60 * 60 * 1000);
   logger.info("[quota-warning] cron demarre — verification toutes les 12h, seuil 80%, cooldown 72h");
 }
 

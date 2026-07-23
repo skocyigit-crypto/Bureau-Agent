@@ -17,6 +17,7 @@
  */
 import { logger } from "../lib/logger";
 import { runInboxScanTick } from "./autonomous-inbox";
+import { withHeartbeat } from "./health-agents";
 
 const TICK_MS = Number(process.env.AUTONOMOUS_INBOX_TICK_MS ?? 30 * 60 * 1000);
 const FIRST_RUN_MS = 2 * 60 * 1000; // premier passage 2 min après le démarrage
@@ -41,7 +42,7 @@ export function startAutonomousInboxCron(): void {
   logger.info({ tickMs: TICK_MS }, "[autonomous-inbox-cron] boîte e-mail autonome démarrée");
 
   setTimeout(() => { tick().catch(() => {}); }, FIRST_RUN_MS);
-  intervalHandle = setInterval(() => { tick().catch(() => {}); }, TICK_MS);
+  intervalHandle = setInterval(withHeartbeat("autonomous-inbox", TICK_MS, tick), TICK_MS);
 
   const shutdown = () => {
     if (intervalHandle) { clearInterval(intervalHandle); intervalHandle = null; }

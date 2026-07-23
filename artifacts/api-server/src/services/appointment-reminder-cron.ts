@@ -36,6 +36,7 @@ import { withDbRetry } from "../lib/db-retry";
 import { sendEmail } from "./email";
 import { sendSms as providerSendSms } from "./telephony-providers";
 import { publicBaseUrl } from "./appointment-offers";
+import { withHeartbeat } from "./health-agents";
 
 const TICK_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -179,7 +180,7 @@ async function tick(): Promise<void> {
 export function startAppointmentReminderCron(): void {
   if (timer) return;
   void tick();
-  timer = setInterval(() => { void tick(); }, TICK_MS);
+  timer = setInterval(withHeartbeat("appointment-reminder", TICK_MS, tick), TICK_MS);
   logger.info(
     { reminderHours: reminderHours(), tickMinutes: TICK_MS / 60000 },
     "[appointment-reminder] demarrage — rappels pre-rendez-vous (configurable via APPOINTMENT_REMINDER_HOURS)",

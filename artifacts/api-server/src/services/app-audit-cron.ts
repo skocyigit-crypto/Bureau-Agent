@@ -16,6 +16,7 @@ import { and, eq, gte } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
 import { runAuditForOrg } from "./app-audit";
+import { withHeartbeat } from "./health-agents";
 
 const TICK_MS = 60 * 60 * 1000; // 1h
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
@@ -94,7 +95,7 @@ export function startAppAuditCron(): void {
 
   // Premier passage différé de 120s pour ne pas alourdir le démarrage.
   setTimeout(() => { tick().catch(() => {}); }, 120 * 1000);
-  intervalHandle = setInterval(() => { tick().catch(() => {}); }, TICK_MS);
+  intervalHandle = setInterval(withHeartbeat("app-audit", TICK_MS, tick), TICK_MS);
 
   const shutdown = () => {
     if (intervalHandle) { clearInterval(intervalHandle); intervalHandle = null; }

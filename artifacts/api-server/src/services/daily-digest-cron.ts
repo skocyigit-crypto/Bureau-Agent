@@ -18,6 +18,7 @@ import { withDbRetry } from "../lib/db-retry";
 import { withCronLock, CRON_LOCK_NAMESPACE } from "../lib/cron-lock";
 import { buildDailyDigest, type DailyDigest } from "../routes/daily-digest";
 import { sendEmail } from "./email";
+import { withHeartbeat } from "./health-agents";
 
 const TICK_MS = 60 * 60 * 1000; // 1h — verifie a chaque heure si c'est l'heure d'envoi
 const SEND_HOUR_UTC = 6; // ~7-8h en France selon heure d'ete/hiver
@@ -145,7 +146,7 @@ export function startDailyDigestCron(): void {
   logger.info("[DailyDigestCron] Digest quotidien démarré");
 
   setTimeout(() => { tick().catch(() => {}); }, 120 * 1000);
-  intervalHandle = setInterval(() => { tick().catch(() => {}); }, TICK_MS);
+  intervalHandle = setInterval(withHeartbeat("daily-digest", TICK_MS, tick), TICK_MS);
 
   const shutdown = () => {
     if (intervalHandle) { clearInterval(intervalHandle); intervalHandle = null; }

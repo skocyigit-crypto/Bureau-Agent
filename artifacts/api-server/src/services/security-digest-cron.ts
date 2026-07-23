@@ -15,6 +15,7 @@ import { computeSecurityScore } from "./security-score";
 import { loadSecurityScoreInput } from "./security-score-input";
 import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
+import { withHeartbeat } from "./health-agents";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000; // fenetre minimale entre deux envois
 const TICK_MS = 24 * 60 * 60 * 1000; // verifie une fois par jour les orgs en retard
@@ -149,7 +150,7 @@ export function startSecurityDigestCron(): void {
   if (timer) return;
   // Premier passage 2 min apres le demarrage, puis une fois par jour.
   setTimeout(() => { void tick(); }, 2 * 60 * 1000);
-  timer = setInterval(() => { void tick(); }, TICK_MS);
+  timer = setInterval(withHeartbeat("security-digest", TICK_MS, tick), TICK_MS);
   logger.info("[security-digest] cron demarre — synthese hebdo (opt-in), fenetre 7j persistee");
 }
 

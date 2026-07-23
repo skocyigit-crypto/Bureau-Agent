@@ -4,6 +4,7 @@ import { sendTrialEndingEmail } from "./email";
 import { logLicenseEvent } from "./license-audit";
 import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
+import { withHeartbeat } from "./health-agents";
 
 let timer: NodeJS.Timeout | null = null;
 type Bucket = "T-3" | "T-1" | "T-0";
@@ -92,7 +93,7 @@ async function tick() {
 export function startTrialWarningCron(): void {
   if (timer) return;
   setTimeout(() => { void tick(); }, 90 * 1000);
-  timer = setInterval(() => { void tick(); }, 6 * 60 * 60 * 1000);
+  timer = setInterval(withHeartbeat("trial-warning", 6 * 60 * 60 * 1000, tick), 6 * 60 * 60 * 1000);
   logger.info("[trial-warning] cron demarre — verification toutes les 6h, dedupe persistante par bucket+trialEndsAt");
 }
 

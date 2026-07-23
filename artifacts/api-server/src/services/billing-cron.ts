@@ -3,6 +3,7 @@ import { db, invoicesTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
+import { withHeartbeat } from "./health-agents";
 
 let lastRunMonth: string | null = null;
 let timer: NodeJS.Timeout | null = null;
@@ -52,7 +53,7 @@ export function startBillingCron(): void {
   // Catch-up on startup (handles missed scheduled runs after downtime)
   void tick();
   // Then check every hour
-  timer = setInterval(() => { void tick(); }, 60 * 60 * 1000);
+  timer = setInterval(withHeartbeat("billing", 60 * 60 * 1000, tick), 60 * 60 * 1000);
   logger.info("[billing-cron] started — hourly check, generates previous-month invoices (catch-up enabled, dedupe via existing invoices)");
 }
 
