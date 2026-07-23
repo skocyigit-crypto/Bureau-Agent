@@ -144,7 +144,21 @@ rm -f "${BUILD_CFG}"
 # ---------------------------------------------------------------------------
 # 6. Deploy the api Cloud Run service.
 # ---------------------------------------------------------------------------
-# min-instances=1 et --no-cpu-throttling ne sont PAS des reglages de confort:
+# IMPORTANT — taches planifiees: le service tourne avec min-instances=0 pour ne
+# pas payer une instance qui dort (~60-70 EUR/mois). Les setInterval s'arretent
+# donc avec l'instance. C'est Cloud Scheduler qui declenche le travail, via un
+# job HTTP a creer UNE FOIS (non gere par ce script):
+#
+#   gcloud scheduler jobs create http agent-de-bureau-cron \
+#     --location=europe-west1 --schedule="*/10 * * * *" --time-zone="Europe/Paris" \
+#     --uri="<URL_API>/api/cron/tick" --http-method=POST --message-body='{}' \
+#     --headers="x-cron-secret=<valeur du secret cron-trigger-secret>,Content-Type=application/json"
+#
+# (europe-west1 car Cloud Scheduler n'existe pas en europe-west9.)
+# Sans ce job, relances, digests et sauvegardes ne partent que si quelqu'un
+# utilise l'application au meme moment — une panne silencieuse.
+#
+# --no-cpu-throttling n'est PAS un reglage de confort:
 # toutes les taches planifiees (relances de paiement, digest quotidien, agents
 # IA, sauvegardes, agents de sante) reposent sur setInterval dans le processus.
 # Avec min-instances=0 l'instance s'arrete faute de trafic et le temps ne
@@ -172,7 +186,7 @@ gcloud run deploy "${API_SERVICE}" \
   --add-cloudsql-instances="${SQL_CONNECTION_NAME}" \
   --update-env-vars="NODE_ENV=production,ADMIN_EMAIL=${ADMIN_EMAIL}" \
   --update-secrets="${SECRET_REFS}" \
-  --min-instances=1 --max-instances=3 --memory=1Gi --cpu=1 --no-cpu-throttling \
+  --min-instances=0 --max-instances=3 --memory=1Gi --cpu=1 --no-cpu-throttling \
   --port=8080
 
 API_URL="$(gcloud run services describe "${API_SERVICE}" --region="${REGION}" --project "${PROJECT}" --format='value(status.url)')"
