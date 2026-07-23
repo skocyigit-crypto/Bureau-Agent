@@ -443,7 +443,23 @@ export const sessionMiddleware = session({
     maxAge: 24 * 60 * 60 * 1000,
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? "strict" : "lax",
+    // "lax" et non "strict".
+    //
+    // Avec "strict", le cookie n'est PAS envoye lorsqu'on arrive depuis un
+    // autre site — y compris sur une navigation legitime. Deux consequences
+    // concretes:
+    //   - le retour de Google OAuth (accounts.google.com -> /google-oauth/
+    //     callback) arrivait sans session, et le callback repondait
+    //     `not_authenticated`: la connexion Google ne pouvait pas aboutir ;
+    //   - un utilisateur ouvrant l'application depuis un lien d'e-mail
+    //     (licence, reinitialisation) etait vu comme deconnecte au premier
+    //     chargement — d'ou des 401 sur /api/auth/me.
+    //
+    // "lax" envoie le cookie sur les navigations de premier niveau en GET,
+    // jamais sur une requete POST cross-site: la protection CSRF reste
+    // effective, et elle est de toute facon doublee par la verification
+    // d'Origin dans middleware/security.ts (csrfProtection).
+    sameSite: "lax",
     path: "/",
   },
 });
