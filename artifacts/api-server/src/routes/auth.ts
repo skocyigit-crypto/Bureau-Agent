@@ -1169,7 +1169,7 @@ router.post("/auth/forgot-password", resetLimiter, async (req: Request, res: Res
       || process.env.REPLIT_DEPLOYMENT_URL
       || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
       || "https://agentdebureau.fr";
-    const appBase = process.env.APP_BASE_PATH || "/buro-ajani";
+    const appBase = process.env.APP_BASE_PATH ?? "";
     const resetLink = `${appUrl}${appBase}?reset_token=${token}`;
 
     const html = `
@@ -1317,7 +1317,7 @@ export async function issueAndSendEmailVerification(userId: number, email: strin
   const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
   await db.update(usersTable).set({ emailVerificationToken: tokenHash, emailVerificationExpiry: expiry, updatedAt: new Date() }).where(eq(usersTable.id, userId));
   const appUrl = process.env.PUBLIC_URL || process.env.APP_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "https://agentdebureau.fr");
-  const appBase = process.env.APP_BASE_PATH || "/buro-ajani";
+  const appBase = process.env.APP_BASE_PATH ?? "";
   const link = `${appUrl}${appBase}?verify_email=${rawToken}`;
   const html = `<div style="font-family:sans-serif;max-width:520px;margin:auto;padding:24px">
     <h2 style="color:#1a2744">Verifiez votre adresse email</h2>

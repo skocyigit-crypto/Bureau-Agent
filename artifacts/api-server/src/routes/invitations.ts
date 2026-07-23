@@ -46,7 +46,7 @@ function getAppUrl(): string {
     || process.env.REPLIT_DEPLOYMENT_URL
     || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
     || "https://agentdebureau.fr";
-  const appPath = process.env.APP_BASE_PATH || "/buro-ajani";
+  const appPath = process.env.APP_BASE_PATH ?? "";
   return `${base}${appPath}`;
 }
 

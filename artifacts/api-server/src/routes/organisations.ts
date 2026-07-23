@@ -448,7 +448,7 @@ router.post("/organisations/:id/resend-license", async (req: Request, res: Respo
       || process.env.REPLIT_DEPLOYMENT_URL
       || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
       || "https://agentdebureau.fr";
-    const appBase = process.env.APP_BASE_PATH || "/buro-ajani";
+    const appBase = process.env.APP_BASE_PATH ?? "";
     const resetLink = `${appUrl}${appBase}?reset_token=${resetToken}`;
 
     const plan = PLANS[sub.plan as PlanKey];

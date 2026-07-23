@@ -23,6 +23,14 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
 
+  // Le Cache Storage n'accepte que http/https. Les extensions de navigateur
+  // emettent des requetes en `chrome-extension:` (et equivalents) qui passent
+  // par le service worker: tenter de les mettre en cache levait
+  // "Request scheme 'chrome-extension' is unsupported" a chaque chargement,
+  // polluant la console des utilisateurs avec une erreur qui ne vient meme pas
+  // de l'application.
+  if (url.protocol !== "http:" && url.protocol !== "https:") return;
+
   // Never cache SSE sync stream or API calls
   if (url.pathname.includes("/api/sync/events")) return;
   if (url.pathname.includes("/api/")) return;

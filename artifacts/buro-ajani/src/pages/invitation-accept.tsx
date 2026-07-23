@@ -28,7 +28,17 @@ const ROLE_LABELS: Record<string, { label: string; icon: React.ElementType }> = 
 
 export default function InvitationAcceptPage() {
   const [, params] = useRoute("/invitation/:token");
-  const token = params?.token;
+  // Repli sur l'URL brute si le routeur n'a pas reconnu le chemin.
+  //
+  // C'est arrive en production: les e-mails d'invitation pointaient vers
+  // /buro-ajani/invitation/<token> (APP_BASE_PATH par defaut) alors que
+  // l'application est servie a la racine. `useRoute` ne trouvait donc pas de
+  // correspondance, `token` restait undefined, la verification n'etait jamais
+  // lancee et la page tournait indefiniment sur son spinner — l'utilisateur
+  // voyait "l'application ne s'ouvre pas". Extraire le token de l'URL rend la
+  // page insensible au prefixe utilise dans le lien.
+  const token = params?.token
+    ?? window.location.pathname.match(/\/invitation\/([^/?#]+)/)?.[1];
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
@@ -55,7 +65,14 @@ export default function InvitationAcceptPage() {
         setLoading(false);
       }
     }
-    if (token) verify();
+    if (token) {
+      verify();
+    } else {
+      // Sans token, ne JAMAIS rester sur le spinner: on affiche une erreur
+      // exploitable plutot qu'une page qui semble figee.
+      setError("Lien d'invitation invalide ou incomplet. Verifiez que vous avez copie l'adresse entiere depuis l'e-mail.");
+      setLoading(false);
+    }
   }, [token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
