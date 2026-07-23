@@ -13,6 +13,7 @@ import { ipProtection, threatDetection, csrfProtection } from "./middleware/secu
 import { hydrateFromBearer } from "./middleware/auth";
 import { guardian } from "./middleware/guardian";
 import { resolveClientIp } from "./lib/request-ip";
+import { recordHttpStatus } from "./services/health-agents-external";
 
 const app: Express = express();
 
@@ -142,6 +143,18 @@ app.use("/api/auth", (_req, res, next) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private, max-age=0");
   res.setHeader("Pragma", "no-cache");
   res.setHeader("Expires", "0");
+  next();
+});
+
+// Comptage des codes de reponse pour l'agent de sante "taux d'erreurs".
+// Place avant le reste de la chaine pour observer TOUTES les reponses, y
+// compris celles rendues par les limiteurs (429) et les erreurs (500) — ce
+// sont precisement les deux signaux qui avaient manque lors des incidents.
+// Cout: un increment en memoire par requete, aucune ecriture en base.
+app.use((req: Request, res: Response, next: NextFunction) => {
+  res.on("finish", () => {
+    try { recordHttpStatus(res.statusCode); } catch { /* ne jamais casser une reponse */ }
+  });
   next();
 });
 

@@ -715,6 +715,34 @@ boyle tasarlanmistir.
 - Rol atama
 - Hesap durumu yonetimi
 
+### Saglik Kontrolu / Sante technique (Sadece Super Admin)
+**Erisim:** Sol menu > Super Admin > **Sante technique**
+
+Uygulamanin **altyapisini** surekli denetleyen 7 ajan. Her ajan kendi dalindan
+sorumludur ve 15 dakikada bir otomatik calisir. **Verifier maintenant** ile
+istediginiz an elle de calistirabilirsiniz.
+
+| Ajan | Ne kontrol eder |
+|---|---|
+| **Base de donnees** | Baglanti havuzu doygunlugu, sorgu gecikmesi, Postgres baglanti sayisi |
+| **Services externes** | Resend / Gemini / Twilio / Stripe / Google'a **gercek** baglanti testi |
+| **Configuration** | Eksik ortam degiskeni, hatali OAuth adresi, NODE_ENV |
+| **Taches planifiees** | Zamanlanmis islerin canlilik takibi (olmus cron tespiti) |
+| **Taux d'erreurs** | 500 ve 429 yanit oranlari |
+| **Ressources serveur** | Bellek, islemci tikanmasi, calisma suresi |
+| **Integrite des donnees** | Yetim kayitlar, yapisal tutarsizliklar |
+
+Her bulgu uc durumdan birindedir: **OK** (yesil), **Degrade** (turuncu, dikkat
+gerekiyor), **En panne** (kirmizi, arizali). Sorunlu bulgularda **ne yapilmasi
+gerektigi** de yazar.
+
+**Neden bu ekran var:** Isletme verisi kontrolleri (gecikmis gorevler, sessiz
+musteriler) bir altyapi arizasini goremez. Yasanmis ornekler: veritabani
+baglanti havuzunun dolmasi tum sayfalari 500 hatasina dusurmustu; dogrulanmamis
+bir alan adi yuzunden e-postalar sessizce gitmemisti; yanlis kurulmus bir istek
+limiti tum uygulamayi 429 ile kilitlemisti. Bu ekran o tur arizalari, kullanici
+fark etmeden once yakalar.
+
 ### Denetim Gunlugu
 **Erisim:** Sol menuden **Audit**
 - Tum sistem aktivitelerinin kronolojik kayddi

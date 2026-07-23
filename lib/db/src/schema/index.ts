@@ -62,3 +62,4 @@ export * from "./integration-connections";
 export * from "./knowledge-base";
 export * from "./depenses";
 export * from "./organisation-closures";
+export * from "./health-checks";

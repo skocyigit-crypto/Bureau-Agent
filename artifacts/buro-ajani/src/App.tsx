@@ -30,6 +30,7 @@ import Messages from "@/pages/messages";
 import Analytics from "@/pages/analytics";
 import SettingsPage from "@/pages/settings";
 import GuidePage from "@/pages/guide";
+import SanteTechniquePage from "@/pages/sante-technique";
 import Reports from "@/pages/reports";
 import Software from "@/pages/software";
 import UsersPage from "@/pages/users";
@@ -174,6 +175,7 @@ function AppRoutes() {
         <Route path="/organisations" component={OrganisationsPage} />
         <Route path="/parametres" component={SettingsPage} />
         <Route path="/guide" component={GuidePage} />
+        <Route path="/sante-technique" component={SanteTechniquePage} />
         <Route path="/rapport-executif" component={withLicenseGate(ExecutiveReportPage)} />
         <Route path="/gestion-licence" component={LicenseManagementPage} />
         <Route path="/commandant-ia" component={withLicenseGate(CommandantIAPage)} />

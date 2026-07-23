@@ -24,6 +24,7 @@ import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
 import { withCronLock, CRON_LOCK_NAMESPACE } from "../lib/cron-lock";
 import { runAutoRemindersForOrg } from "../routes/license-management";
+import { recordCronHeartbeat } from "./health-agents";
 
 const TICK_MS = 60 * 60 * 1000; // 1h — verifie a chaque heure si c'est l'heure d'envoi
 const SEND_HOUR_UTC = 8; // ~9-10h en France selon heure d'ete/hiver
@@ -88,8 +89,10 @@ async function tick(): Promise<void> {
         logger.warn({ err, orgId: org.id }, "[InvoiceReminderCron] Échec pour une organisation");
       }
     }
+    await recordCronHeartbeat("invoice-reminder", TICK_MS / 1000);
   } catch (err) {
     logger.error({ err }, "[InvoiceReminderCron] Erreur du cycle");
+    await recordCronHeartbeat("invoice-reminder", TICK_MS / 1000, err instanceof Error ? err.message : "erreur inconnue");
   } finally {
     running = false;
   }

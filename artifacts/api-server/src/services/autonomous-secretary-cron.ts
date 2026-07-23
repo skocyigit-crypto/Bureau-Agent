@@ -23,6 +23,7 @@ import { withDbRetry } from "../lib/db-retry";
 import { withCronLock, CRON_LOCK_NAMESPACE } from "../lib/cron-lock";
 import { proposeActionsForOrg } from "./autonomous-secretary";
 import { expireStaleProposals } from "./proposal-queue";
+import { recordCronHeartbeat } from "./health-agents";
 
 const TICK_MS = 60 * 60 * 1000; // 1h
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
@@ -80,8 +81,10 @@ async function tick(): Promise<void> {
         logger.warn({ err, orgId: org.id }, "[SecretaryCron] Échec pour une organisation");
       }
     }
+    await recordCronHeartbeat("autonomous-secretary", TICK_MS / 1000);
   } catch (err) {
     logger.error({ err }, "[SecretaryCron] Erreur du cycle");
+    await recordCronHeartbeat("autonomous-secretary", TICK_MS / 1000, err instanceof Error ? err.message : "erreur inconnue");
   } finally {
     running = false;
   }
