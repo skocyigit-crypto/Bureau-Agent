@@ -279,7 +279,7 @@ function getProfile(ip: string): IpProfile {
   return ipProfiles.get(ip)!;
 }
 
-function recordRequest(ip: string, path: string): void {
+export function recordRequest(ip: string, path: string): void {
   const p = getProfile(ip);
   const now = Date.now();
   p.requests.push(now);
@@ -301,17 +301,42 @@ const ANOMALY_THRESHOLDS = {
   errorBurst: IS_PROD ? 40 : 80,
 };
 
+/**
+ * Seuils appliqués à une session AUTHENTIFIÉE.
+ *
+ * Le tableau de bord ouvre en parallèle de nombreux widgets (smart-pulse,
+ * recent-activity, anomaly-stream, flux SSE...). Une simple ouverture de page
+ * dépassait donc les 50 requêtes/10 s prévues pour détecter un bot : quatre
+ * rafales suffisaient à faire monter le score de menace à 60 et à bannir
+ * l'adresse. Des clients légitimes se retrouvaient en 403 sur toute
+ * l'application — incident observé en production le 2026-07-24, avec un
+ * navigateur Chrome réel bloqué jusque sur /api/healthz.
+ *
+ * Un scanner anonyme n'a pas de session : relever le budget des seuls
+ * utilisateurs connectés conserve la détection là où elle sert, sans punir
+ * l'usage normal. Les limiteurs de débit par route continuent de s'appliquer,
+ * ainsi que toutes les autres règles du WAF (injection, honeypots, etc.).
+ */
+const AUTHENTICATED_THRESHOLDS = {
+  reqPer10s: IS_PROD ? 200 : 400,
+  reqPer60s: IS_PROD ? 800 : 1500,
+  uniquePathsBurst: IS_PROD ? 250 : 400,
+  uniquePathsBurstReq60s: IS_PROD ? 150 : 250,
+  errorBurst: IS_PROD ? 80 : 160,
+};
+
 // ── Davranışsal anomali tespiti ───────────────────────────────────────────────
-function detectBehavioralAnomaly(ip: string): string | null {
+export function detectBehavioralAnomaly(ip: string, authenticated: boolean): string | null {
   const p = getProfile(ip);
   const now = Date.now();
   const last60s = p.requests.filter(t => now - t < 60_000).length;
   const last10s = p.requests.filter(t => now - t < 10_000).length;
+  const limits = authenticated ? AUTHENTICATED_THRESHOLDS : ANOMALY_THRESHOLDS;
 
-  if (last10s > ANOMALY_THRESHOLDS.reqPer10s) return `Aşırı istek hızı: ${last10s} istek/10sn (bot davranışı)`;
-  if (last60s > ANOMALY_THRESHOLDS.reqPer60s) return `Yüksek istek hacmi: ${last60s} istek/dk`;
-  if (p.uniquePaths.size > ANOMALY_THRESHOLDS.uniquePathsBurst && last60s > ANOMALY_THRESHOLDS.uniquePathsBurstReq60s) return `Path tarayıcı tespit edildi: ${p.uniquePaths.size} benzersiz yol`;
-  if (p.errors > ANOMALY_THRESHOLDS.errorBurst) return `Otomatik hata taraması: ${p.errors} hata yanıtı`;
+  if (last10s > limits.reqPer10s) return `Aşırı istek hızı: ${last10s} istek/10sn (bot davranışı)`;
+  if (last60s > limits.reqPer60s) return `Yüksek istek hacmi: ${last60s} istek/dk`;
+  if (p.uniquePaths.size > limits.uniquePathsBurst && last60s > limits.uniquePathsBurstReq60s) return `Path tarayıcı tespit edildi: ${p.uniquePaths.size} benzersiz yol`;
+  if (p.errors > limits.errorBurst) return `Otomatik hata taraması: ${p.errors} hata yanıtı`;
 
   return null;
 }
@@ -357,7 +382,10 @@ export function guardian(req: Request, res: Response, next: NextFunction): void 
   }
 
   // ── 0. Guardian ban listesi kontrolü ────────────────────────────────────────
-  const banned = isGuardianBanned(ip);
+  // La sonde de santé reste toujours joignable: elle ne divulgue rien et sert à
+  // la supervision. Un bannissement la rendait muette (403), ce qui faisait
+  // passer un service parfaitement sain pour hors service.
+  const banned = normalPath !== "/api/healthz" && isGuardianBanned(ip);
   if (banned) {
     guardianStats.totalBlocked++;
     res.status(403).json({
@@ -533,7 +561,11 @@ export function guardian(req: Request, res: Response, next: NextFunction): void 
   // ── 8. Davranışsal profil güncelle ve anomali tespiti ─────────────────────────
   recordRequest(ip, path);
 
-  const anomaly = detectBehavioralAnomaly(ip);
+  // `guardian` est monté APRÈS `sessionMiddleware` (cf. app.ts): la session est
+  // donc déjà résolue et permet de distinguer un utilisateur connecté d'un
+  // visiteur anonyme.
+  const isAuthenticated = !!(req.session as { userId?: number } | undefined)?.userId;
+  const anomaly = detectBehavioralAnomaly(ip, isAuthenticated);
   if (anomaly) {
     const profile = getProfile(ip);
     profile.threatScore += 15;
