@@ -308,3 +308,69 @@ export async function deleteAppointmentFromGoogleCalendar(params: {
     return false;
   }
 }
+
+/**
+ * Lit les evenements Google Agenda de l'utilisateur sur une fenetre donnee.
+ *
+ * Complete la direction manquante de la synchronisation: jusqu'ici rien ne
+ * REMONTAIT de Google vers l'agenda de l'application. Un rendez-vous cree
+ * directement dans Google Agenda n'apparaissait donc jamais dans l'application,
+ * alors que l'utilisateur venait d'y connecter son compte — l'une des premieres
+ * choses qu'il verifie apres connexion.
+ *
+ * Renvoie un tableau vide (jamais d'exception) si le compte n'est pas connecte
+ * ou si Google est indisponible: l'agenda local doit rester affichable.
+ */
+export async function listGoogleEvents(params: {
+  userId: number;
+  start: Date;
+  end: Date;
+  max?: number;
+}): Promise<Array<{
+  googleEventId: string;
+  title: string;
+  description: string | null;
+  location: string | null;
+  startDate: Date;
+  endDate: Date;
+  allDay: boolean;
+  htmlLink: string | null;
+}>> {
+  try {
+    const calendar = await getCalendarForUser(params.userId);
+    if (!calendar) return [];
+
+    const res = await calendar.events.list({
+      calendarId: "primary",
+      timeMin: params.start.toISOString(),
+      timeMax: params.end.toISOString(),
+      singleEvents: true,        // developpe les recurrences en occurrences
+      orderBy: "startTime",
+      maxResults: Math.min(params.max ?? 250, 2500),
+    });
+
+    return (res.data.items ?? [])
+      .filter((ev) => ev.status !== "cancelled" && ev.id)
+      .map((ev) => {
+        // Un evenement "journee entiere" utilise `date` (YYYY-MM-DD) au lieu
+        // de `dateTime`; sans ce cas la date serait invalide.
+        const allDay = Boolean(ev.start?.date && !ev.start?.dateTime);
+        const startRaw = ev.start?.dateTime ?? ev.start?.date;
+        const endRaw = ev.end?.dateTime ?? ev.end?.date;
+        return {
+          googleEventId: ev.id!,
+          title: ev.summary || "(sans titre)",
+          description: ev.description ?? null,
+          location: ev.location ?? null,
+          startDate: startRaw ? new Date(startRaw) : new Date(),
+          endDate: endRaw ? new Date(endRaw) : new Date(),
+          allDay,
+          htmlLink: ev.htmlLink ?? null,
+        };
+      })
+      .filter((ev) => !isNaN(ev.startDate.getTime()) && !isNaN(ev.endDate.getTime()));
+  } catch (err) {
+    logger.warn({ err, userId: params.userId }, "[google-calendar-sync] listGoogleEvents echoue");
+    return [];
+  }
+}

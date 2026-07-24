@@ -322,3 +322,54 @@ export async function getTasksForUser(userId: number) {
   const auth = await getAuthClientForUser(userId);
   return auth ? google.tasks({ version: "v1", auth }) : null;
 }
+
+// ---------------------------------------------------------------------------
+// Detection d'une autorisation revoquee
+// ---------------------------------------------------------------------------
+
+/**
+ * Reconnait l'erreur Google signifiant que le refresh_token n'est plus valide.
+ *
+ * Google renvoie `invalid_grant` quand l'utilisateur a revoque l'acces depuis
+ * son compte, a change son mot de passe, ou apres une longue inactivite. Ce
+ * n'est PAS une panne passagere: aucun nouvel appel ne reussira tant que
+ * l'utilisateur n'aura pas reconnecte son compte.
+ */
+export function isInvalidGrantError(err: unknown): boolean {
+  const e = err as { message?: string; response?: { data?: { error?: string } } };
+  const code = e?.response?.data?.error;
+  if (code === "invalid_grant") return true;
+  return typeof e?.message === "string" && /invalid_grant/i.test(e.message);
+}
+
+/**
+ * Supprime le jeton Google d'un utilisateur devenu inutilisable.
+ *
+ * Pourquoi supprimer plutot que marquer: tout l'affichage (`/google-oauth/status`,
+ * le hub Workspace) deduit l'etat "connecte" de la PRESENCE de cette ligne.
+ * Tant qu'elle restait la, l'interface affichait "connecte" avec une date de
+ * derniere synchro figee pendant que chaque panneau renvoyait silencieusement
+ * du vide — le pire des deux mondes: l'utilisateur ne savait pas qu'il devait
+ * se reconnecter. En la supprimant, l'application propose naturellement de
+ * reconnecter le compte.
+ */
+export async function revokeStoredGoogleToken(userId: number, reason: string): Promise<void> {
+  try {
+    await db.delete(googleOAuthTokensTable).where(eq(googleOAuthTokensTable.userId, userId));
+    logger.warn({ userId, reason }, "[google-auth] Jeton Google revoque cote Google, ligne supprimee — reconnexion requise");
+  } catch (err) {
+    logger.error({ err, userId }, "[google-auth] Suppression du jeton revoque echouee");
+  }
+}
+
+/**
+ * A appeler dans le `catch` d'un appel a l'API Google: si l'erreur traduit une
+ * autorisation revoquee, le jeton est supprime. Renvoie true dans ce cas, pour
+ * que l'appelant puisse repondre "reconnectez votre compte Google" plutot
+ * qu'une erreur generique.
+ */
+export async function handleGoogleApiError(userId: number, err: unknown, context: string): Promise<boolean> {
+  if (!isInvalidGrantError(err)) return false;
+  await revokeStoredGoogleToken(userId, context);
+  return true;
+}

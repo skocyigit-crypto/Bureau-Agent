@@ -9,7 +9,7 @@ import { getInboundMaxSubmitBytes } from "../services/file-malware";
 import { getOrgId } from "../middleware/tenant";
 import { ingestDocument } from "../services/document-ingest";
 import { triggerExpenseCapture } from "../services/expense-capture";
-import { getGmailForUser } from "../lib/google-auth";
+import { getGmailForUser, handleGoogleApiError } from "../lib/google-auth";
 
 const router = Router();
 
@@ -75,6 +75,13 @@ router.get("/gmail/profile", async (req: Request, res: Response): Promise<void> 
       threadsTotal: profile.data.threadsTotal,
     });
   } catch (error: any) {
+    // Autorisation revoquee : on purge le jeton mort pour que le hub Workspace
+    // cesse d'afficher "connecte" alors que plus rien ne fonctionne.
+    const userId = req.session?.userId;
+    if (userId && await handleGoogleApiError(userId, error, "gmail/profile")) {
+      res.json({ authenticated: false, reconnectRequired: true });
+      return;
+    }
     logger.error({ err: error }, "Gmail profile error");
     res.json({ authenticated: false });
   }
@@ -131,6 +138,19 @@ router.get("/gmail/inbox", async (req: Request, res: Response): Promise<void> =>
       resultSizeEstimate: listRes.data.resultSizeEstimate || 0,
     });
   } catch (error: any) {
+    // Autorisation revoquee cote Google: on supprime le jeton mort et on le DIT.
+    // Sans cela l'interface continuait d'afficher "connecte" avec une boite
+    // vide et un simple "Erreur", sans jamais indiquer qu'il fallait
+    // reconnecter le compte.
+    const userId = req.session?.userId;
+    if (userId && await handleGoogleApiError(userId, error, "gmail/inbox")) {
+      res.status(401).json({
+        error: "L'acces a votre compte Google a expire ou a ete revoque. Reconnectez votre compte Google dans Parametres > Plateformes.",
+        authenticated: false,
+        reconnectRequired: true,
+      });
+      return;
+    }
     logger.error({ err: error }, "Gmail inbox error");
     res.status(500).json({ error: "Erreur lors de la recuperation des emails.", authenticated: false });
   }

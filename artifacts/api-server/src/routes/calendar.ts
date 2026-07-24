@@ -8,6 +8,12 @@ import { resolveUserNames, enrichWithUserNames } from "../helpers/user-tracking"
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { notifyOrgUsers } from "../services/whatsapp-notify";
 import { computeFreeSlots, getWorkingHoursConfig } from "../services/availability";
+import {
+  pushAppointmentToGoogleCalendar,
+  updateAppointmentInGoogleCalendar,
+  deleteAppointmentFromGoogleCalendar,
+  listGoogleEvents,
+} from "../services/google-calendar-sync";
 
 const router = Router();
 
@@ -157,9 +163,45 @@ router.get("/calendar/events", async (req: Request, res: Response): Promise<void
         status: p.status,
       }));
 
+    // Evenements provenant de Google Agenda.
+    //
+    // Direction qui manquait totalement: un rendez-vous cree dans Google
+    // n'apparaissait jamais ici. On n'ajoute QUE ceux qui n'ont pas deja un
+    // equivalent local (comparaison par googleEventId), sinon un evenement
+    // pousse par l'application s'afficherait en double.
+    //
+    // Fail-soft: si le compte Google n'est pas connecte ou si l'API repond mal,
+    // `listGoogleEvents` renvoie [] et l'agenda local reste affiche.
+    let googleEvents: any[] = [];
+    if (validStart && validEnd) {
+      const knownGoogleIds = new Set(
+        events.map((e: any) => e.googleEventId).filter(Boolean),
+      );
+      const fetched = await listGoogleEvents({ userId, start: validStart, end: validEnd });
+      googleEvents = fetched
+        .filter((ev) => !knownGoogleIds.has(ev.googleEventId))
+        .map((ev) => ({
+          id: `google-${ev.googleEventId}`,
+          title: ev.title,
+          description: ev.description,
+          type: "google",
+          startDate: ev.startDate,
+          endDate: ev.endDate,
+          allDay: ev.allDay,
+          location: ev.location,
+          color: "#4285F4",
+          googleEventId: ev.googleEventId,
+          htmlLink: ev.htmlLink,
+          // Marqueur explicite: ces evenements vivent dans Google, l'interface
+          // ne doit pas proposer de les modifier/supprimer comme un evenement local.
+          readOnly: true,
+          source: "google",
+        }));
+    }
+
     const userIds = events.flatMap((e: any) => [e.createdBy, e.updatedBy]);
     const userMap = await resolveUserNames(userIds);
-    res.json({ events: enrichWithUserNames(events, userMap), taskEvents, projetEvents });
+    res.json({ events: enrichWithUserNames(events, userMap), taskEvents, projetEvents, googleEvents });
   } catch (err: any) {
     req.log.error({ err }, "Erreur liste evenements agenda");
     res.status(500).json({ error: "Erreur lors de la recuperation des evenements." });
@@ -242,6 +284,39 @@ router.post("/calendar/events", async (req: Request, res: Response): Promise<voi
     } catch (notifyErr) {
       req.log.warn({ err: notifyErr }, "[calendar] notify appointment failed");
     }
+
+    // Poussee vers Google Agenda.
+    //
+    // Les helpers existaient deja (services/google-calendar-sync.ts) mais
+    // n'etaient appeles que par le flux public de prise de rendez-vous: un
+    // evenement cree depuis l'agenda de l'application n'apparaissait JAMAIS
+    // dans Google, alors que l'utilisateur vient d'y connecter son compte.
+    //
+    // Fail-soft et non bloquant: l'evenement local est deja enregistre et la
+    // reponse est renvoyee sans attendre Google. Une panne Google ne doit pas
+    // faire echouer la creation d'un rendez-vous.
+    void (async () => {
+      try {
+        const start = event.startDate instanceof Date ? event.startDate : new Date(event.startDate);
+        const end = event.endDate instanceof Date ? event.endDate : new Date(event.endDate);
+        const googleEventId = await pushAppointmentToGoogleCalendar({
+          calendarEventId: event.id,
+          userId,
+          title: event.title,
+          description: event.description,
+          startDate: start,
+          endDate: end,
+          location: event.location,
+        });
+        if (googleEventId) {
+          await db.update(calendarEventsTable)
+            .set({ googleEventId })
+            .where(eq(calendarEventsTable.id, event.id));
+        }
+      } catch (err) {
+        req.log.warn({ err, eventId: event.id }, "[calendar] push Google Agenda echoue");
+      }
+    })();
 
     res.status(201).json(event);
   } catch (err: any) {
@@ -328,6 +403,45 @@ router.patch("/calendar/events/:id", async (req: Request, res: Response): Promis
 
     if (!updated) { res.status(404).json({ error: "Evenement non trouve." }); return; }
     logAudit(userId, req.session?.userEmail, "update", "calendar_event", String(id), updateData, req.ip, req.get("user-agent"), req.session?.organisationId);
+
+    // Repercute la modification dans Google Agenda (fail-soft, non bloquant).
+    // Si l'evenement n'avait pas encore d'equivalent Google (cree avant la
+    // connexion du compte), on le pousse maintenant plutot que de l'ignorer.
+    void (async () => {
+      try {
+        const start = updated.startDate instanceof Date ? updated.startDate : new Date(updated.startDate);
+        const end = updated.endDate instanceof Date ? updated.endDate : new Date(updated.endDate);
+        if (updated.googleEventId) {
+          await updateAppointmentInGoogleCalendar({
+            userId,
+            googleEventId: updated.googleEventId,
+            title: updated.title,
+            description: updated.description,
+            startDate: start,
+            endDate: end,
+            location: updated.location,
+          });
+        } else {
+          const newId = await pushAppointmentToGoogleCalendar({
+            calendarEventId: updated.id,
+            userId,
+            title: updated.title,
+            description: updated.description,
+            startDate: start,
+            endDate: end,
+            location: updated.location,
+          });
+          if (newId) {
+            await db.update(calendarEventsTable)
+              .set({ googleEventId: newId })
+              .where(eq(calendarEventsTable.id, updated.id));
+          }
+        }
+      } catch (err) {
+        req.log.warn({ err, eventId: id }, "[calendar] maj Google Agenda echouee");
+      }
+    })();
+
     res.json(updated);
   } catch (err: any) {
     req.log.error({ err }, "Erreur mise a jour evenement agenda");
@@ -385,8 +499,21 @@ router.delete("/calendar/events/:id", async (req: Request, res: Response): Promi
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
   try {
+    // On lit l'evenement AVANT suppression pour recuperer son googleEventId:
+    // sans cela l'evenement resterait dans Google Agenda apres avoir disparu
+    // de l'application, et l'utilisateur verrait un rendez-vous fantome.
+    const [existing] = await db.select({ googleEventId: calendarEventsTable.googleEventId })
+      .from(calendarEventsTable)
+      .where(and(eq(calendarEventsTable.id, id), eq(calendarEventsTable.organisationId, orgId)));
+
     await db.delete(calendarEventsTable).where(and(eq(calendarEventsTable.id, id), eq(calendarEventsTable.organisationId, orgId)));
     logAudit(userId, req.session?.userEmail, "delete", "calendar_event", String(id), undefined, req.ip, req.get("user-agent"), req.session?.organisationId);
+
+    if (existing?.googleEventId) {
+      void deleteAppointmentFromGoogleCalendar({ userId, googleEventId: existing.googleEventId })
+        .catch((err) => req.log.warn({ err, eventId: id }, "[calendar] suppression Google Agenda echouee"));
+    }
+
     res.json({ success: true });
   } catch (err: any) {
     req.log.error({ err }, "Erreur suppression evenement agenda");

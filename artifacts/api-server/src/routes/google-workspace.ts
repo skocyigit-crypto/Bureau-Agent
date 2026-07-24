@@ -9,9 +9,33 @@ import {
   getCalendarForUser,
   getDriveForUser,
   getTasksForUser,
+  handleGoogleApiError,
 } from "../lib/google-auth";
 
 const router = Router();
+
+// Si Google repond `invalid_grant`, l'autorisation a ete revoquee (ou le refresh
+// token a expire). Sans traitement, le jeton mort restait en base : le hub
+// continuait d'afficher "connecte" pendant que chaque panneau revenait vide.
+// On supprime le jeton (le hub bascule donc en "deconnecte") et on signale au
+// front qu'une reconnexion est necessaire.
+async function respondIfRevoked(
+  userId: number | undefined,
+  error: unknown,
+  context: string,
+  res: any,
+  emptyPayload: Record<string, unknown>,
+): Promise<boolean> {
+  if (!userId) return false;
+  if (!(await handleGoogleApiError(userId, error, context))) return false;
+  res.json({
+    ...emptyPayload,
+    error: "reconnexion_requise",
+    reconnectRequired: true,
+    message: "L'acces a votre compte Google a expire ou a ete revoque. Reconnectez-le depuis Parametres > Plateformes.",
+  });
+  return true;
+}
 
 // Types Google natifs (Docs/Sheets/Slides) qui doivent etre EXPORTES vers un
 // format binaire telechargeable. Les autres fichiers se telechargent tels quels
@@ -158,6 +182,7 @@ router.get("/google-workspace/recent-emails", async (req, res): Promise<void> =>
 
     res.json({ emails });
   } catch (error: any) {
+    if (await respondIfRevoked(req.session?.userId, error, "workspace/recent-emails", res, { emails: [] })) return;
     logger.error({ err: error }, "Erreur emails recents:");
     res.json({ emails: [], error: "non_connecte" });
   }
@@ -197,6 +222,7 @@ router.get("/google-workspace/upcoming-events", async (req, res): Promise<void> 
 
     res.json({ events });
   } catch (error: any) {
+    if (await respondIfRevoked(req.session?.userId, error, "workspace/upcoming-events", res, { events: [] })) return;
     logger.error({ err: error }, "Erreur evenements agenda:");
     res.json({ events: [], error: "non_connecte" });
   }
@@ -231,6 +257,7 @@ router.get("/google-workspace/recent-files", async (req, res): Promise<void> => 
 
     res.json({ files });
   } catch (error: any) {
+    if (await respondIfRevoked(req.session?.userId, error, "workspace/recent-files", res, { files: [] })) return;
     logger.error({ err: error }, "Erreur fichiers recents:");
     res.json({ files: [], error: "non_connecte" });
   }
@@ -288,6 +315,7 @@ router.get("/google-workspace/calendar-list", async (req, res): Promise<void> =>
 
     res.json({ calendars: calData.items || [] });
   } catch (error: any) {
+    if (await respondIfRevoked(req.session?.userId, error, "workspace/calendar-list", res, { calendars: [] })) return;
     logger.error({ err: error }, "Erreur liste calendriers:");
     res.json({ calendars: [], error: "non_connecte" });
   }

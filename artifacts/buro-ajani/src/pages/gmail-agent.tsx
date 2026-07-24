@@ -636,10 +636,16 @@ export default function GmailAgentPage() {
         <Card className="max-w-md w-full">
           <CardContent className="pt-8 text-center space-y-4">
             <WifiOff className="h-12 w-12 mx-auto text-muted-foreground" />
-            <h2 className="text-xl font-semibold">Gmail non connecté</h2>
-            <p className="text-muted-foreground text-sm">Connectez votre compte Google dans les paramètres pour utiliser l'agent email IA.</p>
+            <h2 className="text-xl font-semibold">
+              {profile?.reconnectRequired ? "Accès Google expiré" : "Gmail non connecté"}
+            </h2>
+            <p className="text-muted-foreground text-sm">
+              {profile?.reconnectRequired
+                ? "L'autorisation d'accès à votre compte Google a expiré ou a été révoquée. Reconnectez votre compte pour retrouver vos emails."
+                : "Connectez votre compte Google dans les paramètres pour utiliser l'agent email IA."}
+            </p>
             <Button onClick={() => window.location.href = `${baseUrl}/google-workspace`} className="w-full">
-              Connecter Google Workspace
+              {profile?.reconnectRequired ? "Reconnecter Google Workspace" : "Connecter Google Workspace"}
             </Button>
           </CardContent>
         </Card>

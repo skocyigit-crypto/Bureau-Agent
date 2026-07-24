@@ -1118,7 +1118,10 @@ export default function CalendarPage() {
     const calendar = (data.events || []).map((e: any) => ({ ...e, source: "calendar" }));
     const tasks = (data.taskEvents || []).map((e: any) => ({ ...e, source: "task" }));
     const projets = (data.projetEvents || []).map((e: any) => ({ ...e, source: "projet" }));
-    return [...calendar, ...tasks, ...projets];
+    // Evenements venant de Google Agenda (lecture seule). Le serveur exclut
+    // deja ceux qui ont un equivalent local, il n'y a donc pas de doublon.
+    const google = (data.googleEvents || []).map((e: any) => ({ ...e, source: "google" }));
+    return [...calendar, ...tasks, ...projets, ...google];
   }, [data]);
 
   function getEventsForDate(date: Date) {

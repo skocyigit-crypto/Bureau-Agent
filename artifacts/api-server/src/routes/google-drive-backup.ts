@@ -182,8 +182,15 @@ router.get("/google-drive-backup/status", async (req: Request, res: Response): P
 
     res.json({
       configured,
-      schedulerActive: configured,
-      intervalHours: 6,
+      // La sauvegarde automatique vers Drive est desactivee volontairement
+      // (cf. index.ts : les donnees plateforme ne doivent pas transiter par un
+      // compte Google externe). Le planificateur n'est demarre nulle part.
+      // On l'annonce donc honnetement au lieu de faire croire a un cycle de 6h
+      // qui n'a jamais tourne.
+      schedulerActive: false,
+      schedulerMode: "manuel",
+      schedulerNote: "Sauvegarde automatique desactivee. Lancez une sauvegarde manuellement depuis cette page.",
+      intervalHours: null,
       encryption: "AES-256-GCM",
       lastBackup: lastBackup[0] || null,
       lastSuccessfulBackup: lastSuccess[0] || null,
@@ -194,7 +201,7 @@ router.get("/google-drive-backup/status", async (req: Request, res: Response): P
         "AES-256-GCM encryption",
         "SHA-256 integrity verification",
         "29 tables backed up",
-        "Auto-schedule every 6 hours",
+        "Sauvegarde manuelle a la demande",
         "90-day retention policy",
         "Full restore capability",
         "Dry-run restore preview",
