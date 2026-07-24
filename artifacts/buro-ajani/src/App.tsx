@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { lazy, Suspense, useState, useEffect, useCallback } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation, useRoute } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AlertTriangle } from "lucide-react";
@@ -6,9 +6,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { NetworkStatusBanner, SessionExpiredOverlay } from "@/components/safe-component";
-import NotFound from "@/pages/not-found";
-import LoginPage from "@/pages/login";
-import RegisterPage from "@/pages/register";
 import { WorkspaceUserProvider } from "@/components/workspace-user";
 import { PwaInstallButton } from "@/components/pwa-install";
 import { PwaStandaloneRedirect } from "@/components/pwa-standalone-redirect";
@@ -20,71 +17,85 @@ import { MotionProvider } from "@/components/premium-animations";
 import { useDeviceEnvironment, DeviceEnvironmentProvider } from "@/hooks/use-device-environment";
 
 import { Layout } from "@/components/layout";
-import Dashboard from "@/pages/dashboard";
-import Calls from "@/pages/calls";
-import CallDetail from "@/pages/call-detail";
-import Contacts from "@/pages/contacts";
-import WhatsappInbox from "@/pages/whatsapp";
-import ContactDetail from "@/pages/contact-detail";
-import Tasks from "@/pages/tasks";
-import Messages from "@/pages/messages";
-import Analytics from "@/pages/analytics";
-import SettingsPage from "@/pages/settings";
-import GuidePage from "@/pages/guide";
-import SanteTechniquePage from "@/pages/sante-technique";
-import Reports from "@/pages/reports";
-import Software from "@/pages/software";
-import UsersPage from "@/pages/users";
-import CheckinsPage from "@/pages/checkins";
-import AiAgentsPage from "@/pages/ai-agents";
-import CalendarPage from "@/pages/calendar";
-import AutomationsPage from "@/pages/automations";
-import PerformancePage from "@/pages/performance";
-import OrganisationsPage from "@/pages/organisations";
-import NotificationsPage from "@/pages/notifications";
-import GoogleWorkspacePage from "@/pages/google-workspace";
-import GmailAgentPage from "@/pages/gmail-agent";
-import DocumentAiPage from "@/pages/document-ai";
-import DocumentsPage from "@/pages/documents";
-import DocumentImportPage from "@/pages/document-import";
-import KnowledgeBasePage from "@/pages/knowledge-base";
 import { useLicenseCheck } from "@/hooks/use-license-check";
 import { CommandPalette } from "@/components/command-palette";
 import { SmartBrowserOverlays, SmartBrowserShortcuts } from "@/components/smart-browser-panel";
-import ExecutiveReportPage from "@/pages/rapport-executif";
-import LicenseManagementPage from "@/pages/license-management";
-import CommandantIAPage from "@/pages/commandant-ia";
-import AsistanPage from "@/pages/asistan";
-import TelephonyPage from "@/pages/telephony";
-import TelechargerPage from "@/pages/telecharger";
 import { QuickActionHub } from "@/components/quick-action-hub";
-import InvitationAcceptPage from "@/pages/invitation-accept";
-import RendezVousPublicPage from "@/pages/rendez-vous-public";
-import OnboardingPage from "@/pages/onboarding";
-import ProspectsPage from "@/pages/prospects";
-import ProspectDetail from "@/pages/prospect-detail";
-import AdminBackofficePage from "@/pages/admin";
-import AdminDashboardPage from "@/pages/admin-dashboard";
-import AdminDevisPage from "@/pages/admin-devis";
-import AdminAuditPage from "@/pages/admin-audit";
-import AdminFacturesB2BPage from "@/pages/admin-factures-b2b";
-import AdminFacturesClientPage from "@/pages/admin-factures-client";
-import NotesInternesPage from "@/pages/notes-internes";
-import DataProtectionPage from "@/pages/data-protection";
-import ContactsImportPage from "@/pages/contacts-import";
-import ActiviteRecentePage from "@/pages/activite-recente";
-import ProjetsPage from "@/pages/projets";
-import SecuritePage from "@/pages/securite";
-import AssistantProactifPage from "@/pages/assistant-proactif";
-import IaApprentissagePage from "@/pages/ia-apprentissage";
-import RechercheWebPage from "@/pages/recherche-web";
-import EquipeLocalisationPage from "@/pages/equipe-localisation";
-import FileApprobationPage from "@/pages/file-approbation";
-import EquipeIaPage from "@/pages/equipe-ia";
-import AuditDenetimPage from "@/pages/audit-denetim";
-import VoiceSiteOpsPage from "@/pages/voice-site-ops";
-import TresoreriePage from "@/pages/tresorerie";
-import DepensesPage from "@/pages/depenses";
+
+// Route-level code splitting. Keep the application shell synchronous, but do
+// not make login/public visitors download every authenticated feature page.
+const NotFound = lazy(() => import("@/pages/not-found"));
+const LoginPage = lazy(() => import("@/pages/login"));
+const RegisterPage = lazy(() => import("@/pages/register"));
+const Dashboard = lazy(() => import("@/pages/dashboard"));
+const Calls = lazy(() => import("@/pages/calls"));
+const CallDetail = lazy(() => import("@/pages/call-detail"));
+const Contacts = lazy(() => import("@/pages/contacts"));
+const WhatsappInbox = lazy(() => import("@/pages/whatsapp"));
+const ContactDetail = lazy(() => import("@/pages/contact-detail"));
+const Tasks = lazy(() => import("@/pages/tasks"));
+const Messages = lazy(() => import("@/pages/messages"));
+const Analytics = lazy(() => import("@/pages/analytics"));
+const SettingsPage = lazy(() => import("@/pages/settings"));
+const GuidePage = lazy(() => import("@/pages/guide"));
+const SanteTechniquePage = lazy(() => import("@/pages/sante-technique"));
+const Reports = lazy(() => import("@/pages/reports"));
+const Software = lazy(() => import("@/pages/software"));
+const UsersPage = lazy(() => import("@/pages/users"));
+const CheckinsPage = lazy(() => import("@/pages/checkins"));
+const AiAgentsPage = lazy(() => import("@/pages/ai-agents"));
+const CalendarPage = lazy(() => import("@/pages/calendar"));
+const AutomationsPage = lazy(() => import("@/pages/automations"));
+const PerformancePage = lazy(() => import("@/pages/performance"));
+const OrganisationsPage = lazy(() => import("@/pages/organisations"));
+const NotificationsPage = lazy(() => import("@/pages/notifications"));
+const GoogleWorkspacePage = lazy(() => import("@/pages/google-workspace"));
+const GmailAgentPage = lazy(() => import("@/pages/gmail-agent"));
+const DocumentAiPage = lazy(() => import("@/pages/document-ai"));
+const DocumentsPage = lazy(() => import("@/pages/documents"));
+const DocumentImportPage = lazy(() => import("@/pages/document-import"));
+const KnowledgeBasePage = lazy(() => import("@/pages/knowledge-base"));
+const ExecutiveReportPage = lazy(() => import("@/pages/rapport-executif"));
+const LicenseManagementPage = lazy(() => import("@/pages/license-management"));
+const CommandantIAPage = lazy(() => import("@/pages/commandant-ia"));
+const AsistanPage = lazy(() => import("@/pages/asistan"));
+const TelephonyPage = lazy(() => import("@/pages/telephony"));
+const TelechargerPage = lazy(() => import("@/pages/telecharger"));
+const InvitationAcceptPage = lazy(() => import("@/pages/invitation-accept"));
+const RendezVousPublicPage = lazy(() => import("@/pages/rendez-vous-public"));
+const OnboardingPage = lazy(() => import("@/pages/onboarding"));
+const ProspectsPage = lazy(() => import("@/pages/prospects"));
+const ProspectDetail = lazy(() => import("@/pages/prospect-detail"));
+const AdminBackofficePage = lazy(() => import("@/pages/admin"));
+const AdminDashboardPage = lazy(() => import("@/pages/admin-dashboard"));
+const AdminDevisPage = lazy(() => import("@/pages/admin-devis"));
+const AdminAuditPage = lazy(() => import("@/pages/admin-audit"));
+const AdminFacturesB2BPage = lazy(() => import("@/pages/admin-factures-b2b"));
+const AdminFacturesClientPage = lazy(() => import("@/pages/admin-factures-client"));
+const NotesInternesPage = lazy(() => import("@/pages/notes-internes"));
+const DataProtectionPage = lazy(() => import("@/pages/data-protection"));
+const ContactsImportPage = lazy(() => import("@/pages/contacts-import"));
+const ActiviteRecentePage = lazy(() => import("@/pages/activite-recente"));
+const ProjetsPage = lazy(() => import("@/pages/projets"));
+const SecuritePage = lazy(() => import("@/pages/securite"));
+const AssistantProactifPage = lazy(() => import("@/pages/assistant-proactif"));
+const IaApprentissagePage = lazy(() => import("@/pages/ia-apprentissage"));
+const RechercheWebPage = lazy(() => import("@/pages/recherche-web"));
+const EquipeLocalisationPage = lazy(() => import("@/pages/equipe-localisation"));
+const FileApprobationPage = lazy(() => import("@/pages/file-approbation"));
+const EquipeIaPage = lazy(() => import("@/pages/equipe-ia"));
+const AuditDenetimPage = lazy(() => import("@/pages/audit-denetim"));
+const VoiceSiteOpsPage = lazy(() => import("@/pages/voice-site-ops"));
+const TresoreriePage = lazy(() => import("@/pages/tresorerie"));
+const DepensesPage = lazy(() => import("@/pages/depenses"));
+
+function PageLoader() {
+  return (
+    <div className="flex min-h-64 items-center justify-center" role="status" aria-label="Chargement">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/25 border-t-primary" />
+    </div>
+  );
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -331,7 +342,7 @@ function InvitationOrApp({
   );
 }
 
-function App() {
+function AppContent() {
   const [authState, setAuthState] = useState<"loading" | "login" | "register" | "authenticated">("loading");
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -504,6 +515,14 @@ function App() {
         </DeviceEnvironmentProvider>
       </QueryClientProvider>
     </ErrorBoundary>
+  );
+}
+
+function App() {
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <AppContent />
+    </Suspense>
   );
 }
 

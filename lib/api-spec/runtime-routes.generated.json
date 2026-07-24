@@ -1,0 +1,5085 @@
+{
+  "generatedFrom": "artifacts/api-server/src/routes/*.ts",
+  "summary": {
+    "runtimeOperations": 634,
+    "documentedOperations": 96,
+    "undocumentedOperations": 538
+  },
+  "operations": [
+    {
+      "method": "get",
+      "path": "/admin-reports",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/admin-reports.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/admin-reports",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/admin-reports.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/admin-reports/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/admin-reports.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/admin-reports/{id}/read",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/admin-reports.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/admin-reports/stats",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/admin-reports.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/admin/saas-dashboard",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/admin-saas-dashboard.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/admin/team-locations",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/locations.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/admin/team-locations/history",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/locations.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/agent-queue",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/agent-queue.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/agent-queue/{id}/approve",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/agent-queue.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/agent-queue/{id}/args",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/agent-queue.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/agent-queue/{id}/reject",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/agent-queue.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/agent-queue/count",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/agent-queue.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/agent-queue/run-now",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/agent-queue.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ai-insights",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-insights.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai-insights/{id}/dismiss",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-insights.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai-insights/{id}/vote",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-insights.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai-insights/regenerate",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-insights.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ai-learning/profile",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-learning.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai-learning/reactivate-suggestion-type",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-learning.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai-learning/recompute",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-learning.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai-learning/recompute-user",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-learning.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ai-learning/user-profile",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-learning.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ai-learning/users",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-learning.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ai-providers",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-providers.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai-providers",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-providers.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/ai-providers/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-providers.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/ai-providers/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-providers.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai-providers/{id}/test",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-providers.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ai-providers/available",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-providers.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ai-usage/quota",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-usage.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ai-usage/settings",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-usage.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/ai-usage/settings",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-usage.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ai-usage/summary",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-usage.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai/agents/auto-fix",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-agents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai/agents/auto-start",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-agents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai/agents/auto-stop",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-agents.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ai/agents/config",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-agents.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ai/agents/latest",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-agents.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ai/agents/reports",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-agents.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ai/agents/reports/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-agents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai/agents/run",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-agents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai/agents/run/{agentId}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-agents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai/agents/run/{agentId}/stream",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-agents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai/agents/run/cancel",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-agents.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ai/agents/run/status",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-agents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai/agents/run/stream",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-agents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai/agents/super",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-agents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai/analyze",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-analysis.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ai/anomalies",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-agents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai/assistant",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-analysis.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ai/autopilot/logs",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-agents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai/autopilot/run",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-agents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai/autopilot/start",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-agents.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ai/autopilot/status",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-agents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai/autopilot/stop",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-agents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai/central-intelligence",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-analysis.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai/chat",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-analysis.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ai/collaboration/agent-trends/{agentId}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/agent-collaboration.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ai/collaboration/contact-context/{contactId}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/agent-collaboration.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ai/collaboration/dashboard",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/agent-collaboration.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ai/collaboration/insights",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/agent-collaboration.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ai/collaboration/matrix",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/agent-collaboration.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai/discovery",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-analysis.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai/draft-email",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-analysis.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai/execute",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-analysis.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai/inline-suggest",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-inline-suggest.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai/inline-suggest/event",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-inline-suggest-events.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ai/inline-suggest/metrics",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-inline-suggest-events.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ai/predictions",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-analysis.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai/recognize",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-analysis.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ai/status",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-analysis.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai/suggest",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-analysis.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai/super-agent/process-report",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-agents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai/super-agent/run",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-agents.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ai/super-agent/status",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-agents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ai/validate",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-analysis.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/api-keys",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/api-keys.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/api-keys",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/api-keys.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/api-keys/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/api-keys.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/api-keys/{id}/reveal",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/api-keys.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/app-audit/findings",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/app-audit.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/app-audit/findings/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/app-audit.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/app-audit/run-now",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/app-audit.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/app-audit/summary",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/app-audit.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/app-releases",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/health.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/app-releases",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/health.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/app-releases/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/health.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/app-version",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/health.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/appointments/offer/{token}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/public-appointments.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/appointments/offer/{token}/available-slots",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/public-appointments.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/appointments/offer/{token}/cancel",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/public-appointments.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/appointments/offer/{token}/closures",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/public-appointments.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/appointments/offer/{token}/reschedule",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/public-appointments.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/appointments/offer/{token}/select",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/public-appointments.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/assistant/chat",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/assistant.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/assistant/confirm",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/assistant.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/assistant/conversations",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/assistant.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/assistant/conversations/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/assistant.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/assistant/conversations/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/assistant.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/assistant/tools",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/assistant.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/audit/export/csv",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/audit.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/audit/logs",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/audit.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/audit/stats",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/audit.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/auth/change-password",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/auth.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/auth/complete-onboarding",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/auth.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/auth/forgot-password",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/auth.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/auth/login",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/auth.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/auth/logout",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/auth.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/auth/me",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/auth.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/auth/mfa/disable",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/auth.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/auth/mfa/enable",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/auth.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/auth/mfa/setup",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/auth.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/auth/mfa/status",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/auth.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/auth/register",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/register.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/auth/resend-verification",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/auth.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/auth/reset-password",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/auth.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/auth/users",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/auth.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/auth/users",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/auth.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/auth/users/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/auth.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/auth/users/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/auth.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/auth/users/{id}/send-credentials",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/auth.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/auth/users/bulk/deactivate",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/auth.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/auth/users/bulk/delete",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/auth.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/auth/users/create-and-send",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/auth.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/auth/users/export/csv",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/auth.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/auth/verify-email/{token}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/auth.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/automations",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/automations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/automations",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/automations.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/automations/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/automations.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/automations/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/automations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/automations/{id}/duplicate",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/automations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/automations/bulk/delete",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/automations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/automations/bulk/toggle",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/automations.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/automations/export/csv",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/automations.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/automations/logs",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/automations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/billing/generate",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/billing.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/billing/invoices",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/billing.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/billing/invoices/{id}/status",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/billing.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/billing/invoices/{orgId}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/billing.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/billing/match-payments",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/billing.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/billing/payments",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/billing.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/billing/payments/{id}/assign",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/billing.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/billing/saas-metrics",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/billing.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/billing/summary",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/billing.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/billing/upload-bank",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/billing.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/calls/delete",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/calls/status",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/checkins/delete",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/checkins/status",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/commandes/delete",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/commandes/status",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/contacts/category",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/contacts/delete",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/devis/delete",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/devis/status",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/documents/delete",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/factures/delete",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/factures/status",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/messages/delete",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/messages/read",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/notes-internes/color",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/notes-internes/delete",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/objectifs-commerciaux/delete",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/objectifs-commerciaux/status",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/projets/delete",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/projets/status",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/prospects/assign",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/prospects/delete",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/prospects/priority",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/prospects/stage",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/stock/delete",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/stock/status",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/tasks/assign",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/tasks/complete",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/tasks/delete",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/tasks/priority",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/bulk/tasks/status",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/calendar/availability",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/calendar.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/calendar/events",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/calendar.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/calendar/events",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/calendar.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/calendar/events/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/calendar.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/calendar/events/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/calendar.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/calendar/events/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/calendar.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/calendar/events/{id}/duplicate",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/calendar.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/calendar/events/export/csv",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/calendar.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/calls",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/calls.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/calls",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/calls.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/calls/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/calls.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/calls/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/calls.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/calls/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/calls.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/calls/{id}/duplicate",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/calls.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/calls/{id}/process",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/calls.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/calls/ai-agent-respond",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/calls.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/calls/ai-agent-save",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/calls.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/calls/ai-briefing",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/calls.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/calls/ai-coaching",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/calls.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/calls/export/csv",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/calls.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/checkins",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/checkins.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/checkins",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/checkins.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/checkins/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/checkins.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/checkins/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/checkins.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/checkins/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/checkins.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/checkins/{id}/duplicate",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/checkins.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/checkins/current",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/checkins.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/checkins/export/csv",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/checkins.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/checkins/stats",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/checkins.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/checkins/sync-google",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/checkins.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/commandant/analyze-text",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/commandant/analyze-text/stream",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/commandant/auto-create-from-interaction",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/commandant/call-compile",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/commandant/call-smart-response",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/commandant/contact-health/{contactId}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/commandant/conversations",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/commandant/conversations",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/commandant/conversations/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/commandant/conversations/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/commandant/conversations/{id}/messages",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/commandant/conversations/{id}/messages",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/commandant/conversations/search",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/commandant/daily-briefing",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/commandant/demo-handoff",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/commandant/demo-handoff/claim",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/commandant/demo-handoff/consume",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/commandant/drive-send-file",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/commandant/email-compile",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/commandant/email-smart-reply",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/commandant/employee-quality",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/commandant/employee-stats",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/commandant/execute-command",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/commandant/execute-command/stream",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/commandant/gmail-draft-reply",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/commandant/gmail-triage",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/commandant/meeting-compile",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/commandant/overdue-reminders",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/commandant/payment-overview",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/commandant/photo-location",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/commandant/save-attachment-to-drive",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/commandant/send-task-reminder",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/commandant/smart-search",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/commandant/smart-search/stream",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/commandant/weekly-digest",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/commandant/weekly-digest/stream",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-commandant.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/contacts",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/contacts.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/contacts",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/contacts.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/contacts/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/contacts.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/contacts/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/contacts.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/contacts/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/contacts.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/contacts/{id}/calls",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/contacts.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/contacts/{id}/devis",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/contacts.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/contacts/{id}/duplicate",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/contacts.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/contacts/{id}/projets",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/contacts.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/contacts/{id}/tags",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/contacts.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/contacts/{id}/tasks",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/contacts.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/contacts/export/csv",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/contacts.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/contacts/import",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/contacts.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/cron/registered",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/cron-tick.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/cron/tick",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/cron-tick.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/daily-digest",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/daily-digest.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/dashboard/anomaly-stream",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/dashboard.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/dashboard/call-analytics",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/dashboard.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/dashboard/call-distribution",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/dashboard.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/dashboard/hourly-performance",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/dashboard.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/dashboard/notifications",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/dashboard.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/dashboard/predictions",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/dashboard.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/dashboard/recent-activity",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/dashboard.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/dashboard/smart-pulse",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/dashboard.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/dashboard/summary",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/dashboard.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/dashboard/task-stats",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/dashboard.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/dashboard/top-contacts",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/dashboard.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/dashboard/week-comparison",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/dashboard.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/dashboard/weekly-report",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/dashboard.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/data-protection/accept-legal",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/data-protection.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/data-protection/export",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/data-protection.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/data-protection/request",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/data-protection.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/data-protection/requests",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/data-protection.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/data-protection/status",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/data-protection.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/data-protection/summary",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/data-protection.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/data-version",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/health.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/depenses",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/depenses.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/depenses",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/depenses.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/depenses/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/depenses.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/depenses/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/depenses.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/depenses/{id}/approve",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/depenses.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/depenses/{id}/reject",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/depenses.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/depenses/export",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/depenses.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/depenses/stats",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/depenses.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/devis",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/devis.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/devis",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/devis.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/devis/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/devis.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/devis/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/devis.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/devis/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/devis.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/discovery/scan",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/discovery.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/document-ai/analyze",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/document-ai.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/document-ai/batch-execute",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/document-ai.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/document-ai/execute-action",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/document-ai.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/documents/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/documents.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/documents/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/documents.ts"
+      ]
+    },
+    {
+      "method": "put",
+      "path": "/documents/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/documents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/documents/{id}/analyze",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/documents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/documents/{id}/analyze-multi",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/documents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/documents/{id}/ask",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/documents.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/documents/{id}/download",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/documents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/documents/{id}/scan",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/documents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/documents/bulk/scan",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/documents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/documents/bulk/scan/cancel",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/documents.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/documents/bulk/scan/status",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/documents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/documents/bulk/scan/stream",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/documents.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/documents/by-source",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/documents.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/documents/entity/{entityType}/{entityId}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/documents.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/documents/export/csv",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/documents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/documents/import",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/documents.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/documents/list",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/documents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/documents/process",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/documents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/documents/reuse-savings/reset",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/documents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/documents/scan-unscanned",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/documents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/documents/scan-unscanned/cancel",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/documents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/documents/scan-unscanned/start",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/documents.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/documents/scan-unscanned/status",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/documents.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/documents/stats/overview",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/documents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/documents/upload",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/documents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/documents/upload-multiple",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/documents.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/email/providers",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/email-providers.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/email/providers",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/email-providers.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/email/providers/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/email-providers.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/email/providers/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/email-providers.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/email/providers/{id}/test",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/email-providers.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/email/providers/available",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/email-providers.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/export/{entity}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bulk-operations.ts",
+        "artifacts/api-server/src/routes/export.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/face/logs",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/face-recognition.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/face/profiles",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/face-recognition.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/face/profiles/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/face-recognition.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/face/recognize",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/face-recognition.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/face/register",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/face-recognition.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/face/search-contact",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/face-recognition.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/face/stats",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/face-recognition.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/factures-client",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/factures-client.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/factures-client",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/factures-client.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/factures-client/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/factures-client.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/factures-client/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/factures-client.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/factures-client/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/factures-client.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/factures-client/{id}/relance",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/factures-client.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/geofences",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/locations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/geofences",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/locations.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/geofences/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/locations.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/geofences/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/locations.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/gmail/inbox",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/gmail.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/gmail/labels",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/gmail.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/gmail/message/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/gmail.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/gmail/message/{id}/archive",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/gmail.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/gmail/message/{id}/attachment/{attId}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/gmail.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/gmail/message/{id}/attachment/{attId}/save",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/gmail.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/gmail/message/{id}/read",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/gmail.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/gmail/message/{id}/scan",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/gmail.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/gmail/message/{id}/star",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/gmail.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/gmail/message/{id}/trash",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/gmail.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/gmail/profile",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/gmail.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/gmail/reply",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/gmail.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/gmail/send",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/gmail.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/gmail/thread/{threadId}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/gmail.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/google-drive-backup/config",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-drive-backup.ts"
+      ]
+    },
+    {
+      "method": "put",
+      "path": "/google-drive-backup/config",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-drive-backup.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/google-drive-backup/export-encrypted",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-drive-backup.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/google-drive-backup/export-local",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-drive-backup.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/google-drive-backup/files",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-drive-backup.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/google-drive-backup/history",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-drive-backup.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/google-drive-backup/preview/{fileId}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-drive-backup.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/google-drive-backup/restore/{fileId}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-drive-backup.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/google-drive-backup/run",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-drive-backup.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/google-drive-backup/status",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-drive-backup.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/google-drive-backup/tables",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-drive-backup.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/google-drive-backup/verify/{fileId}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-drive-backup.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/google-oauth/auth-url",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-oauth.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/google-oauth/callback",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-oauth.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/google-oauth/config",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-oauth.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/google-oauth/disconnect",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-oauth.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/google-oauth/refresh",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-oauth.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/google-oauth/status",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-oauth.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/google-workspace/calendar-list",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-workspace.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/google-workspace/create-event",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-workspace.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/google-workspace/drive-import",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-workspace.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/google-workspace/drive-search",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-workspace.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/google-workspace/hub",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-workspace.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/google-workspace/recent-emails",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-workspace.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/google-workspace/recent-files",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-workspace.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/google-workspace/send-email",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-workspace.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/google-workspace/tasks",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-workspace.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/google-workspace/upcoming-events",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-workspace.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/health-agents",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/health-agents.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/health-agents/latest",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/health-agents.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/health-agents/run",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/health-agents.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/healthz",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/health.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/integrations/{integrationId}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/integrations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/integrations/{integrationId}/connect",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/integrations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/integrations/{integrationId}/disconnect",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/integrations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/integrations/{integrationId}/sync",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/integrations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/integrations/{integrationId}/test",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/integrations.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/integrations/catalog",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/integrations.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/integrations/smart-discovery",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/integrations.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/invitations",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/invitations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/invitations",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/invitations.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/invitations/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/invitations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/invitations/{id}/resend",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/invitations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/invitations/accept/{token}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/index.ts",
+        "artifacts/api-server/src/routes/invitations.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/invitations/verify/{token}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/index.ts",
+        "artifacts/api-server/src/routes/invitations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/knowledge-base/ask",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/knowledge-base.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/knowledge-base/reindex",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/knowledge-base.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/knowledge-base/status",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/knowledge-base.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/legal/accept",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/legal.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/legal/accept-all",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/legal.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/legal/compliance",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/legal.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/legal/documents",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/legal.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/legal/history/{orgId}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/legal.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/legal/org/{orgId}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/legal.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/legal/revoke",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/legal.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/license-management/audit-log",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/license-management.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/license-management/auto-generate-invoice",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/license-management.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/license-management/auto-reminders",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/license-management.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/license-management/client-invoices/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/license-management.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/license-management/create-client-invoice",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/license-management.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/license-management/dashboard",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/license-management.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/license-management/mark-invoice-paid",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/license-management.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/license-management/orgs/{id}/export",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/license-management.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/license-management/orgs/{id}/extend-trial",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/license-management.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/license-management/orgs/{id}/reactivate",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/license-management.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/license-management/orgs/{id}/regenerate-key",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/license-management.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/license-management/orgs/{id}/suspend",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/license-management.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/license-management/record-payment",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/license-management.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/license-management/send-invoice-email",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/license-management.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/license-management/send-payment-reminder",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/license-management.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/license-management/update-billing-settings",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/license-management.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/location/ping",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/locations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/math/analyze",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/math.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/math/capabilities",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/math.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/math/detect",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/math.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/math/evaluate",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/math.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/me/preferences",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/user-preferences.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/me/preferences",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/user-preferences.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/meetings/chantiers",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/meetings.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/meetings/chantiers/{id}/location",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/meetings.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/meetings/compile",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/meetings.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/messages",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/messages.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/messages",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/messages.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/messages/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/messages.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/messages/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/messages.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/messages/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/messages.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/messages/{id}/duplicate",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/messages.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/messages/export/csv",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/messages.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/my-subscription",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/my-subscription.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/my-subscription/check-access",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/my-subscription.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/my-subscription/invoices",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/my-subscription.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/my-subscription/upgrade-request",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/my-subscription.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/notes-internes",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/notes-internes.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/notes-internes",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/notes-internes.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/notes-internes/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/notes-internes.ts"
+      ]
+    },
+    {
+      "method": "put",
+      "path": "/notes-internes/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/notes-internes.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/notes-internes/{id}/duplicate",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/notes-internes.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/notes-internes/export/csv",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/notes-internes.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/notifications",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/automations.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/notifications/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/automations.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/notifications/{id}/read",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/automations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/notifications/delete-all",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/automations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/notifications/read-all",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/automations.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/org-closures",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/org-closures.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/org-closures",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/org-closures.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/org-closures/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/org-closures.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/org-closures/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/org-closures.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/org-closures/import-holidays",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/org-closures.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/org-profile",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/org-profile.ts"
+      ]
+    },
+    {
+      "method": "put",
+      "path": "/org-profile",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/org-profile.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/organisations",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/organisations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/organisations",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/organisations.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/organisations/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/organisations.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/organisations/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/organisations.ts"
+      ]
+    },
+    {
+      "method": "put",
+      "path": "/organisations/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/organisations.ts"
+      ]
+    },
+    {
+      "method": "put",
+      "path": "/organisations/{id}/plan",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/organisations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/organisations/{id}/resend-license",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/organisations.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/organisations/{id}/toggle-status",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/organisations.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/organisations/invoice-drafts",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/organisations.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/organisations/invoice-drafts/validate",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/organisations.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/organisations/search-entreprise",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/organisations.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/performance/historique",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/performance.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/performance/metriques",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/performance.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/performance/metriques/export/csv",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/performance.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/performance/rapport",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/performance.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/proactive/inbox/scan",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/proactive.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/proactive/run",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/proactive.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/proactive/settings",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/proactive.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/proactive/settings",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/proactive.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/proactive/suggestions",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/proactive.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/proactive/suggestions/{id}/accept",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/proactive.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/proactive/suggestions/{id}/dismiss",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/proactive.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/proactive/suggestions/{id}/feedback",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/proactive.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/proactive/suggestions/{id}/send-reminder",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/proactive.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/proactive/suggestions/{id}/send-reply",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/proactive.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/projets",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/projets.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/projets",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/projets.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/projets/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/projets.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/projets/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/projets.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/projets/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/projets.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/projets/{id}/duplicate",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/projets.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/projets/stats",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/projets.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/prospects",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/prospects.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/prospects",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/prospects.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/prospects/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/prospects.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/prospects/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/prospects.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/prospects/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/prospects.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/prospects/{id}/convert",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/prospects.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/prospects/{id}/devis",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/prospects.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/prospects/{id}/duplicate",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/prospects.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/prospects/{id}/history",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/prospects.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/prospects/export/csv",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/prospects.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/prospects/stats",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/prospects.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/public/contact-request",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/contact-request.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/public/demo-chat",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/public-demo-chat.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/public/demo-chat/suggestions",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/public-demo-chat.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/public/demo-handoff",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/public-demo-chat.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/public/demo-request",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/demo-request.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/search",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/search.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/security/alerts",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/security.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/security/blacklist",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/security.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/security/blacklist/{ip}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/security.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/security/dashboard",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/security.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/security/events",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/security.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/security/guardian/banned",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/security.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/security/guardian/banned/{ip}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/security.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/security/guardian/events",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/security.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/security/guardian/profiles",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/security.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/security/guardian/stats",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/security.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/security/health",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/security.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/security/lists",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/security.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/security/lists",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/security.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/security/lists/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/security.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/security/overview",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/security.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/security/protection-status",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/security.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/security/scan",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/security.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/security/scan-document",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/security.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/security/scan-text",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/security.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/security/scan-url",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/security.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/security/score",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/security.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/security/settings",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/security.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/security/settings",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/security.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/security/stats",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/security.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/smart-reports/daily-timeline",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/smart-reports.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/smart-reports/executive-summary",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/smart-reports.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/smart-reports/reminders",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/smart-reports.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/stripe/cancel-subscription",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/stripe.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/stripe/create-checkout-session",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/stripe.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/stripe/create-portal-session",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/stripe.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/stripe/resume-subscription",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/stripe.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/stripe/status",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/stripe.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/subscription",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/subscriptions.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/subscription/plans",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/subscriptions.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/subscription/upgrade",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/subscriptions.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/subscription/usage",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/subscriptions.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/support-inbox/incoming",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/support-inbox.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/sync/broadcast",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/sync.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/sync/events",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/sync.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/sync/status",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/sync.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/tasks",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/tasks.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/tasks",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/tasks.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/tasks/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/tasks.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/tasks/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/tasks.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/tasks/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/tasks.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/tasks/{id}/duplicate",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/tasks.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/tasks/export/csv",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/tasks.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/team-status",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/dashboard.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/telephony/ai-receptionist",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/telephony.ts"
+      ]
+    },
+    {
+      "method": "put",
+      "path": "/telephony/ai-receptionist",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/telephony.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/telephony/call",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/telephony.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/telephony/call-logs",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/telephony.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/telephony/fraud-protection",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/telephony.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/telephony/fraud-protection",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/telephony.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/telephony/providers",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/telephony.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/telephony/providers",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/telephony.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/telephony/providers/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/telephony.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/telephony/providers/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/telephony.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/telephony/providers/{id}/test",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/telephony.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/telephony/providers/available",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/telephony.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/telephony/schedule",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/telephony.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/telephony/schedule",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/telephony.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/telephony/schedule/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/telephony.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/telephony/sms",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/telephony.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/telephony/sms-logs",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/telephony.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/telephony/stats",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/telephony.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/treasury/risk",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/treasury.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/treasury/settings",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/treasury.ts"
+      ]
+    },
+    {
+      "method": "put",
+      "path": "/treasury/settings",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/treasury.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/voice/cancel",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/voice-command.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/voice/chat",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/voice-command.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/voice/command",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/voice-command.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/voice/commands",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/voice-command.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/voice/confirm",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/voice-command.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/voice/site-ops",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/voice-site-ops.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/voice/site-ops/confirm",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/voice-site-ops.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/web-search",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/web-search.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/web-search/instant",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/web-search.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/web-search/suggest",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/web-search.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/webhooks",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/webhooks.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/webhooks",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/webhooks.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/webhooks/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/webhooks.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/webhooks/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/webhooks.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/webhooks/{id}/deliveries",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/webhooks.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/webhooks/{id}/deliveries/{deliveryId}/retry",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/webhooks.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/webhooks/{id}/rotate-secret",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/webhooks.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/whatsapp/conversations",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/whatsapp-inbox.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/whatsapp/conversations/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/whatsapp-inbox.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/whatsapp/conversations/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/whatsapp-inbox.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/whatsapp/conversations/{id}/draft",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/whatsapp-inbox.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/whatsapp/conversations/{id}/send",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/whatsapp-inbox.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/workforce-agent",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/workforce-agent.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/workforce-agent/history",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/workforce-agent.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/workforce-intelligence",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/workforce-intelligence.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/workforce-intelligence/employees",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/workforce-intelligence.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/workspace/activity-summary",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/workspace.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/workspace/backups",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/backups.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/workspace/backups/config",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/backups.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/workspace/backups/config/{platform}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/backups.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/workspace/backups/latest",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/backups.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/workspace/backups/manual",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/backups.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/workspace/connect-all/{platform}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/workspace.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/workspace/connect/{platform}/{serviceId}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/workspace.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/workspace/daily-report",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/workspace.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/workspace/daily-reports",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/workspace.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/workspace/daily-reports/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/workspace.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/workspace/daily-reports/{id}",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/workspace.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/workspace/disconnect-all/{platform}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/workspace.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/workspace/disconnect/{platform}/{serviceId}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/workspace.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/workspace/platforms",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/workspace.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/workspace/status",
+      "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/workspace.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/workspace/sync-logs",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/workspace.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/workspace/sync-logs/{platform}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/workspace.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/workspace/sync/{platform}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/workspace.ts"
+      ]
+    }
+  ]
+}

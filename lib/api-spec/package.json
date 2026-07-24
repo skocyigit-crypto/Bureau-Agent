@@ -3,7 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "codegen": "orval --config ./orval.config.ts"
+    "codegen": "orval --config ./orval.config.ts",
+    "routes:write": "node ./scripts/runtime-route-inventory.mjs",
+    "routes:check": "node ./scripts/runtime-route-inventory.mjs --check"
   },
   "devDependencies": {
     "orval": "^8.5.2"

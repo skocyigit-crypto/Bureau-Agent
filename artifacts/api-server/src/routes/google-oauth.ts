@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type IRouter } from "express";
 import {
   db,
   googleOAuthTokensTable,
@@ -20,6 +20,67 @@ import {
 } from "../lib/google-auth";
 
 const router = Router();
+
+/**
+ * State OAuth signe (HMAC-SHA256), format `<payloadBase64url>.<signature>`.
+ *
+ * Il remplit les deux roles attendus d'un state OAuth:
+ *  - anti-CSRF: seul le serveur peut produire une signature valide, un tiers
+ *    ne peut donc pas forger un retour de callback ;
+ *  - transport d'identite: le callback sait a QUI rattacher le compte Google
+ *    sans dependre du cookie de session, qui n'accompagne pas toujours une
+ *    navigation venant d'accounts.google.com.
+ *
+ * Duree de vie courte: un state ne doit servir qu'a un aller-retour immediat.
+ */
+const OAUTH_STATE_TTL_MS = 15 * 60 * 1000;
+
+function oauthStateSecret(): string {
+  const secret = process.env.SESSION_SECRET || process.env.JWT_SECRET;
+  if (!secret) throw new Error("SESSION_SECRET requis pour signer le state OAuth.");
+  return secret;
+}
+
+interface OAuthStatePayload {
+  userId: number;
+  orgId: number | null;
+  services: string[];
+  iat: number;
+  nonce: string;
+}
+
+function signOAuthState(input: { userId: number; orgId: number | null; services: string[] }): string {
+  const payload: OAuthStatePayload = {
+    userId: input.userId,
+    orgId: input.orgId,
+    services: input.services,
+    iat: Date.now(),
+    nonce: crypto.randomBytes(8).toString("hex"),
+  };
+  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const sig = crypto.createHmac("sha256", oauthStateSecret()).update(body).digest("base64url");
+  return `${body}.${sig}`;
+}
+
+/** Retourne le payload si la signature est valide et le state non expire, sinon null. */
+function verifyOAuthState(state: string): OAuthStatePayload | null {
+  try {
+    const [body, sig] = state.split(".");
+    if (!body || !sig) return null;
+    const expected = crypto.createHmac("sha256", oauthStateSecret()).update(body).digest("base64url");
+    // Comparaison a temps constant: une comparaison naive laisserait fuir la
+    // signature attendue par mesure du temps de reponse.
+    const a = Buffer.from(sig);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+    const payload = JSON.parse(Buffer.from(body, "base64url").toString()) as OAuthStatePayload;
+    if (!payload?.userId || typeof payload.iat !== "number") return null;
+    if (Date.now() - payload.iat > OAUTH_STATE_TTL_MS) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
 
 const GOOGLE_SCOPES_MAP: Record<string, string> = {
   gmail: "https://www.googleapis.com/auth/gmail.modify",
@@ -119,7 +180,18 @@ router.post("/auth-url", async (req, res): Promise<void> => {
       if (scope) requestedScopes.push(scope);
     }
 
-    const state = crypto.randomBytes(16).toString("hex");
+    // State SIGNE portant l'utilisateur, au lieu d'un aleatoire stocke en session.
+    //
+    // Le retour de Google est une navigation venant d'un AUTRE site. Si le
+    // cookie de session n'accompagne pas cette navigation — politique du
+    // navigateur, cookies tiers restreints, session expiree pendant que
+    // l'utilisateur donnait son consentement — la session est vide au callback
+    // et l'ancien code repondait "Non authentifie" alors que l'autorisation
+    // Google avait pourtant reussi. Le state porte donc lui-meme l'identite,
+    // signe en HMAC pour rester infalsifiable, avec une expiration courte.
+    const state = signOAuthState({ userId, orgId, services: effectiveServices });
+    // Conserve aussi en session quand elle est disponible: double verification
+    // pour les navigateurs qui renvoient bien le cookie.
     req.session.googleOAuthState = state;
     req.session.googleOAuthServices = effectiveServices;
 
@@ -138,7 +210,22 @@ router.post("/auth-url", async (req, res): Promise<void> => {
   }
 });
 
-router.get("/callback", async (req, res): Promise<void> => {
+/**
+ * Router du SEUL callback, monte AVANT requireAuth (cf. routes/index.ts).
+ *
+ * Google renvoie l'utilisateur ici depuis accounts.google.com. Cette navigation
+ * n'emporte pas toujours le cookie de session, si bien que le callback tombait
+ * sur requireAuth et repondait `{"error":"Non authentifie"}` en JSON brut —
+ * l'utilisateur voyait une page blanche avec un message technique alors qu'il
+ * venait d'autoriser l'acces cote Google. L'identite provient desormais du
+ * state signe, la protection anti-CSRF de sa signature: aucune session requise.
+ *
+ * Les autres routes (/auth-url, /status, /disconnect, /refresh, /config)
+ * restent derriere requireAuth.
+ */
+export const googleOAuthCallbackRouter: IRouter = Router();
+
+googleOAuthCallbackRouter.get("/callback", async (req, res): Promise<void> => {
   try {
     const { code, state, error: oauthError } = req.query;
     const baseUrl = "/";
@@ -154,19 +241,20 @@ router.get("/callback", async (req, res): Promise<void> => {
       return;
     }
 
-    const sessionState = req.session?.googleOAuthState;
-    if (!state || state !== sessionState) {
+    // Identite reconstruite depuis le state SIGNE, pas depuis la session.
+    // Le cookie de session n'accompagne pas forcement le retour depuis
+    // accounts.google.com; s'y fier faisait echouer la connexion avec
+    // "Non authentifie" alors que l'autorisation Google avait reussi.
+    const verified = typeof state === "string" ? verifyOAuthState(state) : null;
+    if (!verified) {
       res.redirect(`${baseUrl}parametres?google_error=invalid_state`);
       return;
     }
 
-    const userId = req.session?.userId;
-    if (!userId) {
-      res.redirect(`${baseUrl}parametres?google_error=not_authenticated`);
-      return;
-    }
-
-    const orgId = req.session?.organisationId ?? null;
+    // La session reste prioritaire quand elle est presente (cas nominal), le
+    // state signe sert de repli fiable.
+    const userId = req.session?.userId ?? verified.userId;
+    const orgId = req.session?.organisationId ?? verified.orgId ?? null;
     // Memes identifiants globaux que /auth-url.
     const oauth2Client = await getOAuth2ClientForOrg(orgId);
     if (!oauth2Client) {

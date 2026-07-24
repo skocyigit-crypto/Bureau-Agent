@@ -47,6 +47,9 @@ jobs:
       - name: Typecheck
         run: pnpm run typecheck
 
+      - name: Check API route inventory
+        run: pnpm --filter @workspace/api-spec routes:check
+
       - name: Build
         # Excludes two packages whose build scripts are Replit-only and
         # were never meant to run outside it (both still fully typechecked

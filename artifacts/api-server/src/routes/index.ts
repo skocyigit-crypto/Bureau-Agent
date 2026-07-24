@@ -18,7 +18,7 @@ import checkinsRouter from "./checkins";
 import locationsRouter from "./locations";
 import aiAgentsRouter from "./ai-agents";
 import backupsRouter from "./backups";
-import googleOAuthRouter from "./google-oauth";
+import googleOAuthRouter, { googleOAuthCallbackRouter } from "./google-oauth";
 import calendarRouter from "./calendar";
 import auditRouter from "./audit";
 import searchRouter from "./search";
@@ -98,6 +98,11 @@ const router: IRouter = Router();
 router.use(healthRouter);
 // Declencheur Cloud Scheduler: pas de session, protege par secret partage.
 router.use(cronTickRouter);
+// Retour Google OAuth: arrive depuis accounts.google.com, sans garantie que le
+// cookie de session accompagne la navigation. Monte AVANT requireAuth, protege
+// par un state signe (HMAC) qui porte l'identite. Le reste du router
+// /google-oauth reste derriere requireAuth (monte plus bas).
+router.use("/google-oauth", googleOAuthCallbackRouter);
 router.use(authRouter);
 router.use(registerRouter);
 router.use(demoRequestRouter);

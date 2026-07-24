@@ -16,6 +16,7 @@ steps:
         corepack prepare pnpm@9.15.0 --activate
         pnpm install --frozen-lockfile
         pnpm run typecheck
+        pnpm --filter @workspace/api-spec routes:check
         pnpm run security:audit
 
   - id: start-test-db
