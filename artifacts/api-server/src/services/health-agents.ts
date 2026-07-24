@@ -61,6 +61,39 @@ export interface HealthAgent {
  */
 let poolSnapshot: { total: number; idle: number; waiting: number } | null = null;
 
+/**
+ * Latence de la base et retard de la boucle d'evenements, releves AVANT le
+ * lancement des agents — pour la meme raison que `poolSnapshot`.
+ *
+ * Ces deux mesures decrivent l'etat de l'application; les prendre pendant que
+ * sept agents tournent en parallele sur un seul vCPU revenait a mesurer les
+ * agents eux-memes. En production, le `SELECT 1` grimpait a 10 secondes et la
+ * boucle accusait plusieurs centaines de millisecondes de retard, alors que
+ * les requetes des utilisateurs, au meme moment, etaient normales.
+ */
+let baselineSnapshot: { queryLatencyMs: number | null; eventLoopLagMs: number | null } = {
+  queryLatencyMs: null,
+  eventLoopLagMs: null,
+};
+
+async function measureBaseline(): Promise<void> {
+  let queryLatencyMs: number | null = null;
+  try {
+    const t0 = Date.now();
+    await db.execute(sql`SELECT 1`);
+    queryLatencyMs = Date.now() - t0;
+  } catch {
+    // On laisse `null`: le controle refera la mesure et rapportera l'echec
+    // avec son propre message.
+  }
+
+  const t1 = Date.now();
+  await new Promise((r) => setTimeout(r, 100));
+  const eventLoopLagMs = Date.now() - t1 - 100;
+
+  baselineSnapshot = { queryLatencyMs, eventLoopLagMs };
+}
+
 /** Enveloppe une sonde pour qu'une exception devienne un constat, jamais un crash. */
 async function safeCheck(
   check: string,
@@ -123,9 +156,14 @@ const databaseAgent: HealthAgent = {
     // Latence: un SELECT 1 doit etre quasi instantane. S'il traine, la base ou
     // le lien reseau est en difficulte bien avant que les requetes echouent.
     results.push(await safeCheck("query_latency", async () => {
-      const t0 = Date.now();
-      await db.execute(sql`SELECT 1`);
-      const ms = Date.now() - t0;
+      let ms = baselineSnapshot.queryLatencyMs;
+      if (ms === null) {
+        // Le releve initial a echoue: on refait la mesure ici pour que
+        // l'echec soit rapporte avec son message d'origine.
+        const t0 = Date.now();
+        await db.execute(sql`SELECT 1`);
+        ms = Date.now() - t0;
+      }
       const status: CheckStatus = ms > 1000 ? "degrade" : "ok";
       return {
         check: "query_latency",
@@ -198,9 +236,12 @@ const runtimeAgent: HealthAgent = {
     // Boucle d'evenements: si elle est bloquee, l'application repond lentement
     // a TOUT sans qu'aucune requete ne soit en cause individuellement.
     results.push(await safeCheck("event_loop_lag", async () => {
-      const t0 = Date.now();
-      await new Promise((r) => setTimeout(r, 100));
-      const lag = Date.now() - t0 - 100;
+      let lag = baselineSnapshot.eventLoopLagMs;
+      if (lag === null) {
+        const t0 = Date.now();
+        await new Promise((r) => setTimeout(r, 100));
+        lag = Date.now() - t0 - 100;
+      }
       const status: CheckStatus = lag > 200 ? "degrade" : "ok";
       return {
         check: "event_loop_lag",
@@ -424,6 +465,9 @@ export async function runHealthAgents(runId?: string): Promise<HealthRunSummary>
     idle: pool.idleCount,
     waiting: pool.waitingCount,
   };
+
+  // Mesures d'etat prises au repos, avant le lancement parallele des agents.
+  await measureBaseline();
 
   const perAgent = await Promise.all(
     HEALTH_AGENTS.map(async (agent) => {
