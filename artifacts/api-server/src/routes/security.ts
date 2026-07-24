@@ -17,7 +17,7 @@ import {
   unbanGuardianIp,
 } from "../middleware/guardian";
 import { analyzeUrlFull, isSafeBrowsingConfigured } from "../services/url-safety";
-import { isMalwareEngineConfigured, getMalwareEngineName, isMalwareSubmissionEnabled } from "../services/file-malware";
+import { isMalwareEngineConfigured, getMalwareEngineName, isMalwareSubmissionEnabled, getInboundMaxSubmitBytes } from "../services/file-malware";
 import { recordSecurityScan, getRecentSecurityScans, getOrgScanSummary } from "../services/security-scans";
 import {
   listSecurityEntries,
@@ -213,6 +213,10 @@ router.get("/security/protection-status", async (req, res) => {
     // inconnus): opt-in, lente (~60s). Le front s'en sert pour afficher un
     // statut "analyse approfondie en cours" pendant l'attente d'un scan.
     deepScanEnabled: isMalwareSubmissionEnabled(),
+    // Plafond reel au-dela duquel une piece jointe entrante n'est plus
+    // soumise a l'analyse approfondie. Expose pour que l'ecran de securite
+    // affiche la vraie limite au lieu d'un selecteur decoratif.
+    maxScanBytes: getInboundMaxSubmitBytes(),
     summary,
     recentScans: recent,
   });

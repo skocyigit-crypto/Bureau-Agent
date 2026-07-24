@@ -214,17 +214,6 @@ export function TabPlateformes() {
   const [copiedUri, setCopiedUri] = useState(false);
   const [showGoogleHelp, setShowGoogleHelp] = useState(false);
 
-  const [blockExternalDownloads, setBlockExternalDownloads] = useState(true);
-  const [superAdminOnlyDownload, setSuperAdminOnlyDownload] = useState(true);
-  const [blockExternalUploads, setBlockExternalUploads] = useState(true);
-  const [blockMacros, setBlockMacros] = useState(true);
-  const [blockEncryptedFiles, setBlockEncryptedFiles] = useState(true);
-  const [blockExecutables, setBlockExecutables] = useState(true);
-  const [dlpEnabled, setDlpEnabled] = useState(true);
-  const [dlpBlockSensitiveData, setDlpBlockSensitiveData] = useState(true);
-  const [dlpNotifyAdmin, setDlpNotifyAdmin] = useState(true);
-  const [externalSharingBlocked, setExternalSharingBlocked] = useState(true);
-  const [maxFileSize, setMaxFileSize] = useState("25");
   const [protection, setProtection] = useState<any | null>(null);
 
   const fetchGoogleOAuthStatus = useCallback(async () => {
@@ -602,33 +591,44 @@ export function TabPlateformes() {
           </div>
         </CardHeader>
         <CardContent className="space-y-5">
-          <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-lg p-4">
+          {/* Cette carte annonçait auparavant que « tous les fichiers externes
+              sont bloqués par défaut, seul un Super Administrateur peut
+              autoriser le téléchargement ». Aucune règle de ce type n'existe
+              cote serveur — les pièces jointes se téléchargent normalement.
+              Une fausse assurance de sécurité est pire que pas d'assurance du
+              tout : le contenu décrit ci-dessous est ce qui se passe vraiment. */}
+          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-lg p-4">
             <div className="flex items-start gap-3">
-              <ShieldBan className="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
+              <ShieldBan className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
               <div>
-                <h4 className="font-semibold text-sm text-red-800 dark:text-red-300">Blocage des téléchargements externes</h4>
-                <p className="text-xs text-red-600 dark:text-red-400 mt-1">Tous les fichiers provenant de sources externes (Drive, e-mails, liens partagés) sont bloques par defaut. Seul un Super Administrateur peut autoriser le téléchargement apres vérification.</p>
+                <h4 className="font-semibold text-sm text-amber-800 dark:text-amber-300">Fichiers entrants</h4>
+                <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                  Les fichiers externes ne sont pas bloqués automatiquement : ils sont analysés. Un fichier importé
+                  depuis Drive ou une pièce jointe enregistrée passe par l'analyse antivirus, et son verdict apparaît
+                  dans le journal ci-dessus.
+                </p>
               </div>
             </div>
           </div>
           {[
-            { icon: Download, color: "text-red-500", label: "Bloquer tous les téléchargements externes", desc: "Aucun fichier externe ne peut etre telecharge sans autorisation", checked: blockExternalDownloads, onChange: setBlockExternalDownloads },
-            { icon: UserCog, color: "text-amber-600", label: "Téléchargement reserve au Super Administrateur", desc: "Seul le super admin peut telecharger des fichiers apres vérification manuelle", checked: superAdminOnlyDownload, onChange: setSuperAdminOnlyDownload },
-            { icon: Upload, color: "text-red-500", label: "Bloquer les envois de fichiers externes", desc: "Empecher l'envoi de fichiers vers des destinations externes non autorisees", checked: blockExternalUploads, onChange: setBlockExternalUploads },
-            { icon: Ban, color: "text-red-500", label: "Bloquer le partagé externe", desc: "Interdire le partagé de documents avec des utilisateurs hors de l'organisation", checked: externalSharingBlocked, onChange: setExternalSharingBlocked },
+            { icon: Download, color: "text-emerald-600", label: "Analyse antivirus à l'import", desc: "Tout fichier importé depuis Drive ou une pièce jointe est analysé avant d'être enregistré" },
+            { icon: Upload, color: "text-emerald-600", label: "Contrôle des envois sortants", desc: "Les e-mails contenant des données sensibles exigent une confirmation explicite (DLP)" },
+            { icon: UserCog, color: "text-amber-600", label: "Journal accessible aux administrateurs", desc: "Les analyses et alertes de l'organisation sont consultables dans l'espace Sécurité" },
           ].map((item, i) => (
             <div key={item.label}>
               {i > 0 && <Separator className="mb-5" />}
-              <div className="flex items-center justify-between">
-                <div className="flex items-start gap-3"><item.icon className={`w-4 h-4 ${item.color} mt-0.5`} /><div><Label>{item.label}</Label><p className="text-xs text-muted-foreground">{item.desc}</p></div></div>
-                <Switch checked={item.checked} onCheckedChange={item.onChange} />
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-start gap-3"><item.icon className={`w-4 h-4 ${item.color} mt-0.5 shrink-0`} /><div><Label className="font-normal">{item.label}</Label><p className="text-xs text-muted-foreground">{item.desc}</p></div></div>
+                <Badge variant="outline" className="text-emerald-700 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 text-[10px] shrink-0">Actif</Badge>
               </div>
             </div>
           ))}
           <Separator />
-          <div className="flex items-center justify-between">
-            <div className="flex items-start gap-3"><FileX className="w-4 h-4 text-red-500 mt-0.5" /><div><Label>Taille maximale des fichiers</Label><p className="text-xs text-muted-foreground">Limite de taille pour les fichiers autorises (en Mo)</p></div></div>
-            <Select value={maxFileSize} onValueChange={setMaxFileSize}><SelectTrigger className="w-28"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="5">5 Mo</SelectItem><SelectItem value="10">10 Mo</SelectItem><SelectItem value="25">25 Mo</SelectItem><SelectItem value="50">50 Mo</SelectItem></SelectContent></Select>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-start gap-3"><FileX className="w-4 h-4 text-red-500 mt-0.5 shrink-0" /><div><Label className="font-normal">Taille maximale analysée</Label><p className="text-xs text-muted-foreground">Au-delà, le fichier n'est pas soumis à l'analyse approfondie</p></div></div>
+            <Badge variant="outline" className="text-[10px] shrink-0">
+              {protection?.maxScanBytes ? `${Math.round(protection.maxScanBytes / (1024 * 1024))} Mo` : "—"}
+            </Badge>
           </div>
         </CardContent>
       </Card>
@@ -692,16 +692,19 @@ export function TabPlateformes() {
           <CardDescription>Les fichiers avec ces extensions sont systematiquement bloques, meme pour le Super Administrateur.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
+          {/* Ces regles sont appliquees sans condition par le filtre d'upload
+              du serveur : ce ne sont pas des options, et les presenter comme
+              des interrupteurs laissait croire qu'on pouvait les desactiver. */}
           {[
-            { icon: Ban, label: "Bloquer les fichiers executables", desc: ".exe, .bat, .cmd, .com, .scr, .pif, .msi, .dll et autres executables", checked: blockExecutables, onChange: setBlockExecutables },
-            { icon: FileWarning, label: "Bloquer les macros Office", desc: "Empecher l'ouverture de fichiers contenant des macros VBA potentiellement dangereuses", checked: blockMacros, onChange: setBlockMacros },
-            { icon: Lock, label: "Bloquer les fichiers chiffres/proteges", desc: "Les fichiers chiffres ne peuvent pas etre analyses - bloques par precaution", checked: blockEncryptedFiles, onChange: setBlockEncryptedFiles },
+            { icon: Ban, label: "Fichiers exécutables refusés", desc: ".exe, .bat, .cmd, .com, .scr, .pif, .msi, .dll et autres exécutables" },
+            { icon: FileWarning, label: "Scripts et macros détectés par signature", desc: "PowerShell, VBS, WScript, contenu Office contenant des macros" },
+            { icon: Lock, label: "Archives et fichiers non analysables signalés", desc: "Un fichier qui ne peut pas être analysé est marqué comme suspect" },
           ].map((item, i) => (
             <div key={item.label}>
               {i > 0 && <Separator className="mb-5" />}
-              <div className="flex items-center justify-between">
-                <div className="flex items-start gap-3"><item.icon className="w-4 h-4 text-red-500 mt-0.5" /><div><Label>{item.label}</Label><p className="text-xs text-muted-foreground">{item.desc}</p></div></div>
-                <Switch checked={item.checked} onCheckedChange={item.onChange} />
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-start gap-3"><item.icon className="w-4 h-4 text-red-500 mt-0.5 shrink-0" /><div><Label className="font-normal">{item.label}</Label><p className="text-xs text-muted-foreground">{item.desc}</p></div></div>
+                <Badge variant="outline" className="text-[10px] shrink-0">Toujours appliqué</Badge>
               </div>
             </div>
           ))}
@@ -751,19 +754,28 @@ export function TabPlateformes() {
           <CardDescription>Empecher la fuite de données sensibles via e-mails, fichiers partagés ou documents.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Comportement REEL du controle DLP sortant. Il ne s'agit pas
+              d'options: l'analyse s'applique systematiquement a tout e-mail
+              quittant l'application, et un envoi n'est jamais bloque en
+              silence — il demande une confirmation. */}
           {[
-            { icon: Shield, label: "Protection DLP active", desc: "Analyser le contenu sortant pour detecter les données sensibles (IBAN, CB, NIR, mots de passe)", checked: dlpEnabled, onChange: setDlpEnabled },
-            { icon: Ban, label: "Bloquer l'envoi de données sensibles", desc: "Empecher automatiquement l'envoi d'e-mails contenant des données personnelles non autorisees", checked: dlpBlockSensitiveData, onChange: setDlpBlockSensitiveData },
-            { icon: Bell, label: "Notifier le Super Administrateur", desc: "Alerte immediate au super admin en cas de tentative de fuite de données", checked: dlpNotifyAdmin, onChange: setDlpNotifyAdmin },
+            { icon: Shield, label: "Analyse de tout e-mail sortant", desc: "Chaque envoi et chaque réponse sont analysés avant leur départ" },
+            { icon: Ban, label: "Confirmation exigée : IBAN, carte bancaire, NIR", desc: "L'envoi est suspendu et vous devez confirmer explicitement s'il est volontaire" },
+            { icon: Bell, label: "Tentative tracée dans le journal de sécurité", desc: "Chaque détection est enregistrée et visible dans les statistiques ci-dessus" },
           ].map((item, i) => (
             <div key={item.label}>
               {i > 0 && <Separator className="mb-4" />}
-              <div className="flex items-center justify-between">
-                <div className="flex items-start gap-3"><item.icon className="w-4 h-4 text-amber-500 mt-0.5" /><div><Label>{item.label}</Label><p className="text-xs text-muted-foreground">{item.desc}</p></div></div>
-                <Switch checked={item.checked} onCheckedChange={item.onChange} />
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-start gap-3"><item.icon className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" /><div><Label className="font-normal">{item.label}</Label><p className="text-xs text-muted-foreground">{item.desc}</p></div></div>
+                <Badge variant="outline" className="text-emerald-700 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 text-[10px] shrink-0">Actif</Badge>
               </div>
             </div>
           ))}
+          <Separator />
+          <p className="text-xs text-muted-foreground">
+            Les adresses e-mail, numéros de téléphone et identifiants SIRET/SIREN ne déclenchent pas d'alerte : ils figurent
+            normalement dans une correspondance professionnelle.
+          </p>
         </CardContent>
       </Card>
 

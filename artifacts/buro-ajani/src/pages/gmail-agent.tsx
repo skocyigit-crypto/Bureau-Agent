@@ -36,7 +36,13 @@ async function apiFetch(path: string, opts?: RequestInit) {
   const res = await fetch(`${baseUrl}/api${path}`, { credentials: "include", ...opts });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error((err as any).error || `HTTP ${res.status}`);
+    // On conserve le corps et le statut sur l'erreur: certains refus sont
+    // porteurs d'information exploitable par l'appelant (ex. le blocage DLP
+    // renvoie 409 avec la liste des donnees sensibles detectees).
+    const error = new Error((err as any).error || `HTTP ${res.status}`) as Error & { status?: number; payload?: any };
+    error.status = res.status;
+    error.payload = err;
+    throw error;
   }
   return res.json();
 }
@@ -162,6 +168,7 @@ function ComposeModal({ open, onClose, replyTo }: { open: boolean; onClose: () =
   const [subject, setSubject] = useState(replyTo ? `Re: ${replyTo.subject}` : "");
   const [body, setBody] = useState(replyTo?.aiBody || "");
   const [sending, setSending] = useState(false);
+  const [dlpWarning, setDlpWarning] = useState<any | null>(null);
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -174,19 +181,26 @@ function ComposeModal({ open, onClose, replyTo }: { open: boolean; onClose: () =
     }
   }, [replyTo]);
 
-  const handleSend = async () => {
+  const handleSend = async (confirmSensitive = false) => {
     if (!to || !subject || !body) { toast({ title: "Champs requis", variant: "destructive" }); return; }
     setSending(true);
     try {
       if (replyTo?.threadId) {
-        await apiPost("/gmail/reply", { messageId: replyTo.messageId, threadId: replyTo.threadId, to, subject, body, isHtml: false });
+        await apiPost("/gmail/reply", { messageId: replyTo.messageId, threadId: replyTo.threadId, to, subject, body, isHtml: false, confirmSensitive });
       } else {
-        await apiPost("/gmail/send", { to, subject, body, isHtml: false });
+        await apiPost("/gmail/send", { to, subject, body, isHtml: false, confirmSensitive });
       }
+      setDlpWarning(null);
       toast({ title: "Email envoyé", description: `A ${to}` });
       qc.invalidateQueries({ queryKey: ["gmail-inbox"] });
       onClose();
-    } catch {
+    } catch (e: any) {
+      // Blocage DLP: on n'interdit pas l'envoi, on demande une confirmation
+      // explicite en montrant precisement ce qui a ete detecte.
+      if (e?.status === 409 && e?.payload?.error === "donnees_sensibles") {
+        setDlpWarning(e.payload);
+        return;
+      }
       toast({ title: "Erreur d'envoi", variant: "destructive" });
     } finally { setSending(false); }
   };
@@ -213,12 +227,35 @@ function ComposeModal({ open, onClose, replyTo }: { open: boolean; onClose: () =
             <Label className="text-xs">Message</Label>
             <Textarea value={body} onChange={e => setBody(e.target.value)} placeholder="Rédigez votre message..." className="mt-1 min-h-[200px]" />
           </div>
+          {dlpWarning && (
+            <div className="rounded-md border border-amber-200 bg-amber-50/70 p-2.5 space-y-1.5">
+              <p className="text-[11px] font-semibold text-amber-800 flex items-center gap-1.5">
+                <ShieldAlert className="h-3.5 w-3.5" />
+                Données sensibles détectées
+              </p>
+              <p className="text-xs text-amber-900 leading-snug">{dlpWarning.message}</p>
+              {dlpWarning.findings?.length > 0 && (
+                <ul className="text-xs text-amber-800 list-disc pl-4 space-y-0.5">
+                  {dlpWarning.findings.map((f: any, i: number) => (
+                    <li key={i}>{f.label} — {f.count} occurrence(s){f.samples?.length ? ` : ${f.samples.join(", ")}` : ""}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={onClose}>Annuler</Button>
-            <Button onClick={handleSend} disabled={sending}>
-              {sending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-              Envoyer
-            </Button>
+            {dlpWarning ? (
+              <Button variant="destructive" onClick={() => handleSend(true)} disabled={sending}>
+                {sending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+                Envoyer quand même
+              </Button>
+            ) : (
+              <Button onClick={() => handleSend()} disabled={sending}>
+                {sending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+                Envoyer
+              </Button>
+            )}
           </div>
         </div>
       </DialogContent>
