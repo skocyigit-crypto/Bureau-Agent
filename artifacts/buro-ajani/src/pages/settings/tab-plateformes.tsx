@@ -169,12 +169,11 @@ const BLOCKED_EXTENSIONS = [
   ".ps1xml", ".ps2", ".ps2xml", ".psc1", ".psc2", ".dll", ".sys", ".drv",
 ];
 
-const SCAN_STATS = {
-  totalScanned: 1247,
-  threatsBlocked: 23,
-  quarantined: 8,
-  lastScan: "03/04/2026 14:32",
-};
+// NOTE: les statistiques d'analyse etaient auparavant des constantes ecrites en
+// dur (1247 fichiers, 23 menaces...). Chaque client voyait donc les MEMES
+// chiffres inventes sur un ecran de securite. Elles proviennent maintenant de
+// `/api/security/protection-status`, qui renvoie le resume reel des analyses de
+// l'organisation ainsi que l'etat effectif de chaque couche de protection.
 
 const PLATFORM_NAMES_MAP: Record<string, string> = {
   google: "Google",
@@ -184,6 +183,7 @@ const PLATFORM_NAMES_MAP: Record<string, string> = {
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/workspace";
 const GOOGLE_OAUTH_BASE = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/google-oauth";
+const SECURITY_BASE = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/security";
 
 export function TabPlateformes() {
   const { toast } = useToast();
@@ -217,24 +217,15 @@ export function TabPlateformes() {
   const [blockExternalDownloads, setBlockExternalDownloads] = useState(true);
   const [superAdminOnlyDownload, setSuperAdminOnlyDownload] = useState(true);
   const [blockExternalUploads, setBlockExternalUploads] = useState(true);
-  const [virusScanEmails, setVirusScanEmails] = useState(true);
-  const [virusScanAttachments, setVirusScanAttachments] = useState(true);
-  const [virusScanDrive, setVirusScanDrive] = useState(true);
-  const [quarantineSuspicious, setQuarantineSuspicious] = useState(true);
   const [blockMacros, setBlockMacros] = useState(true);
   const [blockEncryptedFiles, setBlockEncryptedFiles] = useState(true);
   const [blockExecutables, setBlockExecutables] = useState(true);
-  const [sandboxAnalysis, setSandboxAnalysis] = useState(true);
   const [dlpEnabled, setDlpEnabled] = useState(true);
   const [dlpBlockSensitiveData, setDlpBlockSensitiveData] = useState(true);
   const [dlpNotifyAdmin, setDlpNotifyAdmin] = useState(true);
-  const [phishingProtection, setPhishingProtection] = useState(true);
-  const [spoofingProtection, setSpoofingProtection] = useState(true);
-  const [linkSafetyCheck, setLinkSafetyCheck] = useState(true);
   const [externalSharingBlocked, setExternalSharingBlocked] = useState(true);
   const [maxFileSize, setMaxFileSize] = useState("25");
-  const [aiThreatDetection, setAiThreatDetection] = useState(true);
-  const [realTimeProtection, setRealTimeProtection] = useState(true);
+  const [protection, setProtection] = useState<any | null>(null);
 
   const fetchGoogleOAuthStatus = useCallback(async () => {
     try {
@@ -275,10 +266,20 @@ export function TabPlateformes() {
     }
   }, []);
 
+  const fetchProtectionStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`${SECURITY_BASE}/protection-status`, { credentials: "include" });
+      if (res.ok) setProtection(await res.json());
+    } catch (err) {
+      console.error("Fetch protection status error:", err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchPlatforms();
     fetchGoogleOAuthStatus();
-  }, [fetchPlatforms, fetchGoogleOAuthStatus]);
+    fetchProtectionStatus();
+  }, [fetchPlatforms, fetchGoogleOAuthStatus, fetchProtectionStatus]);
 
   const copyRedirectUri = async () => {
     if (!googleRedirectUri) return;
@@ -639,29 +640,49 @@ export function TabPlateformes() {
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="grid grid-cols-4 gap-3">
-            <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3 text-center"><p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{SCAN_STATS.totalScanned.toLocaleString("fr-FR")}</p><p className="text-[10px] text-emerald-600 dark:text-emerald-500">Fichiers analyses</p></div>
-            <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-3 text-center"><p className="text-lg font-bold text-red-700 dark:text-red-400">{SCAN_STATS.threatsBlocked}</p><p className="text-[10px] text-red-600 dark:text-red-500">Menaces bloquees</p></div>
-            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-center"><p className="text-lg font-bold text-amber-700 dark:text-amber-400">{SCAN_STATS.quarantined}</p><p className="text-[10px] text-amber-600 dark:text-amber-500">En quarantaine</p></div>
-            <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-center"><p className="text-lg font-bold text-blue-700 dark:text-blue-400">{SCAN_STATS.lastScan}</p><p className="text-[10px] text-blue-600 dark:text-blue-500">Derniere analyse</p></div>
+            <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3 text-center"><p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{(protection?.summary?.total ?? 0).toLocaleString("fr-FR")}</p><p className="text-[10px] text-emerald-600 dark:text-emerald-500">Analyses effectuees</p></div>
+            <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-3 text-center"><p className="text-lg font-bold text-red-700 dark:text-red-400">{protection?.summary?.dangerous ?? 0}</p><p className="text-[10px] text-red-600 dark:text-red-500">Menaces detectees</p></div>
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-center"><p className="text-lg font-bold text-amber-700 dark:text-amber-400">{protection?.summary?.suspicious ?? 0}</p><p className="text-[10px] text-amber-600 dark:text-amber-500">Elements suspects</p></div>
+            <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-center"><p className="text-lg font-bold text-blue-700 dark:text-blue-400">{protection?.summary?.last24h ?? 0}</p><p className="text-[10px] text-blue-600 dark:text-blue-500">Dernieres 24 h</p></div>
           </div>
           <Separator />
-          {[
-            { icon: Mail, color: "text-orange-500", label: "Analyser tous les e-mails entrants", desc: "Scanner chaque e-mail pour detecter les virus, liens malveillants et tentatives de phishing", checked: virusScanEmails, onChange: setVirusScanEmails },
-            { icon: FileWarning, color: "text-orange-500", label: "Analyser toutes les pieces jointes", desc: "Analyse approfondie de chaque piece jointe avant ouverture ou téléchargement", checked: virusScanAttachments, onChange: setVirusScanAttachments },
-            { icon: FolderOpen, color: "text-orange-500", label: "Analyser les fichiers Google Drive", desc: "Analyse en continu de tous les fichiers stockes et partagés dans Drive", checked: virusScanDrive, onChange: setVirusScanDrive },
-            { icon: ShieldAlert, color: "text-red-500", label: "Mise en quarantaine automatique", desc: "Isoler automatiquement les fichiers suspects avant toute action humaine", checked: quarantineSuspicious, onChange: setQuarantineSuspicious },
-            { icon: ScanSearch, color: "text-purple-500", label: "Analyse en bac a sable (Sandbox)", desc: "Executer les fichiers suspects dans un environnement isole pour detecter les comportements malveillants", checked: sandboxAnalysis, onChange: setSandboxAnalysis },
-            { icon: Eye, color: "text-purple-500", label: "Detection IA des menaces avancées", desc: "L'intelligence artificielle analyse les patterns pour detecter les menaces zero-day et APT", checked: aiThreatDetection, onChange: setAiThreatDetection },
-            { icon: ShieldCheck, color: "text-emerald-500", label: "Protection en temps réel", desc: "Surveillance continue avec mise a jour des signatures toutes les 15 minutes", checked: realTimeProtection, onChange: setRealTimeProtection },
-          ].map((item, i) => (
-            <div key={item.label}>
-              {i > 0 && <Separator className="mb-5" />}
-              <div className="flex items-center justify-between">
-                <div className="flex items-start gap-3"><item.icon className={`w-4 h-4 ${item.color} mt-0.5`} /><div><Label>{item.label}</Label><p className="text-xs text-muted-foreground">{item.desc}</p></div></div>
-                <Switch checked={item.checked} onCheckedChange={item.onChange} />
+          {/* Couches de protection REELLES, renvoyees par le serveur. Cette
+              liste presentait auparavant des interrupteurs purement decoratifs
+              (etat local, jamais enregistre, ne pilotant rien) : l'ecran
+              affichait donc "actif" pour des protections que l'utilisateur ne
+              controlait pas et dont certaines dependent en realite de la
+              configuration du serveur (Safe Browsing, moteur antivirus). */}
+          <div className="space-y-3">
+            {Object.entries(protection?.layers || {}).map(([key, layer]: [string, any], i) => (
+              <div key={key}>
+                {i > 0 && <Separator className="mb-3" />}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    {layer.active
+                      ? <ShieldCheck className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
+                      : <ShieldBan className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />}
+                    <Label className="font-normal">{layer.label}</Label>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={layer.active
+                      ? "text-emerald-700 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 text-[10px]"
+                      : "text-muted-foreground text-[10px]"}
+                  >
+                    {layer.active ? "Actif" : "Non configuré"}
+                  </Badge>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+            {!protection && (
+              <p className="text-xs text-muted-foreground">Chargement de l'état des protections…</p>
+            )}
+            {protection?.deepScanEnabled === false && (
+              <p className="text-xs text-muted-foreground pt-1">
+                L'analyse approfondie (envoi des fichiers inconnus au moteur externe) est désactivée.
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -700,19 +721,27 @@ export function TabPlateformes() {
           <CardDescription>Detection avancée des tentatives de phishing, d'usurpation d'identite et de liens malveillants dans les e-mails.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Ces trois protections ne sont pas des options a activer : elles
+              s'executent a la demande, depuis le bouton "Sécurité" de l'agent
+              Mail, sur le message ouvert. Les presenter comme des interrupteurs
+              laissait croire a une analyse permanente de toute la boite. */}
           {[
-            { icon: Mail, label: "Protection anti-phishing", desc: "Detecter et bloquer les e-mails de phishing (faux expediteurs, liens trompeurs)", checked: phishingProtection, onChange: setPhishingProtection },
-            { icon: Fingerprint, label: "Protection anti-usurpation (Spoofing)", desc: "Vérifier SPF, DKIM et DMARC pour chaque e-mail entrant", checked: spoofingProtection, onChange: setSpoofingProtection },
-            { icon: ExternalLink, label: "Vérification de sécurité des liens", desc: "Analyser chaque lien dans les e-mails avant de permettre l'acces", checked: linkSafetyCheck, onChange: setLinkSafetyCheck },
+            { icon: Mail, label: "Analyse anti-phishing par IA", desc: "Verdict sur l'expediteur, le ton et les techniques d'ingenierie sociale du message" },
+            { icon: Fingerprint, label: "Vérification SPF, DKIM et DMARC", desc: "Contrôle de l'authentification de l'expediteur pour detecter une usurpation" },
+            { icon: ExternalLink, label: "Analyse des liens et des pieces jointes", desc: "Heuristique locale, Google Safe Browsing et analyse antivirus des fichiers joints" },
           ].map((item, i) => (
             <div key={item.label}>
               {i > 0 && <Separator className="mb-4" />}
-              <div className="flex items-center justify-between">
-                <div className="flex items-start gap-3"><item.icon className="w-4 h-4 text-blue-500 mt-0.5" /><div><Label>{item.label}</Label><p className="text-xs text-muted-foreground">{item.desc}</p></div></div>
-                <Switch checked={item.checked} onCheckedChange={item.onChange} />
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-start gap-3"><item.icon className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" /><div><Label className="font-normal">{item.label}</Label><p className="text-xs text-muted-foreground">{item.desc}</p></div></div>
+                <Badge variant="outline" className="text-[10px] shrink-0">À la demande</Badge>
               </div>
             </div>
           ))}
+          <Separator />
+          <p className="text-xs text-muted-foreground">
+            Ouvrez un e-mail dans l'agent Mail puis cliquez sur « Sécurité » pour lancer l'analyse complète du message.
+          </p>
         </CardContent>
       </Card>
 

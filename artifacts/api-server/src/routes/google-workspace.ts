@@ -90,6 +90,34 @@ const APP_REQUIRED_SCOPE: Record<string, string> = {
   meet: "https://www.googleapis.com/auth/calendar.events",
 };
 
+// Certains scopes Google en englobent d'autres : qui detient `auth/calendar`
+// peut deja tout ce que permet `auth/calendar.events`, et Google ne renvoie
+// alors QUE le scope large dans la reponse de jeton. Une comparaison littérale
+// affichait donc Meet en "deconnecte" en permanence alors qu'il fonctionnait.
+const SCOPE_IMPLIED_BY: Record<string, string[]> = {
+  "https://www.googleapis.com/auth/calendar.events": [
+    "https://www.googleapis.com/auth/calendar",
+  ],
+  "https://www.googleapis.com/auth/drive.file": [
+    "https://www.googleapis.com/auth/drive",
+  ],
+  "https://www.googleapis.com/auth/drive.readonly": [
+    "https://www.googleapis.com/auth/drive",
+  ],
+  "https://www.googleapis.com/auth/gmail.readonly": [
+    "https://www.googleapis.com/auth/gmail.modify",
+    "https://mail.google.com/",
+  ],
+  "https://www.googleapis.com/auth/gmail.modify": [
+    "https://mail.google.com/",
+  ],
+};
+
+function scopeGranted(required: string, granted: string[]): boolean {
+  if (granted.includes(required)) return true;
+  return (SCOPE_IMPLIED_BY[required] || []).some(broader => granted.includes(broader));
+}
+
 // Etat REEL de connexion, derive des jetons OAuth de l'utilisateur courant.
 // Plus aucun statut code en dur : une application n'est "connectee" que si le
 // scope correspondant a effectivement ete accorde par l'utilisateur.
@@ -111,7 +139,7 @@ router.get("/google-workspace/hub", async (req, res): Promise<void> => {
 
     const apps = GOOGLE_APPS.map(app => {
       const required = APP_REQUIRED_SCOPE[app.id];
-      const connected = hasToken && !!required && grantedScopes.includes(required);
+      const connected = hasToken && !!required && scopeGranted(required, grantedScopes);
       return {
         ...app,
         connected,

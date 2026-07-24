@@ -253,7 +253,7 @@ export default function GoogleWorkspace() {
                     <Check className="h-4 w-4 text-emerald-500" /> Applications connectees ({connectedApps.length})
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {connectedApps.map((app: any) => <AppCard key={app.id} app={app} />)}
+                    {connectedApps.map((app: any) => <AppCard key={app.id} app={app} hasAccount={hub?.authenticated} />)}
                   </div>
                 </div>
               )}
@@ -264,7 +264,7 @@ export default function GoogleWorkspace() {
                     <h3 className="text-sm font-semibold text-muted-foreground mb-3">Autres applications ({disconnectedApps.length})</h3>
                   )}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {(search || activeCategory !== "all" ? filteredApps : disconnectedApps).map((app: any) => <AppCard key={app.id} app={app} />)}
+                    {(search || activeCategory !== "all" ? filteredApps : disconnectedApps).map((app: any) => <AppCard key={app.id} app={app} hasAccount={hub?.authenticated} />)}
                   </div>
                 </div>
               )}
@@ -460,8 +460,34 @@ export default function GoogleWorkspace() {
   );
 }
 
-function AppCard({ app }: { app: any }) {
+function AppCard({ app, hasAccount }: { app: any; hasAccount?: boolean }) {
   const Icon = ICON_MAP[app.icon] || Grid3X3;
+  const { toast } = useToast();
+  const [activating, setActivating] = useState(false);
+
+  // Autorisation INCREMENTALE : on ne demande que le scope de cette application.
+  // Le backend passe `include_granted_scopes`, donc Google conserve les acces
+  // deja accordes au lieu de les remplacer. Sans ce bouton, les applications
+  // hors du trio par defaut (Gmail/Agenda/Drive) restaient "Inactif" a vie,
+  // sans aucun moyen de les activer depuis l'interface.
+  const activate = useCallback(async () => {
+    setActivating(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/google-oauth/auth-url`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ services: [app.id] }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.authUrl) throw new Error(data?.error || `HTTP ${res.status}`);
+      window.location.href = data.authUrl;
+    } catch {
+      toast({ title: `Activation de ${app.name} impossible`, description: "Veuillez réessayer dans un instant.", variant: "destructive" });
+      setActivating(false);
+    }
+  }, [app.id, app.name, toast]);
+
   return (
     <Card className={`transition-all hover:shadow-md ${app.connected ? "border-emerald-200 dark:border-emerald-800/50" : ""}`}>
       <CardContent className="p-4">
@@ -484,6 +510,17 @@ function AppCard({ app }: { app: any }) {
                 <RefreshCw className="h-2.5 w-2.5" />
                 Sync: {formatDistanceToNow(new Date(app.lastSync), { addSuffix: true, locale: fr })}
               </p>
+            )}
+            {!app.connected && hasAccount && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-2 h-7 text-xs w-full"
+                onClick={activate}
+                disabled={activating}
+              >
+                {activating ? "Redirection…" : "Activer"}
+              </Button>
             )}
           </div>
         </div>

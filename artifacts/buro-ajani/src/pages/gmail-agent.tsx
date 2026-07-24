@@ -9,7 +9,8 @@ import {
   CheckCircle2, Zap, Eye, Copy, Inbox,
   Paperclip, Plus, RotateCcw, Download,
   AlertCircle, TrendingUp, ShoppingCart, FileText, Info, MessageSquare,
-  CornerDownLeft, Check, Wifi, WifiOff, Printer, FolderKanban
+  CornerDownLeft, Check, Wifi, WifiOff, Printer, FolderKanban,
+  ShieldCheck, ShieldAlert, Link2
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -257,6 +258,24 @@ export default function GmailAgentPage() {
   const [composeReplyTo, setComposeReplyTo] = useState<any>(undefined);
   const [aiPanelTab, setAiPanelTab] = useState("triage");
   const [savingAtt, setSavingAtt] = useState<string | null>(null);
+  // Rapport de securite du mail ouvert (analyse anti-phishing complete :
+  // pieces jointes, liens, authentification de l'expediteur, verdict IA).
+  // L'endpoint existait deja cote serveur mais n'etait appele par aucune page.
+  const [scanReport, setScanReport] = useState<any | null>(null);
+  const [scanning, setScanning] = useState(false);
+
+  const handleScanEmail = useCallback(async () => {
+    if (!selectedEmail?.id) return;
+    setScanning(true);
+    try {
+      const report = await apiPost(`/gmail/message/${selectedEmail.id}/scan`, {});
+      setScanReport(report);
+    } catch (e: any) {
+      toast({ title: "Analyse de sécurité impossible", description: e?.message || "Réessayez.", variant: "destructive" });
+    } finally {
+      setScanning(false);
+    }
+  }, [selectedEmail?.id, toast]);
 
   const handleSaveAttachment = useCallback(async (att: any) => {
     if (!selectedEmail?.id || !att?.attachmentId) return;
@@ -915,6 +934,17 @@ export default function GmailAgentPage() {
                     <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600" onClick={() => handleTrash(selectedEmail.id)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs ml-1"
+                      onClick={handleScanEmail}
+                      disabled={scanning}
+                      title="Analyser ce mail : pièces jointes, liens, authentification de l'expéditeur, phishing"
+                    >
+                      {scanning ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <ShieldCheck className="h-3.5 w-3.5 mr-1" />}
+                      Sécurité
+                    </Button>
                     <Button variant="default" size="sm" className="h-7 text-xs ml-1" onClick={handleDraftReply} disabled={isDrafting}>
                       {isDrafting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />}
                       Réponse IA
@@ -967,6 +997,90 @@ export default function GmailAgentPage() {
                                 <span className="font-medium">→ </span>{t.suggestedAction}
                               </p>
                             )}
+                          </div>
+                        );
+                      })()}
+                      {/* Rapport de securite. Affiche uniquement pour le mail
+                          reellement analyse, pour ne jamais montrer le verdict
+                          d'un autre message apres un changement de selection. */}
+                      {scanReport && scanReport.messageId === selectedEmail.id && (() => {
+                        const risk: string = scanReport.overallRisk || "safe";
+                        const cfg = risk === "dangerous"
+                          ? { border: "border-red-200", bg: "bg-red-50/60", text: "text-red-800", label: "Dangereux", Icon: ShieldAlert }
+                          : risk === "suspicious"
+                          ? { border: "border-amber-200", bg: "bg-amber-50/60", text: "text-amber-800", label: "Suspect", Icon: AlertTriangle }
+                          : { border: "border-emerald-200", bg: "bg-emerald-50/60", text: "text-emerald-800", label: "Sans danger", Icon: ShieldCheck };
+                        const s = scanReport.stats || {};
+                        const auth = scanReport.senderAuth;
+                        const ai = scanReport.aiAnalysis;
+                        return (
+                          <div className={`rounded-md border ${cfg.border} ${cfg.bg} p-2.5 space-y-2`}>
+                            <div className={`flex items-center gap-1.5 text-[11px] font-semibold ${cfg.text}`}>
+                              <cfg.Icon className="h-3.5 w-3.5" />
+                              Analyse de sécurité — {cfg.label}
+                              {typeof scanReport.riskScore === "number" && (
+                                <Badge variant="outline" className="text-[10px] py-0 px-1">
+                                  Risque {scanReport.riskScore}/100
+                                </Badge>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap gap-1.5 text-[10px]">
+                              <Badge variant="outline" className="py-0 px-1">
+                                <Paperclip className="h-2.5 w-2.5 mr-0.5" />
+                                {s.attachmentsScanned || 0} pièce(s)
+                                {s.attachmentsThreatened ? ` · ${s.attachmentsThreatened} menace(s)` : ""}
+                              </Badge>
+                              <Badge variant="outline" className="py-0 px-1">
+                                <Link2 className="h-2.5 w-2.5 mr-0.5" />
+                                {s.linksScanned || 0} lien(s)
+                                {s.linksDangerous ? ` · ${s.linksDangerous} dangereux` : ""}
+                                {s.linksSuspicious ? ` · ${s.linksSuspicious} suspect(s)` : ""}
+                              </Badge>
+                              {auth && (
+                                <Badge variant="outline" className={`py-0 px-1 ${auth.suspicious ? "text-red-700 border-red-200" : "text-emerald-700 border-emerald-200"}`}>
+                                  SPF {auth.spf} · DKIM {auth.dkim} · DMARC {auth.dmarc}
+                                </Badge>
+                              )}
+                            </div>
+
+                            {ai && (
+                              <div className="space-y-1">
+                                <p className={`text-xs leading-snug ${cfg.text}`}>
+                                  <span className="font-medium">Verdict IA ({ai.verdict}, {ai.phishingScore}/10) : </span>
+                                  {ai.summary}
+                                </p>
+                                {ai.impersonation && (
+                                  <p className="text-xs text-red-700 leading-snug">
+                                    Usurpation possible : {ai.impersonation}
+                                  </p>
+                                )}
+                                {ai.socialEngineering?.length > 0 && (
+                                  <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-0.5">
+                                    {ai.socialEngineering.map((r: string, i: number) => <li key={i}>{r}</li>)}
+                                  </ul>
+                                )}
+                                {ai.recommendation && (
+                                  <p className="text-xs font-medium leading-snug">→ {ai.recommendation}</p>
+                                )}
+                              </div>
+                            )}
+
+                            {scanReport.links?.filter((l: any) => l.risk !== "safe").length > 0 && (
+                              <div className="space-y-0.5">
+                                {scanReport.links.filter((l: any) => l.risk !== "safe").map((l: any, i: number) => (
+                                  <p key={i} className={`text-[11px] leading-snug ${l.risk === "dangerous" ? "text-red-700" : "text-amber-700"}`}>
+                                    {l.displayUrl} — {l.reasons?.join(", ") || l.risk}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+
+                            {scanReport.attachments?.filter((a: any) => !a.safe).map((a: any, i: number) => (
+                              <p key={i} className="text-[11px] text-red-700 leading-snug">
+                                {a.filename} — {a.threats?.join(", ") || "menace détectée"}
+                              </p>
+                            ))}
                           </div>
                         );
                       })()}
