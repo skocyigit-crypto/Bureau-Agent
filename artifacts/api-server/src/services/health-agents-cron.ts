@@ -11,6 +11,7 @@
  */
 import { logger } from "../lib/logger";
 import { runHealthAgents, recordCronHeartbeat } from "./health-agents";
+import { registerRunnableCron } from "./cron-registry";
 
 const TICK_MS = 15 * 60 * 1000;
 const CRON_NAME = "health-agents";
@@ -41,8 +42,19 @@ export function startHealthAgentsCron(): void {
   if (intervalHandle) return;
   logger.info("[HealthCron] Agents de sante demarres (toutes les 15 min)");
 
-  setTimeout(() => { tick().catch(() => {}); }, 3 * 60 * 1000);
-  intervalHandle = setInterval(() => { tick().catch(() => {}); }, TICK_MS);
+  const run = (): Promise<void> => tick().catch(() => {});
+
+  // Declenchement externe (Cloud Scheduler -> /api/cron/tick). Deux raisons:
+  // le conteneur ne survit pas forcement 15 minutes avec `min-instances=0`, et
+  // surtout Cloud Run n'alloue du CPU que pendant une requete. Sonder l'etat de
+  // l'application depuis un minuteur de fond revenait a mesurer un processus
+  // prive de processeur — d'ou des retards de boucle d'evenements de plusieurs
+  // secondes et des `SELECT 1` en echec qui ne refletaient pas ce que vivent
+  // les utilisateurs.
+  registerRunnableCron(CRON_NAME, TICK_MS, run);
+
+  setTimeout(run, 3 * 60 * 1000);
+  intervalHandle = setInterval(run, TICK_MS);
 
   const shutdown = () => {
     if (intervalHandle) { clearInterval(intervalHandle); intervalHandle = null; }

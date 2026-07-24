@@ -47,7 +47,20 @@ export interface CronTickResult {
   checked: number;
   triggered: string[];
   skipped: string[];
+  /** Dues mais non executees faute de temps: reprises au tick suivant. */
+  deferred: string[];
 }
+
+/**
+ * Temps maximal consacre aux taches pendant une requete du declencheur.
+ *
+ * Le delai d'attente de Cloud Scheduler est de 60 s et celui de Cloud Run de
+ * 300 s. On reste nettement sous les deux: une tache qui deborde n'est pas
+ * perdue, elle reste due et repart au tick suivant (10 minutes plus tard).
+ */
+const TICK_BUDGET_MS = Number(process.env.CRON_TICK_BUDGET_MS) > 0
+  ? Number(process.env.CRON_TICK_BUDGET_MS)
+  : 45_000;
 
 /**
  * Execute les taches dont l'echeance est depassee, d'apres la table des
@@ -61,7 +74,7 @@ export interface CronTickResult {
  * produit pas de doublon.
  */
 export async function runDueCrons(): Promise<CronTickResult> {
-  const result: CronTickResult = { checked: 0, triggered: [], skipped: [] };
+  const result: CronTickResult = { checked: 0, triggered: [], skipped: [], deferred: [] };
   if (registry.size === 0) return result;
 
   let beats: Array<{ name: string; lastRunAt: Date }> = [];
@@ -88,29 +101,34 @@ export async function runDueCrons(): Promise<CronTickResult> {
     result.triggered.push(cron.name);
   }
 
-  // Execution SEQUENTIELLE, en arriere-plan.
+  // Execution SEQUENTIELLE et DANS la requete du declencheur.
   //
-  // Les taches etaient lancees toutes en meme temps. Le declencheur externe
-  // passe toutes les 10 minutes et jusqu'a cinq taches pouvaient etre dues au
-  // meme instant: elles saturaient alors le pool de connexions (15/15 actives,
-  // 4 requetes en attente mesurees en production), au point que meme un
-  // `SELECT 1` de diagnostic n'obtenait plus de connexion, avec 2 secondes de
-  // blocage de la boucle d'evenements. Autrement dit, l'entretien degradait
-  // l'application pour les utilisateurs presents a ce moment-la.
+  // Deux problemes se cumulaient. D'une part les taches etaient lancees toutes
+  // en meme temps: jusqu'a cinq pouvaient etre dues au meme instant et elles
+  // saturaient le pool de connexions (15/15 actives, 4 requetes en attente
+  // mesurees en production). D'autre part elles etaient detachees de la
+  // requete — or le service tourne avec `cpu-throttling: true`, c'est-a-dire
+  // que Cloud Run n'alloue de CPU que PENDANT le traitement d'une requete. Le
+  // travail de fond s'executait donc quasiment sans processeur: les agents de
+  // sante ont mesure 12,5 secondes de retard de boucle d'evenements et l'echec
+  // d'un simple `SELECT 1`.
   //
-  // On ne les attend toujours pas depuis la requete HTTP du declencheur (une
-  // tache longue la ferait expirer), mais on les enchaine les unes apres les
-  // autres.
-  if (dueCrons.length > 0) {
-    void (async () => {
-      for (const cron of dueCrons) {
-        try {
-          await cron.run();
-        } catch (err) {
-          logger.error({ err, cron: cron.name }, "[CronTick] Echec declenchement");
-        }
-      }
-    })();
+  // On les enchaine donc, et on les attend, pour qu'elles disposent reellement
+  // du processeur. Le budget borne la duree: ce qui n'a pas pu passer reste du
+  // et sera repris au tick suivant. Sans ce garde-fou, une tache longue ferait
+  // expirer la requete du declencheur.
+  const deadline = Date.now() + TICK_BUDGET_MS;
+  for (const cron of dueCrons) {
+    if (Date.now() >= deadline) {
+      result.deferred.push(cron.name);
+      result.triggered = result.triggered.filter((n) => n !== cron.name);
+      continue;
+    }
+    try {
+      await cron.run();
+    } catch (err) {
+      logger.error({ err, cron: cron.name }, "[CronTick] Echec declenchement");
+    }
   }
 
   if (result.triggered.length > 0) {
