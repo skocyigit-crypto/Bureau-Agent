@@ -7,6 +7,7 @@ import {
   Receipt, CreditCard, Upload, TrendingUp, Clock, FileText, ArrowUpDown,
   BarChart3, CircleDollarSign, AlertCircle, Scale, ShieldCheck, Lock, Eye, FileCheck, BookOpen,
   TrendingDown, Pause, Play, Activity, DollarSign, UserPlus, Target, Percent, Printer,
+  Download
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -251,6 +252,10 @@ export default function OrganisationsPage() {
   const [saasMetrics, setSaasMetrics] = useState<any>(null);
   const [saasLoading, setSaasLoading] = useState(false);
   const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [licenseDialog, setLicenseDialog] = useState<{ org: Organisation; action: "extend-trial" | "suspend" | "reactivate" | "regenerate-key" } | null>(null);
+  const [confirmOrgName, setConfirmOrgName] = useState("");
+  const [trialDays, setTrialDays] = useState("14");
+  const [licenseBusy, setLicenseBusy] = useState(false);
 
   const loadOrganisations = async () => {
     try {
@@ -397,6 +402,53 @@ export default function OrganisationsPage() {
     } catch (err) { console.error("[Organisations] loadSaasMetrics failed:", err); }
     finally { setSaasLoading(false); }
   }, []);
+
+  /**
+   * Actions d'abonnement reservees au super-admin.
+   *
+   * Elles existaient cote serveur (prolongation d'essai, suspension et
+   * reactivation de l'abonnement, regeneration de cle de licence, export des
+   * donnees de l'organisation) avec journalisation d'audit et confirmation par
+   * saisie du nom exact — mais aucune page ne les appelait. Le seul bouton
+   * disponible ici, « Suspendre », agit sur le drapeau `actif` de
+   * l'organisation, ce qui n'est PAS la meme chose que suspendre l'abonnement
+   * (statut, motif, date de suspension, invalidation du cache de licence).
+   */
+  const runLicenseAction = async (
+    org: Organisation,
+    action: "extend-trial" | "suspend" | "reactivate" | "regenerate-key",
+    body: Record<string, unknown> = {},
+  ) => {
+    setLicenseBusy(true);
+    try {
+      const res = await fetch(`${BASE}api/license-management/orgs/${org.id}/${action}`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: "Action refusée", description: data.error, variant: "destructive" });
+        return;
+      }
+      const messages: Record<string, string> = {
+        "extend-trial": `Essai prolongé jusqu'au ${data.trialEndsAt ? new Date(data.trialEndsAt).toLocaleDateString("fr-FR") : "-"}`,
+        suspend: "Abonnement suspendu",
+        reactivate: "Abonnement réactivé",
+        "regenerate-key": `Nouvelle clé : ${data.licenseKey ?? "générée"}`,
+      };
+      toast({ title: messages[action] });
+      setLicenseDialog(null);
+      setConfirmOrgName("");
+      loadOrganisations();
+      loadSaasMetrics();
+    } catch {
+      toast({ title: "Erreur", description: "L'action n'a pas abouti.", variant: "destructive" });
+    } finally {
+      setLicenseBusy(false);
+    }
+  };
 
   const handleToggleStatus = async (org: Organisation) => {
     if (org.id === 1) return;
@@ -1263,6 +1315,57 @@ export default function OrganisationsPage() {
                         Modifier
                       </Button>
                       {org.id !== 1 && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => { setLicenseDialog({ org, action: "extend-trial" }); setTrialDays("14"); }}
+                            title="Prolonger la periode d'essai de cette organisation"
+                          >
+                            <Clock className="w-3.5 h-3.5 mr-1" />
+                            Prolonger l'essai
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => { setLicenseDialog({ org, action: "suspend" }); setConfirmOrgName(""); }}
+                            className="text-amber-600 hover:text-amber-700"
+                            title="Suspendre l'abonnement (different du drapeau actif de l'organisation)"
+                          >
+                            <Pause className="w-3.5 h-3.5 mr-1" />
+                            Suspendre l'abonnement
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setLicenseDialog({ org, action: "reactivate" })}
+                            className="text-emerald-600 hover:text-emerald-700"
+                            title="Reactiver l'abonnement suspendu"
+                          >
+                            <Play className="w-3.5 h-3.5 mr-1" />
+                            Réactiver
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => { setLicenseDialog({ org, action: "regenerate-key" }); setConfirmOrgName(""); }}
+                            title="Generer une nouvelle cle de licence (l'ancienne cesse de fonctionner)"
+                          >
+                            <Key className="w-3.5 h-3.5 mr-1" />
+                            Nouvelle clé
+                          </Button>
+                          {/* Export complet des donnees de l'organisation
+                              (portabilite RGPD). Route GET: un simple lien
+                              suffit, le navigateur telecharge le fichier. */}
+                          <Button variant="outline" size="sm" asChild title="Exporter toutes les donnees de cette organisation">
+                            <a href={`${BASE}api/license-management/orgs/${org.id}/export`}>
+                              <Download className="w-3.5 h-3.5 mr-1" />
+                              Exporter
+                            </a>
+                          </Button>
+                        </>
+                      )}
+                      {org.id !== 1 && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -1971,6 +2074,86 @@ export default function OrganisationsPage() {
             <Button onClick={handlePlanChange} disabled={saving}>
               {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               Changer le plan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Suspension et regeneration de cle exigent la saisie exacte du nom de
+          l'organisation: c'est le contrat impose par le serveur
+          (`confirmOrgName`), et il protege d'une action sur la mauvaise ligne. */}
+      <Dialog open={!!licenseDialog} onOpenChange={(o) => { if (!o) { setLicenseDialog(null); setConfirmOrgName(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {licenseDialog?.action === "extend-trial" && "Prolonger la période d'essai"}
+              {licenseDialog?.action === "suspend" && "Suspendre l'abonnement"}
+              {licenseDialog?.action === "reactivate" && "Réactiver l'abonnement"}
+              {licenseDialog?.action === "regenerate-key" && "Générer une nouvelle clé de licence"}
+            </DialogTitle>
+            <DialogDescription>{licenseDialog?.org.name}</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            {licenseDialog?.action === "extend-trial" && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Nombre de jours (1 à 365)</Label>
+                <Input
+                  value={trialDays}
+                  onChange={(e) => setTrialDays(e.target.value.replace(/\D/g, "").slice(0, 3))}
+                  inputMode="numeric"
+                  className="w-32"
+                />
+              </div>
+            )}
+
+            {licenseDialog?.action === "suspend" && (
+              <p className="text-xs text-muted-foreground">
+                L'organisation passe en lecture seule ; ses données sont conservées. Différent du bouton
+                « Suspendre » de la ligne, qui désactive le compte lui-même.
+              </p>
+            )}
+
+            {licenseDialog?.action === "regenerate-key" && (
+              <p className="text-xs text-amber-700">
+                L'ancienne clé cesse immédiatement de fonctionner. Communiquez la nouvelle clé au client.
+              </p>
+            )}
+
+            {(licenseDialog?.action === "suspend" || licenseDialog?.action === "regenerate-key") && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">
+                  Tapez exactement <strong>{licenseDialog.org.name}</strong> pour confirmer
+                </Label>
+                <Input value={confirmOrgName} onChange={(e) => setConfirmOrgName(e.target.value)} />
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setLicenseDialog(null); setConfirmOrgName(""); }}>
+              Annuler
+            </Button>
+            <Button
+              disabled={
+                licenseBusy ||
+                (licenseDialog?.action === "extend-trial" && !(Number(trialDays) >= 1 && Number(trialDays) <= 365)) ||
+                ((licenseDialog?.action === "suspend" || licenseDialog?.action === "regenerate-key") &&
+                  confirmOrgName.trim().toLowerCase() !== (licenseDialog?.org.name ?? "").toLowerCase())
+              }
+              onClick={() => {
+                if (!licenseDialog) return;
+                const body =
+                  licenseDialog.action === "extend-trial"
+                    ? { days: Number(trialDays) }
+                    : licenseDialog.action === "suspend" || licenseDialog.action === "regenerate-key"
+                      ? { confirmOrgName: confirmOrgName.trim() }
+                      : {};
+                runLicenseAction(licenseDialog.org, licenseDialog.action, body);
+              }}
+            >
+              {licenseBusy && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+              Confirmer
             </Button>
           </DialogFooter>
         </DialogContent>
