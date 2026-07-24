@@ -5,9 +5,10 @@
  * qu'un utilisateur ne la signale, assez espace pour que les sondes reseau
  * (Resend, Gemini, Stripe...) restent negligeables en cout.
  *
- * Le premier passage est differe de 3 minutes: sonder des dependances externes
- * pendant que l'instance demarre fausserait la mesure (latences de demarrage a
- * froid) et alourdirait le boot.
+ * L'execution passe EXCLUSIVEMENT par le declencheur externe
+ * (Cloud Scheduler -> /api/cron/tick), sans minuteur interne: voir
+ * `startHealthAgentsCron` pour le detail. Cela ecarte du meme coup le probleme
+ * du demarrage a froid, puisque le declencheur ne tombe pas au boot.
  */
 import { logger } from "../lib/logger";
 import { runHealthAgents, recordCronHeartbeat } from "./health-agents";
@@ -16,7 +17,7 @@ import { registerRunnableCron } from "./cron-registry";
 const TICK_MS = 15 * 60 * 1000;
 const CRON_NAME = "health-agents";
 
-let intervalHandle: ReturnType<typeof setInterval> | null = null;
+let started = false;
 let running = false;
 
 async function tick(): Promise<void> {
@@ -39,26 +40,21 @@ async function tick(): Promise<void> {
 }
 
 export function startHealthAgentsCron(): void {
-  if (intervalHandle) return;
-  logger.info("[HealthCron] Agents de sante demarres (toutes les 15 min)");
+  if (started) return;
+  started = true;
+  logger.info("[HealthCron] Agents de sante inscrits (cadence 15 min, declenchement externe)");
 
   const run = (): Promise<void> => tick().catch(() => {});
 
-  // Declenchement externe (Cloud Scheduler -> /api/cron/tick). Deux raisons:
-  // le conteneur ne survit pas forcement 15 minutes avec `min-instances=0`, et
-  // surtout Cloud Run n'alloue du CPU que pendant une requete. Sonder l'etat de
-  // l'application depuis un minuteur de fond revenait a mesurer un processus
-  // prive de processeur — d'ou des retards de boucle d'evenements de plusieurs
-  // secondes et des `SELECT 1` en echec qui ne refletaient pas ce que vivent
-  // les utilisateurs.
+  // UNIQUEMENT par declenchement externe (Cloud Scheduler -> /api/cron/tick),
+  // volontairement sans minuteur interne.
+  //
+  // Cloud Run n'alloue du CPU que pendant le traitement d'une requete. Sonder
+  // l'etat de l'application depuis un `setInterval` revenait donc a mesurer un
+  // processus prive de processeur: 3,5 s pour un `SELECT 1` et 5,2 s de retard
+  // de boucle d'evenements releves ainsi, alors que les requetes des
+  // utilisateurs etaient normales au meme moment. Pire, ce minuteur maintenait
+  // le battement a jour, si bien que le declencheur externe ne voyait jamais
+  // la tache comme due et que seule la mesure faussee subsistait.
   registerRunnableCron(CRON_NAME, TICK_MS, run);
-
-  setTimeout(run, 3 * 60 * 1000);
-  intervalHandle = setInterval(run, TICK_MS);
-
-  const shutdown = () => {
-    if (intervalHandle) { clearInterval(intervalHandle); intervalHandle = null; }
-  };
-  process.once("SIGTERM", shutdown);
-  process.once("SIGINT", shutdown);
 }
