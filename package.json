@@ -20,6 +20,8 @@
   "pnpm": {
     "overrides": {
       "@babel/core": "^7.29.6",
+      "@types/react": "^19.2.0",
+      "@types/react-dom": "^19.2.0",
       "body-parser": "^2.3.0",
       "brace-expansion@1": "^1.1.16",
       "brace-expansion@2": "^2.1.2",
