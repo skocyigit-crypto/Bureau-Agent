@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
-import { db, aiAgentReportsTable, notificationsTable, tasksTable, callsTable, contactsTable, messagesTable, calendarEventsTable, facturesClientTable, projetsTable } from "@workspace/db";
-import { eq, desc, and, gte, ne, lt, isNull, sql, or, count } from "drizzle-orm";
+import { db, aiAgentReportsTable, notificationsTable, tasksTable, callsTable, contactsTable, messagesTable, calendarEventsTable, facturesClientTable, projetsTable, usersTable } from "@workspace/db";
+import { eq, desc, and, gte, ne, lt, isNull, sql, or, count, inArray } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
 import { getOrgId } from "../middleware/tenant";
 import { logger } from "../lib/logger";
@@ -254,16 +254,38 @@ export function buildCommandantContextPrompt(agentInsights: Record<string, any>,
 
 export async function createCrossAgentAlert(orgId: number, fromAgent: string, toAgent: string, title: string, message: string, severity: "critique" | "haute" | "moyenne" = "haute") {
   try {
-    await db.insert(notificationsTable).values({
-      organisationId: orgId,
-      userId: 0,
-      type: "agent_collab",
-      title: `[${fromAgent} → ${toAgent}] ${title}`,
-      message: `${message} [from:${fromAgent}|to:${toAgent}|severity:${severity}]`,
-      priority: severity === "critique" ? "haute" : "normale",
-      sourceType: "cross_agent_alert",
-      sourceId: `${fromAgent}_${toAgent}`,
-    });
+    // L'alerte etait ecrite avec `userId: 0`, un identifiant qui ne correspond
+    // a aucun utilisateur reel. Or les notifications se lisent avec
+    // `userId = utilisateur de la session` (cf. routes/automations.ts): chaque
+    // alerte croisee produite par les agents finissait donc en base sans
+    // jamais atteindre personne. On l'adresse desormais aux responsables de
+    // l'organisation, qui sont les seuls a pouvoir agir dessus.
+    const recipients = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(and(
+        eq(usersTable.organisationId, orgId),
+        eq(usersTable.actif, true),
+        inArray(usersTable.role, ["administrateur", "super_admin"]),
+      ));
+
+    if (recipients.length === 0) {
+      logger.warn({ orgId, fromAgent, toAgent }, "Alerte inter-agents sans destinataire (aucun responsable actif)");
+      return;
+    }
+
+    await db.insert(notificationsTable).values(
+      recipients.map((r) => ({
+        organisationId: orgId,
+        userId: r.id,
+        type: "agent_collab",
+        title: `[${fromAgent} → ${toAgent}] ${title}`,
+        message: `${message} [from:${fromAgent}|to:${toAgent}|severity:${severity}]`,
+        priority: severity === "critique" ? "haute" as const : "normale" as const,
+        sourceType: "cross_agent_alert",
+        sourceId: `${fromAgent}_${toAgent}`,
+      })),
+    );
   } catch (err: any) {
     logger.error({ err, fromAgent, toAgent }, "Cross-agent alert failed");
   }
