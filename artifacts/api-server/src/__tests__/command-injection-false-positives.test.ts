@@ -57,3 +57,32 @@ describe("detection d'injection de commande", () => {
     expect(detectThreatInValue(body, "body")).toMatch(/emails\[1\]\.snippet/);
   });
 });
+
+const benignSql = [
+  // Delimiteur de signature d'e-mail universel (tiret-tiret en fin de ligne).
+  "Bonne journee,\n--\nJean Dupont\nDirecteur",
+  "Rendez-vous confirme --\nCordialement",
+  // Commentaire CSS dans du HTML d'e-mail.
+  "<style>/* couleur de marque */ .btn { color: #0a0; }</style>",
+  "Total /* remise incluse */ : 250 EUR",
+  "Tiret d'incise — ou double -- dans un texte courant",
+];
+
+const maliciousSql = [
+  "' OR '1'='1",
+  "1 UNION SELECT password FROM users",
+  "'; DROP TABLE clients",
+  "admin'--",
+  "1); DELETE FROM commandes",
+  "/*! UNION SELECT */",
+];
+
+describe("detection d'injection SQL", () => {
+  it.each(benignSql)("laisse passer du texte ordinaire: %s", (value) => {
+    expect(detectThreatInValue({ bodyHtml: value }, "body")).toBeNull();
+  });
+
+  it.each(maliciousSql)("detecte une vraie charge SQL: %s", (value) => {
+    expect(detectThreatInValue({ bodyHtml: value }, "body")).toMatch(/Injection SQL/);
+  });
+});

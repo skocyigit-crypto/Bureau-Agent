@@ -29,6 +29,22 @@ const MALICIOUS_PATTERNS = [
   /insertAdjacentHTML/i,
 ];
 
+// Detection d'injection SQL.
+//
+// L'application n'assemble jamais de SQL par concatenation: toutes les requetes
+// passent par les gabarits parametres de Drizzle (`${x}` devient un parametre
+// lie, pas du texte). Ces motifs sont donc de la defense en profondeur, et leur
+// cout en faux positifs doit rester nul sur du texte ordinaire.
+//
+// Deux anciens motifs le violaient et provoquaient des 400 (puis, cumules, un
+// bannissement) sur du contenu parfaitement legitime:
+//   - `/(--\s*$)/m` signalait un `--` en fin de ligne — c'est le delimiteur de
+//     signature d'e-mail universel, et un tiret courant en prose.
+//   - `/(\/\*...\*\/)/` signalait tout `/* ... */` — c'est-a-dire un commentaire
+//     CSS, omnipresent dans le HTML des e-mails.
+// Un commentaire SQL n'est dangereux qu'accole a une charge d'injection; on
+// exige donc desormais ce contexte (guillemet/point-virgule/parenthese avant le
+// `--`, mot-cle SQL dans un bloc `/* */`) au lieu du marqueur seul.
 const SQL_INJECTION_PATTERNS = [
   /('\s*(OR|AND)\s+')/i,
   /(UNION\s+SELECT)/i,
@@ -37,8 +53,13 @@ const SQL_INJECTION_PATTERNS = [
   /(DELETE\s+FROM)/i,
   /(UPDATE\s+\w+\s+SET)/i,
   /(;\s*(DROP|DELETE|INSERT|UPDATE|ALTER|CREATE))/i,
-  /(--\s*$)/m,
-  /(\/\*[\s\S]*?\*\/)/,
+  // Commentaire SQL en fin d'injection: precede d'un guillemet, d'un
+  // point-virgule ou d'une parenthese fermante (ce qui termine une valeur ou
+  // un appel), pas un simple tiret de signature.
+  /['");]\s*--/,
+  // Commentaire bloc contenant un mot-cle SQL (ex. `/*! UNION */`), pas un
+  // commentaire CSS anodin.
+  /\/\*[\s\S]*?\b(SELECT|UNION|DROP|INSERT|DELETE|UPDATE|OR|AND)\b[\s\S]*?\*\//i,
   /(\bEXEC\b|\bEXECUTE\b)\s/i,
   /(xp_cmdshell|sp_executesql)/i,
 ];
