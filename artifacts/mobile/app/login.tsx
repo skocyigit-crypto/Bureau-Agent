@@ -34,6 +34,8 @@ export default function LoginScreen() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [totpCode, setTotpCode] = useState("");
   const [mode, setMode] = useState<Mode>("login");
   const isWeb = Platform.OS === "web";
 
@@ -45,11 +47,22 @@ export default function LoginScreen() {
 
   const finishLogin = useCallback(
     async (mail: string, pwd: string, offerBiometric: boolean): Promise<boolean> => {
-      const result = await login(mail.trim(), pwd);
+      const result = await login(mail.trim(), pwd, totpCode || undefined);
+      // Double authentification active: on demande le code puis on rejoue la
+      // connexion avec. Sans cette branche, un compte protege par MFA ne
+      // pouvait tout simplement plus ouvrir l'application mobile.
+      if (result.requiresMfa) {
+        setMfaRequired(true);
+        setError(totpCode ? "Code invalide. Réessayez." : "");
+        setTotpCode("");
+        return false;
+      }
       if (!result.success) {
         setError(result.error ?? "Erreur inconnue.");
         return false;
       }
+      setMfaRequired(false);
+      setTotpCode("");
       // Après une connexion manuelle réussie sur un appareil compatible et
       // si la biométrie n'est pas encore activée, proposer de l'activer.
       if (offerBiometric && bioCapable && !bioEnabled) {
@@ -59,7 +72,7 @@ export default function LoginScreen() {
       router.replace("/(tabs)");
       return true;
     },
-    [login, bioCapable, bioEnabled],
+    [login, bioCapable, bioEnabled, totpCode],
   );
 
   const unlockWithBiometric = useCallback(async () => {
@@ -230,9 +243,29 @@ export default function LoginScreen() {
               </View>
             )}
 
+            {mode === "login" && mfaRequired && (
+              <View style={styles.inputGroup}>
+                <Text style={[styles.label, { color: colors.mutedForeground }]}>Code de vérification</Text>
+                <View style={[styles.inputContainer, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+                  <Feather name="shield" size={18} color={colors.mutedForeground} style={styles.inputIcon} />
+                  <TextInput
+                    style={[styles.input, { color: colors.foreground, letterSpacing: 4 }]}
+                    placeholder="123456"
+                    placeholderTextColor={colors.mutedForeground}
+                    value={totpCode}
+                    onChangeText={(t) => setTotpCode(t.replace(/\D/g, "").slice(0, 6))}
+                    keyboardType="number-pad"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    testID="login-totp"
+                  />
+                </View>
+              </View>
+            )}
+
             <Pressable
               onPress={mode === "login" ? handleLogin : handleForgot}
-              disabled={loading}
+              disabled={loading || (mode === "login" && mfaRequired && totpCode.length < 6)}
               style={({ pressed }) => [
                 styles.loginButton,
                 { backgroundColor: colors.primary, opacity: pressed || loading ? 0.8 : 1 },
@@ -243,7 +276,7 @@ export default function LoginScreen() {
                 <ActivityIndicator color={colors.primaryForeground} />
               ) : (
                 <Text style={[styles.loginButtonText, { color: colors.primaryForeground }]}>
-                  {mode === "login" ? "Se connecter" : "Envoyer le lien"}
+                  {mode !== "login" ? "Envoyer le lien" : mfaRequired ? "Vérifier le code" : "Se connecter"}
                 </Text>
               )}
             </Pressable>

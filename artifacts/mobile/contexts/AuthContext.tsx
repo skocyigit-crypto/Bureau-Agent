@@ -29,7 +29,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string, totpCode?: string) => Promise<{ success: boolean; error?: string; requiresMfa?: boolean }>;
   logout: () => Promise<void>;
   fetchAuth: (url: string, options?: RequestInit) => Promise<Response>;
   authHeaders: () => Record<string, string>;
@@ -135,12 +135,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function login(email: string, password: string) {
+  async function login(email: string, password: string, totpCode?: string) {
     try {
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Origin: MOBILE_APP_ORIGIN },
-        body: JSON.stringify({ email: email.trim(), password, wantsToken: true }),
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+          wantsToken: true,
+          ...(totpCode ? { totpCode } : {}),
+        }),
       });
 
       if (!res.ok) {
@@ -149,6 +154,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const data = await res.json();
+
+      // Double authentification: le serveur repond 200 SANS token et demande un
+      // code. Sans ce test on tombait dans la branche "le serveur n'a pas emis
+      // de token", qui affiche a tort un message de serveur obsolete.
+      if (data?.requiresMfa) {
+        return { success: false, requiresMfa: true };
+      }
 
       if (typeof data?.apiToken === "string" && data.apiToken.length > 0) {
         setApiToken(data.apiToken);

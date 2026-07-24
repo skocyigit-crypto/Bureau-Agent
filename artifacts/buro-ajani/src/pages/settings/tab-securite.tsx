@@ -13,11 +13,218 @@ import { Badge } from "@/components/ui/badge";
 import { useVisibleInterval } from "@/hooks/use-visible-interval";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 
 const SECURITY_API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/security";
+const AUTH_API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/auth";
+
+/**
+ * Securite du compte : changement de mot de passe et authentification a deux
+ * facteurs.
+ *
+ * Les routes correspondantes (/auth/change-password, /auth/mfa/setup, /enable,
+ * /disable, /status) etaient completes cote serveur — generation du QR code
+ * TOTP, verification, journalisation d'audit, limitation de debit — mais
+ * AUCUNE page ne les appelait. Un utilisateur ne pouvait donc ni changer son
+ * mot de passe, ni activer la double authentification, pendant que cet ecran
+ * affichait un badge "MFA : Actif" ecrit en dur, sans rapport avec l'etat reel
+ * du compte.
+ */
+function AccountSecurityPanel() {
+  const { toast } = useToast();
+  const [mfa, setMfa] = useState<{ mfaActif: boolean; setupInProgress: boolean } | null>(null);
+
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  const [setupData, setSetupData] = useState<{ qrDataUrl: string; secret: string } | null>(null);
+  const [totpCode, setTotpCode] = useState("");
+  const [disablePassword, setDisablePassword] = useState("");
+  const [mfaBusy, setMfaBusy] = useState(false);
+
+  const loadMfaStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`${AUTH_API}/mfa/status`, { credentials: "include" });
+      if (res.ok) setMfa(await res.json());
+    } catch {
+      /* l'etat reste inconnu: on n'affiche alors aucune affirmation */
+    }
+  }, []);
+
+  useEffect(() => { loadMfaStatus(); }, [loadMfaStatus]);
+
+  async function post(path: string, body: unknown) {
+    const res = await fetch(`${AUTH_API}${path}`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error((data as any).error || `HTTP ${res.status}`);
+    return data;
+  }
+
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      toast({ title: "Les deux mots de passe ne correspondent pas", variant: "destructive" });
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      await post("/change-password", { currentPassword, newPassword });
+      setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
+      toast({ title: "Mot de passe modifié" });
+    } catch (e: any) {
+      toast({ title: "Modification impossible", description: e?.message, variant: "destructive" });
+    } finally { setChangingPassword(false); }
+  };
+
+  const startMfaSetup = async () => {
+    setMfaBusy(true);
+    try {
+      const data: any = await post("/mfa/setup", {});
+      setSetupData({ qrDataUrl: data.qrDataUrl, secret: data.secret });
+    } catch (e: any) {
+      toast({ title: "Configuration impossible", description: e?.message, variant: "destructive" });
+    } finally { setMfaBusy(false); }
+  };
+
+  const confirmMfa = async () => {
+    setMfaBusy(true);
+    try {
+      await post("/mfa/enable", { totpCode });
+      setSetupData(null); setTotpCode("");
+      await loadMfaStatus();
+      toast({ title: "Double authentification activée" });
+    } catch (e: any) {
+      toast({ title: "Code refusé", description: e?.message, variant: "destructive" });
+    } finally { setMfaBusy(false); }
+  };
+
+  const disableMfa = async () => {
+    setMfaBusy(true);
+    try {
+      await post("/mfa/disable", { password: disablePassword, totpCode });
+      setDisablePassword(""); setTotpCode("");
+      await loadMfaStatus();
+      toast({ title: "Double authentification désactivée" });
+    } catch (e: any) {
+      toast({ title: "Désactivation impossible", description: e?.message, variant: "destructive" });
+    } finally { setMfaBusy(false); }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <KeyRound className="w-5 h-5 text-blue-500" />
+          Sécurité de mon compte
+        </CardTitle>
+        <CardDescription>Mot de passe et authentification à deux facteurs de votre propre compte.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="space-y-3">
+          <Label className="text-sm font-semibold">Changer mon mot de passe</Label>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <Input type="password" placeholder="Mot de passe actuel" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} autoComplete="current-password" />
+            <Input type="password" placeholder="Nouveau mot de passe" value={newPassword} onChange={e => setNewPassword(e.target.value)} autoComplete="new-password" />
+            <Input type="password" placeholder="Confirmer" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} autoComplete="new-password" />
+          </div>
+          <Button
+            size="sm"
+            onClick={handleChangePassword}
+            disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
+          >
+            {changingPassword && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+            Modifier le mot de passe
+          </Button>
+        </div>
+
+        <Separator />
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <Fingerprint className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+              <div>
+                <Label className="text-sm font-semibold">Authentification à deux facteurs (TOTP)</Label>
+                <p className="text-xs text-muted-foreground">Un code à usage unique depuis votre application d'authentification, en plus du mot de passe.</p>
+              </div>
+            </div>
+            {mfa && (
+              <Badge className={mfa.mfaActif ? "bg-emerald-100 text-emerald-700 border-0" : "bg-gray-100 text-gray-600 border-0"}>
+                {mfa.mfaActif ? "Activée" : "Désactivée"}
+              </Badge>
+            )}
+          </div>
+
+          {mfa && !mfa.mfaActif && !setupData && (
+            <Button size="sm" variant="outline" onClick={startMfaSetup} disabled={mfaBusy}>
+              {mfaBusy && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+              Activer la double authentification
+            </Button>
+          )}
+
+          {setupData && (
+            <div className="rounded-md border p-3 space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Scannez ce QR code avec votre application d'authentification, puis saisissez le code affiché.
+              </p>
+              <img src={setupData.qrDataUrl} alt="QR code de configuration" className="w-40 h-40 border rounded bg-white p-1" />
+              <p className="text-[11px] text-muted-foreground break-all">
+                Clé manuelle : <code>{setupData.secret}</code>
+              </p>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={totpCode}
+                  onChange={e => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="123456"
+                  inputMode="numeric"
+                  className="w-32"
+                />
+                <Button size="sm" onClick={confirmMfa} disabled={mfaBusy || totpCode.length < 6}>
+                  {mfaBusy && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+                  Confirmer
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => { setSetupData(null); setTotpCode(""); }}>
+                  Annuler
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {mfa?.mfaActif && (
+            <div className="rounded-md border p-3 space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Pour désactiver, confirmez avec votre mot de passe et un code valide.
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Input type="password" placeholder="Mot de passe" value={disablePassword} onChange={e => setDisablePassword(e.target.value)} className="w-48" autoComplete="current-password" />
+                <Input
+                  value={totpCode}
+                  onChange={e => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="123456"
+                  inputMode="numeric"
+                  className="w-32"
+                />
+                <Button size="sm" variant="destructive" onClick={disableMfa} disabled={mfaBusy || !disablePassword || totpCode.length < 6}>
+                  {mfaBusy && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+                  Désactiver
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function SecurityMonitorPanel() {
   const [stats, setStats] = useState<any>(null);
@@ -730,29 +937,26 @@ export function TabSecurite() {
             </Select>
           </div>
           <Separator />
+          {/* Le badge "MFA : Actif" etait ecrit en dur et n'avait aucun rapport
+              avec l'etat reel du compte — il s'affichait "Actif" y compris pour
+              un utilisateur sans double authentification. Le vrai reglage, avec
+              son etat effectif, se trouve dans la carte "Sécurité de mon
+              compte" ci-dessous. La ligne "micro-segmentation reseau" a ete
+              retiree: rien de tel n'est en place, l'annoncer etait faux. */}
           <div className="flex items-center justify-between">
             <div className="flex items-start gap-3">
               <Fingerprint className="w-4 h-4 text-red-500 mt-0.5" />
               <div>
                 <Label>Authentification multi-facteurs (MFA)</Label>
-                <p className="text-xs text-muted-foreground">Exiger un second facteur d'authentification pour tous les utilisateurs</p>
+                <p className="text-xs text-muted-foreground">Se configure par utilisateur, dans « Sécurité de mon compte » plus bas</p>
               </div>
             </div>
-            <Badge className="bg-emerald-100 text-emerald-700 border-0">Actif</Badge>
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <div className="flex items-start gap-3">
-              <Server className="w-4 h-4 text-red-500 mt-0.5" />
-              <div>
-                <Label>Micro-segmentation reseau</Label>
-                <p className="text-xs text-muted-foreground">Isoler chaque service pour limiter la propagation en cas de compromission</p>
-              </div>
-            </div>
-            <Badge className="bg-emerald-100 text-emerald-700 border-0">Actif</Badge>
+            <Badge variant="outline" className="text-[10px]">Par utilisateur</Badge>
           </div>
         </CardContent>
       </Card>
+
+      <AccountSecurityPanel />
 
       <SecurityMonitorPanel />
 

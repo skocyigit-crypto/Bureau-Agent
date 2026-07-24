@@ -26,6 +26,8 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [totpCode, setTotpCode] = useState("");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -46,10 +48,22 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, ...(totpCode ? { totpCode } : {}) }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Erreur de connexion."); setLoading(false); return; }
+      // Le serveur repond 200 avec `requiresMfa` quand le mot de passe est bon
+      // mais que la double authentification reclame un code. Sans ce test, la
+      // reponse etait traitee comme une connexion reussie et l'application
+      // partait avec une session inexistante: activer la MFA revenait a se
+      // verrouiller dehors.
+      if (data.requiresMfa) {
+        setMfaRequired(true);
+        setError(totpCode ? "Code invalide. Réessayez." : "");
+        setTotpCode("");
+        setLoading(false);
+        return;
+      }
       onLogin(data);
     } catch {
       setError("Erreur de connexion au serveur.");
@@ -165,8 +179,33 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
                   </button>
                 </div>
               </div>
-              <Button type="submit" className="w-full bg-gradient-to-r from-[#1a2744] to-[#2d3f5e] hover:from-[#243358] hover:to-[#3a5078] text-white font-medium h-11" disabled={loading}>
-                {loading ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />Connexion...</> : "Se connecter"}
+              {mfaRequired && (
+                <div className="space-y-2">
+                  <Label htmlFor="totp" className="text-sm font-medium">Code de vérification</Label>
+                  <div className="relative">
+                    <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="totp"
+                      inputMode="numeric"
+                      placeholder="123456"
+                      value={totpCode}
+                      onChange={e => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      className="pl-10 tracking-widest"
+                      autoComplete="one-time-code"
+                      autoFocus
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Saisissez le code affiché par votre application d'authentification.
+                  </p>
+                </div>
+              )}
+              <Button
+                type="submit"
+                className="w-full bg-gradient-to-r from-[#1a2744] to-[#2d3f5e] hover:from-[#243358] hover:to-[#3a5078] text-white font-medium h-11"
+                disabled={loading || (mfaRequired && totpCode.length < 6)}
+              >
+                {loading ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />Connexion...</> : mfaRequired ? "Vérifier le code" : "Se connecter"}
               </Button>
             </form>
           )}
