@@ -138,16 +138,28 @@ const databaseAgent: HealthAgent = {
       const waiting = snap.waiting;
       const max = (pool.options as { max?: number }).max ?? 0;
       const usage = max > 0 ? (total - idle) / max : 0;
-      // Des clients en attente signifient que le pool est deja insuffisant:
-      // c'est plus grave qu'un simple taux d'occupation eleve.
-      const status: CheckStatus = waiting > 0 || usage >= 0.9 ? "degrade" : "ok";
+      // SEULE l'attente constitue une degradation: elle signifie qu'un
+      // traitement n'a pas obtenu de connexion et patiente.
+      //
+      // Un taux d'occupation eleve sans aucune attente decrit un pool qui fait
+      // exactement son travail. Le signaler produisait une fausse alerte a
+      // chaque cycle depuis que les agents de sante s'executent dans la chaine
+      // des taches planifiees: le releve a alors lieu juste apres les autres
+      // taches, donc au moment le plus charge, et « 14/15 actives, 0 en
+      // attente » etait rapporte comme une anomalie alors qu'aucun utilisateur
+      // n'etait ralenti. L'occupation reste visible dans les metriques et dans
+      // le resume, sans declencher d'alerte.
+      const status: CheckStatus = waiting > 0 ? "degrade" : "ok";
+      const active = total - idle;
       return {
         check: "pool_saturation",
         status,
-        severity: waiting > 0 ? "haute" : usage >= 0.9 ? "moyenne" : "basse",
+        severity: waiting > 0 ? "haute" : "basse",
         summary: status === "ok"
-          ? `Pool sain: ${total - idle}/${max} connexions actives.`
-          : `Pool sous tension: ${total - idle}/${max} actives, ${waiting} requete(s) en attente.`,
+          ? usage >= 0.9
+            ? `Pool tres sollicite mais sans attente: ${active}/${max} connexions actives.`
+            : `Pool sain: ${active}/${max} connexions actives.`
+          : `Pool sous tension: ${active}/${max} actives, ${waiting} requete(s) en attente.`,
         remediation: status === "ok" ? "" : "Reduire DB_POOL_MAX, ou augmenter max_connections cote Cloud SQL. Verifier qu'aucune requete ne tient une connexion trop longtemps.",
         metrics: { total, idle, waiting, max, usagePct: Math.round(usage * 100) },
       };
@@ -469,28 +481,41 @@ export async function runHealthAgents(runId?: string): Promise<HealthRunSummary>
   // Mesures d'etat prises au repos, avant le lancement parallele des agents.
   await measureBaseline();
 
-  const perAgent = await Promise.all(
-    HEALTH_AGENTS.map(async (agent) => {
-      const at0 = Date.now();
-      try {
-        const results = await agent.run();
-        const dur = Date.now() - at0;
-        return results.map((r) => ({ ...r, agent: agent.id, durationMs: dur }));
-      } catch (err) {
-        // Un agent entier qui tombe ne doit pas masquer les autres.
-        logger.error({ err, agent: agent.id }, "[Health] Agent en echec");
-        return [{
-          check: "agent_execution",
-          status: "echec" as CheckStatus,
-          severity: "haute" as CheckSeverity,
-          summary: `L'agent "${agent.name}" n'a pas pu s'executer: ${err instanceof Error ? err.message : "erreur inconnue"}`,
-          remediation: "Consulter les journaux du serveur.",
-          agent: agent.id,
-          durationMs: Date.now() - at0,
-        }];
-      }
-    }),
-  );
+  const runOne = async (agent: HealthAgent) => {
+    const at0 = Date.now();
+    try {
+      const results = await agent.run();
+      const dur = Date.now() - at0;
+      return results.map((r) => ({ ...r, agent: agent.id, durationMs: dur }));
+    } catch (err) {
+      // Un agent entier qui tombe ne doit pas masquer les autres.
+      logger.error({ err, agent: agent.id }, "[Health] Agent en echec");
+      return [{
+        check: "agent_execution",
+        status: "echec" as CheckStatus,
+        severity: "haute" as CheckSeverity,
+        summary: `L'agent "${agent.name}" n'a pas pu s'executer: ${err instanceof Error ? err.message : "erreur inconnue"}`,
+        remediation: "Consulter les journaux du serveur.",
+        agent: agent.id,
+        durationMs: Date.now() - at0,
+      }];
+    }
+  };
+
+  // Concurrence bornee plutot que sept agents lances d'un coup.
+  //
+  // Chaque agent enchaine plusieurs requetes; a sept en parallele ils
+  // pouvaient monopoliser les 15 connexions du pool et se faire echouer
+  // mutuellement — le controle des connexions serveur remontait ainsi un
+  // "Failed query" faute de connexion disponible. Deux a la fois suffisent a
+  // couvrir l'attente des sondes reseau (dependances externes) sans que le
+  // diagnostic devienne lui-meme la cause de la panne qu'il signale.
+  const AGENT_CONCURRENCY = 2;
+  const perAgent: Array<Awaited<ReturnType<typeof runOne>>> = [];
+  for (let i = 0; i < HEALTH_AGENTS.length; i += AGENT_CONCURRENCY) {
+    const slice = HEALTH_AGENTS.slice(i, i + AGENT_CONCURRENCY);
+    perAgent.push(...(await Promise.all(slice.map(runOne))));
+  }
 
   const results = perAgent.flat();
   const ok = results.filter((r) => r.status === "ok").length;
