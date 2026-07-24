@@ -480,7 +480,23 @@ export async function runHealthAgents(runId?: string): Promise<HealthRunSummary>
   };
 
   if (worst !== "ok") {
-    logger.warn({ runId: finalRunId, degraded, failed }, "[Health] Anomalies detectees");
+    // Le journal ne portait que des COMPTEURS ("3 degrades, 4 echecs"), sans
+    // dire quel agent ni pourquoi. En production, ce message revenait a chaque
+    // cycle sans qu'on puisse rien en faire: pour connaitre le detail il
+    // fallait ouvrir l'application et consulter l'ecran dedie. On liste donc
+    // les constats non-ok, ce qui rend l'alerte exploitable depuis les seuls
+    // journaux — y compris quand c'est l'application elle-meme qui va mal.
+    logger.warn(
+      {
+        runId: finalRunId,
+        degraded,
+        failed,
+        anomalies: results
+          .filter((r) => r.status !== "ok")
+          .map((r) => `${r.agent}/${r.check} [${r.status}] ${r.summary.slice(0, 160)}`),
+      },
+      "[Health] Anomalies detectees",
+    );
   }
   return summary;
 }

@@ -26,12 +26,9 @@ async function tick(): Promise<void> {
   try {
     const summary = await runHealthAgents();
     await recordCronHeartbeat(CRON_NAME, TICK_MS / 1000);
-    if (summary.worst !== "ok") {
-      logger.warn(
-        { runId: summary.runId, degraded: summary.degraded, failed: summary.failed },
-        "[HealthCron] Anomalies detectees",
-      );
-    }
+    // `runHealthAgents` journalise deja le detail des constats non-ok. Repeter
+    // ici les seuls compteurs ajoutait une ligne sans information a chaque
+    // cycle, juste au-dessus de celle qui, elle, dit quoi corriger.
   } catch (err) {
     logger.error({ err }, "[HealthCron] Erreur du cycle");
     await recordCronHeartbeat(CRON_NAME, TICK_MS / 1000, err instanceof Error ? err.message : "erreur inconnue");
