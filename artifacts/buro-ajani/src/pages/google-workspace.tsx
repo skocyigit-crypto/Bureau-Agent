@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, formatDistanceToNow, isToday, isTomorrow } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
@@ -64,6 +64,27 @@ export default function GoogleWorkspace() {
   const [importingFile, setImportingFile] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [driveQuery, setDriveQuery] = useState("");
+  const [driveResults, setDriveResults] = useState<any[] | null>(null);
+  const [driveSearching, setDriveSearching] = useState(false);
+  const [showNewEvent, setShowNewEvent] = useState(false);
+  const [creatingEvent, setCreatingEvent] = useState(false);
+  const [newEvent, setNewEvent] = useState({ title: "", start: "", end: "", location: "" });
+
+  const runDriveSearch = useCallback(async () => {
+    const q = driveQuery.trim();
+    if (!q) return;
+    setDriveSearching(true);
+    try {
+      const data = await apiFetch(`/google-workspace/drive-search?q=${encodeURIComponent(q)}`);
+      setDriveResults(data.files || []);
+      if (!data.files?.length) toast({ title: "Aucun fichier trouvé", description: q });
+    } catch {
+      toast({ title: "Recherche impossible", description: "Réessayez dans un instant.", variant: "destructive" });
+    } finally {
+      setDriveSearching(false);
+    }
+  }, [driveQuery, toast]);
 
   // Lance le vrai flux OAuth 2.0 Google : demande l'URL de consentement au
   // backend (tous les scopes par defaut) puis redirige l'utilisateur vers
@@ -129,6 +150,36 @@ export default function GoogleWorkspace() {
   }, [toast]);
 
   const { data: hub, isLoading: hubLoading } = useQuery({ queryKey: ["gw-hub"], queryFn: () => apiFetch("/google-workspace/hub") });
+  const qc = useQueryClient();
+
+  const createEvent = useCallback(async () => {
+    setCreatingEvent(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/google-workspace/create-event`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: newEvent.title.trim(),
+          // Le serveur attend une date ISO ; `datetime-local` fournit une
+          // valeur sans fuseau, qu'on convertit en heure locale du navigateur.
+          start: new Date(newEvent.start).toISOString(),
+          end: new Date(newEvent.end).toISOString(),
+          location: newEvent.location.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+      toast({ title: "Évènement créé", description: newEvent.title });
+      setNewEvent({ title: "", start: "", end: "", location: "" });
+      setShowNewEvent(false);
+      qc.invalidateQueries({ queryKey: ["gw-events"] });
+    } catch (e: any) {
+      toast({ title: "Création impossible", description: e?.message, variant: "destructive" });
+    } finally {
+      setCreatingEvent(false);
+    }
+  }, [newEvent, toast, qc]);
   const { data: emailsData, isLoading: emailsLoading } = useQuery({ queryKey: ["gw-emails"], queryFn: () => apiFetch("/google-workspace/recent-emails") });
   const { data: eventsData, isLoading: eventsLoading } = useQuery({ queryKey: ["gw-events"], queryFn: () => apiFetch("/google-workspace/upcoming-events") });
   const { data: filesData, isLoading: filesLoading } = useQuery({ queryKey: ["gw-files"], queryFn: () => apiFetch("/google-workspace/recent-files") });
@@ -312,7 +363,59 @@ export default function GoogleWorkspace() {
         <TabsContent value="agenda" className="space-y-3">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2"><Calendar className="h-5 w-5 text-blue-500" /> Evenements a venir</CardTitle>
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle className="text-lg flex items-center gap-2"><Calendar className="h-5 w-5 text-blue-500" /> Evenements a venir</CardTitle>
+                <Button size="sm" variant="outline" className="h-8" onClick={() => setShowNewEvent(v => !v)}>
+                  {showNewEvent ? "Annuler" : "Nouvel évènement"}
+                </Button>
+              </div>
+              {/* Creation d'evenement: la route existait mais n'etait appelee
+                  nulle part, le hub etait donc en lecture seule. */}
+              {showNewEvent && (
+                <div className="pt-3 space-y-2">
+                  <Input
+                    value={newEvent.title}
+                    onChange={(e) => setNewEvent(v => ({ ...v, title: e.target.value }))}
+                    placeholder="Titre de l'évènement"
+                    className="h-8 text-sm"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[11px] text-muted-foreground">Début</label>
+                      <Input
+                        type="datetime-local"
+                        value={newEvent.start}
+                        onChange={(e) => setNewEvent(v => ({ ...v, start: e.target.value }))}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-muted-foreground">Fin</label>
+                      <Input
+                        type="datetime-local"
+                        value={newEvent.end}
+                        onChange={(e) => setNewEvent(v => ({ ...v, end: e.target.value }))}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <Input
+                    value={newEvent.location}
+                    onChange={(e) => setNewEvent(v => ({ ...v, location: e.target.value }))}
+                    placeholder="Lieu (facultatif)"
+                    className="h-8 text-sm"
+                  />
+                  <Button
+                    size="sm"
+                    className="h-8"
+                    onClick={createEvent}
+                    disabled={creatingEvent || !newEvent.title.trim() || !newEvent.start || !newEvent.end}
+                  >
+                    {creatingEvent && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                    Créer dans Google Agenda
+                  </Button>
+                </div>
+              )}
             </CardHeader>
             <CardContent className="p-0">
               {eventsLoading ? <div className="p-4"><Skeleton className="h-40" /></div> : eventsData?.error === "non_connecte" ? (
@@ -363,7 +466,27 @@ export default function GoogleWorkspace() {
         <TabsContent value="drive" className="space-y-3">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2"><HardDrive className="h-5 w-5 text-green-500" /> Fichiers recents</CardTitle>
+              <CardTitle className="text-lg flex items-center gap-2"><HardDrive className="h-5 w-5 text-green-500" /> {driveResults ? "Résultats de recherche" : "Fichiers recents"}</CardTitle>
+              {/* La recherche Drive existait cote serveur mais n'etait exposee
+                  nulle part: on ne pouvait que consulter les 15 derniers
+                  fichiers modifies. */}
+              <div className="flex items-center gap-2 pt-2">
+                <Input
+                  value={driveQuery}
+                  onChange={(e) => setDriveQuery(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") runDriveSearch(); }}
+                  placeholder="Rechercher dans Drive..."
+                  className="h-8 text-sm"
+                />
+                <Button size="sm" className="h-8" onClick={runDriveSearch} disabled={driveSearching || !driveQuery.trim()}>
+                  {driveSearching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+                </Button>
+                {driveResults && (
+                  <Button size="sm" variant="ghost" className="h-8" onClick={() => { setDriveResults(null); setDriveQuery(""); }}>
+                    Effacer
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               {filesLoading ? <div className="p-4"><Skeleton className="h-40" /></div> : filesData?.error === "non_connecte" ? (
@@ -373,7 +496,7 @@ export default function GoogleWorkspace() {
                 </div>
               ) : (
                 <div className="divide-y">
-                  {(filesData?.files || []).map((file: any) => {
+                  {((driveResults ?? filesData?.files) || []).map((file: any) => {
                     const TypeIcon = MIME_ICONS[file.type] || FileText;
                     return (
                       <div key={file.id} className="p-3 hover:bg-muted/30 transition-colors">
@@ -412,7 +535,11 @@ export default function GoogleWorkspace() {
                       </div>
                     );
                   })}
-                  {(!filesData?.files || filesData.files.length === 0) && <div className="p-8 text-center text-muted-foreground">Aucun fichier recent</div>}
+                  {((driveResults ?? filesData?.files) || []).length === 0 && (
+                    <div className="p-8 text-center text-muted-foreground">
+                      {driveResults ? "Aucun fichier ne correspond à cette recherche" : "Aucun fichier recent"}
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>

@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { getOrgId } from "../middleware/tenant";
 import { ingestDocument } from "../services/document-ingest";
+import { dlpBlocksOutgoing } from "../services/outgoing-dlp";
 import {
   getGmailForUser,
   getCalendarForUser,
@@ -388,6 +389,11 @@ router.post("/google-workspace/send-email", async (req, res): Promise<void> => {
 
     const gmail = await getGmailForUser(userId);
     if (!gmail) { res.status(400).json({ error: "Compte Google non connecte." }); return; }
+
+    // Deuxieme porte de sortie du courrier, a cote de /gmail/send. Sans ce
+    // controle, il suffisait de passer par le hub Workspace pour contourner
+    // entierement la verification des donnees sensibles.
+    if (dlpBlocksOutgoing(req, res, userId, to, subject, body)) return;
 
     const rawMessage = [
       `To: ${to}`,
