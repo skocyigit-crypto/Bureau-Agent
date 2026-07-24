@@ -29,7 +29,7 @@ import { withDbRetry } from "../lib/db-retry";
 import { getTool, validateArgs } from "./assistant-tools";
 import { enqueueProposal } from "./proposal-queue";
 import { assertAiQuota, invalidateQuotaCache } from "./ai-quota";
-import { extractGeminiTokens, recordAiUsage, geminiActualModel } from "./ai-utils";
+import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_FLASH_MODEL } from "./ai-utils";
 
 /** Outils que l'agent d'audit a le droit de proposer (mêmes que l'agent autonome). */
 const ALLOWED_TOOLS = ["create_task", "send_email", "send_sms", "create_calendar_event", "create_contact"] as const;
@@ -46,7 +46,9 @@ async function aiGenerate(orgId: number, prompt: string): Promise<string> {
   await assertAiQuota(orgId);
   const t0 = Date.now();
   const { ai } = await import("@workspace/integrations-gemini-ai");
-  const model = "gemini-2.5-flash";
+  // Passe par la source de verite centrale plutot qu'un nom fige: `gemini-2.5-flash`
+  // etait retire et faisait echouer chaque audit avant repli.
+  const model = GEMINI_FLASH_MODEL;
   const response = await ai.models.generateContent({
     model,
     contents: [{ role: "user", parts: [{ text: prompt }] }],

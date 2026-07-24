@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { and, desc, eq } from "drizzle-orm";
 import { db, aiProvidersTable } from "@workspace/db";
 import { getOrgId } from "../middleware/tenant";
+import { GEMINI_FLASH_MODEL } from "../services/ai-utils";
 import {
   getSupportedAiProviders,
   getAiProviderInfo,
@@ -169,7 +170,9 @@ router.post("/ai-providers/:id/test", async (req, res): Promise<void> => {
     if (row.provider === "gemini") {
       const client = createGeminiClient(apiKey);
       const r: any = await client.models.generateContent({
-        model: "gemini-2.5-flash",
+        // Alias roulant plutot qu'une version figee: le test de cle echouait
+        // a tort depuis que `gemini-2.5-flash` a ete retire par Google.
+        model: GEMINI_FLASH_MODEL,
         contents: ping,
         config: { maxOutputTokens: 8 },
       });

@@ -13,7 +13,18 @@ import { logger } from "../lib/logger";
  *   - `routes/voice-live.ts` : modeles Gemini Live "native-audio" (voix
  *     conversationnelle temps reel), avec leur propre logique de fallback.
  */
-export const GEMINI_FLASH_MODEL = process.env.GEMINI_FLASH_MODEL || "gemini-2.5-flash";
+// `gemini-2.5-flash`, precedemment code ici en dur, a ete retire par Google:
+// CHAQUE appel Flash echouait une premiere fois (UNSUPPORTED_MODEL) avant de
+// basculer sur le repli — un aller-retour reseau perdu et une latence doublee
+// sur tout ce qui passe par le modele rapide (triage, suggestions, resumes).
+// L'alias roulant `gemini-flash-latest` suit la derniere version stable et
+// n'est jamais retire; une version precise reste imposable par variable
+// d'environnement quand on veut epingler un modele.
+//
+// Le modele Pro reste sur une version preview explicite: elle n'apparait dans
+// aucun repli cote production (seul Flash y bascule) et le choix est
+// intentionnel.
+export const GEMINI_FLASH_MODEL = process.env.GEMINI_FLASH_MODEL || "gemini-flash-latest";
 export const GEMINI_PRO_MODEL = process.env.GEMINI_PRO_MODEL || "gemini-3.1-pro-preview";
 
 /**

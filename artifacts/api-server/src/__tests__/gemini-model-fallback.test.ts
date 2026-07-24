@@ -20,7 +20,13 @@ process.env.GEMINI_PRO_FALLBACK_MODEL = "gemini-pro-latest";
 process.env.GEMINI_FLASH_FALLBACK_MODEL = "gemini-flash-latest";
 
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import {
+// Import DYNAMIQUE, apres les affectations d'environnement ci-dessus. Un import
+// statique serait hisse en tete de module (semantique ESM) et s'executerait
+// AVANT ces affectations: le module capterait alors les valeurs par defaut, et
+// le test ne serait vert que tant que ces defauts coincident avec les valeurs
+// voulues. C'etait le cas jusqu'a la migration du modele Flash par defaut vers
+// `gemini-flash-latest`, qui a revele le probleme.
+const {
   isModelRetiredError,
   fallbackGeminiModel,
   geminiGenerateWithFallback,
@@ -31,8 +37,8 @@ import {
   GEMINI_FLASH_MODEL,
   GEMINI_PRO_FALLBACK_MODEL,
   GEMINI_FLASH_FALLBACK_MODEL,
-  type GeminiFallbackEvent,
-} from "../services/ai-utils";
+} = await import("../services/ai-utils");
+type GeminiFallbackEvent = import("../services/ai-utils").GeminiFallbackEvent;
 
 /**
  * Etat partage controlable par test pour le client Gemini mocke.
