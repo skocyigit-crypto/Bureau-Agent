@@ -52,10 +52,38 @@ const PATH_TRAVERSAL_PATTERNS = [
   /\.\.%5c/i,
 ];
 
+/**
+ * Detection d'injection de commande.
+ *
+ * L'ancienne regle etait `/[;&|`$](?![\s]*$)/` : elle signalait TOUTE chaine
+ * contenant `;`, `&`, `|`, un accent grave ou `$` ailleurs qu'en fin de valeur.
+ * Autrement dit « Dupont & Fils », « budget 500$ » ou n'importe quel extrait
+ * d'e-mail recu declenchait une alerte, un 400, et incrementait le compteur de
+ * menaces — cinq occurrences suffisant a bannir l'adresse pendant 30 minutes.
+ * En production, le triage IA de la boite Gmail echouait systematiquement:
+ * l'extrait d'un message envoye par un TIERS suffisait a faire rejeter la
+ * requete de l'utilisateur (constate le 2026-07-24).
+ *
+ * Ces motifs ne sont ici que de la defense en profondeur: le serveur n'execute
+ * aucune commande shell (aucun `child_process` dans le code). On exige donc
+ * desormais une construction shell reelle — un metacaractere SUIVI d'une
+ * commande connue — au lieu d'un simple caractere de ponctuation.
+ */
+const SHELL_COMMAND_NAMES =
+  "cat|ls|dir|rm|rmdir|mv|cp|chmod|chown|curl|wget|nc|netcat|telnet|ssh|scp|" +
+  "bash|sh|zsh|ksh|powershell|pwsh|cmd|python[23]?|perl|ruby|php|node|" +
+  "eval|exec|kill|ps|whoami|uname|ifconfig|ipconfig|netstat|nslookup|dig|" +
+  "sudo|su|apt|apt-get|yum|dnf|apk|systemctl|service|crontab|nohup|xargs|" +
+  "tar|zip|unzip|base64|openssl|mysql|psql|mongo|redis-cli";
+
 const COMMAND_INJECTION_PATTERNS = [
-  /[;&|`$](?![\s]*$)/,
-  /\$\(.*\)/,
-  /`[^`]*`/,
+  // `; rm -rf /`, `&& curl evil.sh`, `| bash`
+  new RegExp(`[;&|]\\s*(?:${SHELL_COMMAND_NAMES})\\b`, "i"),
+  // Substitution de commande: `$(whoami)`, `` `id` ``
+  new RegExp(`\\$\\(\\s*(?:${SHELL_COMMAND_NAMES})\\b`, "i"),
+  new RegExp("`\\s*(?:" + SHELL_COMMAND_NAMES + ")\\b", "i"),
+  // Redirection vers un interpreteur: `| /bin/sh`
+  /[;&|]\s*\/(?:bin|sbin|usr\/bin|usr\/sbin)\//i,
 ];
 
 function sanitizeValue(value: unknown): unknown {
@@ -86,7 +114,7 @@ function sanitizeObject(obj: Record<string, unknown>): Record<string, unknown> {
   return cleaned;
 }
 
-function detectThreatInValue(value: unknown, path: string): string | null {
+export function detectThreatInValue(value: unknown, path: string): string | null {
   if (typeof value === "string") {
     for (const p of MALICIOUS_PATTERNS) {
       if (p.test(value)) return `XSS detecte dans ${path}: ${p.source}`;
@@ -222,6 +250,14 @@ export function threatDetection(req: Request, res: Response, next: NextFunction)
     "/api/security/scan-text",
     "/web-search",
     "/api/web-search",
+    // Triage et brouillon de reponse Gmail: le corps transporte des extraits
+    // d'e-mails RECUS, c'est-a-dire du texte redige par des tiers et soumis
+    // uniquement pour analyse. Le scanner ne doit pas transformer le contenu
+    // d'un message entrant en faute imputable a son destinataire.
+    "/commandant/gmail-triage",
+    "/api/commandant/gmail-triage",
+    "/commandant/gmail-draft-reply",
+    "/api/commandant/gmail-draft-reply",
   ]);
   if (req.method === "POST" && (SCAN_BYPASS_PATHS.has(req.path) || SCAN_BYPASS_PATHS.has(exactPath))) {
     return next();
