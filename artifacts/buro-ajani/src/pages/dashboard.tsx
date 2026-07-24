@@ -184,6 +184,13 @@ function useSystemHealth() {
 }
 
 function useCommercialStats() {
+  const { user } = useWorkspaceUser();
+  // `/prospects/stats` est reserve au super-admin (backoffice SaaS, monte sous
+  // `requireSuperAdmin`). L'appeler sans condition garantissait un 403 a CHAQUE
+  // ouverture du tableau de bord pour tous les comptes clients. L'echec etait
+  // avale silencieusement, mais ces erreurs alimentent le profil d'erreurs du
+  // WAF et noient les vraies anomalies dans les journaux.
+  const canSeeProspects = user?.role === "super_admin";
   const [data, setData] = useState<{
     prospects: any; projets: any;
   } | null>(null);
@@ -194,7 +201,9 @@ function useCommercialStats() {
     const controller = new AbortController();
     const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
     Promise.all([
-      fetch(`${BASE}/api/prospects/stats`, { credentials: "include", signal: controller.signal }).then(r => r.ok ? r.json() : null),
+      canSeeProspects
+        ? fetch(`${BASE}/api/prospects/stats`, { credentials: "include", signal: controller.signal }).then(r => r.ok ? r.json() : null)
+        : Promise.resolve(null),
       fetch(`${BASE}/api/projets/stats`, { credentials: "include", signal: controller.signal }).then(r => r.ok ? r.json() : null),
     ]).then(([prospects, projets]) => {
       if (mounted) { setData({ prospects, projets }); setLoading(false); }
@@ -203,9 +212,9 @@ function useCommercialStats() {
       if (mounted) { console.error("[Dashboard] commercial stats failed:", err); setLoading(false); }
     });
     return () => { mounted = false; controller.abort(); };
-  }, []);
+  }, [canSeeProspects]);
 
-  return { data, loading };
+  return { data, loading, canSeeProspects };
 }
 
 function fmtCurrency(v: any) {
@@ -217,10 +226,13 @@ function fmtCurrency(v: any) {
 }
 
 function CommercialSection() {
-  const { data, loading } = useCommercialStats();
+  const { data, loading, canSeeProspects } = useCommercialStats();
 
+  // La carte "Pipeline prospects" pointe vers un module du backoffice SaaS
+  // reserve au super-admin. Elle affichait "0 EUR" a tous les clients, pour un
+  // ecran auquel ils n'ont de toute facon pas acces.
   const cards = [
-    {
+    ...(canSeeProspects ? [{
       title: "Pipeline prospects",
       value: loading ? null : fmtCurrency(data?.prospects?.totalValue),
       sub: loading ? null : `${data?.prospects?.total ?? 0} opportunité${(data?.prospects?.total ?? 0) !== 1 ? "s" : ""}`,
@@ -229,7 +241,7 @@ function CommercialSection() {
       border: "border-amber-200/50 dark:border-amber-800/30",
       textColor: "text-amber-600 dark:text-amber-400",
       href: "/prospects",
-    },
+    }] : []),
     {
       title: "Projets actifs",
       value: loading ? null : String(data?.projets?.active ?? 0),
