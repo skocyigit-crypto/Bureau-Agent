@@ -21,6 +21,7 @@ import { and, eq, gte } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { organisationsTable, licenseAuditLogTable } from "@workspace/db/schema";
 import { logger } from "../lib/logger";
+import { registerRunnableCron } from "./cron-registry";
 import { withDbRetry } from "../lib/db-retry";
 import { withCronLock, CRON_LOCK_NAMESPACE } from "../lib/cron-lock";
 import { runAutoRemindersForOrg } from "../routes/license-management";
@@ -41,7 +42,15 @@ function todayStart(): Date {
 async function tick(): Promise<void> {
   if (running) return;
   const nowHourUtc = new Date().getUTCHours();
-  if (nowHourUtc !== SEND_HOUR_UTC) return;
+  if (nowHourUtc !== SEND_HOUR_UTC) {
+    // La tache s'execute bien toutes les heures; simplement, hors de l'heure
+    // d'envoi elle n'a rien a faire. Sans ce battement, la table ne retenait
+    // qu'une execution PAR JOUR alors que l'intervalle declare est d'une
+    // heure: l'agent de sante signalait donc en permanence un retard (415 min
+    // constates en production) pour une tache parfaitement fonctionnelle.
+    await recordCronHeartbeat("invoice-reminder", TICK_MS / 1000);
+    return;
+  }
   running = true;
 
   try {
@@ -102,8 +111,21 @@ export function startInvoiceReminderCron(): void {
   if (intervalHandle) return;
   logger.info("[InvoiceReminderCron] Rappels de paiement automatiques démarrés");
 
-  setTimeout(() => { tick().catch(() => {}); }, 150 * 1000);
-  intervalHandle = setInterval(() => { tick().catch(() => {}); }, TICK_MS);
+  const run = () => { void tick().catch(() => {}); };
+
+  // Inscription au registre pour permettre un declenchement EXTERNE
+  // (Cloud Scheduler -> /api/cron/tick).
+  //
+  // Sans elle, la tache ne reposait que sur le `setInterval` ci-dessous. Or le
+  // service tourne avec `min-instances=0`: le conteneur s'arrete des qu'il est
+  // inactif et emporte ses minuteurs. L'envoi n'a lieu qu'a une heure precise
+  // (SEND_HOUR_UTC); si aucune instance n'est vivante a ce moment-la, les
+  // relances de la journee sautent purement et simplement. Le declencheur
+  // externe garantit qu'un tick a lieu dans cette fenetre.
+  registerRunnableCron("invoice-reminder", TICK_MS, run);
+
+  setTimeout(run, 150 * 1000);
+  intervalHandle = setInterval(run, TICK_MS);
 
   const shutdown = () => {
     if (intervalHandle) { clearInterval(intervalHandle); intervalHandle = null; }

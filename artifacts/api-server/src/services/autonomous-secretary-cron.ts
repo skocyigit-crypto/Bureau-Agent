@@ -24,6 +24,7 @@ import { withCronLock, CRON_LOCK_NAMESPACE } from "../lib/cron-lock";
 import { proposeActionsForOrg } from "./autonomous-secretary";
 import { expireStaleProposals } from "./proposal-queue";
 import { recordCronHeartbeat } from "./health-agents";
+import { registerRunnableCron } from "./cron-registry";
 
 const TICK_MS = 60 * 60 * 1000; // 1h
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
@@ -94,9 +95,17 @@ export function startAutonomousSecretaryCron(): void {
   if (intervalHandle) return;
   logger.info("[SecretaryCron] Agent de bureau autonome démarré");
 
+  const run = () => { void tick().catch(() => {}); };
+
+  // Declenchement EXTERNE (Cloud Scheduler -> /api/cron/tick). Le service
+  // tourne avec `min-instances=0`: un conteneur inactif est arrete et emporte
+  // ses minuteurs, si bien qu'une cadence horaire n'etait quasiment jamais
+  // atteinte par le seul `setInterval`.
+  registerRunnableCron("autonomous-secretary", TICK_MS, run);
+
   // Premier passage différé de 90s pour ne pas alourdir le démarrage.
-  setTimeout(() => { tick().catch(() => {}); }, 90 * 1000);
-  intervalHandle = setInterval(() => { tick().catch(() => {}); }, TICK_MS);
+  setTimeout(run, 90 * 1000);
+  intervalHandle = setInterval(run, TICK_MS);
 
   const shutdown = () => {
     if (intervalHandle) { clearInterval(intervalHandle); intervalHandle = null; }
