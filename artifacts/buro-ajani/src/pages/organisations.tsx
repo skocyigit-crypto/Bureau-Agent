@@ -256,6 +256,8 @@ export default function OrganisationsPage() {
   const [confirmOrgName, setConfirmOrgName] = useState("");
   const [trialDays, setTrialDays] = useState("14");
   const [licenseBusy, setLicenseBusy] = useState(false);
+  const [invoiceDrafts, setInvoiceDrafts] = useState<any[]>([]);
+  const [validatingDrafts, setValidatingDrafts] = useState(false);
 
   const loadOrganisations = async () => {
     try {
@@ -672,6 +674,53 @@ export default function OrganisationsPage() {
       toast({ title: "Erreur", description: "Erreur lors de l'envoi.", variant: "destructive" });
     } finally {
       setSendingEmail(null);
+    }
+  };
+
+  /**
+   * Brouillons de factures SaaS.
+   *
+   * La generation produit des factures au statut `brouillon`; elles ne
+   * deviennent exigibles qu'une fois validees. Les deux routes existaient
+   * (liste + validation, reservees au super-admin) mais n'etaient appelees par
+   * aucune page: les brouillons s'accumulaient sans qu'on puisse ni les voir ni
+   * les valider depuis l'application.
+   */
+  const loadInvoiceDrafts = useCallback(async () => {
+    try {
+      const res = await fetch(`${BASE}api/organisations/invoice-drafts`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setInvoiceDrafts(data.drafts || []);
+      }
+    } catch {
+      /* la section reste vide, sans message trompeur */
+    }
+  }, []);
+
+  useEffect(() => { loadInvoiceDrafts(); }, [loadInvoiceDrafts]);
+
+  const validateInvoiceDrafts = async (ids?: number[]) => {
+    setValidatingDrafts(true);
+    try {
+      const res = await fetch(`${BASE}api/organisations/invoice-drafts/validate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(ids ? { ids } : {}),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        return;
+      }
+      toast({ title: `${data.validated} facture(s) validée(s)`, description: "Elles passent en attente de paiement." });
+      loadInvoiceDrafts();
+      loadBillingSummary();
+    } catch {
+      toast({ title: "Erreur", description: "Validation impossible.", variant: "destructive" });
+    } finally {
+      setValidatingDrafts(false);
     }
   };
 
@@ -1391,6 +1440,48 @@ export default function OrganisationsPage() {
         </TabsContent>
 
         <TabsContent value="facturation" className="space-y-4 mt-4">
+          {invoiceDrafts.length > 0 && (
+            <Card className="border-amber-200 dark:border-amber-900/50">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-amber-600" />
+                      Brouillons de factures ({invoiceDrafts.length})
+                    </CardTitle>
+                    <CardDescription>
+                      Générés automatiquement. Ils ne sont pas exigibles tant qu'ils ne sont pas validés.
+                    </CardDescription>
+                  </div>
+                  <Button size="sm" onClick={() => validateInvoiceDrafts()} disabled={validatingDrafts}>
+                    {validatingDrafts && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+                    Tout valider
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {invoiceDrafts.map((d: any) => (
+                  <div key={d.id} className="flex items-center justify-between gap-3 border rounded-md px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{d.organisationName ?? `Organisation #${d.organisationId}`}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {d.periodLabel} · plan {d.plan} · {Number(d.totalAmount).toFixed(2)} {d.currency ?? "EUR"}
+                        {Number(d.overageAmount) > 0 && ` (dont ${Number(d.overageAmount).toFixed(2)} de dépassement)`}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => validateInvoiceDrafts([d.id])}
+                      disabled={validatingDrafts}
+                    >
+                      Valider
+                    </Button>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card>
               <CardContent className="flex items-center gap-3 py-4">

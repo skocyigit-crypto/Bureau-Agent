@@ -43,6 +43,7 @@ export function TabAbonnement() {
   const [stripeStatus, setStripeStatus] = useState<{ configured: boolean; prices: Record<string, boolean> } | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [resumeLoading, setResumeLoading] = useState(false);
 
   useEffect(() => {
     const loadSubscription = async () => {
@@ -193,6 +194,34 @@ export function TabAbonnement() {
     }
   };
 
+  /**
+   * Annulation "a la fin de la periode" est reversible cote Stripe, et la route
+   * pour la revenir existait — mais elle n'etait appelee nulle part. Un client
+   * qui annulait n'avait donc plus aucun moyen de se raviser depuis
+   * l'application : il devait nous contacter ou laisser l'abonnement expirer.
+   */
+  const handleResume = async () => {
+    setResumeLoading(true);
+    try {
+      const res = await fetch(`${BASE}/api/stripe/resume-subscription`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Abonnement réactivé", description: data.message });
+        window.location.reload();
+      } else {
+        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Réactivation échouée.", variant: "destructive" });
+    } finally {
+      setResumeLoading(false);
+    }
+  };
+
   if (subLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -279,9 +308,21 @@ export function TabAbonnement() {
                   Gerer mon abonnement (portail Stripe)
                 </Button>
                 {subscription.cancelledAt ? (
-                  <Badge className="bg-amber-100 text-amber-700 border-0 self-center">
-                    Annulation prevue le {new Date(subscription.cancelledAt).toLocaleDateString("fr-FR")}
-                  </Badge>
+                  <>
+                    <Badge className="bg-amber-100 text-amber-700 border-0 self-center">
+                      Annulation prevue le {new Date(subscription.cancelledAt).toLocaleDateString("fr-FR")}
+                    </Badge>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleResume}
+                      disabled={resumeLoading}
+                      data-testid="button-resume-subscription"
+                    >
+                      {resumeLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                      Reprendre mon abonnement
+                    </Button>
+                  </>
                 ) : (
                   <>
                     <Button

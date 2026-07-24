@@ -28,6 +28,26 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [mfaRequired, setMfaRequired] = useState(false);
   const [totpCode, setTotpCode] = useState("");
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [resendingVerification, setResendingVerification] = useState(false);
+
+  const handleResendVerification = async () => {
+    setResendingVerification(true);
+    try {
+      const res = await fetch(`${BASE}/api/auth/resend-verification`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => ({}));
+      setError(data.message || "Si un compte existe et n'est pas vérifié, un e-mail a été envoyé.");
+      setNeedsVerification(false);
+    } catch {
+      setError("Envoi impossible. Réessayez dans un instant.");
+    } finally {
+      setResendingVerification(false);
+    }
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -51,7 +71,16 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
         body: JSON.stringify({ email, password, ...(totpCode ? { totpCode } : {}) }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || "Erreur de connexion."); setLoading(false); return; }
+      if (!res.ok) {
+        // Compte non verifie: le serveur renvoie un code dedie. Sans traitement,
+        // l'utilisateur lisait "verifiez votre adresse" sans aucun moyen de se
+        // faire renvoyer le lien depuis l'application.
+        setNeedsVerification(data.code === "email_not_verified");
+        setError(data.error || "Erreur de connexion.");
+        setLoading(false);
+        return;
+      }
+      setNeedsVerification(false);
       // Le serveur repond 200 avec `requiresMfa` quand le mot de passe est bon
       // mais que la double authentification reclame un code. Sans ce test, la
       // reponse etait traitee comme une connexion reussie et l'application
@@ -179,6 +208,16 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
                   </button>
                 </div>
               </div>
+              {needsVerification && (
+                <button
+                  type="button"
+                  onClick={handleResendVerification}
+                  disabled={resendingVerification || !email}
+                  className="text-xs text-primary hover:underline disabled:opacity-50"
+                >
+                  {resendingVerification ? "Envoi en cours…" : "Renvoyer l'e-mail de vérification"}
+                </button>
+              )}
               {mfaRequired && (
                 <div className="space-y-2">
                   <Label htmlFor="totp" className="text-sm font-medium">Code de vérification</Label>
