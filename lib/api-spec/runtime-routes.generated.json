@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 634,
+    "runtimeOperations": 633,
     "documentedOperations": 96,
-    "undocumentedOperations": 538
+    "undocumentedOperations": 537
   },
   "operations": [
     {
@@ -836,6 +836,14 @@
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/audit.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/auth-url",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-oauth.ts"
       ]
     },
     {
@@ -1960,6 +1968,14 @@
     },
     {
       "method": "get",
+      "path": "/config",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-oauth.ts"
+      ]
+    },
+    {
+      "method": "get",
       "path": "/contacts",
       "documented": true,
       "sources": [
@@ -2348,6 +2364,14 @@
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/devis.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/disconnect",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-oauth.ts"
       ]
     },
     {
@@ -2989,54 +3013,6 @@
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/google-drive-backup.ts"
-      ]
-    },
-    {
-      "method": "post",
-      "path": "/google-oauth/auth-url",
-      "documented": false,
-      "sources": [
-        "artifacts/api-server/src/routes/google-oauth.ts"
-      ]
-    },
-    {
-      "method": "get",
-      "path": "/google-oauth/callback",
-      "documented": false,
-      "sources": [
-        "artifacts/api-server/src/routes/google-oauth.ts"
-      ]
-    },
-    {
-      "method": "get",
-      "path": "/google-oauth/config",
-      "documented": false,
-      "sources": [
-        "artifacts/api-server/src/routes/google-oauth.ts"
-      ]
-    },
-    {
-      "method": "post",
-      "path": "/google-oauth/disconnect",
-      "documented": false,
-      "sources": [
-        "artifacts/api-server/src/routes/google-oauth.ts"
-      ]
-    },
-    {
-      "method": "post",
-      "path": "/google-oauth/refresh",
-      "documented": false,
-      "sources": [
-        "artifacts/api-server/src/routes/google-oauth.ts"
-      ]
-    },
-    {
-      "method": "get",
-      "path": "/google-oauth/status",
-      "documented": false,
-      "sources": [
-        "artifacts/api-server/src/routes/google-oauth.ts"
       ]
     },
     {
@@ -4162,6 +4138,14 @@
       ]
     },
     {
+      "method": "post",
+      "path": "/refresh",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-oauth.ts"
+      ]
+    },
+    {
       "method": "get",
       "path": "/search",
       "documented": false,
@@ -4383,6 +4367,14 @@
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/smart-reports.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/status",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/google-oauth.ts"
       ]
     },
     {
