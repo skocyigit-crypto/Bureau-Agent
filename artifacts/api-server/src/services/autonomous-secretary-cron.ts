@@ -95,7 +95,7 @@ export function startAutonomousSecretaryCron(): void {
   if (intervalHandle) return;
   logger.info("[SecretaryCron] Agent de bureau autonome démarré");
 
-  const run = () => { void tick().catch(() => {}); };
+  const run = (): Promise<void> => tick().catch(() => {});
 
   // Declenchement EXTERNE (Cloud Scheduler -> /api/cron/tick). Le service
   // tourne avec `min-instances=0`: un conteneur inactif est arrete et emporte

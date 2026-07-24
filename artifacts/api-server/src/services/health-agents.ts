@@ -314,15 +314,22 @@ export function withHeartbeat(
   // qu'on veut detecter.
   void registerCron(name, intervalSec);
 
-  const run = () => {
-    void (async () => {
-      try {
-        await tick();
-        await recordCronHeartbeat(name, intervalSec);
-      } catch (err) {
-        await recordCronHeartbeat(name, intervalSec, err instanceof Error ? err.message : "erreur inconnue");
-      }
-    })();
+  // Renvoie la promesse au lieu de la detacher: le declencheur externe
+  // (runDueCrons) peut ainsi enchainer les taches dues au lieu de les lancer
+  // toutes en parallele et de saturer le pool de connexions. Les appelants
+  // `setInterval` continuent d'ignorer la valeur de retour, sans changement.
+  const run = async (): Promise<void> => {
+    try {
+      await tick();
+      await recordCronHeartbeat(name, intervalSec);
+    } catch (err) {
+      // Le second enregistrement peut lui aussi echouer (c'est typiquement la
+      // base qui est en cause). Sans ce catch, la promesse serait rejetee sans
+      // gestionnaire — `setInterval` ignore la valeur de retour — et un
+      // `unhandledRejection` ferait tomber le processus.
+      await recordCronHeartbeat(name, intervalSec, err instanceof Error ? err.message : "erreur inconnue")
+        .catch(() => {});
+    }
   };
 
   // Inscription au registre pour permettre un declenchement EXTERNE

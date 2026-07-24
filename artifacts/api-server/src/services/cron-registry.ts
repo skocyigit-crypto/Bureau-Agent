@@ -24,14 +24,18 @@ import { logger } from "../lib/logger";
 interface RegisteredCron {
   name: string;
   intervalMs: number;
-  /** Le tick DEJA enveloppe: il enregistre son propre battement. */
-  run: () => void;
+  /**
+   * Le tick DEJA enveloppe: il enregistre son propre battement et capture ses
+   * propres erreurs. Peut renvoyer une promesse, ce qui permet de les enchainer
+   * (cf. runDueCrons) au lieu de les lancer toutes en meme temps.
+   */
+  run: () => void | Promise<void>;
 }
 
 const registry = new Map<string, RegisteredCron>();
 
 /** Appele par withHeartbeat au montage de chaque cron. */
-export function registerRunnableCron(name: string, intervalMs: number, run: () => void): void {
+export function registerRunnableCron(name: string, intervalMs: number, run: () => void | Promise<void>): void {
   registry.set(name, { name, intervalMs, run });
 }
 
@@ -73,21 +77,40 @@ export async function runDueCrons(): Promise<CronTickResult> {
   const lastRunByName = new Map(beats.map((b) => [b.name, new Date(b.lastRunAt).getTime()]));
 
   const now = Date.now();
+  const dueCrons: RegisteredCron[] = [];
   for (const cron of registry.values()) {
     result.checked++;
     const last = lastRunByName.get(cron.name);
     // Jamais executee: on la declenche (elle vient d'etre inscrite au montage).
     const due = last === undefined || now - last >= cron.intervalMs;
     if (!due) { result.skipped.push(cron.name); continue; }
-    try {
-      // `run` est deja fire-and-forget et capture ses propres erreurs; on ne
-      // l'attend pas pour ne pas faire expirer la requete du declencheur si
-      // une tache est longue.
-      cron.run();
-      result.triggered.push(cron.name);
-    } catch (err) {
-      logger.error({ err, cron: cron.name }, "[CronTick] Echec declenchement");
-    }
+    dueCrons.push(cron);
+    result.triggered.push(cron.name);
+  }
+
+  // Execution SEQUENTIELLE, en arriere-plan.
+  //
+  // Les taches etaient lancees toutes en meme temps. Le declencheur externe
+  // passe toutes les 10 minutes et jusqu'a cinq taches pouvaient etre dues au
+  // meme instant: elles saturaient alors le pool de connexions (15/15 actives,
+  // 4 requetes en attente mesurees en production), au point que meme un
+  // `SELECT 1` de diagnostic n'obtenait plus de connexion, avec 2 secondes de
+  // blocage de la boucle d'evenements. Autrement dit, l'entretien degradait
+  // l'application pour les utilisateurs presents a ce moment-la.
+  //
+  // On ne les attend toujours pas depuis la requete HTTP du declencheur (une
+  // tache longue la ferait expirer), mais on les enchaine les unes apres les
+  // autres.
+  if (dueCrons.length > 0) {
+    void (async () => {
+      for (const cron of dueCrons) {
+        try {
+          await cron.run();
+        } catch (err) {
+          logger.error({ err, cron: cron.name }, "[CronTick] Echec declenchement");
+        }
+      }
+    })();
   }
 
   if (result.triggered.length > 0) {

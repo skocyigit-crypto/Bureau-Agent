@@ -111,7 +111,7 @@ export function startInvoiceReminderCron(): void {
   if (intervalHandle) return;
   logger.info("[InvoiceReminderCron] Rappels de paiement automatiques démarrés");
 
-  const run = () => { void tick().catch(() => {}); };
+  const run = (): Promise<void> => tick().catch(() => {});
 
   // Inscription au registre pour permettre un declenchement EXTERNE
   // (Cloud Scheduler -> /api/cron/tick).
