@@ -75,7 +75,7 @@ steps:
   - id: build-api
     name: 'gcr.io/cloud-builders/docker'
     env: ['DOCKER_BUILDKIT=1']
-    args: ['build', '-f', 'deploy/Dockerfile.api', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/api:${SHORT_SHA}', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/api:latest', '.']
+    args: ['build', '-f', 'deploy/Dockerfile.api', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/api:${_TAG}', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/api:latest', '.']
     waitFor: ['test-gate']
 
   - id: push-api
@@ -90,7 +90,7 @@ steps:
       - run
       - deploy
       - '${_API_SERVICE}'
-      - '--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/api:${SHORT_SHA}'
+      - '--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/api:${_TAG}'
       - '--region=${_REGION}'
       - '--platform=managed'
     waitFor: ['push-api']
@@ -98,7 +98,7 @@ steps:
   - id: build-web
     name: 'gcr.io/cloud-builders/docker'
     env: ['DOCKER_BUILDKIT=1']
-    args: ['build', '-f', 'deploy/Dockerfile.web.cloudrun', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/web:${SHORT_SHA}', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/web:latest', '.']
+    args: ['build', '-f', 'deploy/Dockerfile.web.cloudrun', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/web:${_TAG}', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/web:latest', '.']
     waitFor: ['test-gate']
 
   - id: push-web
@@ -113,7 +113,7 @@ steps:
       - run
       - deploy
       - '${_WEB_SERVICE}'
-      - '--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/web:${SHORT_SHA}'
+      - '--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/web:${_TAG}'
       - '--region=${_REGION}'
       - '--platform=managed'
     waitFor: ['push-web', 'deploy-api']
@@ -121,7 +121,7 @@ steps:
   - id: build-tanitim
     name: 'gcr.io/cloud-builders/docker'
     env: ['DOCKER_BUILDKIT=1']
-    args: ['build', '-f', 'deploy/Dockerfile.tanitim.cloudrun', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/tanitim:${SHORT_SHA}', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/tanitim:latest', '.']
+    args: ['build', '-f', 'deploy/Dockerfile.tanitim.cloudrun', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/tanitim:${_TAG}', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/tanitim:latest', '.']
     waitFor: ['test-gate']
 
   - id: push-tanitim
@@ -136,18 +136,18 @@ steps:
       - run
       - deploy
       - '${_TANITIM_SERVICE}'
-      - '--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/tanitim:${SHORT_SHA}'
+      - '--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/tanitim:${_TAG}'
       - '--region=${_REGION}'
       - '--platform=managed'
       - '--allow-unauthenticated'
     waitFor: ['push-tanitim', 'deploy-api']
 
 images:
-  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/api:${SHORT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/api:${_TAG}'
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/api:latest'
-  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/web:${SHORT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/web:${_TAG}'
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/web:latest'
-  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/tanitim:${SHORT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/tanitim:${_TAG}'
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/tanitim:latest'
 
 options:
@@ -155,6 +155,13 @@ options:
   logging: CLOUD_LOGGING_ONLY
 
 substitutions:
+  # Etiquette des images. `SHORT_SHA` n'est renseigne QUE par un declencheur
+  # Cloud Build ; lors d'un `gcloud builds submit` manuel il est vide, ce qui
+  # produisait un nom d'image invalide (`.../api:`) et faisait echouer le build
+  # avant meme la premiere etape. On passe donc par une substitution explicite,
+  # surchargeable : `--substitutions=_TAG=$(git rev-parse --short HEAD)` en
+  # manuel, `_TAG=$SHORT_SHA` cote declencheur.
+  _TAG: latest
   _REGION: europe-west9
   _AR_REPO: agent-de-bureau
   _API_SERVICE: agent-de-bureau-api
