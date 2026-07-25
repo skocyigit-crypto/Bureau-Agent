@@ -301,3 +301,43 @@ girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamla
 - Kullanıcı kararı gerektiren maddeler (1, 2, 3) üçüncü taraf hesap/ödeme gerektirdiği
   için otomatik yapılamaz — sadece kullanıcı onayı + kimlik bilgisi ile ilerlenebilir.
 - Kod değişikliği gerektiren maddeler (4, 5) istenirse doğrudan uygulanabilir.
+
+---
+
+## Super-Admin (SaaS) Tarafı Tam AI Otomasyonu — 2026-07-25
+
+**Talep:** Super-admin tarafının (platform sahibinin tüm organizasyonları yönetmesi:
+lisans, abonelik, fatura, prospect) tam AI otomasyonu. Kural: mevcut mimariye uygun —
+IA önerir, super-admin onaylar, sonra uygulanır (otonom uygulama YOK).
+
+**Karar (kullanıcı, 2026-07-25):** Kural tabanlı (deterministik eşikler, AI maliyeti yok)
++ fazlı yaklaşım (önce salt-okunur temel, sonra otonom ajan).
+
+**Tespit:** Mevcut AI otomasyon altyapısının TAMAMI org-scoped (her tenant kendi içinde).
+`ToolContext={orgId,userId}`, 37 aracın hepsi orgId ile filtreli, `proposal-queue`
+organisationId zorunlu kılıyor. Super-admin/SaaS düzeyinde hiçbir AI ajanı/aracı yoktu.
+SaaS cron'ları (billing/trial-warning/quota-warning/stripe-sync auto-suspend) sadece
+e-posta/bildirim üretiyor, onay kuyruğuna gitmiyor.
+
+### ✅ Faz 1 — TAMAM (commit f6b19f2, canlı)
+- `services/saas-attention.ts`: tüm org'ları tek batch sorgularla tarayıp önceliklendirilmiş
+  "aksiyon gerektirenler" listesi üretir. Kategoriler: trial_expiring, trial_expired,
+  payment_failed, subscription_past_due, quota_breach, overdue_saas_invoice, suspended.
+- Saf `classifyOrganisation(input, now)` fonksiyonu (eşik/kategori/severity mantığı),
+  13 testle kilitli — Faz 2 ajanı da BU fonksiyonu kullanacak (tek doğruluk kaynağı).
+- `GET /admin/saas-attention` (requireSuperAdmin), organisations.tsx SaaS sekmesinde panel.
+- Salt-okunur, mutasyon yok.
+
+### ⏳ Faz 2 — SIRADA (otonom ajan + SaaS araçları)
+Tasarım: SaaS önerilerini super-admin'in kendi org'u (`agent-de-bureau-sas` slug,
+proactive-engine.ts:1042'de tanımlı) altında toplayarak MEVCUT onay kuyruğu altyapısını
+yeniden kullan (agent_proposals, agent-queue UI, executeProposal, öğrenme — hepsi hazır).
+Yeni gerekenler:
+1. SaaS-scoped araçlar (hedef org args'ta): saas_extend_trial, saas_suspend_subscription,
+   saas_reactivate_subscription, saas_send_invoice_reminder, saas_advance_prospect.
+   GÜVENLİK: bu araçlar cross-org mutasyon yapar (org-izolasyon değişmezini kırar) —
+   sadece gerçek super_admin bağlamında ve super-admin org'unun kuyruğunda çalışmalı.
+2. Kural tabanlı otonom ajan (cron): classifyOrganisation sinyallerini alıp her biri için
+   uygun aracı enqueueProposal ile super-admin org kuyruğuna öneri olarak koyar.
+   sourceRef ile dedup (aynı org+kategori için günde bir öneri).
+3. Frontend: super-admin'in agent-queue'da bu SaaS önerilerini görüp onaylaması.
