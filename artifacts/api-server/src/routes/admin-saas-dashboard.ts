@@ -1,8 +1,28 @@
 import { Router, type IRouter } from "express";
 import { db, subscriptionsTable, organisationsTable, PLANS, type PlanKey } from "@workspace/db";
 import { sql, and, eq, ne, isNull, isNotNull, lte, gte, lt } from "drizzle-orm";
+import { gatherSaasAttention } from "../services/saas-attention";
 
 const router: IRouter = Router();
+
+/**
+ * Vue "ce qui demande une action" — reservee super-admin (gate posee a
+ * l'enregistrement du router via `requireSuperAdmin`).
+ *
+ * Parcourt TOUTES les organisations et renvoie la liste priorisee des
+ * situations qui appellent une decision du proprietaire de la plateforme:
+ * essais qui expirent, impayes, quotas satures, factures d'abonnement en
+ * retard, comptes suspendus. Lecture seule — voir services/saas-attention.ts.
+ */
+router.get("/admin/saas-attention", async (req, res): Promise<void> => {
+  try {
+    const summary = await gatherSaasAttention();
+    res.json(summary);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur admin/saas-attention");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
 
 /**
  * Tableau de bord SaaS — réservé super-admin (gate posée à l'enregistrement

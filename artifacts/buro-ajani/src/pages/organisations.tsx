@@ -250,6 +250,7 @@ export default function OrganisationsPage() {
   const [acceptingAll, setAcceptingAll] = useState(false);
 
   const [saasMetrics, setSaasMetrics] = useState<any>(null);
+  const [attention, setAttention] = useState<any>(null);
   const [saasLoading, setSaasLoading] = useState(false);
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [licenseDialog, setLicenseDialog] = useState<{ org: Organisation; action: "extend-trial" | "suspend" | "reactivate" | "regenerate-key" } | null>(null);
@@ -401,6 +402,12 @@ export default function OrganisationsPage() {
     try {
       const res = await fetch(`${BASE}api/billing/saas-metrics`, { credentials: "include" });
       if (res.ok) setSaasMetrics(await res.json());
+      // Vue "ce qui demande une action" — chargee en parallele, tolerante a
+      // l'echec (l'un ne doit pas faire disparaitre l'autre).
+      fetch(`${BASE}api/admin/saas-attention`, { credentials: "include" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (d) setAttention(d); })
+        .catch(() => {});
     } catch (err) { console.error("[Organisations] loadSaasMetrics failed:", err); }
     finally { setSaasLoading(false); }
   }, []);
@@ -904,6 +911,63 @@ export default function OrganisationsPage() {
         </TabsList>
 
         <TabsContent value="saas" className="space-y-6 mt-4">
+          {/* Ce qui demande une action, toutes organisations confondues.
+              Lecture seule (phase 1): la liste priorisee des situations a
+              trancher. L'agent autonome (phase 2) proposera les actions
+              correspondantes dans la file d'approbation. */}
+          {attention && attention.total > 0 && (
+            <Card className="border-amber-200 dark:border-amber-900/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600" />
+                  À traiter ({attention.total})
+                </CardTitle>
+                <CardDescription>
+                  {attention.bySeverity.critique > 0 && `${attention.bySeverity.critique} critique(s) · `}
+                  {attention.bySeverity.haute > 0 && `${attention.bySeverity.haute} haute(s) · `}
+                  Situations nécessitant une décision sur l'ensemble des organisations.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {attention.items.slice(0, 20).map((it: any, i: number) => {
+                  const sev: Record<string, string> = {
+                    critique: "text-red-700 border-red-200 bg-red-50 dark:bg-red-950/30",
+                    haute: "text-amber-700 border-amber-200 bg-amber-50 dark:bg-amber-950/30",
+                    moyenne: "text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-950/30",
+                    basse: "text-muted-foreground",
+                  };
+                  const catLabel: Record<string, string> = {
+                    trial_expiring: "Essai expire bientôt",
+                    trial_expired: "Essai expiré",
+                    payment_failed: "Échec de paiement",
+                    subscription_past_due: "Impayé",
+                    quota_breach: "Quota saturé",
+                    overdue_saas_invoice: "Facture en retard",
+                    suspended: "Suspendu",
+                  };
+                  return (
+                    <div key={i} className="flex items-center justify-between gap-3 border rounded-md px-3 py-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className={`text-[10px] ${sev[it.severity] ?? ""}`}>
+                            {catLabel[it.category] ?? it.category}
+                          </Badge>
+                          <span className="text-sm font-medium truncate">{it.organisationName}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">{it.detail} — <span className="italic">{it.suggestedAction}</span></p>
+                      </div>
+                      <Button variant="ghost" size="sm" className="shrink-0" onClick={() => { const org = organisations.find(o => o.id === it.organisationId); if (org) openEdit(org); }}>
+                        Ouvrir
+                      </Button>
+                    </div>
+                  );
+                })}
+                {attention.total > 20 && (
+                  <p className="text-xs text-muted-foreground pt-1">… et {attention.total - 20} autre(s).</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
           {saasLoading ? (
             <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div>
           ) : saasMetrics ? (

@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 633,
+    "runtimeOperations": 634,
     "documentedOperations": 96,
-    "undocumentedOperations": 537
+    "undocumentedOperations": 538
   },
   "operations": [
     {
@@ -44,6 +44,14 @@
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/admin-reports.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/admin/saas-attention",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/admin-saas-dashboard.ts"
       ]
     },
     {
