@@ -37,6 +37,19 @@ function digestEmailHtml(digest: DailyDigest): string {
   const suggestions = (digest.ai?.suggestions ?? [])
     .map((s) => `<li style="margin-bottom:8px;"><strong>${s.priorite === "haute" ? "🔴" : s.priorite === "moyenne" ? "🟡" : "🟢"}</strong> ${s.texte}</li>`)
     .join("");
+  // Rappel de supervision: seules les propositions prioritaires notifient en
+  // push. Ce bloc est le filet pour les autres — sans lui, une action preparee
+  // par l'agent pouvait attendre 14 jours puis expirer sans avoir jamais ete
+  // vue. On ne l'affiche que s'il y a effectivement quelque chose a trancher,
+  // et on signale l'anciennete des que la file commence a stagner.
+  const pendingApprovals = digest.stats.approvals?.pending ?? 0;
+  const oldestApprovalDays = digest.stats.approvals?.oldestAgeDays ?? 0;
+  const approvalsBlock = pendingApprovals === 0 ? "" : `
+        <div style="margin:16px 0;padding:12px 16px;background:#fffbeb;border-left:3px solid #f59e0b;font-size:13px;color:#78350f;">
+          <strong>${pendingApprovals} action${pendingApprovals > 1 ? "s" : ""} en attente de votre validation.</strong>
+          ${oldestApprovalDays >= 3 ? `<br/>La plus ancienne attend depuis ${oldestApprovalDays} jours (elle expirera au bout de 14).` : ""}
+          <br/><a href="${APP_URL}/file-approbation" style="color:#b45309;">Ouvrir la file d'approbation</a>
+        </div>`;
   return `
     <div style="font-family:sans-serif;max-width:560px;margin:0 auto;">
       <div style="background:#0f1729;padding:24px 32px;">
@@ -55,6 +68,7 @@ function digestEmailHtml(digest: DailyDigest): string {
             <td style="padding:6px 0;">⏰ Tâches en retard</td><td style="text-align:right;">${digest.stats.tasks.overdue}</td>
           </tr>
         </table>
+        ${approvalsBlock}
         ${suggestions ? `<ul style="padding-left:18px;font-size:13px;color:#334155;">${suggestions}</ul>` : ""}
         <a href="${APP_URL}" style="display:inline-block;margin-top:16px;background:#f59e0b;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:14px;">Ouvrir Ajant Bureau</a>
       </div>

@@ -2,6 +2,8 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { setBaseUrl, setAuthTokenGetter, setDefaultOrigin } from "@workspace/api-client-react";
 import { API_BASE, MOBILE_APP_ORIGIN } from "@/lib/api-config";
 import { loadSessionToken, saveSessionToken, clearSessionToken } from "@/lib/secure-session";
+import { clearAllOfflineCaches } from "@/lib/offline-cache";
+import { unregisterPushNotifications } from "@/lib/push-registration";
 
 // Configure le client API genere (OpenAPI / @workspace/api-client-react) une
 // seule fois au chargement du module : meme URL de base que `fetchAuth`. Les
@@ -101,6 +103,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const isAuthProbe = url.includes("/api/auth/me") || url.includes("/api/auth/login");
       if (!isAuthProbe) {
         await clearSessionToken().catch(() => {});
+        // Le cache hors-ligne contient des donnees metier du compte
+        // expire: il doit disparaitre avec la session, sinon il reste
+        // lisible par le compte suivant sur le meme appareil.
+        await clearAllOfflineCaches();
         setApiToken(null);
         setUser(null);
       }
@@ -124,7 +130,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const data = await res.json();
           setUser(data);
         } else {
+          // Token refuse au demarrage a froid: la session est morte, on
+          // purge aussi son cache metier.
           await clearSessionToken();
+          await clearAllOfflineCaches();
           setApiToken(null);
         }
       }
@@ -193,6 +202,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function logout() {
     try {
+      // Detacher l'appareil des notifications distantes AVANT d'invalider la
+      // session: apres, le POST partirait sans Bearer et serait rejete, et le
+      // telephone continuerait de recevoir les alertes de l'organisation
+      // quittee (y compris apres connexion d'un autre compte).
+      if (apiToken) {
+        await unregisterPushNotifications({
+          Authorization: `Bearer ${apiToken}`,
+          Origin: MOBILE_APP_ORIGIN,
+        });
+      }
       if (apiToken) {
         await fetch(`${API_BASE}/api/auth/logout`, {
           method: "POST",
@@ -205,6 +224,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setApiToken(null);
       await clearSessionToken();
+      await clearAllOfflineCaches();
     }
   }
 

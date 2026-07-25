@@ -16,6 +16,8 @@ import workspaceRouter from "./workspace";
 import integrationsRouter from "./integrations";
 import checkinsRouter from "./checkins";
 import locationsRouter from "./locations";
+import pushRouter from "./push";
+import clientErrorsRouter from "./client-errors";
 import aiAgentsRouter from "./ai-agents";
 import backupsRouter from "./backups";
 import googleOAuthRouter, { googleOAuthCallbackRouter } from "./google-oauth";
@@ -116,6 +118,10 @@ router.use(voiceReceptionistRouter);
 router.get("/invitations/verify/:token", (req, res, next) => invitationsRouter(req, res, next));
 router.post("/invitations/accept/:token", (req, res, next) => invitationsRouter(req, res, next));
 
+// Plantages du client mobile: doit rester AVANT requireAuth (un crash au
+// demarrage ou sur l'ecran de login n'a pas de session a presenter).
+router.use(clientErrorsRouter);
+
 router.use(syncRouter);
 
 router.use(requireAuth);
@@ -178,6 +184,7 @@ router.use("/integrations", integrationsRouter);
 router.use("/google-oauth", googleOAuthRouter);
 router.use(checkinsRouter);
 router.use(locationsRouter);
+router.use(pushRouter);
 router.use(performanceRouter);
 router.use(organisationsRouter);
 router.use(adminReportsRouter);

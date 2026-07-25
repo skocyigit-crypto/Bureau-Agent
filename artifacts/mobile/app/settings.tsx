@@ -20,6 +20,7 @@ import { useColors } from "@/hooks/useColors";
 import { useTheme } from "@/contexts/ThemeContext";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { useNotificationPrefs } from "@/contexts/NotificationPrefsContext";
+import { disableBiometric, getBiometricCapability, isBiometricEnabled } from "@/lib/biometric";
 import {
   INLINE_SUGGEST_LANGUAGES,
   useInlineSuggestPreferences,
@@ -228,6 +229,45 @@ function PrivacyCard() {
     lock,
   } = usePrivacy();
 
+  // Etat de la connexion biometrique (identifiants du trousseau, cf.
+  // `@/lib/biometric`) — independant du verrouillage par PIN ci-dessus.
+  const [loginBioCapable, setLoginBioCapable] = useState(false);
+  const [loginBioEnabled, setLoginBioEnabled] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [cap, enabled] = await Promise.all([
+        getBiometricCapability(),
+        isBiometricEnabled(),
+      ]);
+      if (cancelled) return;
+      setLoginBioCapable(cap.available);
+      setLoginBioEnabled(enabled);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const onToggleLoginBiometric = useCallback((v: boolean) => {
+    // Activation: uniquement depuis l'ecran de connexion, ou le mot de passe
+    // vient d'etre saisi — on ne peut pas le reconstruire ici.
+    if (v) return;
+    Alert.alert(
+      "Désactiver la connexion biométrique",
+      "Vos identifiants enregistrés seront effacés de cet appareil. Vous devrez saisir votre mot de passe à la prochaine connexion.",
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: "Désactiver",
+          style: "destructive",
+          onPress: async () => {
+            await disableBiometric();
+            setLoginBioEnabled(false);
+          },
+        },
+      ],
+    );
+  }, []);
+
   const [showPinSetup, setShowPinSetup] = useState(false);
   const [pinStep, setPinStep] = useState<"enter" | "confirm">("enter");
   const [pinFirst, setPinFirst] = useState("");
@@ -348,6 +388,28 @@ function PrivacyCard() {
         value={settings.biometricEnabled}
         onToggle={v => updateSettings({ biometricEnabled: v })}
         disabled={!biometricAvailable || !settings.hasPIN}
+      />
+
+      {/* Connexion biometrique (identifiants stockes dans le trousseau).
+          Distinct du reglage ci-dessus, qui ne concerne que le
+          deverrouillage de l'app deja connectee. Sans cette ligne il
+          n'existait AUCUN moyen de revoquer les identifiants une fois
+          enregistres. */}
+      <ToggleRow
+        icon="log-in"
+        label="Connexion biométrique"
+        sublabel={
+          !loginBioCapable
+            ? Platform.OS === "web"
+              ? "Non disponible sur la version web"
+              : "Non disponible sur cet appareil"
+            : loginBioEnabled
+              ? "Identifiants conservés chiffrés sur cet appareil — désactivez pour les effacer"
+              : "Proposée à la prochaine connexion avec mot de passe"
+        }
+        value={loginBioEnabled}
+        onToggle={onToggleLoginBiometric}
+        disabled={!loginBioCapable || !loginBioEnabled}
       />
 
       {/* Otomatik kilit süresi */}

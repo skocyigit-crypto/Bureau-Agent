@@ -7,7 +7,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { agentProposalsTable } from "@workspace/db/schema";
-import { and, eq, desc, sql } from "drizzle-orm";
+import { and, eq, desc, gte, inArray, sql } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
 import {
@@ -86,6 +86,89 @@ router.get("/agent-queue/count", async (req: Request, res: Response): Promise<vo
   }
 });
 
+/**
+ * Tableau de bord de supervision: ce qui attend une décision, et comment le
+ * dirigeant a décidé jusqu'ici.
+ *
+ * Pourquoi: le compteur seul ("12 en attente") ne dit pas s'il faut s'y mettre
+ * tout de suite ni si l'agent propose des choses utiles. Deux chiffres
+ * changent la conduite: l'âge de la plus vieille proposition (une file qu'on
+ * ne vide jamais finit par expirer en silence) et le taux d'approbation sur
+ * 30 jours (un agent approuvé à 95 % mérite qu'on lui délègue plus; à 20 % il
+ * faut corriger ses règles plutôt que cliquer "Rejeter" chaque matin).
+ */
+router.get("/agent-queue/stats", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const [pendingRows, decidedRows] = await Promise.all([
+      db.select({
+        priority: agentProposalsTable.priority,
+        category: agentProposalsTable.category,
+        n: sql<number>`count(*)::int`,
+        oldest: sql<string | null>`min(${agentProposalsTable.createdAt})`,
+      })
+        .from(agentProposalsTable)
+        .where(and(
+          eq(agentProposalsTable.organisationId, orgId),
+          eq(agentProposalsTable.status, "en_attente"),
+        ))
+        .groupBy(agentProposalsTable.priority, agentProposalsTable.category),
+      db.select({
+        status: agentProposalsTable.status,
+        n: sql<number>`count(*)::int`,
+      })
+        .from(agentProposalsTable)
+        .where(and(
+          eq(agentProposalsTable.organisationId, orgId),
+          gte(agentProposalsTable.createdAt, since),
+        ))
+        .groupBy(agentProposalsTable.status),
+    ]);
+
+    const byPriority: Record<string, number> = {};
+    const byCategory: Record<string, number> = {};
+    let pending = 0;
+    let oldestMs: number | null = null;
+    for (const row of pendingRows) {
+      pending += row.n;
+      byPriority[row.priority] = (byPriority[row.priority] ?? 0) + row.n;
+      byCategory[row.category] = (byCategory[row.category] ?? 0) + row.n;
+      const t = row.oldest ? new Date(row.oldest).getTime() : NaN;
+      if (Number.isFinite(t) && (oldestMs === null || t < oldestMs)) oldestMs = t;
+    }
+
+    const byStatus: Record<string, number> = {};
+    for (const row of decidedRows) byStatus[row.status] = row.n;
+    // "Approuvée" recouvre l'approbation et son exécution réussie; "échouée"
+    // reste comptée comme approuvée (l'humain avait dit oui — c'est l'outil
+    // qui a échoué), sinon le taux mesurerait la fiabilité technique et non la
+    // qualité du jugement de l'agent.
+    const approved = (byStatus.approuvee ?? 0) + (byStatus.executee ?? 0) + (byStatus.echouee ?? 0);
+    const rejected = byStatus.rejetee ?? 0;
+    const decided = approved + rejected;
+
+    res.json({
+      pending,
+      byPriority,
+      byCategory,
+      oldestPendingAgeDays: oldestMs === null
+        ? null
+        : Math.floor((Date.now() - oldestMs) / (24 * 60 * 60 * 1000)),
+      last30d: {
+        approved,
+        rejected,
+        expired: byStatus.expiree ?? 0,
+        approvalRate: decided === 0 ? null : Math.round((approved / decided) * 100),
+      },
+    });
+  } catch (err) {
+    req.log.error({ err }, "Erreur statistiques file d'approbation");
+    res.status(500).json({ error: "Erreur lors du chargement des statistiques" });
+  }
+});
+
 /** Lance une génération de propositions à la demande. */
 router.post("/agent-queue/run-now", requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
@@ -154,6 +237,90 @@ router.post("/agent-queue/:id/approve", requireAdmin, async (req: Request, res: 
   } catch (err) {
     req.log.error({ err }, "Erreur approbation proposition");
     res.status(500).json({ error: "Erreur lors de l'approbation" });
+  }
+});
+
+/**
+ * Décide plusieurs propositions d'un coup.
+ *
+ * Pourquoi: la supervision doit tenir dans une journée de travail. Les crons
+ * produisent régulièrement une dizaine de propositions du même genre (relances
+ * de factures, rappels de tâches en retard); les trancher une par une décourage
+ * — et une file qu'on renonce à traiter expire en silence, ce qui revient à
+ * laisser l'agent sans supervision.
+ *
+ * Choix délibérés:
+ *  - les identifiants sont EXPLICITES (jamais "tout approuver par filtre"):
+ *    l'humain a vu à l'écran ce qu'il valide, ce que la règle d'or exige;
+ *  - exécution SÉQUENTIELLE: chaque approbation déclenche un effet réel
+ *    (e-mail, SMS, facture) et consomme une connexion base — le parallélisme
+ *    avait déjà saturé le pool en production (cf. services/cron-registry.ts);
+ *  - lot borné: au-delà, l'appel dépasserait le délai d'attente HTTP.
+ */
+const BULK_MAX = 25;
+
+router.post("/agent-queue/bulk-decide", requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const userId = req.session?.userId as number;
+
+    const decision = req.body?.decision;
+    if (decision !== "approve" && decision !== "reject") {
+      res.status(400).json({ error: "decision doit valoir 'approve' ou 'reject'" });
+      return;
+    }
+
+    const rawIds = Array.isArray(req.body?.ids) ? req.body.ids : null;
+    if (!rawIds || rawIds.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+    const ids = [...new Set(rawIds.map(Number).filter((n: number) => Number.isInteger(n) && n > 0))];
+    if (ids.length === 0) { res.status(400).json({ error: "ids invalides" }); return; }
+    if (ids.length > BULK_MAX) {
+      res.status(400).json({ error: `Maximum ${BULK_MAX} propositions par lot` });
+      return;
+    }
+
+    const note = typeof req.body?.note === "string" ? req.body.note : undefined;
+
+    // On ne traite que ce qui est RÉELLEMENT en attente dans CETTE organisation:
+    // un identifiant d'une autre organisation ou déjà tranché est écarté ici,
+    // avant tout effet, plutôt que de compter sur chaque exécuteur.
+    const eligible = await db.select({ id: agentProposalsTable.id })
+      .from(agentProposalsTable)
+      .where(and(
+        eq(agentProposalsTable.organisationId, orgId),
+        eq(agentProposalsTable.status, "en_attente"),
+        inArray(agentProposalsTable.id, ids),
+      ));
+    const eligibleIds = new Set(eligible.map((r) => r.id));
+
+    const results: Array<{ id: number; ok: boolean; status?: string; error?: string }> = [];
+    for (const id of ids) {
+      if (!eligibleIds.has(id)) {
+        results.push({ id, ok: false, error: "Proposition introuvable ou déjà traitée" });
+        continue;
+      }
+      if (decision === "approve") {
+        const r = await executeProposal(id, { orgId, userId });
+        results.push({ id, ok: r.ok, status: r.status, error: r.ok ? undefined : r.error });
+      } else {
+        const ok = await rejectProposal(id, { orgId, userId }, note);
+        results.push({ id, ok, status: ok ? "rejetee" : undefined, error: ok ? undefined : "Rejet impossible" });
+      }
+      // Même apprentissage que les décisions unitaires: un lot approuvé doit
+      // peser sur les préférences apprises, sinon l'agent n'apprend plus rien
+      // dès que le dirigeant utilise le mode groupé.
+      learnFromDecision(orgId, id);
+    }
+
+    res.json({
+      requested: ids.length,
+      succeeded: results.filter((r) => r.ok).length,
+      failed: results.filter((r) => !r.ok).length,
+      results,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Erreur décision groupée");
+    res.status(500).json({ error: "Erreur lors de la décision groupée" });
   }
 });
 

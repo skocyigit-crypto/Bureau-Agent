@@ -44,16 +44,35 @@
 4. Apres creation, noter l'**App Store Connect App ID** (numero a 10
    chiffres visible dans l'URL : `apps/<ASCAPPID>/...`).
 
-## Etape 3 — Remplir `eas.json`
+## Etape 3 — Identifiants de soumission (`eas.json`)
 
-Editer `artifacts/mobile/eas.json` et remplacer les 3 placeholders dans
-`submit.production.ios` :
+`submit.production.ios` ne contient plus que `appleTeamId` (deja renseigne).
+`eas submit` **demande interactivement** l'Apple ID et selectionne l'app dans
+App Store Connect au premier envoi, puis memorise le choix.
+
+Les anciens placeholders (`REMPLACER_PAR_VOTRE_APPLE_ID_EMAIL`,
+`REMPLACER_PAR_APP_STORE_CONNECT_APP_ID`) ont ete **supprimes** : laisses tels
+quels, ils faisaient echouer `eas submit --profile production` avec une erreur
+d'identifiant invalide au lieu de simplement poser la question. Ne les
+reintroduisez que si vous automatisez la soumission en CI (sans TTY) ; dans ce
+cas remplissez les deux champs avec vos vraies valeurs :
 
 ```json
 "appleId": "votre.email@exemple.com",
 "ascAppId": "1234567890",
-"appleTeamId": "ABCDE12345"
+"appleTeamId": "FRM9MKCM4P"
 ```
+
+L'ASC App ID est le nombre a 10 chiffres releve a l'etape 2.
+
+### URL d'API des builds
+
+Les profils `preview` et `production` pointent sur `https://agentdebureau.fr`
+(et non plus sur l'URL brute `*.run.app`). C'est le domaine servi par Caddy, qui
+proxy `/api*` vers le service API **en preservant l'IP reelle du visiteur**
+(en-tete `X-Real-Client-IP`, cf. incident du 2026-07-14) et qui correspond a
+`MOBILE_APP_ORIGIN` cote app — donc a l'origine acceptee par la verification
+CSRF du backend.
 
 ## Etape 4 — Creer un mot de passe d'application
 

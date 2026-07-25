@@ -5,6 +5,11 @@ export type SyncEventType =
   | "calendar" | "prospect" | "note" | "projet" | "dashboard"
   | "reminder"
   | "security"
+  // Une action IA vient d'entrer dans la file d'approbation. Sans cet
+  // évènement, la supervision humaine dépendait entièrement du fait que
+  // quelqu'un ouvre l'écran: une proposition non vue expirait au bout de
+  // 14 jours sans que personne n'ait jamais su qu'elle existait.
+  | "proposition"
   | "whatsapp"
   | "ping";
 

@@ -15,6 +15,7 @@ import { AppState, Platform, type AppStateStatus } from "react-native";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useNotificationPrefs } from "@/contexts/NotificationPrefsContext";
+import { isRemotePushActive } from "@/lib/push-registration";
 
 /**
  * Mirroir mobile des compteurs "non lus" affichés dans la sidebar web
@@ -239,7 +240,12 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
     if (
       Platform.OS !== "web" &&
       notificationsEnabledRef.current &&
-      appStateRef.current !== "active"
+      appStateRef.current !== "active" &&
+      // Quand le push distant est actif, le serveur notifie deja cet
+      // evenement: planifier en plus une notification locale afficherait la
+      // meme alerte deux fois. Le chemin local reste le secours quand aucun
+      // jeton n'a pu etre enregistre (permission refusee, simulateur...).
+      !isRemotePushActive()
     ) {
       const title =
         key === "message"

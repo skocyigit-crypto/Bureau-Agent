@@ -26,10 +26,29 @@ import { LocationProvider } from "@/contexts/LocationContext";
 import { PrivacyOverlay } from "@/components/PrivacyOverlay";
 import { LocationConsentGate } from "@/components/LocationConsentGate";
 import { OfflineBanner } from "@/components/OfflineBanner";
+import { PushRegistrar } from "@/components/PushRegistrar";
+import { reportCrash } from "@/lib/crash-report";
+import {
+  extractNotificationTarget,
+  type NotificationData,
+} from "@/lib/notification-routes";
 
 if (Platform.OS !== "web") {
   SplashScreen.preventAutoHideAsync();
 }
+
+// Sans handler, expo-notifications n'AFFICHE RIEN quand une notification
+// arrive alors que l'app est au premier plan : elle est livree au code mais
+// jamais presentee. Les alertes push distantes recues pendant que la
+// secretaire utilise l'app passaient donc totalement inapercues.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 const queryClient = new QueryClient();
 
@@ -153,46 +172,13 @@ export default function RootLayout() {
   useEffect(() => {
     if (Platform.OS === "web") return;
 
-    // Whitelist explicite : on n'accepte que les routes que UnreadBadgesContext
-    // peut légitimement émettre. Empêche qu'un payload malformé n'envoie la
-    // secrétaire vers une route arbitraire.
-    const ALLOWED_ROUTES = new Set<string>([
-      "/messages",
-      "/(tabs)/tasks",
-      "/(tabs)/calls",
-      // Tâche #84: rappels imminents (event SSE "reminder") deep-linkent
-      // vers l'écran calendrier (route mobile = "/calendar").
-      "/calendar",
-      // Tâche #89: rappels "tâche en retard" / "projet en retard" pointent
-      // vers les listes correspondantes côté mobile.
-      "/tasks",
-      "/projets",
-      // Tâche #134: alerte de menace documentaire → liste des documents,
-      // filtrée sur les fichiers dangereux via le param `scan`.
-      "/documents",
-    ]);
-
-    const extractTarget = (response: Notifications.NotificationResponse) => {
-      const data = response?.notification?.request?.content?.data as
-        | { route?: string; resourceId?: number | string; scan?: string }
-        | undefined;
-      const route = data?.route;
-      if (typeof route !== "string" || !ALLOWED_ROUTES.has(route)) return null;
-      let resourceId: number | undefined;
-      if (typeof data?.resourceId === "number" && Number.isFinite(data.resourceId)) {
-        resourceId = data.resourceId;
-      } else if (typeof data?.resourceId === "string") {
-        const parsed = parseInt(data.resourceId, 10);
-        if (Number.isFinite(parsed)) resourceId = parsed;
-      }
-      // Tâche #134: filtre de liste (ex. scan=dangerous) relayé tel quel à la
-      // route cible. On le borne à une valeur courte connue pour rester sûr.
-      let scan: string | undefined;
-      if (typeof data?.scan === "string" && data.scan.length > 0 && data.scan.length <= 32) {
-        scan = data.scan;
-      }
-      return { pathname: route, resourceId, scan };
-    };
+    // Liste blanche + normalisation du payload: extraites dans
+    // `@/lib/notification-routes` pour etre testables (ce fichier ne l'est pas,
+    // il charge expo-router/expo-notifications des l'import).
+    const extractTarget = (response: Notifications.NotificationResponse) =>
+      extractNotificationTarget(
+        response?.notification?.request?.content?.data as NotificationData | undefined,
+      );
 
     const handleResponse = (response: Notifications.NotificationResponse) => {
       const target = extractTarget(response);
@@ -236,13 +222,16 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <ErrorBoundary>
+      {/* Sans `onError`, un ecran blanc chez un utilisateur ne laissait aucune
+          trace exploitable : le crash restait invisible cote serveur. */}
+      <ErrorBoundary onError={reportCrash}>
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView>
             <KeyboardProvider>
               <ThemeProvider>
                 <PrivacyProvider>
                   <AuthProvider>
+                    <PushRegistrar />
                     <NotificationPrefsProvider>
                       <UnreadBadgesProvider>
                         <CalendarEventsProvider>

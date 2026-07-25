@@ -17,13 +17,24 @@ import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { MOBILE_APP_ORIGIN } from "@/lib/api-config";
 import { useColors } from "@/hooks/useColors";
 import {
+  disableBiometric,
   enableBiometric,
   getBiometricCapability,
   getBiometricCredentials,
   isBiometricEnabled,
+  refreshBiometricCredentials,
 } from "@/lib/biometric";
 
 type Mode = "login" | "forgot" | "forgot_done";
+
+/**
+ * Resultat d'une tentative de connexion.
+ * `mfa` doit rester distinct de `rejected`: seul `rejected` signifie que les
+ * identifiants eux-memes sont invalides (et justifie de purger le trousseau
+ * biometrique). Lire l'etat `mfaRequired` a la place donnerait la valeur du
+ * rendu precedent — donc une purge a tort sur les comptes proteges par 2FA.
+ */
+type LoginOutcome = "ok" | "mfa" | "rejected";
 
 export default function LoginScreen() {
   const colors = useColors();
@@ -45,8 +56,28 @@ export default function LoginScreen() {
   const [bioCapable, setBioCapable] = useState(false);
   const [bioLoading, setBioLoading] = useState(false);
 
+  // Proposition explicite avant de stocker le mot de passe dans le trousseau.
+  // Auparavant l'activation etait silencieuse: toute connexion manuelle
+  // declenchait une invite biometrique et persistait le mot de passe sans que
+  // l'utilisateur n'ait rien demande ni consenti.
+  const askEnableBiometric = useCallback(
+    (label: string): Promise<boolean> =>
+      new Promise((resolve) => {
+        Alert.alert(
+          `Activer le déverrouillage ${label} ?`,
+          "Vos identifiants seront conservés chiffrés sur cet appareil (trousseau sécurisé) pour vous reconnecter sans saisir votre mot de passe. Vous pourrez le désactiver à tout moment dans Réglages › Confidentialité et sécurité.",
+          [
+            { text: "Plus tard", style: "cancel", onPress: () => resolve(false) },
+            { text: "Activer", onPress: () => resolve(true) },
+          ],
+          { cancelable: true, onDismiss: () => resolve(false) },
+        );
+      }),
+    [],
+  );
+
   const finishLogin = useCallback(
-    async (mail: string, pwd: string, offerBiometric: boolean): Promise<boolean> => {
+    async (mail: string, pwd: string, offerBiometric: boolean): Promise<LoginOutcome> => {
       const result = await login(mail.trim(), pwd, totpCode || undefined);
       // Double authentification active: on demande le code puis on rejoue la
       // connexion avec. Sans cette branche, un compte protege par MFA ne
@@ -55,24 +86,30 @@ export default function LoginScreen() {
         setMfaRequired(true);
         setError(totpCode ? "Code invalide. Réessayez." : "");
         setTotpCode("");
-        return false;
+        return "mfa";
       }
       if (!result.success) {
         setError(result.error ?? "Erreur inconnue.");
-        return false;
+        return "rejected";
       }
       setMfaRequired(false);
       setTotpCode("");
-      // Après une connexion manuelle réussie sur un appareil compatible et
-      // si la biométrie n'est pas encore activée, proposer de l'activer.
-      if (offerBiometric && bioCapable && !bioEnabled) {
-        const enabled = await enableBiometric(mail.trim(), pwd);
-        setBioEnabled(enabled);
+      // Après une connexion manuelle réussie sur un appareil compatible :
+      //  - biométrie pas encore active -> on la PROPOSE (jamais en silence) ;
+      //  - déjà active -> on rafraîchit les identifiants stockés, sinon un
+      //    changement de mot de passe casserait le déverrouillage sans recours.
+      if (offerBiometric && bioCapable) {
+        if (!bioEnabled) {
+          const accepted = await askEnableBiometric(bioLabel || "biométrique");
+          if (accepted) setBioEnabled(await enableBiometric(mail.trim(), pwd));
+        } else {
+          await refreshBiometricCredentials(mail.trim(), pwd);
+        }
       }
       router.replace("/(tabs)");
-      return true;
+      return "ok";
     },
-    [login, bioCapable, bioEnabled, totpCode],
+    [login, bioCapable, bioEnabled, bioLabel, askEnableBiometric, totpCode],
   );
 
   const unlockWithBiometric = useCallback(async () => {
@@ -84,8 +121,23 @@ export default function LoginScreen() {
         setBioLoading(false);
         return;
       }
-      const ok = await finishLogin(creds.email, creds.password, false);
-      if (!ok) setBioLoading(false);
+      const outcome = await finishLogin(creds.email, creds.password, false);
+      if (outcome !== "ok") {
+        setBioLoading(false);
+        // Identifiants stockés refusés par le serveur (mot de passe changé,
+        // compte désactivé...) : on purge le trousseau au lieu de rejouer un
+        // échec à chaque ouverture, et on bascule sur la saisie manuelle.
+        // La 2FA n'est pas un échec d'identifiants : on garde le trousseau
+        // (l'écran demande simplement le code à usage unique).
+        if (outcome === "rejected") {
+          await disableBiometric();
+          setBioEnabled(false);
+          setEmail(creds.email);
+          setError(
+            "Le déverrouillage biométrique a été désactivé : vos identifiants enregistrés ne sont plus valides. Connectez-vous avec votre mot de passe.",
+          );
+        }
+      }
     } catch {
       setBioLoading(false);
     }

@@ -286,6 +286,97 @@ girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamla
 - **Durum**: Doğrulanmadı/düzeltilmedi — istenirse kontrol edip aynı deseni
   (`encryptProviderConfig`/`decryptProviderConfig` benzeri) uygularım.
 
+### 9. Cep uygulaması baştan aşağı denetimi (2026-07-25)
+
+`artifacts/mobile` (Expo/React Native, ~44k satır, 101 dosya) tamamen denetlendi.
+`tsc --noEmit` temiz, testler geçiyor. İki bulgu bu oturumda düzeltildi, kalanlar
+aşağıda açık duruyor.
+
+**Düzeltildi:**
+
+- **[YÜKSEK] Çevrimdışı önbellek kullanıcıya göre ayrılmamıştı ve çıkışta
+  silinmiyordu** — `useOfflineCache` sabit anahtarlar kullanıyordu
+  (`contacts_list`, `calls_list`, `tasks_list`, `dashboard_*`) ve `logout()` yalnız
+  token'ı siliyordu. Ortak cihazda B kullanıcısı, A'nın kişilerini/aramalarını/
+  görevlerini şifrelenmemiş AsyncStorage'dan görebiliyordu (çok kiracılı üründe
+  kiracılar arası sızıntı). → Yeni `lib/offline-cache.ts`: anahtarlar
+  `adb_cache_v1:<userId>:<key>` altında; çıkış, 401 ve soğuk başlangıçta reddedilen
+  token yollarının hepsinde tam purge; eski global anahtarlar kancanın montajında
+  tek seferlik temizleniyor. 7 yeni test (`lib/__tests__/offline-cache.test.ts`).
+- **[YÜKSEK] Biyometrik giriş sorulmadan açılıyor, kapatılamıyordu** —
+  `login.tsx` her başarılı manuel girişten sonra sessizce `enableBiometric()`
+  çağırıyor, **parolayı** trousseau'ya yazıyordu; `disableBiometric()` hiçbir
+  yerden çağrılmıyordu. Ayrıca parola değişince saklanan parola bayatlıyor ve
+  kendini onaramıyordu (biyometri açıkken yeniden kaydedilmiyordu). → Açık onay
+  diyaloğu; ayarlarda kapatma anahtarı (`Confidentialite et securite` kartında);
+  başarılı manuel girişte kimlik bilgilerinin sessizce tazelenmesi
+  (`refreshBiometricCredentials`); sunucunun reddettiği biyometrik girişte
+  trousseau'nun otomatik temizlenmesi (2FA ile karışmasın diye `LoginOutcome`
+  ayrımı); anahtarlar artık `WHEN_UNLOCKED_THIS_DEVICE_ONLY` ile yazılıyor
+  (yedeklere ve başka cihaza taşınmaya kapalı).
+
+- **[YÜKSEK] Uzaktan bildirim (push) altyapısı yoktu** — tüm bildirimler in-app
+  SSE ile üretilen *yerel* bildirimlerdi, yani sadece JS çalışırken; uygulama
+  kapalıyken (iOS'ta arka plana geçtikten saniyeler sonra) hiçbir uyarı
+  gitmiyordu. Ayrıca `Notifications.setNotificationHandler` hiç ayarlanmamıştı →
+  uygulama önplandayken gelen bildirim hiç gösterilmiyordu. → Uçtan uca kuruldu:
+  yeni `push_tokens` tablosu (jeton = cihaz, çakışmada sahip yeniden yazılıyor —
+  el değiştiren telefon eski hesabın bildirimlerini almasın diye);
+  `POST /api/push/register` + `/unregister` (tenant-scope, rate limit, Expo jeton
+  format doğrulaması); `services/push-notifications.ts` webhook motoruyla aynı
+  `broadcaster.onEvent` akışına bağlanıp Expo push API'sine relay ediyor (eylemi
+  yapan kullanıcıya gönderilmiyor, `DeviceNotRegistered` jetonları otomatik
+  siliniyor, hata hiçbir zaman olay yayınını kırmıyor); mobilde
+  `lib/push-registration.ts` + `components/PushRegistrar.tsx` (girişte kayıt,
+  `AuthContext.logout()` içinde oturum düşmeden ÖNCE kayıt silme);
+  `setNotificationHandler` eklendi; push aktifken yerel bildirim planlanmıyor
+  (çift bildirim önlendi), push yoksa yerel yol yedek olarak duruyor.
+  9 yeni test (`push-notifications-content.test.ts`) — derin bağlantı rotalarının
+  mobildeki beyaz listeyle uyumu dahil.
+  **Kalan kullanıcı adımları**: (a) `pnpm --filter @workspace/db push` ile
+  `push_tokens` tablosunun canlıya alınması; (b) Android için EAS/FCM kimlik
+  bilgileri (`google-services.json`), iOS'ta APNs anahtarı EAS tarafından
+  yönetiliyor.
+
+- **[ORTA] Store gönderimi ve build API adresi** — `eas.json`'daki
+  `REMPLACER_PAR_VOTRE_APPLE_ID_EMAIL` / `REMPLACER_PAR_APP_STORE_CONNECT_APP_ID`
+  yer tutucuları `eas submit --profile production`'ı "geçersiz kimlik" hatasıyla
+  düşürüyordu. → Yer tutucular kaldırıldı; `eas submit` bu iki değeri ilk
+  gönderimde interaktif soruyor ve hatırlıyor (`appleTeamId` zaten gerçek).
+  CI'da (TTY yok) otomatikleştirilecekse doldurulması gerektiği
+  `IOS_DEPLOY.md` Etape 3'e yazıldı. Ayrıca preview+production build'lerinin
+  `EXPO_PUBLIC_API_URL`'i ham `*.run.app` yerine `https://agentdebureau.fr`
+  yapıldı — Caddy `/api*`'i gerçek ziyaretçi IP'sini koruyarak
+  (`X-Real-Client-IP`, 2026-07-14 incidenti) proxy'liyor ve bu adres
+  `MOBILE_APP_ORIGIN` ile aynı, yani CSRF kontrolüyle tutarlı.
+  Canlıda doğrulandı: `https://agentdebureau.fr/api/health` → 401 (API'ye
+  ulaşıyor), kök → 200.
+
+- **[ORTA] Üç ekran ikiye katlanmıştı** — `app/calls.tsx`, `app/contacts.tsx`,
+  `app/tasks.tsx` (~1500 satır), `(tabs)` altındaki muadillerinin eskimiş
+  kopyalarıydı ve ikisi de menüden/asistandan erişilebiliyordu. Ayrışmışlardı:
+  yalnız sekme sürümleri üretilmiş API istemcisini kullanıyor ve `open=<id>`
+  parametresini okuyor — yani "yeni görev" bildirimine dokunup `/tasks`'a
+  düşen kullanıcıya görev açılmıyordu. → Üç dosya, parametreleri aktaran
+  `Redirect` bileşenlerine indirildi. Rotalar korundu (menü, arama, proaktif
+  asistan, komutan IA bağlantıları kırılmasın diye), tek bakılan sürüm sekmeler.
+- **[DÜŞÜK] Çökme raporlaması yoktu** — `ErrorBoundary` `onError` destekliyordu
+  ama kimse geçmiyordu; kullanıcıdaki beyaz ekran hiçbir iz bırakmıyordu. →
+  `POST /api/client-errors` (kimlik istemez — açılıştaki ve giriş ekranındaki
+  çökmelerin oturumu yoktur; buna karşılık hiçbir şey veritabanına yazılmıyor,
+  yalnızca kırpılmış hâlde Cloud Logging'e düşüyor, IP başına saatte 10 istek)
+  + mobilde `lib/crash-report.ts` (oturum başına en fazla 3 rapor, sessiz).
+- **[DÜŞÜK] Test kapsamı** — bildirim rota beyaz listesi ve payload normalizasyonu
+  `_layout.tsx` içinden `lib/notification-routes.ts`'e çıkarıldı (test edilemez
+  bir dosyadaydı, üstelik dış girdiyi doğrulayan bir güvenlik sınırı) ve 8 testle
+  kapatıldı. Mobil toplam: 3 dosya / 24 test; sunucu tarafı push: 13 test.
+
+**Açık kalan bulgular:**
+
+1. **SSE ayrıştırıcı testsiz** — `lib/sse-stream.ts` içindeki blok/`event:`/`data:`
+   ayrıştırma mantığı saf ama `expo/fetch` importuyla iç içe; test edilmesi için
+   önce ayrı bir saf fonksiyona çıkarılması gerekiyor.
+
 ---
 
 ## Tamamlanmış işler (referans için)

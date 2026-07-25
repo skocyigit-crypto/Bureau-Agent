@@ -24,6 +24,16 @@ const CRED_EMAIL_KEY = "adb_bio_email_v1";
 const CRED_PASSWORD_KEY = "adb_bio_password_v1";
 const ENABLED_FLAG_KEY = "adb_bio_enabled_v1";
 
+/**
+ * Les identifiants ne doivent jamais quitter l'appareil: `*_THIS_DEVICE_ONLY`
+ * exclut l'entree des sauvegardes iCloud/iTunes et de la restauration sur un
+ * autre telephone, et `WHEN_UNLOCKED` la rend illisible tant que l'appareil
+ * est verrouille.
+ */
+const KEYCHAIN_OPTS: SecureStore.SecureStoreOptions = {
+  keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+};
+
 export interface BiometricCapability {
   /** Matériel présent ET au moins une empreinte/visage enrôlé. */
   available: boolean;
@@ -82,12 +92,39 @@ export async function enableBiometric(email: string, password: string): Promise<
       disableDeviceFallback: false,
     });
     if (!result.success) return false;
-    await SecureStore.setItemAsync(CRED_EMAIL_KEY, email);
-    await SecureStore.setItemAsync(CRED_PASSWORD_KEY, password);
-    await SecureStore.setItemAsync(ENABLED_FLAG_KEY, "1");
+    await SecureStore.setItemAsync(CRED_EMAIL_KEY, email, KEYCHAIN_OPTS);
+    await SecureStore.setItemAsync(CRED_PASSWORD_KEY, password, KEYCHAIN_OPTS);
+    await SecureStore.setItemAsync(ENABLED_FLAG_KEY, "1", KEYCHAIN_OPTS);
     return true;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Rafraichit silencieusement les identifiants stockes apres une connexion
+ * manuelle reussie, SI la biometrie est deja activee.
+ *
+ * Sans cela, un changement de mot de passe rendait le deverrouillage
+ * biometrique definitivement casse: `enableBiometric` n'etait rappele que
+ * lorsque la biometrie n'etait PAS encore active, donc l'ancien mot de passe
+ * restait dans le trousseau et chaque ouverture de l'app se soldait par une
+ * invite biometrique suivie d'un echec d'authentification serveur.
+ *
+ * Aucune invite ici: l'utilisateur vient de prouver son identite par mot de
+ * passe, et on n'ecrit que sur un emplacement qu'il a deja autorise.
+ */
+export async function refreshBiometricCredentials(
+  email: string,
+  password: string,
+): Promise<void> {
+  if (isWeb) return;
+  if (!(await isBiometricEnabled())) return;
+  try {
+    await SecureStore.setItemAsync(CRED_EMAIL_KEY, email, KEYCHAIN_OPTS);
+    await SecureStore.setItemAsync(CRED_PASSWORD_KEY, password, KEYCHAIN_OPTS);
+  } catch {
+    // best-effort: la connexion manuelle reste possible.
   }
 }
 

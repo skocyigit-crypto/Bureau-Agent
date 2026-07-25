@@ -27,6 +27,7 @@ import { db } from "@workspace/db";
 import { agentProposalsTable } from "@workspace/db/schema";
 import { and, eq, inArray, lt, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { broadcaster } from "./broadcaster";
 import { getTool, validateArgs } from "./assistant-tools";
 import { getSaasTool } from "./saas-tools";
 
@@ -112,6 +113,31 @@ export async function enqueueProposal(input: EnqueueProposalInput): Promise<Enqu
       sourceRef,
       status: "en_attente",
     }).returning({ id: agentProposalsTable.id });
+
+    // Réveille l'humain. La règle d'or ("rien ne part sans approbation") ne
+    // vaut que si quelqu'un est effectivement prévenu qu'il y a à décider:
+    // sinon l'agent travaille dans le vide et la file se vide toute seule par
+    // expiration. Un seul émetteur ici couvre TOUS les producteurs (crons,
+    // secrétaire autonome, triage e-mail, agent SaaS) puisqu'ils passent tous
+    // par cette fonction. Jamais sur un doublon: la proposition existait déjà.
+    if (row?.id !== undefined) {
+      try {
+        broadcaster.broadcast(input.orgId, {
+          type: "proposition",
+          action: "created",
+          resourceId: row.id,
+          meta: {
+            title: input.title,
+            priority: input.priority ?? "moyenne",
+            category: input.category ?? "autre",
+            toolName: input.toolName,
+          },
+        });
+      } catch {
+        // La diffusion est un confort: son échec ne doit pas faire croire à
+        // l'appelant que la mise en file a échoué (elle est déjà en base).
+      }
+    }
 
     return { ok: true, id: row?.id };
   } catch (err) {

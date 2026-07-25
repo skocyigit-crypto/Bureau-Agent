@@ -15,6 +15,7 @@ import {
   notesInternesTable,
   auditLogsTable,
   messagesTable,
+  agentProposalsTable,
 } from "@workspace/db";
 import { eq, and, gte, lte, count, sql, desc, or } from "drizzle-orm";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "../services/ai-quota";
@@ -105,6 +106,7 @@ async function gatherDailyData(userId: number, orgId: number) {
     recentCompletedTasks,
     recentCalls,
     upcomingTasks,
+    pendingApprovals,
   ] = await Promise.all([
     // Çağrılar
     db.select({ count: count() }).from(callsTable).where(and(
@@ -214,6 +216,26 @@ async function gatherDailyData(userId: number, orgId: number) {
       ))
       .orderBy(tasksTable.dueDate)
       .limit(5),
+    // Actions IA en attente d'un arbitrage humain.
+    //
+    // Filet de securite de la supervision: seules les propositions prioritaires
+    // declenchent une notification push (anti-bruit, cf. push-notifications.ts).
+    // Sans ce rappel quotidien, les autres pouvaient dormir dans la file jusqu'a
+    // expirer au bout de 14 jours sans que personne ne les ait jamais vues —
+    // l'agent aurait travaille pour rien.
+    //
+    // Volontairement des COMPTEURS et rien d'autre: la file est a l'echelle de
+    // l'organisation alors que le reste du digest est personnel, et seuls les
+    // administrateurs peuvent trancher. Un simple nombre n'expose aucun contenu.
+    db.select({
+      count: count(),
+      oldest: sql<string | null>`min(${agentProposalsTable.createdAt})`,
+    })
+      .from(agentProposalsTable)
+      .where(and(
+        eq(agentProposalsTable.organisationId, orgId),
+        eq(agentProposalsTable.status, "en_attente"),
+      )),
   ]);
 
   return {
@@ -237,6 +259,16 @@ async function gatherDailyData(userId: number, orgId: number) {
     },
     messages: messagesSentToday[0]?.count ?? 0,
     actions: auditActionsToday[0]?.count ?? 0,
+    approvals: {
+      pending: pendingApprovals[0]?.count ?? 0,
+      oldestAgeDays: (() => {
+        const raw = pendingApprovals[0]?.oldest;
+        if (!raw) return 0;
+        const t = new Date(raw).getTime();
+        if (!Number.isFinite(t)) return 0;
+        return Math.floor((Date.now() - t) / (24 * 60 * 60 * 1000));
+      })(),
+    },
   };
 }
 
