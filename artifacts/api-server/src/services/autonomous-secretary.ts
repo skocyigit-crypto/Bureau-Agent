@@ -283,27 +283,58 @@ export interface ExecuteProposalResult {
   error?: string;
 }
 
+// Espace de verrous consultatifs Postgres pour l'execution des propositions.
+// Distinct des namespaces de cron (lib/cron-lock.ts) pour ne jamais collisionner.
+const PROPOSAL_LOCK_NAMESPACE = 4310;
+
 export async function executeProposal(proposalId: number, ctx: ToolContext): Promise<ExecuteProposalResult> {
-  const [proposal] = await db.select().from(agentProposalsTable)
-    .where(and(eq(agentProposalsTable.id, proposalId), eq(agentProposalsTable.organisationId, ctx.orgId)))
-    .limit(1);
+  // Verrou consultatif BLOQUANT, porte sur (namespace, proposalId).
+  //
+  // Sans lui, deux approbations concurrentes de la MEME proposition (double
+  // clic sur "Approuver", rejeu reseau, deux instances Cloud Run) chargeaient
+  // toutes deux le statut `en_attente` et appelaient toutes deux executeTool:
+  // l'action s'executait en double — un e-mail parti deux fois, une tache creee
+  // en double. `rejectProposal` se protegeait deja via un `WHERE status =
+  // 'en_attente'` atomique; l'execution, elle, ne verifiait meme pas le statut
+  // en attente avant d'agir.
+  //
+  // On serialise donc les approbations d'une meme proposition. La seconde
+  // attend, puis relit le statut a l'interieur du verrou: la premiere l'ayant
+  // passe a `executee`, elle renvoie le resultat memoise sans re-executer.
+  // Un verrou (plutot qu'un statut "en cours" persistant) evite tout etat
+  // bloque si le processus tombe en cours d'execution.
+  const lockRes = await db.execute(
+    sql`SELECT pg_advisory_lock(${PROPOSAL_LOCK_NAMESPACE}, ${proposalId})`,
+  );
+  void lockRes;
+  try {
+    const [proposal] = await db.select().from(agentProposalsTable)
+      .where(and(eq(agentProposalsTable.id, proposalId), eq(agentProposalsTable.organisationId, ctx.orgId)))
+      .limit(1);
 
-  if (!proposal) return { ok: false, status: "echouee", error: "Proposition introuvable" };
-  if (proposal.status === "executee") return { ok: true, status: "executee", result: proposal.result };
-  if (proposal.status === "rejetee") return { ok: false, status: "rejetee", error: "Proposition déjà rejetée" };
+    if (!proposal) return { ok: false, status: "echouee", error: "Proposition introuvable" };
+    if (proposal.status === "executee") return { ok: true, status: "executee", result: proposal.result };
+    if (proposal.status === "rejetee") return { ok: false, status: "rejetee", error: "Proposition déjà rejetée" };
 
-  const exec = await executeTool(proposal.toolName, proposal.args, ctx, { skipConfirmation: true });
-  const newStatus: AgentProposal["status"] = exec.ok ? "executee" : "echouee";
+    const exec = await executeTool(proposal.toolName, proposal.args, ctx, { skipConfirmation: true });
+    const newStatus: AgentProposal["status"] = exec.ok ? "executee" : "echouee";
 
-  await db.update(agentProposalsTable).set({
-    status: newStatus,
-    result: (exec.result ?? (exec.error ? { error: exec.error } : {})) as Record<string, unknown>,
-    decidedBy: ctx.userId,
-    decidedAt: new Date(),
-    executedAt: new Date(),
-  }).where(eq(agentProposalsTable.id, proposalId));
+    await db.update(agentProposalsTable).set({
+      status: newStatus,
+      result: (exec.result ?? (exec.error ? { error: exec.error } : {})) as Record<string, unknown>,
+      decidedBy: ctx.userId,
+      decidedAt: new Date(),
+      executedAt: new Date(),
+    }).where(eq(agentProposalsTable.id, proposalId));
 
-  return { ok: exec.ok, status: newStatus, result: exec.result, error: exec.error };
+    return { ok: exec.ok, status: newStatus, result: exec.result, error: exec.error };
+  } finally {
+    try {
+      await db.execute(sql`SELECT pg_advisory_unlock(${PROPOSAL_LOCK_NAMESPACE}, ${proposalId})`);
+    } catch (err) {
+      logger.error({ err, proposalId }, "[proposal] Echec de liberation du verrou d'execution");
+    }
+  }
 }
 
 export async function rejectProposal(
