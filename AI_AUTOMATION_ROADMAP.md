@@ -328,7 +328,7 @@ e-posta/bildirim üretiyor, onay kuyruğuna gitmiyor.
 - `GET /admin/saas-attention` (requireSuperAdmin), organisations.tsx SaaS sekmesinde panel.
 - Salt-okunur, mutasyon yok.
 
-### ⏳ Faz 2 — SIRADA (otonom ajan + SaaS araçları)
+### ✅ Faz 2 — TAMAM (commit 0edc6e2, canlı; ajan üretimde 2 öneri üretti)
 Tasarım: SaaS önerilerini super-admin'in kendi org'u (`agent-de-bureau-sas` slug,
 proactive-engine.ts:1042'de tanımlı) altında toplayarak MEVCUT onay kuyruğu altyapısını
 yeniden kullan (agent_proposals, agent-queue UI, executeProposal, öğrenme — hepsi hazır).
