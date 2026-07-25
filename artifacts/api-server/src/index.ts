@@ -20,6 +20,7 @@ import { startAutonomousSecretaryCron } from "./services/autonomous-secretary-cr
 import { startAutonomousInboxCron } from "./services/autonomous-inbox-cron";
 import { startDailyDigestCron } from "./services/daily-digest-cron";
 import { startInvoiceReminderCron } from "./services/invoice-reminder-cron";
+import { startSaasAgentCron } from "./services/saas-agent-cron";
 import { startAppAuditCron } from "./services/app-audit-cron";
 import { startHealthAgentsCron } from "./services/health-agents-cron";
 import { startAgentAutoRunScheduler } from "./routes/ai-agents";
@@ -140,6 +141,7 @@ async function startServer(): Promise<void> {
     startAutonomousInboxCron();
     startDailyDigestCron();
     startInvoiceReminderCron();
+    startSaasAgentCron();
     startAppAuditCron();
     startHealthAgentsCron();
     startAgentAutoRunScheduler();

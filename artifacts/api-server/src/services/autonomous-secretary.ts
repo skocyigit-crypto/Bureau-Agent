@@ -26,6 +26,7 @@ import {
 import { and, eq, gte, lte, desc, sql, inArray } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { getTool, validateArgs, executeTool, type ToolContext } from "./assistant-tools";
+import { isSaasTool, executeSaasTool } from "./saas-tools";
 import { enqueueProposals } from "./proposal-queue";
 import { assertAiQuota, invalidateQuotaCache } from "./ai-quota";
 import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_FLASH_MODEL, sanitizePromptInput } from "./ai-utils";
@@ -316,7 +317,12 @@ export async function executeProposal(proposalId: number, ctx: ToolContext): Pro
     if (proposal.status === "executee") return { ok: true, status: "executee", result: proposal.result };
     if (proposal.status === "rejetee") return { ok: false, status: "rejetee", error: "Proposition déjà rejetée" };
 
-    const exec = await executeTool(proposal.toolName, proposal.args, ctx, { skipConfirmation: true });
+    // Les propositions SaaS (cross-organisation) passent par un executeur
+    // distinct qui applique sa propre garde super-admin. Le chemin org-scoped
+    // `executeTool` ne connait pas ces outils et ne peut donc pas les executer.
+    const exec = isSaasTool(proposal.toolName)
+      ? await executeSaasTool(proposal.toolName, proposal.args, ctx)
+      : await executeTool(proposal.toolName, proposal.args, ctx, { skipConfirmation: true });
     const newStatus: AgentProposal["status"] = exec.ok ? "executee" : "echouee";
 
     await db.update(agentProposalsTable).set({

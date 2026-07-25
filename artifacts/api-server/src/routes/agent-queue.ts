@@ -17,6 +17,7 @@ import {
 } from "../services/autonomous-secretary";
 import { bumpProposalPreference } from "../services/ai-learning";
 import { getTool, validateArgs } from "../services/assistant-tools";
+import { getSaasTool } from "../services/saas-tools";
 
 const router: IRouter = Router();
 
@@ -115,7 +116,10 @@ router.patch("/agent-queue/:id/args", requireAdmin, async (req: Request, res: Re
     if (!proposal) { res.status(404).json({ error: "Proposition introuvable" }); return; }
     if (proposal.status !== "en_attente") { res.status(409).json({ error: "Cette proposition a deja ete traitee" }); return; }
 
-    const tool = getTool(proposal.toolName);
+    // Les outils SaaS (cross-org) ont leurs champs dans un registre distinct;
+    // on les reconnait aussi pour permettre l'edition des arguments avant
+    // approbation, avec la meme validation.
+    const tool = getTool(proposal.toolName) ?? getSaasTool(proposal.toolName);
     if (!tool) { res.status(400).json({ error: "Outil inconnu" }); return; }
 
     const parsed = validateArgs(tool.fields, req.body?.args);

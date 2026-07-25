@@ -28,6 +28,7 @@ import { agentProposalsTable } from "@workspace/db/schema";
 import { and, eq, inArray, lt, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { getTool, validateArgs } from "./assistant-tools";
+import { getSaasTool } from "./saas-tools";
 
 export interface EnqueueProposalInput {
   orgId: number;
@@ -64,7 +65,12 @@ export interface EnqueueResult {
  */
 export async function enqueueProposal(input: EnqueueProposalInput): Promise<EnqueueResult> {
   try {
-    const tool = getTool(input.toolName);
+    // Les outils SaaS (cross-organisation) vivent dans un registre distinct de
+    // TOOL_MAP; on les reconnait ici pour valider leurs arguments et accepter
+    // la proposition. Leur execution reste gardee (super-admin) cote
+    // executeSaasTool — cf. executeProposal.
+    const saasTool = getSaasTool(input.toolName);
+    const tool = saasTool ?? getTool(input.toolName);
     if (!tool) {
       // Refus bruyant et immédiat: une proposition dont l'outil n'existe pas
       // serait inapprouvable, autant le signaler au producteur maintenant.
