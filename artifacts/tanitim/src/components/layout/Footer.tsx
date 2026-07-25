@@ -17,24 +17,26 @@ export function Footer() {
               </span>
             </Link>
             <p className="text-primary-foreground/70 max-w-md text-base leading-relaxed">
-              La plateforme SaaS complete pour les bureaux francais : CRM, centre d'appels, devis, facturation, gestion de projets, stock, IA multi-agents et protection des donnees. 16 modules integres.
+              La plateforme SaaS complète pour les bureaux français : CRM, centre d&apos;appels, devis, facturation, gestion de projets, stock, IA multi-agents et protection des données. 16 modules intégrés.
             </p>
           </div>
           
           <div>
             <h4 className="font-bold mb-6 text-accent uppercase tracking-wider text-sm">Produit</h4>
             <ul className="space-y-4 text-primary-foreground/70 font-medium">
-              <li><a href="#fonctionnalites" className="hover:text-white transition-colors">Fonctionnalités</a></li>
-              <li><a href="#analytique" className="hover:text-white transition-colors">Analytique</a></li>
-              <li><a href="#tarifs" className="hover:text-white transition-colors">Tarifs</a></li>
-              <li><a href="#integrations" className="hover:text-white transition-colors">Intégrations</a></li>
+              {/* Ancres prefixees par "/" : le pied de page est aussi rendu sur
+                  /cgu, /mentions-legales... ou ces sections n'existent pas. */}
+              <li><a href="/#fonctionnalites" className="hover:text-white transition-colors">Fonctionnalités</a></li>
+              <li><a href="/#analytique" className="hover:text-white transition-colors">Analytique</a></li>
+              <li><a href="/#tarifs" className="hover:text-white transition-colors">Tarifs</a></li>
+              <li><a href="/#integrations" className="hover:text-white transition-colors">Intégrations</a></li>
             </ul>
           </div>
 
           <div>
             <h4 className="font-bold mb-6 text-accent uppercase tracking-wider text-sm">Ressources</h4>
             <ul className="space-y-4 text-primary-foreground/70 font-medium">
-              <li><a href="#faq" className="hover:text-white transition-colors">FAQ</a></li>
+              <li><a href="/#faq" className="hover:text-white transition-colors">FAQ</a></li>
               <li><a href="mailto:support@agentdebureau.fr" className="hover:text-white transition-colors">Centre d'aide</a></li>
               <li><a href={REGISTER_URL} className="hover:text-white transition-colors">Essai gratuit 14 jours</a></li>
               <li><a href={APP_URL} className="hover:text-white transition-colors">Connexion</a></li>
@@ -48,7 +50,7 @@ export function Footer() {
               <li><Link href="/mentions-legales" className="hover:text-white transition-colors">Mentions légales</Link></li>
               <li><Link href="/cgu" className="hover:text-white transition-colors">CGU</Link></li>
               <li><Link href="/confidentialite" className="hover:text-white transition-colors">Politique de confidentialité</Link></li>
-              <li><Link href="/confidentialite" className="hover:text-white transition-colors">Sécurité (RGPD)</Link></li>
+              <li><Link href="/gizlilik" className="hover:text-white transition-colors" hrefLang="tr" lang="tr">Gizlilik Politikası (TR)</Link></li>
             </ul>
           </div>
         </div>
@@ -62,7 +64,11 @@ export function Footer() {
           </div>
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-green-500"></span>
-            <span>Fait avec passion à Paris</span>
+            {/* Le siege de SK GROUP est a Haguenau (cf. mentions legales) et
+                l'infrastructure est en region europe-west9 (Paris). L'ancien
+                "Fait avec passion a Paris" ne correspondait ni a l'un ni a
+                l'autre. */}
+            <span>Conçu en Alsace • Hébergé en France</span>
           </div>
         </div>
       </div>

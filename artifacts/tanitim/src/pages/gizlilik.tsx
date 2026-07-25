@@ -10,7 +10,7 @@ export default function Gizlilik() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar onDemoClick={() => setDemoOpen(true)} />
-      <main className="container mx-auto px-4 pt-32 pb-20 max-w-3xl">
+      <main id="contenu" className="container mx-auto px-4 pt-32 pb-20 max-w-3xl">
         <h1 className="text-3xl font-bold mb-2">Gizlilik Politikası</h1>
         <p className="text-muted-foreground mb-10">Son güncelleme: Mayıs 2026 — KVKK ve GDPR uyumlu</p>
 

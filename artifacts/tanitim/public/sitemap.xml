@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://agentdebureau.fr/</loc>
     <changefreq>weekly</changefreq>
@@ -14,6 +15,17 @@
     <loc>https://agentdebureau.fr/confidentialite</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://agentdebureau.fr/confidentialite"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://agentdebureau.fr/gizlilik"/>
+  </url>
+  <!-- Version turque de la politique de confidentialite : la page etait servie
+       par l'application mais absente du sitemap, donc invisible des moteurs. -->
+  <url>
+    <loc>https://agentdebureau.fr/gizlilik</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.2</priority>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://agentdebureau.fr/confidentialite"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://agentdebureau.fr/gizlilik"/>
   </url>
   <url>
     <loc>https://agentdebureau.fr/cgu</loc>

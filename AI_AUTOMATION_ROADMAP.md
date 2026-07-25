@@ -213,6 +213,30 @@ girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamla
   `deploy/Caddyfile.tanitim.cloudrun` (yeni), `artifacts/tanitim/index.html`,
   `artifacts/tanitim/src/pages/home.tsx`
 
+### 7C. [TAMAMLANDI] Tanıtım sitesi tam denetimi: erişilebilirlik, içerik, SEO, performans (2026-07-25)
+
+- **Sorun**: Site canlıydı ama hiç uçtan uca gözden geçirilmemişti. Bulunanlar:
+  1. **Tabletlerde menü yoktu**: navigasyon linkleri `lg` altında gizleniyor, hamburger
+     yalnızca `sm` altında görünüyordu — 640–1024 px arası hiçbir bölüme erişilemiyordu.
+  2. Logo `href="#"` (alt sayfadan ana sayfaya dönmüyordu) ve `#tarifs`/`#faq` gibi tüm
+     ankrajlar /cgu, /mentions-legales üzerinde ölü bağlantıydı.
+  3. **~170 Fransızca kelime aksansızdı** ("temps reel", "securite", "Jusqu'a 5
+     utilisateurs"...) — Fransız pazarına satış yapan bir sitede doğrudan görünen kusur.
+  4. Footer "Fait avec passion à Paris" diyordu; merkez Haguenau, altyapı europe-west9.
+  5. `maximum-scale=1` mobilde parmakla yakınlaştırmayı engelliyordu (WCAG 1.4.4).
+  6. Giriş JS paketi 1285 kB idi: three.js + @react-three/* ekranın altındaki 3D avatar
+     için kritik yola gömülmüştü.
+- **Yapıldı**: Kırılma noktası (`lg:hidden` + `aria-expanded`/`aria-controls`), tüm
+  ankrajlar `/#...` biçimine, aksan düzeltmeleri (bölüm `id`'leri kasten ASCII bırakıldı),
+  footer metni gerçek konumla hizalandı, viewport kısıtı kaldırıldı, her sayfaya
+  "contenu principal" atlama linki + `<main id="contenu">`, `og:url`/`og:image:alt` +
+  mutlak paylaşım görselleri, sitemap'e `/gizlilik` + fr/tr `hreflang`, ve 3D avatar
+  görünüm alanına yaklaşınca yüklenen dinamik import'a alındı.
+- **Ölçülen kazanç**: giriş paketi **1285 kB → 412 kB (gzip 363 → 127 kB)**.
+- **Doğrulandı**: `tsc --noEmit` temiz, 7 test geçiyor, `vite build` başarılı.
+- **Dosyalar**: `artifacts/tanitim/index.html`, `public/sitemap.xml`,
+  `src/components/layout/{Navbar,Footer}.tsx`, `src/pages/*.tsx`, `src/components/AjanDemo.tsx`
+
 ### 8. [TAMAMLANDI — kullanıcı adımı bekliyor] AI destekli müşteri desteği e-posta triyajı (2026-07-14)
 
 - **Neden önemli**: "maximum ne gerekiyorsa yap" talebinin ikinci yarısı — kullanıcı
@@ -288,6 +312,9 @@ girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamla
   müşterinin kendi sağlayıcısını kullanıyor (2026-07-14)
 - ✅ Tanıtım sitesi (`agent-de-bureau-tanitim`) deploy edildi + SEO yapılandırılmış veri
   (Organization/SoftwareApplication/FAQPage JSON-LD) eklendi (2026-07-14)
+- ✅ Tanıtım sitesi tam denetimi: tabletlerde menüsüz kalma hatası, ölü ankrajlar,
+  ~170 aksansız Fransızca kelime, WCAG zoom kısıtı, SEO/paylaşım meta'ları ve
+  giriş paketi 1285 kB → 412 kB (three.js tembel yükleme) (2026-07-25)
 - ✅ Fatura hatırlatmaları gerçek günlük cron'a bağlandı, deploy doğrulandı (2026-07-14)
 - ✅ AI destekli müşteri desteği e-posta triyajı — Cloudflare Email Worker + AI
   sınıflandırma/taslak + onay kuyruğu, canlıda uçtan uca doğrulandı; ayrıca yol boyunca

@@ -2,10 +2,12 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <!-- Pas de maximum-scale/user-scalable : bloquer le zoom pince casse
+         l'accessibilite mobile (WCAG 2.1 - 1.4.4 Redimensionnement du texte). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0f172a" />
     <title>Ajant Bureau — Standardiste IA, agenda et CRM pour PME</title>
-    <meta name="description" content="Ajant Bureau centralise vos appels, contacts, taches et messages avec une IA francaise. Standardiste virtuelle 24/7, transcription, CRM, agenda et facturation pour PME et professions liberales." />
+    <meta name="description" content="Ajant Bureau centralise vos appels, contacts, tâches et messages avec une IA française. Standardiste virtuelle 24/7, transcription, CRM, agenda et facturation pour PME et professions libérales." />
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="canonical" href="https://agentdebureau.fr/" />
@@ -14,17 +16,21 @@
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="fr_FR" />
     <meta property="og:site_name" content="Ajant Bureau" />
+    <meta property="og:url" content="https://agentdebureau.fr/" />
     <meta property="og:title" content="Ajant Bureau — Standardiste IA, agenda et CRM pour PME" />
-    <meta property="og:description" content="Centralisez appels, contacts, taches et messages avec une IA francaise. Standardiste virtuelle 24/7." />
-    <meta property="og:image" content="/opengraph.jpg" />
+    <meta property="og:description" content="Centralisez appels, contacts, tâches et messages avec une IA française. Standardiste virtuelle 24/7." />
+    <!-- URL absolue : Facebook/LinkedIn/WhatsApp ne resolvent pas toujours un
+         chemin relatif lors du scraping de la carte de partage. -->
+    <meta property="og:image" content="https://agentdebureau.fr/opengraph.jpg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Ajant Bureau — tableau de bord de la plateforme" />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Ajant Bureau — Standardiste IA pour PME" />
-    <meta name="twitter:description" content="Centralisez appels, contacts, taches et messages avec une IA francaise." />
-    <meta name="twitter:image" content="/opengraph.jpg" />
+    <meta name="twitter:description" content="Centralisez appels, contacts, tâches et messages avec une IA française." />
+    <meta name="twitter:image" content="https://agentdebureau.fr/opengraph.jpg" />
 
     <!-- Fonts: preconnect already gives us TLS warmup; load the CSS without
          blocking the first paint via the print -> all media swap. The <noscript>

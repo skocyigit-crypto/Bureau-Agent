@@ -26,7 +26,7 @@ type Msg = { role: "user" | "assistant"; text: string; timestamp: number };
 
 const FALLBACK_PROMPTS = [
   "Quels appels aujourd'hui ?",
-  "Mes taches urgentes ?",
+  "Mes tâches urgentes ?",
   "Combien de chiffre d'affaires ce mois ?",
   "Resume ma semaine",
 ];

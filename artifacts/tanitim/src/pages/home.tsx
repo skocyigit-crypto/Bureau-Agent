@@ -7,8 +7,8 @@ import { AjanDemo } from "@/components/AjanDemo";
 import { REGISTER_URL } from "@/lib/app-url";
 
 // DemoModal n'est rendu que sur clic — chargement paresseux pour
-// retirer ses 215 lignes (+ framer-motion deja en cache + lucide
-// icones) du bundle d'entree. Suspense avec fallback null car le
+// retirer ses 215 lignes (+ framer-motion déjà en cache + lucide
+// icônes) du bundle d'entrée. Suspense avec fallback null car le
 // modal est invisible tant qu'il n'est pas ouvert.
 const DemoModal = lazy(() =>
   import("@/components/DemoModal").then((m) => ({ default: m.DemoModal })),
@@ -18,7 +18,13 @@ const ContactModal = lazy(() =>
 );
 type ContactKind = "rappel" | "devis";
 import { HeroLiveScene, LiveActivityTicker, CursorGlow } from "@/components/HeroLiveScene";
-import { ShowcaseAvatar3D } from "@/components/ShowcaseAvatar3D";
+// ShowcaseAvatar3D tire three.js + @react-three/{fiber,drei} (~1 Mo) dans le
+// bundle d'entree alors que la section est sous la ligne de flottaison. En
+// import dynamique, ce poids sort du chemin critique du premier rendu et n'est
+// telecharge qu'a l'approche de la section (cf. LazyShowcaseAvatar3D).
+const ShowcaseAvatar3D = lazy(() =>
+  import("@/components/ShowcaseAvatar3D").then((m) => ({ default: m.ShowcaseAvatar3D })),
+);
 import { useDocumentMeta } from "@/hooks/use-document-meta";
 import { PAGE_META } from "@/lib/page-meta";
 import { AnimatedDashboardMock } from "@/components/AnimatedDashboardMock";
@@ -82,44 +88,44 @@ const staggerContainer = {
 
 // Source unique pour la section FAQ ET son balisage structure FAQPage
 // (schema.org) — genere depuis le meme tableau plus bas pour garantir que
-// les donnees structurees ne divergent jamais du contenu reellement affiche
+// les données structurées ne divergent jamais du contenu réellement affiche
 // (Google penalise/ignore les schemas qui ne correspondent pas a la page).
 const FAQ_ITEMS: { q: string; a: string }[] = [
   {
     q: "Combien de temps prend la mise en place?",
-    a: "L'inscription et la configuration initiale prennent moins de 5 minutes. Importez vos contacts, configurez votre pipeline commercial et commencez a creer des devis immediatement. L'importation de vos lignes existantes (portabilite) peut prendre de 3 a 7 jours ouvres."
+    a: "L'inscription et la configuration initiale prennent moins de 5 minutes. Importez vos contacts, configurez votre pipeline commercial et commencez à créer des devis immédiatement. L'importation de vos lignes existantes (portabilité) peut prendre de 3 à 7 jours ouvrés."
   },
   {
-    q: "Comment fonctionne la periode d'essai?",
-    a: "Vous disposez de 14 jours d'essai gratuit sur le plan Professionnel, avec toutes les fonctionnalites debloquees : IA, devis, facturation, sauvegarde cloud, conformite juridique. Aucune carte bancaire n'est requise pour commencer."
+    q: "Comment fonctionne la période d'essai?",
+    a: "Vous disposez de 14 jours d'essai gratuit sur le plan Professionnel, avec toutes les fonctionnalités débloquées : IA, devis, facturation, sauvegarde cloud, conformité juridique. Aucune carte bancaire n'est requise pour commencer."
   },
   {
-    q: "Mes donnees sont-elles securisees?",
-    a: "La securite est notre priorite absolue. Sauvegardes automatiques chiffrees quotidiennes avec recuperation a un instant precis (point-in-time recovery) sur une infrastructure cloud europeenne dediee — vos donnees ne transitent jamais par un compte tiers externe. Monitoring continu de la protection des donnees, verification d'integrite et restauration rapide. Conforme RGPD avec gestion complete des documents juridiques (CGU, CGV, DPA, SLA)."
+    q: "Mes données sont-elles sécurisées?",
+    a: "La sécurité est notre priorité absolue. Sauvegardes automatiques chiffrées quotidiennes avec récupération à un instant précis (point-in-time recovery) sur une infrastructure cloud européenne dédiée — vos données ne transitent jamais par un compte tiers externe. Monitoring continu de la protection des données, vérification d'intégrité et restauration rapide. Conforme RGPD avec gestion complète des documents juridiques (CGU, CGV, DPA, SLA)."
   },
   {
     q: "Que peut faire l'assistant IA?",
-    a: "L'assistant Sophie combine 7 agents IA specialises : analyse sentimentale des appels, previsions d'activite, scoring clients, evaluation de performance, detection automatique de calculs mathematiques (15 types) et recommandations proactives. Il apprend de vos donnees pour proposer des actions concretes."
+    a: "L'assistant Sophie combine 7 agents IA spécialisés : analyse sentimentale des appels, prévisions d'activité, scoring clients, évaluation de performance, détection automatique de calculs mathématiques (15 types) et recommandations proactives. Il apprend de vos données pour proposer des actions concrètes."
   },
   {
     q: "Comment fonctionne la facturation?",
-    a: "Creez des devis professionnels, convertissez-les en factures d'un clic, gerez la TVA et les remises. Les relances de paiement partent automatiquement chaque jour pour chaque facture en retard, sans action manuelle. Le systeme de facturation par usage calcule automatiquement les depassements de forfait avec rapprochement bancaire integre."
+    a: "Créez des devis professionnels, convertissez-les en factures d'un clic, gérez la TVA et les remises. Les relances de paiement partent automatiquement chaque jour pour chaque facture en retard, sans action manuelle. Le système de facturation par usage calcule automatiquement les dépassements de forfait avec rapprochement bancaire intégré."
   },
   {
-    q: "Comment sont traites les e-mails de support?",
-    a: "Chaque e-mail recu sur notre adresse de support est analyse par IA (categorie, priorite, brouillon de reponse redige automatiquement), puis relu et valide par un membre de notre equipe avant tout envoi — l'IA accelere la reponse, un humain garde toujours la main."
+    q: "Comment sont traités les e-mails de support?",
+    a: "Chaque e-mail reçu sur notre adresse de support est analysé par IA (catégorie, priorité, brouillon de réponse rédigé automatiquement), puis relu et validé par un membre de notre équipe avant tout envoi — l'IA accélère la réponse, un humain garde toujours la main."
   },
   {
-    q: "Quelles integrations sont disponibles?",
-    a: "Aujourd'hui : Google Workspace (Gmail, Agenda, Drive) via OAuth securise, la telephonie avec 6 operateurs (Twilio, Vonage, Telnyx, Plivo, Sinch, Bandwidth), l'envoi d'e-mails (Resend), les paiements (Stripe) et trois fournisseurs d'IA (Gemini, OpenAI, Anthropic). D'autres connexions, dont Microsoft 365, Apple/iCloud et plusieurs CRM, sont en cours de developpement."
+    q: "Quelles intégrations sont disponibles?",
+    a: "Aujourd'hui : Google Workspace (Gmail, Agenda, Drive) via OAuth sécurisé, la téléphonie avec 6 opérateurs (Twilio, Vonage, Telnyx, Plivo, Sinch, Bandwidth), l'envoi d'e-mails (Resend), les paiements (Stripe) et trois fournisseurs d'IA (Gemini, OpenAI, Anthropic). D'autres connexions, dont Microsoft 365, Apple/iCloud et plusieurs CRM, sont en cours de développement."
   },
   {
     q: "Proposez-vous une application mobile?",
-    a: "Oui, une application mobile Expo React Native est disponible avec toutes les fonctionnalites essentielles : gestion des appels, contacts, taches, notifications push en temps reel et acces au tableau de bord depuis votre telephone."
+    a: "Oui, une application mobile Expo React Native est disponible avec toutes les fonctionnalités essentielles : gestion des appels, contacts, tâches, notifications push en temps réel et accès au tableau de bord depuis votre téléphone."
   },
   {
-    q: "Puis-je restaurer mes donnees?",
-    a: "Absolument. Chaque sauvegarde peut etre verifiee (integrite, checksum), simulee (dry-run) et restauree en un clic. Vous pouvez aussi exporter l'integralite de vos donnees en JSON a tout moment. Le systeme alerte automatiquement les administrateurs si la protection des donnees est insuffisante."
+    q: "Puis-je restaurer mes données?",
+    a: "Absolument. Chaque sauvegarde peut être vérifiée (intégrité, checksum), simulée (dry-run) et restaurée en un clic. Vous pouvez aussi exporter l'intégralité de vos données en JSON à tout moment. Le système alerte automatiquement les administrateurs si la protection des données est insuffisante."
   }
 ];
 
@@ -140,6 +146,30 @@ function FaqJsonLd() {
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
     />
+  );
+}
+
+// Monte l'avatar 3D uniquement quand la section approche du viewport (200 px
+// d'avance), pour que le telechargement de three.js soit deja termine au moment
+// ou l'utilisateur y arrive, sans jamais peser sur le premier rendu.
+function LazyShowcaseAvatar3D() {
+  const ref = useRef(null);
+  const near = useInView(ref, { once: true, margin: "200px" });
+  return (
+    <div ref={ref} className="min-h-[420px]">
+      {near && (
+        <Suspense
+          fallback={
+            <div
+              className="min-h-[420px] animate-pulse rounded-3xl bg-white/5"
+              aria-label="Chargement de l'avatar"
+            />
+          }
+        >
+          <ShowcaseAvatar3D />
+        </Suspense>
+      )}
+    </div>
   );
 }
 
@@ -211,7 +241,7 @@ export default function Home() {
       )}
       <Navbar onDemoClick={() => openDemo("Navigation — bouton démo")} />
 
-      <main className="flex-grow pt-20">
+      <main id="contenu" className="flex-grow pt-20">
         {/* 1. HERO SECTION */}
         <section className="relative pt-24 pb-32 md:pt-36 md:pb-48 overflow-hidden bg-[#1a2744] text-primary-foreground">
           <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay pointer-events-none" style={{backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.65\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E")'}}></div>
@@ -240,7 +270,7 @@ export default function Home() {
                 </motion.h1>
                 
                 <motion.p variants={fadeInUp} className="text-xl md:text-2xl text-blue-100/80 mb-12 max-w-3xl mx-auto leading-relaxed font-medium">
-                  CRM, appels, devis, facturation, stock, IA multi-agents et protection des donnees : la plateforme complete, puissante et fierement concue pour le marche francais.
+                  CRM, appels, devis, facturation, stock, IA multi-agents et protection des données : la plateforme complète, puissante et fièrement conçue pour le marché français.
                 </motion.p>
                 
                 <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -329,7 +359,7 @@ export default function Home() {
               transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
               className="order-1 lg:order-2"
             >
-              <ShowcaseAvatar3D />
+              <LazyShowcaseAvatar3D />
             </motion.div>
           </div>
         </section>
@@ -347,15 +377,15 @@ export default function Home() {
         <section className="py-24 bg-primary/5">
           <div className="container mx-auto px-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
-              {/* Metriques VERIFIABLES du produit, pas de statistiques clients
+              {/* Métriques VERIFIABLES du produit, pas de statistiques clients
                   inventees. Les anciens compteurs "2500 bureaux geres" et
-                  "1,2M appels traites" etaient fabriques et presentes comme des
+                  "1,2M appels traités" etaient fabriques et presentes comme des
                   chiffres reels — retires (pratique commerciale trompeuse). */}
               {[
-                { label: "Modules integres", value: 16, suffix: "" },
-                { label: "Devises supportees", value: 8, suffix: "" },
+                { label: "Modules intégrés", value: 16, suffix: "" },
+                { label: "Devises supportées", value: 8, suffix: "" },
                 { label: "Essai gratuit", value: 14, suffix: " jours" },
-                { label: "Disponibilite", value: 24, suffix: "/7" }
+                { label: "Disponibilité", value: 24, suffix: "/7" }
               ].map((stat, i) => (
                 <motion.div 
                   key={i}
@@ -401,47 +431,47 @@ export default function Home() {
                 {
                   icon: <PhoneCall className="w-7 h-7" />,
                   title: "Centre d'appels",
-                  desc: "Routage intelligent, transfert en un clic, identification automatique de l'appelant et historique complet en temps reel."
+                  desc: "Routage intelligent, transfert en un clic, identification automatique de l'appelant et historique complet en temps réel."
                 },
                 {
                   icon: <Users className="w-7 h-7" />,
                   title: "CRM & Contacts",
-                  desc: "Annuaire professionnel intelligent avec prospects, suivi des interactions et pipeline commercial integre."
+                  desc: "Annuaire professionnel intelligent avec prospects, suivi des interactions et pipeline commercial intégré."
                 },
                 {
                   icon: <Receipt className="w-7 h-7" />,
                   title: "Devis & Facturation",
-                  desc: "Creation de devis, conversion en factures, suivi des paiements et relances de retard envoyees automatiquement chaque jour. TVA, remises et multi-devises."
+                  desc: "Création de devis, conversion en factures, suivi des paiements et relances de retard envoyées automatiquement chaque jour. TVA, remises et multi-devises."
                 },
                 {
                   icon: <FolderKanban className="w-7 h-7" />,
                   title: "Gestion de projets",
-                  desc: "Projets avec budgets, echeances et suivi d'avancement. Associez contacts, devis et factures a chaque projet."
+                  desc: "Projets avec budgets, échéances et suivi d'avancement. Associez contacts, devis et factures à chaque projet."
                 },
                 {
                   icon: <CheckSquare className="w-7 h-7" />,
                   title: "Tâches & Automatisations",
-                  desc: "Taches assignables avec priorites, regles d'automatisation personnalisees et alertes intelligentes."
+                  desc: "Tâches assignables avec priorités, règles d'automatisation personnalisées et alertes intelligentes."
                 },
                 {
                   icon: <Brain className="w-7 h-7" />,
                   title: "Multi-Agent IA",
-                  desc: "7 agents IA specialises : analyse sentimentale, previsions, performance, scoring clients et actions proactives."
+                  desc: "7 agents IA spécialisés : analyse sentimentale, prévisions, performance, scoring clients et actions proactives."
                 },
                 {
                   icon: <Calculator className="w-7 h-7" />,
-                  title: "Moteur Mathematique",
-                  desc: "15 types de calculs integres : financier, statistique, geometrie, conversions, trigonometrie et bien plus."
+                  title: "Moteur Mathématique",
+                  desc: "15 types de calculs intégrés : financier, statistique, géométrie, conversions, trigonométrie et bien plus."
                 },
                 {
                   icon: <Shield className="w-7 h-7" />,
                   title: "Protection des Donnees",
-                  desc: "Surveillance automatique toutes les 6h, alertes de sauvegarde, conformite RGPD et chiffrement AES-256."
+                  desc: "Surveillance automatique toutes les 6h, alertes de sauvegarde, conformité RGPD et chiffrement AES-256."
                 },
                 {
                   icon: <CloudUpload className="w-7 h-7" />,
                   title: "Sauvegarde Cloud",
-                  desc: "Sauvegarde chiffree quotidienne sur infrastructure cloud europeenne dediee, verification d'integrite, restauration et export JSON en un clic."
+                  desc: "Sauvegarde chiffrée quotidienne sur infrastructure cloud européenne dédiée, vérification d'intégrité, restauration et export JSON en un clic."
                 },
                 {
                   icon: <Package className="w-7 h-7" />,
@@ -450,33 +480,33 @@ export default function Home() {
                 },
                 {
                   icon: <Scale className="w-7 h-7" />,
-                  title: "Conformite Juridique",
-                  desc: "Gestion CGU, CGV, RGPD, DPA, SLA et propriete intellectuelle. Suivi par organisation avec dashboard."
+                  title: "Conformité Juridique",
+                  desc: "Gestion CGU, CGV, RGPD, DPA, SLA et propriété intellectuelle. Suivi par organisation avec dashboard."
                 },
                 {
                   icon: <BarChart3 className="w-7 h-7" />,
                   title: "Analyses & Rapports",
-                  desc: "Tableaux de bord en temps reel, rapports quotidiens automatiques, metriques de performance par equipe."
+                  desc: "Tableaux de bord en temps réel, rapports quotidiens automatiques, métriques de performance par équipe."
                 },
                 {
                   icon: <Mail className="w-7 h-7" />,
                   title: "Google Workspace Hub",
-                  desc: "Gmail, Drive, Calendar et Contacts integres nativement. Synchronisation bidirectionnelle en temps reel."
+                  desc: "Gmail, Drive, Calendar et Contacts intégrés nativement. Synchronisation bidirectionnelle en temps réel."
                 },
                 {
                   icon: <Database className="w-7 h-7" />,
                   title: "Facturation Usage",
-                  desc: "Forfaits avec calcul automatique des depassements, snapshots d'usage et rapprochement bancaire."
+                  desc: "Forfaits avec calcul automatique des dépassements, snapshots d'usage et rapprochement bancaire."
                 },
                 {
                   icon: <Workflow className="w-7 h-7" />,
                   title: "Automatisations",
-                  desc: "Regles personnalisees, alertes proactives, rappels de taches, relances de facturation quotidiennes, tri IA des e-mails de support, pointage auto depuis Google Calendar."
+                  desc: "Règles personnalisées, alertes proactives, rappels de tâches, relances de facturation quotidiennes, tri IA des e-mails de support, pointage auto depuis Google Calendar."
                 },
                 {
                   icon: <Globe className="w-7 h-7" />,
                   title: "100% Francais",
-                  desc: "Interface, documentation et support integralement en francais. Concu pour le marche francophone."
+                  desc: "Interface, documentation et support intégralement en français. Conçu pour le marché francophone."
                 }
               ].map((feature, i) => (
                 <motion.div 
@@ -744,7 +774,7 @@ export default function Home() {
                 className="bg-card rounded-[2rem] p-10 border border-border shadow-lg"
               >
                 <h3 className="text-2xl font-bold text-foreground mb-2">Starter</h3>
-                <p className="text-muted-foreground mb-8 min-h-[48px]">Pour les petits bureaux et independants.</p>
+                <p className="text-muted-foreground mb-8 min-h-[48px]">Pour les petits bureaux et indépendants.</p>
                 <div className="mb-8">
                   <span className="text-5xl font-extrabold text-primary">29€</span>
                   <span className="text-muted-foreground font-medium">/mois</span>
@@ -756,12 +786,12 @@ export default function Home() {
                 </a>
                 <ul className="space-y-4">
                   {[
-                    "Jusqu'a 5 utilisateurs",
+                    "Jusqu'à 5 utilisateurs",
                     "500 contacts & prospects",
                     "2 000 appels / mois",
                     "Devis & facturation",
                     "Gestion de stock",
-                    "Sauvegarde chiffree",
+                    "Sauvegarde chiffrée",
                     "Support par email"
                   ].map((feature, i) => (
                     <li key={i} className="flex items-center gap-3 text-foreground font-medium">
@@ -798,14 +828,14 @@ export default function Home() {
                 </a>
                 <ul className="space-y-4">
                   {[
-                    "Jusqu'a 15 utilisateurs",
+                    "Jusqu'à 15 utilisateurs",
                     "5 000 contacts & prospects",
                     "10 000 appels / mois",
                     "Multi-Agent IA (7 agents)",
-                    "Moteur mathematique",
+                    "Moteur mathématique",
                     "Google Workspace Hub",
-                    "Protection des donnees auto",
-                    "Conformite juridique",
+                    "Protection des données auto",
+                    "Conformité juridique",
                     "Support prioritaire 24/7"
                   ].map((feature, i) => (
                     <li key={i} className="flex items-center gap-3 text-white font-medium">
@@ -842,14 +872,14 @@ export default function Home() {
                 </button>
                 <ul className="space-y-4">
                   {[
-                    "Jusqu'a 100 utilisateurs",
-                    "50 000 contacts illimites",
-                    "Appels illimites",
+                    "Jusqu'à 100 utilisateurs",
+                    "50 000 contacts illimités",
+                    "Appels illimités",
                     "IA sur mesure + API ouverte",
                     "SLA Garanti 99.9%",
-                    "Account Manager dedie",
-                    "Sauvegarde & restauration avancee",
-                    "Audit de securite complet",
+                    "Account Manager dédié",
+                    "Sauvegarde & restauration avancée",
+                    "Audit de sécurité complet",
                     "Formation sur site"
                   ].map((feature, i) => (
                     <li key={i} className="flex items-center gap-3 text-foreground font-medium">
@@ -869,23 +899,23 @@ export default function Home() {
             clients ayant donne leur accord. */}
 
         {/* 11. INTEGRATIONS SECTION
-            Refonte pour ne presenter QUE les integrations reellement
-            fonctionnelles. L'ancienne version annoncait "58 integrations
+            Refonte pour ne presenter QUE les intégrations réellement
+            fonctionnelles. L'ancienne version annoncait "58 intégrations
             natives" avec Microsoft 365, Apple/iCloud et un catalogue
             (Salesforce, Slack, HubSpot...) dont aucun n'est implemente — le
             backend renvoie d'ailleurs 501 pour ces connexions. On distingue
             desormais clairement "Disponibles" et "A venir". */}
         <section id="integrations" className="py-24 bg-muted/30 border-y border-border">
           <div className="container mx-auto px-4 text-center">
-            <span className="text-accent font-bold tracking-widest uppercase text-sm mb-4 block">Ecosysteme</span>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-primary mb-4">Vos outils, connectes</h2>
-            <p className="text-lg text-muted-foreground mb-12 max-w-2xl mx-auto">Les integrations disponibles aujourd'hui, et celles en cours de developpement.</p>
+            <span className="text-accent font-bold tracking-widest uppercase text-sm mb-4 block">Écosystème</span>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-primary mb-4">Vos outils, connectés</h2>
+            <p className="text-lg text-muted-foreground mb-12 max-w-2xl mx-auto">Les intégrations disponibles aujourd'hui, et celles en cours de développement.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto mb-12">
               {[
-                { name: "Google Workspace", note: "OAuth securise", color: "bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800", tools: ["Gmail", "Agenda", "Drive"] },
-                { name: "Telephonie", note: "6 operateurs", color: "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800", tools: ["Twilio", "Vonage", "Telnyx", "Plivo", "Sinch", "Bandwidth"] },
-                { name: "E-mail & Paiement", note: "cle par organisation", color: "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800", tools: ["Resend", "Stripe"] },
+                { name: "Google Workspace", note: "OAuth sécurisé", color: "bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800", tools: ["Gmail", "Agenda", "Drive"] },
+                { name: "Téléphonie", note: "6 opérateurs", color: "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800", tools: ["Twilio", "Vonage", "Telnyx", "Plivo", "Sinch", "Bandwidth"] },
+                { name: "E-mail & Paiement", note: "clé par organisation", color: "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800", tools: ["Resend", "Stripe"] },
                 { name: "Intelligence artificielle", note: "3 fournisseurs", color: "bg-violet-50 border-violet-200 dark:bg-violet-950/20 dark:border-violet-800", tools: ["Gemini", "OpenAI", "Anthropic"] },
               ].map((platform, i) => (
                 <motion.div
@@ -911,7 +941,7 @@ export default function Home() {
             </div>
 
             <div className="max-w-3xl mx-auto">
-              <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-4">En cours de developpement</p>
+              <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-4">En cours de développement</p>
               <div className="flex flex-wrap justify-center items-center gap-3">
                 {['Microsoft 365', 'Apple / iCloud', 'Salesforce', 'HubSpot', 'Slack', 'Notion', 'Zapier'].map((integration, i) => (
                   <div key={i} className="px-4 py-2 bg-card border border-dashed border-border rounded-xl text-sm font-medium text-muted-foreground/70">
@@ -951,14 +981,14 @@ export default function Home() {
         <section className="py-20 bg-primary/5 border-t border-border">
           <div className="container mx-auto px-4">
             <div className="text-center mb-12">
-              <h3 className="text-2xl font-extrabold text-primary mb-2">Securite & Conformite de niveau entreprise</h3>
-              <p className="text-muted-foreground">Vos donnees sont protegees 24h/24, 7j/7 par des mecanismes de securite avances.</p>
+              <h3 className="text-2xl font-extrabold text-primary mb-2">Sécurité & Conformité de niveau entreprise</h3>
+              <p className="text-muted-foreground">Vos données sont protégées 24h/24, 7j/7 par des mécanismes de sécurité avancés.</p>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
               {[
                 { icon: <ShieldCheck className="w-7 h-7" />, label: "Conforme RGPD" },
                 { icon: <Lock className="w-7 h-7" />, label: "Chiffrement AES-256" },
-                { icon: <Server className="w-7 h-7" />, label: "Hebergement France" },
+                { icon: <Server className="w-7 h-7" />, label: "Hébergement France" },
                 { icon: <CloudUpload className="w-7 h-7" />, label: "Sauvegarde auto quotidienne" },
                 { icon: <Shield className="w-7 h-7" />, label: "Monitoring continu" },
                 { icon: <Scale className="w-7 h-7" />, label: "CGU/CGV/DPA/SLA" },
