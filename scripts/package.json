@@ -6,10 +6,12 @@
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "backfill-message-contact-names": "tsx ./src/backfill-message-contact-names.ts",
+    "broadcast-presentation": "tsx ./src/broadcast-presentation-email.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@workspace/db": "workspace:*"
+    "@workspace/db": "workspace:*",
+    "resend": "4.0.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",
