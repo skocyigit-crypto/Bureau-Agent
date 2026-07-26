@@ -276,15 +276,29 @@ girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamla
   `middleware/security.ts` (CSRF bypass), `routes/index.ts`, `services/ai-utils.ts`,
   `deploy/cloudflare-email-worker/` (worker.js + README.md)
 
-### 7. [DÜŞÜK] Aynı düz-metin deseni AI/e-posta sağlayıcı BYOK anahtarlarında da olabilir
+### 7. [DOĞRULANDI — sorun yok, sertleştirildi] AI/e-posta sağlayıcı BYOK anahtarları (2026-07-26)
 
 - **Şüphe**: `routes/ai-providers.ts` ve `routes/email-providers.ts`, telephony ile
   birebir aynı `config`/`maskAiConfig`/`maskEmailConfig` desenini kullanıyor
   (madde 6'daki düzeltmeden önceki telephony.ts ile aynı yapı). Muhtemelen aynı
   şifreleme eksikliği burada da var — doğrulanmadı, sadece madde 6'yı düzeltirken
   fark edildi.
-- **Durum**: Doğrulanmadı/düzeltilmedi — istenirse kontrol edip aynı deseni
-  (`encryptProviderConfig`/`decryptProviderConfig` benzeri) uygularım.
+- **Doğrulama sonucu (2026-07-26)**: Şüphe yersizmiş. Her iki serviste de
+  `encryptAiConfig`/`encryptEmailConfig` mevcut ve **her iki yazma yolunda da**
+  (POST + PATCH) çağrılıyor; okuma tarafında `aiProvidersTable`/`emailProvidersTable`
+  config'ini okuyan TEK yer bu iki dosya ve ikisi de `decryptSensitiveData` uyguluyor
+  (bağlantı testi uçları dahil — Twilio BYOK'taki "kaydediliyor ama hiç kullanılmıyor"
+  hatasının burada karşılığı yok).
+- **Yine de sertleştirildi**: şifrelenecek alan listesi (`SECRET_KEYS`) elle tutuluyordu,
+  `configFields`'taki `secret: true` bayrağından bağımsızdı. Bugün ikisi örtüşüyor (her
+  yerde tek secret alan `apiKey`), ama ileride ikinci bir gizli alanı olan bir sağlayıcı
+  eklenirse (SMTP parolası, webhook imza secret'ı) sessizce düz metin kaydedilirdi.
+  Liste artık `configFields`'tan türetiliyor (telephony'deki desenle aynı hale geldi).
+- **Test**: `provider-secrets-encrypted.test.ts` (8 test) — her sağlayıcının her
+  `secret: true` alanının şifrelendiğini, gizli olmayan alanların okunur kaldığını ve
+  şifrelemenin idempotent olduğunu (route'lar mevcut config'i birleştirip yeniden
+  şifreliyor; çift şifreleme müşterinin anahtarını kullanılamaz hale getirirdi) kilitliyor.
+- **Dosyalar**: `services/ai-providers.ts`, `services/email-providers.ts`
 
 ### 9. Cep uygulaması baştan aşağı denetimi (2026-07-25)
 
@@ -371,11 +385,17 @@ aşağıda açık duruyor.
   bir dosyadaydı, üstelik dış girdiyi doğrulayan bir güvenlik sınırı) ve 8 testle
   kapatıldı. Mobil toplam: 3 dosya / 24 test; sunucu tarafı push: 13 test.
 
-**Açık kalan bulgular:**
+- **[DÜŞÜK] SSE ayrıştırıcı testsizdi** — blok/`event:`/`data:` ayrıştırma mantığı
+  ağ okuma döngüsünün içine gömülüydü (`expo/fetch` importu yüzünden test
+  edilemiyordu). Oysa buradaki bir regresyon hiçbir hata üretmez: ekran boş
+  kalır ya da cevabın ortasında donar — kullanıcı bunu "yapay zekâ cevap
+  vermiyor" diye okur. → `lib/sse-parser.ts`'e çıkarıldı (`parseSseBuffer` +
+  `decodeSseData`), `sse-stream.ts` onu kullanıyor, 11 test: paket sınırında
+  ikiye bölünen olay, proxy'nin araya soktuğu `:` yorum satırı, çoklu `data:`
+  satırı, JSON olmayan yük.
 
-1. **SSE ayrıştırıcı testsiz** — `lib/sse-stream.ts` içindeki blok/`event:`/`data:`
-   ayrıştırma mantığı saf ama `expo/fetch` importuyla iç içe; test edilmesi için
-   önce ayrı bir saf fonksiyona çıkarılması gerekiyor.
+**Denetimin tüm bulguları kapatıldı.** Mobil test toplamı: 5 dosya / 39 test
+(denetim öncesi 1 dosya / 9 test).
 
 ---
 
@@ -419,6 +439,74 @@ aşağıda açık duruyor.
 - Kullanıcı kararı gerektiren maddeler (1, 2, 3) üçüncü taraf hesap/ödeme gerektirdiği
   için otomatik yapılamaz — sadece kullanıcı onayı + kimlik bilgisi ile ilerlenebilir.
 - Kod değişikliği gerektiren maddeler (4, 5) istenirse doğrudan uygulanabilir.
+
+---
+
+## 10. [TAMAMLANDI] Denetim halkasının kapatılması — "insan denetiminde tam otomasyon" (2026-07-25)
+
+**Tespit (5 turluk inceleme):** Otomasyon üretim tarafı olgun (14 cron, 37 araç, kural
+tabanlı + AI ajanlar, hepsi `enqueueProposal` üzerinden onay kuyruğuna düşüyor). Eksik olan
+üretim değil, **denetim** tarafıydı — insan halkanın içinde ama halka onu hiç çağırmıyordu:
+
+1. **Öneriler sessizdi.** `enqueueProposal` hiçbir olay yaymıyordu: ne SSE, ne push, ne
+   e-posta. Kuyruk yalnızca birisi ekranı açarsa görülüyordu; görülmeyen öneri 14 gün sonra
+   `expiree` olup sessizce siliniyordu. Yani "altın kural" (onaysız hiçbir gerçek etki yok)
+   pratikte "kimse bakmazsa hiçbir şey olmaz"a dönüşüyordu — ajan boşa çalışıyordu.
+2. **Denetim ölçeklenmiyordu.** Tek tek onay/ret vardı; bir cron aynı türden on öneri
+   ürettiğinde (fatura relansı, geciken görev) her sabah on tıklama gerekiyordu.
+3. **Denetimin körlüğü.** "12 bekliyor" sayısı dışında hiçbir gösterge yoktu: en eskisi ne
+   kadar bekliyor (kuyruk tıkanıyor mu), ajanın önerileri onaylanıyor mu (%95 ise daha çok
+   yetki verilebilir, %20 ise kurallar düzeltilmeli).
+
+**Yapıldı:**
+
+- **Öneri artık insanı uyandırıyor**: `broadcaster`'a `proposition` olay tipi eklendi ve
+  `enqueueProposal` başarılı her eklemede yayın yapıyor (doğrudan mükerrerlerde yapmıyor —
+  cron'lar aynı sinyali her turda tekrar görüyor, aksi halde aynı relans her saat çalardı).
+  Tek nokta, çünkü TÜM üreticiler (otonom sekreter, e-posta triyajı, SaaS ajanı, app-audit,
+  otomasyon motoru) bu fonksiyondan geçiyor. Aynı akış zaten push + SSE + giden webhook'ları
+  besliyor, yani hiçbir çağıran değiştirilmedi.
+- **Mobil push**: `pushContentForEvent` → "Action a approuver", derin bağlantı
+  `/file-approbation` (mobil beyaz listeye eklendi). **Yalnızca haute/urgente/critique**
+  önceliklerde bildirim — bir cron on öneriyi birden koyabilir, on bildirim uygulamayı
+  gürültü kaynağına çevirir ve kullanıcı bildirimleri işletim sistemi düzeyinde kapatır
+  (bu kapatma geri dönüşsüzdür).
+- **Gürültüsüz olanların emniyet ağı**: günlük özet e-postasına "N action(s) en attente de
+  votre validation" bloğu; 3 günden eskiyse yaşı ve 14 günde expire olacağı yazılıyor.
+  Sadece sayaç — kuyruk organizasyon ölçekli, özetin geri kalanı kişisel, içerik sızmıyor.
+- **Toplu karar**: `POST /agent-queue/bulk-decide` (ids + approve/reject). Kimlikler
+  AÇIK — "filtreye göre hepsini onayla" yok, insan ekranda ne onayladığını görmüş olmalı.
+  Sıralı çalışıyor (her onay gerçek etki + DB bağlantısı; paralellik üretimde havuzu
+  doldurmuştu), lot 25 ile sınırlı, ve toplu kararlar da `bumpProposalPreference` ile
+  öğrenmeyi besliyor (aksi halde patron toplu moda geçince ajan öğrenmeyi bırakırdı).
+- **Denetim panosu**: `GET /agent-queue/stats` (bekleyen sayısı, öncelik/kategori dağılımı,
+  en eski bekleyenin yaşı, 30 günlük onay oranı). Web'de "File d'approbation" başlığının
+  altında şerit + kart başına seçim kutusu + seçim yapılınca beliren toplu karar çubuğu.
+  Onay oranında `echouee` onaylanmış sayılıyor: insan "evet" demişti, teknik hata oranı
+  ayrı bir şey — aksi halde metrik ajanın yargısını değil altyapının sağlığını ölçerdi.
+- **Testler**: `proposal-queue-broadcast.test.ts` (3 test — yayın var, mükerrerde yok, yayın
+  patlarsa kuyruğa ekleme yine başarılı) + push içerik testine 4 yeni test (öncelik filtresi
+  ve derin bağlantının mobil beyaz listeyle uyumu). `tsc --noEmit` api-server ve web'de
+  temiz, `vite build` başarılı.
+- **Dosyalar**: `services/broadcaster.ts`, `services/proposal-queue.ts`,
+  `services/push-notifications.ts`, `routes/agent-queue.ts`, `routes/daily-digest.ts`,
+  `services/daily-digest-cron.ts`, `mobile/lib/notification-routes.ts`,
+  `buro-ajani/src/pages/file-approbation.tsx`
+
+**Mobil ayak (2026-07-26)**: push artık `/file-approbation`'a derin bağlantı verdiğine göre
+badge'in de anında güncellenmesi gerekiyordu — yoksa kullanıcı bildirimle uygulamayı açıyor
+ve rozet 60 saniyeye kadar sıfır görünüyordu. Yeni `lib/approvals-signal.ts` (küçük bir
+pub/sub): `UnreadBadgesContext` SSE'de `proposition` görünce yayınlıyor,
+`usePendingApprovals` dinleyip sunucuyu yeniden okuyor. **Yerel bildirim eklenmedi** —
+öncelikli öneriler zaten push ile geliyor, ikisi üst üste binerdi. Mobilde onay/ret sonrası
+da sinyal atılıyor (rozet bir dakika boyunca yanlış sayı göstermesin). 4 test
+(`lib/__tests__/approvals-signal.test.ts`): abonelik kesiliyor mu, patlayan bir abone
+diğerlerini engelliyor mu, yayın sırasında abonelikten çıkma diffüzyonu kırıyor mu.
+
+**Kalan (bilinçli olarak yapılmadı):** güven eşiğine göre otomatik onay. Altyapı hazır
+(öğrenilen tercihler + kategori bazlı onay oranı), ama bu "insan denetiminde" sözünü
+gevşetir; ancak kullanıcı açıkça isterse ve kategori bazında açılıp kapanabilir şekilde
+yapılmalı.
 
 ---
 

@@ -1,5 +1,6 @@
 import { fetch as expoFetch } from "expo/fetch";
 import { MOBILE_APP_ORIGIN } from "@/lib/api-config";
+import { decodeSseData, parseSseBuffer } from "@/lib/sse-parser";
 
 export interface SseHandlers {
   onEvent: (event: string, data: any) => void;
@@ -46,27 +47,12 @@ export async function streamSse(
       if (handlers.signal?.aborted) break;
       buffer += decoder.decode(value, { stream: true });
 
-      let idx;
-      while ((idx = buffer.indexOf("\n\n")) !== -1) {
-        const block = buffer.slice(0, idx);
-        buffer = buffer.slice(idx + 2);
-        if (!block.trim() || block.startsWith(":")) continue;
-        let event = "message";
-        let dataStr = "";
-        for (const line of block.split("\n")) {
-          if (line.startsWith("event:")) event = line.slice(6).trim();
-          else if (line.startsWith("data:")) dataStr += line.slice(5).trim();
-        }
-        if (!dataStr) continue;
+      // Decoupage et decodage: logique pure, testee dans `@/lib/sse-parser`.
+      const { events, rest } = parseSseBuffer(buffer);
+      buffer = rest;
+      for (const { event, data } of events) {
         if (handlers.signal?.aborted) break;
-        try {
-          handlers.onEvent(event, JSON.parse(dataStr));
-        } catch (err) {
-          // Donnee SSE non-JSON: on la transmet en texte brut mais on
-          // trace le parse rate pour ne pas masquer un format inattendu.
-          console.warn(`[sse-stream] payload "${event}" non-JSON, transmis en texte brut:`, err);
-          handlers.onEvent(event, dataStr);
-        }
+        handlers.onEvent(event, decodeSseData(data));
       }
     }
   } finally {
