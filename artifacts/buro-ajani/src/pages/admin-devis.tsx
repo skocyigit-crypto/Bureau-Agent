@@ -3,6 +3,7 @@ import { confirmAction } from "@/hooks/use-confirm";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { AccessDenied } from "@/components/access-denied";
 import { FileText, Search, Plus, Loader2, Trash2, Edit, RefreshCw, Shield } from "lucide-react";
+import { LineItemsEditor, type LineItem } from "@/components/line-items-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +38,7 @@ interface OrgOption { id: number; name: string }
 
 const EMPTY_FORM = {
   reference: "", title: "", clientName: "", clientEmail: "", clientCompany: "",
-  totalAmount: "", currency: "EUR", status: "brouillon", validUntil: "", notes: "",
+  items: [] as LineItem[], currency: "EUR", status: "brouillon", validUntil: "", notes: "",
   organisationId: "",
 };
 
@@ -104,7 +105,7 @@ export default function AdminDevisPage() {
     setForm({
       reference: d.reference || "", title: d.title, clientName: d.clientName || "",
       clientEmail: d.clientEmail || "", clientCompany: d.clientCompany || "",
-      totalAmount: d.totalAmount || "", currency: d.currency || "EUR", status: d.status,
+      items: Array.isArray((d as any).items) ? (d as any).items : [], currency: d.currency || "EUR", status: d.status,
       validUntil: d.validUntil ? d.validUntil.substring(0, 10) : "", notes: "",
       organisationId: d.organisationId != null ? String(d.organisationId) : "",
     });
@@ -120,7 +121,9 @@ export default function AdminDevisPage() {
       const url = editingId ? `${BASE}/api/devis/${editingId}` : `${BASE}/api/devis`;
       const method = editingId ? "PATCH" : "POST";
       const { organisationId: orgIdStr, ...rest } = form;
-      const payload: Record<string, unknown> = { ...rest, totalAmount: form.totalAmount || null };
+      // On envoie les LIGNES; le serveur calcule subtotal/TVA/total. Plus de
+      // champ "montant total" saisi a la main.
+      const payload: Record<string, unknown> = { ...rest };
       if (orgIdStr) payload.organisationId = Number(orgIdStr);
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(payload) });
       if (res.ok) {
@@ -256,8 +259,8 @@ export default function AdminDevisPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs">Email</Label><Input type="email" value={form.clientEmail} onChange={e => setForm(f => ({ ...f, clientEmail: e.target.value }))} /></div>
-              <div><Label className="text-xs">Montant total</Label><Input type="number" value={form.totalAmount} onChange={e => setForm(f => ({ ...f, totalAmount: e.target.value }))} placeholder="0" /></div>
             </div>
+            <LineItemsEditor items={form.items} onChange={(items) => setForm(f => ({ ...f, items }))} currency={form.currency} />
             <div><Label className="text-xs">Valable jusqu'au</Label><Input type="date" value={form.validUntil} onChange={e => setForm(f => ({ ...f, validUntil: e.target.value }))} /></div>
             <div><Label className="text-xs">Notes</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} /></div>
           </div>

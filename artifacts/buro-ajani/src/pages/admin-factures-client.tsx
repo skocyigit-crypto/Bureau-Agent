@@ -3,6 +3,7 @@ import { confirmAction } from "@/hooks/use-confirm";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { AccessDenied } from "@/components/access-denied";
 import { Receipt, Search, Plus, Loader2, Trash2, Edit, RefreshCw, Shield, Send } from "lucide-react";
+import { LineItemsEditor, type LineItem } from "@/components/line-items-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +32,7 @@ const STATUSES = [
 interface FactureClient {
   id: number; reference: string; title: string; clientName: string; clientEmail?: string;
   clientCompany?: string; status: string; totalAmount?: string; paidAmount?: string; currency: string;
+  items?: LineItem[]; isAutoliquidation?: boolean;
   dueDate?: string; paymentMethod?: string; notes?: string | null; createdAt: string; organisationId?: number | null;
   reminderCount?: number; lastReminderAt?: string | null;
 }
@@ -39,7 +41,7 @@ interface OrgOption { id: number; name: string }
 
 const EMPTY_FORM = {
   reference: "", title: "", clientName: "", clientEmail: "", clientCompany: "",
-  totalAmount: "", paidAmount: "", currency: "EUR", status: "brouillon", dueDate: "",
+  items: [] as LineItem[], paidAmount: "", isAutoliquidation: false, currency: "EUR", status: "brouillon", dueDate: "",
   paymentMethod: "", notes: "", organisationId: "",
 };
 
@@ -112,7 +114,7 @@ export default function AdminFacturesClientPage() {
     setForm({
       reference: f.reference || "", title: f.title, clientName: f.clientName || "",
       clientEmail: f.clientEmail || "", clientCompany: f.clientCompany || "",
-      totalAmount: f.totalAmount || "", paidAmount: f.paidAmount || "", currency: f.currency || "EUR",
+      items: Array.isArray(f.items) ? f.items : [], paidAmount: f.paidAmount || "", isAutoliquidation: !!f.isAutoliquidation, currency: f.currency || "EUR",
       status: f.status, dueDate: f.dueDate ? f.dueDate.substring(0, 10) : "",
       paymentMethod: f.paymentMethod || "", notes: f.notes || "",
       organisationId: f.organisationId != null ? String(f.organisationId) : "",
@@ -129,11 +131,7 @@ export default function AdminFacturesClientPage() {
       const url = editingId ? `${BASE}/api/factures-client/${editingId}` : `${BASE}/api/factures-client`;
       const method = editingId ? "PATCH" : "POST";
       const { organisationId: orgIdStr, ...rest } = form;
-      const payload: Record<string, unknown> = {
-        ...rest,
-        totalAmount: form.totalAmount || null,
-        paidAmount: form.paidAmount || null,
-      };
+      const payload: Record<string, unknown> = { ...rest, paidAmount: form.paidAmount || null };
       if (orgIdStr) payload.organisationId = Number(orgIdStr);
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(payload) });
       if (res.ok) {
@@ -301,9 +299,10 @@ export default function AdminFacturesClientPage() {
               <div><Label className="text-xs">Email</Label><Input type="email" value={form.clientEmail} onChange={e => setForm(f => ({ ...f, clientEmail: e.target.value }))} /></div>
               <div><Label className="text-xs">Mode de paiement</Label><Input value={form.paymentMethod} onChange={e => setForm(f => ({ ...f, paymentMethod: e.target.value }))} placeholder="Virement, CB..." /></div>
             </div>
+            <LineItemsEditor items={form.items} onChange={(items) => setForm(f => ({ ...f, items }))} autoliquidation={form.isAutoliquidation} currency={form.currency} />
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">Montant total</Label><Input type="number" value={form.totalAmount} onChange={e => setForm(f => ({ ...f, totalAmount: e.target.value }))} placeholder="0" /></div>
               <div><Label className="text-xs">Montant payé</Label><Input type="number" value={form.paidAmount} onChange={e => setForm(f => ({ ...f, paidAmount: e.target.value }))} placeholder="0" /></div>
+              <div className="flex items-center gap-2 pt-5"><input id="autoliq" type="checkbox" checked={form.isAutoliquidation} onChange={e => setForm(f => ({ ...f, isAutoliquidation: e.target.checked }))} /><Label htmlFor="autoliq" className="text-xs">Autoliquidation TVA (BTP)</Label></div>
             </div>
             <div><Label className="text-xs">Échéance</Label><Input type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} /></div>
             <div><Label className="text-xs">Notes</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} /></div>

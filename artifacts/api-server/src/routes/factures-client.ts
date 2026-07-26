@@ -4,6 +4,7 @@ import { db, facturesClientTable } from "@workspace/db";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { sendInvoiceReminderEmail } from "../services/email";
 import { generateUniqueReference } from "../lib/unique-reference";
+import { computeInvoiceTotals } from "../services/invoice-totals";
 
 const router: IRouter = Router();
 
@@ -69,7 +70,7 @@ router.get("/factures-client/:id", async (req: Request, res: Response): Promise<
 });
 
 router.post("/factures-client", async (req: Request, res: Response): Promise<void> => {
-  const { reference, title, clientName, clientEmail, clientPhone, clientAddress, clientCompany, items, subtotal, taxAmount, totalAmount, paidAmount, currency = "EUR", status = "brouillon", dueDate, paymentMethod, notes, conditions, contactId, devisId, organisationId } = req.body;
+  const { reference, title, clientName, clientEmail, clientPhone, clientAddress, clientCompany, items, subtotal, taxAmount, totalAmount, paidAmount, isAutoliquidation, currency = "EUR", status = "brouillon", dueDate, paymentMethod, notes, conditions, contactId, devisId, organisationId } = req.body;
   if (!title?.trim()) { res.status(400).json({ error: "Le titre est obligatoire." }); return; }
   if (!clientName?.trim()) { res.status(400).json({ error: "Le client est obligatoire." }); return; }
   if (!STATUSES.includes(status)) { res.status(400).json({ error: "Statut invalide." }); return; }
@@ -109,10 +110,18 @@ router.post("/factures-client", async (req: Request, res: Response): Promise<voi
       clientPhone: clientPhone ?? null,
       clientAddress: clientAddress ?? null,
       clientCompany: clientCompany ?? null,
-      items: Array.isArray(items) ? items : [],
-      subtotal: subtotal != null ? String(subtotal) : "0",
-      taxAmount: taxAmount != null ? String(taxAmount) : "0",
-      totalAmount: totalAmount != null ? String(totalAmount) : "0",
+      // Totaux recalcules cote serveur (les valeurs client sont ignorees).
+      // L'autoliquidation BTP force la TVA a 0 et TTC = HT.
+      ...(() => {
+        const t = computeInvoiceTotals(Array.isArray(items) ? items : [], { autoliquidation: !!isAutoliquidation });
+        return {
+          items: t.lines,
+          subtotal: String(t.subtotal),
+          taxAmount: String(t.taxAmount),
+          totalAmount: String(t.totalAmount),
+        };
+      })(),
+      isAutoliquidation: !!isAutoliquidation,
       paidAmount: paidAmount != null ? String(paidAmount) : "0",
       currency,
       status,
@@ -142,9 +151,21 @@ router.patch("/factures-client/:id", async (req: Request, res: Response): Promis
     for (const k of ["title", "clientName", "clientEmail", "clientPhone", "clientAddress", "clientCompany", "currency", "status", "notes", "conditions", "reference", "paymentMethod"]) {
       if (b[k] !== undefined) updates[k] = b[k];
     }
-    if (b.items !== undefined) updates.items = Array.isArray(b.items) ? b.items : [];
-    for (const k of ["subtotal", "taxAmount", "totalAmount", "paidAmount"]) {
-      if (b[k] !== undefined) updates[k] = b[k] != null ? String(b[k]) : null;
+    // paidAmount reste saisissable (encaissement partiel); subtotal/taxAmount/
+    // totalAmount sont TOUJOURS derives des lignes, jamais du client.
+    if (b.paidAmount !== undefined) updates.paidAmount = b.paidAmount != null ? String(b.paidAmount) : null;
+    if (b.isAutoliquidation !== undefined) updates.isAutoliquidation = !!b.isAutoliquidation;
+    if (b.items !== undefined || b.isAutoliquidation !== undefined) {
+      // Recalcul: il faut connaitre les lignes ET le drapeau autoliq effectifs.
+      const [cur] = await db.select({ items: facturesClientTable.items, isAutoliquidation: facturesClientTable.isAutoliquidation })
+        .from(facturesClientTable).where(eq(facturesClientTable.id, id));
+      const effectiveItems = b.items !== undefined ? (Array.isArray(b.items) ? b.items : []) : (cur?.items ?? []);
+      const effectiveAutoliq = b.isAutoliquidation !== undefined ? !!b.isAutoliquidation : !!cur?.isAutoliquidation;
+      const t = computeInvoiceTotals(effectiveItems, { autoliquidation: effectiveAutoliq });
+      updates.items = t.lines;
+      updates.subtotal = String(t.subtotal);
+      updates.taxAmount = String(t.taxAmount);
+      updates.totalAmount = String(t.totalAmount);
     }
     if (b.dueDate !== undefined) updates.dueDate = b.dueDate ? new Date(b.dueDate) : null;
     if (b.status === "payee") updates.paidAt = new Date();
