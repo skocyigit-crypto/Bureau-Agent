@@ -561,3 +561,32 @@ Yeni gerekenler:
    uygun aracı enqueueProposal ile super-admin org kuyruğuna öneri olarak koyar.
    sourceRef ile dedup (aynı org+kategori için günde bir öneri).
 3. Frontend: super-admin'in agent-queue'da bu SaaS önerilerini görüp onaylaması.
+
+---
+
+## Satış→Fatura→E-Fatura zinciri — 2026-07-26
+
+Denetim: prospect/devis/facture bağımsız CRUD'du, tutar aktarımı yok, KDV hesabı
+yok, elektronik fatura hiç yok (Factur-X/Chorus/UBL 0 eşleşme). Kullanıcı tam
+zincir istedi (A+B+C+D).
+
+### ✅ Faz A — TAMAM (commit 04f84c9, canlı)
+services/invoice-totals.ts: saf hesaplama motoru (satır=qte×PU, HT, KDV oranına
+göre gruplu, kuruş yuvarlama, autoliquidation BTP→KDV 0). Devis+facture POST/PATCH
+artık kalemlerden hesaplıyor, client toplamlarını yok sayıyor. 10 test.
+Frontend: LineItemsEditor bileşeni (canlı önizleme) devis+facture formlarında.
+
+### ✅ Faz B — TAMAM (commit 50b5acc, canlı)
+POST /devis/:id/convert-to-facture: kalemler+müşteri+tutarlar devis'ten faturaya
+kopyalanıyor (echeance 30g), devisId↔convertedToInvoice bağlanıyor. Advisory lock
+ile çift-dönüşüm engelli. Frontend'de "Facturer" düğmesi. Tutarlar birebir kopya.
+
+### ⏳ Faz C — BEKLİYOR (Fatura PDF)
+Yasal A4 fatura PDF'i (satıcı SIRET/TVA/adres/IBAN + kalemler + KDV dökümü +
+ibareler). YENİ BAĞIMLILIK gerekir (pdf-lib önerilir — saf JS, native yok,
+PDF/A-3 dosya gömme destekli). Dikkat: bağımlılık security:audit --audit-level
+high kapısını geçmeli (brace-expansion olayı gibi build'i düşürebilir).
+
+### ⏳ Faz D — BEKLİYOR (Factur-X)
+EN 16931 CII XML üretimi + PDF/A-3'e gömme (hibrit). Fransa 2026 e-fatura
+zorunluluğu. Chorus Pro/PDP iletimi ayrı sonraki adım.
