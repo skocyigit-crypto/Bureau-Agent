@@ -15,6 +15,7 @@ import { AppState, Platform, type AppStateStatus } from "react-native";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useNotificationPrefs } from "@/contexts/NotificationPrefsContext";
+import { notifyApprovalsChanged } from "@/lib/approvals-signal";
 import { isRemotePushActive } from "@/lib/push-registration";
 
 /**
@@ -490,6 +491,18 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
                 body: event.meta?.body || defaultBody,
                 route,
               });
+              continue;
+            }
+            if (event.type === "proposition") {
+              // Une action IA vient d'entrer dans la file d'approbation. On ne
+              // declenche PAS d'alerte locale ici: les propositions
+              // prioritaires arrivent deja en notification push distante
+              // (services/push-notifications.ts), et les deux se
+              // superposeraient. On se contente de faire revalider le compteur
+              // "File d'approbation" tout de suite, au lieu d'attendre le
+              // prochain sondage (jusqu'a 60 s).
+              if (event.action !== "created") continue;
+              notifyApprovalsChanged();
               continue;
             }
             if (event.type === "security") {

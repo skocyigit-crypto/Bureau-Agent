@@ -12,6 +12,7 @@
  */
 import { logger } from "../lib/logger";
 import { runHealthAgents, recordCronHeartbeat } from "./health-agents";
+import { notifyHealthFailures } from "./health-alert";
 import { registerRunnableCron } from "./cron-registry";
 
 const TICK_MS = 15 * 60 * 1000;
@@ -28,6 +29,12 @@ async function tick(): Promise<void> {
   try {
     const summary = await runHealthAgents();
     await recordCronHeartbeat(CRON_NAME, TICK_MS / 1000);
+    // Une panne detectee qui reste dans la base n'est pas une supervision:
+    // sans ce relai, un cron mort n'avait pour seul signe qu'une ligne de
+    // journal, et l'automatisation s'arretait sans que personne l'apprenne.
+    // `notifyHealthFailures` ne jette jamais et se limite a une alerte par
+    // constat et par jour.
+    await notifyHealthFailures(summary);
     // `runHealthAgents` journalise deja le detail des constats non-ok. Repeter
     // ici les seuls compteurs ajoutait une ligne sans information a chaque
     // cycle, juste au-dessus de celle qui, elle, dit quoi corriger.

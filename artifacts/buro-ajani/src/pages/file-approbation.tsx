@@ -16,6 +16,23 @@ import { confirmAction } from "@/hooks/use-confirm";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
+/** Doit rester aligne sur BULK_MAX cote serveur (routes/agent-queue.ts). */
+const BULK_MAX = 25;
+
+interface QueueStats {
+  pending: number;
+  byPriority: Record<string, number>;
+  byCategory: Record<string, number>;
+  oldestPendingAgeDays: number | null;
+  last30d: { approved: number; rejected: number; expired: number; approvalRate: number | null };
+}
+
+interface BulkResult {
+  requested: number;
+  succeeded: number;
+  failed: number;
+}
+
 interface Proposal {
   id: number;
   toolName: string;
@@ -108,6 +125,70 @@ export default function FileApprobationPage() {
 
   const [drafts, setDrafts] = useState<Record<number, Record<string, string>>>({});
 
+  /**
+   * Tableau de bord de supervision. Le compteur seul ne dit pas s'il faut s'y
+   * mettre maintenant: l'age de la plus vieille proposition (une file qu'on ne
+   * vide jamais finit par expirer en silence) et le taux d'approbation sur 30
+   * jours (l'agent propose-t-il des choses utiles ?) changent la conduite.
+   */
+  const { data: stats } = useQuery({
+    queryKey: ["agent-queue", "stats"],
+    queryFn: () => api<QueueStats>("/agent-queue/stats"),
+    refetchInterval: 60_000,
+  });
+
+  /**
+   * Selection explicite pour la decision groupee. Deliberement PAS de "tout
+   * approuver": la regle d'or veut que l'humain ait vu ce qu'il valide. Cocher
+   * reste un geste par proposition, seul le clic final est mutualise — ce qui
+   * rend supportable une file de dix relances du meme genre.
+   */
+  const [selected, setSelected] = useState<number[]>([]);
+  const toggleSelected = (id: number) =>
+    setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+
+  const bulk = useMutation({
+    mutationFn: (decision: "approve" | "reject") =>
+      api<BulkResult>("/agent-queue/bulk-decide", {
+        method: "POST",
+        body: JSON.stringify({ ids: selected, decision }),
+      }),
+    onSuccess: (r) => {
+      toast({
+        title: r.failed === 0 ? "Décisions enregistrées" : "Décisions partiellement appliquées",
+        description: `${r.succeeded} action(s) traitée(s)${r.failed > 0 ? `, ${r.failed} en échec` : ""}.`,
+        variant: r.failed > 0 ? "destructive" : undefined,
+      });
+      setSelected([]);
+      qc.invalidateQueries({ queryKey: ["agent-queue"] });
+    },
+    onError: (e: Error) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+  });
+
+  const handleBulk = async (decision: "approve" | "reject") => {
+    // Le serveur borne le lot (chaque approbation declenche un effet reel et
+    // le tout s'execute dans la requete). On le dit ici plutot que de laisser
+    // partir un appel qui reviendrait en 400.
+    if (selected.length > BULK_MAX) {
+      toast({
+        title: "Sélection trop large",
+        description: `Traitez au maximum ${BULK_MAX} propositions à la fois.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    const ok = await confirmAction({
+      title: decision === "approve"
+        ? `Approuver ${selected.length} action(s) ?`
+        : `Rejeter ${selected.length} action(s) ?`,
+      description: decision === "approve"
+        ? "Elles seront exécutées immédiatement, l'une après l'autre."
+        : "Elles seront écartées sans être exécutées.",
+      confirmLabel: decision === "approve" ? "Approuver et exécuter" : "Rejeter",
+    });
+    if (ok) bulk.mutate(decision);
+  };
+
   const approve = useMutation({
     mutationFn: async (p: Proposal) => {
       const edited = drafts[p.id];
@@ -193,6 +274,36 @@ export default function FileApprobationPage() {
         </Button>
       </div>
 
+      {/* Bandeau de supervision */}
+      {stats && (stats.pending > 0 || stats.last30d.approvalRate !== null) && (
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm">
+          <span>
+            <strong>{stats.pending}</strong> en attente
+            {(stats.byPriority.haute ?? 0) + (stats.byPriority.urgente ?? 0) > 0 && (
+              <span className="text-red-600 dark:text-red-400">
+                {" "}dont {(stats.byPriority.haute ?? 0) + (stats.byPriority.urgente ?? 0)} prioritaire(s)
+              </span>
+            )}
+          </span>
+          {/* Une file qui stagne finit par expirer d'elle-meme (14 jours): on
+              le dit avant, pas apres. */}
+          {stats.oldestPendingAgeDays !== null && stats.oldestPendingAgeDays >= 3 && (
+            <span className="text-amber-600 dark:text-amber-400">
+              La plus ancienne attend depuis {stats.oldestPendingAgeDays} jours
+            </span>
+          )}
+          {stats.last30d.approvalRate !== null && (
+            <span className="text-muted-foreground">
+              {stats.last30d.approvalRate}% approuvées sur 30 jours
+              {" "}({stats.last30d.approved} oui / {stats.last30d.rejected} non)
+            </span>
+          )}
+          {stats.last30d.expired > 0 && (
+            <span className="text-muted-foreground">{stats.last30d.expired} expirée(s) faute de décision</span>
+          )}
+        </div>
+      )}
+
       {/* Onglets */}
       <div className="flex items-center gap-1 border-b border-border">
         <TabButton active={tab === "en_attente"} onClick={() => setTab("en_attente")}>
@@ -242,6 +353,28 @@ export default function FileApprobationPage() {
         </Card>
       ) : (
         <div className="space-y-3">
+          {/* Barre de decision groupee: n'apparait qu'une fois une selection
+              faite, pour ne jamais suggerer un "tout approuver" aveugle. */}
+          {tab === "en_attente" && selected.length > 0 && (
+            <div className="sticky top-2 z-10 flex flex-wrap items-center gap-2 rounded-xl border border-emerald-500/40 bg-background/95 px-4 py-2.5 shadow-sm backdrop-blur">
+              <span className="text-sm font-medium">{selected.length} sélectionnée(s)</span>
+              <Button
+                size="sm"
+                className="bg-emerald-600 hover:bg-emerald-700"
+                disabled={bulk.isPending}
+                onClick={() => handleBulk("approve")}
+              >
+                <Check className="h-4 w-4 mr-1.5" />Approuver
+              </Button>
+              <Button size="sm" variant="outline" disabled={bulk.isPending} onClick={() => handleBulk("reject")}>
+                <X className="h-4 w-4 mr-1.5" />Rejeter
+              </Button>
+              <Button size="sm" variant="ghost" disabled={bulk.isPending} onClick={() => setSelected([])}>
+                Annuler la sélection
+              </Button>
+              {bulk.isPending && <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />}
+            </div>
+          )}
           {proposals.map((p) => {
             const meta = categoryMeta(p);
             const Icon = meta.icon;
@@ -251,6 +384,15 @@ export default function FileApprobationPage() {
               <Card key={p.id} className="overflow-hidden transition-shadow hover:shadow-md">
                 <CardContent className="p-4 sm:p-5">
                   <div className="flex items-start gap-3">
+                    {!isHistory && (
+                      <input
+                        type="checkbox"
+                        className="mt-3 h-4 w-4 shrink-0 accent-emerald-600"
+                        checked={selected.includes(p.id)}
+                        onChange={() => toggleSelected(p.id)}
+                        aria-label={`Sélectionner : ${p.title}`}
+                      />
+                    )}
                     <div className={`rounded-lg p-2 shrink-0 ${meta.color}`}>
                       <Icon className="h-5 w-5" />
                     </div>

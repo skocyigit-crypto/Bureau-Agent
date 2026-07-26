@@ -28,6 +28,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { notifyApprovalsChanged } from "@/lib/approvals-signal";
 
 const QUEUE_API = `${API_BASE}/api/agent-queue`;
 
@@ -160,6 +161,10 @@ export default function FileApprobationScreen() {
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.ok) {
         setProposals((prev) => prev.filter((x) => x.id !== p.id));
+        // Le badge "File d'approbation" est l'etat serveur, sonde toutes les
+        // 60 s: sans ce signal, il continuait d'annoncer une action en attente
+        // pendant une minute apres qu'on vient de la trancher.
+        notifyApprovalsChanged();
       } else {
         Alert.alert("Échec de l'exécution", data.error || "L'action n'a pas pu être exécutée.");
       }
@@ -198,7 +203,10 @@ export default function FileApprobationScreen() {
     setBusyId(p.id);
     try {
       const res = await fetchAuth(`${QUEUE_API}/${p.id}/reject`, { method: "POST" });
-      if (res.ok) setProposals((prev) => prev.filter((x) => x.id !== p.id));
+      if (res.ok) {
+        setProposals((prev) => prev.filter((x) => x.id !== p.id));
+        notifyApprovalsChanged();
+      }
     } catch {
       Alert.alert("Erreur", "Impossible de rejeter la proposition.");
     } finally {

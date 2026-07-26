@@ -272,7 +272,9 @@ router.post("/agent-queue/bulk-decide", requireAdmin, async (req: Request, res: 
 
     const rawIds = Array.isArray(req.body?.ids) ? req.body.ids : null;
     if (!rawIds || rawIds.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
-    const ids = [...new Set(rawIds.map(Number).filter((n: number) => Number.isInteger(n) && n > 0))];
+    const ids: number[] = [...new Set(
+      (rawIds as unknown[]).map((v) => Number(v)).filter((n) => Number.isInteger(n) && n > 0),
+    )];
     if (ids.length === 0) { res.status(400).json({ error: "ids invalides" }); return; }
     if (ids.length > BULK_MAX) {
       res.status(400).json({ error: `Maximum ${BULK_MAX} propositions par lot` });

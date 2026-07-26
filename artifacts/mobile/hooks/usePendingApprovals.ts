@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AppState } from "react-native";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
+import { onApprovalsChanged } from "@/lib/approvals-signal";
 
 const POLL_MS = 60 * 1000;
 
@@ -51,7 +52,12 @@ export function usePendingApprovals(): { pending: number; refresh: () => void } 
     const sub = AppState.addEventListener("change", (s) => {
       if (s === "active") { refresh(); start(); } else stop();
     });
-    return () => { stop(); sub.remove(); };
+    // Le flux SSE annonce l'arrivee d'une proposition: on revalide aussitot
+    // plutot que d'attendre le prochain sondage. La valeur reste celle du
+    // serveur — l'evenement declenche la relecture, il ne l'incremente pas.
+    const unsubscribe = onApprovalsChanged(refresh);
+
+    return () => { stop(); sub.remove(); unsubscribe(); };
   }, [refresh]);
 
   return { pending, refresh };

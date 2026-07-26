@@ -54,7 +54,24 @@ const SUPPORTED_PROVIDERS: Record<string, AiProviderInfo> = {
 export type AiProviderName = keyof typeof SUPPORTED_PROVIDERS;
 
 // Champs secrets chiffrés au repos.
-const SECRET_KEYS = ["apiKey"] as const;
+//
+// Dérivés des `configFields` marqués `secret: true` plutôt que d'une liste
+// tenue à la main: un fournisseur ajouté plus tard avec un second champ secret
+// (secret de signature de webhook, mot de passe SMTP...) serait autrement
+// stocké EN CLAIR sans que rien ne le signale — l'oubli le plus coûteux du
+// domaine, et invisible jusqu'à une fuite de base. `apiKey` reste dans
+// l'ensemble même si un jour plus aucun fournisseur ne le déclare, pour que les
+// configs déjà chiffrées restent traitées comme telles.
+//
+// Union de TOUS les fournisseurs: les appelants passent un `config` sans nom de
+// fournisseur, et chiffrer un champ qu'un autre fournisseur juge secret ne
+// coûte rien (l'opération est idempotente et le déchiffrement est tolérant).
+const SECRET_KEYS: readonly string[] = [...new Set([
+  "apiKey",
+  ...Object.values(SUPPORTED_PROVIDERS).flatMap((p) =>
+    p.configFields.filter((f) => f.secret).map((f) => f.key),
+  ),
+])];
 
 export function getSupportedAiProviders(): AiProviderInfo[] {
   return Object.values(SUPPORTED_PROVIDERS);

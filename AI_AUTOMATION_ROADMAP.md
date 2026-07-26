@@ -503,6 +503,20 @@ da sinyal atılıyor (rozet bir dakika boyunca yanlış sayı göstermesin). 4 t
 (`lib/__tests__/approvals-signal.test.ts`): abonelik kesiliyor mu, patlayan bir abone
 diğerlerini engelliyor mu, yayın sırasında abonelikten çıkma diffüzyonu kırıyor mu.
 
+**Otomasyonun kendisinin denetimi (2026-07-26)**: Bir üst katmanda aynı boşluk vardı.
+`health-agents.ts`'teki `schedulerAgent` ölü cron'u zaten doğru tespit ediyor (her battement'ı
+beklenen aralığın iki katıyla karşılaştırıyor), ama bu tespit hiçbir yere GİTMİYORDU:
+`health_checks` tablosuna bir satır ve bir `logger.warn`. Yani `autonomous-secretary` veya
+`invoice-reminder` ölse, büro sessizce otomasyonu bırakıyordu — uygulama normal cevap veriyor,
+ekranlar sadece boş. "Otonom" bir üründe en tehlikeli arıza biçimi: hiçbir şey kırılmıyor,
+her şey duruyor. Yeni `services/health-alert.ts` her sağlık turundan sonra çalışıyor:
+`echec` + haute/critique olan tespitler için super-admin'lere uygulama içi bildirim ve
+`ADMIN_EMAIL`'e e-posta (uygulama zaten kullanılamaz durumdayken de ulaşsın diye iki kanal).
+Tespit başına günde bir uyarı, guard `audit_logs`'tan türetiliyor (bellekte değil — tur 15
+dakikada bir, bellekte guard günde 96 e-posta demekti). `degrade` durumlar bilerek uyarmıyor:
+zaten sağlık panosunda görünüyorlar ve çoğu bir sonraki turda kendiliğinden düzeliyor.
+7 test (`health-alert-selection.test.ts`) gürültü eşiğini kilitliyor.
+
 **Kalan (bilinçli olarak yapılmadı):** güven eşiğine göre otomatik onay. Altyapı hazır
 (öğrenilen tercihler + kategori bazlı onay oranı), ama bu "insan denetiminde" sözünü
 gevşetir; ancak kullanıcı açıkça isterse ve kategori bazında açılıp kapanabilir şekilde

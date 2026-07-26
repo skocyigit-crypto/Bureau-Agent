@@ -25,7 +25,18 @@ const SUPPORTED_PROVIDERS: Record<string, EmailProviderInfo> = {
 };
 
 // Champs secrets chiffrés au repos.
-const SECRET_KEYS = ["apiKey"] as const;
+//
+// Dérivés des `configFields` marqués `secret: true` (même raison que dans
+// services/ai-providers.ts): un futur fournisseur SMTP avec un mot de passe en
+// second champ secret serait autrement stocké en clair sans aucun signal.
+// `apiKey` est conservé dans l'ensemble pour que les configs déjà chiffrées
+// restent traitées comme telles.
+const SECRET_KEYS: readonly string[] = [...new Set([
+  "apiKey",
+  ...Object.values(SUPPORTED_PROVIDERS).flatMap((p) =>
+    p.configFields.filter((f) => f.secret).map((f) => f.key),
+  ),
+])];
 
 export function getSupportedEmailProviders(): EmailProviderInfo[] {
   return Object.values(SUPPORTED_PROVIDERS);
