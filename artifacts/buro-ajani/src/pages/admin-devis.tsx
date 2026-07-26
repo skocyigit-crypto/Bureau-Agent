@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { confirmAction } from "@/hooks/use-confirm";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { AccessDenied } from "@/components/access-denied";
-import { FileText, Search, Plus, Loader2, Trash2, Edit, RefreshCw, Shield } from "lucide-react";
+import { FileText, Search, Plus, Loader2, Trash2, Edit, RefreshCw, Shield, ArrowRight } from "lucide-react";
 import { LineItemsEditor, type LineItem } from "@/components/line-items-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,6 +74,7 @@ export default function AdminDevisPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [convertingId, setConvertingId] = useState<number | null>(null);
   const [form, setForm] = useState({ ...EMPTY_FORM });
 
   const load = useCallback(async () => {
@@ -132,6 +133,20 @@ export default function AdminDevisPage() {
       } else { const d = await res.json(); toast({ title: "Erreur", description: d.error, variant: "destructive" }); }
     } catch { toast({ title: "Erreur", description: "Sauvegarde échouée.", variant: "destructive" }); }
     finally { setSaving(false); }
+  };
+
+  const handleConvert = async (d: Devis) => {
+    if (!(await confirmAction({ title: `Convertir « ${d.title} » en facture ?`, description: "Une facture reprenant les lignes et montants du devis sera créée (échéance 30 jours).", confirmLabel: "Créer la facture" }))) return;
+    setConvertingId(d.id);
+    try {
+      const res = await fetch(`${BASE}/api/devis/${d.id}/convert-to-facture`, { method: "POST", credentials: "include" });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: data.alreadyConverted ? "Devis déjà converti" : "Facture créée", description: `Référence ${data.facture?.reference ?? ""}` });
+        load();
+      } else { toast({ title: "Erreur", description: data.error, variant: "destructive" }); }
+    } catch { toast({ title: "Erreur", description: "Conversion échouée.", variant: "destructive" }); }
+    finally { setConvertingId(null); }
   };
 
   const handleDelete = async (id: number) => {
@@ -202,6 +217,9 @@ export default function AdminDevisPage() {
                 </Badge>
                 <StatusBadge status={d.status} />
                 <span className="text-sm font-bold text-emerald-600 hidden md:block w-24 text-right">{fmtMoney(d.totalAmount, d.currency)}</span>
+                <Button variant="ghost" size="sm" className="h-7 text-xs text-blue-600" onClick={() => handleConvert(d)} disabled={convertingId === d.id} title="Convertir en facture">
+                  {convertingId === d.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <><ArrowRight className="w-3 h-3 mr-1" />Facturer</>}
+                </Button>
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(d)}><Edit className="w-3 h-3" /></Button>
                 <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => handleDelete(d.id)}><Trash2 className="w-3 h-3" /></Button>
               </div>

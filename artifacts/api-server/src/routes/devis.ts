@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, desc, ilike, or, sql, and, type Column, type SQL } from "drizzle-orm";
-import { db, devisTable } from "@workspace/db";
+import { db, devisTable, facturesClientTable } from "@workspace/db";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { generateUniqueReference } from "../lib/unique-reference";
 import { computeInvoiceTotals } from "../services/invoice-totals";
@@ -164,6 +164,84 @@ router.patch("/devis/:id", async (req: Request, res: Response): Promise<void> =>
   } catch (err: any) {
     req.log.error({ err }, "Erreur mise a jour devis");
     res.status(500).json({ error: "Erreur lors de la mise a jour." });
+  }
+});
+
+/**
+ * Convertit un devis en facture: copie les lignes, le client et les montants
+ * (deja recalcules cote serveur) dans une nouvelle facture, puis relie les deux
+ * (facture.devisId <-> devis.convertedToInvoice). C'est ici que la valeur
+ * TRAVERSE reellement les segments — avant, chaque document ressaisissait ses
+ * montants a la main.
+ *
+ * Idempotent: un verrou consultatif Postgres serialise les conversions du meme
+ * devis, et `convertedToInvoice` empeche d'en creer une seconde (double clic,
+ * rejeu). Renvoie la facture existante si le devis est deja converti.
+ */
+const DEVIS_CONVERT_LOCK_NAMESPACE = 4320;
+
+router.post("/devis/:id/convert-to-facture", async (req: Request, res: Response): Promise<void> => {
+  const id = parseInt(req.params.id as string);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+
+  await db.execute(sql`SELECT pg_advisory_lock(${DEVIS_CONVERT_LOCK_NAMESPACE}, ${id})`);
+  try {
+    const [devis] = await db.select().from(devisTable).where(eq(devisTable.id, id));
+    if (!devis) { res.status(404).json({ error: "Devis non trouve." }); return; }
+
+    // Deja converti: on renvoie la facture liee plutot que d'en creer une autre.
+    if (devis.convertedToInvoice) {
+      const [existing] = await db.select().from(facturesClientTable).where(eq(facturesClientTable.id, devis.convertedToInvoice));
+      if (existing) { res.status(200).json({ facture: existing, alreadyConverted: true }); return; }
+      // La facture liee a disparu (supprimee): on autorise une nouvelle conversion.
+    }
+
+    const orgId = devis.organisationId;
+    const checkExists = async (candidate: string): Promise<boolean> => {
+      const [e] = await db.select({ id: facturesClientTable.id }).from(facturesClientTable)
+        .where(and(eq(facturesClientTable.organisationId, orgId), eq(facturesClientTable.reference, candidate)));
+      return !!e;
+    };
+    const ref = await generateUniqueReference("FAC", checkExists);
+
+    // Echeance par defaut: 30 jours (delai de paiement usuel B2B en France).
+    const dueDate = new Date(Date.now() + 30 * 86400000);
+
+    const [facture] = await db.insert(facturesClientTable).values({
+      organisationId: orgId,
+      contactId: devis.contactId ?? null,
+      devisId: devis.id,
+      reference: ref,
+      title: devis.title,
+      clientName: devis.clientName,
+      clientEmail: devis.clientEmail ?? null,
+      clientPhone: devis.clientPhone ?? null,
+      clientAddress: devis.clientAddress ?? null,
+      clientCompany: devis.clientCompany ?? null,
+      // Les montants viennent du devis (deja calcules cote serveur): la valeur
+      // se propage sans ressaisie.
+      items: devis.items ?? [],
+      subtotal: devis.subtotal,
+      taxAmount: devis.taxAmount,
+      totalAmount: devis.totalAmount,
+      paidAmount: "0",
+      currency: devis.currency,
+      status: "brouillon",
+      dueDate,
+      conditions: devis.conditions ?? null,
+      notes: devis.notes ?? null,
+    }).returning();
+
+    await db.update(devisTable)
+      .set({ convertedToInvoice: facture.id, status: devis.status === "brouillon" ? "accepte" : devis.status, acceptedAt: devis.acceptedAt ?? new Date(), updatedAt: new Date() })
+      .where(eq(devisTable.id, id));
+
+    res.status(201).json({ facture });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur conversion devis->facture");
+    res.status(500).json({ error: "Erreur lors de la conversion." });
+  } finally {
+    await db.execute(sql`SELECT pg_advisory_unlock(${DEVIS_CONVERT_LOCK_NAMESPACE}, ${id})`).catch(() => {});
   }
 });
 

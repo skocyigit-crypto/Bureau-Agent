@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 634,
+    "runtimeOperations": 640,
     "documentedOperations": 96,
-    "undocumentedOperations": 538
+    "undocumentedOperations": 544
   },
   "operations": [
     {
@@ -111,6 +111,14 @@
       ]
     },
     {
+      "method": "post",
+      "path": "/agent-queue/bulk-decide",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/agent-queue.ts"
+      ]
+    },
+    {
       "method": "get",
       "path": "/agent-queue/count",
       "documented": false,
@@ -121,6 +129,14 @@
     {
       "method": "post",
       "path": "/agent-queue/run-now",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/agent-queue.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/agent-queue/stats",
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/agent-queue.ts"
@@ -1688,6 +1704,14 @@
     },
     {
       "method": "post",
+      "path": "/client-errors",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/client-errors.ts"
+      ]
+    },
+    {
+      "method": "post",
       "path": "/commandant/analyze-text",
       "documented": false,
       "sources": [
@@ -2369,6 +2393,14 @@
     {
       "method": "patch",
       "path": "/devis/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/devis.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/devis/{id}/convert-to-facture",
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/devis.ts"
@@ -4143,6 +4175,22 @@
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/demo-request.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/push/register",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/push.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/push/unregister",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/push.ts"
       ]
     },
     {
