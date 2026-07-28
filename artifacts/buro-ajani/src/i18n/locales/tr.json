@@ -107,5 +107,43 @@
       "initialSetup": "İlk Kurulum",
       "mobileApp": "Mobil Uygulama"
     }
+  },
+  "userMenu": {
+    "level": "Seviye {{n}}",
+    "sessionExpires": "Oturum {{time}} sona eriyor",
+    "mfaActive": "Etkin",
+    "mfaInactive": "Devre dışı",
+    "securityScore": "Güvenlik puanı",
+    "fullProfile": "Tam profilim",
+    "preferences": "Tercihler",
+    "myActivity": "Etkinliğim",
+    "logout": "Çıkış yap",
+    "profileTitle": "Kullanıcı profili",
+    "profileSubtitle": "Hesap bilgileriniz",
+    "organisation": "Kuruluş",
+    "department": "Departman",
+    "domain": "Alan adı",
+    "timezone": "Saat dilimi",
+    "activePermissions": "Etkin izinler",
+    "perm": {
+      "telechargerFichiers": "Dosya indir",
+      "supprimerDonnees": "Verileri sil",
+      "exporterDonnees": "Verileri dışa aktar",
+      "gererUtilisateurs": "Kullanıcıları yönet",
+      "modifierSecurite": "Güvenliği değiştir",
+      "accesAudit": "Denetim erişimi",
+      "accesAdmin": "Yönetim erişimi",
+      "creerContacts": "Kişi oluştur",
+      "creerTaches": "Görev oluştur",
+      "gererAppels": "Çağrıları yönet",
+      "voirRapports": "Raporları görüntüle",
+      "utiliserIA": "Yapay zekayı kullan",
+      "gererIntegrations": "Entegrasyonları yönet"
+    }
+  },
+  "header": {
+    "guide": "Kullanım kılavuzu",
+    "searchEverywhere": "Her yerde ara...",
+    "simulateCall": "Gelen çağrıyı simüle et (test)"
   }
 }

@@ -107,5 +107,43 @@
       "initialSetup": "Configuration initiale",
       "mobileApp": "Application mobile"
     }
+  },
+  "userMenu": {
+    "level": "Niveau {{n}}",
+    "sessionExpires": "Session expire à {{time}}",
+    "mfaActive": "Actif",
+    "mfaInactive": "Inactif",
+    "securityScore": "Score de sécurité",
+    "fullProfile": "Mon profil complet",
+    "preferences": "Préférences",
+    "myActivity": "Mon activité",
+    "logout": "Se déconnecter",
+    "profileTitle": "Profil utilisateur",
+    "profileSubtitle": "Informations de votre compte",
+    "organisation": "Organisation",
+    "department": "Département",
+    "domain": "Domaine",
+    "timezone": "Fuseau horaire",
+    "activePermissions": "Permissions actives",
+    "perm": {
+      "telechargerFichiers": "Télécharger des fichiers",
+      "supprimerDonnees": "Supprimer des données",
+      "exporterDonnees": "Exporter des données",
+      "gererUtilisateurs": "Gérer les utilisateurs",
+      "modifierSecurite": "Modifier la sécurité",
+      "accesAudit": "Accès aux audits",
+      "accesAdmin": "Accès administration",
+      "creerContacts": "Créer des contacts",
+      "creerTaches": "Créer des tâches",
+      "gererAppels": "Gérer les appels",
+      "voirRapports": "Voir les rapports",
+      "utiliserIA": "Utiliser l'IA",
+      "gererIntegrations": "Gérer les intégrations"
+    }
+  },
+  "header": {
+    "guide": "Guide d'utilisation",
+    "searchEverywhere": "Rechercher partout...",
+    "simulateCall": "Simuler un appel entrant (test)"
   }
 }

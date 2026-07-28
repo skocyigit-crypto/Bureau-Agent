@@ -107,5 +107,43 @@
       "initialSetup": "الإعداد الأولي",
       "mobileApp": "تطبيق الجوال"
     }
+  },
+  "userMenu": {
+    "level": "المستوى {{n}}",
+    "sessionExpires": "تنتهي الجلسة في {{time}}",
+    "mfaActive": "مفعّل",
+    "mfaInactive": "غير مفعّل",
+    "securityScore": "درجة الأمان",
+    "fullProfile": "ملفي الكامل",
+    "preferences": "التفضيلات",
+    "myActivity": "نشاطي",
+    "logout": "تسجيل الخروج",
+    "profileTitle": "الملف الشخصي للمستخدم",
+    "profileSubtitle": "معلومات حسابك",
+    "organisation": "المؤسسة",
+    "department": "القسم",
+    "domain": "النطاق",
+    "timezone": "المنطقة الزمنية",
+    "activePermissions": "الأذونات النشطة",
+    "perm": {
+      "telechargerFichiers": "تنزيل الملفات",
+      "supprimerDonnees": "حذف البيانات",
+      "exporterDonnees": "تصدير البيانات",
+      "gererUtilisateurs": "إدارة المستخدمين",
+      "modifierSecurite": "تعديل الأمان",
+      "accesAudit": "الوصول إلى التدقيق",
+      "accesAdmin": "الوصول إلى الإدارة",
+      "creerContacts": "إنشاء جهات اتصال",
+      "creerTaches": "إنشاء المهام",
+      "gererAppels": "إدارة المكالمات",
+      "voirRapports": "عرض التقارير",
+      "utiliserIA": "استخدام الذكاء الاصطناعي",
+      "gererIntegrations": "إدارة عمليات التكامل"
+    }
+  },
+  "header": {
+    "guide": "دليل الاستخدام",
+    "searchEverywhere": "ابحث في كل مكان...",
+    "simulateCall": "محاكاة مكالمة واردة (اختبار)"
   }
 }

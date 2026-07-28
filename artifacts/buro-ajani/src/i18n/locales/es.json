@@ -107,5 +107,43 @@
       "initialSetup": "Configuración inicial",
       "mobileApp": "Aplicación móvil"
     }
+  },
+  "userMenu": {
+    "level": "Nivel {{n}}",
+    "sessionExpires": "La sesión expira a las {{time}}",
+    "mfaActive": "Activo",
+    "mfaInactive": "Inactivo",
+    "securityScore": "Puntuación de seguridad",
+    "fullProfile": "Mi perfil completo",
+    "preferences": "Preferencias",
+    "myActivity": "Mi actividad",
+    "logout": "Cerrar sesión",
+    "profileTitle": "Perfil de usuario",
+    "profileSubtitle": "Información de su cuenta",
+    "organisation": "Organización",
+    "department": "Departamento",
+    "domain": "Dominio",
+    "timezone": "Zona horaria",
+    "activePermissions": "Permisos activos",
+    "perm": {
+      "telechargerFichiers": "Descargar archivos",
+      "supprimerDonnees": "Eliminar datos",
+      "exporterDonnees": "Exportar datos",
+      "gererUtilisateurs": "Gestionar usuarios",
+      "modifierSecurite": "Modificar la seguridad",
+      "accesAudit": "Acceso a auditorías",
+      "accesAdmin": "Acceso a administración",
+      "creerContacts": "Crear contactos",
+      "creerTaches": "Crear tareas",
+      "gererAppels": "Gestionar llamadas",
+      "voirRapports": "Ver informes",
+      "utiliserIA": "Usar la IA",
+      "gererIntegrations": "Gestionar integraciones"
+    }
+  },
+  "header": {
+    "guide": "Guía de uso",
+    "searchEverywhere": "Buscar en todas partes...",
+    "simulateCall": "Simular una llamada entrante (prueba)"
   }
 }

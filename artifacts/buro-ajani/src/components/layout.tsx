@@ -496,14 +496,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       size="icon"
                       className="relative text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
                       onClick={() => incomingCall.simulateIncomingCall()}
-                      aria-label="Simuler un appel entrant (test)"
-                      title="Simuler un appel entrant (test)"
+                      aria-label={t("header.simulateCall")}
+                      title={t("header.simulateCall")}
                     >
                       <PhoneIncoming className="w-5 h-5" />
                       <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Simuler un appel entrant (test)</TooltipContent>
+                  <TooltipContent>{t("header.simulateCall")}</TooltipContent>
                 </Tooltip>
               )}
               <ConnectionIndicator />
@@ -519,14 +519,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     variant="ghost"
                     size="icon"
                     className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
-                    aria-label="Guide d'utilisation"
+                    aria-label={t("header.guide")}
                   >
                     <Link href="/guide">
                       <BookOpen className="w-5 h-5" />
                     </Link>
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Guide d'utilisation</TooltipContent>
+                <TooltipContent>{t("header.guide")}</TooltipContent>
               </Tooltip>
               <LanguageSwitcher variant="compact" />
               <ThemeToggle />

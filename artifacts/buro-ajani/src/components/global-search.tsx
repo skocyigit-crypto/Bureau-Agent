@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { Search, Phone, Users, CheckSquare, MessageSquare, X, Loader2, TrendingUp, FolderKanban } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useTranslation } from "@/i18n";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -35,6 +36,7 @@ const COLOR_MAP: Record<string, string> = {
 const ALL_TYPES = ["contacts", "calls", "tasks", "messages", "prospects", "projets"] as const;
 
 export function GlobalSearch() {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -119,7 +121,7 @@ export function GlobalSearch() {
       <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
       <Input
         type="search"
-        placeholder="Rechercher partout..."
+        placeholder={t("header.searchEverywhere")}
         className="w-full bg-muted/50 border-none pl-9 h-9 pr-8"
         value={query}
         onChange={e => setQuery(e.target.value)}

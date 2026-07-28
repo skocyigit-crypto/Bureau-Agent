@@ -107,5 +107,43 @@
       "initialSetup": "Initial setup",
       "mobileApp": "Mobile app"
     }
+  },
+  "userMenu": {
+    "level": "Level {{n}}",
+    "sessionExpires": "Session expires at {{time}}",
+    "mfaActive": "Active",
+    "mfaInactive": "Inactive",
+    "securityScore": "Security score",
+    "fullProfile": "My full profile",
+    "preferences": "Preferences",
+    "myActivity": "My activity",
+    "logout": "Log out",
+    "profileTitle": "User profile",
+    "profileSubtitle": "Your account information",
+    "organisation": "Organisation",
+    "department": "Department",
+    "domain": "Domain",
+    "timezone": "Time zone",
+    "activePermissions": "Active permissions",
+    "perm": {
+      "telechargerFichiers": "Download files",
+      "supprimerDonnees": "Delete data",
+      "exporterDonnees": "Export data",
+      "gererUtilisateurs": "Manage users",
+      "modifierSecurite": "Modify security",
+      "accesAudit": "Audit access",
+      "accesAdmin": "Admin access",
+      "creerContacts": "Create contacts",
+      "creerTaches": "Create tasks",
+      "gererAppels": "Manage calls",
+      "voirRapports": "View reports",
+      "utiliserIA": "Use AI",
+      "gererIntegrations": "Manage integrations"
+    }
+  },
+  "header": {
+    "guide": "User guide",
+    "searchEverywhere": "Search everywhere...",
+    "simulateCall": "Simulate an incoming call (test)"
   }
 }

@@ -107,5 +107,43 @@
       "initialSetup": "Ersteinrichtung",
       "mobileApp": "Mobile App"
     }
+  },
+  "userMenu": {
+    "level": "Stufe {{n}}",
+    "sessionExpires": "Sitzung läuft um {{time}} ab",
+    "mfaActive": "Aktiv",
+    "mfaInactive": "Inaktiv",
+    "securityScore": "Sicherheitsbewertung",
+    "fullProfile": "Mein vollständiges Profil",
+    "preferences": "Einstellungen",
+    "myActivity": "Meine Aktivität",
+    "logout": "Abmelden",
+    "profileTitle": "Benutzerprofil",
+    "profileSubtitle": "Informationen zu Ihrem Konto",
+    "organisation": "Organisation",
+    "department": "Abteilung",
+    "domain": "Domäne",
+    "timezone": "Zeitzone",
+    "activePermissions": "Aktive Berechtigungen",
+    "perm": {
+      "telechargerFichiers": "Dateien herunterladen",
+      "supprimerDonnees": "Daten löschen",
+      "exporterDonnees": "Daten exportieren",
+      "gererUtilisateurs": "Benutzer verwalten",
+      "modifierSecurite": "Sicherheit ändern",
+      "accesAudit": "Audit-Zugriff",
+      "accesAdmin": "Administrationszugriff",
+      "creerContacts": "Kontakte erstellen",
+      "creerTaches": "Aufgaben erstellen",
+      "gererAppels": "Anrufe verwalten",
+      "voirRapports": "Berichte anzeigen",
+      "utiliserIA": "KI verwenden",
+      "gererIntegrations": "Integrationen verwalten"
+    }
+  },
+  "header": {
+    "guide": "Benutzerhandbuch",
+    "searchEverywhere": "Überall suchen...",
+    "simulateCall": "Eingehenden Anruf simulieren (Test)"
   }
 }

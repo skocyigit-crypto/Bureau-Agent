@@ -15,6 +15,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 
 export type UserRole = "super_admin" | "administrateur" | "agent" | "lecture_seule";
 
@@ -229,6 +230,7 @@ export function WorkspaceUserProvider({ children, apiUser, onLogout }: Workspace
 
 export function UserProfileButton() {
   const { user, roleConfig, logout } = useWorkspaceUser();
+  const { t } = useTranslation();
   const [showProfile, setShowProfile] = useState(false);
 
   return (
@@ -263,7 +265,7 @@ export function UserProfileButton() {
                 {roleConfig.label}
               </Badge>
               <Badge variant="outline" className="text-[10px]">
-                Niveau {roleConfig.niveau}
+                {t("userMenu.level", { n: roleConfig.niveau })}
               </Badge>
             </div>
           </div>
@@ -279,7 +281,7 @@ export function UserProfileButton() {
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
               <Clock className="w-3 h-3" />
-              <span>Session expire a {user.sessionExpire}</span>
+              <span>{t("userMenu.sessionExpires", { time: user.sessionExpire })}</span>
             </div>
           </div>
           <DropdownMenuSeparator />
@@ -290,13 +292,13 @@ export function UserProfileButton() {
                 <span>MFA</span>
               </div>
               <Badge className={user.mfaActif ? "bg-emerald-100 text-emerald-700 border-0 text-[10px]" : "bg-gray-100 text-gray-500 border-0 text-[10px]"}>
-                {user.mfaActif ? "Actif" : "Inactif"}
+                {user.mfaActif ? t("userMenu.mfaActive") : t("userMenu.mfaInactive")}
               </Badge>
             </div>
             <div className="flex items-center justify-between mt-1.5">
               <div className="flex items-center gap-2 text-xs">
                 <ShieldCheck className="w-3 h-3 text-emerald-500" />
-                <span>Score de securite</span>
+                <span>{t("userMenu.securityScore")}</span>
               </div>
               <span className="text-xs font-bold text-emerald-600">{user.securiteScore}/100</span>
             </div>
@@ -304,15 +306,15 @@ export function UserProfileButton() {
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => setShowProfile(true)} className="gap-2 cursor-pointer">
             <User className="w-4 h-4" />
-            Mon profil complet
+            {t("userMenu.fullProfile")}
           </DropdownMenuItem>
           <DropdownMenuItem className="gap-2 cursor-pointer">
             <Settings className="w-4 h-4" />
-            Preferences
+            {t("userMenu.preferences")}
           </DropdownMenuItem>
           <DropdownMenuItem className="gap-2 cursor-pointer">
             <Activity className="w-4 h-4" />
-            Mon activite
+            {t("userMenu.myActivity")}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
@@ -320,7 +322,7 @@ export function UserProfileButton() {
             onClick={() => logout()}
           >
             <LogOut className="w-4 h-4" />
-            Se deconnecter
+            {t("userMenu.logout")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -330,10 +332,10 @@ export function UserProfileButton() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserCog className="w-5 h-5" />
-              Profil utilisateur
+              {t("userMenu.profileTitle")}
             </DialogTitle>
             <DialogDescription>
-              Informations de votre compte
+              {t("userMenu.profileSubtitle")}
             </DialogDescription>
           </DialogHeader>
 
@@ -356,19 +358,19 @@ export function UserProfileButton() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3 border rounded-lg">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Organisation</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("userMenu.organisation")}</p>
                 <p className="text-sm font-medium mt-0.5">{user.organisation}</p>
               </div>
               <div className="p-3 border rounded-lg">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Departement</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("userMenu.department")}</p>
                 <p className="text-sm font-medium mt-0.5">{user.departement}</p>
               </div>
               <div className="p-3 border rounded-lg">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Domaine</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("userMenu.domain")}</p>
                 <p className="text-sm font-medium mt-0.5">{user.domaine}</p>
               </div>
               <div className="p-3 border rounded-lg">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Fuseau horaire</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("userMenu.timezone")}</p>
                 <p className="text-sm font-medium mt-0.5">{user.fuseau}</p>
               </div>
             </div>
@@ -376,24 +378,24 @@ export function UserProfileButton() {
             <div>
               <p className="text-sm font-medium mb-2 flex items-center gap-2">
                 <KeyRound className="w-4 h-4" />
-                Permissions actives
+                {t("userMenu.activePermissions")}
               </p>
               <div className="grid grid-cols-2 gap-1.5">
                 {(Object.entries(user.permissions) as [keyof UserPermissions, boolean][]).map(([key, val]) => {
                   const labels: Record<keyof UserPermissions, string> = {
-                    telechargerFichiers: "Telecharger des fichiers",
-                    supprimerDonnees: "Supprimer des données",
-                    exporterDonnees: "Exporter des données",
-                    gererUtilisateurs: "Gerer les utilisateurs",
-                    modifierSecurite: "Modifier la securite",
-                    accesAudit: "Acces aux audits",
-                    accesAdmin: "Acces administration",
-                    creerContacts: "Creer des contacts",
-                    creerTaches: "Creer des taches",
-                    gererAppels: "Gerer les appels",
-                    voirRapports: "Voir les rapports",
-                    utiliserIA: "Utiliser l'IA",
-                    gererIntegrations: "Gerer les integrations",
+                    telechargerFichiers: t("userMenu.perm.telechargerFichiers"),
+                    supprimerDonnees: t("userMenu.perm.supprimerDonnees"),
+                    exporterDonnees: t("userMenu.perm.exporterDonnees"),
+                    gererUtilisateurs: t("userMenu.perm.gererUtilisateurs"),
+                    modifierSecurite: t("userMenu.perm.modifierSecurite"),
+                    accesAudit: t("userMenu.perm.accesAudit"),
+                    accesAdmin: t("userMenu.perm.accesAdmin"),
+                    creerContacts: t("userMenu.perm.creerContacts"),
+                    creerTaches: t("userMenu.perm.creerTaches"),
+                    gererAppels: t("userMenu.perm.gererAppels"),
+                    voirRapports: t("userMenu.perm.voirRapports"),
+                    utiliserIA: t("userMenu.perm.utiliserIA"),
+                    gererIntegrations: t("userMenu.perm.gererIntegrations"),
                   };
                   return (
                     <div key={key} className="flex items-center gap-1.5 text-xs">
