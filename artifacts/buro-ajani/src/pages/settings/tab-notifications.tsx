@@ -16,6 +16,7 @@ import {
   type BadgeMuteFlags,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "@/i18n";
 
 const STORAGE_KEY = "agent-bureau-notif-prefs";
 
@@ -47,6 +48,7 @@ function loadPrefs(): NotifPrefs {
 
 export function TabNotifications() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [prefs, setPrefs] = useState<NotifPrefs>(loadPrefs);
   const [dirty, setDirty] = useState(false);
 
@@ -58,7 +60,7 @@ export function TabNotifications() {
   const handleSave = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
     setDirty(false);
-    toast({ title: "Preferences enregistrees" });
+    toast({ title: t("settingsNotifications.prefsSaved") });
   };
 
   return (
@@ -72,13 +74,13 @@ export function TabNotifications() {
           <div>
             <CardTitle className="flex items-center gap-2">
               <Bell className="w-5 h-5" />
-              Preferences de notification
+              {t("settingsNotifications.prefsTitle")}
             </CardTitle>
-            <CardDescription>Choisissez les notifications que vous souhaitez recevoir.</CardDescription>
+            <CardDescription>{t("settingsNotifications.prefsDesc")}</CardDescription>
           </div>
           {dirty && (
             <Button size="sm" onClick={handleSave} className="gap-2">
-              <Save className="w-4 h-4" /> Enregistrer
+              <Save className="w-4 h-4" /> {t("common.save")}
             </Button>
           )}
         </div>
@@ -86,48 +88,48 @@ export function TabNotifications() {
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <Label>Appels manques</Label>
-            <p className="text-xs text-muted-foreground">Notification pour chaque appel manque</p>
+            <Label>{t("settingsNotifications.missedCalls")}</Label>
+            <p className="text-xs text-muted-foreground">{t("settingsNotifications.missedCallsDesc")}</p>
           </div>
           <Switch checked={prefs.appels} onCheckedChange={(v) => update("appels", v)} />
         </div>
         <Separator />
         <div className="flex items-center justify-between">
           <div>
-            <Label>Taches en retard</Label>
-            <p className="text-xs text-muted-foreground">Alerte quand une tache depasse sa date limite</p>
+            <Label>{t("settingsNotifications.lateTasks")}</Label>
+            <p className="text-xs text-muted-foreground">{t("settingsNotifications.lateTasksDesc")}</p>
           </div>
           <Switch checked={prefs.taches} onCheckedChange={(v) => update("taches", v)} />
         </div>
         <Separator />
         <div className="flex items-center justify-between">
           <div>
-            <Label>Nouveaux messages</Label>
-            <p className="text-xs text-muted-foreground">Notification pour les messages urgents</p>
+            <Label>{t("settingsNotifications.newMessages")}</Label>
+            <p className="text-xs text-muted-foreground">{t("settingsNotifications.newMessagesDesc")}</p>
           </div>
           <Switch checked={prefs.messages} onCheckedChange={(v) => update("messages", v)} />
         </div>
         <Separator />
         <div className="flex items-center justify-between">
           <div>
-            <Label>Alertes IA</Label>
-            <p className="text-xs text-muted-foreground">Notifications de la reconnaissance IA (detections critiques)</p>
+            <Label>{t("settingsNotifications.aiAlerts")}</Label>
+            <p className="text-xs text-muted-foreground">{t("settingsNotifications.aiAlertsDesc")}</p>
           </div>
           <Switch checked={prefs.ia} onCheckedChange={(v) => update("ia", v)} />
         </div>
         <Separator />
         <div className="flex items-center justify-between">
           <div>
-            <Label>Alertes de securite Workspace</Label>
-            <p className="text-xs text-muted-foreground">Notification immediate en cas de menace detectee, fichier bloque ou tentative de phishing</p>
+            <Label>{t("settingsNotifications.secAlerts")}</Label>
+            <p className="text-xs text-muted-foreground">{t("settingsNotifications.secAlertsDesc")}</p>
           </div>
           <Switch checked={prefs.securite} onCheckedChange={(v) => update("securite", v)} />
         </div>
         <Separator />
         <div className="flex items-center justify-between">
           <div>
-            <Label>Rapport de securite quotidien</Label>
-            <p className="text-xs text-muted-foreground">Resume quotidien des evenements de securite envoye au Super Administrateur</p>
+            <Label>{t("settingsNotifications.dailyReport")}</Label>
+            <p className="text-xs text-muted-foreground">{t("settingsNotifications.dailyReportDesc")}</p>
           </div>
           <Switch checked={prefs.rapportSecurite} onCheckedChange={(v) => update("rapportSecurite", v)} />
         </div>
@@ -152,6 +154,7 @@ const WA_DEFAULTS: Required<WhatsAppNotificationFlags> = {
 
 function WhatsAppNotificationsCard() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const prefsQuery = useGetMyPreferences({
     query: {
@@ -196,11 +199,11 @@ function WhatsAppNotificationsCard() {
     try {
       await updateMutation.mutateAsync({ data: { whatsappNotifications: draft } as any });
       await qc.invalidateQueries({ queryKey: getGetMyPreferencesQueryKey() });
-      toast({ title: "Notifications WhatsApp enregistrees" });
+      toast({ title: t("settingsNotifications.wa.saved") });
     } catch (err: any) {
       toast({
-        title: "Echec de l'enregistrement",
-        description: err?.message || "Erreur reseau",
+        title: t("settingsNotifications.saveError"),
+        description: err?.message || t("settingsNotifications.netError"),
         variant: "destructive",
       });
     }
@@ -215,17 +218,15 @@ function WhatsAppNotificationsCard() {
           <div>
             <CardTitle className="flex items-center gap-2">
               <MessageCircle className="w-5 h-5 text-green-600" />
-              Notifications WhatsApp
+              {t("settingsNotifications.wa.title")}
             </CardTitle>
             <CardDescription>
-              Recevez les alertes du bureau directement sur WhatsApp. Necessite un numero
-              de telephone renseigne dans votre profil et un fournisseur Twilio actif
-              cote organisation.
+              {t("settingsNotifications.wa.desc")}
             </CardDescription>
           </div>
           {dirty && (
             <Button size="sm" onClick={handleSave} disabled={disabled} className="gap-2">
-              <Save className="w-4 h-4" /> Enregistrer
+              <Save className="w-4 h-4" /> {t("common.save")}
             </Button>
           )}
         </div>
@@ -233,8 +234,8 @@ function WhatsAppNotificationsCard() {
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <Label>Nouvelle tache assignee</Label>
-            <p className="text-xs text-muted-foreground">Quand une tache vous est attribuee</p>
+            <Label>{t("settingsNotifications.wa.taskLabel")}</Label>
+            <p className="text-xs text-muted-foreground">{t("settingsNotifications.wa.taskDesc")}</p>
           </div>
           <Switch
             disabled={disabled}
@@ -245,8 +246,8 @@ function WhatsAppNotificationsCard() {
         <Separator />
         <div className="flex items-center justify-between">
           <div>
-            <Label>Appel entrant</Label>
-            <p className="text-xs text-muted-foreground">Lorsque l'agent telephonique recoit un appel</p>
+            <Label>{t("settingsNotifications.wa.callLabel")}</Label>
+            <p className="text-xs text-muted-foreground">{t("settingsNotifications.wa.callDesc")}</p>
           </div>
           <Switch
             disabled={disabled}
@@ -257,8 +258,8 @@ function WhatsAppNotificationsCard() {
         <Separator />
         <div className="flex items-center justify-between">
           <div>
-            <Label>Nouveau rendez-vous</Label>
-            <p className="text-xs text-muted-foreground">Quand un evenement est cree dans l'agenda</p>
+            <Label>{t("settingsNotifications.wa.apptLabel")}</Label>
+            <p className="text-xs text-muted-foreground">{t("settingsNotifications.wa.apptDesc")}</p>
           </div>
           <Switch
             disabled={disabled}
@@ -269,8 +270,8 @@ function WhatsAppNotificationsCard() {
         <Separator />
         <div className="flex items-center justify-between">
           <div>
-            <Label>Nouveau message</Label>
-            <p className="text-xs text-muted-foreground">Lorsqu'un message interne est ajoute</p>
+            <Label>{t("settingsNotifications.wa.msgLabel")}</Label>
+            <p className="text-xs text-muted-foreground">{t("settingsNotifications.wa.msgDesc")}</p>
           </div>
           <Switch
             disabled={disabled}
@@ -335,6 +336,7 @@ function sameDays(a: number[], b: number[]): boolean {
 
 function QuietHoursCard() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const prefsQuery = useGetMyPreferences({
     query: {
@@ -398,11 +400,11 @@ function QuietHoursCard() {
         } as any,
       });
       await qc.invalidateQueries({ queryKey: getGetMyPreferencesQueryKey() });
-      toast({ title: "Heures silencieuses enregistrees" });
+      toast({ title: t("settingsNotifications.qh.saved") });
     } catch (err: any) {
       toast({
-        title: "Echec de l'enregistrement",
-        description: err?.message || "Erreur reseau",
+        title: t("settingsNotifications.saveError"),
+        description: err?.message || t("settingsNotifications.netError"),
         variant: "destructive",
       });
     }
@@ -418,16 +420,15 @@ function QuietHoursCard() {
           <div>
             <CardTitle className="flex items-center gap-2">
               <Moon className="w-5 h-5 text-indigo-500" />
-              Heures silencieuses
+              {t("settingsNotifications.qh.title")}
             </CardTitle>
             <CardDescription>
-              Pendant cette plage horaire, vous ne recevez plus de notifications WhatsApp.
-              Les autres canaux (dans l'application) restent actifs.
+              {t("settingsNotifications.qh.desc")}
             </CardDescription>
           </div>
           {dirty && (
             <Button size="sm" onClick={handleSave} disabled={disabled} className="gap-2">
-              <Save className="w-4 h-4" /> Enregistrer
+              <Save className="w-4 h-4" /> {t("common.save")}
             </Button>
           )}
         </div>
@@ -435,8 +436,8 @@ function QuietHoursCard() {
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <Label>Activer les heures silencieuses</Label>
-            <p className="text-xs text-muted-foreground">Suspend les notifications WhatsApp sur la plage choisie</p>
+            <Label>{t("settingsNotifications.qh.enableLabel")}</Label>
+            <p className="text-xs text-muted-foreground">{t("settingsNotifications.qh.enableDesc")}</p>
           </div>
           <Switch
             disabled={disabled}
@@ -450,7 +451,7 @@ function QuietHoursCard() {
             <Separator />
             <div className="flex flex-wrap items-end gap-4">
               <div className="space-y-1">
-                <Label htmlFor="qh-start">Debut</Label>
+                <Label htmlFor="qh-start">{t("settingsNotifications.qh.start")}</Label>
                 <Input
                   id="qh-start"
                   type="time"
@@ -461,7 +462,7 @@ function QuietHoursCard() {
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="qh-end">Fin</Label>
+                <Label htmlFor="qh-end">{t("settingsNotifications.qh.end")}</Label>
                 <Input
                   id="qh-end"
                   type="time"
@@ -474,15 +475,15 @@ function QuietHoursCard() {
             </div>
             {overnight && (
               <p className="text-xs text-muted-foreground">
-                Plage de nuit : de {draft.start} jusqu'au lendemain {draft.end}.
+                {t("settingsNotifications.qh.overnight", { start: draft.start, end: draft.end })}
               </p>
             )}
 
             <Separator />
             <div className="space-y-2">
-              <Label>Jours d'application</Label>
+              <Label>{t("settingsNotifications.qh.daysTitle")}</Label>
               <p className="text-xs text-muted-foreground">
-                Aucun jour selectionne = tous les jours.
+                {t("settingsNotifications.qh.daysHint")}
               </p>
               <div className="flex flex-wrap gap-2">
                 {WEEKDAYS.map((d) => {
@@ -497,7 +498,7 @@ function QuietHoursCard() {
                       className="w-14"
                       onClick={() => toggleDay(d.value)}
                     >
-                      {d.label}
+                      {t(`settingsNotifications.days.${d.value}`)}
                     </Button>
                   );
                 })}
@@ -539,6 +540,7 @@ const BADGE_MUTE_DEFAULTS: Required<BadgeMuteFlags> = {
 
 function BadgeMuteCard() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const prefsQuery = useGetMyPreferences({
     query: {
@@ -580,11 +582,11 @@ function BadgeMuteCard() {
     try {
       await updateMutation.mutateAsync({ data: { mutedBadges: draft } as any });
       await qc.invalidateQueries({ queryKey: getGetMyPreferencesQueryKey() });
-      toast({ title: "Sourdine des badges enregistree" });
+      toast({ title: t("settingsNotifications.badge.saved") });
     } catch (err: any) {
       toast({
-        title: "Echec de l'enregistrement",
-        description: err?.message || "Erreur reseau",
+        title: t("settingsNotifications.saveError"),
+        description: err?.message || t("settingsNotifications.netError"),
         variant: "destructive",
       });
     }
@@ -599,38 +601,40 @@ function BadgeMuteCard() {
           <div>
             <CardTitle className="flex items-center gap-2">
               <BellOff className="w-5 h-5 text-amber-500" />
-              Badges de la barre laterale
+              {t("settingsNotifications.badge.title")}
             </CardTitle>
             <CardDescription>
-              Mettez en sourdine le compteur "nouveautes" de certaines sections.
-              Les compteurs des autres sections restent actifs.
+              {t("settingsNotifications.badge.desc")}
             </CardDescription>
           </div>
           {dirty && (
             <Button size="sm" onClick={handleSave} disabled={disabled} className="gap-2">
-              <Save className="w-4 h-4" /> Enregistrer
+              <Save className="w-4 h-4" /> {t("common.save")}
             </Button>
           )}
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {BADGE_SECTIONS.map((section, idx) => (
+        {BADGE_SECTIONS.map((section, idx) => {
+          const label = t(`settingsNotifications.badge.${section.key}Label`);
+          return (
           <div key={section.key}>
             {idx > 0 && <Separator className="mb-4" />}
             <div className="flex items-center justify-between">
               <div>
-                <Label>{section.label}</Label>
-                <p className="text-xs text-muted-foreground">{section.desc}</p>
+                <Label>{label}</Label>
+                <p className="text-xs text-muted-foreground">{t(`settingsNotifications.badge.${section.key}Desc`)}</p>
               </div>
               <Switch
                 disabled={disabled}
                 checked={draft[section.key] === true}
                 onCheckedChange={(v) => update(section.key, v)}
-                aria-label={`Mettre en sourdine le badge ${section.label}`}
+                aria-label={t("settingsNotifications.badge.muteAria", { label })}
               />
             </div>
           </div>
-        ))}
+          );
+        })}
       </CardContent>
     </Card>
   );

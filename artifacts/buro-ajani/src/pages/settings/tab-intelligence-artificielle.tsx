@@ -15,6 +15,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Icon3D } from "@/components/icon-3d";
+import { useTranslation } from "@/i18n";
 
 const DEFAULT_COST_USD = 50;
 const DEFAULT_CALLS = 5000;
@@ -88,6 +89,7 @@ function fmtCost(v: number) {
 
 export function TabIntelligenceArtificielle() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [settings, setSettings] = useState<AiSettings>({ aiQuotaCostUsd: null, aiQuotaCalls: null, aiAgentName: null });
   const [quota, setQuota] = useState<QuotaStatus | null>(null);
   const [summary, setSummary] = useState<SummaryData | null>(null);
@@ -127,7 +129,7 @@ export function TabIntelligenceArtificielle() {
         setQuota(data);
       }
     } catch {
-      toast({ title: "Erreur", description: "Impossible de charger les parametres IA.", variant: "destructive" });
+      toast({ title: t("settingsIntelligenceArtificielle.error"), description: t("settingsIntelligenceArtificielle.loadError"), variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -160,13 +162,13 @@ export function TabIntelligenceArtificielle() {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast({ title: "Erreur", description: data.error || "Echec de la sauvegarde.", variant: "destructive" });
+        toast({ title: t("settingsIntelligenceArtificielle.error"), description: data.error || t("settingsIntelligenceArtificielle.saveFailed"), variant: "destructive" });
         return;
       }
-      toast({ title: "Sauvegarde reussie", description: "Parametres IA mis à jour." });
+      toast({ title: t("settingsIntelligenceArtificielle.saveSuccess"), description: t("settingsIntelligenceArtificielle.saveSuccessDesc") });
       await loadData();
     } catch {
-      toast({ title: "Erreur reseau", description: "Impossible de sauvegarder.", variant: "destructive" });
+      toast({ title: t("settingsIntelligenceArtificielle.networkError"), description: t("settingsIntelligenceArtificielle.networkDesc"), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -214,16 +216,16 @@ export function TabIntelligenceArtificielle() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Icon3D icon={Zap} variant="amber" size="sm" />
-                Utilisation IA ce mois-ci
+                {t("settingsIntelligenceArtificielle.usageTitle")}
               </CardTitle>
-              <CardDescription>Suivi en temps reel de la consommation IA de votre organisation.</CardDescription>
+              <CardDescription>{t("settingsIntelligenceArtificielle.usageDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-1.5 font-medium">
                     <DollarSign className="w-3.5 h-3.5 text-amber-500" />
-                    Cout estimatif
+                    {t("settingsIntelligenceArtificielle.estCost")}
                   </span>
                   <span className="font-mono">
                     <span className={quota.percentCost >= 95 ? "text-red-500 font-bold" : quota.percentCost >= 80 ? "text-amber-500 font-semibold" : ""}>
@@ -236,7 +238,7 @@ export function TabIntelligenceArtificielle() {
                   value={quota.percentCost}
                   className={`h-2 ${quota.percentCost >= 95 ? "[&>div]:bg-red-500" : quota.percentCost >= 80 ? "[&>div]:bg-amber-500" : "[&>div]:bg-emerald-500"}`}
                 />
-                <p className="text-xs text-muted-foreground">{quota.percentCost.toFixed(1)}% du quota mensuel utilise</p>
+                <p className="text-xs text-muted-foreground">{t("settingsIntelligenceArtificielle.quotaUsed", { pct: quota.percentCost.toFixed(1) })}</p>
               </div>
 
               <Separator />
@@ -245,7 +247,7 @@ export function TabIntelligenceArtificielle() {
                 <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-1.5 font-medium">
                     <Phone className="w-3.5 h-3.5 text-blue-500" />
-                    Appels IA
+                    {t("settingsIntelligenceArtificielle.aiCalls")}
                   </span>
                   <span className="font-mono">
                     <span className={quota.percentCalls >= 95 ? "text-red-500 font-bold" : quota.percentCalls >= 80 ? "text-amber-500 font-semibold" : ""}>
@@ -258,7 +260,7 @@ export function TabIntelligenceArtificielle() {
                   value={quota.percentCalls}
                   className={`h-2 ${quota.percentCalls >= 95 ? "[&>div]:bg-red-500" : quota.percentCalls >= 80 ? "[&>div]:bg-amber-500" : "[&>div]:bg-blue-500"}`}
                 />
-                <p className="text-xs text-muted-foreground">{quota.percentCalls.toFixed(1)}% du quota mensuel utilise</p>
+                <p className="text-xs text-muted-foreground">{t("settingsIntelligenceArtificielle.quotaUsed", { pct: quota.percentCalls.toFixed(1) })}</p>
               </div>
             </CardContent>
           </Card>
@@ -271,9 +273,9 @@ export function TabIntelligenceArtificielle() {
                 <div>
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Icon3D icon={TrendingUp} variant="blue" size="sm" />
-                    Tendance de consommation IA
+                    {t("settingsIntelligenceArtificielle.trendTitle")}
                   </CardTitle>
-                  <CardDescription>Evolution journaliere du cout et du nombre d'appels IA.</CardDescription>
+                  <CardDescription>{t("settingsIntelligenceArtificielle.trendDesc")}</CardDescription>
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <Select value={chartMetric} onValueChange={(v) => setChartMetric(v as "cost" | "calls")}>
@@ -281,8 +283,8 @@ export function TabIntelligenceArtificielle() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="cost">Cout (USD)</SelectItem>
-                      <SelectItem value="calls">Appels</SelectItem>
+                      <SelectItem value="cost">{t("settingsIntelligenceArtificielle.costUsd")}</SelectItem>
+                      <SelectItem value="calls">{t("settingsIntelligenceArtificielle.calls")}</SelectItem>
                     </SelectContent>
                   </Select>
                   <Select value={chartDays} onValueChange={setChartDays}>
@@ -290,11 +292,11 @@ export function TabIntelligenceArtificielle() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="7">7j</SelectItem>
-                      <SelectItem value="14">14j</SelectItem>
-                      <SelectItem value="30">30j</SelectItem>
-                      <SelectItem value="60">60j</SelectItem>
-                      <SelectItem value="90">90j</SelectItem>
+                      <SelectItem value="7">{t("settingsIntelligenceArtificielle.daysShort", { n: 7 })}</SelectItem>
+                      <SelectItem value="14">{t("settingsIntelligenceArtificielle.daysShort", { n: 14 })}</SelectItem>
+                      <SelectItem value="30">{t("settingsIntelligenceArtificielle.daysShort", { n: 30 })}</SelectItem>
+                      <SelectItem value="60">{t("settingsIntelligenceArtificielle.daysShort", { n: 60 })}</SelectItem>
+                      <SelectItem value="90">{t("settingsIntelligenceArtificielle.daysShort", { n: 90 })}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -302,21 +304,21 @@ export function TabIntelligenceArtificielle() {
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
                 <div className="rounded-lg border bg-muted/30 p-3">
-                  <p className="text-xs text-muted-foreground">Cout total</p>
+                  <p className="text-xs text-muted-foreground">{t("settingsIntelligenceArtificielle.totalCost")}</p>
                   <p className="font-semibold font-mono text-amber-600">{fmtCost(summary.totals.totalCostUsd)}</p>
                 </div>
                 <div className="rounded-lg border bg-muted/30 p-3">
-                  <p className="text-xs text-muted-foreground">Appels totaux</p>
+                  <p className="text-xs text-muted-foreground">{t("settingsIntelligenceArtificielle.totalCalls")}</p>
                   <p className="font-semibold font-mono text-blue-600">{summary.totals.totalCalls.toLocaleString("fr-FR")}</p>
                 </div>
                 <div className="rounded-lg border bg-muted/30 p-3">
-                  <p className="text-xs text-muted-foreground">Taux de succes</p>
+                  <p className="text-xs text-muted-foreground">{t("settingsIntelligenceArtificielle.successRate")}</p>
                   <p className={`font-semibold font-mono ${Number(successRate) >= 95 ? "text-emerald-600" : Number(successRate) >= 80 ? "text-amber-600" : "text-red-600"}`}>
                     {successRate}%
                   </p>
                 </div>
                 <div className="rounded-lg border bg-muted/30 p-3">
-                  <p className="text-xs text-muted-foreground">Tokens totaux</p>
+                  <p className="text-xs text-muted-foreground">{t("settingsIntelligenceArtificielle.totalTokens")}</p>
                   <p className="font-semibold font-mono text-purple-600">{summary.totals.totalTokens.toLocaleString("fr-FR")}</p>
                 </div>
               </div>
@@ -330,10 +332,10 @@ export function TabIntelligenceArtificielle() {
                       <XAxis dataKey="day" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
                       <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}$`} width={45} />
                       <ReTooltip
-                        formatter={(value: number) => [`${value.toFixed(4)} USD`, "Cout"]}
+                        formatter={(value: number) => [`${value.toFixed(4)} USD`, t("settingsIntelligenceArtificielle.cost")]}
                         contentStyle={{ fontSize: 12, borderRadius: 8 }}
                       />
-                      <Bar dataKey="cost" fill={CHART_COLORS.cost} radius={[3, 3, 0, 0]} name="Cout (USD)" maxBarSize={32} />
+                      <Bar dataKey="cost" fill={CHART_COLORS.cost} radius={[3, 3, 0, 0]} name={t("settingsIntelligenceArtificielle.costUsd")} maxBarSize={32} />
                     </BarChart>
                   ) : (
                     <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
@@ -341,29 +343,29 @@ export function TabIntelligenceArtificielle() {
                       <XAxis dataKey="day" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
                       <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={40} />
                       <ReTooltip
-                        formatter={(value: number) => [value.toLocaleString("fr-FR"), "Appels"]}
+                        formatter={(value: number) => [value.toLocaleString("fr-FR"), t("settingsIntelligenceArtificielle.calls")]}
                         contentStyle={{ fontSize: 12, borderRadius: 8 }}
                       />
-                      <Bar dataKey="calls" fill={CHART_COLORS.calls} radius={[3, 3, 0, 0]} name="Appels IA" maxBarSize={32} />
+                      <Bar dataKey="calls" fill={CHART_COLORS.calls} radius={[3, 3, 0, 0]} name={t("settingsIntelligenceArtificielle.barCalls")} maxBarSize={32} />
                     </BarChart>
                   )}
                 </ResponsiveContainer>
               ) : (
                 <div className="flex items-center justify-center h-[220px] text-muted-foreground text-sm">
                   <Activity className="w-4 h-4 mr-2" />
-                  Aucune donnée d'utilisation sur cette periode.
+                  {t("settingsIntelligenceArtificielle.noData")}
                 </div>
               )}
 
               {topRoutes.length > 0 && (
                 <div className="mt-4 space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Top routes IA ({chartDays}j)</p>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("settingsIntelligenceArtificielle.topRoutes", { days: chartDays })}</p>
                   <div className="space-y-1.5">
                     {topRoutes.map((r) => (
                       <div key={r.route} className="flex items-center justify-between text-sm">
                         <span className="font-mono text-xs text-muted-foreground truncate max-w-[200px]">{r.route}</span>
                         <div className="flex items-center gap-3 shrink-0">
-                          <Badge variant="secondary" className="text-xs font-mono">{r.calls} appels</Badge>
+                          <Badge variant="secondary" className="text-xs font-mono">{t("settingsIntelligenceArtificielle.routeCalls", { count: r.calls })}</Badge>
                           <span className="text-xs font-mono text-amber-600">{fmtCost(r.costUsd)}</span>
                         </div>
                       </div>
@@ -379,29 +381,29 @@ export function TabIntelligenceArtificielle() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Icon3D icon={Bot} variant="navy" size="sm" />
-              Persona de l'agent IA
+              {t("settingsIntelligenceArtificielle.personaTitle")}
             </CardTitle>
             <CardDescription>
-              Personnalisez l'identite de votre receptionniste IA. Par defaut : <strong>Sophie Marchand</strong>.
+              {t("settingsIntelligenceArtificielle.personaDesc")} <strong>Sophie Marchand</strong>.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="agent-name" className="flex items-center gap-1.5">
-                Nom de l'agent
+                {t("settingsIntelligenceArtificielle.agentName")}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p className="max-w-xs">Ce nom sera utilise dans les prompts IA et les transcriptions d'appels. Exemple : "Marie Dupont" ou "Alex".</p>
+                    <p className="max-w-xs">{t("settingsIntelligenceArtificielle.agentTooltip")}</p>
                   </TooltipContent>
                 </Tooltip>
               </Label>
               <div className="flex gap-2 items-center">
                 <Input
                   id="agent-name"
-                  placeholder="Sophie Marchand (defaut)"
+                  placeholder={t("settingsIntelligenceArtificielle.agentPlaceholder")}
                   value={agentName}
                   onChange={e => setAgentName(e.target.value)}
                   maxLength={100}
@@ -414,7 +416,7 @@ export function TabIntelligenceArtificielle() {
                   </Badge>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">Laissez vide pour utiliser le nom par defaut (Sophie Marchand).</p>
+              <p className="text-xs text-muted-foreground">{t("settingsIntelligenceArtificielle.agentHint")}</p>
             </div>
           </CardContent>
         </Card>
@@ -423,12 +425,10 @@ export function TabIntelligenceArtificielle() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Icon3D icon={DollarSign} variant="emerald" size="sm" />
-              Quotas IA mensuels
+              {t("settingsIntelligenceArtificielle.quotasTitle")}
             </CardTitle>
             <CardDescription>
-              Definissez les limites de consommation IA pour votre organisation. Laissez vide pour utiliser les limites systeme
-              (cout : <strong>{DEFAULT_COST_USD} USD</strong>, appels : <strong>{DEFAULT_CALLS.toLocaleString("fr-FR")}</strong>).
-              Une notification est automatiquement envoyee a partir de <strong>80% d'utilisation</strong>.
+              {t("settingsIntelligenceArtificielle.quotasDesc1")} <strong>{t("settingsIntelligenceArtificielle.quotasCostVal", { cost: DEFAULT_COST_USD })}</strong>{t("settingsIntelligenceArtificielle.quotasDesc2")} <strong>{DEFAULT_CALLS.toLocaleString("fr-FR")}</strong>{t("settingsIntelligenceArtificielle.quotasDesc3")} <strong>{t("settingsIntelligenceArtificielle.quotas80")}</strong>{t("settingsIntelligenceArtificielle.quotasDesc4")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
@@ -436,13 +436,13 @@ export function TabIntelligenceArtificielle() {
               <div className="space-y-2">
                 <Label htmlFor="quota-cost" className="flex items-center gap-1.5">
                   <DollarSign className="w-3.5 h-3.5 text-amber-500" />
-                  Plafond cout mensuel (USD)
+                  {t("settingsIntelligenceArtificielle.costCap")}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="max-w-xs">Montant maximal en dollars US que votre organisation peut depenser en IA par mois. Min: 1 USD, Max: 10 000 USD.</p>
+                      <p className="max-w-xs">{t("settingsIntelligenceArtificielle.costTooltip")}</p>
                     </TooltipContent>
                   </Tooltip>
                 </Label>
@@ -461,22 +461,22 @@ export function TabIntelligenceArtificielle() {
                   />
                 </div>
                 {settings.aiQuotaCostUsd != null ? (
-                  <Badge variant="outline" className="text-xs">Personnalise : {effectiveCostLimit} USD</Badge>
+                  <Badge variant="outline" className="text-xs">{t("settingsIntelligenceArtificielle.customCost", { cost: effectiveCostLimit })}</Badge>
                 ) : (
-                  <Badge variant="secondary" className="text-xs">Systeme : {DEFAULT_COST_USD} USD</Badge>
+                  <Badge variant="secondary" className="text-xs">{t("settingsIntelligenceArtificielle.systemCost", { cost: DEFAULT_COST_USD })}</Badge>
                 )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="quota-calls" className="flex items-center gap-1.5">
                   <Phone className="w-3.5 h-3.5 text-blue-500" />
-                  Plafond appels IA / mois
+                  {t("settingsIntelligenceArtificielle.callsCap")}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="max-w-xs">Nombre maximum d'appels API IA par mois. Min: 100, Max: 1 000 000.</p>
+                      <p className="max-w-xs">{t("settingsIntelligenceArtificielle.callsTooltip")}</p>
                     </TooltipContent>
                   </Tooltip>
                 </Label>
@@ -495,9 +495,9 @@ export function TabIntelligenceArtificielle() {
                   />
                 </div>
                 {settings.aiQuotaCalls != null ? (
-                  <Badge variant="outline" className="text-xs">Personnalise : {effectiveCallsLimit.toLocaleString("fr-FR")} appels</Badge>
+                  <Badge variant="outline" className="text-xs">{t("settingsIntelligenceArtificielle.customCalls", { calls: effectiveCallsLimit.toLocaleString("fr-FR") })}</Badge>
                 ) : (
-                  <Badge variant="secondary" className="text-xs">Systeme : {DEFAULT_CALLS.toLocaleString("fr-FR")} appels</Badge>
+                  <Badge variant="secondary" className="text-xs">{t("settingsIntelligenceArtificielle.systemCalls", { calls: DEFAULT_CALLS.toLocaleString("fr-FR") })}</Badge>
                 )}
               </div>
             </div>
@@ -507,11 +507,11 @@ export function TabIntelligenceArtificielle() {
         <div className="flex items-center gap-3 pt-2">
           <Button onClick={handleSave} disabled={saving} className="gap-2">
             <Save className="w-4 h-4" />
-            {saving ? "Sauvegarde..." : "Sauvegarder les parametres"}
+            {saving ? t("settingsIntelligenceArtificielle.saving") : t("settingsIntelligenceArtificielle.saveBtn")}
           </Button>
           <Button variant="outline" onClick={handleReset} disabled={saving} className="gap-2">
             <RotateCcw className="w-4 h-4" />
-            Annuler
+            {t("common.cancel")}
           </Button>
         </div>
       </div>

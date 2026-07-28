@@ -5,15 +5,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-const STATUS_LABELS: Record<string, { label: string; className: string }> = {
-  en_attente: { label: "En attente", className: "bg-amber-100 text-amber-700 border-0" },
-  payee: { label: "Payée", className: "bg-emerald-100 text-emerald-700 border-0" },
-  partiel: { label: "Partiel", className: "bg-blue-100 text-blue-700 border-0" },
-  annulee: { label: "Annulée", className: "bg-slate-100 text-slate-600 border-0" },
-  retard: { label: "En retard", className: "bg-red-100 text-red-700 border-0" },
+const STATUS_LABELS: Record<string, { labelKey: string; className: string }> = {
+  en_attente: { labelKey: "settingsAbonnement.status.en_attente", className: "bg-amber-100 text-amber-700 border-0" },
+  payee: { labelKey: "settingsAbonnement.status.payee", className: "bg-emerald-100 text-emerald-700 border-0" },
+  partiel: { labelKey: "settingsAbonnement.status.partiel", className: "bg-blue-100 text-blue-700 border-0" },
+  annulee: { labelKey: "settingsAbonnement.status.annulee", className: "bg-slate-100 text-slate-600 border-0" },
+  retard: { labelKey: "settingsAbonnement.status.retard", className: "bg-red-100 text-red-700 border-0" },
 };
 
 interface Invoice {
@@ -31,6 +32,7 @@ interface Invoice {
 
 export function TabAbonnement() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [subscription, setSubscription] = useState<any>(null);
   const [usage, setUsage] = useState<any>(null);
   const [plans, setPlans] = useState<any[]>([]);
@@ -56,9 +58,9 @@ export function TabAbonnement() {
         if (subRes.ok) {
           setSubscription(await subRes.json());
         } else if (subRes.status === 403) {
-          setSubError("Votre compte n'est pas associe a une organisation. Contactez l'administrateur.");
+          setSubError(t("settingsAbonnement.errNoOrg"));
         } else if (subRes.status === 404) {
-          setSubError("Aucun abonnement configure pour votre organisation.");
+          setSubError(t("settingsAbonnement.errNoSub"));
         }
         if (usageRes.ok) setUsage(await usageRes.json());
         if (plansRes.ok) {
@@ -66,7 +68,7 @@ export function TabAbonnement() {
           setPlans(data.plans || []);
         }
       } catch {
-        setSubError("Impossible de charger les informations d'abonnement. Verifiez votre connexion.");
+        setSubError(t("settingsAbonnement.errLoad"));
       } finally {
         setSubLoading(false);
       }
@@ -123,7 +125,7 @@ export function TabAbonnement() {
           window.location.href = data.url;
           return;
         }
-        toast({ title: "Erreur", description: data.error || "Paiement indisponible", variant: "destructive" });
+        toast({ title: t("settingsAbonnement.toast.error"), description: data.error || t("settingsAbonnement.toast.paymentUnavailable"), variant: "destructive" });
         return;
       }
       // Fallback: legacy upgrade request (admin manual processing)
@@ -135,13 +137,13 @@ export function TabAbonnement() {
       });
       if (res.ok) {
         const data = await res.json();
-        toast({ title: "Demande envoyée", description: data.message });
+        toast({ title: t("settingsAbonnement.toast.requestSent"), description: data.message });
       } else {
         const err = await res.json();
-        toast({ title: "Erreur", description: err.error, variant: "destructive" });
+        toast({ title: t("settingsAbonnement.toast.error"), description: err.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Impossible d'envoyer la demande.", variant: "destructive" });
+      toast({ title: t("settingsAbonnement.toast.error"), description: t("settingsAbonnement.toast.requestFailed"), variant: "destructive" });
     } finally {
       setUpgrading(false);
     }
@@ -158,10 +160,10 @@ export function TabAbonnement() {
       if (res.ok && data.url) {
         window.location.href = data.url;
       } else {
-        toast({ title: "Erreur", description: data.error || "Portail indisponible", variant: "destructive" });
+        toast({ title: t("settingsAbonnement.toast.error"), description: data.error || t("settingsAbonnement.toast.portalUnavailable"), variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Impossible d'ouvrir le portail.", variant: "destructive" });
+      toast({ title: t("settingsAbonnement.toast.error"), description: t("settingsAbonnement.toast.portalFailed"), variant: "destructive" });
     } finally {
       setPortalLoading(false);
     }
@@ -169,9 +171,9 @@ export function TabAbonnement() {
 
   const handleCancel = async (immediate: boolean) => {
     const msg = immediate
-      ? "Annuler immédiatement ? Vous perdrez l'accès aux fonctionnalités payantes maintenant."
-      : "Annuler à la fin de la période ? Votre abonnement reste actif jusqu'à la fin du cycle facturé.";
-    if (!(await confirmAction({ title: immediate ? "Annuler immédiatement ?" : "Annuler à la fin de la période ?", description: msg, confirmLabel: "Annuler l'abonnement", destructive: true }))) return;
+      ? t("settingsAbonnement.toast.cancelImmediateConfirm")
+      : t("settingsAbonnement.toast.cancelPeriodConfirm");
+    if (!(await confirmAction({ title: immediate ? t("settingsAbonnement.toast.cancelImmediateTitle") : t("settingsAbonnement.toast.cancelPeriodTitle"), description: msg, confirmLabel: t("settingsAbonnement.toast.cancelConfirmLabel"), destructive: true }))) return;
     setCancelLoading(true);
     try {
       const res = await fetch(`${BASE}/api/stripe/cancel-subscription`, {
@@ -182,13 +184,13 @@ export function TabAbonnement() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Abonnement annulé", description: data.message });
+        toast({ title: t("settingsAbonnement.toast.cancelled"), description: data.message });
         window.location.reload();
       } else {
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("settingsAbonnement.toast.error"), description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Annulation échouée.", variant: "destructive" });
+      toast({ title: t("settingsAbonnement.toast.error"), description: t("settingsAbonnement.toast.cancelFailed"), variant: "destructive" });
     } finally {
       setCancelLoading(false);
     }
@@ -210,13 +212,13 @@ export function TabAbonnement() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Abonnement réactivé", description: data.message });
+        toast({ title: t("settingsAbonnement.toast.resumed"), description: data.message });
         window.location.reload();
       } else {
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("settingsAbonnement.toast.error"), description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Réactivation échouée.", variant: "destructive" });
+      toast({ title: t("settingsAbonnement.toast.error"), description: t("settingsAbonnement.toast.resumeFailed"), variant: "destructive" });
     } finally {
       setResumeLoading(false);
     }
@@ -236,7 +238,7 @@ export function TabAbonnement() {
         <CardContent className="flex items-center gap-4 py-8">
           <AlertTriangle className="w-10 h-10 text-amber-500 shrink-0" />
           <div>
-            <h3 className="font-semibold text-lg mb-1">Abonnement indisponible</h3>
+            <h3 className="font-semibold text-lg mb-1">{t("settingsAbonnement.unavailableTitle")}</h3>
             <p className="text-muted-foreground">{subError}</p>
           </div>
         </CardContent>
@@ -255,10 +257,10 @@ export function TabAbonnement() {
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Package className="w-5 h-5 text-emerald-600" />
-                  Abonnement actuel
+                  {t("settingsAbonnement.currentTitle")}
                 </CardTitle>
                 <CardDescription>
-                  Plan {subscription.plan} — {subscription.status === "active" ? "Actif" : subscription.status}
+                  {t("settingsAbonnement.planPrefix")} {subscription.plan} — {subscription.status === "active" ? t("settingsAbonnement.statusActive") : subscription.status}
                 </CardDescription>
               </div>
               <Badge className="bg-emerald-100 text-emerald-700 border-0">{subscription.plan}</Badge>
@@ -269,15 +271,15 @@ export function TabAbonnement() {
               <div className="grid grid-cols-3 gap-3">
                 <div className="text-center p-3 bg-muted/30 rounded-lg">
                   <p className="text-2xl font-bold">{usage.users?.current || 0}<span className="text-sm text-muted-foreground">/{usage.users?.max || 0}</span></p>
-                  <p className="text-xs text-muted-foreground">Utilisateurs</p>
+                  <p className="text-xs text-muted-foreground">{t("settingsAbonnement.users")}</p>
                 </div>
                 <div className="text-center p-3 bg-muted/30 rounded-lg">
                   <p className="text-2xl font-bold">{usage.contacts?.current || 0}<span className="text-sm text-muted-foreground">/{usage.contacts?.max || 0}</span></p>
-                  <p className="text-xs text-muted-foreground">Contacts</p>
+                  <p className="text-xs text-muted-foreground">{t("settingsAbonnement.contacts")}</p>
                 </div>
                 <div className="text-center p-3 bg-muted/30 rounded-lg">
                   <p className="text-2xl font-bold">{usage.calls?.current || 0}<span className="text-sm text-muted-foreground">/{usage.calls?.max || 0}</span></p>
-                  <p className="text-xs text-muted-foreground">Appels/mois</p>
+                  <p className="text-xs text-muted-foreground">{t("settingsAbonnement.callsPerMonth")}</p>
                 </div>
               </div>
             )}
@@ -285,13 +287,13 @@ export function TabAbonnement() {
               <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
                 <Clock className="w-4 h-4 text-amber-600 shrink-0" />
                 <p className="text-sm text-amber-700 dark:text-amber-400">
-                  Periode d'essai jusqu'au <strong>{new Date(subscription.trialEndsAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</strong>
+                  {t("settingsAbonnement.trialPrefix")} <strong>{new Date(subscription.trialEndsAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</strong>
                 </p>
               </div>
             )}
             {subscription.licenseKey && (
               <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg">
-                <span className="text-xs text-muted-foreground">Clé de licence</span>
+                <span className="text-xs text-muted-foreground">{t("settingsAbonnement.licenseKey")}</span>
                 <code className="text-xs font-mono font-bold text-amber-600 select-all">{subscription.licenseKey}</code>
               </div>
             )}
@@ -305,12 +307,12 @@ export function TabAbonnement() {
                   data-testid="button-stripe-portal"
                 >
                   {portalLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CreditCard className="w-4 h-4 mr-2" />}
-                  Gerer mon abonnement (portail Stripe)
+                  {t("settingsAbonnement.portalBtn")}
                 </Button>
                 {subscription.cancelledAt ? (
                   <>
                     <Badge className="bg-amber-100 text-amber-700 border-0 self-center">
-                      Annulation prevue le {new Date(subscription.cancelledAt).toLocaleDateString("fr-FR")}
+                      {t("settingsAbonnement.cancelScheduled", { date: new Date(subscription.cancelledAt).toLocaleDateString("fr-FR") })}
                     </Badge>
                     <Button
                       variant="outline"
@@ -320,7 +322,7 @@ export function TabAbonnement() {
                       data-testid="button-resume-subscription"
                     >
                       {resumeLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                      Reprendre mon abonnement
+                      {t("settingsAbonnement.resumeBtn")}
                     </Button>
                   </>
                 ) : (
@@ -332,7 +334,7 @@ export function TabAbonnement() {
                       disabled={cancelLoading}
                       data-testid="button-cancel-period-end"
                     >
-                      Annuler en fin de periode
+                      {t("settingsAbonnement.cancelPeriodEnd")}
                     </Button>
                     <Button
                       variant="ghost"
@@ -342,7 +344,7 @@ export function TabAbonnement() {
                       className="text-red-600 hover:text-red-700 hover:bg-red-50"
                       data-testid="button-cancel-immediate"
                     >
-                      Annuler immédiatement
+                      {t("settingsAbonnement.cancelNow")}
                     </Button>
                   </>
                 )}
@@ -350,7 +352,7 @@ export function TabAbonnement() {
             )}
             {stripeStatus && !stripeStatus.configured && (
               <p className="text-xs text-muted-foreground italic pt-2 border-t">
-                Paiements en ligne non actives sur cette installation. Contactez l'administrateur pour changer de plan.
+                {t("settingsAbonnement.stripeDisabled")}
               </p>
             )}
           </CardContent>
@@ -359,26 +361,26 @@ export function TabAbonnement() {
 
       {plans.length > 0 && (
         <div>
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Plans disponibles</h3>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t("settingsAbonnement.plansTitle")}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {plans.map((plan: any) => (
               <Card key={plan.id} className={subscription?.plan === plan.id ? "border-emerald-500 border-2" : ""}>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base">{plan.name}</CardTitle>
-                  <p className="text-2xl font-bold">{plan.price}€<span className="text-sm text-muted-foreground font-normal">/mois</span></p>
+                  <p className="text-2xl font-bold">{plan.price}€<span className="text-sm text-muted-foreground font-normal">{t("settingsAbonnement.perMonth")}</span></p>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <p className="text-xs text-muted-foreground">{plan.maxUsers} utilisateurs, {plan.maxContacts} contacts</p>
-                  <p className="text-xs text-muted-foreground">{plan.maxCallsPerMonth} appels/mois</p>
+                  <p className="text-xs text-muted-foreground">{t("settingsAbonnement.usersContacts", { users: plan.maxUsers, contacts: plan.maxContacts })}</p>
+                  <p className="text-xs text-muted-foreground">{t("settingsAbonnement.planCalls", { count: plan.maxCallsPerMonth })}</p>
                   <div className="flex flex-wrap gap-1">
-                    {plan.aiEnabled && <Badge className="text-[10px] bg-blue-100 text-blue-700 border-0">IA incluse</Badge>}
-                    {plan.stockEnabled && <Badge className="text-[10px] bg-purple-100 text-purple-700 border-0">Stock</Badge>}
-                    {plan.automationEnabled && <Badge className="text-[10px] bg-amber-100 text-amber-700 border-0">Automatisation</Badge>}
+                    {plan.aiEnabled && <Badge className="text-[10px] bg-blue-100 text-blue-700 border-0">{t("settingsAbonnement.badgeAi")}</Badge>}
+                    {plan.stockEnabled && <Badge className="text-[10px] bg-purple-100 text-purple-700 border-0">{t("settingsAbonnement.badgeStock")}</Badge>}
+                    {plan.automationEnabled && <Badge className="text-[10px] bg-amber-100 text-amber-700 border-0">{t("settingsAbonnement.badgeAuto")}</Badge>}
                   </div>
                   {subscription?.plan === plan.id ? (
                     <div className="flex items-center gap-1.5 text-emerald-600 text-xs mt-2">
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      Plan actuel
+                      {t("settingsAbonnement.currentPlan")}
                     </div>
                   ) : (
                     <Button
@@ -389,7 +391,7 @@ export function TabAbonnement() {
                       onClick={() => handleUpgrade(plan.id)}
                     >
                       {upgrading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ArrowUpRight className="w-4 h-4 mr-1" />}
-                      Demander ce plan
+                      {t("settingsAbonnement.requestPlan")}
                     </Button>
                   )}
                 </CardContent>
@@ -400,7 +402,7 @@ export function TabAbonnement() {
       )}
 
       <div>
-        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Historique de facturation</h3>
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t("settingsAbonnement.historyTitle")}</h3>
         <Card>
           <CardContent className="p-0">
             {invoicesLoading ? (
@@ -410,14 +412,14 @@ export function TabAbonnement() {
             ) : invoices.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-center gap-2">
                 <FileText className="w-10 h-10 text-muted-foreground/40" />
-                <p className="text-sm text-muted-foreground">Aucune facture pour le moment.</p>
-                <p className="text-xs text-muted-foreground">Les factures mensuelles apparaitront ici une fois generees.</p>
+                <p className="text-sm text-muted-foreground">{t("settingsAbonnement.noInvoices")}</p>
+                <p className="text-xs text-muted-foreground">{t("settingsAbonnement.noInvoicesHint")}</p>
               </div>
             ) : (
               <>
                 <div className="divide-y">
                   {visibleInvoices.map((inv) => {
-                    const st = STATUS_LABELS[inv.status] || { label: inv.status, className: "bg-slate-100 text-slate-600 border-0" };
+                    const st = STATUS_LABELS[inv.status];
                     return (
                       <div key={inv.id} className="flex items-center justify-between px-4 py-3 hover:bg-muted/20 transition-colors">
                         <div className="flex items-center gap-3">
@@ -426,12 +428,12 @@ export function TabAbonnement() {
                           </div>
                           <div>
                             <p className="text-sm font-medium">{inv.periodLabel}</p>
-                            <p className="text-xs text-muted-foreground">Plan {inv.plan} · {new Date(inv.createdAt).toLocaleDateString("fr-FR")}</p>
+                            <p className="text-xs text-muted-foreground">{t("settingsAbonnement.invoicePlan", { plan: inv.plan, date: new Date(inv.createdAt).toLocaleDateString("fr-FR") })}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="text-sm font-bold">{parseFloat(inv.totalAmount).toFixed(2)} {inv.currency}</span>
-                          <Badge className={st.className}>{st.label}</Badge>
+                          <Badge className={st ? st.className : "bg-slate-100 text-slate-600 border-0"}>{st ? t(st.labelKey) : inv.status}</Badge>
                         </div>
                       </div>
                     );
@@ -446,9 +448,9 @@ export function TabAbonnement() {
                       onClick={() => setShowAllInvoices(v => !v)}
                     >
                       {showAllInvoices ? (
-                        <><ChevronUp className="w-3 h-3 mr-1" /> Masquer</>
+                        <><ChevronUp className="w-3 h-3 mr-1" /> {t("settingsAbonnement.hide")}</>
                       ) : (
-                        <><ChevronDown className="w-3 h-3 mr-1" /> Voir toutes les factures ({invoices.length})</>
+                        <><ChevronDown className="w-3 h-3 mr-1" /> {t("settingsAbonnement.showAll", { count: invoices.length })}</>
                       )}
                     </Button>
                   </div>
@@ -461,11 +463,11 @@ export function TabAbonnement() {
 
       <div className="pt-2 border-t flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          Pour toute question sur votre facturation, contactez notre support.
+          {t("settingsAbonnement.supportText")}
         </p>
         <a href="mailto:support@agentdebureau.fr">
           <Button variant="outline" size="sm" className="text-xs">
-            Contacter le support
+            {t("settingsAbonnement.contactSupport")}
           </Button>
         </a>
       </div>

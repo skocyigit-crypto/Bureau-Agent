@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { useSimulateCall } from "@/components/layout";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 
 const TELEPHONY_API = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/api/telephony`;
 type FraudAction = "off" | "voicemail" | "reject";
@@ -33,6 +34,7 @@ const DAY_LABELS: [string, string][] = [
  */
 function AiReceptionistSettings() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [cfg, setCfg] = useState<Record<string, any> | null>(null);
   const [saving, setSaving] = useState(false);
   const set = (patch: Record<string, any>) => setCfg((c) => ({ ...(c ?? {}), ...patch }));
@@ -72,9 +74,9 @@ function AiReceptionistSettings() {
         }),
       });
       const d = await res.json();
-      if (res.ok) toast({ title: "Réglages enregistrés" });
-      else toast({ title: "Erreur", description: d.error, variant: "destructive" });
-    } catch { toast({ title: "Erreur", description: "Enregistrement échoué.", variant: "destructive" }); }
+      if (res.ok) toast({ title: t("settingsAppels.recept.saved") });
+      else toast({ title: t("settingsAppels.recept.error"), description: d.error, variant: "destructive" });
+    } catch { toast({ title: t("settingsAppels.recept.error"), description: t("settingsAppels.recept.saveFailed"), variant: "destructive" }); }
     finally { setSaving(false); }
   };
 
@@ -90,54 +92,54 @@ function AiReceptionistSettings() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Secrétaire IA — comportement</CardTitle>
-        <CardDescription>Réglages réels appliqués aux appels entrants pris par la secrétaire.</CardDescription>
+        <CardTitle className="text-base">{t("settingsAppels.recept.title")}</CardTitle>
+        <CardDescription>{t("settingsAppels.recept.desc")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {!cfg.configured && (
-          <p className="text-xs text-amber-600">Aucun fournisseur Twilio configuré : les réglages seront actifs une fois Twilio connecté.</p>
+          <p className="text-xs text-amber-600">{t("settingsAppels.recept.noTwilio")}</p>
         )}
-        {toggle("enabled", "Secrétaire IA activée", "Prend les appels entrants automatiquement")}
+        {toggle("enabled", t("settingsAppels.recept.enabledLabel"), t("settingsAppels.recept.enabledDesc"))}
         <Separator />
         <div className="grid grid-cols-2 gap-3">
-          <div><Label className="text-xs">Langue</Label>
+          <div><Label className="text-xs">{t("settingsAppels.recept.language")}</Label>
             <Select value={cfg.language || "fr"} onValueChange={(v) => set({ language: v, voice: "" })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="fr">Français</SelectItem><SelectItem value="tr">Türkçe</SelectItem><SelectItem value="en">English</SelectItem></SelectContent>
             </Select>
           </div>
-          <div><Label className="text-xs">Voix</Label>
+          <div><Label className="text-xs">{t("settingsAppels.recept.voice")}</Label>
             <Select value={cfg.voice || ""} onValueChange={(v) => set({ voice: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>{voices.map((v) => <SelectItem key={v.value || "default"} value={v.value}>{v.label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
         </div>
-        <div><Label className="text-xs">Nom de l'entreprise (annoncé)</Label><Input value={cfg.orgName || ""} onChange={(e) => set({ orgName: e.target.value })} placeholder="Ex : Cabinet Dupont" /></div>
-        <div><Label className="text-xs">Message d'accueil</Label><Textarea rows={2} value={cfg.greeting || ""} onChange={(e) => set({ greeting: e.target.value })} placeholder="Bonjour, vous êtes bien chez…" /></div>
-        {toggle("autoDetectLanguage", "Détection automatique de la langue", "Bascule sur la langue de l'appelant dès le 1er tour")}
+        <div><Label className="text-xs">{t("settingsAppels.recept.orgName")}</Label><Input value={cfg.orgName || ""} onChange={(e) => set({ orgName: e.target.value })} placeholder={t("settingsAppels.recept.orgNamePlaceholder")} /></div>
+        <div><Label className="text-xs">{t("settingsAppels.recept.greeting")}</Label><Textarea rows={2} value={cfg.greeting || ""} onChange={(e) => set({ greeting: e.target.value })} placeholder={t("settingsAppels.recept.greetingPlaceholder")} /></div>
+        {toggle("autoDetectLanguage", t("settingsAppels.recept.autoDetectLabel"), t("settingsAppels.recept.autoDetectDesc"))}
         <Separator />
         <div className="grid grid-cols-2 gap-3">
-          <div><Label className="text-xs">Transférer vers (n° humain)</Label><Input value={cfg.forwardToNumber || ""} onChange={(e) => set({ forwardToNumber: e.target.value })} placeholder="+33…" /></div>
-          <div><Label className="text-xs">Alerte patron (SMS urgent)</Label><Input value={cfg.ownerAlertNumber || ""} onChange={(e) => set({ ownerAlertNumber: e.target.value })} placeholder="+33…" /></div>
+          <div><Label className="text-xs">{t("settingsAppels.recept.forwardLabel")}</Label><Input value={cfg.forwardToNumber || ""} onChange={(e) => set({ forwardToNumber: e.target.value })} placeholder="+33…" /></div>
+          <div><Label className="text-xs">{t("settingsAppels.recept.ownerLabel")}</Label><Input value={cfg.ownerAlertNumber || ""} onChange={(e) => set({ ownerAlertNumber: e.target.value })} placeholder="+33…" /></div>
         </div>
         <Separator />
-        {toggle("smsConfirmation", "SMS de confirmation de rendez-vous", "Envoie un SMS quand un RDV est pris", true)}
-        {toggle("autoFollowupTask", "Tâche de suivi automatique", "Crée une tâche après chaque RDV pris", true)}
-        {toggle("allowPhoneCancellation", "Autoriser l'annulation par téléphone", "L'appelant peut demander l'annulation d'un RDV (soumise à approbation)")}
-        {toggle("autoSmsOnMissed", "SMS automatique sur appel manqué", "Envoie un SMS de rappel si l'IA n'a pas pu répondre", true)}
-        {toggle("emailRecapEnabled", "E-mail de récapitulatif après appel", "Résumé de l'appel envoyé à l'équipe", true)}
-        <div><Label className="text-xs">Modèle de SMS d'appel manqué</Label><Input value={cfg.autoSmsTemplate || ""} onChange={(e) => set({ autoSmsTemplate: e.target.value })} placeholder="Bonjour {name}, nous avons manqué votre appel…" /><p className="text-[10px] text-muted-foreground mt-0.5">Variables : {"{name}"} {"{time}"}</p></div>
+        {toggle("smsConfirmation", t("settingsAppels.recept.smsConfirmLabel"), t("settingsAppels.recept.smsConfirmDesc"), true)}
+        {toggle("autoFollowupTask", t("settingsAppels.recept.followupLabel"), t("settingsAppels.recept.followupDesc"), true)}
+        {toggle("allowPhoneCancellation", t("settingsAppels.recept.cancelPhoneLabel"), t("settingsAppels.recept.cancelPhoneDesc"))}
+        {toggle("autoSmsOnMissed", t("settingsAppels.recept.autoSmsLabel"), t("settingsAppels.recept.autoSmsDesc"), true)}
+        {toggle("emailRecapEnabled", t("settingsAppels.recept.recapLabel"), t("settingsAppels.recept.recapDesc"), true)}
+        <div><Label className="text-xs">{t("settingsAppels.recept.smsTemplate")}</Label><Input value={cfg.autoSmsTemplate || ""} onChange={(e) => set({ autoSmsTemplate: e.target.value })} placeholder={t("settingsAppels.recept.smsTemplatePlaceholder")} /><p className="text-[10px] text-muted-foreground mt-0.5">{t("settingsAppels.recept.smsVariables")}</p></div>
         <Separator />
         <div>
-          <Label className="text-xs">Horaires d'ouverture (hors horaires → messagerie)</Label>
+          <Label className="text-xs">{t("settingsAppels.recept.hoursLabel")}</Label>
           <div className="space-y-1.5 mt-1.5">
-            {DAY_LABELS.map(([key, label]) => {
+            {DAY_LABELS.map(([key]) => {
               const win = cfg.businessHours?.days?.[key];
               return (
                 <div key={key} className="flex items-center gap-2">
                   <Switch checked={!!win} onCheckedChange={(v) => setDay(key, v)} />
-                  <span className="w-8 text-xs">{label}</span>
+                  <span className="w-8 text-xs">{t(`settingsAppels.days.${key}`)}</span>
                   {win ? (
                     <>
                       <Input type="number" min={0} max={24} value={win[0]} onChange={(e) => setDayVal(key, 0, parseInt(e.target.value) || 0)} className="h-7 w-16 text-xs" />
@@ -145,20 +147,21 @@ function AiReceptionistSettings() {
                       <Input type="number" min={0} max={24} value={win[1]} onChange={(e) => setDayVal(key, 1, parseInt(e.target.value) || 0)} className="h-7 w-16 text-xs" />
                       <span className="text-[10px] text-muted-foreground">h</span>
                     </>
-                  ) : <span className="text-xs text-muted-foreground">Fermé</span>}
+                  ) : <span className="text-xs text-muted-foreground">{t("settingsAppels.recept.closed")}</span>}
                 </div>
               );
             })}
           </div>
-          <p className="text-[10px] text-muted-foreground mt-1">Aucun horaire = disponible 24h/24.</p>
+          <p className="text-[10px] text-muted-foreground mt-1">{t("settingsAppels.recept.hoursHint")}</p>
         </div>
-        <Button onClick={save} disabled={saving} className="w-full">{saving ? "Enregistrement…" : "Enregistrer les réglages"}</Button>
+        <Button onClick={save} disabled={saving} className="w-full">{saving ? t("settingsAppels.recept.saving") : t("settingsAppels.recept.saveBtn")}</Button>
       </CardContent>
     </Card>
   );
 }
 
 function WebhookUrlRow({ label, url }: { label: string; url: string }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const copy = () => {
     navigator.clipboard.writeText(url).then(() => {
@@ -172,7 +175,7 @@ function WebhookUrlRow({ label, url }: { label: string; url: string }) {
         <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
         <code className="text-xs bg-muted px-2 py-1 rounded block truncate">{url}</code>
       </div>
-      <Button size="icon" variant="ghost" className="shrink-0" onClick={copy} title="Copier">
+      <Button size="icon" variant="ghost" className="shrink-0" onClick={copy} title={t("settingsAppels.copy")}>
         {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
       </Button>
     </div>
@@ -185,6 +188,7 @@ export function TabAppels() {
   const { simulateIncomingCall } = useSimulateCall();
   const { user } = useWorkspaceUser();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const isSuperAdmin = user.role === "super_admin";
 
   // F4: Protection automatique contre les appels frauduleux.
@@ -218,15 +222,15 @@ export function TabAppels() {
       if (!res.ok) {
         setFraudAction(prev);
         const msg = res.status === 404
-          ? "Configurez d'abord un fournisseur Twilio."
-          : "Enregistrement impossible.";
-        toast({ title: "Erreur", description: msg, variant: "destructive" });
+          ? t("settingsAppels.fraudToast.needTwilio")
+          : t("settingsAppels.fraudToast.saveFailed");
+        toast({ title: t("settingsAppels.fraudToast.error"), description: msg, variant: "destructive" });
         return;
       }
-      toast({ title: "Protection mise à jour", description: "Votre réglage a été enregistré." });
+      toast({ title: t("settingsAppels.fraudToast.updated"), description: t("settingsAppels.fraudToast.updatedDesc") });
     } catch {
       setFraudAction(prev);
-      toast({ title: "Erreur réseau", description: "Vérifiez votre connexion.", variant: "destructive" });
+      toast({ title: t("settingsAppels.fraudToast.networkError"), description: t("settingsAppels.fraudToast.networkDesc"), variant: "destructive" });
     } finally {
       setFraudSaving(false);
     }
@@ -240,49 +244,49 @@ export function TabAppels() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <PhoneIncoming className="w-5 h-5" />
-            Gestion des appels entrants
+            {t("settingsAppels.incoming.title")}
           </CardTitle>
-          <CardDescription>Configurez le comportement des appels entrants.</CardDescription>
+          <CardDescription>{t("settingsAppels.incoming.desc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <Label>Duree de sonnerie</Label>
-              <p className="text-xs text-muted-foreground">Temps avant bascule en appel manque</p>
+              <Label>{t("settingsAppels.incoming.ringLabel")}</Label>
+              <p className="text-xs text-muted-foreground">{t("settingsAppels.incoming.ringDesc")}</p>
             </div>
             <Select value={callRingDuration} onValueChange={setCallRingDuration}>
               <SelectTrigger className="w-32">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="15">15 secondes</SelectItem>
-                <SelectItem value="30">30 secondes</SelectItem>
-                <SelectItem value="45">45 secondes</SelectItem>
-                <SelectItem value="60">60 secondes</SelectItem>
+                <SelectItem value="15">{t("settingsAppels.incoming.seconds", { n: 15 })}</SelectItem>
+                <SelectItem value="30">{t("settingsAppels.incoming.seconds", { n: 30 })}</SelectItem>
+                <SelectItem value="45">{t("settingsAppels.incoming.seconds", { n: 45 })}</SelectItem>
+                <SelectItem value="60">{t("settingsAppels.incoming.seconds", { n: 60 })}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <Separator />
           <div className="flex items-center justify-between">
             <div>
-              <Label>Son de sonnerie</Label>
-              <p className="text-xs text-muted-foreground">Jouer un son lors d'un appel entrant</p>
+              <Label>{t("settingsAppels.incoming.soundLabel")}</Label>
+              <p className="text-xs text-muted-foreground">{t("settingsAppels.incoming.soundDesc")}</p>
             </div>
             <Switch checked={soundEnabled} onCheckedChange={setSoundEnabled} />
           </div>
           <Separator />
           <div className="flex items-center justify-between">
             <div>
-              <Label>Identification automatique</Label>
-              <p className="text-xs text-muted-foreground">Rechercher le contact correspondant au numero</p>
+              <Label>{t("settingsAppels.incoming.autoIdLabel")}</Label>
+              <p className="text-xs text-muted-foreground">{t("settingsAppels.incoming.autoIdDesc")}</p>
             </div>
             <Switch defaultChecked />
           </div>
           <Separator />
           <div className="flex items-center justify-between">
             <div>
-              <Label>Enregistrement automatique</Label>
-              <p className="text-xs text-muted-foreground">Enregistrer automatiquement chaque appel dans l'historique</p>
+              <Label>{t("settingsAppels.incoming.autoRecLabel")}</Label>
+              <p className="text-xs text-muted-foreground">{t("settingsAppels.incoming.autoRecDesc")}</p>
             </div>
             <Switch defaultChecked />
           </div>
@@ -291,14 +295,13 @@ export function TabAppels() {
             <div>
               <Label className="flex items-center gap-1.5">
                 <ShieldAlert className="w-4 h-4 text-amber-600" />
-                Protection contre les appels frauduleux
+                {t("settingsAppels.incoming.fraudLabel")}
               </Label>
               <p className="text-xs text-muted-foreground">
-                Filtre les appels à risque (liste de blocage + réputation Twilio). Vos numéros de
-                confiance (liste d'autorisation) ne sont jamais filtrés.
+                {t("settingsAppels.incoming.fraudDesc")}
               </p>
               {!fraudConfigured && (
-                <p className="text-xs text-amber-600 mt-1">Configurez un fournisseur Twilio pour activer ce réglage.</p>
+                <p className="text-xs text-amber-600 mt-1">{t("settingsAppels.incoming.fraudNotConfigured")}</p>
               )}
             </div>
             <Select value={fraudAction} onValueChange={(v) => saveFraudAction(v as FraudAction)} disabled={fraudSaving || !fraudConfigured}>
@@ -306,9 +309,9 @@ export function TabAppels() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="off">Désactivée</SelectItem>
-                <SelectItem value="voicemail">Vers messagerie</SelectItem>
-                <SelectItem value="reject">Rejeter l'appel</SelectItem>
+                <SelectItem value="off">{t("settingsAppels.incoming.fraudOff")}</SelectItem>
+                <SelectItem value="voicemail">{t("settingsAppels.incoming.fraudVoicemail")}</SelectItem>
+                <SelectItem value="reject">{t("settingsAppels.incoming.fraudReject")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -316,14 +319,14 @@ export function TabAppels() {
             <>
               <Separator />
               <div>
-                <Label className="mb-2 block">Tester l'experience d'appel <Badge variant="outline" className="ml-2 text-[10px]">Super admin</Badge></Label>
-                <p className="text-xs text-muted-foreground mb-3">Simulez un appel entrant pour tester l'interface (visible uniquement par le super-administrateur).</p>
+                <Label className="mb-2 block">{t("settingsAppels.incoming.testLabel")} <Badge variant="outline" className="ml-2 text-[10px]">{t("settingsAppels.incoming.testBadge")}</Badge></Label>
+                <p className="text-xs text-muted-foreground mb-3">{t("settingsAppels.incoming.testDesc")}</p>
                 <div className="flex gap-3">
                   <Button variant="outline" onClick={() => simulateIncomingCall()} className="gap-2">
                     <PhoneIncoming className="w-4 h-4" />
-                    Simuler un appel
+                    {t("settingsAppels.incoming.simulateBtn")}
                   </Button>
-                  <Input placeholder="+33 1 XX XX XX XX" className="w-48" id="custom-phone" />
+                  <Input placeholder={t("settingsAppels.incoming.customPhonePlaceholder")} className="w-48" id="custom-phone" />
                   <Button
                     variant="secondary"
                     onClick={() => {
@@ -331,7 +334,7 @@ export function TabAppels() {
                       if (input?.value) simulateIncomingCall(input.value);
                     }}
                   >
-                    Appeler ce numero
+                    {t("settingsAppels.incoming.callNumberBtn")}
                   </Button>
                 </div>
               </div>
@@ -346,33 +349,33 @@ export function TabAppels() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Link2 className="w-5 h-5 text-blue-500" />
-            Configuration Twilio — Receptionniste IA
-            <Badge variant="secondary" className="ml-auto text-xs">Webhooks</Badge>
+            {t("settingsAppels.webhook.title")}
+            <Badge variant="secondary" className="ml-auto text-xs">{t("settingsAppels.webhook.badge")}</Badge>
           </CardTitle>
           <CardDescription>
-            Copiez ces URLs dans votre console Twilio pour activer la receptionniste IA sur vos appels entrants.
+            {t("settingsAppels.webhook.desc")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <WebhookUrlRow
-            label="Voice URL (A Call Comes In → Webhook → HTTP POST)"
+            label={t("settingsAppels.webhook.voiceLabel")}
             url={`${baseUrl}/voice/twilio/incoming`}
           />
           <Separator />
           <WebhookUrlRow
-            label="Status Callback URL (Call Status Changes)"
+            label={t("settingsAppels.webhook.statusLabel")}
             url={`${baseUrl}/voice/twilio/status`}
           />
           <Separator />
           <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-800 dark:text-blue-300 space-y-1">
-            <p className="font-semibold">Comment configurer :</p>
+            <p className="font-semibold">{t("settingsAppels.webhook.howTitle")}</p>
             <ol className="list-decimal list-inside space-y-1 ml-1">
-              <li>Connectez-vous a <strong>console.twilio.com</strong></li>
-              <li>Allez dans <strong>Phone Numbers → Manage → Active Numbers</strong></li>
-              <li>Cliquez sur votre numero</li>
-              <li>Dans la section <strong>Voice Configuration</strong>, collez l'URL Voice ci-dessus</li>
-              <li>Definissez la methode sur <strong>HTTP POST</strong></li>
-              <li>Enregistrez. L'IA repondra automatiquement aux appels entrants.</li>
+              <li>{t("settingsAppels.webhook.s1")} <strong>console.twilio.com</strong></li>
+              <li>{t("settingsAppels.webhook.s2")} <strong>Phone Numbers → Manage → Active Numbers</strong></li>
+              <li>{t("settingsAppels.webhook.s3")}</li>
+              <li>{t("settingsAppels.webhook.s4a")} <strong>Voice Configuration</strong>{t("settingsAppels.webhook.s4b")}</li>
+              <li>{t("settingsAppels.webhook.s5")} <strong>HTTP POST</strong></li>
+              <li>{t("settingsAppels.webhook.s6")}</li>
             </ol>
           </div>
         </CardContent>
