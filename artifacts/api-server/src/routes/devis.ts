@@ -3,7 +3,7 @@ import { eq, desc, ilike, or, sql, and, type Column, type SQL } from "drizzle-or
 import { db, devisTable, facturesClientTable } from "@workspace/db";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { generateUniqueReference } from "../lib/unique-reference";
-import { computeInvoiceTotals } from "../services/invoice-totals";
+import { computeInvoiceTotals, isValidCurrency, parseUserDate, clampPagination } from "../services/invoice-totals";
 
 const router: IRouter = Router();
 
@@ -20,7 +20,8 @@ function parseOrgFilter(req: Request): number | null {
 }
 
 router.get("/devis", async (req: Request, res: Response): Promise<void> => {
-  const { search, status, limit = "50", offset = "0" } = req.query as any;
+  const { search, status } = req.query as any;
+  const { limit, offset } = clampPagination((req.query as any).limit, (req.query as any).offset);
   const conditions: SQL[] = [];
   const orgFilter = parseOrgFilter(req);
   if (orgFilter != null) conditions.push(eq(devisTable.organisationId, orgFilter));
@@ -40,7 +41,7 @@ router.get("/devis", async (req: Request, res: Response): Promise<void> => {
   try {
     const [rows, countRes] = await Promise.all([
       (where ? db.select().from(devisTable).where(where) : db.select().from(devisTable))
-        .orderBy(desc(devisTable.createdAt)).limit(Number(limit)).offset(Number(offset)),
+        .orderBy(desc(devisTable.createdAt)).limit(limit).offset(offset),
       where
         ? db.select({ count: sql<number>`count(*)::int` }).from(devisTable).where(where)
         : db.select({ count: sql<number>`count(*)::int` }).from(devisTable),
@@ -70,6 +71,11 @@ router.post("/devis", async (req: Request, res: Response): Promise<void> => {
   if (!title?.trim()) { res.status(400).json({ error: "Le titre est obligatoire." }); return; }
   if (!clientName?.trim()) { res.status(400).json({ error: "Le client est obligatoire." }); return; }
   if (!STATUSES.includes(status)) { res.status(400).json({ error: "Statut invalide." }); return; }
+  if (!isValidCurrency(currency)) { res.status(400).json({ error: "Devise invalide (code ISO 4217 attendu)." }); return; }
+  const validUntilDate = parseUserDate(validUntil);
+  if (validUntilDate === undefined) { res.status(400).json({ error: "Date de validité invalide." }); return; }
+  const totalsPre = computeInvoiceTotals(Array.isArray(items) ? items : []);
+  if (totalsPre.overflow) { res.status(400).json({ error: "Montant trop élevé (dépasse la limite autorisée)." }); return; }
   const orgFromBody = organisationId != null && organisationId !== "" ? Number(organisationId) : null;
   if (orgFromBody != null && (!Number.isInteger(orgFromBody) || orgFromBody <= 0)) {
     res.status(400).json({ error: "organisationId invalide." });
@@ -107,21 +113,16 @@ router.post("/devis", async (req: Request, res: Response): Promise<void> => {
       clientPhone: clientPhone ?? null,
       clientAddress: clientAddress ?? null,
       clientCompany: clientCompany ?? null,
-      // Totaux recalcules cote serveur a partir des seules lignes: on ignore
-      // les subtotal/taxAmount/totalAmount envoyes par le client (auparavant
-      // stockes tels quels, donc faux ou manipulables).
-      ...(() => {
-        const t = computeInvoiceTotals(Array.isArray(items) ? items : []);
-        return {
-          items: t.lines,
-          subtotal: String(t.subtotal),
-          taxAmount: String(t.taxAmount),
-          totalAmount: String(t.totalAmount),
-        };
-      })(),
+      // Totaux recalcules cote serveur a partir des seules lignes (deja
+      // calcules et valides ci-dessus): on ignore les subtotal/taxAmount/
+      // totalAmount envoyes par le client.
+      items: totalsPre.lines,
+      subtotal: String(totalsPre.subtotal),
+      taxAmount: String(totalsPre.taxAmount),
+      totalAmount: String(totalsPre.totalAmount),
       currency,
       status,
-      validUntil: validUntil ? new Date(validUntil) : null,
+      validUntil: validUntilDate,
       notes: notes ?? null,
       conditions: conditions ?? null,
       contactId: contactId ? Number(contactId) : null,
@@ -142,21 +143,35 @@ router.patch("/devis/:id", async (req: Request, res: Response): Promise<void> =>
     if (!existing) { res.status(404).json({ error: "Devis non trouve." }); return; }
     const b = req.body ?? {};
     if (b.status !== undefined && !STATUSES.includes(b.status)) { res.status(400).json({ error: "Statut invalide." }); return; }
+    if (b.currency !== undefined && !isValidCurrency(b.currency)) { res.status(400).json({ error: "Devise invalide." }); return; }
     const updates: any = { updatedAt: new Date() };
-    for (const k of ["title", "description", "clientName", "clientEmail", "clientPhone", "clientAddress", "clientCompany", "currency", "status", "notes", "conditions", "reference"]) {
+    for (const k of ["title", "description", "clientName", "clientEmail", "clientPhone", "clientAddress", "clientCompany", "currency", "status", "notes", "conditions"]) {
       if (b[k] !== undefined) updates[k] = b[k];
     }
+    // Reference: unicite verifiee aussi en modification (elle ne l'etait qu'a la
+    // creation), sinon deux devis pouvaient partager la meme reference.
+    if (b.reference !== undefined && String(b.reference).trim()) {
+      const newRef = String(b.reference).trim();
+      const [dup] = await db.select({ id: devisTable.id }).from(devisTable)
+        .where(and(eq(devisTable.reference, newRef), sql`${devisTable.id} <> ${id}`));
+      if (dup) { res.status(409).json({ error: `La reference "${newRef}" existe deja.` }); return; }
+      updates.reference = newRef;
+    }
     // Si les lignes changent, on recalcule les totaux cote serveur (jamais
-    // depuis les valeurs client). On ignore donc tout subtotal/taxAmount/
-    // totalAmount recu: ils sont derives, pas saisis.
+    // depuis les valeurs client).
     if (b.items !== undefined) {
       const t = computeInvoiceTotals(Array.isArray(b.items) ? b.items : []);
+      if (t.overflow) { res.status(400).json({ error: "Montant trop élevé." }); return; }
       updates.items = t.lines;
       updates.subtotal = String(t.subtotal);
       updates.taxAmount = String(t.taxAmount);
       updates.totalAmount = String(t.totalAmount);
     }
-    if (b.validUntil !== undefined) updates.validUntil = b.validUntil ? new Date(b.validUntil) : null;
+    if (b.validUntil !== undefined) {
+      const d = parseUserDate(b.validUntil);
+      if (d === undefined) { res.status(400).json({ error: "Date de validité invalide." }); return; }
+      updates.validUntil = d;
+    }
     if (b.status === "accepte") updates.acceptedAt = new Date();
     if (b.status === "refuse") updates.rejectedAt = new Date();
     const [row] = await db.update(devisTable).set(updates).where(eq(devisTable.id, id)).returning();

@@ -4,7 +4,7 @@ import { db, facturesClientTable } from "@workspace/db";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { sendInvoiceReminderEmail } from "../services/email";
 import { generateUniqueReference } from "../lib/unique-reference";
-import { computeInvoiceTotals } from "../services/invoice-totals";
+import { computeInvoiceTotals, isValidCurrency, parseUserDate, clampPagination, normalizePaidAmount } from "../services/invoice-totals";
 
 const router: IRouter = Router();
 
@@ -24,7 +24,8 @@ function parseOrgFilter(req: Request): number | null {
 }
 
 router.get("/factures-client", async (req: Request, res: Response): Promise<void> => {
-  const { search, status, limit = "50", offset = "0" } = req.query as any;
+  const { search, status } = req.query as any;
+  const { limit, offset } = clampPagination((req.query as any).limit, (req.query as any).offset);
   const conditions: SQL[] = [];
   const orgFilter = parseOrgFilter(req);
   if (orgFilter != null) conditions.push(eq(facturesClientTable.organisationId, orgFilter));
@@ -44,7 +45,7 @@ router.get("/factures-client", async (req: Request, res: Response): Promise<void
   try {
     const [rows, countRes] = await Promise.all([
       (where ? db.select().from(facturesClientTable).where(where) : db.select().from(facturesClientTable))
-        .orderBy(desc(facturesClientTable.createdAt)).limit(Number(limit)).offset(Number(offset)),
+        .orderBy(desc(facturesClientTable.createdAt)).limit(limit).offset(offset),
       where
         ? db.select({ count: sql<number>`count(*)::int` }).from(facturesClientTable).where(where)
         : db.select({ count: sql<number>`count(*)::int` }).from(facturesClientTable),
@@ -74,6 +75,11 @@ router.post("/factures-client", async (req: Request, res: Response): Promise<voi
   if (!title?.trim()) { res.status(400).json({ error: "Le titre est obligatoire." }); return; }
   if (!clientName?.trim()) { res.status(400).json({ error: "Le client est obligatoire." }); return; }
   if (!STATUSES.includes(status)) { res.status(400).json({ error: "Statut invalide." }); return; }
+  if (!isValidCurrency(currency)) { res.status(400).json({ error: "Devise invalide (code ISO 4217 attendu)." }); return; }
+  const dueDateVal = parseUserDate(dueDate);
+  if (dueDateVal === undefined) { res.status(400).json({ error: "Date d'échéance invalide." }); return; }
+  const totalsPre = computeInvoiceTotals(Array.isArray(items) ? items : [], { autoliquidation: !!isAutoliquidation });
+  if (totalsPre.overflow) { res.status(400).json({ error: "Montant trop élevé (dépasse la limite autorisée)." }); return; }
   const orgFromBody = organisationId != null && organisationId !== "" ? Number(organisationId) : null;
   if (orgFromBody != null && (!Number.isInteger(orgFromBody) || orgFromBody <= 0)) {
     res.status(400).json({ error: "organisationId invalide." });
@@ -110,22 +116,17 @@ router.post("/factures-client", async (req: Request, res: Response): Promise<voi
       clientPhone: clientPhone ?? null,
       clientAddress: clientAddress ?? null,
       clientCompany: clientCompany ?? null,
-      // Totaux recalcules cote serveur (les valeurs client sont ignorees).
-      // L'autoliquidation BTP force la TVA a 0 et TTC = HT.
-      ...(() => {
-        const t = computeInvoiceTotals(Array.isArray(items) ? items : [], { autoliquidation: !!isAutoliquidation });
-        return {
-          items: t.lines,
-          subtotal: String(t.subtotal),
-          taxAmount: String(t.taxAmount),
-          totalAmount: String(t.totalAmount),
-        };
-      })(),
+      // Totaux recalcules et valides ci-dessus; l'autoliquidation force TVA=0.
+      items: totalsPre.lines,
+      subtotal: String(totalsPre.subtotal),
+      taxAmount: String(totalsPre.taxAmount),
+      totalAmount: String(totalsPre.totalAmount),
       isAutoliquidation: !!isAutoliquidation,
-      paidAmount: paidAmount != null ? String(paidAmount) : "0",
+      // paidAmount borne: jamais negatif, jamais au-dessus du plafond, jamais null.
+      paidAmount: normalizePaidAmount(paidAmount),
       currency,
       status,
-      dueDate: dueDate ? new Date(dueDate) : null,
+      dueDate: dueDateVal,
       paymentMethod: paymentMethod ?? null,
       notes: notes ?? null,
       conditions: conditions ?? null,
@@ -147,28 +148,50 @@ router.patch("/factures-client/:id", async (req: Request, res: Response): Promis
     if (!existing) { res.status(404).json({ error: "Facture non trouvee." }); return; }
     const b = req.body ?? {};
     if (b.status !== undefined && !STATUSES.includes(b.status)) { res.status(400).json({ error: "Statut invalide." }); return; }
+    if (b.currency !== undefined && !isValidCurrency(b.currency)) { res.status(400).json({ error: "Devise invalide." }); return; }
     const updates: any = { updatedAt: new Date() };
-    for (const k of ["title", "clientName", "clientEmail", "clientPhone", "clientAddress", "clientCompany", "currency", "status", "notes", "conditions", "reference", "paymentMethod"]) {
+    for (const k of ["title", "clientName", "clientEmail", "clientPhone", "clientAddress", "clientCompany", "currency", "status", "notes", "conditions", "paymentMethod"]) {
       if (b[k] !== undefined) updates[k] = b[k];
     }
-    // paidAmount reste saisissable (encaissement partiel); subtotal/taxAmount/
-    // totalAmount sont TOUJOURS derives des lignes, jamais du client.
-    if (b.paidAmount !== undefined) updates.paidAmount = b.paidAmount != null ? String(b.paidAmount) : null;
+    // Reference: unicite verifiee aussi en modification (une facture legale ne
+    // peut pas partager son numero avec une autre — exigence Factur-X incluse).
+    if (b.reference !== undefined && String(b.reference).trim()) {
+      const newRef = String(b.reference).trim();
+      const [dup] = await db.select({ id: facturesClientTable.id }).from(facturesClientTable)
+        .where(and(eq(facturesClientTable.reference, newRef), sql`${facturesClientTable.id} <> ${id}`));
+      if (dup) { res.status(409).json({ error: `La reference "${newRef}" existe deja.` }); return; }
+      updates.reference = newRef;
+    }
+    // paidAmount reste saisissable (encaissement partiel), borne >= 0; les
+    // totaux sont TOUJOURS derives des lignes, jamais du client.
+    if (b.paidAmount !== undefined) updates.paidAmount = normalizePaidAmount(b.paidAmount);
     if (b.isAutoliquidation !== undefined) updates.isAutoliquidation = !!b.isAutoliquidation;
     if (b.items !== undefined || b.isAutoliquidation !== undefined) {
-      // Recalcul: il faut connaitre les lignes ET le drapeau autoliq effectifs.
       const [cur] = await db.select({ items: facturesClientTable.items, isAutoliquidation: facturesClientTable.isAutoliquidation })
         .from(facturesClientTable).where(eq(facturesClientTable.id, id));
       const effectiveItems = b.items !== undefined ? (Array.isArray(b.items) ? b.items : []) : (cur?.items ?? []);
       const effectiveAutoliq = b.isAutoliquidation !== undefined ? !!b.isAutoliquidation : !!cur?.isAutoliquidation;
       const t = computeInvoiceTotals(effectiveItems, { autoliquidation: effectiveAutoliq });
+      if (t.overflow) { res.status(400).json({ error: "Montant trop élevé." }); return; }
       updates.items = t.lines;
       updates.subtotal = String(t.subtotal);
       updates.taxAmount = String(t.taxAmount);
       updates.totalAmount = String(t.totalAmount);
     }
-    if (b.dueDate !== undefined) updates.dueDate = b.dueDate ? new Date(b.dueDate) : null;
-    if (b.status === "payee") updates.paidAt = new Date();
+    if (b.dueDate !== undefined) {
+      const d = parseUserDate(b.dueDate);
+      if (d === undefined) { res.status(400).json({ error: "Date d'échéance invalide." }); return; }
+      updates.dueDate = d;
+    }
+    // Coherence statut <-> paiement: si on marque "payee", on cale paidAmount
+    // sur le total; un statut "payee" avec paidAmount=0 etait incoherent (faux
+    // encaissement dans les KPI). Reciproquement `paidAt` est renseigne.
+    if (b.status === "payee") {
+      updates.paidAt = new Date();
+      const [cur] = await db.select({ totalAmount: facturesClientTable.totalAmount }).from(facturesClientTable).where(eq(facturesClientTable.id, id));
+      if (updates.totalAmount === undefined && cur) updates.paidAmount = cur.totalAmount;
+      else if (updates.totalAmount !== undefined) updates.paidAmount = updates.totalAmount;
+    }
     const [row] = await db.update(facturesClientTable).set(updates).where(eq(facturesClientTable.id, id)).returning();
     res.json(row);
   } catch (err: any) {
