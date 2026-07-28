@@ -28,6 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
+import { useTranslation } from "@/i18n";
 
 type UserRole = "super_admin" | "administrateur" | "agent" | "lecture_seule";
 
@@ -59,6 +60,8 @@ export default function UsersPage() {
   const { user: workspaceUser, hasPermission, isSuperAdmin } = useWorkspaceUser();
   const canManageUsers = hasPermission("gererUtilisateurs");
   const { toast } = useToast();
+  const { t } = useTranslation();
+  const roleLabel = (r: UserRole) => t(`users.roles.${r}`);
 
   const [users, setUsers] = useState<ApiUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,7 +93,7 @@ export default function UsersPage() {
         setUsers(data.users || []);
       }
     } catch {
-      toast({ title: "Erreur", description: "Impossible de charger les utilisateurs.", variant: "destructive" });
+      toast({ title: t("users.toast.error"), description: t("users.toast.loadUsersError"), variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -116,9 +119,9 @@ export default function UsersPage() {
         const data = await res.json();
         setInvitations(data.invitations || []);
       } else {
-        toast({ title: "Erreur", description: "Impossible de charger les invitations", variant: "destructive" });
+        toast({ title: t("users.toast.error"), description: t("users.toast.loadInvitesError"), variant: "destructive" });
       }
-    } catch { toast({ title: "Erreur", description: "Erreur reseau lors du chargement des invitations", variant: "destructive" }); }
+    } catch { toast({ title: t("users.toast.error"), description: t("users.toast.networkInvitesError"), variant: "destructive" }); }
     finally { setLoadingInvites(false); }
   }, []);
 
@@ -126,7 +129,7 @@ export default function UsersPage() {
 
   const handleSendInvite = async () => {
     if (!inviteEmail) {
-      toast({ title: "Erreur", description: "L'adresse email est obligatoire.", variant: "destructive" });
+      toast({ title: t("users.toast.error"), description: t("users.toast.inviteEmailRequired"), variant: "destructive" });
       return;
     }
     setSaving(true);
@@ -140,18 +143,18 @@ export default function UsersPage() {
       const data = await res.json();
       if (res.ok) {
         toast({
-          title: "Invitation envoyee",
-          description: data.emailSent ? `Un email d'invitation a été envoyé a ${inviteEmail}.` : data.message,
+          title: t("users.toast.inviteSent"),
+          description: data.emailSent ? t("users.toast.inviteSentDesc", { email: inviteEmail }) : data.message,
         });
         setInviteEmail("");
         setInviteRole("agent");
         setShowInvite(false);
         loadInvitations();
       } else {
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("users.toast.error"), description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Erreur lors de l'envoi.", variant: "destructive" });
+      toast({ title: t("users.toast.error"), description: t("users.toast.sendError"), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -162,13 +165,13 @@ export default function UsersPage() {
       const res = await fetch(`${BASE}api/invitations/${id}/resend`, { method: "POST", credentials: "include" });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Rappel envoye", description: "L'invitation a ete renvoyee." });
+        toast({ title: t("users.toast.reminderSent"), description: t("users.toast.reminderSentDesc") });
         loadInvitations();
       } else {
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("users.toast.error"), description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Erreur lors du renvoi.", variant: "destructive" });
+      toast({ title: t("users.toast.error"), description: t("users.toast.resendError"), variant: "destructive" });
     }
   };
 
@@ -176,13 +179,13 @@ export default function UsersPage() {
     try {
       const res = await fetch(`${BASE}api/invitations/${id}`, { method: "DELETE", credentials: "include" });
       if (res.ok) {
-        toast({ title: "Invitation annulee" });
+        toast({ title: t("users.toast.inviteCancelled") });
         loadInvitations();
       } else {
-        toast({ title: "Erreur", description: "Impossible d'annuler l'invitation.", variant: "destructive" });
+        toast({ title: t("users.toast.error"), description: t("users.toast.cancelInviteError"), variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Erreur lors de l'annulation.", variant: "destructive" });
+      toast({ title: t("users.toast.error"), description: t("users.toast.cancelError"), variant: "destructive" });
     }
   };
 
@@ -195,9 +198,9 @@ export default function UsersPage() {
         <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
           <ShieldAlert className="w-8 h-8 text-red-500" />
         </div>
-        <h2 className="text-xl font-bold">Acces restreint</h2>
+        <h2 className="text-xl font-bold">{t("users.accessDenied.title")}</h2>
         <p className="text-muted-foreground max-w-md">
-          Vous n'avez pas les permissions necessaires pour gerer les utilisateurs. Contactez votre administrateur pour obtenir l'acces.
+          {t("users.accessDenied.desc")}
         </p>
       </div>
     );
@@ -216,11 +219,11 @@ export default function UsersPage() {
 
   const handleAddUser = async () => {
     if (!newUser.prenom || !newUser.nom || !newUser.email || !newUser.password) {
-      toast({ title: "Erreur", description: "Tous les champs sont obligatoires (prenom, nom, email, mot de passe).", variant: "destructive" });
+      toast({ title: t("users.toast.error"), description: t("users.toast.allFieldsRequired"), variant: "destructive" });
       return;
     }
     if (newUser.password.length < 8) {
-      toast({ title: "Erreur", description: "Le mot de passe doit contenir au moins 8 caracteres.", variant: "destructive" });
+      toast({ title: t("users.toast.error"), description: t("users.toast.passwordMin"), variant: "destructive" });
       return;
     }
     setSaving(true);
@@ -233,15 +236,15 @@ export default function UsersPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Utilisateur cree", description: `${newUser.prenom} ${newUser.nom} a ete ajoute avec succes.` });
+        toast({ title: t("users.toast.userCreated"), description: t("users.toast.userCreatedDesc", { prenom: newUser.prenom, nom: newUser.nom }) });
         setNewUser({ prenom: "", nom: "", email: "", password: "", role: "agent", departement: "" });
         setShowAddUser(false);
         loadUsers();
       } else {
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("users.toast.error"), description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Erreur lors de la creation.", variant: "destructive" });
+      toast({ title: t("users.toast.error"), description: t("users.toast.createError"), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -249,11 +252,11 @@ export default function UsersPage() {
 
   const handleToggleActive = async (user: ApiUser) => {
     if (user.role === "super_admin" && user.actif) {
-      toast({ title: "Action interdite", description: "Le Super Administrateur ne peut pas etre desactive.", variant: "destructive" });
+      toast({ title: t("users.toast.actionForbidden"), description: t("users.toast.superAdminNoDeactivate"), variant: "destructive" });
       return;
     }
     if (user.actif) {
-      if (!(await confirmAction({ title: `Désactiver ${user.prenom} ${user.nom} ?`, description: "Cette personne perdra immédiatement l'accès à l'application.", confirmLabel: "Désactiver", destructive: true }))) return;
+      if (!(await confirmAction({ title: t("users.toast.confirmDeactivateTitle", { name: `${user.prenom} ${user.nom}` }), description: t("users.toast.confirmDeactivateDesc"), confirmLabel: t("users.toast.confirmDeactivateLabel"), destructive: true }))) return;
     }
     setSaving(true);
     try {
@@ -264,14 +267,14 @@ export default function UsersPage() {
         body: JSON.stringify({ actif: !user.actif }),
       });
       if (res.ok) {
-        toast({ title: user.actif ? "Utilisateur desactive" : "Utilisateur reactive", description: `${user.prenom} ${user.nom} a ete ${user.actif ? "desactive" : "reactive"}.` });
+        toast({ title: user.actif ? t("users.toast.userDeactivated") : t("users.toast.userReactivated"), description: user.actif ? t("users.toast.userDeactivatedDesc", { name: `${user.prenom} ${user.nom}` }) : t("users.toast.userReactivatedDesc", { name: `${user.prenom} ${user.nom}` }) });
         loadUsers();
       } else {
         const data = await res.json();
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("users.toast.error"), description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Erreur lors de la modification.", variant: "destructive" });
+      toast({ title: t("users.toast.error"), description: t("users.toast.modifyError"), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -288,15 +291,15 @@ export default function UsersPage() {
         body: JSON.stringify(editUserForm),
       });
       if (res.ok) {
-        toast({ title: "Utilisateur modifie", description: `${editUserForm.prenom} ${editUserForm.nom} mis à jour.` });
+        toast({ title: t("users.toast.userModified"), description: t("users.toast.userModifiedDesc", { prenom: editUserForm.prenom, nom: editUserForm.nom }) });
         setShowEditUser(false);
         loadUsers();
       } else {
         const data = await res.json();
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("users.toast.error"), description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Impossible de modifier l'utilisateur.", variant: "destructive" });
+      toast({ title: t("users.toast.error"), description: t("users.toast.modifyUserError"), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -305,7 +308,7 @@ export default function UsersPage() {
   const handleRoleChange = async () => {
     if (!selectedUser) return;
     if (editRole === "super_admin" && selectedUser.role !== "super_admin") {
-      if (!(await confirmAction({ title: "Promouvoir en Super Administrateur ?", description: `${selectedUser.prenom} ${selectedUser.nom} obtiendra un accès complet et irrévocable à toutes les fonctions de la plateforme.`, confirmLabel: "Promouvoir", destructive: true }))) return;
+      if (!(await confirmAction({ title: t("users.toast.promoteTitle"), description: t("users.toast.promoteDesc", { name: `${selectedUser.prenom} ${selectedUser.nom}` }), confirmLabel: t("users.toast.promoteLabel"), destructive: true }))) return;
     }
     setSaving(true);
     try {
@@ -316,22 +319,22 @@ export default function UsersPage() {
         body: JSON.stringify({ role: editRole }),
       });
       if (res.ok) {
-        toast({ title: "Role mis à jour", description: `${selectedUser.prenom} ${selectedUser.nom} est maintenant ${ROLE_CONFIG[editRole].label}.` });
+        toast({ title: t("users.toast.roleUpdated"), description: t("users.toast.roleUpdatedDesc", { name: `${selectedUser.prenom} ${selectedUser.nom}`, role: roleLabel(editRole) }) });
         setShowRoleChange(false);
         loadUsers();
       } else {
         const data = await res.json();
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("users.toast.error"), description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Erreur lors du changement de role.", variant: "destructive" });
+      toast({ title: t("users.toast.error"), description: t("users.toast.roleChangeError"), variant: "destructive" });
     } finally {
       setSaving(false);
     }
   };
 
   const handleSendCredentials = async (user: ApiUser) => {
-    if (!(await confirmAction({ title: "Envoyer un code de connexion ?", description: `Un code temporaire sera envoyé à ${user.prenom} ${user.nom} (${user.email}).`, confirmLabel: "Envoyer" }))) return;
+    if (!(await confirmAction({ title: t("users.toast.sendCodeTitle"), description: t("users.toast.sendCodeDesc", { name: `${user.prenom} ${user.nom}`, email: user.email }), confirmLabel: t("users.toast.sendCodeLabel") }))) return;
     setSaving(true);
     try {
       const res = await fetch(`${BASE}api/auth/users/${user.id}/send-credentials`, {
@@ -340,12 +343,12 @@ export default function UsersPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Code temporaire envoye", description: data.message || `Code de connexion temporaire envoye a ${user.email}.` });
+        toast({ title: t("users.toast.tempCodeSent"), description: data.message || t("users.toast.tempCodeSentDesc", { email: user.email }) });
       } else {
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("users.toast.error"), description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Erreur lors de l'envoi des identifiants.", variant: "destructive" });
+      toast({ title: t("users.toast.error"), description: t("users.toast.sendCredsError"), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -353,7 +356,7 @@ export default function UsersPage() {
 
   const handleCreateAndSend = async () => {
     if (!newUser.prenom || !newUser.nom || !newUser.email) {
-      toast({ title: "Erreur", description: "Prenom, nom et email sont obligatoires.", variant: "destructive" });
+      toast({ title: t("users.toast.error"), description: t("users.toast.firstLastEmailRequired"), variant: "destructive" });
       return;
     }
     setSaving(true);
@@ -373,17 +376,17 @@ export default function UsersPage() {
       const data = await res.json();
       if (res.ok) {
         toast({
-          title: "Utilisateur cree",
-          description: `${newUser.prenom} ${newUser.nom} a été créé. ${data.emailSent ? "Identifiants envoyes par email." : data.emailNote}`,
+          title: t("users.toast.userCreated"),
+          description: `${t("users.toast.userCreatedName", { prenom: newUser.prenom, nom: newUser.nom })} ${data.emailSent ? t("users.toast.credsSentByEmail") : data.emailNote}`,
         });
         setNewUser({ prenom: "", nom: "", email: "", password: "", role: "agent", departement: "" });
         setShowAddUser(false);
         loadUsers();
       } else {
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("users.toast.error"), description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Erreur lors de la creation.", variant: "destructive" });
+      toast({ title: t("users.toast.error"), description: t("users.toast.createError"), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -391,24 +394,24 @@ export default function UsersPage() {
 
   const handleDelete = async (user: ApiUser) => {
     if (user.role === "super_admin") {
-      toast({ title: "Action interdite", description: "Le Super Administrateur ne peut pas etre supprimé.", variant: "destructive" });
+      toast({ title: t("users.toast.actionForbidden"), description: t("users.toast.superAdminNoDelete"), variant: "destructive" });
       return;
     }
-    if (!(await confirmAction({ title: `Supprimer ${user.prenom} ${user.nom} ?`, description: "Cette action est irréversible.", confirmLabel: "Supprimer", destructive: true }))) return;
+    if (!(await confirmAction({ title: t("users.toast.confirmDeleteTitle", { name: `${user.prenom} ${user.nom}` }), description: t("users.toast.confirmDeleteDesc"), confirmLabel: t("common.delete"), destructive: true }))) return;
     try {
       const res = await fetch(`${BASE}api/auth/users/${user.id}`, {
         method: "DELETE",
         credentials: "include",
       });
       if (res.ok) {
-        toast({ title: "Utilisateur supprime", description: `${user.prenom} ${user.nom} a été supprimé.` });
+        toast({ title: t("users.toast.userDeleted"), description: t("users.toast.userDeletedDesc", { name: `${user.prenom} ${user.nom}` }) });
         loadUsers();
       } else {
         const data = await res.json();
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("users.toast.error"), description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Erreur lors de la suppression.", variant: "destructive" });
+      toast({ title: t("users.toast.error"), description: t("users.toast.deleteError"), variant: "destructive" });
     }
   };
 
@@ -422,29 +425,29 @@ export default function UsersPage() {
 
   const handleBulkDeactivate = async () => {
     if (selectedIds.size === 0) return;
-    if (!(await confirmAction({ title: `Désactiver ${selectedIds.size} utilisateur(s) ?`, confirmLabel: "Désactiver", destructive: true }))) return;
+    if (!(await confirmAction({ title: t("users.toast.confirmBulkDeactivate", { count: selectedIds.size }), confirmLabel: t("users.toast.confirmDeactivateLabel"), destructive: true }))) return;
     const ids = Array.from(selectedIds);
     const res = await fetch(`${BASE}api/auth/users/bulk/deactivate`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
     if (res.ok) {
-      toast({ title: `${selectedIds.size} utilisateur(s) desactive(s)` });
+      toast({ title: t("users.toast.bulkDeactivated", { count: selectedIds.size }) });
       setSelectedIds(new Set()); setSelectMode(false); loadUsers();
     } else {
       const d = await res.json();
-      toast({ title: "Erreur", description: d.error, variant: "destructive" });
+      toast({ title: t("users.toast.error"), description: d.error, variant: "destructive" });
     }
   };
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
-    if (!(await confirmAction({ title: `Supprimer ${selectedIds.size} utilisateur(s) ?`, description: "Cette action est irréversible.", confirmLabel: "Supprimer", destructive: true }))) return;
+    if (!(await confirmAction({ title: t("users.toast.confirmBulkDelete", { count: selectedIds.size }), description: t("users.toast.confirmDeleteDesc"), confirmLabel: t("common.delete"), destructive: true }))) return;
     const ids = Array.from(selectedIds);
     const res = await fetch(`${BASE}api/auth/users/bulk/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
     if (res.ok) {
-      toast({ title: `${selectedIds.size} utilisateur(s) supprime(s)` });
+      toast({ title: t("users.toast.bulkDeleted", { count: selectedIds.size }) });
       setSelectedIds(new Set()); setSelectMode(false); loadUsers();
     } else {
       const d = await res.json();
-      toast({ title: "Erreur", description: d.error, variant: "destructive" });
+      toast({ title: t("users.toast.error"), description: d.error, variant: "destructive" });
     }
   };
 
@@ -452,50 +455,50 @@ export default function UsersPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={Users} variant="teal" size="md" /> Gestion des utilisateurs</h1>
-          <p className="text-sm text-muted-foreground">Gerez votre equipe et les permissions d'accès.</p>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={Users} variant="teal" size="md" /> {t("users.title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("users.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {selectMode && selectedIds.size > 0 && (
             <>
               <Button size="sm" variant="outline" className="gap-1.5 text-amber-600 border-amber-300" onClick={handleBulkDeactivate}>
-                <Lock className="w-3.5 h-3.5" /> Désactiver ({selectedIds.size})
+                <Lock className="w-3.5 h-3.5" /> {t("users.bulkDeactivate", { count: selectedIds.size })}
               </Button>
               <Button size="sm" variant="outline" className="gap-1.5 text-red-600 border-red-300" onClick={handleBulkDelete}>
-                <Trash2 className="w-3.5 h-3.5" /> Supprimer ({selectedIds.size})
+                <Trash2 className="w-3.5 h-3.5" /> {t("users.bulkDelete", { count: selectedIds.size })}
               </Button>
             </>
           )}
           <Button variant={selectMode ? "default" : "outline"} size="sm" className="gap-2" onClick={toggleSelectMode}>
-            {selectMode ? <><X className="w-4 h-4" /> Annuler</> : <><CheckSquare className="w-4 h-4" /> Sélectionner</>}
+            {selectMode ? <><X className="w-4 h-4" /> {t("common.cancel")}</> : <><CheckSquare className="w-4 h-4" /> {t("users.select")}</>}
           </Button>
           <Button variant="outline" size="sm" className="gap-2" onClick={() => { setLoading(true); loadUsers(); }}>
             <RefreshCw className="w-4 h-4" />
-            <span className="hidden sm:inline">Actualiser</span>
+            <span className="hidden sm:inline">{t("users.refresh")}</span>
           </Button>
           <a href={`${BASE}api/auth/users/export/csv`} download="utilisateurs.csv">
-            <Button variant="outline" size="sm" title="Exporter CSV"><Download className="w-4 h-4" /></Button>
+            <Button variant="outline" size="sm" title={t("users.exportCsvTitle")}><Download className="w-4 h-4" /></Button>
           </a>
-          <Button variant="outline" size="sm" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
-          <Button variant="outline" size="sm" className="gap-2 border-amber-200 text-amber-700 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-950/30" onClick={() => siegesRestants > 0 ? setShowInvite(true) : toast({ title: "Limite atteinte", description: "Nombre maximum d'utilisateurs atteint.", variant: "destructive" })}>
+          <Button variant="outline" size="sm" title={t("users.printTitle")} onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+          <Button variant="outline" size="sm" className="gap-2 border-amber-200 text-amber-700 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-950/30" onClick={() => siegesRestants > 0 ? setShowInvite(true) : toast({ title: t("users.limitReached"), description: t("users.limitReachedDesc"), variant: "destructive" })}>
             <MailPlus className="w-4 h-4" />
-            Inviter par email
+            {t("users.inviteByEmail")}
           </Button>
-          <Button size="sm" className="gap-2" onClick={() => siegesRestants > 0 ? setShowAddUser(true) : toast({ title: "Limite atteinte", description: "Nombre maximum d'utilisateurs atteint. Mettez a jour votre plan dans les paramètres.", variant: "destructive" })}>
+          <Button size="sm" className="gap-2" onClick={() => siegesRestants > 0 ? setShowAddUser(true) : toast({ title: t("users.limitReached"), description: t("users.limitReachedDescPlan"), variant: "destructive" })}>
             <UserPlus className="w-4 h-4" />
-            Ajouter
+            {t("users.add")}
           </Button>
         </div>
       </div>
 
       <Card className="overflow-hidden border-0 shadow-lg">
         <div className="relative h-28">
-          <img src={officeTeamImg} alt="Equipe du bureau" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+          <img src={officeTeamImg} alt={t("users.bannerImgAlt")} className="w-full h-full object-cover" loading="lazy" decoding="async" />
           <div className="absolute inset-0 bg-gradient-to-r from-teal-900/80 via-teal-800/50 to-transparent" />
           <div className="absolute inset-0 flex items-center px-6">
             <div className="text-white">
-              <h3 className="text-lg font-bold">Gestion de l'equipe</h3>
-              <p className="text-white/80 text-sm mt-1">Permissions granulaires et suivi des activites.</p>
+              <h3 className="text-lg font-bold">{t("users.bannerTitle")}</h3>
+              <p className="text-white/80 text-sm mt-1">{t("users.bannerSubtitle")}</p>
             </div>
           </div>
         </div>
@@ -505,45 +508,45 @@ export default function UsersPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-muted-foreground">Utilisateurs</p>
+              <p className="text-xs text-muted-foreground">{t("users.stats.users")}</p>
               <Users className="w-4 h-4 text-muted-foreground" />
             </div>
             <p className="text-2xl font-bold">{activeUsers} <span className="text-sm font-normal text-muted-foreground">/ {maxUsers}</span></p>
             <Progress value={(activeUsers / maxUsers) * 100} className="mt-2 h-1.5" />
-            <p className="text-[10px] text-muted-foreground mt-1">{siegesRestants} place(s) disponible(s)</p>
+            <p className="text-[10px] text-muted-foreground mt-1">{t("users.stats.seatsAvailable", { count: siegesRestants })}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-muted-foreground">Actifs</p>
+              <p className="text-xs text-muted-foreground">{t("users.stats.active")}</p>
               <CheckCircle2 className="w-4 h-4 text-emerald-500" />
             </div>
             <p className="text-2xl font-bold">{activeUsers}</p>
-            <p className="text-xs text-muted-foreground mt-1">Comptes actifs</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("users.stats.activeAccounts")}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-muted-foreground">Desactives</p>
+              <p className="text-xs text-muted-foreground">{t("users.stats.deactivated")}</p>
               <XCircle className="w-4 h-4 text-red-400" />
             </div>
             <p className="text-2xl font-bold">{users.filter(u => !u.actif).length}</p>
-            <p className="text-xs text-muted-foreground mt-1">Comptes desactives</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("users.stats.deactivatedAccounts")}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-muted-foreground">Admins</p>
+              <p className="text-xs text-muted-foreground">{t("users.stats.admins")}</p>
               <ShieldCheck className="w-4 h-4 text-amber-500" />
             </div>
             <p className="text-2xl font-bold">{users.filter(u => u.role === "super_admin" || u.role === "administrateur").length}</p>
-            <p className="text-xs text-muted-foreground mt-1">Administrateurs</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("users.stats.administrators")}</p>
           </CardContent>
         </Card>
       </div>
@@ -552,7 +555,7 @@ export default function UsersPage() {
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Rechercher un utilisateur..."
+            placeholder={t("users.searchPlaceholder")}
             className="pl-9"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -560,14 +563,14 @@ export default function UsersPage() {
         </div>
         <Select value={roleFilter} onValueChange={setRoleFilter}>
           <SelectTrigger className="w-full sm:w-44">
-            <SelectValue placeholder="Tous les roles" />
+            <SelectValue placeholder={t("users.allRoles")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="tous">Tous les roles</SelectItem>
-            <SelectItem value="super_admin">Super Admin</SelectItem>
-            <SelectItem value="administrateur">Administrateur</SelectItem>
-            <SelectItem value="agent">Agent</SelectItem>
-            <SelectItem value="lecture_seule">Lecture seule</SelectItem>
+            <SelectItem value="tous">{t("users.allRoles")}</SelectItem>
+            <SelectItem value="super_admin">{t("users.roles.super_admin")}</SelectItem>
+            <SelectItem value="administrateur">{t("users.roles.administrateur")}</SelectItem>
+            <SelectItem value="agent">{t("users.roles.agent")}</SelectItem>
+            <SelectItem value="lecture_seule">{t("users.roles.lecture_seule")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -579,7 +582,7 @@ export default function UsersPage() {
       ) : filteredUsers.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
-            {searchQuery || roleFilter !== "tous" ? "Aucun utilisateur correspond aux criteres." : "Aucun utilisateur. Ajoutez votre premier membre."}
+            {searchQuery || roleFilter !== "tous" ? t("users.emptyFiltered") : t("users.emptyNone")}
           </CardContent>
         </Card>
       ) : (
@@ -598,11 +601,11 @@ export default function UsersPage() {
                         </button>
                       </TableHead>
                     )}
-                    <TableHead>Utilisateur</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead>Departement</TableHead>
-                    <TableHead>Dernier acces</TableHead>
+                    <TableHead>{t("users.columns.user")}</TableHead>
+                    <TableHead>{t("users.columns.role")}</TableHead>
+                    <TableHead>{t("users.columns.status")}</TableHead>
+                    <TableHead>{t("users.columns.department")}</TableHead>
+                    <TableHead>{t("users.columns.lastAccess")}</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -635,17 +638,17 @@ export default function UsersPage() {
                         <TableCell>
                           <Badge className={roleConf.couleur + " border-0 text-[10px] gap-1"}>
                             <RoleIcon className="w-3 h-3" />
-                            {roleConf.label}
+                            {roleLabel(user.role)}
                           </Badge>
                         </TableCell>
                         <TableCell>
                           <Badge className={user.actif ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-[10px]" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0 text-[10px]"}>
-                            {user.actif ? "Actif" : "Desactive"}
+                            {user.actif ? t("users.status.active") : t("users.status.deactivated")}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm">{user.departement || "—"}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          {user.dernierAcces ? new Date(user.dernierAcces).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "Jamais"}
+                          {user.dernierAcces ? new Date(user.dernierAcces).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : t("users.lastAccessNever")}
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
@@ -661,7 +664,7 @@ export default function UsersPage() {
                                 setShowEditUser(true);
                               }}>
                                 <Edit className="w-4 h-4" />
-                                Modifier
+                                {t("users.actions.edit")}
                               </DropdownMenuItem>
                               <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => {
                                 setSelectedUser(user);
@@ -669,22 +672,22 @@ export default function UsersPage() {
                                 setShowRoleChange(true);
                               }}>
                                 <UserCog className="w-4 h-4" />
-                                Changer le role
+                                {t("users.actions.changeRole")}
                               </DropdownMenuItem>
                               <DropdownMenuItem className="gap-2 cursor-pointer text-blue-600" onClick={() => handleSendCredentials(user)}>
                                 <LockKeyhole className="w-4 h-4" />
-                                Envoyer code temporaire
+                                {t("users.actions.sendTempCode")}
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               {user.role !== "super_admin" && (
                                 <>
                                   <DropdownMenuItem className={`gap-2 cursor-pointer ${user.actif ? "text-amber-600" : "text-emerald-600"}`} onClick={() => handleToggleActive(user)}>
                                     {user.actif ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-                                    {user.actif ? "Desactiver" : "Reactiver"}
+                                    {user.actif ? t("users.actions.deactivate") : t("users.actions.reactivate")}
                                   </DropdownMenuItem>
                                   <DropdownMenuItem className="gap-2 cursor-pointer text-red-600" onClick={() => handleDelete(user)}>
                                     <Trash2 className="w-4 h-4" />
-                                    Supprimer
+                                    {t("users.actions.delete")}
                                   </DropdownMenuItem>
                                 </>
                               )}
@@ -729,7 +732,7 @@ export default function UsersPage() {
                             setShowEditUser(true);
                           }}>
                             <Edit className="w-4 h-4" />
-                            Modifier
+                            {t("users.actions.edit")}
                           </DropdownMenuItem>
                           <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => {
                             setSelectedUser(user);
@@ -737,11 +740,11 @@ export default function UsersPage() {
                             setShowRoleChange(true);
                           }}>
                             <UserCog className="w-4 h-4" />
-                            Changer le role
+                            {t("users.actions.changeRole")}
                           </DropdownMenuItem>
                           <DropdownMenuItem className="gap-2 cursor-pointer text-blue-600" onClick={() => handleSendCredentials(user)}>
                             <LockKeyhole className="w-4 h-4" />
-                            Envoyer code temporaire
+                            {t("users.actions.sendTempCode")}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {user.role !== "super_admin" && (
@@ -752,7 +755,7 @@ export default function UsersPage() {
                               </DropdownMenuItem>
                               <DropdownMenuItem className="gap-2 cursor-pointer text-red-600" onClick={() => handleDelete(user)}>
                                 <Trash2 className="w-4 h-4" />
-                                Supprimer
+                                {t("users.actions.delete")}
                               </DropdownMenuItem>
                             </>
                           )}
@@ -762,10 +765,10 @@ export default function UsersPage() {
                     <div className="flex flex-wrap items-center gap-2 mt-3">
                       <Badge className={roleConf.couleur + " border-0 text-[10px] gap-1"}>
                         <RoleIcon className="w-3 h-3" />
-                        {roleConf.label}
+                        {roleLabel(user.role)}
                       </Badge>
                       <Badge className={user.actif ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-[10px]" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0 text-[10px]"}>
-                        {user.actif ? "Actif" : "Desactive"}
+                        {user.actif ? t("users.status.active") : t("users.status.deactivated")}
                       </Badge>
                       {user.departement && (
                         <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{user.departement}</span>
@@ -774,13 +777,13 @@ export default function UsersPage() {
                     <div className="flex items-center justify-between mt-3 pt-3 border-t">
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <Clock className="w-3 h-3" />
-                        {user.dernierAcces ? new Date(user.dernierAcces).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "Jamais connecte"}
+                        {user.dernierAcces ? new Date(user.dernierAcces).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : t("users.neverConnected")}
                       </div>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         {user.mfaActif ? (
-                          <><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> MFA</>
+                          <><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> {t("users.mfa")}</>
                         ) : (
-                          <><AlertTriangle className="w-3.5 h-3.5 text-amber-500" /> Pas de MFA</>
+                          <><AlertTriangle className="w-3.5 h-3.5 text-amber-500" /> {t("users.noMfa")}</>
                         )}
                       </div>
                     </div>
@@ -798,30 +801,30 @@ export default function UsersPage() {
             <AlertTriangle className="w-5 h-5 text-amber-600" />
             <div>
               <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
-                Il ne reste que {siegesRestants} place(s) disponible(s) sur votre plan
+                {t("users.seatsWarning", { count: siegesRestants })}
               </p>
               <p className="text-xs text-amber-600 dark:text-amber-400">
-                Mettez a jour votre abonnement dans les paramètres pour ajouter plus d'utilisateurs.
+                {t("users.seatsWarningDesc")}
               </p>
             </div>
           </CardContent>
         </Card>
       )}
 
-      <AiSuggestionsCard page="utilisateurs" title="Recommandations IA - Equipe" compact />
+      <AiSuggestionsCard page="utilisateurs" title={t("users.aiTitle")} compact />
 
       <Dialog open={showAddUser} onOpenChange={setShowAddUser}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserPlus className="w-5 h-5" />
-              Ajouter un utilisateur
+              {t("users.addDialog.title")}
             </DialogTitle>
             <DialogDescription>
-              Creez un nouveau compte utilisateur pour votre equipe.
+              {t("users.addDialog.desc")}
               {siegesRestants > 0 && (
                 <span className="block mt-1 text-emerald-600">
-                  {siegesRestants} place(s) disponible(s) sur votre plan.
+                  {t("users.addDialog.seatsAvailable", { count: siegesRestants })}
                 </span>
               )}
             </DialogDescription>
@@ -829,54 +832,54 @@ export default function UsersPage() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Prenom *</Label>
-                <Input placeholder="Prenom" value={newUser.prenom} onChange={(e) => setNewUser({ ...newUser, prenom: e.target.value })} />
+                <Label>{t("users.form.firstName")}</Label>
+                <Input placeholder={t("users.form.firstNamePlaceholder")} value={newUser.prenom} onChange={(e) => setNewUser({ ...newUser, prenom: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label>Nom *</Label>
-                <Input placeholder="Nom" value={newUser.nom} onChange={(e) => setNewUser({ ...newUser, nom: e.target.value })} />
+                <Label>{t("users.form.lastName")}</Label>
+                <Input placeholder={t("users.form.lastNamePlaceholder")} value={newUser.nom} onChange={(e) => setNewUser({ ...newUser, nom: e.target.value })} />
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Adresse e-mail *</Label>
-              <Input type="email" placeholder="utilisateur@entreprise.fr" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} />
+              <Label>{t("users.form.email")}</Label>
+              <Input type="email" placeholder={t("users.form.emailPlaceholder")} value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} />
             </div>
             <div className="space-y-2">
-              <Label>Mot de passe (min 8 caracteres)</Label>
-              <Input type="password" placeholder="Laisser vide pour generer automatiquement" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} />
-              <p className="text-[11px] text-muted-foreground">Laissez vide pour generer un mot de passe securise automatiquement et l'envoyer par email.</p>
+              <Label>{t("users.form.password")}</Label>
+              <Input type="password" placeholder={t("users.form.passwordPlaceholder")} value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} />
+              <p className="text-[11px] text-muted-foreground">{t("users.form.passwordHint")}</p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Role</Label>
+                <Label>{t("users.form.role")}</Label>
                 <Select value={newUser.role} onValueChange={(v) => setNewUser({ ...newUser, role: v as UserRole })}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="agent">Agent</SelectItem>
-                    <SelectItem value="administrateur">Administrateur</SelectItem>
-                    <SelectItem value="lecture_seule">Lecture seule</SelectItem>
+                    <SelectItem value="agent">{t("users.roles.agent")}</SelectItem>
+                    <SelectItem value="administrateur">{t("users.roles.administrateur")}</SelectItem>
+                    <SelectItem value="lecture_seule">{t("users.roles.lecture_seule")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Departement</Label>
-                <Input placeholder="ex: Commercial" value={newUser.departement} onChange={(e) => setNewUser({ ...newUser, departement: e.target.value })} />
+                <Label>{t("users.form.department")}</Label>
+                <Input placeholder={t("users.form.departmentPlaceholder")} value={newUser.departement} onChange={(e) => setNewUser({ ...newUser, departement: e.target.value })} />
               </div>
             </div>
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setShowAddUser(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setShowAddUser(false)}>{t("common.cancel")}</Button>
             {!newUser.password && (
               <Button variant="secondary" onClick={handleCreateAndSend} disabled={saving} className="gap-2">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                Creer et envoyer par email
+                {t("users.addDialog.createAndSend")}
               </Button>
             )}
             <Button onClick={handleAddUser} disabled={saving || !newUser.password} className="gap-2">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
-              Creer l'utilisateur
+              {t("users.addDialog.createUser")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -887,10 +890,10 @@ export default function UsersPage() {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <MailPlus className="w-5 h-5 text-amber-500" />
-              Invitations en attente
+              {t("users.pending.title")}
               <Badge variant="secondary" className="ml-auto">{pendingInvitations.length}</Badge>
             </CardTitle>
-            <CardDescription>Ces personnes ont recu une invitation et n'ont pas encore cree leur compte.</CardDescription>
+            <CardDescription>{t("users.pending.desc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             {pendingInvitations.map((inv) => {
@@ -904,15 +907,15 @@ export default function UsersPage() {
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">{inv.email}</p>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Badge variant="outline" className="text-[10px] h-5">{ROLE_CONFIG[inv.role as UserRole]?.label || inv.role}</Badge>
-                        <span><Clock className="w-3 h-3 inline mr-0.5" />{hoursLeft}h restantes</span>
+                        <Badge variant="outline" className="text-[10px] h-5">{ROLE_CONFIG[inv.role as UserRole] ? roleLabel(inv.role as UserRole) : inv.role}</Badge>
+                        <span><Clock className="w-3 h-3 inline mr-0.5" />{t("users.pending.hoursLeft", { count: hoursLeft })}</span>
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
                     <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs" onClick={() => handleResendInvite(inv.id)}>
                       <RotateCcw className="w-3 h-3" />
-                      Renvoyer
+                      {t("users.pending.resend")}
                     </Button>
                     <Button variant="ghost" size="sm" className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20" onClick={() => handleCancelInvite(inv.id)}>
                       <Ban className="w-3 h-3" />
@@ -930,41 +933,41 @@ export default function UsersPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MailPlus className="w-5 h-5 text-amber-500" />
-              Inviter un collaborateur
+              {t("users.inviteDialog.title")}
             </DialogTitle>
             <DialogDescription>
-              Envoyez une invitation securisee par email. La personne recevra un lien pour creer son compte et rejoindre votre equipe.
+              {t("users.inviteDialog.desc")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Adresse email *</Label>
-              <Input type="email" placeholder="collaborateur@entreprise.fr" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} />
+              <Label>{t("users.inviteDialog.emailLabel")}</Label>
+              <Input type="email" placeholder={t("users.inviteDialog.emailPlaceholder")} value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Role</Label>
+              <Label>{t("users.form.role")}</Label>
               <Select value={inviteRole} onValueChange={setInviteRole}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="agent">Agent</SelectItem>
-                  <SelectItem value="administrateur">Administrateur</SelectItem>
-                  <SelectItem value="lecture_seule">Lecture seule</SelectItem>
+                  <SelectItem value="agent">{t("users.roles.agent")}</SelectItem>
+                  <SelectItem value="administrateur">{t("users.roles.administrateur")}</SelectItem>
+                  <SelectItem value="lecture_seule">{t("users.roles.lecture_seule")}</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-[11px] text-muted-foreground">Le collaborateur pourra se connecter avec ce role des l'acceptation.</p>
+              <p className="text-[11px] text-muted-foreground">{t("users.inviteDialog.roleHint")}</p>
             </div>
             <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-800/30 rounded-lg p-3">
               <p className="text-xs text-blue-700 dark:text-blue-400 flex items-start gap-2">
                 <LockKeyhole className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                L'invitation est securisee avec un token cryptographique unique, valable 72 heures et a usage unique.
+                {t("users.inviteDialog.tokenInfo")}
               </p>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowInvite(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setShowInvite(false)}>{t("common.cancel")}</Button>
             <Button onClick={handleSendInvite} disabled={saving || !inviteEmail} className="gap-2 bg-amber-600 hover:bg-amber-700 text-white">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              Envoyer l'invitation
+              {t("users.inviteDialog.send")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -975,7 +978,7 @@ export default function UsersPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Edit className="w-5 h-5" />
-              Modifier l'utilisateur
+              {t("users.editDialog.title")}
             </DialogTitle>
             <DialogDescription>
               {selectedUser && `${selectedUser.email}`}
@@ -984,28 +987,28 @@ export default function UsersPage() {
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Prenom</Label>
+                <Label>{t("users.form.firstNamePlaceholder")}</Label>
                 <Input value={editUserForm.prenom} onChange={(e) => setEditUserForm(f => ({ ...f, prenom: e.target.value }))} />
               </div>
               <div>
-                <Label>Nom</Label>
+                <Label>{t("users.form.lastNamePlaceholder")}</Label>
                 <Input value={editUserForm.nom} onChange={(e) => setEditUserForm(f => ({ ...f, nom: e.target.value }))} />
               </div>
             </div>
             <div>
-              <Label>Departement</Label>
-              <Input value={editUserForm.departement} onChange={(e) => setEditUserForm(f => ({ ...f, departement: e.target.value }))} placeholder="Ex: Commercial, Support..." />
+              <Label>{t("users.form.department")}</Label>
+              <Input value={editUserForm.departement} onChange={(e) => setEditUserForm(f => ({ ...f, departement: e.target.value }))} placeholder={t("users.editDialog.departmentPlaceholder")} />
             </div>
             <div>
-              <Label>Telephone</Label>
-              <Input value={editUserForm.telephone} onChange={(e) => setEditUserForm(f => ({ ...f, telephone: e.target.value }))} placeholder="+33 6 XX XX XX XX" />
+              <Label>{t("users.editDialog.phone")}</Label>
+              <Input value={editUserForm.telephone} onChange={(e) => setEditUserForm(f => ({ ...f, telephone: e.target.value }))} placeholder={t("users.editDialog.phonePlaceholder")} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditUser(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setShowEditUser(false)}>{t("common.cancel")}</Button>
             <Button onClick={handleEditUser} disabled={saving}>
               {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              Enregistrer
+              {t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1016,14 +1019,14 @@ export default function UsersPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserCog className="w-5 h-5" />
-              Changer le role
+              {t("users.roleDialog.title")}
             </DialogTitle>
             <DialogDescription>
-              {selectedUser && `${selectedUser.prenom} ${selectedUser.nom} — role actuel : ${ROLE_CONFIG[selectedUser.role].label}`}
+              {selectedUser && t("users.roleDialog.currentRole", { name: `${selectedUser.prenom} ${selectedUser.nom}`, role: roleLabel(selectedUser.role) })}
             </DialogDescription>
           </DialogHeader>
           <div>
-            <Label>Nouveau role</Label>
+            <Label>{t("users.roleDialog.newRole")}</Label>
             <Select value={editRole} onValueChange={(v) => setEditRole(v as UserRole)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -1032,18 +1035,18 @@ export default function UsersPage() {
                     non-super-admin — cache l'option cote UI plutot que de
                     laisser un administrateur la choisir puis se faire
                     rejeter apres confirmation. */}
-                {isSuperAdmin() && <SelectItem value="super_admin">Super Admin</SelectItem>}
-                <SelectItem value="administrateur">Administrateur</SelectItem>
-                <SelectItem value="agent">Agent</SelectItem>
-                <SelectItem value="lecture_seule">Lecture seule</SelectItem>
+                {isSuperAdmin() && <SelectItem value="super_admin">{t("users.roles.super_admin")}</SelectItem>}
+                <SelectItem value="administrateur">{t("users.roles.administrateur")}</SelectItem>
+                <SelectItem value="agent">{t("users.roles.agent")}</SelectItem>
+                <SelectItem value="lecture_seule">{t("users.roles.lecture_seule")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRoleChange(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setShowRoleChange(false)}>{t("common.cancel")}</Button>
             <Button onClick={handleRoleChange} disabled={saving}>
               {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              Enregistrer
+              {t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>

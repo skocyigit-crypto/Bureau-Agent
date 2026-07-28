@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 
 const SECURITY_API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/security";
 
@@ -107,6 +108,7 @@ const KIND_ICON: Record<string, typeof Link2> = {
 
 // ── Score de sécurité + recommandations ───────────────────────────────────────
 function ScorePanelCard({ score, loading }: { score: SecurityScore | null; loading: boolean }) {
+  const { t } = useTranslation();
   const style = score ? RATING_STYLE[score.rating] : RATING_STYLE.moyen;
   const pct = score?.score ?? 0;
   const circumference = 2 * Math.PI * 42;
@@ -117,15 +119,15 @@ function ScorePanelCard({ score, loading }: { score: SecurityScore | null; loadi
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Gauge className="w-5 h-5 text-blue-600" />
-          Score de sécurité
+          {t("securitePage.score.title")}
         </CardTitle>
-        <CardDescription>Évaluation globale de votre posture de sécurité et pistes d'amélioration.</CardDescription>
+        <CardDescription>{t("securitePage.score.desc")}</CardDescription>
       </CardHeader>
       <CardContent>
         {loading && !score ? (
           <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
         ) : !score ? (
-          <p className="text-sm text-muted-foreground">Score indisponible.</p>
+          <p className="text-sm text-muted-foreground">{t("securitePage.score.unavailable")}</p>
         ) : (
           <div className="flex flex-col md:flex-row gap-6">
             {/* Jauge circulaire */}
@@ -146,7 +148,7 @@ function ScorePanelCard({ score, loading }: { score: SecurityScore | null; loadi
                 </div>
               </div>
               <Badge className={`mt-2 border-0 ${SEVERITY_STYLE[score.rating === "faible" ? "high" : score.rating === "moyen" ? "medium" : "low"]}`}>
-                {style.label}
+                {score ? t(`securitePage.rating.${score.rating}`) : style.label}
               </Badge>
             </div>
 
@@ -155,7 +157,7 @@ function ScorePanelCard({ score, loading }: { score: SecurityScore | null; loadi
               {score.strengths.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Points forts
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> {t("securitePage.score.strengths")}
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {score.strengths.map((s, i) => (
@@ -169,18 +171,18 @@ function ScorePanelCard({ score, loading }: { score: SecurityScore | null; loadi
 
               <div>
                 <p className="text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1">
-                  <Lightbulb className="w-3.5 h-3.5 text-amber-500" /> Recommandations
+                  <Lightbulb className="w-3.5 h-3.5 text-amber-500" /> {t("securitePage.score.recommendations")}
                 </p>
                 {score.recommendations.length === 0 ? (
                   <p className="text-sm text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4" /> Tout est en ordre, aucune action requise.
+                    <CheckCircle2 className="w-4 h-4" /> {t("securitePage.score.allGood")}
                   </p>
                 ) : (
                   <div className="space-y-2">
                     {score.recommendations.map((r) => (
                       <div key={r.id} className="border rounded-lg p-2.5 flex items-start gap-2">
                         <Badge className={`border-0 text-[9px] mt-0.5 ${SEVERITY_STYLE[r.severity]}`}>
-                          {r.severity === "high" ? "Priorité" : r.severity === "medium" ? "Conseillé" : "Optionnel"}
+                          {t(`securitePage.severity.${r.severity}`)}
                         </Badge>
                         <div className="flex-1">
                           <p className="text-sm font-medium flex items-center gap-1">
@@ -215,6 +217,7 @@ function ScorePanelCard({ score, loading }: { score: SecurityScore | null; loadi
 function ProtectionStatusCard({ status, loading, onRefresh }: {
   status: ProtectionStatus | null; loading: boolean; onRefresh: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <Card>
       <CardHeader>
@@ -222,13 +225,13 @@ function ProtectionStatusCard({ status, loading, onRefresh }: {
           <div>
             <CardTitle className="flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-emerald-600" />
-              Votre protection
+              {t("securitePage.protection.title")}
             </CardTitle>
-            <CardDescription>Couches de sécurité actives sur votre compte Ajant Bureau.</CardDescription>
+            <CardDescription>{t("securitePage.protection.desc")}</CardDescription>
           </div>
           <Button variant="outline" size="sm" onClick={onRefresh} disabled={loading}>
             <RefreshCw className={`w-3 h-3 mr-1 ${loading ? "animate-spin" : ""}`} />
-            Actualiser
+            {t("securitePage.protection.refresh")}
           </Button>
         </div>
       </CardHeader>
@@ -237,19 +240,19 @@ function ProtectionStatusCard({ status, loading, onRefresh }: {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="border rounded-lg p-3 text-center">
               <div className="text-2xl font-bold text-blue-600">{status.summary.total}</div>
-              <p className="text-xs text-muted-foreground">Analyses effectuées</p>
+              <p className="text-xs text-muted-foreground">{t("securitePage.protection.scansCount")}</p>
             </div>
             <div className="border rounded-lg p-3 text-center">
               <div className="text-2xl font-bold text-red-600">{status.summary.dangerous}</div>
-              <p className="text-xs text-muted-foreground">Menaces bloquées</p>
+              <p className="text-xs text-muted-foreground">{t("securitePage.protection.threatsBlocked")}</p>
             </div>
             <div className="border rounded-lg p-3 text-center">
               <div className="text-2xl font-bold text-amber-600">{status.summary.suspicious}</div>
-              <p className="text-xs text-muted-foreground">Éléments suspects</p>
+              <p className="text-xs text-muted-foreground">{t("securitePage.protection.suspiciousItems")}</p>
             </div>
             <div className="border rounded-lg p-3 text-center">
               <div className="text-2xl font-bold text-slate-600">{status.summary.last24h}</div>
-              <p className="text-xs text-muted-foreground">Dernières 24h</p>
+              <p className="text-xs text-muted-foreground">{t("securitePage.protection.last24h")}</p>
             </div>
           </div>
         )}
@@ -264,7 +267,7 @@ function ProtectionStatusCard({ status, loading, onRefresh }: {
                 </div>
                 <p className="text-xs font-medium flex-1">{layer.label}</p>
                 <Badge className={`text-[9px] border-0 ${layer.active ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
-                  {layer.active ? "Actif" : "Inactif"}
+                  {layer.active ? t("securitePage.protection.layerActive") : t("securitePage.protection.layerInactive")}
                 </Badge>
               </div>
             ))}
@@ -281,6 +284,7 @@ function LinkScannerCard({ onScanned }: { onScanned: () => void }) {
   const [result, setResult] = useState<UrlScanResult | null>(null);
   const [scanning, setScanning] = useState(false);
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const scan = useCallback(async () => {
     const trimmed = url.trim();
@@ -298,14 +302,14 @@ function LinkScannerCard({ onScanned }: { onScanned: () => void }) {
         setResult(await res.json());
         onScanned();
       } else {
-        toast({ title: "Erreur", description: "Analyse impossible.", variant: "destructive" });
+        toast({ title: t("securitePage.toast.error"), description: t("securitePage.toast.analyzeImpossible"), variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur réseau", variant: "destructive" });
+      toast({ title: t("securitePage.toast.networkError"), variant: "destructive" });
     } finally {
       setScanning(false);
     }
-  }, [url, onScanned, toast]);
+  }, [url, onScanned, toast, t]);
 
   const openSafely = () => {
     if (!result) return;
@@ -320,22 +324,22 @@ function LinkScannerCard({ onScanned }: { onScanned: () => void }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Link2 className="w-5 h-5 text-blue-600" />
-          Scanner un lien
+          {t("securitePage.link.title")}
         </CardTitle>
         <CardDescription>
-          Vérifiez un lien suspect avant de l'ouvrir. Analyse heuristique + Google Safe Browsing.
+          {t("securitePage.link.desc")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex gap-2">
           <Input
-            placeholder="https://exemple.com/lien-a-verifier"
+            placeholder={t("securitePage.link.placeholder")}
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") scan(); }}
           />
           <Button onClick={scan} disabled={scanning || !url.trim()}>
-            {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : "Analyser"}
+            {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : t("securitePage.link.analyze")}
           </Button>
         </div>
 
@@ -343,7 +347,7 @@ function LinkScannerCard({ onScanned }: { onScanned: () => void }) {
           <div className={`border rounded-lg p-3 space-y-2 ${result.risk === "dangerous" ? "border-red-300 dark:border-red-900/50" : result.risk === "suspicious" ? "border-amber-300 dark:border-amber-900/50" : "border-emerald-300 dark:border-emerald-900/50"}`}>
             <div className="flex items-center gap-2">
               <rs.icon className={`w-5 h-5 ${result.risk === "dangerous" ? "text-red-600" : result.risk === "suspicious" ? "text-amber-600" : "text-emerald-600"}`} />
-              <Badge className={`${rs.badge} border-0`}>{rs.label}</Badge>
+              <Badge className={`${rs.badge} border-0`}>{t(`securitePage.risk.${result.risk}`)}</Badge>
               <span className="text-sm font-mono text-muted-foreground truncate">{result.domain}</span>
             </div>
             {result.reasons.length > 0 ? (
@@ -351,22 +355,22 @@ function LinkScannerCard({ onScanned }: { onScanned: () => void }) {
                 {result.reasons.map((r, i) => <li key={i}>{r}</li>)}
               </ul>
             ) : (
-              <p className="text-xs text-muted-foreground">Aucun signal de risque détecté.</p>
+              <p className="text-xs text-muted-foreground">{t("securitePage.link.noSignal")}</p>
             )}
             <div className="flex gap-2 pt-1">
               {result.risk === "safe" ? (
                 <Button size="sm" variant="outline" onClick={openSafely}>
-                  <ExternalLink className="w-3 h-3 mr-1" /> Ouvrir le lien
+                  <ExternalLink className="w-3 h-3 mr-1" /> {t("securitePage.link.openLink")}
                 </Button>
               ) : (
                 <div className="text-xs font-medium text-red-600 flex items-center gap-1">
                   <Lock className="w-3 h-3" />
-                  {result.risk === "dangerous" ? "Ouverture bloquée — ne cliquez pas." : "Prudence recommandée."}
+                  {result.risk === "dangerous" ? t("securitePage.link.blockedDanger") : t("securitePage.link.caution")}
                 </div>
               )}
               {result.risk !== "safe" && (
                 <Button size="sm" variant="ghost" className="text-xs text-muted-foreground" onClick={openSafely}>
-                  Ouvrir quand même
+                  {t("securitePage.link.openAnyway")}
                 </Button>
               )}
             </div>
@@ -379,12 +383,13 @@ function LinkScannerCard({ onScanned }: { onScanned: () => void }) {
 
 // ── Affichage RGPD (données personnelles détectées) ───────────────────────────
 function PiiFindings({ pii }: { pii: PiiResult }) {
+  const { t } = useTranslation();
   if (!pii.hasPii) return null;
   return (
     <div className="mt-2 border border-amber-300 dark:border-amber-900/50 rounded-lg p-2.5 bg-amber-50/50 dark:bg-amber-950/20">
       <div className="flex items-center gap-1.5 mb-1.5">
         <ShieldAlert className="w-4 h-4 text-amber-600" />
-        <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">Données personnelles détectées (RGPD)</span>
+        <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">{t("securitePage.pii.title")}</span>
       </div>
       <ul className="space-y-1">
         {pii.findings.map((f) => (
@@ -414,6 +419,7 @@ function FileScannerCard({ onScanned, deepScanEnabled }: { onScanned: () => void
   const inputRef = useRef<HTMLInputElement>(null);
   const deepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   useEffect(() => () => {
     if (deepTimerRef.current) clearTimeout(deepTimerRef.current);
@@ -421,7 +427,7 @@ function FileScannerCard({ onScanned, deepScanEnabled }: { onScanned: () => void
 
   const onFile = async (file: File) => {
     if (file.size > 15 * 1024 * 1024) {
-      toast({ title: "Fichier trop volumineux", description: "Maximum 15 Mo.", variant: "destructive" });
+      toast({ title: t("securitePage.file.tooLargeTitle"), description: t("securitePage.file.tooLargeDesc"), variant: "destructive" });
       return;
     }
     setScanning(true);
@@ -453,10 +459,10 @@ function FileScannerCard({ onScanned, deepScanEnabled }: { onScanned: () => void
         setResult({ name: file.name, res: await res.json() });
         onScanned();
       } else {
-        toast({ title: "Erreur", description: "Analyse impossible.", variant: "destructive" });
+        toast({ title: t("securitePage.toast.error"), description: t("securitePage.toast.analyzeImpossible"), variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Lecture du fichier impossible.", variant: "destructive" });
+      toast({ title: t("securitePage.toast.error"), description: t("securitePage.file.readImpossible"), variant: "destructive" });
     } finally {
       if (deepTimerRef.current) { clearTimeout(deepTimerRef.current); deepTimerRef.current = null; }
       setScanning(false);
@@ -470,9 +476,9 @@ function FileScannerCard({ onScanned, deepScanEnabled }: { onScanned: () => void
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <FileSearch className="w-5 h-5 text-purple-600" />
-          Scanner un fichier
+          {t("securitePage.file.title")}
         </CardTitle>
-        <CardDescription>Antivirus avant ouverture : heuristique (extensions, signatures, EICAR) + moteur VirusTotal si configuré.</CardDescription>
+        <CardDescription>{t("securitePage.file.desc")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <input
@@ -483,7 +489,7 @@ function FileScannerCard({ onScanned, deepScanEnabled }: { onScanned: () => void
         />
         <Button variant="outline" onClick={() => inputRef.current?.click()} disabled={scanning}>
           {scanning ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <FileSearch className="w-4 h-4 mr-1" />}
-          Choisir un fichier
+          {t("securitePage.file.chooseFile")}
         </Button>
 
         {scanning && (
@@ -497,11 +503,10 @@ function FileScannerCard({ onScanned, deepScanEnabled }: { onScanned: () => void
             <Loader2 className="w-3.5 h-3.5 mt-0.5 shrink-0 animate-spin" />
             {deepPhase ? (
               <span>
-                <span className="font-medium">Analyse approfondie en cours…</span> Fichier inconnu
-                envoyé à VirusTotal pour une analyse complète — cela peut prendre jusqu'à une minute.
+                <span className="font-medium">{t("securitePage.file.deepTitle")}</span>{t("securitePage.file.deepDetail")}
               </span>
             ) : (
-              <span>Vérification rapide (signatures, empreinte)…</span>
+              <span>{t("securitePage.file.quickCheck")}</span>
             )}
           </div>
         )}
@@ -513,7 +518,7 @@ function FileScannerCard({ onScanned, deepScanEnabled }: { onScanned: () => void
                 ? <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                 : <XCircle className="w-5 h-5 text-red-600" />}
               <Badge className={`border-0 ${result.res.safe ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
-                {result.res.safe ? "Aucune menace" : "DANGEREUX"}
+                {result.res.safe ? t("securitePage.file.noThreat") : t("securitePage.file.dangerous")}
               </Badge>
               {result.res.engine && (
                 <Badge variant="outline" className="text-[9px] gap-1">
@@ -530,9 +535,9 @@ function FileScannerCard({ onScanned, deepScanEnabled }: { onScanned: () => void
                   }`}
                 >
                   {result.res.engineSource === "upload" ? (
-                    <><Sparkles className="w-2.5 h-2.5" /> Analyse à chaud</>
+                    <><Sparkles className="w-2.5 h-2.5" /> {t("securitePage.file.hotAnalysis")}</>
                   ) : (
-                    <><Bug className="w-2.5 h-2.5" /> Empreinte connue</>
+                    <><Bug className="w-2.5 h-2.5" /> {t("securitePage.file.knownFingerprint")}</>
                   )}
                 </Badge>
               )}
@@ -541,14 +546,13 @@ function FileScannerCard({ onScanned, deepScanEnabled }: { onScanned: () => void
             {result.res.engineSource === "upload" && (
               <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
                 <Info className="w-2.5 h-2.5 shrink-0" />
-                Fichier inconnu de la base : envoyé à VirusTotal pour une analyse complète.
+                {t("securitePage.file.unknownFileInfo")}
               </p>
             )}
             {result.res.deepScanTimedOut && (
               <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-1 flex items-start gap-1">
                 <AlertTriangle className="w-2.5 h-2.5 mt-0.5 shrink-0" />
-                Analyse approfondie non aboutie dans le délai imparti : verdict fondé sur
-                l'analyse heuristique locale uniquement, sans confirmation cloud fraîche.
+                {t("securitePage.file.deepTimedOut")}
               </p>
             )}
             {result.res.engineDetail && (
@@ -556,7 +560,7 @@ function FileScannerCard({ onScanned, deepScanEnabled }: { onScanned: () => void
             )}
             {!result.res.safe && result.res.threats.length > 0 && (
               <ul className="text-xs text-red-600 mt-2 space-y-0.5 list-disc list-inside">
-                {result.res.threats.map((t, i) => <li key={i}>{t}</li>)}
+                {result.res.threats.map((threat, i) => <li key={i}>{threat}</li>)}
               </ul>
             )}
             {result.res.pii && <PiiFindings pii={result.res.pii} />}
@@ -573,6 +577,7 @@ function TextScannerCard() {
   const [result, setResult] = useState<PiiResult | null>(null);
   const [scanning, setScanning] = useState(false);
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const scan = async () => {
     if (!text.trim()) return;
@@ -586,9 +591,9 @@ function TextScannerCard() {
         body: JSON.stringify({ text }),
       });
       if (res.ok) setResult(await res.json());
-      else toast({ title: "Erreur", description: "Analyse impossible.", variant: "destructive" });
+      else toast({ title: t("securitePage.toast.error"), description: t("securitePage.toast.analyzeImpossible"), variant: "destructive" });
     } catch {
-      toast({ title: "Erreur réseau", description: "Vérifiez votre connexion.", variant: "destructive" });
+      toast({ title: t("securitePage.toast.networkError"), description: t("securitePage.text.networkErrorDesc"), variant: "destructive" });
     } finally {
       setScanning(false);
     }
@@ -599,24 +604,23 @@ function TextScannerCard() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <ShieldAlert className="w-5 h-5 text-amber-600" />
-          Vérifier un texte (RGPD)
+          {t("securitePage.text.title")}
         </CardTitle>
         <CardDescription>
-          Collez un texte (email, message, extrait de document) pour repérer IBAN, n° de sécurité sociale,
-          carte bancaire, SIRET et coordonnées avant de le partager.
+          {t("securitePage.text.desc")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Collez ici le texte à vérifier…"
+          placeholder={t("securitePage.text.placeholder")}
           rows={4}
           className="w-full rounded-md border bg-background p-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-amber-500/40"
         />
         <Button variant="outline" onClick={scan} disabled={scanning || !text.trim()}>
           {scanning ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <ShieldAlert className="w-4 h-4 mr-1" />}
-          Analyser le texte
+          {t("securitePage.text.analyze")}
         </Button>
         {result && (
           result.hasPii
@@ -624,7 +628,7 @@ function TextScannerCard() {
             : (
               <div className="border border-emerald-300 dark:border-emerald-900/50 rounded-lg p-3 flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                <span className="text-sm">Aucune donnée personnelle sensible détectée.</span>
+                <span className="text-sm">{t("securitePage.text.noSensitive")}</span>
               </div>
             )
         )}
@@ -635,12 +639,13 @@ function TextScannerCard() {
 
 // ── Alertes temps réel ────────────────────────────────────────────────────────
 function AlertsCard({ alerts }: { alerts: SecurityAlert[] }) {
+  const { t } = useTranslation();
   return (
     <Card className={alerts.length > 0 ? "border-red-200 dark:border-red-900/50" : undefined}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Bell className="w-5 h-5 text-red-500" />
-          Alertes de sécurité
+          {t("securitePage.alerts.title")}
           {alerts.length > 0 && (
             <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0">
               {alerts.length}
@@ -648,14 +653,14 @@ function AlertsCard({ alerts }: { alerts: SecurityAlert[] }) {
           )}
         </CardTitle>
         <CardDescription>
-          Menaces dangereuses détectées en temps réel. Vous êtes aussi notifié sur WhatsApp.
+          {t("securitePage.alerts.desc")}
         </CardDescription>
       </CardHeader>
       <CardContent>
         {alerts.length === 0 ? (
           <div className="border rounded-lg p-6 text-center">
             <ShieldCheck className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">Aucune alerte. Aucune menace dangereuse détectée.</p>
+            <p className="text-sm text-muted-foreground">{t("securitePage.alerts.empty")}</p>
           </div>
         ) : (
           <div className="space-y-1.5 max-h-72 overflow-y-auto">
@@ -679,20 +684,21 @@ function AlertsCard({ alerts }: { alerts: SecurityAlert[] }) {
 }
 
 function RecentScansCard({ scans }: { scans: ProtectionStatus["recentScans"] }) {
+  const { t } = useTranslation();
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <AlertTriangle className="w-5 h-5 text-amber-500" />
-          Activité de sécurité récente
+          {t("securitePage.recent.title")}
         </CardTitle>
-        <CardDescription>Derniers liens, fichiers, appels et messages analysés.</CardDescription>
+        <CardDescription>{t("securitePage.recent.desc")}</CardDescription>
       </CardHeader>
       <CardContent>
         {scans.length === 0 ? (
           <div className="border rounded-lg p-6 text-center">
             <ShieldCheck className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">Aucune analyse récente. Tout est calme.</p>
+            <p className="text-sm text-muted-foreground">{t("securitePage.recent.empty")}</p>
           </div>
         ) : (
           <div className="space-y-1.5 max-h-72 overflow-y-auto">
@@ -702,7 +708,7 @@ function RecentScansCard({ scans }: { scans: ProtectionStatus["recentScans"] }) 
               return (
                 <div key={s.id} className="flex items-center gap-2 border rounded p-2 text-xs">
                   <Icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  <Badge className={`${rs.badge} border-0 text-[9px] shrink-0`}>{rs.label}</Badge>
+                  <Badge className={`${rs.badge} border-0 text-[9px] shrink-0`}>{t(`securitePage.risk.${s.verdict}`)}</Badge>
                   <span className="truncate flex-1">{s.target}</span>
                   {s.engine && (
                     <Badge variant="outline" className="text-[9px] shrink-0 hidden sm:inline-flex">{s.engine}</Badge>
@@ -742,6 +748,7 @@ function ListManagerCard() {
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const fetchEntries = useCallback(async () => {
     setLoading(true);
@@ -773,27 +780,27 @@ function ListManagerCard() {
         setValue("");
         setNote("");
         await fetchEntries();
-        toast({ title: "Ajouté", description: listKind === "block" ? "Élément bloqué." : "Élément autorisé." });
+        toast({ title: t("securitePage.toast.addedTitle"), description: listKind === "block" ? t("securitePage.toast.blockedDesc") : t("securitePage.toast.allowedDesc") });
       } else {
         const err = await res.json().catch(() => ({}));
-        toast({ title: "Erreur", description: err.error ?? "Ajout impossible.", variant: "destructive" });
+        toast({ title: t("securitePage.toast.error"), description: err.error ?? t("securitePage.toast.addImpossible"), variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur réseau", variant: "destructive" });
+      toast({ title: t("securitePage.toast.networkError"), variant: "destructive" });
     } finally {
       setSaving(false);
     }
-  }, [entryType, listKind, value, note, fetchEntries, toast]);
+  }, [entryType, listKind, value, note, fetchEntries, toast, t]);
 
   const remove = useCallback(async (id: number) => {
     try {
       const res = await fetch(`${SECURITY_API}/lists/${id}`, { method: "DELETE", credentials: "include" });
       if (res.ok) setEntries((prev) => prev.filter((e) => e.id !== id));
-      else toast({ title: "Erreur", description: "Suppression impossible.", variant: "destructive" });
+      else toast({ title: t("securitePage.toast.error"), description: t("securitePage.toast.removeImpossible"), variant: "destructive" });
     } catch {
-      toast({ title: "Erreur réseau", variant: "destructive" });
+      toast({ title: t("securitePage.toast.networkError"), variant: "destructive" });
     }
-  }, [toast]);
+  }, [toast, t]);
 
   const blocked = entries.filter((e) => e.listKind === "block");
   const allowed = entries.filter((e) => e.listKind === "allow");
@@ -816,11 +823,10 @@ function ListManagerCard() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <ListChecks className="w-5 h-5 text-teal-600" />
-          Mes listes personnalisées
+          {t("securitePage.lists.title")}
         </CardTitle>
         <CardDescription>
-          Bloquez ou autorisez vous-même des sites web et des numéros de téléphone.
-          Vos règles ont toujours le dernier mot sur l'analyse automatique.
+          {t("securitePage.lists.desc")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -833,14 +839,14 @@ function ListManagerCard() {
                 onClick={() => setEntryType("domain")}
                 className={`px-3 py-1.5 text-xs font-medium ${entryType === "domain" ? "bg-teal-600 text-white" : "bg-background text-muted-foreground"}`}
               >
-                <Globe className="w-3 h-3 inline mr-1" /> Site web
+                <Globe className="w-3 h-3 inline mr-1" /> {t("securitePage.lists.website")}
               </button>
               <button
                 type="button"
                 onClick={() => setEntryType("phone")}
                 className={`px-3 py-1.5 text-xs font-medium ${entryType === "phone" ? "bg-teal-600 text-white" : "bg-background text-muted-foreground"}`}
               >
-                <Phone className="w-3 h-3 inline mr-1" /> Téléphone
+                <Phone className="w-3 h-3 inline mr-1" /> {t("securitePage.lists.phone")}
               </button>
             </div>
             <div className="flex rounded-md border overflow-hidden">
@@ -849,34 +855,34 @@ function ListManagerCard() {
                 onClick={() => setListKind("block")}
                 className={`px-3 py-1.5 text-xs font-medium ${listKind === "block" ? "bg-red-600 text-white" : "bg-background text-muted-foreground"}`}
               >
-                <Ban className="w-3 h-3 inline mr-1" /> Bloquer
+                <Ban className="w-3 h-3 inline mr-1" /> {t("securitePage.lists.block")}
               </button>
               <button
                 type="button"
                 onClick={() => setListKind("allow")}
                 className={`px-3 py-1.5 text-xs font-medium ${listKind === "allow" ? "bg-emerald-600 text-white" : "bg-background text-muted-foreground"}`}
               >
-                <CheckCircle2 className="w-3 h-3 inline mr-1" /> Autoriser
+                <CheckCircle2 className="w-3 h-3 inline mr-1" /> {t("securitePage.lists.allow")}
               </button>
             </div>
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
             <Input
-              placeholder={entryType === "domain" ? "exemple.com" : "+33 6 12 34 56 78"}
+              placeholder={entryType === "domain" ? t("securitePage.lists.valuePlaceholderDomain") : t("securitePage.lists.valuePlaceholderPhone")}
               value={value}
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") add(); }}
               className="text-sm"
             />
             <Input
-              placeholder="Note (facultatif)"
+              placeholder={t("securitePage.lists.notePlaceholder")}
               value={note}
               onChange={(e) => setNote(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") add(); }}
               className="text-sm sm:max-w-[40%]"
             />
             <Button onClick={add} disabled={saving || !value.trim()}>
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4 mr-1" /> Ajouter</>}
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4 mr-1" /> {t("securitePage.lists.add")}</>}
             </Button>
           </div>
         </div>
@@ -887,18 +893,18 @@ function ListManagerCard() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <h4 className="text-xs font-semibold flex items-center gap-1 text-red-600">
-                <Ban className="w-3.5 h-3.5" /> Bloqués ({blocked.length})
+                <Ban className="w-3.5 h-3.5" /> {t("securitePage.lists.blockedTitle", { count: blocked.length })}
               </h4>
               {blocked.length === 0
-                ? <p className="text-xs text-muted-foreground">Aucun élément bloqué.</p>
+                ? <p className="text-xs text-muted-foreground">{t("securitePage.lists.noBlocked")}</p>
                 : <div className="space-y-1.5 max-h-56 overflow-y-auto">{blocked.map(renderEntry)}</div>}
             </div>
             <div className="space-y-1.5">
               <h4 className="text-xs font-semibold flex items-center gap-1 text-emerald-600">
-                <CheckCircle2 className="w-3.5 h-3.5" /> Autorisés ({allowed.length})
+                <CheckCircle2 className="w-3.5 h-3.5" /> {t("securitePage.lists.allowedTitle", { count: allowed.length })}
               </h4>
               {allowed.length === 0
-                ? <p className="text-xs text-muted-foreground">Aucun élément autorisé.</p>
+                ? <p className="text-xs text-muted-foreground">{t("securitePage.lists.noAllowed")}</p>
                 : <div className="space-y-1.5 max-h-56 overflow-y-auto">{allowed.map(renderEntry)}</div>}
             </div>
           </div>
@@ -914,6 +920,7 @@ function SecuritySettingsCard() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   useEffect(() => {
     (async () => {
@@ -941,42 +948,42 @@ function SecuritySettingsCard() {
       });
       if (!res.ok) {
         setEnabled(!next);
-        toast({ title: "Erreur", description: "Modification impossible.", variant: "destructive" });
+        toast({ title: t("securitePage.toast.error"), description: t("securitePage.toast.modifyImpossible"), variant: "destructive" });
       } else {
         toast({
-          title: next ? "Synthèse activée" : "Synthèse désactivée",
+          title: next ? t("securitePage.toast.summaryEnabled") : t("securitePage.toast.summaryDisabled"),
           description: next
-            ? "Vous recevrez un récapitulatif de sécurité chaque semaine par email."
-            : "Vous ne recevrez plus la synthèse hebdomadaire.",
+            ? t("securitePage.toast.summaryEnabledDesc")
+            : t("securitePage.toast.summaryDisabledDesc"),
         });
       }
     } catch {
       setEnabled(!next);
-      toast({ title: "Erreur réseau", variant: "destructive" });
+      toast({ title: t("securitePage.toast.networkError"), variant: "destructive" });
     } finally {
       setSaving(false);
     }
-  }, [toast]);
+  }, [toast, t]);
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Mail className="w-5 h-5 text-emerald-600" />
-          Synthèse hebdomadaire par email
+          {t("securitePage.settings.title")}
         </CardTitle>
         <CardDescription>
-          Recevez chaque semaine un récapitulatif : score de sécurité, menaces bloquées et recommandations.
+          {t("securitePage.settings.desc")}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="flex items-center justify-between gap-4 border rounded-lg p-3">
           <div className="flex-1">
             <Label htmlFor="weekly-security-email" className="text-sm font-medium">
-              Activer la synthèse hebdomadaire
+              {t("securitePage.settings.enable")}
             </Label>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Envoyée à l'adresse email de votre organisation.
+              {t("securitePage.settings.sentTo")}
             </p>
           </div>
           <Switch
@@ -995,16 +1002,17 @@ function SecuritySettingsCard() {
 function PartnersCard() {
   const [nextdnsId, setNextdnsId] = useState("");
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   return (
     <Card className="border-blue-200 dark:border-blue-900/50">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-blue-600" />
-          Protection étendue (partenaires)
+          {t("securitePage.partners.title")}
         </CardTitle>
         <CardDescription>
-          Renforcez votre sécurité avec un filtrage DNS et un antivirus professionnel.
+          {t("securitePage.partners.desc")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -1012,16 +1020,15 @@ function PartnersCard() {
         <div className="border rounded-lg p-3 space-y-2">
           <div className="flex items-center gap-2">
             <Wifi className="w-4 h-4 text-indigo-600" />
-            <h4 className="text-sm font-semibold">NextDNS — Filtrage Internet</h4>
-            <Badge variant="outline" className="text-[9px] ml-auto">Configuration</Badge>
+            <h4 className="text-sm font-semibold">{t("securitePage.partners.nextdnsTitle")}</h4>
+            <Badge variant="outline" className="text-[9px] ml-auto">{t("securitePage.partners.config")}</Badge>
           </div>
           <p className="text-xs text-muted-foreground">
-            Bloque les sites de phishing, publicités et trackers sur tout l'appareil.
-            Créez un profil sur nextdns.io, puis collez son identifiant ici.
+            {t("securitePage.partners.nextdnsDesc")}
           </p>
           <div className="flex gap-2">
             <Input
-              placeholder="ID de profil NextDNS (ex: abc123)"
+              placeholder={t("securitePage.partners.nextdnsPlaceholder")}
               value={nextdnsId}
               onChange={(e) => setNextdnsId(e.target.value)}
               className="text-sm"
@@ -1033,11 +1040,11 @@ function PartnersCard() {
                 if (!nextdnsId.trim()) {
                   window.open("https://my.nextdns.io/signup", "_blank", "noopener,noreferrer");
                 } else {
-                  toast({ title: "Profil enregistré", description: "Suivez le guide d'installation pour activer le DNS sur vos appareils." });
+                  toast({ title: t("securitePage.toast.profileSaved"), description: t("securitePage.toast.profileSavedDesc") });
                 }
               }}
             >
-              {nextdnsId.trim() ? "Enregistrer" : "Créer un compte"}
+              {nextdnsId.trim() ? t("securitePage.partners.save") : t("securitePage.partners.createAccount")}
             </Button>
           </div>
           {nextdnsId.trim() && (
@@ -1047,7 +1054,7 @@ function PartnersCard() {
               rel="noopener noreferrer"
               className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1"
             >
-              <ExternalLink className="w-3 h-3" /> Guide d'installation pour ce profil
+              <ExternalLink className="w-3 h-3" /> {t("securitePage.partners.installGuide")}
             </a>
           )}
         </div>
@@ -1056,15 +1063,14 @@ function PartnersCard() {
         <div className="border rounded-lg p-3 space-y-2 bg-muted/20">
           <div className="flex items-center gap-2">
             <Bug className="w-4 h-4 text-rose-600" />
-            <h4 className="text-sm font-semibold">Bitdefender — Antivirus professionnel</h4>
-            <Badge variant="outline" className="text-[9px] ml-auto">Partenariat à venir</Badge>
+            <h4 className="text-sm font-semibold">{t("securitePage.partners.bitdefenderTitle")}</h4>
+            <Badge variant="outline" className="text-[9px] ml-auto">{t("securitePage.partners.partnershipComing")}</Badge>
           </div>
           <p className="text-xs text-muted-foreground">
-            Offre antivirus en marque blanche pour vos postes de travail. L'activation
-            nécessite la signature du partenariat Bitdefender (en cours).
+            {t("securitePage.partners.bitdefenderDesc")}
           </p>
           <Button variant="outline" size="sm" disabled className="opacity-70">
-            <ServerCog className="w-3 h-3 mr-1" /> Bientôt disponible
+            <ServerCog className="w-3 h-3 mr-1" /> {t("securitePage.partners.comingSoon")}
           </Button>
         </div>
       </CardContent>
@@ -1080,6 +1086,7 @@ export default function SecuritePage() {
   const [scoreLoading, setScoreLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const fetchStatus = useCallback(async () => {
     setLoading(true);
@@ -1124,14 +1131,14 @@ export default function SecuritePage() {
       fetchStatus();
       fetchScore();
       toast({
-        title: "Alerte de sécurité",
-        description: detail.meta?.message ?? "Une menace dangereuse a été détectée.",
+        title: t("securitePage.toast.alertTitle"),
+        description: detail.meta?.message ?? t("securitePage.toast.threatDetected"),
         variant: "destructive",
       });
     };
     window.addEventListener("realtime-sync", onSync);
     return () => window.removeEventListener("realtime-sync", onSync);
-  }, [fetchAlerts, fetchStatus, fetchScore, toast]);
+  }, [fetchAlerts, fetchStatus, fetchScore, toast, t]);
 
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-6xl mx-auto">
@@ -1140,9 +1147,9 @@ export default function SecuritePage() {
           <ShieldCheck className="w-6 h-6 text-white" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold">Centre de sécurité</h1>
+          <h1 className="text-2xl font-bold">{t("securitePage.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            Votre concierge numérique : analysez liens, fichiers, appels et messages en un seul endroit.
+            {t("securitePage.subtitle")}
           </p>
         </div>
       </div>

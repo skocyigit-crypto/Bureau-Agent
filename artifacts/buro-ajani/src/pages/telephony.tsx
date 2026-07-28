@@ -3,6 +3,7 @@ import { confirmAction } from "@/hooks/use-confirm";
 import { Phone, Plus, Settings, Trash2, Star, Check, MessageSquare, PhoneCall, PhoneOff, Send, RefreshCw, ExternalLink, Shield, Zap, Users, Clock, FileText, CalendarClock, Printer, FolderKanban, Bot, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { useTranslation } from "@/i18n";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -55,14 +56,15 @@ interface SmsLog {
 
 export default function TelephonyPage() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [, navigate] = useLocation();
   async function navigateToProjets() {
     const res = await fetch(`${API}/api/projets`, {
       method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-      body: JSON.stringify({ title: "Projet téléphonie", status: "planifie", priority: "moyenne", progress: 0, notes: "Créé depuis la page Téléphonie" }),
+      body: JSON.stringify({ title: t("telephony.projectTitle"), status: "planifie", priority: "moyenne", progress: 0, notes: t("telephony.projectNotes") }),
     });
-    if (res.ok) { toast({ title: "Projet créé" }); window.location.href = `${API}/projets`; }
-    else toast({ title: "Erreur lors de la création", variant: "destructive" });
+    if (res.ok) { toast({ title: t("telephony.toast.projectCreated") }); window.location.href = `${API}/projets`; }
+    else toast({ title: t("telephony.toast.projectCreateError"), variant: "destructive" });
   }
 
   const [tab, setTab] = useState<"providers" | "secretaire" | "call" | "sms" | "bulk" | "schedule" | "logs" | "stats">("providers");
@@ -129,14 +131,14 @@ export default function TelephonyPage() {
         }),
       });
       if (res.ok) {
-        toast({ title: "Secrétaire IA enregistrée" });
+        toast({ title: t("telephony.toast.aiSaved") });
         await fetchAiReceptionist();
       } else {
         const body = await res.json().catch(() => ({}));
-        toast({ title: "Erreur", description: body.error || "Enregistrement impossible.", variant: "destructive" });
+        toast({ title: t("telephony.toast.error"), description: body.error || t("telephony.toast.saveImpossible"), variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Erreur de connexion.", variant: "destructive" });
+      toast({ title: t("telephony.toast.error"), description: t("telephony.toast.connectionError"), variant: "destructive" });
     } finally {
       setAiRecSaving(false);
     }
@@ -144,8 +146,8 @@ export default function TelephonyPage() {
 
   const copyToClipboard = (value: string) => {
     navigator.clipboard?.writeText(value).then(
-      () => toast({ title: "Copié" }),
-      () => toast({ title: "Copie impossible", variant: "destructive" }),
+      () => toast({ title: t("telephony.toast.copied") }),
+      () => toast({ title: t("telephony.toast.copyImpossible"), variant: "destructive" }),
     );
   };
 
@@ -161,7 +163,7 @@ export default function TelephonyPage() {
       if (statsRes.ok) { const d = await statsRes.json(); setStats(d); }
     } catch (e) {
       console.error("Telephony fetch error:", e);
-      toast({ title: "Erreur", description: "Impossible de charger les donnees telephoniques.", variant: "destructive" });
+      toast({ title: t("telephony.toast.error"), description: t("telephony.toast.loadDataError"), variant: "destructive" });
     }
     setLoading(false);
   }, []);
@@ -179,7 +181,7 @@ export default function TelephonyPage() {
       if (slRes.ok) { const d = await slRes.json(); setSmsLogs(d.logs || []); }
     } catch (e) {
       console.error("Telephony fetchLogs error:", e);
-      toast({ title: "Erreur", description: "Impossible de charger les journaux.", variant: "destructive" });
+      toast({ title: t("telephony.toast.error"), description: t("telephony.toast.loadLogsError"), variant: "destructive" });
     }
   }
 
@@ -206,7 +208,7 @@ export default function TelephonyPage() {
         fetchData();
         setActionResult({ type: "add", success: true, message: data.message });
       } else {
-        setActionResult({ type: "add", success: false, message: data.error || "Erreur" });
+        setActionResult({ type: "add", success: false, message: data.error || t("telephony.toast.error") });
       }
     } catch (e: any) {
       setActionResult({ type: "add", success: false, message: e.message });
@@ -215,14 +217,14 @@ export default function TelephonyPage() {
   }
 
   async function deleteProvider(id: number) {
-    if (!(await confirmAction({ title: "Supprimer ce fournisseur ?", confirmLabel: "Supprimer", destructive: true }))) return;
+    if (!(await confirmAction({ title: t("telephony.toast.confirmDeleteProvider"), confirmLabel: t("telephony.providers.delete"), destructive: true }))) return;
     try {
       const res = await fetch(`${API}/api/telephony/providers/${id}`, { method: "DELETE", credentials: "include" });
-      if (!res.ok) { toast({ title: "Erreur", description: "Impossible de supprimer le fournisseur.", variant: "destructive" }); return; }
-      toast({ title: "Fournisseur supprime" });
+      if (!res.ok) { toast({ title: t("telephony.toast.error"), description: t("telephony.toast.deleteProviderError"), variant: "destructive" }); return; }
+      toast({ title: t("telephony.toast.providerDeleted") });
       fetchData();
     } catch (e) {
-      toast({ title: "Erreur", description: "Erreur de connexion.", variant: "destructive" });
+      toast({ title: t("telephony.toast.error"), description: t("telephony.toast.connectionError"), variant: "destructive" });
     }
   }
 
@@ -234,10 +236,10 @@ export default function TelephonyPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isDefault: true }),
       });
-      if (!res.ok) { toast({ title: "Erreur", description: "Impossible de definir par defaut.", variant: "destructive" }); return; }
+      if (!res.ok) { toast({ title: t("telephony.toast.error"), description: t("telephony.toast.setDefaultError"), variant: "destructive" }); return; }
       fetchData();
     } catch (e) {
-      toast({ title: "Erreur", description: "Erreur de connexion.", variant: "destructive" });
+      toast({ title: t("telephony.toast.error"), description: t("telephony.toast.connectionError"), variant: "destructive" });
     }
   }
 
@@ -249,10 +251,10 @@ export default function TelephonyPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: !current }),
       });
-      if (!res.ok) { toast({ title: "Erreur", description: "Impossible de modifier le statut.", variant: "destructive" }); return; }
+      if (!res.ok) { toast({ title: t("telephony.toast.error"), description: t("telephony.toast.toggleStatusError"), variant: "destructive" }); return; }
       fetchData();
     } catch (e) {
-      toast({ title: "Erreur", description: "Erreur de connexion.", variant: "destructive" });
+      toast({ title: t("telephony.toast.error"), description: t("telephony.toast.connectionError"), variant: "destructive" });
     }
   }
 
@@ -267,7 +269,7 @@ export default function TelephonyPage() {
       setActionResult({
         type: "test",
         success: res.ok,
-        message: res.ok ? `${data.label}: ${data.message} (Voice: ${data.voiceReady ? "OK" : "Non"}, SMS: ${data.smsReady ? "OK" : "Non"})` : data.error,
+        message: res.ok ? t("telephony.result.testResult", { label: data.label, message: data.message, voice: data.voiceReady ? t("telephony.result.ok") : t("telephony.result.no"), sms: data.smsReady ? t("telephony.result.ok") : t("telephony.result.no") }) : data.error,
       });
     } catch (e: any) {
       setActionResult({ type: "test", success: false, message: e.message });
@@ -289,7 +291,7 @@ export default function TelephonyPage() {
       setActionResult({
         type: "call",
         success: data.success,
-        message: data.success ? `Appel lance via ${data.provider} (SID: ${data.callSid})` : `Echec: ${data.error}`,
+        message: data.success ? t("telephony.result.callLaunched", { provider: data.provider, sid: data.callSid }) : t("telephony.result.failed", { error: data.error }),
       });
       if (data.success) setCallTo("");
     } catch (e: any) {
@@ -312,7 +314,7 @@ export default function TelephonyPage() {
       setActionResult({
         type: "sms",
         success: data.success,
-        message: data.success ? `SMS envoye via ${data.provider}` : `Echec: ${data.error}`,
+        message: data.success ? t("telephony.result.smsSent", { provider: data.provider }) : t("telephony.result.failed", { error: data.error }),
       });
       if (data.success) { setSmsTo(""); setSmsBody(""); }
     } catch (e: any) {
@@ -344,30 +346,30 @@ export default function TelephonyPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Phone className="h-6 w-6 text-primary" />
-            Telephonie
+            {t("telephony.title")}
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">Gerez vos fournisseurs telephoniques et passez des appels/SMS</p>
+          <p className="text-sm text-muted-foreground mt-1">{t("telephony.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => window.print()}
             className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-muted"
-            title="Imprimer"
+            title={t("telephony.printTitle")}
           >
             <Printer className="h-4 w-4" />
           </button>
           <button
             onClick={navigateToProjets}
             className="flex items-center gap-2 px-3 py-2 border border-indigo-300 text-indigo-600 rounded-lg hover:bg-indigo-50"
-            title="Créer un projet"
+            title={t("telephony.createProject")}
           >
-            <FolderKanban className="h-4 w-4" /><span className="text-sm">Créer un projet</span>
+            <FolderKanban className="h-4 w-4" /><span className="text-sm">{t("telephony.createProject")}</span>
           </button>
           <button
             onClick={() => setShowAddForm(true)}
             className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
           >
-            <Plus className="h-4 w-4" /> Ajouter un fournisseur
+            <Plus className="h-4 w-4" /> {t("telephony.addProvider")}
           </button>
         </div>
       </div>
@@ -376,28 +378,28 @@ export default function TelephonyPage() {
         <div className={`p-4 rounded-lg border ${actionResult.success ? "bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300" : "bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300"}`}>
           <div className="flex items-center justify-between">
             <p className="text-sm">{actionResult.message}</p>
-            <button onClick={() => setActionResult(null)} className="text-xs opacity-60 hover:opacity-100">Fermer</button>
+            <button onClick={() => setActionResult(null)} className="text-xs opacity-60 hover:opacity-100">{t("telephony.close")}</button>
           </div>
         </div>
       )}
 
       <div className="flex gap-2 border-b pb-2 overflow-x-auto">
         {[
-          { key: "providers" as const, label: "Fournisseurs", icon: Settings },
-          { key: "secretaire" as const, label: "Secrétaire IA", icon: Bot },
-          { key: "call" as const, label: "Appeler", icon: PhoneCall },
-          { key: "sms" as const, label: "SMS", icon: MessageSquare },
-          { key: "bulk" as const, label: "SMS Campagne", icon: Users },
-          { key: "schedule" as const, label: "Planifier", icon: CalendarClock },
-          { key: "logs" as const, label: "Historique", icon: RefreshCw },
-          { key: "stats" as const, label: "Statistiques", icon: Zap },
-        ].map(t => (
+          { key: "providers" as const, label: t("telephony.tabs.providers"), icon: Settings },
+          { key: "secretaire" as const, label: t("telephony.tabs.secretaire"), icon: Bot },
+          { key: "call" as const, label: t("telephony.tabs.call"), icon: PhoneCall },
+          { key: "sms" as const, label: t("telephony.tabs.sms"), icon: MessageSquare },
+          { key: "bulk" as const, label: t("telephony.tabs.bulk"), icon: Users },
+          { key: "schedule" as const, label: t("telephony.tabs.schedule"), icon: CalendarClock },
+          { key: "logs" as const, label: t("telephony.tabs.logs"), icon: RefreshCw },
+          { key: "stats" as const, label: t("telephony.tabs.stats"), icon: Zap },
+        ].map(tabItem => (
           <button
-            key={t.key}
-            onClick={() => { setTab(t.key); if (t.key === "logs") fetchLogs(); }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-t-lg text-sm font-medium transition-colors ${tab === t.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
+            key={tabItem.key}
+            onClick={() => { setTab(tabItem.key); if (tabItem.key === "logs") fetchLogs(); }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-t-lg text-sm font-medium transition-colors ${tab === tabItem.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
           >
-            <t.icon className="h-4 w-4" /> {t.label}
+            <tabItem.icon className="h-4 w-4" /> {tabItem.label}
           </button>
         ))}
       </div>
@@ -407,10 +409,10 @@ export default function TelephonyPage() {
           {configuredProviders.length === 0 ? (
             <div className="text-center py-12 bg-card rounded-xl border">
               <PhoneOff className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold">Aucun fournisseur configure</h3>
-              <p className="text-sm text-muted-foreground mt-2">Ajoutez un fournisseur telephonique pour commencer a passer des appels et envoyer des SMS</p>
+              <h3 className="text-lg font-semibold">{t("telephony.providers.emptyTitle")}</h3>
+              <p className="text-sm text-muted-foreground mt-2">{t("telephony.providers.emptyDesc")}</p>
               <button onClick={() => setShowAddForm(true)} className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg">
-                <Plus className="h-4 w-4 inline mr-2" /> Ajouter
+                <Plus className="h-4 w-4 inline mr-2" /> {t("telephony.providers.add")}
               </button>
             </div>
           ) : (
@@ -424,34 +426,34 @@ export default function TelephonyPage() {
                     <div>
                       <h3 className="font-semibold flex items-center gap-2">
                         {p.label}
-                        {p.isDefault && <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-full dark:bg-yellow-900/30 dark:text-yellow-300">Par defaut</span>}
+                        {p.isDefault && <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-full dark:bg-yellow-900/30 dark:text-yellow-300">{t("telephony.providers.default")}</span>}
                         <span className={`text-xs px-2 py-0.5 rounded-full ${p.isActive ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"}`}>
-                          {p.isActive ? "Actif" : "Inactif"}
+                          {p.isActive ? t("telephony.providers.active") : t("telephony.providers.inactive")}
                         </span>
                       </h3>
-                      <p className="text-xs text-muted-foreground">{p.provider} · {p.phoneNumbers.join(", ") || "Pas de numero"}</p>
+                      <p className="text-xs text-muted-foreground">{p.provider} · {p.phoneNumbers.join(", ") || t("telephony.providers.noNumber")}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => testProvider(p.id)} className="p-2 hover:bg-muted rounded-lg" title="Tester">
+                    <button onClick={() => testProvider(p.id)} className="p-2 hover:bg-muted rounded-lg" title={t("telephony.providers.test")}>
                       <Shield className="h-4 w-4" />
                     </button>
                     {!p.isDefault && (
-                      <button onClick={() => setDefault(p.id)} className="p-2 hover:bg-muted rounded-lg" title="Definir par defaut">
+                      <button onClick={() => setDefault(p.id)} className="p-2 hover:bg-muted rounded-lg" title={t("telephony.providers.setDefault")}>
                         <Star className="h-4 w-4" />
                       </button>
                     )}
-                    <button onClick={() => toggleActive(p.id, p.isActive)} className="p-2 hover:bg-muted rounded-lg" title={p.isActive ? "Desactiver" : "Activer"}>
+                    <button onClick={() => toggleActive(p.id, p.isActive)} className="p-2 hover:bg-muted rounded-lg" title={p.isActive ? t("telephony.providers.deactivate") : t("telephony.providers.activate")}>
                       {p.isActive ? <PhoneOff className="h-4 w-4" /> : <Check className="h-4 w-4" />}
                     </button>
-                    <button onClick={() => deleteProvider(p.id)} className="p-2 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg text-red-600" title="Supprimer">
+                    <button onClick={() => deleteProvider(p.id)} className="p-2 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg text-red-600" title={t("telephony.providers.delete")}>
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {p.capabilities.map(c => (
-                    <span key={c} className="text-xs px-2 py-1 bg-muted rounded-full">{CAPABILITY_LABELS[c] || c}</span>
+                    <span key={c} className="text-xs px-2 py-1 bg-muted rounded-full">{CAPABILITY_LABELS[c] ? t(`telephony.capabilities.${c}`) : c}</span>
                   ))}
                 </div>
               </div>
@@ -469,24 +471,24 @@ export default function TelephonyPage() {
                   <Bot className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg">Secrétaire téléphonique IA</h3>
-                  <p className="text-sm text-muted-foreground">Répond aux appels 7j/24, prend les rendez-vous et les messages.</p>
+                  <h3 className="font-semibold text-lg">{t("telephony.aiRec.title")}</h3>
+                  <p className="text-sm text-muted-foreground">{t("telephony.aiRec.subtitle")}</p>
                 </div>
               </div>
             </div>
 
             {!aiRec ? (
-              <p className="text-sm text-muted-foreground">Chargement…</p>
+              <p className="text-sm text-muted-foreground">{t("telephony.aiRec.loading")}</p>
             ) : !aiRec.configured ? (
               <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-300 text-sm">
-                Configurez d'abord un fournisseur <strong>Twilio</strong> dans l'onglet « Fournisseurs » pour activer la secrétaire IA.
+                {t("telephony.aiRec.notConfiguredPre")}<strong>Twilio</strong>{t("telephony.aiRec.notConfiguredPost")}
               </div>
             ) : (
               <>
                 <div className="flex items-center justify-between p-4 rounded-lg border bg-background">
                   <div>
-                    <p className="font-medium text-sm">Activer la secrétaire IA</p>
-                    <p className="text-xs text-muted-foreground">Quand activée, l'IA répond aux appels entrants sur votre numéro Twilio.</p>
+                    <p className="font-medium text-sm">{t("telephony.aiRec.enable")}</p>
+                    <p className="text-xs text-muted-foreground">{t("telephony.aiRec.enableDesc")}</p>
                   </div>
                   <button
                     type="button"
@@ -501,7 +503,7 @@ export default function TelephonyPage() {
 
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium">Langue de la secrétaire</label>
+                    <label className="text-sm font-medium">{t("telephony.aiRec.language")}</label>
                     <select
                       value={aiRec.language}
                       onChange={e => setAiRec({ ...aiRec, language: e.target.value as "fr" | "tr" | "en" })}
@@ -513,12 +515,12 @@ export default function TelephonyPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Nom de l'entreprise (annoncé)</label>
+                    <label className="text-sm font-medium">{t("telephony.aiRec.orgName")}</label>
                     <input
                       type="text"
                       value={aiRec.orgName}
                       onChange={e => setAiRec({ ...aiRec, orgName: e.target.value })}
-                      placeholder="Ex: Cabinet Martin"
+                      placeholder={t("telephony.aiRec.orgNamePlaceholder")}
                       maxLength={120}
                       className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-foreground"
                     />
@@ -526,16 +528,16 @@ export default function TelephonyPage() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium">Message d'accueil (optionnel)</label>
+                  <label className="text-sm font-medium">{t("telephony.aiRec.greeting")}</label>
                   <textarea
                     value={aiRec.greeting}
                     onChange={e => setAiRec({ ...aiRec, greeting: e.target.value })}
-                    placeholder="Laissez vide pour utiliser le message par défaut dans la langue choisie."
+                    placeholder={t("telephony.aiRec.greetingPlaceholder")}
                     maxLength={500}
                     rows={3}
                     className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-foreground resize-y"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">{aiRec.greeting.length}/500 caractères</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t("telephony.aiRec.greetingCount", { count: aiRec.greeting.length })}</p>
                 </div>
 
                 <div className="flex justify-end">
@@ -544,27 +546,27 @@ export default function TelephonyPage() {
                     disabled={aiRecSaving}
                     className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50"
                   >
-                    {aiRecSaving ? "Enregistrement…" : "Enregistrer"}
+                    {aiRecSaving ? t("telephony.aiRec.saving") : t("telephony.aiRec.save")}
                   </button>
                 </div>
 
                 <div className="border-t pt-4 space-y-3">
-                  <p className="text-sm font-medium flex items-center gap-2"><ExternalLink className="h-4 w-4" /> Configuration Twilio</p>
+                  <p className="text-sm font-medium flex items-center gap-2"><ExternalLink className="h-4 w-4" /> {t("telephony.aiRec.twilioConfig")}</p>
                   <p className="text-xs text-muted-foreground">
-                    Dans la console Twilio, ouvrez votre numéro &gt; « Voice &amp; Fax » &gt; « A CALL COMES IN », choisissez <strong>Webhook</strong> (HTTP POST) et collez l'URL ci-dessous. Pour « CALL STATUS CHANGES », utilisez l'URL de statut.
+                    {t("telephony.aiRec.twilioInstructionsPre")}<strong>Webhook</strong>{t("telephony.aiRec.twilioInstructionsPost")}
                   </p>
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground">URL du webhook (appel entrant)</label>
+                    <label className="text-xs font-medium text-muted-foreground">{t("telephony.aiRec.webhookUrl")}</label>
                     <div className="flex items-center gap-2 mt-1">
                       <input readOnly value={aiRec.webhookUrl} className="flex-1 px-3 py-2 rounded-lg border bg-muted text-foreground text-xs font-mono" />
-                      <button onClick={() => copyToClipboard(aiRec.webhookUrl)} className="p-2 border rounded-lg hover:bg-muted" title="Copier"><Copy className="h-4 w-4" /></button>
+                      <button onClick={() => copyToClipboard(aiRec.webhookUrl)} className="p-2 border rounded-lg hover:bg-muted" title={t("telephony.aiRec.copy")}><Copy className="h-4 w-4" /></button>
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground">URL de statut d'appel (optionnel)</label>
+                    <label className="text-xs font-medium text-muted-foreground">{t("telephony.aiRec.statusUrl")}</label>
                     <div className="flex items-center gap-2 mt-1">
                       <input readOnly value={aiRec.statusCallbackUrl} className="flex-1 px-3 py-2 rounded-lg border bg-muted text-foreground text-xs font-mono" />
-                      <button onClick={() => copyToClipboard(aiRec.statusCallbackUrl)} className="p-2 border rounded-lg hover:bg-muted" title="Copier"><Copy className="h-4 w-4" /></button>
+                      <button onClick={() => copyToClipboard(aiRec.statusCallbackUrl)} className="p-2 border rounded-lg hover:bg-muted" title={t("telephony.aiRec.copy")}><Copy className="h-4 w-4" /></button>
                     </div>
                   </div>
                 </div>
@@ -577,13 +579,13 @@ export default function TelephonyPage() {
       {tab === "call" && (
         <div className="max-w-md mx-auto">
           <div className="bg-card rounded-xl border p-6 space-y-4">
-            <h3 className="font-semibold text-lg flex items-center gap-2"><PhoneCall className="h-5 w-5 text-green-500" /> Passer un appel</h3>
+            <h3 className="font-semibold text-lg flex items-center gap-2"><PhoneCall className="h-5 w-5 text-green-500" /> {t("telephony.call.title")}</h3>
             {configuredProviders.filter(p => p.isActive).length === 0 ? (
-              <p className="text-sm text-muted-foreground">Aucun fournisseur actif. Configurez un fournisseur d'abord.</p>
+              <p className="text-sm text-muted-foreground">{t("telephony.call.noActiveProvider")}</p>
             ) : (
               <>
                 <div>
-                  <label className="text-sm font-medium">Numero de destination</label>
+                  <label className="text-sm font-medium">{t("telephony.call.destinationNumber")}</label>
                   <input
                     type="tel"
                     value={callTo}
@@ -598,7 +600,7 @@ export default function TelephonyPage() {
                   className="w-full py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {actionLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <PhoneCall className="h-4 w-4" />}
-                  Appeler
+                  {t("telephony.call.callBtn")}
                 </button>
               </>
             )}
@@ -609,13 +611,13 @@ export default function TelephonyPage() {
       {tab === "sms" && (
         <div className="max-w-md mx-auto">
           <div className="bg-card rounded-xl border p-6 space-y-4">
-            <h3 className="font-semibold text-lg flex items-center gap-2"><MessageSquare className="h-5 w-5 text-blue-500" /> Envoyer un SMS</h3>
+            <h3 className="font-semibold text-lg flex items-center gap-2"><MessageSquare className="h-5 w-5 text-blue-500" /> {t("telephony.sms.title")}</h3>
             {configuredProviders.filter(p => p.isActive).length === 0 ? (
-              <p className="text-sm text-muted-foreground">Aucun fournisseur actif.</p>
+              <p className="text-sm text-muted-foreground">{t("telephony.sms.noActiveProvider")}</p>
             ) : (
               <>
                 <div>
-                  <label className="text-sm font-medium">Numero de destination</label>
+                  <label className="text-sm font-medium">{t("telephony.sms.destinationNumber")}</label>
                   <input
                     type="tel"
                     value={smsTo}
@@ -625,11 +627,11 @@ export default function TelephonyPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Message</label>
+                  <label className="text-sm font-medium">{t("telephony.sms.message")}</label>
                   <textarea
                     value={smsBody}
                     onChange={e => setSmsBody(e.target.value)}
-                    placeholder="Votre message..."
+                    placeholder={t("telephony.sms.messagePlaceholder")}
                     rows={3}
                     className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-foreground resize-none"
                   />
@@ -640,7 +642,7 @@ export default function TelephonyPage() {
                   className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {actionLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  Envoyer
+                  {t("telephony.sms.sendBtn")}
                 </button>
               </>
             )}
@@ -651,14 +653,14 @@ export default function TelephonyPage() {
       {tab === "bulk" && (
         <div className="max-w-lg mx-auto">
           <div className="bg-card rounded-xl border p-6 space-y-4">
-            <h3 className="font-semibold text-lg flex items-center gap-2"><Users className="h-5 w-5 text-purple-500" /> Campagne SMS</h3>
-            <p className="text-sm text-muted-foreground">Envoyez un SMS a plusieurs destinataires en une seule fois.</p>
+            <h3 className="font-semibold text-lg flex items-center gap-2"><Users className="h-5 w-5 text-purple-500" /> {t("telephony.bulk.title")}</h3>
+            <p className="text-sm text-muted-foreground">{t("telephony.bulk.subtitle")}</p>
             {configuredProviders.filter(p => p.isActive).length === 0 ? (
-              <p className="text-sm text-muted-foreground">Aucun fournisseur actif.</p>
+              <p className="text-sm text-muted-foreground">{t("telephony.bulk.noActiveProvider")}</p>
             ) : (
               <>
                 <div>
-                  <label className="text-sm font-medium">Numeros (un par ligne ou separes par virgule)</label>
+                  <label className="text-sm font-medium">{t("telephony.bulk.numbersLabel")}</label>
                   <textarea
                     value={bulkNumbers}
                     onChange={e => setBulkNumbers(e.target.value)}
@@ -667,19 +669,19 @@ export default function TelephonyPage() {
                     className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-foreground resize-none font-mono text-sm"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    {bulkNumbers.split(/[\n,]/).filter(n => n.trim()).length} destinataire(s)
+                    {t("telephony.bulk.recipients", { count: bulkNumbers.split(/[\n,]/).filter(n => n.trim()).length })}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Message</label>
+                  <label className="text-sm font-medium">{t("telephony.bulk.message")}</label>
                   <textarea
                     value={bulkBody}
                     onChange={e => setBulkBody(e.target.value)}
-                    placeholder="Votre message de campagne..."
+                    placeholder={t("telephony.bulk.messagePlaceholder")}
                     rows={3}
                     className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-foreground resize-none"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">{bulkBody.length}/160 caracteres</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t("telephony.bulk.charCount", { count: bulkBody.length })}</p>
                 </div>
                 <button
                   onClick={async () => {
@@ -700,19 +702,19 @@ export default function TelephonyPage() {
                       } catch { failed++; }
                     }
                     setBulkResult({ sent, failed });
-                    setActionResult({ type: "bulk", success: true, message: `Campagne terminee: ${sent} envoyes, ${failed} echoues` });
+                    setActionResult({ type: "bulk", success: true, message: t("telephony.bulk.doneMessage", { sent, failed }) });
                     setActionLoading(false);
                   }}
                   disabled={actionLoading || !bulkNumbers.trim() || !bulkBody.trim()}
                   className="w-full py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {actionLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  Envoyer la campagne
+                  {t("telephony.bulk.sendBtn")}
                 </button>
                 {bulkResult && (
                   <div className="flex gap-4 text-sm">
-                    <span className="text-green-600">{bulkResult.sent} envoyes</span>
-                    {bulkResult.failed > 0 && <span className="text-red-600">{bulkResult.failed} echoues</span>}
+                    <span className="text-green-600">{t("telephony.bulk.sent", { count: bulkResult.sent })}</span>
+                    {bulkResult.failed > 0 && <span className="text-red-600">{t("telephony.bulk.failed", { count: bulkResult.failed })}</span>}
                   </div>
                 )}
               </>
@@ -724,10 +726,10 @@ export default function TelephonyPage() {
       {tab === "schedule" && (
         <div className="max-w-lg mx-auto space-y-4">
           <div className="bg-card rounded-xl border p-6 space-y-4">
-            <h3 className="font-semibold text-lg flex items-center gap-2"><CalendarClock className="h-5 w-5 text-orange-500" /> Planifier un appel</h3>
-            <p className="text-sm text-muted-foreground">Programmez un rappel pour passer un appel a une heure precise.</p>
+            <h3 className="font-semibold text-lg flex items-center gap-2"><CalendarClock className="h-5 w-5 text-orange-500" /> {t("telephony.schedule.title")}</h3>
+            <p className="text-sm text-muted-foreground">{t("telephony.schedule.subtitle")}</p>
             <div>
-              <label className="text-sm font-medium">Numero de destination</label>
+              <label className="text-sm font-medium">{t("telephony.schedule.destinationNumber")}</label>
               <input
                 type="tel"
                 value={scheduleCallTo}
@@ -738,7 +740,7 @@ export default function TelephonyPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-sm font-medium">Date</label>
+                <label className="text-sm font-medium">{t("telephony.schedule.date")}</label>
                 <input
                   type="date"
                   value={scheduleDate}
@@ -747,7 +749,7 @@ export default function TelephonyPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Heure</label>
+                <label className="text-sm font-medium">{t("telephony.schedule.time")}</label>
                 <input
                   type="time"
                   value={scheduleTime}
@@ -757,11 +759,11 @@ export default function TelephonyPage() {
               </div>
             </div>
             <div>
-              <label className="text-sm font-medium">Note / Objet de l'appel</label>
+              <label className="text-sm font-medium">{t("telephony.schedule.note")}</label>
               <textarea
                 value={scheduleNote}
                 onChange={e => setScheduleNote(e.target.value)}
-                placeholder="Objet de l'appel, points a aborder..."
+                placeholder={t("telephony.schedule.notePlaceholder")}
                 rows={2}
                 className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-foreground resize-none"
               />
@@ -782,12 +784,12 @@ export default function TelephonyPage() {
                   });
                   const data = await res.json();
                   if (res.ok) {
-                    setActionResult({ type: "schedule", success: true, message: "Appel planifie avec succes" });
+                    setActionResult({ type: "schedule", success: true, message: t("telephony.schedule.success") });
                     setScheduleCallTo(""); setScheduleDate(""); setScheduleTime(""); setScheduleNote("");
                     const listRes = await fetch(`${API}/api/telephony/schedule`, { credentials: "include" });
                     if (listRes.ok) { const d = await listRes.json(); setScheduledCalls(d.scheduled || []); }
                   } else {
-                    setActionResult({ type: "schedule", success: false, message: data.error || "Erreur" });
+                    setActionResult({ type: "schedule", success: false, message: data.error || t("telephony.toast.error") });
                   }
                 } catch (e: any) {
                   setActionResult({ type: "schedule", success: false, message: e.message });
@@ -798,13 +800,13 @@ export default function TelephonyPage() {
               className="w-full py-3 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {actionLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CalendarClock className="h-4 w-4" />}
-              Planifier
+              {t("telephony.schedule.scheduleBtn")}
             </button>
           </div>
 
           {scheduledCalls.length > 0 && (
             <div className="bg-card rounded-xl border p-4">
-              <h4 className="font-medium mb-3">Appels planifies</h4>
+              <h4 className="font-medium mb-3">{t("telephony.schedule.listTitle")}</h4>
               <div className="space-y-2">
                 {scheduledCalls.map(s => (
                   <div key={s.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
@@ -815,7 +817,7 @@ export default function TelephonyPage() {
                     </div>
                     <span className="text-xs text-muted-foreground">{new Date(s.scheduledAt).toLocaleString("fr-FR")}</span>
                     <span className={`text-xs px-2 py-0.5 rounded-full ${s.status === "pending" ? "bg-amber-100 text-amber-800" : "bg-green-100 text-green-800"}`}>
-                      {s.status === "pending" ? "En attente" : "Termine"}
+                      {s.status === "pending" ? t("telephony.schedule.pending") : t("telephony.schedule.done")}
                     </span>
                   </div>
                 ))}
@@ -828,9 +830,9 @@ export default function TelephonyPage() {
       {tab === "logs" && (
         <div className="space-y-6">
           <div>
-            <h3 className="font-semibold mb-3 flex items-center gap-2"><PhoneCall className="h-4 w-4" /> Appels ({callLogs.length})</h3>
+            <h3 className="font-semibold mb-3 flex items-center gap-2"><PhoneCall className="h-4 w-4" /> {t("telephony.logs.callsTitle", { count: callLogs.length })}</h3>
             {callLogs.length === 0 ? (
-              <p className="text-sm text-muted-foreground bg-card p-4 rounded-lg border">Aucun appel telephonique enregistre</p>
+              <p className="text-sm text-muted-foreground bg-card p-4 rounded-lg border">{t("telephony.logs.noCalls")}</p>
             ) : (
               <div className="space-y-2">
                 {callLogs.map(l => (
@@ -849,9 +851,9 @@ export default function TelephonyPage() {
             )}
           </div>
           <div>
-            <h3 className="font-semibold mb-3 flex items-center gap-2"><MessageSquare className="h-4 w-4" /> SMS ({smsLogs.length})</h3>
+            <h3 className="font-semibold mb-3 flex items-center gap-2"><MessageSquare className="h-4 w-4" /> {t("telephony.logs.smsTitle", { count: smsLogs.length })}</h3>
             {smsLogs.length === 0 ? (
-              <p className="text-sm text-muted-foreground bg-card p-4 rounded-lg border">Aucun SMS enregistre</p>
+              <p className="text-sm text-muted-foreground bg-card p-4 rounded-lg border">{t("telephony.logs.noSms")}</p>
             ) : (
               <div className="space-y-2">
                 {smsLogs.map(l => (
@@ -875,18 +877,18 @@ export default function TelephonyPage() {
       {tab === "stats" && stats && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-card rounded-xl border p-5">
-            <h3 className="text-sm text-muted-foreground mb-1">Fournisseurs</h3>
-            <p className="text-2xl font-bold">{stats.providers.active} <span className="text-sm font-normal text-muted-foreground">/ {stats.providers.total} actifs</span></p>
+            <h3 className="text-sm text-muted-foreground mb-1">{t("telephony.stats.providers")}</h3>
+            <p className="text-2xl font-bold">{stats.providers.active} <span className="text-sm font-normal text-muted-foreground">{t("telephony.stats.providersValue", { total: stats.providers.total })}</span></p>
           </div>
           <div className="bg-card rounded-xl border p-5">
-            <h3 className="text-sm text-muted-foreground mb-1">Appels</h3>
+            <h3 className="text-sm text-muted-foreground mb-1">{t("telephony.stats.calls")}</h3>
             <p className="text-2xl font-bold text-green-600">{stats.calls.successful}</p>
-            <p className="text-xs text-muted-foreground">{stats.calls.failed} echoues · {formatDuration(stats.calls.totalDuration)} total</p>
+            <p className="text-xs text-muted-foreground">{t("telephony.stats.callsDetail", { failed: stats.calls.failed, duration: formatDuration(stats.calls.totalDuration) })}</p>
           </div>
           <div className="bg-card rounded-xl border p-5">
-            <h3 className="text-sm text-muted-foreground mb-1">SMS</h3>
+            <h3 className="text-sm text-muted-foreground mb-1">{t("telephony.stats.sms")}</h3>
             <p className="text-2xl font-bold text-blue-600">{stats.sms.successful}</p>
-            <p className="text-xs text-muted-foreground">{stats.sms.failed} echoues</p>
+            <p className="text-xs text-muted-foreground">{t("telephony.stats.smsDetail", { failed: stats.sms.failed })}</p>
           </div>
         </div>
       )}
@@ -894,11 +896,11 @@ export default function TelephonyPage() {
       {showAddForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-card rounded-xl border max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
-            <h3 className="text-lg font-semibold mb-4">Ajouter un fournisseur telephonique</h3>
+            <h3 className="text-lg font-semibold mb-4">{t("telephony.addForm.title")}</h3>
 
             {!selectedProvider ? (
               <div className="space-y-3">
-                <p className="text-sm text-muted-foreground mb-4">Choisissez votre fournisseur :</p>
+                <p className="text-sm text-muted-foreground mb-4">{t("telephony.addForm.choose")}</p>
                 {availableProviders.map(p => (
                   <button
                     key={p.name}
@@ -913,7 +915,7 @@ export default function TelephonyPage() {
                       <p className="text-xs text-muted-foreground">{p.pricing.description}</p>
                       <div className="flex flex-wrap gap-1 mt-1">
                         {p.capabilities.slice(0, 5).map(c => (
-                          <span key={c} className="text-[10px] px-1.5 py-0.5 bg-muted rounded">{CAPABILITY_LABELS[c] || c}</span>
+                          <span key={c} className="text-[10px] px-1.5 py-0.5 bg-muted rounded">{CAPABILITY_LABELS[c] ? t(`telephony.capabilities.${c}`) : c}</span>
                         ))}
                         {p.capabilities.length > 5 && <span className="text-[10px] px-1.5 py-0.5 bg-muted rounded">+{p.capabilities.length - 5}</span>}
                       </div>
@@ -922,7 +924,7 @@ export default function TelephonyPage() {
                   </button>
                 ))}
                 <div className="flex justify-end mt-4">
-                  <button onClick={() => setShowAddForm(false)} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground">Annuler</button>
+                  <button onClick={() => setShowAddForm(false)} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground">{t("telephony.addForm.cancel")}</button>
                 </div>
               </div>
             ) : (
@@ -936,7 +938,7 @@ export default function TelephonyPage() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium">Nom personnalise</label>
+                  <label className="text-sm font-medium">{t("telephony.addForm.customName")}</label>
                   <input
                     value={configLabel}
                     onChange={e => setConfigLabel(e.target.value)}
@@ -963,7 +965,7 @@ export default function TelephonyPage() {
                     onClick={() => { setSelectedProvider(null); setConfigValues({}); }}
                     className="px-4 py-2 border rounded-lg hover:bg-muted text-sm"
                   >
-                    Retour
+                    {t("telephony.addForm.back")}
                   </button>
                   <button
                     onClick={addProvider}
@@ -971,11 +973,11 @@ export default function TelephonyPage() {
                     className="flex-1 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {actionLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                    Configurer
+                    {t("telephony.addForm.configure")}
                   </button>
                 </div>
 
-                <button onClick={() => setShowAddForm(false)} className="w-full text-center text-sm text-muted-foreground hover:text-foreground py-2">Annuler</button>
+                <button onClick={() => setShowAddForm(false)} className="w-full text-center text-sm text-muted-foreground hover:text-foreground py-2">{t("telephony.addForm.cancel")}</button>
               </div>
             )}
           </div>
