@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useSimulateCall } from "@/components/layout";
@@ -14,6 +15,148 @@ import { useToast } from "@/hooks/use-toast";
 
 const TELEPHONY_API = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/api/telephony`;
 type FraudAction = "off" | "voicemail" | "reject";
+
+const REC_VOICES: Record<string, { label: string; value: string }[]> = {
+  fr: [{ label: "Léa (défaut)", value: "" }, { label: "Céline", value: "Polly.Celine" }, { label: "Mathieu", value: "Polly.Mathieu" }],
+  tr: [{ label: "Filiz (défaut)", value: "" }],
+  en: [{ label: "Joanna (défaut)", value: "" }, { label: "Matthew", value: "Polly.Matthew" }, { label: "Amy", value: "Polly.Amy" }],
+};
+const DAY_LABELS: [string, string][] = [
+  ["mon", "Lun"], ["tue", "Mar"], ["wed", "Mer"], ["thu", "Jeu"], ["fri", "Ven"], ["sat", "Sam"], ["sun", "Dim"],
+];
+
+/**
+ * Reglages REELS de la secretaire IA. Remplace l'ancienne carte "Intelligence
+ * IA" dont les 4 interrupteurs (`defaultChecked`, sans etat) ne pilotaient
+ * rien: le back-end lisait deja transfert, horaires, voix, SMS, alerte patron,
+ * mais aucun endpoint ne les enregistrait ni ne les affichait.
+ */
+function AiReceptionistSettings() {
+  const { toast } = useToast();
+  const [cfg, setCfg] = useState<Record<string, any> | null>(null);
+  const [saving, setSaving] = useState(false);
+  const set = (patch: Record<string, any>) => setCfg((c) => ({ ...(c ?? {}), ...patch }));
+
+  useEffect(() => {
+    fetch(`${TELEPHONY_API}/ai-receptionist`, { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setCfg(d); })
+      .catch(() => {});
+  }, []);
+
+  const setDay = (day: string, on: boolean, open = 9, close = 18) => {
+    const days = { ...((cfg?.businessHours?.days) ?? {}) };
+    if (on) days[day] = [open, close]; else delete days[day];
+    set({ businessHours: { ...(cfg?.businessHours ?? {}), days } });
+  };
+  const setDayVal = (day: string, idx: 0 | 1, val: number) => {
+    const cur = cfg?.businessHours?.days?.[day] ?? [9, 18];
+    const next = [...cur] as [number, number]; next[idx] = val;
+    set({ businessHours: { ...(cfg?.businessHours ?? {}), days: { ...(cfg?.businessHours?.days ?? {}), [day]: next } } });
+  };
+
+  const save = async () => {
+    if (!cfg) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`${TELEPHONY_API}/ai-receptionist`, {
+        method: "PUT", credentials: "include", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          enabled: !!cfg.enabled, language: cfg.language || "fr", greeting: cfg.greeting || "", orgName: cfg.orgName || "",
+          voice: cfg.voice || "", autoDetectLanguage: !!cfg.autoDetectLanguage,
+          forwardToNumber: cfg.forwardToNumber || "", ownerAlertNumber: cfg.ownerAlertNumber || "",
+          allowPhoneCancellation: !!cfg.allowPhoneCancellation, smsConfirmation: cfg.smsConfirmation !== false,
+          autoFollowupTask: cfg.autoFollowupTask !== false, autoSmsOnMissed: cfg.autoSmsOnMissed !== false,
+          autoSmsTemplate: cfg.autoSmsTemplate || "", emailRecapEnabled: cfg.emailRecapEnabled !== false,
+          businessHours: cfg.businessHours ?? null,
+        }),
+      });
+      const d = await res.json();
+      if (res.ok) toast({ title: "Réglages enregistrés" });
+      else toast({ title: "Erreur", description: d.error, variant: "destructive" });
+    } catch { toast({ title: "Erreur", description: "Enregistrement échoué.", variant: "destructive" }); }
+    finally { setSaving(false); }
+  };
+
+  if (!cfg) return null;
+  const voices = REC_VOICES[cfg.language as string] ?? REC_VOICES.fr;
+  const toggle = (key: string, label: string, desc: string, def = false) => (
+    <div className="flex items-center justify-between">
+      <div><Label>{label}</Label><p className="text-xs text-muted-foreground">{desc}</p></div>
+      <Switch checked={cfg[key] !== undefined ? !!cfg[key] : def} onCheckedChange={(v) => set({ [key]: v })} />
+    </div>
+  );
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Secrétaire IA — comportement</CardTitle>
+        <CardDescription>Réglages réels appliqués aux appels entrants pris par la secrétaire.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {!cfg.configured && (
+          <p className="text-xs text-amber-600">Aucun fournisseur Twilio configuré : les réglages seront actifs une fois Twilio connecté.</p>
+        )}
+        {toggle("enabled", "Secrétaire IA activée", "Prend les appels entrants automatiquement")}
+        <Separator />
+        <div className="grid grid-cols-2 gap-3">
+          <div><Label className="text-xs">Langue</Label>
+            <Select value={cfg.language || "fr"} onValueChange={(v) => set({ language: v, voice: "" })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="fr">Français</SelectItem><SelectItem value="tr">Türkçe</SelectItem><SelectItem value="en">English</SelectItem></SelectContent>
+            </Select>
+          </div>
+          <div><Label className="text-xs">Voix</Label>
+            <Select value={cfg.voice || ""} onValueChange={(v) => set({ voice: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>{voices.map((v) => <SelectItem key={v.value || "default"} value={v.value}>{v.label}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div><Label className="text-xs">Nom de l'entreprise (annoncé)</Label><Input value={cfg.orgName || ""} onChange={(e) => set({ orgName: e.target.value })} placeholder="Ex : Cabinet Dupont" /></div>
+        <div><Label className="text-xs">Message d'accueil</Label><Textarea rows={2} value={cfg.greeting || ""} onChange={(e) => set({ greeting: e.target.value })} placeholder="Bonjour, vous êtes bien chez…" /></div>
+        {toggle("autoDetectLanguage", "Détection automatique de la langue", "Bascule sur la langue de l'appelant dès le 1er tour")}
+        <Separator />
+        <div className="grid grid-cols-2 gap-3">
+          <div><Label className="text-xs">Transférer vers (n° humain)</Label><Input value={cfg.forwardToNumber || ""} onChange={(e) => set({ forwardToNumber: e.target.value })} placeholder="+33…" /></div>
+          <div><Label className="text-xs">Alerte patron (SMS urgent)</Label><Input value={cfg.ownerAlertNumber || ""} onChange={(e) => set({ ownerAlertNumber: e.target.value })} placeholder="+33…" /></div>
+        </div>
+        <Separator />
+        {toggle("smsConfirmation", "SMS de confirmation de rendez-vous", "Envoie un SMS quand un RDV est pris", true)}
+        {toggle("autoFollowupTask", "Tâche de suivi automatique", "Crée une tâche après chaque RDV pris", true)}
+        {toggle("allowPhoneCancellation", "Autoriser l'annulation par téléphone", "L'appelant peut demander l'annulation d'un RDV (soumise à approbation)")}
+        {toggle("autoSmsOnMissed", "SMS automatique sur appel manqué", "Envoie un SMS de rappel si l'IA n'a pas pu répondre", true)}
+        {toggle("emailRecapEnabled", "E-mail de récapitulatif après appel", "Résumé de l'appel envoyé à l'équipe", true)}
+        <div><Label className="text-xs">Modèle de SMS d'appel manqué</Label><Input value={cfg.autoSmsTemplate || ""} onChange={(e) => set({ autoSmsTemplate: e.target.value })} placeholder="Bonjour {name}, nous avons manqué votre appel…" /><p className="text-[10px] text-muted-foreground mt-0.5">Variables : {"{name}"} {"{time}"}</p></div>
+        <Separator />
+        <div>
+          <Label className="text-xs">Horaires d'ouverture (hors horaires → messagerie)</Label>
+          <div className="space-y-1.5 mt-1.5">
+            {DAY_LABELS.map(([key, label]) => {
+              const win = cfg.businessHours?.days?.[key];
+              return (
+                <div key={key} className="flex items-center gap-2">
+                  <Switch checked={!!win} onCheckedChange={(v) => setDay(key, v)} />
+                  <span className="w-8 text-xs">{label}</span>
+                  {win ? (
+                    <>
+                      <Input type="number" min={0} max={24} value={win[0]} onChange={(e) => setDayVal(key, 0, parseInt(e.target.value) || 0)} className="h-7 w-16 text-xs" />
+                      <span className="text-xs text-muted-foreground">→</span>
+                      <Input type="number" min={0} max={24} value={win[1]} onChange={(e) => setDayVal(key, 1, parseInt(e.target.value) || 0)} className="h-7 w-16 text-xs" />
+                      <span className="text-[10px] text-muted-foreground">h</span>
+                    </>
+                  ) : <span className="text-xs text-muted-foreground">Fermé</span>}
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1">Aucun horaire = disponible 24h/24.</p>
+        </div>
+        <Button onClick={save} disabled={saving} className="w-full">{saving ? "Enregistrement…" : "Enregistrer les réglages"}</Button>
+      </CardContent>
+    </Card>
+  );
+}
 
 function WebhookUrlRow({ label, url }: { label: string; url: string }) {
   const [copied, setCopied] = useState(false);
@@ -197,45 +340,7 @@ export function TabAppels() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Intelligence IA pour les appels</CardTitle>
-          <CardDescription>Fonctionnalites IA appliquees aux appels.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Analyse de sentiment en temps reel</Label>
-              <p className="text-xs text-muted-foreground">L'IA analyse le ton de la conversation</p>
-            </div>
-            <Switch defaultChecked />
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Suggestions contextuelles pendant l'appel</Label>
-              <p className="text-xs text-muted-foreground">Afficher des suggestions basees sur l'historique du contact</p>
-            </div>
-            <Switch defaultChecked />
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Resume automatique post-appel</Label>
-              <p className="text-xs text-muted-foreground">Generer un resume IA apres chaque appel</p>
-            </div>
-            <Switch defaultChecked />
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Detection des rappels necessaires</Label>
-              <p className="text-xs text-muted-foreground">L'IA detecte si un rappel est necessaire et cree la tache</p>
-            </div>
-            <Switch defaultChecked />
-          </div>
-        </CardContent>
-      </Card>
+      <AiReceptionistSettings />
 
       <Card className="border-blue-200 dark:border-blue-800">
         <CardHeader>

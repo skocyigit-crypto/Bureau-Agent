@@ -288,6 +288,34 @@ function receptionistBaseUrl(req: Request): string {
   return `${proto}://${host}`;
 }
 
+// Numero de telephone permissif (E.164 ou format national avec separateurs).
+const PHONE_RE = /^\+?[0-9][0-9\s().-]{5,19}$/;
+const REC_DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+
+/** Nettoie une config d'horaires d'ouverture recue du client. */
+function sanitizeBusinessHours(input: unknown): { tz?: string; days?: Record<string, [number, number]> } | null {
+  if (input == null) return null;
+  if (typeof input !== "object") return undefined as never; // signale une entree invalide
+  const src = input as Record<string, any>;
+  const out: { tz?: string; days?: Record<string, [number, number]> } = {};
+  if (typeof src.tz === "string" && src.tz.length <= 64) out.tz = src.tz;
+  if (src.days && typeof src.days === "object") {
+    const days: Record<string, [number, number]> = {};
+    for (const k of REC_DAY_KEYS) {
+      const w = src.days[k];
+      if (Array.isArray(w) && w.length === 2) {
+        const open = Math.floor(Number(w[0]));
+        const close = Math.floor(Number(w[1]));
+        if (Number.isInteger(open) && Number.isInteger(close) && open >= 0 && close <= 24 && open < close) {
+          days[k] = [open, close];
+        }
+      }
+    }
+    out.days = days;
+  }
+  return out;
+}
+
 router.get("/telephony/ai-receptionist", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
   try {
@@ -301,6 +329,20 @@ router.get("/telephony/ai-receptionist", async (req, res): Promise<void> => {
       language,
       greeting: typeof cfg.greeting === "string" ? cfg.greeting : "",
       orgName: typeof cfg.orgName === "string" ? cfg.orgName : "",
+      // Reglages avances: le moteur les lisait deja, mais aucun endpoint ne les
+      // renvoyait ni ne les enregistrait (l'UI ne montrait que 4 champs).
+      voice: typeof cfg.voice === "string" ? cfg.voice : "",
+      autoDetectLanguage: cfg.autoDetectLanguage === true,
+      forwardToNumber: typeof cfg.forwardToNumber === "string" ? cfg.forwardToNumber : "",
+      ownerAlertNumber: typeof cfg.ownerAlertNumber === "string" ? cfg.ownerAlertNumber : "",
+      allowPhoneCancellation: cfg.allowPhoneCancellation === true,
+      smsConfirmation: cfg.smsConfirmation !== false, // defaut true
+      autoFollowupTask: cfg.autoFollowupTask !== false, // defaut true
+      autoSmsOnMissed: cfg.autoSmsOnMissed !== false, // defaut true
+      autoSmsTemplate: typeof cfg.autoSmsTemplate === "string" ? cfg.autoSmsTemplate : "",
+      emailRecapEnabled: cfg.emailRecapEnabled !== false, // defaut true
+      fraudAction: FRAUD_ACTIONS.includes(cfg.fraudAction) ? cfg.fraudAction : "off",
+      businessHours: cfg.businessHours ?? null,
       webhookUrl: `${base}/api/voice/twilio/incoming`,
       statusCallbackUrl: `${base}/api/voice/twilio/status`,
     });
@@ -312,7 +354,8 @@ router.get("/telephony/ai-receptionist", async (req, res): Promise<void> => {
 
 router.put("/telephony/ai-receptionist", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const { enabled, language, greeting, orgName } = req.body ?? {};
+  const b = req.body ?? {};
+  const { enabled, language, greeting, orgName } = b;
   if (typeof enabled !== "boolean") {
     res.status(400).json({ error: "Champ 'enabled' (booleen) requis." });
     return;
@@ -325,8 +368,30 @@ router.put("/telephony/ai-receptionist", async (req, res): Promise<void> => {
     res.status(400).json({ error: "'orgName' doit etre une chaine de caracteres." });
     return;
   }
+  // Validation des reglages avances (chacun optionnel: on ne touche que ceux
+  // effectivement fournis, sinon on conserve la valeur precedente).
+  const phoneField = (v: unknown, name: string): string | null | undefined => {
+    if (v === undefined) return undefined; // non fourni -> inchange
+    if (v === "" || v === null) return ""; // efface
+    if (typeof v !== "string" || !PHONE_RE.test(v.trim())) { throw new Error(`'${name}' n'est pas un numero valide.`); }
+    return v.trim();
+  };
   const lang: RecLangCfg = REC_LANGS.includes(language) ? language : "fr";
   try {
+    const fwd = phoneField(b.forwardToNumber, "forwardToNumber");
+    const owner = phoneField(b.ownerAlertNumber, "ownerAlertNumber");
+    if (b.voice !== undefined && b.voice !== "" && !(typeof b.voice === "string" && /^[A-Za-z0-9._-]{1,40}$/.test(b.voice))) {
+      res.status(400).json({ error: "'voice' invalide." }); return;
+    }
+    if (b.fraudAction !== undefined && !FRAUD_ACTIONS.includes(b.fraudAction)) {
+      res.status(400).json({ error: "'fraudAction' invalide (off|voicemail|reject)." }); return;
+    }
+    let bh: ReturnType<typeof sanitizeBusinessHours> | undefined;
+    if (b.businessHours !== undefined) {
+      bh = sanitizeBusinessHours(b.businessHours);
+      if (bh === (undefined as never)) { res.status(400).json({ error: "'businessHours' invalide." }); return; }
+    }
+
     const p = await getDefaultTwilioProviderRow(orgId);
     if (!p) {
       res.status(404).json({ error: "Aucun fournisseur Twilio configure." });
@@ -334,13 +399,30 @@ router.put("/telephony/ai-receptionist", async (req, res): Promise<void> => {
     }
     const prevCfg = (p.config as Record<string, any>) ?? {};
     const prevRec = (prevCfg.aiReceptionist as Record<string, any>) ?? {};
-    const nextRec = {
+
+    // Applique un booleen seulement s'il est fourni (sinon conserve).
+    const boolField = (v: unknown, prev: unknown) => (typeof v === "boolean" ? v : prev);
+
+    const nextRec: Record<string, any> = {
       ...prevRec,
       enabled,
       language: lang,
       greeting: typeof greeting === "string" ? greeting.slice(0, 500) : (prevRec.greeting ?? ""),
       orgName: typeof orgName === "string" ? orgName.slice(0, 120) : (prevRec.orgName ?? ""),
+      autoDetectLanguage: boolField(b.autoDetectLanguage, prevRec.autoDetectLanguage ?? false),
+      allowPhoneCancellation: boolField(b.allowPhoneCancellation, prevRec.allowPhoneCancellation ?? false),
+      smsConfirmation: boolField(b.smsConfirmation, prevRec.smsConfirmation ?? true),
+      autoFollowupTask: boolField(b.autoFollowupTask, prevRec.autoFollowupTask ?? true),
+      autoSmsOnMissed: boolField(b.autoSmsOnMissed, prevRec.autoSmsOnMissed ?? true),
+      emailRecapEnabled: boolField(b.emailRecapEnabled, prevRec.emailRecapEnabled ?? true),
     };
+    if (b.voice !== undefined) nextRec.voice = b.voice === "" ? undefined : b.voice;
+    if (fwd !== undefined) nextRec.forwardToNumber = fwd === "" ? undefined : fwd;
+    if (owner !== undefined) nextRec.ownerAlertNumber = owner === "" ? undefined : owner;
+    if (typeof b.autoSmsTemplate === "string") nextRec.autoSmsTemplate = b.autoSmsTemplate.slice(0, 320);
+    if (b.fraudAction !== undefined) nextRec.fraudAction = b.fraudAction;
+    if (bh !== undefined) nextRec.businessHours = bh;
+
     const nextConfig = { ...prevCfg, aiReceptionist: nextRec };
     await db.update(telephonyProvidersTable)
       .set({ config: nextConfig })
@@ -348,8 +430,12 @@ router.put("/telephony/ai-receptionist", async (req, res): Promise<void> => {
         eq(telephonyProvidersTable.id, p.id),
         eq(telephonyProvidersTable.organisationId, orgId),
       ));
-    res.json({ enabled: nextRec.enabled, language: nextRec.language, greeting: nextRec.greeting, orgName: nextRec.orgName });
+    res.json({ ok: true, aiReceptionist: nextRec });
   } catch (err: any) {
+    // Erreur de validation phone -> 400 clair; sinon 500.
+    if (err instanceof Error && /numero valide/.test(err.message)) {
+      res.status(400).json({ error: err.message }); return;
+    }
     req.log.error({ err }, "Erreur mise a jour secretaire IA");
     res.status(500).json({ error: "Erreur lors de l'enregistrement du reglage." });
   }

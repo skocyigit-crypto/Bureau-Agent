@@ -1160,6 +1160,12 @@ function smsConfirmText(
   return `Votre message a bien ete transmis a notre equipe. Nous revenons vers vous rapidement. — ${org}`;
 }
 
+// Note perf: les envois de SMS de ce module (confirmation, alerte patron) sont
+// deliberement "fire-and-forget" (`void sendVoiceSms(...).catch()`). Ils sont
+// sur le chemin critique de la reponse TwiML, que Twilio attend sous ~15 s;
+// bloquer la reponse de l'appelant sur un aller-retour d'API SMS ajoutait de la
+// latence et risquait un timeout Twilio. Le SMS part en arriere-plan; son echec
+// eventuel n'interrompt pas la conversation.
 async function persistOutcome(session: CallSession, result: ReceptionistResult): Promise<void> {
   if (session.fulfilled || session.persisting || !result.outcome) return;
   // Pose synchrone AVANT tout `await`: en JS single-thread, aucun autre appel
@@ -1257,7 +1263,7 @@ async function persistOutcome(session: CallSession, result: ReceptionistResult):
 
         // SMS de confirmation a l'appelant (defaut ON, uniquement +E.164).
         if (smsEnabled) {
-          await sendVoiceSms(session, caller, smsConfirmText("appointment", session, a.whenText), "appointment-confirm");
+          void sendVoiceSms(session, caller, smsConfirmText("appointment", session, a.whenText), "appointment-confirm").catch(() => {});
         }
         return;
       }
@@ -1287,7 +1293,7 @@ async function persistOutcome(session: CallSession, result: ReceptionistResult):
         sourceId: null,
       });
       if (smsEnabled) {
-        await sendVoiceSms(session, caller, smsConfirmText("message", session), "callback-confirm");
+        void sendVoiceSms(session, caller, smsConfirmText("message", session), "callback-confirm").catch(() => {});
       }
       return;
     }
@@ -1315,7 +1321,7 @@ async function persistOutcome(session: CallSession, result: ReceptionistResult):
         sourceId: null,
       });
       if (smsEnabled) {
-        await sendVoiceSms(session, caller, smsConfirmText("message", session), "message-confirm");
+        void sendVoiceSms(session, caller, smsConfirmText("message", session), "message-confirm").catch(() => {});
       }
       return;
     }
@@ -1384,7 +1390,7 @@ async function persistOutcome(session: CallSession, result: ReceptionistResult):
         sourceId: String(candidates[0].id),
       });
       if (smsEnabled) {
-        await sendVoiceSms(session, caller, smsConfirmText("cancel", session), "cancel-confirm");
+        void sendVoiceSms(session, caller, smsConfirmText("cancel", session), "cancel-confirm").catch(() => {});
       }
       return;
     }
@@ -1448,12 +1454,12 @@ async function finalizeCall(callSid: string, session: CallSession): Promise<void
       const ownerNumber =
         typeof session.cfg.ownerAlertNumber === "string" ? (session.cfg.ownerAlertNumber as string).trim() : "";
       if (ownerNumber) {
-        await sendVoiceSms(
+        void sendVoiceSms(
           session,
           ownerNumber,
           `[Ajant Bureau] Appel ${reason} de ${session.callerName || caller}. ${summary || ""}`.trim(),
           "owner-alert",
-        );
+        ).catch(() => {});
       }
     } catch (err) {
       logger.warn({ err, orgId: session.orgId }, "[voice] alerte patron echouee");
