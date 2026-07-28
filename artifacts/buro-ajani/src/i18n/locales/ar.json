@@ -1,0 +1,43 @@
+{
+  "common": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "add": "إضافة",
+    "close": "إغلاق",
+    "confirm": "تأكيد",
+    "search": "بحث",
+    "loading": "جارٍ التحميل…",
+    "approve": "موافقة",
+    "reject": "رفض",
+    "yes": "نعم",
+    "no": "لا",
+    "back": "رجوع",
+    "next": "التالي",
+    "language": "اللغة"
+  },
+  "nav": {
+    "dashboard": "لوحة التحكم",
+    "contacts": "جهات الاتصال",
+    "prospects": "العملاء المحتملون",
+    "tasks": "المهام",
+    "calls": "المكالمات",
+    "messages": "الرسائل",
+    "calendar": "التقويم",
+    "invoices": "الفواتير",
+    "projects": "المشاريع",
+    "documents": "المستندات",
+    "treasury": "الخزينة",
+    "expenses": "المصروفات",
+    "settings": "الإعدادات",
+    "guide": "الدليل"
+  },
+  "message": {
+    "saved": "تم الحفظ بنجاح",
+    "error": "حدث خطأ",
+    "confirmDelete": "هل أنت متأكد أنك تريد حذف هذا العنصر؟",
+    "noResults": "لا توجد نتائج",
+    "welcome": "مرحبًا، {{name}}"
+  }
+}

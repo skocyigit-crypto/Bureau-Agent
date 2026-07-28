@@ -1,0 +1,43 @@
+{
+  "common": {
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "add": "Hinzufügen",
+    "close": "Schließen",
+    "confirm": "Bestätigen",
+    "search": "Suchen",
+    "loading": "Wird geladen…",
+    "approve": "Genehmigen",
+    "reject": "Ablehnen",
+    "yes": "Ja",
+    "no": "Nein",
+    "back": "Zurück",
+    "next": "Weiter",
+    "language": "Sprache"
+  },
+  "nav": {
+    "dashboard": "Übersicht",
+    "contacts": "Kontakte",
+    "prospects": "Interessenten",
+    "tasks": "Aufgaben",
+    "calls": "Anrufe",
+    "messages": "Nachrichten",
+    "calendar": "Kalender",
+    "invoices": "Rechnungen",
+    "projects": "Projekte",
+    "documents": "Dokumente",
+    "treasury": "Finanzen",
+    "expenses": "Ausgaben",
+    "settings": "Einstellungen",
+    "guide": "Handbuch"
+  },
+  "message": {
+    "saved": "Erfolgreich gespeichert",
+    "error": "Ein Fehler ist aufgetreten",
+    "confirmDelete": "Möchten Sie dieses Element wirklich löschen?",
+    "noResults": "Keine Ergebnisse",
+    "welcome": "Willkommen, {{name}}"
+  }
+}

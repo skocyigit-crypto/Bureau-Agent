@@ -1,0 +1,43 @@
+{
+  "common": {
+    "save": "Kaydet",
+    "cancel": "İptal",
+    "delete": "Sil",
+    "edit": "Düzenle",
+    "add": "Ekle",
+    "close": "Kapat",
+    "confirm": "Onayla",
+    "search": "Ara",
+    "loading": "Yükleniyor…",
+    "approve": "Onayla",
+    "reject": "Reddet",
+    "yes": "Evet",
+    "no": "Hayır",
+    "back": "Geri",
+    "next": "İleri",
+    "language": "Dil"
+  },
+  "nav": {
+    "dashboard": "Kontrol Paneli",
+    "contacts": "Kişiler",
+    "prospects": "Müşteri Adayları",
+    "tasks": "Görevler",
+    "calls": "Aramalar",
+    "messages": "Mesajlar",
+    "calendar": "Takvim",
+    "invoices": "Faturalar",
+    "projects": "Projeler",
+    "documents": "Belgeler",
+    "treasury": "Hazine",
+    "expenses": "Giderler",
+    "settings": "Ayarlar",
+    "guide": "Kılavuz"
+  },
+  "message": {
+    "saved": "Başarıyla kaydedildi",
+    "error": "Bir hata oluştu",
+    "confirmDelete": "Bu öğeyi silmek istediğinize emin misiniz?",
+    "noResults": "Sonuç yok",
+    "welcome": "Hoş geldiniz, {{name}}"
+  }
+}

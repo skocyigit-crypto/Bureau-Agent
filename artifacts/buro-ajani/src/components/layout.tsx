@@ -14,6 +14,7 @@ import { GlobalSearch } from "@/components/global-search";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ExportMenu } from "@/components/export-menu";
 import { NotificationBell } from "@/components/notification-bell";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { AgentRunChip } from "@/components/agent-run-chip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SmartBrowserToolbar } from "@/components/smart-browser-panel";
@@ -525,6 +526,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </TooltipTrigger>
                 <TooltipContent>Guide d'utilisation</TooltipContent>
               </Tooltip>
+              <LanguageSwitcher variant="compact" />
               <ThemeToggle />
               <ExportMenu />
               <AiHealthBadge />

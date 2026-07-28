@@ -1,0 +1,43 @@
+{
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "add": "Añadir",
+    "close": "Cerrar",
+    "confirm": "Confirmar",
+    "search": "Buscar",
+    "loading": "Cargando…",
+    "approve": "Aprobar",
+    "reject": "Rechazar",
+    "yes": "Sí",
+    "no": "No",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "language": "Idioma"
+  },
+  "nav": {
+    "dashboard": "Panel",
+    "contacts": "Contactos",
+    "prospects": "Prospectos",
+    "tasks": "Tareas",
+    "calls": "Llamadas",
+    "messages": "Mensajes",
+    "calendar": "Calendario",
+    "invoices": "Facturas",
+    "projects": "Proyectos",
+    "documents": "Documentos",
+    "treasury": "Tesorería",
+    "expenses": "Gastos",
+    "settings": "Ajustes",
+    "guide": "Guía"
+  },
+  "message": {
+    "saved": "Guardado con éxito",
+    "error": "Se produjo un error",
+    "confirmDelete": "¿Seguro que desea eliminar este elemento?",
+    "noResults": "Sin resultados",
+    "welcome": "Bienvenido, {{name}}"
+  }
+}

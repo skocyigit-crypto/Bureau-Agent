@@ -1,0 +1,43 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "close": "Close",
+    "confirm": "Confirm",
+    "search": "Search",
+    "loading": "Loading…",
+    "approve": "Approve",
+    "reject": "Reject",
+    "yes": "Yes",
+    "no": "No",
+    "back": "Back",
+    "next": "Next",
+    "language": "Language"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "contacts": "Contacts",
+    "prospects": "Prospects",
+    "tasks": "Tasks",
+    "calls": "Calls",
+    "messages": "Messages",
+    "calendar": "Calendar",
+    "invoices": "Invoices",
+    "projects": "Projects",
+    "documents": "Documents",
+    "treasury": "Treasury",
+    "expenses": "Expenses",
+    "settings": "Settings",
+    "guide": "Guide"
+  },
+  "message": {
+    "saved": "Saved successfully",
+    "error": "An error occurred",
+    "confirmDelete": "Are you sure you want to delete this item?",
+    "noResults": "No results",
+    "welcome": "Welcome, {{name}}"
+  }
+}
