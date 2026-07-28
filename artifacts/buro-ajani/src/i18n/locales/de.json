@@ -657,5 +657,350 @@
     "projectTitleWith": "Projekt - {{name}}",
     "projectTitleDefault": "Projekt aus Anruf",
     "projectNotes": "Erstellt aus dem Anruf vom {{date}}"
+  },
+  "messages": {
+    "title": "Nachrichten & Notizen",
+    "subtitle": "Sehen Sie die von Anrufern hinterlassenen Sprachnachrichten und Notizen ein.",
+    "bulkRead": "Alle als gelesen ({{count}})",
+    "bulkDelete": "Löschen ({{count}})",
+    "csv": "CSV",
+    "print": "Drucken",
+    "composeEmail": "KI-E-Mail verfassen",
+    "newMessage": "Neue Nachricht",
+    "searchPlaceholder": "Nachricht suchen...",
+    "loadError": "Nachrichten können nicht geladen werden",
+    "verifyAi": "KI prüfen",
+    "unknown": "Unbekannt",
+    "actionsLabel": "Aktionen",
+    "banner": {
+      "alt": "Nachrichtenzentrale",
+      "title": "Nachrichtenzentrale",
+      "subtitle": "Sprachnachrichten, Notizen und Erinnerungen — alles zentral an einem Ort."
+    },
+    "filters": {
+      "readPlaceholder": "Lesestatus",
+      "all": "Alle",
+      "unread": "Ungelesen",
+      "read": "Gelesen",
+      "typePlaceholder": "Typ",
+      "allTypes": "Alle Typen",
+      "priorityPlaceholder": "Priorität",
+      "allPriorities": "Alle"
+    },
+    "type": {
+      "note": "Notiz",
+      "vocalShort": "Sprache",
+      "vocal": "Sprachnachricht",
+      "rappel": "Erinnerung"
+    },
+    "priority": {
+      "haute": "Hoch",
+      "moyenne": "Mittel",
+      "basse": "Niedrig"
+    },
+    "dialog": {
+      "editTitle": "Nachricht bearbeiten",
+      "createTitle": "Nachricht speichern",
+      "editDesc": "Bearbeiten Sie die Nachrichtendetails.",
+      "createDesc": "Fügen Sie eine Notiz, eine Erinnerung hinzu oder erfassen Sie eine Sprachnachricht.",
+      "update": "Aktualisieren",
+      "create": "Speichern"
+    },
+    "form": {
+      "type": "Typ",
+      "priority": "Priorität",
+      "phoneNumber": "Telefonnummer",
+      "phonePlaceholder": "+49 1...",
+      "contact": "Mit einem Kontakt verknüpfen (Optional)",
+      "chooseContact": "Kontakt wählen...",
+      "none": "Keiner",
+      "content": "Nachrichteninhalt",
+      "contentPlaceholder": "Inhalt eingeben..."
+    },
+    "columns": {
+      "from": "Von",
+      "type": "Typ",
+      "priority": "Priorität",
+      "content": "Inhalt",
+      "date": "Datum",
+      "actions": "Aktionen"
+    },
+    "empty": {
+      "filtered": "Keine Nachricht entspricht Ihren Filtern.",
+      "title": "Noch keine Nachrichten",
+      "description": "Senden Sie Ihre erste SMS oder erfassen Sie eine erhaltene Nachricht, um alle Ihre Kundengespräche an einem Ort zu verfolgen.",
+      "action": "Meine erste Nachricht erstellen",
+      "tip": "Tipp: Verbinden Sie Twilio, um SMS automatisch zu senden und zu empfangen."
+    },
+    "rowActions": {
+      "edit": "Bearbeiten",
+      "duplicate": "Duplizieren",
+      "createProject": "Projekt erstellen",
+      "markUnread": "Als ungelesen markieren",
+      "markRead": "Als gelesen markieren",
+      "delete": "Löschen"
+    },
+    "aiTitle": "KI-Empfehlungen - Nachrichten",
+    "pagination": "{{total}} Nachricht(en) - Seite {{page}} von {{pages}}",
+    "confirm": {
+      "bulkDelete": "{{count}} Nachricht(en) löschen?",
+      "deleteOne": "Diese Nachricht löschen?"
+    },
+    "toast": {
+      "statusError": "Nachrichtenstatus kann nicht geändert werden",
+      "bulkRead": "{{count}} Nachricht(en) als gelesen markiert",
+      "error": "Fehler",
+      "bulkDeleteError": "Fehler beim Löschen",
+      "bulkDeleted": "{{count}} Nachricht(en) gelöscht",
+      "duplicated": "Nachricht dupliziert",
+      "duplicateError": "Kann nicht dupliziert werden",
+      "updated": "Nachricht aktualisiert",
+      "updateError": "Kann nicht aktualisiert werden",
+      "created": "Nachricht gespeichert",
+      "createError": "Nachricht kann nicht gespeichert werden",
+      "projectCreated": "Projekt erstellt",
+      "deleted": "Nachricht gelöscht",
+      "deleteError": "Kann nicht gelöscht werden"
+    },
+    "projectTitleWith": "Projekt - {{name}}",
+    "projectTitleDefault": "Projekt aus Nachricht",
+    "projectNotes": "Aus einer Nachricht erstellt"
+  },
+  "prospects": {
+    "title": "Interessenten & CRM-Pipeline",
+    "subtitle": "Verwaltung der Vertriebspipeline und Verfolgung von Chancen.",
+    "csv": "CSV",
+    "print": "Drucken",
+    "newProspect": "Neuer Interessent",
+    "searchPlaceholder": "Suchen...",
+    "refresh": "Aktualisieren",
+    "orgFallback": "Org #{{id}}",
+    "empty1": "Leer",
+    "count": "{{total}} Interessent(en)",
+    "selectAll": "Alle auswählen",
+    "actionsLabel": "Aktionen",
+    "stats": {
+      "total": "Gesamt",
+      "pipelineValue": "Pipeline-Wert",
+      "won": "Gewonnen",
+      "lost": "Verloren"
+    },
+    "filters": {
+      "stagePlaceholder": "Phase",
+      "allStages": "Alle Phasen",
+      "orgPlaceholder": "Organisation",
+      "allOrgs": "Alle Organisationen"
+    },
+    "stages": {
+      "nouveau": "Neu",
+      "contact": "Kontakt",
+      "qualification": "Qualifizierung",
+      "proposition": "Angebot",
+      "negociation": "Verhandlung",
+      "gagne": "Gewonnen",
+      "perdu": "Verloren"
+    },
+    "priorities": {
+      "haute": "Hoch",
+      "moyenne": "Mittel",
+      "basse": "Niedrig"
+    },
+    "empty": {
+      "filtered": "Kein Interessent entspricht Ihren Filtern.",
+      "title": "Noch keine Interessenten",
+      "descriptionKanban": "Fügen Sie Ihre ersten Interessenten hinzu, um Ihre Vertriebspipeline zu verfolgen. Sie können sie zwischen den Kanban-Phasen verschieben und Ihre Konversionsrate messen.",
+      "description": "Fügen Sie Ihre ersten Interessenten hinzu, um Ihre Vertriebspipeline zu verfolgen. Sie können sie zwischen den Phasen verschieben und Ihre Konversionsrate messen.",
+      "action": "Meinen ersten Interessenten erstellen",
+      "tip": "Tipp: Wandeln Sie einen bestehenden Kontakt aus seiner Detailkarte in einen Interessenten um."
+    },
+    "bulk": {
+      "selected": "{{count}} Interessent(en) ausgewählt",
+      "stage": "Phase",
+      "changeStage": "Phase ändern",
+      "priority": "Priorität",
+      "changePriority": "Priorität ändern",
+      "assignPlaceholder": "Name des Zuständigen...",
+      "ok": "OK",
+      "assign": "Zuweisen",
+      "delete": "Löschen",
+      "cancel": "Abbrechen"
+    },
+    "rowActions": {
+      "open": "Öffnen",
+      "duplicate": "Duplizieren",
+      "convert": "In Kontakt umwandeln",
+      "createProject": "Projekt erstellen",
+      "delete": "Löschen"
+    },
+    "dialog": {
+      "editTitle": "Interessent bearbeiten",
+      "createTitle": "Neuer Interessent",
+      "titleLabel": "Titel",
+      "titleRequired": "Titel *",
+      "titlePlaceholder": "Geschäftschance",
+      "targetOrg": "Zielorganisation",
+      "targetOrgRequired": "Zielorganisation *",
+      "chooseOrg": "Organisation wählen",
+      "orgHelpEdit": "Die Eigentümerorganisation kann von dieser Karte aus nicht neu zugewiesen werden.",
+      "orgHelpCreate": "Der Super-Admin muss die Eigentümerorganisation ausdrücklich zuweisen.",
+      "stage": "Phase",
+      "priority": "Priorität",
+      "value": "Wert (€)",
+      "valuePlaceholder": "0",
+      "probability": "Wahrscheinlichkeit (%)",
+      "contact": "Kontakt",
+      "contactPlaceholder": "Kontaktname",
+      "company": "Unternehmen",
+      "email": "E-Mail",
+      "phone": "Telefon",
+      "source": "Quelle",
+      "sourcePlaceholder": "Website, Empfehlung...",
+      "assignedTo": "Zugewiesen an",
+      "closeDate": "Voraussichtliches Abschlussdatum",
+      "notes": "Notizen",
+      "cancel": "Abbrechen",
+      "update": "Aktualisieren",
+      "create": "Erstellen"
+    },
+    "confirm": {
+      "delete": "Diesen Interessenten löschen?",
+      "bulkDelete": "{{count}} Interessent(en) löschen?",
+      "convertTitle": "In Kontakt umwandeln?",
+      "convertDesc": "Der Status des Interessenten wechselt zu « Gewonnen ».",
+      "convertLabel": "Umwandeln"
+    },
+    "toast": {
+      "error": "Fehler",
+      "loadError": "Laden fehlgeschlagen.",
+      "titleRequired": "Titel erforderlich",
+      "updated": "Interessent aktualisiert",
+      "created": "Interessent erstellt",
+      "saveError": "Speichern fehlgeschlagen.",
+      "duplicated": "Interessent dupliziert",
+      "duplicateError": "Kann nicht dupliziert werden",
+      "deleted": "Interessent gelöscht",
+      "converted": "Umgewandelt!",
+      "projectCreated": "Projekt erstellt",
+      "projectCreatedDesc": "Das Projekt « {{title}} » wurde erstellt.",
+      "projectError": "Projekt kann nicht erstellt werden.",
+      "stageUpdated": "Phase aktualisiert",
+      "bulkDeleted": "{{count}} Interessent(en) gelöscht",
+      "bulkStage": "{{count}} Interessent(en) → {{stage}}",
+      "bulkPriority": "{{count}} Interessent(en) aktualisiert",
+      "bulkAssigned": "{{count}} Interessent(en) {{name}} zugewiesen"
+    }
+  },
+  "projets": {
+    "title": "Projekte",
+    "totalCount": "{{total}} Projekt(e) insgesamt",
+    "loading": "Wird geladen...",
+    "searchPlaceholder": "Projekt suchen...",
+    "exportCsv": "CSV exportieren",
+    "selectMode": "Auswählen",
+    "cancel": "Abbrechen",
+    "newProject": "Neues Projekt",
+    "status": {
+      "planifie": "Geplant",
+      "en_cours": "In Bearbeitung",
+      "en_pause": "Pausiert",
+      "termine": "Abgeschlossen",
+      "annule": "Abgebrochen"
+    },
+    "priority": {
+      "haute": "Hoch",
+      "moyenne": "Mittel",
+      "basse": "Niedrig"
+    },
+    "bulk": {
+      "start": "Starten ({{count}})",
+      "complete": "Abschließen ({{count}})",
+      "delete": "Löschen ({{count}})",
+      "selectAll": "Alle auswählen",
+      "deselectAll": "Auswahl aufheben"
+    },
+    "stats": {
+      "active": "Aktive Projekte",
+      "avgProgress": "Durchschnittlicher Fortschritt",
+      "totalBudget": "Gesamtbudget",
+      "overdue": "Überfällig"
+    },
+    "filters": {
+      "allStatuses": "Alle Status",
+      "allPriorities": "Alle Prioritäten"
+    },
+    "empty": {
+      "title": "Kein Projekt gefunden",
+      "description": "Erstellen Sie Ihr erstes Projekt, um mit der Nachverfolgung zu beginnen.",
+      "kanbanColumn": "Kein Projekt"
+    },
+    "milestones": {
+      "title": "Meilensteine",
+      "complete": "{{done}}/{{total}} abgeschlossen",
+      "placeholder": "Neuer Meilenstein...",
+      "updateError": "Fehler beim Aktualisieren"
+    },
+    "form": {
+      "title": "Projekttitel",
+      "titlePlaceholder": "z. B. Neugestaltung der Schaufensterseite",
+      "description": "Beschreibung",
+      "descriptionPlaceholder": "Projektbeschreibung...",
+      "status": "Status",
+      "priority": "Priorität",
+      "client": "Kunde / Kontakt",
+      "clientPlaceholder": "Kundenname",
+      "company": "Unternehmen",
+      "companyPlaceholder": "Unternehmen",
+      "budget": "Budget (€)",
+      "budgetPlaceholder": "0",
+      "progress": "Fortschritt (%)",
+      "startDate": "Startdatum",
+      "endDate": "Voraussichtliches Enddatum",
+      "assignedTo": "Verantwortlicher",
+      "assignedToPlaceholder": "Name des Verantwortlichen",
+      "tags": "Tags",
+      "tagsHint": "(durch Kommas getrennt)",
+      "tagsPlaceholder": "z. B. dringend, marketing, vip-kunde",
+      "notes": "Notizen",
+      "notesPlaceholder": "Interne Notizen..."
+    },
+    "createDialog": {
+      "title": "Projekt erstellen",
+      "cancel": "Abbrechen",
+      "create": "Erstellen"
+    },
+    "editDialog": {
+      "title": "Projekt bearbeiten",
+      "cancel": "Abbrechen",
+      "save": "Speichern"
+    },
+    "card": {
+      "overdue": "Überfällig",
+      "progress": "Fortschritt",
+      "budget": "Budget",
+      "endDate": "Ende: {{date}}",
+      "milestonesTitle": "Meilensteine",
+      "edit": "Bearbeiten",
+      "duplicateTitle": "Duplizieren"
+    },
+    "confirm": {
+      "bulkDelete": "{{count}} Projekt(e) endgültig löschen?",
+      "deleteOne": "Das Projekt « {{title}} » löschen?"
+    },
+    "toast": {
+      "error": "Fehler",
+      "loadError": "Projekte können nicht geladen werden.",
+      "titleRequired": "Titel erforderlich",
+      "serverError": "Serverfehler",
+      "created": "Projekt erstellt",
+      "updated": "Projekt aktualisiert",
+      "deleted": "Projekt gelöscht",
+      "deleteError": "Kann nicht gelöscht werden.",
+      "duplicated": "Projekt dupliziert",
+      "duplicateError": "Kann nicht dupliziert werden.",
+      "bulkDeleted": "{{count}} Projekt(e) gelöscht",
+      "bulkDeleteError": "Löschen fehlgeschlagen.",
+      "bulkStatus": "{{count}} Projekt(e) aktualisiert",
+      "bulkStatusError": "Aktualisierung fehlgeschlagen."
+    }
   }
 }

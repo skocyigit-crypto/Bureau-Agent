@@ -657,5 +657,350 @@
     "projectTitleWith": "Projet - {{name}}",
     "projectTitleDefault": "Projet depuis appel",
     "projectNotes": "Créé depuis l'appel du {{date}}"
+  },
+  "messages": {
+    "title": "Messages & Notes",
+    "subtitle": "Consultez les messages vocaux et notes laissés par les appelants.",
+    "bulkRead": "Tout lire ({{count}})",
+    "bulkDelete": "Supprimer ({{count}})",
+    "csv": "CSV",
+    "print": "Imprimer",
+    "composeEmail": "Rédiger un e-mail IA",
+    "newMessage": "Nouveau Message",
+    "searchPlaceholder": "Rechercher un message...",
+    "loadError": "Impossible de charger les messages",
+    "verifyAi": "Vérifier IA",
+    "unknown": "Inconnu",
+    "actionsLabel": "Actions",
+    "banner": {
+      "alt": "Centre de messagerie",
+      "title": "Centre de messagerie",
+      "subtitle": "Messages vocaux, notes et rappels — tout centralisé en un seul endroit."
+    },
+    "filters": {
+      "readPlaceholder": "Lecture",
+      "all": "Tous",
+      "unread": "Non lus",
+      "read": "Lus",
+      "typePlaceholder": "Type",
+      "allTypes": "Tous types",
+      "priorityPlaceholder": "Priorité",
+      "allPriorities": "Toutes"
+    },
+    "type": {
+      "note": "Note",
+      "vocalShort": "Vocal",
+      "vocal": "Message vocal",
+      "rappel": "Rappel"
+    },
+    "priority": {
+      "haute": "Haute",
+      "moyenne": "Moyenne",
+      "basse": "Basse"
+    },
+    "dialog": {
+      "editTitle": "Modifier le message",
+      "createTitle": "Enregistrer un message",
+      "editDesc": "Modifiez les informations du message.",
+      "createDesc": "Ajoutez une note, un rappel ou consignez un message vocal.",
+      "update": "Mettre à jour",
+      "create": "Enregistrer"
+    },
+    "form": {
+      "type": "Type",
+      "priority": "Priorité",
+      "phoneNumber": "Numéro de téléphone",
+      "phonePlaceholder": "+33 6...",
+      "contact": "Associer à un contact (Optionnel)",
+      "chooseContact": "Choisir un contact...",
+      "none": "Aucun",
+      "content": "Contenu du message",
+      "contentPlaceholder": "Saisissez le contenu..."
+    },
+    "columns": {
+      "from": "De",
+      "type": "Type",
+      "priority": "Priorité",
+      "content": "Contenu",
+      "date": "Date",
+      "actions": "Actions"
+    },
+    "empty": {
+      "filtered": "Aucun message ne correspond à vos filtres.",
+      "title": "Aucun message pour l'instant",
+      "description": "Envoyez votre premier SMS ou enregistrez un message reçu pour suivre toutes vos conversations clients en un seul endroit.",
+      "action": "Créer mon premier message",
+      "tip": "Astuce : connectez Twilio pour envoyer et recevoir des SMS automatiquement."
+    },
+    "rowActions": {
+      "edit": "Modifier",
+      "duplicate": "Dupliquer",
+      "createProject": "Créer un projet",
+      "markUnread": "Marquer non lu",
+      "markRead": "Marquer lu",
+      "delete": "Supprimer"
+    },
+    "aiTitle": "Recommandations IA - Messages",
+    "pagination": "{{total}} message(s) - Page {{page}} sur {{pages}}",
+    "confirm": {
+      "bulkDelete": "Supprimer {{count}} message(s) ?",
+      "deleteOne": "Supprimer ce message ?"
+    },
+    "toast": {
+      "statusError": "Impossible de modifier le statut du message",
+      "bulkRead": "{{count}} message(s) marqué(s) comme lu(s)",
+      "error": "Erreur",
+      "bulkDeleteError": "Erreur lors de la suppression",
+      "bulkDeleted": "{{count}} message(s) supprimé(s)",
+      "duplicated": "Message dupliqué",
+      "duplicateError": "Impossible de dupliquer",
+      "updated": "Message mis à jour",
+      "updateError": "Impossible de mettre à jour",
+      "created": "Message enregistré",
+      "createError": "Impossible d'enregistrer le message",
+      "projectCreated": "Projet créé",
+      "deleted": "Message supprimé",
+      "deleteError": "Impossible de supprimer"
+    },
+    "projectTitleWith": "Projet - {{name}}",
+    "projectTitleDefault": "Projet depuis message",
+    "projectNotes": "Créé depuis un message"
+  },
+  "prospects": {
+    "title": "Prospects & Pipeline CRM",
+    "subtitle": "Gestion du pipeline commercial et suivi des opportunités.",
+    "csv": "CSV",
+    "print": "Imprimer",
+    "newProspect": "Nouveau prospect",
+    "searchPlaceholder": "Rechercher...",
+    "refresh": "Actualiser",
+    "orgFallback": "Org #{{id}}",
+    "empty1": "Vide",
+    "count": "{{total}} prospect(s)",
+    "selectAll": "Tout sélectionner",
+    "actionsLabel": "Actions",
+    "stats": {
+      "total": "Total",
+      "pipelineValue": "Valeur pipeline",
+      "won": "Gagnés",
+      "lost": "Perdus"
+    },
+    "filters": {
+      "stagePlaceholder": "Étape",
+      "allStages": "Toutes étapes",
+      "orgPlaceholder": "Organisation",
+      "allOrgs": "Toutes les organisations"
+    },
+    "stages": {
+      "nouveau": "Nouveau",
+      "contact": "Contact",
+      "qualification": "Qualification",
+      "proposition": "Proposition",
+      "negociation": "Négociation",
+      "gagne": "Gagné",
+      "perdu": "Perdu"
+    },
+    "priorities": {
+      "haute": "Haute",
+      "moyenne": "Moyenne",
+      "basse": "Basse"
+    },
+    "empty": {
+      "filtered": "Aucun prospect ne correspond à vos filtres.",
+      "title": "Aucun prospect pour l'instant",
+      "descriptionKanban": "Ajoutez vos premiers prospects pour suivre votre pipeline commercial. Vous pourrez les déplacer entre les étapes du Kanban et mesurer votre taux de conversion.",
+      "description": "Ajoutez vos premiers prospects pour suivre votre pipeline commercial. Vous pourrez les déplacer entre les étapes et mesurer votre taux de conversion.",
+      "action": "Créer mon premier prospect",
+      "tip": "Astuce : convertissez un contact existant en prospect depuis sa fiche détaillée."
+    },
+    "bulk": {
+      "selected": "{{count}} prospect(s) sélectionné(s)",
+      "stage": "Étape",
+      "changeStage": "Changer l'étape",
+      "priority": "Priorité",
+      "changePriority": "Changer la priorité",
+      "assignPlaceholder": "Nom de l'assigné...",
+      "ok": "OK",
+      "assign": "Assigner",
+      "delete": "Supprimer",
+      "cancel": "Annuler"
+    },
+    "rowActions": {
+      "open": "Ouvrir",
+      "duplicate": "Dupliquer",
+      "convert": "Convertir en contact",
+      "createProject": "Créer un projet",
+      "delete": "Supprimer"
+    },
+    "dialog": {
+      "editTitle": "Modifier le prospect",
+      "createTitle": "Nouveau prospect",
+      "titleLabel": "Titre",
+      "titleRequired": "Titre *",
+      "titlePlaceholder": "Opportunité commerciale",
+      "targetOrg": "Organisation cible",
+      "targetOrgRequired": "Organisation cible *",
+      "chooseOrg": "Choisir une organisation",
+      "orgHelpEdit": "L'organisation propriétaire ne peut pas être réassignée depuis cette fiche.",
+      "orgHelpCreate": "Le super-admin doit assigner explicitement l'organisation propriétaire.",
+      "stage": "Étape",
+      "priority": "Priorité",
+      "value": "Valeur (€)",
+      "valuePlaceholder": "0",
+      "probability": "Probabilité (%)",
+      "contact": "Contact",
+      "contactPlaceholder": "Nom du contact",
+      "company": "Entreprise",
+      "email": "Email",
+      "phone": "Téléphone",
+      "source": "Source",
+      "sourcePlaceholder": "Site web, recommandation...",
+      "assignedTo": "Assigné à",
+      "closeDate": "Date de clôture prévue",
+      "notes": "Notes",
+      "cancel": "Annuler",
+      "update": "Mettre à jour",
+      "create": "Créer"
+    },
+    "confirm": {
+      "delete": "Supprimer ce prospect ?",
+      "bulkDelete": "Supprimer {{count}} prospect(s) ?",
+      "convertTitle": "Convertir en contact ?",
+      "convertDesc": "Le statut du prospect passera à « Gagné ».",
+      "convertLabel": "Convertir"
+    },
+    "toast": {
+      "error": "Erreur",
+      "loadError": "Chargement échoué.",
+      "titleRequired": "Titre requis",
+      "updated": "Prospect mis à jour",
+      "created": "Prospect créé",
+      "saveError": "Sauvegarde échouée.",
+      "duplicated": "Prospect dupliqué",
+      "duplicateError": "Impossible de dupliquer",
+      "deleted": "Prospect supprimé",
+      "converted": "Converti !",
+      "projectCreated": "Projet créé",
+      "projectCreatedDesc": "Le projet « {{title}} » a été créé.",
+      "projectError": "Impossible de créer le projet.",
+      "stageUpdated": "Étape mise à jour",
+      "bulkDeleted": "{{count}} prospect(s) supprimé(s)",
+      "bulkStage": "{{count}} prospect(s) → {{stage}}",
+      "bulkPriority": "{{count}} prospect(s) mis à jour",
+      "bulkAssigned": "{{count}} prospect(s) assigné(s) à {{name}}"
+    }
+  },
+  "projets": {
+    "title": "Projets",
+    "totalCount": "{{total}} projet(s) au total",
+    "loading": "Chargement...",
+    "searchPlaceholder": "Rechercher un projet...",
+    "exportCsv": "Exporter CSV",
+    "selectMode": "Sélectionner",
+    "cancel": "Annuler",
+    "newProject": "Nouveau projet",
+    "status": {
+      "planifie": "Planifié",
+      "en_cours": "En cours",
+      "en_pause": "En pause",
+      "termine": "Terminé",
+      "annule": "Annulé"
+    },
+    "priority": {
+      "haute": "Haute",
+      "moyenne": "Moyenne",
+      "basse": "Basse"
+    },
+    "bulk": {
+      "start": "Démarrer ({{count}})",
+      "complete": "Terminer ({{count}})",
+      "delete": "Supprimer ({{count}})",
+      "selectAll": "Tout sélectionner",
+      "deselectAll": "Tout désélectionner"
+    },
+    "stats": {
+      "active": "Projets actifs",
+      "avgProgress": "Avancement moyen",
+      "totalBudget": "Budget total",
+      "overdue": "En retard"
+    },
+    "filters": {
+      "allStatuses": "Tous les statuts",
+      "allPriorities": "Toutes priorités"
+    },
+    "empty": {
+      "title": "Aucun projet trouvé",
+      "description": "Créez votre premier projet pour commencer le suivi.",
+      "kanbanColumn": "Aucun projet"
+    },
+    "milestones": {
+      "title": "Jalons",
+      "complete": "{{done}}/{{total}} complétés",
+      "placeholder": "Nouveau jalon...",
+      "updateError": "Erreur lors de la mise à jour"
+    },
+    "form": {
+      "title": "Titre du projet",
+      "titlePlaceholder": "Ex: Refonte site vitrine",
+      "description": "Description",
+      "descriptionPlaceholder": "Description du projet...",
+      "status": "Statut",
+      "priority": "Priorité",
+      "client": "Client / Contact",
+      "clientPlaceholder": "Nom du client",
+      "company": "Entreprise",
+      "companyPlaceholder": "Entreprise",
+      "budget": "Budget (€)",
+      "budgetPlaceholder": "0",
+      "progress": "Avancement (%)",
+      "startDate": "Date début",
+      "endDate": "Date fin prévue",
+      "assignedTo": "Responsable",
+      "assignedToPlaceholder": "Nom du responsable",
+      "tags": "Tags",
+      "tagsHint": "(séparés par des virgules)",
+      "tagsPlaceholder": "ex: urgent, marketing, client-vip",
+      "notes": "Notes",
+      "notesPlaceholder": "Notes internes..."
+    },
+    "createDialog": {
+      "title": "Créer un projet",
+      "cancel": "Annuler",
+      "create": "Créer"
+    },
+    "editDialog": {
+      "title": "Modifier le projet",
+      "cancel": "Annuler",
+      "save": "Enregistrer"
+    },
+    "card": {
+      "overdue": "En retard",
+      "progress": "Avancement",
+      "budget": "Budget",
+      "endDate": "Fin: {{date}}",
+      "milestonesTitle": "Jalons",
+      "edit": "Modifier",
+      "duplicateTitle": "Dupliquer"
+    },
+    "confirm": {
+      "bulkDelete": "Supprimer {{count}} projet(s) définitivement ?",
+      "deleteOne": "Supprimer le projet « {{title}} » ?"
+    },
+    "toast": {
+      "error": "Erreur",
+      "loadError": "Impossible de charger les projets.",
+      "titleRequired": "Titre obligatoire",
+      "serverError": "Erreur serveur",
+      "created": "Projet créé",
+      "updated": "Projet mis à jour",
+      "deleted": "Projet supprimé",
+      "deleteError": "Impossible de supprimer.",
+      "duplicated": "Projet dupliqué",
+      "duplicateError": "Impossible de dupliquer.",
+      "bulkDeleted": "{{count}} projet(s) supprimé(s)",
+      "bulkDeleteError": "Suppression échouée.",
+      "bulkStatus": "{{count}} projet(s) mis à jour",
+      "bulkStatusError": "Mise à jour échouée."
+    }
   }
 }

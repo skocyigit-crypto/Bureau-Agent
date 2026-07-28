@@ -21,6 +21,7 @@ import { GhostTextarea } from "@/components/ghost-textarea";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
+import { useTranslation } from "@/i18n";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -87,6 +88,7 @@ function tagColor(tag: string) {
 }
 
 function MilestonesPanel({ projet, onUpdated }: { projet: Projet; onUpdated: () => void }) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -107,7 +109,7 @@ function MilestonesPanel({ projet, onUpdated }: { projet: Projet; onUpdated: () 
       if (res.ok) onUpdated();
       else throw new Error();
     } catch {
-      toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
+      toast({ title: t("projets.milestones.updateError"), variant: "destructive" });
     } finally { setSaving(false); }
   }
 
@@ -132,10 +134,10 @@ function MilestonesPanel({ projet, onUpdated }: { projet: Projet; onUpdated: () 
     <div className="space-y-2 pt-2 border-t">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-          <ListChecks className="w-3 h-3" /> Jalons
+          <ListChecks className="w-3 h-3" /> {t("projets.milestones.title")}
         </span>
         {milestones.length > 0 && (
-          <span className="text-[10px] text-muted-foreground">{completed}/{milestones.length} complétés</span>
+          <span className="text-[10px] text-muted-foreground">{t("projets.milestones.complete", { done: completed, total: milestones.length })}</span>
         )}
       </div>
       {milestones.map(m => {
@@ -169,7 +171,7 @@ function MilestonesPanel({ projet, onUpdated }: { projet: Projet; onUpdated: () 
       })}
       <div className="flex items-center gap-1">
         <Input
-          placeholder="Nouveau jalon..." value={newTitle}
+          placeholder={t("projets.milestones.placeholder")} value={newTitle}
           onChange={e => setNewTitle(e.target.value)}
           onKeyDown={e => e.key === "Enter" && add()}
           className="h-6 text-xs px-2 flex-1"
@@ -188,41 +190,42 @@ function MilestonesPanel({ projet, onUpdated }: { projet: Projet; onUpdated: () 
 }
 
 function ProjetForm({ form, setForm }: { form: any; setForm: (f: any) => void }) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-4 py-1">
       <div>
-        <Label>Titre du projet <span className="text-red-500">*</span></Label>
-        <Input className="mt-1" value={form.title} onChange={e => setForm((f: any) => ({ ...f, title: e.target.value }))} placeholder="Ex: Refonte site vitrine" />
+        <Label>{t("projets.form.title")} <span className="text-red-500">*</span></Label>
+        <Input className="mt-1" value={form.title} onChange={e => setForm((f: any) => ({ ...f, title: e.target.value }))} placeholder={t("projets.form.titlePlaceholder")} />
       </div>
       <div>
-        <Label>Description</Label>
+        <Label>{t("projets.form.description")}</Label>
         <GhostTextarea
           className="mt-1 min-h-[70px]"
           value={form.description}
           onChange={e => setForm((f: any) => ({ ...f, description: e.target.value }))}
-          placeholder="Description du projet..."
+          placeholder={t("projets.form.descriptionPlaceholder")}
           fieldType="project_description"
           context={{ title: form.title || null, contactName: form.clientName || form.clientCompany || null }}
         />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <Label>Statut</Label>
+          <Label>{t("projets.form.status")}</Label>
           <Select value={form.status} onValueChange={v => setForm((f: any) => ({ ...f, status: v }))}>
             <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {Object.entries(STATUS_CONFIG).map(([v, c]) => <SelectItem key={v} value={v}>{c.label}</SelectItem>)}
+              {Object.keys(STATUS_CONFIG).map(v => <SelectItem key={v} value={v}>{t(`projets.status.${v}`)}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
         <div>
-          <Label>Priorité</Label>
+          <Label>{t("projets.form.priority")}</Label>
           <Select value={form.priority} onValueChange={v => setForm((f: any) => ({ ...f, priority: v }))}>
             <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="haute">Haute</SelectItem>
-              <SelectItem value="moyenne">Moyenne</SelectItem>
-              <SelectItem value="basse">Basse</SelectItem>
+              <SelectItem value="haute">{t("projets.priority.haute")}</SelectItem>
+              <SelectItem value="moyenne">{t("projets.priority.moyenne")}</SelectItem>
+              <SelectItem value="basse">{t("projets.priority.basse")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -230,45 +233,45 @@ function ProjetForm({ form, setForm }: { form: any; setForm: (f: any) => void })
       <Separator />
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <Label>Client / Contact</Label>
-          <Input className="mt-1" value={form.clientName} onChange={e => setForm((f: any) => ({ ...f, clientName: e.target.value }))} placeholder="Nom du client" />
+          <Label>{t("projets.form.client")}</Label>
+          <Input className="mt-1" value={form.clientName} onChange={e => setForm((f: any) => ({ ...f, clientName: e.target.value }))} placeholder={t("projets.form.clientPlaceholder")} />
         </div>
         <div>
-          <Label>Entreprise</Label>
-          <Input className="mt-1" value={form.clientCompany} onChange={e => setForm((f: any) => ({ ...f, clientCompany: e.target.value }))} placeholder="Entreprise" />
+          <Label>{t("projets.form.company")}</Label>
+          <Input className="mt-1" value={form.clientCompany} onChange={e => setForm((f: any) => ({ ...f, clientCompany: e.target.value }))} placeholder={t("projets.form.companyPlaceholder")} />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <Label>Budget (€)</Label>
-          <Input type="number" className="mt-1" value={form.budget} onChange={e => setForm((f: any) => ({ ...f, budget: e.target.value }))} placeholder="0" min="0" />
+          <Label>{t("projets.form.budget")}</Label>
+          <Input type="number" className="mt-1" value={form.budget} onChange={e => setForm((f: any) => ({ ...f, budget: e.target.value }))} placeholder={t("projets.form.budgetPlaceholder")} min="0" />
         </div>
         <div>
-          <Label>Avancement (%)</Label>
+          <Label>{t("projets.form.progress")}</Label>
           <Input type="number" className="mt-1" value={form.progress} onChange={e => setForm((f: any) => ({ ...f, progress: e.target.value }))} min="0" max="100" />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <Label>Date début</Label>
+          <Label>{t("projets.form.startDate")}</Label>
           <Input type="date" className="mt-1" value={form.startDate} onChange={e => setForm((f: any) => ({ ...f, startDate: e.target.value }))} />
         </div>
         <div>
-          <Label>Date fin prévue</Label>
+          <Label>{t("projets.form.endDate")}</Label>
           <Input type="date" className="mt-1" value={form.endDate} onChange={e => setForm((f: any) => ({ ...f, endDate: e.target.value }))} />
         </div>
       </div>
       <div>
-        <Label>Responsable</Label>
-        <Input className="mt-1" value={form.assignedTo} onChange={e => setForm((f: any) => ({ ...f, assignedTo: e.target.value }))} placeholder="Nom du responsable" />
+        <Label>{t("projets.form.assignedTo")}</Label>
+        <Input className="mt-1" value={form.assignedTo} onChange={e => setForm((f: any) => ({ ...f, assignedTo: e.target.value }))} placeholder={t("projets.form.assignedToPlaceholder")} />
       </div>
       <div>
-        <Label>Tags <span className="text-muted-foreground font-normal text-xs">(séparés par des virgules)</span></Label>
+        <Label>{t("projets.form.tags")} <span className="text-muted-foreground font-normal text-xs">{t("projets.form.tagsHint")}</span></Label>
         <Input
           className="mt-1"
           value={Array.isArray(form.tags) ? form.tags.join(", ") : (form.tags || "")}
           onChange={e => setForm((f: any) => ({ ...f, tags: e.target.value.split(",").map((t: string) => t.trim()).filter(Boolean) }))}
-          placeholder="ex: urgent, marketing, client-vip"
+          placeholder={t("projets.form.tagsPlaceholder")}
         />
         {Array.isArray(form.tags) && form.tags.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1.5">
@@ -279,12 +282,12 @@ function ProjetForm({ form, setForm }: { form: any; setForm: (f: any) => void })
         )}
       </div>
       <div>
-        <Label>Notes</Label>
+        <Label>{t("projets.form.notes")}</Label>
         <GhostTextarea
           className="mt-1 min-h-[60px]"
           value={form.notes}
           onChange={e => setForm((f: any) => ({ ...f, notes: e.target.value }))}
-          placeholder="Notes internes..."
+          placeholder={t("projets.form.notesPlaceholder")}
           fieldType="project_note"
           context={{ title: form.title || null, contactName: form.clientName || form.clientCompany || null }}
         />
@@ -294,13 +297,14 @@ function ProjetForm({ form, setForm }: { form: any; setForm: (f: any) => void })
 }
 
 function CreateProjetDialog({ onCreated }: { onCreated: () => void }) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<any>(EMPTY_FORM);
 
   async function submit() {
-    if (!form.title.trim()) { toast({ title: "Titre obligatoire", variant: "destructive" }); return; }
+    if (!form.title.trim()) { toast({ title: t("projets.toast.titleRequired"), variant: "destructive" }); return; }
     setSaving(true);
     try {
       const res = await fetch(`${BASE}/api/projets`, {
@@ -308,28 +312,28 @@ function CreateProjetDialog({ onCreated }: { onCreated: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, progress: Number(form.progress) || 0, budget: form.budget || undefined }),
       });
-      if (!res.ok) throw new Error((await res.json()).error || "Erreur serveur");
-      toast({ title: "Projet créé" });
+      if (!res.ok) throw new Error((await res.json()).error || t("projets.toast.serverError"));
+      toast({ title: t("projets.toast.created") });
       setOpen(false); setForm(EMPTY_FORM); onCreated();
     } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+      toast({ title: t("projets.toast.error"), description: err.message, variant: "destructive" });
     } finally { setSaving(false); }
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" className="gap-1.5"><Plus className="w-4 h-4" /> Nouveau projet</Button>
+        <Button size="sm" className="gap-1.5"><Plus className="w-4 h-4" /> {t("projets.newProject")}</Button>
       </DialogTrigger>
       <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><FolderKanban className="w-5 h-5 text-primary" /> Créer un projet</DialogTitle>
+          <DialogTitle className="flex items-center gap-2"><FolderKanban className="w-5 h-5 text-primary" /> {t("projets.createDialog.title")}</DialogTitle>
         </DialogHeader>
         <ProjetForm form={form} setForm={setForm} />
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
+          <Button variant="outline" onClick={() => setOpen(false)}>{t("projets.createDialog.cancel")}</Button>
           <Button onClick={submit} disabled={saving} className="gap-1.5">
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Créer
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} {t("projets.createDialog.create")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -338,6 +342,7 @@ function CreateProjetDialog({ onCreated }: { onCreated: () => void }) {
 }
 
 function EditProjetDialog({ projet, onSaved, onClose }: { projet: Projet; onSaved: () => void; onClose: () => void }) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<any>({
@@ -359,7 +364,7 @@ function EditProjetDialog({ projet, onSaved, onClose }: { projet: Projet; onSave
   });
 
   async function submit() {
-    if (!form.title.trim()) { toast({ title: "Titre obligatoire", variant: "destructive" }); return; }
+    if (!form.title.trim()) { toast({ title: t("projets.toast.titleRequired"), variant: "destructive" }); return; }
     setSaving(true);
     try {
       const res = await fetch(`${BASE}/api/projets/${projet.id}`, {
@@ -367,11 +372,11 @@ function EditProjetDialog({ projet, onSaved, onClose }: { projet: Projet; onSave
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, progress: Number(form.progress) || 0, budget: form.budget || undefined }),
       });
-      if (!res.ok) throw new Error((await res.json()).error || "Erreur serveur");
-      toast({ title: "Projet mis à jour" });
+      if (!res.ok) throw new Error((await res.json()).error || t("projets.toast.serverError"));
+      toast({ title: t("projets.toast.updated") });
       onSaved(); onClose();
     } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+      toast({ title: t("projets.toast.error"), description: err.message, variant: "destructive" });
     } finally { setSaving(false); }
   }
 
@@ -379,13 +384,13 @@ function EditProjetDialog({ projet, onSaved, onClose }: { projet: Projet; onSave
     <Dialog open onOpenChange={o => { if (!o) onClose(); }}>
       <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><Pencil className="w-5 h-5 text-primary" /> Modifier le projet</DialogTitle>
+          <DialogTitle className="flex items-center gap-2"><Pencil className="w-5 h-5 text-primary" /> {t("projets.editDialog.title")}</DialogTitle>
         </DialogHeader>
         <ProjetForm form={form} setForm={setForm} />
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Annuler</Button>
+          <Button variant="outline" onClick={onClose}>{t("projets.editDialog.cancel")}</Button>
           <Button onClick={submit} disabled={saving} className="gap-1.5">
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4" />} Enregistrer
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4" />} {t("projets.editDialog.save")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -397,9 +402,12 @@ function ProjetCard({ projet, onEdit, onDelete, onDuplicate, onUpdated, selectMo
   projet: Projet; onEdit: () => void; onDelete: () => void; onDuplicate: () => void; onUpdated: () => void;
   selectMode: boolean; selected: boolean; onSelect: () => void;
 }) {
+  const { t } = useTranslation();
   const [showMilestones, setShowMilestones] = useState(false);
-  const sc = STATUS_CONFIG[projet.status] || STATUS_CONFIG.planifie;
-  const pc = PRIORITY_CONFIG[projet.priority] || PRIORITY_CONFIG.moyenne;
+  const statusKey = STATUS_CONFIG[projet.status] ? projet.status : "planifie";
+  const priorityKey = PRIORITY_CONFIG[projet.priority] ? projet.priority : "moyenne";
+  const sc = STATUS_CONFIG[statusKey];
+  const pc = PRIORITY_CONFIG[priorityKey];
   const StatusIcon = sc.icon;
   const overdue = isOverdue(projet.endDate, projet.status);
   const budgetPct = projet.budget && Number(projet.budget) > 0
@@ -423,10 +431,10 @@ function ProjetCard({ projet, onEdit, onDelete, onDuplicate, onUpdated, selectMo
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="outline" className={`text-[10px] font-medium ${sc.color} border ${sc.bg}`}>
-                <StatusIcon className="w-2.5 h-2.5 mr-0.5" />{sc.label}
+                <StatusIcon className="w-2.5 h-2.5 mr-0.5" />{t(`projets.status.${statusKey}`)}
               </Badge>
-              <Badge className={`text-[10px] ${pc.color}`}>{pc.label}</Badge>
-              {overdue && <Badge variant="outline" className="text-[10px] text-red-600 border-red-300 bg-red-50 dark:bg-red-900/20"><AlertTriangle className="w-2.5 h-2.5 mr-0.5" />En retard</Badge>}
+              <Badge className={`text-[10px] ${pc.color}`}>{t(`projets.priority.${priorityKey}`)}</Badge>
+              {overdue && <Badge variant="outline" className="text-[10px] text-red-600 border-red-300 bg-red-50 dark:bg-red-900/20"><AlertTriangle className="w-2.5 h-2.5 mr-0.5" />{t("projets.card.overdue")}</Badge>}
             </div>
             <h3 className="font-semibold text-sm mt-1.5 leading-tight">{projet.title}</h3>
             {(projet.clientName || projet.clientCompany) && (
@@ -437,14 +445,14 @@ function ProjetCard({ projet, onEdit, onDelete, onDuplicate, onUpdated, selectMo
 
         <div>
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-            <span>Avancement</span><span className="font-semibold text-foreground">{projet.progress}%</span>
+            <span>{t("projets.card.progress")}</span><span className="font-semibold text-foreground">{projet.progress}%</span>
           </div>
           <Progress value={projet.progress} className="h-1.5" />
         </div>
 
         {projet.budget && Number(projet.budget) > 0 && (
           <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground flex items-center gap-1"><Euro className="w-3 h-3" /> Budget</span>
+            <span className="text-muted-foreground flex items-center gap-1"><Euro className="w-3 h-3" /> {t("projets.card.budget")}</span>
             <span className={`font-medium ${budgetPct !== null && budgetPct > 100 ? "text-red-600" : ""}`}>
               {fmt(projet.spent || 0)} / {fmt(projet.budget)}
               {budgetPct !== null && <span className="ml-1 text-muted-foreground">({budgetPct}%)</span>}
@@ -455,7 +463,7 @@ function ProjetCard({ projet, onEdit, onDelete, onDuplicate, onUpdated, selectMo
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           {projet.endDate ? (
             <span className={`flex items-center gap-1 ${overdue ? "text-red-500" : ""}`}>
-              <Calendar className="w-3 h-3" /> Fin: {fmtDate(projet.endDate)}
+              <Calendar className="w-3 h-3" /> {t("projets.card.endDate", { date: fmtDate(projet.endDate) })}
             </span>
           ) : <span />}
           {projet.assignedTo && (
@@ -481,18 +489,18 @@ function ProjetCard({ projet, onEdit, onDelete, onDuplicate, onUpdated, selectMo
         {!selectMode && (
           <div className="flex items-center gap-1.5 pt-2 border-t">
             <Button size="sm" variant="outline" className="flex-1 h-7 text-xs" onClick={onEdit}>
-              <Pencil className="w-3 h-3 mr-1" /> Modifier
+              <Pencil className="w-3 h-3 mr-1" /> {t("projets.card.edit")}
             </Button>
             <Button
               size="sm" variant="ghost"
               className={`h-7 px-2 text-xs gap-1 ${showMilestones ? "text-indigo-600 bg-indigo-50 dark:bg-indigo-950/30" : "text-muted-foreground hover:text-foreground"}`}
-              title="Jalons"
+              title={t("projets.card.milestonesTitle")}
               onClick={() => setShowMilestones(v => !v)}
             >
               <ListChecks className="w-3.5 h-3.5" />
               {milestoneCount > 0 ? `${completedMilestones}/${milestoneCount}` : ""}
             </Button>
-            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" title="Dupliquer" onClick={onDuplicate}>
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" title={t("projets.card.duplicateTitle")} onClick={onDuplicate}>
               <Copy className="w-3.5 h-3.5" />
             </Button>
             <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10" onClick={onDelete}>
@@ -510,6 +518,7 @@ function ProjetCard({ projet, onEdit, onDelete, onDuplicate, onUpdated, selectMo
 }
 
 export default function ProjetsPage() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [projets, setProjets] = useState<Projet[]>([]);
   const [stats, setStats] = useState<any>(null);
@@ -546,7 +555,7 @@ export default function ProjetsPage() {
       }
       if (statsRes.ok) setStats(await statsRes.json());
     } catch {
-      toast({ title: "Erreur", description: "Impossible de charger les projets.", variant: "destructive" });
+      toast({ title: t("projets.toast.error"), description: t("projets.toast.loadError"), variant: "destructive" });
     } finally { setLoading(false); }
   }, [search, statusFilter, priorityFilter, page]);
 
@@ -562,7 +571,7 @@ export default function ProjetsPage() {
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
-    if (!(await confirmAction({ title: `Supprimer ${selectedIds.size} projet(s) définitivement ?`, confirmLabel: "Supprimer", destructive: true }))) return;
+    if (!(await confirmAction({ title: t("projets.confirm.bulkDelete", { count: selectedIds.size }), confirmLabel: t("common.delete"), destructive: true }))) return;
     const res = await fetch(`${BASE}/api/bulk/projets/delete`, {
       method: "POST", credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -570,9 +579,9 @@ export default function ProjetsPage() {
     });
     if (res.ok) {
       const data = await res.json();
-      toast({ title: `${data.deleted ?? selectedIds.size} projet(s) supprimé(s)` });
+      toast({ title: t("projets.toast.bulkDeleted", { count: data.deleted ?? selectedIds.size }) });
     } else {
-      toast({ title: "Erreur", description: "Suppression échouée.", variant: "destructive" });
+      toast({ title: t("projets.toast.error"), description: t("projets.toast.bulkDeleteError"), variant: "destructive" });
     }
     setSelectedIds(new Set()); setSelectMode(false); load();
   };
@@ -586,24 +595,24 @@ export default function ProjetsPage() {
     });
     if (res.ok) {
       const data = await res.json();
-      toast({ title: `${data.updated ?? selectedIds.size} projet(s) mis à jour` });
+      toast({ title: t("projets.toast.bulkStatus", { count: data.updated ?? selectedIds.size }) });
     } else {
-      toast({ title: "Erreur", description: "Mise à jour échouée.", variant: "destructive" });
+      toast({ title: t("projets.toast.error"), description: t("projets.toast.bulkStatusError"), variant: "destructive" });
     }
     setSelectedIds(new Set()); setSelectMode(false); load();
   };
 
   const deleteProjet = async (id: number, title: string) => {
-    if (!(await confirmAction({ title: `Supprimer le projet « ${title} » ?`, confirmLabel: "Supprimer", destructive: true }))) return;
+    if (!(await confirmAction({ title: t("projets.confirm.deleteOne", { title }), confirmLabel: t("common.delete"), destructive: true }))) return;
     const res = await fetch(`${BASE}/api/projets/${id}`, { method: "DELETE", credentials: "include" });
-    if (res.ok) { toast({ title: "Projet supprimé" }); load(); }
-    else toast({ title: "Erreur", description: "Impossible de supprimer.", variant: "destructive" });
+    if (res.ok) { toast({ title: t("projets.toast.deleted") }); load(); }
+    else toast({ title: t("projets.toast.error"), description: t("projets.toast.deleteError"), variant: "destructive" });
   };
 
   const duplicateProjet = async (id: number) => {
     const res = await fetch(`${BASE}/api/projets/${id}/duplicate`, { method: "POST", credentials: "include" });
-    if (res.ok) { toast({ title: "Projet dupliqué" }); load(); }
-    else toast({ title: "Erreur", description: "Impossible de dupliquer.", variant: "destructive" });
+    if (res.ok) { toast({ title: t("projets.toast.duplicated") }); load(); }
+    else toast({ title: t("projets.toast.error"), description: t("projets.toast.duplicateError"), variant: "destructive" });
   };
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -623,35 +632,35 @@ export default function ProjetsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <FolderKanban className="w-6 h-6 text-primary" /> Projets
+            <FolderKanban className="w-6 h-6 text-primary" /> {t("projets.title")}
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {loading ? "Chargement..." : `${total} projet${total !== 1 ? "s" : ""} au total`}
+            {loading ? t("projets.loading") : t("projets.totalCount", { total })}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {selectMode && selectedIds.size > 0 && (
             <>
               <Button size="sm" variant="outline" className="gap-1.5 text-amber-600 border-amber-300 h-8 text-xs" onClick={() => handleBulkStatus("en_cours")}>
-                <PlayCircle className="w-3 h-3" /> Démarrer ({selectedIds.size})
+                <PlayCircle className="w-3 h-3" /> {t("projets.bulk.start", { count: selectedIds.size })}
               </Button>
               <Button size="sm" variant="outline" className="gap-1.5 text-emerald-600 border-emerald-300 h-8 text-xs" onClick={() => handleBulkStatus("termine")}>
-                <CheckCircle2 className="w-3 h-3" /> Terminer ({selectedIds.size})
+                <CheckCircle2 className="w-3 h-3" /> {t("projets.bulk.complete", { count: selectedIds.size })}
               </Button>
               <Button size="sm" variant="outline" className="gap-1.5 text-red-600 border-red-300 h-8 text-xs" onClick={handleBulkDelete}>
-                <Trash2 className="w-3 h-3" /> Supprimer ({selectedIds.size})
+                <Trash2 className="w-3 h-3" /> {t("projets.bulk.delete", { count: selectedIds.size })}
               </Button>
             </>
           )}
           {projets.length > 0 && (
             <Button size="sm" variant={selectMode ? "default" : "outline"} className="gap-1.5 h-8 text-xs" onClick={toggleSelectMode}>
-              {selectMode ? <><X className="w-3 h-3" /> Annuler</> : <><CheckSquare className="w-3 h-3" /> Sélectionner</>}
+              {selectMode ? <><X className="w-3 h-3" /> {t("projets.cancel")}</> : <><CheckSquare className="w-3 h-3" /> {t("projets.selectMode")}</>}
             </Button>
           )}
           <Button size="sm" variant="outline" onClick={load} disabled={loading} className="h-8">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </Button>
-          <Button variant="outline" size="sm" className="h-8" onClick={() => { window.open(`${BASE}/api/export/projets`, "_blank"); }} title="Exporter CSV"><Download className="w-4 h-4" /></Button>
+          <Button variant="outline" size="sm" className="h-8" onClick={() => { window.open(`${BASE}/api/export/projets`, "_blank"); }} title={t("projets.exportCsv")}><Download className="w-4 h-4" /></Button>
           <Button variant="outline" size="sm" className="h-8" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
           <CreateProjetDialog onCreated={load} />
         </div>
@@ -667,7 +676,7 @@ export default function ProjetsPage() {
                 <div className="p-2 rounded-lg bg-amber-500/10"><PlayCircle className="w-4 h-4 text-amber-500" /></div>
                 <div>
                   <p className="text-xl font-bold">{stats.active ?? 0}</p>
-                  <p className="text-xs text-muted-foreground">Projets actifs</p>
+                  <p className="text-xs text-muted-foreground">{t("projets.stats.active")}</p>
                 </div>
               </div>
             </CardContent>
@@ -678,7 +687,7 @@ export default function ProjetsPage() {
                 <div className="p-2 rounded-lg bg-blue-500/10"><BarChart3 className="w-4 h-4 text-blue-500" /></div>
                 <div>
                   <p className="text-xl font-bold">{stats.avgProgress ?? 0}%</p>
-                  <p className="text-xs text-muted-foreground">Avancement moyen</p>
+                  <p className="text-xs text-muted-foreground">{t("projets.stats.avgProgress")}</p>
                 </div>
               </div>
             </CardContent>
@@ -689,7 +698,7 @@ export default function ProjetsPage() {
                 <div className="p-2 rounded-lg bg-emerald-500/10"><Euro className="w-4 h-4 text-emerald-500" /></div>
                 <div>
                   <p className="text-xl font-bold text-sm leading-tight">{fmt(stats.totalBudget)}</p>
-                  <p className="text-xs text-muted-foreground">Budget total</p>
+                  <p className="text-xs text-muted-foreground">{t("projets.stats.totalBudget")}</p>
                 </div>
               </div>
             </CardContent>
@@ -702,7 +711,7 @@ export default function ProjetsPage() {
                 </div>
                 <div>
                   <p className={`text-xl font-bold ${stats.overdue > 0 ? "text-red-600" : ""}`}>{stats.overdue ?? 0}</p>
-                  <p className="text-xs text-muted-foreground">En retard</p>
+                  <p className="text-xs text-muted-foreground">{t("projets.stats.overdue")}</p>
                 </div>
               </div>
             </CardContent>
@@ -713,7 +722,7 @@ export default function ProjetsPage() {
       <div className="flex flex-col sm:flex-row gap-3 items-center">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Rechercher un projet..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder={t("projets.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-40">
@@ -721,8 +730,8 @@ export default function ProjetsPage() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Tous les statuts</SelectItem>
-            {Object.entries(STATUS_CONFIG).map(([v, c]) => <SelectItem key={v} value={v}>{c.label}</SelectItem>)}
+            <SelectItem value="all">{t("projets.filters.allStatuses")}</SelectItem>
+            {Object.keys(STATUS_CONFIG).map(v => <SelectItem key={v} value={v}>{t(`projets.status.${v}`)}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={priorityFilter} onValueChange={setPriorityFilter}>
@@ -730,10 +739,10 @@ export default function ProjetsPage() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Toutes priorités</SelectItem>
-            <SelectItem value="haute">Haute</SelectItem>
-            <SelectItem value="moyenne">Moyenne</SelectItem>
-            <SelectItem value="basse">Basse</SelectItem>
+            <SelectItem value="all">{t("projets.filters.allPriorities")}</SelectItem>
+            <SelectItem value="haute">{t("projets.priority.haute")}</SelectItem>
+            <SelectItem value="moyenne">{t("projets.priority.moyenne")}</SelectItem>
+            <SelectItem value="basse">{t("projets.priority.basse")}</SelectItem>
           </SelectContent>
         </Select>
         <div className="flex gap-1 border rounded-lg p-1">
@@ -754,8 +763,8 @@ export default function ProjetsPage() {
         <Card className="border-dashed">
           <CardContent className="py-16 text-center">
             <FolderKanban className="w-12 h-12 mx-auto mb-3 opacity-20" />
-            <p className="font-medium text-muted-foreground">Aucun projet trouvé</p>
-            <p className="text-sm text-muted-foreground mt-1 mb-4">Créez votre premier projet pour commencer le suivi.</p>
+            <p className="font-medium text-muted-foreground">{t("projets.empty.title")}</p>
+            <p className="text-sm text-muted-foreground mt-1 mb-4">{t("projets.empty.description")}</p>
             <CreateProjetDialog onCreated={load} />
           </CardContent>
         </Card>
@@ -767,12 +776,12 @@ export default function ProjetsPage() {
               <div key={group.status} className="min-w-[280px] w-72 shrink-0">
                 <div className={`flex items-center gap-2 px-3 py-2 rounded-t-lg border border-b-0 ${group.bg}`}>
                   <Icon className={`w-4 h-4 ${group.color}`} />
-                  <span className={`text-sm font-semibold ${group.color}`}>{group.label}</span>
+                  <span className={`text-sm font-semibold ${group.color}`}>{t(`projets.status.${group.status}`)}</span>
                   <Badge variant="secondary" className="ml-auto text-xs">{group.projets.length}</Badge>
                 </div>
                 <div className="border border-t-0 rounded-b-lg p-2 space-y-2 min-h-[100px] bg-muted/20">
                   {group.projets.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-4">Aucun projet</p>
+                    <p className="text-xs text-muted-foreground text-center py-4">{t("projets.empty.kanbanColumn")}</p>
                   )}
                   {group.projets.map(p => (
                     <ProjetCard
@@ -797,7 +806,7 @@ export default function ProjetsPage() {
                 {selectedIds.size === projets.length && projets.length > 0
                   ? <CheckSquare className="w-4 h-4 text-primary" />
                   : <Square className="w-4 h-4" />}
-                {selectedIds.size === projets.length && projets.length > 0 ? "Tout désélectionner" : "Tout sélectionner"}
+                {selectedIds.size === projets.length && projets.length > 0 ? t("projets.bulk.deselectAll") : t("projets.bulk.selectAll")}
               </button>
             </div>
           )}
@@ -818,7 +827,7 @@ export default function ProjetsPage() {
 
       {total > PAGE_SIZE && (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">{total} projet{total !== 1 ? "s" : ""} au total</p>
+          <p className="text-sm text-muted-foreground">{t("projets.totalCount", { total })}</p>
           <div className="flex gap-1">
             <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
               <ChevronLeft className="w-4 h-4" />

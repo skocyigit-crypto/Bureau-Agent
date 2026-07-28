@@ -657,5 +657,350 @@
     "projectTitleWith": "مشروع - {{name}}",
     "projectTitleDefault": "مشروع من مكالمة",
     "projectNotes": "أُنشئ من مكالمة بتاريخ {{date}}"
+  },
+  "messages": {
+    "title": "الرسائل والملاحظات",
+    "subtitle": "اطّلع على الرسائل الصوتية والملاحظات التي تركها المتصلون.",
+    "bulkRead": "تعليم الكل كمقروء ({{count}})",
+    "bulkDelete": "حذف ({{count}})",
+    "csv": "CSV",
+    "print": "طباعة",
+    "composeEmail": "كتابة بريد إلكتروني بالذكاء الاصطناعي",
+    "newMessage": "رسالة جديدة",
+    "searchPlaceholder": "ابحث عن رسالة...",
+    "loadError": "تعذّر تحميل الرسائل",
+    "verifyAi": "التحقق بالذكاء الاصطناعي",
+    "unknown": "غير معروف",
+    "actionsLabel": "إجراءات",
+    "banner": {
+      "alt": "مركز المراسلة",
+      "title": "مركز المراسلة",
+      "subtitle": "الرسائل الصوتية والملاحظات والتذكيرات — كل شيء في مكان واحد."
+    },
+    "filters": {
+      "readPlaceholder": "حالة القراءة",
+      "all": "الكل",
+      "unread": "غير المقروءة",
+      "read": "المقروءة",
+      "typePlaceholder": "النوع",
+      "allTypes": "كل الأنواع",
+      "priorityPlaceholder": "الأولوية",
+      "allPriorities": "الكل"
+    },
+    "type": {
+      "note": "ملاحظة",
+      "vocalShort": "صوتي",
+      "vocal": "رسالة صوتية",
+      "rappel": "تذكير"
+    },
+    "priority": {
+      "haute": "عالية",
+      "moyenne": "متوسطة",
+      "basse": "منخفضة"
+    },
+    "dialog": {
+      "editTitle": "تعديل الرسالة",
+      "createTitle": "حفظ رسالة",
+      "editDesc": "عدّل معلومات الرسالة.",
+      "createDesc": "أضف ملاحظة أو تذكيرًا أو سجّل رسالة صوتية.",
+      "update": "تحديث",
+      "create": "حفظ"
+    },
+    "form": {
+      "type": "النوع",
+      "priority": "الأولوية",
+      "phoneNumber": "رقم الهاتف",
+      "phonePlaceholder": "+33 6...",
+      "contact": "ربط بجهة اتصال (اختياري)",
+      "chooseContact": "اختر جهة اتصال...",
+      "none": "لا شيء",
+      "content": "محتوى الرسالة",
+      "contentPlaceholder": "أدخل المحتوى..."
+    },
+    "columns": {
+      "from": "من",
+      "type": "النوع",
+      "priority": "الأولوية",
+      "content": "المحتوى",
+      "date": "التاريخ",
+      "actions": "إجراءات"
+    },
+    "empty": {
+      "filtered": "لا توجد رسالة تطابق عوامل التصفية.",
+      "title": "لا توجد رسائل بعد",
+      "description": "أرسل أول رسالة نصية أو سجّل رسالة واردة لمتابعة جميع محادثات عملائك في مكان واحد.",
+      "action": "إنشاء أول رسالة لي",
+      "tip": "نصيحة: اربط Twilio لإرسال واستقبال الرسائل النصية تلقائيًا."
+    },
+    "rowActions": {
+      "edit": "تعديل",
+      "duplicate": "تكرار",
+      "createProject": "إنشاء مشروع",
+      "markUnread": "تعليم كغير مقروء",
+      "markRead": "تعليم كمقروء",
+      "delete": "حذف"
+    },
+    "aiTitle": "توصيات الذكاء الاصطناعي - الرسائل",
+    "pagination": "{{total}} رسالة - صفحة {{page}} من {{pages}}",
+    "confirm": {
+      "bulkDelete": "حذف {{count}} رسالة؟",
+      "deleteOne": "حذف هذه الرسالة؟"
+    },
+    "toast": {
+      "statusError": "تعذّر تغيير حالة الرسالة",
+      "bulkRead": "تم تعليم {{count}} رسالة كمقروءة",
+      "error": "خطأ",
+      "bulkDeleteError": "خطأ أثناء الحذف",
+      "bulkDeleted": "تم حذف {{count}} رسالة",
+      "duplicated": "تم تكرار الرسالة",
+      "duplicateError": "تعذّر التكرار",
+      "updated": "تم تحديث الرسالة",
+      "updateError": "تعذّر التحديث",
+      "created": "تم حفظ الرسالة",
+      "createError": "تعذّر حفظ الرسالة",
+      "projectCreated": "تم إنشاء المشروع",
+      "deleted": "تم حذف الرسالة",
+      "deleteError": "تعذّر الحذف"
+    },
+    "projectTitleWith": "مشروع - {{name}}",
+    "projectTitleDefault": "مشروع من رسالة",
+    "projectNotes": "أُنشئ من رسالة"
+  },
+  "prospects": {
+    "title": "العملاء المحتملون وخط أنابيب CRM",
+    "subtitle": "إدارة خط أنابيب المبيعات ومتابعة الفرص.",
+    "csv": "CSV",
+    "print": "طباعة",
+    "newProspect": "عميل محتمل جديد",
+    "searchPlaceholder": "ابحث...",
+    "refresh": "تحديث",
+    "orgFallback": "مؤسسة #{{id}}",
+    "empty1": "فارغ",
+    "count": "{{total}} عميل محتمل",
+    "selectAll": "تحديد الكل",
+    "actionsLabel": "إجراءات",
+    "stats": {
+      "total": "الإجمالي",
+      "pipelineValue": "قيمة خط الأنابيب",
+      "won": "المكتسبة",
+      "lost": "المفقودة"
+    },
+    "filters": {
+      "stagePlaceholder": "المرحلة",
+      "allStages": "كل المراحل",
+      "orgPlaceholder": "المؤسسة",
+      "allOrgs": "كل المؤسسات"
+    },
+    "stages": {
+      "nouveau": "جديد",
+      "contact": "اتصال",
+      "qualification": "تأهيل",
+      "proposition": "عرض",
+      "negociation": "تفاوض",
+      "gagne": "مكتسب",
+      "perdu": "مفقود"
+    },
+    "priorities": {
+      "haute": "عالية",
+      "moyenne": "متوسطة",
+      "basse": "منخفضة"
+    },
+    "empty": {
+      "filtered": "لا يوجد عميل محتمل يطابق عوامل التصفية.",
+      "title": "لا يوجد عملاء محتملون بعد",
+      "descriptionKanban": "أضف أول عملائك المحتملين لمتابعة خط أنابيب مبيعاتك. يمكنك نقلهم بين مراحل كانبان وقياس معدل التحويل.",
+      "description": "أضف أول عملائك المحتملين لمتابعة خط أنابيب مبيعاتك. يمكنك نقلهم بين المراحل وقياس معدل التحويل.",
+      "action": "إنشاء أول عميل محتمل لي",
+      "tip": "نصيحة: حوّل جهة اتصال موجودة إلى عميل محتمل من بطاقتها التفصيلية."
+    },
+    "bulk": {
+      "selected": "تم تحديد {{count}} عميل محتمل",
+      "stage": "المرحلة",
+      "changeStage": "تغيير المرحلة",
+      "priority": "الأولوية",
+      "changePriority": "تغيير الأولوية",
+      "assignPlaceholder": "اسم المسؤول...",
+      "ok": "موافق",
+      "assign": "تعيين",
+      "delete": "حذف",
+      "cancel": "إلغاء"
+    },
+    "rowActions": {
+      "open": "فتح",
+      "duplicate": "تكرار",
+      "convert": "تحويل إلى جهة اتصال",
+      "createProject": "إنشاء مشروع",
+      "delete": "حذف"
+    },
+    "dialog": {
+      "editTitle": "تعديل العميل المحتمل",
+      "createTitle": "عميل محتمل جديد",
+      "titleLabel": "العنوان",
+      "titleRequired": "العنوان *",
+      "titlePlaceholder": "فرصة تجارية",
+      "targetOrg": "المؤسسة المستهدفة",
+      "targetOrgRequired": "المؤسسة المستهدفة *",
+      "chooseOrg": "اختر مؤسسة",
+      "orgHelpEdit": "لا يمكن إعادة تعيين المؤسسة المالكة من هذه البطاقة.",
+      "orgHelpCreate": "يجب على المشرف الأعلى تعيين المؤسسة المالكة صراحةً.",
+      "stage": "المرحلة",
+      "priority": "الأولوية",
+      "value": "القيمة (€)",
+      "valuePlaceholder": "0",
+      "probability": "الاحتمال (%)",
+      "contact": "جهة الاتصال",
+      "contactPlaceholder": "اسم جهة الاتصال",
+      "company": "الشركة",
+      "email": "البريد الإلكتروني",
+      "phone": "الهاتف",
+      "source": "المصدر",
+      "sourcePlaceholder": "موقع ويب، توصية...",
+      "assignedTo": "معيّن إلى",
+      "closeDate": "تاريخ الإغلاق المتوقع",
+      "notes": "ملاحظات",
+      "cancel": "إلغاء",
+      "update": "تحديث",
+      "create": "إنشاء"
+    },
+    "confirm": {
+      "delete": "حذف هذا العميل المحتمل؟",
+      "bulkDelete": "حذف {{count}} عميل محتمل؟",
+      "convertTitle": "تحويل إلى جهة اتصال؟",
+      "convertDesc": "ستتغير حالة العميل المحتمل إلى « مكتسب ».",
+      "convertLabel": "تحويل"
+    },
+    "toast": {
+      "error": "خطأ",
+      "loadError": "فشل التحميل.",
+      "titleRequired": "العنوان مطلوب",
+      "updated": "تم تحديث العميل المحتمل",
+      "created": "تم إنشاء العميل المحتمل",
+      "saveError": "فشل الحفظ.",
+      "duplicated": "تم تكرار العميل المحتمل",
+      "duplicateError": "تعذّر التكرار",
+      "deleted": "تم حذف العميل المحتمل",
+      "converted": "تم التحويل!",
+      "projectCreated": "تم إنشاء المشروع",
+      "projectCreatedDesc": "تم إنشاء المشروع « {{title}} ».",
+      "projectError": "تعذّر إنشاء المشروع.",
+      "stageUpdated": "تم تحديث المرحلة",
+      "bulkDeleted": "تم حذف {{count}} عميل محتمل",
+      "bulkStage": "{{count}} عميل محتمل → {{stage}}",
+      "bulkPriority": "تم تحديث {{count}} عميل محتمل",
+      "bulkAssigned": "تم تعيين {{count}} عميل محتمل إلى {{name}}"
+    }
+  },
+  "projets": {
+    "title": "المشاريع",
+    "totalCount": "{{total}} مشروع إجمالاً",
+    "loading": "جارٍ التحميل...",
+    "searchPlaceholder": "ابحث عن مشروع...",
+    "exportCsv": "تصدير CSV",
+    "selectMode": "تحديد",
+    "cancel": "إلغاء",
+    "newProject": "مشروع جديد",
+    "status": {
+      "planifie": "مخطط",
+      "en_cours": "قيد التنفيذ",
+      "en_pause": "متوقف مؤقتًا",
+      "termine": "مكتمل",
+      "annule": "ملغى"
+    },
+    "priority": {
+      "haute": "عالية",
+      "moyenne": "متوسطة",
+      "basse": "منخفضة"
+    },
+    "bulk": {
+      "start": "بدء ({{count}})",
+      "complete": "إنهاء ({{count}})",
+      "delete": "حذف ({{count}})",
+      "selectAll": "تحديد الكل",
+      "deselectAll": "إلغاء تحديد الكل"
+    },
+    "stats": {
+      "active": "المشاريع النشطة",
+      "avgProgress": "متوسط التقدم",
+      "totalBudget": "إجمالي الميزانية",
+      "overdue": "متأخرة"
+    },
+    "filters": {
+      "allStatuses": "كل الحالات",
+      "allPriorities": "كل الأولويات"
+    },
+    "empty": {
+      "title": "لم يُعثر على أي مشروع",
+      "description": "أنشئ أول مشروع لك لبدء المتابعة.",
+      "kanbanColumn": "لا يوجد مشروع"
+    },
+    "milestones": {
+      "title": "المعالم",
+      "complete": "{{done}}/{{total}} مكتملة",
+      "placeholder": "معلم جديد...",
+      "updateError": "خطأ أثناء التحديث"
+    },
+    "form": {
+      "title": "عنوان المشروع",
+      "titlePlaceholder": "مثال: إعادة تصميم موقع العرض",
+      "description": "الوصف",
+      "descriptionPlaceholder": "وصف المشروع...",
+      "status": "الحالة",
+      "priority": "الأولوية",
+      "client": "العميل / جهة الاتصال",
+      "clientPlaceholder": "اسم العميل",
+      "company": "الشركة",
+      "companyPlaceholder": "الشركة",
+      "budget": "الميزانية (€)",
+      "budgetPlaceholder": "0",
+      "progress": "التقدم (%)",
+      "startDate": "تاريخ البدء",
+      "endDate": "تاريخ الانتهاء المتوقع",
+      "assignedTo": "المسؤول",
+      "assignedToPlaceholder": "اسم المسؤول",
+      "tags": "الوسوم",
+      "tagsHint": "(مفصولة بفواصل)",
+      "tagsPlaceholder": "مثال: عاجل، تسويق، عميل-مميز",
+      "notes": "ملاحظات",
+      "notesPlaceholder": "ملاحظات داخلية..."
+    },
+    "createDialog": {
+      "title": "إنشاء مشروع",
+      "cancel": "إلغاء",
+      "create": "إنشاء"
+    },
+    "editDialog": {
+      "title": "تعديل المشروع",
+      "cancel": "إلغاء",
+      "save": "حفظ"
+    },
+    "card": {
+      "overdue": "متأخر",
+      "progress": "التقدم",
+      "budget": "الميزانية",
+      "endDate": "الانتهاء: {{date}}",
+      "milestonesTitle": "المعالم",
+      "edit": "تعديل",
+      "duplicateTitle": "تكرار"
+    },
+    "confirm": {
+      "bulkDelete": "حذف {{count}} مشروع نهائيًا؟",
+      "deleteOne": "حذف المشروع « {{title}} »؟"
+    },
+    "toast": {
+      "error": "خطأ",
+      "loadError": "تعذّر تحميل المشاريع.",
+      "titleRequired": "العنوان مطلوب",
+      "serverError": "خطأ في الخادم",
+      "created": "تم إنشاء المشروع",
+      "updated": "تم تحديث المشروع",
+      "deleted": "تم حذف المشروع",
+      "deleteError": "تعذّر الحذف.",
+      "duplicated": "تم تكرار المشروع",
+      "duplicateError": "تعذّر التكرار.",
+      "bulkDeleted": "تم حذف {{count}} مشروع",
+      "bulkDeleteError": "فشل الحذف.",
+      "bulkStatus": "تم تحديث {{count}} مشروع",
+      "bulkStatusError": "فشل التحديث."
+    }
   }
 }

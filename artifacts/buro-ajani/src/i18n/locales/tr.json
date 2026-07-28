@@ -657,5 +657,350 @@
     "projectTitleWith": "Proje - {{name}}",
     "projectTitleDefault": "Aramadan proje",
     "projectNotes": "{{date}} tarihli aramadan oluşturuldu"
+  },
+  "messages": {
+    "title": "Mesajlar & Notlar",
+    "subtitle": "Arayanların bıraktığı sesli mesajları ve notları görüntüleyin.",
+    "bulkRead": "Tümünü oku ({{count}})",
+    "bulkDelete": "Sil ({{count}})",
+    "csv": "CSV",
+    "print": "Yazdır",
+    "composeEmail": "Yapay Zeka e-posta yaz",
+    "newMessage": "Yeni Mesaj",
+    "searchPlaceholder": "Mesaj ara...",
+    "loadError": "Mesajlar yüklenemedi",
+    "verifyAi": "Yapay Zeka ile doğrula",
+    "unknown": "Bilinmiyor",
+    "actionsLabel": "İşlemler",
+    "banner": {
+      "alt": "Mesajlaşma merkezi",
+      "title": "Mesajlaşma merkezi",
+      "subtitle": "Sesli mesajlar, notlar ve hatırlatmalar — hepsi tek bir yerde."
+    },
+    "filters": {
+      "readPlaceholder": "Okunma",
+      "all": "Tümü",
+      "unread": "Okunmamış",
+      "read": "Okunmuş",
+      "typePlaceholder": "Tür",
+      "allTypes": "Tüm türler",
+      "priorityPlaceholder": "Öncelik",
+      "allPriorities": "Tümü"
+    },
+    "type": {
+      "note": "Not",
+      "vocalShort": "Sesli",
+      "vocal": "Sesli mesaj",
+      "rappel": "Hatırlatma"
+    },
+    "priority": {
+      "haute": "Yüksek",
+      "moyenne": "Orta",
+      "basse": "Düşük"
+    },
+    "dialog": {
+      "editTitle": "Mesajı düzenle",
+      "createTitle": "Mesaj kaydet",
+      "editDesc": "Mesaj bilgilerini düzenleyin.",
+      "createDesc": "Bir not, hatırlatma ekleyin veya sesli mesaj kaydedin.",
+      "update": "Güncelle",
+      "create": "Kaydet"
+    },
+    "form": {
+      "type": "Tür",
+      "priority": "Öncelik",
+      "phoneNumber": "Telefon numarası",
+      "phonePlaceholder": "+90 5...",
+      "contact": "Bir kişiyle ilişkilendir (İsteğe bağlı)",
+      "chooseContact": "Bir kişi seçin...",
+      "none": "Yok",
+      "content": "Mesaj içeriği",
+      "contentPlaceholder": "İçeriği girin..."
+    },
+    "columns": {
+      "from": "Gönderen",
+      "type": "Tür",
+      "priority": "Öncelik",
+      "content": "İçerik",
+      "date": "Tarih",
+      "actions": "İşlemler"
+    },
+    "empty": {
+      "filtered": "Filtrelerinize uygun mesaj yok.",
+      "title": "Henüz mesaj yok",
+      "description": "Tüm müşteri konuşmalarınızı tek bir yerde takip etmek için ilk SMS'inizi gönderin veya gelen bir mesajı kaydedin.",
+      "action": "İlk mesajımı oluştur",
+      "tip": "İpucu: SMS'leri otomatik olarak gönderip almak için Twilio'yu bağlayın."
+    },
+    "rowActions": {
+      "edit": "Düzenle",
+      "duplicate": "Çoğalt",
+      "createProject": "Proje oluştur",
+      "markUnread": "Okunmadı işaretle",
+      "markRead": "Okundu işaretle",
+      "delete": "Sil"
+    },
+    "aiTitle": "Yapay Zeka Önerileri - Mesajlar",
+    "pagination": "{{total}} mesaj - Sayfa {{page}} / {{pages}}",
+    "confirm": {
+      "bulkDelete": "{{count}} mesaj silinsin mi?",
+      "deleteOne": "Bu mesaj silinsin mi?"
+    },
+    "toast": {
+      "statusError": "Mesaj durumu değiştirilemedi",
+      "bulkRead": "{{count}} mesaj okundu olarak işaretlendi",
+      "error": "Hata",
+      "bulkDeleteError": "Silme sırasında hata",
+      "bulkDeleted": "{{count}} mesaj silindi",
+      "duplicated": "Mesaj çoğaltıldı",
+      "duplicateError": "Çoğaltılamadı",
+      "updated": "Mesaj güncellendi",
+      "updateError": "Güncellenemedi",
+      "created": "Mesaj kaydedildi",
+      "createError": "Mesaj kaydedilemedi",
+      "projectCreated": "Proje oluşturuldu",
+      "deleted": "Mesaj silindi",
+      "deleteError": "Silinemedi"
+    },
+    "projectTitleWith": "Proje - {{name}}",
+    "projectTitleDefault": "Mesajdan proje",
+    "projectNotes": "Bir mesajdan oluşturuldu"
+  },
+  "prospects": {
+    "title": "Müşteri Adayları & CRM Pipeline",
+    "subtitle": "Satış pipeline yönetimi ve fırsat takibi.",
+    "csv": "CSV",
+    "print": "Yazdır",
+    "newProspect": "Yeni müşteri adayı",
+    "searchPlaceholder": "Ara...",
+    "refresh": "Yenile",
+    "orgFallback": "Org #{{id}}",
+    "empty1": "Boş",
+    "count": "{{total}} müşteri adayı",
+    "selectAll": "Tümünü seç",
+    "actionsLabel": "İşlemler",
+    "stats": {
+      "total": "Toplam",
+      "pipelineValue": "Pipeline değeri",
+      "won": "Kazanılan",
+      "lost": "Kaybedilen"
+    },
+    "filters": {
+      "stagePlaceholder": "Aşama",
+      "allStages": "Tüm aşamalar",
+      "orgPlaceholder": "Organizasyon",
+      "allOrgs": "Tüm organizasyonlar"
+    },
+    "stages": {
+      "nouveau": "Yeni",
+      "contact": "İletişim",
+      "qualification": "Nitelendirme",
+      "proposition": "Teklif",
+      "negociation": "Görüşme",
+      "gagne": "Kazanıldı",
+      "perdu": "Kaybedildi"
+    },
+    "priorities": {
+      "haute": "Yüksek",
+      "moyenne": "Orta",
+      "basse": "Düşük"
+    },
+    "empty": {
+      "filtered": "Filtrelerinize uygun müşteri adayı yok.",
+      "title": "Henüz müşteri adayı yok",
+      "descriptionKanban": "Satış pipeline'ınızı takip etmek için ilk müşteri adaylarınızı ekleyin. Onları Kanban aşamaları arasında taşıyabilir ve dönüşüm oranınızı ölçebilirsiniz.",
+      "description": "Satış pipeline'ınızı takip etmek için ilk müşteri adaylarınızı ekleyin. Onları aşamalar arasında taşıyabilir ve dönüşüm oranınızı ölçebilirsiniz.",
+      "action": "İlk müşteri adayımı oluştur",
+      "tip": "İpucu: mevcut bir kişiyi detay kartından müşteri adayına dönüştürün."
+    },
+    "bulk": {
+      "selected": "{{count}} müşteri adayı seçildi",
+      "stage": "Aşama",
+      "changeStage": "Aşamayı değiştir",
+      "priority": "Öncelik",
+      "changePriority": "Önceliği değiştir",
+      "assignPlaceholder": "Atanan kişi adı...",
+      "ok": "Tamam",
+      "assign": "Ata",
+      "delete": "Sil",
+      "cancel": "İptal"
+    },
+    "rowActions": {
+      "open": "Aç",
+      "duplicate": "Çoğalt",
+      "convert": "Kişiye dönüştür",
+      "createProject": "Proje oluştur",
+      "delete": "Sil"
+    },
+    "dialog": {
+      "editTitle": "Müşteri adayını düzenle",
+      "createTitle": "Yeni müşteri adayı",
+      "titleLabel": "Başlık",
+      "titleRequired": "Başlık *",
+      "titlePlaceholder": "Ticari fırsat",
+      "targetOrg": "Hedef organizasyon",
+      "targetOrgRequired": "Hedef organizasyon *",
+      "chooseOrg": "Bir organizasyon seçin",
+      "orgHelpEdit": "Sahip organizasyon bu karttan yeniden atanamaz.",
+      "orgHelpCreate": "Süper yönetici, sahip organizasyonu açıkça atamalıdır.",
+      "stage": "Aşama",
+      "priority": "Öncelik",
+      "value": "Değer (€)",
+      "valuePlaceholder": "0",
+      "probability": "Olasılık (%)",
+      "contact": "Kişi",
+      "contactPlaceholder": "Kişi adı",
+      "company": "Şirket",
+      "email": "E-posta",
+      "phone": "Telefon",
+      "source": "Kaynak",
+      "sourcePlaceholder": "Web sitesi, tavsiye...",
+      "assignedTo": "Atanan",
+      "closeDate": "Beklenen kapanış tarihi",
+      "notes": "Notlar",
+      "cancel": "İptal",
+      "update": "Güncelle",
+      "create": "Oluştur"
+    },
+    "confirm": {
+      "delete": "Bu müşteri adayı silinsin mi?",
+      "bulkDelete": "{{count}} müşteri adayı silinsin mi?",
+      "convertTitle": "Kişiye dönüştürülsün mü?",
+      "convertDesc": "Müşteri adayının durumu « Kazanıldı » olacak.",
+      "convertLabel": "Dönüştür"
+    },
+    "toast": {
+      "error": "Hata",
+      "loadError": "Yükleme başarısız.",
+      "titleRequired": "Başlık gerekli",
+      "updated": "Müşteri adayı güncellendi",
+      "created": "Müşteri adayı oluşturuldu",
+      "saveError": "Kaydetme başarısız.",
+      "duplicated": "Müşteri adayı çoğaltıldı",
+      "duplicateError": "Çoğaltılamadı",
+      "deleted": "Müşteri adayı silindi",
+      "converted": "Dönüştürüldü!",
+      "projectCreated": "Proje oluşturuldu",
+      "projectCreatedDesc": "« {{title}} » projesi oluşturuldu.",
+      "projectError": "Proje oluşturulamadı.",
+      "stageUpdated": "Aşama güncellendi",
+      "bulkDeleted": "{{count}} müşteri adayı silindi",
+      "bulkStage": "{{count}} müşteri adayı → {{stage}}",
+      "bulkPriority": "{{count}} müşteri adayı güncellendi",
+      "bulkAssigned": "{{count}} müşteri adayı {{name}} kişisine atandı"
+    }
+  },
+  "projets": {
+    "title": "Projeler",
+    "totalCount": "Toplam {{total}} proje",
+    "loading": "Yükleniyor...",
+    "searchPlaceholder": "Proje ara...",
+    "exportCsv": "CSV dışa aktar",
+    "selectMode": "Seç",
+    "cancel": "İptal",
+    "newProject": "Yeni proje",
+    "status": {
+      "planifie": "Planlandı",
+      "en_cours": "Devam ediyor",
+      "en_pause": "Duraklatıldı",
+      "termine": "Tamamlandı",
+      "annule": "İptal edildi"
+    },
+    "priority": {
+      "haute": "Yüksek",
+      "moyenne": "Orta",
+      "basse": "Düşük"
+    },
+    "bulk": {
+      "start": "Başlat ({{count}})",
+      "complete": "Tamamla ({{count}})",
+      "delete": "Sil ({{count}})",
+      "selectAll": "Tümünü seç",
+      "deselectAll": "Tüm seçimi kaldır"
+    },
+    "stats": {
+      "active": "Aktif projeler",
+      "avgProgress": "Ortalama ilerleme",
+      "totalBudget": "Toplam bütçe",
+      "overdue": "Gecikmiş"
+    },
+    "filters": {
+      "allStatuses": "Tüm durumlar",
+      "allPriorities": "Tüm öncelikler"
+    },
+    "empty": {
+      "title": "Proje bulunamadı",
+      "description": "Takibe başlamak için ilk projenizi oluşturun.",
+      "kanbanColumn": "Proje yok"
+    },
+    "milestones": {
+      "title": "Kilometre taşları",
+      "complete": "{{done}}/{{total}} tamamlandı",
+      "placeholder": "Yeni kilometre taşı...",
+      "updateError": "Güncelleme sırasında hata"
+    },
+    "form": {
+      "title": "Proje başlığı",
+      "titlePlaceholder": "Örn: Vitrin sitesi yenileme",
+      "description": "Açıklama",
+      "descriptionPlaceholder": "Proje açıklaması...",
+      "status": "Durum",
+      "priority": "Öncelik",
+      "client": "Müşteri / Kişi",
+      "clientPlaceholder": "Müşteri adı",
+      "company": "Şirket",
+      "companyPlaceholder": "Şirket",
+      "budget": "Bütçe (€)",
+      "budgetPlaceholder": "0",
+      "progress": "İlerleme (%)",
+      "startDate": "Başlangıç tarihi",
+      "endDate": "Beklenen bitiş tarihi",
+      "assignedTo": "Sorumlu",
+      "assignedToPlaceholder": "Sorumlu adı",
+      "tags": "Etiketler",
+      "tagsHint": "(virgülle ayrılmış)",
+      "tagsPlaceholder": "örn: acil, pazarlama, vip-müşteri",
+      "notes": "Notlar",
+      "notesPlaceholder": "Dahili notlar..."
+    },
+    "createDialog": {
+      "title": "Proje oluştur",
+      "cancel": "İptal",
+      "create": "Oluştur"
+    },
+    "editDialog": {
+      "title": "Projeyi düzenle",
+      "cancel": "İptal",
+      "save": "Kaydet"
+    },
+    "card": {
+      "overdue": "Gecikmiş",
+      "progress": "İlerleme",
+      "budget": "Bütçe",
+      "endDate": "Bitiş: {{date}}",
+      "milestonesTitle": "Kilometre taşları",
+      "edit": "Düzenle",
+      "duplicateTitle": "Çoğalt"
+    },
+    "confirm": {
+      "bulkDelete": "{{count}} proje kalıcı olarak silinsin mi?",
+      "deleteOne": "« {{title}} » projesi silinsin mi?"
+    },
+    "toast": {
+      "error": "Hata",
+      "loadError": "Projeler yüklenemedi.",
+      "titleRequired": "Başlık zorunlu",
+      "serverError": "Sunucu hatası",
+      "created": "Proje oluşturuldu",
+      "updated": "Proje güncellendi",
+      "deleted": "Proje silindi",
+      "deleteError": "Silinemedi.",
+      "duplicated": "Proje çoğaltıldı",
+      "duplicateError": "Çoğaltılamadı.",
+      "bulkDeleted": "{{count}} proje silindi",
+      "bulkDeleteError": "Silme başarısız.",
+      "bulkStatus": "{{count}} proje güncellendi",
+      "bulkStatusError": "Güncelleme başarısız."
+    }
   }
 }

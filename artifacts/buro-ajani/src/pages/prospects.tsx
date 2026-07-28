@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useTranslation } from "@/i18n";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 const PAGE_SIZE = 20;
@@ -42,12 +43,14 @@ const PRIORITIES = [
 ];
 
 function StageBadge({ stage }: { stage: string }) {
+  const { t } = useTranslation();
   const s = STAGES.find(x => x.key === stage) || STAGES[0];
-  return <Badge className={`${s.color} border-0 text-xs`}>{s.label}</Badge>;
+  return <Badge className={`${s.color} border-0 text-xs`}>{t(`prospects.stages.${s.key}`)}</Badge>;
 }
 function PriorityBadge({ priority }: { priority: string }) {
+  const { t } = useTranslation();
   const p = PRIORITIES.find(x => x.key === priority) || PRIORITIES[1];
-  return <Badge className={`${p.color} border-0 text-xs`}>{p.label}</Badge>;
+  return <Badge className={`${p.color} border-0 text-xs`}>{t(`prospects.priorities.${p.key}`)}</Badge>;
 }
 
 function fmtEur(v: any) {
@@ -73,6 +76,7 @@ export default function ProspectsPage() {
   // src/routes/index.ts). Vue 403 affichee si l'utilisateur tape l'URL.
   const { user: workspaceUser } = useWorkspaceUser();
   if (workspaceUser.role !== "super_admin") return <AccessDenied />;
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [prospects, setProspects] = useState<Prospect[]>([]);
@@ -107,7 +111,7 @@ export default function ProspectsPage() {
       ]);
       if (r1.ok) { const d = await r1.json(); setProspects(d.prospects || []); setTotal(d.total || 0); }
       if (r2.ok) { setStats(await r2.json()); }
-    } catch { toast({ title: "Erreur", description: "Chargement echoue.", variant: "destructive" }); }
+    } catch { toast({ title: t("prospects.toast.error"), description: t("prospects.toast.loadError"), variant: "destructive" }); }
     finally { setLoading(false); }
   }, [page, search, stageFilter, orgFilter, toast]);
 
@@ -160,7 +164,7 @@ export default function ProspectsPage() {
   };
 
   const handleSave = async () => {
-    if (!form.title.trim()) { toast({ title: "Titre requis", variant: "destructive" }); return; }
+    if (!form.title.trim()) { toast({ title: t("prospects.toast.titleRequired"), variant: "destructive" }); return; }
     setSaving(true);
     try {
       const url = editingId ? `${BASE}/api/prospects/${editingId}` : `${BASE}/api/prospects`;
@@ -174,32 +178,32 @@ export default function ProspectsPage() {
       if (orgIdStr) payload.organisationId = Number(orgIdStr);
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(payload) });
       if (res.ok) {
-        toast({ title: editingId ? "Prospect mis à jour" : "Prospect cree" });
+        toast({ title: editingId ? t("prospects.toast.updated") : t("prospects.toast.created") });
         setDialogOpen(false); load();
-      } else { const d = await res.json(); toast({ title: "Erreur", description: d.error, variant: "destructive" }); }
-    } catch { toast({ title: "Erreur", description: "Sauvegarde echouee.", variant: "destructive" }); }
+      } else { const d = await res.json(); toast({ title: t("prospects.toast.error"), description: d.error, variant: "destructive" }); }
+    } catch { toast({ title: t("prospects.toast.error"), description: t("prospects.toast.saveError"), variant: "destructive" }); }
     finally { setSaving(false); }
   };
 
   const handleDuplicate = async (id: number) => {
     const res = await fetch(`${BASE}/api/prospects/${id}/duplicate`, { method: "POST", credentials: "include" });
-    if (res.ok) { toast({ title: "Prospect dupliqué" }); load(); }
-    else toast({ title: "Erreur", description: "Impossible de dupliquer", variant: "destructive" });
+    if (res.ok) { toast({ title: t("prospects.toast.duplicated") }); load(); }
+    else toast({ title: t("prospects.toast.error"), description: t("prospects.toast.duplicateError"), variant: "destructive" });
   };
 
   const handleDelete = async (id: number) => {
-    if (!(await confirmAction({ title: "Supprimer ce prospect ?", confirmLabel: "Supprimer", destructive: true }))) return;
+    if (!(await confirmAction({ title: t("prospects.confirm.delete"), confirmLabel: t("common.delete"), destructive: true }))) return;
     const res = await fetch(`${BASE}/api/prospects/${id}`, { method: "DELETE", credentials: "include" });
-    if (res.ok) { toast({ title: "Prospect supprime" }); load(); }
-    else { const d = await res.json(); toast({ title: "Erreur", description: d.error, variant: "destructive" }); }
+    if (res.ok) { toast({ title: t("prospects.toast.deleted") }); load(); }
+    else { const d = await res.json(); toast({ title: t("prospects.toast.error"), description: d.error, variant: "destructive" }); }
   };
 
   const handleConvert = async (id: number) => {
-    if (!(await confirmAction({ title: "Convertir en contact ?", description: "Le statut du prospect passera à « Gagné ».", confirmLabel: "Convertir" }))) return;
+    if (!(await confirmAction({ title: t("prospects.confirm.convertTitle"), description: t("prospects.confirm.convertDesc"), confirmLabel: t("prospects.confirm.convertLabel") }))) return;
     const res = await fetch(`${BASE}/api/prospects/${id}/convert`, { method: "POST", credentials: "include" });
     const d = await res.json();
-    if (res.ok) { toast({ title: "Converti !", description: d.message }); load(); }
-    else toast({ title: "Erreur", description: d.error, variant: "destructive" });
+    if (res.ok) { toast({ title: t("prospects.toast.converted"), description: d.message }); load(); }
+    else toast({ title: t("prospects.toast.error"), description: d.error, variant: "destructive" });
   };
 
   const handleCreateProjet = async (p: Prospect) => {
@@ -221,44 +225,44 @@ export default function ProspectsPage() {
         }),
       });
       if (res.ok) {
-        toast({ title: "Projet créé", description: `Le projet "${p.title}" a été créé.` });
+        toast({ title: t("prospects.toast.projectCreated"), description: t("prospects.toast.projectCreatedDesc", { title: p.title }) });
         setLocation("/projets");
       } else {
         const d = await res.json();
-        toast({ title: "Erreur", description: d.error, variant: "destructive" });
+        toast({ title: t("prospects.toast.error"), description: d.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Impossible de créer le projet.", variant: "destructive" });
+      toast({ title: t("prospects.toast.error"), description: t("prospects.toast.projectError"), variant: "destructive" });
     }
   };
 
   const handleStageChange = async (id: number, stage: string) => {
     const res = await fetch(`${BASE}/api/prospects/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ stage }) });
-    if (res.ok) { load(); toast({ title: "Etape mise a jour" }); }
+    if (res.ok) { load(); toast({ title: t("prospects.toast.stageUpdated") }); }
   };
 
   const toggleSelect = (id: number) => setSelectedIds(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
   const toggleAll = () => setSelectedIds(selectedIds.length === prospects.length ? [] : prospects.map(p => p.id));
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
-    if (!(await confirmAction({ title: `Supprimer ${selectedIds.length} prospect(s) ?`, confirmLabel: "Supprimer", destructive: true }))) return;
+    if (!(await confirmAction({ title: t("prospects.confirm.bulkDelete", { count: selectedIds.length }), confirmLabel: t("common.delete"), destructive: true }))) return;
     const res = await fetch(`${BASE}/api/bulk/prospects/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids: selectedIds }) });
-    if (res.ok) { toast({ title: `${selectedIds.length} prospect(s) supprimé(s)` }); setSelectedIds([]); load(); }
-    else toast({ title: "Erreur", variant: "destructive" });
+    if (res.ok) { toast({ title: t("prospects.toast.bulkDeleted", { count: selectedIds.length }) }); setSelectedIds([]); load(); }
+    else toast({ title: t("prospects.toast.error"), variant: "destructive" });
   };
 
   const handleBulkStage = async (stage: string) => {
     if (selectedIds.length === 0) return;
     const res = await fetch(`${BASE}/api/bulk/prospects/stage`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids: selectedIds, stage }) });
-    if (res.ok) { toast({ title: `${selectedIds.length} prospect(s) → ${stage}` }); setSelectedIds([]); load(); }
-    else toast({ title: "Erreur", variant: "destructive" });
+    if (res.ok) { toast({ title: t("prospects.toast.bulkStage", { count: selectedIds.length, stage }) }); setSelectedIds([]); load(); }
+    else toast({ title: t("prospects.toast.error"), variant: "destructive" });
   };
 
   const handleBulkPriority = async (priority: string) => {
     if (selectedIds.length === 0) return;
     const res = await fetch(`${BASE}/api/bulk/prospects/priority`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids: selectedIds, priority }) });
-    if (res.ok) { toast({ title: `${selectedIds.length} prospect(s) mis à jour` }); setSelectedIds([]); load(); }
-    else toast({ title: "Erreur", variant: "destructive" });
+    if (res.ok) { toast({ title: t("prospects.toast.bulkPriority", { count: selectedIds.length }) }); setSelectedIds([]); load(); }
+    else toast({ title: t("prospects.toast.error"), variant: "destructive" });
   };
 
   const [showAssignInput, setShowAssignInput] = useState(false);
@@ -267,8 +271,8 @@ export default function ProspectsPage() {
   const handleBulkAssign = async () => {
     if (!bulkAssignName.trim() || selectedIds.length === 0) return;
     const res = await fetch(`${BASE}/api/bulk/prospects/assign`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids: selectedIds, assignedTo: bulkAssignName.trim() }) });
-    if (res.ok) { toast({ title: `${selectedIds.length} prospect(s) assigné(s) à ${bulkAssignName.trim()}` }); setSelectedIds([]); setBulkAssignName(""); setShowAssignInput(false); load(); }
-    else toast({ title: "Erreur", variant: "destructive" });
+    if (res.ok) { toast({ title: t("prospects.toast.bulkAssigned", { count: selectedIds.length, name: bulkAssignName.trim() }) }); setSelectedIds([]); setBulkAssignName(""); setShowAssignInput(false); load(); }
+    else toast({ title: t("prospects.toast.error"), variant: "destructive" });
   };
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -278,33 +282,33 @@ export default function ProspectsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
-            <Icon3D icon={TrendingUp} variant="amber" size="md" /> Prospects & Pipeline CRM
+            <Icon3D icon={TrendingUp} variant="amber" size="md" /> {t("prospects.title")}
           </h1>
-          <p className="text-muted-foreground">Gestion du pipeline commercial et suivi des opportunités.</p>
+          <p className="text-muted-foreground">{t("prospects.subtitle")}</p>
         </div>
         <div className="flex gap-2">
-          <a href={`${BASE}/api/prospects/export/csv`} download><Button variant="outline" size="sm" className="gap-2"><Download className="w-4 h-4" />CSV</Button></a>
-          <Button variant="outline" size="sm" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
-          <Button onClick={openCreate} className="gap-2"><Plus className="w-4 h-4" /> Nouveau prospect</Button>
+          <a href={`${BASE}/api/prospects/export/csv`} download><Button variant="outline" size="sm" className="gap-2"><Download className="w-4 h-4" />{t("prospects.csv")}</Button></a>
+          <Button variant="outline" size="sm" title={t("prospects.print")} onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+          <Button onClick={openCreate} className="gap-2"><Plus className="w-4 h-4" /> {t("prospects.newProspect")}</Button>
         </div>
       </div>
 
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card><CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground">Total</p>
+            <p className="text-xs text-muted-foreground">{t("prospects.stats.total")}</p>
             <p className="text-2xl font-bold">{stats.total ?? 0}</p>
           </CardContent></Card>
           <Card><CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground">Valeur pipeline</p>
+            <p className="text-xs text-muted-foreground">{t("prospects.stats.pipelineValue")}</p>
             <p className="text-2xl font-bold text-emerald-600">{fmtEur(stats.totalValue)}</p>
           </CardContent></Card>
           <Card><CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground">Gagnés</p>
+            <p className="text-xs text-muted-foreground">{t("prospects.stats.won")}</p>
             <p className="text-2xl font-bold text-emerald-600">{stats.wonCount ?? 0}</p>
           </CardContent></Card>
           <Card><CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground">Perdus</p>
+            <p className="text-xs text-muted-foreground">{t("prospects.stats.lost")}</p>
             <p className="text-2xl font-bold text-red-500">{stats.lostCount ?? 0}</p>
           </CardContent></Card>
         </div>
@@ -313,19 +317,19 @@ export default function ProspectsPage() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Rechercher..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder={t("prospects.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={stageFilter} onValueChange={setStageFilter}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="Étape" /></SelectTrigger>
+          <SelectTrigger className="w-44"><SelectValue placeholder={t("prospects.filters.stagePlaceholder")} /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Toutes étapes</SelectItem>
-            {STAGES.map(s => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}
+            <SelectItem value="all">{t("prospects.filters.allStages")}</SelectItem>
+            {STAGES.map(s => <SelectItem key={s.key} value={s.key}>{t(`prospects.stages.${s.key}`)}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={orgFilter} onValueChange={setOrgFilter}>
-          <SelectTrigger className="w-56" data-testid="prospects-org-filter"><SelectValue placeholder="Organisation" /></SelectTrigger>
+          <SelectTrigger className="w-56" data-testid="prospects-org-filter"><SelectValue placeholder={t("prospects.filters.orgPlaceholder")} /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Toutes les organisations</SelectItem>
+            <SelectItem value="all">{t("prospects.filters.allOrgs")}</SelectItem>
             {orgs.map(o => <SelectItem key={o.id} value={String(o.id)}>{o.name}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -341,15 +345,15 @@ export default function ProspectsPage() {
       ) : viewMode === "kanban" ? (
         prospects.length === 0 ? (
           (search !== "" || stageFilter !== "all") ? (
-            <p className="text-center text-muted-foreground py-12" data-testid="no-results-prospects-kanban">Aucun prospect ne correspond à vos filtres.</p>
+            <p className="text-center text-muted-foreground py-12" data-testid="no-results-prospects-kanban">{t("prospects.empty.filtered")}</p>
           ) : (
             <EmptyOnboardingHint
               icon={Briefcase}
-              title="Aucun prospect pour l'instant"
-              description="Ajoutez vos premiers prospects pour suivre votre pipeline commercial. Vous pourrez les déplacer entre les étapes du Kanban et mesurer votre taux de conversion."
-              actionLabel="Créer mon premier prospect"
+              title={t("prospects.empty.title")}
+              description={t("prospects.empty.descriptionKanban")}
+              actionLabel={t("prospects.empty.action")}
               onAction={openCreate}
-              tip="Astuce : convertissez un contact existant en prospect depuis sa fiche détaillée."
+              tip={t("prospects.empty.tip")}
               testIdPrefix="empty-prospects-kanban"
             />
           )
@@ -360,7 +364,7 @@ export default function ProspectsPage() {
             return (
               <div key={col.key} className="min-w-[200px]">
                 <div className="flex items-center justify-between mb-2 px-1">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{col.label}</span>
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t(`prospects.stages.${col.key}`)}</span>
                   <Badge variant="secondary" className="text-xs">{items.length}</Badge>
                 </div>
                 <div className="space-y-2">
@@ -371,7 +375,7 @@ export default function ProspectsPage() {
                         {p.company && <p className="text-xs text-muted-foreground">{p.company}</p>}
                         {p.organisationId != null && (
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0" data-testid={`prospect-kanban-org-${p.id}`}>
-                            {orgNameById.get(p.organisationId) || `Org #${p.organisationId}`}
+                            {orgNameById.get(p.organisationId) || t("prospects.orgFallback", { id: p.organisationId })}
                           </Badge>
                         )}
                         {p.value && <p className="text-xs font-bold text-emerald-600">{fmtEur(p.value)}</p>}
@@ -384,7 +388,7 @@ export default function ProspectsPage() {
                       </CardContent>
                     </Card>
                   ))}
-                  {items.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">Vide</p>}
+                  {items.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">{t("prospects.empty1")}</p>}
                 </div>
               </div>
             );
@@ -395,28 +399,28 @@ export default function ProspectsPage() {
         <>
           {selectedIds.length > 0 && (
             <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg flex-wrap">
-              <span className="text-sm font-medium text-blue-700 dark:text-blue-300">{selectedIds.length} prospect(s) sélectionné(s)</span>
+              <span className="text-sm font-medium text-blue-700 dark:text-blue-300">{t("prospects.bulk.selected", { count: selectedIds.length })}</span>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button size="sm" variant="outline" className="gap-1 h-7 text-xs"><Layers className="w-3 h-3" />Étape</Button>
+                  <Button size="sm" variant="outline" className="gap-1 h-7 text-xs"><Layers className="w-3 h-3" />{t("prospects.bulk.stage")}</Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
-                  <DropdownMenuLabel>Changer l'étape</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("prospects.bulk.changeStage")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {STAGES.map(s => (
-                    <DropdownMenuItem key={s.key} onClick={() => handleBulkStage(s.key)} className="cursor-pointer">{s.label}</DropdownMenuItem>
+                    <DropdownMenuItem key={s.key} onClick={() => handleBulkStage(s.key)} className="cursor-pointer">{t(`prospects.stages.${s.key}`)}</DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button size="sm" variant="outline" className="gap-1 h-7 text-xs"><ArrowUpDown className="w-3 h-3" />Priorité</Button>
+                  <Button size="sm" variant="outline" className="gap-1 h-7 text-xs"><ArrowUpDown className="w-3 h-3" />{t("prospects.bulk.priority")}</Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
-                  <DropdownMenuLabel>Changer la priorité</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("prospects.bulk.changePriority")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {PRIORITIES.map(p => (
-                    <DropdownMenuItem key={p.key} onClick={() => handleBulkPriority(p.key)} className="cursor-pointer">{p.label}</DropdownMenuItem>
+                    <DropdownMenuItem key={p.key} onClick={() => handleBulkPriority(p.key)} className="cursor-pointer">{t(`prospects.priorities.${p.key}`)}</DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -426,18 +430,18 @@ export default function ProspectsPage() {
                     value={bulkAssignName}
                     onChange={e => setBulkAssignName(e.target.value)}
                     onKeyDown={e => { if (e.key === "Enter") handleBulkAssign(); if (e.key === "Escape") { setShowAssignInput(false); setBulkAssignName(""); } }}
-                    placeholder="Nom de l'assigné..."
+                    placeholder={t("prospects.bulk.assignPlaceholder")}
                     className="h-7 text-xs w-36"
                     autoFocus
                   />
-                  <Button size="sm" className="h-7 text-xs px-2" onClick={handleBulkAssign} disabled={!bulkAssignName.trim()}>OK</Button>
+                  <Button size="sm" className="h-7 text-xs px-2" onClick={handleBulkAssign} disabled={!bulkAssignName.trim()}>{t("prospects.bulk.ok")}</Button>
                   <Button size="sm" variant="ghost" className="h-7 text-xs px-2" onClick={() => { setShowAssignInput(false); setBulkAssignName(""); }}>✕</Button>
                 </div>
               ) : (
-                <Button size="sm" variant="outline" className="gap-1 h-7 text-xs" onClick={() => setShowAssignInput(true)}><UserPlus className="w-3 h-3" />Assigner</Button>
+                <Button size="sm" variant="outline" className="gap-1 h-7 text-xs" onClick={() => setShowAssignInput(true)}><UserPlus className="w-3 h-3" />{t("prospects.bulk.assign")}</Button>
               )}
-              <Button size="sm" variant="destructive" className="gap-1 h-7 text-xs" onClick={handleBulkDelete}><Trash2 className="w-3 h-3" />Supprimer</Button>
-              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setSelectedIds([]); setShowAssignInput(false); setBulkAssignName(""); }}>Annuler</Button>
+              <Button size="sm" variant="destructive" className="gap-1 h-7 text-xs" onClick={handleBulkDelete}><Trash2 className="w-3 h-3" />{t("prospects.bulk.delete")}</Button>
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setSelectedIds([]); setShowAssignInput(false); setBulkAssignName(""); }}>{t("prospects.bulk.cancel")}</Button>
             </div>
           )}
         <Card>
@@ -445,21 +449,21 @@ export default function ProspectsPage() {
             {prospects.length > 0 && (
               <div className="flex items-center gap-3 px-4 py-2 border-b bg-muted/30">
                 <Checkbox checked={selectedIds.length === prospects.length && prospects.length > 0} onCheckedChange={toggleAll} />
-                <span className="text-xs text-muted-foreground">Tout sélectionner</span>
+                <span className="text-xs text-muted-foreground">{t("prospects.selectAll")}</span>
               </div>
             )}
             {prospects.length === 0 && (
               <div className="py-4 px-4">
                 {(search !== "" || stageFilter !== "all") ? (
-                  <p className="text-center text-muted-foreground py-8" data-testid="no-results-prospects">Aucun prospect ne correspond à vos filtres.</p>
+                  <p className="text-center text-muted-foreground py-8" data-testid="no-results-prospects">{t("prospects.empty.filtered")}</p>
                 ) : (
                   <EmptyOnboardingHint
                     icon={Briefcase}
-                    title="Aucun prospect pour l'instant"
-                    description="Ajoutez vos premiers prospects pour suivre votre pipeline commercial. Vous pourrez les déplacer entre les étapes et mesurer votre taux de conversion."
-                    actionLabel="Créer mon premier prospect"
+                    title={t("prospects.empty.title")}
+                    description={t("prospects.empty.description")}
+                    actionLabel={t("prospects.empty.action")}
                     onAction={openCreate}
-                    tip="Astuce : convertissez un contact existant en prospect depuis sa fiche détaillée."
+                    tip={t("prospects.empty.tip")}
                     testIdPrefix="empty-prospects"
                   />
                 )}
@@ -473,7 +477,7 @@ export default function ProspectsPage() {
                   <p className="text-xs text-muted-foreground">{[p.company, p.contactName].filter(Boolean).join(" · ")}</p>
                 </div>
                 <Badge variant="outline" className="text-[10px] hidden md:inline-flex" data-testid={`prospect-org-${p.id}`}>
-                  {p.organisationId != null ? (orgNameById.get(p.organisationId) || `Org #${p.organisationId}`) : "—"}
+                  {p.organisationId != null ? (orgNameById.get(p.organisationId) || t("prospects.orgFallback", { id: p.organisationId })) : "—"}
                 </Badge>
                 <StageBadge stage={p.stage} />
                 <PriorityBadge priority={p.priority} />
@@ -481,13 +485,13 @@ export default function ProspectsPage() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                    <DropdownMenuItem onClick={() => setLocation(`/prospects/${p.id}`)}><Edit className="w-3 h-3 mr-2" />Ouvrir</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDuplicate(p.id)}><Copy className="w-3 h-3 mr-2" />Dupliquer</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleConvert(p.id)}><UserPlus className="w-3 h-3 mr-2" />Convertir en contact</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleCreateProjet(p)} className="text-indigo-600"><FolderKanban className="w-3 h-3 mr-2" />Créer un projet</DropdownMenuItem>
+                    <DropdownMenuLabel>{t("prospects.actionsLabel")}</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={() => setLocation(`/prospects/${p.id}`)}><Edit className="w-3 h-3 mr-2" />{t("prospects.rowActions.open")}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleDuplicate(p.id)}><Copy className="w-3 h-3 mr-2" />{t("prospects.rowActions.duplicate")}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleConvert(p.id)}><UserPlus className="w-3 h-3 mr-2" />{t("prospects.rowActions.convert")}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleCreateProjet(p)} className="text-indigo-600"><FolderKanban className="w-3 h-3 mr-2" />{t("prospects.rowActions.createProject")}</DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(p.id)}><Trash2 className="w-3 h-3 mr-2" />Supprimer</DropdownMenuItem>
+                    <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(p.id)}><Trash2 className="w-3 h-3 mr-2" />{t("prospects.rowActions.delete")}</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -495,7 +499,7 @@ export default function ProspectsPage() {
           </div>
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3 border-t">
-              <p className="text-sm text-muted-foreground">{total} prospect{total !== 1 ? "s" : ""}</p>
+              <p className="text-sm text-muted-foreground">{t("prospects.count", { total })}</p>
               <div className="flex gap-1">
                 <Button variant="outline" size="icon" className="h-7 w-7" disabled={page === 0} onClick={() => setPage(p => p - 1)}><ChevronLeft className="w-4 h-4" /></Button>
                 <Button variant="outline" size="icon" className="h-7 w-7" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}><ChevronRight className="w-4 h-4" /></Button>
@@ -509,64 +513,64 @@ export default function ProspectsPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingId ? "Modifier le prospect" : "Nouveau prospect"}</DialogTitle>
+            <DialogTitle>{editingId ? t("prospects.dialog.editTitle") : t("prospects.dialog.createTitle")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <div><Label className="text-xs">Titre *</Label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Opportunité commerciale" /></div>
+            <div><Label className="text-xs">{t("prospects.dialog.titleRequired")}</Label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder={t("prospects.dialog.titlePlaceholder")} /></div>
             <div>
-              <Label className="text-xs">Organisation cible {editingId ? "" : "*"}</Label>
+              <Label className="text-xs">{editingId ? t("prospects.dialog.targetOrg") : t("prospects.dialog.targetOrgRequired")}</Label>
               <Select
                 value={form.organisationId}
                 onValueChange={v => setForm(f => ({ ...f, organisationId: v }))}
                 disabled={editingId !== null}
               >
-                <SelectTrigger data-testid="prospect-form-org"><SelectValue placeholder="Choisir une organisation" /></SelectTrigger>
+                <SelectTrigger data-testid="prospect-form-org"><SelectValue placeholder={t("prospects.dialog.chooseOrg")} /></SelectTrigger>
                 <SelectContent>
                   {orgs.map(o => <SelectItem key={o.id} value={String(o.id)}>{o.name}</SelectItem>)}
                 </SelectContent>
               </Select>
               <p className="text-[11px] text-muted-foreground mt-1">
                 {editingId
-                  ? "L'organisation propriétaire ne peut pas être réassignée depuis cette fiche."
-                  : "Le super-admin doit assigner explicitement l'organisation propriétaire."}
+                  ? t("prospects.dialog.orgHelpEdit")
+                  : t("prospects.dialog.orgHelpCreate")}
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">Étape</Label>
+              <div><Label className="text-xs">{t("prospects.dialog.stage")}</Label>
                 <Select value={form.stage} onValueChange={v => setForm(f => ({ ...f, stage: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{STAGES.map(s => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}</SelectContent>
+                  <SelectContent>{STAGES.map(s => <SelectItem key={s.key} value={s.key}>{t(`prospects.stages.${s.key}`)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div><Label className="text-xs">Priorité</Label>
+              <div><Label className="text-xs">{t("prospects.dialog.priority")}</Label>
                 <Select value={form.priority} onValueChange={v => setForm(f => ({ ...f, priority: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{PRIORITIES.map(p => <SelectItem key={p.key} value={p.key}>{p.label}</SelectItem>)}</SelectContent>
+                  <SelectContent>{PRIORITIES.map(p => <SelectItem key={p.key} value={p.key}>{t(`prospects.priorities.${p.key}`)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">Valeur (€)</Label><Input type="number" value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} placeholder="0" /></div>
-              <div><Label className="text-xs">Probabilité (%)</Label><Input type="number" min="0" max="100" value={form.probability} onChange={e => setForm(f => ({ ...f, probability: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("prospects.dialog.value")}</Label><Input type="number" value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} placeholder={t("prospects.dialog.valuePlaceholder")} /></div>
+              <div><Label className="text-xs">{t("prospects.dialog.probability")}</Label><Input type="number" min="0" max="100" value={form.probability} onChange={e => setForm(f => ({ ...f, probability: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">Contact</Label><Input value={form.contactName} onChange={e => setForm(f => ({ ...f, contactName: e.target.value }))} placeholder="Nom du contact" /></div>
-              <div><Label className="text-xs">Entreprise</Label><Input value={form.company} onChange={e => setForm(f => ({ ...f, company: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("prospects.dialog.contact")}</Label><Input value={form.contactName} onChange={e => setForm(f => ({ ...f, contactName: e.target.value }))} placeholder={t("prospects.dialog.contactPlaceholder")} /></div>
+              <div><Label className="text-xs">{t("prospects.dialog.company")}</Label><Input value={form.company} onChange={e => setForm(f => ({ ...f, company: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">Email</Label><Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></div>
-              <div><Label className="text-xs">Téléphone</Label><Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("prospects.dialog.email")}</Label><Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("prospects.dialog.phone")}</Label><Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">Source</Label><Input value={form.source} onChange={e => setForm(f => ({ ...f, source: e.target.value }))} placeholder="Site web, recommandation..." /></div>
-              <div><Label className="text-xs">Assigné à</Label><Input value={form.assignedTo} onChange={e => setForm(f => ({ ...f, assignedTo: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("prospects.dialog.source")}</Label><Input value={form.source} onChange={e => setForm(f => ({ ...f, source: e.target.value }))} placeholder={t("prospects.dialog.sourcePlaceholder")} /></div>
+              <div><Label className="text-xs">{t("prospects.dialog.assignedTo")}</Label><Input value={form.assignedTo} onChange={e => setForm(f => ({ ...f, assignedTo: e.target.value }))} /></div>
             </div>
-            <div><Label className="text-xs">Date de clôture prévue</Label><Input type="date" value={form.expectedCloseDate} onChange={e => setForm(f => ({ ...f, expectedCloseDate: e.target.value }))} /></div>
-            <div><Label className="text-xs">Notes</Label><GhostTextarea fieldType="prospect_note" context={{ title: form.title, contactName: form.contactName }} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} /></div>
+            <div><Label className="text-xs">{t("prospects.dialog.closeDate")}</Label><Input type="date" value={form.expectedCloseDate} onChange={e => setForm(f => ({ ...f, expectedCloseDate: e.target.value }))} /></div>
+            <div><Label className="text-xs">{t("prospects.dialog.notes")}</Label><GhostTextarea fieldType="prospect_note" context={{ title: form.title, contactName: form.contactName }} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Annuler</Button>
-            <Button onClick={handleSave} disabled={saving}>{saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}{editingId ? "Mettre à jour" : "Créer"}</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("prospects.dialog.cancel")}</Button>
+            <Button onClick={handleSave} disabled={saving}>{saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}{editingId ? t("prospects.dialog.update") : t("prospects.dialog.create")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

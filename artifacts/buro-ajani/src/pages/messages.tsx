@@ -30,6 +30,7 @@ import { AiValidationFeedback } from "@/components/ai-validation-feedback";
 import { useAiValidation } from "@/hooks/use-ai-validation";
 import { QueryErrorAlert } from "@/components/safe-component";
 import { Link, useLocation } from "wouter";
+import { useTranslation } from "@/i18n";
 
 const PAGE_SIZE = 15;
 
@@ -43,6 +44,7 @@ const formSchema = z.object({
 
 export default function Messages() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [readFilter, setReadFilter] = useState<string>("all");
@@ -120,7 +122,7 @@ export default function Messages() {
         queryClient.invalidateQueries({ queryKey: ["dashboardSummary"] });
         queryClient.invalidateQueries({ queryKey: ["notifications"] });
       },
-      onError: () => toast({ title: "Erreur", description: "Impossible de modifier le statut du message", variant: "destructive" }),
+      onError: () => toast({ title: t("messages.toast.error"), description: t("messages.toast.statusError"), variant: "destructive" }),
     });
   };
 
@@ -149,32 +151,32 @@ export default function Messages() {
     setSelectedIds(new Set());
     queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() });
     if (res.ok) {
-      toast({ title: `${ids.length} message(s) marqué(s) comme lu(s)` });
+      toast({ title: t("messages.toast.bulkRead", { count: ids.length }) });
     } else {
-      toast({ title: "Erreur", variant: "destructive" });
+      toast({ title: t("messages.toast.error"), variant: "destructive" });
     }
   };
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
-    if (!(await confirmAction({ title: `Supprimer ${selectedIds.size} message(s) ?`, confirmLabel: "Supprimer", destructive: true }))) return;
+    if (!(await confirmAction({ title: t("messages.confirm.bulkDelete", { count: selectedIds.size }), confirmLabel: t("common.delete"), destructive: true }))) return;
     const ids = Array.from(selectedIds);
     const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
     const res = await fetch(`${BASE}/api/bulk/messages/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
     setSelectedIds(new Set());
     queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() });
     if (res.ok) {
-      toast({ title: `${ids.length} message(s) supprime(s)` });
+      toast({ title: t("messages.toast.bulkDeleted", { count: ids.length }) });
     } else {
-      toast({ title: "Erreur lors de la suppression", variant: "destructive" });
+      toast({ title: t("messages.toast.bulkDeleteError"), variant: "destructive" });
     }
   };
 
   const handleDuplicate = async (id: number) => {
     const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
     const res = await fetch(`${BASE}/api/messages/${id}/duplicate`, { method: "POST", credentials: "include" });
-    if (res.ok) { toast({ title: "Message dupliqué" }); queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() }); }
-    else toast({ title: "Erreur", description: "Impossible de dupliquer", variant: "destructive" });
+    if (res.ok) { toast({ title: t("messages.toast.duplicated") }); queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() }); }
+    else toast({ title: t("messages.toast.error"), description: t("messages.toast.duplicateError"), variant: "destructive" });
   };
 
   const handleOpenEdit = (message: any) => {
@@ -199,23 +201,23 @@ export default function Messages() {
     if (editingMessage) {
       updateMessage.mutate({ id: editingMessage.id, data: values }, {
         onSuccess: () => {
-          toast({ title: "Message mis à jour" });
+          toast({ title: t("messages.toast.updated") });
           setIsDialogOpen(false);
           setEditingMessage(null);
           queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() });
         },
-        onError: () => toast({ title: "Erreur", description: "Impossible de mettre a jour", variant: "destructive" }),
+        onError: () => toast({ title: t("messages.toast.error"), description: t("messages.toast.updateError"), variant: "destructive" }),
       });
     } else {
       createMessage.mutate({ data: values }, {
         onSuccess: () => {
-          toast({ title: "Message enregistre" });
+          toast({ title: t("messages.toast.created") });
           setIsDialogOpen(false);
           form.reset();
           queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() });
         },
         onError: () => {
-          toast({ title: "Erreur", description: "Impossible d'enregistrer le message", variant: "destructive" });
+          toast({ title: t("messages.toast.error"), description: t("messages.toast.createError"), variant: "destructive" });
         }
       });
     }
@@ -232,18 +234,18 @@ export default function Messages() {
 
   const getTypeBadge = (type: string) => {
     switch (type) {
-      case 'messagerie_vocale': return <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 border-amber-500/20">Vocal</Badge>;
-      case 'note': return <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 border-blue-500/20">Note</Badge>;
-      case 'rappel': return <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">Rappel</Badge>;
+      case 'messagerie_vocale': return <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 border-amber-500/20">{t("messages.type.vocalShort")}</Badge>;
+      case 'note': return <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 border-blue-500/20">{t("messages.type.note")}</Badge>;
+      case 'rappel': return <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">{t("messages.type.rappel")}</Badge>;
       default: return <Badge variant="outline">{type}</Badge>;
     }
   };
 
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
-      case 'haute': return <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">Haute</Badge>;
-      case 'moyenne': return <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-amber-500/20 text-amber-700">Moyenne</Badge>;
-      case 'basse': return <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-muted text-muted-foreground">Basse</Badge>;
+      case 'haute': return <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">{t("messages.priority.haute")}</Badge>;
+      case 'moyenne': return <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-amber-500/20 text-amber-700">{t("messages.priority.moyenne")}</Badge>;
+      case 'basse': return <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-muted text-muted-foreground">{t("messages.priority.basse")}</Badge>;
       default: return null;
     }
   };
@@ -252,54 +254,54 @@ export default function Messages() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={MessageSquare} variant="amber" size="md" /> Messages & Notes</h1>
-          <p className="text-muted-foreground mt-1">Consultez les messages vocaux et notes laisses par les appelants.</p>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={MessageSquare} variant="amber" size="md" /> {t("messages.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("messages.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           {selectedIds.size > 0 && (
             <>
               <Button variant="outline" size="sm" onClick={handleBulkMarkRead}>
                 <CheckCheck className="w-4 h-4 mr-2" />
-                Tout lire ({selectedIds.size})
+                {t("messages.bulkRead", { count: selectedIds.size })}
               </Button>
               <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
                 <Trash2 className="w-4 h-4 mr-2" />
-                Supprimer ({selectedIds.size})
+                {t("messages.bulkDelete", { count: selectedIds.size })}
               </Button>
             </>
           )}
           <a href={`${(import.meta.env.BASE_URL || "/").replace(/\/$/, "")}/api/messages/export/csv`} download>
-            <Button variant="outline" size="sm"><Download className="w-4 h-4 mr-2" />CSV</Button>
+            <Button variant="outline" size="sm"><Download className="w-4 h-4 mr-2" />{t("messages.csv")}</Button>
           </a>
-          <Button variant="outline" size="sm" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+          <Button variant="outline" size="sm" title={t("messages.print")} onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
           <Button onClick={() => setIsEmailComposerOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
             <Send className="w-4 h-4" />
-            Rediger un e-mail IA
+            {t("messages.composeEmail")}
           </Button>
           <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) setEditingMessage(null); }}>
             <DialogTrigger asChild>
               <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={handleOpenCreate}>
                 <Plus className="w-4 h-4 mr-2" />
-                Nouveau Message
+                {t("messages.newMessage")}
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
-                <DialogTitle>{editingMessage ? "Modifier le message" : "Enregistrer un message"}</DialogTitle>
-                <DialogDescription>{editingMessage ? "Modifiez les informations du message." : "Ajoutez une note, un rappel ou consignez un message vocal."}</DialogDescription>
+                <DialogTitle>{editingMessage ? t("messages.dialog.editTitle") : t("messages.dialog.createTitle")}</DialogTitle>
+                <DialogDescription>{editingMessage ? t("messages.dialog.editDesc") : t("messages.dialog.createDesc")}</DialogDescription>
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="type" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Type</FormLabel>
+                        <FormLabel>{t("messages.form.type")}</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                           <SelectContent>
-                            <SelectItem value="note">Note</SelectItem>
-                            <SelectItem value="messagerie_vocale">Message vocal</SelectItem>
-                            <SelectItem value="rappel">Rappel</SelectItem>
+                            <SelectItem value="note">{t("messages.type.note")}</SelectItem>
+                            <SelectItem value="messagerie_vocale">{t("messages.type.vocal")}</SelectItem>
+                            <SelectItem value="rappel">{t("messages.type.rappel")}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -307,13 +309,13 @@ export default function Messages() {
                     )} />
                     <FormField control={form.control} name="priority" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Priorite</FormLabel>
+                        <FormLabel>{t("messages.form.priority")}</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                           <SelectContent>
-                            <SelectItem value="haute">Haute</SelectItem>
-                            <SelectItem value="moyenne">Moyenne</SelectItem>
-                            <SelectItem value="basse">Basse</SelectItem>
+                            <SelectItem value="haute">{t("messages.priority.haute")}</SelectItem>
+                            <SelectItem value="moyenne">{t("messages.priority.moyenne")}</SelectItem>
+                            <SelectItem value="basse">{t("messages.priority.basse")}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -323,19 +325,19 @@ export default function Messages() {
                   
                   <FormField control={form.control} name="phoneNumber" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Numero de telephone</FormLabel>
-                      <FormControl><Input placeholder="+33 6..." {...field} /></FormControl>
+                      <FormLabel>{t("messages.form.phoneNumber")}</FormLabel>
+                      <FormControl><Input placeholder={t("messages.form.phonePlaceholder")} {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
 
                   <FormField control={form.control} name="contactId" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Associer a un contact (Optionnel)</FormLabel>
+                      <FormLabel>{t("messages.form.contact")}</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value?.toString() || "none"}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Choisir un contact..."/></SelectTrigger></FormControl>
+                        <FormControl><SelectTrigger><SelectValue placeholder={t("messages.form.chooseContact")}/></SelectTrigger></FormControl>
                         <SelectContent>
-                          <SelectItem value="none">Aucun</SelectItem>
+                          <SelectItem value="none">{t("messages.form.none")}</SelectItem>
                           {contactsData?.contacts.map(c => (
                             <SelectItem key={c.id} value={c.id.toString()}>{c.firstName} {c.lastName}</SelectItem>
                           ))}
@@ -352,11 +354,11 @@ export default function Messages() {
                       : null;
                     return (
                       <FormItem>
-                        <FormLabel>Contenu du message</FormLabel>
+                        <FormLabel>{t("messages.form.content")}</FormLabel>
                         <FormControl>
                           <GhostTextarea
                             className="resize-none h-24"
-                            placeholder="Saisissez le contenu..."
+                            placeholder={t("messages.form.contentPlaceholder")}
                             {...field}
                             fieldType="message_content"
                             context={{
@@ -372,8 +374,8 @@ export default function Messages() {
 
                   <AiValidationFeedback result={aiValidation.result} isValidating={aiValidation.isValidating} />
                   <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => aiValidation.validate(form.getValues())} disabled={aiValidation.isValidating} className="mr-auto">Verifier IA</Button>
-                    <Button type="submit" disabled={createMessage.isPending || updateMessage.isPending}>{editingMessage ? "Mettre a jour" : "Enregistrer"}</Button>
+                    <Button type="button" variant="outline" onClick={() => aiValidation.validate(form.getValues())} disabled={aiValidation.isValidating} className="mr-auto">{t("messages.verifyAi")}</Button>
+                    <Button type="submit" disabled={createMessage.isPending || updateMessage.isPending}>{editingMessage ? t("messages.dialog.update") : t("messages.dialog.create")}</Button>
                   </DialogFooter>
                 </form>
               </Form>
@@ -384,12 +386,12 @@ export default function Messages() {
 
       <Card className="overflow-hidden border-0 shadow-lg">
         <div className="relative h-28">
-          <img src={messagingImg} alt="Centre de messagerie" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+          <img src={messagingImg} alt={t("messages.banner.alt")} className="w-full h-full object-cover" loading="lazy" decoding="async" />
           <div className="absolute inset-0 bg-gradient-to-r from-amber-900/80 via-amber-800/50 to-transparent" />
           <div className="absolute inset-0 flex items-center px-6">
             <div className="text-white">
-              <h3 className="text-lg font-bold">Centre de messagerie</h3>
-              <p className="text-white/80 text-sm mt-1">Messages vocaux, notes et rappels — tout centralise en un seul endroit.</p>
+              <h3 className="text-lg font-bold">{t("messages.banner.title")}</h3>
+              <p className="text-white/80 text-sm mt-1">{t("messages.banner.subtitle")}</p>
             </div>
           </div>
         </div>
@@ -398,39 +400,39 @@ export default function Messages() {
       <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-card p-4 border border-border rounded-lg shadow-sm">
         <div className="relative w-full sm:max-w-xs">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Rechercher un message..." className="pl-9 w-full" value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} />
+          <Input placeholder={t("messages.searchPlaceholder")} className="pl-9 w-full" value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} />
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
           <Select value={readFilter} onValueChange={(v) => { setReadFilter(v); setPage(0); }}>
-            <SelectTrigger className="w-[140px]"><SelectValue placeholder="Lecture" /></SelectTrigger>
+            <SelectTrigger className="w-[140px]"><SelectValue placeholder={t("messages.filters.readPlaceholder")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tous</SelectItem>
-              <SelectItem value="unread">Non lus</SelectItem>
-              <SelectItem value="read">Lus</SelectItem>
+              <SelectItem value="all">{t("messages.filters.all")}</SelectItem>
+              <SelectItem value="unread">{t("messages.filters.unread")}</SelectItem>
+              <SelectItem value="read">{t("messages.filters.read")}</SelectItem>
             </SelectContent>
           </Select>
           <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(0); }}>
-            <SelectTrigger className="w-[140px]"><SelectValue placeholder="Type" /></SelectTrigger>
+            <SelectTrigger className="w-[140px]"><SelectValue placeholder={t("messages.filters.typePlaceholder")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tous types</SelectItem>
-              <SelectItem value="messagerie_vocale">Vocal</SelectItem>
-              <SelectItem value="note">Note</SelectItem>
-              <SelectItem value="rappel">Rappel</SelectItem>
+              <SelectItem value="all">{t("messages.filters.allTypes")}</SelectItem>
+              <SelectItem value="messagerie_vocale">{t("messages.type.vocalShort")}</SelectItem>
+              <SelectItem value="note">{t("messages.type.note")}</SelectItem>
+              <SelectItem value="rappel">{t("messages.type.rappel")}</SelectItem>
             </SelectContent>
           </Select>
           <Select value={priorityFilter} onValueChange={(v) => { setPriorityFilter(v); setPage(0); }}>
-            <SelectTrigger className="w-[140px]"><SelectValue placeholder="Priorite" /></SelectTrigger>
+            <SelectTrigger className="w-[140px]"><SelectValue placeholder={t("messages.filters.priorityPlaceholder")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Toutes</SelectItem>
-              <SelectItem value="haute">Haute</SelectItem>
-              <SelectItem value="moyenne">Moyenne</SelectItem>
-              <SelectItem value="basse">Basse</SelectItem>
+              <SelectItem value="all">{t("messages.filters.allPriorities")}</SelectItem>
+              <SelectItem value="haute">{t("messages.priority.haute")}</SelectItem>
+              <SelectItem value="moyenne">{t("messages.priority.moyenne")}</SelectItem>
+              <SelectItem value="basse">{t("messages.priority.basse")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
 
-      {messagesError && <QueryErrorAlert error={messagesError as Error} title="Impossible de charger les messages" />}
+      {messagesError && <QueryErrorAlert error={messagesError as Error} title={t("messages.loadError")} />}
 
       <div className="border border-border rounded-lg overflow-hidden bg-card shadow-sm">
         <Table>
@@ -443,12 +445,12 @@ export default function Messages() {
                 />
               </TableHead>
               <TableHead className="w-[50px]"></TableHead>
-              <TableHead>De</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Priorite</TableHead>
-              <TableHead className="w-1/3">Contenu</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>{t("messages.columns.from")}</TableHead>
+              <TableHead>{t("messages.columns.type")}</TableHead>
+              <TableHead>{t("messages.columns.priority")}</TableHead>
+              <TableHead className="w-1/3">{t("messages.columns.content")}</TableHead>
+              <TableHead>{t("messages.columns.date")}</TableHead>
+              <TableHead className="text-right">{t("messages.columns.actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -469,15 +471,15 @@ export default function Messages() {
               <TableRow>
                 <TableCell colSpan={8} className="py-8">
                   {(search !== "" || readFilter !== "all" || typeFilter !== "all" || priorityFilter !== "all") ? (
-                    <p className="text-center text-muted-foreground" data-testid="no-results-messages">Aucun message ne correspond à vos filtres.</p>
+                    <p className="text-center text-muted-foreground" data-testid="no-results-messages">{t("messages.empty.filtered")}</p>
                   ) : (
                     <EmptyOnboardingHint
                       icon={MessageSquare}
-                      title="Aucun message pour l'instant"
-                      description="Envoyez votre premier SMS ou enregistrez un message reçu pour suivre toutes vos conversations clients en un seul endroit."
-                      actionLabel="Créer mon premier message"
+                      title={t("messages.empty.title")}
+                      description={t("messages.empty.description")}
+                      actionLabel={t("messages.empty.action")}
                       onAction={handleOpenCreate}
-                      tip="Astuce : connectez Twilio pour envoyer et recevoir des SMS automatiquement."
+                      tip={t("messages.empty.tip")}
                       testIdPrefix="empty-messages"
                     />
                   )}
@@ -498,10 +500,10 @@ export default function Messages() {
                     <div className={`font-medium ${!message.isRead ? 'text-foreground font-bold' : 'text-foreground'}`}>
                       {message.contactId ? (
                         <Link href={`/contacts/${message.contactId}`} className="hover:underline hover:text-primary transition-colors">
-                          {message.contactName || "Inconnu"}
+                          {message.contactName || t("messages.unknown")}
                         </Link>
                       ) : (
-                        message.contactName || "Inconnu"
+                        message.contactName || t("messages.unknown")
                       )}
                     </div>
                     <div className="text-sm text-muted-foreground">{message.phoneNumber}</div>
@@ -533,35 +535,35 @@ export default function Messages() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuLabel>{t("messages.actionsLabel")}</DropdownMenuLabel>
                         <DropdownMenuItem onClick={() => handleOpenEdit(message)}>
-                          <Edit className="w-4 h-4 mr-2" />Modifier
+                          <Edit className="w-4 h-4 mr-2" />{t("messages.rowActions.edit")}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleDuplicate(message.id)}>
-                          <Copy className="w-4 h-4 mr-2" />Dupliquer
+                          <Copy className="w-4 h-4 mr-2" />{t("messages.rowActions.duplicate")}
                         </DropdownMenuItem>
                         <DropdownMenuItem className="text-indigo-600" onClick={async () => {
                           const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
-                          const res = await fetch(`${BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title: message.contactName ? `Projet - ${message.contactName}` : "Projet depuis message", status: "planifie", priority: (message.priority as string) || "moyenne", progress: 0, notes: `Créé depuis un message` }) });
-                          if (res.ok) { toast({ title: "Projet créé" }); setLocation("/projets"); }
-                          else toast({ title: "Erreur", variant: "destructive" });
-                        }}><FolderKanban className="w-4 h-4 mr-2" />Créer un projet</DropdownMenuItem>
+                          const res = await fetch(`${BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title: message.contactName ? t("messages.projectTitleWith", { name: message.contactName }) : t("messages.projectTitleDefault"), status: "planifie", priority: (message.priority as string) || "moyenne", progress: 0, notes: t("messages.projectNotes") }) });
+                          if (res.ok) { toast({ title: t("messages.toast.projectCreated") }); setLocation("/projets"); }
+                          else toast({ title: t("messages.toast.error"), variant: "destructive" });
+                        }}><FolderKanban className="w-4 h-4 mr-2" />{t("messages.rowActions.createProject")}</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => handleReadToggle(message.id, !message.isRead)}>
                           {message.isRead ? (
-                            <><Mail className="w-4 h-4 mr-2" /> Marquer non lu</>
+                            <><Mail className="w-4 h-4 mr-2" /> {t("messages.rowActions.markUnread")}</>
                           ) : (
-                            <><MailOpen className="w-4 h-4 mr-2" /> Marquer lu</>
+                            <><MailOpen className="w-4 h-4 mr-2" /> {t("messages.rowActions.markRead")}</>
                           )}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={async () => {
-                          if (!(await confirmAction({ title: "Supprimer ce message ?", confirmLabel: "Supprimer", destructive: true }))) return;
+                          if (!(await confirmAction({ title: t("messages.confirm.deleteOne"), confirmLabel: t("common.delete"), destructive: true }))) return;
                           deleteMessage.mutate({ id: message.id }, {
-                            onSuccess: () => { toast({ title: "Message supprimé" }); queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() }); },
-                            onError: () => toast({ title: "Erreur", description: "Impossible de supprimer", variant: "destructive" }),
+                            onSuccess: () => { toast({ title: t("messages.toast.deleted") }); queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() }); },
+                            onError: () => toast({ title: t("messages.toast.error"), description: t("messages.toast.deleteError"), variant: "destructive" }),
                           });
-                        }}><Trash2 className="w-4 h-4 mr-2" />Supprimer</DropdownMenuItem>
+                        }}><Trash2 className="w-4 h-4 mr-2" />{t("messages.rowActions.delete")}</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -572,11 +574,11 @@ export default function Messages() {
         </Table>
       </div>
 
-      <AiSuggestionsCard page="messages" title="Recommandations IA - Messages" compact />
+      <AiSuggestionsCard page="messages" title={t("messages.aiTitle")} compact />
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          {data ? `${data.total} message(s) - Page ${page + 1} sur ${totalPages}` : ""}
+          {data ? t("messages.pagination", { total: data.total, page: page + 1, pages: totalPages }) : ""}
         </p>
         <div className="flex items-center gap-1">
           <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(0)}><ChevronsLeft className="h-4 w-4" /></Button>

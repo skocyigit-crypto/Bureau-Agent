@@ -657,5 +657,350 @@
     "projectTitleWith": "Project - {{name}}",
     "projectTitleDefault": "Project from call",
     "projectNotes": "Created from the call of {{date}}"
+  },
+  "messages": {
+    "title": "Messages & Notes",
+    "subtitle": "View voicemails and notes left by callers.",
+    "bulkRead": "Mark all read ({{count}})",
+    "bulkDelete": "Delete ({{count}})",
+    "csv": "CSV",
+    "print": "Print",
+    "composeEmail": "Compose AI email",
+    "newMessage": "New Message",
+    "searchPlaceholder": "Search a message...",
+    "loadError": "Unable to load messages",
+    "verifyAi": "Verify AI",
+    "unknown": "Unknown",
+    "actionsLabel": "Actions",
+    "banner": {
+      "alt": "Messaging center",
+      "title": "Messaging center",
+      "subtitle": "Voicemails, notes and reminders — all centralized in one place."
+    },
+    "filters": {
+      "readPlaceholder": "Read status",
+      "all": "All",
+      "unread": "Unread",
+      "read": "Read",
+      "typePlaceholder": "Type",
+      "allTypes": "All types",
+      "priorityPlaceholder": "Priority",
+      "allPriorities": "All"
+    },
+    "type": {
+      "note": "Note",
+      "vocalShort": "Voice",
+      "vocal": "Voicemail",
+      "rappel": "Reminder"
+    },
+    "priority": {
+      "haute": "High",
+      "moyenne": "Medium",
+      "basse": "Low"
+    },
+    "dialog": {
+      "editTitle": "Edit message",
+      "createTitle": "Save a message",
+      "editDesc": "Edit the message details.",
+      "createDesc": "Add a note, a reminder or record a voice message.",
+      "update": "Update",
+      "create": "Save"
+    },
+    "form": {
+      "type": "Type",
+      "priority": "Priority",
+      "phoneNumber": "Phone number",
+      "phonePlaceholder": "+33 6...",
+      "contact": "Link to a contact (Optional)",
+      "chooseContact": "Choose a contact...",
+      "none": "None",
+      "content": "Message content",
+      "contentPlaceholder": "Enter the content..."
+    },
+    "columns": {
+      "from": "From",
+      "type": "Type",
+      "priority": "Priority",
+      "content": "Content",
+      "date": "Date",
+      "actions": "Actions"
+    },
+    "empty": {
+      "filtered": "No message matches your filters.",
+      "title": "No messages yet",
+      "description": "Send your first SMS or log a received message to track all your customer conversations in one place.",
+      "action": "Create my first message",
+      "tip": "Tip: connect Twilio to send and receive SMS automatically."
+    },
+    "rowActions": {
+      "edit": "Edit",
+      "duplicate": "Duplicate",
+      "createProject": "Create a project",
+      "markUnread": "Mark unread",
+      "markRead": "Mark read",
+      "delete": "Delete"
+    },
+    "aiTitle": "AI Recommendations - Messages",
+    "pagination": "{{total}} message(s) - Page {{page}} of {{pages}}",
+    "confirm": {
+      "bulkDelete": "Delete {{count}} message(s)?",
+      "deleteOne": "Delete this message?"
+    },
+    "toast": {
+      "statusError": "Unable to change the message status",
+      "bulkRead": "{{count}} message(s) marked as read",
+      "error": "Error",
+      "bulkDeleteError": "Error while deleting",
+      "bulkDeleted": "{{count}} message(s) deleted",
+      "duplicated": "Message duplicated",
+      "duplicateError": "Unable to duplicate",
+      "updated": "Message updated",
+      "updateError": "Unable to update",
+      "created": "Message saved",
+      "createError": "Unable to save the message",
+      "projectCreated": "Project created",
+      "deleted": "Message deleted",
+      "deleteError": "Unable to delete"
+    },
+    "projectTitleWith": "Project - {{name}}",
+    "projectTitleDefault": "Project from message",
+    "projectNotes": "Created from a message"
+  },
+  "prospects": {
+    "title": "Prospects & CRM Pipeline",
+    "subtitle": "Sales pipeline management and opportunity tracking.",
+    "csv": "CSV",
+    "print": "Print",
+    "newProspect": "New prospect",
+    "searchPlaceholder": "Search...",
+    "refresh": "Refresh",
+    "orgFallback": "Org #{{id}}",
+    "empty1": "Empty",
+    "count": "{{total}} prospect(s)",
+    "selectAll": "Select all",
+    "actionsLabel": "Actions",
+    "stats": {
+      "total": "Total",
+      "pipelineValue": "Pipeline value",
+      "won": "Won",
+      "lost": "Lost"
+    },
+    "filters": {
+      "stagePlaceholder": "Stage",
+      "allStages": "All stages",
+      "orgPlaceholder": "Organization",
+      "allOrgs": "All organizations"
+    },
+    "stages": {
+      "nouveau": "New",
+      "contact": "Contact",
+      "qualification": "Qualification",
+      "proposition": "Proposal",
+      "negociation": "Negotiation",
+      "gagne": "Won",
+      "perdu": "Lost"
+    },
+    "priorities": {
+      "haute": "High",
+      "moyenne": "Medium",
+      "basse": "Low"
+    },
+    "empty": {
+      "filtered": "No prospect matches your filters.",
+      "title": "No prospects yet",
+      "descriptionKanban": "Add your first prospects to track your sales pipeline. You can move them between Kanban stages and measure your conversion rate.",
+      "description": "Add your first prospects to track your sales pipeline. You can move them between stages and measure your conversion rate.",
+      "action": "Create my first prospect",
+      "tip": "Tip: convert an existing contact into a prospect from its detail sheet."
+    },
+    "bulk": {
+      "selected": "{{count}} prospect(s) selected",
+      "stage": "Stage",
+      "changeStage": "Change stage",
+      "priority": "Priority",
+      "changePriority": "Change priority",
+      "assignPlaceholder": "Assignee name...",
+      "ok": "OK",
+      "assign": "Assign",
+      "delete": "Delete",
+      "cancel": "Cancel"
+    },
+    "rowActions": {
+      "open": "Open",
+      "duplicate": "Duplicate",
+      "convert": "Convert to contact",
+      "createProject": "Create a project",
+      "delete": "Delete"
+    },
+    "dialog": {
+      "editTitle": "Edit prospect",
+      "createTitle": "New prospect",
+      "titleLabel": "Title",
+      "titleRequired": "Title *",
+      "titlePlaceholder": "Business opportunity",
+      "targetOrg": "Target organization",
+      "targetOrgRequired": "Target organization *",
+      "chooseOrg": "Choose an organization",
+      "orgHelpEdit": "The owner organization cannot be reassigned from this sheet.",
+      "orgHelpCreate": "The super-admin must explicitly assign the owner organization.",
+      "stage": "Stage",
+      "priority": "Priority",
+      "value": "Value (€)",
+      "valuePlaceholder": "0",
+      "probability": "Probability (%)",
+      "contact": "Contact",
+      "contactPlaceholder": "Contact name",
+      "company": "Company",
+      "email": "Email",
+      "phone": "Phone",
+      "source": "Source",
+      "sourcePlaceholder": "Website, referral...",
+      "assignedTo": "Assigned to",
+      "closeDate": "Expected close date",
+      "notes": "Notes",
+      "cancel": "Cancel",
+      "update": "Update",
+      "create": "Create"
+    },
+    "confirm": {
+      "delete": "Delete this prospect?",
+      "bulkDelete": "Delete {{count}} prospect(s)?",
+      "convertTitle": "Convert to contact?",
+      "convertDesc": "The prospect status will change to « Won ».",
+      "convertLabel": "Convert"
+    },
+    "toast": {
+      "error": "Error",
+      "loadError": "Loading failed.",
+      "titleRequired": "Title required",
+      "updated": "Prospect updated",
+      "created": "Prospect created",
+      "saveError": "Save failed.",
+      "duplicated": "Prospect duplicated",
+      "duplicateError": "Unable to duplicate",
+      "deleted": "Prospect deleted",
+      "converted": "Converted!",
+      "projectCreated": "Project created",
+      "projectCreatedDesc": "The project « {{title}} » was created.",
+      "projectError": "Unable to create the project.",
+      "stageUpdated": "Stage updated",
+      "bulkDeleted": "{{count}} prospect(s) deleted",
+      "bulkStage": "{{count}} prospect(s) → {{stage}}",
+      "bulkPriority": "{{count}} prospect(s) updated",
+      "bulkAssigned": "{{count}} prospect(s) assigned to {{name}}"
+    }
+  },
+  "projets": {
+    "title": "Projects",
+    "totalCount": "{{total}} project(s) total",
+    "loading": "Loading...",
+    "searchPlaceholder": "Search a project...",
+    "exportCsv": "Export CSV",
+    "selectMode": "Select",
+    "cancel": "Cancel",
+    "newProject": "New project",
+    "status": {
+      "planifie": "Planned",
+      "en_cours": "In progress",
+      "en_pause": "Paused",
+      "termine": "Completed",
+      "annule": "Cancelled"
+    },
+    "priority": {
+      "haute": "High",
+      "moyenne": "Medium",
+      "basse": "Low"
+    },
+    "bulk": {
+      "start": "Start ({{count}})",
+      "complete": "Complete ({{count}})",
+      "delete": "Delete ({{count}})",
+      "selectAll": "Select all",
+      "deselectAll": "Deselect all"
+    },
+    "stats": {
+      "active": "Active projects",
+      "avgProgress": "Average progress",
+      "totalBudget": "Total budget",
+      "overdue": "Overdue"
+    },
+    "filters": {
+      "allStatuses": "All statuses",
+      "allPriorities": "All priorities"
+    },
+    "empty": {
+      "title": "No project found",
+      "description": "Create your first project to start tracking.",
+      "kanbanColumn": "No project"
+    },
+    "milestones": {
+      "title": "Milestones",
+      "complete": "{{done}}/{{total}} completed",
+      "placeholder": "New milestone...",
+      "updateError": "Error while updating"
+    },
+    "form": {
+      "title": "Project title",
+      "titlePlaceholder": "e.g. Showcase site redesign",
+      "description": "Description",
+      "descriptionPlaceholder": "Project description...",
+      "status": "Status",
+      "priority": "Priority",
+      "client": "Client / Contact",
+      "clientPlaceholder": "Client name",
+      "company": "Company",
+      "companyPlaceholder": "Company",
+      "budget": "Budget (€)",
+      "budgetPlaceholder": "0",
+      "progress": "Progress (%)",
+      "startDate": "Start date",
+      "endDate": "Expected end date",
+      "assignedTo": "Manager",
+      "assignedToPlaceholder": "Manager name",
+      "tags": "Tags",
+      "tagsHint": "(comma-separated)",
+      "tagsPlaceholder": "e.g. urgent, marketing, vip-client",
+      "notes": "Notes",
+      "notesPlaceholder": "Internal notes..."
+    },
+    "createDialog": {
+      "title": "Create a project",
+      "cancel": "Cancel",
+      "create": "Create"
+    },
+    "editDialog": {
+      "title": "Edit project",
+      "cancel": "Cancel",
+      "save": "Save"
+    },
+    "card": {
+      "overdue": "Overdue",
+      "progress": "Progress",
+      "budget": "Budget",
+      "endDate": "End: {{date}}",
+      "milestonesTitle": "Milestones",
+      "edit": "Edit",
+      "duplicateTitle": "Duplicate"
+    },
+    "confirm": {
+      "bulkDelete": "Permanently delete {{count}} project(s)?",
+      "deleteOne": "Delete the project « {{title}} »?"
+    },
+    "toast": {
+      "error": "Error",
+      "loadError": "Unable to load projects.",
+      "titleRequired": "Title required",
+      "serverError": "Server error",
+      "created": "Project created",
+      "updated": "Project updated",
+      "deleted": "Project deleted",
+      "deleteError": "Unable to delete.",
+      "duplicated": "Project duplicated",
+      "duplicateError": "Unable to duplicate.",
+      "bulkDeleted": "{{count}} project(s) deleted",
+      "bulkDeleteError": "Deletion failed.",
+      "bulkStatus": "{{count}} project(s) updated",
+      "bulkStatusError": "Update failed."
+    }
   }
 }
