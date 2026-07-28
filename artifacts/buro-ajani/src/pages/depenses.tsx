@@ -52,6 +52,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -221,6 +222,7 @@ const EMPTY_FORM: EditForm = {
 
 export default function DepensesPage() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [tab, setTab] = useState<"queue" | "ledger">("queue");
   const [depenses, setDepenses] = useState<Depense[]>([]);
   const [summary, setSummary] = useState<Summary>(EMPTY_SUMMARY);
@@ -265,7 +267,7 @@ export default function DepensesPage() {
       setDepenses(Array.isArray(data.depenses) ? data.depenses : []);
       setSummary({ ...EMPTY_SUMMARY, ...(data.summary || {}) });
     } catch {
-      toast({ title: "Erreur", description: "Impossible de charger les dépenses.", variant: "destructive" });
+      toast({ title: t("depenses.toast.error"), description: t("depenses.toast.loadError"), variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -315,9 +317,9 @@ export default function DepensesPage() {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      toast({ title: "Export prêt", description: "Le registre filtré a été téléchargé." });
+      toast({ title: t("depenses.toast.exportReady"), description: t("depenses.toast.exportReadyDesc") });
     } catch {
-      toast({ title: "Erreur", description: "L'export a échoué.", variant: "destructive" });
+      toast({ title: t("depenses.toast.error"), description: t("depenses.toast.exportError"), variant: "destructive" });
     } finally {
       setExporting(false);
     }
@@ -333,15 +335,15 @@ export default function DepensesPage() {
         });
         if (!res.ok) throw new Error("act");
         toast({
-          title: action === "approve" ? "Dépense approuvée" : "Dépense rejetée",
+          title: action === "approve" ? t("depenses.toast.approved") : t("depenses.toast.rejected"),
           description:
             action === "approve"
-              ? "Enregistrée au registre et prise en compte en trésorerie."
-              : "La dépense a été écartée.",
+              ? t("depenses.toast.approvedDesc")
+              : t("depenses.toast.rejectedDesc"),
         });
         await load();
       } catch {
-        toast({ title: "Erreur", description: "L'action a échoué.", variant: "destructive" });
+        toast({ title: t("depenses.toast.error"), description: t("depenses.toast.actionError"), variant: "destructive" });
       } finally {
         setBusyId(null);
       }
@@ -351,15 +353,15 @@ export default function DepensesPage() {
 
   const remove = useCallback(
     async (id: number) => {
-      if (!window.confirm("Supprimer définitivement cette dépense ?")) return;
+      if (!window.confirm(t("depenses.confirm.delete"))) return;
       setBusyId(id);
       try {
         const res = await fetch(`${BASE}/api/depenses/${id}`, { method: "DELETE", credentials: "include" });
         if (!res.ok) throw new Error("del");
-        toast({ title: "Dépense supprimée" });
+        toast({ title: t("depenses.toast.deleted") });
         await load();
       } catch {
-        toast({ title: "Erreur", description: "La suppression a échoué.", variant: "destructive" });
+        toast({ title: t("depenses.toast.error"), description: t("depenses.toast.deleteError"), variant: "destructive" });
       } finally {
         setBusyId(null);
       }
@@ -386,7 +388,7 @@ export default function DepensesPage() {
 
   const save = useCallback(async () => {
     if (!form.vendor.trim()) {
-      toast({ title: "Fournisseur requis", variant: "destructive" });
+      toast({ title: t("depenses.toast.vendorRequired"), variant: "destructive" });
       return;
     }
     setSaving(true);
@@ -414,13 +416,13 @@ export default function DepensesPage() {
       if (!res.ok) throw new Error("save");
       const data = await res.json();
       toast({
-        title: creating ? "Dépense créée" : "Dépense mise à jour",
-        description: data.duplicate ? "⚠️ Un doublon potentiel a été détecté." : undefined,
+        title: creating ? t("depenses.toast.created") : t("depenses.toast.updated"),
+        description: data.duplicate ? t("depenses.toast.duplicateDetected") : undefined,
       });
       closeDialog();
       await load();
     } catch {
-      toast({ title: "Erreur", description: "L'enregistrement a échoué.", variant: "destructive" });
+      toast({ title: t("depenses.toast.error"), description: t("depenses.toast.saveError"), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -443,16 +445,15 @@ export default function DepensesPage() {
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold">
             <Wallet className="h-6 w-6 text-emerald-600" />
-            Dépenses
+            {t("depenses.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Registre des dépenses (gider defteri). Les justificatifs entrants (téléversements et pièces
-            jointes e-mail) sont analysés automatiquement et placés en file d'inspection.
+            {t("depenses.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={openCreate}>
-            <Plus className="mr-1.5 h-4 w-4" /> Nouvelle dépense
+            <Plus className="mr-1.5 h-4 w-4" /> {t("depenses.newExpense")}
           </Button>
           {tab === "ledger" && (
             <Button variant="outline" size="sm" onClick={exportCsv} disabled={exporting}>
@@ -461,11 +462,11 @@ export default function DepensesPage() {
               ) : (
                 <Download className="mr-1.5 h-4 w-4" />
               )}
-              Exporter
+              {t("depenses.export")}
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={() => load()} disabled={loading}>
-            <RefreshCw className={`mr-1.5 h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Actualiser
+            <RefreshCw className={`mr-1.5 h-4 w-4 ${loading ? "animate-spin" : ""}`} /> {t("depenses.refresh")}
           </Button>
         </div>
       </div>
@@ -474,25 +475,25 @@ export default function DepensesPage() {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>En attente</CardDescription>
+            <CardDescription>{t("depenses.summary.pending")}</CardDescription>
             <CardTitle className="text-2xl">{summary.pendingCount}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Approuvées</CardDescription>
+            <CardDescription>{t("depenses.summary.approved")}</CardDescription>
             <CardTitle className="text-2xl">{summary.approvedCount}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Total registre (TTC)</CardDescription>
+            <CardDescription>{t("depenses.summary.ledgerTotal")}</CardDescription>
             <CardTitle className="text-2xl">{eur(summary.approvedTotal)}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Reste à payer</CardDescription>
+            <CardDescription>{t("depenses.summary.payable")}</CardDescription>
             <CardTitle className="text-2xl">{eur(summary.payableTotal)}</CardTitle>
           </CardHeader>
         </Card>
@@ -501,10 +502,10 @@ export default function DepensesPage() {
       <Tabs value={tab} onValueChange={(v) => setTab(v as "queue" | "ledger")}>
         <TabsList>
           <TabsTrigger value="queue">
-            <Inbox className="mr-1.5 h-4 w-4" /> File d'inspection ({summary.pendingCount})
+            <Inbox className="mr-1.5 h-4 w-4" /> {t("depenses.tabs.queue", { count: summary.pendingCount })}
           </TabsTrigger>
           <TabsTrigger value="ledger">
-            <BookOpen className="mr-1.5 h-4 w-4" /> Registre
+            <BookOpen className="mr-1.5 h-4 w-4" /> {t("depenses.tabs.ledger")}
           </TabsTrigger>
         </TabsList>
       </Tabs>
@@ -514,42 +515,42 @@ export default function DepensesPage() {
         <Card>
           <CardContent className="flex flex-wrap items-end gap-3 p-4">
             <div className="grid gap-1">
-              <Label className="text-xs">Catégorie</Label>
+              <Label className="text-xs">{t("depenses.filters.category")}</Label>
               <Select value={filterCategory} onValueChange={setFilterCategory}>
                 <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Toutes</SelectItem>
-                  {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                  <SelectItem value="all">{t("depenses.filters.all")}</SelectItem>
+                  {Object.keys(CATEGORY_LABELS).map((k) => (
+                    <SelectItem key={k} value={k}>{t(`depenses.categories.${k}`)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="grid gap-1">
-              <Label className="text-xs">Fournisseur</Label>
+              <Label className="text-xs">{t("depenses.filters.vendor")}</Label>
               <Input
                 className="h-9 w-44"
-                placeholder="Rechercher…"
+                placeholder={t("depenses.filters.searchPlaceholder")}
                 value={filterVendor}
                 onChange={(e) => setFilterVendor(e.target.value)}
               />
             </div>
             <div className="grid gap-1">
-              <Label className="text-xs">Du</Label>
+              <Label className="text-xs">{t("depenses.filters.from")}</Label>
               <Input className="h-9 w-36" type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} />
             </div>
             <div className="grid gap-1">
-              <Label className="text-xs">Au</Label>
+              <Label className="text-xs">{t("depenses.filters.to")}</Label>
               <Input className="h-9 w-36" type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} />
             </div>
             <div className="grid gap-1">
-              <Label className="text-xs">Paiement</Label>
+              <Label className="text-xs">{t("depenses.filters.payment")}</Label>
               <Select value={filterPayment} onValueChange={setFilterPayment}>
                 <SelectTrigger className="h-9 w-36"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tous</SelectItem>
-                  <SelectItem value="a_payer">À payer</SelectItem>
-                  <SelectItem value="paye">Payé</SelectItem>
+                  <SelectItem value="all">{t("depenses.filters.allPayments")}</SelectItem>
+                  <SelectItem value="a_payer">{t("depenses.payment.a_payer")}</SelectItem>
+                  <SelectItem value="paye">{t("depenses.payment.paye")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -565,7 +566,7 @@ export default function DepensesPage() {
                   setFilterPayment("all");
                 }}
               >
-                Réinitialiser
+                {t("depenses.filters.reset")}
               </Button>
             )}
           </CardContent>
@@ -579,21 +580,21 @@ export default function DepensesPage() {
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
                 <PieChartIcon className="h-4 w-4 text-muted-foreground" />
-                Dépenses par catégorie
+                {t("depenses.charts.byCategory")}
               </CardTitle>
-              <CardDescription>Répartition du registre filtré (TTC)</CardDescription>
+              <CardDescription>{t("depenses.charts.byCategoryDesc")}</CardDescription>
             </CardHeader>
             <CardContent>
               {statsLoading ? (
                 <Skeleton className="h-72 w-full" />
               ) : stats.byCategory.length === 0 ? (
-                <p className="py-20 text-center text-sm text-muted-foreground">Aucune donnée à afficher.</p>
+                <p className="py-20 text-center text-sm text-muted-foreground">{t("depenses.charts.noData")}</p>
               ) : (
                 <ResponsiveContainer width="100%" height={288}>
                   <PieChart>
                     <Pie
                       data={stats.byCategory.map((c) => ({
-                        name: CATEGORY_LABELS[c.category] || c.category,
+                        name: CATEGORY_LABELS[c.category] ? t(`depenses.categories.${c.category}`) : c.category,
                         value: c.total,
                       }))}
                       dataKey="value"
@@ -619,15 +620,15 @@ export default function DepensesPage() {
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
                 <BookOpen className="h-4 w-4 text-muted-foreground" />
-                Dépenses par mois
+                {t("depenses.charts.byMonth")}
               </CardTitle>
-              <CardDescription>Évolution mensuelle du registre filtré (TTC)</CardDescription>
+              <CardDescription>{t("depenses.charts.byMonthDesc")}</CardDescription>
             </CardHeader>
             <CardContent>
               {statsLoading ? (
                 <Skeleton className="h-72 w-full" />
               ) : stats.byMonth.length === 0 ? (
-                <p className="py-20 text-center text-sm text-muted-foreground">Aucune donnée à afficher.</p>
+                <p className="py-20 text-center text-sm text-muted-foreground">{t("depenses.charts.noData")}</p>
               ) : (
                 <ResponsiveContainer width="100%" height={288}>
                   <BarChart
@@ -638,7 +639,7 @@ export default function DepensesPage() {
                     <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                     <YAxis tick={{ fontSize: 12 }} tickFormatter={(v: number) => eur(v)} width={80} />
                     <RechartsTooltip formatter={(v: number) => eur(v)} />
-                    <Bar dataKey="total" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} name="Total" />
+                    <Bar dataKey="total" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} name={t("depenses.charts.total")} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -650,9 +651,9 @@ export default function DepensesPage() {
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Wallet className="h-4 w-4 text-muted-foreground" />
-                  Principaux fournisseurs
+                  {t("depenses.charts.topVendors")}
                 </CardTitle>
-                <CardDescription>Top 8 par montant (TTC)</CardDescription>
+                <CardDescription>{t("depenses.charts.topVendorsDesc")}</CardDescription>
               </CardHeader>
               <CardContent>
                 {statsLoading ? (
@@ -661,14 +662,14 @@ export default function DepensesPage() {
                   <ResponsiveContainer width="100%" height={Math.max(160, stats.byVendor.length * 36)}>
                     <BarChart
                       layout="vertical"
-                      data={stats.byVendor.map((v) => ({ name: v.vendor || "Inconnu", total: v.total }))}
+                      data={stats.byVendor.map((v) => ({ name: v.vendor || t("depenses.charts.unknownVendor"), total: v.total }))}
                       margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
                       <XAxis type="number" tick={{ fontSize: 12 }} tickFormatter={(v: number) => eur(v)} />
                       <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} width={140} />
                       <RechartsTooltip formatter={(v: number) => eur(v)} />
-                      <Bar dataKey="total" fill={CHART_COLORS[1]} radius={[0, 4, 4, 0]} name="Total" />
+                      <Bar dataKey="total" fill={CHART_COLORS[1]} radius={[0, 4, 4, 0]} name={t("depenses.charts.total")} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -682,10 +683,10 @@ export default function DepensesPage() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-lg">
-            {tab === "queue" ? "Justificatifs à valider" : `Dépenses enregistrées (${depenses.length})`}
+            {tab === "queue" ? t("depenses.list.queueTitle") : t("depenses.list.ledgerTitle", { count: depenses.length })}
           </CardTitle>
           {tab === "ledger" && (
-            <CardDescription>Total affiché : {eur(ledgerTotal)}</CardDescription>
+            <CardDescription>{t("depenses.list.displayedTotal", { total: eur(ledgerTotal) })}</CardDescription>
           )}
         </CardHeader>
         <CardContent>
@@ -700,12 +701,12 @@ export default function DepensesPage() {
               {tab === "queue" ? (
                 <>
                   <Inbox className="mx-auto mb-2 h-10 w-10 opacity-40" />
-                  <p>Aucun justificatif en attente. Les nouvelles factures arriveront ici automatiquement.</p>
+                  <p>{t("depenses.empty.queue")}</p>
                 </>
               ) : (
                 <>
                   <BookOpen className="mx-auto mb-2 h-10 w-10 opacity-40" />
-                  <p>Aucune dépense enregistrée pour ces filtres.</p>
+                  <p>{t("depenses.empty.ledger")}</p>
                 </>
               )}
             </div>
@@ -715,40 +716,40 @@ export default function DepensesPage() {
                 <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="truncate font-medium">{d.vendor || "Fournisseur inconnu"}</span>
+                      <span className="truncate font-medium">{d.vendor || t("depenses.list.unknownVendor")}</span>
                       <Badge variant="secondary" className="shrink-0">
-                        {CATEGORY_LABELS[d.category] || d.category}
+                        {CATEGORY_LABELS[d.category] ? t(`depenses.categories.${d.category}`) : d.category}
                       </Badge>
                       {d.duplicateOfId && (
                         <Badge variant="outline" className="shrink-0 border-amber-300 text-amber-700">
-                          <AlertTriangle className="mr-1 h-3 w-3" /> Doublon ?
+                          <AlertTriangle className="mr-1 h-3 w-3" /> {t("depenses.list.duplicate")}
                         </Badge>
                       )}
                       {d.paymentStatus === "paye" && (
                         <Badge variant="outline" className="shrink-0 border-emerald-300 text-emerald-700">
-                          Payé
+                          {t("depenses.payment.paye")}
                         </Badge>
                       )}
                     </div>
                     <div className="mt-0.5 text-xs text-muted-foreground">
                       {fmtDate(d.expenseDate)}
-                      {d.reference ? ` · réf. ${d.reference}` : ""}
+                      {d.reference ? t("depenses.list.refInline", { ref: d.reference }) : ""}
                       {d.title ? ` · ${d.title}` : ""}
                       {" · "}
                       <span className="inline-flex items-center gap-1">
                         {d.documentId ? <FileText className="h-3 w-3" /> : null}
-                        {SOURCE_LABELS[d.source] || d.source}
+                        {SOURCE_LABELS[d.source] ? t(`depenses.sources.${d.source}`) : d.source}
                       </span>
                     </div>
                   </div>
                   <div className="text-right">
                     <div className="font-semibold">{eur(Number(d.amountTtc))}</div>
                     <div className="text-xs text-muted-foreground">
-                      HT {eur(Number(d.amountHt))} · TVA {eur(Number(d.amountTva))}
+                      {t("depenses.list.htTva", { ht: eur(Number(d.amountHt)), tva: eur(Number(d.amountTva)) })}
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
-                    <Button size="icon" variant="ghost" onClick={() => openEdit(d)} title="Modifier">
+                    <Button size="icon" variant="ghost" onClick={() => openEdit(d)} title={t("common.edit")}>
                       <Pencil className="h-4 w-4" />
                     </Button>
                     {tab === "queue" ? (
@@ -761,7 +762,7 @@ export default function DepensesPage() {
                           onClick={() => act(d.id, "approve")}
                         >
                           {busyId === d.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                          <span className="ml-1 hidden sm:inline">Approuver</span>
+                          <span className="ml-1 hidden sm:inline">{t("common.approve")}</span>
                         </Button>
                         <Button
                           size="sm"
@@ -770,7 +771,7 @@ export default function DepensesPage() {
                           onClick={() => act(d.id, "reject")}
                         >
                           <X className="h-4 w-4" />
-                          <span className="ml-1 hidden sm:inline">Rejeter</span>
+                          <span className="ml-1 hidden sm:inline">{t("common.reject")}</span>
                         </Button>
                       </>
                     ) : (
@@ -780,7 +781,7 @@ export default function DepensesPage() {
                         className="text-red-600 hover:text-red-700"
                         disabled={busyId === d.id}
                         onClick={() => remove(d.id)}
-                        title="Supprimer"
+                        title={t("common.delete")}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -797,52 +798,52 @@ export default function DepensesPage() {
       <Dialog open={!!editing || creating} onOpenChange={(o) => !o && closeDialog()}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{creating ? "Nouvelle dépense" : "Modifier la dépense"}</DialogTitle>
+            <DialogTitle>{creating ? t("depenses.dialog.createTitle") : t("depenses.dialog.editTitle")}</DialogTitle>
             <DialogDescription>
               {creating
-                ? "Saisissez une dépense manuellement."
-                : "Corrigez les champs extraits avant d'approuver."}
+                ? t("depenses.dialog.createDesc")
+                : t("depenses.dialog.editDesc")}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-3">
             <div className="grid gap-1">
-              <Label>Fournisseur *</Label>
+              <Label>{t("depenses.form.vendor")}</Label>
               <Input value={form.vendor} onChange={(e) => setForm((f) => ({ ...f, vendor: e.target.value }))} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1">
-                <Label>Référence</Label>
+                <Label>{t("depenses.form.reference")}</Label>
                 <Input value={form.reference} onChange={(e) => setForm((f) => ({ ...f, reference: e.target.value }))} />
               </div>
               <div className="grid gap-1">
-                <Label>Catégorie</Label>
+                <Label>{t("depenses.form.category")}</Label>
                 <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
-                      <SelectItem key={k} value={k}>{v}</SelectItem>
+                    {Object.keys(CATEGORY_LABELS).map((k) => (
+                      <SelectItem key={k} value={k}>{t(`depenses.categories.${k}`)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="grid gap-1">
-              <Label>Libellé</Label>
+              <Label>{t("depenses.form.title")}</Label>
               <Input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1">
-                <Label>Date</Label>
+                <Label>{t("depenses.form.date")}</Label>
                 <Input type="date" value={form.expenseDate} onChange={(e) => setForm((f) => ({ ...f, expenseDate: e.target.value }))} />
               </div>
               <div className="grid gap-1">
-                <Label>Échéance</Label>
+                <Label>{t("depenses.form.dueDate")}</Label>
                 <Input type="date" value={form.dueDate} onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))} />
               </div>
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div className="grid gap-1">
-                <Label>HT (€)</Label>
+                <Label>{t("depenses.form.ht")}</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -851,7 +852,7 @@ export default function DepensesPage() {
                 />
               </div>
               <div className="grid gap-1">
-                <Label>TVA (€)</Label>
+                <Label>{t("depenses.form.tva")}</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -860,7 +861,7 @@ export default function DepensesPage() {
                 />
               </div>
               <div className="grid gap-1">
-                <Label>TTC (€)</Label>
+                <Label>{t("depenses.form.ttc")}</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -870,25 +871,25 @@ export default function DepensesPage() {
               </div>
             </div>
             <div className="grid gap-1">
-              <Label>Statut de paiement</Label>
+              <Label>{t("depenses.form.paymentStatus")}</Label>
               <Select value={form.paymentStatus} onValueChange={(v) => setForm((f) => ({ ...f, paymentStatus: v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="a_payer">À payer</SelectItem>
-                  <SelectItem value="paye">Payé</SelectItem>
+                  <SelectItem value="a_payer">{t("depenses.payment.a_payer")}</SelectItem>
+                  <SelectItem value="paye">{t("depenses.payment.paye")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="grid gap-1">
-              <Label>Notes</Label>
+              <Label>{t("depenses.form.notes")}</Label>
               <Input value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={closeDialog} disabled={saving}>Annuler</Button>
+            <Button variant="outline" onClick={closeDialog} disabled={saving}>{t("common.cancel")}</Button>
             <Button onClick={save} disabled={saving}>
               {saving ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}
-              {creating ? "Créer" : "Enregistrer"}
+              {creating ? t("depenses.dialog.create") : t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1185,5 +1185,359 @@
       "closedNoAppt": "إغلاق استثنائي — لا يمكن حجز موعد في هذا اليوم.",
       "openError": "تعذر فتح هذا الحدث."
     }
+  },
+  "tresorerie": {
+    "title": "الخزينة ورادار المخاطر",
+    "subtitle": "قدّر خطر ضغط السيولة على مدى 90 يومًا انطلاقًا من فواتيرك الفعلية ومحاكاة مونت كارلو. لا إجراء تلقائي: تنبيهات فقط.",
+    "risk": {
+      "high": "خطر مرتفع",
+      "watch": "تحت المراقبة",
+      "healthy": "خزينة سليمة"
+    },
+    "settings": {
+      "title": "إعدادات الخزينة الخاصة بي",
+      "description": "البيانات الوحيدة التي لا يستطيع النظام استنتاجها من فواتيرك.",
+      "cashLabel": "رصيد الخزينة الحالي (€)",
+      "cashPlaceholder": "مثال: 25000",
+      "fixedLabel": "التكاليف الثابتة الشهرية (€)",
+      "fixedPlaceholder": "مثال: 8000",
+      "fixedHint": "الاشتراكات الاجتماعية، الرواتب، الإيجار، صيانة المركبات…",
+      "autoliqLabel": "الاحتساب العكسي للضريبة على القيمة المضافة افتراضيًا",
+      "autoliqHint": "المقاولة الفرعية في البناء: تحصّل المبلغ دون الضريبة وليس شاملًا للضريبة.",
+      "analyze": "تحليل المخاطر"
+    },
+    "result": {
+      "riskTitle": "خطر الضغط على مدى {{days}} يومًا",
+      "mcDesc": "محاكاة مونت كارلو على {{runs}} سيناريو.",
+      "negProb": "احتمال خزينة سالبة",
+      "p5": "السيناريو المتشائم (P5)",
+      "median": "الرصيد الوسيط المتوقع",
+      "p95": "السيناريو المتفائل (P95)",
+      "pending": "الفواتير المعلّقة:",
+      "expected": "التحصيل المتوقع:"
+    },
+    "overdue": {
+      "title": "الفواتير المتأخرة ({{count}})",
+      "desc": "{{total}} للتحصيل — تابعها بأولوية لتأمين الخزينة.",
+      "empty": "لا توجد فاتورة متأخرة. 👍",
+      "daysBadge": "+{{days}} ي",
+      "dueDate": " · الاستحقاق {{date}}"
+    },
+    "expenses": {
+      "payableMid": "مصروف/مصاريف معتمدة للدفع —",
+      "payableSuffix": "من التدفقات النقدية الخارجة المدرجة في المحاكاة.",
+      "viewExpenses": "عرض المصاريف"
+    },
+    "notConfigured": {
+      "message": "أدخل رصيد خزينتك وتكاليفك الثابتة أعلاه، ثم احفظ وأعد تشغيل التحليل للحصول على احتمال المخاطرة."
+    },
+    "toast": {
+      "loadErrorTitle": "فشل التحميل",
+      "loadErrorDesc": "تعذّر تحميل إعدادات الخزينة.",
+      "invalidTitle": "قيم غير صالحة",
+      "invalidDesc": "أدخل رصيدًا وتكاليف ثابتة موجبة.",
+      "savedTitle": "تم حفظ الإعدادات",
+      "savedDesc": "يمكنك بدء تحليل المخاطر.",
+      "saveErrorTitle": "فشل",
+      "saveErrorDesc": "تعذّر الحفظ.",
+      "notConfiguredTitle": "الخزينة غير مُعدّة",
+      "notConfiguredDesc": "أدخل رصيدك وتكاليفك الثابتة للحصول على احتمال.",
+      "analyzeErrorTitle": "فشل",
+      "analyzeErrorDesc": "تعذّر التحليل."
+    }
+  },
+  "depenses": {
+    "title": "المصاريف",
+    "subtitle": "سجل المصاريف. المستندات الواردة (التحميلات ومرفقات البريد الإلكتروني) تُحلَّل تلقائيًا وتوضع في قائمة الفحص.",
+    "newExpense": "مصروف جديد",
+    "export": "تصدير",
+    "refresh": "تحديث",
+    "summary": {
+      "pending": "معلّقة",
+      "approved": "معتمدة",
+      "ledgerTotal": "إجمالي السجل (شامل الضريبة)",
+      "payable": "المتبقي للدفع"
+    },
+    "tabs": {
+      "queue": "قائمة الفحص ({{count}})",
+      "ledger": "السجل"
+    },
+    "filters": {
+      "category": "الفئة",
+      "all": "الكل",
+      "vendor": "المورّد",
+      "searchPlaceholder": "بحث…",
+      "from": "من",
+      "to": "إلى",
+      "payment": "الدفع",
+      "allPayments": "الكل",
+      "reset": "إعادة تعيين"
+    },
+    "payment": {
+      "a_payer": "للدفع",
+      "paye": "مدفوع"
+    },
+    "charts": {
+      "byCategory": "المصاريف حسب الفئة",
+      "byCategoryDesc": "توزيع السجل المُرشَّح (شامل الضريبة)",
+      "noData": "لا توجد بيانات للعرض.",
+      "byMonth": "المصاريف حسب الشهر",
+      "byMonthDesc": "التطور الشهري للسجل المُرشَّح (شامل الضريبة)",
+      "topVendors": "أهم المورّدين",
+      "topVendorsDesc": "أعلى 8 حسب المبلغ (شامل الضريبة)",
+      "total": "الإجمالي",
+      "unknownVendor": "غير معروف"
+    },
+    "list": {
+      "queueTitle": "مستندات للتحقق",
+      "ledgerTitle": "المصاريف المسجّلة ({{count}})",
+      "displayedTotal": "الإجمالي المعروض: {{total}}",
+      "unknownVendor": "مورّد غير معروف",
+      "duplicate": "مكرّر؟",
+      "refInline": " · مرجع {{ref}}",
+      "htTva": "دون الضريبة {{ht}} · الضريبة {{tva}}"
+    },
+    "empty": {
+      "queue": "لا توجد مستندات معلّقة. ستظهر الفواتير الجديدة هنا تلقائيًا.",
+      "ledger": "لا توجد مصاريف مسجّلة لهذه المرشّحات."
+    },
+    "dialog": {
+      "createTitle": "مصروف جديد",
+      "editTitle": "تعديل المصروف",
+      "createDesc": "أدخل مصروفًا يدويًا.",
+      "editDesc": "صحّح الحقول المستخرجة قبل الاعتماد.",
+      "create": "إنشاء"
+    },
+    "form": {
+      "vendor": "المورّد *",
+      "reference": "المرجع",
+      "category": "الفئة",
+      "title": "البيان",
+      "date": "التاريخ",
+      "dueDate": "الاستحقاق",
+      "ht": "دون الضريبة (€)",
+      "tva": "الضريبة (€)",
+      "ttc": "شامل الضريبة (€)",
+      "paymentStatus": "حالة الدفع",
+      "notes": "ملاحظات"
+    },
+    "categories": {
+      "carburant": "الوقود",
+      "fournitures": "اللوازم",
+      "materiel": "المعدات / الأدوات",
+      "sous_traitance": "المقاولة الفرعية",
+      "loyer": "الإيجار",
+      "assurance": "التأمين",
+      "telephone_internet": "الهاتف / الإنترنت",
+      "repas": "الوجبات",
+      "deplacement": "التنقّل",
+      "entretien_vehicule": "صيانة المركبة",
+      "honoraires": "الأتعاب",
+      "taxes": "الضرائب / الاشتراكات",
+      "autre": "أخرى"
+    },
+    "sources": {
+      "upload": "تحميل",
+      "gmail": "بريد إلكتروني",
+      "manuel": "إدخال يدوي"
+    },
+    "confirm": {
+      "delete": "حذف هذا المصروف نهائيًا؟"
+    },
+    "toast": {
+      "error": "خطأ",
+      "loadError": "تعذّر تحميل المصاريف.",
+      "exportReady": "التصدير جاهز",
+      "exportReadyDesc": "تم تنزيل السجل المُرشَّح.",
+      "exportError": "فشل التصدير.",
+      "approved": "تم اعتماد المصروف",
+      "rejected": "تم رفض المصروف",
+      "approvedDesc": "سُجّل في السجل وأُخِذ في الاعتبار في الخزينة.",
+      "rejectedDesc": "تم استبعاد المصروف.",
+      "actionError": "فشل الإجراء.",
+      "deleted": "تم حذف المصروف",
+      "deleteError": "فشل الحذف.",
+      "vendorRequired": "المورّد مطلوب",
+      "created": "تم إنشاء المصروف",
+      "updated": "تم تحديث المصروف",
+      "duplicateDetected": "⚠️ تم اكتشاف تكرار محتمل.",
+      "saveError": "فشل الحفظ."
+    }
+  },
+  "documents": {
+    "title": "المستندات",
+    "subtitle": "إدارة مركزية لجميع ملفاتك",
+    "actions": {
+      "exportCsv": "تصدير CSV",
+      "print": "طباعة",
+      "reset": "إعادة تعيين",
+      "createProject": "إنشاء مشروع",
+      "scanSecurity": "فحص الأمان"
+    },
+    "stats": {
+      "documents": "المستندات",
+      "storage": "التخزين",
+      "aiAnalyses": "تحليلات الذكاء الاصطناعي",
+      "linkedModules": "الوحدات المرتبطة"
+    },
+    "upload": {
+      "title": "تحميل",
+      "desc": "أفلِت ملفاتك لإضافتها"
+    },
+    "search": {
+      "placeholder": "ابحث عن مستند...",
+      "aria": "ابحث عن مستند"
+    },
+    "filters": {
+      "modulePlaceholder": "الوحدة",
+      "allModules": "جميع الوحدات",
+      "categoryPlaceholder": "الفئة",
+      "allCategories": "الكل",
+      "securityPlaceholder": "الأمان",
+      "allSecurity": "كل الأمان",
+      "verified": "مُتحقَّق (سليم)",
+      "threat": "تم اكتشاف تهديد",
+      "unscanned": "غير مفحوص"
+    },
+    "pills": {
+      "verified": "{{count}} مُتحقَّق",
+      "threat": "{{count}} تهديد",
+      "unscanned": "{{count}} غير مفحوص"
+    },
+    "bulk": {
+      "scanAll": "فحص الكل",
+      "scanProgress": "الفحص {{completed}}/{{total}}",
+      "reusedSuffix": " · {{count}} مُعاد استخدامه",
+      "scanningShort": "جارٍ الفحص…",
+      "stopping": "جارٍ الإيقاف…",
+      "cancelScan": "إلغاء الفحص",
+      "selected": "{{count}} مستند محدَّد",
+      "scanSecurity": "فحص الأمان",
+      "scanningProgress": "الفحص… {{completed}}/{{total}}",
+      "scanningInProgress": "الفحص جارٍ…",
+      "deleteSelection": "حذف التحديد",
+      "selectAll": "تحديد الكل ({{count}})"
+    },
+    "savings": {
+      "prefix": "لقد وفّرت ~",
+      "suffix": " بفضل {{count}} فحص مُعاد استخدامه."
+    },
+    "loading": "جارٍ التحميل...",
+    "empty": {
+      "title": "لا يوجد مستند",
+      "desc": "ابدأ بتحميل ملف"
+    },
+    "badges": {
+      "ai": "الذكاء الاصطناعي",
+      "verified": "مُتحقَّق",
+      "verifiedWith": "مُتحقَّق ({{engine}})",
+      "threat": "تهديد",
+      "unscanned": "غير مفحوص",
+      "scanTitle": "فحص مكافح الفيروسات: {{engine}}",
+      "engineFallback": "محرّك"
+    },
+    "pagination": "{{count}} مستند — الصفحة {{page}} من {{pages}}",
+    "pager": {
+      "prev": "الصفحة السابقة",
+      "next": "الصفحة التالية"
+    },
+    "detail": {
+      "type": "النوع:",
+      "size": "الحجم:",
+      "category": "الفئة:",
+      "status": "الحالة:",
+      "module": "الوحدة:",
+      "date": "التاريخ:",
+      "description": "الوصف",
+      "scanTitle": "فحص مكافح الفيروسات",
+      "verdict": "النتيجة:",
+      "safe": "سليم",
+      "threatDetected": "تم اكتشاف تهديد",
+      "engine": "المحرّك:",
+      "scannedAt": "فُحِص في:",
+      "notScanned": "لم يُفحَص هذا المستند بعد.",
+      "aiAnalysis": "تحليل الذكاء الاصطناعي",
+      "confidence": "{{pct}}% ثقة",
+      "extractedFields": "الحقول المستخرجة",
+      "extractedText": "النص المستخرج"
+    },
+    "editDialog": {
+      "title": "تعديل المستند"
+    },
+    "form": {
+      "category": "الفئة",
+      "module": "الوحدة المرتبطة",
+      "none": "لا شيء",
+      "description": "الوصف",
+      "descriptionPlaceholder": "وصف المستند..."
+    },
+    "entities": {
+      "contact": "جهة اتصال",
+      "task": "مهمة",
+      "message": "رسالة",
+      "invoice": "فاتورة",
+      "devis": "عرض سعر",
+      "prospect": "عميل محتمل",
+      "project": "مشروع",
+      "stock": "مخزون",
+      "event": "حدث",
+      "general": "عام"
+    },
+    "categories": {
+      "general": "عام",
+      "contrat": "عقد",
+      "facture": "فاتورة",
+      "rapport": "تقرير",
+      "cv": "سيرة ذاتية",
+      "correspondance": "مراسلات",
+      "technique": "تقني",
+      "juridique": "قانوني",
+      "comptabilite": "محاسبة"
+    },
+    "parts": {
+      "safe": "{{count}} سليم",
+      "threat": "{{count}} تهديد",
+      "reused": "{{count}} مُعاد استخدامه",
+      "failed": "{{count}} فاشل"
+    },
+    "reuseSavings": " {{count}} فحص تم تجنّبه (~{{seconds}} ث موفّرة).",
+    "confirm": {
+      "resetTitle": "إعادة تعيين العدّاد؟",
+      "resetDesc": "سيبدأ إجمالي الوقت الموفّر بفضل عمليات الفحص المُعاد استخدامها من الصفر. هذا الإجراء لا رجعة فيه.",
+      "resetConfirm": "إعادة تعيين",
+      "bulkDelete": "حذف {{count}} مستند؟",
+      "deleteConfirm": "حذف"
+    },
+    "project": {
+      "title": "مستند - {{name}}",
+      "notes": "مشروع أُنشئ من المستند: {{name}}"
+    },
+    "toast": {
+      "loadError": "خطأ في تحميل المستندات",
+      "counterReset": "تمت إعادة تعيين العدّاد",
+      "resetError": "خطأ أثناء إعادة التعيين",
+      "scannedCount": "{{count}} مستند تم فحصه",
+      "scanResultDanger": "{{dangerous}} تهديد تم اكتشافه، {{safe}} سليم.",
+      "scanResultSafe": "لم يُكتشف أي تهديد.",
+      "scanInterrupted": "تم إيقاف الفحص",
+      "scanInterruptedDesc": "{{count}} مستند تم فحصه بالفعل واحتُفِظ به.",
+      "bulkScanError": "خطأ في الفحص الجماعي بمكافح الفيروسات",
+      "scanError": "خطأ في فحص مكافح الفيروسات",
+      "bulkStarted": "بدأ الفحص الجماعي",
+      "bulkStartedDesc": "يستمر في الخلفية، يمكنك مغادرة الصفحة.",
+      "aiDone": "اكتمل تحليل الذكاء الاصطناعي",
+      "aiError": "خطأ في التحليل",
+      "verifiedSafe": "المستند مُتحقَّق: سليم",
+      "threatTitle": "تم اكتشاف تهديد",
+      "threatDesc": "تم وضع علامة على هذا الملف بأنه خطير.",
+      "downloadError": "خطأ في التنزيل",
+      "docDeleted": "تم حذف المستند",
+      "deleteError": "خطأ في الحذف",
+      "error": "خطأ",
+      "bulkDeleted": "{{count}} مستند تم حذفه",
+      "updated": "تم تحديث المستند",
+      "updateError": "خطأ في التحديث",
+      "projectCreated": "تم إنشاء المشروع"
+    }
   }
 }

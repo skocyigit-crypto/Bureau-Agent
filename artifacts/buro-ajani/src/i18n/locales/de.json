@@ -1185,5 +1185,359 @@
       "closedNoAppt": "Außerordentliche Schließung — an diesem Tag ist kein Termin möglich.",
       "openError": "Dieses Ereignis kann nicht geöffnet werden."
     }
+  },
+  "tresorerie": {
+    "title": "Liquidität & Risikoradar",
+    "subtitle": "Schätzen Sie das Risiko eines Liquiditätsengpasses über 90 Tage auf Basis Ihrer realen Rechnungen und einer Monte-Carlo-Simulation. Keine automatische Aktion: nur Warnungen.",
+    "risk": {
+      "high": "Hohes Risiko",
+      "watch": "Unter Beobachtung",
+      "healthy": "Gesunde Liquidität"
+    },
+    "settings": {
+      "title": "Meine Liquiditätseinstellungen",
+      "description": "Die einzigen Daten, die das System nicht aus Ihren Rechnungen ableiten kann.",
+      "cashLabel": "Aktueller Kassenbestand (€)",
+      "cashPlaceholder": "z. B. 25000",
+      "fixedLabel": "Monatliche Fixkosten (€)",
+      "fixedPlaceholder": "z. B. 8000",
+      "fixedHint": "Sozialabgaben, Gehälter, Miete, Fahrzeugwartung…",
+      "autoliqLabel": "Umkehr der Steuerschuldnerschaft bei der USt. standardmäßig",
+      "autoliqHint": "Baugewerbe-Subunternehmen: Sie vereinnahmen den Nettobetrag, nicht den Bruttobetrag.",
+      "analyze": "Risiko analysieren"
+    },
+    "result": {
+      "riskTitle": "Engpassrisiko über {{days}} Tage",
+      "mcDesc": "Monte-Carlo-Simulation über {{runs}} Szenarien.",
+      "negProb": "Wahrscheinlichkeit negativer Liquidität",
+      "p5": "Pessimistisches Szenario (P5)",
+      "median": "Prognostizierter Medianbestand",
+      "p95": "Optimistisches Szenario (P95)",
+      "pending": "Offene Rechnungen:",
+      "expected": "Erwarteter Zahlungseingang:"
+    },
+    "overdue": {
+      "title": "Überfällige Rechnungen ({{count}})",
+      "desc": "{{total}} einzutreiben — mahnen Sie vorrangig, um die Kasse zu sichern.",
+      "empty": "Keine überfällige Rechnung. 👍",
+      "daysBadge": "+{{days}} T",
+      "dueDate": " · fällig {{date}}"
+    },
+    "expenses": {
+      "payableMid": "genehmigte zu zahlende Ausgabe(n) —",
+      "payableSuffix": "an in die Simulation einbezogenen Kassenausgängen.",
+      "viewExpenses": "Ausgaben ansehen"
+    },
+    "notConfigured": {
+      "message": "Geben Sie oben Ihren Kassenbestand und Ihre Fixkosten ein, speichern Sie und starten Sie die Analyse erneut, um eine Risikowahrscheinlichkeit zu erhalten."
+    },
+    "toast": {
+      "loadErrorTitle": "Laden fehlgeschlagen",
+      "loadErrorDesc": "Liquiditätseinstellungen konnten nicht geladen werden.",
+      "invalidTitle": "Ungültige Werte",
+      "invalidDesc": "Geben Sie einen positiven Bestand und positive Fixkosten ein.",
+      "savedTitle": "Einstellungen gespeichert",
+      "savedDesc": "Sie können die Risikoanalyse starten.",
+      "saveErrorTitle": "Fehlgeschlagen",
+      "saveErrorDesc": "Speichern nicht möglich.",
+      "notConfiguredTitle": "Liquidität nicht konfiguriert",
+      "notConfiguredDesc": "Geben Sie Ihren Bestand und Ihre Fixkosten ein, um eine Wahrscheinlichkeit zu erhalten.",
+      "analyzeErrorTitle": "Fehlgeschlagen",
+      "analyzeErrorDesc": "Analyse nicht möglich."
+    }
+  },
+  "depenses": {
+    "title": "Ausgaben",
+    "subtitle": "Ausgabenbuch. Eingehende Belege (Uploads und E-Mail-Anhänge) werden automatisch analysiert und in die Prüf-Warteschlange gestellt.",
+    "newExpense": "Neue Ausgabe",
+    "export": "Exportieren",
+    "refresh": "Aktualisieren",
+    "summary": {
+      "pending": "Ausstehend",
+      "approved": "Genehmigt",
+      "ledgerTotal": "Buchsumme (inkl. USt.)",
+      "payable": "Noch zu zahlen"
+    },
+    "tabs": {
+      "queue": "Prüf-Warteschlange ({{count}})",
+      "ledger": "Buch"
+    },
+    "filters": {
+      "category": "Kategorie",
+      "all": "Alle",
+      "vendor": "Lieferant",
+      "searchPlaceholder": "Suchen…",
+      "from": "Von",
+      "to": "Bis",
+      "payment": "Zahlung",
+      "allPayments": "Alle",
+      "reset": "Zurücksetzen"
+    },
+    "payment": {
+      "a_payer": "Zu zahlen",
+      "paye": "Bezahlt"
+    },
+    "charts": {
+      "byCategory": "Ausgaben nach Kategorie",
+      "byCategoryDesc": "Aufteilung des gefilterten Buchs (inkl. USt.)",
+      "noData": "Keine Daten zum Anzeigen.",
+      "byMonth": "Ausgaben nach Monat",
+      "byMonthDesc": "Monatliche Entwicklung des gefilterten Buchs (inkl. USt.)",
+      "topVendors": "Wichtigste Lieferanten",
+      "topVendorsDesc": "Top 8 nach Betrag (inkl. USt.)",
+      "total": "Gesamt",
+      "unknownVendor": "Unbekannt"
+    },
+    "list": {
+      "queueTitle": "Zu prüfende Belege",
+      "ledgerTitle": "Erfasste Ausgaben ({{count}})",
+      "displayedTotal": "Angezeigte Summe: {{total}}",
+      "unknownVendor": "Unbekannter Lieferant",
+      "duplicate": "Duplikat?",
+      "refInline": " · Ref. {{ref}}",
+      "htTva": "Netto {{ht}} · USt. {{tva}}"
+    },
+    "empty": {
+      "queue": "Keine ausstehenden Belege. Neue Rechnungen erscheinen hier automatisch.",
+      "ledger": "Keine Ausgaben für diese Filter erfasst."
+    },
+    "dialog": {
+      "createTitle": "Neue Ausgabe",
+      "editTitle": "Ausgabe bearbeiten",
+      "createDesc": "Geben Sie eine Ausgabe manuell ein.",
+      "editDesc": "Korrigieren Sie die extrahierten Felder vor der Genehmigung.",
+      "create": "Erstellen"
+    },
+    "form": {
+      "vendor": "Lieferant *",
+      "reference": "Referenz",
+      "category": "Kategorie",
+      "title": "Bezeichnung",
+      "date": "Datum",
+      "dueDate": "Fälligkeit",
+      "ht": "Netto (€)",
+      "tva": "USt. (€)",
+      "ttc": "Brutto (€)",
+      "paymentStatus": "Zahlungsstatus",
+      "notes": "Notizen"
+    },
+    "categories": {
+      "carburant": "Kraftstoff",
+      "fournitures": "Verbrauchsmaterial",
+      "materiel": "Material / Werkzeug",
+      "sous_traitance": "Unterauftrag",
+      "loyer": "Miete",
+      "assurance": "Versicherung",
+      "telephone_internet": "Telefon / Internet",
+      "repas": "Verpflegung",
+      "deplacement": "Reisekosten",
+      "entretien_vehicule": "Fahrzeugwartung",
+      "honoraires": "Honorare",
+      "taxes": "Steuern / Beiträge",
+      "autre": "Sonstiges"
+    },
+    "sources": {
+      "upload": "Upload",
+      "gmail": "E-Mail",
+      "manuel": "Manuelle Eingabe"
+    },
+    "confirm": {
+      "delete": "Diese Ausgabe endgültig löschen?"
+    },
+    "toast": {
+      "error": "Fehler",
+      "loadError": "Ausgaben konnten nicht geladen werden.",
+      "exportReady": "Export bereit",
+      "exportReadyDesc": "Das gefilterte Buch wurde heruntergeladen.",
+      "exportError": "Der Export ist fehlgeschlagen.",
+      "approved": "Ausgabe genehmigt",
+      "rejected": "Ausgabe abgelehnt",
+      "approvedDesc": "Im Buch erfasst und in der Liquidität berücksichtigt.",
+      "rejectedDesc": "Die Ausgabe wurde verworfen.",
+      "actionError": "Die Aktion ist fehlgeschlagen.",
+      "deleted": "Ausgabe gelöscht",
+      "deleteError": "Das Löschen ist fehlgeschlagen.",
+      "vendorRequired": "Lieferant erforderlich",
+      "created": "Ausgabe erstellt",
+      "updated": "Ausgabe aktualisiert",
+      "duplicateDetected": "⚠️ Ein mögliches Duplikat wurde erkannt.",
+      "saveError": "Das Speichern ist fehlgeschlagen."
+    }
+  },
+  "documents": {
+    "title": "Dokumente",
+    "subtitle": "Zentrale Verwaltung all Ihrer Dateien",
+    "actions": {
+      "exportCsv": "CSV exportieren",
+      "print": "Drucken",
+      "reset": "Zurücksetzen",
+      "createProject": "Projekt erstellen",
+      "scanSecurity": "Sicherheit prüfen"
+    },
+    "stats": {
+      "documents": "Dokumente",
+      "storage": "Speicher",
+      "aiAnalyses": "KI-Analysen",
+      "linkedModules": "Verknüpfte Module"
+    },
+    "upload": {
+      "title": "Hochladen",
+      "desc": "Legen Sie Ihre Dateien ab, um sie hinzuzufügen"
+    },
+    "search": {
+      "placeholder": "Dokument suchen...",
+      "aria": "Dokument suchen"
+    },
+    "filters": {
+      "modulePlaceholder": "Modul",
+      "allModules": "Alle Module",
+      "categoryPlaceholder": "Kategorie",
+      "allCategories": "Alle",
+      "securityPlaceholder": "Sicherheit",
+      "allSecurity": "Alle Sicherheit",
+      "verified": "Geprüft (sicher)",
+      "threat": "Bedrohung erkannt",
+      "unscanned": "Nicht geprüft"
+    },
+    "pills": {
+      "verified": "{{count}} geprüft",
+      "threat": "{{count}} Bedrohung(en)",
+      "unscanned": "{{count}} nicht geprüft"
+    },
+    "bulk": {
+      "scanAll": "Alle prüfen",
+      "scanProgress": "Prüfung {{completed}}/{{total}}",
+      "reusedSuffix": " · {{count}} wiederverwendet",
+      "scanningShort": "Prüfung…",
+      "stopping": "Wird gestoppt…",
+      "cancelScan": "Prüfung abbrechen",
+      "selected": "{{count}} Dokument(e) ausgewählt",
+      "scanSecurity": "Sicherheit prüfen",
+      "scanningProgress": "Prüfung… {{completed}}/{{total}}",
+      "scanningInProgress": "Prüfung läuft…",
+      "deleteSelection": "Auswahl löschen",
+      "selectAll": "Alle auswählen ({{count}})"
+    },
+    "savings": {
+      "prefix": "Sie haben ~",
+      "suffix": " dank {{count}} wiederverwendeter Prüfung(en) gespart."
+    },
+    "loading": "Wird geladen...",
+    "empty": {
+      "title": "Kein Dokument",
+      "desc": "Laden Sie zunächst eine Datei hoch"
+    },
+    "badges": {
+      "ai": "KI",
+      "verified": "Geprüft",
+      "verifiedWith": "Geprüft ({{engine}})",
+      "threat": "Bedrohung",
+      "unscanned": "Nicht geprüft",
+      "scanTitle": "Antivirus-Prüfung: {{engine}}",
+      "engineFallback": "Engine"
+    },
+    "pagination": "{{count}} Dokument(e) — Seite {{page}} von {{pages}}",
+    "pager": {
+      "prev": "Vorherige Seite",
+      "next": "Nächste Seite"
+    },
+    "detail": {
+      "type": "Typ:",
+      "size": "Größe:",
+      "category": "Kategorie:",
+      "status": "Status:",
+      "module": "Modul:",
+      "date": "Datum:",
+      "description": "Beschreibung",
+      "scanTitle": "Antivirus-Prüfung",
+      "verdict": "Ergebnis:",
+      "safe": "Sicher",
+      "threatDetected": "Bedrohung erkannt",
+      "engine": "Engine:",
+      "scannedAt": "Geprüft am:",
+      "notScanned": "Dieses Dokument wurde noch nicht geprüft.",
+      "aiAnalysis": "KI-Analyse",
+      "confidence": "{{pct}}% Konfidenz",
+      "extractedFields": "Extrahierte Felder",
+      "extractedText": "Extrahierter Text"
+    },
+    "editDialog": {
+      "title": "Dokument bearbeiten"
+    },
+    "form": {
+      "category": "Kategorie",
+      "module": "Verknüpftes Modul",
+      "none": "Keins",
+      "description": "Beschreibung",
+      "descriptionPlaceholder": "Beschreibung des Dokuments..."
+    },
+    "entities": {
+      "contact": "Kontakt",
+      "task": "Aufgabe",
+      "message": "Nachricht",
+      "invoice": "Rechnung",
+      "devis": "Angebot",
+      "prospect": "Interessent",
+      "project": "Projekt",
+      "stock": "Bestand",
+      "event": "Ereignis",
+      "general": "Allgemein"
+    },
+    "categories": {
+      "general": "Allgemein",
+      "contrat": "Vertrag",
+      "facture": "Rechnung",
+      "rapport": "Bericht",
+      "cv": "Lebenslauf",
+      "correspondance": "Korrespondenz",
+      "technique": "Technisch",
+      "juridique": "Rechtlich",
+      "comptabilite": "Buchhaltung"
+    },
+    "parts": {
+      "safe": "{{count}} sicher",
+      "threat": "{{count}} Bedrohung(en)",
+      "reused": "{{count}} wiederverwendet",
+      "failed": "{{count}} fehlgeschlagen"
+    },
+    "reuseSavings": " {{count}} Prüfung(en) vermieden (~{{seconds}} s gespart).",
+    "confirm": {
+      "resetTitle": "Zähler zurücksetzen?",
+      "resetDesc": "Die kumulierte, durch wiederverwendete Prüfungen gesparte Zeit beginnt wieder bei null. Diese Aktion ist unumkehrbar.",
+      "resetConfirm": "Zurücksetzen",
+      "bulkDelete": "{{count}} Dokument(e) löschen?",
+      "deleteConfirm": "Löschen"
+    },
+    "project": {
+      "title": "Dokument - {{name}}",
+      "notes": "Projekt erstellt aus dem Dokument: {{name}}"
+    },
+    "toast": {
+      "loadError": "Fehler beim Laden der Dokumente",
+      "counterReset": "Zähler zurückgesetzt",
+      "resetError": "Fehler beim Zurücksetzen",
+      "scannedCount": "{{count}} Dokument(e) geprüft",
+      "scanResultDanger": "{{dangerous}} Bedrohung(en) erkannt, {{safe}} sicher.",
+      "scanResultSafe": "Keine Bedrohung erkannt.",
+      "scanInterrupted": "Prüfung unterbrochen",
+      "scanInterruptedDesc": "{{count}} bereits geprüfte(s) Dokument(e) beibehalten.",
+      "bulkScanError": "Fehler bei der Antivirus-Massenprüfung",
+      "scanError": "Fehler bei der Antivirus-Prüfung",
+      "bulkStarted": "Massenprüfung gestartet",
+      "bulkStartedDesc": "Sie läuft im Hintergrund weiter, Sie können die Seite verlassen.",
+      "aiDone": "KI-Analyse abgeschlossen",
+      "aiError": "Analysefehler",
+      "verifiedSafe": "Dokument geprüft: sicher",
+      "threatTitle": "Bedrohung erkannt",
+      "threatDesc": "Diese Datei wurde als gefährlich markiert.",
+      "downloadError": "Download-Fehler",
+      "docDeleted": "Dokument gelöscht",
+      "deleteError": "Fehler beim Löschen",
+      "error": "Fehler",
+      "bulkDeleted": "{{count}} Dokument(e) gelöscht",
+      "updated": "Dokument aktualisiert",
+      "updateError": "Fehler bei der Aktualisierung",
+      "projectCreated": "Projekt erstellt"
+    }
   }
 }

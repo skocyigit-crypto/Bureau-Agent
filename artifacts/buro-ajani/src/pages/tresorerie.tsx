@@ -21,6 +21,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -72,14 +73,15 @@ const eur = (n: number) =>
     Number.isFinite(n) ? n : 0,
   );
 
-function riskLevel(p: number): { label: string; tint: string; bar: string } {
-  if (p > 0.15) return { label: "Risque élevé", tint: "text-red-600", bar: "bg-red-500" };
-  if (p > 0.075) return { label: "Sous surveillance", tint: "text-amber-600", bar: "bg-amber-500" };
-  return { label: "Trésorerie saine", tint: "text-emerald-600", bar: "bg-emerald-500" };
+function riskLevel(p: number): { key: string; tint: string; bar: string } {
+  if (p > 0.15) return { key: "high", tint: "text-red-600", bar: "bg-red-500" };
+  if (p > 0.075) return { key: "watch", tint: "text-amber-600", bar: "bg-amber-500" };
+  return { key: "healthy", tint: "text-emerald-600", bar: "bg-emerald-500" };
 }
 
 export default function TresoreriePage() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [saving, setSaving] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
@@ -101,8 +103,8 @@ export default function TresoreriePage() {
       setAutoliq(data.defaultAutoliquidation);
     } catch {
       toast({
-        title: "Chargement impossible",
-        description: "Impossible de charger les paramètres de trésorerie.",
+        title: t("tresorerie.toast.loadErrorTitle"),
+        description: t("tresorerie.toast.loadErrorDesc"),
         variant: "destructive",
       });
     } finally {
@@ -119,8 +121,8 @@ export default function TresoreriePage() {
     const monthlyFixedCosts = Number(fixedCosts);
     if (!Number.isFinite(currentCash) || currentCash < 0 || !Number.isFinite(monthlyFixedCosts) || monthlyFixedCosts < 0) {
       toast({
-        title: "Valeurs invalides",
-        description: "Saisissez un solde et des charges fixes positifs.",
+        title: t("tresorerie.toast.invalidTitle"),
+        description: t("tresorerie.toast.invalidDesc"),
         variant: "destructive",
       });
       return;
@@ -135,9 +137,9 @@ export default function TresoreriePage() {
       });
       if (!res.ok) throw new Error(String(res.status));
       setConfigured(true);
-      toast({ title: "Paramètres enregistrés", description: "Vous pouvez lancer l'analyse de risque." });
+      toast({ title: t("tresorerie.toast.savedTitle"), description: t("tresorerie.toast.savedDesc") });
     } catch {
-      toast({ title: "Échec", description: "Enregistrement impossible.", variant: "destructive" });
+      toast({ title: t("tresorerie.toast.saveErrorTitle"), description: t("tresorerie.toast.saveErrorDesc"), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -152,12 +154,12 @@ export default function TresoreriePage() {
       setRisk(data);
       if (!data.configured) {
         toast({
-          title: "Trésorerie non configurée",
-          description: "Renseignez votre solde et vos charges fixes pour obtenir une probabilité.",
+          title: t("tresorerie.toast.notConfiguredTitle"),
+          description: t("tresorerie.toast.notConfiguredDesc"),
         });
       }
     } catch {
-      toast({ title: "Échec", description: "Analyse impossible.", variant: "destructive" });
+      toast({ title: t("tresorerie.toast.analyzeErrorTitle"), description: t("tresorerie.toast.analyzeErrorDesc"), variant: "destructive" });
     } finally {
       setAnalyzing(false);
     }
@@ -173,10 +175,9 @@ export default function TresoreriePage() {
           <Wallet className="h-6 w-6" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Trésorerie &amp; Radar de risque</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("tresorerie.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            Estimez le risque de tension de trésorerie sur 90 jours à partir de vos factures réelles et
-            d'une simulation Monte Carlo. Aucune action automatique : uniquement des alertes.
+            {t("tresorerie.subtitle")}
           </p>
         </div>
       </div>
@@ -184,9 +185,9 @@ export default function TresoreriePage() {
       {/* Paramètres */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Mes paramètres de trésorerie</CardTitle>
+          <CardTitle className="text-lg">{t("tresorerie.settings.title")}</CardTitle>
           <CardDescription>
-            Les seules données que le système ne peut pas déduire de vos factures.
+            {t("tresorerie.settings.description")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -199,7 +200,7 @@ export default function TresoreriePage() {
             <>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label htmlFor="cash">Solde de trésorerie actuel (€)</Label>
+                  <Label htmlFor="cash">{t("tresorerie.settings.cashLabel")}</Label>
                   <Input
                     id="cash"
                     type="number"
@@ -208,11 +209,11 @@ export default function TresoreriePage() {
                     inputMode="decimal"
                     value={cash}
                     onChange={(e) => setCash(e.target.value)}
-                    placeholder="Ex : 25000"
+                    placeholder={t("tresorerie.settings.cashPlaceholder")}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="fixed">Charges fixes mensuelles (€)</Label>
+                  <Label htmlFor="fixed">{t("tresorerie.settings.fixedLabel")}</Label>
                   <Input
                     id="fixed"
                     type="number"
@@ -221,18 +222,18 @@ export default function TresoreriePage() {
                     inputMode="decimal"
                     value={fixedCosts}
                     onChange={(e) => setFixedCosts(e.target.value)}
-                    placeholder="Ex : 8000"
+                    placeholder={t("tresorerie.settings.fixedPlaceholder")}
                   />
-                  <p className="text-xs text-muted-foreground">URSSAF, salaires, loyer, entretien véhicules…</p>
+                  <p className="text-xs text-muted-foreground">{t("tresorerie.settings.fixedHint")}</p>
                 </div>
               </div>
               <div className="flex items-center justify-between rounded-lg border p-3">
                 <div className="space-y-0.5">
                   <Label htmlFor="autoliq" className="cursor-pointer">
-                    Autoliquidation de TVA par défaut
+                    {t("tresorerie.settings.autoliqLabel")}
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Sous-traitance BTP : vous encaissez le HT et non le TTC.
+                    {t("tresorerie.settings.autoliqHint")}
                   </p>
                 </div>
                 <Switch id="autoliq" checked={autoliq} onCheckedChange={setAutoliq} />
@@ -240,7 +241,7 @@ export default function TresoreriePage() {
               <div className="flex flex-wrap gap-2">
                 <Button onClick={saveSettings} disabled={saving}>
                   {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                  Enregistrer
+                  {t("common.save")}
                 </Button>
                 <Button variant="secondary" onClick={analyze} disabled={analyzing}>
                   {analyzing ? (
@@ -248,7 +249,7 @@ export default function TresoreriePage() {
                   ) : (
                     <RefreshCw className="mr-2 h-4 w-4" />
                   )}
-                  Analyser le risque
+                  {t("tresorerie.settings.analyze")}
                 </Button>
               </div>
             </>
@@ -262,20 +263,20 @@ export default function TresoreriePage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between text-lg">
-                <span>Risque de tension sur {risk.horizonDays} jours</span>
+                <span>{t("tresorerie.result.riskTitle", { days: risk.horizonDays })}</span>
                 <Badge variant={risk.alert ? "destructive" : "secondary"} className="gap-1">
                   {risk.alert ? <AlertTriangle className="h-3.5 w-3.5" /> : <ShieldCheck className="h-3.5 w-3.5" />}
-                  {level.label}
+                  {t(`tresorerie.risk.${level.key}`)}
                 </Badge>
               </CardTitle>
               <CardDescription>
-                Simulation Monte Carlo sur {risk.simulation.runs.toLocaleString("fr-FR")} scénarios.
+                {t("tresorerie.result.mcDesc", { runs: risk.simulation.runs.toLocaleString("fr-FR") })}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <div>
                 <div className="mb-1 flex items-baseline justify-between">
-                  <span className="text-sm text-muted-foreground">Probabilité de trésorerie négative</span>
+                  <span className="text-sm text-muted-foreground">{t("tresorerie.result.negProb")}</span>
                   <span className={`text-2xl font-bold ${level.tint}`}>{(prob * 100).toFixed(1)}%</span>
                 </div>
                 <Progress value={Math.min(100, prob * 100)} className="h-2" />
@@ -286,19 +287,19 @@ export default function TresoreriePage() {
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="rounded-lg border p-3">
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <TrendingDown className="h-3.5 w-3.5" /> Scénario pessimiste (P5)
+                    <TrendingDown className="h-3.5 w-3.5" /> {t("tresorerie.result.p5")}
                   </div>
                   <div className="mt-1 text-lg font-semibold">{eur(risk.simulation.projectedP5)}</div>
                 </div>
                 <div className="rounded-lg border p-3">
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Wallet className="h-3.5 w-3.5" /> Solde médian projeté
+                    <Wallet className="h-3.5 w-3.5" /> {t("tresorerie.result.median")}
                   </div>
                   <div className="mt-1 text-lg font-semibold">{eur(risk.simulation.projectedMedian)}</div>
                 </div>
                 <div className="rounded-lg border p-3">
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <TrendingUp className="h-3.5 w-3.5" /> Scénario optimiste (P95)
+                    <TrendingUp className="h-3.5 w-3.5" /> {t("tresorerie.result.p95")}
                   </div>
                   <div className="mt-1 text-lg font-semibold">{eur(risk.simulation.projectedP95)}</div>
                 </div>
@@ -306,13 +307,13 @@ export default function TresoreriePage() {
 
               <div className="grid gap-3 text-sm sm:grid-cols-2">
                 <div className="text-muted-foreground">
-                  Factures en attente :{" "}
+                  {t("tresorerie.result.pending")}{" "}
                   <span className="font-medium text-foreground">
                     {risk.pendingCount} ({eur(risk.pendingTotal)})
                   </span>
                 </div>
                 <div className="text-muted-foreground">
-                  Encaissement attendu :{" "}
+                  {t("tresorerie.result.expected")}{" "}
                   <span className="font-medium text-foreground">{eur(risk.expectedCollectible)}</span>
                 </div>
               </div>
@@ -334,15 +335,15 @@ export default function TresoreriePage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <CalendarClock className="h-5 w-5 text-amber-600" />
-                Factures en retard ({risk.overdueCount})
+                {t("tresorerie.overdue.title", { count: risk.overdueCount })}
               </CardTitle>
               <CardDescription>
-                {eur(risk.overdueTotal)} à recouvrer — relancez en priorité pour sécuriser la caisse.
+                {t("tresorerie.overdue.desc", { total: eur(risk.overdueTotal) })}
               </CardDescription>
             </CardHeader>
             <CardContent>
               {risk.overdue.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Aucune facture en retard. 👍</p>
+                <p className="text-sm text-muted-foreground">{t("tresorerie.overdue.empty")}</p>
               ) : (
                 <ul className="divide-y">
                   {risk.overdue.slice(0, 20).map((o) => (
@@ -352,13 +353,13 @@ export default function TresoreriePage() {
                         <div className="text-xs text-muted-foreground">
                           {o.reference}
                           {o.dueDate
-                            ? ` · échéance ${new Date(o.dueDate).toLocaleDateString("fr-FR")}`
+                            ? t("tresorerie.overdue.dueDate", { date: new Date(o.dueDate).toLocaleDateString("fr-FR") })
                             : ""}
                         </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
                         <Badge variant="outline" className="text-red-600">
-                          +{o.daysOverdue} j
+                          {t("tresorerie.overdue.daysBadge", { days: o.daysOverdue })}
                         </Badge>
                         <span className="font-semibold">{eur(o.remaining)}</span>
                       </div>
@@ -375,13 +376,12 @@ export default function TresoreriePage() {
                 <div className="flex items-center gap-3 text-sm">
                   <TrendingDown className="h-5 w-5 shrink-0 text-emerald-600" />
                   <span>
-                    <strong>{risk.expensesPayableCount}</strong> dépense(s) approuvée(s) à payer —{" "}
-                    <strong>{eur(risk.expensesPayableTotal)}</strong> de sorties de caisse intégrées à la
-                    simulation.
+                    <strong>{risk.expensesPayableCount}</strong> {t("tresorerie.expenses.payableMid")}{" "}
+                    <strong>{eur(risk.expensesPayableTotal)}</strong> {t("tresorerie.expenses.payableSuffix")}
                   </span>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => (window.location.href = `${BASE}/depenses`)}>
-                  Voir les dépenses
+                  {t("tresorerie.expenses.viewExpenses")}
                 </Button>
               </CardContent>
             </Card>
@@ -393,8 +393,7 @@ export default function TresoreriePage() {
         <Card>
           <CardContent className="flex items-center gap-3 py-6 text-sm text-muted-foreground">
             <Info className="h-5 w-5 shrink-0" />
-            Renseignez votre solde de trésorerie et vos charges fixes ci-dessus, enregistrez, puis relancez
-            l'analyse pour obtenir une probabilité de risque.
+            {t("tresorerie.notConfigured.message")}
           </CardContent>
         </Card>
       )}

@@ -1185,5 +1185,359 @@
       "closedNoAppt": "Cierre excepcional — no es posible ninguna cita este día.",
       "openError": "No se puede abrir este evento."
     }
+  },
+  "tresorerie": {
+    "title": "Tesorería y Radar de riesgo",
+    "subtitle": "Estime el riesgo de tensión de tesorería a 90 días a partir de sus facturas reales y de una simulación Monte Carlo. Ninguna acción automática: solo alertas.",
+    "risk": {
+      "high": "Riesgo alto",
+      "watch": "Bajo vigilancia",
+      "healthy": "Tesorería saludable"
+    },
+    "settings": {
+      "title": "Mis ajustes de tesorería",
+      "description": "Los únicos datos que el sistema no puede deducir de sus facturas.",
+      "cashLabel": "Saldo de tesorería actual (€)",
+      "cashPlaceholder": "Ej.: 25000",
+      "fixedLabel": "Gastos fijos mensuales (€)",
+      "fixedPlaceholder": "Ej.: 8000",
+      "fixedHint": "Cotizaciones, salarios, alquiler, mantenimiento de vehículos…",
+      "autoliqLabel": "Inversión del sujeto pasivo de IVA por defecto",
+      "autoliqHint": "Subcontratación de construcción: usted cobra la base imponible, no el importe con IVA.",
+      "analyze": "Analizar el riesgo"
+    },
+    "result": {
+      "riskTitle": "Riesgo de tensión a {{days}} días",
+      "mcDesc": "Simulación Monte Carlo sobre {{runs}} escenarios.",
+      "negProb": "Probabilidad de tesorería negativa",
+      "p5": "Escenario pesimista (P5)",
+      "median": "Saldo mediano proyectado",
+      "p95": "Escenario optimista (P95)",
+      "pending": "Facturas pendientes:",
+      "expected": "Cobro esperado:"
+    },
+    "overdue": {
+      "title": "Facturas vencidas ({{count}})",
+      "desc": "{{total}} por cobrar — reclame con prioridad para asegurar la caja.",
+      "empty": "Ninguna factura vencida. 👍",
+      "daysBadge": "+{{days}} d",
+      "dueDate": " · vencimiento {{date}}"
+    },
+    "expenses": {
+      "payableMid": "gasto(s) aprobado(s) por pagar —",
+      "payableSuffix": "de salidas de caja incluidas en la simulación.",
+      "viewExpenses": "Ver los gastos"
+    },
+    "notConfigured": {
+      "message": "Introduzca su saldo de tesorería y sus gastos fijos arriba, guarde y luego vuelva a ejecutar el análisis para obtener una probabilidad de riesgo."
+    },
+    "toast": {
+      "loadErrorTitle": "Error de carga",
+      "loadErrorDesc": "No se pudieron cargar los ajustes de tesorería.",
+      "invalidTitle": "Valores no válidos",
+      "invalidDesc": "Introduzca un saldo y gastos fijos positivos.",
+      "savedTitle": "Ajustes guardados",
+      "savedDesc": "Puede iniciar el análisis de riesgo.",
+      "saveErrorTitle": "Error",
+      "saveErrorDesc": "No se pudo guardar.",
+      "notConfiguredTitle": "Tesorería no configurada",
+      "notConfiguredDesc": "Introduzca su saldo y sus gastos fijos para obtener una probabilidad.",
+      "analyzeErrorTitle": "Error",
+      "analyzeErrorDesc": "No se pudo analizar."
+    }
+  },
+  "depenses": {
+    "title": "Gastos",
+    "subtitle": "Registro de gastos. Los justificantes entrantes (cargas y adjuntos de correo) se analizan automáticamente y se colocan en la cola de inspección.",
+    "newExpense": "Nuevo gasto",
+    "export": "Exportar",
+    "refresh": "Actualizar",
+    "summary": {
+      "pending": "Pendientes",
+      "approved": "Aprobados",
+      "ledgerTotal": "Total del registro (con IVA)",
+      "payable": "Pendiente de pago"
+    },
+    "tabs": {
+      "queue": "Cola de inspección ({{count}})",
+      "ledger": "Registro"
+    },
+    "filters": {
+      "category": "Categoría",
+      "all": "Todas",
+      "vendor": "Proveedor",
+      "searchPlaceholder": "Buscar…",
+      "from": "Desde",
+      "to": "Hasta",
+      "payment": "Pago",
+      "allPayments": "Todos",
+      "reset": "Restablecer"
+    },
+    "payment": {
+      "a_payer": "Por pagar",
+      "paye": "Pagado"
+    },
+    "charts": {
+      "byCategory": "Gastos por categoría",
+      "byCategoryDesc": "Distribución del registro filtrado (con IVA)",
+      "noData": "No hay datos para mostrar.",
+      "byMonth": "Gastos por mes",
+      "byMonthDesc": "Evolución mensual del registro filtrado (con IVA)",
+      "topVendors": "Principales proveedores",
+      "topVendorsDesc": "Top 8 por importe (con IVA)",
+      "total": "Total",
+      "unknownVendor": "Desconocido"
+    },
+    "list": {
+      "queueTitle": "Justificantes por validar",
+      "ledgerTitle": "Gastos registrados ({{count}})",
+      "displayedTotal": "Total mostrado: {{total}}",
+      "unknownVendor": "Proveedor desconocido",
+      "duplicate": "¿Duplicado?",
+      "refInline": " · ref. {{ref}}",
+      "htTva": "Base {{ht}} · IVA {{tva}}"
+    },
+    "empty": {
+      "queue": "No hay justificantes pendientes. Las nuevas facturas aparecerán aquí automáticamente.",
+      "ledger": "No hay gastos registrados para estos filtros."
+    },
+    "dialog": {
+      "createTitle": "Nuevo gasto",
+      "editTitle": "Editar gasto",
+      "createDesc": "Introduzca un gasto manualmente.",
+      "editDesc": "Corrija los campos extraídos antes de aprobar.",
+      "create": "Crear"
+    },
+    "form": {
+      "vendor": "Proveedor *",
+      "reference": "Referencia",
+      "category": "Categoría",
+      "title": "Concepto",
+      "date": "Fecha",
+      "dueDate": "Vencimiento",
+      "ht": "Base (€)",
+      "tva": "IVA (€)",
+      "ttc": "Total (€)",
+      "paymentStatus": "Estado de pago",
+      "notes": "Notas"
+    },
+    "categories": {
+      "carburant": "Combustible",
+      "fournitures": "Suministros",
+      "materiel": "Material / herramientas",
+      "sous_traitance": "Subcontratación",
+      "loyer": "Alquiler",
+      "assurance": "Seguro",
+      "telephone_internet": "Teléfono / Internet",
+      "repas": "Comidas",
+      "deplacement": "Desplazamiento",
+      "entretien_vehicule": "Mantenimiento de vehículo",
+      "honoraires": "Honorarios",
+      "taxes": "Impuestos / cotizaciones",
+      "autre": "Otro"
+    },
+    "sources": {
+      "upload": "Carga",
+      "gmail": "Correo electrónico",
+      "manuel": "Entrada manual"
+    },
+    "confirm": {
+      "delete": "¿Eliminar definitivamente este gasto?"
+    },
+    "toast": {
+      "error": "Error",
+      "loadError": "No se pudieron cargar los gastos.",
+      "exportReady": "Exportación lista",
+      "exportReadyDesc": "El registro filtrado se ha descargado.",
+      "exportError": "La exportación falló.",
+      "approved": "Gasto aprobado",
+      "rejected": "Gasto rechazado",
+      "approvedDesc": "Registrado en el libro y considerado en la tesorería.",
+      "rejectedDesc": "El gasto fue descartado.",
+      "actionError": "La acción falló.",
+      "deleted": "Gasto eliminado",
+      "deleteError": "La eliminación falló.",
+      "vendorRequired": "Proveedor obligatorio",
+      "created": "Gasto creado",
+      "updated": "Gasto actualizado",
+      "duplicateDetected": "⚠️ Se detectó un posible duplicado.",
+      "saveError": "El guardado falló."
+    }
+  },
+  "documents": {
+    "title": "Documentos",
+    "subtitle": "Gestión centralizada de todos sus archivos",
+    "actions": {
+      "exportCsv": "Exportar CSV",
+      "print": "Imprimir",
+      "reset": "Restablecer",
+      "createProject": "Crear un proyecto",
+      "scanSecurity": "Analizar la seguridad"
+    },
+    "stats": {
+      "documents": "Documentos",
+      "storage": "Almacenamiento",
+      "aiAnalyses": "Análisis con IA",
+      "linkedModules": "Módulos vinculados"
+    },
+    "upload": {
+      "title": "Subir",
+      "desc": "Suelte sus archivos para añadirlos"
+    },
+    "search": {
+      "placeholder": "Buscar un documento...",
+      "aria": "Buscar un documento"
+    },
+    "filters": {
+      "modulePlaceholder": "Módulo",
+      "allModules": "Todos los módulos",
+      "categoryPlaceholder": "Categoría",
+      "allCategories": "Todas",
+      "securityPlaceholder": "Seguridad",
+      "allSecurity": "Toda la seguridad",
+      "verified": "Verificado (seguro)",
+      "threat": "Amenaza detectada",
+      "unscanned": "Sin analizar"
+    },
+    "pills": {
+      "verified": "{{count}} verificado(s)",
+      "threat": "{{count}} amenaza(s)",
+      "unscanned": "{{count}} sin analizar"
+    },
+    "bulk": {
+      "scanAll": "Analizar todo",
+      "scanProgress": "Analizando {{completed}}/{{total}}",
+      "reusedSuffix": " · {{count}} reutilizado(s)",
+      "scanningShort": "Analizando…",
+      "stopping": "Deteniendo…",
+      "cancelScan": "Cancelar el análisis",
+      "selected": "{{count}} documento(s) seleccionado(s)",
+      "scanSecurity": "Analizar la seguridad",
+      "scanningProgress": "Analizando… {{completed}}/{{total}}",
+      "scanningInProgress": "Análisis en curso…",
+      "deleteSelection": "Eliminar la selección",
+      "selectAll": "Seleccionar todo ({{count}})"
+    },
+    "savings": {
+      "prefix": "Ha ahorrado ~",
+      "suffix": " gracias a {{count}} análisis reutilizado(s)."
+    },
+    "loading": "Cargando...",
+    "empty": {
+      "title": "Ningún documento",
+      "desc": "Empiece subiendo un archivo"
+    },
+    "badges": {
+      "ai": "IA",
+      "verified": "Verificado",
+      "verifiedWith": "Verificado ({{engine}})",
+      "threat": "Amenaza",
+      "unscanned": "Sin analizar",
+      "scanTitle": "Análisis antivirus: {{engine}}",
+      "engineFallback": "motor"
+    },
+    "pagination": "{{count}} documento(s) — Página {{page}} de {{pages}}",
+    "pager": {
+      "prev": "Página anterior",
+      "next": "Página siguiente"
+    },
+    "detail": {
+      "type": "Tipo:",
+      "size": "Tamaño:",
+      "category": "Categoría:",
+      "status": "Estado:",
+      "module": "Módulo:",
+      "date": "Fecha:",
+      "description": "Descripción",
+      "scanTitle": "Análisis antivirus",
+      "verdict": "Veredicto:",
+      "safe": "Seguro",
+      "threatDetected": "Amenaza detectada",
+      "engine": "Motor:",
+      "scannedAt": "Analizado el:",
+      "notScanned": "Este documento aún no ha sido analizado.",
+      "aiAnalysis": "Análisis con IA",
+      "confidence": "{{pct}}% de confianza",
+      "extractedFields": "Campos extraídos",
+      "extractedText": "Texto extraído"
+    },
+    "editDialog": {
+      "title": "Editar el documento"
+    },
+    "form": {
+      "category": "Categoría",
+      "module": "Módulo vinculado",
+      "none": "Ninguno",
+      "description": "Descripción",
+      "descriptionPlaceholder": "Descripción del documento..."
+    },
+    "entities": {
+      "contact": "Contacto",
+      "task": "Tarea",
+      "message": "Mensaje",
+      "invoice": "Factura",
+      "devis": "Presupuesto",
+      "prospect": "Cliente potencial",
+      "project": "Proyecto",
+      "stock": "Stock",
+      "event": "Evento",
+      "general": "General"
+    },
+    "categories": {
+      "general": "General",
+      "contrat": "Contrato",
+      "facture": "Factura",
+      "rapport": "Informe",
+      "cv": "CV",
+      "correspondance": "Correspondencia",
+      "technique": "Técnico",
+      "juridique": "Jurídico",
+      "comptabilite": "Contabilidad"
+    },
+    "parts": {
+      "safe": "{{count}} seguro(s)",
+      "threat": "{{count}} amenaza(s)",
+      "reused": "{{count}} reutilizado(s)",
+      "failed": "{{count}} fallido(s)"
+    },
+    "reuseSavings": " {{count}} análisis evitado(s) (~{{seconds}} s ahorrados).",
+    "confirm": {
+      "resetTitle": "¿Restablecer el contador?",
+      "resetDesc": "El tiempo acumulado ahorrado gracias a los análisis reutilizados volverá a empezar de cero. Esta acción es irreversible.",
+      "resetConfirm": "Restablecer",
+      "bulkDelete": "¿Eliminar {{count}} documento(s)?",
+      "deleteConfirm": "Eliminar"
+    },
+    "project": {
+      "title": "Documento - {{name}}",
+      "notes": "Proyecto creado a partir del documento: {{name}}"
+    },
+    "toast": {
+      "loadError": "Error al cargar los documentos",
+      "counterReset": "Contador restablecido",
+      "resetError": "Error durante el restablecimiento",
+      "scannedCount": "{{count}} documento(s) analizado(s)",
+      "scanResultDanger": "{{dangerous}} amenaza(s) detectada(s), {{safe}} seguro(s).",
+      "scanResultSafe": "No se detectó ninguna amenaza.",
+      "scanInterrupted": "Análisis interrumpido",
+      "scanInterruptedDesc": "{{count}} documento(s) ya analizado(s) conservado(s).",
+      "bulkScanError": "Error de análisis antivirus en lote",
+      "scanError": "Error de análisis antivirus",
+      "bulkStarted": "Análisis en lote iniciado",
+      "bulkStartedDesc": "Continúa en segundo plano, puede salir de la página.",
+      "aiDone": "Análisis con IA completado",
+      "aiError": "Error de análisis",
+      "verifiedSafe": "Documento verificado: seguro",
+      "threatTitle": "Amenaza detectada",
+      "threatDesc": "Este archivo se ha marcado como peligroso.",
+      "downloadError": "Error de descarga",
+      "docDeleted": "Documento eliminado",
+      "deleteError": "Error de eliminación",
+      "error": "Error",
+      "bulkDeleted": "{{count}} documento(s) eliminado(s)",
+      "updated": "Documento actualizado",
+      "updateError": "Error de actualización",
+      "projectCreated": "Proyecto creado"
+    }
   }
 }

@@ -1185,5 +1185,359 @@
       "closedNoAppt": "Exceptional closure — no appointment possible on this day.",
       "openError": "Unable to open this event."
     }
+  },
+  "tresorerie": {
+    "title": "Treasury & Risk Radar",
+    "subtitle": "Estimate the risk of a cash-flow squeeze over 90 days based on your real invoices and a Monte Carlo simulation. No automatic action: alerts only.",
+    "risk": {
+      "high": "High risk",
+      "watch": "Under watch",
+      "healthy": "Healthy cash flow"
+    },
+    "settings": {
+      "title": "My treasury settings",
+      "description": "The only data the system cannot infer from your invoices.",
+      "cashLabel": "Current cash balance (€)",
+      "cashPlaceholder": "e.g. 25000",
+      "fixedLabel": "Monthly fixed costs (€)",
+      "fixedPlaceholder": "e.g. 8000",
+      "fixedHint": "Payroll taxes, salaries, rent, vehicle maintenance…",
+      "autoliqLabel": "VAT reverse charge by default",
+      "autoliqHint": "Construction subcontracting: you collect the net amount, not the gross.",
+      "analyze": "Analyze risk"
+    },
+    "result": {
+      "riskTitle": "Squeeze risk over {{days}} days",
+      "mcDesc": "Monte Carlo simulation over {{runs}} scenarios.",
+      "negProb": "Probability of negative cash",
+      "p5": "Pessimistic scenario (P5)",
+      "median": "Projected median balance",
+      "p95": "Optimistic scenario (P95)",
+      "pending": "Pending invoices:",
+      "expected": "Expected collection:"
+    },
+    "overdue": {
+      "title": "Overdue invoices ({{count}})",
+      "desc": "{{total}} to recover — follow up first to secure your cash.",
+      "empty": "No overdue invoices. 👍",
+      "daysBadge": "+{{days}} d",
+      "dueDate": " · due {{date}}"
+    },
+    "expenses": {
+      "payableMid": "approved expense(s) to pay —",
+      "payableSuffix": "of cash outflows included in the simulation.",
+      "viewExpenses": "View expenses"
+    },
+    "notConfigured": {
+      "message": "Enter your cash balance and fixed costs above, save, then rerun the analysis to obtain a risk probability."
+    },
+    "toast": {
+      "loadErrorTitle": "Loading failed",
+      "loadErrorDesc": "Unable to load treasury settings.",
+      "invalidTitle": "Invalid values",
+      "invalidDesc": "Enter a positive balance and fixed costs.",
+      "savedTitle": "Settings saved",
+      "savedDesc": "You can launch the risk analysis.",
+      "saveErrorTitle": "Failed",
+      "saveErrorDesc": "Saving failed.",
+      "notConfiguredTitle": "Treasury not configured",
+      "notConfiguredDesc": "Enter your balance and fixed costs to obtain a probability.",
+      "analyzeErrorTitle": "Failed",
+      "analyzeErrorDesc": "Analysis failed."
+    }
+  },
+  "depenses": {
+    "title": "Expenses",
+    "subtitle": "Expense ledger. Incoming receipts (uploads and email attachments) are analyzed automatically and placed in the inspection queue.",
+    "newExpense": "New expense",
+    "export": "Export",
+    "refresh": "Refresh",
+    "summary": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "ledgerTotal": "Ledger total (incl. VAT)",
+      "payable": "Left to pay"
+    },
+    "tabs": {
+      "queue": "Inspection queue ({{count}})",
+      "ledger": "Ledger"
+    },
+    "filters": {
+      "category": "Category",
+      "all": "All",
+      "vendor": "Vendor",
+      "searchPlaceholder": "Search…",
+      "from": "From",
+      "to": "To",
+      "payment": "Payment",
+      "allPayments": "All",
+      "reset": "Reset"
+    },
+    "payment": {
+      "a_payer": "To pay",
+      "paye": "Paid"
+    },
+    "charts": {
+      "byCategory": "Expenses by category",
+      "byCategoryDesc": "Breakdown of the filtered ledger (incl. VAT)",
+      "noData": "No data to display.",
+      "byMonth": "Expenses by month",
+      "byMonthDesc": "Monthly trend of the filtered ledger (incl. VAT)",
+      "topVendors": "Top vendors",
+      "topVendorsDesc": "Top 8 by amount (incl. VAT)",
+      "total": "Total",
+      "unknownVendor": "Unknown"
+    },
+    "list": {
+      "queueTitle": "Receipts to validate",
+      "ledgerTitle": "Recorded expenses ({{count}})",
+      "displayedTotal": "Displayed total: {{total}}",
+      "unknownVendor": "Unknown vendor",
+      "duplicate": "Duplicate?",
+      "refInline": " · ref. {{ref}}",
+      "htTva": "Net {{ht}} · VAT {{tva}}"
+    },
+    "empty": {
+      "queue": "No receipts pending. New invoices will appear here automatically.",
+      "ledger": "No expenses recorded for these filters."
+    },
+    "dialog": {
+      "createTitle": "New expense",
+      "editTitle": "Edit expense",
+      "createDesc": "Enter an expense manually.",
+      "editDesc": "Correct the extracted fields before approving.",
+      "create": "Create"
+    },
+    "form": {
+      "vendor": "Vendor *",
+      "reference": "Reference",
+      "category": "Category",
+      "title": "Label",
+      "date": "Date",
+      "dueDate": "Due date",
+      "ht": "Net (€)",
+      "tva": "VAT (€)",
+      "ttc": "Gross (€)",
+      "paymentStatus": "Payment status",
+      "notes": "Notes"
+    },
+    "categories": {
+      "carburant": "Fuel",
+      "fournitures": "Supplies",
+      "materiel": "Equipment / tooling",
+      "sous_traitance": "Subcontracting",
+      "loyer": "Rent",
+      "assurance": "Insurance",
+      "telephone_internet": "Phone / Internet",
+      "repas": "Meals",
+      "deplacement": "Travel",
+      "entretien_vehicule": "Vehicle maintenance",
+      "honoraires": "Fees",
+      "taxes": "Taxes / contributions",
+      "autre": "Other"
+    },
+    "sources": {
+      "upload": "Upload",
+      "gmail": "Email",
+      "manuel": "Manual entry"
+    },
+    "confirm": {
+      "delete": "Permanently delete this expense?"
+    },
+    "toast": {
+      "error": "Error",
+      "loadError": "Unable to load expenses.",
+      "exportReady": "Export ready",
+      "exportReadyDesc": "The filtered ledger has been downloaded.",
+      "exportError": "Export failed.",
+      "approved": "Expense approved",
+      "rejected": "Expense rejected",
+      "approvedDesc": "Recorded in the ledger and factored into treasury.",
+      "rejectedDesc": "The expense was discarded.",
+      "actionError": "The action failed.",
+      "deleted": "Expense deleted",
+      "deleteError": "Deletion failed.",
+      "vendorRequired": "Vendor required",
+      "created": "Expense created",
+      "updated": "Expense updated",
+      "duplicateDetected": "⚠️ A potential duplicate was detected.",
+      "saveError": "Saving failed."
+    }
+  },
+  "documents": {
+    "title": "Documents",
+    "subtitle": "Centralized management of all your files",
+    "actions": {
+      "exportCsv": "Export CSV",
+      "print": "Print",
+      "reset": "Reset",
+      "createProject": "Create a project",
+      "scanSecurity": "Scan security"
+    },
+    "stats": {
+      "documents": "Documents",
+      "storage": "Storage",
+      "aiAnalyses": "AI analyses",
+      "linkedModules": "Linked modules"
+    },
+    "upload": {
+      "title": "Upload",
+      "desc": "Drop your files to add them"
+    },
+    "search": {
+      "placeholder": "Search a document...",
+      "aria": "Search a document"
+    },
+    "filters": {
+      "modulePlaceholder": "Module",
+      "allModules": "All modules",
+      "categoryPlaceholder": "Category",
+      "allCategories": "All",
+      "securityPlaceholder": "Security",
+      "allSecurity": "All security",
+      "verified": "Verified (safe)",
+      "threat": "Threat detected",
+      "unscanned": "Not scanned"
+    },
+    "pills": {
+      "verified": "{{count}} verified",
+      "threat": "{{count}} threat(s)",
+      "unscanned": "{{count}} not scanned"
+    },
+    "bulk": {
+      "scanAll": "Scan all",
+      "scanProgress": "Scanning {{completed}}/{{total}}",
+      "reusedSuffix": " · {{count}} reused",
+      "scanningShort": "Scanning…",
+      "stopping": "Stopping…",
+      "cancelScan": "Cancel scan",
+      "selected": "{{count}} document(s) selected",
+      "scanSecurity": "Scan security",
+      "scanningProgress": "Scanning… {{completed}}/{{total}}",
+      "scanningInProgress": "Scanning…",
+      "deleteSelection": "Delete selection",
+      "selectAll": "Select all ({{count}})"
+    },
+    "savings": {
+      "prefix": "You saved ~",
+      "suffix": " thanks to {{count}} reused scan(s)."
+    },
+    "loading": "Loading...",
+    "empty": {
+      "title": "No document",
+      "desc": "Start by uploading a file"
+    },
+    "badges": {
+      "ai": "AI",
+      "verified": "Verified",
+      "verifiedWith": "Verified ({{engine}})",
+      "threat": "Threat",
+      "unscanned": "Not scanned",
+      "scanTitle": "Antivirus scan: {{engine}}",
+      "engineFallback": "engine"
+    },
+    "pagination": "{{count}} document(s) — Page {{page}} of {{pages}}",
+    "pager": {
+      "prev": "Previous page",
+      "next": "Next page"
+    },
+    "detail": {
+      "type": "Type:",
+      "size": "Size:",
+      "category": "Category:",
+      "status": "Status:",
+      "module": "Module:",
+      "date": "Date:",
+      "description": "Description",
+      "scanTitle": "Antivirus scan",
+      "verdict": "Verdict:",
+      "safe": "Safe",
+      "threatDetected": "Threat detected",
+      "engine": "Engine:",
+      "scannedAt": "Scanned on:",
+      "notScanned": "This document has not been scanned yet.",
+      "aiAnalysis": "AI analysis",
+      "confidence": "{{pct}}% confidence",
+      "extractedFields": "Extracted fields",
+      "extractedText": "Extracted text"
+    },
+    "editDialog": {
+      "title": "Edit document"
+    },
+    "form": {
+      "category": "Category",
+      "module": "Linked module",
+      "none": "None",
+      "description": "Description",
+      "descriptionPlaceholder": "Document description..."
+    },
+    "entities": {
+      "contact": "Contact",
+      "task": "Task",
+      "message": "Message",
+      "invoice": "Invoice",
+      "devis": "Quote",
+      "prospect": "Prospect",
+      "project": "Project",
+      "stock": "Stock",
+      "event": "Event",
+      "general": "General"
+    },
+    "categories": {
+      "general": "General",
+      "contrat": "Contract",
+      "facture": "Invoice",
+      "rapport": "Report",
+      "cv": "Resume",
+      "correspondance": "Correspondence",
+      "technique": "Technical",
+      "juridique": "Legal",
+      "comptabilite": "Accounting"
+    },
+    "parts": {
+      "safe": "{{count}} safe",
+      "threat": "{{count}} threat(s)",
+      "reused": "{{count}} reused",
+      "failed": "{{count}} failed"
+    },
+    "reuseSavings": " {{count}} scan(s) avoided (~{{seconds}} s saved).",
+    "confirm": {
+      "resetTitle": "Reset the counter?",
+      "resetDesc": "The cumulative time saved thanks to reused scans will restart from zero. This action is irreversible.",
+      "resetConfirm": "Reset",
+      "bulkDelete": "Delete {{count}} document(s)?",
+      "deleteConfirm": "Delete"
+    },
+    "project": {
+      "title": "Document - {{name}}",
+      "notes": "Project created from the document: {{name}}"
+    },
+    "toast": {
+      "loadError": "Error loading documents",
+      "counterReset": "Counter reset",
+      "resetError": "Error during reset",
+      "scannedCount": "{{count}} document(s) scanned",
+      "scanResultDanger": "{{dangerous}} threat(s) detected, {{safe}} safe.",
+      "scanResultSafe": "No threat detected.",
+      "scanInterrupted": "Scan interrupted",
+      "scanInterruptedDesc": "{{count}} document(s) already scanned kept.",
+      "bulkScanError": "Bulk antivirus scan error",
+      "scanError": "Antivirus scan error",
+      "bulkStarted": "Bulk scan started",
+      "bulkStartedDesc": "It continues in the background, you can leave the page.",
+      "aiDone": "AI analysis complete",
+      "aiError": "Analysis error",
+      "verifiedSafe": "Document verified: safe",
+      "threatTitle": "Threat detected",
+      "threatDesc": "This file has been flagged as dangerous.",
+      "downloadError": "Download error",
+      "docDeleted": "Document deleted",
+      "deleteError": "Deletion error",
+      "error": "Error",
+      "bulkDeleted": "{{count}} document(s) deleted",
+      "updated": "Document updated",
+      "updateError": "Update error",
+      "projectCreated": "Project created"
+    }
   }
 }

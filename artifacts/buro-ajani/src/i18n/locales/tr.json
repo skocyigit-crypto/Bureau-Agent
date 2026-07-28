@@ -1185,5 +1185,359 @@
       "closedNoAppt": "İstisnai kapanış — bu gün randevu mümkün değil.",
       "openError": "Bu etkinlik açılamıyor."
     }
+  },
+  "tresorerie": {
+    "title": "Nakit Akışı & Risk Radarı",
+    "subtitle": "Gerçek faturalarınızdan ve bir Monte Carlo simülasyonundan yola çıkarak 90 günlük nakit sıkışıklığı riskini tahmin edin. Otomatik işlem yok: yalnızca uyarılar.",
+    "risk": {
+      "high": "Yüksek risk",
+      "watch": "İzleme altında",
+      "healthy": "Sağlıklı nakit akışı"
+    },
+    "settings": {
+      "title": "Nakit akışı ayarlarım",
+      "description": "Sistemin faturalarınızdan çıkaramadığı tek veriler.",
+      "cashLabel": "Mevcut nakit bakiyesi (€)",
+      "cashPlaceholder": "Örn: 25000",
+      "fixedLabel": "Aylık sabit giderler (€)",
+      "fixedPlaceholder": "Örn: 8000",
+      "fixedHint": "SGK, maaşlar, kira, araç bakımı…",
+      "autoliqLabel": "Varsayılan KDV tevkifatı",
+      "autoliqHint": "İnşaat taşeronluğu: KDV hariç tutarı tahsil edersiniz, dahil değil.",
+      "analyze": "Riski analiz et"
+    },
+    "result": {
+      "riskTitle": "{{days}} günlük sıkışıklık riski",
+      "mcDesc": "{{runs}} senaryo üzerinde Monte Carlo simülasyonu.",
+      "negProb": "Negatif nakit olasılığı",
+      "p5": "Kötümser senaryo (P5)",
+      "median": "Öngörülen medyan bakiye",
+      "p95": "İyimser senaryo (P95)",
+      "pending": "Bekleyen faturalar:",
+      "expected": "Beklenen tahsilat:"
+    },
+    "overdue": {
+      "title": "Geciken faturalar ({{count}})",
+      "desc": "{{total}} tahsil edilecek — kasayı güvence altına almak için öncelikle takip edin.",
+      "empty": "Geciken fatura yok. 👍",
+      "daysBadge": "+{{days}} g",
+      "dueDate": " · vade {{date}}"
+    },
+    "expenses": {
+      "payableMid": "onaylanmış ödenecek gider —",
+      "payableSuffix": "simülasyona dahil edilen kasa çıkışı.",
+      "viewExpenses": "Giderleri gör"
+    },
+    "notConfigured": {
+      "message": "Yukarıdan nakit bakiyenizi ve sabit giderlerinizi girin, kaydedin, ardından risk olasılığı için analizi yeniden çalıştırın."
+    },
+    "toast": {
+      "loadErrorTitle": "Yükleme başarısız",
+      "loadErrorDesc": "Nakit akışı ayarları yüklenemedi.",
+      "invalidTitle": "Geçersiz değerler",
+      "invalidDesc": "Pozitif bir bakiye ve sabit giderler girin.",
+      "savedTitle": "Ayarlar kaydedildi",
+      "savedDesc": "Risk analizini başlatabilirsiniz.",
+      "saveErrorTitle": "Başarısız",
+      "saveErrorDesc": "Kaydetme başarısız.",
+      "notConfiguredTitle": "Nakit akışı yapılandırılmadı",
+      "notConfiguredDesc": "Bir olasılık elde etmek için bakiyenizi ve sabit giderlerinizi girin.",
+      "analyzeErrorTitle": "Başarısız",
+      "analyzeErrorDesc": "Analiz başarısız."
+    }
+  },
+  "depenses": {
+    "title": "Giderler",
+    "subtitle": "Gider defteri. Gelen belgeler (yüklemeler ve e-posta ekleri) otomatik olarak analiz edilir ve inceleme kuyruğuna alınır.",
+    "newExpense": "Yeni gider",
+    "export": "Dışa aktar",
+    "refresh": "Yenile",
+    "summary": {
+      "pending": "Beklemede",
+      "approved": "Onaylanmış",
+      "ledgerTotal": "Defter toplamı (KDV dahil)",
+      "payable": "Ödenecek kalan"
+    },
+    "tabs": {
+      "queue": "İnceleme kuyruğu ({{count}})",
+      "ledger": "Defter"
+    },
+    "filters": {
+      "category": "Kategori",
+      "all": "Tümü",
+      "vendor": "Tedarikçi",
+      "searchPlaceholder": "Ara…",
+      "from": "Başlangıç",
+      "to": "Bitiş",
+      "payment": "Ödeme",
+      "allPayments": "Tümü",
+      "reset": "Sıfırla"
+    },
+    "payment": {
+      "a_payer": "Ödenecek",
+      "paye": "Ödendi"
+    },
+    "charts": {
+      "byCategory": "Kategoriye göre giderler",
+      "byCategoryDesc": "Filtrelenmiş defterin dağılımı (KDV dahil)",
+      "noData": "Görüntülenecek veri yok.",
+      "byMonth": "Aya göre giderler",
+      "byMonthDesc": "Filtrelenmiş defterin aylık değişimi (KDV dahil)",
+      "topVendors": "Başlıca tedarikçiler",
+      "topVendorsDesc": "Tutara göre ilk 8 (KDV dahil)",
+      "total": "Toplam",
+      "unknownVendor": "Bilinmiyor"
+    },
+    "list": {
+      "queueTitle": "Onaylanacak belgeler",
+      "ledgerTitle": "Kayıtlı giderler ({{count}})",
+      "displayedTotal": "Görüntülenen toplam: {{total}}",
+      "unknownVendor": "Bilinmeyen tedarikçi",
+      "duplicate": "Yinelenen?",
+      "refInline": " · ref. {{ref}}",
+      "htTva": "KDV hariç {{ht}} · KDV {{tva}}"
+    },
+    "empty": {
+      "queue": "Bekleyen belge yok. Yeni faturalar otomatik olarak burada görünecek.",
+      "ledger": "Bu filtreler için kayıtlı gider yok."
+    },
+    "dialog": {
+      "createTitle": "Yeni gider",
+      "editTitle": "Gideri düzenle",
+      "createDesc": "Bir gideri elle girin.",
+      "editDesc": "Onaylamadan önce çıkarılan alanları düzeltin.",
+      "create": "Oluştur"
+    },
+    "form": {
+      "vendor": "Tedarikçi *",
+      "reference": "Referans",
+      "category": "Kategori",
+      "title": "Açıklama",
+      "date": "Tarih",
+      "dueDate": "Vade",
+      "ht": "KDV hariç (€)",
+      "tva": "KDV (€)",
+      "ttc": "KDV dahil (€)",
+      "paymentStatus": "Ödeme durumu",
+      "notes": "Notlar"
+    },
+    "categories": {
+      "carburant": "Yakıt",
+      "fournitures": "Sarf malzemeleri",
+      "materiel": "Malzeme / alet",
+      "sous_traitance": "Taşeronluk",
+      "loyer": "Kira",
+      "assurance": "Sigorta",
+      "telephone_internet": "Telefon / İnternet",
+      "repas": "Yemek",
+      "deplacement": "Ulaşım",
+      "entretien_vehicule": "Araç bakımı",
+      "honoraires": "Ücretler",
+      "taxes": "Vergiler / primler",
+      "autre": "Diğer"
+    },
+    "sources": {
+      "upload": "Yükleme",
+      "gmail": "E-posta",
+      "manuel": "Elle giriş"
+    },
+    "confirm": {
+      "delete": "Bu gider kalıcı olarak silinsin mi?"
+    },
+    "toast": {
+      "error": "Hata",
+      "loadError": "Giderler yüklenemedi.",
+      "exportReady": "Dışa aktarma hazır",
+      "exportReadyDesc": "Filtrelenmiş defter indirildi.",
+      "exportError": "Dışa aktarma başarısız oldu.",
+      "approved": "Gider onaylandı",
+      "rejected": "Gider reddedildi",
+      "approvedDesc": "Deftere kaydedildi ve nakit akışına dahil edildi.",
+      "rejectedDesc": "Gider elendi.",
+      "actionError": "İşlem başarısız oldu.",
+      "deleted": "Gider silindi",
+      "deleteError": "Silme başarısız oldu.",
+      "vendorRequired": "Tedarikçi gerekli",
+      "created": "Gider oluşturuldu",
+      "updated": "Gider güncellendi",
+      "duplicateDetected": "⚠️ Olası bir yinelenen kayıt tespit edildi.",
+      "saveError": "Kaydetme başarısız oldu."
+    }
+  },
+  "documents": {
+    "title": "Belgeler",
+    "subtitle": "Tüm dosyalarınızın merkezi yönetimi",
+    "actions": {
+      "exportCsv": "CSV dışa aktar",
+      "print": "Yazdır",
+      "reset": "Sıfırla",
+      "createProject": "Proje oluştur",
+      "scanSecurity": "Güvenliği analiz et"
+    },
+    "stats": {
+      "documents": "Belgeler",
+      "storage": "Depolama",
+      "aiAnalyses": "Yapay Zeka analizleri",
+      "linkedModules": "Bağlı modüller"
+    },
+    "upload": {
+      "title": "Yükle",
+      "desc": "Eklemek için dosyalarınızı bırakın"
+    },
+    "search": {
+      "placeholder": "Belge ara...",
+      "aria": "Belge ara"
+    },
+    "filters": {
+      "modulePlaceholder": "Modül",
+      "allModules": "Tüm modüller",
+      "categoryPlaceholder": "Kategori",
+      "allCategories": "Tümü",
+      "securityPlaceholder": "Güvenlik",
+      "allSecurity": "Tüm güvenlik",
+      "verified": "Doğrulanmış (temiz)",
+      "threat": "Tehdit tespit edildi",
+      "unscanned": "Analiz edilmedi"
+    },
+    "pills": {
+      "verified": "{{count}} doğrulanmış",
+      "threat": "{{count}} tehdit",
+      "unscanned": "{{count}} analiz edilmedi"
+    },
+    "bulk": {
+      "scanAll": "Tümünü analiz et",
+      "scanProgress": "Analiz {{completed}}/{{total}}",
+      "reusedSuffix": " · {{count}} yeniden kullanıldı",
+      "scanningShort": "Analiz…",
+      "stopping": "Durduruluyor…",
+      "cancelScan": "Analizi iptal et",
+      "selected": "{{count}} belge seçildi",
+      "scanSecurity": "Güvenliği analiz et",
+      "scanningProgress": "Analiz… {{completed}}/{{total}}",
+      "scanningInProgress": "Analiz sürüyor…",
+      "deleteSelection": "Seçimi sil",
+      "selectAll": "Tümünü seç ({{count}})"
+    },
+    "savings": {
+      "prefix": "Yaklaşık ",
+      "suffix": " zaman kazandınız — {{count}} yeniden kullanılan analiz sayesinde."
+    },
+    "loading": "Yükleniyor...",
+    "empty": {
+      "title": "Belge yok",
+      "desc": "Bir dosya yükleyerek başlayın"
+    },
+    "badges": {
+      "ai": "Yapay Zeka",
+      "verified": "Doğrulanmış",
+      "verifiedWith": "Doğrulanmış ({{engine}})",
+      "threat": "Tehdit",
+      "unscanned": "Analiz edilmedi",
+      "scanTitle": "Antivirüs analizi: {{engine}}",
+      "engineFallback": "motor"
+    },
+    "pagination": "{{count}} belge — Sayfa {{page}}/{{pages}}",
+    "pager": {
+      "prev": "Önceki sayfa",
+      "next": "Sonraki sayfa"
+    },
+    "detail": {
+      "type": "Tür:",
+      "size": "Boyut:",
+      "category": "Kategori:",
+      "status": "Durum:",
+      "module": "Modül:",
+      "date": "Tarih:",
+      "description": "Açıklama",
+      "scanTitle": "Antivirüs analizi",
+      "verdict": "Sonuç:",
+      "safe": "Temiz",
+      "threatDetected": "Tehdit tespit edildi",
+      "engine": "Motor:",
+      "scannedAt": "Analiz tarihi:",
+      "notScanned": "Bu belge henüz analiz edilmedi.",
+      "aiAnalysis": "Yapay Zeka analizi",
+      "confidence": "%{{pct}} güven",
+      "extractedFields": "Çıkarılan alanlar",
+      "extractedText": "Çıkarılan metin"
+    },
+    "editDialog": {
+      "title": "Belgeyi düzenle"
+    },
+    "form": {
+      "category": "Kategori",
+      "module": "Bağlı modül",
+      "none": "Yok",
+      "description": "Açıklama",
+      "descriptionPlaceholder": "Belge açıklaması..."
+    },
+    "entities": {
+      "contact": "Kişi",
+      "task": "Görev",
+      "message": "Mesaj",
+      "invoice": "Fatura",
+      "devis": "Teklif",
+      "prospect": "Potansiyel müşteri",
+      "project": "Proje",
+      "stock": "Stok",
+      "event": "Etkinlik",
+      "general": "Genel"
+    },
+    "categories": {
+      "general": "Genel",
+      "contrat": "Sözleşme",
+      "facture": "Fatura",
+      "rapport": "Rapor",
+      "cv": "Özgeçmiş",
+      "correspondance": "Yazışma",
+      "technique": "Teknik",
+      "juridique": "Hukuki",
+      "comptabilite": "Muhasebe"
+    },
+    "parts": {
+      "safe": "{{count}} temiz",
+      "threat": "{{count}} tehdit",
+      "reused": "{{count}} yeniden kullanıldı",
+      "failed": "{{count}} başarısız"
+    },
+    "reuseSavings": " {{count}} analiz önlendi (~{{seconds}} sn kazanıldı).",
+    "confirm": {
+      "resetTitle": "Sayaç sıfırlansın mı?",
+      "resetDesc": "Yeniden kullanılan analizler sayesinde kazanılan toplam süre sıfırdan başlayacak. Bu işlem geri alınamaz.",
+      "resetConfirm": "Sıfırla",
+      "bulkDelete": "{{count}} belge silinsin mi?",
+      "deleteConfirm": "Sil"
+    },
+    "project": {
+      "title": "Belge - {{name}}",
+      "notes": "Belgeden oluşturulan proje: {{name}}"
+    },
+    "toast": {
+      "loadError": "Belgeler yüklenirken hata",
+      "counterReset": "Sayaç sıfırlandı",
+      "resetError": "Sıfırlama sırasında hata",
+      "scannedCount": "{{count}} belge analiz edildi",
+      "scanResultDanger": "{{dangerous}} tehdit tespit edildi, {{safe}} temiz.",
+      "scanResultSafe": "Tehdit tespit edilmedi.",
+      "scanInterrupted": "Analiz kesildi",
+      "scanInterruptedDesc": "{{count}} belge zaten analiz edildi ve korundu.",
+      "bulkScanError": "Toplu antivirüs analizi hatası",
+      "scanError": "Antivirüs analizi hatası",
+      "bulkStarted": "Toplu analiz başlatıldı",
+      "bulkStartedDesc": "Arka planda devam ediyor, sayfadan ayrılabilirsiniz.",
+      "aiDone": "Yapay Zeka analizi tamamlandı",
+      "aiError": "Analiz hatası",
+      "verifiedSafe": "Belge doğrulandı: temiz",
+      "threatTitle": "Tehdit tespit edildi",
+      "threatDesc": "Bu dosya tehlikeli olarak işaretlendi.",
+      "downloadError": "İndirme hatası",
+      "docDeleted": "Belge silindi",
+      "deleteError": "Silme hatası",
+      "error": "Hata",
+      "bulkDeleted": "{{count}} belge silindi",
+      "updated": "Belge güncellendi",
+      "updateError": "Güncelleme hatası",
+      "projectCreated": "Proje oluşturuldu"
+    }
   }
 }
