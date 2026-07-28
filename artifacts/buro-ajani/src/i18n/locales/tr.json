@@ -2336,5 +2336,140 @@
       "agentQueueLabel": "Onay kuyruğu",
       "agentQueueDesc": "Bekleyen ajan önerileri rozeti"
     }
+  },
+  "settingsApiWebhooks": {
+    "webhooks": {
+      "title": "Giden webhook'lar",
+      "description": "Etkinliklerinizi (kişiler, aramalar, görevler…) gerçek zamanlı olarak harici bir URL'ye alın. Her gönderim, oluşturma sırasında gösterilen gizli anahtarla imzalanır (HMAC-SHA256).",
+      "new": "Yeni webhook",
+      "empty": "Şu an yapılandırılmış webhook yok.",
+      "colUrl": "URL",
+      "colEvents": "Etkinlikler",
+      "colState": "Durum",
+      "colLastDelivery": "Son teslimat",
+      "colActions": "İşlemler",
+      "historyTitle": "Teslimat geçmişi",
+      "regenSecret": "Gizli anahtarı yeniden oluştur",
+      "delete": "Sil"
+    },
+    "keys": {
+      "title": "API anahtarları",
+      "description": "Harici entegrasyonlarınızı doğrulayın. Tam anahtar yalnızca oluşturma sırasında gösterilir — güvenli bir yerde saklayın.",
+      "new": "Yeni anahtar",
+      "empty": "Şu an API anahtarı yok.",
+      "colName": "Ad",
+      "colPrefix": "Ön ek",
+      "colState": "Durum",
+      "colLastUse": "Son kullanım",
+      "colExpiration": "Son kullanma",
+      "colActions": "İşlemler",
+      "revoked": "İptal edildi",
+      "active": "Etkin",
+      "reveal": "Anahtarı göster",
+      "revoke": "İptal et"
+    },
+    "copy": "Kopyala",
+    "secretReveal": {
+      "text": "Bu değeri şimdi kopyalayın:",
+      "strong": "bir daha asla gösterilmeyecek",
+      "label": "Gizli değer"
+    },
+    "actions": {
+      "created": "Oluşturuldu",
+      "updated": "Değiştirildi",
+      "deleted": "Silindi"
+    },
+    "resources": {
+      "contact": "Kişiler",
+      "call": "Aramalar",
+      "message": "Mesajlar",
+      "task": "Görevler",
+      "calendar": "Ajanda",
+      "note": "Notlar",
+      "projet": "Projeler",
+      "reminder": "Hatırlatıcılar",
+      "checkin": "Giriş kayıtları",
+      "whatsapp": "WhatsApp"
+    },
+    "createDialog": {
+      "title": "Yeni webhook",
+      "description": "Hedef URL'yi ve alınacak etkinlikleri tanımlayın.",
+      "urlLabel": "Hedef URL",
+      "urlPlaceholder": "https://ornek.com/webhooks",
+      "descLabel": "Açıklama (isteğe bağlı)",
+      "descPlaceholder": "Bu webhook ne işe yarar?",
+      "eventsLabel": "Etkinlikler",
+      "allEventsPrefix": "Tüm etkinlikler (joker",
+      "cancel": "İptal",
+      "create": "Oluştur"
+    },
+    "keyDialog": {
+      "title": "Yeni API anahtarı",
+      "description": "Tam anahtar yalnızca bir kez gösterilecek.",
+      "nameLabel": "Ad",
+      "namePlaceholder": "Örn: Muhasebe entegrasyonu",
+      "expiryLabel": "Son kullanma (isteğe bağlı)",
+      "cancel": "İptal",
+      "create": "Oluştur"
+    },
+    "secretDialog": {
+      "close": "Kopyaladım, kapat"
+    },
+    "deliveries": {
+      "title": "Teslimat geçmişi",
+      "empty": "Kayıtlı teslimat yok.",
+      "colEvent": "Etkinlik",
+      "colStatus": "Durum",
+      "colAttempts": "Denemeler",
+      "colHttp": "HTTP",
+      "colDate": "Tarih",
+      "colActions": "İşlemler",
+      "retry": "Bu teslimatı yeniden dene"
+    },
+    "confirmDelete": {
+      "title": "Bu webhook silinsin mi?",
+      "descPrefix": "Uç nokta",
+      "descSuffix": "artık hiçbir etkinlik almayacak. Bu işlem geri alınamaz.",
+      "cancel": "İptal",
+      "confirm": "Sil"
+    },
+    "confirmRevoke": {
+      "title": "Bu API anahtarı iptal edilsin mi?",
+      "desc": "« {{name}} » anahtarı hemen çalışmayı durduracak. Bu işlem geri alınamaz.",
+      "cancel": "İptal",
+      "confirm": "İptal et"
+    },
+    "loading": "Yükleniyor…",
+    "toast": {
+      "urlRequired": "URL gerekli",
+      "urlRequiredDesc": "Webhook'un hedef URL'sini belirtin.",
+      "noEvent": "Etkinlik yok",
+      "noEventDesc": "Gönderilecek en az bir etkinlik seçin.",
+      "secretTitle": "Webhook imza gizli anahtarı",
+      "webhookCreated": "Webhook oluşturuldu",
+      "createFailed": "Oluşturma başarısız",
+      "createFailedDesc": "Webhook oluşturulamadı.",
+      "webhookDisabled": "Webhook devre dışı bırakıldı",
+      "webhookEnabled": "Webhook yeniden etkinleştirildi",
+      "failureReset": "Hata sayacı sıfırlandı.",
+      "failure": "Hata",
+      "updateFailed": "Güncelleme yapılamadı.",
+      "newSecretTitle": "Yeni imza gizli anahtarı",
+      "rotateFailed": "Yenileme yapılamadı.",
+      "webhookDeleted": "Webhook silindi",
+      "deleteFailed": "Silme yapılamadı.",
+      "nameRequired": "Ad gerekli",
+      "nameRequiredDesc": "API anahtarına bir ad verin.",
+      "keyApiTitle": "API anahtarı « {{name}} »",
+      "keyCreated": "API anahtarı oluşturuldu",
+      "keyCreateFailedDesc": "Anahtar oluşturulamadı.",
+      "revealFailed": "Gösterilemedi",
+      "revealFailedDesc": "Erişim reddedildi veya anahtar bulunamadı.",
+      "keyRevoked": "Anahtar iptal edildi",
+      "revokeFailed": "İptal edilemedi.",
+      "deliveryRescheduled": "Teslimat yeniden planlandı",
+      "deliveryRescheduledDesc": "Bir dakika içinde yeni bir deneme yapılacak.",
+      "retryFailed": "Teslimat yeniden denenemedi."
+    }
   }
 }

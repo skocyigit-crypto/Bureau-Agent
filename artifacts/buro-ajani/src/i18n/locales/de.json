@@ -2336,5 +2336,140 @@
       "agentQueueLabel": "Genehmigungswarteschlange",
       "agentQueueDesc": "Badge ausstehender Agentenvorschläge"
     }
+  },
+  "settingsApiWebhooks": {
+    "webhooks": {
+      "title": "Ausgehende Webhooks",
+      "description": "Empfangen Sie Ihre Ereignisse (Kontakte, Anrufe, Aufgaben…) in Echtzeit auf einer externen URL. Jede Zustellung wird (HMAC-SHA256) mit dem bei der Erstellung angezeigten Secret signiert.",
+      "new": "Neuer Webhook",
+      "empty": "Derzeit kein Webhook konfiguriert.",
+      "colUrl": "URL",
+      "colEvents": "Ereignisse",
+      "colState": "Status",
+      "colLastDelivery": "Letzte Zustellung",
+      "colActions": "Aktionen",
+      "historyTitle": "Zustellverlauf",
+      "regenSecret": "Secret neu erzeugen",
+      "delete": "Löschen"
+    },
+    "keys": {
+      "title": "API-Schlüssel",
+      "description": "Authentifizieren Sie Ihre externen Integrationen. Der vollständige Schlüssel wird nur bei der Erstellung angezeigt — bewahren Sie ihn sicher auf.",
+      "new": "Neuer Schlüssel",
+      "empty": "Derzeit kein API-Schlüssel.",
+      "colName": "Name",
+      "colPrefix": "Präfix",
+      "colState": "Status",
+      "colLastUse": "Letzte Nutzung",
+      "colExpiration": "Ablauf",
+      "colActions": "Aktionen",
+      "revoked": "Widerrufen",
+      "active": "Aktiv",
+      "reveal": "Schlüssel anzeigen",
+      "revoke": "Widerrufen"
+    },
+    "copy": "Kopieren",
+    "secretReveal": {
+      "text": "Kopieren Sie diesen Wert jetzt: er wird",
+      "strong": "nie wieder angezeigt",
+      "label": "Geheimer Wert"
+    },
+    "actions": {
+      "created": "Erstellt",
+      "updated": "Geändert",
+      "deleted": "Gelöscht"
+    },
+    "resources": {
+      "contact": "Kontakte",
+      "call": "Anrufe",
+      "message": "Nachrichten",
+      "task": "Aufgaben",
+      "calendar": "Kalender",
+      "note": "Notizen",
+      "projet": "Projekte",
+      "reminder": "Erinnerungen",
+      "checkin": "Zeiterfassungen",
+      "whatsapp": "WhatsApp"
+    },
+    "createDialog": {
+      "title": "Neuer Webhook",
+      "description": "Legen Sie die Ziel-URL und die zu empfangenden Ereignisse fest.",
+      "urlLabel": "Ziel-URL",
+      "urlPlaceholder": "https://beispiel.com/webhooks",
+      "descLabel": "Beschreibung (optional)",
+      "descPlaceholder": "Wofür ist dieser Webhook?",
+      "eventsLabel": "Ereignisse",
+      "allEventsPrefix": "Alle Ereignisse (Platzhalter",
+      "cancel": "Abbrechen",
+      "create": "Erstellen"
+    },
+    "keyDialog": {
+      "title": "Neuer API-Schlüssel",
+      "description": "Der vollständige Schlüssel wird nur einmal angezeigt.",
+      "nameLabel": "Name",
+      "namePlaceholder": "z. B. Buchhaltungs-Integration",
+      "expiryLabel": "Ablauf (optional)",
+      "cancel": "Abbrechen",
+      "create": "Erstellen"
+    },
+    "secretDialog": {
+      "close": "Kopiert, schließen"
+    },
+    "deliveries": {
+      "title": "Zustellverlauf",
+      "empty": "Keine Zustellung erfasst.",
+      "colEvent": "Ereignis",
+      "colStatus": "Status",
+      "colAttempts": "Versuche",
+      "colHttp": "HTTP",
+      "colDate": "Datum",
+      "colActions": "Aktionen",
+      "retry": "Diese Zustellung erneut versuchen"
+    },
+    "confirmDelete": {
+      "title": "Diesen Webhook löschen?",
+      "descPrefix": "Der Endpunkt",
+      "descSuffix": "empfängt keine Ereignisse mehr. Diese Aktion ist unwiderruflich.",
+      "cancel": "Abbrechen",
+      "confirm": "Löschen"
+    },
+    "confirmRevoke": {
+      "title": "Diesen API-Schlüssel widerrufen?",
+      "desc": "Der Schlüssel „{{name}}“ funktioniert sofort nicht mehr. Diese Aktion ist unwiderruflich.",
+      "cancel": "Abbrechen",
+      "confirm": "Widerrufen"
+    },
+    "loading": "Wird geladen…",
+    "toast": {
+      "urlRequired": "URL erforderlich",
+      "urlRequiredDesc": "Geben Sie die Ziel-URL des Webhooks an.",
+      "noEvent": "Kein Ereignis",
+      "noEventDesc": "Wählen Sie mindestens ein zu sendendes Ereignis aus.",
+      "secretTitle": "Webhook-Signatur-Secret",
+      "webhookCreated": "Webhook erstellt",
+      "createFailed": "Erstellung fehlgeschlagen",
+      "createFailedDesc": "Webhook konnte nicht erstellt werden.",
+      "webhookDisabled": "Webhook deaktiviert",
+      "webhookEnabled": "Webhook reaktiviert",
+      "failureReset": "Der Fehlerzähler wurde zurückgesetzt.",
+      "failure": "Fehler",
+      "updateFailed": "Aktualisierung nicht möglich.",
+      "newSecretTitle": "Neues Signatur-Secret",
+      "rotateFailed": "Rotation nicht möglich.",
+      "webhookDeleted": "Webhook gelöscht",
+      "deleteFailed": "Löschen nicht möglich.",
+      "nameRequired": "Name erforderlich",
+      "nameRequiredDesc": "Geben Sie dem API-Schlüssel einen Namen.",
+      "keyApiTitle": "API-Schlüssel „{{name}}“",
+      "keyCreated": "API-Schlüssel erstellt",
+      "keyCreateFailedDesc": "Schlüssel konnte nicht erstellt werden.",
+      "revealFailed": "Anzeige nicht möglich",
+      "revealFailedDesc": "Zugriff verweigert oder Schlüssel nicht gefunden.",
+      "keyRevoked": "Schlüssel widerrufen",
+      "revokeFailed": "Widerruf nicht möglich.",
+      "deliveryRescheduled": "Zustellung neu geplant",
+      "deliveryRescheduledDesc": "Innerhalb der nächsten Minute wird ein neuer Versuch unternommen.",
+      "retryFailed": "Zustellung konnte nicht wiederholt werden."
+    }
   }
 }

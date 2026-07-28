@@ -2336,5 +2336,140 @@
       "agentQueueLabel": "Approval queue",
       "agentQueueDesc": "Pending agent proposals badge"
     }
+  },
+  "settingsApiWebhooks": {
+    "webhooks": {
+      "title": "Outgoing webhooks",
+      "description": "Receive your events (contacts, calls, tasks…) in real time on an external URL. Each delivery is signed (HMAC-SHA256) with the secret shown at creation.",
+      "new": "New webhook",
+      "empty": "No webhook configured yet.",
+      "colUrl": "URL",
+      "colEvents": "Events",
+      "colState": "State",
+      "colLastDelivery": "Last delivery",
+      "colActions": "Actions",
+      "historyTitle": "Delivery history",
+      "regenSecret": "Regenerate secret",
+      "delete": "Delete"
+    },
+    "keys": {
+      "title": "API keys",
+      "description": "Authenticate your external integrations. The full key is shown only at creation — keep it in a safe place.",
+      "new": "New key",
+      "empty": "No API key yet.",
+      "colName": "Name",
+      "colPrefix": "Prefix",
+      "colState": "State",
+      "colLastUse": "Last used",
+      "colExpiration": "Expiration",
+      "colActions": "Actions",
+      "revoked": "Revoked",
+      "active": "Active",
+      "reveal": "Reveal key",
+      "revoke": "Revoke"
+    },
+    "copy": "Copy",
+    "secretReveal": {
+      "text": "Copy this value now: it will",
+      "strong": "never be shown again",
+      "label": "Secret value"
+    },
+    "actions": {
+      "created": "Created",
+      "updated": "Updated",
+      "deleted": "Deleted"
+    },
+    "resources": {
+      "contact": "Contacts",
+      "call": "Calls",
+      "message": "Messages",
+      "task": "Tasks",
+      "calendar": "Calendar",
+      "note": "Notes",
+      "projet": "Projects",
+      "reminder": "Reminders",
+      "checkin": "Check-ins",
+      "whatsapp": "WhatsApp"
+    },
+    "createDialog": {
+      "title": "New webhook",
+      "description": "Set the destination URL and the events to receive.",
+      "urlLabel": "Destination URL",
+      "urlPlaceholder": "https://example.com/webhooks",
+      "descLabel": "Description (optional)",
+      "descPlaceholder": "What is this webhook for?",
+      "eventsLabel": "Events",
+      "allEventsPrefix": "All events (wildcard",
+      "cancel": "Cancel",
+      "create": "Create"
+    },
+    "keyDialog": {
+      "title": "New API key",
+      "description": "The full key will be shown only once.",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. Accounting integration",
+      "expiryLabel": "Expiration (optional)",
+      "cancel": "Cancel",
+      "create": "Create"
+    },
+    "secretDialog": {
+      "close": "I copied it, close"
+    },
+    "deliveries": {
+      "title": "Delivery history",
+      "empty": "No delivery recorded.",
+      "colEvent": "Event",
+      "colStatus": "Status",
+      "colAttempts": "Attempts",
+      "colHttp": "HTTP",
+      "colDate": "Date",
+      "colActions": "Actions",
+      "retry": "Retry this delivery"
+    },
+    "confirmDelete": {
+      "title": "Delete this webhook?",
+      "descPrefix": "The endpoint",
+      "descSuffix": "will no longer receive any event. This action is irreversible.",
+      "cancel": "Cancel",
+      "confirm": "Delete"
+    },
+    "confirmRevoke": {
+      "title": "Revoke this API key?",
+      "desc": "The key “{{name}}” will immediately stop working. This action is irreversible.",
+      "cancel": "Cancel",
+      "confirm": "Revoke"
+    },
+    "loading": "Loading…",
+    "toast": {
+      "urlRequired": "URL required",
+      "urlRequiredDesc": "Enter the webhook's destination URL.",
+      "noEvent": "No event",
+      "noEventDesc": "Select at least one event to send.",
+      "secretTitle": "Webhook signing secret",
+      "webhookCreated": "Webhook created",
+      "createFailed": "Creation failed",
+      "createFailedDesc": "Unable to create the webhook.",
+      "webhookDisabled": "Webhook disabled",
+      "webhookEnabled": "Webhook re-enabled",
+      "failureReset": "The failure counter has been reset.",
+      "failure": "Failed",
+      "updateFailed": "Update failed.",
+      "newSecretTitle": "New signing secret",
+      "rotateFailed": "Rotation failed.",
+      "webhookDeleted": "Webhook deleted",
+      "deleteFailed": "Deletion failed.",
+      "nameRequired": "Name required",
+      "nameRequiredDesc": "Give the API key a name.",
+      "keyApiTitle": "API key “{{name}}”",
+      "keyCreated": "API key created",
+      "keyCreateFailedDesc": "Unable to create the key.",
+      "revealFailed": "Reveal failed",
+      "revealFailedDesc": "Access denied or key not found.",
+      "keyRevoked": "Key revoked",
+      "revokeFailed": "Revocation failed.",
+      "deliveryRescheduled": "Delivery rescheduled",
+      "deliveryRescheduledDesc": "A new attempt will be made within the minute.",
+      "retryFailed": "Unable to replay the delivery."
+    }
   }
 }

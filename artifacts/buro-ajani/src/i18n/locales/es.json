@@ -2336,5 +2336,140 @@
       "agentQueueLabel": "Cola de aprobación",
       "agentQueueDesc": "Insignia de propuestas del agente pendientes"
     }
+  },
+  "settingsApiWebhooks": {
+    "webhooks": {
+      "title": "Webhooks salientes",
+      "description": "Reciba sus eventos (contactos, llamadas, tareas…) en tiempo real en una URL externa. Cada envío se firma (HMAC-SHA256) con el secreto mostrado al crearlo.",
+      "new": "Nuevo webhook",
+      "empty": "Ningún webhook configurado por ahora.",
+      "colUrl": "URL",
+      "colEvents": "Eventos",
+      "colState": "Estado",
+      "colLastDelivery": "Última entrega",
+      "colActions": "Acciones",
+      "historyTitle": "Historial de entregas",
+      "regenSecret": "Regenerar el secreto",
+      "delete": "Eliminar"
+    },
+    "keys": {
+      "title": "Claves API",
+      "description": "Autentique sus integraciones externas. La clave completa solo se muestra al crearla — guárdela en un lugar seguro.",
+      "new": "Nueva clave",
+      "empty": "Ninguna clave API por ahora.",
+      "colName": "Nombre",
+      "colPrefix": "Prefijo",
+      "colState": "Estado",
+      "colLastUse": "Último uso",
+      "colExpiration": "Expiración",
+      "colActions": "Acciones",
+      "revoked": "Revocada",
+      "active": "Activa",
+      "reveal": "Revelar la clave",
+      "revoke": "Revocar"
+    },
+    "copy": "Copiar",
+    "secretReveal": {
+      "text": "Copie este valor ahora:",
+      "strong": "no se mostrará nunca más",
+      "label": "Valor secreto"
+    },
+    "actions": {
+      "created": "Creado",
+      "updated": "Modificado",
+      "deleted": "Eliminado"
+    },
+    "resources": {
+      "contact": "Contactos",
+      "call": "Llamadas",
+      "message": "Mensajes",
+      "task": "Tareas",
+      "calendar": "Agenda",
+      "note": "Notas",
+      "projet": "Proyectos",
+      "reminder": "Recordatorios",
+      "checkin": "Fichajes",
+      "whatsapp": "WhatsApp"
+    },
+    "createDialog": {
+      "title": "Nuevo webhook",
+      "description": "Defina la URL de destino y los eventos a recibir.",
+      "urlLabel": "URL de destino",
+      "urlPlaceholder": "https://ejemplo.com/webhooks",
+      "descLabel": "Descripción (opcional)",
+      "descPlaceholder": "¿Para qué sirve este webhook?",
+      "eventsLabel": "Eventos",
+      "allEventsPrefix": "Todos los eventos (comodín",
+      "cancel": "Cancelar",
+      "create": "Crear"
+    },
+    "keyDialog": {
+      "title": "Nueva clave API",
+      "description": "La clave completa solo se mostrará una vez.",
+      "nameLabel": "Nombre",
+      "namePlaceholder": "Ej: Integración de contabilidad",
+      "expiryLabel": "Expiración (opcional)",
+      "cancel": "Cancelar",
+      "create": "Crear"
+    },
+    "secretDialog": {
+      "close": "Lo he copiado, cerrar"
+    },
+    "deliveries": {
+      "title": "Historial de entregas",
+      "empty": "Ninguna entrega registrada.",
+      "colEvent": "Evento",
+      "colStatus": "Estado",
+      "colAttempts": "Intentos",
+      "colHttp": "HTTP",
+      "colDate": "Fecha",
+      "colActions": "Acciones",
+      "retry": "Reintentar esta entrega"
+    },
+    "confirmDelete": {
+      "title": "¿Eliminar este webhook?",
+      "descPrefix": "El endpoint",
+      "descSuffix": "ya no recibirá ningún evento. Esta acción es irreversible.",
+      "cancel": "Cancelar",
+      "confirm": "Eliminar"
+    },
+    "confirmRevoke": {
+      "title": "¿Revocar esta clave API?",
+      "desc": "La clave « {{name}} » dejará de funcionar de inmediato. Esta acción es irreversible.",
+      "cancel": "Cancelar",
+      "confirm": "Revocar"
+    },
+    "loading": "Cargando…",
+    "toast": {
+      "urlRequired": "URL obligatoria",
+      "urlRequiredDesc": "Indique la URL de destino del webhook.",
+      "noEvent": "Ningún evento",
+      "noEventDesc": "Seleccione al menos un evento a enviar.",
+      "secretTitle": "Secreto de firma del webhook",
+      "webhookCreated": "Webhook creado",
+      "createFailed": "Error al crear",
+      "createFailedDesc": "No se pudo crear el webhook.",
+      "webhookDisabled": "Webhook desactivado",
+      "webhookEnabled": "Webhook reactivado",
+      "failureReset": "El contador de fallos se ha restablecido.",
+      "failure": "Error",
+      "updateFailed": "Actualización imposible.",
+      "newSecretTitle": "Nuevo secreto de firma",
+      "rotateFailed": "Rotación imposible.",
+      "webhookDeleted": "Webhook eliminado",
+      "deleteFailed": "Eliminación imposible.",
+      "nameRequired": "Nombre obligatorio",
+      "nameRequiredDesc": "Dé un nombre a la clave API.",
+      "keyApiTitle": "Clave API « {{name}} »",
+      "keyCreated": "Clave API creada",
+      "keyCreateFailedDesc": "No se pudo crear la clave.",
+      "revealFailed": "Revelación imposible",
+      "revealFailedDesc": "Acceso denegado o clave no encontrada.",
+      "keyRevoked": "Clave revocada",
+      "revokeFailed": "Revocación imposible.",
+      "deliveryRescheduled": "Entrega reprogramada",
+      "deliveryRescheduledDesc": "Se hará un nuevo intento en el plazo de un minuto.",
+      "retryFailed": "No se pudo reintentar la entrega."
+    }
   }
 }

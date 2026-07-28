@@ -31,6 +31,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 
 // Catalogue d'événements proposés. Les noms suivent le format `type.action`
 // émis par le broadcaster serveur (cf. webhook-service.eventName). La valeur
@@ -66,13 +67,14 @@ function errMsg(err: unknown, fallback: string): string {
 }
 
 function CopyButton({ value }: { value: string }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   return (
     <Button
       type="button"
       variant="outline"
       size="icon"
-      title="Copier"
+      title={t("settingsApiWebhooks.copy")}
       onClick={async () => {
         try {
           await navigator.clipboard.writeText(value);
@@ -90,13 +92,14 @@ function CopyButton({ value }: { value: string }) {
 
 /** Encart affichant un secret en clair une seule fois, avec bouton de copie. */
 function SecretReveal({ label, secret }: { label: string; secret: string }) {
+  const { t } = useTranslation();
   return (
     <Alert className="border-amber-300 bg-amber-50">
       <ShieldAlert className="h-4 w-4 text-amber-600" />
       <AlertTitle>{label}</AlertTitle>
       <AlertDescription>
         <p className="mb-2 text-sm">
-          Copiez cette valeur maintenant : elle ne sera <strong>plus jamais affichée</strong>.
+          {t("settingsApiWebhooks.secretReveal.text")} <strong>{t("settingsApiWebhooks.secretReveal.strong")}</strong>.
         </p>
         <div className="flex items-center gap-2">
           <code className="flex-1 break-all rounded bg-white px-2 py-1 font-mono text-xs ring-1 ring-amber-200">
@@ -110,6 +113,7 @@ function SecretReveal({ label, secret }: { label: string; secret: string }) {
 }
 
 export function TabApiWebhooks() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -155,11 +159,11 @@ export function TabApiWebhooks() {
 
   function submitCreate() {
     if (!formUrl.trim()) {
-      toast({ title: "URL requise", description: "Indiquez l'URL de destination du webhook.", variant: "destructive" });
+      toast({ title: t("settingsApiWebhooks.toast.urlRequired"), description: t("settingsApiWebhooks.toast.urlRequiredDesc"), variant: "destructive" });
       return;
     }
     if (selectedEventList.length === 0) {
-      toast({ title: "Aucun événement", description: "Sélectionnez au moins un événement à envoyer.", variant: "destructive" });
+      toast({ title: t("settingsApiWebhooks.toast.noEvent"), description: t("settingsApiWebhooks.toast.noEventDesc"), variant: "destructive" });
       return;
     }
     createWebhook.mutate(
@@ -177,12 +181,12 @@ export function TabApiWebhooks() {
           resetForm();
           invalidateWebhooks();
           if (created.secret) {
-            setSecretReveal({ title: "Secret de signature du webhook", secret: created.secret });
+            setSecretReveal({ title: t("settingsApiWebhooks.toast.secretTitle"), secret: created.secret });
           }
-          toast({ title: "Webhook créé", description: created.url });
+          toast({ title: t("settingsApiWebhooks.toast.webhookCreated"), description: created.url });
         },
         onError: (err) =>
-          toast({ title: "Échec de la création", description: errMsg(err, "Impossible de créer le webhook."), variant: "destructive" }),
+          toast({ title: t("settingsApiWebhooks.toast.createFailed"), description: errMsg(err, t("settingsApiWebhooks.toast.createFailedDesc")), variant: "destructive" }),
       },
     );
   }
@@ -194,12 +198,12 @@ export function TabApiWebhooks() {
         onSuccess: () => {
           invalidateWebhooks();
           toast({
-            title: ep.active ? "Webhook désactivé" : "Webhook réactivé",
-            description: ep.active ? undefined : "Le compteur d'échecs a été remis à zéro.",
+            title: ep.active ? t("settingsApiWebhooks.toast.webhookDisabled") : t("settingsApiWebhooks.toast.webhookEnabled"),
+            description: ep.active ? undefined : t("settingsApiWebhooks.toast.failureReset"),
           });
         },
         onError: (err) =>
-          toast({ title: "Échec", description: errMsg(err, "Mise à jour impossible."), variant: "destructive" }),
+          toast({ title: t("settingsApiWebhooks.toast.failure"), description: errMsg(err, t("settingsApiWebhooks.toast.updateFailed")), variant: "destructive" }),
       },
     );
   }
@@ -210,10 +214,10 @@ export function TabApiWebhooks() {
       {
         onSuccess: (res) => {
           invalidateWebhooks();
-          if (res.secret) setSecretReveal({ title: "Nouveau secret de signature", secret: res.secret });
+          if (res.secret) setSecretReveal({ title: t("settingsApiWebhooks.toast.newSecretTitle"), secret: res.secret });
         },
         onError: (err) =>
-          toast({ title: "Échec", description: errMsg(err, "Rotation impossible."), variant: "destructive" }),
+          toast({ title: t("settingsApiWebhooks.toast.failure"), description: errMsg(err, t("settingsApiWebhooks.toast.rotateFailed")), variant: "destructive" }),
       },
     );
   }
@@ -225,11 +229,11 @@ export function TabApiWebhooks() {
       {
         onSuccess: () => {
           invalidateWebhooks();
-          toast({ title: "Webhook supprimé" });
+          toast({ title: t("settingsApiWebhooks.toast.webhookDeleted") });
           setDeleteTarget(null);
         },
         onError: (err) => {
-          toast({ title: "Échec", description: errMsg(err, "Suppression impossible."), variant: "destructive" });
+          toast({ title: t("settingsApiWebhooks.toast.failure"), description: errMsg(err, t("settingsApiWebhooks.toast.deleteFailed")), variant: "destructive" });
           setDeleteTarget(null);
         },
       },
@@ -251,7 +255,7 @@ export function TabApiWebhooks() {
 
   function submitCreateKey() {
     if (!keyName.trim()) {
-      toast({ title: "Nom requis", description: "Donnez un nom à la clé API.", variant: "destructive" });
+      toast({ title: t("settingsApiWebhooks.toast.nameRequired"), description: t("settingsApiWebhooks.toast.nameRequiredDesc"), variant: "destructive" });
       return;
     }
     createApiKey.mutate(
@@ -267,11 +271,11 @@ export function TabApiWebhooks() {
           setKeyName("");
           setKeyExpiry("");
           invalidateKeys();
-          if (created.key) setSecretReveal({ title: `Clé API « ${created.name} »`, secret: created.key });
-          toast({ title: "Clé API créée" });
+          if (created.key) setSecretReveal({ title: t("settingsApiWebhooks.toast.keyApiTitle", { name: created.name }), secret: created.key });
+          toast({ title: t("settingsApiWebhooks.toast.keyCreated") });
         },
         onError: (err) =>
-          toast({ title: "Échec de la création", description: errMsg(err, "Impossible de créer la clé."), variant: "destructive" }),
+          toast({ title: t("settingsApiWebhooks.toast.createFailed"), description: errMsg(err, t("settingsApiWebhooks.toast.keyCreateFailedDesc")), variant: "destructive" }),
       },
     );
   }
@@ -280,9 +284,9 @@ export function TabApiWebhooks() {
     revealApiKey.mutate(
       { id: k.id },
       {
-        onSuccess: (res) => setSecretReveal({ title: `Clé API « ${k.name} »`, secret: res.key }),
+        onSuccess: (res) => setSecretReveal({ title: t("settingsApiWebhooks.toast.keyApiTitle", { name: k.name }), secret: res.key }),
         onError: (err) =>
-          toast({ title: "Révélation impossible", description: errMsg(err, "Accès refusé ou clé introuvable."), variant: "destructive" }),
+          toast({ title: t("settingsApiWebhooks.toast.revealFailed"), description: errMsg(err, t("settingsApiWebhooks.toast.revealFailedDesc")), variant: "destructive" }),
       },
     );
   }
@@ -294,11 +298,11 @@ export function TabApiWebhooks() {
       {
         onSuccess: () => {
           invalidateKeys();
-          toast({ title: "Clé révoquée" });
+          toast({ title: t("settingsApiWebhooks.toast.keyRevoked") });
           setRevokeTarget(null);
         },
         onError: (err) => {
-          toast({ title: "Échec", description: errMsg(err, "Révocation impossible."), variant: "destructive" });
+          toast({ title: t("settingsApiWebhooks.toast.failure"), description: errMsg(err, t("settingsApiWebhooks.toast.revokeFailed")), variant: "destructive" });
           setRevokeTarget(null);
         },
       },
@@ -315,36 +319,35 @@ export function TabApiWebhooks() {
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div>
             <CardTitle className="flex items-center gap-2">
-              <Webhook className="w-5 h-5 text-indigo-600" /> Webhooks sortants
+              <Webhook className="w-5 h-5 text-indigo-600" /> {t("settingsApiWebhooks.webhooks.title")}
             </CardTitle>
             <CardDescription>
-              Recevez vos événements (contacts, appels, tâches…) en temps réel sur une URL
-              externe. Chaque envoi est signé (HMAC-SHA256) avec le secret affiché à la création.
+              {t("settingsApiWebhooks.webhooks.description")}
             </CardDescription>
           </div>
           <Button onClick={() => setCreateOpen(true)} className="gap-2 shrink-0">
-            <Plus className="w-4 h-4" /> Nouveau webhook
+            <Plus className="w-4 h-4" /> {t("settingsApiWebhooks.webhooks.new")}
           </Button>
         </CardHeader>
         <CardContent>
           {webhooksQuery.isLoading ? (
             <div className="flex items-center gap-2 py-8 text-muted-foreground">
-              <Loader2 className="w-4 h-4 animate-spin" /> Chargement…
+              <Loader2 className="w-4 h-4 animate-spin" /> {t("settingsApiWebhooks.loading")}
             </div>
           ) : webhooks.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              Aucun webhook configuré pour le moment.
+              {t("settingsApiWebhooks.webhooks.empty")}
             </p>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>URL</TableHead>
-                    <TableHead>Événements</TableHead>
-                    <TableHead>État</TableHead>
-                    <TableHead>Dernière livraison</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>{t("settingsApiWebhooks.webhooks.colUrl")}</TableHead>
+                    <TableHead>{t("settingsApiWebhooks.webhooks.colEvents")}</TableHead>
+                    <TableHead>{t("settingsApiWebhooks.webhooks.colState")}</TableHead>
+                    <TableHead>{t("settingsApiWebhooks.webhooks.colLastDelivery")}</TableHead>
+                    <TableHead className="text-right">{t("settingsApiWebhooks.webhooks.colActions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -384,13 +387,13 @@ export function TabApiWebhooks() {
                       </TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" title="Historique des livraisons" onClick={() => setDeliveriesFor(ep)}>
+                          <Button variant="ghost" size="icon" title={t("settingsApiWebhooks.webhooks.historyTitle")} onClick={() => setDeliveriesFor(ep)}>
                             <ListChecks className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" title="Régénérer le secret" disabled={rotateSecret.isPending} onClick={() => doRotate(ep)}>
+                          <Button variant="ghost" size="icon" title={t("settingsApiWebhooks.webhooks.regenSecret")} disabled={rotateSecret.isPending} onClick={() => doRotate(ep)}>
                             <RotateCw className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" title="Supprimer" onClick={() => setDeleteTarget(ep)}>
+                          <Button variant="ghost" size="icon" title={t("settingsApiWebhooks.webhooks.delete")} onClick={() => setDeleteTarget(ep)}>
                             <Trash2 className="w-4 h-4 text-red-600" />
                           </Button>
                         </div>
@@ -409,37 +412,36 @@ export function TabApiWebhooks() {
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div>
             <CardTitle className="flex items-center gap-2">
-              <KeyRound className="w-5 h-5 text-emerald-600" /> Clés API
+              <KeyRound className="w-5 h-5 text-emerald-600" /> {t("settingsApiWebhooks.keys.title")}
             </CardTitle>
             <CardDescription>
-              Authentifiez vos intégrations externes. La clé complète n'est affichée
-              qu'à la création — conservez-la en lieu sûr.
+              {t("settingsApiWebhooks.keys.description")}
             </CardDescription>
           </div>
           <Button onClick={() => setKeyCreateOpen(true)} className="gap-2 shrink-0">
-            <Plus className="w-4 h-4" /> Nouvelle clé
+            <Plus className="w-4 h-4" /> {t("settingsApiWebhooks.keys.new")}
           </Button>
         </CardHeader>
         <CardContent>
           {apiKeysQuery.isLoading ? (
             <div className="flex items-center gap-2 py-8 text-muted-foreground">
-              <Loader2 className="w-4 h-4 animate-spin" /> Chargement…
+              <Loader2 className="w-4 h-4 animate-spin" /> {t("settingsApiWebhooks.loading")}
             </div>
           ) : apiKeys.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              Aucune clé API pour le moment.
+              {t("settingsApiWebhooks.keys.empty")}
             </p>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Nom</TableHead>
-                    <TableHead>Préfixe</TableHead>
-                    <TableHead>État</TableHead>
-                    <TableHead>Dernière utilisation</TableHead>
-                    <TableHead>Expiration</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>{t("settingsApiWebhooks.keys.colName")}</TableHead>
+                    <TableHead>{t("settingsApiWebhooks.keys.colPrefix")}</TableHead>
+                    <TableHead>{t("settingsApiWebhooks.keys.colState")}</TableHead>
+                    <TableHead>{t("settingsApiWebhooks.keys.colLastUse")}</TableHead>
+                    <TableHead>{t("settingsApiWebhooks.keys.colExpiration")}</TableHead>
+                    <TableHead className="text-right">{t("settingsApiWebhooks.keys.colActions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -451,19 +453,19 @@ export function TabApiWebhooks() {
                         <TableCell><code className="font-mono text-xs">{k.keyPrefix}…</code></TableCell>
                         <TableCell>
                           {revoked ? (
-                            <Badge variant="outline" className="text-red-700">Révoquée</Badge>
+                            <Badge variant="outline" className="text-red-700">{t("settingsApiWebhooks.keys.revoked")}</Badge>
                           ) : (
-                            <Badge variant="secondary" className="text-emerald-700">Active</Badge>
+                            <Badge variant="secondary" className="text-emerald-700">{t("settingsApiWebhooks.keys.active")}</Badge>
                           )}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">{fmtDate(k.lastUsedAt)}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{fmtDate(k.expiresAt)}</TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-1">
-                            <Button variant="ghost" size="icon" title="Révéler la clé" disabled={revoked || revealApiKey.isPending} onClick={() => doReveal(k)}>
+                            <Button variant="ghost" size="icon" title={t("settingsApiWebhooks.keys.reveal")} disabled={revoked || revealApiKey.isPending} onClick={() => doReveal(k)}>
                               <Eye className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" title="Révoquer" disabled={revoked} onClick={() => setRevokeTarget(k)}>
+                            <Button variant="ghost" size="icon" title={t("settingsApiWebhooks.keys.revoke")} disabled={revoked} onClick={() => setRevokeTarget(k)}>
                               <PowerOff className="w-4 h-4 text-red-600" />
                             </Button>
                           </div>
@@ -482,32 +484,32 @@ export function TabApiWebhooks() {
       <Dialog open={createOpen} onOpenChange={(o) => { setCreateOpen(o); if (!o) resetForm(); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Nouveau webhook</DialogTitle>
+            <DialogTitle>{t("settingsApiWebhooks.createDialog.title")}</DialogTitle>
             <DialogDescription>
-              Définissez l'URL de destination et les événements à recevoir.
+              {t("settingsApiWebhooks.createDialog.description")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="wh-url">URL de destination</Label>
-              <Input id="wh-url" placeholder="https://exemple.com/webhooks" value={formUrl} onChange={(e) => setFormUrl(e.target.value)} />
+              <Label htmlFor="wh-url">{t("settingsApiWebhooks.createDialog.urlLabel")}</Label>
+              <Input id="wh-url" placeholder={t("settingsApiWebhooks.createDialog.urlPlaceholder")} value={formUrl} onChange={(e) => setFormUrl(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="wh-desc">Description (optionnel)</Label>
-              <Textarea id="wh-desc" rows={2} placeholder="À quoi sert ce webhook ?" value={formDesc} onChange={(e) => setFormDesc(e.target.value)} />
+              <Label htmlFor="wh-desc">{t("settingsApiWebhooks.createDialog.descLabel")}</Label>
+              <Textarea id="wh-desc" rows={2} placeholder={t("settingsApiWebhooks.createDialog.descPlaceholder")} value={formDesc} onChange={(e) => setFormDesc(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Événements</Label>
+              <Label>{t("settingsApiWebhooks.createDialog.eventsLabel")}</Label>
               <label className="flex items-center gap-2 text-sm">
                 <Checkbox checked={formAllEvents} onCheckedChange={(v) => setFormAllEvents(!!v)} />
-                Tous les événements (joker <code className="font-mono">*</code>)
+                {t("settingsApiWebhooks.createDialog.allEventsPrefix")} <code className="font-mono">*</code>)
               </label>
               {!formAllEvents && (
                 <div className="rounded-md border p-3">
                   <div className="grid grid-cols-[1fr_repeat(3,minmax(0,auto))] items-center gap-x-3 gap-y-1.5 text-sm">
                     <span />
                     {EVENT_ACTIONS.map((a) => (
-                      <span key={a.key} className="text-center text-xs text-muted-foreground">{a.label}</span>
+                      <span key={a.key} className="text-center text-xs text-muted-foreground">{t(`settingsApiWebhooks.actions.${a.key}`)}</span>
                     ))}
                     {EVENT_RESOURCES.map((r) => (
                       <FragmentRow key={r.key} resource={r} selected={formEvents} onToggle={toggleEvent} />
@@ -518,9 +520,9 @@ export function TabApiWebhooks() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("settingsApiWebhooks.createDialog.cancel")}</Button>
             <Button onClick={submitCreate} disabled={createWebhook.isPending} className="gap-2">
-              {createWebhook.isPending && <Loader2 className="w-4 h-4 animate-spin" />} Créer
+              {createWebhook.isPending && <Loader2 className="w-4 h-4 animate-spin" />} {t("settingsApiWebhooks.createDialog.create")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -530,23 +532,23 @@ export function TabApiWebhooks() {
       <Dialog open={keyCreateOpen} onOpenChange={setKeyCreateOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Nouvelle clé API</DialogTitle>
-            <DialogDescription>La clé complète ne sera affichée qu'une seule fois.</DialogDescription>
+            <DialogTitle>{t("settingsApiWebhooks.keyDialog.title")}</DialogTitle>
+            <DialogDescription>{t("settingsApiWebhooks.keyDialog.description")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="key-name">Nom</Label>
-              <Input id="key-name" placeholder="Ex : Intégration comptabilité" value={keyName} onChange={(e) => setKeyName(e.target.value)} />
+              <Label htmlFor="key-name">{t("settingsApiWebhooks.keyDialog.nameLabel")}</Label>
+              <Input id="key-name" placeholder={t("settingsApiWebhooks.keyDialog.namePlaceholder")} value={keyName} onChange={(e) => setKeyName(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="key-exp">Expiration (optionnel)</Label>
+              <Label htmlFor="key-exp">{t("settingsApiWebhooks.keyDialog.expiryLabel")}</Label>
               <Input id="key-exp" type="date" value={keyExpiry} onChange={(e) => setKeyExpiry(e.target.value)} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setKeyCreateOpen(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setKeyCreateOpen(false)}>{t("settingsApiWebhooks.keyDialog.cancel")}</Button>
             <Button onClick={submitCreateKey} disabled={createApiKey.isPending} className="gap-2">
-              {createApiKey.isPending && <Loader2 className="w-4 h-4 animate-spin" />} Créer
+              {createApiKey.isPending && <Loader2 className="w-4 h-4 animate-spin" />} {t("settingsApiWebhooks.keyDialog.create")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -558,9 +560,9 @@ export function TabApiWebhooks() {
           <DialogHeader>
             <DialogTitle>{secretReveal?.title}</DialogTitle>
           </DialogHeader>
-          {secretReveal && <SecretReveal label="Valeur secrète" secret={secretReveal.secret} />}
+          {secretReveal && <SecretReveal label={t("settingsApiWebhooks.secretReveal.label")} secret={secretReveal.secret} />}
           <DialogFooter>
-            <Button onClick={() => setSecretReveal(null)}>J'ai copié, fermer</Button>
+            <Button onClick={() => setSecretReveal(null)}>{t("settingsApiWebhooks.secretDialog.close")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -569,7 +571,7 @@ export function TabApiWebhooks() {
       <Dialog open={!!deliveriesFor} onOpenChange={(o) => { if (!o) setDeliveriesFor(null); }}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Historique des livraisons</DialogTitle>
+            <DialogTitle>{t("settingsApiWebhooks.deliveries.title")}</DialogTitle>
             <DialogDescription className="font-mono text-xs break-all">{deliveriesFor?.url}</DialogDescription>
           </DialogHeader>
           {deliveriesFor && <DeliveriesTable endpointId={deliveriesFor.id} />}
@@ -580,15 +582,14 @@ export function TabApiWebhooks() {
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer ce webhook ?</AlertDialogTitle>
+            <AlertDialogTitle>{t("settingsApiWebhooks.confirmDelete.title")}</AlertDialogTitle>
             <AlertDialogDescription>
-              L'endpoint <span className="font-mono">{deleteTarget?.url}</span> ne recevra plus aucun événement.
-              Cette action est irréversible.
+              {t("settingsApiWebhooks.confirmDelete.descPrefix")} <span className="font-mono">{deleteTarget?.url}</span> {t("settingsApiWebhooks.confirmDelete.descSuffix")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={doDelete} className="bg-red-600 hover:bg-red-700">Supprimer</AlertDialogAction>
+            <AlertDialogCancel>{t("settingsApiWebhooks.confirmDelete.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={doDelete} className="bg-red-600 hover:bg-red-700">{t("settingsApiWebhooks.confirmDelete.confirm")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -596,14 +597,14 @@ export function TabApiWebhooks() {
       <AlertDialog open={!!revokeTarget} onOpenChange={(o) => { if (!o) setRevokeTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Révoquer cette clé API ?</AlertDialogTitle>
+            <AlertDialogTitle>{t("settingsApiWebhooks.confirmRevoke.title")}</AlertDialogTitle>
             <AlertDialogDescription>
-              La clé « {revokeTarget?.name} » cessera immédiatement de fonctionner. Cette action est irréversible.
+              {t("settingsApiWebhooks.confirmRevoke.desc", { name: revokeTarget?.name ?? "" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={doRevoke} className="bg-red-600 hover:bg-red-700">Révoquer</AlertDialogAction>
+            <AlertDialogCancel>{t("settingsApiWebhooks.confirmRevoke.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={doRevoke} className="bg-red-600 hover:bg-red-700">{t("settingsApiWebhooks.confirmRevoke.confirm")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -619,9 +620,10 @@ function FragmentRow({
   selected: Set<string>;
   onToggle: (name: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <>
-      <span className="text-sm">{resource.label}</span>
+      <span className="text-sm">{t(`settingsApiWebhooks.resources.${resource.key}`)}</span>
       {EVENT_ACTIONS.map((a) => {
         const name = `${resource.key}.${a.key}`;
         return (
@@ -636,6 +638,7 @@ function FragmentRow({
 
 /** Tableau des livraisons d'un endpoint (chargé à la demande). */
 function DeliveriesTable({ endpointId }: { endpointId: number }) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const qc = useQueryClient();
   const { data, isLoading } = useListWebhookDeliveries(endpointId);
@@ -650,10 +653,10 @@ function DeliveriesTable({ endpointId }: { endpointId: number }) {
           // dernier statut de l'endpoint changent après la nouvelle tentative).
           qc.invalidateQueries({ queryKey: getListWebhookDeliveriesQueryKey(endpointId) });
           qc.invalidateQueries({ queryKey: getListWebhooksQueryKey() });
-          toast({ title: "Livraison reprogrammée", description: "Une nouvelle tentative va être effectuée dans la minute." });
+          toast({ title: t("settingsApiWebhooks.toast.deliveryRescheduled"), description: t("settingsApiWebhooks.toast.deliveryRescheduledDesc") });
         },
         onError: (err) =>
-          toast({ title: "Échec", description: errMsg(err, "Impossible de rejouer la livraison."), variant: "destructive" }),
+          toast({ title: t("settingsApiWebhooks.toast.failure"), description: errMsg(err, t("settingsApiWebhooks.toast.retryFailed")), variant: "destructive" }),
       },
     );
   }
@@ -661,25 +664,25 @@ function DeliveriesTable({ endpointId }: { endpointId: number }) {
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 py-8 text-muted-foreground">
-        <Loader2 className="w-4 h-4 animate-spin" /> Chargement…
+        <Loader2 className="w-4 h-4 animate-spin" /> {t("settingsApiWebhooks.loading")}
       </div>
     );
   }
   const deliveries = data ?? [];
   if (deliveries.length === 0) {
-    return <p className="py-8 text-center text-sm text-muted-foreground">Aucune livraison enregistrée.</p>;
+    return <p className="py-8 text-center text-sm text-muted-foreground">{t("settingsApiWebhooks.deliveries.empty")}</p>;
   }
   return (
     <div className="max-h-[60vh] overflow-auto">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Événement</TableHead>
-            <TableHead>Statut</TableHead>
-            <TableHead>Tentatives</TableHead>
-            <TableHead>HTTP</TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
+            <TableHead>{t("settingsApiWebhooks.deliveries.colEvent")}</TableHead>
+            <TableHead>{t("settingsApiWebhooks.deliveries.colStatus")}</TableHead>
+            <TableHead>{t("settingsApiWebhooks.deliveries.colAttempts")}</TableHead>
+            <TableHead>{t("settingsApiWebhooks.deliveries.colHttp")}</TableHead>
+            <TableHead>{t("settingsApiWebhooks.deliveries.colDate")}</TableHead>
+            <TableHead className="text-right">{t("settingsApiWebhooks.deliveries.colActions")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -709,7 +712,7 @@ function DeliveriesTable({ endpointId }: { endpointId: number }) {
                     <Button
                       variant="ghost"
                       size="icon"
-                      title="Rejouer cette livraison"
+                      title={t("settingsApiWebhooks.deliveries.retry")}
                       disabled={retryDelivery.isPending}
                       onClick={() => doRetry(d.id)}
                     >

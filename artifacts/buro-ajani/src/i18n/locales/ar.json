@@ -2336,5 +2336,140 @@
       "agentQueueLabel": "قائمة انتظار الموافقة",
       "agentQueueDesc": "شارة مقترحات الوكيل المعلّقة"
     }
+  },
+  "settingsApiWebhooks": {
+    "webhooks": {
+      "title": "Webhooks الصادرة",
+      "description": "استقبل أحداثك (جهات الاتصال، المكالمات، المهام…) في الوقت الفعلي على عنوان URL خارجي. يُوقَّع كل إرسال (HMAC-SHA256) بالمفتاح السري المعروض عند الإنشاء.",
+      "new": "webhook جديد",
+      "empty": "لا يوجد webhook مُهيّأ حاليًا.",
+      "colUrl": "URL",
+      "colEvents": "الأحداث",
+      "colState": "الحالة",
+      "colLastDelivery": "آخر تسليم",
+      "colActions": "الإجراءات",
+      "historyTitle": "سجل التسليمات",
+      "regenSecret": "إعادة توليد المفتاح السري",
+      "delete": "حذف"
+    },
+    "keys": {
+      "title": "مفاتيح API",
+      "description": "قم بمصادقة تكاملاتك الخارجية. يُعرض المفتاح الكامل عند الإنشاء فقط — احتفظ به في مكان آمن.",
+      "new": "مفتاح جديد",
+      "empty": "لا يوجد مفتاح API حاليًا.",
+      "colName": "الاسم",
+      "colPrefix": "البادئة",
+      "colState": "الحالة",
+      "colLastUse": "آخر استخدام",
+      "colExpiration": "انتهاء الصلاحية",
+      "colActions": "الإجراءات",
+      "revoked": "مُلغى",
+      "active": "نشط",
+      "reveal": "إظهار المفتاح",
+      "revoke": "إلغاء"
+    },
+    "copy": "نسخ",
+    "secretReveal": {
+      "text": "انسخ هذه القيمة الآن:",
+      "strong": "لن تُعرض مرة أخرى أبدًا",
+      "label": "القيمة السرية"
+    },
+    "actions": {
+      "created": "مُنشأ",
+      "updated": "مُعدّل",
+      "deleted": "محذوف"
+    },
+    "resources": {
+      "contact": "جهات الاتصال",
+      "call": "المكالمات",
+      "message": "الرسائل",
+      "task": "المهام",
+      "calendar": "التقويم",
+      "note": "الملاحظات",
+      "projet": "المشاريع",
+      "reminder": "التذكيرات",
+      "checkin": "تسجيلات الحضور",
+      "whatsapp": "WhatsApp"
+    },
+    "createDialog": {
+      "title": "webhook جديد",
+      "description": "حدّد عنوان URL الوجهة والأحداث المراد استقبالها.",
+      "urlLabel": "عنوان URL الوجهة",
+      "urlPlaceholder": "https://example.com/webhooks",
+      "descLabel": "الوصف (اختياري)",
+      "descPlaceholder": "ما فائدة هذا الـ webhook؟",
+      "eventsLabel": "الأحداث",
+      "allEventsPrefix": "كل الأحداث (الرمز البديل",
+      "cancel": "إلغاء",
+      "create": "إنشاء"
+    },
+    "keyDialog": {
+      "title": "مفتاح API جديد",
+      "description": "سيُعرض المفتاح الكامل مرة واحدة فقط.",
+      "nameLabel": "الاسم",
+      "namePlaceholder": "مثال: تكامل المحاسبة",
+      "expiryLabel": "انتهاء الصلاحية (اختياري)",
+      "cancel": "إلغاء",
+      "create": "إنشاء"
+    },
+    "secretDialog": {
+      "close": "لقد نسختُه، إغلاق"
+    },
+    "deliveries": {
+      "title": "سجل التسليمات",
+      "empty": "لا يوجد تسليم مسجّل.",
+      "colEvent": "الحدث",
+      "colStatus": "الحالة",
+      "colAttempts": "المحاولات",
+      "colHttp": "HTTP",
+      "colDate": "التاريخ",
+      "colActions": "الإجراءات",
+      "retry": "إعادة محاولة هذا التسليم"
+    },
+    "confirmDelete": {
+      "title": "حذف هذا الـ webhook؟",
+      "descPrefix": "لن تستقبل النقطة الطرفية",
+      "descSuffix": "أي حدث بعد الآن. هذا الإجراء لا رجعة فيه.",
+      "cancel": "إلغاء",
+      "confirm": "حذف"
+    },
+    "confirmRevoke": {
+      "title": "إلغاء مفتاح API هذا؟",
+      "desc": "سيتوقف المفتاح « {{name}} » عن العمل فورًا. هذا الإجراء لا رجعة فيه.",
+      "cancel": "إلغاء",
+      "confirm": "إلغاء"
+    },
+    "loading": "جارٍ التحميل…",
+    "toast": {
+      "urlRequired": "URL مطلوب",
+      "urlRequiredDesc": "حدّد عنوان URL الوجهة للـ webhook.",
+      "noEvent": "لا يوجد حدث",
+      "noEventDesc": "اختر حدثًا واحدًا على الأقل للإرسال.",
+      "secretTitle": "المفتاح السري لتوقيع الـ webhook",
+      "webhookCreated": "تم إنشاء الـ webhook",
+      "createFailed": "فشل الإنشاء",
+      "createFailedDesc": "تعذّر إنشاء الـ webhook.",
+      "webhookDisabled": "تم تعطيل الـ webhook",
+      "webhookEnabled": "تم إعادة تفعيل الـ webhook",
+      "failureReset": "تمت إعادة تعيين عدّاد الإخفاقات.",
+      "failure": "فشل",
+      "updateFailed": "تعذّر التحديث.",
+      "newSecretTitle": "مفتاح توقيع سري جديد",
+      "rotateFailed": "تعذّرت إعادة التوليد.",
+      "webhookDeleted": "تم حذف الـ webhook",
+      "deleteFailed": "تعذّر الحذف.",
+      "nameRequired": "الاسم مطلوب",
+      "nameRequiredDesc": "امنح مفتاح API اسمًا.",
+      "keyApiTitle": "مفتاح API « {{name}} »",
+      "keyCreated": "تم إنشاء مفتاح API",
+      "keyCreateFailedDesc": "تعذّر إنشاء المفتاح.",
+      "revealFailed": "تعذّر الإظهار",
+      "revealFailedDesc": "تم رفض الوصول أو المفتاح غير موجود.",
+      "keyRevoked": "تم إلغاء المفتاح",
+      "revokeFailed": "تعذّر الإلغاء.",
+      "deliveryRescheduled": "تمت إعادة جدولة التسليم",
+      "deliveryRescheduledDesc": "ستُجرى محاولة جديدة خلال دقيقة.",
+      "retryFailed": "تعذّرت إعادة التسليم."
+    }
   }
 }
