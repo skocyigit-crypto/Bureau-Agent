@@ -297,5 +297,365 @@
       "contactsForecast": "Prognostizierte Kontakte",
       "revenueForecast": "Prognostizierter Umsatz"
     }
+  },
+  "contacts": {
+    "title": "Kontaktverzeichnis",
+    "subtitle": "Verwalten Sie Ihre professionelle Datenbank.",
+    "bannerTitle": "Professionelles Verzeichnis",
+    "bannerSubtitle": "Zentrale Verwaltung Ihrer Kontakte, Kunden und Partner.",
+    "bannerAlt": "Empfang und Rezeption",
+    "changeCategory": "Kategorie ändern",
+    "categoryBtn": "Kategorie ({{count}})",
+    "deleteBtn": "Löschen ({{count}})",
+    "exportCsv": "CSV exportieren",
+    "importCsv": "CSV importieren",
+    "print": "Drucken",
+    "newContact": "Neuer Kontakt",
+    "verifyAi": "Mit KI prüfen",
+    "searchPlaceholder": "Nach Name, Firma, E-Mail suchen...",
+    "searchAria": "Kontakte durchsuchen",
+    "allCategories": "Alle Kategorien",
+    "loadError": "Kontakte können nicht geladen werden",
+    "aiTitle": "KI-Empfehlungen - Kontakte",
+    "pagination": "{{total}} Kontakt(e) - Seite {{page}} von {{pages}}",
+    "callsCount": "{{count}} Anruf(e)",
+    "dialog": {
+      "editTitle": "Kontakt bearbeiten",
+      "createTitle": "Neuer Kontakt",
+      "editDesc": "Bearbeiten Sie die Kontaktinformationen.",
+      "createDesc": "Eine Person zum Verzeichnis hinzufügen.",
+      "update": "Aktualisieren",
+      "create": "Kontakt erstellen"
+    },
+    "form": {
+      "firstName": "Vorname",
+      "lastName": "Nachname",
+      "company": "Firma",
+      "category": "Kategorie",
+      "phone": "Telefon",
+      "email": "E-Mail"
+    },
+    "categories": {
+      "client": "Kunde",
+      "prospect": "Interessent",
+      "fournisseur": "Lieferant",
+      "partenaire": "Partner",
+      "autre": "Sonstige"
+    },
+    "columns": {
+      "contact": "Kontakt",
+      "company": "Firma",
+      "coordinates": "Kontaktdaten",
+      "calls": "Anrufe",
+      "category": "Kategorie",
+      "actions": "Aktionen"
+    },
+    "empty": {
+      "filtered": "Kein Kontakt entspricht Ihrer Suche.",
+      "title": "Noch keine Kontakte",
+      "description": "Erstellen Sie Ihren ersten Kontakt oder importieren Sie Ihr bestehendes Adressbuch, um mit der Verwaltung Ihrer Kunden und Interessenten zu beginnen.",
+      "descriptionGrid": "Erstellen Sie Ihren ersten Kontakt oder importieren Sie Ihr bestehendes Adressbuch, um zu beginnen.",
+      "action": "Meinen ersten Kontakt erstellen",
+      "tip": "Tipp: Importieren Sie eine CSV-Datei, um mehrere Kontakte auf einmal hinzuzufügen."
+    },
+    "actions": {
+      "viewProfile": "Profil anzeigen",
+      "edit": "Bearbeiten",
+      "duplicate": "Duplizieren",
+      "call": "Anrufen",
+      "sendEmail": "E-Mail senden",
+      "createProject": "Projekt erstellen",
+      "delete": "Löschen"
+    },
+    "pager": {
+      "first": "Erste Seite",
+      "prev": "Vorherige Seite",
+      "next": "Nächste Seite",
+      "last": "Letzte Seite"
+    },
+    "confirm": {
+      "bulkDelete": "{{count}} Kontakt(e) löschen?",
+      "deleteOne": "{{name}} löschen?"
+    },
+    "toast": {
+      "bulkDeleted": "{{count}} Kontakt(e) gelöscht",
+      "bulkDeleteError": "Fehler beim Löschen",
+      "categoryUpdated": "{{count}} Kontakt(e) aktualisiert → {{category}}",
+      "error": "Fehler",
+      "duplicated": "Kontakt dupliziert",
+      "duplicateError": "Duplizieren nicht möglich",
+      "updated": "Kontakt aktualisiert",
+      "updateError": "Kontakt kann nicht bearbeitet werden",
+      "created": "Kontakt erfolgreich erstellt",
+      "createError": "Kontakt kann nicht erstellt werden",
+      "projectCreated": "Projekt erstellt",
+      "deleted": "Kontakt gelöscht",
+      "deleteError": "Löschen nicht möglich"
+    },
+    "projectDefaultName": "Kontakt",
+    "projectTitle": "Projekt - {{name}}",
+    "projectNotes": "Erstellt aus dem Kontakt {{name}}"
+  },
+  "tasks": {
+    "title": "Aufgabenverwaltung",
+    "subtitle": "Organisieren und verfolgen Sie die im Büro auszuführenden Aktionen.",
+    "bannerTitle": "Intelligente Planung",
+    "bannerSubtitle": "Organisation und Verfolgung von Aktionen mit automatischer Priorisierung durch die KI.",
+    "bannerAlt": "Aufgabenverwaltung",
+    "newTask": "Neue Aufgabe",
+    "print": "Drucken",
+    "verifyAi": "Mit KI prüfen",
+    "completeBtn": "Abschließen ({{count}})",
+    "priorityBtn": "Priorität ({{count}})",
+    "assignBtn": "Zuweisen ({{count}})",
+    "statusBtn": "Status ({{count}})",
+    "deleteBtn": "Löschen ({{count}})",
+    "changePriority": "Priorität ändern",
+    "changeStatus": "Status ändern",
+    "assignPlaceholder": "Name des Mitarbeiters...",
+    "searchPlaceholder": "Aufgabe suchen...",
+    "loadError": "Aufgaben können nicht geladen werden",
+    "aiTitle": "KI-Empfehlungen - Aufgaben",
+    "pagination": "{{total}} Aufgabe(n) - Seite {{page}} von {{pages}}",
+    "notAssigned": "Nicht zugewiesen",
+    "noDueDate": "Keine",
+    "filters": {
+      "status": "Status",
+      "priority": "Priorität",
+      "allStatuses": "Alle Status",
+      "allPriorities": "Alle Prioritäten"
+    },
+    "status": {
+      "en_attente": "Ausstehend",
+      "en_cours": "In Bearbeitung",
+      "termine": "Abgeschlossen",
+      "annule": "Abgebrochen"
+    },
+    "statusBulk": {
+      "todo": "Zu erledigen",
+      "en_cours": "In Bearbeitung",
+      "termine": "Abgeschlossen",
+      "annule": "Abgebrochen"
+    },
+    "priority": {
+      "haute": "Hoch",
+      "moyenne": "Mittel",
+      "basse": "Niedrig"
+    },
+    "priorityEmoji": {
+      "haute": "🟠 Hoch",
+      "moyenne": "🟡 Mittel",
+      "basse": "🟢 Niedrig"
+    },
+    "dialog": {
+      "editTitle": "Aufgabe bearbeiten",
+      "createTitle": "Neue Aufgabe",
+      "desc": "Details der auszuführenden Aktion.",
+      "update": "Aktualisieren",
+      "create": "Erstellen"
+    },
+    "form": {
+      "title": "Titel",
+      "description": "Beschreibung",
+      "status": "Status",
+      "priority": "Priorität",
+      "dueDate": "Fälligkeitsdatum",
+      "assignedTo": "Zugewiesen an",
+      "assignedToPlaceholder": "Name des Mitarbeiters",
+      "relatedContact": "Zugehöriger Kontakt (Optional)",
+      "chooseContact": "Einen Kontakt wählen...",
+      "none": "Keiner",
+      "recurring": "Wiederkehrende Aufgabe",
+      "recurringHint": "Diese Aufgabe wiederholt sich automatisch",
+      "frequency": "Häufigkeit",
+      "choose": "Wählen…",
+      "recurrenceEnd": "Ende der Wiederholung"
+    },
+    "frequency": {
+      "quotidien": "Täglich",
+      "hebdomadaire": "Wöchentlich",
+      "bihebdomadaire": "Zweiwöchentlich",
+      "mensuel": "Monatlich",
+      "trimestriel": "Vierteljährlich",
+      "annuel": "Jährlich"
+    },
+    "meta": {
+      "createdBy": "Erstellt von",
+      "updatedBy": "Geändert von"
+    },
+    "columns": {
+      "task": "Aufgabe",
+      "assignedTo": "Zugewiesen an",
+      "dueDate": "Fällig",
+      "status": "Status",
+      "priority": "Priorität",
+      "actions": "Aktionen"
+    },
+    "kanban": {
+      "recurring": "Wiederkehrend"
+    },
+    "empty": {
+      "filtered": "Keine Aufgabe entspricht Ihren Filtern.",
+      "title": "Noch keine Aufgaben",
+      "description": "Erstellen Sie Ihre erste Aufgabe, um Ihre Arbeit zu organisieren. Sie können sie einem Mitarbeiter zuweisen, ein Fälligkeitsdatum und eine Prioritätsstufe festlegen.",
+      "action": "Meine erste Aufgabe erstellen",
+      "tip": "Tipp: Verwenden Sie den KI-Kommandanten, um mehrere Aufgaben auf einmal in natürlicher Sprache zu erstellen."
+    },
+    "rowActions": {
+      "edit": "Bearbeiten",
+      "duplicate": "Duplizieren",
+      "createProject": "Projekt erstellen",
+      "markDone": "Als abgeschlossen markieren",
+      "delete": "Löschen"
+    },
+    "confirm": {
+      "bulkDelete": "{{count}} Aufgabe(n) löschen?",
+      "deleteOne": "Diese Aufgabe löschen?"
+    },
+    "toast": {
+      "updated": "Aufgabe aktualisiert",
+      "updateError": "Aufgabe kann nicht bearbeitet werden",
+      "created": "Aufgabe erstellt",
+      "createError": "Aufgabe kann nicht erstellt werden",
+      "statusUpdated": "Status aktualisiert",
+      "statusError": "Status kann nicht geändert werden",
+      "duplicated": "Aufgabe dupliziert",
+      "error": "Fehler",
+      "networkError": "Netzwerkfehler",
+      "duplicateFailed": "Aufgabe kann nicht dupliziert werden.",
+      "bulkDeleted": "{{count}} Aufgabe(n) gelöscht",
+      "bulkDeleteError": "Fehler beim Löschen",
+      "deleteFailed": "Löschen fehlgeschlagen.",
+      "bulkCompleted": "{{count}} Aufgabe(n) als abgeschlossen markiert",
+      "updateFailed": "Aktualisierung fehlgeschlagen.",
+      "bulkPriority": "{{count}} Aufgabe(n) → Priorität {{priority}}",
+      "bulkStatus": "{{count}} Aufgabe(n) aktualisiert",
+      "bulkAssigned": "{{count}} Aufgabe(n) {{name}} zugewiesen",
+      "assignFailed": "Zuweisung fehlgeschlagen.",
+      "projectCreated": "Projekt erstellt",
+      "deleted": "Aufgabe gelöscht",
+      "deleteError": "Löschen nicht möglich"
+    },
+    "projectNotes": "Erstellt aus Aufgabe #{{id}}"
+  },
+  "calls": {
+    "title": "Anrufprotokoll",
+    "subtitle": "Verwalten und verfolgen Sie alle Telefonkommunikationen.",
+    "bannerTitle": "Kommunikationszentrale",
+    "bannerSubtitle": "Echtzeitverfolgung aller ein- und ausgehenden Kommunikationen.",
+    "bannerAlt": "Callcenter",
+    "newCall": "Neuer Anruf",
+    "exportCsv": "CSV exportieren",
+    "print": "Drucken",
+    "verifyAi": "Mit KI prüfen",
+    "statusBtn": "Status ({{count}})",
+    "deleteBtn": "Löschen ({{count}})",
+    "changeStatus": "Status ändern",
+    "searchPlaceholder": "Nach Name oder Nummer suchen...",
+    "searchAria": "Anrufe durchsuchen",
+    "clear": "Löschen",
+    "dateSeparator": "bis",
+    "loadError": "Anrufe können nicht geladen werden",
+    "aiTitle": "KI-Empfehlungen - Anrufe",
+    "pagination": "{{total}} Ergebnis(se) - Seite {{page}} von {{pages}}",
+    "unknown": "Unbekannt",
+    "openMenu": "Menü öffnen",
+    "filters": {
+      "status": "Status",
+      "direction": "Richtung",
+      "allStatuses": "Alle Status",
+      "allDirections": "Alle Richtungen"
+    },
+    "status": {
+      "repondu": "Beantwortet",
+      "manque": "Verpasst",
+      "messagerie": "Mailbox",
+      "en_cours": "Laufend"
+    },
+    "direction": {
+      "entrant": "Eingehend",
+      "sortant": "Ausgehend"
+    },
+    "sentiment": {
+      "tres_positif": "Sehr positiv",
+      "positif": "Positiv",
+      "neutre": "Neutral",
+      "negatif": "Negativ",
+      "tres_negatif": "Sehr negativ",
+      "undefined": "Nicht definiert"
+    },
+    "dialog": {
+      "editTitle": "Anruf bearbeiten",
+      "createTitle": "Anruf erfassen",
+      "editDesc": "Bearbeiten Sie die Anrufinformationen.",
+      "createDesc": "Geben Sie die Details der Kommunikation ein.",
+      "update": "Aktualisieren",
+      "create": "Anruf speichern"
+    },
+    "form": {
+      "direction": "Richtung",
+      "status": "Status",
+      "phoneNumber": "Telefonnummer",
+      "phonePlaceholder": "+33 6...",
+      "contact": "Mit einem Kontakt verknüpfen (Optional)",
+      "chooseContact": "Einen Kontakt wählen...",
+      "noneUnknown": "Keiner (Unbekannte Nummer)",
+      "duration": "Dauer (Sekunden)",
+      "sentiment": "Stimmung"
+    },
+    "columns": {
+      "contactNumber": "Kontakt & Nummer",
+      "dateTime": "Datum & Uhrzeit",
+      "status": "Status",
+      "duration": "Dauer",
+      "sentiment": "Stimmung",
+      "actions": "Aktionen"
+    },
+    "empty": {
+      "filtered": "Kein Anruf entspricht Ihren Filtern.",
+      "title": "Noch keine Anrufe",
+      "description": "Ihre Telefonanrufe erscheinen hier, sobald Sie Ihre Twilio-Nummer konfigurieren. Jeder Anruf wird automatisch aufgezeichnet und von der KI transkribiert.",
+      "action": "Telefonie konfigurieren",
+      "tip": "Tipp: Auch ohne Twilio können Sie Ihre Anrufe manuell erfassen, um Ihre Geschäftstätigkeit zu verfolgen."
+    },
+    "rowActions": {
+      "viewDetails": "Details anzeigen",
+      "edit": "Bearbeiten",
+      "goToContact": "Zum Kontakt",
+      "markAnswered": "Als beantwortet markieren",
+      "markVoicemail": "Als Mailbox markieren",
+      "duplicate": "Duplizieren",
+      "createProject": "Projekt erstellen",
+      "delete": "Löschen"
+    },
+    "pager": {
+      "first": "Erste Seite",
+      "prev": "Vorherige Seite",
+      "next": "Nächste Seite",
+      "last": "Letzte Seite"
+    },
+    "confirm": {
+      "bulkDelete": "{{count}} Anruf(e) löschen?",
+      "deleteOne": "Diesen Anruf löschen?"
+    },
+    "toast": {
+      "statusUpdated": "Status aktualisiert",
+      "statusError": "Status des Anrufs kann nicht geändert werden",
+      "bulkStatus": "{{count}} Anruf(e) aktualisiert",
+      "bulkStatusError": "Aktualisierung nicht möglich",
+      "bulkDeleted": "{{count}} Anruf(e) gelöscht",
+      "bulkDeleteError": "Fehler beim Löschen",
+      "updated": "Anruf aktualisiert",
+      "updateError": "Anruf kann nicht bearbeitet werden",
+      "created": "Anruf gespeichert",
+      "createError": "Anruf kann nicht gespeichert werden",
+      "error": "Fehler",
+      "duplicated": "Anruf dupliziert",
+      "projectCreated": "Projekt erstellt",
+      "deleted": "Anruf gelöscht"
+    },
+    "projectTitleWith": "Projekt - {{name}}",
+    "projectTitleDefault": "Projekt aus Anruf",
+    "projectNotes": "Erstellt aus dem Anruf vom {{date}}"
   }
 }

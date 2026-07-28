@@ -29,6 +29,7 @@ import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import { AiValidationFeedback } from "@/components/ai-validation-feedback";
 import { useAiValidation } from "@/hooks/use-ai-validation";
 import { QueryErrorAlert } from "@/components/safe-component";
+import { useTranslation } from "@/i18n";
 
 const PAGE_SIZE = 15;
 
@@ -43,6 +44,7 @@ const formSchema = z.object({
 });
 
 export default function Calls() {
+  const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -140,9 +142,9 @@ export default function Calls() {
     updateCall.mutate({ id, data: { status } }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() });
-        toast({ title: "Statut mis à jour" });
+        toast({ title: t("calls.toast.statusUpdated") });
       },
-      onError: () => toast({ title: "Erreur", description: "Impossible de changer le statut de l'appel", variant: "destructive" }),
+      onError: () => toast({ title: t("calls.toast.error"), description: t("calls.toast.statusError"), variant: "destructive" }),
     });
   };
 
@@ -168,22 +170,22 @@ export default function Calls() {
     const ids = Array.from(selectedIds);
     const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
     const res = await fetch(`${BASE}/api/bulk/calls/status`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids, status }) });
-    if (res.ok) { toast({ title: `${ids.length} appel(s) mis à jour` }); queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() }); setSelectedIds(new Set()); }
-    else toast({ title: "Erreur", description: "Impossible de mettre à jour", variant: "destructive" });
+    if (res.ok) { toast({ title: t("calls.toast.bulkStatus", { count: ids.length }) }); queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() }); setSelectedIds(new Set()); }
+    else toast({ title: t("calls.toast.error"), description: t("calls.toast.bulkStatusError"), variant: "destructive" });
   };
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
-    if (!(await confirmAction({ title: `Supprimer ${selectedIds.size} appel(s) ?`, confirmLabel: "Supprimer", destructive: true }))) return;
+    if (!(await confirmAction({ title: t("calls.confirm.bulkDelete", { count: selectedIds.size }), confirmLabel: t("common.delete"), destructive: true }))) return;
     const ids = Array.from(selectedIds);
     const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
     const res = await fetch(`${BASE}/api/bulk/calls/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
     setSelectedIds(new Set());
     queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() });
     if (res.ok) {
-      toast({ title: `${ids.length} appel(s) supprime(s)` });
+      toast({ title: t("calls.toast.bulkDeleted", { count: ids.length }) });
     } else {
-      toast({ title: "Erreur lors de la suppression", variant: "destructive" });
+      toast({ title: t("calls.toast.bulkDeleteError"), variant: "destructive" });
     }
   };
 
@@ -213,25 +215,25 @@ export default function Calls() {
     if (editingCall) {
       updateCall.mutate({ id: editingCall.id, data: values }, {
         onSuccess: () => {
-          toast({ title: "Appel mis à jour" });
+          toast({ title: t("calls.toast.updated") });
           setIsDialogOpen(false);
           setEditingCall(null);
           form.reset();
           queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() });
         },
-        onError: () => toast({ title: "Erreur", description: "Impossible de modifier l'appel", variant: "destructive" }),
+        onError: () => toast({ title: t("calls.toast.error"), description: t("calls.toast.updateError"), variant: "destructive" }),
       });
     } else {
       createCall.mutate({ data: values }, {
         onSuccess: (newCall) => {
-          toast({ title: "Appel enregistre" });
+          toast({ title: t("calls.toast.created") });
           setIsDialogOpen(false);
           form.reset();
           queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() });
           setLocation(`/appels/${newCall.id}`);
         },
         onError: () => {
-          toast({ title: "Erreur", description: "Impossible d'enregistrer l'appel", variant: "destructive" });
+          toast({ title: t("calls.toast.error"), description: t("calls.toast.createError"), variant: "destructive" });
         }
       });
     }
@@ -239,10 +241,10 @@ export default function Calls() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'repondu': return <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border-emerald-500/20"><Check className="w-3 h-3 mr-1" /> Repondu</Badge>;
-      case 'manque': return <Badge variant="secondary" className="bg-destructive/10 text-destructive hover:bg-destructive/20 border-destructive/20"><PhoneMissed className="w-3 h-3 mr-1" /> Manque</Badge>;
-      case 'messagerie': return <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border-amber-500/20"><Voicemail className="w-3 h-3 mr-1" /> Messagerie</Badge>;
-      case 'en_cours': return <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 border-blue-500/20"><Clock className="w-3 h-3 mr-1" /> En cours</Badge>;
+      case 'repondu': return <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border-emerald-500/20"><Check className="w-3 h-3 mr-1" /> {t("calls.status.repondu")}</Badge>;
+      case 'manque': return <Badge variant="secondary" className="bg-destructive/10 text-destructive hover:bg-destructive/20 border-destructive/20"><PhoneMissed className="w-3 h-3 mr-1" /> {t("calls.status.manque")}</Badge>;
+      case 'messagerie': return <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border-amber-500/20"><Voicemail className="w-3 h-3 mr-1" /> {t("calls.status.messagerie")}</Badge>;
+      case 'en_cours': return <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 border-blue-500/20"><Clock className="w-3 h-3 mr-1" /> {t("calls.status.en_cours")}</Badge>;
       default: return <Badge variant="outline">{status}</Badge>;
     }
   };
@@ -257,11 +259,11 @@ export default function Calls() {
 
   const getSentimentBadge = (sentiment?: string | null) => {
     switch (sentiment) {
-      case 'tres_positif': return <Badge variant="outline" className="bg-emerald-600/10 text-emerald-700 border-emerald-600/30">Tres positif</Badge>;
-      case 'positif': return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">Positif</Badge>;
-      case 'negatif': return <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">Negatif</Badge>;
-      case 'tres_negatif': return <Badge variant="outline" className="bg-red-700/10 text-red-700 border-red-700/30">Tres negatif</Badge>;
-      case 'neutre': return <Badge variant="outline" className="bg-muted text-muted-foreground border-muted-foreground/20">Neutre</Badge>;
+      case 'tres_positif': return <Badge variant="outline" className="bg-emerald-600/10 text-emerald-700 border-emerald-600/30">{t("calls.sentiment.tres_positif")}</Badge>;
+      case 'positif': return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">{t("calls.sentiment.positif")}</Badge>;
+      case 'negatif': return <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">{t("calls.sentiment.negatif")}</Badge>;
+      case 'tres_negatif': return <Badge variant="outline" className="bg-red-700/10 text-red-700 border-red-700/30">{t("calls.sentiment.tres_negatif")}</Badge>;
+      case 'neutre': return <Badge variant="outline" className="bg-muted text-muted-foreground border-muted-foreground/20">{t("calls.sentiment.neutre")}</Badge>;
       default: return null;
     }
   };
@@ -277,8 +279,8 @@ export default function Calls() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={Phone} variant="blue" size="md" /> Journal des Appels</h1>
-          <p className="text-muted-foreground mt-1">Gerez et suivez toutes les communications telephoniques.</p>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={Phone} variant="blue" size="md" /> {t("calls.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("calls.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           {selectedIds.size > 0 && (
@@ -287,54 +289,54 @@ export default function Calls() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
                     <Check className="w-4 h-4 mr-2" />
-                    Statut ({selectedIds.size})
+                    {t("calls.statusBtn", { count: selectedIds.size })}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Changer le statut</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("calls.changeStatus")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => handleBulkStatus("repondu")}><Check className="w-3 h-3 mr-2 text-emerald-600" />Repondu</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleBulkStatus("manque")}><PhoneMissed className="w-3 h-3 mr-2 text-destructive" />Manque</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleBulkStatus("messagerie")}><Voicemail className="w-3 h-3 mr-2 text-amber-600" />Messagerie</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleBulkStatus("en_cours")}><Clock className="w-3 h-3 mr-2 text-blue-600" />En cours</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleBulkStatus("repondu")}><Check className="w-3 h-3 mr-2 text-emerald-600" />{t("calls.status.repondu")}</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleBulkStatus("manque")}><PhoneMissed className="w-3 h-3 mr-2 text-destructive" />{t("calls.status.manque")}</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleBulkStatus("messagerie")}><Voicemail className="w-3 h-3 mr-2 text-amber-600" />{t("calls.status.messagerie")}</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleBulkStatus("en_cours")}><Clock className="w-3 h-3 mr-2 text-blue-600" />{t("calls.status.en_cours")}</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
               <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
                 <Trash2 className="w-4 h-4 mr-2" />
-                Supprimer ({selectedIds.size})
+                {t("calls.deleteBtn", { count: selectedIds.size })}
               </Button>
             </>
           )}
           <Button variant="outline" size="sm" onClick={exportCSV}>
             <Download className="w-4 h-4 mr-2" />
-            Exporter CSV
+            {t("calls.exportCsv")}
           </Button>
-          <Button variant="outline" size="sm" title="Imprimer" onClick={() => window.print()}>
+          <Button variant="outline" size="sm" title={t("calls.print")} onClick={() => window.print()}>
             <Printer className="w-4 h-4" />
           </Button>
           <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) { setEditingCall(null); form.reset(); } }}>
             <DialogTrigger asChild>
               <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
                 <Plus className="w-4 h-4 mr-2" />
-                Nouvel Appel
+                {t("calls.newCall")}
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
-                <DialogTitle>{editingCall ? "Modifier l'appel" : "Enregistrer un appel"}</DialogTitle>
-                <DialogDescription>{editingCall ? "Modifiez les informations de l'appel." : "Saisissez les details de la communication."}</DialogDescription>
+                <DialogTitle>{editingCall ? t("calls.dialog.editTitle") : t("calls.dialog.createTitle")}</DialogTitle>
+                <DialogDescription>{editingCall ? t("calls.dialog.editDesc") : t("calls.dialog.createDesc")}</DialogDescription>
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="direction" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Direction</FormLabel>
+                        <FormLabel>{t("calls.form.direction")}</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                           <SelectContent>
-                            <SelectItem value="entrant">Entrant</SelectItem>
-                            <SelectItem value="sortant">Sortant</SelectItem>
+                            <SelectItem value="entrant">{t("calls.direction.entrant")}</SelectItem>
+                            <SelectItem value="sortant">{t("calls.direction.sortant")}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -342,14 +344,14 @@ export default function Calls() {
                     )} />
                     <FormField control={form.control} name="status" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Statut</FormLabel>
+                        <FormLabel>{t("calls.form.status")}</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                           <SelectContent>
-                            <SelectItem value="repondu">Repondu</SelectItem>
-                            <SelectItem value="manque">Manque</SelectItem>
-                            <SelectItem value="messagerie">Messagerie</SelectItem>
-                            <SelectItem value="en_cours">En cours</SelectItem>
+                            <SelectItem value="repondu">{t("calls.status.repondu")}</SelectItem>
+                            <SelectItem value="manque">{t("calls.status.manque")}</SelectItem>
+                            <SelectItem value="messagerie">{t("calls.status.messagerie")}</SelectItem>
+                            <SelectItem value="en_cours">{t("calls.status.en_cours")}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -359,19 +361,19 @@ export default function Calls() {
                   
                   <FormField control={form.control} name="phoneNumber" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Numero de telephone</FormLabel>
-                      <FormControl><Input placeholder="+33 6..." {...field} /></FormControl>
+                      <FormLabel>{t("calls.form.phoneNumber")}</FormLabel>
+                      <FormControl><Input placeholder={t("calls.form.phonePlaceholder")} {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
 
                   <FormField control={form.control} name="contactId" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Associer a un contact (Optionnel)</FormLabel>
+                      <FormLabel>{t("calls.form.contact")}</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value?.toString() || "none"}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Choisir un contact..."/></SelectTrigger></FormControl>
+                        <FormControl><SelectTrigger><SelectValue placeholder={t("calls.form.chooseContact")}/></SelectTrigger></FormControl>
                         <SelectContent>
-                          <SelectItem value="none">Aucun (Numero inconnu)</SelectItem>
+                          <SelectItem value="none">{t("calls.form.noneUnknown")}</SelectItem>
                           {contactsData?.contacts.map(c => (
                             <SelectItem key={c.id} value={c.id.toString()}>{c.firstName} {c.lastName}</SelectItem>
                           ))}
@@ -384,23 +386,23 @@ export default function Calls() {
                   <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="duration" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Duree (secondes)</FormLabel>
+                        <FormLabel>{t("calls.form.duration")}</FormLabel>
                         <FormControl><Input type="number" {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
                     <FormField control={form.control} name="sentiment" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Sentiment</FormLabel>
+                        <FormLabel>{t("calls.form.sentiment")}</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value?.toString() || "none"}>
-                          <FormControl><SelectTrigger><SelectValue placeholder="Non defini"/></SelectTrigger></FormControl>
+                          <FormControl><SelectTrigger><SelectValue placeholder={t("calls.sentiment.undefined")}/></SelectTrigger></FormControl>
                           <SelectContent>
-                            <SelectItem value="none">Non defini</SelectItem>
-                            <SelectItem value="tres_positif">Tres positif</SelectItem>
-                            <SelectItem value="positif">Positif</SelectItem>
-                            <SelectItem value="neutre">Neutre</SelectItem>
-                            <SelectItem value="negatif">Negatif</SelectItem>
-                            <SelectItem value="tres_negatif">Tres negatif</SelectItem>
+                            <SelectItem value="none">{t("calls.sentiment.undefined")}</SelectItem>
+                            <SelectItem value="tres_positif">{t("calls.sentiment.tres_positif")}</SelectItem>
+                            <SelectItem value="positif">{t("calls.sentiment.positif")}</SelectItem>
+                            <SelectItem value="neutre">{t("calls.sentiment.neutre")}</SelectItem>
+                            <SelectItem value="negatif">{t("calls.sentiment.negatif")}</SelectItem>
+                            <SelectItem value="tres_negatif">{t("calls.sentiment.tres_negatif")}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -418,9 +420,9 @@ export default function Calls() {
                       disabled={aiValidation.isValidating}
                       className="mr-auto"
                     >
-                      Verifier IA
+                      {t("calls.verifyAi")}
                     </Button>
-                    <Button type="submit" disabled={createCall.isPending || updateCall.isPending}>{editingCall ? "Mettre a jour" : "Enregistrer l'appel"}</Button>
+                    <Button type="submit" disabled={createCall.isPending || updateCall.isPending}>{editingCall ? t("calls.dialog.update") : t("calls.dialog.create")}</Button>
                   </DialogFooter>
                 </form>
               </Form>
@@ -431,12 +433,12 @@ export default function Calls() {
 
       <Card className="overflow-hidden border-0 shadow-lg">
         <div className="relative h-28">
-          <img src={callCenterImg} alt="Centre d'appels" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+          <img src={callCenterImg} alt={t("calls.bannerAlt")} className="w-full h-full object-cover" loading="lazy" decoding="async" />
           <div className="absolute inset-0 bg-gradient-to-r from-blue-900/80 via-blue-800/50 to-transparent" />
           <div className="absolute inset-0 flex items-center px-6">
             <div className="text-white">
-              <h3 className="text-lg font-bold">Centre de communication</h3>
-              <p className="text-white/80 text-sm mt-1">Suivi en temps reel de toutes les communications entrantes et sortantes.</p>
+              <h3 className="text-lg font-bold">{t("calls.bannerTitle")}</h3>
+              <p className="text-white/80 text-sm mt-1">{t("calls.bannerSubtitle")}</p>
             </div>
           </div>
         </div>
@@ -447,34 +449,34 @@ export default function Calls() {
           <div className="relative w-full sm:max-w-xs">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Rechercher par nom ou numero..."
+              placeholder={t("calls.searchPlaceholder")}
               className="pl-9 w-full"
               value={search}
-              aria-label="Rechercher des appels"
+              aria-label={t("calls.searchAria")}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }}>
               <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Statut" />
+                <SelectValue placeholder={t("calls.filters.status")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="repondu">Repondu</SelectItem>
-                <SelectItem value="manque">Manque</SelectItem>
-                <SelectItem value="messagerie">Messagerie</SelectItem>
-                <SelectItem value="en_cours">En cours</SelectItem>
+                <SelectItem value="all">{t("calls.filters.allStatuses")}</SelectItem>
+                <SelectItem value="repondu">{t("calls.status.repondu")}</SelectItem>
+                <SelectItem value="manque">{t("calls.status.manque")}</SelectItem>
+                <SelectItem value="messagerie">{t("calls.status.messagerie")}</SelectItem>
+                <SelectItem value="en_cours">{t("calls.status.en_cours")}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={directionFilter} onValueChange={(v) => { setDirectionFilter(v); setPage(0); }}>
               <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Direction" />
+                <SelectValue placeholder={t("calls.filters.direction")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Toutes directions</SelectItem>
-                <SelectItem value="entrant">Entrant</SelectItem>
-                <SelectItem value="sortant">Sortant</SelectItem>
+                <SelectItem value="all">{t("calls.filters.allDirections")}</SelectItem>
+                <SelectItem value="entrant">{t("calls.direction.entrant")}</SelectItem>
+                <SelectItem value="sortant">{t("calls.direction.sortant")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -483,18 +485,18 @@ export default function Calls() {
           <div className="flex items-center gap-2">
             <CalendarIcon className="w-4 h-4 text-muted-foreground" />
             <Input type="date" className="w-[160px]" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(0); }} placeholder="Du" />
-            <span className="text-muted-foreground text-sm">au</span>
+            <span className="text-muted-foreground text-sm">{t("calls.dateSeparator")}</span>
             <Input type="date" className="w-[160px]" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(0); }} placeholder="Au" />
             {(dateFrom || dateTo) && (
               <Button variant="ghost" size="sm" onClick={() => { setDateFrom(""); setDateTo(""); setPage(0); }}>
-                Effacer
+                {t("calls.clear")}
               </Button>
             )}
           </div>
         </div>
       </div>
 
-      {callsError && <QueryErrorAlert error={callsError as Error} title="Impossible de charger les appels" />}
+      {callsError && <QueryErrorAlert error={callsError as Error} title={t("calls.loadError")} />}
 
       <div className="border border-border rounded-lg overflow-hidden bg-card shadow-sm">
         <Table>
@@ -508,19 +510,19 @@ export default function Calls() {
               </TableHead>
               <TableHead className="w-[50px]"></TableHead>
               <TableHead className="cursor-pointer select-none" onClick={() => handleSort("contactName")}>
-                <span className="flex items-center">Contact & Numero{getSortIcon("contactName")}</span>
+                <span className="flex items-center">{t("calls.columns.contactNumber")}{getSortIcon("contactName")}</span>
               </TableHead>
               <TableHead className="cursor-pointer select-none" onClick={() => handleSort("createdAt")}>
-                <span className="flex items-center">Date & Heure{getSortIcon("createdAt")}</span>
+                <span className="flex items-center">{t("calls.columns.dateTime")}{getSortIcon("createdAt")}</span>
               </TableHead>
               <TableHead className="cursor-pointer select-none" onClick={() => handleSort("status")}>
-                <span className="flex items-center">Statut{getSortIcon("status")}</span>
+                <span className="flex items-center">{t("calls.columns.status")}{getSortIcon("status")}</span>
               </TableHead>
               <TableHead className="cursor-pointer select-none" onClick={() => handleSort("duration")}>
-                <span className="flex items-center">Duree{getSortIcon("duration")}</span>
+                <span className="flex items-center">{t("calls.columns.duration")}{getSortIcon("duration")}</span>
               </TableHead>
-              <TableHead>Sentiment</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>{t("calls.columns.sentiment")}</TableHead>
+              <TableHead className="text-right">{t("calls.columns.actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -541,15 +543,15 @@ export default function Calls() {
               <TableRow>
                 <TableCell colSpan={8} className="py-8">
                   {(search !== "" || statusFilter !== "all" || directionFilter !== "all") ? (
-                    <p className="text-center text-muted-foreground" data-testid="no-results-calls">Aucun appel ne correspond à vos filtres.</p>
+                    <p className="text-center text-muted-foreground" data-testid="no-results-calls">{t("calls.empty.filtered")}</p>
                   ) : (
                     <EmptyOnboardingHint
                       icon={Phone}
-                      title="Aucun appel pour l'instant"
-                      description="Vos appels téléphoniques apparaîtront ici dès que vous configurerez votre numéro Twilio. Chaque appel sera automatiquement enregistré et transcrit par l'IA."
-                      actionLabel="Configurer la téléphonie"
+                      title={t("calls.empty.title")}
+                      description={t("calls.empty.description")}
+                      actionLabel={t("calls.empty.action")}
                       onAction={() => { window.location.href = "/telephonie"; }}
-                      tip="Astuce : sans Twilio, vous pouvez aussi enregistrer manuellement vos appels pour suivre votre activité commerciale."
+                      tip={t("calls.empty.tip")}
                       testIdPrefix="empty-calls"
                     />
                   )}
@@ -570,7 +572,7 @@ export default function Calls() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium text-foreground">{call.contactName || "Inconnu"}</div>
+                    <div className="font-medium text-foreground">{call.contactName || t("calls.unknown")}</div>
                     <div className="text-sm text-muted-foreground">{call.phoneNumber}</div>
                   </TableCell>
                   <TableCell>
@@ -594,41 +596,41 @@ export default function Calls() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Ouvrir le menu</span>
+                          <span className="sr-only">{t("calls.openMenu")}</span>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem asChild><Link href={`/appels/${call.id}`}>Voir les details</Link></DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEditCall(call); }}>Modifier</DropdownMenuItem>
-                        {call.contactId && <DropdownMenuItem asChild><Link href={`/contacts/${call.contactId}`}>Aller au contact</Link></DropdownMenuItem>}
+                        <DropdownMenuLabel>{t("calls.columns.actions")}</DropdownMenuLabel>
+                        <DropdownMenuItem asChild><Link href={`/appels/${call.id}`}>{t("calls.rowActions.viewDetails")}</Link></DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEditCall(call); }}>{t("calls.rowActions.edit")}</DropdownMenuItem>
+                        {call.contactId && <DropdownMenuItem asChild><Link href={`/contacts/${call.contactId}`}>{t("calls.rowActions.goToContact")}</Link></DropdownMenuItem>}
                         <DropdownMenuSeparator />
-                        {call.status !== 'repondu' && <DropdownMenuItem onClick={() => handleStatusChange(call.id, 'repondu')}>Marquer comme repondu</DropdownMenuItem>}
-                        {call.status !== 'messagerie' && <DropdownMenuItem onClick={() => handleStatusChange(call.id, 'messagerie')}>Marquer comme messagerie</DropdownMenuItem>}
+                        {call.status !== 'repondu' && <DropdownMenuItem onClick={() => handleStatusChange(call.id, 'repondu')}>{t("calls.rowActions.markAnswered")}</DropdownMenuItem>}
+                        {call.status !== 'messagerie' && <DropdownMenuItem onClick={() => handleStatusChange(call.id, 'messagerie')}>{t("calls.rowActions.markVoicemail")}</DropdownMenuItem>}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={async (e) => {
                           e.stopPropagation();
                           const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
                           const res = await fetch(`${base}/api/calls/${call.id}/duplicate`, { method: "POST", credentials: "include" });
-                          if (res.ok) { toast({ title: "Appel dupliqué" }); queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() }); }
-                          else toast({ title: "Erreur", variant: "destructive" });
-                        }}><Copy className="w-4 h-4 mr-2" />Dupliquer</DropdownMenuItem>
+                          if (res.ok) { toast({ title: t("calls.toast.duplicated") }); queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() }); }
+                          else toast({ title: t("calls.toast.error"), variant: "destructive" });
+                        }}><Copy className="w-4 h-4 mr-2" />{t("calls.rowActions.duplicate")}</DropdownMenuItem>
                         <DropdownMenuItem className="text-indigo-600" onClick={async (e) => {
                           e.stopPropagation();
                           const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
-                          const res = await fetch(`${base}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title: call.contactName ? `Projet - ${call.contactName}` : "Projet depuis appel", clientName: call.contactName || "", status: "planifie", priority: "moyenne", progress: 0, notes: `Créé depuis l'appel du ${new Date(call.createdAt || Date.now()).toLocaleDateString("fr-FR")}` }) });
-                          if (res.ok) { toast({ title: "Projet créé" }); setLocation("/projets"); }
-                          else toast({ title: "Erreur", variant: "destructive" });
-                        }}><FolderKanban className="w-4 h-4 mr-2" />Créer un projet</DropdownMenuItem>
+                          const res = await fetch(`${base}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title: call.contactName ? t("calls.projectTitleWith", { name: call.contactName }) : t("calls.projectTitleDefault"), clientName: call.contactName || "", status: "planifie", priority: "moyenne", progress: 0, notes: t("calls.projectNotes", { date: new Date(call.createdAt || Date.now()).toLocaleDateString("fr-FR") }) }) });
+                          if (res.ok) { toast({ title: t("calls.toast.projectCreated") }); setLocation("/projets"); }
+                          else toast({ title: t("calls.toast.error"), variant: "destructive" });
+                        }}><FolderKanban className="w-4 h-4 mr-2" />{t("calls.rowActions.createProject")}</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={async (e) => {
                           e.stopPropagation();
-                          if (!(await confirmAction({ title: "Supprimer cet appel ?", confirmLabel: "Supprimer", destructive: true }))) return;
+                          if (!(await confirmAction({ title: t("calls.confirm.deleteOne"), confirmLabel: t("common.delete"), destructive: true }))) return;
                           const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
                           const res = await fetch(`${base}/api/calls/${call.id}`, { method: "DELETE", credentials: "include" });
-                          if (res.ok) { toast({ title: "Appel supprimé" }); queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() }); }
-                        }}><Trash2 className="w-4 h-4 mr-2" />Supprimer</DropdownMenuItem>
+                          if (res.ok) { toast({ title: t("calls.toast.deleted") }); queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() }); }
+                        }}><Trash2 className="w-4 h-4 mr-2" />{t("calls.rowActions.delete")}</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -639,23 +641,23 @@ export default function Calls() {
         </Table>
       </div>
 
-      <AiSuggestionsCard page="calls" title="Recommandations IA - Appels" compact />
+      <AiSuggestionsCard page="calls" title={t("calls.aiTitle")} compact />
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          {data ? `${data.total} resultat(s) - Page ${page + 1} sur ${totalPages}` : ""}
+          {data ? t("calls.pagination", { total: data.total, page: page + 1, pages: totalPages }) : ""}
         </p>
         <div className="flex items-center gap-1">
-          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(0)} aria-label="Première page">
+          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(0)} aria-label={t("calls.pager.first")}>
             <ChevronsLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(p => p - 1)} aria-label="Page précédente">
+          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(p => p - 1)} aria-label={t("calls.pager.prev")}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} aria-label="Page suivante">
+          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} aria-label={t("calls.pager.next")}>
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)} aria-label="Dernière page">
+          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)} aria-label={t("calls.pager.last")}>
             <ChevronsRight className="h-4 w-4" />
           </Button>
         </div>

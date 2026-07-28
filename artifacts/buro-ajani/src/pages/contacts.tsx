@@ -30,6 +30,7 @@ import { QueryErrorAlert } from "@/components/safe-component";
 import { EmailComposer } from "@/components/email-composer";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useTranslation } from "@/i18n";
 
 const PAGE_SIZE = 15;
 
@@ -46,6 +47,7 @@ const formSchema = z.object({
 });
 
 export default function Contacts() {
+  const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -147,16 +149,16 @@ export default function Contacts() {
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
-    if (!(await confirmAction({ title: `Supprimer ${selectedIds.size} contact(s) ?`, confirmLabel: "Supprimer", destructive: true }))) return;
+    if (!(await confirmAction({ title: t("contacts.confirm.bulkDelete", { count: selectedIds.size }), confirmLabel: t("common.delete"), destructive: true }))) return;
     const ids = Array.from(selectedIds);
     const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
     const res = await fetch(`${BASE}/api/bulk/contacts/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
     setSelectedIds(new Set());
     queryClient.invalidateQueries({ queryKey: getListContactsQueryKey() });
     if (res.ok) {
-      toast({ title: `${ids.length} contact(s) supprimé(s)` });
+      toast({ title: t("contacts.toast.bulkDeleted", { count: ids.length }) });
     } else {
-      toast({ title: "Erreur lors de la suppression", variant: "destructive" });
+      toast({ title: t("contacts.toast.bulkDeleteError"), variant: "destructive" });
     }
   };
 
@@ -168,9 +170,9 @@ export default function Contacts() {
     setSelectedIds(new Set());
     queryClient.invalidateQueries({ queryKey: getListContactsQueryKey() });
     if (res.ok) {
-      toast({ title: `${ids.length} contact(s) mis à jour → ${category}` });
+      toast({ title: t("contacts.toast.categoryUpdated", { count: ids.length, category }) });
     } else {
-      toast({ title: "Erreur", variant: "destructive" });
+      toast({ title: t("contacts.toast.error"), variant: "destructive" });
     }
   };
 
@@ -185,8 +187,8 @@ export default function Contacts() {
   const handleDuplicate = async (id: number) => {
     const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
     const res = await fetch(`${BASE}/api/contacts/${id}/duplicate`, { method: "POST", credentials: "include" });
-    if (res.ok) { toast({ title: "Contact dupliqué" }); queryClient.invalidateQueries({ queryKey: getListContactsQueryKey() }); }
-    else toast({ title: "Erreur", description: "Impossible de dupliquer", variant: "destructive" });
+    if (res.ok) { toast({ title: t("contacts.toast.duplicated") }); queryClient.invalidateQueries({ queryKey: getListContactsQueryKey() }); }
+    else toast({ title: t("contacts.toast.error"), description: t("contacts.toast.duplicateError"), variant: "destructive" });
   };
 
   const openEdit = (contact: any) => {
@@ -209,25 +211,25 @@ export default function Contacts() {
     if (editingContact) {
       updateContact.mutate({ id: editingContact.id, data: values }, {
         onSuccess: () => {
-          toast({ title: "Contact mis à jour" });
+          toast({ title: t("contacts.toast.updated") });
           setIsDialogOpen(false);
           setEditingContact(null);
           form.reset();
           queryClient.invalidateQueries({ queryKey: getListContactsQueryKey() });
         },
-        onError: () => toast({ title: "Erreur", description: "Impossible de modifier le contact", variant: "destructive" }),
+        onError: () => toast({ title: t("contacts.toast.error"), description: t("contacts.toast.updateError"), variant: "destructive" }),
       });
     } else {
       createContact.mutate({ data: values }, {
         onSuccess: (newContact) => {
-          toast({ title: "Contact cree avec succes" });
+          toast({ title: t("contacts.toast.created") });
           setIsDialogOpen(false);
           form.reset();
           queryClient.invalidateQueries({ queryKey: getListContactsQueryKey() });
           setLocation(`/contacts/${newContact.id}`);
         },
         onError: () => {
-          toast({ title: "Erreur", description: "Impossible de creer le contact", variant: "destructive" });
+          toast({ title: t("contacts.toast.error"), description: t("contacts.toast.createError"), variant: "destructive" });
         }
       });
     }
@@ -235,10 +237,10 @@ export default function Contacts() {
 
   const getCategoryBadge = (category: string) => {
     switch (category) {
-      case 'client': return <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 border-blue-500/20">Client</Badge>;
-      case 'prospect': return <Badge variant="secondary" className="bg-purple-500/10 text-purple-600 border-purple-500/20">Prospect</Badge>;
-      case 'fournisseur': return <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 border-amber-500/20">Fournisseur</Badge>;
-      case 'partenaire': return <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">Partenaire</Badge>;
+      case 'client': return <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 border-blue-500/20">{t("contacts.categories.client")}</Badge>;
+      case 'prospect': return <Badge variant="secondary" className="bg-purple-500/10 text-purple-600 border-purple-500/20">{t("contacts.categories.prospect")}</Badge>;
+      case 'fournisseur': return <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 border-amber-500/20">{t("contacts.categories.fournisseur")}</Badge>;
+      case 'partenaire': return <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">{t("contacts.categories.partenaire")}</Badge>;
       default: return <Badge variant="outline" className="capitalize">{category}</Badge>;
     }
   };
@@ -247,8 +249,8 @@ export default function Contacts() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={Users} variant="indigo" size="md" /> Annuaire des Contacts</h1>
-          <p className="text-muted-foreground mt-1">Gerez votre base de donnees professionnelle.</p>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={Users} variant="indigo" size="md" /> {t("contacts.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("contacts.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           {selectedIds.size > 0 && (
@@ -257,73 +259,73 @@ export default function Contacts() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
                     <Tag className="w-4 h-4 mr-2" />
-                    Catégorie ({selectedIds.size})
+                    {t("contacts.categoryBtn", { count: selectedIds.size })}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Changer la catégorie</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("contacts.changeCategory")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {["client", "prospect", "fournisseur", "partenaire", "autre"].map(cat => (
-                    <DropdownMenuItem key={cat} onClick={() => handleBulkCategory(cat)} className="capitalize cursor-pointer">{cat}</DropdownMenuItem>
+                    <DropdownMenuItem key={cat} onClick={() => handleBulkCategory(cat)} className="capitalize cursor-pointer">{t(`contacts.categories.${cat}`)}</DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
               <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
                 <Trash2 className="w-4 h-4 mr-2" />
-                Supprimer ({selectedIds.size})
+                {t("contacts.deleteBtn", { count: selectedIds.size })}
               </Button>
             </>
           )}
           <Button variant="outline" size="sm" onClick={exportCSV}>
             <Download className="w-4 h-4 mr-2" />
-            Exporter CSV
+            {t("contacts.exportCsv")}
           </Button>
-          <Button variant="outline" size="sm" title="Imprimer" onClick={() => window.print()}>
+          <Button variant="outline" size="sm" title={t("contacts.print")} onClick={() => window.print()}>
             <Printer className="w-4 h-4" />
           </Button>
           <Link href="/contacts/import">
             <Button variant="outline" size="sm">
               <Upload className="w-4 h-4 mr-2" />
-              Importer CSV
+              {t("contacts.importCsv")}
             </Button>
           </Link>
           <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) { setEditingContact(null); form.reset(); } }}>
             <DialogTrigger asChild>
               <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
                 <Plus className="w-4 h-4 mr-2" />
-                Nouveau Contact
+                {t("contacts.newContact")}
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px]">
               <DialogHeader>
-                <DialogTitle>{editingContact ? "Modifier le contact" : "Nouveau contact"}</DialogTitle>
-                <DialogDescription>{editingContact ? "Modifiez les informations du contact." : "Ajouter une personne a l'annuaire."}</DialogDescription>
+                <DialogTitle>{editingContact ? t("contacts.dialog.editTitle") : t("contacts.dialog.createTitle")}</DialogTitle>
+                <DialogDescription>{editingContact ? t("contacts.dialog.editDesc") : t("contacts.dialog.createDesc")}</DialogDescription>
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="firstName" render={({ field }) => (
-                      <FormItem><FormLabel>Prenom</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel>{t("contacts.form.firstName")}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="lastName" render={({ field }) => (
-                      <FormItem><FormLabel>Nom</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel>{t("contacts.form.lastName")}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="company" render={({ field }) => (
-                      <FormItem><FormLabel>Entreprise</FormLabel><FormControl><Input {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel>{t("contacts.form.company")}</FormLabel><FormControl><Input {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="category" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Categorie</FormLabel>
+                        <FormLabel>{t("contacts.form.category")}</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                           <SelectContent>
-                            <SelectItem value="client">Client</SelectItem>
-                            <SelectItem value="prospect">Prospect</SelectItem>
-                            <SelectItem value="fournisseur">Fournisseur</SelectItem>
-                            <SelectItem value="partenaire">Partenaire</SelectItem>
-                            <SelectItem value="autre">Autre</SelectItem>
+                            <SelectItem value="client">{t("contacts.categories.client")}</SelectItem>
+                            <SelectItem value="prospect">{t("contacts.categories.prospect")}</SelectItem>
+                            <SelectItem value="fournisseur">{t("contacts.categories.fournisseur")}</SelectItem>
+                            <SelectItem value="partenaire">{t("contacts.categories.partenaire")}</SelectItem>
+                            <SelectItem value="autre">{t("contacts.categories.autre")}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -332,16 +334,16 @@ export default function Contacts() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="phone" render={({ field }) => (
-                      <FormItem><FormLabel>Telephone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel>{t("contacts.form.phone")}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="email" render={({ field }) => (
-                      <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel>{t("contacts.form.email")}</FormLabel><FormControl><Input type="email" {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
                     )} />
                   </div>
                   <AiValidationFeedback result={aiValidation.result} isValidating={aiValidation.isValidating} />
                   <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => aiValidation.validate(form.getValues())} disabled={aiValidation.isValidating} className="mr-auto">Verifier IA</Button>
-                    <Button type="submit" disabled={createContact.isPending || updateContact.isPending}>{editingContact ? "Mettre a jour" : "Creer le contact"}</Button>
+                    <Button type="button" variant="outline" onClick={() => aiValidation.validate(form.getValues())} disabled={aiValidation.isValidating} className="mr-auto">{t("contacts.verifyAi")}</Button>
+                    <Button type="submit" disabled={createContact.isPending || updateContact.isPending}>{editingContact ? t("contacts.dialog.update") : t("contacts.dialog.create")}</Button>
                   </DialogFooter>
                 </form>
               </Form>
@@ -352,12 +354,12 @@ export default function Contacts() {
 
       <Card className="overflow-hidden border-0 shadow-lg">
         <div className="relative h-28">
-          <img src={receptionImg} alt="Accueil et reception" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+          <img src={receptionImg} alt={t("contacts.bannerAlt")} className="w-full h-full object-cover" loading="lazy" decoding="async" />
           <div className="absolute inset-0 bg-gradient-to-r from-indigo-900/80 via-indigo-800/50 to-transparent" />
           <div className="absolute inset-0 flex items-center px-6">
             <div className="text-white">
-              <h3 className="text-lg font-bold">Annuaire professionnel</h3>
-              <p className="text-white/80 text-sm mt-1">Gestion centralisee de vos contacts, clients et partenaires.</p>
+              <h3 className="text-lg font-bold">{t("contacts.bannerTitle")}</h3>
+              <p className="text-white/80 text-sm mt-1">{t("contacts.bannerSubtitle")}</p>
             </div>
           </div>
         </div>
@@ -367,9 +369,9 @@ export default function Contacts() {
         <div className="relative w-full sm:max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Rechercher par nom, entreprise, email..."
+            placeholder={t("contacts.searchPlaceholder")}
             className="pl-9 w-full"
-            aria-label="Rechercher des contacts"
+            aria-label={t("contacts.searchAria")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -377,15 +379,15 @@ export default function Contacts() {
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); setPage(0); }}>
             <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Toutes les categories" />
+              <SelectValue placeholder={t("contacts.allCategories")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Toutes les categories</SelectItem>
-              <SelectItem value="client">Client</SelectItem>
-              <SelectItem value="prospect">Prospect</SelectItem>
-              <SelectItem value="fournisseur">Fournisseur</SelectItem>
-              <SelectItem value="partenaire">Partenaire</SelectItem>
-              <SelectItem value="autre">Autre</SelectItem>
+              <SelectItem value="all">{t("contacts.allCategories")}</SelectItem>
+              <SelectItem value="client">{t("contacts.categories.client")}</SelectItem>
+              <SelectItem value="prospect">{t("contacts.categories.prospect")}</SelectItem>
+              <SelectItem value="fournisseur">{t("contacts.categories.fournisseur")}</SelectItem>
+              <SelectItem value="partenaire">{t("contacts.categories.partenaire")}</SelectItem>
+              <SelectItem value="autre">{t("contacts.categories.autre")}</SelectItem>
             </SelectContent>
           </Select>
           <div className="flex border border-border rounded-md overflow-hidden">
@@ -399,7 +401,7 @@ export default function Contacts() {
         </div>
       </div>
 
-      {contactsError && <QueryErrorAlert error={contactsError as Error} title="Impossible de charger les contacts" />}
+      {contactsError && <QueryErrorAlert error={contactsError as Error} title={t("contacts.loadError")} />}
 
       {viewMode === "table" ? (
         <div className="border border-border rounded-lg overflow-hidden bg-card shadow-sm">
@@ -413,17 +415,17 @@ export default function Contacts() {
                   />
                 </TableHead>
                 <TableHead className="cursor-pointer select-none" onClick={() => handleSort("lastName")}>
-                  <span className="flex items-center">Contact{getSortIcon("lastName")}</span>
+                  <span className="flex items-center">{t("contacts.columns.contact")}{getSortIcon("lastName")}</span>
                 </TableHead>
                 <TableHead className="cursor-pointer select-none" onClick={() => handleSort("company")}>
-                  <span className="flex items-center">Entreprise{getSortIcon("company")}</span>
+                  <span className="flex items-center">{t("contacts.columns.company")}{getSortIcon("company")}</span>
                 </TableHead>
-                <TableHead>Coordonnees</TableHead>
+                <TableHead>{t("contacts.columns.coordinates")}</TableHead>
                 <TableHead className="cursor-pointer select-none" onClick={() => handleSort("totalCalls")}>
-                  <span className="flex items-center">Appels{getSortIcon("totalCalls")}</span>
+                  <span className="flex items-center">{t("contacts.columns.calls")}{getSortIcon("totalCalls")}</span>
                 </TableHead>
-                <TableHead>Categorie</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t("contacts.columns.category")}</TableHead>
+                <TableHead className="text-right">{t("contacts.columns.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -443,15 +445,15 @@ export default function Contacts() {
                 <TableRow>
                   <TableCell colSpan={7} className="py-8">
                     {(search !== "" || categoryFilter !== "all") ? (
-                      <p className="text-center text-muted-foreground" data-testid="no-results-contacts">Aucun contact ne correspond à votre recherche.</p>
+                      <p className="text-center text-muted-foreground" data-testid="no-results-contacts">{t("contacts.empty.filtered")}</p>
                     ) : (
                       <EmptyOnboardingHint
                         icon={Users}
-                        title="Aucun contact pour l'instant"
-                        description="Créez votre premier contact ou importez votre carnet d'adresses existant pour commencer à gérer vos clients et prospects."
-                        actionLabel="Créer mon premier contact"
+                        title={t("contacts.empty.title")}
+                        description={t("contacts.empty.description")}
+                        actionLabel={t("contacts.empty.action")}
                         onAction={() => setIsDialogOpen(true)}
-                        tip="Astuce : importez un fichier CSV pour ajouter plusieurs contacts d'un coup."
+                        tip={t("contacts.empty.tip")}
                         testIdPrefix="empty-contacts"
                       />
                     )}
@@ -502,29 +504,29 @@ export default function Contacts() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem asChild><Link href={`/contacts/${contact.id}`}>Voir le profil</Link></DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEdit(contact); }}><Edit className="w-3 h-3 mr-2" />Modifier</DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDuplicate(contact.id); }}><Copy className="w-3 h-3 mr-2" />Dupliquer</DropdownMenuItem>
-                          {contact.phone && <DropdownMenuItem onClick={() => setLocation(`/appels?phone=${encodeURIComponent(contact.phone)}`)}><Phone className="w-3 h-3 mr-2" />Appeler</DropdownMenuItem>}
-                          {contact.email && <DropdownMenuItem onClick={() => { setEmailComposerContactId(contact.id); setIsEmailComposerOpen(true); }}><Mail className="w-3 h-3 mr-2" />Envoyer email</DropdownMenuItem>}
+                          <DropdownMenuLabel>{t("contacts.columns.actions")}</DropdownMenuLabel>
+                          <DropdownMenuItem asChild><Link href={`/contacts/${contact.id}`}>{t("contacts.actions.viewProfile")}</Link></DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEdit(contact); }}><Edit className="w-3 h-3 mr-2" />{t("contacts.actions.edit")}</DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDuplicate(contact.id); }}><Copy className="w-3 h-3 mr-2" />{t("contacts.actions.duplicate")}</DropdownMenuItem>
+                          {contact.phone && <DropdownMenuItem onClick={() => setLocation(`/appels?phone=${encodeURIComponent(contact.phone)}`)}><Phone className="w-3 h-3 mr-2" />{t("contacts.actions.call")}</DropdownMenuItem>}
+                          {contact.email && <DropdownMenuItem onClick={() => { setEmailComposerContactId(contact.id); setIsEmailComposerOpen(true); }}><Mail className="w-3 h-3 mr-2" />{t("contacts.actions.sendEmail")}</DropdownMenuItem>}
                           <DropdownMenuItem className="text-indigo-600" onClick={async (e) => {
                             e.stopPropagation();
                             const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
-                            const name = [contact.firstName, contact.lastName].filter(Boolean).join(" ") || contact.company || "Contact";
-                            const res = await fetch(`${BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title: `Projet - ${name}`, clientName: name, contactId: contact.id, status: "planifie", priority: "moyenne", progress: 0, notes: `Créé depuis le contact ${name}` }) });
-                            if (res.ok) { toast({ title: "Projet créé" }); setLocation("/projets"); }
-                            else toast({ title: "Erreur", variant: "destructive" });
-                          }}><FolderKanban className="w-3 h-3 mr-2" />Créer un projet</DropdownMenuItem>
+                            const name = [contact.firstName, contact.lastName].filter(Boolean).join(" ") || contact.company || t("contacts.projectDefaultName");
+                            const res = await fetch(`${BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title: t("contacts.projectTitle", { name }), clientName: name, contactId: contact.id, status: "planifie", priority: "moyenne", progress: 0, notes: t("contacts.projectNotes", { name }) }) });
+                            if (res.ok) { toast({ title: t("contacts.toast.projectCreated") }); setLocation("/projets"); }
+                            else toast({ title: t("contacts.toast.error"), variant: "destructive" });
+                          }}><FolderKanban className="w-3 h-3 mr-2" />{t("contacts.actions.createProject")}</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={async (e) => {
                             e.stopPropagation();
-                            if (!(await confirmAction({ title: `Supprimer ${contact.firstName} ${contact.lastName} ?`, confirmLabel: "Supprimer", destructive: true }))) return;
+                            if (!(await confirmAction({ title: t("contacts.confirm.deleteOne", { name: `${contact.firstName} ${contact.lastName}` }), confirmLabel: t("common.delete"), destructive: true }))) return;
                             deleteContact.mutate({ id: contact.id }, {
-                              onSuccess: () => { toast({ title: "Contact supprimé" }); queryClient.invalidateQueries({ queryKey: getListContactsQueryKey() }); },
-                              onError: () => toast({ title: "Erreur", description: "Impossible de supprimer", variant: "destructive" }),
+                              onSuccess: () => { toast({ title: t("contacts.toast.deleted") }); queryClient.invalidateQueries({ queryKey: getListContactsQueryKey() }); },
+                              onError: () => toast({ title: t("contacts.toast.error"), description: t("contacts.toast.deleteError"), variant: "destructive" }),
                             });
-                          }}><Trash2 className="w-3 h-3 mr-2" />Supprimer</DropdownMenuItem>
+                          }}><Trash2 className="w-3 h-3 mr-2" />{t("contacts.actions.delete")}</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -543,15 +545,15 @@ export default function Contacts() {
           ) : data?.contacts.length === 0 ? (
             <div className="col-span-full py-4">
               {(search !== "" || categoryFilter !== "all") ? (
-                <p className="text-center text-muted-foreground py-8" data-testid="no-results-contacts-grid">Aucun contact ne correspond à votre recherche.</p>
+                <p className="text-center text-muted-foreground py-8" data-testid="no-results-contacts-grid">{t("contacts.empty.filtered")}</p>
               ) : (
                 <EmptyOnboardingHint
                   icon={Users}
-                  title="Aucun contact pour l'instant"
-                  description="Créez votre premier contact ou importez votre carnet d'adresses existant pour commencer."
-                  actionLabel="Créer mon premier contact"
+                  title={t("contacts.empty.title")}
+                  description={t("contacts.empty.descriptionGrid")}
+                  actionLabel={t("contacts.empty.action")}
                   onAction={() => setIsDialogOpen(true)}
-                  tip="Astuce : importez un fichier CSV pour ajouter plusieurs contacts d'un coup."
+                  tip={t("contacts.empty.tip")}
                   testIdPrefix="empty-contacts-grid"
                 />
               )}
@@ -580,7 +582,7 @@ export default function Contacts() {
                   </div>
                   <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">
                     {getCategoryBadge(contact.category)}
-                    <span className="text-xs text-muted-foreground">{contact.totalCalls} appel(s)</span>
+                    <span className="text-xs text-muted-foreground">{t("contacts.callsCount", { count: contact.totalCalls })}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -589,7 +591,7 @@ export default function Contacts() {
         </div>
       )}
 
-      <AiSuggestionsCard page="contacts" title="Recommandations IA - Contacts" compact />
+      <AiSuggestionsCard page="contacts" title={t("contacts.aiTitle")} compact />
 
       <EmailComposer
         isOpen={isEmailComposerOpen}
@@ -599,19 +601,19 @@ export default function Contacts() {
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          {data ? `${data.total} contact(s) - Page ${page + 1} sur ${totalPages}` : ""}
+          {data ? t("contacts.pagination", { total: data.total, page: page + 1, pages: totalPages }) : ""}
         </p>
         <div className="flex items-center gap-1">
-          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(0)} aria-label="Première page">
+          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(0)} aria-label={t("contacts.pager.first")}>
             <ChevronsLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(p => p - 1)} aria-label="Page précédente">
+          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(p => p - 1)} aria-label={t("contacts.pager.prev")}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} aria-label="Page suivante">
+          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} aria-label={t("contacts.pager.next")}>
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)} aria-label="Dernière page">
+          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)} aria-label={t("contacts.pager.last")}>
             <ChevronsRight className="h-4 w-4" />
           </Button>
         </div>

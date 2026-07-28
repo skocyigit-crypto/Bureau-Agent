@@ -297,5 +297,365 @@
       "contactsForecast": "Forecast contacts",
       "revenueForecast": "Forecast revenue"
     }
+  },
+  "contacts": {
+    "title": "Contacts Directory",
+    "subtitle": "Manage your professional database.",
+    "bannerTitle": "Professional directory",
+    "bannerSubtitle": "Centralized management of your contacts, clients and partners.",
+    "bannerAlt": "Welcome and reception",
+    "changeCategory": "Change category",
+    "categoryBtn": "Category ({{count}})",
+    "deleteBtn": "Delete ({{count}})",
+    "exportCsv": "Export CSV",
+    "importCsv": "Import CSV",
+    "print": "Print",
+    "newContact": "New Contact",
+    "verifyAi": "Verify with AI",
+    "searchPlaceholder": "Search by name, company, email...",
+    "searchAria": "Search contacts",
+    "allCategories": "All categories",
+    "loadError": "Unable to load contacts",
+    "aiTitle": "AI Recommendations - Contacts",
+    "pagination": "{{total}} contact(s) - Page {{page}} of {{pages}}",
+    "callsCount": "{{count}} call(s)",
+    "dialog": {
+      "editTitle": "Edit contact",
+      "createTitle": "New contact",
+      "editDesc": "Edit the contact's information.",
+      "createDesc": "Add a person to the directory.",
+      "update": "Update",
+      "create": "Create contact"
+    },
+    "form": {
+      "firstName": "First name",
+      "lastName": "Last name",
+      "company": "Company",
+      "category": "Category",
+      "phone": "Phone",
+      "email": "Email"
+    },
+    "categories": {
+      "client": "Client",
+      "prospect": "Prospect",
+      "fournisseur": "Supplier",
+      "partenaire": "Partner",
+      "autre": "Other"
+    },
+    "columns": {
+      "contact": "Contact",
+      "company": "Company",
+      "coordinates": "Contact details",
+      "calls": "Calls",
+      "category": "Category",
+      "actions": "Actions"
+    },
+    "empty": {
+      "filtered": "No contact matches your search.",
+      "title": "No contacts yet",
+      "description": "Create your first contact or import your existing address book to start managing your clients and prospects.",
+      "descriptionGrid": "Create your first contact or import your existing address book to get started.",
+      "action": "Create my first contact",
+      "tip": "Tip: import a CSV file to add several contacts at once."
+    },
+    "actions": {
+      "viewProfile": "View profile",
+      "edit": "Edit",
+      "duplicate": "Duplicate",
+      "call": "Call",
+      "sendEmail": "Send email",
+      "createProject": "Create a project",
+      "delete": "Delete"
+    },
+    "pager": {
+      "first": "First page",
+      "prev": "Previous page",
+      "next": "Next page",
+      "last": "Last page"
+    },
+    "confirm": {
+      "bulkDelete": "Delete {{count}} contact(s)?",
+      "deleteOne": "Delete {{name}}?"
+    },
+    "toast": {
+      "bulkDeleted": "{{count}} contact(s) deleted",
+      "bulkDeleteError": "Error during deletion",
+      "categoryUpdated": "{{count}} contact(s) updated → {{category}}",
+      "error": "Error",
+      "duplicated": "Contact duplicated",
+      "duplicateError": "Unable to duplicate",
+      "updated": "Contact updated",
+      "updateError": "Unable to edit the contact",
+      "created": "Contact created successfully",
+      "createError": "Unable to create the contact",
+      "projectCreated": "Project created",
+      "deleted": "Contact deleted",
+      "deleteError": "Unable to delete"
+    },
+    "projectDefaultName": "Contact",
+    "projectTitle": "Project - {{name}}",
+    "projectNotes": "Created from the contact {{name}}"
+  },
+  "tasks": {
+    "title": "Task Management",
+    "subtitle": "Organize and track the actions to be carried out at the office.",
+    "bannerTitle": "Smart planning",
+    "bannerSubtitle": "Organization and tracking of actions with automatic prioritization by AI.",
+    "bannerAlt": "Task management",
+    "newTask": "New Task",
+    "print": "Print",
+    "verifyAi": "Verify with AI",
+    "completeBtn": "Complete ({{count}})",
+    "priorityBtn": "Priority ({{count}})",
+    "assignBtn": "Assign ({{count}})",
+    "statusBtn": "Status ({{count}})",
+    "deleteBtn": "Delete ({{count}})",
+    "changePriority": "Change priority",
+    "changeStatus": "Change status",
+    "assignPlaceholder": "Agent name...",
+    "searchPlaceholder": "Search a task...",
+    "loadError": "Unable to load tasks",
+    "aiTitle": "AI Recommendations - Tasks",
+    "pagination": "{{total}} task(s) - Page {{page}} of {{pages}}",
+    "notAssigned": "Unassigned",
+    "noDueDate": "None",
+    "filters": {
+      "status": "Status",
+      "priority": "Priority",
+      "allStatuses": "All statuses",
+      "allPriorities": "All priorities"
+    },
+    "status": {
+      "en_attente": "Pending",
+      "en_cours": "In progress",
+      "termine": "Completed",
+      "annule": "Cancelled"
+    },
+    "statusBulk": {
+      "todo": "To do",
+      "en_cours": "In progress",
+      "termine": "Completed",
+      "annule": "Cancelled"
+    },
+    "priority": {
+      "haute": "High",
+      "moyenne": "Medium",
+      "basse": "Low"
+    },
+    "priorityEmoji": {
+      "haute": "🟠 High",
+      "moyenne": "🟡 Medium",
+      "basse": "🟢 Low"
+    },
+    "dialog": {
+      "editTitle": "Edit task",
+      "createTitle": "New task",
+      "desc": "Details of the action to perform.",
+      "update": "Update",
+      "create": "Create"
+    },
+    "form": {
+      "title": "Title",
+      "description": "Description",
+      "status": "Status",
+      "priority": "Priority",
+      "dueDate": "Due date",
+      "assignedTo": "Assigned to",
+      "assignedToPlaceholder": "Employee name",
+      "relatedContact": "Related contact (Optional)",
+      "chooseContact": "Choose a contact...",
+      "none": "None",
+      "recurring": "Recurring task",
+      "recurringHint": "This task repeats automatically",
+      "frequency": "Frequency",
+      "choose": "Choose…",
+      "recurrenceEnd": "Recurrence end"
+    },
+    "frequency": {
+      "quotidien": "Daily",
+      "hebdomadaire": "Weekly",
+      "bihebdomadaire": "Bi-weekly",
+      "mensuel": "Monthly",
+      "trimestriel": "Quarterly",
+      "annuel": "Yearly"
+    },
+    "meta": {
+      "createdBy": "Created by",
+      "updatedBy": "Modified by"
+    },
+    "columns": {
+      "task": "Task",
+      "assignedTo": "Assigned to",
+      "dueDate": "Due date",
+      "status": "Status",
+      "priority": "Priority",
+      "actions": "Actions"
+    },
+    "kanban": {
+      "recurring": "Recurring"
+    },
+    "empty": {
+      "filtered": "No task matches your filters.",
+      "title": "No tasks yet",
+      "description": "Create your first task to organize your work. You can assign it to an employee, set a due date and a priority level.",
+      "action": "Create my first task",
+      "tip": "Tip: use the AI Commander to create several tasks at once in natural language."
+    },
+    "rowActions": {
+      "edit": "Edit",
+      "duplicate": "Duplicate",
+      "createProject": "Create a project",
+      "markDone": "Mark as completed",
+      "delete": "Delete"
+    },
+    "confirm": {
+      "bulkDelete": "Delete {{count}} task(s)?",
+      "deleteOne": "Delete this task?"
+    },
+    "toast": {
+      "updated": "Task updated",
+      "updateError": "Unable to edit the task",
+      "created": "Task created",
+      "createError": "Unable to create the task",
+      "statusUpdated": "Status updated",
+      "statusError": "Unable to change the status",
+      "duplicated": "Task duplicated",
+      "error": "Error",
+      "networkError": "Network error",
+      "duplicateFailed": "Unable to duplicate the task.",
+      "bulkDeleted": "{{count}} task(s) deleted",
+      "bulkDeleteError": "Error during deletion",
+      "deleteFailed": "Deletion failed.",
+      "bulkCompleted": "{{count}} task(s) marked as completed",
+      "updateFailed": "Update failed.",
+      "bulkPriority": "{{count}} task(s) → priority {{priority}}",
+      "bulkStatus": "{{count}} task(s) updated",
+      "bulkAssigned": "{{count}} task(s) assigned to {{name}}",
+      "assignFailed": "Assignment failed.",
+      "projectCreated": "Project created",
+      "deleted": "Task deleted",
+      "deleteError": "Unable to delete"
+    },
+    "projectNotes": "Created from task #{{id}}"
+  },
+  "calls": {
+    "title": "Call Log",
+    "subtitle": "Manage and track all phone communications.",
+    "bannerTitle": "Communication center",
+    "bannerSubtitle": "Real-time tracking of all incoming and outgoing communications.",
+    "bannerAlt": "Call center",
+    "newCall": "New Call",
+    "exportCsv": "Export CSV",
+    "print": "Print",
+    "verifyAi": "Verify with AI",
+    "statusBtn": "Status ({{count}})",
+    "deleteBtn": "Delete ({{count}})",
+    "changeStatus": "Change status",
+    "searchPlaceholder": "Search by name or number...",
+    "searchAria": "Search calls",
+    "clear": "Clear",
+    "dateSeparator": "to",
+    "loadError": "Unable to load calls",
+    "aiTitle": "AI Recommendations - Calls",
+    "pagination": "{{total}} result(s) - Page {{page}} of {{pages}}",
+    "unknown": "Unknown",
+    "openMenu": "Open menu",
+    "filters": {
+      "status": "Status",
+      "direction": "Direction",
+      "allStatuses": "All statuses",
+      "allDirections": "All directions"
+    },
+    "status": {
+      "repondu": "Answered",
+      "manque": "Missed",
+      "messagerie": "Voicemail",
+      "en_cours": "In progress"
+    },
+    "direction": {
+      "entrant": "Incoming",
+      "sortant": "Outgoing"
+    },
+    "sentiment": {
+      "tres_positif": "Very positive",
+      "positif": "Positive",
+      "neutre": "Neutral",
+      "negatif": "Negative",
+      "tres_negatif": "Very negative",
+      "undefined": "Undefined"
+    },
+    "dialog": {
+      "editTitle": "Edit call",
+      "createTitle": "Log a call",
+      "editDesc": "Edit the call's information.",
+      "createDesc": "Enter the details of the communication.",
+      "update": "Update",
+      "create": "Save the call"
+    },
+    "form": {
+      "direction": "Direction",
+      "status": "Status",
+      "phoneNumber": "Phone number",
+      "phonePlaceholder": "+33 6...",
+      "contact": "Link to a contact (Optional)",
+      "chooseContact": "Choose a contact...",
+      "noneUnknown": "None (Unknown number)",
+      "duration": "Duration (seconds)",
+      "sentiment": "Sentiment"
+    },
+    "columns": {
+      "contactNumber": "Contact & Number",
+      "dateTime": "Date & Time",
+      "status": "Status",
+      "duration": "Duration",
+      "sentiment": "Sentiment",
+      "actions": "Actions"
+    },
+    "empty": {
+      "filtered": "No call matches your filters.",
+      "title": "No calls yet",
+      "description": "Your phone calls will appear here as soon as you configure your Twilio number. Each call will be automatically recorded and transcribed by AI.",
+      "action": "Configure telephony",
+      "tip": "Tip: without Twilio, you can also manually log your calls to track your business activity."
+    },
+    "rowActions": {
+      "viewDetails": "View details",
+      "edit": "Edit",
+      "goToContact": "Go to contact",
+      "markAnswered": "Mark as answered",
+      "markVoicemail": "Mark as voicemail",
+      "duplicate": "Duplicate",
+      "createProject": "Create a project",
+      "delete": "Delete"
+    },
+    "pager": {
+      "first": "First page",
+      "prev": "Previous page",
+      "next": "Next page",
+      "last": "Last page"
+    },
+    "confirm": {
+      "bulkDelete": "Delete {{count}} call(s)?",
+      "deleteOne": "Delete this call?"
+    },
+    "toast": {
+      "statusUpdated": "Status updated",
+      "statusError": "Unable to change the call status",
+      "bulkStatus": "{{count}} call(s) updated",
+      "bulkStatusError": "Unable to update",
+      "bulkDeleted": "{{count}} call(s) deleted",
+      "bulkDeleteError": "Error during deletion",
+      "updated": "Call updated",
+      "updateError": "Unable to edit the call",
+      "created": "Call saved",
+      "createError": "Unable to save the call",
+      "error": "Error",
+      "duplicated": "Call duplicated",
+      "projectCreated": "Project created",
+      "deleted": "Call deleted"
+    },
+    "projectTitleWith": "Project - {{name}}",
+    "projectTitleDefault": "Project from call",
+    "projectNotes": "Created from the call of {{date}}"
   }
 }

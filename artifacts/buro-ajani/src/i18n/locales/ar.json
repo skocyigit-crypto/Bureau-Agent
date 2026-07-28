@@ -297,5 +297,365 @@
       "contactsForecast": "جهات الاتصال المتوقعة",
       "revenueForecast": "الإيرادات المتوقعة"
     }
+  },
+  "contacts": {
+    "title": "دليل جهات الاتصال",
+    "subtitle": "أدر قاعدة بياناتك المهنية.",
+    "bannerTitle": "دليل مهني",
+    "bannerSubtitle": "إدارة مركزية لجهات اتصالك وعملائك وشركائك.",
+    "bannerAlt": "الاستقبال",
+    "changeCategory": "تغيير الفئة",
+    "categoryBtn": "الفئة ({{count}})",
+    "deleteBtn": "حذف ({{count}})",
+    "exportCsv": "تصدير CSV",
+    "importCsv": "استيراد CSV",
+    "print": "طباعة",
+    "newContact": "جهة اتصال جديدة",
+    "verifyAi": "التحقق بالذكاء الاصطناعي",
+    "searchPlaceholder": "البحث بالاسم أو الشركة أو البريد الإلكتروني...",
+    "searchAria": "البحث في جهات الاتصال",
+    "allCategories": "جميع الفئات",
+    "loadError": "تعذّر تحميل جهات الاتصال",
+    "aiTitle": "توصيات الذكاء الاصطناعي - جهات الاتصال",
+    "pagination": "{{total}} جهة اتصال - صفحة {{page}} من {{pages}}",
+    "callsCount": "{{count}} مكالمة",
+    "dialog": {
+      "editTitle": "تعديل جهة الاتصال",
+      "createTitle": "جهة اتصال جديدة",
+      "editDesc": "عدّل معلومات جهة الاتصال.",
+      "createDesc": "أضف شخصًا إلى الدليل.",
+      "update": "تحديث",
+      "create": "إنشاء جهة الاتصال"
+    },
+    "form": {
+      "firstName": "الاسم الأول",
+      "lastName": "اسم العائلة",
+      "company": "الشركة",
+      "category": "الفئة",
+      "phone": "الهاتف",
+      "email": "البريد الإلكتروني"
+    },
+    "categories": {
+      "client": "عميل",
+      "prospect": "عميل محتمل",
+      "fournisseur": "مورّد",
+      "partenaire": "شريك",
+      "autre": "أخرى"
+    },
+    "columns": {
+      "contact": "جهة الاتصال",
+      "company": "الشركة",
+      "coordinates": "بيانات الاتصال",
+      "calls": "المكالمات",
+      "category": "الفئة",
+      "actions": "الإجراءات"
+    },
+    "empty": {
+      "filtered": "لا توجد جهة اتصال تطابق بحثك.",
+      "title": "لا توجد جهات اتصال بعد",
+      "description": "أنشئ أول جهة اتصال أو استورد دفتر عناوينك الحالي لبدء إدارة عملائك وعملائك المحتملين.",
+      "descriptionGrid": "أنشئ أول جهة اتصال أو استورد دفتر عناوينك الحالي للبدء.",
+      "action": "إنشاء أول جهة اتصال",
+      "tip": "نصيحة: استورد ملف CSV لإضافة عدة جهات اتصال دفعة واحدة."
+    },
+    "actions": {
+      "viewProfile": "عرض الملف الشخصي",
+      "edit": "تعديل",
+      "duplicate": "تكرار",
+      "call": "اتصال",
+      "sendEmail": "إرسال بريد إلكتروني",
+      "createProject": "إنشاء مشروع",
+      "delete": "حذف"
+    },
+    "pager": {
+      "first": "الصفحة الأولى",
+      "prev": "الصفحة السابقة",
+      "next": "الصفحة التالية",
+      "last": "الصفحة الأخيرة"
+    },
+    "confirm": {
+      "bulkDelete": "حذف {{count}} جهة اتصال؟",
+      "deleteOne": "حذف {{name}}؟"
+    },
+    "toast": {
+      "bulkDeleted": "تم حذف {{count}} جهة اتصال",
+      "bulkDeleteError": "خطأ أثناء الحذف",
+      "categoryUpdated": "تم تحديث {{count}} جهة اتصال ← {{category}}",
+      "error": "خطأ",
+      "duplicated": "تم تكرار جهة الاتصال",
+      "duplicateError": "تعذّر التكرار",
+      "updated": "تم تحديث جهة الاتصال",
+      "updateError": "تعذّر تعديل جهة الاتصال",
+      "created": "تم إنشاء جهة الاتصال بنجاح",
+      "createError": "تعذّر إنشاء جهة الاتصال",
+      "projectCreated": "تم إنشاء المشروع",
+      "deleted": "تم حذف جهة الاتصال",
+      "deleteError": "تعذّر الحذف"
+    },
+    "projectDefaultName": "جهة اتصال",
+    "projectTitle": "مشروع - {{name}}",
+    "projectNotes": "أُنشئ من جهة الاتصال {{name}}"
+  },
+  "tasks": {
+    "title": "إدارة المهام",
+    "subtitle": "نظّم وتابع الإجراءات المطلوب تنفيذها في المكتب.",
+    "bannerTitle": "تخطيط ذكي",
+    "bannerSubtitle": "تنظيم ومتابعة الإجراءات مع ترتيب الأولويات تلقائيًا بواسطة الذكاء الاصطناعي.",
+    "bannerAlt": "إدارة المهام",
+    "newTask": "مهمة جديدة",
+    "print": "طباعة",
+    "verifyAi": "التحقق بالذكاء الاصطناعي",
+    "completeBtn": "إنهاء ({{count}})",
+    "priorityBtn": "الأولوية ({{count}})",
+    "assignBtn": "إسناد ({{count}})",
+    "statusBtn": "الحالة ({{count}})",
+    "deleteBtn": "حذف ({{count}})",
+    "changePriority": "تغيير الأولوية",
+    "changeStatus": "تغيير الحالة",
+    "assignPlaceholder": "اسم الوكيل...",
+    "searchPlaceholder": "البحث عن مهمة...",
+    "loadError": "تعذّر تحميل المهام",
+    "aiTitle": "توصيات الذكاء الاصطناعي - المهام",
+    "pagination": "{{total}} مهمة - صفحة {{page}} من {{pages}}",
+    "notAssigned": "غير مُسندة",
+    "noDueDate": "لا يوجد",
+    "filters": {
+      "status": "الحالة",
+      "priority": "الأولوية",
+      "allStatuses": "جميع الحالات",
+      "allPriorities": "جميع الأولويات"
+    },
+    "status": {
+      "en_attente": "قيد الانتظار",
+      "en_cours": "قيد التنفيذ",
+      "termine": "مكتملة",
+      "annule": "ملغاة"
+    },
+    "statusBulk": {
+      "todo": "للتنفيذ",
+      "en_cours": "قيد التنفيذ",
+      "termine": "مكتملة",
+      "annule": "ملغاة"
+    },
+    "priority": {
+      "haute": "عالية",
+      "moyenne": "متوسطة",
+      "basse": "منخفضة"
+    },
+    "priorityEmoji": {
+      "haute": "🟠 عالية",
+      "moyenne": "🟡 متوسطة",
+      "basse": "🟢 منخفضة"
+    },
+    "dialog": {
+      "editTitle": "تعديل المهمة",
+      "createTitle": "مهمة جديدة",
+      "desc": "تفاصيل الإجراء المطلوب تنفيذه.",
+      "update": "تحديث",
+      "create": "إنشاء"
+    },
+    "form": {
+      "title": "العنوان",
+      "description": "الوصف",
+      "status": "الحالة",
+      "priority": "الأولوية",
+      "dueDate": "تاريخ الاستحقاق",
+      "assignedTo": "مُسندة إلى",
+      "assignedToPlaceholder": "اسم الموظف",
+      "relatedContact": "جهة اتصال مرتبطة (اختياري)",
+      "chooseContact": "اختر جهة اتصال...",
+      "none": "لا يوجد",
+      "recurring": "مهمة متكررة",
+      "recurringHint": "تتكرر هذه المهمة تلقائيًا",
+      "frequency": "التكرار",
+      "choose": "اختر…",
+      "recurrenceEnd": "نهاية التكرار"
+    },
+    "frequency": {
+      "quotidien": "يومي",
+      "hebdomadaire": "أسبوعي",
+      "bihebdomadaire": "كل أسبوعين",
+      "mensuel": "شهري",
+      "trimestriel": "ربع سنوي",
+      "annuel": "سنوي"
+    },
+    "meta": {
+      "createdBy": "أُنشئ بواسطة",
+      "updatedBy": "عُدّل بواسطة"
+    },
+    "columns": {
+      "task": "المهمة",
+      "assignedTo": "مُسندة إلى",
+      "dueDate": "الاستحقاق",
+      "status": "الحالة",
+      "priority": "الأولوية",
+      "actions": "الإجراءات"
+    },
+    "kanban": {
+      "recurring": "متكرر"
+    },
+    "empty": {
+      "filtered": "لا توجد مهمة تطابق عوامل التصفية.",
+      "title": "لا توجد مهام بعد",
+      "description": "أنشئ أول مهمة لتنظيم عملك. يمكنك إسنادها إلى موظف وتحديد تاريخ استحقاق ومستوى أولوية.",
+      "action": "إنشاء أول مهمة",
+      "tip": "نصيحة: استخدم قائد الذكاء الاصطناعي لإنشاء عدة مهام دفعة واحدة باللغة الطبيعية."
+    },
+    "rowActions": {
+      "edit": "تحرير",
+      "duplicate": "تكرار",
+      "createProject": "إنشاء مشروع",
+      "markDone": "وضع علامة مكتملة",
+      "delete": "حذف"
+    },
+    "confirm": {
+      "bulkDelete": "حذف {{count}} مهمة؟",
+      "deleteOne": "حذف هذه المهمة؟"
+    },
+    "toast": {
+      "updated": "تم تحديث المهمة",
+      "updateError": "تعذّر تعديل المهمة",
+      "created": "تم إنشاء المهمة",
+      "createError": "تعذّر إنشاء المهمة",
+      "statusUpdated": "تم تحديث الحالة",
+      "statusError": "تعذّر تغيير الحالة",
+      "duplicated": "تم تكرار المهمة",
+      "error": "خطأ",
+      "networkError": "خطأ في الشبكة",
+      "duplicateFailed": "تعذّر تكرار المهمة.",
+      "bulkDeleted": "تم حذف {{count}} مهمة",
+      "bulkDeleteError": "خطأ أثناء الحذف",
+      "deleteFailed": "فشل الحذف.",
+      "bulkCompleted": "تم وضع علامة مكتملة على {{count}} مهمة",
+      "updateFailed": "فشل التحديث.",
+      "bulkPriority": "{{count}} مهمة ← الأولوية {{priority}}",
+      "bulkStatus": "تم تحديث {{count}} مهمة",
+      "bulkAssigned": "تم إسناد {{count}} مهمة إلى {{name}}",
+      "assignFailed": "فشل الإسناد.",
+      "projectCreated": "تم إنشاء المشروع",
+      "deleted": "تم حذف المهمة",
+      "deleteError": "تعذّر الحذف"
+    },
+    "projectNotes": "أُنشئ من المهمة رقم {{id}}"
+  },
+  "calls": {
+    "title": "سجل المكالمات",
+    "subtitle": "أدر وتابع جميع الاتصالات الهاتفية.",
+    "bannerTitle": "مركز الاتصالات",
+    "bannerSubtitle": "متابعة فورية لجميع الاتصالات الواردة والصادرة.",
+    "bannerAlt": "مركز المكالمات",
+    "newCall": "مكالمة جديدة",
+    "exportCsv": "تصدير CSV",
+    "print": "طباعة",
+    "verifyAi": "التحقق بالذكاء الاصطناعي",
+    "statusBtn": "الحالة ({{count}})",
+    "deleteBtn": "حذف ({{count}})",
+    "changeStatus": "تغيير الحالة",
+    "searchPlaceholder": "البحث بالاسم أو الرقم...",
+    "searchAria": "البحث في المكالمات",
+    "clear": "مسح",
+    "dateSeparator": "إلى",
+    "loadError": "تعذّر تحميل المكالمات",
+    "aiTitle": "توصيات الذكاء الاصطناعي - المكالمات",
+    "pagination": "{{total}} نتيجة - صفحة {{page}} من {{pages}}",
+    "unknown": "غير معروف",
+    "openMenu": "فتح القائمة",
+    "filters": {
+      "status": "الحالة",
+      "direction": "الاتجاه",
+      "allStatuses": "جميع الحالات",
+      "allDirections": "جميع الاتجاهات"
+    },
+    "status": {
+      "repondu": "تم الرد",
+      "manque": "فائتة",
+      "messagerie": "البريد الصوتي",
+      "en_cours": "قيد التنفيذ"
+    },
+    "direction": {
+      "entrant": "واردة",
+      "sortant": "صادرة"
+    },
+    "sentiment": {
+      "tres_positif": "إيجابي جدًا",
+      "positif": "إيجابي",
+      "neutre": "محايد",
+      "negatif": "سلبي",
+      "tres_negatif": "سلبي جدًا",
+      "undefined": "غير محدد"
+    },
+    "dialog": {
+      "editTitle": "تعديل المكالمة",
+      "createTitle": "تسجيل مكالمة",
+      "editDesc": "عدّل معلومات المكالمة.",
+      "createDesc": "أدخل تفاصيل الاتصال.",
+      "update": "تحديث",
+      "create": "حفظ المكالمة"
+    },
+    "form": {
+      "direction": "الاتجاه",
+      "status": "الحالة",
+      "phoneNumber": "رقم الهاتف",
+      "phonePlaceholder": "+33 6...",
+      "contact": "الربط بجهة اتصال (اختياري)",
+      "chooseContact": "اختر جهة اتصال...",
+      "noneUnknown": "لا يوجد (رقم غير معروف)",
+      "duration": "المدة (بالثواني)",
+      "sentiment": "الانطباع"
+    },
+    "columns": {
+      "contactNumber": "جهة الاتصال والرقم",
+      "dateTime": "التاريخ والوقت",
+      "status": "الحالة",
+      "duration": "المدة",
+      "sentiment": "الانطباع",
+      "actions": "الإجراءات"
+    },
+    "empty": {
+      "filtered": "لا توجد مكالمة تطابق عوامل التصفية.",
+      "title": "لا توجد مكالمات بعد",
+      "description": "ستظهر مكالماتك الهاتفية هنا بمجرد إعداد رقم Twilio الخاص بك. سيتم تسجيل كل مكالمة وتفريغها تلقائيًا بواسطة الذكاء الاصطناعي.",
+      "action": "إعداد الهاتف",
+      "tip": "نصيحة: بدون Twilio، يمكنك أيضًا تسجيل مكالماتك يدويًا لمتابعة نشاطك التجاري."
+    },
+    "rowActions": {
+      "viewDetails": "عرض التفاصيل",
+      "edit": "تعديل",
+      "goToContact": "الانتقال إلى جهة الاتصال",
+      "markAnswered": "وضع علامة تم الرد",
+      "markVoicemail": "وضع علامة بريد صوتي",
+      "duplicate": "تكرار",
+      "createProject": "إنشاء مشروع",
+      "delete": "حذف"
+    },
+    "pager": {
+      "first": "الصفحة الأولى",
+      "prev": "الصفحة السابقة",
+      "next": "الصفحة التالية",
+      "last": "الصفحة الأخيرة"
+    },
+    "confirm": {
+      "bulkDelete": "حذف {{count}} مكالمة؟",
+      "deleteOne": "حذف هذه المكالمة؟"
+    },
+    "toast": {
+      "statusUpdated": "تم تحديث الحالة",
+      "statusError": "تعذّر تغيير حالة المكالمة",
+      "bulkStatus": "تم تحديث {{count}} مكالمة",
+      "bulkStatusError": "تعذّر التحديث",
+      "bulkDeleted": "تم حذف {{count}} مكالمة",
+      "bulkDeleteError": "خطأ أثناء الحذف",
+      "updated": "تم تحديث المكالمة",
+      "updateError": "تعذّر تعديل المكالمة",
+      "created": "تم حفظ المكالمة",
+      "createError": "تعذّر حفظ المكالمة",
+      "error": "خطأ",
+      "duplicated": "تم تكرار المكالمة",
+      "projectCreated": "تم إنشاء المشروع",
+      "deleted": "تم حذف المكالمة"
+    },
+    "projectTitleWith": "مشروع - {{name}}",
+    "projectTitleDefault": "مشروع من مكالمة",
+    "projectNotes": "أُنشئ من مكالمة بتاريخ {{date}}"
   }
 }

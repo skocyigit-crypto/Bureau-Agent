@@ -297,5 +297,365 @@
       "contactsForecast": "Contacts prévus",
       "revenueForecast": "CA prévu"
     }
+  },
+  "contacts": {
+    "title": "Annuaire des Contacts",
+    "subtitle": "Gérez votre base de données professionnelle.",
+    "bannerTitle": "Annuaire professionnel",
+    "bannerSubtitle": "Gestion centralisée de vos contacts, clients et partenaires.",
+    "bannerAlt": "Accueil et réception",
+    "changeCategory": "Changer la catégorie",
+    "categoryBtn": "Catégorie ({{count}})",
+    "deleteBtn": "Supprimer ({{count}})",
+    "exportCsv": "Exporter CSV",
+    "importCsv": "Importer CSV",
+    "print": "Imprimer",
+    "newContact": "Nouveau Contact",
+    "verifyAi": "Vérifier IA",
+    "searchPlaceholder": "Rechercher par nom, entreprise, email...",
+    "searchAria": "Rechercher des contacts",
+    "allCategories": "Toutes les catégories",
+    "loadError": "Impossible de charger les contacts",
+    "aiTitle": "Recommandations IA - Contacts",
+    "pagination": "{{total}} contact(s) - Page {{page}} sur {{pages}}",
+    "callsCount": "{{count}} appel(s)",
+    "dialog": {
+      "editTitle": "Modifier le contact",
+      "createTitle": "Nouveau contact",
+      "editDesc": "Modifiez les informations du contact.",
+      "createDesc": "Ajouter une personne à l'annuaire.",
+      "update": "Mettre à jour",
+      "create": "Créer le contact"
+    },
+    "form": {
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "company": "Entreprise",
+      "category": "Catégorie",
+      "phone": "Téléphone",
+      "email": "Email"
+    },
+    "categories": {
+      "client": "Client",
+      "prospect": "Prospect",
+      "fournisseur": "Fournisseur",
+      "partenaire": "Partenaire",
+      "autre": "Autre"
+    },
+    "columns": {
+      "contact": "Contact",
+      "company": "Entreprise",
+      "coordinates": "Coordonnées",
+      "calls": "Appels",
+      "category": "Catégorie",
+      "actions": "Actions"
+    },
+    "empty": {
+      "filtered": "Aucun contact ne correspond à votre recherche.",
+      "title": "Aucun contact pour l'instant",
+      "description": "Créez votre premier contact ou importez votre carnet d'adresses existant pour commencer à gérer vos clients et prospects.",
+      "descriptionGrid": "Créez votre premier contact ou importez votre carnet d'adresses existant pour commencer.",
+      "action": "Créer mon premier contact",
+      "tip": "Astuce : importez un fichier CSV pour ajouter plusieurs contacts d'un coup."
+    },
+    "actions": {
+      "viewProfile": "Voir le profil",
+      "edit": "Modifier",
+      "duplicate": "Dupliquer",
+      "call": "Appeler",
+      "sendEmail": "Envoyer email",
+      "createProject": "Créer un projet",
+      "delete": "Supprimer"
+    },
+    "pager": {
+      "first": "Première page",
+      "prev": "Page précédente",
+      "next": "Page suivante",
+      "last": "Dernière page"
+    },
+    "confirm": {
+      "bulkDelete": "Supprimer {{count}} contact(s) ?",
+      "deleteOne": "Supprimer {{name}} ?"
+    },
+    "toast": {
+      "bulkDeleted": "{{count}} contact(s) supprimé(s)",
+      "bulkDeleteError": "Erreur lors de la suppression",
+      "categoryUpdated": "{{count}} contact(s) mis à jour → {{category}}",
+      "error": "Erreur",
+      "duplicated": "Contact dupliqué",
+      "duplicateError": "Impossible de dupliquer",
+      "updated": "Contact mis à jour",
+      "updateError": "Impossible de modifier le contact",
+      "created": "Contact créé avec succès",
+      "createError": "Impossible de créer le contact",
+      "projectCreated": "Projet créé",
+      "deleted": "Contact supprimé",
+      "deleteError": "Impossible de supprimer"
+    },
+    "projectDefaultName": "Contact",
+    "projectTitle": "Projet - {{name}}",
+    "projectNotes": "Créé depuis le contact {{name}}"
+  },
+  "tasks": {
+    "title": "Gestion des Tâches",
+    "subtitle": "Organisez et suivez les actions à réaliser au bureau.",
+    "bannerTitle": "Planification intelligente",
+    "bannerSubtitle": "Organisation et suivi des actions avec priorisation automatique par l'IA.",
+    "bannerAlt": "Gestion des tâches",
+    "newTask": "Nouvelle Tâche",
+    "print": "Imprimer",
+    "verifyAi": "Vérifier IA",
+    "completeBtn": "Terminer ({{count}})",
+    "priorityBtn": "Priorité ({{count}})",
+    "assignBtn": "Assigner ({{count}})",
+    "statusBtn": "Statut ({{count}})",
+    "deleteBtn": "Supprimer ({{count}})",
+    "changePriority": "Changer la priorité",
+    "changeStatus": "Changer le statut",
+    "assignPlaceholder": "Nom de l'agent...",
+    "searchPlaceholder": "Rechercher une tâche...",
+    "loadError": "Impossible de charger les tâches",
+    "aiTitle": "Recommandations IA - Tâches",
+    "pagination": "{{total}} tâche(s) - Page {{page}} sur {{pages}}",
+    "notAssigned": "Non assigné",
+    "noDueDate": "Aucune",
+    "filters": {
+      "status": "Statut",
+      "priority": "Priorité",
+      "allStatuses": "Tous les statuts",
+      "allPriorities": "Toutes les priorités"
+    },
+    "status": {
+      "en_attente": "En attente",
+      "en_cours": "En cours",
+      "termine": "Terminé",
+      "annule": "Annulé"
+    },
+    "statusBulk": {
+      "todo": "À faire",
+      "en_cours": "En cours",
+      "termine": "Terminée",
+      "annule": "Annulée"
+    },
+    "priority": {
+      "haute": "Haute",
+      "moyenne": "Moyenne",
+      "basse": "Basse"
+    },
+    "priorityEmoji": {
+      "haute": "🟠 Haute",
+      "moyenne": "🟡 Moyenne",
+      "basse": "🟢 Basse"
+    },
+    "dialog": {
+      "editTitle": "Modifier la tâche",
+      "createTitle": "Nouvelle tâche",
+      "desc": "Détails de l'action à effectuer.",
+      "update": "Mettre à jour",
+      "create": "Créer"
+    },
+    "form": {
+      "title": "Titre",
+      "description": "Description",
+      "status": "Statut",
+      "priority": "Priorité",
+      "dueDate": "Date d'échéance",
+      "assignedTo": "Assigné à",
+      "assignedToPlaceholder": "Nom du collaborateur",
+      "relatedContact": "Contact associé (Optionnel)",
+      "chooseContact": "Choisir un contact...",
+      "none": "Aucun",
+      "recurring": "Tâche récurrente",
+      "recurringHint": "Cette tâche se répète automatiquement",
+      "frequency": "Fréquence",
+      "choose": "Choisir…",
+      "recurrenceEnd": "Fin de récurrence"
+    },
+    "frequency": {
+      "quotidien": "Quotidien",
+      "hebdomadaire": "Hebdomadaire",
+      "bihebdomadaire": "Bi-hebdomadaire",
+      "mensuel": "Mensuel",
+      "trimestriel": "Trimestriel",
+      "annuel": "Annuel"
+    },
+    "meta": {
+      "createdBy": "Créé par",
+      "updatedBy": "Modifié par"
+    },
+    "columns": {
+      "task": "Tâche",
+      "assignedTo": "Assigné à",
+      "dueDate": "Échéance",
+      "status": "Statut",
+      "priority": "Priorité",
+      "actions": "Actions"
+    },
+    "kanban": {
+      "recurring": "Récurrent"
+    },
+    "empty": {
+      "filtered": "Aucune tâche ne correspond à vos filtres.",
+      "title": "Aucune tâche pour l'instant",
+      "description": "Créez votre première tâche pour organiser votre travail. Vous pourrez l'attribuer à un collaborateur, fixer une échéance et un niveau de priorité.",
+      "action": "Créer ma première tâche",
+      "tip": "Astuce : utilisez le Commandant IA pour créer plusieurs tâches d'un coup en langage naturel."
+    },
+    "rowActions": {
+      "edit": "Éditer",
+      "duplicate": "Dupliquer",
+      "createProject": "Créer un projet",
+      "markDone": "Marquer terminée",
+      "delete": "Supprimer"
+    },
+    "confirm": {
+      "bulkDelete": "Supprimer {{count}} tâche(s) ?",
+      "deleteOne": "Supprimer cette tâche ?"
+    },
+    "toast": {
+      "updated": "Tâche mise à jour",
+      "updateError": "Impossible de modifier la tâche",
+      "created": "Tâche créée",
+      "createError": "Impossible de créer la tâche",
+      "statusUpdated": "Statut mis à jour",
+      "statusError": "Impossible de changer le statut",
+      "duplicated": "Tâche dupliquée",
+      "error": "Erreur",
+      "networkError": "Erreur réseau",
+      "duplicateFailed": "Impossible de dupliquer la tâche.",
+      "bulkDeleted": "{{count}} tâche(s) supprimée(s)",
+      "bulkDeleteError": "Erreur lors de la suppression",
+      "deleteFailed": "La suppression a échoué.",
+      "bulkCompleted": "{{count}} tâche(s) marquée(s) terminée(s)",
+      "updateFailed": "La mise à jour a échoué.",
+      "bulkPriority": "{{count}} tâche(s) → priorité {{priority}}",
+      "bulkStatus": "{{count}} tâche(s) mise(s) à jour",
+      "bulkAssigned": "{{count}} tâche(s) assignée(s) à {{name}}",
+      "assignFailed": "L'assignation a échoué.",
+      "projectCreated": "Projet créé",
+      "deleted": "Tâche supprimée",
+      "deleteError": "Impossible de supprimer"
+    },
+    "projectNotes": "Créé depuis la tâche #{{id}}"
+  },
+  "calls": {
+    "title": "Journal des Appels",
+    "subtitle": "Gérez et suivez toutes les communications téléphoniques.",
+    "bannerTitle": "Centre de communication",
+    "bannerSubtitle": "Suivi en temps réel de toutes les communications entrantes et sortantes.",
+    "bannerAlt": "Centre d'appels",
+    "newCall": "Nouvel Appel",
+    "exportCsv": "Exporter CSV",
+    "print": "Imprimer",
+    "verifyAi": "Vérifier IA",
+    "statusBtn": "Statut ({{count}})",
+    "deleteBtn": "Supprimer ({{count}})",
+    "changeStatus": "Changer le statut",
+    "searchPlaceholder": "Rechercher par nom ou numéro...",
+    "searchAria": "Rechercher des appels",
+    "clear": "Effacer",
+    "dateSeparator": "au",
+    "loadError": "Impossible de charger les appels",
+    "aiTitle": "Recommandations IA - Appels",
+    "pagination": "{{total}} résultat(s) - Page {{page}} sur {{pages}}",
+    "unknown": "Inconnu",
+    "openMenu": "Ouvrir le menu",
+    "filters": {
+      "status": "Statut",
+      "direction": "Direction",
+      "allStatuses": "Tous les statuts",
+      "allDirections": "Toutes directions"
+    },
+    "status": {
+      "repondu": "Répondu",
+      "manque": "Manqué",
+      "messagerie": "Messagerie",
+      "en_cours": "En cours"
+    },
+    "direction": {
+      "entrant": "Entrant",
+      "sortant": "Sortant"
+    },
+    "sentiment": {
+      "tres_positif": "Très positif",
+      "positif": "Positif",
+      "neutre": "Neutre",
+      "negatif": "Négatif",
+      "tres_negatif": "Très négatif",
+      "undefined": "Non défini"
+    },
+    "dialog": {
+      "editTitle": "Modifier l'appel",
+      "createTitle": "Enregistrer un appel",
+      "editDesc": "Modifiez les informations de l'appel.",
+      "createDesc": "Saisissez les détails de la communication.",
+      "update": "Mettre à jour",
+      "create": "Enregistrer l'appel"
+    },
+    "form": {
+      "direction": "Direction",
+      "status": "Statut",
+      "phoneNumber": "Numéro de téléphone",
+      "phonePlaceholder": "+33 6...",
+      "contact": "Associer à un contact (Optionnel)",
+      "chooseContact": "Choisir un contact...",
+      "noneUnknown": "Aucun (Numéro inconnu)",
+      "duration": "Durée (secondes)",
+      "sentiment": "Sentiment"
+    },
+    "columns": {
+      "contactNumber": "Contact & Numéro",
+      "dateTime": "Date & Heure",
+      "status": "Statut",
+      "duration": "Durée",
+      "sentiment": "Sentiment",
+      "actions": "Actions"
+    },
+    "empty": {
+      "filtered": "Aucun appel ne correspond à vos filtres.",
+      "title": "Aucun appel pour l'instant",
+      "description": "Vos appels téléphoniques apparaîtront ici dès que vous configurerez votre numéro Twilio. Chaque appel sera automatiquement enregistré et transcrit par l'IA.",
+      "action": "Configurer la téléphonie",
+      "tip": "Astuce : sans Twilio, vous pouvez aussi enregistrer manuellement vos appels pour suivre votre activité commerciale."
+    },
+    "rowActions": {
+      "viewDetails": "Voir les détails",
+      "edit": "Modifier",
+      "goToContact": "Aller au contact",
+      "markAnswered": "Marquer comme répondu",
+      "markVoicemail": "Marquer comme messagerie",
+      "duplicate": "Dupliquer",
+      "createProject": "Créer un projet",
+      "delete": "Supprimer"
+    },
+    "pager": {
+      "first": "Première page",
+      "prev": "Page précédente",
+      "next": "Page suivante",
+      "last": "Dernière page"
+    },
+    "confirm": {
+      "bulkDelete": "Supprimer {{count}} appel(s) ?",
+      "deleteOne": "Supprimer cet appel ?"
+    },
+    "toast": {
+      "statusUpdated": "Statut mis à jour",
+      "statusError": "Impossible de changer le statut de l'appel",
+      "bulkStatus": "{{count}} appel(s) mis à jour",
+      "bulkStatusError": "Impossible de mettre à jour",
+      "bulkDeleted": "{{count}} appel(s) supprimé(s)",
+      "bulkDeleteError": "Erreur lors de la suppression",
+      "updated": "Appel mis à jour",
+      "updateError": "Impossible de modifier l'appel",
+      "created": "Appel enregistré",
+      "createError": "Impossible d'enregistrer l'appel",
+      "error": "Erreur",
+      "duplicated": "Appel dupliqué",
+      "projectCreated": "Projet créé",
+      "deleted": "Appel supprimé"
+    },
+    "projectTitleWith": "Projet - {{name}}",
+    "projectTitleDefault": "Projet depuis appel",
+    "projectNotes": "Créé depuis l'appel du {{date}}"
   }
 }

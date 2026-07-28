@@ -29,6 +29,7 @@ import { AiValidationFeedback } from "@/components/ai-validation-feedback";
 import { useAiValidation } from "@/hooks/use-ai-validation";
 import { QueryErrorAlert } from "@/components/safe-component";
 import { Link, useLocation } from "wouter";
+import { useTranslation } from "@/i18n";
 
 const PAGE_SIZE = 20;
 
@@ -53,6 +54,7 @@ const KANBAN_COLUMNS = [
 ] as const;
 
 export default function Tasks() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -189,20 +191,20 @@ export default function Tasks() {
     if (editingTask) {
       updateTask.mutate({ id: editingTask.id, data: values }, {
         onSuccess: () => {
-          toast({ title: "Tache mise a jour" });
+          toast({ title: t("tasks.toast.updated") });
           setIsDialogOpen(false);
           queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
         },
-        onError: () => toast({ title: "Erreur", description: "Impossible de modifier la tache", variant: "destructive" })
+        onError: () => toast({ title: t("tasks.toast.error"), description: t("tasks.toast.updateError"), variant: "destructive" })
       });
     } else {
       createTask.mutate({ data: values }, {
         onSuccess: () => {
-          toast({ title: "Tache creee" });
+          toast({ title: t("tasks.toast.created") });
           setIsDialogOpen(false);
           queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
         },
-        onError: () => toast({ title: "Erreur", description: "Impossible de creer la tache", variant: "destructive" })
+        onError: () => toast({ title: t("tasks.toast.error"), description: t("tasks.toast.createError"), variant: "destructive" })
       });
     }
   };
@@ -211,9 +213,9 @@ export default function Tasks() {
     updateTask.mutate({ id, data: { status } }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
-        toast({ title: "Statut mis à jour" });
+        toast({ title: t("tasks.toast.statusUpdated") });
       },
-      onError: () => toast({ title: "Erreur", description: "Impossible de changer le statut", variant: "destructive" }),
+      onError: () => toast({ title: t("tasks.toast.error"), description: t("tasks.toast.statusError"), variant: "destructive" }),
     });
   };
 
@@ -222,21 +224,21 @@ export default function Tasks() {
     try {
       const res = await fetch(`${BASE}/api/tasks/${id}/duplicate`, { method: "POST", credentials: "include" });
       if (res.ok) {
-        toast({ title: "Tâche dupliquée" });
+        toast({ title: t("tasks.toast.duplicated") });
         queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
       } else {
         const d = await res.json().catch(() => ({}));
-        toast({ title: "Erreur", description: d.error, variant: "destructive" });
+        toast({ title: t("tasks.toast.error"), description: d.error, variant: "destructive" });
       }
     } catch (err) {
       console.error("[tasks] duplicate failed:", err);
-      toast({ title: "Erreur réseau", description: "Impossible de dupliquer la tâche.", variant: "destructive" });
+      toast({ title: t("tasks.toast.networkError"), description: t("tasks.toast.duplicateFailed"), variant: "destructive" });
     }
   };
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
-    if (!(await confirmAction({ title: `Supprimer ${selectedIds.size} tâche(s) ?`, confirmLabel: "Supprimer", destructive: true }))) return;
+    if (!(await confirmAction({ title: t("tasks.confirm.bulkDelete", { count: selectedIds.size }), confirmLabel: t("common.delete"), destructive: true }))) return;
     const ids = Array.from(selectedIds);
     const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
     try {
@@ -244,14 +246,14 @@ export default function Tasks() {
       setSelectedIds(new Set());
       queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
       if (res.ok) {
-        toast({ title: `${ids.length} tâche(s) supprimée(s)` });
+        toast({ title: t("tasks.toast.bulkDeleted", { count: ids.length }) });
       } else {
-        toast({ title: "Erreur lors de la suppression", variant: "destructive" });
+        toast({ title: t("tasks.toast.bulkDeleteError"), variant: "destructive" });
       }
     } catch (err) {
       console.error("[tasks] bulk delete failed:", err);
       queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
-      toast({ title: "Erreur réseau", description: "La suppression a échoué.", variant: "destructive" });
+      toast({ title: t("tasks.toast.networkError"), description: t("tasks.toast.deleteFailed"), variant: "destructive" });
     }
   };
 
@@ -264,14 +266,14 @@ export default function Tasks() {
       setSelectedIds(new Set());
       queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
       if (res.ok) {
-        toast({ title: `${ids.length} tâche(s) marquée(s) terminée(s)` });
+        toast({ title: t("tasks.toast.bulkCompleted", { count: ids.length }) });
       } else {
-        toast({ title: "Erreur", variant: "destructive" });
+        toast({ title: t("tasks.toast.error"), variant: "destructive" });
       }
     } catch (err) {
       console.error("[tasks] bulk complete failed:", err);
       queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
-      toast({ title: "Erreur réseau", description: "La mise à jour a échoué.", variant: "destructive" });
+      toast({ title: t("tasks.toast.networkError"), description: t("tasks.toast.updateFailed"), variant: "destructive" });
     }
   };
 
@@ -284,14 +286,14 @@ export default function Tasks() {
       setSelectedIds(new Set());
       queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
       if (res.ok) {
-        toast({ title: `${ids.length} tâche(s) → priorité ${priority}` });
+        toast({ title: t("tasks.toast.bulkPriority", { count: ids.length, priority }) });
       } else {
-        toast({ title: "Erreur", variant: "destructive" });
+        toast({ title: t("tasks.toast.error"), variant: "destructive" });
       }
     } catch (err) {
       console.error("[tasks] bulk priority failed:", err);
       queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
-      toast({ title: "Erreur réseau", description: "La mise à jour a échoué.", variant: "destructive" });
+      toast({ title: t("tasks.toast.networkError"), description: t("tasks.toast.updateFailed"), variant: "destructive" });
     }
   };
 
@@ -305,11 +307,11 @@ export default function Tasks() {
     const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
     try {
       const res = await fetch(`${BASE}/api/bulk/tasks/status`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids, status }) });
-      if (res.ok) { toast({ title: `${ids.length} tâche(s) mise(s) à jour` }); setSelectedIds(new Set()); queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() }); }
-      else toast({ title: "Erreur", variant: "destructive" });
+      if (res.ok) { toast({ title: t("tasks.toast.bulkStatus", { count: ids.length }) }); setSelectedIds(new Set()); queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() }); }
+      else toast({ title: t("tasks.toast.error"), variant: "destructive" });
     } catch (err) {
       console.error("[tasks] bulk status failed:", err);
-      toast({ title: "Erreur réseau", description: "La mise à jour a échoué.", variant: "destructive" });
+      toast({ title: t("tasks.toast.networkError"), description: t("tasks.toast.updateFailed"), variant: "destructive" });
     }
   };
 
@@ -324,16 +326,16 @@ export default function Tasks() {
       setSelectedIds(new Set());
       queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
       if (res.ok) {
-        toast({ title: `${ids.length} tâche(s) assignée(s) à ${bulkAssignName.trim()}` });
+        toast({ title: t("tasks.toast.bulkAssigned", { count: ids.length, name: bulkAssignName.trim() }) });
       } else {
-        toast({ title: "Erreur", variant: "destructive" });
+        toast({ title: t("tasks.toast.error"), variant: "destructive" });
       }
     } catch (err) {
       console.error("[tasks] bulk assign failed:", err);
       setBulkAssignName("");
       setShowAssignInput(false);
       queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
-      toast({ title: "Erreur réseau", description: "L'assignation a échoué.", variant: "destructive" });
+      toast({ title: t("tasks.toast.networkError"), description: t("tasks.toast.assignFailed"), variant: "destructive" });
     }
   };
 
@@ -347,19 +349,19 @@ export default function Tasks() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'en_attente': return <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 border-amber-500/20"><Clock className="w-3 h-3 mr-1" /> En attente</Badge>;
-      case 'en_cours': return <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 border-blue-500/20"><AlertCircle className="w-3 h-3 mr-1" /> En cours</Badge>;
-      case 'termine': return <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20"><CheckSquare className="w-3 h-3 mr-1" /> Termine</Badge>;
-      case 'annule': return <Badge variant="secondary" className="bg-muted text-muted-foreground border-muted-foreground/20">Annule</Badge>;
+      case 'en_attente': return <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 border-amber-500/20"><Clock className="w-3 h-3 mr-1" /> {t("tasks.status.en_attente")}</Badge>;
+      case 'en_cours': return <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 border-blue-500/20"><AlertCircle className="w-3 h-3 mr-1" /> {t("tasks.status.en_cours")}</Badge>;
+      case 'termine': return <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20"><CheckSquare className="w-3 h-3 mr-1" /> {t("tasks.status.termine")}</Badge>;
+      case 'annule': return <Badge variant="secondary" className="bg-muted text-muted-foreground border-muted-foreground/20">{t("tasks.status.annule")}</Badge>;
       default: return <Badge variant="outline" className="capitalize">{status.replace('_', ' ')}</Badge>;
     }
   };
 
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
-      case 'haute': return <Badge variant="destructive" className="bg-destructive text-destructive-foreground">Haute</Badge>;
-      case 'moyenne': return <Badge variant="secondary" className="bg-amber-500/20 text-amber-700">Moyenne</Badge>;
-      case 'basse': return <Badge variant="secondary" className="bg-blue-500/10 text-blue-700">Basse</Badge>;
+      case 'haute': return <Badge variant="destructive" className="bg-destructive text-destructive-foreground">{t("tasks.priority.haute")}</Badge>;
+      case 'moyenne': return <Badge variant="secondary" className="bg-amber-500/20 text-amber-700">{t("tasks.priority.moyenne")}</Badge>;
+      case 'basse': return <Badge variant="secondary" className="bg-blue-500/10 text-blue-700">{t("tasks.priority.basse")}</Badge>;
       default: return <Badge variant="outline" className="capitalize">{priority}</Badge>;
     }
   };
@@ -397,28 +399,28 @@ export default function Tasks() {
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>{editingTask ? "Modifier la tache" : "Nouvelle tache"}</DialogTitle>
-          <DialogDescription>Details de l'action a effectuer.</DialogDescription>
+          <DialogTitle>{editingTask ? t("tasks.dialog.editTitle") : t("tasks.dialog.createTitle")}</DialogTitle>
+          <DialogDescription>{t("tasks.dialog.desc")}</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField control={form.control} name="title" render={({ field }) => (
-              <FormItem><FormLabel>Titre</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem><FormLabel>{t("tasks.form.title")}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="description" render={({ field }) => (
-              <FormItem><FormLabel>Description</FormLabel><FormControl><GhostTextarea className="resize-none" {...field} value={field.value || ""} fieldType="task_description" context={{ title: form.getValues("title") || null }} /></FormControl><FormMessage /></FormItem>
+              <FormItem><FormLabel>{t("tasks.form.description")}</FormLabel><FormControl><GhostTextarea className="resize-none" {...field} value={field.value || ""} fieldType="task_description" context={{ title: form.getValues("title") || null }} /></FormControl><FormMessage /></FormItem>
             )} />
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="status" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Statut</FormLabel>
+                  <FormLabel>{t("tasks.form.status")}</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                     <SelectContent>
-                      <SelectItem value="en_attente">En attente</SelectItem>
-                      <SelectItem value="en_cours">En cours</SelectItem>
-                      <SelectItem value="termine">Termine</SelectItem>
-                      <SelectItem value="annule">Annule</SelectItem>
+                      <SelectItem value="en_attente">{t("tasks.status.en_attente")}</SelectItem>
+                      <SelectItem value="en_cours">{t("tasks.status.en_cours")}</SelectItem>
+                      <SelectItem value="termine">{t("tasks.status.termine")}</SelectItem>
+                      <SelectItem value="annule">{t("tasks.status.annule")}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -426,13 +428,13 @@ export default function Tasks() {
               )} />
               <FormField control={form.control} name="priority" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Priorite</FormLabel>
+                  <FormLabel>{t("tasks.form.priority")}</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                     <SelectContent>
-                      <SelectItem value="haute">Haute</SelectItem>
-                      <SelectItem value="moyenne">Moyenne</SelectItem>
-                      <SelectItem value="basse">Basse</SelectItem>
+                      <SelectItem value="haute">{t("tasks.priority.haute")}</SelectItem>
+                      <SelectItem value="moyenne">{t("tasks.priority.moyenne")}</SelectItem>
+                      <SelectItem value="basse">{t("tasks.priority.basse")}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -442,26 +444,26 @@ export default function Tasks() {
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="dueDate" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Date d'echeance</FormLabel>
+                  <FormLabel>{t("tasks.form.dueDate")}</FormLabel>
                   <FormControl><Input type="date" {...field} value={field.value || ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="assignedTo" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Assigne a</FormLabel>
-                  <FormControl><Input placeholder="Nom du collaborateur" {...field} value={field.value || ""} /></FormControl>
+                  <FormLabel>{t("tasks.form.assignedTo")}</FormLabel>
+                  <FormControl><Input placeholder={t("tasks.form.assignedToPlaceholder")} {...field} value={field.value || ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
             </div>
             <FormField control={form.control} name="relatedContactId" render={({ field }) => (
               <FormItem>
-                <FormLabel>Contact associe (Optionnel)</FormLabel>
+                <FormLabel>{t("tasks.form.relatedContact")}</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value?.toString() || "none"}>
-                  <FormControl><SelectTrigger><SelectValue placeholder="Choisir un contact..."/></SelectTrigger></FormControl>
+                  <FormControl><SelectTrigger><SelectValue placeholder={t("tasks.form.chooseContact")}/></SelectTrigger></FormControl>
                   <SelectContent>
-                    <SelectItem value="none">Aucun</SelectItem>
+                    <SelectItem value="none">{t("tasks.form.none")}</SelectItem>
                     {contactsData?.contacts.map(c => (
                       <SelectItem key={c.id} value={c.id.toString()}>{c.firstName} {c.lastName}</SelectItem>
                     ))}
@@ -475,9 +477,9 @@ export default function Tasks() {
                 <Checkbox checked={!!field.value} onCheckedChange={field.onChange} id="recurring-check" />
                 <div>
                   <FormLabel htmlFor="recurring-check" className="flex items-center gap-2 cursor-pointer mb-0">
-                    <Repeat className="w-3.5 h-3.5 text-muted-foreground" />Tâche récurrente
+                    <Repeat className="w-3.5 h-3.5 text-muted-foreground" />{t("tasks.form.recurring")}
                   </FormLabel>
-                  <p className="text-xs text-muted-foreground">Cette tâche se répète automatiquement</p>
+                  <p className="text-xs text-muted-foreground">{t("tasks.form.recurringHint")}</p>
                 </div>
               </FormItem>
             )} />
@@ -485,16 +487,16 @@ export default function Tasks() {
               <div className="grid grid-cols-2 gap-4">
                 <FormField control={form.control} name="recurrenceRule" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Fréquence</FormLabel>
+                    <FormLabel>{t("tasks.form.frequency")}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value || ""}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Choisir…" /></SelectTrigger></FormControl>
+                      <FormControl><SelectTrigger><SelectValue placeholder={t("tasks.form.choose")} /></SelectTrigger></FormControl>
                       <SelectContent>
-                        <SelectItem value="quotidien">Quotidien</SelectItem>
-                        <SelectItem value="hebdomadaire">Hebdomadaire</SelectItem>
-                        <SelectItem value="bihebdomadaire">Bi-hebdomadaire</SelectItem>
-                        <SelectItem value="mensuel">Mensuel</SelectItem>
-                        <SelectItem value="trimestriel">Trimestriel</SelectItem>
-                        <SelectItem value="annuel">Annuel</SelectItem>
+                        <SelectItem value="quotidien">{t("tasks.frequency.quotidien")}</SelectItem>
+                        <SelectItem value="hebdomadaire">{t("tasks.frequency.hebdomadaire")}</SelectItem>
+                        <SelectItem value="bihebdomadaire">{t("tasks.frequency.bihebdomadaire")}</SelectItem>
+                        <SelectItem value="mensuel">{t("tasks.frequency.mensuel")}</SelectItem>
+                        <SelectItem value="trimestriel">{t("tasks.frequency.trimestriel")}</SelectItem>
+                        <SelectItem value="annuel">{t("tasks.frequency.annuel")}</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -502,7 +504,7 @@ export default function Tasks() {
                 )} />
                 <FormField control={form.control} name="recurrenceEndDate" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Fin de récurrence</FormLabel>
+                    <FormLabel>{t("tasks.form.recurrenceEnd")}</FormLabel>
                     <FormControl><Input type="date" {...field} value={field.value || ""} /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -513,16 +515,16 @@ export default function Tasks() {
             {editingTask && (editingTask.createdByName || editingTask.updatedByName) && (
               <div className="space-y-1 text-xs text-muted-foreground border-t border-border pt-3">
                 {editingTask.createdByName && (
-                  <div>Créé par <span className="font-medium text-foreground">{editingTask.createdByName}</span> {editingTask.createdAt && <>— {format(new Date(editingTask.createdAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}</>}</div>
+                  <div>{t("tasks.meta.createdBy")} <span className="font-medium text-foreground">{editingTask.createdByName}</span> {editingTask.createdAt && <>— {format(new Date(editingTask.createdAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}</>}</div>
                 )}
                 {editingTask.updatedByName && editingTask.updatedAt && (
-                  <div>Modifié par <span className="font-medium text-foreground">{editingTask.updatedByName}</span> — {format(new Date(editingTask.updatedAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}</div>
+                  <div>{t("tasks.meta.updatedBy")} <span className="font-medium text-foreground">{editingTask.updatedByName}</span> — {format(new Date(editingTask.updatedAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}</div>
                 )}
               </div>
             )}
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => aiValidation.validate(form.getValues())} disabled={aiValidation.isValidating} className="mr-auto">Verifier IA</Button>
-              <Button type="submit" disabled={updateTask.isPending || createTask.isPending}>{editingTask ? "Mettre a jour" : "Creer"}</Button>
+              <Button type="button" variant="outline" onClick={() => aiValidation.validate(form.getValues())} disabled={aiValidation.isValidating} className="mr-auto">{t("tasks.verifyAi")}</Button>
+              <Button type="submit" disabled={updateTask.isPending || createTask.isPending}>{editingTask ? t("tasks.dialog.update") : t("tasks.dialog.create")}</Button>
             </DialogFooter>
           </form>
         </Form>
@@ -535,27 +537,27 @@ export default function Tasks() {
       {taskDialog}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={CheckSquare} variant="emerald" size="md" /> Gestion des Taches</h1>
-          <p className="text-muted-foreground mt-1">Organisez et suivez les actions a realiser au bureau.</p>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={CheckSquare} variant="emerald" size="md" /> {t("tasks.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("tasks.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           {selectedIds.size > 0 && (
             <>
               <Button variant="outline" size="sm" onClick={handleBulkComplete}>
                 <CheckCheck className="w-4 h-4 mr-2" />
-                Terminer ({selectedIds.size})
+                {t("tasks.completeBtn", { count: selectedIds.size })}
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
                     <Filter className="w-4 h-4 mr-2" />
-                    Priorité ({selectedIds.size})
+                    {t("tasks.priorityBtn", { count: selectedIds.size })}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Changer la priorité</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("tasks.changePriority")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {[{val:"haute",label:"🟠 Haute"},{val:"moyenne",label:"🟡 Moyenne"},{val:"basse",label:"🟢 Basse"}].map(p => (
+                  {[{val:"haute",label:t("tasks.priorityEmoji.haute")},{val:"moyenne",label:t("tasks.priorityEmoji.moyenne")},{val:"basse",label:t("tasks.priorityEmoji.basse")}].map(p => (
                     <DropdownMenuItem key={p.val} onClick={() => handleBulkPriority(p.val)} className="cursor-pointer">{p.label}</DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
@@ -567,7 +569,7 @@ export default function Tasks() {
                     value={bulkAssignName}
                     onChange={e => setBulkAssignName(e.target.value)}
                     onKeyDown={e => { if (e.key === "Enter") handleBulkAssign(); if (e.key === "Escape") { setShowAssignInput(false); setBulkAssignName(""); } }}
-                    placeholder="Nom de l'agent..."
+                    placeholder={t("tasks.assignPlaceholder")}
                     className="h-8 w-36 text-sm"
                     autoFocus
                   />
@@ -578,50 +580,50 @@ export default function Tasks() {
               ) : (
                 <Button variant="outline" size="sm" onClick={() => { setShowAssignInput(true); setTimeout(() => assignInputRef.current?.focus(), 50); }}>
                   <UserCheck className="w-4 h-4 mr-2" />
-                  Assigner ({selectedIds.size})
+                  {t("tasks.assignBtn", { count: selectedIds.size })}
                 </Button>
               )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
                     <ArrowUpDown className="w-4 h-4 mr-2" />
-                    Statut ({selectedIds.size})
+                    {t("tasks.statusBtn", { count: selectedIds.size })}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Changer le statut</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("tasks.changeStatus")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => handleBulkStatus("en_attente")}>À faire</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleBulkStatus("en_cours")}>En cours</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleBulkStatus("termine")}>Terminée</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleBulkStatus("annule")}>Annulée</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleBulkStatus("en_attente")}>{t("tasks.statusBulk.todo")}</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleBulkStatus("en_cours")}>{t("tasks.statusBulk.en_cours")}</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleBulkStatus("termine")}>{t("tasks.statusBulk.termine")}</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleBulkStatus("annule")}>{t("tasks.statusBulk.annule")}</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
               <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
                 <Trash2 className="w-4 h-4 mr-2" />
-                Supprimer ({selectedIds.size})
+                {t("tasks.deleteBtn", { count: selectedIds.size })}
               </Button>
             </>
           )}
           <a href={`${(import.meta.env.BASE_URL || "/").replace(/\/$/, "")}/api/tasks/export/csv`} download>
             <Button variant="outline" size="sm"><Download className="w-4 h-4 mr-2" />CSV</Button>
           </a>
-          <Button variant="outline" size="sm" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+          <Button variant="outline" size="sm" title={t("tasks.print")} onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
           <Button onClick={handleOpenCreate} className="bg-primary text-primary-foreground hover:bg-primary/90">
             <Plus className="w-4 h-4 mr-2" />
-            Nouvelle Tache
+            {t("tasks.newTask")}
           </Button>
         </div>
       </div>
 
       <Card className="overflow-hidden border-0 shadow-lg">
         <div className="relative h-28">
-          <img src={taskManagementImg} alt="Gestion des taches" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+          <img src={taskManagementImg} alt={t("tasks.bannerAlt")} className="w-full h-full object-cover" loading="lazy" decoding="async" />
           <div className="absolute inset-0 bg-gradient-to-r from-emerald-900/80 via-emerald-800/50 to-transparent" />
           <div className="absolute inset-0 flex items-center px-6">
             <div className="text-white">
-              <h3 className="text-lg font-bold">Planification intelligente</h3>
-              <p className="text-white/80 text-sm mt-1">Organisation et suivi des actions avec priorisation automatique par l'IA.</p>
+              <h3 className="text-lg font-bold">{t("tasks.bannerTitle")}</h3>
+              <p className="text-white/80 text-sm mt-1">{t("tasks.bannerSubtitle")}</p>
             </div>
           </div>
         </div>
@@ -630,26 +632,26 @@ export default function Tasks() {
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-card p-4 border border-border rounded-lg shadow-sm">
         <div className="relative w-full sm:max-w-xs">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Rechercher une tache..." className="pl-9 w-full" value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} />
+          <Input placeholder={t("tasks.searchPlaceholder")} className="pl-9 w-full" value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} />
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
           <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }}>
-            <SelectTrigger className="w-[150px]"><SelectValue placeholder="Statut" /></SelectTrigger>
+            <SelectTrigger className="w-[150px]"><SelectValue placeholder={t("tasks.filters.status")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tous les statuts</SelectItem>
-              <SelectItem value="en_attente">En attente</SelectItem>
-              <SelectItem value="en_cours">En cours</SelectItem>
-              <SelectItem value="termine">Termine</SelectItem>
-              <SelectItem value="annule">Annule</SelectItem>
+              <SelectItem value="all">{t("tasks.filters.allStatuses")}</SelectItem>
+              <SelectItem value="en_attente">{t("tasks.status.en_attente")}</SelectItem>
+              <SelectItem value="en_cours">{t("tasks.status.en_cours")}</SelectItem>
+              <SelectItem value="termine">{t("tasks.status.termine")}</SelectItem>
+              <SelectItem value="annule">{t("tasks.status.annule")}</SelectItem>
             </SelectContent>
           </Select>
           <Select value={priorityFilter} onValueChange={(v) => { setPriorityFilter(v); setPage(0); }}>
-            <SelectTrigger className="w-[150px]"><SelectValue placeholder="Priorite" /></SelectTrigger>
+            <SelectTrigger className="w-[150px]"><SelectValue placeholder={t("tasks.filters.priority")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Toutes les priorites</SelectItem>
-              <SelectItem value="haute">Haute</SelectItem>
-              <SelectItem value="moyenne">Moyenne</SelectItem>
-              <SelectItem value="basse">Basse</SelectItem>
+              <SelectItem value="all">{t("tasks.filters.allPriorities")}</SelectItem>
+              <SelectItem value="haute">{t("tasks.priority.haute")}</SelectItem>
+              <SelectItem value="moyenne">{t("tasks.priority.moyenne")}</SelectItem>
+              <SelectItem value="basse">{t("tasks.priority.basse")}</SelectItem>
             </SelectContent>
           </Select>
           <div className="flex border border-border rounded-md overflow-hidden">
@@ -663,17 +665,17 @@ export default function Tasks() {
         </div>
       </div>
 
-      {tasksError && <QueryErrorAlert error={tasksError as Error} title="Impossible de charger les taches" />}
+      {tasksError && <QueryErrorAlert error={tasksError as Error} title={t("tasks.loadError")} />}
 
       {viewMode === "kanban" ? (
         <div className="space-y-4">
-        <AiSuggestionsCard page="tasks" title="Recommandations IA - Taches" compact />
+        <AiSuggestionsCard page="tasks" title={t("tasks.aiTitle")} compact />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {KANBAN_COLUMNS.map(col => (
             <div key={col.key} className="space-y-3">
               <div className="flex items-center gap-2 px-1">
                 <div className={`w-3 h-3 rounded-full ${col.color}`} />
-                <h3 className="font-semibold text-sm">{col.label}</h3>
+                <h3 className="font-semibold text-sm">{t(`tasks.status.${col.key}`)}</h3>
                 <Badge variant="outline" className="ml-auto text-xs">{kanbanData[col.key]?.length || 0}</Badge>
               </div>
               <div className="space-y-2 min-h-[200px] bg-muted/30 rounded-lg p-2">
@@ -699,7 +701,7 @@ export default function Tasks() {
                               <DropdownMenuContent align="end">
                                 {KANBAN_COLUMNS.filter(c => c.key !== task.status).map(c => (
                                   <DropdownMenuItem key={c.key} onClick={(e) => { e.stopPropagation(); handleStatusChange(task.id, c.key); }}>
-                                    {c.label}
+                                    {t(`tasks.status.${c.key}`)}
                                   </DropdownMenuItem>
                                 ))}
                               </DropdownMenuContent>
@@ -711,7 +713,7 @@ export default function Tasks() {
                           <div className="flex items-center justify-between gap-2">
                             {getDueDateDisplay(task.dueDate, task.status)}
                             <div className="flex items-center gap-1">
-                              {(task as any).isRecurring && <span title={(task as any).recurrenceRule || "Récurrent"}><Repeat className="w-3 h-3 text-blue-500" /></span>}
+                              {(task as any).isRecurring && <span title={(task as any).recurrenceRule || t("tasks.kanban.recurring")}><Repeat className="w-3 h-3 text-blue-500" /></span>}
                               {task.assignedTo && (
                                 <span className="text-xs text-muted-foreground truncate max-w-[80px]">{task.assignedTo}</span>
                               )}
@@ -749,19 +751,19 @@ export default function Tasks() {
                     />
                   </TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => handleSort("title")}>
-                    <span className="flex items-center">Tache{getSortIcon("title")}</span>
+                    <span className="flex items-center">{t("tasks.columns.task")}{getSortIcon("title")}</span>
                   </TableHead>
-                  <TableHead>Assigne a</TableHead>
+                  <TableHead>{t("tasks.columns.assignedTo")}</TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => handleSort("dueDate")}>
-                    <span className="flex items-center">Echeance{getSortIcon("dueDate")}</span>
+                    <span className="flex items-center">{t("tasks.columns.dueDate")}{getSortIcon("dueDate")}</span>
                   </TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => handleSort("status")}>
-                    <span className="flex items-center">Statut{getSortIcon("status")}</span>
+                    <span className="flex items-center">{t("tasks.columns.status")}{getSortIcon("status")}</span>
                   </TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => handleSort("priority")}>
-                    <span className="flex items-center">Priorite{getSortIcon("priority")}</span>
+                    <span className="flex items-center">{t("tasks.columns.priority")}{getSortIcon("priority")}</span>
                   </TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="text-right">{t("tasks.columns.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -781,15 +783,15 @@ export default function Tasks() {
                   <TableRow>
                     <TableCell colSpan={7} className="py-8">
                       {(search !== "" || statusFilter !== "all" || priorityFilter !== "all") ? (
-                        <p className="text-center text-muted-foreground" data-testid="no-results-tasks">Aucune tâche ne correspond à vos filtres.</p>
+                        <p className="text-center text-muted-foreground" data-testid="no-results-tasks">{t("tasks.empty.filtered")}</p>
                       ) : (
                         <EmptyOnboardingHint
                           icon={CheckSquare}
-                          title="Aucune tâche pour l'instant"
-                          description="Créez votre première tâche pour organiser votre travail. Vous pourrez l'attribuer à un collaborateur, fixer une échéance et un niveau de priorité."
-                          actionLabel="Créer ma première tâche"
+                          title={t("tasks.empty.title")}
+                          description={t("tasks.empty.description")}
+                          actionLabel={t("tasks.empty.action")}
                           onAction={handleOpenCreate}
-                          tip="Astuce : utilisez le Commandant IA pour créer plusieurs tâches d'un coup en langage naturel."
+                          tip={t("tasks.empty.tip")}
                           testIdPrefix="empty-tasks"
                         />
                       )}
@@ -806,7 +808,7 @@ export default function Tasks() {
                         <TableCell>
                           <div className={`font-medium flex items-center gap-2 ${task.status === 'termine' ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
                             {task.title}
-                            {(task as any).isRecurring && <Repeat className="w-3 h-3 text-blue-500 shrink-0" aria-label={(task as any).recurrenceRule || "Récurrent"} />}
+                            {(task as any).isRecurring && <Repeat className="w-3 h-3 text-blue-500 shrink-0" aria-label={(task as any).recurrenceRule || t("tasks.kanban.recurring")} />}
                           </div>
                           <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
                             {task.description && <span className="max-w-xs truncate">{task.description}</span>}
@@ -818,11 +820,11 @@ export default function Tasks() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <span className="text-sm text-muted-foreground">{task.assignedTo || "Non assigne"}</span>
+                          <span className="text-sm text-muted-foreground">{task.assignedTo || t("tasks.notAssigned")}</span>
                         </TableCell>
                         <TableCell>
                           {getDueDateDisplay(task.dueDate, task.status) || (
-                            <span className="text-sm text-muted-foreground">Aucune</span>
+                            <span className="text-sm text-muted-foreground">{t("tasks.noDueDate")}</span>
                           )}
                         </TableCell>
                         <TableCell>
@@ -831,10 +833,10 @@ export default function Tasks() {
                               {getStatusBadge(task.status)}
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
-                              <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'en_attente')}>En attente</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'en_cours')}>En cours</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'termine')}>Termine</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'annule')}>Annule</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'en_attente')}>{t("tasks.status.en_attente")}</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'en_cours')}>{t("tasks.status.en_cours")}</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'termine')}>{t("tasks.status.termine")}</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'annule')}>{t("tasks.status.annule")}</DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -849,33 +851,33 @@ export default function Tasks() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuLabel>{t("tasks.columns.actions")}</DropdownMenuLabel>
                               <DropdownMenuItem onClick={() => handleOpenEdit(task)}>
-                                <Edit className="w-4 h-4 mr-2" /> Editer
+                                <Edit className="w-4 h-4 mr-2" /> {t("tasks.rowActions.edit")}
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleDuplicate(task.id)}>
-                                <Copy className="w-4 h-4 mr-2" /> Dupliquer
+                                <Copy className="w-4 h-4 mr-2" /> {t("tasks.rowActions.duplicate")}
                               </DropdownMenuItem>
                               <DropdownMenuItem className="text-indigo-600" onClick={async () => {
                                 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
-                                const res = await fetch(`${BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title: task.title, status: "planifie", priority: task.priority || "moyenne", progress: 0, notes: `Créé depuis la tâche #${task.id}` }) });
-                                if (res.ok) { toast({ title: "Projet créé" }); setLocation("/projets"); }
-                                else toast({ title: "Erreur", variant: "destructive" });
-                              }}><FolderKanban className="w-4 h-4 mr-2" />Créer un projet</DropdownMenuItem>
+                                const res = await fetch(`${BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title: task.title, status: "planifie", priority: task.priority || "moyenne", progress: 0, notes: t("tasks.projectNotes", { id: task.id }) }) });
+                                if (res.ok) { toast({ title: t("tasks.toast.projectCreated") }); setLocation("/projets"); }
+                                else toast({ title: t("tasks.toast.error"), variant: "destructive" });
+                              }}><FolderKanban className="w-4 h-4 mr-2" />{t("tasks.rowActions.createProject")}</DropdownMenuItem>
                               <DropdownMenuSeparator />
                               {task.status !== 'termine' && (
                                 <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'termine')}>
-                                  <CheckSquare className="w-4 h-4 mr-2" /> Marquer terminee
+                                  <CheckSquare className="w-4 h-4 mr-2" /> {t("tasks.rowActions.markDone")}
                                 </DropdownMenuItem>
                               )}
                               <DropdownMenuSeparator />
                               <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={async () => {
-                                if (!(await confirmAction({ title: "Supprimer cette tâche ?", confirmLabel: "Supprimer", destructive: true }))) return;
+                                if (!(await confirmAction({ title: t("tasks.confirm.deleteOne"), confirmLabel: t("common.delete"), destructive: true }))) return;
                                 deleteTask.mutate({ id: task.id }, {
-                                  onSuccess: () => { toast({ title: "Tâche supprimée" }); queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() }); },
-                                  onError: () => toast({ title: "Erreur", description: "Impossible de supprimer", variant: "destructive" }),
+                                  onSuccess: () => { toast({ title: t("tasks.toast.deleted") }); queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() }); },
+                                  onError: () => toast({ title: t("tasks.toast.error"), description: t("tasks.toast.deleteError"), variant: "destructive" }),
                                 });
-                              }}><Trash2 className="w-4 h-4 mr-2" />Supprimer</DropdownMenuItem>
+                              }}><Trash2 className="w-4 h-4 mr-2" />{t("tasks.rowActions.delete")}</DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -887,11 +889,11 @@ export default function Tasks() {
             </Table>
           </div>
 
-          <AiSuggestionsCard page="tasks" title="Recommandations IA - Taches" compact />
+          <AiSuggestionsCard page="tasks" title={t("tasks.aiTitle")} compact />
 
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {data ? `${data.total} tache(s) - Page ${page + 1} sur ${totalPages}` : ""}
+              {data ? t("tasks.pagination", { total: data.total, page: page + 1, pages: totalPages }) : ""}
             </p>
             <div className="flex items-center gap-1">
               <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(0)}><ChevronsLeft className="h-4 w-4" /></Button>

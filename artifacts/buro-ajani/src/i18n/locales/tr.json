@@ -297,5 +297,365 @@
       "contactsForecast": "Tahmini kişiler",
       "revenueForecast": "Tahmini ciro"
     }
+  },
+  "contacts": {
+    "title": "Kişi Rehberi",
+    "subtitle": "Profesyonel veri tabanınızı yönetin.",
+    "bannerTitle": "Profesyonel rehber",
+    "bannerSubtitle": "Kişilerinizin, müşterilerinizin ve ortaklarınızın merkezi yönetimi.",
+    "bannerAlt": "Karşılama ve resepsiyon",
+    "changeCategory": "Kategoriyi değiştir",
+    "categoryBtn": "Kategori ({{count}})",
+    "deleteBtn": "Sil ({{count}})",
+    "exportCsv": "CSV dışa aktar",
+    "importCsv": "CSV içe aktar",
+    "print": "Yazdır",
+    "newContact": "Yeni Kişi",
+    "verifyAi": "Yapay Zeka ile doğrula",
+    "searchPlaceholder": "Ad, şirket, e-posta ile ara...",
+    "searchAria": "Kişilerde ara",
+    "allCategories": "Tüm kategoriler",
+    "loadError": "Kişiler yüklenemedi",
+    "aiTitle": "Yapay Zeka Önerileri - Kişiler",
+    "pagination": "{{total}} kişi - Sayfa {{page}} / {{pages}}",
+    "callsCount": "{{count}} arama",
+    "dialog": {
+      "editTitle": "Kişiyi düzenle",
+      "createTitle": "Yeni kişi",
+      "editDesc": "Kişi bilgilerini düzenleyin.",
+      "createDesc": "Rehbere bir kişi ekleyin.",
+      "update": "Güncelle",
+      "create": "Kişiyi oluştur"
+    },
+    "form": {
+      "firstName": "Ad",
+      "lastName": "Soyad",
+      "company": "Şirket",
+      "category": "Kategori",
+      "phone": "Telefon",
+      "email": "E-posta"
+    },
+    "categories": {
+      "client": "Müşteri",
+      "prospect": "Potansiyel",
+      "fournisseur": "Tedarikçi",
+      "partenaire": "Ortak",
+      "autre": "Diğer"
+    },
+    "columns": {
+      "contact": "Kişi",
+      "company": "Şirket",
+      "coordinates": "İletişim bilgileri",
+      "calls": "Aramalar",
+      "category": "Kategori",
+      "actions": "İşlemler"
+    },
+    "empty": {
+      "filtered": "Aramanızla eşleşen kişi yok.",
+      "title": "Henüz kişi yok",
+      "description": "Müşterilerinizi ve potansiyellerinizi yönetmeye başlamak için ilk kişinizi oluşturun veya mevcut adres defterinizi içe aktarın.",
+      "descriptionGrid": "Başlamak için ilk kişinizi oluşturun veya mevcut adres defterinizi içe aktarın.",
+      "action": "İlk kişimi oluştur",
+      "tip": "İpucu: birden fazla kişiyi tek seferde eklemek için bir CSV dosyası içe aktarın."
+    },
+    "actions": {
+      "viewProfile": "Profili görüntüle",
+      "edit": "Düzenle",
+      "duplicate": "Çoğalt",
+      "call": "Ara",
+      "sendEmail": "E-posta gönder",
+      "createProject": "Proje oluştur",
+      "delete": "Sil"
+    },
+    "pager": {
+      "first": "İlk sayfa",
+      "prev": "Önceki sayfa",
+      "next": "Sonraki sayfa",
+      "last": "Son sayfa"
+    },
+    "confirm": {
+      "bulkDelete": "{{count}} kişi silinsin mi?",
+      "deleteOne": "{{name}} silinsin mi?"
+    },
+    "toast": {
+      "bulkDeleted": "{{count}} kişi silindi",
+      "bulkDeleteError": "Silme sırasında hata",
+      "categoryUpdated": "{{count}} kişi güncellendi → {{category}}",
+      "error": "Hata",
+      "duplicated": "Kişi çoğaltıldı",
+      "duplicateError": "Çoğaltılamadı",
+      "updated": "Kişi güncellendi",
+      "updateError": "Kişi değiştirilemedi",
+      "created": "Kişi başarıyla oluşturuldu",
+      "createError": "Kişi oluşturulamadı",
+      "projectCreated": "Proje oluşturuldu",
+      "deleted": "Kişi silindi",
+      "deleteError": "Silinemedi"
+    },
+    "projectDefaultName": "Kişi",
+    "projectTitle": "Proje - {{name}}",
+    "projectNotes": "{{name}} kişisinden oluşturuldu"
+  },
+  "tasks": {
+    "title": "Görev Yönetimi",
+    "subtitle": "Ofiste yapılacak işleri düzenleyin ve takip edin.",
+    "bannerTitle": "Akıllı planlama",
+    "bannerSubtitle": "Yapay Zeka ile otomatik önceliklendirme yaparak işlerin düzenlenmesi ve takibi.",
+    "bannerAlt": "Görev yönetimi",
+    "newTask": "Yeni Görev",
+    "print": "Yazdır",
+    "verifyAi": "Yapay Zeka ile doğrula",
+    "completeBtn": "Tamamla ({{count}})",
+    "priorityBtn": "Öncelik ({{count}})",
+    "assignBtn": "Ata ({{count}})",
+    "statusBtn": "Durum ({{count}})",
+    "deleteBtn": "Sil ({{count}})",
+    "changePriority": "Önceliği değiştir",
+    "changeStatus": "Durumu değiştir",
+    "assignPlaceholder": "Temsilci adı...",
+    "searchPlaceholder": "Görev ara...",
+    "loadError": "Görevler yüklenemedi",
+    "aiTitle": "Yapay Zeka Önerileri - Görevler",
+    "pagination": "{{total}} görev - Sayfa {{page}} / {{pages}}",
+    "notAssigned": "Atanmadı",
+    "noDueDate": "Yok",
+    "filters": {
+      "status": "Durum",
+      "priority": "Öncelik",
+      "allStatuses": "Tüm durumlar",
+      "allPriorities": "Tüm öncelikler"
+    },
+    "status": {
+      "en_attente": "Beklemede",
+      "en_cours": "Devam ediyor",
+      "termine": "Tamamlandı",
+      "annule": "İptal edildi"
+    },
+    "statusBulk": {
+      "todo": "Yapılacak",
+      "en_cours": "Devam ediyor",
+      "termine": "Tamamlandı",
+      "annule": "İptal edildi"
+    },
+    "priority": {
+      "haute": "Yüksek",
+      "moyenne": "Orta",
+      "basse": "Düşük"
+    },
+    "priorityEmoji": {
+      "haute": "🟠 Yüksek",
+      "moyenne": "🟡 Orta",
+      "basse": "🟢 Düşük"
+    },
+    "dialog": {
+      "editTitle": "Görevi düzenle",
+      "createTitle": "Yeni görev",
+      "desc": "Yapılacak işlemin ayrıntıları.",
+      "update": "Güncelle",
+      "create": "Oluştur"
+    },
+    "form": {
+      "title": "Başlık",
+      "description": "Açıklama",
+      "status": "Durum",
+      "priority": "Öncelik",
+      "dueDate": "Bitiş tarihi",
+      "assignedTo": "Atanan kişi",
+      "assignedToPlaceholder": "Çalışan adı",
+      "relatedContact": "İlgili kişi (İsteğe bağlı)",
+      "chooseContact": "Bir kişi seçin...",
+      "none": "Yok",
+      "recurring": "Yinelenen görev",
+      "recurringHint": "Bu görev otomatik olarak tekrarlanır",
+      "frequency": "Sıklık",
+      "choose": "Seçin…",
+      "recurrenceEnd": "Yineleme sonu"
+    },
+    "frequency": {
+      "quotidien": "Günlük",
+      "hebdomadaire": "Haftalık",
+      "bihebdomadaire": "İki haftada bir",
+      "mensuel": "Aylık",
+      "trimestriel": "Üç aylık",
+      "annuel": "Yıllık"
+    },
+    "meta": {
+      "createdBy": "Oluşturan",
+      "updatedBy": "Değiştiren"
+    },
+    "columns": {
+      "task": "Görev",
+      "assignedTo": "Atanan kişi",
+      "dueDate": "Bitiş",
+      "status": "Durum",
+      "priority": "Öncelik",
+      "actions": "İşlemler"
+    },
+    "kanban": {
+      "recurring": "Yinelenen"
+    },
+    "empty": {
+      "filtered": "Filtrelerinizle eşleşen görev yok.",
+      "title": "Henüz görev yok",
+      "description": "İşinizi düzenlemek için ilk görevinizi oluşturun. Bir çalışana atayabilir, bir bitiş tarihi ve öncelik düzeyi belirleyebilirsiniz.",
+      "action": "İlk görevimi oluştur",
+      "tip": "İpucu: doğal dille tek seferde birden fazla görev oluşturmak için Yapay Zeka Komutanını kullanın."
+    },
+    "rowActions": {
+      "edit": "Düzenle",
+      "duplicate": "Çoğalt",
+      "createProject": "Proje oluştur",
+      "markDone": "Tamamlandı olarak işaretle",
+      "delete": "Sil"
+    },
+    "confirm": {
+      "bulkDelete": "{{count}} görev silinsin mi?",
+      "deleteOne": "Bu görev silinsin mi?"
+    },
+    "toast": {
+      "updated": "Görev güncellendi",
+      "updateError": "Görev değiştirilemedi",
+      "created": "Görev oluşturuldu",
+      "createError": "Görev oluşturulamadı",
+      "statusUpdated": "Durum güncellendi",
+      "statusError": "Durum değiştirilemedi",
+      "duplicated": "Görev çoğaltıldı",
+      "error": "Hata",
+      "networkError": "Ağ hatası",
+      "duplicateFailed": "Görev çoğaltılamadı.",
+      "bulkDeleted": "{{count}} görev silindi",
+      "bulkDeleteError": "Silme sırasında hata",
+      "deleteFailed": "Silme başarısız oldu.",
+      "bulkCompleted": "{{count}} görev tamamlandı olarak işaretlendi",
+      "updateFailed": "Güncelleme başarısız oldu.",
+      "bulkPriority": "{{count}} görev → öncelik {{priority}}",
+      "bulkStatus": "{{count}} görev güncellendi",
+      "bulkAssigned": "{{count}} görev {{name}} kişisine atandı",
+      "assignFailed": "Atama başarısız oldu.",
+      "projectCreated": "Proje oluşturuldu",
+      "deleted": "Görev silindi",
+      "deleteError": "Silinemedi"
+    },
+    "projectNotes": "#{{id}} numaralı görevden oluşturuldu"
+  },
+  "calls": {
+    "title": "Arama Günlüğü",
+    "subtitle": "Tüm telefon iletişimlerini yönetin ve takip edin.",
+    "bannerTitle": "İletişim merkezi",
+    "bannerSubtitle": "Tüm gelen ve giden iletişimlerin gerçek zamanlı takibi.",
+    "bannerAlt": "Çağrı merkezi",
+    "newCall": "Yeni Arama",
+    "exportCsv": "CSV dışa aktar",
+    "print": "Yazdır",
+    "verifyAi": "Yapay Zeka ile doğrula",
+    "statusBtn": "Durum ({{count}})",
+    "deleteBtn": "Sil ({{count}})",
+    "changeStatus": "Durumu değiştir",
+    "searchPlaceholder": "Ad veya numara ile ara...",
+    "searchAria": "Aramalarda ara",
+    "clear": "Temizle",
+    "dateSeparator": "-",
+    "loadError": "Aramalar yüklenemedi",
+    "aiTitle": "Yapay Zeka Önerileri - Aramalar",
+    "pagination": "{{total}} sonuç - Sayfa {{page}} / {{pages}}",
+    "unknown": "Bilinmiyor",
+    "openMenu": "Menüyü aç",
+    "filters": {
+      "status": "Durum",
+      "direction": "Yön",
+      "allStatuses": "Tüm durumlar",
+      "allDirections": "Tüm yönler"
+    },
+    "status": {
+      "repondu": "Yanıtlandı",
+      "manque": "Kaçırıldı",
+      "messagerie": "Sesli mesaj",
+      "en_cours": "Devam ediyor"
+    },
+    "direction": {
+      "entrant": "Gelen",
+      "sortant": "Giden"
+    },
+    "sentiment": {
+      "tres_positif": "Çok olumlu",
+      "positif": "Olumlu",
+      "neutre": "Nötr",
+      "negatif": "Olumsuz",
+      "tres_negatif": "Çok olumsuz",
+      "undefined": "Tanımsız"
+    },
+    "dialog": {
+      "editTitle": "Aramayı düzenle",
+      "createTitle": "Arama kaydet",
+      "editDesc": "Arama bilgilerini düzenleyin.",
+      "createDesc": "İletişim ayrıntılarını girin.",
+      "update": "Güncelle",
+      "create": "Aramayı kaydet"
+    },
+    "form": {
+      "direction": "Yön",
+      "status": "Durum",
+      "phoneNumber": "Telefon numarası",
+      "phonePlaceholder": "+33 6...",
+      "contact": "Bir kişiyle ilişkilendir (İsteğe bağlı)",
+      "chooseContact": "Bir kişi seçin...",
+      "noneUnknown": "Yok (Bilinmeyen numara)",
+      "duration": "Süre (saniye)",
+      "sentiment": "Duygu"
+    },
+    "columns": {
+      "contactNumber": "Kişi ve Numara",
+      "dateTime": "Tarih ve Saat",
+      "status": "Durum",
+      "duration": "Süre",
+      "sentiment": "Duygu",
+      "actions": "İşlemler"
+    },
+    "empty": {
+      "filtered": "Filtrelerinizle eşleşen arama yok.",
+      "title": "Henüz arama yok",
+      "description": "Telefon aramalarınız, Twilio numaranızı yapılandırdığınızda burada görünecek. Her arama otomatik olarak kaydedilecek ve Yapay Zeka tarafından yazıya dökülecektir.",
+      "action": "Telefonu yapılandır",
+      "tip": "İpucu: Twilio olmadan da ticari faaliyetinizi takip etmek için aramalarınızı elle kaydedebilirsiniz."
+    },
+    "rowActions": {
+      "viewDetails": "Ayrıntıları gör",
+      "edit": "Düzenle",
+      "goToContact": "Kişiye git",
+      "markAnswered": "Yanıtlandı olarak işaretle",
+      "markVoicemail": "Sesli mesaj olarak işaretle",
+      "duplicate": "Çoğalt",
+      "createProject": "Proje oluştur",
+      "delete": "Sil"
+    },
+    "pager": {
+      "first": "İlk sayfa",
+      "prev": "Önceki sayfa",
+      "next": "Sonraki sayfa",
+      "last": "Son sayfa"
+    },
+    "confirm": {
+      "bulkDelete": "{{count}} arama silinsin mi?",
+      "deleteOne": "Bu arama silinsin mi?"
+    },
+    "toast": {
+      "statusUpdated": "Durum güncellendi",
+      "statusError": "Aramanın durumu değiştirilemedi",
+      "bulkStatus": "{{count}} arama güncellendi",
+      "bulkStatusError": "Güncellenemedi",
+      "bulkDeleted": "{{count}} arama silindi",
+      "bulkDeleteError": "Silme sırasında hata",
+      "updated": "Arama güncellendi",
+      "updateError": "Arama değiştirilemedi",
+      "created": "Arama kaydedildi",
+      "createError": "Arama kaydedilemedi",
+      "error": "Hata",
+      "duplicated": "Arama çoğaltıldı",
+      "projectCreated": "Proje oluşturuldu",
+      "deleted": "Arama silindi"
+    },
+    "projectTitleWith": "Proje - {{name}}",
+    "projectTitleDefault": "Aramadan proje",
+    "projectNotes": "{{date}} tarihli aramadan oluşturuldu"
   }
 }
