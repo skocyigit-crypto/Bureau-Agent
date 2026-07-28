@@ -145,5 +145,157 @@
     "guide": "User guide",
     "searchEverywhere": "Search everywhere...",
     "simulateCall": "Simulate an incoming call (test)"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Overview of today's office activity.",
+    "loadError": "Unable to load the dashboard",
+    "actions": {
+      "call": "Call",
+      "task": "Task",
+      "aiAssistant": "AI Assistant",
+      "aiEmail": "AI Email",
+      "analysis": "Analysis",
+      "print": "Print"
+    },
+    "hero": {
+      "imageAlt": "Professional team at the office",
+      "welcome": "Welcome, {{name}}",
+      "subtitle": "Your office is up and running. Check today's indicators.",
+      "systemDown": "System unavailable",
+      "systemChecking": "Checking…",
+      "systemActive": "System active",
+      "defaultOffice": "Office"
+    },
+    "webSearch": {
+      "title": "Secure web search",
+      "description": "Every link is scanned by the built-in antivirus before you click.",
+      "placeholder": "Search the web…",
+      "button": "Search"
+    },
+    "onboarding": {
+      "title": "Quick start",
+      "progress": "{{done}}/{{total}} steps completed",
+      "accountCreated": "Account created",
+      "addContact": "Add a first contact",
+      "makeCall": "Make a call",
+      "inviteMember": "Invite a team member",
+      "configureProfile": "Set up company profile"
+    },
+    "team": {
+      "title": "Team",
+      "members": "{{count}} members",
+      "loading": "Loading team...",
+      "error": "Error loading team",
+      "empty": "No team members"
+    },
+    "weekTrend": {
+      "title": "This week vs previous",
+      "error": "Loading error",
+      "notEnough": "Not enough data"
+    },
+    "security": {
+      "title": "Document security",
+      "verified": "Verified",
+      "threats": "Threats",
+      "unscanned": "Not scanned",
+      "view": "View"
+    },
+    "commercial": {
+      "title": "Sales activity",
+      "prospectsPipeline": "Prospect pipeline",
+      "opportunities": "{{count}} opportunities",
+      "activeProjects": "Active projects",
+      "avgProgress": "{{pct}}% average progress",
+      "overdue": "⚠️ {{count}} overdue"
+    },
+    "kpi": {
+      "callsToday": "Calls today",
+      "sinceYesterday": "since yesterday",
+      "callsSummary": "{{total}} total · {{missed}} missed · {{rate}}% answered",
+      "contacts": "Contacts",
+      "pendingTasks": "Pending tasks",
+      "unreadMessages": "Unread messages"
+    },
+    "panels": {
+      "aiSpot": "AI Spot",
+      "centralIntelligence": "Central Intelligence",
+      "smartPulse": "Smart Pulse",
+      "aiRecognition": "AI Recognition",
+      "aiSuggestions": "AI Suggestions",
+      "aiBriefing": "Today's AI Briefing",
+      "liveActivity": "Live Activity",
+      "predictiveAnalysis": "Predictive Analysis"
+    },
+    "quickActions": {
+      "title": "Quick actions",
+      "newContact": "New contact",
+      "newCall": "New call",
+      "newTask": "New task",
+      "newMessage": "New message",
+      "newEvent": "New appointment",
+      "importContacts": "Import contacts",
+      "recentActivity": "Recent activity",
+      "internalNotes": "Internal notes"
+    },
+    "weekly": {
+      "answerRate": "Answer rate",
+      "avgDuration": "Average duration",
+      "vsPrevWeek": "vs prev. week",
+      "peakHour": "Peak hour",
+      "hourValue": "{{hour}}:00",
+      "peakDay": "Day: {{day}}",
+      "callsThisWeek": "Calls this week"
+    },
+    "hourly": {
+      "title": "Hourly performance (today)",
+      "description": "Call volume by time of day",
+      "barName": "Total calls",
+      "tooltipRange": "{{from}}:00 - {{to}}:00",
+      "empty": "No data for today"
+    },
+    "tasks": {
+      "title": "Task status",
+      "description": "Overall progress",
+      "completionRate": "Completion rate",
+      "overdue": "Overdue"
+    },
+    "topContacts": {
+      "title": "Frequent contacts",
+      "description": "Contacts with the most interactions.",
+      "viewAll": "View all",
+      "independent": "Independent",
+      "calls": "{{count}} calls",
+      "empty": "No contacts found."
+    },
+    "recent": {
+      "title": "Recent activity",
+      "description": "Latest events.",
+      "empty": "No recent activity."
+    },
+    "footer": {
+      "security": "Security",
+      "protected": "Protected",
+      "compliance": "GDPR / ISO 27001",
+      "autoBackup": "Auto backup",
+      "active": "Active",
+      "backupInterval": "Every 2 minutes",
+      "aiQuota": "AI quota this month",
+      "aiUsage": "{{cost}} USD · {{calls}} calls",
+      "aiQuotaPct": "{{pct}}% of monthly cap",
+      "loading": "Loading…",
+      "aiQuotaShort": "AI quota",
+      "aiSystem": "AI System",
+      "monitoring": "Continuous monitoring"
+    },
+    "predictive": {
+      "forecast": "Forecast",
+      "title": "AI Predictive Analysis",
+      "description": "Next week forecasts based on trends",
+      "callsForecast": "Forecast calls",
+      "tasksForecast": "Forecast tasks",
+      "contactsForecast": "Forecast contacts",
+      "revenueForecast": "Forecast revenue"
+    }
   }
 }

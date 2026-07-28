@@ -145,5 +145,157 @@
     "guide": "Guía de uso",
     "searchEverywhere": "Buscar en todas partes...",
     "simulateCall": "Simular una llamada entrante (prueba)"
+  },
+  "dashboard": {
+    "title": "Panel de control",
+    "subtitle": "Resumen de la actividad de la oficina hoy.",
+    "loadError": "No se puede cargar el panel de control",
+    "actions": {
+      "call": "Llamada",
+      "task": "Tarea",
+      "aiAssistant": "Asistente IA",
+      "aiEmail": "Correo IA",
+      "analysis": "Análisis",
+      "print": "Imprimir"
+    },
+    "hero": {
+      "imageAlt": "Equipo profesional en la oficina",
+      "welcome": "Bienvenido, {{name}}",
+      "subtitle": "Su oficina está operativa. Consulte los indicadores del día.",
+      "systemDown": "Sistema no disponible",
+      "systemChecking": "Comprobando…",
+      "systemActive": "Sistema activo",
+      "defaultOffice": "Oficina"
+    },
+    "webSearch": {
+      "title": "Búsqueda web segura",
+      "description": "Cada enlace es analizado por el antivirus integrado antes de que haga clic.",
+      "placeholder": "Buscar en la web…",
+      "button": "Buscar"
+    },
+    "onboarding": {
+      "title": "Inicio rápido",
+      "progress": "{{done}}/{{total}} pasos completados",
+      "accountCreated": "Cuenta creada",
+      "addContact": "Añadir un primer contacto",
+      "makeCall": "Hacer una llamada",
+      "inviteMember": "Invitar a un miembro del equipo",
+      "configureProfile": "Configurar el perfil de empresa"
+    },
+    "team": {
+      "title": "Equipo",
+      "members": "{{count}} miembros",
+      "loading": "Cargando equipo...",
+      "error": "Error al cargar el equipo",
+      "empty": "Sin miembros del equipo"
+    },
+    "weekTrend": {
+      "title": "Esta semana vs anterior",
+      "error": "Error de carga",
+      "notEnough": "Datos insuficientes"
+    },
+    "security": {
+      "title": "Seguridad de documentos",
+      "verified": "Verificados",
+      "threats": "Amenazas",
+      "unscanned": "Sin analizar",
+      "view": "Ver"
+    },
+    "commercial": {
+      "title": "Actividad comercial",
+      "prospectsPipeline": "Cartera de prospectos",
+      "opportunities": "{{count}} oportunidades",
+      "activeProjects": "Proyectos activos",
+      "avgProgress": "{{pct}}% de avance medio",
+      "overdue": "⚠️ {{count}} atrasados"
+    },
+    "kpi": {
+      "callsToday": "Llamadas hoy",
+      "sinceYesterday": "desde ayer",
+      "callsSummary": "{{total}} en total · {{missed}} perdidas · {{rate}}% contestadas",
+      "contacts": "Contactos",
+      "pendingTasks": "Tareas pendientes",
+      "unreadMessages": "Mensajes sin leer"
+    },
+    "panels": {
+      "aiSpot": "AI Spot",
+      "centralIntelligence": "Inteligencia Central",
+      "smartPulse": "Pulso Inteligente",
+      "aiRecognition": "Reconocimiento IA",
+      "aiSuggestions": "Sugerencias IA",
+      "aiBriefing": "Informe IA del día",
+      "liveActivity": "Actividad en directo",
+      "predictiveAnalysis": "Análisis Predictivo"
+    },
+    "quickActions": {
+      "title": "Acciones rápidas",
+      "newContact": "Nuevo contacto",
+      "newCall": "Nueva llamada",
+      "newTask": "Nueva tarea",
+      "newMessage": "Nuevo mensaje",
+      "newEvent": "Nueva cita",
+      "importContacts": "Importar contactos",
+      "recentActivity": "Actividad reciente",
+      "internalNotes": "Notas internas"
+    },
+    "weekly": {
+      "answerRate": "Tasa de respuesta",
+      "avgDuration": "Duración media",
+      "vsPrevWeek": "vs sem. ant.",
+      "peakHour": "Hora punta",
+      "hourValue": "{{hour}}:00",
+      "peakDay": "Día: {{day}}",
+      "callsThisWeek": "Llamadas esta semana"
+    },
+    "hourly": {
+      "title": "Rendimiento por hora (hoy)",
+      "description": "Volumen de llamadas según la hora del día",
+      "barName": "Llamadas totales",
+      "tooltipRange": "{{from}}:00 - {{to}}:00",
+      "empty": "Sin datos para hoy"
+    },
+    "tasks": {
+      "title": "Estado de las tareas",
+      "description": "Progreso global",
+      "completionRate": "Tasa de finalización",
+      "overdue": "Atrasadas"
+    },
+    "topContacts": {
+      "title": "Contactos frecuentes",
+      "description": "Contactos con más interacciones.",
+      "viewAll": "Ver todos",
+      "independent": "Independiente",
+      "calls": "{{count}} llamadas",
+      "empty": "No se encontraron contactos."
+    },
+    "recent": {
+      "title": "Actividad reciente",
+      "description": "Últimos eventos.",
+      "empty": "Sin actividad reciente."
+    },
+    "footer": {
+      "security": "Seguridad",
+      "protected": "Protegido",
+      "compliance": "RGPD / ISO 27001",
+      "autoBackup": "Copia automática",
+      "active": "Activa",
+      "backupInterval": "Cada 2 minutos",
+      "aiQuota": "Cuota IA este mes",
+      "aiUsage": "{{cost}} USD · {{calls}} llamadas",
+      "aiQuotaPct": "{{pct}}% del límite mensual",
+      "loading": "Cargando…",
+      "aiQuotaShort": "Cuota IA",
+      "aiSystem": "Sistema IA",
+      "monitoring": "Supervisión continua"
+    },
+    "predictive": {
+      "forecast": "Previsto",
+      "title": "Análisis Predictivo IA",
+      "description": "Previsiones para la próxima semana basadas en las tendencias",
+      "callsForecast": "Llamadas previstas",
+      "tasksForecast": "Tareas previstas",
+      "contactsForecast": "Contactos previstos",
+      "revenueForecast": "Facturación prevista"
+    }
   }
 }

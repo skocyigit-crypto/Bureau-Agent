@@ -145,5 +145,157 @@
     "guide": "Benutzerhandbuch",
     "searchEverywhere": "Überall suchen...",
     "simulateCall": "Eingehenden Anruf simulieren (Test)"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Überblick über die heutige Büroaktivität.",
+    "loadError": "Dashboard konnte nicht geladen werden",
+    "actions": {
+      "call": "Anruf",
+      "task": "Aufgabe",
+      "aiAssistant": "KI-Assistent",
+      "aiEmail": "KI-E-Mail",
+      "analysis": "Analyse",
+      "print": "Drucken"
+    },
+    "hero": {
+      "imageAlt": "Professionelles Team im Büro",
+      "welcome": "Willkommen, {{name}}",
+      "subtitle": "Ihr Büro ist einsatzbereit. Sehen Sie sich die Kennzahlen des Tages an.",
+      "systemDown": "System nicht verfügbar",
+      "systemChecking": "Wird geprüft…",
+      "systemActive": "System aktiv",
+      "defaultOffice": "Büro"
+    },
+    "webSearch": {
+      "title": "Sichere Websuche",
+      "description": "Jeder Link wird vor dem Klicken vom integrierten Virenscanner geprüft.",
+      "placeholder": "Im Web suchen…",
+      "button": "Suchen"
+    },
+    "onboarding": {
+      "title": "Schnellstart",
+      "progress": "{{done}}/{{total}} Schritte abgeschlossen",
+      "accountCreated": "Konto erstellt",
+      "addContact": "Ersten Kontakt hinzufügen",
+      "makeCall": "Einen Anruf tätigen",
+      "inviteMember": "Teammitglied einladen",
+      "configureProfile": "Unternehmensprofil einrichten"
+    },
+    "team": {
+      "title": "Team",
+      "members": "{{count}} Mitglieder",
+      "loading": "Team wird geladen...",
+      "error": "Fehler beim Laden des Teams",
+      "empty": "Keine Teammitglieder"
+    },
+    "weekTrend": {
+      "title": "Diese Woche vs. vorige",
+      "error": "Ladefehler",
+      "notEnough": "Nicht genügend Daten"
+    },
+    "security": {
+      "title": "Dokumentensicherheit",
+      "verified": "Geprüft",
+      "threats": "Bedrohungen",
+      "unscanned": "Nicht analysiert",
+      "view": "Ansehen"
+    },
+    "commercial": {
+      "title": "Vertriebsaktivität",
+      "prospectsPipeline": "Interessenten-Pipeline",
+      "opportunities": "{{count}} Chancen",
+      "activeProjects": "Aktive Projekte",
+      "avgProgress": "{{pct}}% durchschn. Fortschritt",
+      "overdue": "⚠️ {{count}} überfällig"
+    },
+    "kpi": {
+      "callsToday": "Anrufe heute",
+      "sinceYesterday": "seit gestern",
+      "callsSummary": "{{total}} insgesamt · {{missed}} verpasst · {{rate}}% beantwortet",
+      "contacts": "Kontakte",
+      "pendingTasks": "Offene Aufgaben",
+      "unreadMessages": "Ungelesene Nachrichten"
+    },
+    "panels": {
+      "aiSpot": "AI Spot",
+      "centralIntelligence": "Zentrale Intelligenz",
+      "smartPulse": "Intelligenter Puls",
+      "aiRecognition": "KI-Erkennung",
+      "aiSuggestions": "KI-Vorschläge",
+      "aiBriefing": "KI-Briefing des Tages",
+      "liveActivity": "Live-Aktivität",
+      "predictiveAnalysis": "Prädiktive Analyse"
+    },
+    "quickActions": {
+      "title": "Schnellaktionen",
+      "newContact": "Neuer Kontakt",
+      "newCall": "Neuer Anruf",
+      "newTask": "Neue Aufgabe",
+      "newMessage": "Neue Nachricht",
+      "newEvent": "Neuer Termin",
+      "importContacts": "Kontakte importieren",
+      "recentActivity": "Letzte Aktivität",
+      "internalNotes": "Interne Notizen"
+    },
+    "weekly": {
+      "answerRate": "Antwortrate",
+      "avgDuration": "Durchschnittsdauer",
+      "vsPrevWeek": "vs. Vorwoche",
+      "peakHour": "Stoßzeit",
+      "hourValue": "{{hour}}:00 Uhr",
+      "peakDay": "Tag: {{day}}",
+      "callsThisWeek": "Anrufe diese Woche"
+    },
+    "hourly": {
+      "title": "Stündliche Leistung (heute)",
+      "description": "Anrufvolumen nach Tageszeit",
+      "barName": "Anrufe gesamt",
+      "tooltipRange": "{{from}}:00 - {{to}}:00 Uhr",
+      "empty": "Keine Daten für heute"
+    },
+    "tasks": {
+      "title": "Aufgabenstatus",
+      "description": "Gesamtfortschritt",
+      "completionRate": "Abschlussrate",
+      "overdue": "Überfällig"
+    },
+    "topContacts": {
+      "title": "Häufige Kontakte",
+      "description": "Kontakte mit den meisten Interaktionen.",
+      "viewAll": "Alle ansehen",
+      "independent": "Unabhängig",
+      "calls": "{{count}} Anrufe",
+      "empty": "Keine Kontakte gefunden."
+    },
+    "recent": {
+      "title": "Letzte Aktivität",
+      "description": "Neueste Ereignisse.",
+      "empty": "Keine aktuelle Aktivität."
+    },
+    "footer": {
+      "security": "Sicherheit",
+      "protected": "Geschützt",
+      "compliance": "DSGVO / ISO 27001",
+      "autoBackup": "Auto-Backup",
+      "active": "Aktiv",
+      "backupInterval": "Alle 2 Minuten",
+      "aiQuota": "KI-Kontingent diesen Monat",
+      "aiUsage": "{{cost}} USD · {{calls}} Anrufe",
+      "aiQuotaPct": "{{pct}}% des Monatslimits",
+      "loading": "Wird geladen…",
+      "aiQuotaShort": "KI-Kontingent",
+      "aiSystem": "KI-System",
+      "monitoring": "Kontinuierliche Überwachung"
+    },
+    "predictive": {
+      "forecast": "Prognose",
+      "title": "KI-Prädiktive Analyse",
+      "description": "Prognosen für die nächste Woche basierend auf Trends",
+      "callsForecast": "Prognostizierte Anrufe",
+      "tasksForecast": "Prognostizierte Aufgaben",
+      "contactsForecast": "Prognostizierte Kontakte",
+      "revenueForecast": "Prognostizierter Umsatz"
+    }
   }
 }

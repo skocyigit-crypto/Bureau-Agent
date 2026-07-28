@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { QuickActionHub } from "@/components/quick-action-hub";
 import { FloatingAvatar } from "@/components/floating-avatar";
+import { useTranslation } from "@/i18n";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -226,6 +227,7 @@ function fmtCurrency(v: any) {
 }
 
 function CommercialSection() {
+  const { t } = useTranslation();
   const { data, loading, canSeeProspects } = useCommercialStats();
 
   // La carte "Pipeline prospects" pointe vers un module du backoffice SaaS
@@ -233,9 +235,9 @@ function CommercialSection() {
   // ecran auquel ils n'ont de toute facon pas acces.
   const cards = [
     ...(canSeeProspects ? [{
-      title: "Pipeline prospects",
+      title: t("dashboard.commercial.prospectsPipeline"),
       value: loading ? null : fmtCurrency(data?.prospects?.totalValue),
-      sub: loading ? null : `${data?.prospects?.total ?? 0} opportunité${(data?.prospects?.total ?? 0) !== 1 ? "s" : ""}`,
+      sub: loading ? null : t("dashboard.commercial.opportunities", { count: data?.prospects?.total ?? 0 }),
       icon: TrendingUp,
       color: "from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/10",
       border: "border-amber-200/50 dark:border-amber-800/30",
@@ -243,9 +245,9 @@ function CommercialSection() {
       href: "/prospects",
     }] : []),
     {
-      title: "Projets actifs",
+      title: t("dashboard.commercial.activeProjects"),
       value: loading ? null : String(data?.projets?.active ?? 0),
-      sub: loading ? null : `${data?.projets?.avgProgress ?? 0}% avancement moyen${(data?.projets?.overdue ?? 0) > 0 ? ` · ⚠️ ${data?.projets?.overdue} en retard` : ""}`,
+      sub: loading ? null : `${t("dashboard.commercial.avgProgress", { pct: data?.projets?.avgProgress ?? 0 })}${(data?.projets?.overdue ?? 0) > 0 ? ` · ${t("dashboard.commercial.overdue", { count: data?.projets?.overdue })}` : ""}`,
       icon: FolderKanban,
       color: (data?.projets?.overdue ?? 0) > 0
         ? "from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/10"
@@ -265,7 +267,7 @@ function CommercialSection() {
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-            <TrendingUp className="w-4 h-4" /> Activité Commerciale
+            <TrendingUp className="w-4 h-4" /> {t("dashboard.commercial.title")}
           </h2>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
@@ -296,14 +298,15 @@ function CommercialSection() {
 }
 
 function SecuritySummary() {
+  const { t } = useTranslation();
   const { verdict, error } = useDocumentSecurity();
   if (error || !verdict) return null;
   const total = verdict.safe + verdict.dangerous + verdict.unscanned;
   if (total === 0) return null;
   const items = [
-    { key: "safe", label: "Vérifiés", count: verdict.safe, icon: ShieldCheck, color: "text-emerald-600 dark:text-emerald-400" },
-    { key: "dangerous", label: "Menaces", count: verdict.dangerous, icon: ShieldAlert, color: "text-red-600 dark:text-red-400" },
-    { key: "none", label: "Non analysés", count: verdict.unscanned, icon: ShieldQuestion, color: "text-slate-500 dark:text-slate-400" },
+    { key: "safe", label: t("dashboard.security.verified"), count: verdict.safe, icon: ShieldCheck, color: "text-emerald-600 dark:text-emerald-400" },
+    { key: "dangerous", label: t("dashboard.security.threats"), count: verdict.dangerous, icon: ShieldAlert, color: "text-red-600 dark:text-red-400" },
+    { key: "none", label: t("dashboard.security.unscanned"), count: verdict.unscanned, icon: ShieldQuestion, color: "text-slate-500 dark:text-slate-400" },
   ];
   return (
     <Card className={verdict.dangerous > 0 ? "border-red-300 dark:border-red-800/60 bg-gradient-to-br from-red-50/60 to-rose-50/30 dark:from-red-950/20 dark:to-rose-950/10" : "bg-gradient-to-br from-slate-50 to-slate-100/50 dark:from-slate-950/30 dark:to-slate-900/10 border-slate-200/50 dark:border-slate-800/30"}>
@@ -311,9 +314,9 @@ function SecuritySummary() {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2 text-sm font-medium">
             <Shield className={`w-4 h-4 ${verdict.dangerous > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground"}`} />
-            <span>Sécurité des documents</span>
+            <span>{t("dashboard.security.title")}</span>
           </div>
-          <Link href="/documents" className="text-xs font-medium text-primary hover:underline">Voir</Link>
+          <Link href="/documents" className="text-xs font-medium text-primary hover:underline">{t("dashboard.security.view")}</Link>
         </div>
         <div className="grid grid-cols-3 gap-2">
           {items.map(item => (
@@ -332,6 +335,7 @@ function SecuritySummary() {
 }
 
 function DashboardWebSearch() {
+  const { t } = useTranslation();
   const [, navigate] = useLocation();
   const [q, setQ] = useState("");
   const submit = (e: React.FormEvent) => {
@@ -351,8 +355,8 @@ function DashboardWebSearch() {
             <Globe className="w-4 h-4 text-primary" />
           </div>
           <div>
-            <p className="text-sm font-semibold leading-tight">Recherche web sécurisée</p>
-            <p className="text-xs text-muted-foreground">Chaque lien est analysé par l'antivirus intégré avant que vous ne cliquiez.</p>
+            <p className="text-sm font-semibold leading-tight">{t("dashboard.webSearch.title")}</p>
+            <p className="text-xs text-muted-foreground">{t("dashboard.webSearch.description")}</p>
           </div>
         </div>
         <form onSubmit={submit} className="flex items-center gap-2">
@@ -361,14 +365,14 @@ function DashboardWebSearch() {
             <Input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Rechercher sur le web…"
+              placeholder={t("dashboard.webSearch.placeholder")}
               className="h-11 rounded-full pl-10 pr-4 text-base shadow-sm bg-background"
               maxLength={300}
             />
           </div>
           <Button type="submit" className="h-11 rounded-full px-5">
             <Search className="w-4 h-4 mr-2" />
-            Rechercher
+            {t("dashboard.webSearch.button")}
           </Button>
         </form>
       </CardContent>
@@ -377,6 +381,7 @@ function DashboardWebSearch() {
 }
 
 export default function Dashboard() {
+  const { t } = useTranslation();
   const { user } = useWorkspaceUser();
   const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
   const [quickActionOpen, setQuickActionOpen] = useState(false);
@@ -414,33 +419,33 @@ export default function Dashboard() {
 
   const kpiCards: { title: string; value: number; icon: typeof Phone; trend?: number; trendLabel?: string; sub?: string; href: string; variant: Icon3DVariant }[] = [
     {
-      title: "Appels Aujourd'hui",
+      title: t("dashboard.kpi.callsToday"),
       value: summary?.totalCallsToday || 0,
       icon: Phone,
       trend: summary?.callsTrend,
-      trendLabel: "depuis hier",
+      trendLabel: t("dashboard.kpi.sinceYesterday"),
       sub: summary
-        ? `${summary.totalCalls} au total · ${summary.missedCalls} manqués · ${summary.answeredRate}% répondus`
+        ? t("dashboard.kpi.callsSummary", { total: summary.totalCalls, missed: summary.missedCalls, rate: summary.answeredRate })
         : undefined,
       href: "/appels",
       variant: "blue",
     },
     {
-      title: "Contacts",
+      title: t("dashboard.kpi.contacts"),
       value: summary?.totalContacts || 0,
       icon: Users,
       href: "/contacts",
       variant: "indigo",
     },
     {
-      title: "Taches en attente",
+      title: t("dashboard.kpi.pendingTasks"),
       value: summary?.pendingTasks || 0,
       icon: CheckSquare,
       href: "/taches",
       variant: "emerald",
     },
     {
-      title: "Messages non lus",
+      title: t("dashboard.kpi.unreadMessages"),
       value: summary?.unreadMessages || 0,
       icon: MessageSquare,
       href: "/messages",
@@ -451,59 +456,59 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <FloatingAvatar />
-      {dashboardError && <QueryErrorAlert error={dashboardError as Error} title="Impossible de charger le tableau de bord" />}
+      {dashboardError && <QueryErrorAlert error={dashboardError as Error} title={t("dashboard.loadError")} />}
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={LayoutDashboard} variant="navy" size="md" /> Tableau de bord</h1>
-          <p className="text-muted-foreground mt-1">Vue d'ensemble de l'activite du bureau aujourd'hui.</p>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={LayoutDashboard} variant="navy" size="md" /> {t("dashboard.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("dashboard.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           <Link href="/appels">
             <Button variant="outline" size="sm">
               <Plus className="w-4 h-4 mr-2" />
-              Appel
+              {t("dashboard.actions.call")}
             </Button>
           </Link>
           <Link href="/taches">
             <Button variant="outline" size="sm">
               <Plus className="w-4 h-4 mr-2" />
-              Tache
+              {t("dashboard.actions.task")}
             </Button>
           </Link>
           <Button size="sm" onClick={() => window.dispatchEvent(new Event("open-ai-assistant"))} className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700">
             <Brain className="w-4 h-4 mr-2" />
-            Assistant IA
+            {t("dashboard.actions.aiAssistant")}
           </Button>
           <Button size="sm" onClick={() => setIsEmailComposerOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
             <Send className="w-4 h-4 mr-2" />
-            E-mail IA
+            {t("dashboard.actions.aiEmail")}
           </Button>
           <Link href="/analyse">
             <Button size="sm" className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700">
               <BarChart3 className="w-4 h-4 mr-2" />
-              Analyse
+              {t("dashboard.actions.analysis")}
             </Button>
           </Link>
-          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+          <Button variant="outline" size="icon" title={t("dashboard.actions.print")} onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
         </div>
       </div>
 
       <SlideUp>
       <Card className="overflow-hidden border-0 shadow-lg premium-shadow">
         <div className="relative h-40 md:h-48">
-          <img src={officeTeamImg} alt="Equipe professionnelle au bureau" className="w-full h-full object-cover" />
+          <img src={officeTeamImg} alt={t("dashboard.hero.imageAlt")} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-r from-[#1a2744]/80 via-[#1a2744]/50 to-transparent" />
           <div className="absolute inset-0 flex items-center p-6 md:p-8">
             <div className="text-white">
-              <h2 className="text-xl md:text-2xl font-bold">Bienvenue, {user.prenom || user.nom}</h2>
-              <p className="text-white/80 text-sm mt-1">Votre bureau est opérationnel. Consultez les indicateurs du jour.</p>
+              <h2 className="text-xl md:text-2xl font-bold">{t("dashboard.hero.welcome", { name: user.prenom || user.nom })}</h2>
+              <p className="text-white/80 text-sm mt-1">{t("dashboard.hero.subtitle")}</p>
               <div className="flex items-center gap-4 mt-3">
                 <div className={`flex items-center gap-1.5 text-sm ${systemHealthy === false ? "text-red-300" : systemHealthy === null ? "text-white/60" : "text-emerald-300"}`}>
                   <div className={`w-2 h-2 rounded-full ${systemHealthy === false ? "bg-red-400" : systemHealthy === null ? "bg-white/40" : "bg-emerald-400 animate-pulse"}`} />
-                  {systemHealthy === false ? "Système indisponible" : systemHealthy === null ? "Vérification…" : "Système actif"}
+                  {systemHealthy === false ? t("dashboard.hero.systemDown") : systemHealthy === null ? t("dashboard.hero.systemChecking") : t("dashboard.hero.systemActive")}
                 </div>
-                <div className="text-sm text-amber-300">{user.organisation || "Bureau"}</div>
+                <div className="text-sm text-amber-300">{user.organisation || t("dashboard.hero.defaultOffice")}</div>
               </div>
             </div>
           </div>
@@ -517,11 +522,11 @@ export default function Dashboard() {
 
       {isTrial && !dismissed && (() => {
         const steps = [
-          { label: "Compte cree", done: true, href: null },
-          { label: "Ajouter un premier contact", done: (summary?.totalContacts || 0) > 0, href: "/contacts" },
-          { label: "Passer un appel", done: (summary?.totalCallsToday || 0) > 0, href: "/appels" },
-          { label: "Inviter un membre d'équipe", done: teamMembers.length > 1, href: "/parametres?tab=equipe" },
-          { label: "Configurer le profil entreprise", done: orgProfileComplete, href: "/parametres?tab=entreprise" },
+          { label: t("dashboard.onboarding.accountCreated"), done: true, href: null },
+          { label: t("dashboard.onboarding.addContact"), done: (summary?.totalContacts || 0) > 0, href: "/contacts" },
+          { label: t("dashboard.onboarding.makeCall"), done: (summary?.totalCallsToday || 0) > 0, href: "/appels" },
+          { label: t("dashboard.onboarding.inviteMember"), done: teamMembers.length > 1, href: "/parametres?tab=equipe" },
+          { label: t("dashboard.onboarding.configureProfile"), done: orgProfileComplete, href: "/parametres?tab=entreprise" },
         ];
         const doneCount = steps.filter(s => s.done).length;
         const pct = Math.round((doneCount / steps.length) * 100);
@@ -535,8 +540,8 @@ export default function Dashboard() {
                       <Rocket className="w-4 h-4 text-amber-600" />
                     </div>
                     <div>
-                      <CardTitle className="text-base">Démarrage rapide</CardTitle>
-                      <CardDescription className="text-xs">{doneCount}/{steps.length} etapes terminees</CardDescription>
+                      <CardTitle className="text-base">{t("dashboard.onboarding.title")}</CardTitle>
+                      <CardDescription className="text-xs">{t("dashboard.onboarding.progress", { done: doneCount, total: steps.length })}</CardDescription>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -597,8 +602,8 @@ export default function Dashboard() {
         <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-950/30 dark:to-indigo-900/10 border-indigo-200/50 dark:border-indigo-800/30">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-indigo-600 dark:text-indigo-400">Equipe</span>
-              <Badge variant="secondary" className="text-xs">{teamMembers.length} membres</Badge>
+              <span className="text-sm font-medium text-indigo-600 dark:text-indigo-400">{t("dashboard.team.title")}</span>
+              <Badge variant="secondary" className="text-xs">{t("dashboard.team.members", { count: teamMembers.length })}</Badge>
             </div>
             {teamMembers.length > 0 ? (
               <div className="flex flex-wrap gap-2">
@@ -613,7 +618,7 @@ export default function Dashboard() {
             ) : (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <UserCheck className="w-3.5 h-3.5" />
-                <span>{teamLoading ? "Chargement de l'équipe..." : teamError ? "Erreur de chargement de l'équipe" : "Aucun membre d'équipe"}</span>
+                <span>{teamLoading ? t("dashboard.team.loading") : teamError ? t("dashboard.team.error") : t("dashboard.team.empty")}</span>
               </div>
             )}
           </CardContent>
@@ -621,7 +626,7 @@ export default function Dashboard() {
 
         <Card className="bg-gradient-to-br from-cyan-50 to-cyan-100/50 dark:from-cyan-950/30 dark:to-cyan-900/10 border-cyan-200/50 dark:border-cyan-800/30">
           <CardContent className="p-4">
-            <div className="text-sm font-medium text-cyan-600 dark:text-cyan-400 mb-2">Cette semaine vs precedente</div>
+            <div className="text-sm font-medium text-cyan-600 dark:text-cyan-400 mb-2">{t("dashboard.weekTrend.title")}</div>
             {weekComparison.length > 0 ? (
               <div className="h-[60px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -632,25 +637,25 @@ export default function Dashboard() {
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="text-xs text-muted-foreground">{weekCompError ? "Erreur de chargement" : "Pas assez de données"}</div>
+              <div className="text-xs text-muted-foreground">{weekCompError ? t("dashboard.weekTrend.error") : t("dashboard.weekTrend.notEnough")}</div>
             )}
           </CardContent>
         </Card>
       </div>
 
-      <SafeComponent fallbackTitle="Sécurité des documents">
+      <SafeComponent fallbackTitle={t("dashboard.security.title")}>
         <div className="grid gap-4 md:grid-cols-3">
           <SecuritySummary />
         </div>
       </SafeComponent>
 
-      <SafeComponent fallbackTitle="AI Spot">
+      <SafeComponent fallbackTitle={t("dashboard.panels.aiSpot")}>
         <SlideUp>
           <AiSpot />
         </SlideUp>
       </SafeComponent>
 
-      <SafeComponent fallbackTitle="Intelligence Centrale">
+      <SafeComponent fallbackTitle={t("dashboard.panels.centralIntelligence")}>
         <CentralIntelligence />
       </SafeComponent>
 
@@ -696,19 +701,19 @@ export default function Dashboard() {
       <SlideUp>
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2"><Zap className="w-4 h-4 text-amber-500" />Actions rapides</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2"><Zap className="w-4 h-4 text-amber-500" />{t("dashboard.quickActions.title")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
               {[
-                { key: "contact", label: "Nouveau contact", href: "/contacts", icon: Users, color: "text-indigo-500 bg-indigo-50 dark:bg-indigo-950/30" },
-                { key: "appel", label: "Nouvel appel", action: () => openQuickAction("appel"), icon: Phone, color: "text-sky-500 bg-sky-50 dark:bg-sky-950/30" },
-                { key: "tache", label: "Nouvelle tâche", action: () => openQuickAction("tache"), icon: CheckSquare, color: "text-emerald-500 bg-emerald-50 dark:bg-emerald-950/30" },
-                { key: "message", label: "Nouveau message", action: () => openQuickAction("message"), icon: MessageSquare, color: "text-amber-500 bg-amber-50 dark:bg-amber-950/30" },
-                { key: "evenement", label: "Nouveau RDV", action: () => openQuickAction("evenement"), icon: Clock, color: "text-rose-500 bg-rose-50 dark:bg-rose-950/30" },
-                { key: "import", label: "Importer contacts", href: "/contacts/import", icon: Upload, color: "text-blue-500 bg-blue-50 dark:bg-blue-950/30" },
-                { key: "activite", label: "Activité récente", href: "/activite-recente", icon: Activity, color: "text-violet-500 bg-violet-50 dark:bg-violet-950/30" },
-                { key: "notes", label: "Notes internes", href: "/notes-internes", icon: StickyNote, color: "text-yellow-500 bg-yellow-50 dark:bg-yellow-950/30" },
+                { key: "contact", label: t("dashboard.quickActions.newContact"), href: "/contacts", icon: Users, color: "text-indigo-500 bg-indigo-50 dark:bg-indigo-950/30" },
+                { key: "appel", label: t("dashboard.quickActions.newCall"), action: () => openQuickAction("appel"), icon: Phone, color: "text-sky-500 bg-sky-50 dark:bg-sky-950/30" },
+                { key: "tache", label: t("dashboard.quickActions.newTask"), action: () => openQuickAction("tache"), icon: CheckSquare, color: "text-emerald-500 bg-emerald-50 dark:bg-emerald-950/30" },
+                { key: "message", label: t("dashboard.quickActions.newMessage"), action: () => openQuickAction("message"), icon: MessageSquare, color: "text-amber-500 bg-amber-50 dark:bg-amber-950/30" },
+                { key: "evenement", label: t("dashboard.quickActions.newEvent"), action: () => openQuickAction("evenement"), icon: Clock, color: "text-rose-500 bg-rose-50 dark:bg-rose-950/30" },
+                { key: "import", label: t("dashboard.quickActions.importContacts"), href: "/contacts/import", icon: Upload, color: "text-blue-500 bg-blue-50 dark:bg-blue-950/30" },
+                { key: "activite", label: t("dashboard.quickActions.recentActivity"), href: "/activite-recente", icon: Activity, color: "text-violet-500 bg-violet-50 dark:bg-violet-950/30" },
+                { key: "notes", label: t("dashboard.quickActions.internalNotes"), href: "/notes-internes", icon: StickyNote, color: "text-yellow-500 bg-yellow-50 dark:bg-yellow-950/30" },
               ].map(item => {
                 const Inner = (
                   <div className={`flex flex-col items-center gap-2 p-3 rounded-xl hover:opacity-80 transition-all cursor-pointer ${item.color.split(" ").slice(1).join(" ")}`}>
@@ -727,51 +732,51 @@ export default function Dashboard() {
         </Card>
       </SlideUp>
 
-      <SafeComponent fallbackTitle="Pouls Intelligent">
+      <SafeComponent fallbackTitle={t("dashboard.panels.smartPulse")}>
         <SmartPulsePanel />
       </SafeComponent>
 
-      <SafeComponent fallbackTitle="Reconnaissance IA">
+      <SafeComponent fallbackTitle={t("dashboard.panels.aiRecognition")}>
         <AiRecognitionPanel />
       </SafeComponent>
 
-      <SafeComponent fallbackTitle="Suggestions IA">
-        <AiSuggestionsCard page="dashboard" title="Briefing IA du jour" />
+      <SafeComponent fallbackTitle={t("dashboard.panels.aiSuggestions")}>
+        <AiSuggestionsCard page="dashboard" title={t("dashboard.panels.aiBriefing")} />
       </SafeComponent>
 
       {weeklyReport && !isLoadingWeekly && (
         <div className="grid gap-4 md:grid-cols-4">
           <Card className="bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/10 border-blue-200/50 dark:border-blue-800/30">
             <CardContent className="p-4">
-              <div className="text-sm text-blue-600 dark:text-blue-400 font-medium">Taux de reponse</div>
+              <div className="text-sm text-blue-600 dark:text-blue-400 font-medium">{t("dashboard.weekly.answerRate")}</div>
               <div className="text-2xl font-bold mt-1">{weeklyReport.answerRate}%</div>
               <Progress value={weeklyReport.answerRate} className="h-1.5 mt-2" />
             </CardContent>
           </Card>
           <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-950/30 dark:to-emerald-900/10 border-emerald-200/50 dark:border-emerald-800/30">
             <CardContent className="p-4">
-              <div className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">Duree moyenne</div>
+              <div className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">{t("dashboard.weekly.avgDuration")}</div>
               <div className="text-2xl font-bold mt-1">{formatDuration(weeklyReport.avgDuration)}</div>
               <div className="text-xs text-muted-foreground mt-1">
-                {weeklyReport.comparisonPrevWeek.durationDiff > 0 ? '+' : ''}{weeklyReport.comparisonPrevWeek.durationDiff}% vs sem. prec.
+                {weeklyReport.comparisonPrevWeek.durationDiff > 0 ? '+' : ''}{weeklyReport.comparisonPrevWeek.durationDiff}% {t("dashboard.weekly.vsPrevWeek")}
               </div>
             </CardContent>
           </Card>
           <Card className="bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/10 border-amber-200/50 dark:border-amber-800/30">
             <CardContent className="p-4">
-              <div className="text-sm text-amber-600 dark:text-amber-400 font-medium">Heure de pointe</div>
-              <div className="text-2xl font-bold mt-1">{weeklyReport.peakHour}h00</div>
-              <div className="text-xs text-muted-foreground mt-1 capitalize">Jour: {weeklyReport.peakDay}</div>
+              <div className="text-sm text-amber-600 dark:text-amber-400 font-medium">{t("dashboard.weekly.peakHour")}</div>
+              <div className="text-2xl font-bold mt-1">{t("dashboard.weekly.hourValue", { hour: weeklyReport.peakHour })}</div>
+              <div className="text-xs text-muted-foreground mt-1 capitalize">{t("dashboard.weekly.peakDay", { day: weeklyReport.peakDay })}</div>
             </CardContent>
           </Card>
           <Card className="bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-950/30 dark:to-purple-900/10 border-purple-200/50 dark:border-purple-800/30">
             <CardContent className="p-4">
-              <div className="text-sm text-purple-600 dark:text-purple-400 font-medium">Appels cette semaine</div>
+              <div className="text-sm text-purple-600 dark:text-purple-400 font-medium">{t("dashboard.weekly.callsThisWeek")}</div>
               <div className="text-2xl font-bold mt-1">{weeklyReport.totalCalls}</div>
               <div className="text-xs mt-1">
                 <span className={weeklyReport.comparisonPrevWeek.callsDiff > 0 ? "text-emerald-500" : "text-destructive"}>
                   {weeklyReport.comparisonPrevWeek.callsDiff > 0 ? '+' : ''}{weeklyReport.comparisonPrevWeek.callsDiff}%
-                </span> vs sem. prec.
+                </span> {t("dashboard.weekly.vsPrevWeek")}
               </div>
             </CardContent>
           </Card>
@@ -781,8 +786,8 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Icon3D icon={Clock} variant="blue" size="xs" /> Performance Horaire (Aujourd'hui)</CardTitle>
-            <CardDescription>Volume d'appels selon l'heure de la journee</CardDescription>
+            <CardTitle className="flex items-center gap-2"><Icon3D icon={Clock} variant="blue" size="xs" /> {t("dashboard.hourly.title")}</CardTitle>
+            <CardDescription>{t("dashboard.hourly.description")}</CardDescription>
           </CardHeader>
           <CardContent>
             {isLoadingHourly ? (
@@ -797,9 +802,9 @@ export default function Dashboard() {
                     <RechartsTooltip
                       cursor={{ fill: 'hsl(var(--muted)/0.5)' }}
                       contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: 'var(--radius)' }}
-                      labelFormatter={(h) => `${h}h00 - ${Number(h)+1}h00`}
+                      labelFormatter={(h) => t("dashboard.hourly.tooltipRange", { from: h, to: Number(h)+1 })}
                     />
-                    <Bar dataKey="total" name="Appels totaux" radius={[4, 4, 0, 0]}>
+                    <Bar dataKey="total" name={t("dashboard.hourly.barName")} radius={[4, 4, 0, 0]}>
                       {hourlyPerf.hours.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={getHeatmapColor(entry.total, maxHourlyCalls)} />
                       ))}
@@ -808,15 +813,15 @@ export default function Dashboard() {
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="h-[250px] flex items-center justify-center text-muted-foreground">Aucune donnée pour aujourd'hui</div>
+              <div className="h-[250px] flex items-center justify-center text-muted-foreground">{t("dashboard.hourly.empty")}</div>
             )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Icon3D icon={Activity} variant="emerald" size="xs" /> Etat des Taches</CardTitle>
-            <CardDescription>Progression globale</CardDescription>
+            <CardTitle className="flex items-center gap-2"><Icon3D icon={Activity} variant="emerald" size="xs" /> {t("dashboard.tasks.title")}</CardTitle>
+            <CardDescription>{t("dashboard.tasks.description")}</CardDescription>
           </CardHeader>
           <CardContent>
             {isLoadingTaskStats ? (
@@ -826,11 +831,11 @@ export default function Dashboard() {
                 <div className="flex justify-between items-end mb-2">
                   <div>
                     <span className="text-3xl font-bold">{taskStats.completionRate}%</span>
-                    <span className="text-sm text-muted-foreground block">Taux d'achevement</span>
+                    <span className="text-sm text-muted-foreground block">{t("dashboard.tasks.completionRate")}</span>
                   </div>
                   <div className="text-right">
                     <span className="text-2xl font-bold text-destructive">{taskStats.overdueTasks}</span>
-                    <span className="text-sm text-muted-foreground block">En retard</span>
+                    <span className="text-sm text-muted-foreground block">{t("dashboard.tasks.overdue")}</span>
                   </div>
                 </div>
                 <Progress value={taskStats.completionRate} className="h-3" />
@@ -856,11 +861,11 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Contacts Frequents</CardTitle>
-              <CardDescription>Contacts avec le plus d'interactions.</CardDescription>
+              <CardTitle>{t("dashboard.topContacts.title")}</CardTitle>
+              <CardDescription>{t("dashboard.topContacts.description")}</CardDescription>
             </div>
             <Link href="/contacts">
-              <Button variant="ghost" size="sm">Voir tous</Button>
+              <Button variant="ghost" size="sm">{t("dashboard.topContacts.viewAll")}</Button>
             </Link>
           </CardHeader>
           <CardContent>
@@ -879,15 +884,15 @@ export default function Dashboard() {
                         </div>
                         <div>
                           <p className="text-sm font-medium leading-none">{contact.firstName} {contact.lastName}</p>
-                          <p className="text-xs text-muted-foreground mt-1">{contact.company || 'Independant'}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{contact.company || t("dashboard.topContacts.independent")}</p>
                         </div>
                       </div>
-                      <Badge variant="secondary">{contact.totalCalls} appels</Badge>
+                      <Badge variant="secondary">{t("dashboard.topContacts.calls", { count: contact.totalCalls })}</Badge>
                     </div>
                   </Link>
                 ))}
                 {!topContacts?.contacts?.length && (
-                  <p className="text-sm text-muted-foreground text-center py-4">Aucun contact trouve.</p>
+                  <p className="text-sm text-muted-foreground text-center py-4">{t("dashboard.topContacts.empty")}</p>
                 )}
               </div>
             )}
@@ -897,8 +902,8 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Activite Recente</CardTitle>
-              <CardDescription>Derniers evenements.</CardDescription>
+              <CardTitle>{t("dashboard.recent.title")}</CardTitle>
+              <CardDescription>{t("dashboard.recent.description")}</CardDescription>
             </div>
           </CardHeader>
           <CardContent>
@@ -925,14 +930,14 @@ export default function Dashboard() {
                   </div>
                 ))}
                 {!recentActivity?.activities?.length && (
-                  <p className="text-sm text-muted-foreground text-center py-4">Aucune activite recente.</p>
+                  <p className="text-sm text-muted-foreground text-center py-4">{t("dashboard.recent.empty")}</p>
                 )}
               </div>
             )}
           </CardContent>
         </Card>
       </div>
-      <SafeComponent fallbackTitle="Activite en direct" compact>
+      <SafeComponent fallbackTitle={t("dashboard.panels.liveActivity")} compact>
         <LiveActivityFeed compact />
       </SafeComponent>
 
@@ -944,9 +949,9 @@ export default function Dashboard() {
                 <Shield className="w-5 h-5 text-emerald-400" />
               </div>
               <div>
-                <p className="text-xs text-white/60">Securite</p>
-                <p className="font-semibold text-emerald-300">Protege</p>
-                <p className="text-xs text-white/50">RGPD / ISO 27001</p>
+                <p className="text-xs text-white/60">{t("dashboard.footer.security")}</p>
+                <p className="font-semibold text-emerald-300">{t("dashboard.footer.protected")}</p>
+                <p className="text-xs text-white/50">{t("dashboard.footer.compliance")}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -954,9 +959,9 @@ export default function Dashboard() {
                 <HardDriveDownload className="w-5 h-5 text-blue-400" />
               </div>
               <div>
-                <p className="text-xs text-white/60">Sauvegarde auto</p>
-                <p className="font-semibold text-blue-300">Active</p>
-                <p className="text-xs text-white/50">Toutes les 2 minutes</p>
+                <p className="text-xs text-white/60">{t("dashboard.footer.autoBackup")}</p>
+                <p className="font-semibold text-blue-300">{t("dashboard.footer.active")}</p>
+                <p className="text-xs text-white/50">{t("dashboard.footer.backupInterval")}</p>
               </div>
             </div>
             <Link href="/parametres?tab=intelligence-artificielle" className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer">
@@ -964,25 +969,25 @@ export default function Dashboard() {
                 <Zap className={`w-5 h-5 ${aiQuota && (aiQuota.percentCost >= 95 || aiQuota.percentCalls >= 95) ? "text-red-400" : aiQuota && (aiQuota.percentCost >= 80 || aiQuota.percentCalls >= 80) ? "text-orange-400" : "text-amber-400"}`} />
               </div>
               <div className="min-w-0">
-                <p className="text-xs text-white/60">Quota IA ce mois</p>
+                <p className="text-xs text-white/60">{t("dashboard.footer.aiQuota")}</p>
                 {aiQuota?.used ? (
                   <>
                     <p className={`font-semibold text-sm ${aiQuota.percentCost >= 95 || aiQuota.percentCalls >= 95 ? "text-red-300" : aiQuota.percentCost >= 80 || aiQuota.percentCalls >= 80 ? "text-orange-300" : "text-amber-300"}`}>
-                      {(aiQuota.used.costUsd ?? 0).toFixed(2)} USD · {(aiQuota.used.calls ?? 0).toLocaleString("fr-FR")} appels
+                      {t("dashboard.footer.aiUsage", { cost: (aiQuota.used.costUsd ?? 0).toFixed(2), calls: (aiQuota.used.calls ?? 0).toLocaleString("fr-FR") })}
                     </p>
                     <p className="text-xs text-white/50">
-                      {Math.max(aiQuota.percentCost, aiQuota.percentCalls).toFixed(0)}% du plafond mensuel
+                      {t("dashboard.footer.aiQuotaPct", { pct: Math.max(aiQuota.percentCost, aiQuota.percentCalls).toFixed(0) })}
                     </p>
                   </>
                 ) : aiQuotaLoading ? (
                   <>
-                    <p className="font-semibold text-amber-300">Chargement…</p>
-                    <p className="text-xs text-white/50">Quota IA</p>
+                    <p className="font-semibold text-amber-300">{t("dashboard.footer.loading")}</p>
+                    <p className="text-xs text-white/50">{t("dashboard.footer.aiQuotaShort")}</p>
                   </>
                 ) : (
                   <>
-                    <p className="font-semibold text-amber-300">Systeme IA</p>
-                    <p className="text-xs text-white/50">Surveillance continue</p>
+                    <p className="font-semibold text-amber-300">{t("dashboard.footer.aiSystem")}</p>
+                    <p className="text-xs text-white/50">{t("dashboard.footer.monitoring")}</p>
                   </>
                 )}
               </div>
@@ -991,7 +996,7 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      <SafeComponent fallbackTitle="Analyse Predictive">
+      <SafeComponent fallbackTitle={t("dashboard.panels.predictiveAnalysis")}>
         <PredictiveAnalyticsWidget />
       </SafeComponent>
 
@@ -1010,6 +1015,7 @@ export default function Dashboard() {
 }
 
 function PredictiveAnalyticsWidget() {
+  const { t } = useTranslation();
   const [data, setData] = useState<any>(null);
   useEffect(() => {
     fetch(`${API}/api/dashboard/predictions`, { credentials: "include" })
@@ -1027,37 +1033,37 @@ function PredictiveAnalyticsWidget() {
     taches: p.trends.tasks[i],
     contacts: p.trends.contacts[i],
   }));
-  chartData.push({ name: "Prevu", appels: p.nextWeekCalls, taches: p.nextWeekTasks, contacts: p.nextWeekContacts });
+  chartData.push({ name: t("dashboard.predictive.forecast"), appels: p.nextWeekCalls, taches: p.nextWeekTasks, contacts: p.nextWeekContacts });
 
   const euro = (v: number) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(v);
 
   return (
     <Card className="bg-gradient-to-br from-violet-950 to-indigo-950 border-violet-800 text-white">
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-lg"><Brain className="h-5 w-5 text-violet-400" /> Analyse Predictive IA</CardTitle>
-        <CardDescription className="text-white/60">Previsions pour la semaine prochaine basees sur les tendances</CardDescription>
+        <CardTitle className="flex items-center gap-2 text-lg"><Brain className="h-5 w-5 text-violet-400" /> {t("dashboard.predictive.title")}</CardTitle>
+        <CardDescription className="text-white/60">{t("dashboard.predictive.description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-white/10 rounded-lg p-3 text-center">
             <Phone className="h-4 w-4 mx-auto mb-1 text-blue-400" />
             <p className="text-xl font-bold">{p.nextWeekCalls}</p>
-            <p className="text-[10px] text-white/60">Appels prevus</p>
+            <p className="text-[10px] text-white/60">{t("dashboard.predictive.callsForecast")}</p>
           </div>
           <div className="bg-white/10 rounded-lg p-3 text-center">
             <CheckSquare className="h-4 w-4 mx-auto mb-1 text-green-400" />
             <p className="text-xl font-bold">{p.nextWeekTasks}</p>
-            <p className="text-[10px] text-white/60">Taches prevues</p>
+            <p className="text-[10px] text-white/60">{t("dashboard.predictive.tasksForecast")}</p>
           </div>
           <div className="bg-white/10 rounded-lg p-3 text-center">
             <Users className="h-4 w-4 mx-auto mb-1 text-amber-400" />
             <p className="text-xl font-bold">{p.nextWeekContacts}</p>
-            <p className="text-[10px] text-white/60">Contacts prevus</p>
+            <p className="text-[10px] text-white/60">{t("dashboard.predictive.contactsForecast")}</p>
           </div>
           <div className="bg-white/10 rounded-lg p-3 text-center">
             <TrendingUp className="h-4 w-4 mx-auto mb-1 text-emerald-400" />
             <p className="text-xl font-bold">{euro(p.nextWeekRevenue)}</p>
-            <p className="text-[10px] text-white/60">CA prevu</p>
+            <p className="text-[10px] text-white/60">{t("dashboard.predictive.revenueForecast")}</p>
           </div>
         </div>
 

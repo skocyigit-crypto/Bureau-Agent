@@ -145,5 +145,157 @@
     "guide": "Kullanım kılavuzu",
     "searchEverywhere": "Her yerde ara...",
     "simulateCall": "Gelen çağrıyı simüle et (test)"
+  },
+  "dashboard": {
+    "title": "Kontrol Paneli",
+    "subtitle": "Büronun bugünkü faaliyetlerine genel bakış.",
+    "loadError": "Kontrol paneli yüklenemedi",
+    "actions": {
+      "call": "Arama",
+      "task": "Görev",
+      "aiAssistant": "Yapay Zeka Asistanı",
+      "aiEmail": "Yapay Zeka E-postası",
+      "analysis": "Analiz",
+      "print": "Yazdır"
+    },
+    "hero": {
+      "imageAlt": "Ofiste profesyonel ekip",
+      "welcome": "Hoş geldiniz, {{name}}",
+      "subtitle": "Büronuz çalışıyor. Günün göstergelerine göz atın.",
+      "systemDown": "Sistem kullanılamıyor",
+      "systemChecking": "Kontrol ediliyor…",
+      "systemActive": "Sistem aktif",
+      "defaultOffice": "Büro"
+    },
+    "webSearch": {
+      "title": "Güvenli web araması",
+      "description": "Her bağlantı, siz tıklamadan önce entegre antivirüs tarafından taranır.",
+      "placeholder": "Web'de ara…",
+      "button": "Ara"
+    },
+    "onboarding": {
+      "title": "Hızlı başlangıç",
+      "progress": "{{done}}/{{total}} adım tamamlandı",
+      "accountCreated": "Hesap oluşturuldu",
+      "addContact": "İlk kişiyi ekle",
+      "makeCall": "Bir arama yap",
+      "inviteMember": "Ekip üyesi davet et",
+      "configureProfile": "Şirket profilini yapılandır"
+    },
+    "team": {
+      "title": "Ekip",
+      "members": "{{count}} üye",
+      "loading": "Ekip yükleniyor...",
+      "error": "Ekip yüklenirken hata",
+      "empty": "Ekip üyesi yok"
+    },
+    "weekTrend": {
+      "title": "Bu hafta vs önceki",
+      "error": "Yükleme hatası",
+      "notEnough": "Yeterli veri yok"
+    },
+    "security": {
+      "title": "Belge güvenliği",
+      "verified": "Doğrulandı",
+      "threats": "Tehditler",
+      "unscanned": "Taranmadı",
+      "view": "Görüntüle"
+    },
+    "commercial": {
+      "title": "Ticari faaliyet",
+      "prospectsPipeline": "Müşteri adayı hattı",
+      "opportunities": "{{count}} fırsat",
+      "activeProjects": "Aktif projeler",
+      "avgProgress": "%{{pct}} ortalama ilerleme",
+      "overdue": "⚠️ {{count}} gecikmiş"
+    },
+    "kpi": {
+      "callsToday": "Bugünkü aramalar",
+      "sinceYesterday": "dünden beri",
+      "callsSummary": "toplam {{total}} · {{missed}} kaçırılan · %{{rate}} yanıtlanan",
+      "contacts": "Kişiler",
+      "pendingTasks": "Bekleyen görevler",
+      "unreadMessages": "Okunmamış mesajlar"
+    },
+    "panels": {
+      "aiSpot": "AI Spot",
+      "centralIntelligence": "Merkezi Zeka",
+      "smartPulse": "Akıllı Nabız",
+      "aiRecognition": "Yapay Zeka Tanıma",
+      "aiSuggestions": "Yapay Zeka Önerileri",
+      "aiBriefing": "Günün Yapay Zeka Brifingi",
+      "liveActivity": "Canlı Etkinlik",
+      "predictiveAnalysis": "Tahmine Dayalı Analiz"
+    },
+    "quickActions": {
+      "title": "Hızlı işlemler",
+      "newContact": "Yeni kişi",
+      "newCall": "Yeni arama",
+      "newTask": "Yeni görev",
+      "newMessage": "Yeni mesaj",
+      "newEvent": "Yeni randevu",
+      "importContacts": "Kişileri içe aktar",
+      "recentActivity": "Son etkinlik",
+      "internalNotes": "Dahili notlar"
+    },
+    "weekly": {
+      "answerRate": "Yanıt oranı",
+      "avgDuration": "Ortalama süre",
+      "vsPrevWeek": "önceki haftaya göre",
+      "peakHour": "Yoğun saat",
+      "hourValue": "{{hour}}:00",
+      "peakDay": "Gün: {{day}}",
+      "callsThisWeek": "Bu haftaki aramalar"
+    },
+    "hourly": {
+      "title": "Saatlik performans (bugün)",
+      "description": "Günün saatine göre arama hacmi",
+      "barName": "Toplam aramalar",
+      "tooltipRange": "{{from}}:00 - {{to}}:00",
+      "empty": "Bugün için veri yok"
+    },
+    "tasks": {
+      "title": "Görev durumu",
+      "description": "Genel ilerleme",
+      "completionRate": "Tamamlanma oranı",
+      "overdue": "Gecikmiş"
+    },
+    "topContacts": {
+      "title": "Sık iletişim kurulanlar",
+      "description": "En çok etkileşimi olan kişiler.",
+      "viewAll": "Tümünü gör",
+      "independent": "Bağımsız",
+      "calls": "{{count}} arama",
+      "empty": "Kişi bulunamadı."
+    },
+    "recent": {
+      "title": "Son etkinlik",
+      "description": "Son olaylar.",
+      "empty": "Son etkinlik yok."
+    },
+    "footer": {
+      "security": "Güvenlik",
+      "protected": "Korumalı",
+      "compliance": "GDPR / ISO 27001",
+      "autoBackup": "Otomatik yedekleme",
+      "active": "Aktif",
+      "backupInterval": "Her 2 dakikada bir",
+      "aiQuota": "Bu ayki Yapay Zeka kotası",
+      "aiUsage": "{{cost}} USD · {{calls}} arama",
+      "aiQuotaPct": "aylık limitin %{{pct}}'i",
+      "loading": "Yükleniyor…",
+      "aiQuotaShort": "Yapay Zeka kotası",
+      "aiSystem": "Yapay Zeka Sistemi",
+      "monitoring": "Sürekli izleme"
+    },
+    "predictive": {
+      "forecast": "Tahmini",
+      "title": "Yapay Zeka Tahmine Dayalı Analiz",
+      "description": "Eğilimlere dayalı gelecek hafta tahminleri",
+      "callsForecast": "Tahmini aramalar",
+      "tasksForecast": "Tahmini görevler",
+      "contactsForecast": "Tahmini kişiler",
+      "revenueForecast": "Tahmini ciro"
+    }
   }
 }

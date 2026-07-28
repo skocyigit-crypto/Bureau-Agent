@@ -145,5 +145,157 @@
     "guide": "دليل الاستخدام",
     "searchEverywhere": "ابحث في كل مكان...",
     "simulateCall": "محاكاة مكالمة واردة (اختبار)"
+  },
+  "dashboard": {
+    "title": "لوحة التحكم",
+    "subtitle": "نظرة عامة على نشاط المكتب اليوم.",
+    "loadError": "تعذر تحميل لوحة التحكم",
+    "actions": {
+      "call": "مكالمة",
+      "task": "مهمة",
+      "aiAssistant": "مساعد الذكاء الاصطناعي",
+      "aiEmail": "بريد الذكاء الاصطناعي",
+      "analysis": "تحليل",
+      "print": "طباعة"
+    },
+    "hero": {
+      "imageAlt": "فريق محترف في المكتب",
+      "welcome": "مرحبًا، {{name}}",
+      "subtitle": "مكتبك يعمل. اطّلع على مؤشرات اليوم.",
+      "systemDown": "النظام غير متاح",
+      "systemChecking": "جارٍ التحقق…",
+      "systemActive": "النظام نشط",
+      "defaultOffice": "المكتب"
+    },
+    "webSearch": {
+      "title": "بحث ويب آمن",
+      "description": "يتم فحص كل رابط بواسطة مكافح الفيروسات المدمج قبل النقر.",
+      "placeholder": "ابحث في الويب…",
+      "button": "بحث"
+    },
+    "onboarding": {
+      "title": "بداية سريعة",
+      "progress": "{{done}}/{{total}} خطوات مكتملة",
+      "accountCreated": "تم إنشاء الحساب",
+      "addContact": "أضف أول جهة اتصال",
+      "makeCall": "أجرِ مكالمة",
+      "inviteMember": "ادعُ عضو فريق",
+      "configureProfile": "إعداد ملف الشركة"
+    },
+    "team": {
+      "title": "الفريق",
+      "members": "{{count}} أعضاء",
+      "loading": "جارٍ تحميل الفريق...",
+      "error": "خطأ في تحميل الفريق",
+      "empty": "لا يوجد أعضاء فريق"
+    },
+    "weekTrend": {
+      "title": "هذا الأسبوع مقابل السابق",
+      "error": "خطأ في التحميل",
+      "notEnough": "بيانات غير كافية"
+    },
+    "security": {
+      "title": "أمان المستندات",
+      "verified": "تم التحقق",
+      "threats": "تهديدات",
+      "unscanned": "غير مفحوصة",
+      "view": "عرض"
+    },
+    "commercial": {
+      "title": "النشاط التجاري",
+      "prospectsPipeline": "خط العملاء المحتملين",
+      "opportunities": "{{count}} فرص",
+      "activeProjects": "المشاريع النشطة",
+      "avgProgress": "{{pct}}% متوسط التقدم",
+      "overdue": "⚠️ {{count}} متأخرة"
+    },
+    "kpi": {
+      "callsToday": "مكالمات اليوم",
+      "sinceYesterday": "منذ الأمس",
+      "callsSummary": "{{total}} إجمالاً · {{missed}} فائتة · {{rate}}% تم الرد عليها",
+      "contacts": "جهات الاتصال",
+      "pendingTasks": "المهام المعلقة",
+      "unreadMessages": "الرسائل غير المقروءة"
+    },
+    "panels": {
+      "aiSpot": "AI Spot",
+      "centralIntelligence": "الذكاء المركزي",
+      "smartPulse": "النبض الذكي",
+      "aiRecognition": "التعرّف بالذكاء الاصطناعي",
+      "aiSuggestions": "اقتراحات الذكاء الاصطناعي",
+      "aiBriefing": "ملخص الذكاء الاصطناعي لليوم",
+      "liveActivity": "النشاط المباشر",
+      "predictiveAnalysis": "التحليل التنبؤي"
+    },
+    "quickActions": {
+      "title": "إجراءات سريعة",
+      "newContact": "جهة اتصال جديدة",
+      "newCall": "مكالمة جديدة",
+      "newTask": "مهمة جديدة",
+      "newMessage": "رسالة جديدة",
+      "newEvent": "موعد جديد",
+      "importContacts": "استيراد جهات الاتصال",
+      "recentActivity": "النشاط الأخير",
+      "internalNotes": "ملاحظات داخلية"
+    },
+    "weekly": {
+      "answerRate": "معدل الرد",
+      "avgDuration": "متوسط المدة",
+      "vsPrevWeek": "مقابل الأسبوع السابق",
+      "peakHour": "ساعة الذروة",
+      "hourValue": "{{hour}}:00",
+      "peakDay": "اليوم: {{day}}",
+      "callsThisWeek": "مكالمات هذا الأسبوع"
+    },
+    "hourly": {
+      "title": "الأداء بالساعة (اليوم)",
+      "description": "حجم المكالمات حسب ساعة اليوم",
+      "barName": "إجمالي المكالمات",
+      "tooltipRange": "{{from}}:00 - {{to}}:00",
+      "empty": "لا توجد بيانات لليوم"
+    },
+    "tasks": {
+      "title": "حالة المهام",
+      "description": "التقدم الإجمالي",
+      "completionRate": "معدل الإنجاز",
+      "overdue": "متأخرة"
+    },
+    "topContacts": {
+      "title": "جهات الاتصال المتكررة",
+      "description": "جهات الاتصال الأكثر تفاعلاً.",
+      "viewAll": "عرض الكل",
+      "independent": "مستقل",
+      "calls": "{{count}} مكالمات",
+      "empty": "لم يتم العثور على جهات اتصال."
+    },
+    "recent": {
+      "title": "النشاط الأخير",
+      "description": "أحدث الأحداث.",
+      "empty": "لا يوجد نشاط حديث."
+    },
+    "footer": {
+      "security": "الأمان",
+      "protected": "محمي",
+      "compliance": "GDPR / ISO 27001",
+      "autoBackup": "نسخ احتياطي تلقائي",
+      "active": "نشط",
+      "backupInterval": "كل دقيقتين",
+      "aiQuota": "حصة الذكاء الاصطناعي هذا الشهر",
+      "aiUsage": "{{cost}} USD · {{calls}} مكالمات",
+      "aiQuotaPct": "{{pct}}% من الحد الشهري",
+      "loading": "جارٍ التحميل…",
+      "aiQuotaShort": "حصة الذكاء الاصطناعي",
+      "aiSystem": "نظام الذكاء الاصطناعي",
+      "monitoring": "مراقبة مستمرة"
+    },
+    "predictive": {
+      "forecast": "متوقع",
+      "title": "التحليل التنبؤي بالذكاء الاصطناعي",
+      "description": "توقعات الأسبوع القادم بناءً على الاتجاهات",
+      "callsForecast": "المكالمات المتوقعة",
+      "tasksForecast": "المهام المتوقعة",
+      "contactsForecast": "جهات الاتصال المتوقعة",
+      "revenueForecast": "الإيرادات المتوقعة"
+    }
   }
 }
