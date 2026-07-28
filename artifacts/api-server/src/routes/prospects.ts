@@ -3,6 +3,8 @@ import { eq, desc, asc, ilike, or, sql, and, gte, lte, type Column, type SQL } f
 import { db, prospectsTable, contactsTable, devisTable, facturesClientTable, callsTable, tasksTable } from "@workspace/db";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { requireRole } from "../middleware/auth";
+import { generateUniqueReference } from "../lib/unique-reference";
+import { computeInvoiceTotals } from "../services/invoice-totals";
 
 const router: IRouter = Router();
 
@@ -250,6 +252,67 @@ router.post("/prospects/:id/convert", requireRole("agent"), async (req: Request,
   } catch (err: any) {
     req.log.error({ err }, "Erreur conversion prospect en contact");
     res.status(500).json({ error: "Erreur lors de la conversion." });
+  }
+});
+
+/**
+ * Cree un devis pre-rempli a partir d'un prospect: reprend le client (nom,
+ * societe, email, telephone), etablit le LIEN (devis.prospectId) — jusqu'ici la
+ * seule "connexion" etait un rapprochement flou par nom/email — et fait
+ * remonter la VALEUR estimee du prospect comme premiere ligne du devis, pour
+ * qu'elle traverse reellement le segment au lieu d'etre ressaisie. L'utilisateur
+ * ajuste ensuite les lignes reelles; les totaux sont recalcules cote serveur.
+ */
+router.post("/prospects/:id/create-devis", async (req: Request, res: Response): Promise<void> => {
+  const id = parseInt(req.params.id as string);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  try {
+    const [prospect] = await db.select().from(prospectsTable).where(eq(prospectsTable.id, id));
+    if (!prospect) { res.status(404).json({ error: "Prospect non trouvé." }); return; }
+
+    const orgId = prospect.organisationId;
+    const checkExists = async (candidate: string): Promise<boolean> => {
+      const [e] = await db.select({ id: devisTable.id }).from(devisTable)
+        .where(and(eq(devisTable.organisationId, orgId), eq(devisTable.reference, candidate)));
+      return !!e;
+    };
+    const ref = await generateUniqueReference("DEV", checkExists);
+
+    // La valeur estimee devient une ligne de depart (TVA 20% par defaut), de
+    // sorte que le montant se propage. Si aucune valeur, devis vide a completer.
+    const estimate = Number(prospect.value ?? 0);
+    const seedItems = estimate > 0
+      ? [{ description: prospect.title, quantity: 1, unitPrice: estimate, taxRate: 20 }]
+      : [];
+    const totals = computeInvoiceTotals(seedItems);
+
+    const [devis] = await db.insert(devisTable).values({
+      organisationId: orgId,
+      contactId: prospect.contactId ?? null,
+      prospectId: prospect.id,
+      reference: ref,
+      title: prospect.title,
+      clientName: prospect.contactName || prospect.company || prospect.title,
+      clientEmail: prospect.email ?? null,
+      clientPhone: prospect.phone ?? null,
+      clientCompany: prospect.company ?? null,
+      items: totals.lines,
+      subtotal: String(totals.subtotal),
+      taxAmount: String(totals.taxAmount),
+      totalAmount: String(totals.totalAmount),
+      currency: "EUR",
+      status: "brouillon",
+    }).returning();
+
+    // Le prospect avance a l'etape "proposition" (un devis a ete emis).
+    if (prospect.stage === "nouveau" || prospect.stage === "contact" || prospect.stage === "qualification") {
+      await db.update(prospectsTable).set({ stage: "proposition", updatedAt: new Date() }).where(eq(prospectsTable.id, id));
+    }
+
+    res.status(201).json({ devis });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur creation devis depuis prospect");
+    res.status(500).json({ error: "Erreur lors de la creation du devis." });
   }
 });
 

@@ -244,6 +244,14 @@ export default function ProspectDetail() {
     else toast({ title: "Erreur", description: d.error, variant: "destructive" });
   };
 
+  const handleCreateDevis = async () => {
+    if (!(await confirmAction({ title: "Créer un devis ?", description: "Un devis pré-rempli (client + valeur estimée) sera créé et lié à ce prospect.", confirmLabel: "Créer le devis" }))) return;
+    const res = await fetch(`${BASE}/api/prospects/${prospectId}/create-devis`, { method: "POST", credentials: "include" });
+    const d = await res.json();
+    if (res.ok) { toast({ title: "Devis créé", description: `Référence ${d.devis?.reference ?? ""}` }); load(); navigate("/admin/devis"); }
+    else toast({ title: "Erreur", description: d.error, variant: "destructive" });
+  };
+
   const handleCreateProjet = async () => {
     if (!prospect) return;
     try {
@@ -354,6 +362,7 @@ export default function ProspectDetail() {
           <Card>
             <CardHeader className="pb-3"><CardTitle className="text-sm">Actions</CardTitle></CardHeader>
             <CardContent className="space-y-2">
+              <Button variant="outline" size="sm" className="w-full justify-start gap-2 text-emerald-600" onClick={handleCreateDevis}><FileText className="w-4 h-4" />Créer un devis</Button>
               <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={handleConvert}><UserPlus className="w-4 h-4" />Convertir en contact</Button>
               <Button variant="outline" size="sm" className="w-full justify-start gap-2 text-indigo-600" onClick={handleCreateProjet}><FolderKanban className="w-4 h-4" />Créer un projet</Button>
               <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={handleDuplicate}><Copy className="w-4 h-4" />Dupliquer</Button>
