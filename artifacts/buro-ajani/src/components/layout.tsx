@@ -15,6 +15,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { ExportMenu } from "@/components/export-menu";
 import { NotificationBell } from "@/components/notification-bell";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { useTranslation } from "@/i18n";
 import { AgentRunChip } from "@/components/agent-run-chip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SmartBrowserToolbar } from "@/components/smart-browser-panel";
@@ -70,6 +71,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const incomingCall = useIncomingCall();
   const { user } = useWorkspaceUser();
+  const { t } = useTranslation();
   const [quickActionOpen, setQuickActionOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [orgLogo, setOrgLogo] = useState<string | null>(null);
@@ -288,78 +290,78 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
     return [
       {
-        label: "Aujourd'hui",
+        label: t("sidebar.groups.today"),
         items: [
-          { name: "Tableau de bord", href: "/", icon: LayoutDashboard },
-          ...(canUseAi ? [{ name: "Assistant proactif", href: "/assistant-proactif", icon: Radar }] : []),
-          ...(canUseAi ? [{ name: "Ce que l'IA a appris", href: "/ia-apprentissage", icon: GraduationCap }] : []),
-          { name: "Calendrier", href: "/calendrier", icon: Calendar },
-          { name: "Rappels", href: "/notifications", icon: Bell, badge: mutedBadges.rappel ? 0 : badges.rappel },
-          { name: "Activité récente", href: "/activite-recente", icon: Activity },
+          { name: t("sidebar.items.dashboard"), href: "/", icon: LayoutDashboard },
+          ...(canUseAi ? [{ name: t("sidebar.items.proactiveAssistant"), href: "/assistant-proactif", icon: Radar }] : []),
+          ...(canUseAi ? [{ name: t("sidebar.items.aiLearned"), href: "/ia-apprentissage", icon: GraduationCap }] : []),
+          { name: t("sidebar.items.calendar"), href: "/calendrier", icon: Calendar },
+          { name: t("sidebar.items.reminders"), href: "/notifications", icon: Bell, badge: mutedBadges.rappel ? 0 : badges.rappel },
+          { name: t("sidebar.items.recentActivity"), href: "/activite-recente", icon: Activity },
         ],
       },
       {
-        label: "Communication",
+        label: t("sidebar.groups.communication"),
         items: [
-          { name: "Appels", href: "/appels", icon: Phone, badge: mutedBadges.call ? 0 : badges.call },
-          { name: "Messages", href: "/messages", icon: MessageSquare, badge: mutedBadges.message ? 0 : badges.message },
-          { name: "WhatsApp clients", href: "/whatsapp", icon: MessageCircle },
-          ...(canUseAi ? [{ name: "Agent Mail IA", href: "/gmail-agent", icon: Mail }] : []),
-          { name: "Centre de sécurité", href: "/securite", icon: ShieldCheck },
-          ...(canUseAi ? [{ name: "Recherche web", href: "/recherche-web", icon: Search }] : []),
+          { name: t("sidebar.items.calls"), href: "/appels", icon: Phone, badge: mutedBadges.call ? 0 : badges.call },
+          { name: t("sidebar.items.messages"), href: "/messages", icon: MessageSquare, badge: mutedBadges.message ? 0 : badges.message },
+          { name: t("sidebar.items.whatsapp"), href: "/whatsapp", icon: MessageCircle },
+          ...(canUseAi ? [{ name: t("sidebar.items.mailAgent"), href: "/gmail-agent", icon: Mail }] : []),
+          { name: t("sidebar.items.securityCenter"), href: "/securite", icon: ShieldCheck },
+          ...(canUseAi ? [{ name: t("sidebar.items.webSearch"), href: "/recherche-web", icon: Search }] : []),
         ],
       },
       {
-        label: "Carnet d'adresses",
+        label: t("sidebar.groups.addressBook"),
         items: [
-          { name: "Contacts", href: "/contacts", icon: Users },
+          { name: t("sidebar.items.contacts"), href: "/contacts", icon: Users },
         ],
       },
       {
-        label: "Organisation du travail",
+        label: t("sidebar.groups.work"),
         items: [
-          { name: "Tâches", href: "/taches", icon: CheckSquare, badge: mutedBadges.task ? 0 : badges.task },
-          { name: "Projets", href: "/projets", icon: Puzzle },
-          { name: "Trésorerie & Risque", href: "/tresorerie", icon: Wallet },
-          { name: "Dépenses", href: "/depenses", icon: ReceiptText },
-          ...(canUseAi ? [{ name: "Saisie vocale chantier", href: "/saisie-chantier", icon: HardHat }] : []),
-          { name: "Notes internes", href: "/notes-internes", icon: StickyNote, badge: mutedBadges.note ? 0 : badges.note },
-          { name: "Pointage", href: "/pointage", icon: Clock },
+          { name: t("sidebar.items.tasks"), href: "/taches", icon: CheckSquare, badge: mutedBadges.task ? 0 : badges.task },
+          { name: t("sidebar.items.projects"), href: "/projets", icon: Puzzle },
+          { name: t("sidebar.items.treasury"), href: "/tresorerie", icon: Wallet },
+          { name: t("sidebar.items.expenses"), href: "/depenses", icon: ReceiptText },
+          ...(canUseAi ? [{ name: t("sidebar.items.siteVoice"), href: "/saisie-chantier", icon: HardHat }] : []),
+          { name: t("sidebar.items.internalNotes"), href: "/notes-internes", icon: StickyNote, badge: mutedBadges.note ? 0 : badges.note },
+          { name: t("sidebar.items.checkin"), href: "/pointage", icon: Clock },
         ],
       },
       {
-        label: "Documents & Rapports",
+        label: t("sidebar.groups.docsReports"),
         items: [
-          { name: "Documents", href: "/documents", icon: FileText },
-          ...(canUseAi ? [{ name: "Base de connaissances", href: "/base-connaissances", icon: BookOpen }] : []),
-          ...(canUseAi ? [{ name: "Document IA", href: "/document-ia", icon: ScanSearch }] : []),
-          { name: "Rapports", href: "/rapports", icon: ClipboardList },
+          { name: t("sidebar.items.documents"), href: "/documents", icon: FileText },
+          ...(canUseAi ? [{ name: t("sidebar.items.knowledgeBase"), href: "/base-connaissances", icon: BookOpen }] : []),
+          ...(canUseAi ? [{ name: t("sidebar.items.documentAi"), href: "/document-ia", icon: ScanSearch }] : []),
+          { name: t("sidebar.items.reports"), href: "/rapports", icon: ClipboardList },
         ],
       },
       ...(canUseAi
         ? [{
-            label: "Assistants IA",
+            label: t("sidebar.groups.aiAssistants"),
             items: [
-              { name: "Équipe IA", href: "/equipe-ia", icon: Brain },
-              { name: "Commandant IA", href: "/commandant-ia", icon: Crown },
-              { name: "File d'approbation", href: "/file-approbation", icon: Inbox, badge: mutedBadges.agentQueue ? 0 : agentQueueCount },
-              { name: "Assistant Universel", href: "/asistan", icon: Sparkles },
-              { name: "Agents IA", href: "/agents-ia", icon: Bot },
+              { name: t("sidebar.items.aiTeam"), href: "/equipe-ia", icon: Brain },
+              { name: t("sidebar.items.aiCommander"), href: "/commandant-ia", icon: Crown },
+              { name: t("sidebar.items.approvalQueue"), href: "/file-approbation", icon: Inbox, badge: mutedBadges.agentQueue ? 0 : agentQueueCount },
+              { name: t("sidebar.items.universalAssistant"), href: "/asistan", icon: Sparkles },
+              { name: t("sidebar.items.aiAgents"), href: "/agents-ia", icon: Bot },
             ],
           }]
         : []),
       {
-        label: "Analyse",
+        label: t("sidebar.groups.analysis"),
         items: [
-          { name: "Statistiques", href: "/analyse", icon: BarChart },
+          { name: t("sidebar.items.statistics"), href: "/analyse", icon: BarChart },
         ],
       },
       {
-        label: "Intégrations",
+        label: t("sidebar.groups.integrations"),
         items: [
-          { name: "Google Workspace", href: "/google-workspace", icon: Globe },
-          { name: "Téléphonie", href: "/telephonie", icon: PhoneCall },
-          { name: "Connecteurs", href: "/logiciels", icon: Plug },
+          { name: t("sidebar.items.googleWorkspace"), href: "/google-workspace", icon: Globe },
+          { name: t("sidebar.items.telephony"), href: "/telephonie", icon: PhoneCall },
+          { name: t("sidebar.items.connectors"), href: "/logiciels", icon: Plug },
         ],
       },
       // Tout ce qui est reserve a l'administrateur (super-admin ou
@@ -369,16 +371,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
       // Assistants IA, Analyse).
       ...(isAdmin
         ? [{
-            label: "Administration",
+            label: t("sidebar.groups.administration"),
             items: [
-              { name: "Utilisateurs", href: "/utilisateurs", icon: UserCog },
-              { name: "Licence & Facturation", href: "/gestion-licence", icon: CreditCard },
-              { name: "Protection des données", href: "/protection-donnees", icon: Shield },
-              { name: "Localisation equipe", href: "/equipe/localisation", icon: MapPin },
-              { name: "Rapport exécutif", href: "/rapport-executif", icon: BarChart3 },
-              { name: "Performance équipe", href: "/performance", icon: Trophy },
-              ...(canUseAi ? [{ name: "Auto-audit", href: "/auto-audit", icon: ClipboardCheck }] : []),
-              ...(canUseAi ? [{ name: "Automatisations", href: "/automatisations", icon: Zap }] : []),
+              { name: t("sidebar.items.users"), href: "/utilisateurs", icon: UserCog },
+              { name: t("sidebar.items.license"), href: "/gestion-licence", icon: CreditCard },
+              { name: t("sidebar.items.dataProtection"), href: "/protection-donnees", icon: Shield },
+              { name: t("sidebar.items.teamLocation"), href: "/equipe/localisation", icon: MapPin },
+              { name: t("sidebar.items.executiveReport"), href: "/rapport-executif", icon: BarChart3 },
+              { name: t("sidebar.items.teamPerformance"), href: "/performance", icon: Trophy },
+              ...(canUseAi ? [{ name: t("sidebar.items.autoAudit"), href: "/auto-audit", icon: ClipboardCheck }] : []),
+              ...(canUseAi ? [{ name: t("sidebar.items.automations"), href: "/automatisations", icon: Zap }] : []),
             ],
           }]
         : []),
@@ -387,28 +389,28 @@ export function Layout({ children }: { children: React.ReactNode }) {
       // (Carnet d'adresses, Administration, Backoffice SaaS separes).
       ...(isSuperAdmin
         ? [{
-            label: "Super Admin",
+            label: t("sidebar.groups.superAdmin"),
             items: [
-              { name: "Backoffice SaaS", href: "/admin", icon: Building2 },
-              { name: "Organisations", href: "/organisations", icon: KeyRound },
-              { name: "Prospects", href: "/prospects", icon: Target, badge: mutedBadges.prospect ? 0 : badges.prospect },
-              { name: "Journal d'audit global", href: "/admin/audit", icon: ClipboardList },
-              { name: "Santé technique", href: "/sante-technique", icon: Activity },
+              { name: t("sidebar.items.saasBackoffice"), href: "/admin", icon: Building2 },
+              { name: t("sidebar.items.organisations"), href: "/organisations", icon: KeyRound },
+              { name: t("sidebar.items.prospects"), href: "/prospects", icon: Target, badge: mutedBadges.prospect ? 0 : badges.prospect },
+              { name: t("sidebar.items.globalAuditLog"), href: "/admin/audit", icon: ClipboardList },
+              { name: t("sidebar.items.techHealth"), href: "/sante-technique", icon: Activity },
             ],
           }]
         : []),
       {
-        label: "Système",
+        label: t("sidebar.groups.system"),
         items: [
-          { name: "Guide d'utilisation", href: "/guide", icon: BookOpen },
-          { name: "Paramètres", href: "/parametres", icon: Settings },
-          { name: "Import intelligent", href: "/import", icon: Download },
-          { name: "Configuration initiale", href: "/onboarding", icon: Rocket },
-          { name: "Application mobile", href: "/telecharger", icon: Smartphone },
+          { name: t("sidebar.items.guide"), href: "/guide", icon: BookOpen },
+          { name: t("sidebar.items.settings"), href: "/parametres", icon: Settings },
+          { name: t("sidebar.items.smartImport"), href: "/import", icon: Download },
+          { name: t("sidebar.items.initialSetup"), href: "/onboarding", icon: Rocket },
+          { name: t("sidebar.items.mobileApp"), href: "/telecharger", icon: Smartphone },
         ],
       },
     ].filter(g => g.items.length > 0);
-  }, [user.role, isSuperAdmin, badges, agentQueueCount, mutedBadges]);
+  }, [user.role, isSuperAdmin, badges, agentQueueCount, mutedBadges, t]);
 
 
   return (
