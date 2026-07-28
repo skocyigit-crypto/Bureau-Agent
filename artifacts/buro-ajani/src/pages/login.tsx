@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Icon3D } from "@/components/icon-3d";
 import { Phone, Lock, Mail, AlertTriangle, Eye, EyeOff, Shield, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useTranslation } from "@/i18n";
+import { LanguageSwitcher } from "@/components/language-switcher";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -17,6 +19,7 @@ interface LoginPageProps {
 type Mode = "login" | "forgot" | "reset" | "forgot_done";
 
 export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,10 +43,10 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
         body: JSON.stringify({ email }),
       });
       const data = await res.json().catch(() => ({}));
-      setError(data.message || "Si un compte existe et n'est pas vérifié, un e-mail a été envoyé.");
+      setError(data.message || t("login.resendMessage"));
       setNeedsVerification(false);
     } catch {
-      setError("Envoi impossible. Réessayez dans un instant.");
+      setError(t("login.sendFailed"));
     } finally {
       setResendingVerification(false);
     }
@@ -76,7 +79,7 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
         // l'utilisateur lisait "verifiez votre adresse" sans aucun moyen de se
         // faire renvoyer le lien depuis l'application.
         setNeedsVerification(data.code === "email_not_verified");
-        setError(data.error || "Erreur de connexion.");
+        setError(data.error || t("login.errorLogin"));
         setLoading(false);
         return;
       }
@@ -88,14 +91,14 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
       // verrouiller dehors.
       if (data.requiresMfa) {
         setMfaRequired(true);
-        setError(totpCode ? "Code invalide. Réessayez." : "");
+        setError(totpCode ? t("login.errorInvalidCode") : "");
         setTotpCode("");
         setLoading(false);
         return;
       }
       onLogin(data);
     } catch {
-      setError("Erreur de connexion au serveur.");
+      setError(t("login.errorServer"));
       setLoading(false);
     }
   };
@@ -112,7 +115,7 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
       });
       setMode("forgot_done");
     } catch {
-      setError("Erreur lors de l'envoi. Reessayez.");
+      setError(t("login.forgotSendError"));
     } finally {
       setLoading(false);
     }
@@ -121,8 +124,8 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (newPassword !== confirmPassword) { setError("Les mots de passe ne correspondent pas."); return; }
-    if (newPassword.length < 8) { setError("Le mot de passe doit contenir au moins 8 caracteres."); return; }
+    if (newPassword !== confirmPassword) { setError(t("login.passwordMismatch")); return; }
+    if (newPassword.length < 8) { setError(t("login.passwordTooShort")); return; }
     setLoading(true);
     try {
       const res = await fetch(`${BASE}/api/auth/reset-password`, {
@@ -137,7 +140,7 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
       setNewPassword("");
       setConfirmPassword("");
     } catch {
-      setError("Erreur lors de la reinitialisation.");
+      setError(t("login.resetError"));
     } finally {
       setLoading(false);
     }
@@ -145,6 +148,9 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f1729] via-[#1a2744] to-[#0f1729] p-4">
+      <div className="absolute top-4 right-4 z-20">
+        <LanguageSwitcher variant="compact" />
+      </div>
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl" />
@@ -159,15 +165,15 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
           </div>
           <CardTitle className="text-2xl font-bold">
             {mode === "login" && "Ajant Bureau"}
-            {mode === "forgot" && "Mot de passe oublié"}
-            {mode === "forgot_done" && "Email envoyé"}
-            {mode === "reset" && "Nouveau mot de passe"}
+            {mode === "forgot" && t("login.titleForgot")}
+            {mode === "forgot_done" && t("login.titleForgotDone")}
+            {mode === "reset" && t("login.titleReset")}
           </CardTitle>
           <CardDescription className="text-sm">
-            {mode === "login" && "Connectez-vous a votre espace de travail"}
-            {mode === "forgot" && "Entrez votre email pour recevoir un lien de reinitialisation"}
-            {mode === "forgot_done" && `Vérifiez votre boîte mail : ${email}`}
-            {mode === "reset" && "Choisissez votre nouveau mot de passe"}
+            {mode === "login" && t("login.descLogin")}
+            {mode === "forgot" && t("login.descForgot")}
+            {mode === "forgot_done" && t("login.descForgotDone", { email })}
+            {mode === "reset" && t("login.descReset")}
           </CardDescription>
         </CardHeader>
 
@@ -182,24 +188,24 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
           {mode === "login" && (
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium">Adresse email</Label>
+                <Label htmlFor="email" className="text-sm font-medium">{t("login.emailLabel")}</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input id="email" type="email" placeholder="nom@agentdebureau.fr" value={email}
+                  <Input id="email" type="email" placeholder={t("login.emailPlaceholder")} value={email}
                     onChange={e => setEmail(e.target.value)} className="pl-10" required autoComplete="email" autoFocus />
                 </div>
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-sm font-medium">Mot de passe</Label>
+                  <Label htmlFor="password" className="text-sm font-medium">{t("login.passwordLabel")}</Label>
                   <button type="button" onClick={() => { setMode("forgot"); setError(""); }}
                     className="text-xs text-primary hover:underline">
-                    Mot de passe oublié ?
+                    {t("login.forgotLink")}
                   </button>
                 </div>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input id="password" type={showPassword ? "text" : "password"} placeholder="Votre mot de passe"
+                  <Input id="password" type={showPassword ? "text" : "password"} placeholder={t("login.passwordPlaceholder")}
                     value={password} onChange={e => setPassword(e.target.value)}
                     className="pl-10 pr-10" required autoComplete="current-password" />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
@@ -215,12 +221,12 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
                   disabled={resendingVerification || !email}
                   className="text-xs text-primary hover:underline disabled:opacity-50"
                 >
-                  {resendingVerification ? "Envoi en cours…" : "Renvoyer l'e-mail de vérification"}
+                  {resendingVerification ? t("login.resending") : t("login.resendLink")}
                 </button>
               )}
               {mfaRequired && (
                 <div className="space-y-2">
-                  <Label htmlFor="totp" className="text-sm font-medium">Code de vérification</Label>
+                  <Label htmlFor="totp" className="text-sm font-medium">{t("login.totpLabel")}</Label>
                   <div className="relative">
                     <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
@@ -235,7 +241,7 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Saisissez le code affiché par votre application d'authentification.
+                    {t("login.totpHint")}
                   </p>
                 </div>
               )}
@@ -244,7 +250,7 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
                 className="w-full bg-gradient-to-r from-[#1a2744] to-[#2d3f5e] hover:from-[#243358] hover:to-[#3a5078] text-white font-medium h-11"
                 disabled={loading || (mfaRequired && totpCode.length < 6)}
               >
-                {loading ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />Connexion...</> : mfaRequired ? "Vérifier le code" : "Se connecter"}
+                {loading ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />{t("login.connecting")}</> : mfaRequired ? t("login.verifyCode") : t("login.signIn")}
               </Button>
             </form>
           )}
@@ -252,19 +258,19 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
           {mode === "forgot" && (
             <form onSubmit={handleForgot} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="forgotEmail" className="text-sm font-medium">Adresse email</Label>
+                <Label htmlFor="forgotEmail" className="text-sm font-medium">{t("login.emailLabel")}</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input id="forgotEmail" type="email" placeholder="nom@exemple.fr" value={email}
+                  <Input id="forgotEmail" type="email" placeholder={t("login.forgotEmailPlaceholder")} value={email}
                     onChange={e => setEmail(e.target.value)} className="pl-10" required autoFocus />
                 </div>
               </div>
               <Button type="submit" className="w-full h-11" disabled={loading}>
-                {loading ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />Envoi...</> : "Envoyer le lien"}
+                {loading ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />{t("login.sending")}</> : t("login.sendLink")}
               </Button>
               <button type="button" onClick={() => { setMode("login"); setError(""); }}
                 className="w-full flex items-center justify-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                <ArrowLeft className="w-3 h-3" /> Retour à la connexion
+                <ArrowLeft className="w-3 h-3" /> {t("login.backToLogin")}
               </button>
             </form>
           )}
@@ -276,11 +282,11 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
                   <CheckCircle2 className="w-8 h-8 text-emerald-600" />
                 </div>
                 <p className="text-sm text-center text-muted-foreground">
-                  Si un compte existe avec cet email, vous recevrez un lien valable <strong>1 heure</strong>. Pensez à vérifier vos spams.
+                  {t("login.forgotDonePre")}<strong>{t("login.forgotDoneBold")}</strong>{t("login.forgotDonePost")}
                 </p>
               </div>
               <Button type="button" variant="outline" className="w-full" onClick={() => { setMode("login"); setError(""); }}>
-                <ArrowLeft className="w-4 h-4 mr-2" /> Retour à la connexion
+                <ArrowLeft className="w-4 h-4 mr-2" /> {t("login.backToLogin")}
               </Button>
             </div>
           )}
@@ -288,10 +294,10 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
           {mode === "reset" && (
             <form onSubmit={handleReset} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="newPass" className="text-sm font-medium">Nouveau mot de passe</Label>
+                <Label htmlFor="newPass" className="text-sm font-medium">{t("login.newPasswordLabel")}</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input id="newPass" type={showPassword ? "text" : "password"} placeholder="Min. 8 caracteres"
+                  <Input id="newPass" type={showPassword ? "text" : "password"} placeholder={t("login.newPasswordPlaceholder")}
                     value={newPassword} onChange={e => setNewPassword(e.target.value)}
                     className="pl-10 pr-10" required minLength={8} autoFocus />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
@@ -301,15 +307,15 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="confirmPass" className="text-sm font-medium">Confirmer le mot de passe</Label>
+                <Label htmlFor="confirmPass" className="text-sm font-medium">{t("login.confirmPasswordLabel")}</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input id="confirmPass" type={showPassword ? "text" : "password"} placeholder="Repetez le mot de passe"
+                  <Input id="confirmPass" type={showPassword ? "text" : "password"} placeholder={t("login.confirmPasswordPlaceholder")}
                     value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="pl-10" required />
                 </div>
               </div>
               <Button type="submit" className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white" disabled={loading}>
-                {loading ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />Reinitialisation...</> : "Definir le nouveau mot de passe"}
+                {loading ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />{t("login.resetting")}</> : t("login.setNewPassword")}
               </Button>
             </form>
           )}
@@ -320,24 +326,24 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
                 <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <Shield className="w-3 h-3 text-emerald-500" />
-                    <span>Connexion securisee</span>
+                    <span>{t("login.secureConnection")}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Lock className="w-3 h-3 text-emerald-500" />
-                    <span>Chiffrement TLS</span>
+                    <span>{t("login.tlsEncryption")}</span>
                   </div>
                 </div>
               </div>
               {onRegister && (
                 <div className="mt-4 text-center">
-                  <p className="text-sm text-muted-foreground mb-2">Vous n'avez pas encore de compte ?</p>
+                  <p className="text-sm text-muted-foreground mb-2">{t("login.noAccount")}</p>
                   <Button type="button" variant="outline" className="w-full" onClick={onRegister}>
-                    Creer un compte gratuit
+                    {t("login.createFreeAccount")}
                   </Button>
                 </div>
               )}
               <div className="mt-4 text-center">
-                <p className="text-xs text-muted-foreground">SK GROUP - Solution professionnelle</p>
+                <p className="text-xs text-muted-foreground">{t("login.footer")}</p>
               </div>
             </>
           )}

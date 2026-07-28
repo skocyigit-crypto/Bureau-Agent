@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Loader2, CheckCircle2, XCircle, ShieldCheck, Eye, Lock, AlertTriangle, Phone
 } from "lucide-react";
+import { useTranslation } from "@/i18n";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "") + "/";
 
@@ -20,10 +21,10 @@ interface InvitationInfo {
   invitedBy: string;
 }
 
-const ROLE_LABELS: Record<string, { label: string; icon: React.ElementType }> = {
-  administrateur: { label: "Administrateur", icon: ShieldCheck },
-  agent: { label: "Agent", icon: Phone },
-  lecture_seule: { label: "Lecture seule", icon: Eye },
+const ROLE_ICONS: Record<string, React.ElementType> = {
+  administrateur: ShieldCheck,
+  agent: Phone,
+  lecture_seule: Eye,
 };
 
 export default function InvitationAcceptPage() {
@@ -41,6 +42,7 @@ export default function InvitationAcceptPage() {
     ?? window.location.pathname.match(/\/invitation\/([^/?#]+)/)?.[1];
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const [loading, setLoading] = useState(true);
   const [invitation, setInvitation] = useState<InvitationInfo | null>(null);
@@ -57,10 +59,10 @@ export default function InvitationAcceptPage() {
         if (res.ok && data.valid) {
           setInvitation(data);
         } else {
-          setError(data.error || "Invitation invalide.");
+          setError(data.error || t("invitation.errInvalid"));
         }
       } catch {
-        setError("Impossible de verifier l'invitation.");
+        setError(t("invitation.errVerify"));
       } finally {
         setLoading(false);
       }
@@ -70,7 +72,7 @@ export default function InvitationAcceptPage() {
     } else {
       // Sans token, ne JAMAIS rester sur le spinner: on affiche une erreur
       // exploitable plutot qu'une page qui semble figee.
-      setError("Lien d'invitation invalide ou incomplet. Verifiez que vous avez copie l'adresse entiere depuis l'e-mail.");
+      setError(t("invitation.errNoToken"));
       setLoading(false);
     }
   }, [token]);
@@ -79,17 +81,17 @@ export default function InvitationAcceptPage() {
     e.preventDefault();
 
     if (!form.prenom || !form.nom || !form.password) {
-      toast({ title: "Erreur", description: "Tous les champs sont obligatoires.", variant: "destructive" });
+      toast({ title: t("invitation.toastErrorTitle"), description: t("invitation.allFieldsRequired"), variant: "destructive" });
       return;
     }
 
     if (form.password.length < 8) {
-      toast({ title: "Erreur", description: "Le mot de passe doit contenir au moins 8 caracteres.", variant: "destructive" });
+      toast({ title: t("invitation.toastErrorTitle"), description: t("invitation.passwordShort"), variant: "destructive" });
       return;
     }
 
     if (form.password !== form.confirmPassword) {
-      toast({ title: "Erreur", description: "Les mots de passe ne correspondent pas.", variant: "destructive" });
+      toast({ title: t("invitation.toastErrorTitle"), description: t("invitation.passwordMismatch"), variant: "destructive" });
       return;
     }
 
@@ -97,7 +99,7 @@ export default function InvitationAcceptPage() {
     const hasLower = /[a-z]/.test(form.password);
     const hasNum = /[0-9]/.test(form.password);
     if (!hasUpper || !hasLower || !hasNum) {
-      toast({ title: "Erreur", description: "Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre.", variant: "destructive" });
+      toast({ title: t("invitation.toastErrorTitle"), description: t("invitation.passwordComplexity"), variant: "destructive" });
       return;
     }
 
@@ -112,15 +114,15 @@ export default function InvitationAcceptPage() {
       const data = await res.json();
       if (res.ok && data.success) {
         setSuccess(true);
-        toast({ title: "Compte cree avec succes !", description: data.message });
+        toast({ title: t("invitation.successToastTitle"), description: data.message });
         setTimeout(() => {
           window.location.href = import.meta.env.BASE_URL.replace(/\/$/, "") + "/";
         }, 2000);
       } else {
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("invitation.toastErrorTitle"), description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Erreur lors de la creation du compte.", variant: "destructive" });
+      toast({ title: t("invitation.toastErrorTitle"), description: t("invitation.createAccountError"), variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
@@ -142,9 +144,9 @@ export default function InvitationAcceptPage() {
             <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mx-auto">
               <XCircle className="w-8 h-8 text-red-500" />
             </div>
-            <h2 className="text-xl font-bold">Invitation invalide</h2>
+            <h2 className="text-xl font-bold">{t("invitation.invalidTitle")}</h2>
             <p className="text-muted-foreground">{error}</p>
-            <Button variant="outline" onClick={() => navigate("/")}>Retour a la connexion</Button>
+            <Button variant="outline" onClick={() => navigate("/")}>{t("invitation.backToLogin")}</Button>
           </CardContent>
         </Card>
       </div>
@@ -159,8 +161,8 @@ export default function InvitationAcceptPage() {
             <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mx-auto">
               <CheckCircle2 className="w-8 h-8 text-emerald-500" />
             </div>
-            <h2 className="text-xl font-bold">Bienvenue !</h2>
-            <p className="text-muted-foreground">Votre compte a été créé avec succes. Redirection en cours...</p>
+            <h2 className="text-xl font-bold">{t("invitation.welcomeTitle")}</h2>
+            <p className="text-muted-foreground">{t("invitation.successText")}</p>
             <Loader2 className="w-5 h-5 animate-spin mx-auto text-amber-500" />
           </CardContent>
         </Card>
@@ -168,8 +170,9 @@ export default function InvitationAcceptPage() {
     );
   }
 
-  const roleInfo = ROLE_LABELS[invitation?.role || "agent"] || ROLE_LABELS.agent;
-  const RoleIcon = roleInfo.icon;
+  const roleKey = (invitation?.role && ROLE_ICONS[invitation.role]) ? invitation.role : "agent";
+  const RoleIcon = ROLE_ICONS[roleKey];
+  const roleLabel = t(`invitation.roles.${roleKey}`);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
@@ -180,16 +183,16 @@ export default function InvitationAcceptPage() {
               <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
             </svg>
           </div>
-          <CardTitle className="text-xl">Rejoignez {invitation?.organisationName}</CardTitle>
+          <CardTitle className="text-xl">{t("invitation.joinTitle", { org: invitation?.organisationName ?? "" })}</CardTitle>
           <CardDescription>
-            {invitation?.invitedBy} vous invite a rejoindre l'equipe
+            {t("invitation.invitedBy", { name: invitation?.invitedBy ?? "" })}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center gap-2 mb-6">
             <Badge variant="outline" className="gap-1.5 py-1 px-3">
               <RoleIcon className="w-3.5 h-3.5" />
-              {roleInfo.label}
+              {roleLabel}
             </Badge>
             <Badge variant="secondary" className="gap-1.5 py-1 px-3">
               <Lock className="w-3.5 h-3.5" />
@@ -200,32 +203,32 @@ export default function InvitationAcceptPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="inv-prenom">Prenom *</Label>
-                <Input id="inv-prenom" placeholder="Votre prenom" value={form.prenom} onChange={(e) => setForm({ ...form, prenom: e.target.value })} autoFocus />
+                <Label htmlFor="inv-prenom">{t("invitation.firstNameLabel")}</Label>
+                <Input id="inv-prenom" placeholder={t("invitation.firstNamePlaceholder")} value={form.prenom} onChange={(e) => setForm({ ...form, prenom: e.target.value })} autoFocus />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="inv-nom">Nom *</Label>
-                <Input id="inv-nom" placeholder="Votre nom" value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} />
+                <Label htmlFor="inv-nom">{t("invitation.lastNameLabel")}</Label>
+                <Input id="inv-nom" placeholder={t("invitation.lastNamePlaceholder")} value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="inv-password">Mot de passe *</Label>
-              <Input id="inv-password" type="password" placeholder="Minimum 8 caracteres" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-              <p className="text-[11px] text-muted-foreground">Au moins 8 caracteres, une majuscule, une minuscule et un chiffre.</p>
+              <Label htmlFor="inv-password">{t("invitation.passwordLabel")}</Label>
+              <Input id="inv-password" type="password" placeholder={t("invitation.passwordPlaceholder")} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+              <p className="text-[11px] text-muted-foreground">{t("invitation.passwordHint")}</p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="inv-confirm-password">Confirmer le mot de passe *</Label>
-              <Input id="inv-confirm-password" type="password" placeholder="Retapez votre mot de passe" value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} />
+              <Label htmlFor="inv-confirm-password">{t("invitation.confirmLabel")}</Label>
+              <Input id="inv-confirm-password" type="password" placeholder={t("invitation.confirmPlaceholder")} value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} />
             </div>
 
             {form.password && form.password.length >= 8 && (
               <div className="space-y-1">
                 {[
-                  { test: /[A-Z]/.test(form.password), label: "Une majuscule" },
-                  { test: /[a-z]/.test(form.password), label: "Une minuscule" },
-                  { test: /[0-9]/.test(form.password), label: "Un chiffre" },
-                  { test: form.password.length >= 8, label: "8 caracteres minimum" },
-                  { test: form.password === form.confirmPassword && form.confirmPassword !== "", label: "Mots de passe identiques" },
+                  { test: /[A-Z]/.test(form.password), label: t("invitation.ruleUpper") },
+                  { test: /[a-z]/.test(form.password), label: t("invitation.ruleLower") },
+                  { test: /[0-9]/.test(form.password), label: t("invitation.ruleDigit") },
+                  { test: form.password.length >= 8, label: t("invitation.ruleLength") },
+                  { test: form.password === form.confirmPassword && form.confirmPassword !== "", label: t("invitation.ruleMatch") },
                 ].map((rule, i) => (
                   <div key={i} className="flex items-center gap-2 text-xs">
                     {rule.test ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : <AlertTriangle className="w-3 h-3 text-amber-500" />}
@@ -237,7 +240,7 @@ export default function InvitationAcceptPage() {
 
             <Button type="submit" disabled={submitting} className="w-full gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-900 font-semibold h-11">
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-              Creer mon compte
+              {t("invitation.submit")}
             </Button>
           </form>
         </CardContent>
