@@ -1002,5 +1002,188 @@
       "bulkStatus": "{{count}} proje güncellendi",
       "bulkStatusError": "Güncelleme başarısız."
     }
+  },
+  "calendar": {
+    "title": "Takvim",
+    "subtitle": "Randevu planlama ve yönetimi",
+    "views": {
+      "day": "Gün",
+      "week": "Hafta",
+      "month": "Ay"
+    },
+    "today": "Bugün",
+    "csv": "CSV",
+    "print": "Yazdır",
+    "freeSlots": "Boş zaman aralıkları",
+    "newEvent": "Yeni randevu",
+    "addEvent": "Randevu ekle",
+    "workingHours": "Çalışma saatleri: {{start}} – {{end}}",
+    "workingDay": "İş günü",
+    "upcomingTitle": "Yaklaşan randevular",
+    "noUpcoming": "Yaklaşan randevu yok",
+    "legend": "Açıklama",
+    "legendTasks": "Son tarihli görevler",
+    "tip": "İpucu: Anında randevu oluşturmak için bir zaman aralığına tıklayın",
+    "stats": {
+      "today": "Bugün",
+      "events": "etkinlik",
+      "upcoming": "Yaklaşan",
+      "planned": "planlanan",
+      "thisMonth": "Bu ay",
+      "total": "toplam"
+    },
+    "daysShort": {
+      "mon": "Pzt",
+      "tue": "Sal",
+      "wed": "Çar",
+      "thu": "Per",
+      "fri": "Cum",
+      "sat": "Cmt",
+      "sun": "Paz"
+    },
+    "months": {
+      "jan": "Ocak",
+      "feb": "Şubat",
+      "mar": "Mart",
+      "apr": "Nisan",
+      "may": "Mayıs",
+      "jun": "Haziran",
+      "jul": "Temmuz",
+      "aug": "Ağustos",
+      "sep": "Eylül",
+      "oct": "Ekim",
+      "nov": "Kasım",
+      "dec": "Aralık"
+    },
+    "eventTypes": {
+      "rendez_vous": "Randevu",
+      "reunion": "Toplantı",
+      "appel": "Planlı arama",
+      "echeance": "Son tarih",
+      "consultation": "Danışma",
+      "visite": "Müşteri ziyareti",
+      "personnel": "Kişisel"
+    },
+    "reminders": {
+      "none": "Hatırlatma yok",
+      "5min": "5 dakika önce",
+      "15min": "15 dakika önce",
+      "30min": "30 dakika önce",
+      "1h": "1 saat önce",
+      "2h": "2 saat önce",
+      "1j": "1 gün önce"
+    },
+    "priorities": {
+      "basse": "Düşük",
+      "normale": "Normal",
+      "haute": "Yüksek",
+      "urgente": "Acil"
+    },
+    "statuses": {
+      "confirme": "Onaylandı",
+      "en_attente": "Beklemede",
+      "annule": "İptal edildi",
+      "reporte": "Ertelendi"
+    },
+    "tabs": {
+      "general": "Genel",
+      "contact": "Kişi",
+      "options": "Seçenekler"
+    },
+    "form": {
+      "editTitle": "Etkinliği düzenle",
+      "newTitle": "Yeni randevu",
+      "title": "Randevu başlığı",
+      "titlePlaceholder": "Örn: Muhasebe danışması Bay Dupont",
+      "type": "Tür",
+      "startTime": "Başlangıç saati",
+      "endTime": "Bitiş saati",
+      "location": "Yer",
+      "locationPlaceholder": "Ofis, oda 3, görüntülü görüşme...",
+      "description": "Açıklama / Notlar",
+      "descriptionPlaceholder": "Randevu detayları, ele alınacak konular...",
+      "importContacts": "Kişilerden içe aktar",
+      "searchContact": "Mevcut bir kişi ara...",
+      "orManual": "veya elle girin",
+      "fullName": "Ad soyad",
+      "fullNamePlaceholder": "Jean Dupont",
+      "phone": "Telefon",
+      "phonePlaceholder": "+33 6 12 34 56 78",
+      "email": "E-posta",
+      "emailPlaceholder": "jean.dupont@example.com",
+      "company": "Şirket",
+      "companyPlaceholder": "Entreprise SARL",
+      "contactNotes": "Kişi hakkında notlar",
+      "contactNotesPlaceholder": "Sadık müşteri, sabahları tercih eder, konu: KDV beyanı...",
+      "status": "Durum",
+      "priority": "Öncelik",
+      "reminder": "Hatırlatma",
+      "saving": "Kaydediliyor...",
+      "update": "Güncelle",
+      "createEvent": "Randevu oluştur",
+      "closedDayTitle": "Kapalı bir günde randevu oluşturulamaz"
+    },
+    "detail": {
+      "description": "Açıklama",
+      "contactInfo": "Kişi bilgileri",
+      "duplicateTitle": "Çoğalt (sonraki hafta)",
+      "viewProjects": "Projeleri gör",
+      "viewTasks": "Görevleri gör"
+    },
+    "availability": {
+      "loading": "Uygunluk hesaplanıyor...",
+      "empty": "Önümüzdeki 14 gün içinde boş zaman aralığı yok (çalışma saatlerini kontrol edin).",
+      "error": "Boş zaman aralıkları hesaplanamıyor."
+    },
+    "closure": {
+      "closed": "Kapalı",
+      "closedRange": "{{start}} - {{end}} arası kapalı",
+      "closedLabel": "Kapalı — {{label}}",
+      "dashLabel": " — {{label}}",
+      "exceptional": "İstisnai kapanış",
+      "exceptionalDay": "İstisnai kapanış günü",
+      "noAppointments": "Bu gün hiçbir randevu oluşturulamaz.",
+      "removeClosure": "Kapanışı kaldır",
+      "closeDay": "Bu günü kapat",
+      "offDay": "Kapalı gün — yapılandırılmış çalışma günleri dışında",
+      "closeOfficially": "Resmi olarak kapat"
+    },
+    "closureDialog": {
+      "manageTitle": "Kapanışı yönet",
+      "closePeriod": "Bu dönemi kapat",
+      "closeDayTitle": "Bu günü kapat",
+      "rangeInfo": "{{start}} - {{end}} arası",
+      "reopenPeriod": "Dönemi yeniden açmak için bu kapanışı kaldırın.",
+      "reopenDay": "Günü yeniden açmak için bu kapanışı kaldırın.",
+      "removing": "Siliniyor...",
+      "start": "Başlangıç",
+      "end": "Bitiş",
+      "reason": "Sebep",
+      "optional": "(isteğe bağlı)",
+      "reasonPlaceholder": "Örn: 14 Temmuz köprüsü, yıllık kapanış..."
+    },
+    "toast": {
+      "error": "Hata",
+      "loadError": "Etkinlikler yüklenemiyor",
+      "created": "Etkinlik oluşturuldu",
+      "createError": "Etkinlik oluşturulamıyor",
+      "updated": "Etkinlik güncellendi",
+      "updateError": "Etkinlik değiştirilemiyor",
+      "deleted": "Etkinlik silindi",
+      "deleteError": "Etkinlik silinemiyor",
+      "duplicated": "Etkinlik çoğaltıldı (sonraki hafta)",
+      "duplicateError": "Etkinlik çoğaltılamıyor",
+      "periodClosed": "Dönem kapatıldı",
+      "dayClosed": "Gün kapatıldı",
+      "closureSaved": "Kapanış kaydedildi.",
+      "closureCreateError": "Kapanış oluşturulamıyor.",
+      "closureRemoved": "Kapanış kaldırıldı",
+      "closureReopened": "Gün yeniden açıldı.",
+      "closureRemoveError": "Kapanış kaldırılamıyor.",
+      "dayClosedTitle": "Gün kapatıldı",
+      "closedLabelNoAppt": "{{label}} — bu gün randevu mümkün değil.",
+      "closedNoAppt": "İstisnai kapanış — bu gün randevu mümkün değil.",
+      "openError": "Bu etkinlik açılamıyor."
+    }
   }
 }

@@ -1002,5 +1002,188 @@
       "bulkStatus": "{{count}} Projekt(e) aktualisiert",
       "bulkStatusError": "Aktualisierung fehlgeschlagen."
     }
+  },
+  "calendar": {
+    "title": "Kalender",
+    "subtitle": "Terminplanung und -verwaltung",
+    "views": {
+      "day": "Tag",
+      "week": "Woche",
+      "month": "Monat"
+    },
+    "today": "Heute",
+    "csv": "CSV",
+    "print": "Drucken",
+    "freeSlots": "Freie Zeitfenster",
+    "newEvent": "Neuer Termin",
+    "addEvent": "Termin hinzufügen",
+    "workingHours": "Öffnungszeiten: {{start}} – {{end}}",
+    "workingDay": "Arbeitstag",
+    "upcomingTitle": "Anstehende Termine",
+    "noUpcoming": "Keine anstehenden Termine",
+    "legend": "Legende",
+    "legendTasks": "Aufgaben mit Fälligkeitsdatum",
+    "tip": "Tipp: Klicken Sie auf ein Zeitfenster, um sofort einen Termin zu erstellen",
+    "stats": {
+      "today": "Heute",
+      "events": "Ereignis(se)",
+      "upcoming": "Anstehend",
+      "planned": "geplant",
+      "thisMonth": "Diesen Monat",
+      "total": "gesamt"
+    },
+    "daysShort": {
+      "mon": "Mo",
+      "tue": "Di",
+      "wed": "Mi",
+      "thu": "Do",
+      "fri": "Fr",
+      "sat": "Sa",
+      "sun": "So"
+    },
+    "months": {
+      "jan": "Januar",
+      "feb": "Februar",
+      "mar": "März",
+      "apr": "April",
+      "may": "Mai",
+      "jun": "Juni",
+      "jul": "Juli",
+      "aug": "August",
+      "sep": "September",
+      "oct": "Oktober",
+      "nov": "November",
+      "dec": "Dezember"
+    },
+    "eventTypes": {
+      "rendez_vous": "Termin",
+      "reunion": "Besprechung",
+      "appel": "Geplanter Anruf",
+      "echeance": "Frist",
+      "consultation": "Beratung",
+      "visite": "Kundenbesuch",
+      "personnel": "Persönlich"
+    },
+    "reminders": {
+      "none": "Keine Erinnerung",
+      "5min": "5 Minuten vorher",
+      "15min": "15 Minuten vorher",
+      "30min": "30 Minuten vorher",
+      "1h": "1 Stunde vorher",
+      "2h": "2 Stunden vorher",
+      "1j": "1 Tag vorher"
+    },
+    "priorities": {
+      "basse": "Niedrig",
+      "normale": "Normal",
+      "haute": "Hoch",
+      "urgente": "Dringend"
+    },
+    "statuses": {
+      "confirme": "Bestätigt",
+      "en_attente": "Ausstehend",
+      "annule": "Storniert",
+      "reporte": "Verschoben"
+    },
+    "tabs": {
+      "general": "Allgemein",
+      "contact": "Kontakt",
+      "options": "Optionen"
+    },
+    "form": {
+      "editTitle": "Ereignis bearbeiten",
+      "newTitle": "Neuer Termin",
+      "title": "Termintitel",
+      "titlePlaceholder": "z. B. Buchhaltungsberatung Herr Dupont",
+      "type": "Typ",
+      "startTime": "Startzeit",
+      "endTime": "Endzeit",
+      "location": "Ort",
+      "locationPlaceholder": "Büro, Raum 3, Videokonferenz...",
+      "description": "Beschreibung / Notizen",
+      "descriptionPlaceholder": "Termindetails, zu besprechende Themen...",
+      "importContacts": "Aus Kontakten importieren",
+      "searchContact": "Einen vorhandenen Kontakt suchen...",
+      "orManual": "oder manuell eingeben",
+      "fullName": "Vollständiger Name",
+      "fullNamePlaceholder": "Jean Dupont",
+      "phone": "Telefon",
+      "phonePlaceholder": "+33 6 12 34 56 78",
+      "email": "E-Mail",
+      "emailPlaceholder": "jean.dupont@example.com",
+      "company": "Firma",
+      "companyPlaceholder": "Entreprise SARL",
+      "contactNotes": "Notizen zum Kontakt",
+      "contactNotesPlaceholder": "Treuer Kunde, bevorzugt Vormittage, Thema: Umsatzsteuererklärung...",
+      "status": "Status",
+      "priority": "Priorität",
+      "reminder": "Erinnerung",
+      "saving": "Wird gespeichert...",
+      "update": "Aktualisieren",
+      "createEvent": "Termin erstellen",
+      "closedDayTitle": "An einem geschlossenen Tag kann kein Termin erstellt werden"
+    },
+    "detail": {
+      "description": "Beschreibung",
+      "contactInfo": "Kontaktinformationen",
+      "duplicateTitle": "Duplizieren (nächste Woche)",
+      "viewProjects": "Projekte anzeigen",
+      "viewTasks": "Aufgaben anzeigen"
+    },
+    "availability": {
+      "loading": "Verfügbarkeit wird berechnet...",
+      "empty": "Kein freies Zeitfenster in den nächsten 14 Tagen (prüfen Sie die Öffnungszeiten).",
+      "error": "Freie Zeitfenster können nicht berechnet werden."
+    },
+    "closure": {
+      "closed": "Geschlossen",
+      "closedRange": "Geschlossen vom {{start}} bis {{end}}",
+      "closedLabel": "Geschlossen — {{label}}",
+      "dashLabel": " — {{label}}",
+      "exceptional": "Außerordentliche Schließung",
+      "exceptionalDay": "Außerordentlicher Schließungstag",
+      "noAppointments": "An diesem Tag kann kein Termin erstellt werden.",
+      "removeClosure": "Schließung entfernen",
+      "closeDay": "Diesen Tag schließen",
+      "offDay": "Geschlossener Tag — außerhalb der konfigurierten Arbeitstage",
+      "closeOfficially": "Offiziell schließen"
+    },
+    "closureDialog": {
+      "manageTitle": "Schließung verwalten",
+      "closePeriod": "Diesen Zeitraum schließen",
+      "closeDayTitle": "Diesen Tag schließen",
+      "rangeInfo": "Vom {{start}} bis {{end}}",
+      "reopenPeriod": "Entfernen Sie diese Schließung, um den Zeitraum wieder zu öffnen.",
+      "reopenDay": "Entfernen Sie diese Schließung, um den Tag wieder zu öffnen.",
+      "removing": "Wird entfernt...",
+      "start": "Beginn",
+      "end": "Ende",
+      "reason": "Grund",
+      "optional": "(optional)",
+      "reasonPlaceholder": "z. B. Brückentag 14. Juli, Jahresschließung..."
+    },
+    "toast": {
+      "error": "Fehler",
+      "loadError": "Ereignisse können nicht geladen werden",
+      "created": "Ereignis erstellt",
+      "createError": "Ereignis kann nicht erstellt werden",
+      "updated": "Ereignis aktualisiert",
+      "updateError": "Ereignis kann nicht bearbeitet werden",
+      "deleted": "Ereignis gelöscht",
+      "deleteError": "Ereignis kann nicht gelöscht werden",
+      "duplicated": "Ereignis dupliziert (nächste Woche)",
+      "duplicateError": "Ereignis kann nicht dupliziert werden",
+      "periodClosed": "Zeitraum geschlossen",
+      "dayClosed": "Tag geschlossen",
+      "closureSaved": "Die Schließung wurde gespeichert.",
+      "closureCreateError": "Schließung kann nicht erstellt werden.",
+      "closureRemoved": "Schließung entfernt",
+      "closureReopened": "Der Tag ist wieder geöffnet.",
+      "closureRemoveError": "Schließung kann nicht entfernt werden.",
+      "dayClosedTitle": "Tag geschlossen",
+      "closedLabelNoAppt": "{{label}} — an diesem Tag ist kein Termin möglich.",
+      "closedNoAppt": "Außerordentliche Schließung — an diesem Tag ist kein Termin möglich.",
+      "openError": "Dieses Ereignis kann nicht geöffnet werden."
+    }
   }
 }

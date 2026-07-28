@@ -1002,5 +1002,188 @@
       "bulkStatus": "تم تحديث {{count}} مشروع",
       "bulkStatusError": "فشل التحديث."
     }
+  },
+  "calendar": {
+    "title": "التقويم",
+    "subtitle": "تخطيط المواعيد وإدارتها",
+    "views": {
+      "day": "يوم",
+      "week": "أسبوع",
+      "month": "شهر"
+    },
+    "today": "اليوم",
+    "csv": "CSV",
+    "print": "طباعة",
+    "freeSlots": "الفترات المتاحة",
+    "newEvent": "موعد جديد",
+    "addEvent": "إضافة موعد",
+    "workingHours": "ساعات العمل: {{start}} – {{end}}",
+    "workingDay": "يوم عمل",
+    "upcomingTitle": "المواعيد القادمة",
+    "noUpcoming": "لا توجد مواعيد قادمة",
+    "legend": "وسيلة الإيضاح",
+    "legendTasks": "المهام ذات موعد الاستحقاق",
+    "tip": "نصيحة: انقر على فترة زمنية لإنشاء موعد على الفور",
+    "stats": {
+      "today": "اليوم",
+      "events": "حدث/أحداث",
+      "upcoming": "القادمة",
+      "planned": "مخطط لها",
+      "thisMonth": "هذا الشهر",
+      "total": "الإجمالي"
+    },
+    "daysShort": {
+      "mon": "الإثنين",
+      "tue": "الثلاثاء",
+      "wed": "الأربعاء",
+      "thu": "الخميس",
+      "fri": "الجمعة",
+      "sat": "السبت",
+      "sun": "الأحد"
+    },
+    "months": {
+      "jan": "يناير",
+      "feb": "فبراير",
+      "mar": "مارس",
+      "apr": "أبريل",
+      "may": "مايو",
+      "jun": "يونيو",
+      "jul": "يوليو",
+      "aug": "أغسطس",
+      "sep": "سبتمبر",
+      "oct": "أكتوبر",
+      "nov": "نوفمبر",
+      "dec": "ديسمبر"
+    },
+    "eventTypes": {
+      "rendez_vous": "موعد",
+      "reunion": "اجتماع",
+      "appel": "مكالمة مجدولة",
+      "echeance": "موعد نهائي",
+      "consultation": "استشارة",
+      "visite": "زيارة عميل",
+      "personnel": "شخصي"
+    },
+    "reminders": {
+      "none": "بدون تذكير",
+      "5min": "قبل 5 دقائق",
+      "15min": "قبل 15 دقيقة",
+      "30min": "قبل 30 دقيقة",
+      "1h": "قبل ساعة",
+      "2h": "قبل ساعتين",
+      "1j": "قبل يوم"
+    },
+    "priorities": {
+      "basse": "منخفضة",
+      "normale": "عادية",
+      "haute": "عالية",
+      "urgente": "عاجلة"
+    },
+    "statuses": {
+      "confirme": "مؤكد",
+      "en_attente": "قيد الانتظار",
+      "annule": "ملغى",
+      "reporte": "مؤجل"
+    },
+    "tabs": {
+      "general": "عام",
+      "contact": "جهة الاتصال",
+      "options": "الخيارات"
+    },
+    "form": {
+      "editTitle": "تعديل الحدث",
+      "newTitle": "موعد جديد",
+      "title": "عنوان الموعد",
+      "titlePlaceholder": "مثال: استشارة محاسبية السيد دوبون",
+      "type": "النوع",
+      "startTime": "وقت البدء",
+      "endTime": "وقت الانتهاء",
+      "location": "المكان",
+      "locationPlaceholder": "المكتب، القاعة 3، مكالمة فيديو...",
+      "description": "الوصف / ملاحظات",
+      "descriptionPlaceholder": "تفاصيل الموعد، المواضيع المطروحة...",
+      "importContacts": "استيراد من جهات الاتصال",
+      "searchContact": "البحث عن جهة اتصال موجودة...",
+      "orManual": "أو الإدخال يدويًا",
+      "fullName": "الاسم الكامل",
+      "fullNamePlaceholder": "Jean Dupont",
+      "phone": "الهاتف",
+      "phonePlaceholder": "+33 6 12 34 56 78",
+      "email": "البريد الإلكتروني",
+      "emailPlaceholder": "jean.dupont@example.com",
+      "company": "الشركة",
+      "companyPlaceholder": "Entreprise SARL",
+      "contactNotes": "ملاحظات حول جهة الاتصال",
+      "contactNotesPlaceholder": "عميل وفي، يفضل الصباح، الموضوع: إقرار ضريبة القيمة المضافة...",
+      "status": "الحالة",
+      "priority": "الأولوية",
+      "reminder": "التذكير",
+      "saving": "جارٍ الحفظ...",
+      "update": "تحديث",
+      "createEvent": "إنشاء الموعد",
+      "closedDayTitle": "لا يمكن إنشاء موعد في يوم مغلق"
+    },
+    "detail": {
+      "description": "الوصف",
+      "contactInfo": "معلومات جهة الاتصال",
+      "duplicateTitle": "نسخ (الأسبوع التالي)",
+      "viewProjects": "عرض المشاريع",
+      "viewTasks": "عرض المهام"
+    },
+    "availability": {
+      "loading": "جارٍ حساب التوفر...",
+      "empty": "لا توجد فترة متاحة في الأيام الـ 14 القادمة (تحقق من ساعات العمل).",
+      "error": "تعذر حساب الفترات المتاحة."
+    },
+    "closure": {
+      "closed": "مغلق",
+      "closedRange": "مغلق من {{start}} إلى {{end}}",
+      "closedLabel": "مغلق — {{label}}",
+      "dashLabel": " — {{label}}",
+      "exceptional": "إغلاق استثنائي",
+      "exceptionalDay": "يوم إغلاق استثنائي",
+      "noAppointments": "لا يمكن إنشاء أي موعد في هذا اليوم.",
+      "removeClosure": "إزالة الإغلاق",
+      "closeDay": "إغلاق هذا اليوم",
+      "offDay": "يوم مغلق — خارج أيام العمل المهيأة",
+      "closeOfficially": "إغلاق رسمي"
+    },
+    "closureDialog": {
+      "manageTitle": "إدارة الإغلاق",
+      "closePeriod": "إغلاق هذه الفترة",
+      "closeDayTitle": "إغلاق هذا اليوم",
+      "rangeInfo": "من {{start}} إلى {{end}}",
+      "reopenPeriod": "أزل هذا الإغلاق لإعادة فتح الفترة.",
+      "reopenDay": "أزل هذا الإغلاق لإعادة فتح اليوم.",
+      "removing": "جارٍ الحذف...",
+      "start": "البداية",
+      "end": "النهاية",
+      "reason": "السبب",
+      "optional": "(اختياري)",
+      "reasonPlaceholder": "مثال: جسر 14 يوليو، الإغلاق السنوي..."
+    },
+    "toast": {
+      "error": "خطأ",
+      "loadError": "تعذر تحميل الأحداث",
+      "created": "تم إنشاء الحدث",
+      "createError": "تعذر إنشاء الحدث",
+      "updated": "تم تحديث الحدث",
+      "updateError": "تعذر تعديل الحدث",
+      "deleted": "تم حذف الحدث",
+      "deleteError": "تعذر حذف الحدث",
+      "duplicated": "تم نسخ الحدث (الأسبوع التالي)",
+      "duplicateError": "تعذر نسخ الحدث",
+      "periodClosed": "تم إغلاق الفترة",
+      "dayClosed": "تم إغلاق اليوم",
+      "closureSaved": "تم حفظ الإغلاق.",
+      "closureCreateError": "تعذر إنشاء الإغلاق.",
+      "closureRemoved": "تمت إزالة الإغلاق",
+      "closureReopened": "اليوم مفتوح من جديد.",
+      "closureRemoveError": "تعذر إزالة الإغلاق.",
+      "dayClosedTitle": "تم إغلاق اليوم",
+      "closedLabelNoAppt": "{{label}} — لا يمكن حجز موعد في هذا اليوم.",
+      "closedNoAppt": "إغلاق استثنائي — لا يمكن حجز موعد في هذا اليوم.",
+      "openError": "تعذر فتح هذا الحدث."
+    }
   }
 }

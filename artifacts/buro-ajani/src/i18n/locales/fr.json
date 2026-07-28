@@ -1002,5 +1002,188 @@
       "bulkStatus": "{{count}} projet(s) mis à jour",
       "bulkStatusError": "Mise à jour échouée."
     }
+  },
+  "calendar": {
+    "title": "Calendrier",
+    "subtitle": "Planification et gestion des rendez-vous",
+    "views": {
+      "day": "Jour",
+      "week": "Semaine",
+      "month": "Mois"
+    },
+    "today": "Aujourd'hui",
+    "csv": "CSV",
+    "print": "Imprimer",
+    "freeSlots": "Creneaux libres",
+    "newEvent": "Nouveau RDV",
+    "addEvent": "Ajouter RDV",
+    "workingHours": "Horaires d'ouverture : {{start}} – {{end}}",
+    "workingDay": "Jour ouvrable",
+    "upcomingTitle": "Prochains rendez-vous",
+    "noUpcoming": "Aucun rendez-vous a venir",
+    "legend": "Legende",
+    "legendTasks": "Taches avec echeance",
+    "tip": "Astuce : Cliquez sur un creneau horaire pour creer un rendez-vous instantanement",
+    "stats": {
+      "today": "Aujourd'hui",
+      "events": "evenement(s)",
+      "upcoming": "A venir",
+      "planned": "planifie(s)",
+      "thisMonth": "Ce mois",
+      "total": "total"
+    },
+    "daysShort": {
+      "mon": "Lun",
+      "tue": "Mar",
+      "wed": "Mer",
+      "thu": "Jeu",
+      "fri": "Ven",
+      "sat": "Sam",
+      "sun": "Dim"
+    },
+    "months": {
+      "jan": "Janvier",
+      "feb": "Fevrier",
+      "mar": "Mars",
+      "apr": "Avril",
+      "may": "Mai",
+      "jun": "Juin",
+      "jul": "Juillet",
+      "aug": "Aout",
+      "sep": "Septembre",
+      "oct": "Octobre",
+      "nov": "Novembre",
+      "dec": "Decembre"
+    },
+    "eventTypes": {
+      "rendez_vous": "Rendez-vous",
+      "reunion": "Reunion",
+      "appel": "Appel programme",
+      "echeance": "Echeance",
+      "consultation": "Consultation",
+      "visite": "Visite client",
+      "personnel": "Personnel"
+    },
+    "reminders": {
+      "none": "Aucun rappel",
+      "5min": "5 minutes avant",
+      "15min": "15 minutes avant",
+      "30min": "30 minutes avant",
+      "1h": "1 heure avant",
+      "2h": "2 heures avant",
+      "1j": "1 jour avant"
+    },
+    "priorities": {
+      "basse": "Basse",
+      "normale": "Normale",
+      "haute": "Haute",
+      "urgente": "Urgente"
+    },
+    "statuses": {
+      "confirme": "Confirme",
+      "en_attente": "En attente",
+      "annule": "Annule",
+      "reporte": "Reporte"
+    },
+    "tabs": {
+      "general": "General",
+      "contact": "Contact",
+      "options": "Options"
+    },
+    "form": {
+      "editTitle": "Modifier l'evenement",
+      "newTitle": "Nouveau rendez-vous",
+      "title": "Titre du rendez-vous",
+      "titlePlaceholder": "Ex: Consultation comptable M. Dupont",
+      "type": "Type",
+      "startTime": "Heure de debut",
+      "endTime": "Heure de fin",
+      "location": "Lieu",
+      "locationPlaceholder": "Bureau, salle 3, visioconference...",
+      "description": "Description / Notes",
+      "descriptionPlaceholder": "Details du rendez-vous, sujets a aborder...",
+      "importContacts": "Importer depuis les contacts",
+      "searchContact": "Rechercher un contact existant...",
+      "orManual": "ou saisir manuellement",
+      "fullName": "Nom complet",
+      "fullNamePlaceholder": "Jean Dupont",
+      "phone": "Telephone",
+      "phonePlaceholder": "+33 6 12 34 56 78",
+      "email": "Email",
+      "emailPlaceholder": "jean.dupont@example.com",
+      "company": "Societe",
+      "companyPlaceholder": "Entreprise SARL",
+      "contactNotes": "Notes sur le contact",
+      "contactNotesPlaceholder": "Client fidele, prefere les matins, sujet: declaration TVA...",
+      "status": "Statut",
+      "priority": "Priorite",
+      "reminder": "Rappel",
+      "saving": "Enregistrement...",
+      "update": "Mettre a jour",
+      "createEvent": "Creer le rendez-vous",
+      "closedDayTitle": "Impossible de créer un rendez-vous un jour de fermeture"
+    },
+    "detail": {
+      "description": "Description",
+      "contactInfo": "Informations du contact",
+      "duplicateTitle": "Dupliquer (semaine suivante)",
+      "viewProjects": "Voir les projets",
+      "viewTasks": "Voir les tâches"
+    },
+    "availability": {
+      "loading": "Calcul des disponibilites...",
+      "empty": "Aucun creneau libre dans les 14 prochains jours (verifiez les horaires d'ouverture).",
+      "error": "Impossible de calculer les creneaux libres."
+    },
+    "closure": {
+      "closed": "Fermé",
+      "closedRange": "Fermé du {{start}} au {{end}}",
+      "closedLabel": "Fermé — {{label}}",
+      "dashLabel": " — {{label}}",
+      "exceptional": "Fermeture exceptionnelle",
+      "exceptionalDay": "Jour de fermeture exceptionnelle",
+      "noAppointments": "Aucun rendez-vous ne peut être créé ce jour.",
+      "removeClosure": "Supprimer la fermeture",
+      "closeDay": "Fermer ce jour",
+      "offDay": "Jour fermé — hors des jours d'ouverture configurés",
+      "closeOfficially": "Fermer officiellement"
+    },
+    "closureDialog": {
+      "manageTitle": "Gérer la fermeture",
+      "closePeriod": "Fermer cette période",
+      "closeDayTitle": "Fermer ce jour",
+      "rangeInfo": "Du {{start}} au {{end}}",
+      "reopenPeriod": "Supprimer cette fermeture pour rouvrir la période.",
+      "reopenDay": "Supprimer cette fermeture pour rouvrir le jour.",
+      "removing": "Suppression...",
+      "start": "Début",
+      "end": "Fin",
+      "reason": "Motif",
+      "optional": "(optionnel)",
+      "reasonPlaceholder": "Ex : Pont du 14 juillet, Fermeture annuelle..."
+    },
+    "toast": {
+      "error": "Erreur",
+      "loadError": "Impossible de charger les evenements",
+      "created": "Evenement cree",
+      "createError": "Impossible de creer l'evenement",
+      "updated": "Evenement mis à jour",
+      "updateError": "Impossible de modifier l'evenement",
+      "deleted": "Evenement supprime",
+      "deleteError": "Impossible de supprimer l'evenement",
+      "duplicated": "Événement dupliqué (semaine suivante)",
+      "duplicateError": "Impossible de dupliquer l'evenement",
+      "periodClosed": "Période fermée",
+      "dayClosed": "Jour fermé",
+      "closureSaved": "La fermeture a été enregistrée.",
+      "closureCreateError": "Impossible de créer la fermeture.",
+      "closureRemoved": "Fermeture supprimée",
+      "closureReopened": "Le jour est de nouveau ouvert.",
+      "closureRemoveError": "Impossible de supprimer la fermeture.",
+      "dayClosedTitle": "Jour fermé",
+      "closedLabelNoAppt": "{{label}} — aucun rendez-vous possible ce jour.",
+      "closedNoAppt": "Fermeture exceptionnelle — aucun rendez-vous possible ce jour.",
+      "openError": "Impossible d'ouvrir cet evenement."
+    }
   }
 }

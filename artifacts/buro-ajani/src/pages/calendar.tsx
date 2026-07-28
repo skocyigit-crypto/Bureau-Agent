@@ -16,46 +16,39 @@ import {
   Lock, Ban, DoorClosed, DoorOpen,
 } from "lucide-react";
 import { useWorkspaceUser } from "@/components/workspace-user";
+import { useTranslation } from "@/i18n";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
-const DAYS_FR = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
-const DAYS_FULL_FR = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
-const MONTHS_FR = ["Janvier", "Fevrier", "Mars", "Avril", "Mai", "Juin", "Juillet", "Aout", "Septembre", "Octobre", "Novembre", "Decembre"];
+// Cles stables (traduites au moment du rendu, jamais au niveau module).
+const DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+const MONTH_KEYS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 
 const EVENT_TYPES = [
-  { value: "rendez_vous", label: "Rendez-vous", color: "#3b82f6", icon: CalendarIcon },
-  { value: "reunion", label: "Reunion", color: "#8b5cf6", icon: Users },
-  { value: "appel", label: "Appel programme", color: "#22c55e", icon: Phone },
-  { value: "echeance", label: "Echeance", color: "#ef4444", icon: AlertCircle },
-  { value: "consultation", label: "Consultation", color: "#06b6d4", icon: FileText },
-  { value: "visite", label: "Visite client", color: "#f97316", icon: Building },
-  { value: "personnel", label: "Personnel", color: "#f59e0b", icon: Star },
+  { value: "rendez_vous", color: "#3b82f6", icon: CalendarIcon },
+  { value: "reunion", color: "#8b5cf6", icon: Users },
+  { value: "appel", color: "#22c55e", icon: Phone },
+  { value: "echeance", color: "#ef4444", icon: AlertCircle },
+  { value: "consultation", color: "#06b6d4", icon: FileText },
+  { value: "visite", color: "#f97316", icon: Building },
+  { value: "personnel", color: "#f59e0b", icon: Star },
 ];
 
-const REMINDERS = [
-  { value: "none", label: "Aucun rappel" },
-  { value: "5min", label: "5 minutes avant" },
-  { value: "15min", label: "15 minutes avant" },
-  { value: "30min", label: "30 minutes avant" },
-  { value: "1h", label: "1 heure avant" },
-  { value: "2h", label: "2 heures avant" },
-  { value: "1j", label: "1 jour avant" },
-];
+const REMINDERS = ["none", "5min", "15min", "30min", "1h", "2h", "1j"];
 
 const PRIORITIES = [
-  { value: "basse", label: "Basse", color: "bg-green-100 text-green-700 border-green-200" },
-  { value: "normale", label: "Normale", color: "bg-blue-100 text-blue-700 border-blue-200" },
-  { value: "haute", label: "Haute", color: "bg-orange-100 text-orange-700 border-orange-200" },
-  { value: "urgente", label: "Urgente", color: "bg-red-100 text-red-700 border-red-200" },
+  { value: "basse", color: "bg-green-100 text-green-700 border-green-200" },
+  { value: "normale", color: "bg-blue-100 text-blue-700 border-blue-200" },
+  { value: "haute", color: "bg-orange-100 text-orange-700 border-orange-200" },
+  { value: "urgente", color: "bg-red-100 text-red-700 border-red-200" },
 ];
 
 const STATUSES = [
-  { value: "confirme", label: "Confirme", color: "bg-emerald-100 text-emerald-700" },
-  { value: "en_attente", label: "En attente", color: "bg-amber-100 text-amber-700" },
-  { value: "annule", label: "Annule", color: "bg-red-100 text-red-700" },
-  { value: "reporte", label: "Reporte", color: "bg-gray-100 text-gray-700" },
+  { value: "confirme", color: "bg-emerald-100 text-emerald-700" },
+  { value: "en_attente", color: "bg-amber-100 text-amber-700" },
+  { value: "annule", color: "bg-red-100 text-red-700" },
+  { value: "reporte", color: "bg-gray-100 text-gray-700" },
 ];
 
 const HOURS = Array.from({ length: 15 }, (_, i) => i + 7);
@@ -106,6 +99,7 @@ function ContactAutocomplete({
 }: {
   onSelect: (c: any) => void;
 }) {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -138,7 +132,7 @@ function ContactAutocomplete({
           value={search}
           onChange={e => { setSearch(e.target.value); setOpen(true); }}
           onFocus={() => search.length >= 1 && setOpen(true)}
-          placeholder="Rechercher un contact existant..."
+          placeholder={t("calendar.form.searchContact")}
           className="pl-9"
         />
       </div>
@@ -195,6 +189,7 @@ function EventFormDialog({
   isPending: boolean;
   closureInfo?: { label: string | null; id?: number; dateStart?: string; dateEnd?: string } | null;
 }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(defaultEvent);
   const [activeTab, setActiveTab] = useState<"general" | "contact" | "options">("general");
 
@@ -293,9 +288,9 @@ function EventFormDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {editEvent ? (
-              <><Edit2 className="w-5 h-5 text-amber-600" /> Modifier l'evenement</>
+              <><Edit2 className="w-5 h-5 text-amber-600" /> {t("calendar.form.editTitle")}</>
             ) : (
-              <><Plus className="w-5 h-5 text-amber-600" /> Nouveau rendez-vous</>
+              <><Plus className="w-5 h-5 text-amber-600" /> {t("calendar.form.newTitle")}</>
             )}
           </DialogTitle>
           {dateLabel && (
@@ -314,13 +309,13 @@ function EventFormDialog({
                   const fmtD = (ds: string) =>
                     new Date(ds + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
                   if (closureInfo.dateStart && closureInfo.dateEnd && closureInfo.dateEnd > closureInfo.dateStart) {
-                    return `Fermé du ${fmtD(closureInfo.dateStart)} au ${fmtD(closureInfo.dateEnd)}${closureInfo.label ? ` — ${closureInfo.label}` : ""}`;
+                    return `${t("calendar.closure.closedRange", { start: fmtD(closureInfo.dateStart), end: fmtD(closureInfo.dateEnd) })}${closureInfo.label ? t("calendar.closure.dashLabel", { label: closureInfo.label }) : ""}`;
                   }
-                  return closureInfo.label ? `Fermé — ${closureInfo.label}` : "Jour de fermeture exceptionnelle";
+                  return closureInfo.label ? t("calendar.closure.closedLabel", { label: closureInfo.label }) : t("calendar.closure.exceptionalDay");
                 })()}
               </p>
               <p className="text-xs text-red-600/80 dark:text-red-400/70 mt-0.5">
-                Aucun rendez-vous ne peut être créé ce jour.
+                {t("calendar.closure.noAppointments")}
               </p>
             </div>
           </div>
@@ -328,9 +323,9 @@ function EventFormDialog({
 
         <div className="flex gap-1 bg-muted rounded-lg p-0.5 mb-4">
           {[
-            { key: "general", label: "General", icon: CalendarIcon },
-            { key: "contact", label: "Contact", icon: User },
-            { key: "options", label: "Options", icon: FileText },
+            { key: "general", icon: CalendarIcon },
+            { key: "contact", icon: User },
+            { key: "options", icon: FileText },
           ].map(tab => (
             <Button
               key={tab.key}
@@ -340,7 +335,7 @@ function EventFormDialog({
               onClick={() => setActiveTab(tab.key as any)}
             >
               <tab.icon className="w-3.5 h-3.5 mr-1" />
-              {tab.label}
+              {t(`calendar.tabs.${tab.key}`)}
             </Button>
           ))}
         </div>
@@ -348,27 +343,27 @@ function EventFormDialog({
         {activeTab === "general" && (
           <div className="space-y-4">
             <div>
-              <Label className="text-xs font-medium">Titre du rendez-vous</Label>
+              <Label className="text-xs font-medium">{t("calendar.form.title")}</Label>
               <Input
                 value={form.title}
                 onChange={e => update("title", e.target.value)}
-                placeholder="Ex: Consultation comptable M. Dupont"
+                placeholder={t("calendar.form.titlePlaceholder")}
                 className="mt-1"
               />
             </div>
 
             <div>
-              <Label className="text-xs font-medium">Type</Label>
+              <Label className="text-xs font-medium">{t("calendar.form.type")}</Label>
               <Select value={form.type} onValueChange={v => update("type", v)}>
                 <SelectTrigger className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {EVENT_TYPES.map(t => (
-                    <SelectItem key={t.value} value={t.value}>
+                  {EVENT_TYPES.map(et => (
+                    <SelectItem key={et.value} value={et.value}>
                       <div className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: t.color }} />
-                        {t.label}
+                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: et.color }} />
+                        {t(`calendar.eventTypes.${et.value}`)}
                       </div>
                     </SelectItem>
                   ))}
@@ -378,26 +373,26 @@ function EventFormDialog({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs font-medium">Heure de debut</Label>
+                <Label className="text-xs font-medium">{t("calendar.form.startTime")}</Label>
                 <Input type="time" value={form.startTime} onChange={e => update("startTime", e.target.value)} className="mt-1" />
               </div>
               <div>
-                <Label className="text-xs font-medium">Heure de fin</Label>
+                <Label className="text-xs font-medium">{t("calendar.form.endTime")}</Label>
                 <Input type="time" value={form.endTime} onChange={e => update("endTime", e.target.value)} className="mt-1" />
               </div>
             </div>
 
             <div>
-              <Label className="text-xs font-medium">Lieu</Label>
-              <Input value={form.location} onChange={e => update("location", e.target.value)} placeholder="Bureau, salle 3, visioconference..." className="mt-1" />
+              <Label className="text-xs font-medium">{t("calendar.form.location")}</Label>
+              <Input value={form.location} onChange={e => update("location", e.target.value)} placeholder={t("calendar.form.locationPlaceholder")} className="mt-1" />
             </div>
 
             <div>
-              <Label className="text-xs font-medium">Description / Notes</Label>
+              <Label className="text-xs font-medium">{t("calendar.form.description")}</Label>
               <Textarea
                 value={form.description}
                 onChange={e => update("description", e.target.value)}
-                placeholder="Details du rendez-vous, sujets a aborder..."
+                placeholder={t("calendar.form.descriptionPlaceholder")}
                 className="mt-1 min-h-[80px]"
               />
             </div>
@@ -407,41 +402,41 @@ function EventFormDialog({
         {activeTab === "contact" && (
           <div className="space-y-4">
             <div className="bg-amber-50 dark:bg-amber-950/20 rounded-lg p-3 border border-amber-200 dark:border-amber-800">
-              <p className="text-xs font-medium text-amber-800 dark:text-amber-300 mb-2">Importer depuis les contacts</p>
+              <p className="text-xs font-medium text-amber-800 dark:text-amber-300 mb-2">{t("calendar.form.importContacts")}</p>
               <ContactAutocomplete onSelect={handleContactSelect} />
             </div>
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t" /></div>
-              <div className="relative flex justify-center text-xs"><span className="bg-background px-2 text-muted-foreground">ou saisir manuellement</span></div>
+              <div className="relative flex justify-center text-xs"><span className="bg-background px-2 text-muted-foreground">{t("calendar.form.orManual")}</span></div>
             </div>
 
             <div>
-              <Label className="text-xs font-medium flex items-center gap-1.5"><User className="w-3 h-3" /> Nom complet</Label>
-              <Input value={form.contactName} onChange={e => update("contactName", e.target.value)} placeholder="Jean Dupont" className="mt-1" />
+              <Label className="text-xs font-medium flex items-center gap-1.5"><User className="w-3 h-3" /> {t("calendar.form.fullName")}</Label>
+              <Input value={form.contactName} onChange={e => update("contactName", e.target.value)} placeholder={t("calendar.form.fullNamePlaceholder")} className="mt-1" />
             </div>
 
             <div>
-              <Label className="text-xs font-medium flex items-center gap-1.5"><Phone className="w-3 h-3" /> Telephone</Label>
-              <Input value={form.contactPhone} onChange={e => update("contactPhone", e.target.value)} placeholder="+33 6 12 34 56 78" className="mt-1" />
+              <Label className="text-xs font-medium flex items-center gap-1.5"><Phone className="w-3 h-3" /> {t("calendar.form.phone")}</Label>
+              <Input value={form.contactPhone} onChange={e => update("contactPhone", e.target.value)} placeholder={t("calendar.form.phonePlaceholder")} className="mt-1" />
             </div>
 
             <div>
-              <Label className="text-xs font-medium flex items-center gap-1.5"><Mail className="w-3 h-3" /> Email</Label>
-              <Input type="email" value={form.contactEmail} onChange={e => update("contactEmail", e.target.value)} placeholder="jean.dupont@example.com" className="mt-1" />
+              <Label className="text-xs font-medium flex items-center gap-1.5"><Mail className="w-3 h-3" /> {t("calendar.form.email")}</Label>
+              <Input type="email" value={form.contactEmail} onChange={e => update("contactEmail", e.target.value)} placeholder={t("calendar.form.emailPlaceholder")} className="mt-1" />
             </div>
 
             <div>
-              <Label className="text-xs font-medium flex items-center gap-1.5"><Building className="w-3 h-3" /> Societe</Label>
-              <Input value={form.contactCompany} onChange={e => update("contactCompany", e.target.value)} placeholder="Entreprise SARL" className="mt-1" />
+              <Label className="text-xs font-medium flex items-center gap-1.5"><Building className="w-3 h-3" /> {t("calendar.form.company")}</Label>
+              <Input value={form.contactCompany} onChange={e => update("contactCompany", e.target.value)} placeholder={t("calendar.form.companyPlaceholder")} className="mt-1" />
             </div>
 
             <div>
-              <Label className="text-xs font-medium flex items-center gap-1.5"><FileText className="w-3 h-3" /> Notes sur le contact</Label>
+              <Label className="text-xs font-medium flex items-center gap-1.5"><FileText className="w-3 h-3" /> {t("calendar.form.contactNotes")}</Label>
               <Textarea
                 value={form.contactNotes}
                 onChange={e => update("contactNotes", e.target.value)}
-                placeholder="Client fidele, prefere les matins, sujet: declaration TVA..."
+                placeholder={t("calendar.form.contactNotesPlaceholder")}
                 className="mt-1 min-h-[60px]"
               />
             </div>
@@ -451,7 +446,7 @@ function EventFormDialog({
         {activeTab === "options" && (
           <div className="space-y-4">
             <div>
-              <Label className="text-xs font-medium">Statut</Label>
+              <Label className="text-xs font-medium">{t("calendar.form.status")}</Label>
               <Select value={form.status} onValueChange={v => update("status", v)}>
                 <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -459,7 +454,7 @@ function EventFormDialog({
                     <SelectItem key={s.value} value={s.value}>
                       <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${s.color.split(" ")[0]}`} />
-                        {s.label}
+                        {t(`calendar.statuses.${s.value}`)}
                       </div>
                     </SelectItem>
                   ))}
@@ -468,24 +463,24 @@ function EventFormDialog({
             </div>
 
             <div>
-              <Label className="text-xs font-medium">Priorite</Label>
+              <Label className="text-xs font-medium">{t("calendar.form.priority")}</Label>
               <Select value={form.priority} onValueChange={v => update("priority", v)}>
                 <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {PRIORITIES.map(p => (
-                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                    <SelectItem key={p.value} value={p.value}>{t(`calendar.priorities.${p.value}`)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <Label className="text-xs font-medium">Rappel</Label>
+              <Label className="text-xs font-medium">{t("calendar.form.reminder")}</Label>
               <Select value={form.reminder} onValueChange={v => update("reminder", v)}>
                 <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {REMINDERS.map(r => (
-                    <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                    <SelectItem key={r} value={r}>{t(`calendar.reminders.${r}`)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -495,15 +490,15 @@ function EventFormDialog({
 
         <div className="flex gap-2 pt-2">
           <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
-            Annuler
+            {t("common.cancel")}
           </Button>
           <Button
             onClick={handleSave}
             disabled={!form.title.trim() || !selectedDate || isPending || (!editEvent && !!closureInfo)}
             className="flex-1 bg-amber-500 hover:bg-amber-600 text-white"
-            title={(!editEvent && closureInfo) ? "Impossible de créer un rendez-vous un jour de fermeture" : undefined}
+            title={(!editEvent && closureInfo) ? t("calendar.form.closedDayTitle") : undefined}
           >
-            {isPending ? "Enregistrement..." : editEvent ? "Mettre a jour" : "Creer le rendez-vous"}
+            {isPending ? t("calendar.form.saving") : editEvent ? t("calendar.form.update") : t("calendar.form.createEvent")}
           </Button>
         </div>
       </DialogContent>
@@ -526,8 +521,9 @@ function EventDetailDialog({
   onDelete: () => void;
   onDuplicate?: () => void;
 }) {
+  const { t } = useTranslation();
   if (!event) return null;
-  const typeInfo = EVENT_TYPES.find(t => t.value === event.type);
+  const typeInfo = EVENT_TYPES.find(et => et.value === event.type);
   const statusInfo = STATUSES.find(s => s.value === event.status);
   const priorityInfo = PRIORITIES.find(p => p.value === event.priority);
 
@@ -543,10 +539,10 @@ function EventDetailDialog({
 
         <div className="space-y-4">
           <div className="flex flex-wrap gap-2">
-            {typeInfo && <Badge variant="outline" className="text-[10px]">{typeInfo.label}</Badge>}
-            {statusInfo && <Badge className={`text-[10px] ${statusInfo.color}`}>{statusInfo.label}</Badge>}
+            {typeInfo && <Badge variant="outline" className="text-[10px]">{t(`calendar.eventTypes.${typeInfo.value}`)}</Badge>}
+            {statusInfo && <Badge className={`text-[10px] ${statusInfo.color}`}>{t(`calendar.statuses.${statusInfo.value}`)}</Badge>}
             {priorityInfo && event.priority !== "normale" && (
-              <Badge className={`text-[10px] ${priorityInfo.color}`}>{priorityInfo.label}</Badge>
+              <Badge className={`text-[10px] ${priorityInfo.color}`}>{t(`calendar.priorities.${priorityInfo.value}`)}</Badge>
             )}
           </div>
 
@@ -565,14 +561,14 @@ function EventDetailDialog({
 
           {event.description && (
             <div className="bg-muted/30 rounded-lg p-3">
-              <p className="text-xs text-muted-foreground mb-1">Description</p>
+              <p className="text-xs text-muted-foreground mb-1">{t("calendar.detail.description")}</p>
               <p className="text-sm">{event.description}</p>
             </div>
           )}
 
           {(event.contactName || event.contactPhone || event.contactEmail) && (
             <div className="bg-amber-50/50 dark:bg-amber-950/20 rounded-lg p-3 border border-amber-200/50 dark:border-amber-800/50">
-              <p className="text-xs font-medium text-amber-800 dark:text-amber-300 mb-2">Informations du contact</p>
+              <p className="text-xs font-medium text-amber-800 dark:text-amber-300 mb-2">{t("calendar.detail.contactInfo")}</p>
               <div className="space-y-1.5">
                 {event.contactName && (
                   <div className="flex items-center gap-2 text-sm">
@@ -607,10 +603,10 @@ function EventDetailDialog({
             {event.source === "calendar" && (
               <>
                 <Button variant="outline" size="sm" className="flex-1" onClick={onEdit}>
-                  <Edit2 className="w-3.5 h-3.5 mr-1" /> Modifier
+                  <Edit2 className="w-3.5 h-3.5 mr-1" /> {t("common.edit")}
                 </Button>
                 {onDuplicate && (
-                  <Button variant="outline" size="sm" title="Dupliquer (semaine suivante)" onClick={onDuplicate}>
+                  <Button variant="outline" size="sm" title={t("calendar.detail.duplicateTitle")} onClick={onDuplicate}>
                     <Copy className="w-3.5 h-3.5" />
                   </Button>
                 )}
@@ -626,7 +622,7 @@ function EventDetailDialog({
                 onClick={() => onOpenChange(false)}
               >
                 <Button variant="outline" size="sm" className="w-full text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 border-indigo-200">
-                  <FolderKanban className="w-3.5 h-3.5 mr-1.5" /> Voir les projets
+                  <FolderKanban className="w-3.5 h-3.5 mr-1.5" /> {t("calendar.detail.viewProjects")}
                   <ExternalLink className="w-3 h-3 ml-1.5 opacity-60" />
                 </Button>
               </a>
@@ -638,7 +634,7 @@ function EventDetailDialog({
                 onClick={() => onOpenChange(false)}
               >
                 <Button variant="outline" size="sm" className="w-full text-amber-600 hover:text-amber-700 hover:bg-amber-50 border-amber-200">
-                  <CheckSquare className="w-3.5 h-3.5 mr-1.5" /> Voir les tâches
+                  <CheckSquare className="w-3.5 h-3.5 mr-1.5" /> {t("calendar.detail.viewTasks")}
                   <ExternalLink className="w-3 h-3 ml-1.5 opacity-60" />
                 </Button>
               </a>
@@ -659,6 +655,7 @@ function AvailabilityDialog({
   onOpenChange: (o: boolean) => void;
   onPick: (slot: { start: string; end: string }) => void;
 }) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [slots, setSlots] = useState<{ start: string; end: string }[]>([]);
   const [error, setError] = useState("");
@@ -680,7 +677,7 @@ function AvailabilityDialog({
         const data = await res.json();
         if (!cancelled) setSlots(data.slots || []);
       } catch {
-        if (!cancelled) setError("Impossible de calculer les creneaux libres.");
+        if (!cancelled) setError(t("calendar.availability.error"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -694,13 +691,13 @@ function AvailabilityDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-amber-600" />
-            Creneaux libres
+            {t("calendar.freeSlots")}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-2">
           {loading && (
             <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
-              Calcul des disponibilites...
+              {t("calendar.availability.loading")}
             </div>
           )}
           {!loading && error && (
@@ -708,7 +705,7 @@ function AvailabilityDialog({
           )}
           {!loading && !error && slots.length === 0 && (
             <p className="text-sm text-muted-foreground py-4 text-center">
-              Aucun creneau libre dans les 14 prochains jours (verifiez les horaires d'ouverture).
+              {t("calendar.availability.empty")}
             </p>
           )}
           {!loading && !error && slots.map((slot, i) => {
@@ -755,6 +752,7 @@ function ClosureDayDialog({
   onRemove: (id: number) => void;
   isPending: boolean;
 }) {
+  const { t } = useTranslation();
   const [label, setLabel] = useState("");
   const [dateEndStr, setDateEndStr] = useState("");
 
@@ -780,9 +778,9 @@ function ClosureDayDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {existingClosure ? (
-              <><DoorOpen className="w-5 h-5 text-red-500" /> Gérer la fermeture</>
+              <><DoorOpen className="w-5 h-5 text-red-500" /> {t("calendar.closureDialog.manageTitle")}</>
             ) : (
-              <><DoorClosed className="w-5 h-5 text-red-500" /> {isRange ? "Fermer cette période" : "Fermer ce jour"}</>
+              <><DoorClosed className="w-5 h-5 text-red-500" /> {isRange ? t("calendar.closureDialog.closePeriod") : t("calendar.closureDialog.closeDayTitle")}</>
             )}
           </DialogTitle>
           {dateLabel && (
@@ -798,21 +796,24 @@ function ClosureDayDialog({
               <Lock className="w-4 h-4 mt-0.5 shrink-0" />
               <div>
                 <p className="font-semibold leading-snug">
-                  {existingClosure.label ? `Fermé — ${existingClosure.label}` : "Fermeture exceptionnelle"}
+                  {existingClosure.label ? t("calendar.closure.closedLabel", { label: existingClosure.label }) : t("calendar.closure.exceptional")}
                 </p>
                 {existingIsRange && (
                   <p className="text-xs text-red-600/80 dark:text-red-400/70 mt-0.5">
-                    Du {new Date(existingClosure.dateStart + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} au {new Date(existingClosure.dateEnd + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                    {t("calendar.closureDialog.rangeInfo", {
+                      start: new Date(existingClosure.dateStart + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" }),
+                      end: new Date(existingClosure.dateEnd + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }),
+                    })}
                   </p>
                 )}
                 <p className="text-xs text-red-600/80 dark:text-red-400/70 mt-0.5">
-                  Supprimer cette fermeture pour rouvrir {existingIsRange ? "la période" : "le jour"}.
+                  {existingIsRange ? t("calendar.closureDialog.reopenPeriod") : t("calendar.closureDialog.reopenDay")}
                 </p>
               </div>
             </div>
             <div className="flex gap-2 pt-1">
               <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
-                Annuler
+                {t("common.cancel")}
               </Button>
               <Button
                 variant="destructive"
@@ -821,7 +822,7 @@ function ClosureDayDialog({
                 onClick={() => onRemove(existingClosure.id)}
               >
                 <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-                {isPending ? "Suppression..." : "Supprimer la fermeture"}
+                {isPending ? t("calendar.closureDialog.removing") : t("calendar.closure.removeClosure")}
               </Button>
             </div>
           </div>
@@ -829,7 +830,7 @@ function ClosureDayDialog({
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs font-medium">Début</Label>
+                <Label className="text-xs font-medium">{t("calendar.closureDialog.start")}</Label>
                 <Input
                   type="date"
                   value={dateStartStr}
@@ -838,7 +839,7 @@ function ClosureDayDialog({
                 />
               </div>
               <div>
-                <Label className="text-xs font-medium">Fin</Label>
+                <Label className="text-xs font-medium">{t("calendar.closureDialog.end")}</Label>
                 <Input
                   type="date"
                   value={dateEndStr}
@@ -849,11 +850,11 @@ function ClosureDayDialog({
               </div>
             </div>
             <div>
-              <Label className="text-xs font-medium">Motif <span className="text-muted-foreground font-normal">(optionnel)</span></Label>
+              <Label className="text-xs font-medium">{t("calendar.closureDialog.reason")} <span className="text-muted-foreground font-normal">{t("calendar.closureDialog.optional")}</span></Label>
               <Input
                 value={label}
                 onChange={e => setLabel(e.target.value)}
-                placeholder="Ex : Pont du 14 juillet, Fermeture annuelle..."
+                placeholder={t("calendar.closureDialog.reasonPlaceholder")}
                 className="mt-1"
                 autoFocus
                 onKeyDown={e => { if (e.key === "Enter") onAdd(label, dateEndStr || dateStartStr); }}
@@ -861,7 +862,7 @@ function ClosureDayDialog({
             </div>
             <div className="flex gap-2 pt-1">
               <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
-                Annuler
+                {t("common.cancel")}
               </Button>
               <Button
                 disabled={isPending}
@@ -869,7 +870,7 @@ function ClosureDayDialog({
                 onClick={() => onAdd(label, dateEndStr || dateStartStr)}
               >
                 <DoorClosed className="w-3.5 h-3.5 mr-1.5" />
-                {isPending ? "Enregistrement..." : isRange ? "Fermer cette période" : "Fermer ce jour"}
+                {isPending ? t("calendar.form.saving") : isRange ? t("calendar.closureDialog.closePeriod") : t("calendar.closureDialog.closeDayTitle")}
               </Button>
             </div>
           </div>
@@ -880,6 +881,7 @@ function ClosureDayDialog({
 }
 
 export default function CalendarPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useWorkspaceUser();
@@ -1007,7 +1009,7 @@ export default function CalendarPage() {
   });
 
   useEffect(() => {
-    if (isError) toast({ title: "Erreur", description: "Impossible de charger les evenements", variant: "destructive" });
+    if (isError) toast({ title: t("calendar.toast.error"), description: t("calendar.toast.loadError"), variant: "destructive" });
   }, [isError]);
 
   const createMutation = useMutation({
@@ -1023,9 +1025,9 @@ export default function CalendarPage() {
       queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
       setShowEventForm(false);
       setEditingEvent(null);
-      toast({ title: "Evenement cree" });
+      toast({ title: t("calendar.toast.created") });
     },
-    onError: () => toast({ title: "Erreur", description: "Impossible de creer l'evenement", variant: "destructive" }),
+    onError: () => toast({ title: t("calendar.toast.error"), description: t("calendar.toast.createError"), variant: "destructive" }),
   });
 
   const updateMutation = useMutation({
@@ -1041,9 +1043,9 @@ export default function CalendarPage() {
       queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
       setShowEventForm(false);
       setEditingEvent(null);
-      toast({ title: "Evenement mis à jour" });
+      toast({ title: t("calendar.toast.updated") });
     },
-    onError: () => toast({ title: "Erreur", description: "Impossible de modifier l'evenement", variant: "destructive" }),
+    onError: () => toast({ title: t("calendar.toast.error"), description: t("calendar.toast.updateError"), variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
@@ -1055,9 +1057,9 @@ export default function CalendarPage() {
       queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
       setShowEventDetail(false);
       setViewingEvent(null);
-      toast({ title: "Evenement supprime" });
+      toast({ title: t("calendar.toast.deleted") });
     },
-    onError: () => toast({ title: "Erreur", description: "Impossible de supprimer l'evenement", variant: "destructive" }),
+    onError: () => toast({ title: t("calendar.toast.error"), description: t("calendar.toast.deleteError"), variant: "destructive" }),
   });
 
   const duplicateMutation = useMutation({
@@ -1069,9 +1071,9 @@ export default function CalendarPage() {
       queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
       setShowEventDetail(false);
       setViewingEvent(null);
-      toast({ title: "Événement dupliqué (semaine suivante)" });
+      toast({ title: t("calendar.toast.duplicated") });
     },
-    onError: () => toast({ title: "Erreur", description: "Impossible de dupliquer l'evenement", variant: "destructive" }),
+    onError: () => toast({ title: t("calendar.toast.error"), description: t("calendar.toast.duplicateError"), variant: "destructive" }),
   });
 
   const createClosureMutation = useMutation({
@@ -1092,9 +1094,9 @@ export default function CalendarPage() {
       queryClient.invalidateQueries({ queryKey: ["org-closures"] });
       setShowClosureForm(false);
       const isRange = vars.dateEnd > vars.dateStr;
-      toast({ title: isRange ? "Période fermée" : "Jour fermé", description: "La fermeture a été enregistrée." });
+      toast({ title: isRange ? t("calendar.toast.periodClosed") : t("calendar.toast.dayClosed"), description: t("calendar.toast.closureSaved") });
     },
-    onError: (err: any) => toast({ title: "Erreur", description: err.message || "Impossible de créer la fermeture.", variant: "destructive" }),
+    onError: (err: any) => toast({ title: t("calendar.toast.error"), description: err.message || t("calendar.toast.closureCreateError"), variant: "destructive" }),
   });
 
   const deleteClosureMutation = useMutation({
@@ -1108,9 +1110,9 @@ export default function CalendarPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["org-closures"] });
       setShowClosureForm(false);
-      toast({ title: "Fermeture supprimée", description: "Le jour est de nouveau ouvert." });
+      toast({ title: t("calendar.toast.closureRemoved"), description: t("calendar.toast.closureReopened") });
     },
-    onError: (err: any) => toast({ title: "Erreur", description: err.message || "Impossible de supprimer la fermeture.", variant: "destructive" }),
+    onError: (err: any) => toast({ title: t("calendar.toast.error"), description: err.message || t("calendar.toast.closureRemoveError"), variant: "destructive" }),
   });
 
   const allEvents = useMemo(() => {
@@ -1132,8 +1134,8 @@ export default function CalendarPage() {
     const closure = getClosureForDate(date);
     if (closure) {
       toast({
-        title: "Jour fermé",
-        description: closure.label ? `${closure.label} — aucun rendez-vous possible ce jour.` : "Fermeture exceptionnelle — aucun rendez-vous possible ce jour.",
+        title: t("calendar.toast.dayClosedTitle"),
+        description: closure.label ? t("calendar.toast.closedLabelNoAppt", { label: closure.label }) : t("calendar.toast.closedNoAppt"),
         variant: "destructive",
       });
       return;
@@ -1168,7 +1170,7 @@ export default function CalendarPage() {
         setViewingEvent({ ...event, source: "calendar" });
         setShowEventDetail(true);
       } catch {
-        toast({ title: "Erreur", description: "Impossible d'ouvrir cet evenement.", variant: "destructive" });
+        toast({ title: t("calendar.toast.error"), description: t("calendar.toast.openError"), variant: "destructive" });
       }
     })();
   }, []);
@@ -1228,28 +1230,28 @@ export default function CalendarPage() {
         <div className="flex items-center gap-3">
           <Icon3D icon={CalendarIcon} variant="amber" size="lg" />
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Calendrier</h1>
-            <p className="text-sm text-muted-foreground">Planification et gestion des rendez-vous</p>
+            <h1 className="text-2xl font-bold text-foreground">{t("calendar.title")}</h1>
+            <p className="text-sm text-muted-foreground">{t("calendar.subtitle")}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex bg-muted rounded-lg p-0.5">
-            <Button variant={view === "jour" ? "default" : "ghost"} size="sm" onClick={() => setView("jour")} className="text-xs">Jour</Button>
-            <Button variant={view === "semaine" ? "default" : "ghost"} size="sm" onClick={() => setView("semaine")} className="text-xs">Semaine</Button>
-            <Button variant={view === "mois" ? "default" : "ghost"} size="sm" onClick={() => setView("mois")} className="text-xs">Mois</Button>
+            <Button variant={view === "jour" ? "default" : "ghost"} size="sm" onClick={() => setView("jour")} className="text-xs">{t("calendar.views.day")}</Button>
+            <Button variant={view === "semaine" ? "default" : "ghost"} size="sm" onClick={() => setView("semaine")} className="text-xs">{t("calendar.views.week")}</Button>
+            <Button variant={view === "mois" ? "default" : "ghost"} size="sm" onClick={() => setView("mois")} className="text-xs">{t("calendar.views.month")}</Button>
           </div>
-          <Button onClick={() => setCurrentDate(new Date())} variant="outline" size="sm" className="text-xs">Aujourd'hui</Button>
+          <Button onClick={() => setCurrentDate(new Date())} variant="outline" size="sm" className="text-xs">{t("calendar.today")}</Button>
           <a href={`${(import.meta.env.BASE_URL || "/").replace(/\/$/, "")}/api/calendar/events/export/csv`} download>
-            <Button variant="outline" size="sm" className="text-xs"><Download className="w-3 h-3 mr-1" />CSV</Button>
+            <Button variant="outline" size="sm" className="text-xs"><Download className="w-3 h-3 mr-1" />{t("calendar.csv")}</Button>
           </a>
-          <Button variant="outline" size="sm" className="text-xs" title="Imprimer" onClick={() => window.print()}><Printer className="w-3 h-3" /></Button>
+          <Button variant="outline" size="sm" className="text-xs" title={t("calendar.print")} onClick={() => window.print()}><Printer className="w-3 h-3" /></Button>
           <Button
             variant="outline"
             size="sm"
             className="text-xs"
             onClick={() => setShowAvailability(true)}
           >
-            <Clock className="w-3 h-3 mr-1" /> Creneaux libres
+            <Clock className="w-3 h-3 mr-1" /> {t("calendar.freeSlots")}
           </Button>
           <Button
             size="sm"
@@ -1262,7 +1264,7 @@ export default function CalendarPage() {
               setShowEventForm(true);
             }}
           >
-            <Plus className="w-4 h-4 mr-1" /> Nouveau RDV
+            <Plus className="w-4 h-4 mr-1" /> {t("calendar.newEvent")}
           </Button>
         </div>
       </div>
@@ -1272,8 +1274,8 @@ export default function CalendarPage() {
           <CardContent className="py-3 flex items-center gap-3">
             <CalendarIcon className="w-5 h-5 text-blue-600" />
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Aujourd'hui</p>
-              <p className="text-lg font-bold">{todayEvents.length} <span className="text-xs font-normal text-muted-foreground">evenement(s)</span></p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("calendar.stats.today")}</p>
+              <p className="text-lg font-bold">{todayEvents.length} <span className="text-xs font-normal text-muted-foreground">{t("calendar.stats.events")}</span></p>
             </div>
           </CardContent>
         </Card>
@@ -1281,8 +1283,8 @@ export default function CalendarPage() {
           <CardContent className="py-3 flex items-center gap-3">
             <Clock className="w-5 h-5 text-amber-600" />
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">A venir</p>
-              <p className="text-lg font-bold">{upcomingCount} <span className="text-xs font-normal text-muted-foreground">planifie(s)</span></p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("calendar.stats.upcoming")}</p>
+              <p className="text-lg font-bold">{upcomingCount} <span className="text-xs font-normal text-muted-foreground">{t("calendar.stats.planned")}</span></p>
             </div>
           </CardContent>
         </Card>
@@ -1290,8 +1292,8 @@ export default function CalendarPage() {
           <CardContent className="py-3 flex items-center gap-3">
             <CheckSquare className="w-5 h-5 text-emerald-600" />
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Ce mois</p>
-              <p className="text-lg font-bold">{allEvents.length} <span className="text-xs font-normal text-muted-foreground">total</span></p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("calendar.stats.thisMonth")}</p>
+              <p className="text-lg font-bold">{allEvents.length} <span className="text-xs font-normal text-muted-foreground">{t("calendar.stats.total")}</span></p>
             </div>
           </CardContent>
         </Card>
@@ -1305,8 +1307,8 @@ export default function CalendarPage() {
               {view === "jour"
                 ? currentDate.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
                 : view === "semaine"
-                ? `${weekDays[0].getDate()} - ${weekDays[6].getDate()} ${MONTHS_FR[weekDays[6].getMonth()]} ${weekDays[6].getFullYear()}`
-                : `${MONTHS_FR[month]} ${year}`
+                ? `${weekDays[0].getDate()} - ${weekDays[6].getDate()} ${t(`calendar.months.${MONTH_KEYS[weekDays[6].getMonth()]}`)} ${weekDays[6].getFullYear()}`
+                : `${t(`calendar.months.${MONTH_KEYS[month]}`)} ${year}`
               }
             </CardTitle>
             <Button variant="ghost" size="icon" onClick={() => navigate(1)}><ChevronRight className="w-5 h-5" /></Button>
@@ -1316,7 +1318,7 @@ export default function CalendarPage() {
           {view === "mois" && (
             <>
               <div className="grid grid-cols-7 mb-1">
-                {DAYS_FR.map(d => <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2">{d}</div>)}
+                {DAY_KEYS.map(d => <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2">{t(`calendar.daysShort.${d}`)}</div>)}
               </div>
               <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden">
                 {monthDays.map(({ date, isCurrentMonth }, i) => {
@@ -1326,7 +1328,7 @@ export default function CalendarPage() {
                   const offDay = isCurrentMonth && !isWorkingDay(date);
                   const closureInfo = isCurrentMonth ? getClosureForDate(date) : null;
                   const closureTitle = closureInfo
-                    ? (closureInfo.label ? closureInfo.label : "Fermeture exceptionnelle")
+                    ? (closureInfo.label ? closureInfo.label : t("calendar.closure.exceptional"))
                     : undefined;
                   const posInRow = i % 7;
                   const bandLeft = closureInfo !== null && posInRow > 0
@@ -1367,7 +1369,7 @@ export default function CalendarPage() {
                         </span>
                         {isCurrentMonth && isAdmin && (
                           <button
-                            title={closureInfo ? "Supprimer la fermeture" : "Fermer ce jour"}
+                            title={closureInfo ? t("calendar.closure.removeClosure") : t("calendar.closure.closeDay")}
                             onClick={(ev) => {
                               ev.stopPropagation();
                               setClosureFormDate(date);
@@ -1381,13 +1383,13 @@ export default function CalendarPage() {
                         {closureInfo && isCurrentMonth && !isAdmin && (
                           <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/40 border border-red-200 dark:border-red-800/50 rounded px-1 py-0.5 leading-none max-w-[5rem]">
                             <Lock className="w-2 h-2 shrink-0" />
-                            <span className="truncate">{closureInfo.label || "Fermé"}</span>
+                            <span className="truncate">{closureInfo.label || t("calendar.closure.closed")}</span>
                           </span>
                         )}
                         {closureInfo && isCurrentMonth && isAdmin && (
                           <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/40 border border-red-200 dark:border-red-800/50 rounded px-1 py-0.5 leading-none group-hover:hidden max-w-[5rem]">
                             <Lock className="w-2 h-2 shrink-0" />
-                            <span className="truncate">{closureInfo.label || "Fermé"}</span>
+                            <span className="truncate">{closureInfo.label || t("calendar.closure.closed")}</span>
                           </span>
                         )}
                       </div>
@@ -1421,10 +1423,10 @@ export default function CalendarPage() {
                     new Date(ds + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
                   const weekClosureText = weekDayClosure
                     ? weekDayClosure.dateEnd > weekDayClosure.dateStart
-                      ? `Fermé du ${fmtWkDate(weekDayClosure.dateStart)} au ${fmtWkDate(weekDayClosure.dateEnd)}${weekDayClosure.label ? ` — ${weekDayClosure.label}` : ""}`
+                      ? `${t("calendar.closure.closedRange", { start: fmtWkDate(weekDayClosure.dateStart), end: fmtWkDate(weekDayClosure.dateEnd) })}${weekDayClosure.label ? t("calendar.closure.dashLabel", { label: weekDayClosure.label }) : ""}`
                       : weekDayClosure.label
-                        ? `Fermé — ${weekDayClosure.label}`
-                        : "Fermé"
+                        ? t("calendar.closure.closedLabel", { label: weekDayClosure.label })
+                        : t("calendar.closure.closed")
                     : undefined;
                   return (
                     <div
@@ -1436,7 +1438,7 @@ export default function CalendarPage() {
                       onClick={() => { setView("jour"); setCurrentDate(d); }}
                     >
                       <p className={`text-[10px] uppercase tracking-wider ${isSameDay(d, today) ? "text-amber-700 font-semibold" : weekDayClosure ? "text-red-500 dark:text-red-400" : "text-muted-foreground"}`}>
-                        {DAYS_FR[i]}
+                        {t(`calendar.daysShort.${DAY_KEYS[i]}`)}
                       </p>
                       <p className={`text-lg font-bold ${isSameDay(d, today) ? "text-amber-600" : weekDayClosure ? "text-red-600 dark:text-red-400 line-through" : ""}`}>{d.getDate()}</p>
                       {weekDayClosure && (
@@ -1447,7 +1449,7 @@ export default function CalendarPage() {
                       )}
                       {isAdmin && (
                         <button
-                          title={weekDayClosure ? "Supprimer la fermeture" : "Fermer ce jour"}
+                          title={weekDayClosure ? t("calendar.closure.removeClosure") : t("calendar.closure.closeDay")}
                           onClick={(ev) => {
                             ev.stopPropagation();
                             setClosureFormDate(d);
@@ -1512,21 +1514,21 @@ export default function CalendarPage() {
                   const fmtClosureDate = (ds: string) =>
                     new Date(ds + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
                   const closureText = dayClosure.dateEnd > dayClosure.dateStart
-                    ? `Fermé du ${fmtClosureDate(dayClosure.dateStart)} au ${fmtClosureDate(dayClosure.dateEnd)}${dayClosure.label ? ` — ${dayClosure.label}` : ""}`
+                    ? `${t("calendar.closure.closedRange", { start: fmtClosureDate(dayClosure.dateStart), end: fmtClosureDate(dayClosure.dateEnd) })}${dayClosure.label ? t("calendar.closure.dashLabel", { label: dayClosure.label }) : ""}`
                     : dayClosure.label
-                      ? `Fermé — ${dayClosure.label}`
-                      : "Fermeture exceptionnelle";
+                      ? t("calendar.closure.closedLabel", { label: dayClosure.label })
+                      : t("calendar.closure.exceptional");
                   return (
                     <div className="flex items-center gap-2 px-4 py-2 mb-1 bg-red-50 dark:bg-red-950/30 border-b border-red-200 dark:border-red-800/50 text-xs text-red-700 dark:text-red-400">
                       <Lock className="w-3.5 h-3.5 shrink-0" />
                       <span className="font-semibold">{closureText}</span>
-                      <span className="text-red-500/70 dark:text-red-500/50">· Aucun rendez-vous ne peut être créé ce jour.</span>
+                      <span className="text-red-500/70 dark:text-red-500/50">· {t("calendar.closure.noAppointments")}</span>
                       {isAdmin && (
                         <button
                           onClick={() => { setClosureFormDate(currentDate); setShowClosureForm(true); }}
                           className="ml-auto flex items-center gap-1 text-[11px] font-medium text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 border border-red-300 dark:border-red-700 rounded px-2 py-0.5 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
                         >
-                          <DoorOpen className="w-3 h-3" /> Supprimer la fermeture
+                          <DoorOpen className="w-3 h-3" /> {t("calendar.closure.removeClosure")}
                         </button>
                       )}
                     </div>
@@ -1537,13 +1539,13 @@ export default function CalendarPage() {
               {!isWorkingDay(currentDate) && !getClosureForDate(currentDate) && (
                 <div className="flex items-center gap-2 px-4 py-2 mb-1 bg-slate-100 dark:bg-slate-800/60 border-b text-xs text-muted-foreground">
                   <span className="inline-block w-2 h-2 rounded-full bg-slate-400 shrink-0" />
-                  Jour fermé — hors des jours d'ouverture configurés
+                  {t("calendar.closure.offDay")}
                   {isAdmin && (
                     <button
                       onClick={() => { setClosureFormDate(currentDate); setShowClosureForm(true); }}
                       className="ml-auto flex items-center gap-1 text-[11px] font-medium text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 border border-slate-300 dark:border-slate-600 rounded px-2 py-0.5 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
                     >
-                      <DoorClosed className="w-3 h-3" /> Fermer officiellement
+                      <DoorClosed className="w-3 h-3" /> {t("calendar.closure.closeOfficially")}
                     </button>
                   )}
                 </div>
@@ -1552,14 +1554,14 @@ export default function CalendarPage() {
                 <div className="flex items-center gap-2 px-4 py-2 mb-1 bg-amber-50/60 dark:bg-amber-950/20 border-b text-xs text-muted-foreground">
                   <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                   {orgProfile?.workingHoursStart
-                    ? `Horaires d'ouverture : ${orgProfile.workingHoursStart} – ${orgProfile.workingHoursEnd}`
-                    : "Jour ouvrable"}
+                    ? t("calendar.workingHours", { start: orgProfile.workingHoursStart, end: orgProfile.workingHoursEnd })
+                    : t("calendar.workingDay")}
                   {isAdmin && (
                     <button
                       onClick={() => { setClosureFormDate(currentDate); setShowClosureForm(true); }}
                       className="ml-auto flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-red-600 dark:hover:text-red-400 border border-border rounded px-2 py-0.5 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
                     >
-                      <DoorClosed className="w-3 h-3" /> Fermer ce jour
+                      <DoorClosed className="w-3 h-3" /> {t("calendar.closure.closeDay")}
                     </button>
                   )}
                 </div>
@@ -1584,7 +1586,7 @@ export default function CalendarPage() {
                         {!dayViewClosure && (
                         <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 text-amber-500">
                           <Plus className="w-4 h-4" />
-                          <span className="text-[10px] font-medium">Ajouter RDV</span>
+                          <span className="text-[10px] font-medium">{t("calendar.addEvent")}</span>
                         </div>
                         )}
                         {events.map((e: any, ei: number) => {
@@ -1614,7 +1616,7 @@ export default function CalendarPage() {
                               </div>
                               {e.status && e.status !== "confirme" && (
                                 <Badge className="text-[10px] bg-white/20 border-white/30 shrink-0">
-                                  {STATUSES.find(s => s.value === e.status)?.label || e.status}
+                                  {STATUSES.find(s => s.value === e.status) ? t(`calendar.statuses.${e.status}`) : e.status}
                                 </Badge>
                               )}
                             </div>
@@ -1640,7 +1642,7 @@ export default function CalendarPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <CalendarIcon className="w-4 h-4 text-amber-600" />
-              Prochains rendez-vous
+              {t("calendar.upcomingTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -1649,7 +1651,7 @@ export default function CalendarPage() {
                 .filter((e: any) => new Date(e.startDate) >= today)
                 .sort((a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
                 .slice(0, 5);
-              if (upcoming.length === 0) return <p className="text-sm text-muted-foreground py-4 text-center">Aucun rendez-vous a venir</p>;
+              if (upcoming.length === 0) return <p className="text-sm text-muted-foreground py-4 text-center">{t("calendar.noUpcoming")}</p>;
               return (
                 <div className="space-y-2">
                   {upcoming.map((e: any, i: number) => (
@@ -1682,20 +1684,20 @@ export default function CalendarPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Star className="w-4 h-4 text-amber-600" />
-              Legende
+              {t("calendar.legend")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-2">
-              {EVENT_TYPES.map(t => (
-                <div key={t.value} className="flex items-center gap-2 p-1.5 rounded">
-                  <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
-                  <span className="text-xs text-muted-foreground">{t.label}</span>
+              {EVENT_TYPES.map(et => (
+                <div key={et.value} className="flex items-center gap-2 p-1.5 rounded">
+                  <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: et.color }} />
+                  <span className="text-xs text-muted-foreground">{t(`calendar.eventTypes.${et.value}`)}</span>
                 </div>
               ))}
               <div className="flex items-center gap-2 p-1.5 rounded">
                 <CheckSquare className="w-3 h-3 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">Taches avec echeance</span>
+                <span className="text-xs text-muted-foreground">{t("calendar.legendTasks")}</span>
               </div>
             </div>
             <div className="mt-3 pt-3 border-t space-y-1.5">
@@ -1703,9 +1705,9 @@ export default function CalendarPage() {
                 <div className="w-3 h-3 rounded bg-red-100 dark:bg-red-900/40 border border-red-300 dark:border-red-700 shrink-0 flex items-center justify-center">
                   <Lock className="w-2 h-2 text-red-500" />
                 </div>
-                <span className="text-xs text-muted-foreground">Fermeture exceptionnelle</span>
+                <span className="text-xs text-muted-foreground">{t("calendar.closure.exceptional")}</span>
               </div>
-              <p className="text-[10px] text-muted-foreground">Astuce : Cliquez sur un creneau horaire pour creer un rendez-vous instantanement</p>
+              <p className="text-[10px] text-muted-foreground">{t("calendar.tip")}</p>
             </div>
           </CardContent>
         </Card>

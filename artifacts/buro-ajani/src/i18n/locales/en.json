@@ -1002,5 +1002,188 @@
       "bulkStatus": "{{count}} project(s) updated",
       "bulkStatusError": "Update failed."
     }
+  },
+  "calendar": {
+    "title": "Calendar",
+    "subtitle": "Appointment scheduling and management",
+    "views": {
+      "day": "Day",
+      "week": "Week",
+      "month": "Month"
+    },
+    "today": "Today",
+    "csv": "CSV",
+    "print": "Print",
+    "freeSlots": "Free slots",
+    "newEvent": "New appointment",
+    "addEvent": "Add appointment",
+    "workingHours": "Opening hours: {{start}} – {{end}}",
+    "workingDay": "Working day",
+    "upcomingTitle": "Upcoming appointments",
+    "noUpcoming": "No upcoming appointments",
+    "legend": "Legend",
+    "legendTasks": "Tasks with a due date",
+    "tip": "Tip: Click a time slot to create an appointment instantly",
+    "stats": {
+      "today": "Today",
+      "events": "event(s)",
+      "upcoming": "Upcoming",
+      "planned": "planned",
+      "thisMonth": "This month",
+      "total": "total"
+    },
+    "daysShort": {
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat",
+      "sun": "Sun"
+    },
+    "months": {
+      "jan": "January",
+      "feb": "February",
+      "mar": "March",
+      "apr": "April",
+      "may": "May",
+      "jun": "June",
+      "jul": "July",
+      "aug": "August",
+      "sep": "September",
+      "oct": "October",
+      "nov": "November",
+      "dec": "December"
+    },
+    "eventTypes": {
+      "rendez_vous": "Appointment",
+      "reunion": "Meeting",
+      "appel": "Scheduled call",
+      "echeance": "Deadline",
+      "consultation": "Consultation",
+      "visite": "Client visit",
+      "personnel": "Personal"
+    },
+    "reminders": {
+      "none": "No reminder",
+      "5min": "5 minutes before",
+      "15min": "15 minutes before",
+      "30min": "30 minutes before",
+      "1h": "1 hour before",
+      "2h": "2 hours before",
+      "1j": "1 day before"
+    },
+    "priorities": {
+      "basse": "Low",
+      "normale": "Normal",
+      "haute": "High",
+      "urgente": "Urgent"
+    },
+    "statuses": {
+      "confirme": "Confirmed",
+      "en_attente": "Pending",
+      "annule": "Cancelled",
+      "reporte": "Postponed"
+    },
+    "tabs": {
+      "general": "General",
+      "contact": "Contact",
+      "options": "Options"
+    },
+    "form": {
+      "editTitle": "Edit event",
+      "newTitle": "New appointment",
+      "title": "Appointment title",
+      "titlePlaceholder": "e.g. Accounting consultation Mr. Dupont",
+      "type": "Type",
+      "startTime": "Start time",
+      "endTime": "End time",
+      "location": "Location",
+      "locationPlaceholder": "Office, room 3, video call...",
+      "description": "Description / Notes",
+      "descriptionPlaceholder": "Appointment details, topics to cover...",
+      "importContacts": "Import from contacts",
+      "searchContact": "Search an existing contact...",
+      "orManual": "or enter manually",
+      "fullName": "Full name",
+      "fullNamePlaceholder": "Jean Dupont",
+      "phone": "Phone",
+      "phonePlaceholder": "+33 6 12 34 56 78",
+      "email": "Email",
+      "emailPlaceholder": "jean.dupont@example.com",
+      "company": "Company",
+      "companyPlaceholder": "Entreprise SARL",
+      "contactNotes": "Notes about the contact",
+      "contactNotesPlaceholder": "Loyal client, prefers mornings, topic: VAT return...",
+      "status": "Status",
+      "priority": "Priority",
+      "reminder": "Reminder",
+      "saving": "Saving...",
+      "update": "Update",
+      "createEvent": "Create appointment",
+      "closedDayTitle": "Cannot create an appointment on a closed day"
+    },
+    "detail": {
+      "description": "Description",
+      "contactInfo": "Contact information",
+      "duplicateTitle": "Duplicate (next week)",
+      "viewProjects": "View projects",
+      "viewTasks": "View tasks"
+    },
+    "availability": {
+      "loading": "Calculating availability...",
+      "empty": "No free slot in the next 14 days (check the opening hours).",
+      "error": "Unable to calculate free slots."
+    },
+    "closure": {
+      "closed": "Closed",
+      "closedRange": "Closed from {{start}} to {{end}}",
+      "closedLabel": "Closed — {{label}}",
+      "dashLabel": " — {{label}}",
+      "exceptional": "Exceptional closure",
+      "exceptionalDay": "Exceptional closure day",
+      "noAppointments": "No appointment can be created on this day.",
+      "removeClosure": "Remove closure",
+      "closeDay": "Close this day",
+      "offDay": "Closed day — outside configured working days",
+      "closeOfficially": "Close officially"
+    },
+    "closureDialog": {
+      "manageTitle": "Manage closure",
+      "closePeriod": "Close this period",
+      "closeDayTitle": "Close this day",
+      "rangeInfo": "From {{start}} to {{end}}",
+      "reopenPeriod": "Remove this closure to reopen the period.",
+      "reopenDay": "Remove this closure to reopen the day.",
+      "removing": "Removing...",
+      "start": "Start",
+      "end": "End",
+      "reason": "Reason",
+      "optional": "(optional)",
+      "reasonPlaceholder": "e.g. July 14 bridge day, annual closure..."
+    },
+    "toast": {
+      "error": "Error",
+      "loadError": "Unable to load events",
+      "created": "Event created",
+      "createError": "Unable to create the event",
+      "updated": "Event updated",
+      "updateError": "Unable to edit the event",
+      "deleted": "Event deleted",
+      "deleteError": "Unable to delete the event",
+      "duplicated": "Event duplicated (next week)",
+      "duplicateError": "Unable to duplicate the event",
+      "periodClosed": "Period closed",
+      "dayClosed": "Day closed",
+      "closureSaved": "The closure has been saved.",
+      "closureCreateError": "Unable to create the closure.",
+      "closureRemoved": "Closure removed",
+      "closureReopened": "The day is open again.",
+      "closureRemoveError": "Unable to remove the closure.",
+      "dayClosedTitle": "Day closed",
+      "closedLabelNoAppt": "{{label}} — no appointment possible on this day.",
+      "closedNoAppt": "Exceptional closure — no appointment possible on this day.",
+      "openError": "Unable to open this event."
+    }
   }
 }
