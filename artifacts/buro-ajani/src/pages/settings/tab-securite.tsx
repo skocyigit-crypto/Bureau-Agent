@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 
 const SECURITY_API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/security";
 const AUTH_API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/auth";
@@ -35,6 +36,7 @@ const AUTH_API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/auth";
  */
 function AccountSecurityPanel() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [mfa, setMfa] = useState<{ mfaActif: boolean; setupInProgress: boolean } | null>(null);
 
   const [currentPassword, setCurrentPassword] = useState("");
@@ -72,16 +74,16 @@ function AccountSecurityPanel() {
 
   const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) {
-      toast({ title: "Les deux mots de passe ne correspondent pas", variant: "destructive" });
+      toast({ title: t("settingsSecurite.account.passwordMismatch"), variant: "destructive" });
       return;
     }
     setChangingPassword(true);
     try {
       await post("/change-password", { currentPassword, newPassword });
       setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
-      toast({ title: "Mot de passe modifié" });
+      toast({ title: t("settingsSecurite.account.passwordChanged") });
     } catch (e: any) {
-      toast({ title: "Modification impossible", description: e?.message, variant: "destructive" });
+      toast({ title: t("settingsSecurite.account.changeFailed"), description: e?.message, variant: "destructive" });
     } finally { setChangingPassword(false); }
   };
 
@@ -91,7 +93,7 @@ function AccountSecurityPanel() {
       const data: any = await post("/mfa/setup", {});
       setSetupData({ qrDataUrl: data.qrDataUrl, secret: data.secret });
     } catch (e: any) {
-      toast({ title: "Configuration impossible", description: e?.message, variant: "destructive" });
+      toast({ title: t("settingsSecurite.account.setupFailed"), description: e?.message, variant: "destructive" });
     } finally { setMfaBusy(false); }
   };
 
@@ -101,9 +103,9 @@ function AccountSecurityPanel() {
       await post("/mfa/enable", { totpCode });
       setSetupData(null); setTotpCode("");
       await loadMfaStatus();
-      toast({ title: "Double authentification activée" });
+      toast({ title: t("settingsSecurite.account.twoFactorEnabled") });
     } catch (e: any) {
-      toast({ title: "Code refusé", description: e?.message, variant: "destructive" });
+      toast({ title: t("settingsSecurite.account.codeRejected"), description: e?.message, variant: "destructive" });
     } finally { setMfaBusy(false); }
   };
 
@@ -113,9 +115,9 @@ function AccountSecurityPanel() {
       await post("/mfa/disable", { password: disablePassword, totpCode });
       setDisablePassword(""); setTotpCode("");
       await loadMfaStatus();
-      toast({ title: "Double authentification désactivée" });
+      toast({ title: t("settingsSecurite.account.twoFactorDisabled") });
     } catch (e: any) {
-      toast({ title: "Désactivation impossible", description: e?.message, variant: "destructive" });
+      toast({ title: t("settingsSecurite.account.disableFailed"), description: e?.message, variant: "destructive" });
     } finally { setMfaBusy(false); }
   };
 
@@ -124,17 +126,17 @@ function AccountSecurityPanel() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <KeyRound className="w-5 h-5 text-blue-500" />
-          Sécurité de mon compte
+          {t("settingsSecurite.account.title")}
         </CardTitle>
-        <CardDescription>Mot de passe et authentification à deux facteurs de votre propre compte.</CardDescription>
+        <CardDescription>{t("settingsSecurite.account.description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-3">
-          <Label className="text-sm font-semibold">Changer mon mot de passe</Label>
+          <Label className="text-sm font-semibold">{t("settingsSecurite.account.changePassword")}</Label>
           <div className="grid gap-2 sm:grid-cols-3">
-            <Input type="password" placeholder="Mot de passe actuel" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} autoComplete="current-password" />
-            <Input type="password" placeholder="Nouveau mot de passe" value={newPassword} onChange={e => setNewPassword(e.target.value)} autoComplete="new-password" />
-            <Input type="password" placeholder="Confirmer" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} autoComplete="new-password" />
+            <Input type="password" placeholder={t("settingsSecurite.account.currentPassword")} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} autoComplete="current-password" />
+            <Input type="password" placeholder={t("settingsSecurite.account.newPassword")} value={newPassword} onChange={e => setNewPassword(e.target.value)} autoComplete="new-password" />
+            <Input type="password" placeholder={t("settingsSecurite.account.confirm")} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} autoComplete="new-password" />
           </div>
           <Button
             size="sm"
@@ -142,7 +144,7 @@ function AccountSecurityPanel() {
             disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
           >
             {changingPassword && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
-            Modifier le mot de passe
+            {t("settingsSecurite.account.submitPassword")}
           </Button>
         </div>
 
@@ -153,13 +155,13 @@ function AccountSecurityPanel() {
             <div className="flex items-start gap-3">
               <Fingerprint className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
               <div>
-                <Label className="text-sm font-semibold">Authentification à deux facteurs (TOTP)</Label>
-                <p className="text-xs text-muted-foreground">Un code à usage unique depuis votre application d'authentification, en plus du mot de passe.</p>
+                <Label className="text-sm font-semibold">{t("settingsSecurite.account.twoFactor")}</Label>
+                <p className="text-xs text-muted-foreground">{t("settingsSecurite.account.twoFactorDesc")}</p>
               </div>
             </div>
             {mfa && (
               <Badge className={mfa.mfaActif ? "bg-emerald-100 text-emerald-700 border-0" : "bg-gray-100 text-gray-600 border-0"}>
-                {mfa.mfaActif ? "Activée" : "Désactivée"}
+                {mfa.mfaActif ? t("settingsSecurite.account.enabled") : t("settingsSecurite.account.disabled")}
               </Badge>
             )}
           </div>
@@ -167,18 +169,18 @@ function AccountSecurityPanel() {
           {mfa && !mfa.mfaActif && !setupData && (
             <Button size="sm" variant="outline" onClick={startMfaSetup} disabled={mfaBusy}>
               {mfaBusy && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
-              Activer la double authentification
+              {t("settingsSecurite.account.enable2fa")}
             </Button>
           )}
 
           {setupData && (
             <div className="rounded-md border p-3 space-y-3">
               <p className="text-xs text-muted-foreground">
-                Scannez ce QR code avec votre application d'authentification, puis saisissez le code affiché.
+                {t("settingsSecurite.account.setupInstructions")}
               </p>
-              <img src={setupData.qrDataUrl} alt="QR code de configuration" className="w-40 h-40 border rounded bg-white p-1" />
+              <img src={setupData.qrDataUrl} alt={t("settingsSecurite.account.qrAlt")} className="w-40 h-40 border rounded bg-white p-1" />
               <p className="text-[11px] text-muted-foreground break-all">
-                Clé manuelle : <code>{setupData.secret}</code>
+                {t("settingsSecurite.account.manualKey")} <code>{setupData.secret}</code>
               </p>
               <div className="flex items-center gap-2">
                 <Input
@@ -190,10 +192,10 @@ function AccountSecurityPanel() {
                 />
                 <Button size="sm" onClick={confirmMfa} disabled={mfaBusy || totpCode.length < 6}>
                   {mfaBusy && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
-                  Confirmer
+                  {t("settingsSecurite.account.confirmBtn")}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => { setSetupData(null); setTotpCode(""); }}>
-                  Annuler
+                  {t("settingsSecurite.account.cancel")}
                 </Button>
               </div>
             </div>
@@ -202,10 +204,10 @@ function AccountSecurityPanel() {
           {mfa?.mfaActif && (
             <div className="rounded-md border p-3 space-y-2">
               <p className="text-xs text-muted-foreground">
-                Pour désactiver, confirmez avec votre mot de passe et un code valide.
+                {t("settingsSecurite.account.disableInstructions")}
               </p>
               <div className="flex flex-wrap items-center gap-2">
-                <Input type="password" placeholder="Mot de passe" value={disablePassword} onChange={e => setDisablePassword(e.target.value)} className="w-48" autoComplete="current-password" />
+                <Input type="password" placeholder={t("settingsSecurite.account.password")} value={disablePassword} onChange={e => setDisablePassword(e.target.value)} className="w-48" autoComplete="current-password" />
                 <Input
                   value={totpCode}
                   onChange={e => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
@@ -215,7 +217,7 @@ function AccountSecurityPanel() {
                 />
                 <Button size="sm" variant="destructive" onClick={disableMfa} disabled={mfaBusy || !disablePassword || totpCode.length < 6}>
                   {mfaBusy && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
-                  Désactiver
+                  {t("settingsSecurite.account.disableBtn")}
                 </Button>
               </div>
             </div>
@@ -233,6 +235,7 @@ function SecurityMonitorPanel() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const fetchSecurityData = useCallback(async () => {
     try {
@@ -257,12 +260,12 @@ function SecurityMonitorPanel() {
     try {
       const res = await fetch(`${SECURITY_API}/blacklist/${ip}`, { method: "DELETE", credentials: "include" });
       if (res.ok) {
-        toast({ title: "IP debloquee", description: `L'adresse ${ip} a ete retiree de la liste noire.` });
+        toast({ title: t("settingsSecurite.monitor.ipUnblocked"), description: t("settingsSecurite.monitor.ipUnblockedDesc", { ip }) });
         fetchSecurityData();
       } else {
-        toast({ title: "Erreur", description: "Impossible de debloquer cette IP.", variant: "destructive" });
+        toast({ title: t("settingsSecurite.monitor.error"), description: t("settingsSecurite.monitor.unblockFailed"), variant: "destructive" });
       }
-    } catch { toast({ title: "Erreur", description: "Erreur reseau.", variant: "destructive" }); }
+    } catch { toast({ title: t("settingsSecurite.monitor.error"), description: t("settingsSecurite.monitor.networkError"), variant: "destructive" }); }
   };
 
   const handleRefresh = () => { setRefreshing(true); fetchSecurityData(); };
@@ -272,16 +275,17 @@ function SecurityMonitorPanel() {
     s === "warning" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" :
     "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
 
-  const levelLabel = stats?.blacklistedIps > 0 || (stats?.critical || 0) > 0 ? "Eleve" :
-                     (stats?.warning || 0) > 5 ? "Modere" : "Normal";
-  const levelColor = levelLabel === "Eleve" ? "text-red-600" : levelLabel === "Modere" ? "text-amber-600" : "text-emerald-600";
+  const levelKey = stats?.blacklistedIps > 0 || (stats?.critical || 0) > 0 ? "high" :
+                     (stats?.warning || 0) > 5 ? "medium" : "normal";
+  const levelLabel = levelKey === "high" ? t("settingsSecurite.monitor.levelHigh") : levelKey === "medium" ? t("settingsSecurite.monitor.levelMedium") : t("settingsSecurite.monitor.levelNormal");
+  const levelColor = levelKey === "high" ? "text-red-600" : levelKey === "medium" ? "text-amber-600" : "text-emerald-600";
 
   if (loading) {
     return (
       <Card className="border-blue-200 dark:border-blue-900/50">
         <CardContent className="p-8 flex items-center justify-center gap-2">
           <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
-          <span className="text-sm text-muted-foreground">Chargement du moniteur de securite...</span>
+          <span className="text-sm text-muted-foreground">{t("settingsSecurite.monitor.loading")}</span>
         </CardContent>
       </Card>
     );
@@ -294,17 +298,17 @@ function SecurityMonitorPanel() {
           <div>
             <CardTitle className="flex items-center gap-2">
               <ScanSearch className="w-5 h-5 text-blue-600" />
-              Moniteur de Securite en Temps Reel
+              {t("settingsSecurite.monitor.title")}
             </CardTitle>
-            <CardDescription>Surveillance des menaces, detection de virus et protection des données clients.</CardDescription>
+            <CardDescription>{t("settingsSecurite.monitor.description")}</CardDescription>
           </div>
           <div className="flex items-center gap-2">
             <Badge className={`${levelColor === "text-emerald-600" ? "bg-emerald-100 text-emerald-700" : levelColor === "text-amber-600" ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"} border-0`}>
-              Niveau: {levelLabel}
+              {t("settingsSecurite.monitor.level", { level: levelLabel })}
             </Badge>
             <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
               <RefreshCw className={`w-3 h-3 mr-1 ${refreshing ? "animate-spin" : ""}`} />
-              Actualiser
+              {t("settingsSecurite.monitor.refresh")}
             </Button>
           </div>
         </div>
@@ -314,19 +318,19 @@ function SecurityMonitorPanel() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="border rounded-lg p-3 text-center">
               <div className="text-2xl font-bold text-blue-600">{stats.totalEvents || 0}</div>
-              <p className="text-xs text-muted-foreground">Evenements totaux</p>
+              <p className="text-xs text-muted-foreground">{t("settingsSecurite.monitor.totalEvents")}</p>
             </div>
             <div className="border rounded-lg p-3 text-center">
               <div className="text-2xl font-bold text-red-600">{stats.critical || 0}</div>
-              <p className="text-xs text-muted-foreground">Critiques</p>
+              <p className="text-xs text-muted-foreground">{t("settingsSecurite.monitor.critical")}</p>
             </div>
             <div className="border rounded-lg p-3 text-center">
               <div className="text-2xl font-bold text-amber-600">{stats.warning || 0}</div>
-              <p className="text-xs text-muted-foreground">Avertissements</p>
+              <p className="text-xs text-muted-foreground">{t("settingsSecurite.monitor.warnings")}</p>
             </div>
             <div className="border rounded-lg p-3 text-center">
               <div className="text-2xl font-bold text-slate-600">{stats.blacklistedIps || 0}</div>
-              <p className="text-xs text-muted-foreground">IP bloquees</p>
+              <p className="text-xs text-muted-foreground">{t("settingsSecurite.monitor.blockedIps")}</p>
             </div>
           </div>
         )}
@@ -337,30 +341,30 @@ function SecurityMonitorPanel() {
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
             </div>
             <div>
-              <p className="text-sm font-medium">Antivirus Fichiers</p>
-              <p className="text-xs text-muted-foreground">Scanner de signatures actif</p>
+              <p className="text-sm font-medium">{t("settingsSecurite.monitor.antivirus")}</p>
+              <p className="text-xs text-muted-foreground">{t("settingsSecurite.monitor.antivirusDesc")}</p>
             </div>
-            <Badge className="ml-auto bg-emerald-100 text-emerald-700 border-0 text-[10px]">Actif</Badge>
+            <Badge className="ml-auto bg-emerald-100 text-emerald-700 border-0 text-[10px]">{t("settingsSecurite.monitor.active")}</Badge>
           </div>
           <div className="flex items-center gap-3 border rounded-lg p-3">
             <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
               <Shield className="w-4 h-4 text-emerald-600" />
             </div>
             <div>
-              <p className="text-sm font-medium">Detection XSS/SQL</p>
-              <p className="text-xs text-muted-foreground">Protection injection active</p>
+              <p className="text-sm font-medium">{t("settingsSecurite.monitor.xssSql")}</p>
+              <p className="text-xs text-muted-foreground">{t("settingsSecurite.monitor.xssSqlDesc")}</p>
             </div>
-            <Badge className="ml-auto bg-emerald-100 text-emerald-700 border-0 text-[10px]">Actif</Badge>
+            <Badge className="ml-auto bg-emerald-100 text-emerald-700 border-0 text-[10px]">{t("settingsSecurite.monitor.active")}</Badge>
           </div>
           <div className="flex items-center gap-3 border rounded-lg p-3">
             <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
               <Ban className="w-4 h-4 text-emerald-600" />
             </div>
             <div>
-              <p className="text-sm font-medium">IP Kara Liste</p>
-              <p className="text-xs text-muted-foreground">Blocage automatique</p>
+              <p className="text-sm font-medium">{t("settingsSecurite.monitor.ipBlacklist")}</p>
+              <p className="text-xs text-muted-foreground">{t("settingsSecurite.monitor.ipBlacklistDesc")}</p>
             </div>
-            <Badge className="ml-auto bg-emerald-100 text-emerald-700 border-0 text-[10px]">Actif</Badge>
+            <Badge className="ml-auto bg-emerald-100 text-emerald-700 border-0 text-[10px]">{t("settingsSecurite.monitor.active")}</Badge>
           </div>
         </div>
 
@@ -370,21 +374,21 @@ function SecurityMonitorPanel() {
           <div className="flex items-center justify-between mb-2">
             <h4 className="text-sm font-semibold flex items-center gap-1.5">
               <AlertTriangle className="w-4 h-4 text-amber-500" />
-              Derniers evenements de securite
+              {t("settingsSecurite.monitor.recentEvents")}
             </h4>
-            <Badge variant="outline" className="text-[10px]">{events.length} recents</Badge>
+            <Badge variant="outline" className="text-[10px]">{t("settingsSecurite.monitor.recentCount", { count: events.length })}</Badge>
           </div>
           {events.length === 0 ? (
             <div className="border rounded-lg p-4 text-center">
               <ShieldCheck className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Aucune menace detectee. Tout est securise.</p>
+              <p className="text-sm text-muted-foreground">{t("settingsSecurite.monitor.noThreats")}</p>
             </div>
           ) : (
             <div className="space-y-1.5 max-h-48 overflow-y-auto">
               {events.slice(0, 10).map((ev: any, i: number) => (
                 <div key={i} className="flex items-center gap-2 border rounded p-2 text-xs">
                   <Badge className={`${severityColor(ev.severity)} border-0 text-[9px] shrink-0`}>
-                    {ev.severity === "critical" ? "CRITIQUE" : ev.severity === "warning" ? "ALERTE" : "INFO"}
+                    {ev.severity === "critical" ? t("settingsSecurite.monitor.sevCritical") : ev.severity === "warning" ? t("settingsSecurite.monitor.sevWarning") : t("settingsSecurite.monitor.sevInfo")}
                   </Badge>
                   <span className="text-muted-foreground shrink-0">{new Date(ev.timestamp).toLocaleString("fr-FR", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" })}</span>
                   <span className="truncate">{ev.details}</span>
@@ -401,19 +405,19 @@ function SecurityMonitorPanel() {
             <div>
               <h4 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
                 <Ban className="w-4 h-4 text-red-500" />
-                Adresses IP bloquees
+                {t("settingsSecurite.monitor.blockedIpsTitle")}
               </h4>
               <div className="space-y-1.5">
                 {blacklist.map((entry: any, i: number) => (
                   <div key={i} className="flex items-center gap-2 border border-red-200 dark:border-red-900/50 rounded p-2 text-xs">
                     <Badge className="bg-red-100 text-red-700 border-0 text-[9px]">
-                      {entry.permanent ? "PERMANENT" : "TEMPORAIRE"}
+                      {entry.permanent ? t("settingsSecurite.monitor.permanent") : t("settingsSecurite.monitor.temporary")}
                     </Badge>
                     <span className="font-mono">{entry.ip}</span>
-                    <span className="text-muted-foreground">{entry.count} tentatives</span>
-                    {!entry.permanent && <span className="text-muted-foreground">jusqu'a {new Date(entry.until).toLocaleString("fr-FR")}</span>}
+                    <span className="text-muted-foreground">{t("settingsSecurite.monitor.attempts", { count: entry.count })}</span>
+                    {!entry.permanent && <span className="text-muted-foreground">{t("settingsSecurite.monitor.until", { date: new Date(entry.until).toLocaleString("fr-FR") })}</span>}
                     <Button variant="ghost" size="sm" className="ml-auto h-6 text-xs" onClick={() => handleUnblock(entry.ip)}>
-                      Debloquer
+                      {t("settingsSecurite.monitor.unblock")}
                     </Button>
                   </div>
                 ))}
@@ -426,12 +430,9 @@ function SecurityMonitorPanel() {
           <div className="flex items-start gap-2">
             <ShieldCheck className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
             <div>
-              <h4 className="font-semibold text-xs text-blue-800 dark:text-blue-300">Protection Multi-Couches Active</h4>
+              <h4 className="font-semibold text-xs text-blue-800 dark:text-blue-300">{t("settingsSecurite.monitor.multiLayerTitle")}</h4>
               <p className="text-[11px] text-blue-600 dark:text-blue-400 mt-0.5">
-                Vos donnees client sont protegees par 9 couches de securite :
-                chiffrement AES-256-GCM, scanner antivirus de fichiers, detection XSS/injection SQL,
-                protection CSRF, limitation de debit, liste noire IP automatique,
-                en-tetes de securite (Helmet/CSP/HSTS), isolation multi-tenant et journalisation d'audit.
+                {t("settingsSecurite.monitor.multiLayerDesc")}
               </p>
             </div>
           </div>
@@ -443,14 +444,14 @@ function SecurityMonitorPanel() {
 
 // ── Guardian WAF Paneli ───────────────────────────────────────────────────────
 
-const GUARDIAN_TYPE_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string }> = {
-  attack_tool:       { label: "Outil attaque",   icon: Bug,       color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
-  honeypot:          { label: "Honeypot",         icon: Crosshair, color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" },
-  suspicious_path:   { label: "Chemin suspect",   icon: Eye,       color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
-  json_bomb:         { label: "JSON bombe",        icon: Bomb,      color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" },
-  http_anomaly:      { label: "Anomalie HTTP",     icon: Globe,     color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" },
-  behavioral_anomaly:{ label: "Comportement",      icon: Activity,  color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
-  behavioral_block:  { label: "Bloc comport.",     icon: Network,   color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
+const GUARDIAN_TYPE_CONFIG: Record<string, { labelKey: string; icon: React.ElementType; color: string }> = {
+  attack_tool:       { labelKey: "typeAttackTool",        icon: Bug,       color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
+  honeypot:          { labelKey: "typeHoneypot",          icon: Crosshair, color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" },
+  suspicious_path:   { labelKey: "typeSuspiciousPath",    icon: Eye,       color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
+  json_bomb:         { labelKey: "typeJsonBomb",          icon: Bomb,      color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" },
+  http_anomaly:      { labelKey: "typeHttpAnomaly",       icon: Globe,     color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" },
+  behavioral_anomaly:{ labelKey: "typeBehavioralAnomaly", icon: Activity,  color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
+  behavioral_block:  { labelKey: "typeBehavioralBlock",   icon: Network,   color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
 };
 
 function GuardianWafPanel() {
@@ -463,6 +464,7 @@ function GuardianWafPanel() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [activeTab, setActiveTab] = useState<"events" | "banned" | "profiles">("events");
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const fetchAll = useCallback(async (silent = false) => {
     if (!silent) setRefreshing(true);
@@ -499,16 +501,16 @@ function GuardianWafPanel() {
         method: "DELETE", credentials: "include",
       });
       if (res.ok) {
-        toast({ title: "IP debloquee", description: `${ip} retiree du Guardian.` });
+        toast({ title: t("settingsSecurite.guardian.ipUnblocked"), description: t("settingsSecurite.guardian.ipUnblockedDesc", { ip }) });
         fetchAll();
       } else {
-        toast({ title: "Erreur", description: "Impossible de debloquer.", variant: "destructive" });
+        toast({ title: t("settingsSecurite.guardian.error"), description: t("settingsSecurite.guardian.unblockFailed"), variant: "destructive" });
       }
-    } catch { toast({ title: "Erreur reseau", variant: "destructive" } as any); }
+    } catch { toast({ title: t("settingsSecurite.guardian.networkError"), variant: "destructive" } as any); }
   };
 
   const typeConf = (type: string) =>
-    GUARDIAN_TYPE_CONFIG[type] ?? { label: type, icon: Shield, color: "bg-slate-100 text-slate-700" };
+    GUARDIAN_TYPE_CONFIG[type] ?? { labelKey: null, icon: Shield, color: "bg-slate-100 text-slate-700" };
 
   const sevColor = (s: string) =>
     s === "critical" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" :
@@ -532,7 +534,7 @@ function GuardianWafPanel() {
       <Card className="border-purple-200 dark:border-purple-900/50">
         <CardContent className="p-8 flex items-center justify-center gap-2">
           <Loader2 className="w-5 h-5 animate-spin text-purple-500" />
-          <span className="text-sm text-muted-foreground">Chargement Guardian WAF...</span>
+          <span className="text-sm text-muted-foreground">{t("settingsSecurite.guardian.loading")}</span>
         </CardContent>
       </Card>
     );
@@ -549,21 +551,21 @@ function GuardianWafPanel() {
           <div>
             <CardTitle className="flex items-center gap-2">
               <Zap className="w-5 h-5 text-purple-600" />
-              Guardian WAF — Pare-feu Applicatif
+              {t("settingsSecurite.guardian.title")}
             </CardTitle>
             <CardDescription>
-              Inspection en temps reel de chaque requete entrante. Outils d'attaque, honeypots, comportements suspects, bombes JSON.
+              {t("settingsSecurite.guardian.description")}
             </CardDescription>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <div className="flex items-center gap-1.5">
               <Radio className={`w-3 h-3 ${autoRefresh ? "text-emerald-500 animate-pulse" : "text-slate-400"}`} />
-              <span className="text-[10px] text-muted-foreground">Auto</span>
+              <span className="text-[10px] text-muted-foreground">{t("settingsSecurite.guardian.auto")}</span>
               <Switch checked={autoRefresh} onCheckedChange={setAutoRefresh} className="scale-75" />
             </div>
             <Button variant="outline" size="sm" onClick={() => fetchAll()} disabled={refreshing}>
               <RefreshCw className={`w-3 h-3 mr-1 ${refreshing ? "animate-spin" : ""}`} />
-              Actualiser
+              {t("settingsSecurite.guardian.refresh")}
             </Button>
           </div>
         </div>
@@ -575,19 +577,19 @@ function GuardianWafPanel() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div className="border rounded-lg p-3 text-center bg-slate-50 dark:bg-slate-900/30">
               <div className="text-xl font-bold text-slate-700 dark:text-slate-300">{(stats.totalInspected ?? 0).toLocaleString()}</div>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Requetes inspectees</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{t("settingsSecurite.guardian.requestsInspected")}</p>
             </div>
             <div className="border border-red-200 rounded-lg p-3 text-center bg-red-50 dark:bg-red-950/20">
               <div className="text-xl font-bold text-red-600">{(stats.totalBlocked ?? 0).toLocaleString()}</div>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Bloquees ({blockRate}%)</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{t("settingsSecurite.guardian.blocked", { rate: blockRate })}</p>
             </div>
             <div className="border border-purple-200 rounded-lg p-3 text-center bg-purple-50 dark:bg-purple-950/20">
               <div className="text-xl font-bold text-purple-600">{(stats.bannedIpsActive ?? 0).toLocaleString()}</div>
-              <p className="text-[10px] text-muted-foreground mt-0.5">IP bannis actifs</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{t("settingsSecurite.guardian.activeBannedIps")}</p>
             </div>
             <div className="border border-emerald-200 rounded-lg p-3 text-center bg-emerald-50 dark:bg-emerald-950/20">
               <div className="text-xl font-bold text-emerald-600">{uptimeLabel(stats.uptime ?? 0)}</div>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Uptime Guardian</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{t("settingsSecurite.guardian.uptime")}</p>
             </div>
           </div>
         )}
@@ -596,18 +598,18 @@ function GuardianWafPanel() {
         {stats && (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {[
-              { label: "Outils d'attaque",    value: stats.attackToolsDetected ?? 0, icon: Bug,      color: "text-red-600" },
-              { label: "Honeypots declenches", value: stats.honeypotTriggered ?? 0,  icon: Crosshair, color: "text-purple-600" },
-              { label: "Chemins suspects",     value: stats.suspiciousPaths ?? 0,    icon: Eye,       color: "text-amber-600" },
-              { label: "Bombes JSON",          value: stats.jsonBombsBlocked ?? 0,   icon: Bomb,      color: "text-orange-600" },
-              { label: "Anomalies HTTP",       value: stats.httpAnomalies ?? 0,      icon: Globe,     color: "text-yellow-600" },
-              { label: "Blocs comportementaux",value: stats.behavioralBlocks ?? 0,   icon: Activity,  color: "text-blue-600" },
-            ].map(({ label, value, icon: Icon, color }) => (
-              <div key={label} className="flex items-center gap-2 border rounded-lg p-2.5">
+              { labelKey: "attackTools",      value: stats.attackToolsDetected ?? 0, icon: Bug,      color: "text-red-600" },
+              { labelKey: "honeypotsTriggered", value: stats.honeypotTriggered ?? 0,  icon: Crosshair, color: "text-purple-600" },
+              { labelKey: "suspiciousPaths",  value: stats.suspiciousPaths ?? 0,    icon: Eye,       color: "text-amber-600" },
+              { labelKey: "jsonBombs",        value: stats.jsonBombsBlocked ?? 0,   icon: Bomb,      color: "text-orange-600" },
+              { labelKey: "httpAnomalies",    value: stats.httpAnomalies ?? 0,      icon: Globe,     color: "text-yellow-600" },
+              { labelKey: "behavioralBlocks", value: stats.behavioralBlocks ?? 0,   icon: Activity,  color: "text-blue-600" },
+            ].map(({ labelKey, value, icon: Icon, color }) => (
+              <div key={labelKey} className="flex items-center gap-2 border rounded-lg p-2.5">
                 <Icon className={`w-4 h-4 shrink-0 ${color}`} />
                 <div className="min-w-0">
                   <div className={`text-sm font-bold ${color}`}>{value.toLocaleString()}</div>
-                  <p className="text-[10px] text-muted-foreground truncate">{label}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{t(`settingsSecurite.guardian.${labelKey}`)}</p>
                 </div>
               </div>
             ))}
@@ -617,10 +619,10 @@ function GuardianWafPanel() {
         {/* Activite recente */}
         {stats && (
           <div className="flex items-center gap-4 text-xs text-muted-foreground border rounded-lg px-3 py-2 bg-slate-50 dark:bg-slate-900/30">
-            <span className="flex items-center gap-1"><TrendingUp className="w-3 h-3" /> {stats.eventsLast5min ?? 0} ev/5min</span>
-            <span className="flex items-center gap-1"><TrendingUp className="w-3 h-3" /> {stats.eventsLast60min ?? 0} ev/1h</span>
-            <span className="flex items-center gap-1"><ShieldBan className="w-3 h-3" /> {stats.permanentBans ?? 0} bans permanents</span>
-            <span className="flex items-center gap-1"><Zap className="w-3 h-3" /> {stats.autobanCount ?? 0} bans auto</span>
+            <span className="flex items-center gap-1"><TrendingUp className="w-3 h-3" /> {t("settingsSecurite.guardian.eventsPer5min", { count: stats.eventsLast5min ?? 0 })}</span>
+            <span className="flex items-center gap-1"><TrendingUp className="w-3 h-3" /> {t("settingsSecurite.guardian.eventsPer1h", { count: stats.eventsLast60min ?? 0 })}</span>
+            <span className="flex items-center gap-1"><ShieldBan className="w-3 h-3" /> {t("settingsSecurite.guardian.permanentBans", { count: stats.permanentBans ?? 0 })}</span>
+            <span className="flex items-center gap-1"><Zap className="w-3 h-3" /> {t("settingsSecurite.guardian.autoBans", { count: stats.autobanCount ?? 0 })}</span>
           </div>
         )}
 
@@ -629,16 +631,16 @@ function GuardianWafPanel() {
         {/* Tabs: evenements / bans / profils */}
         <div className="flex gap-1 border rounded-lg p-1 bg-muted/30 w-fit">
           {([
-            { key: "events",   label: "Evenements", count: events.length },
-            { key: "banned",   label: "IP Bannis",  count: bannedIps.length },
-            { key: "profiles", label: "Profils",    count: profiles.length },
+            { key: "events",   labelKey: "tabEvents",   count: events.length },
+            { key: "banned",   labelKey: "tabBanned",   count: bannedIps.length },
+            { key: "profiles", labelKey: "tabProfiles", count: profiles.length },
           ] as const).map(tab => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`px-3 py-1 text-xs rounded-md font-medium transition-all ${activeTab === tab.key ? "bg-white dark:bg-slate-800 shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
             >
-              {tab.label}
+              {t(`settingsSecurite.guardian.${tab.labelKey}`)}
               {tab.count > 0 && (
                 <Badge className="ml-1 h-4 px-1 text-[9px] bg-purple-100 text-purple-700 border-0">{tab.count}</Badge>
               )}
@@ -652,7 +654,7 @@ function GuardianWafPanel() {
             {events.length === 0 ? (
               <div className="border rounded-lg p-6 text-center">
                 <ShieldCheck className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Aucun evenement Guardian detecte.</p>
+                <p className="text-sm text-muted-foreground">{t("settingsSecurite.guardian.noEvents")}</p>
               </div>
             ) : (
               <div className="space-y-1 max-h-64 overflow-y-auto">
@@ -663,10 +665,10 @@ function GuardianWafPanel() {
                     <div key={i} className={`flex items-start gap-2 rounded-lg p-2 text-xs border ${ev.blocked ? "border-red-200 dark:border-red-900/40 bg-red-50/30 dark:bg-red-950/10" : "border-border"}`}>
                       <Badge className={`${tc.color} border-0 text-[9px] shrink-0 mt-0.5 flex items-center gap-0.5`}>
                         <TypeIcon className="w-2.5 h-2.5" />
-                        {tc.label}
+                        {tc.labelKey ? t(`settingsSecurite.guardian.${tc.labelKey}`) : ev.type}
                       </Badge>
                       <Badge className={`${sevColor(ev.severity)} border-0 text-[9px] shrink-0 mt-0.5`}>
-                        {ev.severity === "critical" ? "CRITIQUE" : ev.severity === "warning" ? "ALERTE" : "INFO"}
+                        {ev.severity === "critical" ? t("settingsSecurite.guardian.sevCritical") : ev.severity === "warning" ? t("settingsSecurite.guardian.sevWarning") : t("settingsSecurite.guardian.sevInfo")}
                       </Badge>
                       <span className="truncate flex-1 text-muted-foreground">{ev.details}</span>
                       <span className="font-mono shrink-0 text-muted-foreground">{ev.ip}</span>
@@ -685,29 +687,29 @@ function GuardianWafPanel() {
             {bannedIps.length === 0 ? (
               <div className="border rounded-lg p-6 text-center">
                 <ShieldCheck className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Aucune IP bannie par le Guardian.</p>
+                <p className="text-sm text-muted-foreground">{t("settingsSecurite.guardian.noBannedIps")}</p>
               </div>
             ) : (
               <div className="space-y-1.5 max-h-64 overflow-y-auto">
                 {bannedIps.map((entry: any, i: number) => (
                   <div key={i} className="flex items-center gap-2 border border-red-200 dark:border-red-900/50 rounded-lg p-2.5 text-xs bg-red-50/30 dark:bg-red-950/10">
                     <Badge className={`border-0 text-[9px] ${entry.permanent ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
-                      {entry.permanent ? "PERMANENT" : "TEMPORAIRE"}
+                      {entry.permanent ? t("settingsSecurite.guardian.permanent") : t("settingsSecurite.guardian.temporary")}
                     </Badge>
                     <span className="font-mono font-medium">{entry.ip}</span>
-                    <span className="text-muted-foreground">{entry.count} infraction{entry.count > 1 ? "s" : ""}</span>
+                    <span className="text-muted-foreground">{entry.count > 1 ? t("settingsSecurite.guardian.infractionOther", { count: entry.count }) : t("settingsSecurite.guardian.infractionOne", { count: entry.count })}</span>
                     {entry.reasons?.[0] && (
                       <span className="text-muted-foreground truncate hidden sm:block">{entry.reasons[0]}</span>
                     )}
                     {!entry.permanent && (
-                      <span className="text-muted-foreground shrink-0 hidden md:block">jusqu'a {formatTime(entry.until)}</span>
+                      <span className="text-muted-foreground shrink-0 hidden md:block">{t("settingsSecurite.guardian.until", { date: formatTime(entry.until) })}</span>
                     )}
                     <Button
                       variant="ghost" size="sm"
                       className="ml-auto h-6 text-[10px] text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 shrink-0"
                       onClick={() => handleUnban(entry.ip)}
                     >
-                      Debloquer
+                      {t("settingsSecurite.guardian.unblock")}
                     </Button>
                   </div>
                 ))}
@@ -722,7 +724,7 @@ function GuardianWafPanel() {
             {profiles.length === 0 ? (
               <div className="border rounded-lg p-6 text-center">
                 <ShieldCheck className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Aucun profil de menace actif.</p>
+                <p className="text-sm text-muted-foreground">{t("settingsSecurite.guardian.noProfiles")}</p>
               </div>
             ) : (
               <div className="space-y-1.5 max-h-64 overflow-y-auto">
@@ -734,12 +736,12 @@ function GuardianWafPanel() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-mono font-medium">{p.ip}</span>
                         <Badge className={`border-0 text-[9px] font-bold ${p.threatScore >= 60 ? "bg-red-100 text-red-700" : p.threatScore >= 30 ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"}`}>
-                          Score: {p.threatScore}
+                          {t("settingsSecurite.guardian.score", { score: p.threatScore })}
                         </Badge>
-                        <span className="text-muted-foreground">{p.requests} req</span>
-                        <span className="text-muted-foreground">{p.uniquePaths} chemins</span>
+                        <span className="text-muted-foreground">{t("settingsSecurite.guardian.requests", { count: p.requests })}</span>
+                        <span className="text-muted-foreground">{t("settingsSecurite.guardian.paths", { count: p.uniquePaths })}</span>
                         <span className={`font-medium ml-auto ${scoreColor}`}>
-                          {p.threatScore >= 60 ? "CRITIQUE" : p.threatScore >= 30 ? "SUSPECT" : "SURVEILLE"}
+                          {p.threatScore >= 60 ? t("settingsSecurite.guardian.profileCritical") : p.threatScore >= 30 ? t("settingsSecurite.guardian.profileSuspect") : t("settingsSecurite.guardian.profileMonitored")}
                         </span>
                       </div>
                     </div>
@@ -755,11 +757,9 @@ function GuardianWafPanel() {
           <div className="flex items-start gap-2">
             <Zap className="w-4 h-4 text-purple-600 mt-0.5 shrink-0" />
             <div>
-              <h4 className="font-semibold text-xs text-purple-800 dark:text-purple-300">Guardian WAF — 8 couches de detection</h4>
+              <h4 className="font-semibold text-xs text-purple-800 dark:text-purple-300">{t("settingsSecurite.guardian.legendTitle")}</h4>
               <p className="text-[11px] text-purple-600 dark:text-purple-400 mt-0.5">
-                Outils d'attaque (sqlmap, nikto, burpsuite, nmap...) · Honeypots (50+ chemins pieges) ·
-                URL suspects (traversal, shells PHP...) · Bombes JSON · Anomalies HTTP ·
-                Profilage comportemental · Ban automatique escalade · 35+ signatures d'outils malveillants
+                {t("settingsSecurite.guardian.legendDesc")}
               </p>
             </div>
           </div>
@@ -771,27 +771,28 @@ function GuardianWafPanel() {
 
 export function TabSecurite() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [zeroTrustMode, setZeroTrustMode] = useState(true);
   const [forceReauth, setForceReauth] = useState(true);
   const [sessionTimeout, setSessionTimeout] = useState("30");
 
   const handleSecurityAction = (action: string) => {
-    toast({ title: "Action de securite", description: action });
+    toast({ title: t("settingsSecurite.app.securityAction"), description: action });
   };
 
   return (
     <div className="space-y-6">
       <Card className="overflow-hidden border-0 shadow-lg">
         <div className="relative h-36">
-          <img src={securityServerImg} alt="Infrastructure de securite" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+          <img src={securityServerImg} alt={t("settingsSecurite.app.heroImgAlt")} className="w-full h-full object-cover" loading="lazy" decoding="async" />
           <div className="absolute inset-0 bg-gradient-to-r from-emerald-900/80 via-emerald-800/60 to-transparent" />
           <div className="absolute inset-0 flex flex-col sm:flex-row items-start sm:items-center justify-center sm:justify-between gap-2 px-6">
             <div className="text-white">
-              <h3 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-emerald-300" /> Infrastructure securisee</h3>
-              <p className="text-white/80 text-sm mt-1">Protection multi-couches, chiffrement de bout en bout, conformite RGPD</p>
+              <h3 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-emerald-300" /> {t("settingsSecurite.app.heroTitle")}</h3>
+              <p className="text-white/80 text-sm mt-1">{t("settingsSecurite.app.heroSubtitle")}</p>
             </div>
             <Badge className="bg-emerald-500/20 text-emerald-200 border-emerald-400/30 shrink-0">
-              Toutes les protections actives
+              {t("settingsSecurite.app.allProtectionsActive")}
             </Badge>
           </div>
         </div>
@@ -803,71 +804,71 @@ export function TabSecurite() {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Shield className="w-5 h-5 text-emerald-600" />
-                Securite de l'application
+                {t("settingsSecurite.app.appSecTitle")}
               </CardTitle>
-              <CardDescription>Protection multi-couches active en permanence.</CardDescription>
+              <CardDescription>{t("settingsSecurite.app.appSecDesc")}</CardDescription>
             </div>
             <Badge className="bg-emerald-100 text-emerald-700 border-0">
               <ShieldCheck className="w-3 h-3 mr-1" />
-              Toutes les protections actives
+              {t("settingsSecurite.app.allProtectionsActive")}
             </Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <Label>HTTPS force</Label>
-              <p className="text-xs text-muted-foreground">Toutes les connexions utilisent le chiffrement TLS 1.3</p>
+              <Label>{t("settingsSecurite.app.httpsForced")}</Label>
+              <p className="text-xs text-muted-foreground">{t("settingsSecurite.app.httpsForcedDesc")}</p>
             </div>
-            <Badge className="bg-emerald-100 text-emerald-700 border-0">Actif</Badge>
+            <Badge className="bg-emerald-100 text-emerald-700 border-0">{t("settingsSecurite.app.active")}</Badge>
           </div>
           <Separator />
           <div className="flex items-center justify-between">
             <div>
-              <Label>Protection CSRF</Label>
-              <p className="text-xs text-muted-foreground">Protection contre les attaques Cross-Site Request Forgery</p>
+              <Label>{t("settingsSecurite.app.csrf")}</Label>
+              <p className="text-xs text-muted-foreground">{t("settingsSecurite.app.csrfDesc")}</p>
             </div>
-            <Badge className="bg-emerald-100 text-emerald-700 border-0">Actif</Badge>
+            <Badge className="bg-emerald-100 text-emerald-700 border-0">{t("settingsSecurite.app.active")}</Badge>
           </div>
           <Separator />
           <div className="flex items-center justify-between">
             <div>
-              <Label>Limitation de debit (Rate Limiting)</Label>
-              <p className="text-xs text-muted-foreground">100 requetes/min standard, 20/min pour l'IA, 200/min pour les lectures</p>
+              <Label>{t("settingsSecurite.app.rateLimit")}</Label>
+              <p className="text-xs text-muted-foreground">{t("settingsSecurite.app.rateLimitDesc")}</p>
             </div>
-            <Badge className="bg-emerald-100 text-emerald-700 border-0">Actif</Badge>
+            <Badge className="bg-emerald-100 text-emerald-700 border-0">{t("settingsSecurite.app.active")}</Badge>
           </div>
           <Separator />
           <div className="flex items-center justify-between">
             <div>
-              <Label>En-tetes de securite (Helmet)</Label>
-              <p className="text-xs text-muted-foreground">CSP, X-Frame-Options, HSTS et autres en-tetes de securite</p>
+              <Label>{t("settingsSecurite.app.helmet")}</Label>
+              <p className="text-xs text-muted-foreground">{t("settingsSecurite.app.helmetDesc")}</p>
             </div>
-            <Badge className="bg-emerald-100 text-emerald-700 border-0">Actif</Badge>
+            <Badge className="bg-emerald-100 text-emerald-700 border-0">{t("settingsSecurite.app.active")}</Badge>
           </div>
           <Separator />
           <div className="flex items-center justify-between">
             <div>
-              <Label>Protection HPP</Label>
-              <p className="text-xs text-muted-foreground">Protection contre la pollution des parametres HTTP</p>
+              <Label>{t("settingsSecurite.app.hpp")}</Label>
+              <p className="text-xs text-muted-foreground">{t("settingsSecurite.app.hppDesc")}</p>
             </div>
-            <Badge className="bg-emerald-100 text-emerald-700 border-0">Actif</Badge>
+            <Badge className="bg-emerald-100 text-emerald-700 border-0">{t("settingsSecurite.app.active")}</Badge>
           </div>
           <Separator />
           <div className="flex items-center justify-between">
             <div>
-              <Label>CORS configure</Label>
-              <p className="text-xs text-muted-foreground">Origines autorisees controlees par variable d'environnement</p>
+              <Label>{t("settingsSecurite.app.cors")}</Label>
+              <p className="text-xs text-muted-foreground">{t("settingsSecurite.app.corsDesc")}</p>
             </div>
-            <Badge className="bg-emerald-100 text-emerald-700 border-0">Actif</Badge>
+            <Badge className="bg-emerald-100 text-emerald-700 border-0">{t("settingsSecurite.app.active")}</Badge>
           </div>
           <Separator />
           <div className="flex items-center justify-between">
             <div>
-              <Label>Limite de taille du corps</Label>
-              <p className="text-xs text-muted-foreground">Maximum 1 Mo par requete</p>
+              <Label>{t("settingsSecurite.app.bodyLimit")}</Label>
+              <p className="text-xs text-muted-foreground">{t("settingsSecurite.app.bodyLimitDesc")}</p>
             </div>
-            <Badge className="bg-emerald-100 text-emerald-700 border-0">Actif</Badge>
+            <Badge className="bg-emerald-100 text-emerald-700 border-0">{t("settingsSecurite.app.active")}</Badge>
           </div>
         </CardContent>
       </Card>
@@ -876,19 +877,18 @@ export function TabSecurite() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-red-700 dark:text-red-400">
             <ShieldAlert className="w-5 h-5" />
-            Mode Zero Trust
+            {t("settingsSecurite.app.zeroTrustTitle")}
           </CardTitle>
-          <CardDescription>Architecture de securite ou aucun utilisateur, appareil ou reseau n'est considere comme fiable par defaut.</CardDescription>
+          <CardDescription>{t("settingsSecurite.app.zeroTrustDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-lg p-4">
             <div className="flex items-start gap-3">
               <TriangleAlert className="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
               <div>
-                <h4 className="font-semibold text-sm text-red-800 dark:text-red-300">Principe : ne jamais faire confiance, toujours verifier</h4>
+                <h4 className="font-semibold text-sm text-red-800 dark:text-red-300">{t("settingsSecurite.app.zeroTrustPrinciple")}</h4>
                 <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                  Chaque requete est authentifiee, autorisee et chiffree independamment de sa source.
-                  Les sessions sont limitees dans le temps et les privileges sont accorde au minimum necessaire.
+                  {t("settingsSecurite.app.zeroTrustPrincipleDesc")}
                 </p>
               </div>
             </div>
@@ -898,8 +898,8 @@ export function TabSecurite() {
             <div className="flex items-start gap-3">
               <ShieldBan className="w-4 h-4 text-red-500 mt-0.5" />
               <div>
-                <Label>Mode Zero Trust actif</Label>
-                <p className="text-xs text-muted-foreground">Verifier chaque acces, meme depuis le reseau interne</p>
+                <Label>{t("settingsSecurite.app.zeroTrustActive")}</Label>
+                <p className="text-xs text-muted-foreground">{t("settingsSecurite.app.zeroTrustActiveDesc")}</p>
               </div>
             </div>
             <Switch checked={zeroTrustMode} onCheckedChange={setZeroTrustMode} />
@@ -909,8 +909,8 @@ export function TabSecurite() {
             <div className="flex items-start gap-3">
               <KeyRound className="w-4 h-4 text-red-500 mt-0.5" />
               <div>
-                <Label>Re-authentification obligatoire</Label>
-                <p className="text-xs text-muted-foreground">Exiger une re-authentification pour les actions sensibles (suppression, export, admin)</p>
+                <Label>{t("settingsSecurite.app.reauth")}</Label>
+                <p className="text-xs text-muted-foreground">{t("settingsSecurite.app.reauthDesc")}</p>
               </div>
             </div>
             <Switch checked={forceReauth} onCheckedChange={setForceReauth} />
@@ -920,8 +920,8 @@ export function TabSecurite() {
             <div className="flex items-start gap-3">
               <Clock className="w-4 h-4 text-red-500 mt-0.5" />
               <div>
-                <Label>Expiration de session</Label>
-                <p className="text-xs text-muted-foreground">Delai d'inactivite avant deconnexion automatique</p>
+                <Label>{t("settingsSecurite.app.sessionExpiry")}</Label>
+                <p className="text-xs text-muted-foreground">{t("settingsSecurite.app.sessionExpiryDesc")}</p>
               </div>
             </div>
             <Select value={sessionTimeout} onValueChange={setSessionTimeout}>
@@ -929,10 +929,10 @@ export function TabSecurite() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="15">15 minutes</SelectItem>
-                <SelectItem value="30">30 minutes</SelectItem>
-                <SelectItem value="60">1 heure</SelectItem>
-                <SelectItem value="120">2 heures</SelectItem>
+                <SelectItem value="15">{t("settingsSecurite.app.min15")}</SelectItem>
+                <SelectItem value="30">{t("settingsSecurite.app.min30")}</SelectItem>
+                <SelectItem value="60">{t("settingsSecurite.app.hour1")}</SelectItem>
+                <SelectItem value="120">{t("settingsSecurite.app.hour2")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -947,11 +947,11 @@ export function TabSecurite() {
             <div className="flex items-start gap-3">
               <Fingerprint className="w-4 h-4 text-red-500 mt-0.5" />
               <div>
-                <Label>Authentification multi-facteurs (MFA)</Label>
-                <p className="text-xs text-muted-foreground">Se configure par utilisateur, dans « Sécurité de mon compte » plus bas</p>
+                <Label>{t("settingsSecurite.app.mfa")}</Label>
+                <p className="text-xs text-muted-foreground">{t("settingsSecurite.app.mfaDesc")}</p>
               </div>
             </div>
-            <Badge variant="outline" className="text-[10px]">Par utilisateur</Badge>
+            <Badge variant="outline" className="text-[10px]">{t("settingsSecurite.app.perUser")}</Badge>
           </div>
         </CardContent>
       </Card>
@@ -966,27 +966,27 @@ export function TabSecurite() {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <UserCog className="w-5 h-5" />
-            Roles et permissions
+            {t("settingsSecurite.app.rolesTitle")}
           </CardTitle>
-          <CardDescription>Gestion des niveaux d'accès par role.</CardDescription>
+          <CardDescription>{t("settingsSecurite.app.rolesDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
             {[
-              { badge: "Super Admin", color: "bg-red-100 text-red-700", level: "Niveau 4", title: "Acces total", desc: "Seul role autorise a telecharger des fichiers externes, modifier les parametres de securite, gerer les utilisateurs et acceder aux journaux d'audit. Peut lever les restrictions temporairement." },
-              { badge: "Administrateur", color: "bg-amber-100 text-amber-700", level: "Niveau 3", title: "Gestion avancee", desc: "Gestion des contacts, taches et rapports. Pas d'accès aux telechargements externes ni aux parametres de securite critiques. Peut consulter les alertes de securite." },
-              { badge: "Agent", color: "bg-blue-100 text-blue-700", level: "Niveau 2", title: "Operations courantes", desc: "Gestion des appels, consultation des contacts et taches. Aucun acces aux fichiers externes, aux exports de donnees ni aux parametres systeme." },
-              { badge: "Lecture seule", color: "bg-gray-100 text-gray-700", level: "Niveau 1", title: "Consultation uniquement", desc: "Consultation des tableaux de bord et rapports uniquement. Aucune modification, aucun telechargement, aucun export. Acces le plus restreint." },
+              { key: "SuperAdmin", color: "bg-red-100 text-red-700", level: "level4" },
+              { key: "Admin", color: "bg-amber-100 text-amber-700", level: "level3" },
+              { key: "Agent", color: "bg-blue-100 text-blue-700", level: "level2" },
+              { key: "Readonly", color: "bg-gray-100 text-gray-700", level: "level1" },
             ].map((role) => (
-              <div key={role.badge} className="border rounded-lg p-3">
+              <div key={role.key} className="border rounded-lg p-3">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <Badge className={`${role.color} border-0`}>{role.badge}</Badge>
-                    <span className="text-sm font-medium">{role.title}</span>
+                    <Badge className={`${role.color} border-0`}>{t(`settingsSecurite.app.role${role.key}`)}</Badge>
+                    <span className="text-sm font-medium">{t(`settingsSecurite.app.role${role.key}Title`)}</span>
                   </div>
-                  <Badge variant="outline" className="text-[10px]">{role.level}</Badge>
+                  <Badge variant="outline" className="text-[10px]">{t(`settingsSecurite.app.${role.level}`)}</Badge>
                 </div>
-                <p className="text-xs text-muted-foreground">{role.desc}</p>
+                <p className="text-xs text-muted-foreground">{t(`settingsSecurite.app.role${role.key}Desc`)}</p>
               </div>
             ))}
           </div>
@@ -995,24 +995,24 @@ export function TabSecurite() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Conformite RGPD</CardTitle>
-          <CardDescription>Parametres de conformite au Reglement General sur la Protection des Donnees.</CardDescription>
+          <CardTitle className="text-base">{t("settingsSecurite.app.rgpdTitle")}</CardTitle>
+          <CardDescription>{t("settingsSecurite.app.rgpdDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {[
-            { label: "Chiffrement des données au repos", desc: "Les donnees sensibles sont chiffrees dans la base de donnees (AES-256)" },
-            { label: "Journal d'audit", desc: "Enregistrer toutes les actions des utilisateurs avec horodatage et adresse IP" },
-            { label: "Droit a l'oubli", desc: "Permettre la suppression complete des données d'un contact" },
-            { label: "Export des données personnelles", desc: "Permettre l'export des données au format standard (RGPD Art. 20)" },
-            { label: "Conservation limitee des données", desc: "Suppression automatique des données au-dela de la duree legale de conservation" },
-            { label: "Consentement explicite", desc: "Recueillir et enregistrer le consentement avant tout traitement de donnees" },
+            { key: "Encryption" },
+            { key: "AuditLog" },
+            { key: "RightErasure" },
+            { key: "Export" },
+            { key: "Retention" },
+            { key: "Consent" },
           ].map((item, i) => (
-            <div key={item.label}>
+            <div key={item.key}>
               {i > 0 && <Separator className="mb-4" />}
               <div className="flex items-center justify-between">
                 <div>
-                  <Label>{item.label}</Label>
-                  <p className="text-xs text-muted-foreground">{item.desc}</p>
+                  <Label>{t(`settingsSecurite.app.rgpd${item.key}`)}</Label>
+                  <p className="text-xs text-muted-foreground">{t(`settingsSecurite.app.rgpd${item.key}Desc`)}</p>
                 </div>
                 <Switch defaultChecked />
               </div>
@@ -1025,27 +1025,27 @@ export function TabSecurite() {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <CircleAlert className="w-5 h-5 text-amber-500" />
-            Actions de securite
+            {t("settingsSecurite.app.actionsTitle")}
           </CardTitle>
-          <CardDescription>Operations manuelles de securite reservees au Super Administrateur.</CardDescription>
+          <CardDescription>{t("settingsSecurite.app.actionsDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-3">
-            <Button variant="outline" className="h-auto p-4 flex flex-col items-start gap-1" onClick={() => handleSecurityAction("Lancement de l'audit de securite complet...")}>
-              <div className="flex items-center gap-2 text-sm font-medium"><ScanSearch className="w-4 h-4" /> Audit de securite complet</div>
-              <p className="text-[10px] text-muted-foreground text-left">Analyser toutes les configurations et detecter les vulnerabilites</p>
+            <Button variant="outline" className="h-auto p-4 flex flex-col items-start gap-1" onClick={() => handleSecurityAction(t("settingsSecurite.app.auditFullToast"))}>
+              <div className="flex items-center gap-2 text-sm font-medium"><ScanSearch className="w-4 h-4" /> {t("settingsSecurite.app.auditFull")}</div>
+              <p className="text-[10px] text-muted-foreground text-left">{t("settingsSecurite.app.auditFullDesc")}</p>
             </Button>
-            <Button variant="outline" className="h-auto p-4 flex flex-col items-start gap-1" onClick={() => handleSecurityAction("Export du journal d'audit en cours...")}>
-              <div className="flex items-center gap-2 text-sm font-medium"><FileText className="w-4 h-4" /> Exporter le journal d'audit</div>
-              <p className="text-[10px] text-muted-foreground text-left">Telecharger le journal complet des actions (reserve super admin)</p>
+            <Button variant="outline" className="h-auto p-4 flex flex-col items-start gap-1" onClick={() => handleSecurityAction(t("settingsSecurite.app.exportAuditToast"))}>
+              <div className="flex items-center gap-2 text-sm font-medium"><FileText className="w-4 h-4" /> {t("settingsSecurite.app.exportAudit")}</div>
+              <p className="text-[10px] text-muted-foreground text-left">{t("settingsSecurite.app.exportAuditDesc")}</p>
             </Button>
-            <Button variant="outline" className="h-auto p-4 flex flex-col items-start gap-1 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950/30" onClick={() => handleSecurityAction("Revocation de toutes les sessions actives...")}>
-              <div className="flex items-center gap-2 text-sm font-medium text-red-700 dark:text-red-400"><ShieldBan className="w-4 h-4" /> Revoquer toutes les sessions</div>
-              <p className="text-[10px] text-muted-foreground text-left">Deconnecter immediatement tous les utilisateurs actifs</p>
+            <Button variant="outline" className="h-auto p-4 flex flex-col items-start gap-1 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950/30" onClick={() => handleSecurityAction(t("settingsSecurite.app.revokeSessionsToast"))}>
+              <div className="flex items-center gap-2 text-sm font-medium text-red-700 dark:text-red-400"><ShieldBan className="w-4 h-4" /> {t("settingsSecurite.app.revokeSessions")}</div>
+              <p className="text-[10px] text-muted-foreground text-left">{t("settingsSecurite.app.revokeSessionsDesc")}</p>
             </Button>
-            <Button variant="outline" className="h-auto p-4 flex flex-col items-start gap-1 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950/30" onClick={() => handleSecurityAction("Verrouillage d'urgence active. Seul le super admin peut deverrouiller.")}>
-              <div className="flex items-center gap-2 text-sm font-medium text-red-700 dark:text-red-400"><Lock className="w-4 h-4" /> Verrouillage d'urgence</div>
-              <p className="text-[10px] text-muted-foreground text-left">Bloquer tout acces sauf super admin en cas d'incident critique</p>
+            <Button variant="outline" className="h-auto p-4 flex flex-col items-start gap-1 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950/30" onClick={() => handleSecurityAction(t("settingsSecurite.app.emergencyLockToast"))}>
+              <div className="flex items-center gap-2 text-sm font-medium text-red-700 dark:text-red-400"><Lock className="w-4 h-4" /> {t("settingsSecurite.app.emergencyLock")}</div>
+              <p className="text-[10px] text-muted-foreground text-left">{t("settingsSecurite.app.emergencyLockDesc")}</p>
             </Button>
           </div>
         </CardContent>

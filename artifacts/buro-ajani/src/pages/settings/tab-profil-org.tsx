@@ -17,6 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useWorkspaceUser } from "@/components/workspace-user";
+import { useTranslation } from "@/i18n";
 
 interface OrgProfile {
   id: number;
@@ -46,41 +47,41 @@ interface OrgProfile {
   createdAt: string;
 }
 
-const WEEKDAYS: ReadonlyArray<{ value: number; label: string; short: string }> = [
-  { value: 1, label: "Lundi", short: "Lun" },
-  { value: 2, label: "Mardi", short: "Mar" },
-  { value: 3, label: "Mercredi", short: "Mer" },
-  { value: 4, label: "Jeudi", short: "Jeu" },
-  { value: 5, label: "Vendredi", short: "Ven" },
-  { value: 6, label: "Samedi", short: "Sam" },
-  { value: 7, label: "Dimanche", short: "Dim" },
+const WEEKDAYS: ReadonlyArray<{ value: number }> = [
+  { value: 1 },
+  { value: 2 },
+  { value: 3 },
+  { value: 4 },
+  { value: 5 },
+  { value: 6 },
+  { value: 7 },
 ];
 
-const TIMEZONE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
-  { value: "Europe/Paris", label: "Europe/Paris (France)" },
-  { value: "Europe/Brussels", label: "Europe/Bruxelles (Belgique)" },
-  { value: "Europe/Zurich", label: "Europe/Zurich (Suisse)" },
-  { value: "Europe/Luxembourg", label: "Europe/Luxembourg" },
-  { value: "Europe/London", label: "Europe/Londres (Royaume-Uni)" },
-  { value: "Europe/Madrid", label: "Europe/Madrid (Espagne)" },
-  { value: "Europe/Lisbon", label: "Europe/Lisbonne (Portugal)" },
-  { value: "Europe/Berlin", label: "Europe/Berlin (Allemagne)" },
-  { value: "Europe/Rome", label: "Europe/Rome (Italie)" },
-  { value: "Europe/Istanbul", label: "Europe/Istanbul (Turquie)" },
-  { value: "Africa/Casablanca", label: "Afrique/Casablanca (Maroc)" },
-  { value: "Africa/Algiers", label: "Afrique/Alger (Algérie)" },
-  { value: "Africa/Tunis", label: "Afrique/Tunis (Tunisie)" },
-  { value: "America/Montreal", label: "Amérique/Montréal (Québec)" },
-  { value: "UTC", label: "UTC (temps universel)" },
+const TIMEZONE_OPTIONS: ReadonlyArray<{ value: string }> = [
+  { value: "Europe/Paris" },
+  { value: "Europe/Brussels" },
+  { value: "Europe/Zurich" },
+  { value: "Europe/Luxembourg" },
+  { value: "Europe/London" },
+  { value: "Europe/Madrid" },
+  { value: "Europe/Lisbon" },
+  { value: "Europe/Berlin" },
+  { value: "Europe/Rome" },
+  { value: "Europe/Istanbul" },
+  { value: "Africa/Casablanca" },
+  { value: "Africa/Algiers" },
+  { value: "Africa/Tunis" },
+  { value: "America/Montreal" },
+  { value: "UTC" },
 ];
 
-const DURATION_OPTIONS: ReadonlyArray<{ value: number; label: string }> = [
-  { value: 15, label: "15 minutes" },
-  { value: 30, label: "30 minutes" },
-  { value: 45, label: "45 minutes" },
-  { value: 60, label: "1 heure" },
-  { value: 90, label: "1 h 30" },
-  { value: 120, label: "2 heures" },
+const DURATION_OPTIONS: ReadonlyArray<{ value: number }> = [
+  { value: 15 },
+  { value: 30 },
+  { value: 45 },
+  { value: 60 },
+  { value: 90 },
+  { value: 120 },
 ];
 
 function parseWorkingDays(value: string | null | undefined): number[] {
@@ -101,6 +102,7 @@ interface OrgClosure {
 }
 
 export function TabProfilOrg() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const { user } = useWorkspaceUser();
   const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
@@ -190,10 +192,10 @@ export function TabProfilOrg() {
             appointmentDurationMinutes: data.appointmentDurationMinutes || 30,
           });
         } else {
-          toast({ title: "Erreur", description: "Impossible de charger le profil.", variant: "destructive" });
+          toast({ title: t("settingsProfilOrg.toast.error"), description: t("settingsProfilOrg.toast.loadProfileError"), variant: "destructive" });
         }
       } catch {
-        toast({ title: "Erreur reseau", description: "Verifiez votre connexion.", variant: "destructive" });
+        toast({ title: t("settingsProfilOrg.toast.networkError"), description: t("settingsProfilOrg.toast.networkErrorDesc"), variant: "destructive" });
       } finally {
         setLoading(false);
       }
@@ -215,15 +217,15 @@ export function TabProfilOrg() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Profil mis à jour", description: "Les informations ont ete enregistrees." });
+        toast({ title: t("settingsProfilOrg.toast.profileUpdated"), description: t("settingsProfilOrg.toast.profileUpdatedDesc") });
         if (data.organisation) {
           setProfile((prev) => prev ? { ...prev, ...data.organisation } : prev);
         }
       } else {
-        toast({ title: "Erreur", description: data.error || "Echec de la mise a jour.", variant: "destructive" });
+        toast({ title: t("settingsProfilOrg.toast.error"), description: data.error || t("settingsProfilOrg.toast.updateError"), variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur reseau", description: "Verifiez votre connexion.", variant: "destructive" });
+      toast({ title: t("settingsProfilOrg.toast.networkError"), description: t("settingsProfilOrg.toast.networkErrorDesc"), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -242,19 +244,25 @@ export function TabProfilOrg() {
       const data = await res.json();
       if (res.ok) {
         if (data.inserted === 0) {
-          toast({ title: "Déjà à jour", description: `Les jours fériés ${year} sont déjà enregistrés.` });
+          toast({ title: t("settingsProfilOrg.toast.alreadyUpToDate"), description: t("settingsProfilOrg.toast.holidaysAlreadyDesc", { year }) });
         } else {
           toast({
-            title: `${data.inserted} jour${data.inserted > 1 ? "s" : ""} fér${data.inserted > 1 ? "iés" : "ié"} importé${data.inserted > 1 ? "s" : ""}`,
-            description: data.skipped > 0 ? `${data.skipped} déjà présent${data.skipped > 1 ? "s" : ""}.` : undefined,
+            title: data.inserted > 1
+              ? t("settingsProfilOrg.toast.holidaysImportedMany", { count: data.inserted })
+              : t("settingsProfilOrg.toast.holidaysImportedOne"),
+            description: data.skipped > 0
+              ? (data.skipped > 1
+                  ? t("settingsProfilOrg.toast.skippedMany", { count: data.skipped })
+                  : t("settingsProfilOrg.toast.skippedOne"))
+              : undefined,
           });
           await loadClosures();
         }
       } else {
-        toast({ title: "Erreur", description: data.error || "Impossible d'importer les jours feries.", variant: "destructive" });
+        toast({ title: t("settingsProfilOrg.toast.error"), description: data.error || t("settingsProfilOrg.toast.importHolidaysError"), variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur reseau", description: "Verifiez votre connexion.", variant: "destructive" });
+      toast({ title: t("settingsProfilOrg.toast.networkError"), description: t("settingsProfilOrg.toast.networkErrorDesc"), variant: "destructive" });
     } finally {
       setImportingHolidays(false);
     }
@@ -279,12 +287,12 @@ export function TabProfilOrg() {
         setClosures((prev) => [...prev, data as OrgClosure].sort((a, b) => a.dateStart.localeCompare(b.dateStart)));
         setNewClosure({ dateStart: "", dateEnd: "", label: "" });
         setShowClosureForm(false);
-        toast({ title: "Fermeture ajoutee", description: "La fermeture a ete enregistree." });
+        toast({ title: t("settingsProfilOrg.toast.closureAdded"), description: t("settingsProfilOrg.toast.closureAddedDesc") });
       } else {
-        toast({ title: "Erreur", description: data.error || "Impossible d'ajouter la fermeture.", variant: "destructive" });
+        toast({ title: t("settingsProfilOrg.toast.error"), description: data.error || t("settingsProfilOrg.toast.addClosureError"), variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur reseau", description: "Verifiez votre connexion.", variant: "destructive" });
+      toast({ title: t("settingsProfilOrg.toast.networkError"), description: t("settingsProfilOrg.toast.networkErrorDesc"), variant: "destructive" });
     } finally {
       setAddingClosure(false);
     }
@@ -299,13 +307,13 @@ export function TabProfilOrg() {
       });
       if (res.ok) {
         setClosures((prev) => prev.filter((c) => c.id !== id));
-        toast({ title: "Fermeture supprimee", description: "La fermeture a ete retiree." });
+        toast({ title: t("settingsProfilOrg.toast.closureDeleted"), description: t("settingsProfilOrg.toast.closureDeletedDesc") });
       } else {
         const data = await res.json();
-        toast({ title: "Erreur", description: data.error || "Impossible de supprimer.", variant: "destructive" });
+        toast({ title: t("settingsProfilOrg.toast.error"), description: data.error || t("settingsProfilOrg.toast.deleteError"), variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur reseau", description: "Verifiez votre connexion.", variant: "destructive" });
+      toast({ title: t("settingsProfilOrg.toast.networkError"), description: t("settingsProfilOrg.toast.networkErrorDesc"), variant: "destructive" });
     }
   };
 
@@ -330,10 +338,10 @@ export function TabProfilOrg() {
         <div>
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Building2 className="h-5 w-5 text-primary" />
-            Profil de l'organisation
+            {t("settingsProfilOrg.title")}
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Personnalisez les informations de votre espace de travail.
+            {t("settingsProfilOrg.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -343,7 +351,7 @@ export function TabProfilOrg() {
           {isAdmin && (
             <Button onClick={save} disabled={saving} size="sm">
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-              Enregistrer
+              {t("settingsProfilOrg.common.save")}
             </Button>
           )}
         </div>
@@ -353,33 +361,33 @@ export function TabProfilOrg() {
         <CardHeader className="pb-4">
           <CardTitle className="text-base flex items-center gap-2">
             <Building2 className="h-4 w-4 text-blue-500" />
-            Identite de l'organisation
+            {t("settingsProfilOrg.identity.title")}
           </CardTitle>
-          <CardDescription>Nom, logo et informations de contact.</CardDescription>
+          <CardDescription>{t("settingsProfilOrg.identity.desc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label htmlFor="name">Nom de l'organisation</Label>
+              <Label htmlFor="name">{t("settingsProfilOrg.identity.name")}</Label>
               <Input
                 id="name"
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 disabled={!isAdmin}
-                placeholder="Mon Entreprise SAS"
+                placeholder={t("settingsProfilOrg.placeholders.name")}
               />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="logo" className="flex items-center gap-1.5">
                 <ImageIcon className="h-3.5 w-3.5" />
-                URL du logo
+                {t("settingsProfilOrg.identity.logoUrl")}
               </Label>
               <Input
                 id="logo"
                 value={form.logo}
                 onChange={(e) => setForm((f) => ({ ...f, logo: e.target.value }))}
                 disabled={!isAdmin}
-                placeholder="https://exemple.com/logo.png"
+                placeholder={t("settingsProfilOrg.placeholders.logo")}
               />
             </div>
           </div>
@@ -388,13 +396,13 @@ export function TabProfilOrg() {
             <div className="flex items-center gap-4 p-3 rounded-lg border bg-muted/30">
               <img
                 src={form.logo}
-                alt="Logo apercu"
+                alt={t("settingsProfilOrg.identity.logoPreviewAlt")}
                 className="h-12 w-12 rounded-lg object-contain border bg-white"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
               />
               <div>
-                <p className="text-sm font-medium">Apercu du logo</p>
-                <p className="text-xs text-muted-foreground">Visible dans la barre laterale</p>
+                <p className="text-sm font-medium">{t("settingsProfilOrg.identity.logoPreviewTitle")}</p>
+                <p className="text-xs text-muted-foreground">{t("settingsProfilOrg.identity.logoPreviewHint")}</p>
               </div>
             </div>
           )}
@@ -403,7 +411,7 @@ export function TabProfilOrg() {
             <div className="space-y-1.5">
               <Label htmlFor="email" className="flex items-center gap-1.5">
                 <Mail className="h-3.5 w-3.5" />
-                Email de contact
+                {t("settingsProfilOrg.identity.email")}
               </Label>
               <Input
                 id="email"
@@ -411,20 +419,20 @@ export function TabProfilOrg() {
                 value={form.email}
                 onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                 disabled={!isAdmin}
-                placeholder="contact@monentreprise.fr"
+                placeholder={t("settingsProfilOrg.placeholders.email")}
               />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="phone" className="flex items-center gap-1.5">
                 <Phone className="h-3.5 w-3.5" />
-                Telephone
+                {t("settingsProfilOrg.identity.phone")}
               </Label>
               <Input
                 id="phone"
                 value={form.phone}
                 onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                 disabled={!isAdmin}
-                placeholder="+33 1 23 45 67 89"
+                placeholder={t("settingsProfilOrg.placeholders.phone")}
               />
             </div>
           </div>
@@ -432,14 +440,14 @@ export function TabProfilOrg() {
           <div className="space-y-1.5">
             <Label htmlFor="address" className="flex items-center gap-1.5">
               <MapPin className="h-3.5 w-3.5" />
-              Adresse
+              {t("settingsProfilOrg.identity.address")}
             </Label>
             <Textarea
               id="address"
               value={form.address}
               onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
               disabled={!isAdmin}
-              placeholder="123 Rue de la Paix, 75001 Paris"
+              placeholder={t("settingsProfilOrg.placeholders.address")}
               rows={2}
             />
           </div>
@@ -450,23 +458,23 @@ export function TabProfilOrg() {
         <CardHeader className="pb-4">
           <CardTitle className="text-base flex items-center gap-2">
             <Bot className="h-4 w-4 text-violet-500" />
-            Agent IA
+            {t("settingsProfilOrg.ai.title")}
           </CardTitle>
-          <CardDescription>Personnalisez le nom de votre agent IA pour vos appels et interactions.</CardDescription>
+          <CardDescription>{t("settingsProfilOrg.ai.desc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="aiAgentName">Nom de l'agent IA</Label>
+            <Label htmlFor="aiAgentName">{t("settingsProfilOrg.ai.nameLabel")}</Label>
             <Input
               id="aiAgentName"
               value={form.aiAgentName}
               onChange={(e) => setForm((f) => ({ ...f, aiAgentName: e.target.value }))}
               disabled={!isAdmin}
-              placeholder="Sophie Marchand"
+              placeholder={t("settingsProfilOrg.placeholders.aiAgentName")}
             />
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <Info className="h-3 w-3" />
-              Ce nom sera utilise lors des appels automatises et des reponses IA.
+              {t("settingsProfilOrg.ai.hint")}
             </p>
           </div>
         </CardContent>
@@ -476,16 +484,15 @@ export function TabProfilOrg() {
         <CardHeader className="pb-4">
           <CardTitle className="text-base flex items-center gap-2">
             <CalendarClock className="h-4 w-4 text-indigo-500" />
-            Horaires d'ouverture
+            {t("settingsProfilOrg.hours.title")}
           </CardTitle>
           <CardDescription>
-            Definissent les creneaux de rendez-vous proposes et les disponibilites
-            utilisees par le standard vocal IA.
+            {t("settingsProfilOrg.hours.desc")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Jours d'ouverture</Label>
+            <Label>{t("settingsProfilOrg.hours.daysLabel")}</Label>
             <div className="flex flex-wrap gap-2">
               {WEEKDAYS.map((day) => {
                 const active = form.workingDays.includes(day.value);
@@ -509,15 +516,15 @@ export function TabProfilOrg() {
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-input bg-background hover:bg-muted"
                     }`}
-                    title={day.label}
+                    title={t(`settingsProfilOrg.weekdays.${day.value}.label`)}
                   >
-                    {day.short}
+                    {t(`settingsProfilOrg.weekdays.${day.value}.short`)}
                   </button>
                 );
               })}
             </div>
             <p className="text-xs text-muted-foreground">
-              Selectionnez les jours ou votre entreprise prend des rendez-vous.
+              {t("settingsProfilOrg.hours.daysHint")}
             </p>
           </div>
 
@@ -527,7 +534,7 @@ export function TabProfilOrg() {
             <div className="space-y-1.5">
               <Label htmlFor="workingHoursStart" className="flex items-center gap-1.5">
                 <Clock className="h-3.5 w-3.5" />
-                Heure d'ouverture
+                {t("settingsProfilOrg.hours.openTime")}
               </Label>
               <Input
                 id="workingHoursStart"
@@ -540,7 +547,7 @@ export function TabProfilOrg() {
             <div className="space-y-1.5">
               <Label htmlFor="workingHoursEnd" className="flex items-center gap-1.5">
                 <Clock className="h-3.5 w-3.5" />
-                Heure de fermeture
+                {t("settingsProfilOrg.hours.closeTime")}
               </Label>
               <Input
                 id="workingHoursEnd"
@@ -556,23 +563,23 @@ export function TabProfilOrg() {
             <div className="space-y-1.5">
               <Label htmlFor="appointmentTimezone" className="flex items-center gap-1.5">
                 <Globe className="h-3.5 w-3.5" />
-                Fuseau horaire
+                {t("settingsProfilOrg.hours.timezone")}
               </Label>
               <Select
                 value={form.appointmentTimezone}
                 onValueChange={(v) => isAdmin && setForm((f) => ({ ...f, appointmentTimezone: v }))}
                 disabled={!isAdmin}
               >
-                <SelectTrigger id="appointmentTimezone" aria-label="Fuseau horaire">
+                <SelectTrigger id="appointmentTimezone" aria-label={t("settingsProfilOrg.hours.timezone")}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {TIMEZONE_OPTIONS.some((t) => t.value === form.appointmentTimezone) ? null : (
+                  {TIMEZONE_OPTIONS.some((tz) => tz.value === form.appointmentTimezone) ? null : (
                     <SelectItem value={form.appointmentTimezone}>{form.appointmentTimezone}</SelectItem>
                   )}
                   {TIMEZONE_OPTIONS.map((tz) => (
                     <SelectItem key={tz.value} value={tz.value}>
-                      {tz.label}
+                      {t(`settingsProfilOrg.timezones.${tz.value}`)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -581,25 +588,25 @@ export function TabProfilOrg() {
             <div className="space-y-1.5">
               <Label htmlFor="appointmentDurationMinutes" className="flex items-center gap-1.5">
                 <CalendarClock className="h-3.5 w-3.5" />
-                Duree par defaut d'un rendez-vous
+                {t("settingsProfilOrg.hours.duration")}
               </Label>
               <Select
                 value={String(form.appointmentDurationMinutes)}
                 onValueChange={(v) => isAdmin && setForm((f) => ({ ...f, appointmentDurationMinutes: Number(v) }))}
                 disabled={!isAdmin}
               >
-                <SelectTrigger id="appointmentDurationMinutes" aria-label="Duree par defaut d'un rendez-vous">
+                <SelectTrigger id="appointmentDurationMinutes" aria-label={t("settingsProfilOrg.hours.duration")}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {DURATION_OPTIONS.some((d) => d.value === form.appointmentDurationMinutes) ? null : (
                     <SelectItem value={String(form.appointmentDurationMinutes)}>
-                      {form.appointmentDurationMinutes} minutes
+                      {t("settingsProfilOrg.hours.durationMinutes", { count: form.appointmentDurationMinutes })}
                     </SelectItem>
                   )}
                   {DURATION_OPTIONS.map((d) => (
                     <SelectItem key={d.value} value={String(d.value)}>
-                      {d.label}
+                      {t(`settingsProfilOrg.durations.${d.value}`)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -609,8 +616,7 @@ export function TabProfilOrg() {
 
           <p className="text-xs text-muted-foreground flex items-start gap-1.5">
             <Info className="h-3 w-3 mt-0.5 shrink-0" />
-            Ces reglages s'appliquent immediatement au calcul des creneaux libres et
-            aux disponibilites annoncees par l'assistant telephonique.
+            {t("settingsProfilOrg.hours.hint")}
           </p>
         </CardContent>
       </Card>
@@ -619,21 +625,20 @@ export function TabProfilOrg() {
         <CardHeader className="pb-4">
           <CardTitle className="text-base flex items-center gap-2">
             <CalendarOff className="h-4 w-4 text-orange-500" />
-            Fermetures exceptionnelles
+            {t("settingsProfilOrg.closures.title")}
           </CardTitle>
           <CardDescription>
-            Jours feries, conges et fermetures ponctuelles. Aucun creneau ne sera
-            propose sur ces dates par le moteur de disponibilites ni par l'assistant vocal.
+            {t("settingsProfilOrg.closures.desc")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {closuresLoading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Chargement...
+              {t("settingsProfilOrg.closures.loading")}
             </div>
           ) : closures.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aucune fermeture enregistree.</p>
+            <p className="text-sm text-muted-foreground">{t("settingsProfilOrg.closures.empty")}</p>
           ) : (
             <ul className="space-y-2">
               {closures.map((c) => (
@@ -659,7 +664,7 @@ export function TabProfilOrg() {
                       type="button"
                       onClick={() => deleteClosure(c.id)}
                       className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                      aria-label="Supprimer cette fermeture"
+                      aria-label={t("settingsProfilOrg.closures.deleteAria")}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -674,7 +679,7 @@ export function TabProfilOrg() {
               {showClosureForm ? (
                 <div className="rounded-md border bg-muted/20 p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium">Ajouter une fermeture</p>
+                    <p className="text-sm font-medium">{t("settingsProfilOrg.closures.add")}</p>
                     <button
                       type="button"
                       onClick={() => { setShowClosureForm(false); setNewClosure({ dateStart: "", dateEnd: "", label: "" }); }}
@@ -685,7 +690,7 @@ export function TabProfilOrg() {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label htmlFor="closureDateStart">Date de debut</Label>
+                      <Label htmlFor="closureDateStart">{t("settingsProfilOrg.closures.dateStart")}</Label>
                       <Input
                         id="closureDateStart"
                         type="date"
@@ -695,8 +700,8 @@ export function TabProfilOrg() {
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="closureDateEnd">
-                        Date de fin{" "}
-                        <span className="text-muted-foreground font-normal">(optionnelle)</span>
+                        {t("settingsProfilOrg.closures.dateEnd")}{" "}
+                        <span className="text-muted-foreground font-normal">{t("settingsProfilOrg.closures.optional")}</span>
                       </Label>
                       <Input
                         id="closureDateEnd"
@@ -709,14 +714,14 @@ export function TabProfilOrg() {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="closureLabel">
-                      Description{" "}
-                      <span className="text-muted-foreground font-normal">(optionnelle)</span>
+                      {t("settingsProfilOrg.closures.description")}{" "}
+                      <span className="text-muted-foreground font-normal">{t("settingsProfilOrg.closures.optional")}</span>
                     </Label>
                     <Input
                       id="closureLabel"
                       value={newClosure.label}
                       onChange={(e) => setNewClosure((n) => ({ ...n, label: e.target.value }))}
-                      placeholder="Ex : Fete nationale, Conges ete..."
+                      placeholder={t("settingsProfilOrg.closures.labelPlaceholder")}
                     />
                   </div>
                   <div className="flex gap-2">
@@ -727,7 +732,7 @@ export function TabProfilOrg() {
                       disabled={addingClosure || !newClosure.dateStart}
                     >
                       {addingClosure ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-                      Enregistrer
+                      {t("settingsProfilOrg.common.save")}
                     </Button>
                     <Button
                       type="button"
@@ -735,7 +740,7 @@ export function TabProfilOrg() {
                       size="sm"
                       onClick={() => { setShowClosureForm(false); setNewClosure({ dateStart: "", dateEnd: "", label: "" }); }}
                     >
-                      Annuler
+                      {t("settingsProfilOrg.common.cancel")}
                     </Button>
                   </div>
                 </div>
@@ -748,14 +753,14 @@ export function TabProfilOrg() {
                     onClick={() => setShowClosureForm(true)}
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Ajouter une fermeture
+                    {t("settingsProfilOrg.closures.add")}
                   </Button>
                   <div className="flex items-center gap-1.5">
                     <Select
                       value={String(importYear)}
                       onValueChange={(v) => setImportYear(Number(v))}
                     >
-                      <SelectTrigger className="h-9 w-24 text-sm" aria-label="Annee des jours feries">
+                      <SelectTrigger className="h-9 w-24 text-sm" aria-label={t("settingsProfilOrg.closures.importAria")}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -774,7 +779,7 @@ export function TabProfilOrg() {
                       {importingHolidays
                         ? <Loader2 className="h-4 w-4 animate-spin mr-2" />
                         : <Download className="h-4 w-4 mr-2" />}
-                      Importer jours fériés {importYear}
+                      {t("settingsProfilOrg.closures.import", { year: importYear })}
                     </Button>
                   </div>
                 </div>
@@ -788,50 +793,50 @@ export function TabProfilOrg() {
         <CardHeader className="pb-4">
           <CardTitle className="text-base flex items-center gap-2">
             <FileText className="h-4 w-4 text-amber-500" />
-            Informations legales
+            {t("settingsProfilOrg.legal.title")}
           </CardTitle>
-          <CardDescription>SIRET, TVA, forme juridique — utilises sur les factures.</CardDescription>
+          <CardDescription>{t("settingsProfilOrg.legal.desc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label htmlFor="siret">Numero SIRET</Label>
+              <Label htmlFor="siret">{t("settingsProfilOrg.legal.siret")}</Label>
               <Input
                 id="siret"
                 value={form.siret}
                 onChange={(e) => setForm((f) => ({ ...f, siret: e.target.value }))}
                 disabled={!isAdmin}
-                placeholder="123 456 789 00012"
+                placeholder={t("settingsProfilOrg.placeholders.siret")}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="tvaNumber">Numero de TVA intracommunautaire</Label>
+              <Label htmlFor="tvaNumber">{t("settingsProfilOrg.legal.tva")}</Label>
               <Input
                 id="tvaNumber"
                 value={form.tvaNumber}
                 onChange={(e) => setForm((f) => ({ ...f, tvaNumber: e.target.value }))}
                 disabled={!isAdmin}
-                placeholder="FR 12 345678901"
+                placeholder={t("settingsProfilOrg.placeholders.tva")}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="legalForm">Forme juridique</Label>
+              <Label htmlFor="legalForm">{t("settingsProfilOrg.legal.legalForm")}</Label>
               <Input
                 id="legalForm"
                 value={form.legalForm}
                 onChange={(e) => setForm((f) => ({ ...f, legalForm: e.target.value }))}
                 disabled={!isAdmin}
-                placeholder="SAS, SARL, EI..."
+                placeholder={t("settingsProfilOrg.placeholders.legalForm")}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="capital">Capital social</Label>
+              <Label htmlFor="capital">{t("settingsProfilOrg.legal.capital")}</Label>
               <Input
                 id="capital"
                 value={form.capital}
                 onChange={(e) => setForm((f) => ({ ...f, capital: e.target.value }))}
                 disabled={!isAdmin}
-                placeholder="10 000 €"
+                placeholder={t("settingsProfilOrg.placeholders.capital")}
               />
             </div>
           </div>
@@ -839,13 +844,13 @@ export function TabProfilOrg() {
           <Separator />
 
           <div className="space-y-1.5">
-            <Label htmlFor="invoiceFooter">Pied de page des factures</Label>
+            <Label htmlFor="invoiceFooter">{t("settingsProfilOrg.legal.invoiceFooter")}</Label>
             <Textarea
               id="invoiceFooter"
               value={form.invoiceFooter}
               onChange={(e) => setForm((f) => ({ ...f, invoiceFooter: e.target.value }))}
               disabled={!isAdmin}
-              placeholder="Paiement a 30 jours. En cas de retard, penalites de 3 fois le taux directeur BCE."
+              placeholder={t("settingsProfilOrg.placeholders.invoiceFooter")}
               rows={3}
             />
           </div>
@@ -856,40 +861,40 @@ export function TabProfilOrg() {
         <CardHeader className="pb-4">
           <CardTitle className="text-base flex items-center gap-2">
             <Landmark className="h-4 w-4 text-emerald-500" />
-            Informations bancaires
+            {t("settingsProfilOrg.bank.title")}
           </CardTitle>
-          <CardDescription>Coordonnees bancaires pour vos factures et paiements.</CardDescription>
+          <CardDescription>{t("settingsProfilOrg.bank.desc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-1.5">
-              <Label htmlFor="bankName">Banque</Label>
+              <Label htmlFor="bankName">{t("settingsProfilOrg.bank.bank")}</Label>
               <Input
                 id="bankName"
                 value={form.bankName}
                 onChange={(e) => setForm((f) => ({ ...f, bankName: e.target.value }))}
                 disabled={!isAdmin}
-                placeholder="BNP Paribas"
+                placeholder={t("settingsProfilOrg.placeholders.bankName")}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="bankIban">IBAN</Label>
+              <Label htmlFor="bankIban">{t("settingsProfilOrg.bank.iban")}</Label>
               <Input
                 id="bankIban"
                 value={form.bankIban}
                 onChange={(e) => setForm((f) => ({ ...f, bankIban: e.target.value }))}
                 disabled={!isAdmin}
-                placeholder="FR76 3000 6000 0112 3456 7890 189"
+                placeholder={t("settingsProfilOrg.placeholders.iban")}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="bankBic">BIC / SWIFT</Label>
+              <Label htmlFor="bankBic">{t("settingsProfilOrg.bank.bic")}</Label>
               <Input
                 id="bankBic"
                 value={form.bankBic}
                 onChange={(e) => setForm((f) => ({ ...f, bankBic: e.target.value }))}
                 disabled={!isAdmin}
-                placeholder="BNPAFRPP"
+                placeholder={t("settingsProfilOrg.placeholders.bic")}
               />
             </div>
           </div>
@@ -900,15 +905,15 @@ export function TabProfilOrg() {
         <CardHeader className="pb-4">
           <CardTitle className="text-base flex items-center gap-2">
             <Receipt className="h-4 w-4 text-sky-500" />
-            Facturation automatique
+            {t("settingsProfilOrg.invoicing.title")}
           </CardTitle>
-          <CardDescription>Configuration de la generation automatique des factures.</CardDescription>
+          <CardDescription>{t("settingsProfilOrg.invoicing.desc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium">Generer les factures automatiquement</p>
-              <p className="text-xs text-muted-foreground">Cree une facture a chaque renouvellement d'abonnement.</p>
+              <p className="text-sm font-medium">{t("settingsProfilOrg.invoicing.autoGenerate")}</p>
+              <p className="text-xs text-muted-foreground">{t("settingsProfilOrg.invoicing.autoGenerateHint")}</p>
             </div>
             <Switch
               checked={form.autoInvoiceEnabled}
@@ -919,8 +924,8 @@ export function TabProfilOrg() {
           <Separator />
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium">Envoyer les factures par email</p>
-              <p className="text-xs text-muted-foreground">Envoie automatiquement les factures a l'adresse de contact.</p>
+              <p className="text-sm font-medium">{t("settingsProfilOrg.invoicing.autoEmail")}</p>
+              <p className="text-xs text-muted-foreground">{t("settingsProfilOrg.invoicing.autoEmailHint")}</p>
             </div>
             <Switch
               checked={form.autoEmailInvoice}
@@ -935,27 +940,23 @@ export function TabProfilOrg() {
         <CardHeader className="pb-4">
           <CardTitle className="text-base flex items-center gap-2">
             <ScanLine className="h-4 w-4 text-rose-500" />
-            Capture automatique des recus
+            {t("settingsProfilOrg.receipts.title")}
           </CardTitle>
-          <CardDescription>Analyse IA des justificatifs de depense importes ou recus par email.</CardDescription>
+          <CardDescription>{t("settingsProfilOrg.receipts.desc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between gap-4">
             <div className="space-y-0.5">
-              <p className="text-sm font-medium">Analyser automatiquement les recus et factures</p>
+              <p className="text-sm font-medium">{t("settingsProfilOrg.receipts.autoAnalyze")}</p>
               <p className="text-xs text-muted-foreground">
-                Lorsque cette option est activee, chaque fichier eligible importe ou recu par
-                email (recu, facture fournisseur, justificatif) est analyse par l'IA pour en
-                extraire la depense automatiquement. Pratique, mais chaque analyse consomme du
-                quota IA. Desactivez cette option pour economiser votre quota : vous pourrez
-                toujours lancer l'analyse manuellement quand vous le souhaitez.
+                {t("settingsProfilOrg.receipts.autoAnalyzeHint")}
               </p>
             </div>
             <Switch
               checked={form.expenseAutoCaptureEnabled}
               onCheckedChange={(v) => isAdmin && setForm((f) => ({ ...f, expenseAutoCaptureEnabled: v }))}
               disabled={!isAdmin}
-              aria-label="Activer la capture automatique des recus"
+              aria-label={t("settingsProfilOrg.receipts.switchAria")}
             />
           </div>
         </CardContent>
@@ -963,7 +964,7 @@ export function TabProfilOrg() {
 
       <div className="text-xs text-muted-foreground flex items-center gap-1.5 pb-2">
         <Globe className="h-3.5 w-3.5" />
-        Organisation creee le {new Date(profile.createdAt).toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" })}
+        {t("settingsProfilOrg.createdOn", { date: new Date(profile.createdAt).toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" }) })}
       </div>
     </div>
   );

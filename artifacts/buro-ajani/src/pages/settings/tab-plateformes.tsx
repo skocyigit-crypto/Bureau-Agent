@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useWorkspaceUser } from "@/components/workspace-user";
+import { useTranslation } from "@/i18n";
 
 interface GoogleService {
   id: string;
@@ -187,6 +188,7 @@ const SECURITY_BASE = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/securi
 
 export function TabPlateformes() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const { user } = useWorkspaceUser();
   const isSuperAdmin = user?.role === "super_admin";
 
@@ -277,7 +279,7 @@ export function TabPlateformes() {
       setCopiedUri(true);
       setTimeout(() => setCopiedUri(false), 2000);
     } catch {
-      toast({ title: "Copie impossible", description: googleRedirectUri });
+      toast({ title: t("settingsPlateformes.toasts.copyFailed"), description: googleRedirectUri });
     }
   };
 
@@ -287,24 +289,24 @@ export function TabPlateformes() {
       const res = await fetch(`${GOOGLE_OAUTH_BASE}/auth-url`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ services }) });
       const data = await res.json();
       if (!res.ok) {
-        toast({ title: "Connexion impossible", description: "Veuillez reessayer dans un instant.", variant: "destructive" });
+        toast({ title: t("settingsPlateformes.toasts.connectFailed"), description: t("settingsPlateformes.toasts.retryMoment"), variant: "destructive" });
         return;
       }
       if (data.authUrl && (data.authUrl.startsWith("https://accounts.google.com/") || data.authUrl.startsWith("https://www.googleapis.com/"))) {
         window.location.href = data.authUrl;
       } else {
-        toast({ title: "Erreur", description: "La connexion n'a pas abouti. Veuillez réessayer.", variant: "destructive" });
+        toast({ title: t("settingsPlateformes.toasts.error"), description: t("settingsPlateformes.toasts.connectionNotCompleted"), variant: "destructive" });
       }
-    } catch { toast({ title: "Erreur", description: "Erreur reseau.", variant: "destructive" }); }
+    } catch { toast({ title: t("settingsPlateformes.toasts.error"), description: t("settingsPlateformes.toasts.networkError"), variant: "destructive" }); }
     finally { setGoogleConnecting(false); }
   };
 
   const handleGoogleOAuthDisconnect = async () => {
     try {
       const res = await fetch(`${GOOGLE_OAUTH_BASE}/disconnect`, { method: "POST", credentials: "include" });
-      if (res.ok) { toast({ title: "Google déconnecté", description: "Votre compte Google a ete déconnecté." }); setGoogleOAuthAuthenticated(false); await fetchPlatforms(); }
-      else { toast({ title: "Erreur", description: "Impossible de déconnectér Google.", variant: "destructive" }); }
-    } catch { toast({ title: "Erreur", description: "Erreur reseau.", variant: "destructive" }); }
+      if (res.ok) { toast({ title: t("settingsPlateformes.toasts.googleDisconnected"), description: t("settingsPlateformes.toasts.googleDisconnectedDesc") }); setGoogleOAuthAuthenticated(false); await fetchPlatforms(); }
+      else { toast({ title: t("settingsPlateformes.toasts.error"), description: t("settingsPlateformes.toasts.googleDisconnectFailed"), variant: "destructive" }); }
+    } catch { toast({ title: t("settingsPlateformes.toasts.error"), description: t("settingsPlateformes.toasts.networkError"), variant: "destructive" }); }
   };
 
   const handleConnect = async (serviceId: string, serviceName: string) => {
@@ -315,9 +317,9 @@ export function TabPlateformes() {
       const isConnected = currentService?.status === "connecté";
       const endpoint = isConnected ? "disconnect" : "connect";
       const res = await fetch(`${API_BASE}/${endpoint}/${activePlatform}/${serviceId}`, { method: "POST" });
-      if (res.ok) { toast({ title: isConnected ? "Service déconnecté" : "Service connecté", description: isConnected ? `${serviceName} a ete déconnecté.` : `${serviceName} a ete connecté avec succes.` }); await fetchPlatforms(); }
-      else { toast({ title: "Erreur", description: "Impossible de modifier la connexion.", variant: "destructive" }); }
-    } catch { toast({ title: "Erreur", description: "Erreur reseau.", variant: "destructive" }); }
+      if (res.ok) { toast({ title: isConnected ? t("settingsPlateformes.toasts.serviceDisconnected") : t("settingsPlateformes.toasts.serviceConnected"), description: isConnected ? t("settingsPlateformes.toasts.serviceDisconnectedDesc", { name: serviceName }) : t("settingsPlateformes.toasts.serviceConnectedDesc", { name: serviceName }) }); await fetchPlatforms(); }
+      else { toast({ title: t("settingsPlateformes.toasts.error"), description: t("settingsPlateformes.toasts.connectionChangeFailed"), variant: "destructive" }); }
+    } catch { toast({ title: t("settingsPlateformes.toasts.error"), description: t("settingsPlateformes.toasts.networkError"), variant: "destructive" }); }
     finally { setConnectingService(null); }
   };
 
@@ -328,11 +330,11 @@ export function TabPlateformes() {
       const allConnected = currentPlatform && currentPlatform.connectedCount === currentPlatform.totalServices;
       const endpoint = allConnected ? "disconnect-all" : "connect-all";
       const res = await fetch(`${API_BASE}/${endpoint}/${activePlatform}`, { method: "POST" });
-      if (!res.ok) { const errData = await res.json().catch(() => null); toast({ title: "Erreur", description: errData?.error || "Impossible de modifier les connexions.", variant: "destructive" }); return; }
+      if (!res.ok) { const errData = await res.json().catch(() => null); toast({ title: t("settingsPlateformes.toasts.error"), description: errData?.error || t("settingsPlateformes.toasts.connectionsChangeFailed"), variant: "destructive" }); return; }
       const data = await res.json();
-      toast({ title: allConnected ? "Tous deconnectés" : "Tous connectés", description: data.message });
+      toast({ title: allConnected ? t("settingsPlateformes.toasts.allDisconnected") : t("settingsPlateformes.toasts.allConnected"), description: data.message });
       await fetchPlatforms();
-    } catch { toast({ title: "Erreur", description: "Erreur reseau.", variant: "destructive" }); }
+    } catch { toast({ title: t("settingsPlateformes.toasts.error"), description: t("settingsPlateformes.toasts.networkError"), variant: "destructive" }); }
     finally { setConnectingAll(null); }
   };
 
@@ -340,11 +342,11 @@ export function TabPlateformes() {
     setSyncingPlatform(activePlatform);
     try {
       const res = await fetch(`${API_BASE}/sync/${activePlatform}`, { method: "POST" });
-      if (!res.ok) { const errData = await res.json().catch(() => null); toast({ title: "Erreur", description: errData?.error || "Echec de la synchronisation.", variant: "destructive" }); return; }
+      if (!res.ok) { const errData = await res.json().catch(() => null); toast({ title: t("settingsPlateformes.toasts.error"), description: errData?.error || t("settingsPlateformes.toasts.syncFailed"), variant: "destructive" }); return; }
       const data = await res.json();
-      toast({ title: "Synchronisation terminee", description: data.message });
+      toast({ title: t("settingsPlateformes.toasts.syncDone"), description: data.message });
       await fetchPlatforms();
-    } catch { toast({ title: "Erreur", description: "Erreur de synchronisation.", variant: "destructive" }); }
+    } catch { toast({ title: t("settingsPlateformes.toasts.error"), description: t("settingsPlateformes.toasts.syncError"), variant: "destructive" }); }
     finally { setSyncingPlatform(null); }
   };
 
@@ -360,12 +362,12 @@ export function TabPlateformes() {
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30"><Zap className="w-5 h-5 text-emerald-600" /></div>
               <div>
-                <p className="font-semibold text-sm text-emerald-800 dark:text-emerald-300">{totalConnected} service{totalConnected > 1 ? "s" : ""} connecté{totalConnected > 1 ? "s" : ""} au total</p>
+                <p className="font-semibold text-sm text-emerald-800 dark:text-emerald-300">{t("settingsPlateformes.summary.total", { count: totalConnected })}</p>
                 <p className="text-[11px] text-emerald-600 dark:text-emerald-400">{platformsData.filter(p => p.connectedCount > 0).map(p => `${p.name}: ${p.connectedCount}/${p.totalServices}`).join(" | ")}</p>
               </div>
             </div>
             <Button variant="outline" size="sm" className="text-xs" onClick={() => { setShowLogs(!showLogs); if (!showLogs) fetchLogs(); }}>
-              <History className="w-3.5 h-3.5 mr-1.5" />{showLogs ? "Masquer" : "Journal"}
+              <History className="w-3.5 h-3.5 mr-1.5" />{showLogs ? t("settingsPlateformes.summary.hide") : t("settingsPlateformes.summary.journal")}
             </Button>
           </div>
         </div>
@@ -373,7 +375,7 @@ export function TabPlateformes() {
 
       {showLogs && syncLogs.length > 0 && (
         <Card>
-          <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-2"><History className="w-4 h-4" /> Journal des connexions</CardTitle></CardHeader>
+          <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-2"><History className="w-4 h-4" /> {t("settingsPlateformes.summary.logsTitle")}</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {syncLogs.slice(0, 20).map(log => (
@@ -406,7 +408,7 @@ export function TabPlateformes() {
               {connCount > 0 && <div className="absolute top-2 right-2"><Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-[9px]">{connCount}/{plat.services.length}</Badge></div>}
               <div className="flex items-center gap-3 mb-2">
                 <div className={`p-2 rounded-lg ${iconBg}`}><plat.icon className={`w-5 h-5 ${iconColor}`} /></div>
-                <div><h3 className="font-semibold text-sm">{plat.name}</h3><p className="text-[10px] text-muted-foreground">{connCount > 0 ? `${connCount} connecté${connCount > 1 ? "s" : ""}` : `${plat.services.length} services`}</p></div>
+                <div><h3 className="font-semibold text-sm">{plat.name}</h3><p className="text-[10px] text-muted-foreground">{connCount > 0 ? t("settingsPlateformes.platform.connected", { count: connCount }) : t("settingsPlateformes.platform.services", { count: plat.services.length })}</p></div>
               </div>
               <div className="flex items-center gap-2 mt-2">
                 {plat.badges.map(b => <Badge key={b} variant="outline" className="text-[10px]">{b}</Badge>)}
@@ -425,43 +427,43 @@ export function TabPlateformes() {
                 {activePlatform === "google" && <Globe className="w-5 h-5 text-blue-600" />}
                 {activePlatform === "microsoft" && <AppWindow className="w-5 h-5 text-[#0078D4]" />}
                 {activePlatform === "apple" && <Smartphone className="w-5 h-5 text-gray-800 dark:text-gray-200" />}
-                {activePlatform === "google" && "Google Workspace - Toutes les applications"}
-                {activePlatform === "microsoft" && "Microsoft 365 - Toutes les applications"}
-                {activePlatform === "apple" && "Apple / iCloud - Toutes les applications"}
+                {activePlatform === "google" && t("settingsPlateformes.header.googleTitle")}
+                {activePlatform === "microsoft" && t("settingsPlateformes.header.microsoftTitle")}
+                {activePlatform === "apple" && t("settingsPlateformes.header.appleTitle")}
               </CardTitle>
               <CardDescription className="mt-1">
-                {activePlatform === "google" && "L'agent est compatible avec l'ensemble de l'ecosysteme Google. Connectez chaque service pour une intégration complete."}
-                {activePlatform === "microsoft" && "Intégration complete avec Microsoft 365. Connectez Outlook, Teams, OneDrive et tous les outils de productivite Microsoft."}
-                {activePlatform === "apple" && "Compatibilite avec l'ecosysteme Apple. Synchronisez iCloud, Calendrier, Contacts et tous les services Apple professionnels."}
+                {activePlatform === "google" && t("settingsPlateformes.header.googleDesc")}
+                {activePlatform === "microsoft" && t("settingsPlateformes.header.microsoftDesc")}
+                {activePlatform === "apple" && t("settingsPlateformes.header.appleDesc")}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
               {currentPlatformData && currentPlatformData.connectedCount > 0 && (
                 <Button variant="outline" size="sm" className="text-xs" onClick={handleSync} disabled={syncingPlatform !== null}>
-                  {syncingPlatform === activePlatform ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1.5" />}Synchroniser
+                  {syncingPlatform === activePlatform ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1.5" />}{t("settingsPlateformes.header.sync")}
                 </Button>
               )}
               {activePlatform === "google" ? (
                 googleOAuthAuthenticated ? (
-                  <Button variant="outline" size="sm" className="text-xs" onClick={handleGoogleOAuthDisconnect}><Unplug className="w-3.5 h-3.5 mr-1.5" />Déconnecter Google</Button>
+                  <Button variant="outline" size="sm" className="text-xs" onClick={handleGoogleOAuthDisconnect}><Unplug className="w-3.5 h-3.5 mr-1.5" />{t("settingsPlateformes.header.disconnectGoogle")}</Button>
                 ) : (
                   <Button variant="default" size="sm" className="text-xs" onClick={() => handleGoogleOAuthConnect()} disabled={googleConnecting}>
-                    {googleConnecting ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Plug className="w-3.5 h-3.5 mr-1.5" />}Se connecter avec Google
+                    {googleConnecting ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Plug className="w-3.5 h-3.5 mr-1.5" />}{t("settingsPlateformes.header.connectGoogle")}
                   </Button>
                 )
               ) : (
                 <Button variant={currentPlatformData && currentPlatformData.connectedCount === currentPlatformData.totalServices ? "outline" : "default"} size="sm" className="text-xs" onClick={handleConnectAll} disabled={connectingAll !== null}>
                   {connectingAll === activePlatform ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : currentPlatformData && currentPlatformData.connectedCount === currentPlatformData.totalServices ? <Unplug className="w-3.5 h-3.5 mr-1.5" /> : <Plug className="w-3.5 h-3.5 mr-1.5" />}
-                  {currentPlatformData && currentPlatformData.connectedCount === currentPlatformData.totalServices ? "Tout déconnectér" : "Tout connecter"}
+                  {currentPlatformData && currentPlatformData.connectedCount === currentPlatformData.totalServices ? t("settingsPlateformes.header.disconnectAll") : t("settingsPlateformes.header.connectAll")}
                 </Button>
               )}
             </div>
           </div>
           {currentPlatformData && currentPlatformData.connectedCount > 0 && (
             <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />{currentPlatformData.connectedCount} connecté{currentPlatformData.connectedCount > 1 ? "s" : ""}</span>
-              <span className="flex items-center gap-1.5"><XCircle className="w-3.5 h-3.5 text-muted-foreground" />{currentPlatformData.totalServices - currentPlatformData.connectedCount} non connecté{(currentPlatformData.totalServices - currentPlatformData.connectedCount) > 1 ? "s" : ""}</span>
-              {currentPlatformData.lastSync && <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" />Derniere sync: {new Date(currentPlatformData.lastSync).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>}
+              <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />{t("settingsPlateformes.header.connectedCount", { count: currentPlatformData.connectedCount })}</span>
+              <span className="flex items-center gap-1.5"><XCircle className="w-3.5 h-3.5 text-muted-foreground" />{t("settingsPlateformes.header.notConnectedCount", { count: currentPlatformData.totalServices - currentPlatformData.connectedCount })}</span>
+              {currentPlatformData.lastSync && <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" />{t("settingsPlateformes.header.lastSync", { date: new Date(currentPlatformData.lastSync).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) })}</span>}
             </div>
           )}
         </CardHeader>
@@ -469,25 +471,25 @@ export function TabPlateformes() {
           {activePlatform === "google" && googleOAuthConfigured && !googleOAuthAuthenticated && (
             <div className="rounded-lg border border-blue-200 bg-blue-50/50 dark:border-blue-900/40 dark:bg-blue-950/20">
               <div className="p-3 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2"><Globe className="w-4 h-4 text-blue-600 shrink-0" /><div><p className="text-xs font-medium">Connectez votre compte Google</p><p className="text-[10px] text-muted-foreground">Autorisez l'accès à vos services Google en un clic.</p></div></div>
-                <Button size="sm" className="text-xs h-7 shrink-0" onClick={() => handleGoogleOAuthConnect()} disabled={googleConnecting}>{googleConnecting ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Plug className="w-3 h-3 mr-1" />}Se connecter avec Google</Button>
+                <div className="flex items-center gap-2"><Globe className="w-4 h-4 text-blue-600 shrink-0" /><div><p className="text-xs font-medium">{t("settingsPlateformes.google.connectAccount")}</p><p className="text-[10px] text-muted-foreground">{t("settingsPlateformes.google.authorize")}</p></div></div>
+                <Button size="sm" className="text-xs h-7 shrink-0" onClick={() => handleGoogleOAuthConnect()} disabled={googleConnecting}>{googleConnecting ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Plug className="w-3 h-3 mr-1" />}{t("settingsPlateformes.header.connectGoogle")}</Button>
               </div>
               <div className="px-3 pb-3 space-y-2">
                 <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20 p-2">
                   <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
                   <p className="text-[10px] leading-relaxed text-amber-800 dark:text-amber-300">
-                    Si Google affiche « Cette application n'est pas validée » ou « Accès bloqué », c'est normal pendant la phase de test : cliquez sur <strong>Paramètres avancés</strong> puis <strong>Accéder à Ajant Bureau (non sécurisé)</strong> pour continuer. Votre adresse Google doit être ajoutée comme <strong>utilisateur de test</strong> par l'administrateur (ou l'application doit être publiée).
+                    {t("settingsPlateformes.google.testWarning")}
                   </p>
                 </div>
                 {isSuperAdmin && (
                   <div>
                     <button type="button" onClick={() => setShowGoogleHelp(v => !v)} className="flex items-center gap-1 text-[10px] font-medium text-blue-700 dark:text-blue-400 hover:underline">
-                      <Settings className="w-3 h-3" />Configuration Google (administrateur)<ChevronDown className={`w-3 h-3 transition-transform ${showGoogleHelp ? "rotate-180" : ""}`} />
+                      <Settings className="w-3 h-3" />{t("settingsPlateformes.google.adminConfig")}<ChevronDown className={`w-3 h-3 transition-transform ${showGoogleHelp ? "rotate-180" : ""}`} />
                     </button>
                     {showGoogleHelp && (
                       <div className="mt-2 space-y-2 rounded-md border bg-background p-2.5">
                         <p className="text-[10px] text-muted-foreground leading-relaxed">
-                          Dans <strong>Google Cloud Console → API et services → Écran de consentement OAuth</strong>, ajoutez votre adresse Google dans <strong>Utilisateurs de test</strong> (ou publiez l'application). Vérifiez aussi que cette <strong>URI de redirection</strong> est enregistrée à l'identique dans vos identifiants OAuth :
+                          {t("settingsPlateformes.google.adminConfigDesc")}
                         </p>
                         <div className="flex items-center gap-1.5 rounded bg-muted px-2 py-1.5">
                           <code className="text-[10px] break-all flex-1">{googleRedirectUri || "—"}</code>
@@ -496,7 +498,7 @@ export function TabPlateformes() {
                           </Button>
                         </div>
                         <a href="https://console.cloud.google.com/apis/credentials/consent" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] text-blue-700 dark:text-blue-400 hover:underline">
-                          <ExternalLink className="w-3 h-3" />Ouvrir Google Cloud Console
+                          <ExternalLink className="w-3 h-3" />{t("settingsPlateformes.google.openConsole")}
                         </a>
                       </div>
                     )}
@@ -508,14 +510,14 @@ export function TabPlateformes() {
 
           {activePlatform === "google" && googleOAuthAuthenticated && (
             <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50/50 flex items-center justify-between">
-              <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-600" /><div><p className="text-xs font-medium text-emerald-800">Compte Google connecté</p><p className="text-[10px] text-muted-foreground">Les services Google Workspace sont actifs et synchronisés.</p></div></div>
-              <Badge className="bg-emerald-100 text-emerald-700 border-0 text-[10px]">Connecté</Badge>
+              <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-600" /><div><p className="text-xs font-medium text-emerald-800">{t("settingsPlateformes.google.accountConnected")}</p><p className="text-[10px] text-muted-foreground">{t("settingsPlateformes.google.servicesActive")}</p></div></div>
+              <Badge className="bg-emerald-100 text-emerald-700 border-0 text-[10px]">{t("settingsPlateformes.google.connectedBadge")}</Badge>
             </div>
           )}
 
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input type="search" placeholder={`Rechercher une application ${activePlatform === "google" ? "Google" : activePlatform === "microsoft" ? "Microsoft" : "Apple"}...`} className="pl-9"
+            <Input type="search" placeholder={t("settingsPlateformes.searchPlaceholder", { platform: activePlatform === "google" ? "Google" : activePlatform === "microsoft" ? "Microsoft" : "Apple" })} className="pl-9"
               value={activePlatform === "google" ? googleSearch : activePlatform === "microsoft" ? msSearch : appleSearch}
               onChange={(e) => { if (activePlatform === "google") setGoogleSearch(e.target.value); else if (activePlatform === "microsoft") setMsSearch(e.target.value); else setAppleSearch(e.target.value); }}
             />
@@ -530,11 +532,11 @@ export function TabPlateformes() {
             return (
               <>
                 <div className="flex flex-wrap gap-2">
-                  <Button variant={filter === "tous" ? "default" : "outline"} size="sm" className="text-xs h-7" onClick={() => setFilter("tous")}>Tous ({services.length})</Button>
-                  {Object.entries(catégories).map(([key, cat]) => {
+                  <Button variant={filter === "tous" ? "default" : "outline"} size="sm" className="text-xs h-7" onClick={() => setFilter("tous")}>{t("settingsPlateformes.filterAll", { count: services.length })}</Button>
+                  {Object.entries(catégories).map(([key]) => {
                     const cnt = services.filter(s => s.catégorie === key).length;
                     if (cnt === 0) return null;
-                    return <Button key={key} variant={filter === key ? "default" : "outline"} size="sm" className="text-xs h-7" onClick={() => setFilter(key)}>{cat.label} ({cnt})</Button>;
+                    return <Button key={key} variant={filter === key ? "default" : "outline"} size="sm" className="text-xs h-7" onClick={() => setFilter(key)}>{t("settingsPlateformes.categories." + key)} ({cnt})</Button>;
                   })}
                 </div>
                 <div className="grid gap-3">
@@ -553,21 +555,21 @@ export function TabPlateformes() {
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
                                 <h3 className="font-semibold text-sm">{service.name}</h3>
-                                <Badge className={(catégories[service.catégorie]?.couleur || "bg-gray-100 text-gray-700") + " border-0 text-[10px]"}>{catégories[service.catégorie]?.label || service.catégorie}</Badge>
-                                {isConnected ? <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-[10px]"><CheckCircle2 className="w-3 h-3 mr-1" />Connecte</Badge> : <Badge variant="secondary" className="text-[10px]">Non connecté</Badge>}
+                                <Badge className={(catégories[service.catégorie]?.couleur || "bg-gray-100 text-gray-700") + " border-0 text-[10px]"}>{t("settingsPlateformes.categories." + service.catégorie)}</Badge>
+                                {isConnected ? <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-[10px]"><CheckCircle2 className="w-3 h-3 mr-1" />{t("settingsPlateformes.status.connected")}</Badge> : <Badge variant="secondary" className="text-[10px]">{t("settingsPlateformes.status.notConnected")}</Badge>}
                               </div>
-                              <p className="text-xs text-muted-foreground mb-2">{service.description}</p>
-                              {isConnected && lastSyncTime && <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-1"><Clock className="w-3 h-3" />Derniere sync: {new Date(lastSyncTime).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</p>}
+                              <p className="text-xs text-muted-foreground mb-2">{t(`settingsPlateformes.services.${activePlatform}.${service.id}.description`)}</p>
+                              {isConnected && lastSyncTime && <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-1"><Clock className="w-3 h-3" />{t("settingsPlateformes.status.lastSync", { date: new Date(lastSyncTime).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) })}</p>}
                               <div className="grid grid-cols-2 gap-1.5">
-                                {service.features.map((feature, i) => (
-                                  <div key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground"><div className={`w-1 h-1 rounded-full ${isConnected ? "bg-emerald-500" : "bg-primary/50"}`} />{feature}</div>
+                                {service.features.map((_feature, i) => (
+                                  <div key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground"><div className={`w-1 h-1 rounded-full ${isConnected ? "bg-emerald-500" : "bg-primary/50"}`} />{t(`settingsPlateformes.services.${activePlatform}.${service.id}.features.${i}`)}</div>
                                 ))}
                               </div>
                             </div>
                           </div>
                           <Button variant={isConnected ? "outline" : "default"} size="sm" className={`shrink-0 ${isConnected ? "text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" : ""}`} onClick={() => handleConnect(service.id, service.name)} disabled={isLoading}>
                             {isLoading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : isConnected ? <Unplug className="w-3.5 h-3.5 mr-1.5" /> : <Link2 className="w-3.5 h-3.5 mr-1.5" />}
-                            {isLoading ? "En cours..." : isConnected ? "Déconnectér" : "Connecter"}
+                            {isLoading ? t("settingsPlateformes.status.inProgress") : isConnected ? t("settingsPlateformes.status.disconnect") : t("settingsPlateformes.status.connect")}
                           </Button>
                         </div>
                       </div>
@@ -584,10 +586,10 @@ export function TabPlateformes() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="flex items-center gap-2 text-red-700 dark:text-red-400"><ShieldAlert className="w-5 h-5" />Securite Workspace - Protection des fichiers</CardTitle>
-              <CardDescription className="mt-1">Controle strict des téléchargements, envois et fichiers. Seul le Super Administrateur peut autoriser les téléchargements.</CardDescription>
+              <CardTitle className="flex items-center gap-2 text-red-700 dark:text-red-400"><ShieldAlert className="w-5 h-5" />{t("settingsPlateformes.security.filesTitle")}</CardTitle>
+              <CardDescription className="mt-1">{t("settingsPlateformes.security.filesDesc")}</CardDescription>
             </div>
-            <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0"><ShieldCheck className="w-3 h-3 mr-1" />Protection maximale</Badge>
+            <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0"><ShieldCheck className="w-3 h-3 mr-1" />{t("settingsPlateformes.security.maxProtection")}</Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -601,31 +603,29 @@ export function TabPlateformes() {
             <div className="flex items-start gap-3">
               <ShieldBan className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
               <div>
-                <h4 className="font-semibold text-sm text-amber-800 dark:text-amber-300">Fichiers entrants</h4>
+                <h4 className="font-semibold text-sm text-amber-800 dark:text-amber-300">{t("settingsPlateformes.security.incomingTitle")}</h4>
                 <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
-                  Les fichiers externes ne sont pas bloqués automatiquement : ils sont analysés. Un fichier importé
-                  depuis Drive ou une pièce jointe enregistrée passe par l'analyse antivirus, et son verdict apparaît
-                  dans le journal ci-dessus.
+                  {t("settingsPlateformes.security.incomingDesc")}
                 </p>
               </div>
             </div>
           </div>
           {[
-            { icon: Download, color: "text-emerald-600", label: "Analyse antivirus à l'import", desc: "Tout fichier importé depuis Drive ou une pièce jointe est analysé avant d'être enregistré" },
-            { icon: Upload, color: "text-emerald-600", label: "Contrôle des envois sortants", desc: "Les e-mails contenant des données sensibles exigent une confirmation explicite (DLP)" },
-            { icon: UserCog, color: "text-amber-600", label: "Journal accessible aux administrateurs", desc: "Les analyses et alertes de l'organisation sont consultables dans l'espace Sécurité" },
+            { icon: Download, color: "text-emerald-600", label: t("settingsPlateformes.security.item1Label"), desc: t("settingsPlateformes.security.item1Desc") },
+            { icon: Upload, color: "text-emerald-600", label: t("settingsPlateformes.security.item2Label"), desc: t("settingsPlateformes.security.item2Desc") },
+            { icon: UserCog, color: "text-amber-600", label: t("settingsPlateformes.security.item3Label"), desc: t("settingsPlateformes.security.item3Desc") },
           ].map((item, i) => (
             <div key={item.label}>
               {i > 0 && <Separator className="mb-5" />}
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-start gap-3"><item.icon className={`w-4 h-4 ${item.color} mt-0.5 shrink-0`} /><div><Label className="font-normal">{item.label}</Label><p className="text-xs text-muted-foreground">{item.desc}</p></div></div>
-                <Badge variant="outline" className="text-emerald-700 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 text-[10px] shrink-0">Actif</Badge>
+                <Badge variant="outline" className="text-emerald-700 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 text-[10px] shrink-0">{t("settingsPlateformes.security.active")}</Badge>
               </div>
             </div>
           ))}
           <Separator />
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-start gap-3"><FileX className="w-4 h-4 text-red-500 mt-0.5 shrink-0" /><div><Label className="font-normal">Taille maximale analysée</Label><p className="text-xs text-muted-foreground">Au-delà, le fichier n'est pas soumis à l'analyse approfondie</p></div></div>
+            <div className="flex items-start gap-3"><FileX className="w-4 h-4 text-red-500 mt-0.5 shrink-0" /><div><Label className="font-normal">{t("settingsPlateformes.security.maxSizeLabel")}</Label><p className="text-xs text-muted-foreground">{t("settingsPlateformes.security.maxSizeDesc")}</p></div></div>
             <Badge variant="outline" className="text-[10px] shrink-0">
               {protection?.maxScanBytes ? `${Math.round(protection.maxScanBytes / (1024 * 1024))} Mo` : "—"}
             </Badge>
@@ -635,15 +635,15 @@ export function TabPlateformes() {
 
       <Card className="border-orange-200 dark:border-orange-900/50">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-orange-700 dark:text-orange-400"><Bug className="w-5 h-5" />Analyse antivirus et anti-malware</CardTitle>
-          <CardDescription>Analyse automatique de tous les fichiers et pieces jointes. Detection des menaces en temps réel par IA.</CardDescription>
+          <CardTitle className="flex items-center gap-2 text-orange-700 dark:text-orange-400"><Bug className="w-5 h-5" />{t("settingsPlateformes.security.antivirusTitle")}</CardTitle>
+          <CardDescription>{t("settingsPlateformes.security.antivirusDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="grid grid-cols-4 gap-3">
-            <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3 text-center"><p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{(protection?.summary?.total ?? 0).toLocaleString("fr-FR")}</p><p className="text-[10px] text-emerald-600 dark:text-emerald-500">Analyses effectuees</p></div>
-            <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-3 text-center"><p className="text-lg font-bold text-red-700 dark:text-red-400">{protection?.summary?.dangerous ?? 0}</p><p className="text-[10px] text-red-600 dark:text-red-500">Menaces detectees</p></div>
-            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-center"><p className="text-lg font-bold text-amber-700 dark:text-amber-400">{protection?.summary?.suspicious ?? 0}</p><p className="text-[10px] text-amber-600 dark:text-amber-500">Elements suspects</p></div>
-            <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-center"><p className="text-lg font-bold text-blue-700 dark:text-blue-400">{protection?.summary?.last24h ?? 0}</p><p className="text-[10px] text-blue-600 dark:text-blue-500">Dernieres 24 h</p></div>
+            <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3 text-center"><p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{(protection?.summary?.total ?? 0).toLocaleString("fr-FR")}</p><p className="text-[10px] text-emerald-600 dark:text-emerald-500">{t("settingsPlateformes.security.statTotal")}</p></div>
+            <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-3 text-center"><p className="text-lg font-bold text-red-700 dark:text-red-400">{protection?.summary?.dangerous ?? 0}</p><p className="text-[10px] text-red-600 dark:text-red-500">{t("settingsPlateformes.security.statThreats")}</p></div>
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-center"><p className="text-lg font-bold text-amber-700 dark:text-amber-400">{protection?.summary?.suspicious ?? 0}</p><p className="text-[10px] text-amber-600 dark:text-amber-500">{t("settingsPlateformes.security.statSuspicious")}</p></div>
+            <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-center"><p className="text-lg font-bold text-blue-700 dark:text-blue-400">{protection?.summary?.last24h ?? 0}</p><p className="text-[10px] text-blue-600 dark:text-blue-500">{t("settingsPlateformes.security.statLast24h")}</p></div>
           </div>
           <Separator />
           {/* Couches de protection REELLES, renvoyees par le serveur. Cette
@@ -669,17 +669,17 @@ export function TabPlateformes() {
                       ? "text-emerald-700 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 text-[10px]"
                       : "text-muted-foreground text-[10px]"}
                   >
-                    {layer.active ? "Actif" : "Non configuré"}
+                    {layer.active ? t("settingsPlateformes.security.active") : t("settingsPlateformes.security.notConfigured")}
                   </Badge>
                 </div>
               </div>
             ))}
             {!protection && (
-              <p className="text-xs text-muted-foreground">Chargement de l'état des protections…</p>
+              <p className="text-xs text-muted-foreground">{t("settingsPlateformes.security.loadingProtections")}</p>
             )}
             {protection?.deepScanEnabled === false && (
               <p className="text-xs text-muted-foreground pt-1">
-                L'analyse approfondie (envoi des fichiers inconnus au moteur externe) est désactivée.
+                {t("settingsPlateformes.security.deepScanDisabled")}
               </p>
             )}
           </div>
@@ -688,29 +688,29 @@ export function TabPlateformes() {
 
       <Card className="border-purple-200 dark:border-purple-900/50">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-purple-700 dark:text-purple-400"><FileX className="w-5 h-5" />Types de fichiers bloques</CardTitle>
-          <CardDescription>Les fichiers avec ces extensions sont systematiquement bloques, meme pour le Super Administrateur.</CardDescription>
+          <CardTitle className="flex items-center gap-2 text-purple-700 dark:text-purple-400"><FileX className="w-5 h-5" />{t("settingsPlateformes.security.blockedTitle")}</CardTitle>
+          <CardDescription>{t("settingsPlateformes.security.blockedDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
           {/* Ces regles sont appliquees sans condition par le filtre d'upload
               du serveur : ce ne sont pas des options, et les presenter comme
               des interrupteurs laissait croire qu'on pouvait les desactiver. */}
           {[
-            { icon: Ban, label: "Fichiers exécutables refusés", desc: ".exe, .bat, .cmd, .com, .scr, .pif, .msi, .dll et autres exécutables" },
-            { icon: FileWarning, label: "Scripts et macros détectés par signature", desc: "PowerShell, VBS, WScript, contenu Office contenant des macros" },
-            { icon: Lock, label: "Archives et fichiers non analysables signalés", desc: "Un fichier qui ne peut pas être analysé est marqué comme suspect" },
+            { icon: Ban, label: t("settingsPlateformes.security.b1Label"), desc: t("settingsPlateformes.security.b1Desc") },
+            { icon: FileWarning, label: t("settingsPlateformes.security.b2Label"), desc: t("settingsPlateformes.security.b2Desc") },
+            { icon: Lock, label: t("settingsPlateformes.security.b3Label"), desc: t("settingsPlateformes.security.b3Desc") },
           ].map((item, i) => (
             <div key={item.label}>
               {i > 0 && <Separator className="mb-5" />}
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-start gap-3"><item.icon className="w-4 h-4 text-red-500 mt-0.5 shrink-0" /><div><Label className="font-normal">{item.label}</Label><p className="text-xs text-muted-foreground">{item.desc}</p></div></div>
-                <Badge variant="outline" className="text-[10px] shrink-0">Toujours appliqué</Badge>
+                <Badge variant="outline" className="text-[10px] shrink-0">{t("settingsPlateformes.security.alwaysApplied")}</Badge>
               </div>
             </div>
           ))}
           <Separator />
           <div className="bg-muted/50 rounded-lg p-3">
-            <p className="text-xs font-medium mb-2">Extensions systematiquement bloquees :</p>
+            <p className="text-xs font-medium mb-2">{t("settingsPlateformes.security.extensionsBlocked")}</p>
             <div className="flex flex-wrap gap-1.5">
               {BLOCKED_EXTENSIONS.map((ext) => <Badge key={ext} variant="outline" className="text-[10px] text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30">{ext}</Badge>)}
             </div>
@@ -720,8 +720,8 @@ export function TabPlateformes() {
 
       <Card className="border-blue-200 dark:border-blue-900/50">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-blue-700 dark:text-blue-400"><AlertTriangle className="w-5 h-5" />Protection anti-phishing et anti-spoofing</CardTitle>
-          <CardDescription>Detection avancée des tentatives de phishing, d'usurpation d'identite et de liens malveillants dans les e-mails.</CardDescription>
+          <CardTitle className="flex items-center gap-2 text-blue-700 dark:text-blue-400"><AlertTriangle className="w-5 h-5" />{t("settingsPlateformes.security.phishingTitle")}</CardTitle>
+          <CardDescription>{t("settingsPlateformes.security.phishingDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Ces trois protections ne sont pas des options a activer : elles
@@ -729,29 +729,29 @@ export function TabPlateformes() {
               Mail, sur le message ouvert. Les presenter comme des interrupteurs
               laissait croire a une analyse permanente de toute la boite. */}
           {[
-            { icon: Mail, label: "Analyse anti-phishing par IA", desc: "Verdict sur l'expediteur, le ton et les techniques d'ingenierie sociale du message" },
-            { icon: Fingerprint, label: "Vérification SPF, DKIM et DMARC", desc: "Contrôle de l'authentification de l'expediteur pour detecter une usurpation" },
-            { icon: ExternalLink, label: "Analyse des liens et des pieces jointes", desc: "Heuristique locale, Google Safe Browsing et analyse antivirus des fichiers joints" },
+            { icon: Mail, label: t("settingsPlateformes.security.p1Label"), desc: t("settingsPlateformes.security.p1Desc") },
+            { icon: Fingerprint, label: t("settingsPlateformes.security.p2Label"), desc: t("settingsPlateformes.security.p2Desc") },
+            { icon: ExternalLink, label: t("settingsPlateformes.security.p3Label"), desc: t("settingsPlateformes.security.p3Desc") },
           ].map((item, i) => (
             <div key={item.label}>
               {i > 0 && <Separator className="mb-4" />}
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-start gap-3"><item.icon className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" /><div><Label className="font-normal">{item.label}</Label><p className="text-xs text-muted-foreground">{item.desc}</p></div></div>
-                <Badge variant="outline" className="text-[10px] shrink-0">À la demande</Badge>
+                <Badge variant="outline" className="text-[10px] shrink-0">{t("settingsPlateformes.security.onDemand")}</Badge>
               </div>
             </div>
           ))}
           <Separator />
           <p className="text-xs text-muted-foreground">
-            Ouvrez un e-mail dans l'agent Mail puis cliquez sur « Sécurité » pour lancer l'analyse complète du message.
+            {t("settingsPlateformes.security.phishingFooter")}
           </p>
         </CardContent>
       </Card>
 
       <Card className="border-amber-200 dark:border-amber-900/50">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-400"><Eye className="w-5 h-5" />Prevention des fuites de données (DLP)</CardTitle>
-          <CardDescription>Empecher la fuite de données sensibles via e-mails, fichiers partagés ou documents.</CardDescription>
+          <CardTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-400"><Eye className="w-5 h-5" />{t("settingsPlateformes.security.dlpTitle")}</CardTitle>
+          <CardDescription>{t("settingsPlateformes.security.dlpDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Comportement REEL du controle DLP sortant. Il ne s'agit pas
@@ -759,37 +759,36 @@ export function TabPlateformes() {
               quittant l'application, et un envoi n'est jamais bloque en
               silence — il demande une confirmation. */}
           {[
-            { icon: Shield, label: "Analyse de tout e-mail sortant", desc: "Chaque envoi et chaque réponse sont analysés avant leur départ" },
-            { icon: Ban, label: "Confirmation exigée : IBAN, carte bancaire, NIR", desc: "L'envoi est suspendu et vous devez confirmer explicitement s'il est volontaire" },
-            { icon: Bell, label: "Tentative tracée dans le journal de sécurité", desc: "Chaque détection est enregistrée et visible dans les statistiques ci-dessus" },
+            { icon: Shield, label: t("settingsPlateformes.security.d1Label"), desc: t("settingsPlateformes.security.d1Desc") },
+            { icon: Ban, label: t("settingsPlateformes.security.d2Label"), desc: t("settingsPlateformes.security.d2Desc") },
+            { icon: Bell, label: t("settingsPlateformes.security.d3Label"), desc: t("settingsPlateformes.security.d3Desc") },
           ].map((item, i) => (
             <div key={item.label}>
               {i > 0 && <Separator className="mb-4" />}
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-start gap-3"><item.icon className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" /><div><Label className="font-normal">{item.label}</Label><p className="text-xs text-muted-foreground">{item.desc}</p></div></div>
-                <Badge variant="outline" className="text-emerald-700 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 text-[10px] shrink-0">Actif</Badge>
+                <Badge variant="outline" className="text-emerald-700 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 text-[10px] shrink-0">{t("settingsPlateformes.security.active")}</Badge>
               </div>
             </div>
           ))}
           <Separator />
           <p className="text-xs text-muted-foreground">
-            Les adresses e-mail, numéros de téléphone et identifiants SIRET/SIREN ne déclenchent pas d'alerte : ils figurent
-            normalement dans une correspondance professionnelle.
+            {t("settingsPlateformes.security.dlpFooter")}
           </p>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Synchronisation</CardTitle>
-          <CardDescription>Configurez la frequence et le sens de la synchronisation.</CardDescription>
+          <CardTitle className="text-base">{t("settingsPlateformes.sync.title")}</CardTitle>
+          <CardDescription>{t("settingsPlateformes.sync.desc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between"><div><Label>Synchronisation automatique</Label><p className="text-xs text-muted-foreground">Synchroniser les données toutes les 15 minutes</p></div><Switch defaultChecked /></div>
+          <div className="flex items-center justify-between"><div><Label>{t("settingsPlateformes.sync.autoLabel")}</Label><p className="text-xs text-muted-foreground">{t("settingsPlateformes.sync.autoDesc")}</p></div><Switch defaultChecked /></div>
           <Separator />
-          <div className="flex items-center justify-between"><div><Label>Synchronisation bidirectionnelle</Label><p className="text-xs text-muted-foreground">Les modifications dans les plateformes connectees se refletent ici et inversement</p></div><Switch defaultChecked /></div>
+          <div className="flex items-center justify-between"><div><Label>{t("settingsPlateformes.sync.bidirLabel")}</Label><p className="text-xs text-muted-foreground">{t("settingsPlateformes.sync.bidirDesc")}</p></div><Switch defaultChecked /></div>
           <Separator />
-          <div className="flex items-center justify-between"><div><Label>Import automatique des contacts</Label><p className="text-xs text-muted-foreground">Importer les nouveaux contacts depuis les plateformes automatiquement</p></div><Switch /></div>
+          <div className="flex items-center justify-between"><div><Label>{t("settingsPlateformes.sync.importLabel")}</Label><p className="text-xs text-muted-foreground">{t("settingsPlateformes.sync.importDesc")}</p></div><Switch /></div>
         </CardContent>
       </Card>
     </div>
