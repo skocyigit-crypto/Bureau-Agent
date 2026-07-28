@@ -9,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { confirmAction } from "@/hooks/use-confirm";
+import { useTranslation } from "@/i18n";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -33,6 +34,7 @@ interface ConfiguredEmailProvider {
 export function TabEmailExpediteur() {
   const { toast } = useToast();
   const { user } = useWorkspaceUser();
+  const { t } = useTranslation();
 
   const [available, setAvailable] = useState<EmailProviderInfo[]>([]);
   const [configured, setConfigured] = useState<ConfiguredEmailProvider[]>([]);
@@ -62,11 +64,11 @@ export function TabEmailExpediteur() {
         setConfigured(d.providers ?? []);
       }
     } catch {
-      toast({ title: "Erreur de chargement", description: "Impossible de charger la configuration email.", variant: "destructive" });
+      toast({ title: t("settingsEmailExpediteur.toast.loadErrorTitle"), description: t("settingsEmailExpediteur.toast.loadErrorDesc"), variant: "destructive" });
     } finally {
       setLoading(false);
     }
-  }, [selected, toast]);
+  }, [selected, toast, t]);
 
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (user?.email && !testEmail) setTestEmail(user.email); }, [user, testEmail]);
@@ -81,7 +83,7 @@ export function TabEmailExpediteur() {
     if (!selected) return;
     for (const f of selected.configFields) {
       if (f.required && !configValues[f.key]?.trim()) {
-        toast({ title: "Champ requis", description: f.label, variant: "destructive" });
+        toast({ title: t("settingsEmailExpediteur.toast.fieldRequired"), description: f.label, variant: "destructive" });
         return;
       }
     }
@@ -95,14 +97,14 @@ export function TabEmailExpediteur() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        toast({ title: "Fournisseur configuré", description: `${selected.displayName} est prêt à envoyer vos emails.` });
+        toast({ title: t("settingsEmailExpediteur.toast.configuredTitle"), description: t("settingsEmailExpediteur.toast.configuredDesc", { provider: selected.displayName }) });
         resetForm();
         load();
       } else {
-        toast({ title: "Échec", description: data.error || "Configuration impossible.", variant: "destructive" });
+        toast({ title: t("settingsEmailExpediteur.toast.failTitle"), description: data.error || t("settingsEmailExpediteur.toast.configError"), variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur réseau", variant: "destructive" });
+      toast({ title: t("settingsEmailExpediteur.toast.networkError"), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -113,8 +115,8 @@ export function TabEmailExpediteur() {
       method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
       body: JSON.stringify({ isDefault: true }),
     });
-    if (res.ok) { toast({ title: "Fournisseur par défaut mis à jour" }); load(); }
-    else toast({ title: "Erreur", variant: "destructive" });
+    if (res.ok) { toast({ title: t("settingsEmailExpediteur.toast.defaultUpdated") }); load(); }
+    else toast({ title: t("settingsEmailExpediteur.toast.error"), variant: "destructive" });
   };
 
   const toggleActive = async (p: ConfiguredEmailProvider) => {
@@ -122,25 +124,25 @@ export function TabEmailExpediteur() {
       method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
       body: JSON.stringify({ isActive: !p.isActive }),
     });
-    if (res.ok) { toast({ title: p.isActive ? "Fournisseur désactivé" : "Fournisseur activé" }); load(); }
-    else toast({ title: "Erreur", variant: "destructive" });
+    if (res.ok) { toast({ title: p.isActive ? t("settingsEmailExpediteur.toast.deactivated") : t("settingsEmailExpediteur.toast.activated") }); load(); }
+    else toast({ title: t("settingsEmailExpediteur.toast.error"), variant: "destructive" });
   };
 
   const remove = async (id: number) => {
     const ok = await confirmAction({
-      title: "Supprimer ce fournisseur ?",
-      description: "Vos emails repasseront par le service d'envoi de la plateforme.",
+      title: t("settingsEmailExpediteur.confirm.deleteTitle"),
+      description: t("settingsEmailExpediteur.confirm.deleteDesc"),
     });
     if (!ok) return;
     const res = await fetch(`${API}/api/email/providers/${id}`, { method: "DELETE", credentials: "include" });
-    if (res.ok) { toast({ title: "Fournisseur supprimé" }); load(); }
-    else toast({ title: "Erreur", variant: "destructive" });
+    if (res.ok) { toast({ title: t("settingsEmailExpediteur.toast.deleted") }); load(); }
+    else toast({ title: t("settingsEmailExpediteur.toast.error"), variant: "destructive" });
   };
 
   const sendTest = async (id: number) => {
     const to = testEmail.trim();
     if (!to || !to.includes("@")) {
-      toast({ title: "Adresse de test invalide", description: "Saisissez une adresse email valide.", variant: "destructive" });
+      toast({ title: t("settingsEmailExpediteur.toast.testInvalidTitle"), description: t("settingsEmailExpediteur.toast.testInvalidDesc"), variant: "destructive" });
       return;
     }
     setTestingId(id);
@@ -151,12 +153,12 @@ export function TabEmailExpediteur() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) {
-        toast({ title: "Email de test envoyé", description: `Vérifiez la boîte de réception de ${to} (expéditeur : ${data.from || "—"}).` });
+        toast({ title: t("settingsEmailExpediteur.toast.testSentTitle"), description: t("settingsEmailExpediteur.toast.testSentDesc", { to, from: data.from || "—" }) });
       } else {
-        toast({ title: "Échec du test", description: data.error || "L'envoi de test a échoué.", variant: "destructive" });
+        toast({ title: t("settingsEmailExpediteur.toast.testFailTitle"), description: data.error || t("settingsEmailExpediteur.toast.testFailDesc"), variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur réseau", variant: "destructive" });
+      toast({ title: t("settingsEmailExpediteur.toast.networkError"), variant: "destructive" });
     } finally {
       setTestingId(null);
     }
@@ -166,37 +168,35 @@ export function TabEmailExpediteur() {
     <div className="space-y-6">
       <Alert className="border-indigo-200 bg-indigo-50">
         <ShieldCheck className="h-4 w-4 text-indigo-600" />
-        <AlertTitle>Votre propre service d'envoi d'emails</AlertTitle>
+        <AlertTitle>{t("settingsEmailExpediteur.alertTitle")}</AlertTitle>
         <AlertDescription className="text-sm text-muted-foreground">
-          Par défaut, Ajant Bureau envoie vos emails (factures, rappels, messages de l'assistant)
-          via le service d'envoi de la plateforme. En connectant <strong>votre propre clé Resend</strong>,
-          vos emails partent depuis <strong>votre domaine</strong> et les coûts d'envoi vous sont
-          directement facturés par Resend. Si votre clé échoue, la plateforme prend le relais
-          automatiquement pour ne jamais bloquer un envoi. La clé est <strong>chiffrée</strong> et
-          jamais affichée en clair.
+          {t("settingsEmailExpediteur.alertBody1")}
+          <strong>{t("settingsEmailExpediteur.alertStrongResendKey")}</strong>{t("settingsEmailExpediteur.alertBody2")}
+          <strong>{t("settingsEmailExpediteur.alertStrongDomain")}</strong>{t("settingsEmailExpediteur.alertBody3")}
+          <strong>{t("settingsEmailExpediteur.alertStrongEncrypted")}</strong>{t("settingsEmailExpediteur.alertBody4")}
         </AlertDescription>
       </Alert>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <div>
-            <CardTitle className="flex items-center gap-2"><Mail className="w-5 h-5" /> Fournisseurs d'email</CardTitle>
-            <CardDescription>Connectez et gérez votre clé d'envoi d'emails.</CardDescription>
+            <CardTitle className="flex items-center gap-2"><Mail className="w-5 h-5" /> {t("settingsEmailExpediteur.cardTitle")}</CardTitle>
+            <CardDescription>{t("settingsEmailExpediteur.cardDescription")}</CardDescription>
           </div>
           {!showAddForm && (
             <Button onClick={() => setShowAddForm(true)} className="gap-2">
-              <Plus className="w-4 h-4" /> Ajouter
+              <Plus className="w-4 h-4" /> {t("common.add")}
             </Button>
           )}
         </CardHeader>
         <CardContent className="space-y-4">
           {loading ? (
-            <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> Chargement…</div>
+            <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> {t("common.loading")}</div>
           ) : (
             <>
               {configured.length === 0 && !showAddForm && (
                 <p className="text-sm text-muted-foreground">
-                  Aucun fournisseur configuré. Vos emails partent actuellement via la plateforme.
+                  {t("settingsEmailExpediteur.noneConfigured")}
                 </p>
               )}
 
@@ -206,37 +206,37 @@ export function TabEmailExpediteur() {
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">{p.label}</span>
                       <Badge variant="outline">{p.provider}</Badge>
-                      {p.isDefault && <Badge className="gap-1"><Star className="w-3 h-3" /> Par défaut</Badge>}
+                      {p.isDefault && <Badge className="gap-1"><Star className="w-3 h-3" /> {t("settingsEmailExpediteur.defaultBadge")}</Badge>}
                       {p.isActive
-                        ? <Badge variant="secondary" className="gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-600" /> Actif</Badge>
-                        : <Badge variant="secondary">Inactif</Badge>}
+                        ? <Badge variant="secondary" className="gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-600" /> {t("settingsEmailExpediteur.active")}</Badge>
+                        : <Badge variant="secondary">{t("settingsEmailExpediteur.inactive")}</Badge>}
                     </div>
                     <div className="flex items-center gap-1">
                       {!p.isDefault && (
-                        <Button variant="outline" size="sm" onClick={() => setDefault(p.id)} className="gap-1" title="Définir par défaut">
+                        <Button variant="outline" size="sm" onClick={() => setDefault(p.id)} className="gap-1" title={t("settingsEmailExpediteur.setDefaultTitle")}>
                           <Star className="w-4 h-4" />
                         </Button>
                       )}
-                      <Button variant="outline" size="sm" onClick={() => toggleActive(p)} title={p.isActive ? "Désactiver" : "Activer"}>
+                      <Button variant="outline" size="sm" onClick={() => toggleActive(p)} title={p.isActive ? t("settingsEmailExpediteur.deactivateTitle") : t("settingsEmailExpediteur.activateTitle")}>
                         {p.isActive ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => remove(p.id)} className="text-destructive" title="Supprimer">
+                      <Button variant="outline" size="sm" onClick={() => remove(p.id)} className="text-destructive" title={t("common.delete")}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>
                   <div className="text-xs text-muted-foreground space-y-0.5">
-                    {p.config.apiKey && <div>Clé API : <code className="font-mono">{p.config.apiKey}</code></div>}
-                    {p.config.fromEmail && <div>Expéditeur : <code className="font-mono">{p.config.fromEmail}</code></div>}
+                    {p.config.apiKey && <div>{t("settingsEmailExpediteur.apiKeyLabel")}<code className="font-mono">{p.config.apiKey}</code></div>}
+                    {p.config.fromEmail && <div>{t("settingsEmailExpediteur.fromLabel")}<code className="font-mono">{p.config.fromEmail}</code></div>}
                   </div>
                   <div className="flex items-end gap-2 flex-wrap">
                     <div className="flex-1 min-w-[220px]">
-                      <Label className="text-xs">Adresse de test</Label>
-                      <Input value={testEmail} onChange={(e) => setTestEmail(e.target.value)} placeholder="vous@exemple.fr" />
+                      <Label className="text-xs">{t("settingsEmailExpediteur.testAddressLabel")}</Label>
+                      <Input value={testEmail} onChange={(e) => setTestEmail(e.target.value)} placeholder={t("settingsEmailExpediteur.testPlaceholder")} />
                     </div>
                     <Button variant="secondary" onClick={() => sendTest(p.id)} disabled={testingId === p.id} className="gap-2">
                       {testingId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                      Envoyer un test
+                      {t("settingsEmailExpediteur.sendTest")}
                     </Button>
                   </div>
                 </div>
@@ -245,8 +245,8 @@ export function TabEmailExpediteur() {
               {showAddForm && (
                 <div className="rounded-lg border p-4 space-y-4 bg-muted/30">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-semibold">Nouveau fournisseur</h4>
-                    <Button variant="ghost" size="sm" onClick={resetForm}>Annuler</Button>
+                    <h4 className="font-semibold">{t("settingsEmailExpediteur.newProvider")}</h4>
+                    <Button variant="ghost" size="sm" onClick={resetForm}>{t("common.cancel")}</Button>
                   </div>
 
                   {available.length > 1 && (
@@ -268,7 +268,7 @@ export function TabEmailExpediteur() {
                         </a>
                       </p>
                       <div>
-                        <Label className="text-xs">Nom (libellé interne)</Label>
+                        <Label className="text-xs">{t("settingsEmailExpediteur.nameLabel")}</Label>
                         <Input value={configLabel} onChange={(e) => setConfigLabel(e.target.value)} placeholder={selected.displayName} />
                       </div>
                       {selected.configFields.map((f) => (
@@ -285,7 +285,7 @@ export function TabEmailExpediteur() {
                       ))}
                       <Button onClick={handleCreate} disabled={saving} className="gap-2">
                         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                        Enregistrer
+                        {t("common.save")}
                       </Button>
                     </>
                   )}

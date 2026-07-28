@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 
 import { TabAbonnement } from "./settings/tab-abonnement";
 import { TabEquipe } from "./settings/tab-equipe";
@@ -28,6 +29,7 @@ import { TabClesIa } from "./settings/tab-cles-ia";
 export default function SettingsPage() {
   const { user } = useWorkspaceUser();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const isAdmin = user?.role === "super_admin" || user?.role === "administrateur";
   const isSuperAdmin = user?.role === "super_admin";
   const [activeTab, setActiveTab] = useState(isAdmin ? "profil" : "appels");
@@ -36,20 +38,20 @@ export default function SettingsPage() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("google_success") === "true") {
       setActiveTab("google");
-      toast({ title: "Google Workspace connecte", description: "Votre compte Google a ete connecte avec succes." });
+      toast({ title: t("settings.toast.googleConnectedTitle"), description: t("settings.toast.googleConnectedDesc") });
       window.history.replaceState({}, "", window.location.pathname);
     }
     const googleError = params.get("google_error");
     if (googleError) {
       setActiveTab("google");
       const msgs: Record<string, string> = {
-        access_denied: "Vous avez refusé l'accès à Google.",
-        no_code: "Google n'a renvoyé aucun code d'autorisation. Veuillez réessayer.",
-        invalid_state: "La session de connexion a expiré. Relancez la connexion depuis cette page.",
-        not_authenticated: "Votre session a expiré. Reconnectez-vous puis réessayez.",
-        exchange_failed: "Échec de l'échange avec Google. Vérifiez que l'application est autorisée (utilisateur de test ou application publiée) côté Google Cloud.",
+        access_denied: t("settings.toast.err_access_denied"),
+        no_code: t("settings.toast.err_no_code"),
+        invalid_state: t("settings.toast.err_invalid_state"),
+        not_authenticated: t("settings.toast.err_not_authenticated"),
+        exchange_failed: t("settings.toast.err_exchange_failed"),
       };
-      toast({ title: "Connexion Google", description: msgs[googleError] || "La connexion n'a pas abouti. Veuillez réessayer.", variant: "destructive" });
+      toast({ title: t("settings.toast.googleTitle"), description: msgs[googleError] || t("settings.toast.googleGeneric"), variant: "destructive" });
       window.history.replaceState({}, "", window.location.pathname);
     }
     const tabParam = params.get("tab");
@@ -58,7 +60,7 @@ export default function SettingsPage() {
       setActiveTab(tabParam);
       window.history.replaceState({}, "", window.location.pathname);
     }
-  }, [toast, isAdmin]);
+  }, [toast, isAdmin, t]);
 
   const adminTabCount = isSuperAdmin ? 12 : isAdmin ? 11 : 3;
 
@@ -67,11 +69,11 @@ export default function SettingsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
-            <Icon3D icon={Settings} variant="slate" size="md" /> Parametres
+            <Icon3D icon={Settings} variant="slate" size="md" /> {t("settings.title")}
           </h1>
-          <p className="text-muted-foreground">Configuration de l'application et integrations.</p>
+          <p className="text-muted-foreground">{t("settings.subtitle")}</p>
         </div>
-        <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+        <Button variant="outline" size="icon" title={t("settings.print")} onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -79,83 +81,83 @@ export default function SettingsPage() {
           {isAdmin && (
             <TabsTrigger value="profil" className="gap-2">
               <Building2 className="w-4 h-4" />
-              Entreprise
+              {t("settings.tabs.entreprise")}
             </TabsTrigger>
           )}
           {isAdmin && (
             <TabsTrigger value="abonnement" className="gap-2">
               <Package className="w-4 h-4" />
-              Abonnement
+              {t("settings.tabs.abonnement")}
             </TabsTrigger>
           )}
           {isAdmin && (
             <TabsTrigger value="equipe" className="gap-2">
               <Users className="w-4 h-4" />
-              Équipe
+              {t("settings.tabs.equipe")}
             </TabsTrigger>
           )}
           {isAdmin && (
             <TabsTrigger value="google" className="gap-2">
               <Layers className="w-4 h-4" />
-              Plateformes
+              {t("settings.tabs.plateformes")}
             </TabsTrigger>
           )}
           <TabsTrigger value="appels" className="gap-2">
             <PhoneIncoming className="w-4 h-4" />
-            Appels
+            {t("settings.tabs.appels")}
           </TabsTrigger>
           {isAdmin && (
             <TabsTrigger value="sauvegardes" className="gap-2">
               <Save className="w-4 h-4" />
-              Sauvegardes
+              {t("settings.tabs.sauvegardes")}
             </TabsTrigger>
           )}
           <TabsTrigger value="preferences-ia" className="gap-2">
             <Sparkles className="w-4 h-4" />
-            Preferences IA
+            {t("settings.tabs.preferencesIa")}
           </TabsTrigger>
           <TabsTrigger value="installation" className="gap-2">
             <Monitor className="w-4 h-4" />
-            Installation
+            {t("settings.tabs.installation")}
           </TabsTrigger>
           <TabsTrigger value="notifications" className="gap-2">
             <Bell className="w-4 h-4" />
-            Notifications
+            {t("settings.tabs.notifications")}
           </TabsTrigger>
           {isAdmin && (
             <TabsTrigger value="securite" className="gap-2">
               <Shield className="w-4 h-4" />
-              Securite
+              {t("settings.tabs.securite")}
             </TabsTrigger>
           )}
           {isAdmin && (
             <TabsTrigger value="intelligence-artificielle" className="gap-2">
               <BrainCircuit className="w-4 h-4" />
-              IA
+              {t("settings.tabs.ia")}
             </TabsTrigger>
           )}
           {isAdmin && (
             <TabsTrigger value="api-webhooks" className="gap-2">
               <Webhook className="w-4 h-4" />
-              API & Webhooks
+              {t("settings.tabs.apiWebhooks")}
             </TabsTrigger>
           )}
           {isAdmin && (
             <TabsTrigger value="email-expediteur" className="gap-2">
               <Mail className="w-4 h-4" />
-              Email expéditeur
+              {t("settings.tabs.emailExpediteur")}
             </TabsTrigger>
           )}
           {isAdmin && (
             <TabsTrigger value="cles-ia" className="gap-2">
               <BrainCircuit className="w-4 h-4" />
-              Clés IA
+              {t("settings.tabs.clesIa")}
             </TabsTrigger>
           )}
           {isSuperAdmin && (
             <TabsTrigger value="mises-a-jour" className="gap-2">
               <Rocket className="w-4 h-4" />
-              Mises a jour
+              {t("settings.tabs.misesAJour")}
             </TabsTrigger>
           )}
         </TabsList>

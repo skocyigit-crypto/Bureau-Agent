@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useWorkspaceUser } from "@/components/workspace-user";
+import { useTranslation } from "@/i18n";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -48,6 +49,7 @@ interface Invitation {
 export function TabEquipe() {
   const { user } = useWorkspaceUser();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const isAdmin = user?.role === "super_admin" || user?.role === "administrateur";
 
   const [members, setMembers] = useState<TeamMember[]>([]);
@@ -75,11 +77,11 @@ export function TabEquipe() {
         setInvitations((data.invitations || []).filter((i: Invitation) => i.status === "pending" && !i.expired));
       }
     } catch {
-      toast({ title: "Erreur", description: "Impossible de charger l'equipe.", variant: "destructive" });
+      toast({ title: t("settingsEquipe.toast.error"), description: t("settingsEquipe.toast.loadError"), variant: "destructive" });
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -96,14 +98,14 @@ export function TabEquipe() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Invitation envoyee", description: `Un email a été envoyé a ${inviteEmail}.` });
+        toast({ title: t("settingsEquipe.toast.invitationSentTitle"), description: t("settingsEquipe.toast.invitationSentDesc", { email: inviteEmail }) });
         setInviteEmail("");
         load();
       } else {
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("settingsEquipe.toast.error"), description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Impossible d'envoyer l'invitation.", variant: "destructive" });
+      toast({ title: t("settingsEquipe.toast.error"), description: t("settingsEquipe.toast.inviteError"), variant: "destructive" });
     } finally {
       setInviting(false);
     }
@@ -114,14 +116,14 @@ export function TabEquipe() {
     try {
       const res = await fetch(`${BASE}/api/invitations/${id}/resend`, { method: "POST", credentials: "include" });
       if (res.ok) {
-        toast({ title: "Email renvoyé", description: "L'invitation a ete renvoyee." });
+        toast({ title: t("settingsEquipe.toast.emailResentTitle"), description: t("settingsEquipe.toast.emailResentDesc") });
         load();
       } else {
         const d = await res.json();
-        toast({ title: "Erreur", description: d.error, variant: "destructive" });
+        toast({ title: t("settingsEquipe.toast.error"), description: d.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Impossible de renvoyer l'invitation.", variant: "destructive" });
+      toast({ title: t("settingsEquipe.toast.error"), description: t("settingsEquipe.toast.resendError"), variant: "destructive" });
     } finally {
       setResending(null);
     }
@@ -132,11 +134,11 @@ export function TabEquipe() {
     try {
       const res = await fetch(`${BASE}/api/invitations/${id}`, { method: "DELETE", credentials: "include" });
       if (res.ok) {
-        toast({ title: "Invitation annulee" });
+        toast({ title: t("settingsEquipe.toast.invitationCancelled") });
         load();
       }
     } catch {
-      toast({ title: "Erreur", description: "Impossible d'annuler l'invitation.", variant: "destructive" });
+      toast({ title: t("settingsEquipe.toast.error"), description: t("settingsEquipe.toast.cancelError"), variant: "destructive" });
     } finally {
       setDeleting(null);
     }
@@ -157,20 +159,20 @@ export function TabEquipe() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <UserPlus className="w-4 h-4 text-primary" />
-              Inviter un membre
+              {t("settingsEquipe.inviteTitle")}
             </CardTitle>
-            <CardDescription>Un email d'invitation sera envoyé avec un lien d'accès sécurisé (valide 72h).</CardDescription>
+            <CardDescription>{t("settingsEquipe.inviteDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-3">
               <div className="flex-1 space-y-1">
-                <Label htmlFor="inviteEmail" className="text-xs">Adresse email</Label>
+                <Label htmlFor="inviteEmail" className="text-xs">{t("settingsEquipe.emailLabel")}</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     id="inviteEmail"
                     type="email"
-                    placeholder="colleague@exemple.fr"
+                    placeholder={t("settingsEquipe.emailPlaceholder")}
                     value={inviteEmail}
                     onChange={e => setInviteEmail(e.target.value)}
                     className="pl-9"
@@ -179,22 +181,22 @@ export function TabEquipe() {
                 </div>
               </div>
               <div className="w-full sm:w-44 space-y-1">
-                <Label className="text-xs">Rôle</Label>
+                <Label className="text-xs">{t("settingsEquipe.roleLabel")}</Label>
                 <Select value={inviteRole} onValueChange={setInviteRole}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="administrateur">Admin</SelectItem>
-                    <SelectItem value="agent">Agent</SelectItem>
-                    <SelectItem value="lecture_seule">Lecture seule</SelectItem>
+                    <SelectItem value="administrateur">{t("settingsEquipe.roles.administrateur")}</SelectItem>
+                    <SelectItem value="agent">{t("settingsEquipe.roles.agent")}</SelectItem>
+                    <SelectItem value="lecture_seule">{t("settingsEquipe.roles.lecture_seule")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="flex items-end">
                 <Button type="submit" disabled={inviting} className="w-full sm:w-auto">
                   {inviting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <UserPlus className="w-4 h-4 mr-2" />}
-                  Inviter
+                  {t("settingsEquipe.inviteBtn")}
                 </Button>
               </div>
             </form>
@@ -207,7 +209,7 @@ export function TabEquipe() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Clock className="w-4 h-4 text-amber-500" />
-              Invitations en attente
+              {t("settingsEquipe.pendingInvitations")}
               <Badge className="bg-amber-100 text-amber-700 border-0 text-xs">{invitations.length}</Badge>
             </CardTitle>
           </CardHeader>
@@ -222,13 +224,13 @@ export function TabEquipe() {
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">{inv.email}</p>
                       <p className="text-xs text-muted-foreground">
-                        Expire le {new Date(inv.expiresAt).toLocaleDateString("fr-FR")}
+                        {t("settingsEquipe.expiresOn", { date: new Date(inv.expiresAt).toLocaleDateString("fr-FR") })}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <Badge className={ROLE_CONFIG[inv.role]?.className || "bg-slate-100 text-slate-600 border-0"}>
-                      {ROLE_CONFIG[inv.role]?.label || inv.role}
+                      {ROLE_CONFIG[inv.role] ? t(`settingsEquipe.roles.${inv.role}`) : inv.role}
                     </Badge>
                     {isAdmin && (
                       <>
@@ -238,7 +240,7 @@ export function TabEquipe() {
                           className="h-7 w-7 text-muted-foreground"
                           disabled={resending === inv.id}
                           onClick={() => handleResend(inv.id)}
-                          title="Renvoyer"
+                          title={t("settingsEquipe.resendTitle")}
                         >
                           {resending === inv.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
                         </Button>
@@ -248,7 +250,7 @@ export function TabEquipe() {
                           className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50"
                           disabled={deleting === inv.id}
                           onClick={() => handleDelete(inv.id)}
-                          title="Annuler"
+                          title={t("settingsEquipe.cancelTitle")}
                         >
                           {deleting === inv.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
                         </Button>
@@ -267,12 +269,12 @@ export function TabEquipe() {
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-base">
               <Users className="w-4 h-4 text-primary" />
-              Membres de l'équipe
+              {t("settingsEquipe.teamMembers")}
               <Badge variant="secondary" className="text-xs">{members.length}</Badge>
             </CardTitle>
             <Button variant="ghost" size="sm" onClick={load} className="text-xs text-muted-foreground">
               <RefreshCw className="w-3 h-3 mr-1" />
-              Actualiser
+              {t("settingsEquipe.refresh")}
             </Button>
           </div>
         </CardHeader>
@@ -280,12 +282,13 @@ export function TabEquipe() {
           {members.length === 0 ? (
             <div className="flex flex-col items-center py-10 text-center">
               <Users className="w-10 h-10 text-muted-foreground/30 mb-2" />
-              <p className="text-sm text-muted-foreground">Aucun membre trouvé.</p>
+              <p className="text-sm text-muted-foreground">{t("settingsEquipe.noMembers")}</p>
             </div>
           ) : (
             <div className="divide-y">
               {members.map(m => {
                 const rc = ROLE_CONFIG[m.role] || ROLE_CONFIG.agent;
+                const roleKey = ROLE_CONFIG[m.role] ? m.role : "agent";
                 const RoleIcon = rc.icon;
                 return (
                   <div key={m.id} className="flex items-center justify-between px-4 py-3 hover:bg-muted/20">
@@ -296,7 +299,7 @@ export function TabEquipe() {
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-medium truncate">{m.prenom} {m.nom}</p>
-                          {!m.actif && <Badge className="bg-red-100 text-red-700 border-0 text-[10px]">Inactif</Badge>}
+                          {!m.actif && <Badge className="bg-red-100 text-red-700 border-0 text-[10px]">{t("settingsEquipe.inactive")}</Badge>}
                         </div>
                         <p className="text-xs text-muted-foreground truncate">{m.email}</p>
                       </div>
@@ -309,7 +312,7 @@ export function TabEquipe() {
                       )}
                       <Badge className={rc.className}>
                         <RoleIcon className="w-3 h-3 mr-1" />
-                        {rc.label}
+                        {t(`settingsEquipe.roles.${roleKey}`)}
                       </Badge>
                       <div className={`w-2 h-2 rounded-full ${m.actif ? "bg-emerald-500" : "bg-slate-300"}`} />
                     </div>

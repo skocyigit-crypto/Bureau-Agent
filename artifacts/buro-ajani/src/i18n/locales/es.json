@@ -1675,5 +1675,267 @@
     "ruleLength": "8 caracteres mínimo",
     "ruleMatch": "Las contraseñas coinciden",
     "submit": "Crear mi cuenta"
+  },
+  "settings": {
+    "title": "Ajustes",
+    "subtitle": "Configuración de la aplicación e integraciones.",
+    "print": "Imprimir",
+    "tabs": {
+      "entreprise": "Empresa",
+      "abonnement": "Suscripción",
+      "equipe": "Equipo",
+      "plateformes": "Plataformas",
+      "appels": "Llamadas",
+      "sauvegardes": "Copias de seguridad",
+      "preferencesIa": "Preferencias de IA",
+      "installation": "Instalación",
+      "notifications": "Notificaciones",
+      "securite": "Seguridad",
+      "ia": "IA",
+      "apiWebhooks": "API y Webhooks",
+      "emailExpediteur": "Correo del remitente",
+      "clesIa": "Claves de IA",
+      "misesAJour": "Actualizaciones"
+    },
+    "toast": {
+      "googleConnectedTitle": "Google Workspace conectado",
+      "googleConnectedDesc": "Su cuenta de Google se conectó correctamente.",
+      "googleTitle": "Conexión con Google",
+      "googleGeneric": "La conexión no se completó. Inténtelo de nuevo.",
+      "err_access_denied": "Ha denegado el acceso a Google.",
+      "err_no_code": "Google no devolvió ningún código de autorización. Inténtelo de nuevo.",
+      "err_invalid_state": "La sesión de conexión ha expirado. Reinicie la conexión desde esta página.",
+      "err_not_authenticated": "Su sesión ha expirado. Vuelva a iniciar sesión e inténtelo de nuevo.",
+      "err_exchange_failed": "Falló el intercambio con Google. Compruebe que la aplicación está autorizada (usuario de prueba o aplicación publicada) en el lado de Google Cloud."
+    }
+  },
+  "settingsPreferencesIa": {
+    "cardTitle": "Sugerencias de IA en línea",
+    "cardDescription": "Muestra una sugerencia gris (estilo ghost-text) mientras redacta sus notas, mensajes, tareas, proyectos, presupuestos, facturas y el cuerpo de sus correos. Pulse Tab para aceptar, Esc para descartar.",
+    "enableLabel": "Activar las sugerencias en línea",
+    "enableHint": "Cuando esta opción está desactivada, no se solicita ni se muestra ninguna sugerencia en los campos de texto.",
+    "enableAria": "Activar las sugerencias de IA en línea",
+    "languageLabel": "Idioma de las sugerencias",
+    "languageHint": "Idioma en el que la IA propondrá la continuación de su texto. Elija « Auto » para que el idioma se detecte automáticamente a partir de lo que escribe.",
+    "languageAria": "Idioma de las sugerencias de IA",
+    "fieldsLabel": "Campos afectados",
+    "fieldsHint": "Elija dónde deben aparecer las sugerencias. Cada tipo de campo puede activarse o desactivarse de forma independiente; el interruptor principal de arriba tiene prioridad.",
+    "fieldAria": "Sugerencias de IA para {{label}}",
+    "footer": "Esta preferencia se guarda en su cuenta y se aplica a todos sus dispositivos. Los cambios se guardan automáticamente.",
+    "fields": {
+      "note": {
+        "label": "Notas internas",
+        "description": "Sugerencias mientras redacta las notas internas."
+      },
+      "prospect_note": {
+        "label": "Notas de prospecto",
+        "description": "Sugerencias en las notas asociadas a un prospecto."
+      },
+      "email_body": {
+        "label": "Cuerpo de los correos",
+        "description": "Sugerencias en el cuerpo de los mensajes de correo."
+      },
+      "call_note": {
+        "label": "Notas de llamada",
+        "description": "Sugerencias en las notas asociadas a las llamadas telefónicas."
+      },
+      "task_description": {
+        "label": "Descripciones de tareas",
+        "description": "Sugerencias mientras redacta las descripciones de tareas."
+      },
+      "message_content": {
+        "label": "Mensajes",
+        "description": "Sugerencias en el cuerpo de los mensajes internos."
+      },
+      "project_description": {
+        "label": "Descripciones de proyecto",
+        "description": "Sugerencias en la descripción de un proyecto."
+      },
+      "project_note": {
+        "label": "Notas de proyecto",
+        "description": "Sugerencias en las notas asociadas a un proyecto."
+      },
+      "quote_comment": {
+        "label": "Comentarios de presupuesto",
+        "description": "Sugerencias en los comentarios asociados a un presupuesto."
+      },
+      "invoice_comment": {
+        "label": "Comentarios de factura",
+        "description": "Sugerencias en los comentarios asociados a una factura."
+      }
+    }
+  },
+  "settingsClesIa": {
+    "alertTitle": "Sus propias claves de inteligencia artificial",
+    "alertBody1": "De forma predeterminada, Ajant Bureau utiliza las claves de IA de la plataforma (Gemini, OpenAI, Anthropic) para el asistente, la centralita telefónica y el análisis de documentos. Al conectar",
+    "alertStrongOwnKeys": " sus propias claves",
+    "alertBody2": ", las llamadas de IA de su organización pasan por",
+    "alertStrongAccount": " su cuenta de proveedor",
+    "alertBody3": " y el consumo se le factura directamente. Si su clave falla, la plataforma toma el relevo automáticamente para no bloquear nunca una respuesta. Cada clave está",
+    "alertStrongEncrypted": " cifrada",
+    "alertBody4": " y nunca se muestra en texto claro.",
+    "cardTitle": "Claves de IA",
+    "cardDescription": "Conecte y gestione sus claves de Gemini, OpenAI y Anthropic.",
+    "noneConfigured": "Ninguna clave configurada. Sus llamadas de IA pasan actualmente por la plataforma.",
+    "defaultBadge": "Predeterminada",
+    "active": "Activo",
+    "inactive": "Inactivo",
+    "setDefaultTitle": "Establecer como predeterminada",
+    "deactivateTitle": "Desactivar",
+    "activateTitle": "Activar",
+    "apiKeyLabel": "Clave API: ",
+    "testKey": "Probar la clave",
+    "newKey": "Nueva clave de IA",
+    "nameLabel": "Nombre (etiqueta interna)",
+    "toast": {
+      "loadErrorTitle": "Error de carga",
+      "loadErrorDesc": "No se pudieron cargar las claves de IA.",
+      "fieldRequired": "Campo obligatorio",
+      "savedTitle": "Clave de IA guardada",
+      "savedDesc": "{{provider}} se usará a partir de ahora para las llamadas de IA de su organización.",
+      "failTitle": "Error",
+      "configError": "No se pudo realizar la configuración.",
+      "networkError": "Error de red",
+      "defaultUpdated": "Proveedor de IA predeterminado actualizado",
+      "error": "Error",
+      "deactivated": "Proveedor desactivado",
+      "activated": "Proveedor activado",
+      "deleted": "Clave de IA eliminada",
+      "testValidTitle": "Clave válida",
+      "testValidDesc": "El proveedor de IA responde correctamente.",
+      "testFailTitle": "Prueba fallida",
+      "testFailDesc": "No se pudo verificar la clave."
+    },
+    "confirm": {
+      "deleteTitle": "¿Eliminar esta clave de IA?",
+      "deleteDesc": "Las llamadas de IA volverán a pasar por las claves de la plataforma."
+    }
+  },
+  "settingsEmailExpediteur": {
+    "alertTitle": "Su propio servicio de envío de correos",
+    "alertBody1": "De forma predeterminada, Ajant Bureau envía sus correos (facturas, recordatorios, mensajes del asistente) a través del servicio de envío de la plataforma. Al conectar",
+    "alertStrongResendKey": " su propia clave de Resend",
+    "alertBody2": ", sus correos se envían desde",
+    "alertStrongDomain": " su dominio",
+    "alertBody3": " y los costes de envío se los factura directamente Resend. Si su clave falla, la plataforma toma el relevo automáticamente para no bloquear nunca un envío. La clave está",
+    "alertStrongEncrypted": " cifrada",
+    "alertBody4": " y nunca se muestra en texto claro.",
+    "cardTitle": "Proveedores de correo",
+    "cardDescription": "Conecte y gestione su clave de envío de correos.",
+    "noneConfigured": "Ningún proveedor configurado. Sus correos se envían actualmente a través de la plataforma.",
+    "defaultBadge": "Predeterminado",
+    "active": "Activo",
+    "inactive": "Inactivo",
+    "setDefaultTitle": "Establecer como predeterminado",
+    "deactivateTitle": "Desactivar",
+    "activateTitle": "Activar",
+    "apiKeyLabel": "Clave API: ",
+    "fromLabel": "Remitente: ",
+    "testAddressLabel": "Dirección de prueba",
+    "testPlaceholder": "usted@ejemplo.com",
+    "sendTest": "Enviar una prueba",
+    "newProvider": "Nuevo proveedor",
+    "nameLabel": "Nombre (etiqueta interna)",
+    "toast": {
+      "loadErrorTitle": "Error de carga",
+      "loadErrorDesc": "No se pudo cargar la configuración de correo.",
+      "fieldRequired": "Campo obligatorio",
+      "configuredTitle": "Proveedor configurado",
+      "configuredDesc": "{{provider}} está listo para enviar sus correos.",
+      "failTitle": "Error",
+      "configError": "No se pudo realizar la configuración.",
+      "networkError": "Error de red",
+      "defaultUpdated": "Proveedor predeterminado actualizado",
+      "error": "Error",
+      "deactivated": "Proveedor desactivado",
+      "activated": "Proveedor activado",
+      "deleted": "Proveedor eliminado",
+      "testInvalidTitle": "Dirección de prueba no válida",
+      "testInvalidDesc": "Introduzca una dirección de correo válida.",
+      "testSentTitle": "Correo de prueba enviado",
+      "testSentDesc": "Compruebe la bandeja de entrada de {{to}} (remitente: {{from}}).",
+      "testFailTitle": "Prueba fallida",
+      "testFailDesc": "El envío de prueba falló."
+    },
+    "confirm": {
+      "deleteTitle": "¿Eliminar este proveedor?",
+      "deleteDesc": "Sus correos volverán a pasar por el servicio de envío de la plataforma."
+    }
+  },
+  "settingsEquipe": {
+    "roles": {
+      "super_admin": "Superadministrador",
+      "administrateur": "Administrador",
+      "agent": "Agente",
+      "lecture_seule": "Solo lectura"
+    },
+    "inviteTitle": "Invitar a un miembro",
+    "inviteDesc": "Se enviará un correo de invitación con un enlace de acceso seguro (válido 72 h).",
+    "emailLabel": "Dirección de correo",
+    "emailPlaceholder": "colega@ejemplo.com",
+    "roleLabel": "Rol",
+    "inviteBtn": "Invitar",
+    "pendingInvitations": "Invitaciones pendientes",
+    "expiresOn": "Expira el {{date}}",
+    "resendTitle": "Reenviar",
+    "cancelTitle": "Cancelar",
+    "teamMembers": "Miembros del equipo",
+    "refresh": "Actualizar",
+    "noMembers": "No se encontró ningún miembro.",
+    "inactive": "Inactivo",
+    "toast": {
+      "error": "Error",
+      "loadError": "No se pudo cargar el equipo.",
+      "invitationSentTitle": "Invitación enviada",
+      "invitationSentDesc": "Se envió un correo a {{email}}.",
+      "inviteError": "No se pudo enviar la invitación.",
+      "emailResentTitle": "Correo reenviado",
+      "emailResentDesc": "La invitación se ha reenviado.",
+      "resendError": "No se pudo reenviar la invitación.",
+      "invitationCancelled": "Invitación cancelada",
+      "cancelError": "No se pudo cancelar la invitación."
+    }
+  },
+  "settingsMisesAJour": {
+    "types": {
+      "update": "Actualización",
+      "feature": "Nueva funcionalidad",
+      "major": "Versión mayor",
+      "security": "Seguridad",
+      "fix": "Corrección de errores",
+      "performance": "Rendimiento"
+    },
+    "heading": "Gestión de actualizaciones",
+    "subtitle": "Publique actualizaciones para notificar a sus clientes. Verán un banner de actualización en la aplicación.",
+    "currentBuildLabel": "Compilación actual: ",
+    "publishBtn": "Publicar una actualización",
+    "newUpdate": "Nueva actualización",
+    "versionLabel": "Versión *",
+    "versionPlaceholder": "ej: 2.5.0",
+    "typeLabel": "Tipo",
+    "titleLabel": "Título *",
+    "titlePlaceholder": "ej: Mejora del asistente de IA",
+    "descLabel": "Descripción",
+    "descPlaceholder": "Descripción breve de la actualización",
+    "changesLabel": "Cambios (uno por línea)",
+    "changesPlaceholder": "Nuevo sistema de facturación\nAsistente de IA mejorado con 43 acciones\nCorrección del error de visualización de los contactos\nRendimiento del panel optimizado",
+    "forceLabel": "Actualización obligatoria",
+    "forceHint": "Los usuarios no podrán descartar esta actualización. Úsela para las correcciones críticas de seguridad.",
+    "publishing": "Publicando...",
+    "publishSubmit": "Publicar la actualización",
+    "historyTitle": "Historial de actualizaciones ({{count}})",
+    "emptyLine1": "Ninguna actualización publicada.",
+    "emptyLine2": "Publique su primera actualización para notificar a sus clientes.",
+    "forceBadge": "Obligatoria",
+    "buildInline": "Compilación:",
+    "toast": {
+      "error": "Error",
+      "versionTitleRequired": "La versión y el título son obligatorios.",
+      "publishedTitle": "Actualización publicada",
+      "publishedDesc": "Versión {{version}} publicada. Todos los usuarios recibirán la notificación.",
+      "deletedTitle": "Eliminada",
+      "deleteError": "No se pudo eliminar esta versión.",
+      "networkError": "Error de red."
+    }
   }
 }

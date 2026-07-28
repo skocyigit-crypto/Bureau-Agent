@@ -1675,5 +1675,267 @@
     "ruleLength": "8 أحرف كحد أدنى",
     "ruleMatch": "كلمتا المرور متطابقتان",
     "submit": "إنشاء حسابي"
+  },
+  "settings": {
+    "title": "الإعدادات",
+    "subtitle": "إعداد التطبيق والتكاملات.",
+    "print": "طباعة",
+    "tabs": {
+      "entreprise": "الشركة",
+      "abonnement": "الاشتراك",
+      "equipe": "الفريق",
+      "plateformes": "المنصات",
+      "appels": "المكالمات",
+      "sauvegardes": "النسخ الاحتياطية",
+      "preferencesIa": "تفضيلات الذكاء الاصطناعي",
+      "installation": "التثبيت",
+      "notifications": "الإشعارات",
+      "securite": "الأمان",
+      "ia": "الذكاء الاصطناعي",
+      "apiWebhooks": "API وWebhooks",
+      "emailExpediteur": "البريد الإلكتروني للمُرسِل",
+      "clesIa": "مفاتيح الذكاء الاصطناعي",
+      "misesAJour": "التحديثات"
+    },
+    "toast": {
+      "googleConnectedTitle": "تم ربط Google Workspace",
+      "googleConnectedDesc": "تم ربط حساب Google الخاص بك بنجاح.",
+      "googleTitle": "اتصال Google",
+      "googleGeneric": "لم يكتمل الاتصال. يرجى المحاولة مرة أخرى.",
+      "err_access_denied": "لقد رفضت الوصول إلى Google.",
+      "err_no_code": "لم يُرجع Google أي رمز تفويض. يرجى المحاولة مرة أخرى.",
+      "err_invalid_state": "انتهت صلاحية جلسة الاتصال. أعد بدء الاتصال من هذه الصفحة.",
+      "err_not_authenticated": "انتهت صلاحية جلستك. سجّل الدخول مرة أخرى ثم أعد المحاولة.",
+      "err_exchange_failed": "فشل التبادل مع Google. تحقق من أن التطبيق مُصرّح به (مستخدم تجريبي أو تطبيق منشور) من جهة Google Cloud."
+    }
+  },
+  "settingsPreferencesIa": {
+    "cardTitle": "اقتراحات الذكاء الاصطناعي المضمّنة",
+    "cardDescription": "يعرض اقتراحًا رماديًا (بأسلوب النص الشبحي) أثناء كتابتك لملاحظاتك ورسائلك ومهامك ومشاريعك وعروض أسعارك وفواتيرك ونص رسائلك الإلكترونية. اضغط Tab للقبول وEsc للتجاهل.",
+    "enableLabel": "تفعيل الاقتراحات المضمّنة",
+    "enableHint": "عند تعطيل هذا الخيار، لا يُطلب أي اقتراح ولا يُعرض في حقول النص.",
+    "enableAria": "تفعيل اقتراحات الذكاء الاصطناعي المضمّنة",
+    "languageLabel": "لغة الاقتراحات",
+    "languageHint": "اللغة التي سيقترح بها الذكاء الاصطناعي تكملة نصك. اختر « تلقائي » ليتم اكتشاف اللغة تلقائيًا مما تكتبه.",
+    "languageAria": "لغة اقتراحات الذكاء الاصطناعي",
+    "fieldsLabel": "الحقول المعنية",
+    "fieldsHint": "اختر أين يجب أن تظهر الاقتراحات. يمكن تفعيل أو تعطيل كل نوع حقل بشكل مستقل؛ ويظل المفتاح الرئيسي أعلاه له الأولوية.",
+    "fieldAria": "اقتراحات الذكاء الاصطناعي لـ {{label}}",
+    "footer": "يُحفظ هذا التفضيل في حسابك ويُطبّق على جميع أجهزتك. تُحفظ التغييرات تلقائيًا.",
+    "fields": {
+      "note": {
+        "label": "الملاحظات الداخلية",
+        "description": "اقتراحات أثناء كتابة الملاحظات الداخلية."
+      },
+      "prospect_note": {
+        "label": "ملاحظات العميل المحتمل",
+        "description": "اقتراحات في الملاحظات المرتبطة بعميل محتمل."
+      },
+      "email_body": {
+        "label": "نص البريد الإلكتروني",
+        "description": "اقتراحات في نص رسائل البريد الإلكتروني."
+      },
+      "call_note": {
+        "label": "ملاحظات المكالمات",
+        "description": "اقتراحات في الملاحظات المرتبطة بالمكالمات الهاتفية."
+      },
+      "task_description": {
+        "label": "أوصاف المهام",
+        "description": "اقتراحات أثناء كتابة أوصاف المهام."
+      },
+      "message_content": {
+        "label": "الرسائل",
+        "description": "اقتراحات في نص الرسائل الداخلية."
+      },
+      "project_description": {
+        "label": "أوصاف المشروع",
+        "description": "اقتراحات في وصف مشروع."
+      },
+      "project_note": {
+        "label": "ملاحظات المشروع",
+        "description": "اقتراحات في الملاحظات المرتبطة بمشروع."
+      },
+      "quote_comment": {
+        "label": "تعليقات عرض السعر",
+        "description": "اقتراحات في التعليقات المرتبطة بعرض سعر."
+      },
+      "invoice_comment": {
+        "label": "تعليقات الفاتورة",
+        "description": "اقتراحات في التعليقات المرتبطة بفاتورة."
+      }
+    }
+  },
+  "settingsClesIa": {
+    "alertTitle": "مفاتيح الذكاء الاصطناعي الخاصة بك",
+    "alertBody1": "بشكل افتراضي، يستخدم Ajant Bureau مفاتيح الذكاء الاصطناعي الخاصة بالمنصة (Gemini وOpenAI وAnthropic) للمساعد والمقسّم الهاتفي وتحليل المستندات. عند ربط",
+    "alertStrongOwnKeys": " مفاتيحك الخاصة",
+    "alertBody2": "، تمر مكالمات الذكاء الاصطناعي الخاصة بمؤسستك عبر",
+    "alertStrongAccount": " حساب المزوّد الخاص بك",
+    "alertBody3": " ويُحتسب الاستهلاك عليك مباشرةً. إذا فشل مفتاحك، تتولى المنصة الأمر تلقائيًا حتى لا يُحظر أي رد أبدًا. كل مفتاح",
+    "alertStrongEncrypted": " مُشفّر",
+    "alertBody4": " ولا يُعرض أبدًا بنص واضح.",
+    "cardTitle": "مفاتيح الذكاء الاصطناعي",
+    "cardDescription": "اربط وأدر مفاتيح Gemini وOpenAI وAnthropic الخاصة بك.",
+    "noneConfigured": "لا يوجد مفتاح مُهيّأ. تمر مكالمات الذكاء الاصطناعي حاليًا عبر المنصة.",
+    "defaultBadge": "افتراضي",
+    "active": "نشط",
+    "inactive": "غير نشط",
+    "setDefaultTitle": "تعيين كافتراضي",
+    "deactivateTitle": "إلغاء التفعيل",
+    "activateTitle": "تفعيل",
+    "apiKeyLabel": "مفتاح API: ",
+    "testKey": "اختبار المفتاح",
+    "newKey": "مفتاح ذكاء اصطناعي جديد",
+    "nameLabel": "الاسم (تسمية داخلية)",
+    "toast": {
+      "loadErrorTitle": "خطأ في التحميل",
+      "loadErrorDesc": "تعذّر تحميل مفاتيح الذكاء الاصطناعي.",
+      "fieldRequired": "حقل مطلوب",
+      "savedTitle": "تم حفظ مفتاح الذكاء الاصطناعي",
+      "savedDesc": "سيُستخدم {{provider}} من الآن فصاعدًا لمكالمات الذكاء الاصطناعي الخاصة بمؤسستك.",
+      "failTitle": "فشل",
+      "configError": "تعذّر التهيئة.",
+      "networkError": "خطأ في الشبكة",
+      "defaultUpdated": "تم تحديث مزوّد الذكاء الاصطناعي الافتراضي",
+      "error": "خطأ",
+      "deactivated": "تم إلغاء تفعيل المزوّد",
+      "activated": "تم تفعيل المزوّد",
+      "deleted": "تم حذف مفتاح الذكاء الاصطناعي",
+      "testValidTitle": "المفتاح صالح",
+      "testValidDesc": "يستجيب مزوّد الذكاء الاصطناعي بشكل صحيح.",
+      "testFailTitle": "فشل الاختبار",
+      "testFailDesc": "تعذّر التحقق من المفتاح."
+    },
+    "confirm": {
+      "deleteTitle": "حذف مفتاح الذكاء الاصطناعي هذا؟",
+      "deleteDesc": "ستمر مكالمات الذكاء الاصطناعي مجددًا عبر مفاتيح المنصة."
+    }
+  },
+  "settingsEmailExpediteur": {
+    "alertTitle": "خدمة إرسال البريد الإلكتروني الخاصة بك",
+    "alertBody1": "بشكل افتراضي، يرسل Ajant Bureau رسائلك الإلكترونية (الفواتير والتذكيرات ورسائل المساعد) عبر خدمة الإرسال الخاصة بالمنصة. عند ربط",
+    "alertStrongResendKey": " مفتاح Resend الخاص بك",
+    "alertBody2": "، تُرسَل رسائلك من",
+    "alertStrongDomain": " نطاقك الخاص",
+    "alertBody3": " وتُحتسب تكاليف الإرسال عليك مباشرةً من قِبل Resend. إذا فشل مفتاحك، تتولى المنصة الأمر تلقائيًا حتى لا يُحظر أي إرسال أبدًا. المفتاح",
+    "alertStrongEncrypted": " مُشفّر",
+    "alertBody4": " ولا يُعرض أبدًا بنص واضح.",
+    "cardTitle": "مزوّدو البريد الإلكتروني",
+    "cardDescription": "اربط وأدر مفتاح إرسال البريد الإلكتروني الخاص بك.",
+    "noneConfigured": "لا يوجد مزوّد مُهيّأ. تُرسَل رسائلك حاليًا عبر المنصة.",
+    "defaultBadge": "افتراضي",
+    "active": "نشط",
+    "inactive": "غير نشط",
+    "setDefaultTitle": "تعيين كافتراضي",
+    "deactivateTitle": "إلغاء التفعيل",
+    "activateTitle": "تفعيل",
+    "apiKeyLabel": "مفتاح API: ",
+    "fromLabel": "المُرسِل: ",
+    "testAddressLabel": "عنوان الاختبار",
+    "testPlaceholder": "you@example.com",
+    "sendTest": "إرسال اختبار",
+    "newProvider": "مزوّد جديد",
+    "nameLabel": "الاسم (تسمية داخلية)",
+    "toast": {
+      "loadErrorTitle": "خطأ في التحميل",
+      "loadErrorDesc": "تعذّر تحميل إعدادات البريد الإلكتروني.",
+      "fieldRequired": "حقل مطلوب",
+      "configuredTitle": "تمت تهيئة المزوّد",
+      "configuredDesc": "{{provider}} جاهز لإرسال رسائلك الإلكترونية.",
+      "failTitle": "فشل",
+      "configError": "تعذّر التهيئة.",
+      "networkError": "خطأ في الشبكة",
+      "defaultUpdated": "تم تحديث المزوّد الافتراضي",
+      "error": "خطأ",
+      "deactivated": "تم إلغاء تفعيل المزوّد",
+      "activated": "تم تفعيل المزوّد",
+      "deleted": "تم حذف المزوّد",
+      "testInvalidTitle": "عنوان اختبار غير صالح",
+      "testInvalidDesc": "أدخل عنوان بريد إلكتروني صالحًا.",
+      "testSentTitle": "تم إرسال بريد الاختبار",
+      "testSentDesc": "تحقق من صندوق الوارد الخاص بـ {{to}} (المُرسِل: {{from}}).",
+      "testFailTitle": "فشل الاختبار",
+      "testFailDesc": "فشل إرسال الاختبار."
+    },
+    "confirm": {
+      "deleteTitle": "حذف هذا المزوّد؟",
+      "deleteDesc": "ستمر رسائلك مجددًا عبر خدمة الإرسال الخاصة بالمنصة."
+    }
+  },
+  "settingsEquipe": {
+    "roles": {
+      "super_admin": "مشرف عام",
+      "administrateur": "مسؤول",
+      "agent": "وكيل",
+      "lecture_seule": "قراءة فقط"
+    },
+    "inviteTitle": "دعوة عضو",
+    "inviteDesc": "سيتم إرسال بريد دعوة يحتوي على رابط وصول آمن (صالح لمدة 72 ساعة).",
+    "emailLabel": "عنوان البريد الإلكتروني",
+    "emailPlaceholder": "colleague@example.com",
+    "roleLabel": "الدور",
+    "inviteBtn": "دعوة",
+    "pendingInvitations": "الدعوات المعلّقة",
+    "expiresOn": "تنتهي في {{date}}",
+    "resendTitle": "إعادة الإرسال",
+    "cancelTitle": "إلغاء",
+    "teamMembers": "أعضاء الفريق",
+    "refresh": "تحديث",
+    "noMembers": "لم يُعثر على أي عضو.",
+    "inactive": "غير نشط",
+    "toast": {
+      "error": "خطأ",
+      "loadError": "تعذّر تحميل الفريق.",
+      "invitationSentTitle": "تم إرسال الدعوة",
+      "invitationSentDesc": "تم إرسال بريد إلكتروني إلى {{email}}.",
+      "inviteError": "تعذّر إرسال الدعوة.",
+      "emailResentTitle": "تمت إعادة إرسال البريد",
+      "emailResentDesc": "تمت إعادة إرسال الدعوة.",
+      "resendError": "تعذّرت إعادة إرسال الدعوة.",
+      "invitationCancelled": "تم إلغاء الدعوة",
+      "cancelError": "تعذّر إلغاء الدعوة."
+    }
+  },
+  "settingsMisesAJour": {
+    "types": {
+      "update": "تحديث",
+      "feature": "ميزة جديدة",
+      "major": "إصدار رئيسي",
+      "security": "الأمان",
+      "fix": "إصلاح الأخطاء",
+      "performance": "الأداء"
+    },
+    "heading": "إدارة التحديثات",
+    "subtitle": "انشر تحديثات لإخطار عملائك. سيرون شريط تحديث في التطبيق.",
+    "currentBuildLabel": "الإصدار الحالي: ",
+    "publishBtn": "نشر تحديث",
+    "newUpdate": "تحديث جديد",
+    "versionLabel": "الإصدار *",
+    "versionPlaceholder": "مثال: 2.5.0",
+    "typeLabel": "النوع",
+    "titleLabel": "العنوان *",
+    "titlePlaceholder": "مثال: تحسين مساعد الذكاء الاصطناعي",
+    "descLabel": "الوصف",
+    "descPlaceholder": "وصف موجز للتحديث",
+    "changesLabel": "التغييرات (واحد في كل سطر)",
+    "changesPlaceholder": "نظام فوترة جديد\nمساعد ذكاء اصطناعي مُحسّن مع 43 إجراءً\nإصلاح خطأ عرض جهات الاتصال\nتحسين أداء لوحة التحكم",
+    "forceLabel": "تحديث إلزامي",
+    "forceHint": "لن يتمكن المستخدمون من تجاهل هذا التحديث. استخدمه لإصلاحات الأمان الحرجة.",
+    "publishing": "جارٍ النشر...",
+    "publishSubmit": "نشر التحديث",
+    "historyTitle": "سجل التحديثات ({{count}})",
+    "emptyLine1": "لا يوجد تحديث منشور.",
+    "emptyLine2": "انشر أول تحديث لك لإخطار عملائك.",
+    "forceBadge": "إلزامي",
+    "buildInline": "الإصدار:",
+    "toast": {
+      "error": "خطأ",
+      "versionTitleRequired": "الإصدار والعنوان مطلوبان.",
+      "publishedTitle": "تم نشر التحديث",
+      "publishedDesc": "تم نشر الإصدار {{version}}. سيتلقى جميع المستخدمين الإشعار.",
+      "deletedTitle": "تم الحذف",
+      "deleteError": "تعذّر حذف هذا الإصدار.",
+      "networkError": "خطأ في الشبكة."
+    }
   }
 }

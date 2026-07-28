@@ -1675,5 +1675,267 @@
     "ruleLength": "Mindestens 8 Zeichen",
     "ruleMatch": "Passwörter stimmen überein",
     "submit": "Mein Konto erstellen"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "subtitle": "Anwendungskonfiguration und Integrationen.",
+    "print": "Drucken",
+    "tabs": {
+      "entreprise": "Unternehmen",
+      "abonnement": "Abonnement",
+      "equipe": "Team",
+      "plateformes": "Plattformen",
+      "appels": "Anrufe",
+      "sauvegardes": "Sicherungen",
+      "preferencesIa": "KI-Einstellungen",
+      "installation": "Installation",
+      "notifications": "Benachrichtigungen",
+      "securite": "Sicherheit",
+      "ia": "KI",
+      "apiWebhooks": "API & Webhooks",
+      "emailExpediteur": "Absender-E-Mail",
+      "clesIa": "KI-Schlüssel",
+      "misesAJour": "Updates"
+    },
+    "toast": {
+      "googleConnectedTitle": "Google Workspace verbunden",
+      "googleConnectedDesc": "Ihr Google-Konto wurde erfolgreich verbunden.",
+      "googleTitle": "Google-Verbindung",
+      "googleGeneric": "Die Verbindung wurde nicht abgeschlossen. Bitte versuchen Sie es erneut.",
+      "err_access_denied": "Sie haben den Zugriff auf Google verweigert.",
+      "err_no_code": "Google hat keinen Autorisierungscode zurückgegeben. Bitte versuchen Sie es erneut.",
+      "err_invalid_state": "Die Verbindungssitzung ist abgelaufen. Starten Sie die Verbindung von dieser Seite aus neu.",
+      "err_not_authenticated": "Ihre Sitzung ist abgelaufen. Melden Sie sich erneut an und versuchen Sie es noch einmal.",
+      "err_exchange_failed": "Der Austausch mit Google ist fehlgeschlagen. Prüfen Sie, ob die Anwendung auf Google-Cloud-Seite autorisiert ist (Testnutzer oder veröffentlichte App)."
+    }
+  },
+  "settingsPreferencesIa": {
+    "cardTitle": "KI-Inline-Vorschläge",
+    "cardDescription": "Zeigt einen grauen Vorschlag (Ghost-Text-Stil) an, während Sie Ihre Notizen, Nachrichten, Aufgaben, Projekte, Angebote, Rechnungen und den Text Ihrer E-Mails verfassen. Drücken Sie Tab zum Übernehmen, Esc zum Verwerfen.",
+    "enableLabel": "Inline-Vorschläge aktivieren",
+    "enableHint": "Wenn diese Option deaktiviert ist, wird in den Textfeldern kein Vorschlag angefordert oder angezeigt.",
+    "enableAria": "KI-Inline-Vorschläge aktivieren",
+    "languageLabel": "Sprache der Vorschläge",
+    "languageHint": "Die Sprache, in der die KI die Fortsetzung Ihres Textes vorschlägt. Wählen Sie « Auto », damit die Sprache automatisch aus dem erkannt wird, was Sie schreiben.",
+    "languageAria": "Sprache der KI-Vorschläge",
+    "fieldsLabel": "Betroffene Felder",
+    "fieldsHint": "Wählen Sie, wo Vorschläge erscheinen sollen. Jeder Feldtyp kann unabhängig aktiviert oder deaktiviert werden; der Hauptschalter oben hat Vorrang.",
+    "fieldAria": "KI-Vorschläge für {{label}}",
+    "footer": "Diese Einstellung wird in Ihrem Konto gespeichert und gilt für alle Ihre Geräte. Änderungen werden automatisch gespeichert.",
+    "fields": {
+      "note": {
+        "label": "Interne Notizen",
+        "description": "Vorschläge beim Verfassen interner Notizen."
+      },
+      "prospect_note": {
+        "label": "Interessenten-Notizen",
+        "description": "Vorschläge in Notizen, die einem Interessenten zugeordnet sind."
+      },
+      "email_body": {
+        "label": "E-Mail-Text",
+        "description": "Vorschläge im Text von E-Mail-Nachrichten."
+      },
+      "call_note": {
+        "label": "Anrufnotizen",
+        "description": "Vorschläge in Notizen, die Telefonanrufen zugeordnet sind."
+      },
+      "task_description": {
+        "label": "Aufgabenbeschreibungen",
+        "description": "Vorschläge beim Verfassen von Aufgabenbeschreibungen."
+      },
+      "message_content": {
+        "label": "Nachrichten",
+        "description": "Vorschläge im Text interner Nachrichten."
+      },
+      "project_description": {
+        "label": "Projektbeschreibungen",
+        "description": "Vorschläge in der Beschreibung eines Projekts."
+      },
+      "project_note": {
+        "label": "Projektnotizen",
+        "description": "Vorschläge in Notizen, die einem Projekt zugeordnet sind."
+      },
+      "quote_comment": {
+        "label": "Angebotskommentare",
+        "description": "Vorschläge in Kommentaren, die einem Angebot zugeordnet sind."
+      },
+      "invoice_comment": {
+        "label": "Rechnungskommentare",
+        "description": "Vorschläge in Kommentaren, die einer Rechnung zugeordnet sind."
+      }
+    }
+  },
+  "settingsClesIa": {
+    "alertTitle": "Ihre eigenen Schlüssel für künstliche Intelligenz",
+    "alertBody1": "Standardmäßig verwendet Ajant Bureau die KI-Schlüssel der Plattform (Gemini, OpenAI, Anthropic) für den Assistenten, die Telefonzentrale und die Dokumentenanalyse. Wenn Sie",
+    "alertStrongOwnKeys": " Ihre eigenen Schlüssel",
+    "alertBody2": " verbinden, laufen die KI-Aufrufe Ihrer Organisation über",
+    "alertStrongAccount": " Ihr Anbieterkonto",
+    "alertBody3": " und der Verbrauch wird Ihnen direkt in Rechnung gestellt. Wenn Ihr Schlüssel fehlschlägt, übernimmt die Plattform automatisch, damit eine Antwort nie blockiert wird. Jeder Schlüssel ist",
+    "alertStrongEncrypted": " verschlüsselt",
+    "alertBody4": " und wird niemals im Klartext angezeigt.",
+    "cardTitle": "KI-Schlüssel",
+    "cardDescription": "Verbinden und verwalten Sie Ihre Gemini-, OpenAI- und Anthropic-Schlüssel.",
+    "noneConfigured": "Kein Schlüssel konfiguriert. Ihre KI-Aufrufe laufen derzeit über die Plattform.",
+    "defaultBadge": "Standard",
+    "active": "Aktiv",
+    "inactive": "Inaktiv",
+    "setDefaultTitle": "Als Standard festlegen",
+    "deactivateTitle": "Deaktivieren",
+    "activateTitle": "Aktivieren",
+    "apiKeyLabel": "API-Schlüssel: ",
+    "testKey": "Schlüssel testen",
+    "newKey": "Neuer KI-Schlüssel",
+    "nameLabel": "Name (interne Bezeichnung)",
+    "toast": {
+      "loadErrorTitle": "Ladefehler",
+      "loadErrorDesc": "Die KI-Schlüssel konnten nicht geladen werden.",
+      "fieldRequired": "Pflichtfeld",
+      "savedTitle": "KI-Schlüssel gespeichert",
+      "savedDesc": "{{provider}} wird künftig für die KI-Aufrufe Ihrer Organisation verwendet.",
+      "failTitle": "Fehlgeschlagen",
+      "configError": "Konfiguration nicht möglich.",
+      "networkError": "Netzwerkfehler",
+      "defaultUpdated": "Standard-KI-Anbieter aktualisiert",
+      "error": "Fehler",
+      "deactivated": "Anbieter deaktiviert",
+      "activated": "Anbieter aktiviert",
+      "deleted": "KI-Schlüssel gelöscht",
+      "testValidTitle": "Schlüssel gültig",
+      "testValidDesc": "Der KI-Anbieter antwortet korrekt.",
+      "testFailTitle": "Test fehlgeschlagen",
+      "testFailDesc": "Der Schlüssel konnte nicht überprüft werden."
+    },
+    "confirm": {
+      "deleteTitle": "Diesen KI-Schlüssel löschen?",
+      "deleteDesc": "Die KI-Aufrufe laufen wieder über die Plattform-Schlüssel."
+    }
+  },
+  "settingsEmailExpediteur": {
+    "alertTitle": "Ihr eigener E-Mail-Versanddienst",
+    "alertBody1": "Standardmäßig versendet Ajant Bureau Ihre E-Mails (Rechnungen, Erinnerungen, Assistentennachrichten) über den Versanddienst der Plattform. Wenn Sie",
+    "alertStrongResendKey": " Ihren eigenen Resend-Schlüssel",
+    "alertBody2": " verbinden, werden Ihre E-Mails von",
+    "alertStrongDomain": " Ihrer Domain",
+    "alertBody3": " aus versendet und die Versandkosten werden Ihnen direkt von Resend in Rechnung gestellt. Wenn Ihr Schlüssel fehlschlägt, übernimmt die Plattform automatisch, damit ein Versand nie blockiert wird. Der Schlüssel ist",
+    "alertStrongEncrypted": " verschlüsselt",
+    "alertBody4": " und wird niemals im Klartext angezeigt.",
+    "cardTitle": "E-Mail-Anbieter",
+    "cardDescription": "Verbinden und verwalten Sie Ihren E-Mail-Versandschlüssel.",
+    "noneConfigured": "Kein Anbieter konfiguriert. Ihre E-Mails werden derzeit über die Plattform versendet.",
+    "defaultBadge": "Standard",
+    "active": "Aktiv",
+    "inactive": "Inaktiv",
+    "setDefaultTitle": "Als Standard festlegen",
+    "deactivateTitle": "Deaktivieren",
+    "activateTitle": "Aktivieren",
+    "apiKeyLabel": "API-Schlüssel: ",
+    "fromLabel": "Absender: ",
+    "testAddressLabel": "Testadresse",
+    "testPlaceholder": "sie@beispiel.de",
+    "sendTest": "Test senden",
+    "newProvider": "Neuer Anbieter",
+    "nameLabel": "Name (interne Bezeichnung)",
+    "toast": {
+      "loadErrorTitle": "Ladefehler",
+      "loadErrorDesc": "Die E-Mail-Konfiguration konnte nicht geladen werden.",
+      "fieldRequired": "Pflichtfeld",
+      "configuredTitle": "Anbieter konfiguriert",
+      "configuredDesc": "{{provider}} ist bereit, Ihre E-Mails zu senden.",
+      "failTitle": "Fehlgeschlagen",
+      "configError": "Konfiguration nicht möglich.",
+      "networkError": "Netzwerkfehler",
+      "defaultUpdated": "Standardanbieter aktualisiert",
+      "error": "Fehler",
+      "deactivated": "Anbieter deaktiviert",
+      "activated": "Anbieter aktiviert",
+      "deleted": "Anbieter gelöscht",
+      "testInvalidTitle": "Ungültige Testadresse",
+      "testInvalidDesc": "Geben Sie eine gültige E-Mail-Adresse ein.",
+      "testSentTitle": "Test-E-Mail gesendet",
+      "testSentDesc": "Prüfen Sie den Posteingang von {{to}} (Absender: {{from}}).",
+      "testFailTitle": "Test fehlgeschlagen",
+      "testFailDesc": "Der Testversand ist fehlgeschlagen."
+    },
+    "confirm": {
+      "deleteTitle": "Diesen Anbieter löschen?",
+      "deleteDesc": "Ihre E-Mails laufen wieder über den Versanddienst der Plattform."
+    }
+  },
+  "settingsEquipe": {
+    "roles": {
+      "super_admin": "Super-Admin",
+      "administrateur": "Admin",
+      "agent": "Agent",
+      "lecture_seule": "Nur Lesen"
+    },
+    "inviteTitle": "Mitglied einladen",
+    "inviteDesc": "Es wird eine Einladungs-E-Mail mit einem sicheren Zugangslink gesendet (72 Std. gültig).",
+    "emailLabel": "E-Mail-Adresse",
+    "emailPlaceholder": "kollege@beispiel.de",
+    "roleLabel": "Rolle",
+    "inviteBtn": "Einladen",
+    "pendingInvitations": "Ausstehende Einladungen",
+    "expiresOn": "Läuft ab am {{date}}",
+    "resendTitle": "Erneut senden",
+    "cancelTitle": "Abbrechen",
+    "teamMembers": "Teammitglieder",
+    "refresh": "Aktualisieren",
+    "noMembers": "Kein Mitglied gefunden.",
+    "inactive": "Inaktiv",
+    "toast": {
+      "error": "Fehler",
+      "loadError": "Das Team konnte nicht geladen werden.",
+      "invitationSentTitle": "Einladung gesendet",
+      "invitationSentDesc": "Eine E-Mail wurde an {{email}} gesendet.",
+      "inviteError": "Die Einladung konnte nicht gesendet werden.",
+      "emailResentTitle": "E-Mail erneut gesendet",
+      "emailResentDesc": "Die Einladung wurde erneut gesendet.",
+      "resendError": "Die Einladung konnte nicht erneut gesendet werden.",
+      "invitationCancelled": "Einladung abgebrochen",
+      "cancelError": "Die Einladung konnte nicht abgebrochen werden."
+    }
+  },
+  "settingsMisesAJour": {
+    "types": {
+      "update": "Update",
+      "feature": "Neue Funktion",
+      "major": "Hauptversion",
+      "security": "Sicherheit",
+      "fix": "Fehlerbehebungen",
+      "performance": "Leistung"
+    },
+    "heading": "Update-Verwaltung",
+    "subtitle": "Veröffentlichen Sie Updates, um Ihre Kunden zu benachrichtigen. Sie sehen ein Update-Banner in der Anwendung.",
+    "currentBuildLabel": "Aktueller Build: ",
+    "publishBtn": "Ein Update veröffentlichen",
+    "newUpdate": "Neues Update",
+    "versionLabel": "Version *",
+    "versionPlaceholder": "z. B. 2.5.0",
+    "typeLabel": "Typ",
+    "titleLabel": "Titel *",
+    "titlePlaceholder": "z. B. Verbesserung des KI-Assistenten",
+    "descLabel": "Beschreibung",
+    "descPlaceholder": "Kurze Beschreibung des Updates",
+    "changesLabel": "Änderungen (eine pro Zeile)",
+    "changesPlaceholder": "Neues Abrechnungssystem\nKI-Assistent mit 43 Aktionen verbessert\nBehebung des Anzeigefehlers bei Kontakten\nDashboard-Leistung optimiert",
+    "forceLabel": "Pflicht-Update",
+    "forceHint": "Benutzer können dieses Update nicht ignorieren. Für kritische Sicherheitsfixes verwenden.",
+    "publishing": "Wird veröffentlicht...",
+    "publishSubmit": "Update veröffentlichen",
+    "historyTitle": "Update-Verlauf ({{count}})",
+    "emptyLine1": "Kein Update veröffentlicht.",
+    "emptyLine2": "Veröffentlichen Sie Ihr erstes Update, um Ihre Kunden zu benachrichtigen.",
+    "forceBadge": "Pflicht",
+    "buildInline": "Build:",
+    "toast": {
+      "error": "Fehler",
+      "versionTitleRequired": "Version und Titel sind erforderlich.",
+      "publishedTitle": "Update veröffentlicht",
+      "publishedDesc": "Version {{version}} veröffentlicht. Alle Benutzer erhalten die Benachrichtigung.",
+      "deletedTitle": "Gelöscht",
+      "deleteError": "Diese Version konnte nicht gelöscht werden.",
+      "networkError": "Netzwerkfehler."
+    }
   }
 }

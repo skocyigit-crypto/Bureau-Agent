@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { confirmAction } from "@/hooks/use-confirm";
+import { useTranslation } from "@/i18n";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -31,6 +32,7 @@ interface ConfiguredAiProvider {
 
 export function TabClesIa() {
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const [available, setAvailable] = useState<AiProviderInfo[]>([]);
   const [configured, setConfigured] = useState<ConfiguredAiProvider[]>([]);
@@ -59,11 +61,11 @@ export function TabClesIa() {
         setConfigured(d.providers ?? []);
       }
     } catch {
-      toast({ title: "Erreur de chargement", description: "Impossible de charger les clés IA.", variant: "destructive" });
+      toast({ title: t("settingsClesIa.toast.loadErrorTitle"), description: t("settingsClesIa.toast.loadErrorDesc"), variant: "destructive" });
     } finally {
       setLoading(false);
     }
-  }, [selected, toast]);
+  }, [selected, toast, t]);
 
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -77,7 +79,7 @@ export function TabClesIa() {
     if (!selected) return;
     for (const f of selected.configFields) {
       if (f.required && !configValues[f.key]?.trim()) {
-        toast({ title: "Champ requis", description: f.label, variant: "destructive" });
+        toast({ title: t("settingsClesIa.toast.fieldRequired"), description: f.label, variant: "destructive" });
         return;
       }
     }
@@ -91,14 +93,14 @@ export function TabClesIa() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        toast({ title: "Clé IA enregistrée", description: `${selected.displayName} sera désormais utilisé pour les appels IA de votre organisation.` });
+        toast({ title: t("settingsClesIa.toast.savedTitle"), description: t("settingsClesIa.toast.savedDesc", { provider: selected.displayName }) });
         resetForm();
         load();
       } else {
-        toast({ title: "Échec", description: data.error || "Configuration impossible.", variant: "destructive" });
+        toast({ title: t("settingsClesIa.toast.failTitle"), description: data.error || t("settingsClesIa.toast.configError"), variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur réseau", variant: "destructive" });
+      toast({ title: t("settingsClesIa.toast.networkError"), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -109,8 +111,8 @@ export function TabClesIa() {
       method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
       body: JSON.stringify({ isDefault: true }),
     });
-    if (res.ok) { toast({ title: "Fournisseur IA par défaut mis à jour" }); load(); }
-    else toast({ title: "Erreur", variant: "destructive" });
+    if (res.ok) { toast({ title: t("settingsClesIa.toast.defaultUpdated") }); load(); }
+    else toast({ title: t("settingsClesIa.toast.error"), variant: "destructive" });
   };
 
   const toggleActive = async (p: ConfiguredAiProvider) => {
@@ -118,19 +120,19 @@ export function TabClesIa() {
       method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
       body: JSON.stringify({ isActive: !p.isActive }),
     });
-    if (res.ok) { toast({ title: p.isActive ? "Fournisseur désactivé" : "Fournisseur activé" }); load(); }
-    else toast({ title: "Erreur", variant: "destructive" });
+    if (res.ok) { toast({ title: p.isActive ? t("settingsClesIa.toast.deactivated") : t("settingsClesIa.toast.activated") }); load(); }
+    else toast({ title: t("settingsClesIa.toast.error"), variant: "destructive" });
   };
 
   const remove = async (id: number) => {
     const ok = await confirmAction({
-      title: "Supprimer cette clé IA ?",
-      description: "Les appels IA repasseront par les clés de la plateforme.",
+      title: t("settingsClesIa.confirm.deleteTitle"),
+      description: t("settingsClesIa.confirm.deleteDesc"),
     });
     if (!ok) return;
     const res = await fetch(`${API}/api/ai-providers/${id}`, { method: "DELETE", credentials: "include" });
-    if (res.ok) { toast({ title: "Clé IA supprimée" }); load(); }
-    else toast({ title: "Erreur", variant: "destructive" });
+    if (res.ok) { toast({ title: t("settingsClesIa.toast.deleted") }); load(); }
+    else toast({ title: t("settingsClesIa.toast.error"), variant: "destructive" });
   };
 
   const runTest = async (id: number) => {
@@ -141,12 +143,12 @@ export function TabClesIa() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) {
-        toast({ title: "Clé valide", description: data.message || "Le fournisseur IA répond correctement." });
+        toast({ title: t("settingsClesIa.toast.testValidTitle"), description: data.message || t("settingsClesIa.toast.testValidDesc") });
       } else {
-        toast({ title: "Échec du test", description: data.error || "La clé n'a pas pu être vérifiée.", variant: "destructive" });
+        toast({ title: t("settingsClesIa.toast.testFailTitle"), description: data.error || t("settingsClesIa.toast.testFailDesc"), variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur réseau", variant: "destructive" });
+      toast({ title: t("settingsClesIa.toast.networkError"), variant: "destructive" });
     } finally {
       setTestingId(null);
     }
@@ -156,37 +158,35 @@ export function TabClesIa() {
     <div className="space-y-6">
       <Alert className="border-indigo-200 bg-indigo-50">
         <ShieldCheck className="h-4 w-4 text-indigo-600" />
-        <AlertTitle>Vos propres clés d'intelligence artificielle</AlertTitle>
+        <AlertTitle>{t("settingsClesIa.alertTitle")}</AlertTitle>
         <AlertDescription className="text-sm text-muted-foreground">
-          Par défaut, Ajant Bureau utilise les clés IA de la plateforme (Gemini, OpenAI, Anthropic)
-          pour l'assistant, le standard téléphonique et l'analyse de documents. En connectant
-          <strong> vos propres clés</strong>, les appels IA de votre organisation passent par
-          <strong> votre compte fournisseur</strong> et la consommation vous est facturée directement.
-          Si votre clé échoue, la plateforme prend le relais automatiquement pour ne jamais bloquer
-          une réponse. Chaque clé est <strong>chiffrée</strong> et jamais affichée en clair.
+          {t("settingsClesIa.alertBody1")}
+          <strong>{t("settingsClesIa.alertStrongOwnKeys")}</strong>{t("settingsClesIa.alertBody2")}
+          <strong>{t("settingsClesIa.alertStrongAccount")}</strong>{t("settingsClesIa.alertBody3")}
+          <strong>{t("settingsClesIa.alertStrongEncrypted")}</strong>{t("settingsClesIa.alertBody4")}
         </AlertDescription>
       </Alert>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <div>
-            <CardTitle className="flex items-center gap-2"><BrainCircuit className="w-5 h-5" /> Clés IA</CardTitle>
-            <CardDescription>Connectez et gérez vos clés Gemini, OpenAI et Anthropic.</CardDescription>
+            <CardTitle className="flex items-center gap-2"><BrainCircuit className="w-5 h-5" /> {t("settingsClesIa.cardTitle")}</CardTitle>
+            <CardDescription>{t("settingsClesIa.cardDescription")}</CardDescription>
           </div>
           {!showAddForm && (
             <Button onClick={() => setShowAddForm(true)} className="gap-2">
-              <Plus className="w-4 h-4" /> Ajouter
+              <Plus className="w-4 h-4" /> {t("common.add")}
             </Button>
           )}
         </CardHeader>
         <CardContent className="space-y-4">
           {loading ? (
-            <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> Chargement…</div>
+            <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> {t("common.loading")}</div>
           ) : (
             <>
               {configured.length === 0 && !showAddForm && (
                 <p className="text-sm text-muted-foreground">
-                  Aucune clé configurée. Vos appels IA passent actuellement par la plateforme.
+                  {t("settingsClesIa.noneConfigured")}
                 </p>
               )}
 
@@ -196,32 +196,32 @@ export function TabClesIa() {
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">{p.label}</span>
                       <Badge variant="outline">{p.provider}</Badge>
-                      {p.isDefault && <Badge className="gap-1"><Star className="w-3 h-3" /> Par défaut</Badge>}
+                      {p.isDefault && <Badge className="gap-1"><Star className="w-3 h-3" /> {t("settingsClesIa.defaultBadge")}</Badge>}
                       {p.isActive
-                        ? <Badge variant="secondary" className="gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-600" /> Actif</Badge>
-                        : <Badge variant="secondary">Inactif</Badge>}
+                        ? <Badge variant="secondary" className="gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-600" /> {t("settingsClesIa.active")}</Badge>
+                        : <Badge variant="secondary">{t("settingsClesIa.inactive")}</Badge>}
                     </div>
                     <div className="flex items-center gap-1">
                       {!p.isDefault && (
-                        <Button variant="outline" size="sm" onClick={() => setDefault(p.id)} className="gap-1" title="Définir par défaut">
+                        <Button variant="outline" size="sm" onClick={() => setDefault(p.id)} className="gap-1" title={t("settingsClesIa.setDefaultTitle")}>
                           <Star className="w-4 h-4" />
                         </Button>
                       )}
-                      <Button variant="outline" size="sm" onClick={() => toggleActive(p)} title={p.isActive ? "Désactiver" : "Activer"}>
+                      <Button variant="outline" size="sm" onClick={() => toggleActive(p)} title={p.isActive ? t("settingsClesIa.deactivateTitle") : t("settingsClesIa.activateTitle")}>
                         {p.isActive ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => remove(p.id)} className="text-destructive" title="Supprimer">
+                      <Button variant="outline" size="sm" onClick={() => remove(p.id)} className="text-destructive" title={t("common.delete")}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>
                   <div className="text-xs text-muted-foreground space-y-0.5">
-                    {p.config.apiKey && <div>Clé API : <code className="font-mono">{p.config.apiKey}</code></div>}
+                    {p.config.apiKey && <div>{t("settingsClesIa.apiKeyLabel")}<code className="font-mono">{p.config.apiKey}</code></div>}
                   </div>
                   <div className="flex items-end gap-2 flex-wrap">
                     <Button variant="secondary" onClick={() => runTest(p.id)} disabled={testingId === p.id} className="gap-2">
                       {testingId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                      Tester la clé
+                      {t("settingsClesIa.testKey")}
                     </Button>
                   </div>
                 </div>
@@ -230,8 +230,8 @@ export function TabClesIa() {
               {showAddForm && (
                 <div className="rounded-lg border p-4 space-y-4 bg-muted/30">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-semibold">Nouvelle clé IA</h4>
-                    <Button variant="ghost" size="sm" onClick={resetForm}>Annuler</Button>
+                    <h4 className="font-semibold">{t("settingsClesIa.newKey")}</h4>
+                    <Button variant="ghost" size="sm" onClick={resetForm}>{t("common.cancel")}</Button>
                   </div>
 
                   {available.length > 1 && (
@@ -253,7 +253,7 @@ export function TabClesIa() {
                         </a>
                       </p>
                       <div>
-                        <Label className="text-xs">Nom (libellé interne)</Label>
+                        <Label className="text-xs">{t("settingsClesIa.nameLabel")}</Label>
                         <Input value={configLabel} onChange={(e) => setConfigLabel(e.target.value)} placeholder={selected.displayName} />
                       </div>
                       {selected.configFields.map((f) => (
@@ -270,7 +270,7 @@ export function TabClesIa() {
                       ))}
                       <Button onClick={handleCreate} disabled={saving} className="gap-2">
                         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                        Enregistrer
+                        {t("common.save")}
                       </Button>
                     </>
                   )}

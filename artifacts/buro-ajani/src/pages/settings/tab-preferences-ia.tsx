@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Icon3D } from "@/components/icon-3d";
+import { useTranslation } from "@/i18n";
 import {
   useInlineSuggestEnabled,
   useInlineSuggestLanguage,
@@ -76,6 +77,7 @@ const FIELD_OPTIONS: ReadonlyArray<{
 ];
 
 export function TabPreferencesIa() {
+  const { t } = useTranslation();
   const [enabled, setEnabled] = useInlineSuggestEnabled();
   const [language, setLanguage] = useInlineSuggestLanguage();
   const [fieldFlags, setFieldFlag] = useInlineSuggestFields();
@@ -86,27 +88,24 @@ export function TabPreferencesIa() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Icon3D icon={Sparkles} variant="purple" size="sm" />
-            Suggestions IA en ligne
+            {t("settingsPreferencesIa.cardTitle")}
           </CardTitle>
           <CardDescription>
-            Affiche une suggestion grise (style ghost-text) pendant que vous redigez
-            vos notes, vos messages, vos taches, vos projets, vos devis, vos factures
-            et le corps de vos e-mails. Appuyez sur Tab pour accepter, Echap pour ignorer.
+            {t("settingsPreferencesIa.cardDescription")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
             <div className="space-y-0.5">
-              <Label className="text-sm font-medium">Activer les suggestions en ligne</Label>
+              <Label className="text-sm font-medium">{t("settingsPreferencesIa.enableLabel")}</Label>
               <p className="text-xs text-muted-foreground">
-                Lorsque cette option est desactivee, aucune suggestion n'est demandee
-                ni affichee dans les champs de texte.
+                {t("settingsPreferencesIa.enableHint")}
               </p>
             </div>
             <Switch
               checked={enabled}
               onCheckedChange={setEnabled}
-              aria-label="Activer les suggestions IA en ligne"
+              aria-label={t("settingsPreferencesIa.enableAria")}
             />
           </div>
 
@@ -114,16 +113,14 @@ export function TabPreferencesIa() {
             <div className="space-y-0.5">
               <Label className="text-sm font-medium flex items-center gap-1.5">
                 <Languages className="w-3.5 h-3.5" />
-                Langue des suggestions
+                {t("settingsPreferencesIa.languageLabel")}
               </Label>
               <p className="text-xs text-muted-foreground">
-                Langue dans laquelle l'IA proposera la suite de votre texte.
-                Choisissez « Auto » pour que la langue soit detectee
-                automatiquement a partir de ce que vous ecrivez.
+                {t("settingsPreferencesIa.languageHint")}
               </p>
             </div>
             <Select value={language} onValueChange={setLanguage} disabled={!enabled}>
-              <SelectTrigger className="w-44" aria-label="Langue des suggestions IA">
+              <SelectTrigger className="w-44" aria-label={t("settingsPreferencesIa.languageAria")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -138,11 +135,9 @@ export function TabPreferencesIa() {
 
           <div className="space-y-2 rounded-lg border p-3">
             <div className="space-y-0.5">
-              <Label className="text-sm font-medium">Champs concernés</Label>
+              <Label className="text-sm font-medium">{t("settingsPreferencesIa.fieldsLabel")}</Label>
               <p className="text-xs text-muted-foreground">
-                Choisissez où les suggestions doivent apparaître. Chaque type de champ
-                peut être activé ou désactivé indépendamment ; le commutateur principal
-                ci-dessus reste prioritaire.
+                {t("settingsPreferencesIa.fieldsHint")}
               </p>
             </div>
             <div className="space-y-2 pt-1">
@@ -152,14 +147,14 @@ export function TabPreferencesIa() {
                   className="flex items-center justify-between gap-4 rounded-md border bg-background/50 p-2.5"
                 >
                   <div className="space-y-0.5">
-                    <Label className="text-sm font-medium">{opt.label}</Label>
-                    <p className="text-xs text-muted-foreground">{opt.description}</p>
+                    <Label className="text-sm font-medium">{t(`settingsPreferencesIa.fields.${opt.field}.label`)}</Label>
+                    <p className="text-xs text-muted-foreground">{t(`settingsPreferencesIa.fields.${opt.field}.description`)}</p>
                   </div>
                   <Switch
                     checked={fieldFlags[opt.field]}
                     onCheckedChange={(v) => setFieldFlag(opt.field, v)}
                     disabled={!enabled}
-                    aria-label={`Suggestions IA pour ${opt.label}`}
+                    aria-label={t("settingsPreferencesIa.fieldAria", { label: t(`settingsPreferencesIa.fields.${opt.field}.label`) })}
                   />
                 </div>
               ))}
@@ -168,8 +163,7 @@ export function TabPreferencesIa() {
 
           <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
             <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-            Cette preference est enregistree sur votre compte et s'applique a tous
-            vos appareils. Les changements sont sauvegardes automatiquement.
+            {t("settingsPreferencesIa.footer")}
           </p>
         </CardContent>
       </Card>

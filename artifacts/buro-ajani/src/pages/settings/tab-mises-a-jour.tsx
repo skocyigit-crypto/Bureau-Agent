@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -32,6 +33,7 @@ const typeOptions = [
 
 export function TabMisesAJour() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [releases, setReleases] = useState<Release[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -71,7 +73,7 @@ export function TabMisesAJour() {
 
   const handleSubmit = async () => {
     if (!form.version.trim() || !form.title.trim()) {
-      toast({ title: "Erreur", description: "Version et titre sont obligatoires.", variant: "destructive" });
+      toast({ title: t("settingsMisesAJour.toast.error"), description: t("settingsMisesAJour.toast.versionTitleRequired"), variant: "destructive" });
       return;
     }
     setSubmitting(true);
@@ -83,16 +85,16 @@ export function TabMisesAJour() {
         body: JSON.stringify(form),
       });
       if (res.ok) {
-        toast({ title: "Mise a jour publiee", description: `Version ${form.version} publiee. Tous les utilisateurs recevront la notification.` });
+        toast({ title: t("settingsMisesAJour.toast.publishedTitle"), description: t("settingsMisesAJour.toast.publishedDesc", { version: form.version }) });
         setForm({ version: "", title: "", description: "", changes: "", type: "update", forceUpdate: false });
         setShowForm(false);
         loadReleases();
       } else {
         const err = await res.json();
-        toast({ title: "Erreur", description: err.error, variant: "destructive" });
+        toast({ title: t("settingsMisesAJour.toast.error"), description: err.error, variant: "destructive" });
       }
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      toast({ title: t("settingsMisesAJour.toast.error"), description: e.message, variant: "destructive" });
     }
     setSubmitting(false);
   };
@@ -104,13 +106,13 @@ export function TabMisesAJour() {
         credentials: "include",
       });
       if (res.ok) {
-        toast({ title: "Supprimee" });
+        toast({ title: t("settingsMisesAJour.toast.deletedTitle") });
         loadReleases();
       } else {
-        toast({ title: "Erreur", description: "Impossible de supprimer cette version.", variant: "destructive" });
+        toast({ title: t("settingsMisesAJour.toast.error"), description: t("settingsMisesAJour.toast.deleteError"), variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Erreur reseau.", variant: "destructive" });
+      toast({ title: t("settingsMisesAJour.toast.error"), description: t("settingsMisesAJour.toast.networkError"), variant: "destructive" });
     }
   };
 
@@ -135,19 +137,19 @@ export function TabMisesAJour() {
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <Rocket className="h-5 w-5 text-indigo-500" />
-            Gestion des mises a jour
+            {t("settingsMisesAJour.heading")}
           </h3>
           <p className="text-sm text-muted-foreground">
-            Publiez des mises a jour pour notifier vos clients. Ils verront un bandeau de mise a jour dans l'application.
+            {t("settingsMisesAJour.subtitle")}
           </p>
           {buildInfo && (
             <p className="text-xs text-muted-foreground mt-1">
-              Build actuel: <code className="bg-muted px-1 rounded">{buildInfo.buildHash}</code> — {new Date(buildInfo.buildTime).toLocaleString("fr-FR")}
+              {t("settingsMisesAJour.currentBuildLabel")}<code className="bg-muted px-1 rounded">{buildInfo.buildHash}</code> — {new Date(buildInfo.buildTime).toLocaleString("fr-FR")}
             </p>
           )}
         </div>
         <Button onClick={() => { setShowForm(!showForm); if (!showForm) setForm(f => ({ ...f, version: suggestNextVersion() })); }} variant={showForm ? "outline" : "default"} className="gap-2">
-          {showForm ? "Annuler" : <><Plus className="h-4 w-4" /> Publier une mise a jour</>}
+          {showForm ? t("common.cancel") : <><Plus className="h-4 w-4" /> {t("settingsMisesAJour.publishBtn")}</>}
         </Button>
       </div>
 
@@ -156,21 +158,21 @@ export function TabMisesAJour() {
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <Send className="h-4 w-4 text-indigo-500" />
-              Nouvelle mise a jour
+              {t("settingsMisesAJour.newUpdate")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium mb-1 block">Version *</label>
+                <label className="text-sm font-medium mb-1 block">{t("settingsMisesAJour.versionLabel")}</label>
                 <Input
                   value={form.version}
                   onChange={e => setForm(f => ({ ...f, version: e.target.value }))}
-                  placeholder="ex: 2.5.0"
+                  placeholder={t("settingsMisesAJour.versionPlaceholder")}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Type</label>
+                <label className="text-sm font-medium mb-1 block">{t("settingsMisesAJour.typeLabel")}</label>
                 <div className="flex flex-wrap gap-2">
                   {typeOptions.map(opt => (
                     <button
@@ -179,7 +181,7 @@ export function TabMisesAJour() {
                       className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${form.type === opt.value ? opt.color + " ring-2 ring-offset-1 ring-current" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
                     >
                       <opt.icon className="h-3 w-3" />
-                      {opt.label}
+                      {t(`settingsMisesAJour.types.${opt.value}`)}
                     </button>
                   ))}
                 </div>
@@ -187,31 +189,31 @@ export function TabMisesAJour() {
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-1 block">Titre *</label>
+              <label className="text-sm font-medium mb-1 block">{t("settingsMisesAJour.titleLabel")}</label>
               <Input
                 value={form.title}
                 onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                placeholder="ex: Amelioration de l'assistant IA"
+                placeholder={t("settingsMisesAJour.titlePlaceholder")}
               />
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-1 block">Description</label>
+              <label className="text-sm font-medium mb-1 block">{t("settingsMisesAJour.descLabel")}</label>
               <Input
                 value={form.description}
                 onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                placeholder="Description courte de la mise a jour"
+                placeholder={t("settingsMisesAJour.descPlaceholder")}
               />
             </div>
 
             <div>
               <label className="text-sm font-medium mb-1 block">
-                Changements (un par ligne)
+                {t("settingsMisesAJour.changesLabel")}
               </label>
               <Textarea
                 value={form.changes}
                 onChange={e => setForm(f => ({ ...f, changes: e.target.value }))}
-                placeholder={"Nouveau systeme de facturation\nAssistant IA ameliore avec 43 actions\nCorrection du bug d'affichage des contacts\nPerformance du tableau de bord optimisee"}
+                placeholder={t("settingsMisesAJour.changesPlaceholder")}
                 rows={5}
               />
             </div>
@@ -226,22 +228,22 @@ export function TabMisesAJour() {
                     onChange={e => setForm(f => ({ ...f, forceUpdate: e.target.checked }))}
                     className="rounded"
                   />
-                  <span className="text-sm font-medium">Mise a jour obligatoire</span>
+                  <span className="text-sm font-medium">{t("settingsMisesAJour.forceLabel")}</span>
                 </label>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Les utilisateurs ne pourront pas ignorer cette mise a jour. A utiliser pour les correctifs critiques de securite.
+                  {t("settingsMisesAJour.forceHint")}
                 </p>
               </div>
             </div>
 
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowForm(false)}>Annuler</Button>
+              <Button variant="outline" onClick={() => setShowForm(false)}>{t("common.cancel")}</Button>
               <Button
                 onClick={handleSubmit}
                 disabled={submitting || !form.version.trim() || !form.title.trim()}
                 className="gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
               >
-                {submitting ? "Publication..." : <><Send className="h-4 w-4" /> Publier la mise a jour</>}
+                {submitting ? t("settingsMisesAJour.publishing") : <><Send className="h-4 w-4" /> {t("settingsMisesAJour.publishSubmit")}</>}
               </Button>
             </div>
           </CardContent>
@@ -250,15 +252,15 @@ export function TabMisesAJour() {
 
       <div className="space-y-3">
         <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-          Historique des mises a jour ({releases.length})
+          {t("settingsMisesAJour.historyTitle", { count: releases.length })}
         </h4>
 
         {releases.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground">
               <Rocket className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p>Aucune mise a jour publiee.</p>
-              <p className="text-sm mt-1">Publiez votre premiere mise a jour pour notifier vos clients.</p>
+              <p>{t("settingsMisesAJour.emptyLine1")}</p>
+              <p className="text-sm mt-1">{t("settingsMisesAJour.emptyLine2")}</p>
             </CardContent>
           </Card>
         ) : (
@@ -278,10 +280,10 @@ export function TabMisesAJour() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold">v{release.version}</span>
-                          <Badge variant="secondary" className="text-xs">{typeOpt.label}</Badge>
+                          <Badge variant="secondary" className="text-xs">{t(`settingsMisesAJour.types.${typeOpt.value}`)}</Badge>
                           {release.forceUpdate && (
                             <Badge variant="destructive" className="text-xs gap-1">
-                              <AlertTriangle className="h-3 w-3" /> Obligatoire
+                              <AlertTriangle className="h-3 w-3" /> {t("settingsMisesAJour.forceBadge")}
                             </Badge>
                           )}
                         </div>
@@ -303,7 +305,7 @@ export function TabMisesAJour() {
                           <Clock className="h-3 w-3" />
                           {new Date(release.publishedAt).toLocaleString("fr-FR")}
                           {release.buildHash && (
-                            <span className="text-xs">| Build: <code className="bg-muted px-1 rounded">{release.buildHash}</code></span>
+                            <span className="text-xs">| {t("settingsMisesAJour.buildInline")} <code className="bg-muted px-1 rounded">{release.buildHash}</code></span>
                           )}
                         </div>
                       </div>

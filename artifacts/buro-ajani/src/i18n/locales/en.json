@@ -1675,5 +1675,267 @@
     "ruleLength": "8 characters minimum",
     "ruleMatch": "Passwords match",
     "submit": "Create my account"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Application configuration and integrations.",
+    "print": "Print",
+    "tabs": {
+      "entreprise": "Company",
+      "abonnement": "Subscription",
+      "equipe": "Team",
+      "plateformes": "Platforms",
+      "appels": "Calls",
+      "sauvegardes": "Backups",
+      "preferencesIa": "AI Preferences",
+      "installation": "Installation",
+      "notifications": "Notifications",
+      "securite": "Security",
+      "ia": "AI",
+      "apiWebhooks": "API & Webhooks",
+      "emailExpediteur": "Sender email",
+      "clesIa": "AI Keys",
+      "misesAJour": "Updates"
+    },
+    "toast": {
+      "googleConnectedTitle": "Google Workspace connected",
+      "googleConnectedDesc": "Your Google account was connected successfully.",
+      "googleTitle": "Google connection",
+      "googleGeneric": "The connection did not complete. Please try again.",
+      "err_access_denied": "You denied access to Google.",
+      "err_no_code": "Google did not return any authorization code. Please try again.",
+      "err_invalid_state": "The connection session has expired. Restart the connection from this page.",
+      "err_not_authenticated": "Your session has expired. Sign in again and retry.",
+      "err_exchange_failed": "Exchange with Google failed. Check that the application is authorized (test user or published app) on the Google Cloud side."
+    }
+  },
+  "settingsPreferencesIa": {
+    "cardTitle": "Inline AI suggestions",
+    "cardDescription": "Displays a gray suggestion (ghost-text style) while you write your notes, messages, tasks, projects, quotes, invoices and the body of your emails. Press Tab to accept, Esc to dismiss.",
+    "enableLabel": "Enable inline suggestions",
+    "enableHint": "When this option is disabled, no suggestion is requested or displayed in text fields.",
+    "enableAria": "Enable inline AI suggestions",
+    "languageLabel": "Suggestion language",
+    "languageHint": "The language in which the AI will suggest the continuation of your text. Choose « Auto » to have the language detected automatically from what you write.",
+    "languageAria": "AI suggestions language",
+    "fieldsLabel": "Applicable fields",
+    "fieldsHint": "Choose where suggestions should appear. Each field type can be enabled or disabled independently; the main switch above takes precedence.",
+    "fieldAria": "AI suggestions for {{label}}",
+    "footer": "This preference is saved to your account and applies to all your devices. Changes are saved automatically.",
+    "fields": {
+      "note": {
+        "label": "Internal notes",
+        "description": "Suggestions while writing internal notes."
+      },
+      "prospect_note": {
+        "label": "Prospect notes",
+        "description": "Suggestions in notes attached to a prospect."
+      },
+      "email_body": {
+        "label": "Email body",
+        "description": "Suggestions in the body of email messages."
+      },
+      "call_note": {
+        "label": "Call notes",
+        "description": "Suggestions in notes attached to phone calls."
+      },
+      "task_description": {
+        "label": "Task descriptions",
+        "description": "Suggestions while writing task descriptions."
+      },
+      "message_content": {
+        "label": "Messages",
+        "description": "Suggestions in the body of internal messages."
+      },
+      "project_description": {
+        "label": "Project descriptions",
+        "description": "Suggestions in a project description."
+      },
+      "project_note": {
+        "label": "Project notes",
+        "description": "Suggestions in notes attached to a project."
+      },
+      "quote_comment": {
+        "label": "Quote comments",
+        "description": "Suggestions in comments linked to a quote."
+      },
+      "invoice_comment": {
+        "label": "Invoice comments",
+        "description": "Suggestions in comments linked to an invoice."
+      }
+    }
+  },
+  "settingsClesIa": {
+    "alertTitle": "Your own artificial intelligence keys",
+    "alertBody1": "By default, Ajant Bureau uses the platform's AI keys (Gemini, OpenAI, Anthropic) for the assistant, the phone switchboard and document analysis. By connecting",
+    "alertStrongOwnKeys": " your own keys",
+    "alertBody2": ", your organization's AI calls go through",
+    "alertStrongAccount": " your provider account",
+    "alertBody3": " and usage is billed to you directly. If your key fails, the platform automatically takes over so a response is never blocked. Each key is",
+    "alertStrongEncrypted": " encrypted",
+    "alertBody4": " and never shown in clear text.",
+    "cardTitle": "AI Keys",
+    "cardDescription": "Connect and manage your Gemini, OpenAI and Anthropic keys.",
+    "noneConfigured": "No key configured. Your AI calls currently go through the platform.",
+    "defaultBadge": "Default",
+    "active": "Active",
+    "inactive": "Inactive",
+    "setDefaultTitle": "Set as default",
+    "deactivateTitle": "Deactivate",
+    "activateTitle": "Activate",
+    "apiKeyLabel": "API key: ",
+    "testKey": "Test the key",
+    "newKey": "New AI key",
+    "nameLabel": "Name (internal label)",
+    "toast": {
+      "loadErrorTitle": "Loading error",
+      "loadErrorDesc": "Unable to load the AI keys.",
+      "fieldRequired": "Required field",
+      "savedTitle": "AI key saved",
+      "savedDesc": "{{provider}} will now be used for your organization's AI calls.",
+      "failTitle": "Failed",
+      "configError": "Configuration failed.",
+      "networkError": "Network error",
+      "defaultUpdated": "Default AI provider updated",
+      "error": "Error",
+      "deactivated": "Provider deactivated",
+      "activated": "Provider activated",
+      "deleted": "AI key deleted",
+      "testValidTitle": "Key valid",
+      "testValidDesc": "The AI provider responds correctly.",
+      "testFailTitle": "Test failed",
+      "testFailDesc": "The key could not be verified."
+    },
+    "confirm": {
+      "deleteTitle": "Delete this AI key?",
+      "deleteDesc": "AI calls will go back through the platform keys."
+    }
+  },
+  "settingsEmailExpediteur": {
+    "alertTitle": "Your own email sending service",
+    "alertBody1": "By default, Ajant Bureau sends your emails (invoices, reminders, assistant messages) via the platform's sending service. By connecting",
+    "alertStrongResendKey": " your own Resend key",
+    "alertBody2": ", your emails are sent from",
+    "alertStrongDomain": " your domain",
+    "alertBody3": " and sending costs are billed to you directly by Resend. If your key fails, the platform automatically takes over so a send is never blocked. The key is",
+    "alertStrongEncrypted": " encrypted",
+    "alertBody4": " and never shown in clear text.",
+    "cardTitle": "Email providers",
+    "cardDescription": "Connect and manage your email sending key.",
+    "noneConfigured": "No provider configured. Your emails are currently sent via the platform.",
+    "defaultBadge": "Default",
+    "active": "Active",
+    "inactive": "Inactive",
+    "setDefaultTitle": "Set as default",
+    "deactivateTitle": "Deactivate",
+    "activateTitle": "Activate",
+    "apiKeyLabel": "API key: ",
+    "fromLabel": "Sender: ",
+    "testAddressLabel": "Test address",
+    "testPlaceholder": "you@example.com",
+    "sendTest": "Send a test",
+    "newProvider": "New provider",
+    "nameLabel": "Name (internal label)",
+    "toast": {
+      "loadErrorTitle": "Loading error",
+      "loadErrorDesc": "Unable to load the email configuration.",
+      "fieldRequired": "Required field",
+      "configuredTitle": "Provider configured",
+      "configuredDesc": "{{provider}} is ready to send your emails.",
+      "failTitle": "Failed",
+      "configError": "Configuration failed.",
+      "networkError": "Network error",
+      "defaultUpdated": "Default provider updated",
+      "error": "Error",
+      "deactivated": "Provider deactivated",
+      "activated": "Provider activated",
+      "deleted": "Provider deleted",
+      "testInvalidTitle": "Invalid test address",
+      "testInvalidDesc": "Enter a valid email address.",
+      "testSentTitle": "Test email sent",
+      "testSentDesc": "Check the inbox of {{to}} (sender: {{from}}).",
+      "testFailTitle": "Test failed",
+      "testFailDesc": "The test send failed."
+    },
+    "confirm": {
+      "deleteTitle": "Delete this provider?",
+      "deleteDesc": "Your emails will go back through the platform's sending service."
+    }
+  },
+  "settingsEquipe": {
+    "roles": {
+      "super_admin": "Super Admin",
+      "administrateur": "Admin",
+      "agent": "Agent",
+      "lecture_seule": "Read only"
+    },
+    "inviteTitle": "Invite a member",
+    "inviteDesc": "An invitation email will be sent with a secure access link (valid 72h).",
+    "emailLabel": "Email address",
+    "emailPlaceholder": "colleague@example.com",
+    "roleLabel": "Role",
+    "inviteBtn": "Invite",
+    "pendingInvitations": "Pending invitations",
+    "expiresOn": "Expires on {{date}}",
+    "resendTitle": "Resend",
+    "cancelTitle": "Cancel",
+    "teamMembers": "Team members",
+    "refresh": "Refresh",
+    "noMembers": "No member found.",
+    "inactive": "Inactive",
+    "toast": {
+      "error": "Error",
+      "loadError": "Unable to load the team.",
+      "invitationSentTitle": "Invitation sent",
+      "invitationSentDesc": "An email was sent to {{email}}.",
+      "inviteError": "Unable to send the invitation.",
+      "emailResentTitle": "Email resent",
+      "emailResentDesc": "The invitation has been resent.",
+      "resendError": "Unable to resend the invitation.",
+      "invitationCancelled": "Invitation cancelled",
+      "cancelError": "Unable to cancel the invitation."
+    }
+  },
+  "settingsMisesAJour": {
+    "types": {
+      "update": "Update",
+      "feature": "New feature",
+      "major": "Major version",
+      "security": "Security",
+      "fix": "Bug fixes",
+      "performance": "Performance"
+    },
+    "heading": "Update management",
+    "subtitle": "Publish updates to notify your customers. They will see an update banner in the application.",
+    "currentBuildLabel": "Current build: ",
+    "publishBtn": "Publish an update",
+    "newUpdate": "New update",
+    "versionLabel": "Version *",
+    "versionPlaceholder": "e.g. 2.5.0",
+    "typeLabel": "Type",
+    "titleLabel": "Title *",
+    "titlePlaceholder": "e.g. AI assistant improvement",
+    "descLabel": "Description",
+    "descPlaceholder": "Short description of the update",
+    "changesLabel": "Changes (one per line)",
+    "changesPlaceholder": "New billing system\nAI assistant improved with 43 actions\nFix for the contacts display bug\nDashboard performance optimized",
+    "forceLabel": "Mandatory update",
+    "forceHint": "Users will not be able to dismiss this update. Use for critical security fixes.",
+    "publishing": "Publishing...",
+    "publishSubmit": "Publish the update",
+    "historyTitle": "Update history ({{count}})",
+    "emptyLine1": "No update published.",
+    "emptyLine2": "Publish your first update to notify your customers.",
+    "forceBadge": "Mandatory",
+    "buildInline": "Build:",
+    "toast": {
+      "error": "Error",
+      "versionTitleRequired": "Version and title are required.",
+      "publishedTitle": "Update published",
+      "publishedDesc": "Version {{version}} published. All users will receive the notification.",
+      "deletedTitle": "Deleted",
+      "deleteError": "Unable to delete this version.",
+      "networkError": "Network error."
+    }
   }
 }

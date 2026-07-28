@@ -1675,5 +1675,267 @@
     "ruleLength": "En az 8 karakter",
     "ruleMatch": "Şifreler aynı",
     "submit": "Hesabımı oluştur"
+  },
+  "settings": {
+    "title": "Ayarlar",
+    "subtitle": "Uygulama yapılandırması ve entegrasyonlar.",
+    "print": "Yazdır",
+    "tabs": {
+      "entreprise": "Şirket",
+      "abonnement": "Abonelik",
+      "equipe": "Ekip",
+      "plateformes": "Platformlar",
+      "appels": "Aramalar",
+      "sauvegardes": "Yedeklemeler",
+      "preferencesIa": "Yapay Zeka Tercihleri",
+      "installation": "Kurulum",
+      "notifications": "Bildirimler",
+      "securite": "Güvenlik",
+      "ia": "Yapay Zeka",
+      "apiWebhooks": "API ve Webhook'lar",
+      "emailExpediteur": "Gönderen e-posta",
+      "clesIa": "Yapay Zeka Anahtarları",
+      "misesAJour": "Güncellemeler"
+    },
+    "toast": {
+      "googleConnectedTitle": "Google Workspace bağlandı",
+      "googleConnectedDesc": "Google hesabınız başarıyla bağlandı.",
+      "googleTitle": "Google bağlantısı",
+      "googleGeneric": "Bağlantı tamamlanamadı. Lütfen tekrar deneyin.",
+      "err_access_denied": "Google erişimini reddettiniz.",
+      "err_no_code": "Google herhangi bir yetkilendirme kodu döndürmedi. Lütfen tekrar deneyin.",
+      "err_invalid_state": "Bağlantı oturumu sona erdi. Bağlantıyı bu sayfadan yeniden başlatın.",
+      "err_not_authenticated": "Oturumunuz sona erdi. Yeniden giriş yapıp tekrar deneyin.",
+      "err_exchange_failed": "Google ile değişim başarısız oldu. Uygulamanın Google Cloud tarafında yetkili olduğunu doğrulayın (test kullanıcısı veya yayınlanmış uygulama)."
+    }
+  },
+  "settingsPreferencesIa": {
+    "cardTitle": "Satır içi Yapay Zeka önerileri",
+    "cardDescription": "Notlarınızı, mesajlarınızı, görevlerinizi, projelerinizi, tekliflerinizi, faturalarınızı ve e-postalarınızın gövdesini yazarken gri bir öneri (ghost-text tarzı) gösterir. Kabul etmek için Tab, yok saymak için Esc tuşuna basın.",
+    "enableLabel": "Satır içi önerileri etkinleştir",
+    "enableHint": "Bu seçenek devre dışı bırakıldığında metin alanlarında hiçbir öneri istenmez veya gösterilmez.",
+    "enableAria": "Satır içi Yapay Zeka önerilerini etkinleştir",
+    "languageLabel": "Öneri dili",
+    "languageHint": "Yapay zekanın metninizin devamını önereceği dil. Dilin yazdıklarınıza göre otomatik olarak algılanması için « Otomatik » seçeneğini seçin.",
+    "languageAria": "Yapay Zeka önerilerinin dili",
+    "fieldsLabel": "İlgili alanlar",
+    "fieldsHint": "Önerilerin nerede görüneceğini seçin. Her alan türü bağımsız olarak etkinleştirilebilir veya devre dışı bırakılabilir; yukarıdaki ana anahtar önceliklidir.",
+    "fieldAria": "{{label}} için Yapay Zeka önerileri",
+    "footer": "Bu tercih hesabınıza kaydedilir ve tüm cihazlarınıza uygulanır. Değişiklikler otomatik olarak kaydedilir.",
+    "fields": {
+      "note": {
+        "label": "Dahili notlar",
+        "description": "Dahili notları yazarken öneriler."
+      },
+      "prospect_note": {
+        "label": "Potansiyel müşteri notları",
+        "description": "Bir potansiyel müşteriye ekli notlarda öneriler."
+      },
+      "email_body": {
+        "label": "E-posta gövdesi",
+        "description": "E-posta mesajlarının gövdesinde öneriler."
+      },
+      "call_note": {
+        "label": "Arama notları",
+        "description": "Telefon aramalarına ekli notlarda öneriler."
+      },
+      "task_description": {
+        "label": "Görev açıklamaları",
+        "description": "Görev açıklamalarını yazarken öneriler."
+      },
+      "message_content": {
+        "label": "Mesajlar",
+        "description": "Dahili mesajların gövdesinde öneriler."
+      },
+      "project_description": {
+        "label": "Proje açıklamaları",
+        "description": "Bir projenin açıklamasında öneriler."
+      },
+      "project_note": {
+        "label": "Proje notları",
+        "description": "Bir projeye ekli notlarda öneriler."
+      },
+      "quote_comment": {
+        "label": "Teklif yorumları",
+        "description": "Bir teklife bağlı yorumlarda öneriler."
+      },
+      "invoice_comment": {
+        "label": "Fatura yorumları",
+        "description": "Bir faturaya bağlı yorumlarda öneriler."
+      }
+    }
+  },
+  "settingsClesIa": {
+    "alertTitle": "Kendi yapay zeka anahtarlarınız",
+    "alertBody1": "Varsayılan olarak Ajant Bureau; asistan, telefon santrali ve belge analizi için platformun yapay zeka anahtarlarını (Gemini, OpenAI, Anthropic) kullanır. Bağladığınızda",
+    "alertStrongOwnKeys": " kendi anahtarlarınız",
+    "alertBody2": ", kuruluşunuzun yapay zeka çağrıları",
+    "alertStrongAccount": " kendi sağlayıcı hesabınız",
+    "alertBody3": " üzerinden geçer ve tüketim doğrudan sizden faturalandırılır. Anahtarınız başarısız olursa, bir yanıtı asla engellememek için platform otomatik olarak devreye girer. Her anahtar",
+    "alertStrongEncrypted": " şifrelenir",
+    "alertBody4": " ve asla açık şekilde gösterilmez.",
+    "cardTitle": "Yapay Zeka Anahtarları",
+    "cardDescription": "Gemini, OpenAI ve Anthropic anahtarlarınızı bağlayın ve yönetin.",
+    "noneConfigured": "Yapılandırılmış anahtar yok. Yapay zeka çağrılarınız şu anda platform üzerinden geçiyor.",
+    "defaultBadge": "Varsayılan",
+    "active": "Etkin",
+    "inactive": "Pasif",
+    "setDefaultTitle": "Varsayılan yap",
+    "deactivateTitle": "Devre dışı bırak",
+    "activateTitle": "Etkinleştir",
+    "apiKeyLabel": "API anahtarı: ",
+    "testKey": "Anahtarı test et",
+    "newKey": "Yeni yapay zeka anahtarı",
+    "nameLabel": "Ad (dahili etiket)",
+    "toast": {
+      "loadErrorTitle": "Yükleme hatası",
+      "loadErrorDesc": "Yapay zeka anahtarları yüklenemedi.",
+      "fieldRequired": "Zorunlu alan",
+      "savedTitle": "Yapay zeka anahtarı kaydedildi",
+      "savedDesc": "{{provider}} bundan böyle kuruluşunuzun yapay zeka çağrıları için kullanılacak.",
+      "failTitle": "Başarısız",
+      "configError": "Yapılandırma yapılamadı.",
+      "networkError": "Ağ hatası",
+      "defaultUpdated": "Varsayılan yapay zeka sağlayıcısı güncellendi",
+      "error": "Hata",
+      "deactivated": "Sağlayıcı devre dışı bırakıldı",
+      "activated": "Sağlayıcı etkinleştirildi",
+      "deleted": "Yapay zeka anahtarı silindi",
+      "testValidTitle": "Anahtar geçerli",
+      "testValidDesc": "Yapay zeka sağlayıcısı düzgün yanıt veriyor.",
+      "testFailTitle": "Test başarısız",
+      "testFailDesc": "Anahtar doğrulanamadı."
+    },
+    "confirm": {
+      "deleteTitle": "Bu yapay zeka anahtarı silinsin mi?",
+      "deleteDesc": "Yapay zeka çağrıları yeniden platform anahtarları üzerinden geçecek."
+    }
+  },
+  "settingsEmailExpediteur": {
+    "alertTitle": "Kendi e-posta gönderme hizmetiniz",
+    "alertBody1": "Varsayılan olarak Ajant Bureau, e-postalarınızı (faturalar, hatırlatmalar, asistan mesajları) platformun gönderme hizmeti aracılığıyla gönderir. Bağladığınızda",
+    "alertStrongResendKey": " kendi Resend anahtarınız",
+    "alertBody2": ", e-postalarınız",
+    "alertStrongDomain": " kendi alan adınızdan",
+    "alertBody3": " gönderilir ve gönderme maliyetleri doğrudan Resend tarafından sizden faturalandırılır. Anahtarınız başarısız olursa, bir gönderimi asla engellememek için platform otomatik olarak devreye girer. Anahtar",
+    "alertStrongEncrypted": " şifrelenir",
+    "alertBody4": " ve asla açık şekilde gösterilmez.",
+    "cardTitle": "E-posta sağlayıcıları",
+    "cardDescription": "E-posta gönderme anahtarınızı bağlayın ve yönetin.",
+    "noneConfigured": "Yapılandırılmış sağlayıcı yok. E-postalarınız şu anda platform üzerinden gönderiliyor.",
+    "defaultBadge": "Varsayılan",
+    "active": "Etkin",
+    "inactive": "Pasif",
+    "setDefaultTitle": "Varsayılan yap",
+    "deactivateTitle": "Devre dışı bırak",
+    "activateTitle": "Etkinleştir",
+    "apiKeyLabel": "API anahtarı: ",
+    "fromLabel": "Gönderen: ",
+    "testAddressLabel": "Test adresi",
+    "testPlaceholder": "siz@ornek.com",
+    "sendTest": "Test gönder",
+    "newProvider": "Yeni sağlayıcı",
+    "nameLabel": "Ad (dahili etiket)",
+    "toast": {
+      "loadErrorTitle": "Yükleme hatası",
+      "loadErrorDesc": "E-posta yapılandırması yüklenemedi.",
+      "fieldRequired": "Zorunlu alan",
+      "configuredTitle": "Sağlayıcı yapılandırıldı",
+      "configuredDesc": "{{provider}} e-postalarınızı göndermeye hazır.",
+      "failTitle": "Başarısız",
+      "configError": "Yapılandırma yapılamadı.",
+      "networkError": "Ağ hatası",
+      "defaultUpdated": "Varsayılan sağlayıcı güncellendi",
+      "error": "Hata",
+      "deactivated": "Sağlayıcı devre dışı bırakıldı",
+      "activated": "Sağlayıcı etkinleştirildi",
+      "deleted": "Sağlayıcı silindi",
+      "testInvalidTitle": "Geçersiz test adresi",
+      "testInvalidDesc": "Geçerli bir e-posta adresi girin.",
+      "testSentTitle": "Test e-postası gönderildi",
+      "testSentDesc": "{{to}} adresinin gelen kutusunu kontrol edin (gönderen: {{from}}).",
+      "testFailTitle": "Test başarısız",
+      "testFailDesc": "Test gönderimi başarısız oldu."
+    },
+    "confirm": {
+      "deleteTitle": "Bu sağlayıcı silinsin mi?",
+      "deleteDesc": "E-postalarınız yeniden platformun gönderme hizmeti üzerinden geçecek."
+    }
+  },
+  "settingsEquipe": {
+    "roles": {
+      "super_admin": "Süper Yönetici",
+      "administrateur": "Yönetici",
+      "agent": "Temsilci",
+      "lecture_seule": "Salt okunur"
+    },
+    "inviteTitle": "Üye davet et",
+    "inviteDesc": "Güvenli erişim bağlantısı içeren bir davet e-postası gönderilecek (72 saat geçerli).",
+    "emailLabel": "E-posta adresi",
+    "emailPlaceholder": "meslektas@ornek.com",
+    "roleLabel": "Rol",
+    "inviteBtn": "Davet et",
+    "pendingInvitations": "Bekleyen davetler",
+    "expiresOn": "Son geçerlilik: {{date}}",
+    "resendTitle": "Yeniden gönder",
+    "cancelTitle": "İptal et",
+    "teamMembers": "Ekip üyeleri",
+    "refresh": "Yenile",
+    "noMembers": "Üye bulunamadı.",
+    "inactive": "Pasif",
+    "toast": {
+      "error": "Hata",
+      "loadError": "Ekip yüklenemedi.",
+      "invitationSentTitle": "Davet gönderildi",
+      "invitationSentDesc": "{{email}} adresine bir e-posta gönderildi.",
+      "inviteError": "Davet gönderilemedi.",
+      "emailResentTitle": "E-posta yeniden gönderildi",
+      "emailResentDesc": "Davet yeniden gönderildi.",
+      "resendError": "Davet yeniden gönderilemedi.",
+      "invitationCancelled": "Davet iptal edildi",
+      "cancelError": "Davet iptal edilemedi."
+    }
+  },
+  "settingsMisesAJour": {
+    "types": {
+      "update": "Güncelleme",
+      "feature": "Yeni özellik",
+      "major": "Büyük sürüm",
+      "security": "Güvenlik",
+      "fix": "Hata düzeltmeleri",
+      "performance": "Performans"
+    },
+    "heading": "Güncelleme yönetimi",
+    "subtitle": "Müşterilerinizi bilgilendirmek için güncellemeler yayınlayın. Uygulamada bir güncelleme afişi görecekler.",
+    "currentBuildLabel": "Mevcut derleme: ",
+    "publishBtn": "Bir güncelleme yayınla",
+    "newUpdate": "Yeni güncelleme",
+    "versionLabel": "Sürüm *",
+    "versionPlaceholder": "örn: 2.5.0",
+    "typeLabel": "Tür",
+    "titleLabel": "Başlık *",
+    "titlePlaceholder": "örn: Yapay zeka asistanı iyileştirmesi",
+    "descLabel": "Açıklama",
+    "descPlaceholder": "Güncellemenin kısa açıklaması",
+    "changesLabel": "Değişiklikler (her satıra bir tane)",
+    "changesPlaceholder": "Yeni faturalama sistemi\n43 eylemle geliştirilmiş yapay zeka asistanı\nKişilerin görüntülenme hatasının düzeltilmesi\nGösterge panosu performansının optimize edilmesi",
+    "forceLabel": "Zorunlu güncelleme",
+    "forceHint": "Kullanıcılar bu güncellemeyi yok sayamaz. Kritik güvenlik düzeltmeleri için kullanın.",
+    "publishing": "Yayınlanıyor...",
+    "publishSubmit": "Güncellemeyi yayınla",
+    "historyTitle": "Güncelleme geçmişi ({{count}})",
+    "emptyLine1": "Yayınlanmış güncelleme yok.",
+    "emptyLine2": "Müşterilerinizi bilgilendirmek için ilk güncellemenizi yayınlayın.",
+    "forceBadge": "Zorunlu",
+    "buildInline": "Derleme:",
+    "toast": {
+      "error": "Hata",
+      "versionTitleRequired": "Sürüm ve başlık zorunludur.",
+      "publishedTitle": "Güncelleme yayınlandı",
+      "publishedDesc": "{{version}} sürümü yayınlandı. Tüm kullanıcılar bildirimi alacak.",
+      "deletedTitle": "Silindi",
+      "deleteError": "Bu sürüm silinemedi.",
+      "networkError": "Ağ hatası."
+    }
   }
 }
