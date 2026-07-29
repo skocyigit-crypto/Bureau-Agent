@@ -656,7 +656,9 @@
     },
     "projectTitleWith": "Projet - {{name}}",
     "projectTitleDefault": "Projet depuis appel",
-    "projectNotes": "Créé depuis l'appel du {{date}}"
+    "projectNotes": "Créé depuis l'appel du {{date}}",
+    "dateFrom": "Du",
+    "dateTo": "Au"
   },
   "messages": {
     "title": "Messages & Notes",
@@ -2211,7 +2213,8 @@
       "s4b": ", collez l'URL Voice ci-dessus",
       "s5": "Définissez la méthode sur",
       "s6": "Enregistrez. L'IA répondra automatiquement aux appels entrants."
-    }
+    },
+    "voiceDefaultSuffix": " (défaut)"
   },
   "settingsIntelligenceArtificielle": {
     "loadError": "Impossible de charger les paramètres IA.",
@@ -3968,7 +3971,12 @@
     "saving": "Enregistrement...",
     "create": "Créer",
     "projectFromNoteTitle": "Projet depuis note",
-    "projectFromNoteNotes": "Créé depuis une note interne"
+    "projectFromNoteNotes": "Créé depuis une note interne",
+    "time": {
+      "now": "À l'instant",
+      "minutes": "{{n}} min",
+      "hours": "{{n}} h"
+    }
   },
   "analyticsPage": {
     "title": "Analyse & Rapports",
@@ -4281,6 +4289,18 @@
       "emptyFile": "Fichier vide ou invalide",
       "error": "Erreur",
       "networkError": "Erreur réseau"
+    },
+    "recognizedCols": {
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "email": "Email",
+      "phone": "Téléphone",
+      "company": "Entreprise",
+      "category": "Catégorie",
+      "notes": "Notes",
+      "or": "ou",
+      "categoryDesc": "client, prospect, fournisseur…",
+      "notesDesc": "texte libre"
     }
   },
   "onboarding": {
@@ -7497,7 +7517,13 @@
       "changeRequestDesc": "Vous souhaitez passer au plan {{plan}} ({{price}}). Un administrateur examinera votre demande.",
       "messagePlaceholder": "Message optionnel pour l'administrateur...",
       "sendRequest": "Envoyer la demande"
-    }
+    },
+    "usage": {
+      "users": "Utilisateurs actifs",
+      "contacts": "Contacts",
+      "callsThisMonth": "Appels ce mois"
+    },
+    "print": "Imprimer"
   },
   "whatsappPage": {
     "title": "Boîte WhatsApp clients",

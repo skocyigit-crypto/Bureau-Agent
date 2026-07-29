@@ -18,9 +18,9 @@ const TELEPHONY_API = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/api/teleph
 type FraudAction = "off" | "voicemail" | "reject";
 
 const REC_VOICES: Record<string, { label: string; value: string }[]> = {
-  fr: [{ label: "Léa (défaut)", value: "" }, { label: "Céline", value: "Polly.Celine" }, { label: "Mathieu", value: "Polly.Mathieu" }],
-  tr: [{ label: "Filiz (défaut)", value: "" }],
-  en: [{ label: "Joanna (défaut)", value: "" }, { label: "Matthew", value: "Polly.Matthew" }, { label: "Amy", value: "Polly.Amy" }],
+  fr: [{ label: "Léa", value: "" }, { label: "Céline", value: "Polly.Celine" }, { label: "Mathieu", value: "Polly.Mathieu" }],
+  tr: [{ label: "Filiz", value: "" }],
+  en: [{ label: "Joanna", value: "" }, { label: "Matthew", value: "Polly.Matthew" }, { label: "Amy", value: "Polly.Amy" }],
 };
 const DAY_LABELS: [string, string][] = [
   ["mon", "Lun"], ["tue", "Mar"], ["wed", "Mer"], ["thu", "Jeu"], ["fri", "Ven"], ["sat", "Sam"], ["sun", "Dim"],
@@ -111,7 +111,7 @@ function AiReceptionistSettings() {
           <div><Label className="text-xs">{t("settingsAppels.recept.voice")}</Label>
             <Select value={cfg.voice || ""} onValueChange={(v) => set({ voice: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{voices.map((v) => <SelectItem key={v.value || "default"} value={v.value}>{v.label}</SelectItem>)}</SelectContent>
+              <SelectContent>{voices.map((v) => <SelectItem key={v.value || "default"} value={v.value}>{v.label}{v.value ? "" : t("settingsAppels.voiceDefaultSuffix")}</SelectItem>)}</SelectContent>
             </Select>
           </div>
         </div>

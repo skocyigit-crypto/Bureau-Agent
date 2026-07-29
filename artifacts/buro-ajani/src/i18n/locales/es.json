@@ -656,7 +656,9 @@
     },
     "projectTitleWith": "Proyecto - {{name}}",
     "projectTitleDefault": "Proyecto desde llamada",
-    "projectNotes": "Creado desde la llamada del {{date}}"
+    "projectNotes": "Creado desde la llamada del {{date}}",
+    "dateFrom": "Desde",
+    "dateTo": "Hasta"
   },
   "messages": {
     "title": "Mensajes y Notas",
@@ -2211,7 +2213,8 @@
       "s4b": ", pegue la URL Voice anterior",
       "s5": "Defina el método en",
       "s6": "Guarde. La IA responderá automáticamente a las llamadas entrantes."
-    }
+    },
+    "voiceDefaultSuffix": " (predeterminado)"
   },
   "settingsIntelligenceArtificielle": {
     "loadError": "No se pudieron cargar los parámetros de IA.",
@@ -3968,7 +3971,12 @@
     "saving": "Guardando...",
     "create": "Crear",
     "projectFromNoteTitle": "Proyecto desde nota",
-    "projectFromNoteNotes": "Creado desde una nota interna"
+    "projectFromNoteNotes": "Creado desde una nota interna",
+    "time": {
+      "now": "Ahora mismo",
+      "minutes": "{{n}} min",
+      "hours": "{{n}} h"
+    }
   },
   "analyticsPage": {
     "title": "Análisis & Informes",
@@ -4281,6 +4289,18 @@
       "emptyFile": "Archivo vacío o no válido",
       "error": "Error",
       "networkError": "Error de red"
+    },
+    "recognizedCols": {
+      "firstName": "Nombre",
+      "lastName": "Apellido",
+      "email": "Email",
+      "phone": "Teléfono",
+      "company": "Empresa",
+      "category": "Categoría",
+      "notes": "Notas",
+      "or": "o",
+      "categoryDesc": "cliente, prospecto, proveedor…",
+      "notesDesc": "texto libre"
     }
   },
   "onboarding": {
@@ -6251,8 +6271,8 @@
     "plans": {
       "essai": "Prueba Gratuita",
       "starter": "Starter",
-      "professionnel": "Professionnel",
-      "entreprise": "Entreprise"
+      "professionnel": "Profesional",
+      "entreprise": "Empresa"
     },
     "stats": {
       "total": "Total",
@@ -6531,7 +6551,7 @@
       "history": "Historial",
       "predictions": "Predicciones IA",
       "anomalies": "Anomalías",
-      "autopilot": "Oto-Pilot"
+      "autopilot": "Piloto automático"
     },
     "timeline": {
       "pending": "En espera",
@@ -6670,7 +6690,7 @@
       "lastAnalysis": "Último análisis: {{date}}"
     },
     "auto": {
-      "title": "Oto-Pilot IA",
+      "title": "Piloto automático IA",
       "subtitle": "Sistema autocorrectivo multi-IA — Supervisión, diagnóstico y corrección automática",
       "manualCycle": "Ciclo manual",
       "stop": "Detener",
@@ -7274,7 +7294,7 @@
       "lines": "Líneas",
       "subtotalHT": "Subtotal HT",
       "tva": "TVA",
-      "totalTTC": "Total TTC",
+      "totalTTC": "Total con IVA",
       "paid": "Pagado",
       "remaining": "Resto a pagar",
       "noClientEmail": "Sin correo del cliente",
@@ -7360,7 +7380,7 @@
       "description": "Descripción",
       "qty": "Cant.",
       "priceHT": "Precio HT",
-      "tvaPct": "TVA %",
+      "tvaPct": "IVA %",
       "itemPlaceholder": "Prestación...",
       "internalNotes": "Notas internas (opcional)",
       "notesPlaceholder": "Condiciones de pago, menciones...",
@@ -7497,7 +7517,13 @@
       "changeRequestDesc": "Desea pasar al plan {{plan}} ({{price}}). Un administrador examinará su solicitud.",
       "messagePlaceholder": "Mensaje opcional para el administrador...",
       "sendRequest": "Enviar la solicitud"
-    }
+    },
+    "usage": {
+      "users": "Usuarios activos",
+      "contacts": "Contactos",
+      "callsThisMonth": "Llamadas este mes"
+    },
+    "print": "Imprimir"
   },
   "whatsappPage": {
     "title": "Bandeja de clientes WhatsApp",

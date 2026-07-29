@@ -656,7 +656,9 @@
     },
     "projectTitleWith": "مشروع - {{name}}",
     "projectTitleDefault": "مشروع من مكالمة",
-    "projectNotes": "أُنشئ من مكالمة بتاريخ {{date}}"
+    "projectNotes": "أُنشئ من مكالمة بتاريخ {{date}}",
+    "dateFrom": "من",
+    "dateTo": "إلى"
   },
   "messages": {
     "title": "الرسائل والملاحظات",
@@ -2211,7 +2213,8 @@
       "s4b": "، الصق رابط Voice أعلاه",
       "s5": "عيّن الطريقة على",
       "s6": "احفظ. سيردّ الذكاء الاصطناعي على المكالمات الواردة تلقائياً."
-    }
+    },
+    "voiceDefaultSuffix": " (افتراضي)"
   },
   "settingsIntelligenceArtificielle": {
     "loadError": "تعذّر تحميل إعدادات الذكاء الاصطناعي.",
@@ -3968,7 +3971,12 @@
     "saving": "جارٍ الحفظ...",
     "create": "إنشاء",
     "projectFromNoteTitle": "مشروع من ملاحظة",
-    "projectFromNoteNotes": "أُنشئ من ملاحظة داخلية"
+    "projectFromNoteNotes": "أُنشئ من ملاحظة داخلية",
+    "time": {
+      "now": "الآن",
+      "minutes": "{{n}} د",
+      "hours": "{{n}} س"
+    }
   },
   "analyticsPage": {
     "title": "التحليلات والتقارير",
@@ -4281,6 +4289,18 @@
       "emptyFile": "ملف فارغ أو غير صالح",
       "error": "خطأ",
       "networkError": "خطأ في الشبكة"
+    },
+    "recognizedCols": {
+      "firstName": "الاسم الأول",
+      "lastName": "اسم العائلة",
+      "email": "البريد الإلكتروني",
+      "phone": "الهاتف",
+      "company": "الشركة",
+      "category": "الفئة",
+      "notes": "ملاحظات",
+      "or": "أو",
+      "categoryDesc": "عميل، محتمل، مورّد…",
+      "notesDesc": "نص حر"
     }
   },
   "onboarding": {
@@ -7497,7 +7517,13 @@
       "changeRequestDesc": "ترغب في الانتقال إلى خطة {{plan}} ({{price}}). سيراجع المسؤول طلبك.",
       "messagePlaceholder": "رسالة اختيارية للمسؤول...",
       "sendRequest": "إرسال الطلب"
-    }
+    },
+    "usage": {
+      "users": "المستخدمون النشطون",
+      "contacts": "جهات الاتصال",
+      "callsThisMonth": "المكالمات هذا الشهر"
+    },
+    "print": "طباعة"
   },
   "whatsappPage": {
     "title": "صندوق عملاء WhatsApp",

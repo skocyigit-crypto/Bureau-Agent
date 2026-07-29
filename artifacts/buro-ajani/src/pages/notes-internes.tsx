@@ -27,13 +27,13 @@ function getColor(key: string) {
   return COLORS.find(c => c.key === key) || COLORS[0];
 }
 
-function fmtDate(d: string) {
+function fmtDate(d: string, t: (key: string, vars?: Record<string, string | number>) => string) {
   const now = new Date();
   const dt = new Date(d);
   const diff = Math.floor((now.getTime() - dt.getTime()) / 1000);
-  if (diff < 60) return "À l'instant";
-  if (diff < 3600) return `${Math.floor(diff / 60)} min`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} h`;
+  if (diff < 60) return t("notesInternes.time.now");
+  if (diff < 3600) return t("notesInternes.time.minutes", { n: Math.floor(diff / 60) });
+  if (diff < 86400) return t("notesInternes.time.hours", { n: Math.floor(diff / 3600) });
   return dt.toLocaleDateString("fr-FR");
 }
 
@@ -220,7 +220,7 @@ export default function NotesInternesPage() {
               </div>
             )}
             <div className="flex items-center justify-between mt-auto">
-              <span className="text-xs text-muted-foreground">{fmtDate(n.updatedAt)}</span>
+              <span className="text-xs text-muted-foreground">{fmtDate(n.updatedAt, t)}</span>
               {!selectMode && (
                 <div className="flex gap-0.5">
                   <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => togglePin(n)} title={n.pinned ? t("notesInternes.unpin") : t("notesInternes.pin")}>

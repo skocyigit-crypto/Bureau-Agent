@@ -656,7 +656,9 @@
     },
     "projectTitleWith": "Projekt - {{name}}",
     "projectTitleDefault": "Projekt aus Anruf",
-    "projectNotes": "Erstellt aus dem Anruf vom {{date}}"
+    "projectNotes": "Erstellt aus dem Anruf vom {{date}}",
+    "dateFrom": "Von",
+    "dateTo": "Bis"
   },
   "messages": {
     "title": "Nachrichten & Notizen",
@@ -2211,7 +2213,8 @@
       "s4b": " fügen Sie die obige Voice-URL ein",
       "s5": "Legen Sie die Methode fest auf",
       "s6": "Speichern. Die KI beantwortet eingehende Anrufe automatisch."
-    }
+    },
+    "voiceDefaultSuffix": " (Standard)"
   },
   "settingsIntelligenceArtificielle": {
     "loadError": "KI-Einstellungen konnten nicht geladen werden.",
@@ -3968,7 +3971,12 @@
     "saving": "Wird gespeichert...",
     "create": "Erstellen",
     "projectFromNoteTitle": "Projekt aus Notiz",
-    "projectFromNoteNotes": "Aus einer internen Notiz erstellt"
+    "projectFromNoteNotes": "Aus einer internen Notiz erstellt",
+    "time": {
+      "now": "Gerade eben",
+      "minutes": "{{n}} Min.",
+      "hours": "{{n}} Std."
+    }
   },
   "analyticsPage": {
     "title": "Analyse & Berichte",
@@ -4281,6 +4289,18 @@
       "emptyFile": "Leere oder ungültige Datei",
       "error": "Fehler",
       "networkError": "Netzwerkfehler"
+    },
+    "recognizedCols": {
+      "firstName": "Vorname",
+      "lastName": "Nachname",
+      "email": "E-Mail",
+      "phone": "Telefon",
+      "company": "Unternehmen",
+      "category": "Kategorie",
+      "notes": "Notizen",
+      "or": "oder",
+      "categoryDesc": "Kunde, Interessent, Lieferant…",
+      "notesDesc": "Freitext"
     }
   },
   "onboarding": {
@@ -6251,8 +6271,8 @@
     "plans": {
       "essai": "Kostenlose Testversion",
       "starter": "Starter",
-      "professionnel": "Professionnel",
-      "entreprise": "Entreprise"
+      "professionnel": "Professional",
+      "entreprise": "Enterprise"
     },
     "stats": {
       "total": "Gesamt",
@@ -6531,7 +6551,7 @@
       "history": "Verlauf",
       "predictions": "KI-Prognosen",
       "anomalies": "Anomalien",
-      "autopilot": "Oto-Pilot"
+      "autopilot": "Autopilot"
     },
     "timeline": {
       "pending": "Ausstehend",
@@ -7360,7 +7380,7 @@
       "description": "Beschreibung",
       "qty": "Menge",
       "priceHT": "Preis HT",
-      "tvaPct": "TVA %",
+      "tvaPct": "MwSt. %",
       "itemPlaceholder": "Dienstleistung...",
       "internalNotes": "Interne Notizen (optional)",
       "notesPlaceholder": "Zahlungsbedingungen, Hinweise...",
@@ -7497,7 +7517,13 @@
       "changeRequestDesc": "Sie möchten zum Plan {{plan}} ({{price}}) wechseln. Ein Administrator prüft Ihre Anfrage.",
       "messagePlaceholder": "Optionale Nachricht für den Administrator...",
       "sendRequest": "Anfrage senden"
-    }
+    },
+    "usage": {
+      "users": "Aktive Benutzer",
+      "contacts": "Kontakte",
+      "callsThisMonth": "Anrufe diesen Monat"
+    },
+    "print": "Drucken"
   },
   "whatsappPage": {
     "title": "WhatsApp-Kundenpostfach",

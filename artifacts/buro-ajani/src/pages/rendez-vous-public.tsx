@@ -428,7 +428,7 @@ export default function RendezVousPublicPage() {
                     <div className="flex flex-col gap-0.5 text-left">
                       <span className="text-sm text-muted-foreground line-through">{slot.label}</span>
                       <span className="text-xs font-medium text-muted-foreground">
-                        Fermé{closure.label ? ` — ${closure.label}` : ""}
+                        {closure.label ? t("rendezVousPublic.closedWith", { label: closure.label }) : t("rendezVousPublic.closed")}
                       </span>
                     </div>
                   </div>

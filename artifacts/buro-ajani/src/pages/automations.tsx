@@ -401,13 +401,13 @@ function CreateRuleDialog({ onCreated }: { onCreated: () => void }) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="5min">Toutes les 5 min</SelectItem>
-                  <SelectItem value="15min">Toutes les 15 min</SelectItem>
-                  <SelectItem value="30min">Toutes les 30 min</SelectItem>
-                  <SelectItem value="1h">Toutes les heures</SelectItem>
-                  <SelectItem value="6h">Toutes les 6h</SelectItem>
-                  <SelectItem value="12h">Toutes les 12h</SelectItem>
-                  <SelectItem value="24h">Une fois par jour</SelectItem>
+                  <SelectItem value="5min">{t("automationsPage.schedule.5min")}</SelectItem>
+                  <SelectItem value="15min">{t("automationsPage.schedule.15min")}</SelectItem>
+                  <SelectItem value="30min">{t("automationsPage.schedule.30min")}</SelectItem>
+                  <SelectItem value="1h">{t("automationsPage.schedule.1h")}</SelectItem>
+                  <SelectItem value="6h">{t("automationsPage.schedule.6h")}</SelectItem>
+                  <SelectItem value="12h">{t("automationsPage.schedule.12h")}</SelectItem>
+                  <SelectItem value="24h">{t("automationsPage.schedule.24h")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>

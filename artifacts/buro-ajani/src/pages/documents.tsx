@@ -219,7 +219,7 @@ export default function DocumentsPage() {
     } catch (err) {
       if (gen !== docsGenRef.current) return;
       console.error("[Documents] load failed:", err);
-      toast({ title: "Erreur de chargement des documents", variant: "destructive" });
+      toast({ title: t("documents.toast.loadError"), variant: "destructive" });
     } finally {
       if (gen === docsGenRef.current) setLoading(false);
     }

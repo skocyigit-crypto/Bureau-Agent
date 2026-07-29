@@ -411,7 +411,7 @@ function InvoiceDetailDialog({ invoice, onClose, onRefresh, onReloadInvoice }: {
             <Button variant="outline" onClick={() => { setReminderOpen(false); setCustomMessage(""); }}>{t("common.cancel")}</Button>
             <Button onClick={sendReminder} disabled={busy === "reminder"} className="bg-orange-500 hover:bg-orange-600">
               {busy === "reminder" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
-              Envoyer le rappel
+              {t("licenseManagement.dialog.sendReminderBtn")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -443,9 +443,9 @@ function OverviewTab({ data, onRefresh }: { data: any; onRefresh: () => void }) 
   };
 
   const usageLimits = [
-    { label: "Utilisateurs actifs", current: sub?.currentUsers, max: sub?.maxUsers, icon: Users },
-    { label: "Contacts", current: sub?.currentContacts, max: sub?.maxContacts, icon: Users },
-    { label: "Appels ce mois", current: sub?.currentCallsMonth, max: sub?.maxCallsPerMonth, icon: Phone },
+    { label: t("licenseManagement.usage.users"), current: sub?.currentUsers, max: sub?.maxUsers, icon: Users },
+    { label: t("licenseManagement.usage.contacts"), current: sub?.currentContacts, max: sub?.maxContacts, icon: Users },
+    { label: t("licenseManagement.usage.callsThisMonth"), current: sub?.currentCallsMonth, max: sub?.maxCallsPerMonth, icon: Phone },
   ];
 
   return (
@@ -632,7 +632,7 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
         body: JSON.stringify({ factureClientId: reminderDialog.id, customMessage }),
       });
       const d = await r.json();
-      if (d.success) { toast({ title: t("licenseManagement.toast.success"), description: `Rappel niveau ${d.reminderLevel} envoye` }); onRefresh(); }
+      if (d.success) { toast({ title: t("licenseManagement.toast.success"), description: t("licenseManagement.toastMsg.reminderSent", { level: d.reminderLevel }) }); onRefresh(); }
       else throw new Error(d.error || t("licenseManagement.toast.error"));
     } catch (err: any) {
       toast({ title: t("licenseManagement.toast.error"), description: err.message, variant: "destructive" });
@@ -1273,7 +1273,7 @@ function SystemAuditTab() {
               <a href={exportUrl()} download="journal_audit.csv">
                 <Button variant="outline" size="sm" className="h-8 text-xs gap-1"><Download className="w-3 h-3" />CSV</Button>
               </a>
-              <Button variant="outline" size="sm" className="h-8" title="Imprimer" onClick={() => window.print()}><Printer className="w-3 h-3" /></Button>
+              <Button variant="outline" size="sm" className="h-8" title={t("licenseManagement.print")} onClick={() => window.print()}><Printer className="w-3 h-3" /></Button>
             </div>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 pt-2">

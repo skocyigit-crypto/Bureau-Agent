@@ -116,13 +116,13 @@ export default function ContactsImportPage() {
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm">{t("contactsImport.recognizedColumns")}</CardTitle></CardHeader>
             <CardContent className="text-xs text-muted-foreground space-y-1">
-              <p><strong>Prénom</strong> ou <code>prenom</code>, <code>firstName</code></p>
-              <p><strong>Nom</strong> ou <code>nom</code>, <code>lastName</code></p>
-              <p><strong>Email</strong> ou <code>email</code></p>
-              <p><strong>Téléphone</strong> ou <code>telephone</code>, <code>Tel</code></p>
-              <p><strong>Entreprise</strong> ou <code>company</code></p>
-              <p><strong>Catégorie</strong> : client, prospect, fournisseur…</p>
-              <p><strong>Notes</strong> : texte libre</p>
+              <p><strong>{t("contactsImport.recognizedCols.firstName")}</strong> {t("contactsImport.recognizedCols.or")} <code>prenom</code>, <code>firstName</code></p>
+              <p><strong>{t("contactsImport.recognizedCols.lastName")}</strong> {t("contactsImport.recognizedCols.or")} <code>nom</code>, <code>lastName</code></p>
+              <p><strong>{t("contactsImport.recognizedCols.email")}</strong> {t("contactsImport.recognizedCols.or")} <code>email</code></p>
+              <p><strong>{t("contactsImport.recognizedCols.phone")}</strong> {t("contactsImport.recognizedCols.or")} <code>telephone</code>, <code>Tel</code></p>
+              <p><strong>{t("contactsImport.recognizedCols.company")}</strong> {t("contactsImport.recognizedCols.or")} <code>company</code></p>
+              <p><strong>{t("contactsImport.recognizedCols.category")}</strong> : {t("contactsImport.recognizedCols.categoryDesc")}</p>
+              <p><strong>{t("contactsImport.recognizedCols.notes")}</strong> : {t("contactsImport.recognizedCols.notesDesc")}</p>
             </CardContent>
           </Card>
           <Button variant="outline" size="sm" className="w-full" onClick={downloadSample}>

@@ -751,7 +751,7 @@ export default function UsersPage() {
                             <>
                               <DropdownMenuItem className={`gap-2 cursor-pointer ${user.actif ? "text-amber-600" : "text-emerald-600"}`} onClick={() => handleToggleActive(user)}>
                                 {user.actif ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-                                {user.actif ? "Desactiver" : "Reactiver"}
+                                {user.actif ? t("users.actions.deactivate") : t("users.actions.reactivate")}
                               </DropdownMenuItem>
                               <DropdownMenuItem className="gap-2 cursor-pointer text-red-600" onClick={() => handleDelete(user)}>
                                 <Trash2 className="w-4 h-4" />
