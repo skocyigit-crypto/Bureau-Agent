@@ -4,6 +4,7 @@ import { Bell, Check, CheckCheck, ExternalLink, AlertTriangle, Info, Lightbulb, 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useTranslation } from "@/i18n";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -28,6 +29,7 @@ const TYPE_ICONS: Record<string, any> = {
 };
 
 export function NotificationBell() {
+  const { t } = useTranslation();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
@@ -108,11 +110,11 @@ export function NotificationBell() {
   function timeAgo(date: string): string {
     const diff = Date.now() - new Date(date).getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 1) return "A l'instant";
-    if (mins < 60) return `Il y a ${mins}min`;
+    if (mins < 1) return t("notificationBell.now");
+    if (mins < 60) return t("notificationBell.minsAgo", { mins });
     const hours = Math.floor(mins / 60);
-    if (hours < 24) return `Il y a ${hours}h`;
-    return `Il y a ${Math.floor(hours / 24)}j`;
+    if (hours < 24) return t("notificationBell.hoursAgo", { hours });
+    return t("notificationBell.daysAgo", { days: Math.floor(hours / 24) });
   }
 
   return (
@@ -133,7 +135,7 @@ export function NotificationBell() {
             )}
           </Button>
         </TooltipTrigger>
-        <TooltipContent>Notifications</TooltipContent>
+        <TooltipContent>{t("notificationBell.title")}</TooltipContent>
       </Tooltip>
 
       {open && (
@@ -141,7 +143,7 @@ export function NotificationBell() {
           <div className="flex items-center justify-between px-4 py-3 border-b">
             <div className="flex items-center gap-2">
               <Bell className="w-4 h-4 text-primary" />
-              <span className="font-semibold text-sm">Notifications</span>
+              <span className="font-semibold text-sm">{t("notificationBell.title")}</span>
               {unreadCount > 0 && (
                 <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
                   {unreadCount}
@@ -150,7 +152,7 @@ export function NotificationBell() {
             </div>
             {unreadCount > 0 && (
               <Button variant="ghost" size="sm" className="text-xs h-7" onClick={markAllRead}>
-                <CheckCheck className="w-3.5 h-3.5 mr-1" /> Tout lire
+                <CheckCheck className="w-3.5 h-3.5 mr-1" /> {t("notificationBell.markAllRead")}
               </Button>
             )}
           </div>
@@ -158,7 +160,7 @@ export function NotificationBell() {
           <div className="overflow-y-auto flex-1">
             {notifications.length === 0 ? (
               <div className="p-8 text-center text-sm text-muted-foreground">
-                Aucune notification
+                {t("notificationBell.empty")}
               </div>
             ) : (
               notifications.map(n => {
@@ -190,7 +192,7 @@ export function NotificationBell() {
                               className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
                               onClick={e => e.stopPropagation()}
                             >
-                              Voir <ExternalLink className="w-2.5 h-2.5" />
+                              {t("notificationBell.view")} <ExternalLink className="w-2.5 h-2.5" />
                             </a>
                           )}
                         </div>
@@ -217,7 +219,7 @@ export function NotificationBell() {
               onClick={() => setOpen(false)}
               className="flex items-center justify-center gap-1.5 text-xs text-primary hover:underline font-medium py-1"
             >
-              Voir toutes les notifications <ArrowRight className="w-3 h-3" />
+              {t("notificationBell.viewAll")} <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
         </div>

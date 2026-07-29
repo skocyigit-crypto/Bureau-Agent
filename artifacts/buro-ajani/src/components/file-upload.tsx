@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -73,6 +74,7 @@ export function FileUpload({
   onDocumentsChange,
   className = "",
 }: FileUploadProps) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -113,7 +115,7 @@ export function FileUpload({
 
   const uploadFile = async (file: File) => {
     if (file.size > 25 * 1024 * 1024) {
-      toast({ title: "Fichier trop volumineux", description: `${file.name} depasse 25 Mo`, variant: "destructive" });
+      toast({ title: t("fileUpload.tooLargeTitle"), description: t("fileUpload.tooLargeDesc", { name: file.name }), variant: "destructive" });
       return;
     }
 
@@ -143,7 +145,7 @@ export function FileUpload({
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Echec de l'upload");
+        throw new Error(err.error || t("fileUpload.uploadFailed"));
       }
 
       const data = await res.json();
@@ -158,11 +160,11 @@ export function FileUpload({
       onUploadComplete?.(newDoc);
 
       toast({
-        title: "Document telecharge",
-        description: data.aiAnalysis ? `${file.name} — analyse IA terminee` : file.name,
+        title: t("fileUpload.uploadedTitle"),
+        description: data.aiAnalysis ? t("fileUpload.uploadedAiDesc", { name: file.name }) : file.name,
       });
     } catch (err: any) {
-      toast({ title: "Erreur d'upload", description: err.message, variant: "destructive" });
+      toast({ title: t("fileUpload.uploadErrorTitle"), description: err.message, variant: "destructive" });
     } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -201,10 +203,10 @@ export function FileUpload({
           onDocumentsChange?.(updated);
           return updated;
         });
-        toast({ title: "Document supprime" });
+        toast({ title: t("fileUpload.deletedTitle") });
       }
     } catch {
-      toast({ title: "Erreur de suppression", variant: "destructive" });
+      toast({ title: t("fileUpload.deleteErrorTitle"), variant: "destructive" });
     }
   };
 
@@ -220,7 +222,7 @@ export function FileUpload({
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      toast({ title: "Erreur de telechargement", variant: "destructive" });
+      toast({ title: t("fileUpload.downloadErrorTitle"), variant: "destructive" });
     }
   };
 
@@ -228,11 +230,11 @@ export function FileUpload({
     try {
       const res = await fetch(`${API}/api/documents/${docId}/analyze`, { method: "POST", credentials: "include" });
       if (res.ok) {
-        toast({ title: "Analyse IA terminee" });
+        toast({ title: t("fileUpload.analyzeDoneTitle") });
         loadDocuments();
       }
     } catch {
-      toast({ title: "Erreur d'analyse", variant: "destructive" });
+      toast({ title: t("fileUpload.analyzeErrorTitle"), variant: "destructive" });
     }
   };
 
@@ -257,7 +259,7 @@ export function FileUpload({
           ) : (
             <div className="flex items-center gap-2 justify-center text-sm text-muted-foreground">
               <Upload className="w-4 h-4" />
-              <span>Deposer ou cliquer — PDF, Excel, Word, CSV, images</span>
+              <span>{t("fileUpload.compactPrompt")}</span>
             </div>
           )}
         </div>
@@ -302,7 +304,7 @@ export function FileUpload({
           {uploading ? (
             <div className="space-y-3">
               <Loader2 className="w-8 h-8 animate-spin mx-auto text-violet-500" />
-              <p className="text-sm text-muted-foreground">Telechargement en cours...</p>
+              <p className="text-sm text-muted-foreground">{t("fileUpload.uploading")}</p>
               <Progress value={uploadProgress} className="max-w-xs mx-auto" />
             </div>
           ) : (
@@ -311,14 +313,14 @@ export function FileUpload({
                 <Upload className="w-7 h-7 text-violet-500" />
               </div>
               <div>
-                <h3 className="font-semibold">Deposez vos fichiers ici</h3>
+                <h3 className="font-semibold">{t("fileUpload.dropHere")}</h3>
                 <p className="text-muted-foreground text-xs mt-1">
-                  PDF, Excel, Word, CSV, images, texte — max 25 Mo
+                  {t("fileUpload.formats")}
                 </p>
               </div>
               <Button onClick={() => fileInputRef.current?.click()} size="sm" className="gap-2 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700">
                 <FileUp className="w-4 h-4" />
-                Choisir des fichiers
+                {t("fileUpload.chooseFiles")}
               </Button>
             </div>
           )}
@@ -328,14 +330,14 @@ export function FileUpload({
       {loadingDocs && (
         <div className="flex items-center justify-center py-4 text-muted-foreground gap-2 text-sm">
           <Loader2 className="w-4 h-4 animate-spin" />
-          Chargement des documents...
+          {t("fileUpload.loadingDocs")}
         </div>
       )}
 
       {documents.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-medium text-muted-foreground">{documents.length} document(s) attache(s)</h4>
+            <h4 className="text-sm font-medium text-muted-foreground">{t("fileUpload.attachedCount", { count: documents.length })}</h4>
           </div>
           <ScrollArea className="max-h-64">
             <div className="space-y-2">
@@ -352,7 +354,7 @@ export function FileUpload({
                         <span className="text-xs text-muted-foreground">{formatSize(doc.fileSize)}</span>
                         {doc.aiProcessed && (
                           <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1">
-                            <Sparkles className="w-2.5 h-2.5" /> IA
+                            <Sparkles className="w-2.5 h-2.5" /> {t("fileUpload.aiBadge")}
                           </Badge>
                         )}
                         <Badge variant="outline" className="text-[10px] px-1.5 py-0">{doc.category}</Badge>
@@ -383,6 +385,7 @@ export function FileUpload({
 }
 
 export function DocumentsPanel({ entityType, entityId }: { entityType: string; entityId: number }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [docCount, setDocCount] = useState(0);
 
@@ -391,7 +394,7 @@ export function DocumentsPanel({ entityType, entityId }: { entityType: string; e
       <button onClick={() => setExpanded(!expanded)} className="w-full flex items-center justify-between p-4 hover:bg-accent/30 transition-colors rounded-t-lg">
         <div className="flex items-center gap-2">
           <FileText className="w-4 h-4 text-violet-500" />
-          <span className="font-medium text-sm">Documents & Fichiers</span>
+          <span className="font-medium text-sm">{t("fileUpload.panelTitle")}</span>
           {docCount > 0 && <Badge variant="secondary" className="text-xs">{docCount}</Badge>}
         </div>
         {expanded ? <X className="w-4 h-4" /> : <Upload className="w-4 h-4" />}

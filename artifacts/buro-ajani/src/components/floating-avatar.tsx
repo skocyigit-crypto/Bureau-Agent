@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AvatarDock } from "@workspace/ai-avatar";
 import { GripVertical, Minus, Plus } from "lucide-react";
+import { useTranslation } from "@/i18n";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Avatar flottant déplaçable ("Canvas" vivant).
@@ -18,9 +19,6 @@ import { GripVertical, Minus, Plus } from "lucide-react";
 const POS_KEY = "buro:floating-avatar:pos";
 const MIN_KEY = "buro:floating-avatar:min";
 const VOICE_KEY = "buro:floating-avatar:voice";
-
-const GREETING =
-  "Bonjour ! Je suis votre agent de bureau. Déplacez-moi où vous voulez. Comment puis-je vous aider ?";
 
 interface Pos {
   x: number;
@@ -59,6 +57,8 @@ function defaultPos(minimized: boolean): Pos {
 }
 
 export function FloatingAvatar() {
+  const { t } = useTranslation();
+  const GREETING = t("floatingAvatar.greeting");
   const [minimized, setMinimized] = useState<boolean>(() => {
     try {
       return localStorage.getItem(MIN_KEY) === "1";
@@ -173,9 +173,9 @@ export function FloatingAvatar() {
           e.stopPropagation();
         }}
         onPointerCancel={endDrag}
-        title="Agent de bureau — glissez pour déplacer, cliquez pour ouvrir"
+        title={t("floatingAvatar.openTitle")}
         role="button"
-        aria-label="Ouvrir l'agent de bureau"
+        aria-label={t("floatingAvatar.openAria")}
         className="rounded-full bg-white shadow-xl ring-1 ring-black/10 dark:bg-zinc-900 dark:ring-white/10"
       >
         <div className="pointer-events-none p-1.5">
@@ -214,15 +214,15 @@ export function FloatingAvatar() {
       >
         <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-700 dark:text-zinc-200">
           <GripVertical className="h-4 w-4 text-zinc-400" />
-          Agent de bureau
+          {t("floatingAvatar.name")}
         </div>
         <button
           type="button"
           onClick={toggleMin}
           onPointerDown={(e) => e.stopPropagation()}
           className="rounded-md p-1 text-zinc-500 transition-colors hover:bg-black/5 hover:text-zinc-800 dark:hover:bg-white/10 dark:hover:text-white"
-          title={minimized ? "Agrandir" : "Réduire"}
-          aria-label={minimized ? "Agrandir" : "Réduire"}
+          title={minimized ? t("floatingAvatar.expand") : t("floatingAvatar.collapse")}
+          aria-label={minimized ? t("floatingAvatar.expand") : t("floatingAvatar.collapse")}
         >
           {minimized ? <Plus className="h-4 w-4" /> : <Minus className="h-4 w-4" />}
         </button>

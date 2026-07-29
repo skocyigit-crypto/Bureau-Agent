@@ -8761,5 +8761,104 @@
       "taches": "Görevler",
       "messages": "Mesajlar"
     }
+  },
+  "integrationDiscovery": {
+    "categories": {
+      "telephonie": "Telefon",
+      "google": "Google Workspace",
+      "ia": "Yapay Zeka",
+      "email": "E-posta",
+      "productivite": "Verimlilik",
+      "autre": "Diğer"
+    },
+    "available": "{{count}} bağlantı mevcut",
+    "checkIntegrations": "Entegrasyonları kontrol et",
+    "servicesActive": "{{connected}}/{{total}} servis aktif",
+    "title": "Keşfedilen entegrasyonlar",
+    "autoScan": "Ortamın otomatik taraması",
+    "statConnected": "Bağlı",
+    "statAvailable": "Mevcut",
+    "toConfigure": "Yapılandırılacak",
+    "readyToConnect": "Bağlanmaya hazır",
+    "active": "Aktif",
+    "hide24h": "24 saat gizle"
+  },
+  "floatingAvatar": {
+    "greeting": "Merhaba! Ben büro asistanınızım. Beni istediğiniz yere taşıyabilirsiniz. Size nasıl yardımcı olabilirim?",
+    "name": "Büro asistanı",
+    "openTitle": "Büro asistanı — taşımak için sürükleyin, açmak için tıklayın",
+    "openAria": "Büro asistanını aç",
+    "expand": "Büyüt",
+    "collapse": "Küçült"
+  },
+  "fileUpload": {
+    "tooLargeTitle": "Dosya çok büyük",
+    "tooLargeDesc": "{{name}} 25 MB sınırını aşıyor",
+    "uploadFailed": "Yükleme başarısız",
+    "uploadedTitle": "Belge yüklendi",
+    "uploadedAiDesc": "{{name}} — YZ analizi tamamlandı",
+    "uploadErrorTitle": "Yükleme hatası",
+    "deletedTitle": "Belge silindi",
+    "deleteErrorTitle": "Silme hatası",
+    "downloadErrorTitle": "İndirme hatası",
+    "analyzeDoneTitle": "YZ analizi tamamlandı",
+    "analyzeErrorTitle": "Analiz hatası",
+    "compactPrompt": "Bırakın veya tıklayın — PDF, Excel, Word, CSV, görseller",
+    "uploading": "Yükleniyor...",
+    "dropHere": "Dosyalarınızı buraya bırakın",
+    "formats": "PDF, Excel, Word, CSV, görseller, metin — maks. 25 MB",
+    "chooseFiles": "Dosya seç",
+    "loadingDocs": "Belgeler yükleniyor...",
+    "attachedCount": "{{count}} belge ekli",
+    "aiBadge": "YZ",
+    "panelTitle": "Belgeler ve Dosyalar"
+  },
+  "lineItemsEditor": {
+    "lines": "Satırlar",
+    "addLine": "Satır ekle",
+    "emptyState": "Satır yok. En az bir hizmet ekleyin.",
+    "colDesignation": "Açıklama",
+    "colQty": "Adet",
+    "colUnitPrice": "Birim Fiyat",
+    "colVat": "KDV %",
+    "colTotal": "Toplam",
+    "placeholder": "Hizmet",
+    "subtotal": "Ara toplam",
+    "vat": "KDV",
+    "autoliquidation": "Ters ödeme (madde 283-2 CGI)",
+    "vatRate": "KDV {{rate}}%",
+    "totalTtc": "Genel toplam",
+    "serverRecalc": "Toplam, kayıt sırasında sunucu tarafından yeniden hesaplanır."
+  },
+  "updateBanner": {
+    "types": {
+      "major": "Büyük güncelleme",
+      "feature": "Yeni özellikler",
+      "security": "Güvenlik güncellemesi",
+      "fix": "Düzeltmeler",
+      "update": "Güncelleme",
+      "performance": "Performans iyileştirmesi"
+    },
+    "mandatoryTitle": "Zorunlu güncelleme",
+    "versionTitle": "Sürüm {{version}} — {{title}}",
+    "changes": "Değişiklikler:",
+    "updatingModal": "Güncelleme yapılıyor...",
+    "updateNow": "Şimdi güncelle",
+    "newDataAvailable": "Yeni veriler mevcut.",
+    "details": "Ayrıntılar",
+    "updatingShort": "Güncelleniyor...",
+    "update": "Güncelle",
+    "later": "Daha sonra"
+  },
+  "notificationBell": {
+    "title": "Bildirimler",
+    "markAllRead": "Tümünü oku",
+    "empty": "Bildirim yok",
+    "view": "Görüntüle",
+    "viewAll": "Tüm bildirimleri görüntüle",
+    "now": "Az önce",
+    "minsAgo": "{{mins}} dk önce",
+    "hoursAgo": "{{hours}} sa önce",
+    "daysAgo": "{{days}} gün önce"
   }
 }

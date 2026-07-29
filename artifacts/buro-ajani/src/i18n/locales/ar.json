@@ -8761,5 +8761,104 @@
       "taches": "المهام",
       "messages": "الرسائل"
     }
+  },
+  "integrationDiscovery": {
+    "categories": {
+      "telephonie": "الهاتف",
+      "google": "Google Workspace",
+      "ia": "الذكاء الاصطناعي",
+      "email": "البريد الإلكتروني",
+      "productivite": "الإنتاجية",
+      "autre": "أخرى"
+    },
+    "available": "{{count}} اتصال متاح",
+    "checkIntegrations": "التحقق من التكاملات",
+    "servicesActive": "{{connected}}/{{total}} خدمة نشطة",
+    "title": "التكاملات المكتشفة",
+    "autoScan": "فحص تلقائي للبيئة",
+    "statConnected": "متصل",
+    "statAvailable": "متاح",
+    "toConfigure": "بحاجة للإعداد",
+    "readyToConnect": "جاهز للاتصال",
+    "active": "نشط",
+    "hide24h": "إخفاء لمدة 24 ساعة"
+  },
+  "floatingAvatar": {
+    "greeting": "مرحبًا! أنا مساعد مكتبك. حرّكني إلى حيث تشاء. كيف يمكنني مساعدتك؟",
+    "name": "مساعد المكتب",
+    "openTitle": "مساعد المكتب — اسحب للتحريك، انقر للفتح",
+    "openAria": "فتح مساعد المكتب",
+    "expand": "تكبير",
+    "collapse": "تصغير"
+  },
+  "fileUpload": {
+    "tooLargeTitle": "الملف كبير جدًا",
+    "tooLargeDesc": "{{name}} يتجاوز 25 ميغابايت",
+    "uploadFailed": "فشل الرفع",
+    "uploadedTitle": "تم رفع المستند",
+    "uploadedAiDesc": "{{name}} — اكتمل تحليل الذكاء الاصطناعي",
+    "uploadErrorTitle": "خطأ في الرفع",
+    "deletedTitle": "تم حذف المستند",
+    "deleteErrorTitle": "خطأ في الحذف",
+    "downloadErrorTitle": "خطأ في التنزيل",
+    "analyzeDoneTitle": "اكتمل تحليل الذكاء الاصطناعي",
+    "analyzeErrorTitle": "خطأ في التحليل",
+    "compactPrompt": "أفلِت أو انقر — PDF وExcel وWord وCSV وصور",
+    "uploading": "جارٍ الرفع...",
+    "dropHere": "أفلِت ملفاتك هنا",
+    "formats": "PDF وExcel وWord وCSV وصور ونصوص — بحد أقصى 25 ميغابايت",
+    "chooseFiles": "اختيار الملفات",
+    "loadingDocs": "جارٍ تحميل المستندات...",
+    "attachedCount": "{{count}} مستند مرفق",
+    "aiBadge": "ذكاء اصطناعي",
+    "panelTitle": "المستندات والملفات"
+  },
+  "lineItemsEditor": {
+    "lines": "البنود",
+    "addLine": "إضافة بند",
+    "emptyState": "لا توجد بنود. أضف خدمة واحدة على الأقل.",
+    "colDesignation": "الوصف",
+    "colQty": "الكمية",
+    "colUnitPrice": "سعر الوحدة",
+    "colVat": "ض.ق.م %",
+    "colTotal": "الإجمالي قبل الضريبة",
+    "placeholder": "خدمة",
+    "subtotal": "المجموع الفرعي قبل الضريبة",
+    "vat": "ض.ق.م",
+    "autoliquidation": "الاحتساب العكسي (المادة 283-2 CGI)",
+    "vatRate": "ض.ق.م {{rate}}%",
+    "totalTtc": "الإجمالي شامل الضريبة",
+    "serverRecalc": "تتم إعادة حساب الإجمالي بواسطة الخادم عند الحفظ."
+  },
+  "updateBanner": {
+    "types": {
+      "major": "تحديث رئيسي",
+      "feature": "ميزات جديدة",
+      "security": "تحديث أمني",
+      "fix": "إصلاحات",
+      "update": "تحديث",
+      "performance": "تحسين الأداء"
+    },
+    "mandatoryTitle": "تحديث إلزامي",
+    "versionTitle": "الإصدار {{version}} — {{title}}",
+    "changes": "التغييرات:",
+    "updatingModal": "جارٍ التحديث...",
+    "updateNow": "حدّث الآن",
+    "newDataAvailable": "تتوفر بيانات جديدة.",
+    "details": "التفاصيل",
+    "updatingShort": "جارٍ التحديث...",
+    "update": "تحديث",
+    "later": "لاحقًا"
+  },
+  "notificationBell": {
+    "title": "الإشعارات",
+    "markAllRead": "قراءة الكل",
+    "empty": "لا توجد إشعارات",
+    "view": "عرض",
+    "viewAll": "عرض جميع الإشعارات",
+    "now": "الآن",
+    "minsAgo": "قبل {{mins}} دقيقة",
+    "hoursAgo": "قبل {{hours}} ساعة",
+    "daysAgo": "قبل {{days}} يوم"
   }
 }

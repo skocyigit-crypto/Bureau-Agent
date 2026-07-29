@@ -8761,5 +8761,104 @@
       "taches": "Tâches",
       "messages": "Messages"
     }
+  },
+  "integrationDiscovery": {
+    "categories": {
+      "telephonie": "Téléphonie",
+      "google": "Google Workspace",
+      "ia": "Intelligence Artificielle",
+      "email": "Email",
+      "productivite": "Productivité",
+      "autre": "Autre"
+    },
+    "available": "{{count}} connexion(s) disponible(s)",
+    "checkIntegrations": "Vérifier les intégrations",
+    "servicesActive": "{{connected}}/{{total}} services actifs",
+    "title": "Intégrations découvertes",
+    "autoScan": "Scan automatique de l'environnement",
+    "statConnected": "Connectés",
+    "statAvailable": "Disponibles",
+    "toConfigure": "À configurer",
+    "readyToConnect": "Prêts à connecter",
+    "active": "Actifs",
+    "hide24h": "Masquer pendant 24h"
+  },
+  "floatingAvatar": {
+    "greeting": "Bonjour ! Je suis votre agent de bureau. Déplacez-moi où vous voulez. Comment puis-je vous aider ?",
+    "name": "Agent de bureau",
+    "openTitle": "Agent de bureau — glissez pour déplacer, cliquez pour ouvrir",
+    "openAria": "Ouvrir l'agent de bureau",
+    "expand": "Agrandir",
+    "collapse": "Réduire"
+  },
+  "fileUpload": {
+    "tooLargeTitle": "Fichier trop volumineux",
+    "tooLargeDesc": "{{name}} dépasse 25 Mo",
+    "uploadFailed": "Échec de l'upload",
+    "uploadedTitle": "Document téléchargé",
+    "uploadedAiDesc": "{{name}} — analyse IA terminée",
+    "uploadErrorTitle": "Erreur d'upload",
+    "deletedTitle": "Document supprimé",
+    "deleteErrorTitle": "Erreur de suppression",
+    "downloadErrorTitle": "Erreur de téléchargement",
+    "analyzeDoneTitle": "Analyse IA terminée",
+    "analyzeErrorTitle": "Erreur d'analyse",
+    "compactPrompt": "Déposer ou cliquer — PDF, Excel, Word, CSV, images",
+    "uploading": "Téléchargement en cours...",
+    "dropHere": "Déposez vos fichiers ici",
+    "formats": "PDF, Excel, Word, CSV, images, texte — max 25 Mo",
+    "chooseFiles": "Choisir des fichiers",
+    "loadingDocs": "Chargement des documents...",
+    "attachedCount": "{{count}} document(s) attaché(s)",
+    "aiBadge": "IA",
+    "panelTitle": "Documents & Fichiers"
+  },
+  "lineItemsEditor": {
+    "lines": "Lignes",
+    "addLine": "Ajouter une ligne",
+    "emptyState": "Aucune ligne. Ajoutez au moins une prestation.",
+    "colDesignation": "Désignation",
+    "colQty": "Qté",
+    "colUnitPrice": "PU HT",
+    "colVat": "TVA %",
+    "colTotal": "Total HT",
+    "placeholder": "Prestation",
+    "subtotal": "Sous-total HT",
+    "vat": "TVA",
+    "autoliquidation": "Autoliquidation (art. 283-2 CGI)",
+    "vatRate": "TVA {{rate}}%",
+    "totalTtc": "Total TTC",
+    "serverRecalc": "Le total est recalculé par le serveur à l'enregistrement."
+  },
+  "updateBanner": {
+    "types": {
+      "major": "Mise à jour majeure",
+      "feature": "Nouvelles fonctionnalités",
+      "security": "Mise à jour de sécurité",
+      "fix": "Corrections",
+      "update": "Mise à jour",
+      "performance": "Amélioration des performances"
+    },
+    "mandatoryTitle": "Mise à jour obligatoire",
+    "versionTitle": "Version {{version}} — {{title}}",
+    "changes": "Changements:",
+    "updatingModal": "Mise à jour en cours...",
+    "updateNow": "Mettre à jour maintenant",
+    "newDataAvailable": "De nouvelles données sont disponibles.",
+    "details": "Détails",
+    "updatingShort": "Mise à jour...",
+    "update": "Mettre à jour",
+    "later": "Plus tard"
+  },
+  "notificationBell": {
+    "title": "Notifications",
+    "markAllRead": "Tout lire",
+    "empty": "Aucune notification",
+    "view": "Voir",
+    "viewAll": "Voir toutes les notifications",
+    "now": "À l'instant",
+    "minsAgo": "Il y a {{mins}}min",
+    "hoursAgo": "Il y a {{hours}}h",
+    "daysAgo": "Il y a {{days}}j"
   }
 }

@@ -8761,5 +8761,104 @@
       "taches": "Tasks",
       "messages": "Messages"
     }
+  },
+  "integrationDiscovery": {
+    "categories": {
+      "telephonie": "Telephony",
+      "google": "Google Workspace",
+      "ia": "Artificial Intelligence",
+      "email": "Email",
+      "productivite": "Productivity",
+      "autre": "Other"
+    },
+    "available": "{{count}} connection(s) available",
+    "checkIntegrations": "Check integrations",
+    "servicesActive": "{{connected}}/{{total}} services active",
+    "title": "Discovered integrations",
+    "autoScan": "Automatic environment scan",
+    "statConnected": "Connected",
+    "statAvailable": "Available",
+    "toConfigure": "To configure",
+    "readyToConnect": "Ready to connect",
+    "active": "Active",
+    "hide24h": "Hide for 24h"
+  },
+  "floatingAvatar": {
+    "greeting": "Hello! I'm your office assistant. Move me wherever you like. How can I help you?",
+    "name": "Office assistant",
+    "openTitle": "Office assistant — drag to move, click to open",
+    "openAria": "Open the office assistant",
+    "expand": "Expand",
+    "collapse": "Collapse"
+  },
+  "fileUpload": {
+    "tooLargeTitle": "File too large",
+    "tooLargeDesc": "{{name}} exceeds 25 MB",
+    "uploadFailed": "Upload failed",
+    "uploadedTitle": "Document uploaded",
+    "uploadedAiDesc": "{{name}} — AI analysis complete",
+    "uploadErrorTitle": "Upload error",
+    "deletedTitle": "Document deleted",
+    "deleteErrorTitle": "Delete error",
+    "downloadErrorTitle": "Download error",
+    "analyzeDoneTitle": "AI analysis complete",
+    "analyzeErrorTitle": "Analysis error",
+    "compactPrompt": "Drop or click — PDF, Excel, Word, CSV, images",
+    "uploading": "Uploading...",
+    "dropHere": "Drop your files here",
+    "formats": "PDF, Excel, Word, CSV, images, text — max 25 MB",
+    "chooseFiles": "Choose files",
+    "loadingDocs": "Loading documents...",
+    "attachedCount": "{{count}} document(s) attached",
+    "aiBadge": "AI",
+    "panelTitle": "Documents & Files"
+  },
+  "lineItemsEditor": {
+    "lines": "Lines",
+    "addLine": "Add a line",
+    "emptyState": "No lines. Add at least one item.",
+    "colDesignation": "Description",
+    "colQty": "Qty",
+    "colUnitPrice": "Unit price",
+    "colVat": "VAT %",
+    "colTotal": "Total excl. tax",
+    "placeholder": "Item",
+    "subtotal": "Subtotal excl. tax",
+    "vat": "VAT",
+    "autoliquidation": "Reverse charge (art. 283-2 CGI)",
+    "vatRate": "VAT {{rate}}%",
+    "totalTtc": "Total incl. tax",
+    "serverRecalc": "The total is recalculated by the server on save."
+  },
+  "updateBanner": {
+    "types": {
+      "major": "Major update",
+      "feature": "New features",
+      "security": "Security update",
+      "fix": "Fixes",
+      "update": "Update",
+      "performance": "Performance improvement"
+    },
+    "mandatoryTitle": "Mandatory update",
+    "versionTitle": "Version {{version}} — {{title}}",
+    "changes": "Changes:",
+    "updatingModal": "Updating...",
+    "updateNow": "Update now",
+    "newDataAvailable": "New data is available.",
+    "details": "Details",
+    "updatingShort": "Updating...",
+    "update": "Update",
+    "later": "Later"
+  },
+  "notificationBell": {
+    "title": "Notifications",
+    "markAllRead": "Read all",
+    "empty": "No notifications",
+    "view": "View",
+    "viewAll": "View all notifications",
+    "now": "Just now",
+    "minsAgo": "{{mins}}min ago",
+    "hoursAgo": "{{hours}}h ago",
+    "daysAgo": "{{days}}d ago"
   }
 }

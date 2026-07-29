@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { RefreshCw, X, Download, Sparkles, AlertTriangle, ChevronDown, ChevronUp, Rocket, Shield, Zap, Bug } from "lucide-react";
+import { useTranslation } from "@/i18n";
 
 // 5 min et non 1 min: ce sondage interroge DEUX endpoints a chaque tour, soit
 // 120 requetes/heure par onglet uniquement pour verifier s'il existe une
@@ -19,16 +20,19 @@ interface ReleaseInfo {
   publishedAt: string;
 }
 
+// `label` porte une cle i18n stable (rendue via t() au point d'usage) plutot
+// qu'un libelle francais en dur au niveau module.
 const typeConfig: Record<string, { icon: typeof Rocket; label: string; color: string }> = {
-  major: { icon: Rocket, label: "Mise a jour majeure", color: "from-purple-600 to-indigo-600" },
-  feature: { icon: Sparkles, label: "Nouvelles fonctionnalites", color: "from-blue-600 to-cyan-600" },
-  security: { icon: Shield, label: "Mise a jour de securite", color: "from-red-600 to-orange-600" },
-  fix: { icon: Bug, label: "Corrections", color: "from-amber-600 to-yellow-600" },
-  update: { icon: Zap, label: "Mise a jour", color: "from-blue-600 to-indigo-600" },
-  performance: { icon: Zap, label: "Amelioration des performances", color: "from-green-600 to-emerald-600" },
+  major: { icon: Rocket, label: "updateBanner.types.major", color: "from-purple-600 to-indigo-600" },
+  feature: { icon: Sparkles, label: "updateBanner.types.feature", color: "from-blue-600 to-cyan-600" },
+  security: { icon: Shield, label: "updateBanner.types.security", color: "from-red-600 to-orange-600" },
+  fix: { icon: Bug, label: "updateBanner.types.fix", color: "from-amber-600 to-yellow-600" },
+  update: { icon: Zap, label: "updateBanner.types.update", color: "from-blue-600 to-indigo-600" },
+  performance: { icon: Zap, label: "updateBanner.types.performance", color: "from-green-600 to-emerald-600" },
 };
 
 export function UpdateBanner() {
+  const { t } = useTranslation();
   const [hasAppUpdate, setHasAppUpdate] = useState(false);
   const [hasDataUpdate, setHasDataUpdate] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -163,16 +167,16 @@ export function UpdateBanner() {
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
             <AlertTriangle className="h-8 w-8 text-white" />
           </div>
-          <h2 className="text-xl font-bold mb-2">Mise a jour obligatoire</h2>
+          <h2 className="text-xl font-bold mb-2">{t("updateBanner.mandatoryTitle")}</h2>
           <p className="text-muted-foreground mb-2">
-            Version {release?.version} — {release?.title}
+            {t("updateBanner.versionTitle", { version: release?.version ?? "", title: release?.title ?? "" })}
           </p>
           {release?.description && (
             <p className="text-sm text-muted-foreground mb-4">{release.description}</p>
           )}
           {changesList.length > 0 && (
             <div className="text-left bg-muted/50 rounded-lg p-4 mb-6 max-h-48 overflow-y-auto">
-              <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">Changements:</p>
+              <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">{t("updateBanner.changes")}</p>
               <ul className="space-y-1">
                 {changesList.map((change, i) => (
                   <li key={i} className="text-sm flex items-start gap-2">
@@ -189,9 +193,9 @@ export function UpdateBanner() {
             className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-semibold hover:from-amber-600 hover:to-orange-600 transition-all disabled:opacity-50"
           >
             {updating ? (
-              <><RefreshCw className="h-5 w-5 animate-spin" /> Mise a jour en cours...</>
+              <><RefreshCw className="h-5 w-5 animate-spin" /> {t("updateBanner.updatingModal")}</>
             ) : (
-              <><Download className="h-5 w-5" /> Mettre a jour maintenant</>
+              <><Download className="h-5 w-5" /> {t("updateBanner.updateNow")}</>
             )}
           </button>
         </div>
@@ -206,7 +210,7 @@ export function UpdateBanner() {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 bg-white/20 rounded-full px-3 py-1">
               <TypeIcon className="h-4 w-4" />
-              <span className="text-xs font-semibold">{config.label}</span>
+              <span className="text-xs font-semibold">{t(config.label)}</span>
             </div>
 
             {isAppUpdate ? (
@@ -218,7 +222,7 @@ export function UpdateBanner() {
                 )}
               </div>
             ) : (
-              <span className="text-sm font-medium">De nouvelles donnees sont disponibles.</span>
+              <span className="text-sm font-medium">{t("updateBanner.newDataAvailable")}</span>
             )}
           </div>
 
@@ -228,7 +232,7 @@ export function UpdateBanner() {
                 onClick={() => setShowChangelog(!showChangelog)}
                 className="inline-flex items-center gap-1 px-2 py-1 bg-white/15 rounded-md text-xs font-medium hover:bg-white/25 transition-colors"
               >
-                Details
+                {t("updateBanner.details")}
                 {showChangelog ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
               </button>
             )}
@@ -239,16 +243,16 @@ export function UpdateBanner() {
               className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-white text-gray-800 rounded-md font-semibold hover:bg-gray-100 transition-colors text-sm disabled:opacity-50"
             >
               {updating ? (
-                <><RefreshCw className="h-3.5 w-3.5 animate-spin" /> Mise a jour...</>
+                <><RefreshCw className="h-3.5 w-3.5 animate-spin" /> {t("updateBanner.updatingShort")}</>
               ) : (
-                <><RefreshCw className="h-3.5 w-3.5" /> Mettre a jour</>
+                <><RefreshCw className="h-3.5 w-3.5" /> {t("updateBanner.update")}</>
               )}
             </button>
 
             <button
               onClick={handleDismiss}
               className="p-1 rounded hover:bg-white/20 transition-colors"
-              title="Plus tard"
+              title={t("updateBanner.later")}
             >
               <X className="h-4 w-4" />
             </button>

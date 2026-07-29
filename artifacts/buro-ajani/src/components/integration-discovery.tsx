@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useTranslation } from "@/i18n";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const apiFetch = (path: string) => fetch(`${BASE}/api${path}`, { credentials: "include" }).then(r => r.json());
@@ -42,13 +43,15 @@ interface DiscoverySummary {
   fullyConnected: boolean;
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  telephonie: "Téléphonie",
-  google: "Google Workspace",
-  ia: "Intelligence Artificielle",
-  email: "Email",
-  productivite: "Productivité",
-  autre: "Autre",
+// Cles i18n stables (rendu via t() au point d'usage) plutot que des libelles
+// francais en dur au niveau module.
+const CATEGORY_LABEL_KEYS: Record<string, string> = {
+  telephonie: "integrationDiscovery.categories.telephonie",
+  google: "integrationDiscovery.categories.google",
+  ia: "integrationDiscovery.categories.ia",
+  email: "integrationDiscovery.categories.email",
+  productivite: "integrationDiscovery.categories.productivite",
+  autre: "integrationDiscovery.categories.autre",
 };
 
 const STATUS_CONFIG = {
@@ -92,6 +95,7 @@ function shouldShow(summary: DiscoverySummary | undefined): boolean {
 }
 
 export function IntegrationDiscovery() {
+  const { t } = useTranslation();
   const [, navigate] = useLocation();
   const [open, setOpen] = useState(false);
   const [nudgeVisible, setNudgeVisible] = useState(false);
@@ -165,11 +169,11 @@ export function IntegrationDiscovery() {
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold leading-none">
                 {(summary?.available ?? 0) > 0
-                  ? `${summary!.available} connexion(s) disponible(s)`
-                  : "Vérifier les intégrations"}
+                  ? t("integrationDiscovery.available", { count: summary!.available })
+                  : t("integrationDiscovery.checkIntegrations")}
               </p>
               <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                {connectedServices.length}/{services.length} services actifs
+                {t("integrationDiscovery.servicesActive", { connected: connectedServices.length, total: services.length })}
               </p>
             </div>
             <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -192,9 +196,9 @@ export function IntegrationDiscovery() {
                   <Wifi className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <SheetTitle>Intégrations découvertes</SheetTitle>
+                  <SheetTitle>{t("integrationDiscovery.title")}</SheetTitle>
                   <SheetDescription className="text-xs mt-0.5">
-                    Scan automatique de l'environnement
+                    {t("integrationDiscovery.autoScan")}
                     {data?.scannedAt && ` · ${new Date(data.scannedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`}
                   </SheetDescription>
                 </div>
@@ -207,15 +211,15 @@ export function IntegrationDiscovery() {
             <div className="grid grid-cols-3 gap-2 mt-3">
               <div className="text-center p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/20">
                 <p className="text-lg font-bold text-emerald-600">{connectedServices.length}</p>
-                <p className="text-[10px] text-emerald-600/80">Connectés</p>
+                <p className="text-[10px] text-emerald-600/80">{t("integrationDiscovery.statConnected")}</p>
               </div>
               <div className="text-center p-2 rounded-lg bg-blue-50 dark:bg-blue-950/20">
                 <p className="text-lg font-bold text-blue-600">{availableServices.length}</p>
-                <p className="text-[10px] text-blue-600/80">Disponibles</p>
+                <p className="text-[10px] text-blue-600/80">{t("integrationDiscovery.statAvailable")}</p>
               </div>
               <div className="text-center p-2 rounded-lg bg-amber-50 dark:bg-amber-950/20">
                 <p className="text-lg font-bold text-amber-600">{notConfiguredServices.length}</p>
-                <p className="text-[10px] text-amber-600/80">À configurer</p>
+                <p className="text-[10px] text-amber-600/80">{t("integrationDiscovery.toConfigure")}</p>
               </div>
             </div>
           </SheetHeader>
@@ -226,7 +230,7 @@ export function IntegrationDiscovery() {
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <Zap className="h-4 w-4 text-blue-500" />
-                    <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">Prêts à connecter</p>
+                    <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">{t("integrationDiscovery.readyToConnect")}</p>
                     <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-[10px]">
                       {availableServices.length}
                     </Badge>
@@ -244,7 +248,7 @@ export function IntegrationDiscovery() {
                   <Separator className="mb-4" />
                   <div className="flex items-center gap-2 mb-3">
                     <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                    <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Actifs</p>
+                    <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{t("integrationDiscovery.active")}</p>
                     <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px]">
                       {connectedServices.length}
                     </Badge>
@@ -262,7 +266,7 @@ export function IntegrationDiscovery() {
                   <Separator className="mb-4" />
                   <div className="flex items-center gap-2 mb-3">
                     <AlertCircle className="h-4 w-4 text-amber-500" />
-                    <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">À configurer</p>
+                    <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">{t("integrationDiscovery.toConfigure")}</p>
                     <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[10px]">
                       {notConfiguredServices.length}
                     </Badge>
@@ -279,7 +283,7 @@ export function IntegrationDiscovery() {
 
           <div className="p-4 border-t">
             <Button variant="ghost" size="sm" className="w-full text-muted-foreground text-xs" onClick={handleDismiss}>
-              Masquer pendant 24h
+              {t("integrationDiscovery.hide24h")}
             </Button>
           </div>
         </SheetContent>
@@ -326,6 +330,7 @@ function ServiceCard({ service, onAction }: { service: Service; onAction: () => 
 }
 
 export function DiscoveryTriggerButton() {
+  const { t } = useTranslation();
   const { data } = useQuery({
     queryKey: ["discovery-scan"],
     queryFn: () => apiFetch("/discovery/scan"),
@@ -343,7 +348,7 @@ export function DiscoveryTriggerButton() {
       <button
         onClick={() => setOpen(true)}
         className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted/60 transition-colors text-xs text-muted-foreground relative"
-        title="Intégrations découvertes"
+        title={t("integrationDiscovery.title")}
       >
         <Wifi className={`h-3.5 w-3.5 ${available > 0 ? "text-blue-500" : connected > 0 ? "text-emerald-500" : "text-muted-foreground"}`} />
         <span className="hidden md:inline">{connected}/{total}</span>

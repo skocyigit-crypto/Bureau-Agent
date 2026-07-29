@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2 } from "lucide-react";
+import { useTranslation } from "@/i18n";
 
 /**
  * Éditeur de lignes de devis/facture, avec aperçu des totaux en direct.
@@ -52,6 +53,7 @@ export function LineItemsEditor({
   autoliquidation?: boolean;
   currency?: string;
 }) {
+  const { t } = useTranslation();
   const totals = useMemo(() => computePreview(items, autoliquidation), [items, autoliquidation]);
 
   const update = (i: number, patch: Partial<LineItem>) => {
@@ -63,22 +65,22 @@ export function LineItemsEditor({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground">Lignes</span>
+        <span className="text-xs font-medium text-muted-foreground">{t("lineItemsEditor.lines")}</span>
         <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={add}>
-          <Plus className="w-3 h-3 mr-1" /> Ajouter une ligne
+          <Plus className="w-3 h-3 mr-1" /> {t("lineItemsEditor.addLine")}
         </Button>
       </div>
 
       {items.length === 0 ? (
-        <p className="text-xs text-muted-foreground py-2">Aucune ligne. Ajoutez au moins une prestation.</p>
+        <p className="text-xs text-muted-foreground py-2">{t("lineItemsEditor.emptyState")}</p>
       ) : (
         <div className="space-y-1.5">
           <div className="hidden md:grid grid-cols-[1fr_70px_90px_70px_90px_32px] gap-2 text-[10px] text-muted-foreground px-1">
-            <span>Désignation</span><span>Qté</span><span>PU HT</span><span>TVA %</span><span className="text-right">Total HT</span><span />
+            <span>{t("lineItemsEditor.colDesignation")}</span><span>{t("lineItemsEditor.colQty")}</span><span>{t("lineItemsEditor.colUnitPrice")}</span><span>{t("lineItemsEditor.colVat")}</span><span className="text-right">{t("lineItemsEditor.colTotal")}</span><span />
           </div>
           {items.map((it, i) => (
             <div key={i} className="grid grid-cols-[1fr_70px_90px_70px_90px_32px] gap-2 items-center">
-              <Input value={it.description} onChange={(e) => update(i, { description: e.target.value })} placeholder="Prestation" className="h-8 text-sm" />
+              <Input value={it.description} onChange={(e) => update(i, { description: e.target.value })} placeholder={t("lineItemsEditor.placeholder")} className="h-8 text-sm" />
               <Input type="number" value={it.quantity} onChange={(e) => update(i, { quantity: parseFloat(e.target.value) || 0 })} className="h-8 text-sm" />
               <Input type="number" step="0.01" value={it.unitPrice} onChange={(e) => update(i, { unitPrice: parseFloat(e.target.value) || 0 })} className="h-8 text-sm" />
               <Input type="number" value={autoliquidation ? 0 : it.taxRate} disabled={autoliquidation} onChange={(e) => update(i, { taxRate: parseFloat(e.target.value) || 0 })} className="h-8 text-sm" />
@@ -90,16 +92,16 @@ export function LineItemsEditor({
       )}
 
       <div className="border-t pt-2 mt-2 space-y-0.5 text-sm">
-        <div className="flex justify-between"><span className="text-muted-foreground">Sous-total HT</span><span className="tabular-nums">{fmt(totals.subtotal, currency)}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">{t("lineItemsEditor.subtotal")}</span><span className="tabular-nums">{fmt(totals.subtotal, currency)}</span></div>
         {autoliquidation ? (
-          <div className="flex justify-between text-xs text-amber-600"><span>TVA</span><span>Autoliquidation (art. 283-2 CGI)</span></div>
+          <div className="flex justify-between text-xs text-amber-600"><span>{t("lineItemsEditor.vat")}</span><span>{t("lineItemsEditor.autoliquidation")}</span></div>
         ) : (
           totals.vat.map((v) => (
-            <div key={v.taxRate} className="flex justify-between text-xs text-muted-foreground"><span>TVA {v.taxRate}%</span><span className="tabular-nums">{fmt(v.amount, currency)}</span></div>
+            <div key={v.taxRate} className="flex justify-between text-xs text-muted-foreground"><span>{t("lineItemsEditor.vatRate", { rate: v.taxRate })}</span><span className="tabular-nums">{fmt(v.amount, currency)}</span></div>
           ))
         )}
-        <div className="flex justify-between font-semibold pt-1 border-t"><span>Total TTC</span><span className="tabular-nums text-emerald-600">{fmt(totals.totalAmount, currency)}</span></div>
-        <p className="text-[10px] text-muted-foreground pt-1">Le total est recalculé par le serveur à l'enregistrement.</p>
+        <div className="flex justify-between font-semibold pt-1 border-t"><span>{t("lineItemsEditor.totalTtc")}</span><span className="tabular-nums text-emerald-600">{fmt(totals.totalAmount, currency)}</span></div>
+        <p className="text-[10px] text-muted-foreground pt-1">{t("lineItemsEditor.serverRecalc")}</p>
       </div>
     </div>
   );

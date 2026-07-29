@@ -8761,5 +8761,104 @@
       "taches": "Aufgaben",
       "messages": "Nachrichten"
     }
+  },
+  "integrationDiscovery": {
+    "categories": {
+      "telephonie": "Telefonie",
+      "google": "Google Workspace",
+      "ia": "Künstliche Intelligenz",
+      "email": "E-Mail",
+      "productivite": "Produktivität",
+      "autre": "Sonstiges"
+    },
+    "available": "{{count}} Verbindung(en) verfügbar",
+    "checkIntegrations": "Integrationen prüfen",
+    "servicesActive": "{{connected}}/{{total}} Dienste aktiv",
+    "title": "Entdeckte Integrationen",
+    "autoScan": "Automatischer Scan der Umgebung",
+    "statConnected": "Verbunden",
+    "statAvailable": "Verfügbar",
+    "toConfigure": "Zu konfigurieren",
+    "readyToConnect": "Bereit zum Verbinden",
+    "active": "Aktiv",
+    "hide24h": "24 Std. ausblenden"
+  },
+  "floatingAvatar": {
+    "greeting": "Hallo! Ich bin Ihr Büroassistent. Verschieben Sie mich, wohin Sie möchten. Wie kann ich Ihnen helfen?",
+    "name": "Büroassistent",
+    "openTitle": "Büroassistent — zum Verschieben ziehen, zum Öffnen klicken",
+    "openAria": "Büroassistent öffnen",
+    "expand": "Vergrößern",
+    "collapse": "Verkleinern"
+  },
+  "fileUpload": {
+    "tooLargeTitle": "Datei zu groß",
+    "tooLargeDesc": "{{name}} überschreitet 25 MB",
+    "uploadFailed": "Upload fehlgeschlagen",
+    "uploadedTitle": "Dokument hochgeladen",
+    "uploadedAiDesc": "{{name}} — KI-Analyse abgeschlossen",
+    "uploadErrorTitle": "Upload-Fehler",
+    "deletedTitle": "Dokument gelöscht",
+    "deleteErrorTitle": "Fehler beim Löschen",
+    "downloadErrorTitle": "Download-Fehler",
+    "analyzeDoneTitle": "KI-Analyse abgeschlossen",
+    "analyzeErrorTitle": "Analysefehler",
+    "compactPrompt": "Ablegen oder klicken — PDF, Excel, Word, CSV, Bilder",
+    "uploading": "Wird hochgeladen...",
+    "dropHere": "Dateien hier ablegen",
+    "formats": "PDF, Excel, Word, CSV, Bilder, Text — max. 25 MB",
+    "chooseFiles": "Dateien auswählen",
+    "loadingDocs": "Dokumente werden geladen...",
+    "attachedCount": "{{count}} Dokument(e) angehängt",
+    "aiBadge": "KI",
+    "panelTitle": "Dokumente & Dateien"
+  },
+  "lineItemsEditor": {
+    "lines": "Positionen",
+    "addLine": "Position hinzufügen",
+    "emptyState": "Keine Positionen. Fügen Sie mindestens eine Leistung hinzu.",
+    "colDesignation": "Bezeichnung",
+    "colQty": "Menge",
+    "colUnitPrice": "Einzelpreis netto",
+    "colVat": "USt. %",
+    "colTotal": "Gesamt netto",
+    "placeholder": "Leistung",
+    "subtotal": "Zwischensumme netto",
+    "vat": "USt.",
+    "autoliquidation": "Reverse-Charge (Art. 283-2 CGI)",
+    "vatRate": "USt. {{rate}}%",
+    "totalTtc": "Gesamt brutto",
+    "serverRecalc": "Die Summe wird beim Speichern vom Server neu berechnet."
+  },
+  "updateBanner": {
+    "types": {
+      "major": "Großes Update",
+      "feature": "Neue Funktionen",
+      "security": "Sicherheitsupdate",
+      "fix": "Fehlerbehebungen",
+      "update": "Update",
+      "performance": "Leistungsverbesserung"
+    },
+    "mandatoryTitle": "Pflicht-Update",
+    "versionTitle": "Version {{version}} — {{title}}",
+    "changes": "Änderungen:",
+    "updatingModal": "Update wird durchgeführt...",
+    "updateNow": "Jetzt aktualisieren",
+    "newDataAvailable": "Neue Daten sind verfügbar.",
+    "details": "Details",
+    "updatingShort": "Wird aktualisiert...",
+    "update": "Aktualisieren",
+    "later": "Später"
+  },
+  "notificationBell": {
+    "title": "Benachrichtigungen",
+    "markAllRead": "Alle lesen",
+    "empty": "Keine Benachrichtigungen",
+    "view": "Ansehen",
+    "viewAll": "Alle Benachrichtigungen ansehen",
+    "now": "Gerade eben",
+    "minsAgo": "vor {{mins}} Min.",
+    "hoursAgo": "vor {{hours}} Std.",
+    "daysAgo": "vor {{days}} T."
   }
 }
