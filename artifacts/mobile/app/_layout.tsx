@@ -16,6 +16,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { I18nProvider } from "@/lib/i18n";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { PrivacyProvider } from "@/contexts/PrivacyContext";
@@ -228,6 +229,7 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView>
             <KeyboardProvider>
+              <I18nProvider>
               <ThemeProvider>
                 <PrivacyProvider>
                   <AuthProvider>
@@ -248,6 +250,7 @@ export default function RootLayout() {
                   </AuthProvider>
                 </PrivacyProvider>
               </ThemeProvider>
+              </I18nProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>

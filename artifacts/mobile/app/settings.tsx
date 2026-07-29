@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useTranslation, LANGUAGES } from "@/lib/i18n";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { useNotificationPrefs } from "@/contexts/NotificationPrefsContext";
 import { disableBiometric, getBiometricCapability, isBiometricEnabled } from "@/lib/biometric";
@@ -151,6 +152,8 @@ export default function SettingsScreen() {
 
         <ThemeCard />
 
+        <LanguageCard />
+
         <AlertsCard />
 
         <WhatsAppNotificationsCard />
@@ -200,6 +203,32 @@ function ThemeCard() {
           >
             <Feather name={m.icon} size={20} color={mode === m.key ? colors.primary : colors.mutedForeground} />
             <Text style={[styles.themeBtnLabel, { color: mode === m.key ? colors.primary : colors.mutedForeground }]}>{m.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// ── Dil kartı ──────────────────────────────────────────────────────────────────
+
+function LanguageCard() {
+  const colors = useColors();
+  const { lang, i18n, t } = useTranslation();
+  return (
+    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={styles.cardHeader}>
+        <Feather name="globe" size={18} color={colors.primary} />
+        <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("common.language")}</Text>
+      </View>
+      <View style={styles.langRow}>
+        {LANGUAGES.map(l => (
+          <Pressable
+            key={l.code}
+            onPress={() => i18n.changeLanguage(l.code)}
+            style={[styles.langBtn, { borderColor: lang === l.code ? colors.primary : colors.border, backgroundColor: lang === l.code ? colors.primary + "18" : "transparent" }]}
+          >
+            <Text style={[styles.langBtnLabel, { color: lang === l.code ? colors.primary : colors.mutedForeground }]}>{l.label}</Text>
           </Pressable>
         ))}
       </View>
@@ -1311,6 +1340,9 @@ const styles = StyleSheet.create({
   themeRow: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingBottom: 16 },
   themeBtn: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 12, borderRadius: 10, borderWidth: 1.5, gap: 4 },
   themeBtnLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  langRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: 16, paddingBottom: 16 },
+  langBtn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1.5 },
+  langBtnLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
 
   // Toggle rows
   toggleRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },

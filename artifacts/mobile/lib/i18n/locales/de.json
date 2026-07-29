@@ -1,0 +1,31 @@
+{
+  "common": {
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "add": "Hinzufügen",
+    "close": "Schließen",
+    "confirm": "Bestätigen",
+    "search": "Suchen",
+    "loading": "Wird geladen…",
+    "retry": "Erneut versuchen",
+    "back": "Zurück",
+    "yes": "Ja",
+    "no": "Nein",
+    "language": "Sprache"
+  },
+  "tabs": {
+    "home": "Start",
+    "calls": "Anrufe",
+    "contacts": "Kontakte",
+    "tasks": "Aufgaben",
+    "more": "Mehr"
+  },
+  "message": {
+    "error": "Ein Fehler ist aufgetreten",
+    "saved": "Gespeichert",
+    "noResults": "Keine Ergebnisse",
+    "offline": "Offline"
+  }
+}

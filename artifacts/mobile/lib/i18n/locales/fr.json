@@ -1,0 +1,31 @@
+{
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "add": "Ajouter",
+    "close": "Fermer",
+    "confirm": "Confirmer",
+    "search": "Rechercher",
+    "loading": "Chargement…",
+    "retry": "Réessayer",
+    "back": "Retour",
+    "yes": "Oui",
+    "no": "Non",
+    "language": "Langue"
+  },
+  "tabs": {
+    "home": "Accueil",
+    "calls": "Appels",
+    "contacts": "Contacts",
+    "tasks": "Tâches",
+    "more": "Plus"
+  },
+  "message": {
+    "error": "Une erreur est survenue",
+    "saved": "Enregistré",
+    "noResults": "Aucun résultat",
+    "offline": "Hors ligne"
+  }
+}

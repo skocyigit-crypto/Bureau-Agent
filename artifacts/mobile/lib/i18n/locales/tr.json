@@ -1,0 +1,31 @@
+{
+  "common": {
+    "save": "Kaydet",
+    "cancel": "İptal",
+    "delete": "Sil",
+    "edit": "Düzenle",
+    "add": "Ekle",
+    "close": "Kapat",
+    "confirm": "Onayla",
+    "search": "Ara",
+    "loading": "Yükleniyor…",
+    "retry": "Tekrar dene",
+    "back": "Geri",
+    "yes": "Evet",
+    "no": "Hayır",
+    "language": "Dil"
+  },
+  "tabs": {
+    "home": "Ana Sayfa",
+    "calls": "Aramalar",
+    "contacts": "Kişiler",
+    "tasks": "Görevler",
+    "more": "Daha Fazla"
+  },
+  "message": {
+    "error": "Bir hata oluştu",
+    "saved": "Kaydedildi",
+    "noResults": "Sonuç yok",
+    "offline": "Çevrimdışı"
+  }
+}

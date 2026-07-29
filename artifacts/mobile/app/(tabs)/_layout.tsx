@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUnreadBadges } from "@/contexts/UnreadBadgesContext";
 import { useCalendarEvents } from "@/contexts/CalendarEventsContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 function formatBadge(n: number): string | undefined {
   if (!n || n <= 0) return undefined;
@@ -20,6 +21,7 @@ function formatBadge(n: number): string | undefined {
 function NativeTabLayout() {
   const { counts } = useUnreadBadges();
   const { badgeCount } = useCalendarEvents();
+  const { t } = useTranslation();
   const tasksBadge = formatBadge(counts.task);
   const moreBadge = formatBadge(counts.message);
   const calendarBadge = formatBadge(badgeCount);
@@ -28,25 +30,25 @@ function NativeTabLayout() {
     <NativeTabs>
       <NativeTabs.Trigger name="index">
         <Icon sf={{ default: "house", selected: "house.fill" }} />
-        <Label>Accueil</Label>
+        <Label>{t("tabs.home")}</Label>
         {calendarBadge ? <Badge>{calendarBadge}</Badge> : null}
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="calls">
         <Icon sf={{ default: "phone", selected: "phone.fill" }} />
-        <Label>Appels</Label>
+        <Label>{t("tabs.calls")}</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="contacts">
         <Icon sf={{ default: "person.2", selected: "person.2.fill" }} />
-        <Label>Contacts</Label>
+        <Label>{t("tabs.contacts")}</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="tasks">
         <Icon sf={{ default: "checkmark.square", selected: "checkmark.square.fill" }} />
-        <Label>Taches</Label>
+        <Label>{t("tabs.tasks")}</Label>
         {tasksBadge ? <Badge>{tasksBadge}</Badge> : null}
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="more">
         <Icon sf={{ default: "ellipsis.circle", selected: "ellipsis.circle.fill" }} />
-        <Label>Plus</Label>
+        <Label>{t("tabs.more")}</Label>
         {moreBadge ? <Badge>{moreBadge}</Badge> : null}
       </NativeTabs.Trigger>
     </NativeTabs>
@@ -55,6 +57,7 @@ function NativeTabLayout() {
 
 function ClassicTabLayout() {
   const colors = useColors();
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const isIOS = Platform.OS === "ios";
@@ -99,7 +102,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Accueil",
+          title: t("tabs.home"),
           tabBarBadge: calendarBadge,
           tabBarIcon: ({ color }) =>
             isIOS ? (
@@ -112,7 +115,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="calls"
         options={{
-          title: "Appels",
+          title: t("tabs.calls"),
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="phone" tintColor={color} size={24} />
@@ -124,7 +127,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="contacts"
         options={{
-          title: "Contacts",
+          title: t("tabs.contacts"),
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="person.2" tintColor={color} size={24} />
@@ -136,7 +139,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="tasks"
         options={{
-          title: "Taches",
+          title: t("tabs.tasks"),
           tabBarBadge: tasksBadge,
           tabBarIcon: ({ color }) =>
             isIOS ? (
@@ -149,7 +152,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="more"
         options={{
-          title: "Plus",
+          title: t("tabs.more"),
           tabBarBadge: moreBadge,
           tabBarIcon: ({ color }) =>
             isIOS ? (

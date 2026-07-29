@@ -1,0 +1,31 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "close": "Close",
+    "confirm": "Confirm",
+    "search": "Search",
+    "loading": "Loading…",
+    "retry": "Retry",
+    "back": "Back",
+    "yes": "Yes",
+    "no": "No",
+    "language": "Language"
+  },
+  "tabs": {
+    "home": "Home",
+    "calls": "Calls",
+    "contacts": "Contacts",
+    "tasks": "Tasks",
+    "more": "More"
+  },
+  "message": {
+    "error": "An error occurred",
+    "saved": "Saved",
+    "noResults": "No results",
+    "offline": "Offline"
+  }
+}
