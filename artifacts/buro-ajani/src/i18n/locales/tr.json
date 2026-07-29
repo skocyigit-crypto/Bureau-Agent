@@ -8860,5 +8860,59 @@
     "minsAgo": "{{mins}} dk önce",
     "hoursAgo": "{{hours}} sa önce",
     "daysAgo": "{{days}} gün önce"
+  },
+  "accessDenied": {
+    "title": "Erişim kısıtlı",
+    "message": "Bu sayfa SaaS yönetim paneline ayrılmıştır ve yalnızca süper yöneticinin erişimine açıktır.",
+    "back": "Kontrol paneline dön"
+  },
+  "licenseStatusBanner": {
+    "suspended": "Abonelik askıya alındı — tam erişimi sürdürmek için ödeme gerekli.",
+    "updatePayment": "Ödemeyi güncelle",
+    "cancelled": "Abonelik iptal edildi — devam etmek için bir plana abone olun.",
+    "viewPlans": "Planları gör",
+    "pastDue": "Ödeme gecikti — uygulama salt okunur modda. Yazmayı yeniden etkinleştirmek için son faturayı ödeyin.",
+    "payNow": "Şimdi öde"
+  },
+  "trialBanner": {
+    "expired": "Ücretsiz deneme süreniz sona erdi. Devam etmek için ücretli bir plana geçin.",
+    "daysLeftSingular": "Ücretsiz denemenizin bitmesine {{days}} gün kaldı.",
+    "daysLeftPlural": "Ücretsiz denemenizin bitmesine {{days}} gün kaldı.",
+    "upgrade": "Ücretli plana geç"
+  },
+  "errorBoundary": {
+    "title": "Beklenmeyen bir hata oluştu",
+    "message": "Uygulama bir sorunla karşılaştı. Tekrar deneyebilir veya sayfayı yeniden yükleyebilirsiniz.",
+    "retry": "Tekrar dene",
+    "reload": "Sayfayı yeniden yükle"
+  },
+  "safeComponent": {
+    "componentFallback": "Bileşen",
+    "unavailable": "{{name}} geçici olarak kullanılamıyor",
+    "autoRestore": "Bu modül otomatik olarak geri yüklenecek.",
+    "retry": "Tekrar dene",
+    "offline": "İnternet bağlantısı kesildi — Veriler yeniden bağlanınca senkronize edilecek.",
+    "reconnected": "Bağlantı yeniden kuruldu — Senkronizasyon sürüyor...",
+    "errorNetwork": "Sunucuya ulaşılamıyor. İnternet bağlantınızı kontrol edin.",
+    "errorAuth": "Erişim reddedildi. Oturumunuzun süresi dolmuş olabilir.",
+    "errorServer": "Sunucu geçici bir sorun yaşıyor.",
+    "errorGeneric": "Veriler yüklenirken bir hata oluştu.",
+    "loadError": "Yükleme hatası",
+    "sessionExpiredTitle": "Oturum süresi doldu",
+    "sessionExpiredMessage": "Güvenlik nedeniyle oturumunuzun süresi doldu. Lütfen yeniden giriş yapın.",
+    "reconnect": "Yeniden bağlan"
+  },
+  "agentRunChip": {
+    "running": "Çok ajanlı analiz sürüyor ({{progress}}) — ayrıntıları görmek için tıklayın",
+    "failed": "Çok ajanlı analiz başarısız oldu — ayrıntıları görmek için tıklayın",
+    "cancelled": "Çok ajanlı analiz iptal edildi",
+    "finished": "Çok ajanlı analiz tamamlandı"
+  },
+  "pwaInstallPrompt": {
+    "title": "Ajant Bureau'yu yükle",
+    "description": "Ana ekranınızdan hızlı erişim, tarayıcı olmadan çalışır.",
+    "install": "Yükle",
+    "installing": "Yükleniyor...",
+    "later": "Daha sonra"
   }
 }

@@ -8860,5 +8860,59 @@
     "minsAgo": "{{mins}}min ago",
     "hoursAgo": "{{hours}}h ago",
     "daysAgo": "{{days}}d ago"
+  },
+  "accessDenied": {
+    "title": "Restricted access",
+    "message": "This page is reserved for the SaaS backoffice and is only accessible to the super-administrator.",
+    "back": "Back to dashboard"
+  },
+  "licenseStatusBanner": {
+    "suspended": "Subscription suspended — payment required to restore full access.",
+    "updatePayment": "Update payment",
+    "cancelled": "Subscription cancelled — subscribe to a plan to continue.",
+    "viewPlans": "View plans",
+    "pastDue": "Payment overdue — the application is in read-only mode. Settle the last invoice to re-enable writing.",
+    "payNow": "Pay now"
+  },
+  "trialBanner": {
+    "expired": "Your free trial has ended. Upgrade to a paid plan to continue.",
+    "daysLeftSingular": "You have {{days}} day left in your free trial.",
+    "daysLeftPlural": "You have {{days}} days left in your free trial.",
+    "upgrade": "Upgrade to a paid plan"
+  },
+  "errorBoundary": {
+    "title": "An unexpected error occurred",
+    "message": "The application ran into a problem. You can retry or reload the page.",
+    "retry": "Retry",
+    "reload": "Reload the page"
+  },
+  "safeComponent": {
+    "componentFallback": "Component",
+    "unavailable": "{{name}} temporarily unavailable",
+    "autoRestore": "This module will be restored automatically.",
+    "retry": "Retry",
+    "offline": "Internet connection lost — Data will be synced upon reconnection.",
+    "reconnected": "Connection restored — Syncing...",
+    "errorNetwork": "Unable to reach the server. Check your internet connection.",
+    "errorAuth": "Access denied. Your session may have expired.",
+    "errorServer": "The server is experiencing a temporary problem.",
+    "errorGeneric": "An error occurred while loading the data.",
+    "loadError": "Loading error",
+    "sessionExpiredTitle": "Session expired",
+    "sessionExpiredMessage": "Your session expired for security reasons. Please log in again.",
+    "reconnect": "Log in again"
+  },
+  "agentRunChip": {
+    "running": "Multi-agent analysis in progress ({{progress}}) — click to see details",
+    "failed": "Multi-agent analysis failed — click to see details",
+    "cancelled": "Multi-agent analysis cancelled",
+    "finished": "Multi-agent analysis completed"
+  },
+  "pwaInstallPrompt": {
+    "title": "Install Ajant Bureau",
+    "description": "Quick access from your home screen, works without a browser.",
+    "install": "Install",
+    "installing": "Installing...",
+    "later": "Later"
   }
 }

@@ -8860,5 +8860,59 @@
     "minsAgo": "Il y a {{mins}}min",
     "hoursAgo": "Il y a {{hours}}h",
     "daysAgo": "Il y a {{days}}j"
+  },
+  "accessDenied": {
+    "title": "Accès réservé",
+    "message": "Cette page est réservée au backoffice SaaS et n'est accessible qu'au super-administrateur.",
+    "back": "Retour au tableau de bord"
+  },
+  "licenseStatusBanner": {
+    "suspended": "Abonnement suspendu — paiement requis pour reprendre l'accès complet.",
+    "updatePayment": "Mettre à jour le paiement",
+    "cancelled": "Abonnement annulé — souscrivez à un plan pour continuer.",
+    "viewPlans": "Voir les plans",
+    "pastDue": "Paiement en retard — l'application est en mode lecture seule. Réglez la dernière facture pour réactiver l'écriture.",
+    "payNow": "Régler maintenant"
+  },
+  "trialBanner": {
+    "expired": "Votre essai gratuit est terminé. Passez à un plan payant pour continuer.",
+    "daysLeftSingular": "Il vous reste {{days}} jour d'essai gratuit.",
+    "daysLeftPlural": "Il vous reste {{days}} jours d'essai gratuit.",
+    "upgrade": "Passer à un plan payant"
+  },
+  "errorBoundary": {
+    "title": "Une erreur inattendue s'est produite",
+    "message": "L'application a rencontré un problème. Vous pouvez réessayer ou recharger la page.",
+    "retry": "Réessayer",
+    "reload": "Recharger la page"
+  },
+  "safeComponent": {
+    "componentFallback": "Composant",
+    "unavailable": "{{name}} temporairement indisponible",
+    "autoRestore": "Ce module sera rétabli automatiquement.",
+    "retry": "Réessayer",
+    "offline": "Connexion internet perdue — Les données seront synchronisées à la reconnexion.",
+    "reconnected": "Connexion rétablie — Synchronisation en cours...",
+    "errorNetwork": "Impossible de contacter le serveur. Vérifiez votre connexion internet.",
+    "errorAuth": "Accès refusé. Votre session a peut-être expiré.",
+    "errorServer": "Le serveur rencontre un problème temporaire.",
+    "errorGeneric": "Une erreur est survenue lors du chargement des données.",
+    "loadError": "Erreur de chargement",
+    "sessionExpiredTitle": "Session expirée",
+    "sessionExpiredMessage": "Votre session a expiré pour des raisons de sécurité. Veuillez vous reconnecter.",
+    "reconnect": "Se reconnecter"
+  },
+  "agentRunChip": {
+    "running": "Analyse multi-agents en cours ({{progress}}) — cliquez pour voir le détail",
+    "failed": "L'analyse multi-agents a échoué — cliquez pour voir le détail",
+    "cancelled": "Analyse multi-agents annulée",
+    "finished": "Analyse multi-agents terminée"
+  },
+  "pwaInstallPrompt": {
+    "title": "Installer Ajant Bureau",
+    "description": "Accès rapide depuis votre écran d'accueil, fonctionne sans navigateur.",
+    "install": "Installer",
+    "installing": "Installation...",
+    "later": "Plus tard"
   }
 }

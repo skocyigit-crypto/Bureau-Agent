@@ -3,12 +3,14 @@ import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { useAgentRunStatus } from "@/hooks/use-agent-run-status";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useTranslation } from "@/i18n";
 
 // Tâche #42 : pastille globale dans l'en-tête. Visible partout dès qu'une
 // analyse multi-agents tourne pour l'organisation, avec la progression (ex.
 // 4/10) et un retour en un clic vers la page Agents IA. Réservée aux comptes
 // admin (l'endpoint de statut est lui-même protégé par `requireAdmin`).
 export function AgentRunChip() {
+  const { t } = useTranslation();
   const { user } = useWorkspaceUser();
   const isAdmin = user.role === "super_admin" || user.role === "administrateur";
   const run = useAgentRunStatus(isAdmin);
@@ -21,12 +23,12 @@ export function AgentRunChip() {
 
   const label = `${run.completedAgents}/${run.totalAgents}`;
   const tooltip = run.running
-    ? `Analyse multi-agents en cours (${label}) — cliquez pour voir le détail`
+    ? t("agentRunChip.running", { progress: label })
     : failed
-      ? "L'analyse multi-agents a échoué — cliquez pour voir le détail"
+      ? t("agentRunChip.failed")
       : cancelled
-        ? "Analyse multi-agents annulée"
-        : "Analyse multi-agents terminée";
+        ? t("agentRunChip.cancelled")
+        : t("agentRunChip.finished");
 
   return (
     <Tooltip>

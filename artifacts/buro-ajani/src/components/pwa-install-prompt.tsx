@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Download, X, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "@/i18n";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -8,6 +9,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export function PwaInstallPrompt() {
+  const { t } = useTranslation();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [visible, setVisible] = useState(false);
   const [installing, setInstalling] = useState(false);
@@ -59,17 +61,17 @@ export function PwaInstallPrompt() {
             <Smartphone className="h-5 w-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm">Installer Ajant Bureau</p>
+            <p className="font-semibold text-sm">{t("pwaInstallPrompt.title")}</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Accès rapide depuis votre écran d'accueil, fonctionne sans navigateur.
+              {t("pwaInstallPrompt.description")}
             </p>
             <div className="flex items-center gap-2 mt-3">
               <Button size="sm" onClick={handleInstall} disabled={installing} className="gap-1.5 h-7 text-xs">
                 <Download className="h-3 w-3" />
-                {installing ? "Installation..." : "Installer"}
+                {installing ? t("pwaInstallPrompt.installing") : t("pwaInstallPrompt.install")}
               </Button>
               <Button size="sm" variant="ghost" onClick={handleDismiss} className="h-7 text-xs text-muted-foreground">
-                Plus tard
+                {t("pwaInstallPrompt.later")}
               </Button>
             </div>
           </div>

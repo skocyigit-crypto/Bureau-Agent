@@ -8860,5 +8860,59 @@
     "minsAgo": "vor {{mins}} Min.",
     "hoursAgo": "vor {{hours}} Std.",
     "daysAgo": "vor {{days}} T."
+  },
+  "accessDenied": {
+    "title": "Zugriff eingeschränkt",
+    "message": "Diese Seite ist dem SaaS-Backoffice vorbehalten und nur für den Superadministrator zugänglich.",
+    "back": "Zurück zum Dashboard"
+  },
+  "licenseStatusBanner": {
+    "suspended": "Abonnement ausgesetzt — Zahlung erforderlich, um den vollen Zugriff wiederherzustellen.",
+    "updatePayment": "Zahlung aktualisieren",
+    "cancelled": "Abonnement gekündigt — abonnieren Sie einen Plan, um fortzufahren.",
+    "viewPlans": "Pläne ansehen",
+    "pastDue": "Zahlung überfällig — die Anwendung ist im Nur-Lese-Modus. Begleichen Sie die letzte Rechnung, um das Schreiben wieder zu aktivieren.",
+    "payNow": "Jetzt bezahlen"
+  },
+  "trialBanner": {
+    "expired": "Ihre kostenlose Testphase ist beendet. Wechseln Sie zu einem kostenpflichtigen Plan, um fortzufahren.",
+    "daysLeftSingular": "Ihnen bleibt noch {{days}} Tag der kostenlosen Testphase.",
+    "daysLeftPlural": "Ihnen bleiben noch {{days}} Tage der kostenlosen Testphase.",
+    "upgrade": "Zu einem kostenpflichtigen Plan wechseln"
+  },
+  "errorBoundary": {
+    "title": "Ein unerwarteter Fehler ist aufgetreten",
+    "message": "Die Anwendung ist auf ein Problem gestoßen. Sie können es erneut versuchen oder die Seite neu laden.",
+    "retry": "Erneut versuchen",
+    "reload": "Seite neu laden"
+  },
+  "safeComponent": {
+    "componentFallback": "Komponente",
+    "unavailable": "{{name}} vorübergehend nicht verfügbar",
+    "autoRestore": "Dieses Modul wird automatisch wiederhergestellt.",
+    "retry": "Erneut versuchen",
+    "offline": "Internetverbindung verloren — Die Daten werden bei erneuter Verbindung synchronisiert.",
+    "reconnected": "Verbindung wiederhergestellt — Synchronisierung läuft...",
+    "errorNetwork": "Server nicht erreichbar. Überprüfen Sie Ihre Internetverbindung.",
+    "errorAuth": "Zugriff verweigert. Ihre Sitzung ist möglicherweise abgelaufen.",
+    "errorServer": "Der Server hat ein vorübergehendes Problem.",
+    "errorGeneric": "Beim Laden der Daten ist ein Fehler aufgetreten.",
+    "loadError": "Ladefehler",
+    "sessionExpiredTitle": "Sitzung abgelaufen",
+    "sessionExpiredMessage": "Ihre Sitzung ist aus Sicherheitsgründen abgelaufen. Bitte melden Sie sich erneut an.",
+    "reconnect": "Erneut anmelden"
+  },
+  "agentRunChip": {
+    "running": "Multi-Agenten-Analyse läuft ({{progress}}) — klicken Sie für Details",
+    "failed": "Multi-Agenten-Analyse fehlgeschlagen — klicken Sie für Details",
+    "cancelled": "Multi-Agenten-Analyse abgebrochen",
+    "finished": "Multi-Agenten-Analyse abgeschlossen"
+  },
+  "pwaInstallPrompt": {
+    "title": "Ajant Bureau installieren",
+    "description": "Schneller Zugriff von Ihrem Startbildschirm, funktioniert ohne Browser.",
+    "install": "Installieren",
+    "installing": "Wird installiert...",
+    "later": "Später"
   }
 }

@@ -1,9 +1,59 @@
 import { Component, type ReactNode } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "@/i18n";
 
 interface Props {
   children: ReactNode;
+}
+
+// Le fallback est un composant fonctionnel dedie afin de pouvoir utiliser le
+// hook useTranslation() (impossible dans une classe React).
+function ErrorFallback({
+  errorMessage,
+  onRetry,
+  onReload,
+}: {
+  errorMessage?: string;
+  onRetry: () => void;
+  onReload: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f1729] via-[#1a2744] to-[#0f1729] p-6">
+      <div className="max-w-md w-full text-center space-y-6">
+        <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto">
+          <AlertTriangle className="w-8 h-8 text-red-400" />
+        </div>
+        <div>
+          <h2 className="text-xl font-semibold text-white mb-2">
+            {t("errorBoundary.title")}
+          </h2>
+          <p className="text-white/60 text-sm">
+            {t("errorBoundary.message")}
+          </p>
+          {errorMessage && (
+            // Le message reel est affiche (et non seulement journalise en
+            // console) pour qu'un utilisateur non technique puisse le
+            // signaler par capture d'ecran. Sans lui, chaque incident
+            // ressemble a "l'appli plante" sans cause identifiable.
+            <p className="mt-3 text-[11px] text-red-300/80 font-mono break-words bg-red-500/10 rounded-md px-3 py-2 border border-red-500/20">
+              {errorMessage}
+            </p>
+          )}
+        </div>
+        <div className="flex gap-3 justify-center">
+          <Button variant="outline" onClick={onRetry} className="border-white/20 text-white hover:bg-white/10">
+            {t("errorBoundary.retry")}
+          </Button>
+          <Button onClick={onReload} className="bg-amber-500 hover:bg-amber-600 text-black">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            {t("errorBoundary.reload")}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 interface State {
@@ -68,39 +118,11 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f1729] via-[#1a2744] to-[#0f1729] p-6">
-          <div className="max-w-md w-full text-center space-y-6">
-            <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto">
-              <AlertTriangle className="w-8 h-8 text-red-400" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-white mb-2">
-                Une erreur inattendue s'est produite
-              </h2>
-              <p className="text-white/60 text-sm">
-                L'application a rencontre un probleme. Vous pouvez reessayer ou recharger la page.
-              </p>
-              {this.state.error?.message && (
-                // Le message reel est affiche (et non seulement journalise en
-                // console) pour qu'un utilisateur non technique puisse le
-                // signaler par capture d'ecran. Sans lui, chaque incident
-                // ressemble a "l'appli plante" sans cause identifiable.
-                <p className="mt-3 text-[11px] text-red-300/80 font-mono break-words bg-red-500/10 rounded-md px-3 py-2 border border-red-500/20">
-                  {this.state.error.message}
-                </p>
-              )}
-            </div>
-            <div className="flex gap-3 justify-center">
-              <Button variant="outline" onClick={this.handleRetry} className="border-white/20 text-white hover:bg-white/10">
-                Reessayer
-              </Button>
-              <Button onClick={this.handleReload} className="bg-amber-500 hover:bg-amber-600 text-black">
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Recharger la page
-              </Button>
-            </div>
-          </div>
-        </div>
+        <ErrorFallback
+          errorMessage={this.state.error?.message}
+          onRetry={this.handleRetry}
+          onReload={this.handleReload}
+        />
       );
     }
 

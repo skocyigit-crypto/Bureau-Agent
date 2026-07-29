@@ -8860,5 +8860,59 @@
     "minsAgo": "Hace {{mins}}min",
     "hoursAgo": "Hace {{hours}}h",
     "daysAgo": "Hace {{days}}d"
+  },
+  "accessDenied": {
+    "title": "Acceso restringido",
+    "message": "Esta página está reservada al backoffice SaaS y solo es accesible para el superadministrador.",
+    "back": "Volver al panel"
+  },
+  "licenseStatusBanner": {
+    "suspended": "Suscripción suspendida — se requiere el pago para recuperar el acceso completo.",
+    "updatePayment": "Actualizar el pago",
+    "cancelled": "Suscripción cancelada — suscríbete a un plan para continuar.",
+    "viewPlans": "Ver planes",
+    "pastDue": "Pago vencido — la aplicación está en modo de solo lectura. Paga la última factura para reactivar la escritura.",
+    "payNow": "Pagar ahora"
+  },
+  "trialBanner": {
+    "expired": "Tu prueba gratuita ha finalizado. Pasa a un plan de pago para continuar.",
+    "daysLeftSingular": "Te queda {{days}} día de prueba gratuita.",
+    "daysLeftPlural": "Te quedan {{days}} días de prueba gratuita.",
+    "upgrade": "Pasar a un plan de pago"
+  },
+  "errorBoundary": {
+    "title": "Se ha producido un error inesperado",
+    "message": "La aplicación tuvo un problema. Puedes reintentar o recargar la página.",
+    "retry": "Reintentar",
+    "reload": "Recargar la página"
+  },
+  "safeComponent": {
+    "componentFallback": "Componente",
+    "unavailable": "{{name}} temporalmente no disponible",
+    "autoRestore": "Este módulo se restablecerá automáticamente.",
+    "retry": "Reintentar",
+    "offline": "Conexión a internet perdida — Los datos se sincronizarán al reconectar.",
+    "reconnected": "Conexión restablecida — Sincronizando...",
+    "errorNetwork": "No se puede contactar con el servidor. Comprueba tu conexión a internet.",
+    "errorAuth": "Acceso denegado. Tu sesión puede haber expirado.",
+    "errorServer": "El servidor tiene un problema temporal.",
+    "errorGeneric": "Se produjo un error al cargar los datos.",
+    "loadError": "Error de carga",
+    "sessionExpiredTitle": "Sesión expirada",
+    "sessionExpiredMessage": "Tu sesión expiró por motivos de seguridad. Vuelve a iniciar sesión.",
+    "reconnect": "Volver a iniciar sesión"
+  },
+  "agentRunChip": {
+    "running": "Análisis multiagente en curso ({{progress}}) — haz clic para ver el detalle",
+    "failed": "El análisis multiagente falló — haz clic para ver el detalle",
+    "cancelled": "Análisis multiagente cancelado",
+    "finished": "Análisis multiagente completado"
+  },
+  "pwaInstallPrompt": {
+    "title": "Instalar Ajant Bureau",
+    "description": "Acceso rápido desde tu pantalla de inicio, funciona sin navegador.",
+    "install": "Instalar",
+    "installing": "Instalando...",
+    "later": "Más tarde"
   }
 }
