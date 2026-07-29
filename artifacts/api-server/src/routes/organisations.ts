@@ -5,6 +5,7 @@ import { db, organisationsTable, subscriptionsTable, usersTable, invoicesTable }
 import { PLANS, type PlanKey } from "@workspace/db/schema";
 import crypto from "crypto";
 import { sendLicenseEmail } from "../services/email";
+import { resolveEmailLang } from "../i18n/email-i18n";
 import { generateUniqueLicenseKey } from "../services/license-key";
 import { logger } from "../lib/logger";
 import { requireSuperAdmin } from "../middleware/auth";
@@ -352,7 +353,7 @@ router.post("/organisations", async (req: Request, res: Response): Promise<void>
         adminName: (adminPrenom && adminNom) ? `${adminPrenom} ${adminNom}` : undefined,
         adminEmail: adminEmail || undefined,
         adminPassword: generatedPassword || undefined,
-      });
+      }, resolveEmailLang(req));
     }
 
     res.status(201).json({
@@ -461,7 +462,7 @@ router.post("/organisations/:id/resend-license", async (req: Request, res: Respo
       adminName: `${adminUser.prenom} ${adminUser.nom}`,
       adminEmail: adminUser.email,
       resetLink,
-    });
+    }, resolveEmailLang(req));
 
     if (result.success) {
       res.json({

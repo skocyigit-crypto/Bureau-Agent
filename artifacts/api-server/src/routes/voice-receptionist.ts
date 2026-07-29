@@ -70,45 +70,65 @@ export const voiceReceptionistRouter: IRouter = Router();
 
 // --- Langues / voix -------------------------------------------------------
 
-type RecLang = "fr" | "tr" | "en";
+type RecLang = "fr" | "tr" | "en" | "es" | "de" | "ar";
 
-const SPEECH_LANG: Record<RecLang, string> = { fr: "fr-FR", tr: "tr-TR", en: "en-US" };
-const DEFAULT_VOICE: Record<RecLang, string> = { fr: "Polly.Lea", tr: "Polly.Filiz", en: "Polly.Joanna" };
-const LANG_NAME: Record<RecLang, string> = { fr: "francais", tr: "turc", en: "anglais" };
+const REC_LANGS: readonly RecLang[] = ["fr", "tr", "en", "es", "de", "ar"];
+
+const SPEECH_LANG: Record<RecLang, string> = { fr: "fr-FR", tr: "tr-TR", en: "en-US", es: "es-ES", de: "de-DE", ar: "ar-SA" };
+const DEFAULT_VOICE: Record<RecLang, string> = { fr: "Polly.Lea", tr: "Polly.Filiz", en: "Polly.Joanna", es: "Polly.Conchita", de: "Polly.Marlene", ar: "Polly.Zeina" };
+const LANG_NAME: Record<RecLang, string> = { fr: "francais", tr: "turc", en: "anglais", es: "espagnol", de: "allemand", ar: "arabe" };
 
 const DEFAULT_GREETING: Record<RecLang, string> = {
   fr: "Bonjour, vous etes en relation avec le secretariat. Comment puis-je vous aider ?",
   tr: "Merhaba, sekreterya ile gorusuyorsunuz. Size nasil yardimci olabilirim?",
   en: "Hello, you have reached the front desk. How may I help you?",
+  es: "Hola, se ha comunicado con recepcion. En que puedo ayudarle?",
+  de: "Guten Tag, Sie sind mit dem Sekretariat verbunden. Wie kann ich Ihnen helfen?",
+  ar: "مرحباً، لقد وصلت إلى مكتب الاستقبال. كيف يمكنني مساعدتك؟",
 };
 const DISABLED_MSG: Record<RecLang, string> = {
   fr: "Bonjour. Notre secretaire vocale n'est pas disponible pour le moment. Merci de rappeler ulterieurement.",
   tr: "Merhaba. Sesli sekreterimiz su anda musait degil. Lutfen daha sonra tekrar arayin.",
   en: "Hello. Our voice assistant is currently unavailable. Please call back later.",
+  es: "Hola. Nuestra recepcionista virtual no esta disponible en este momento. Por favor, vuelva a llamar mas tarde.",
+  de: "Guten Tag. Unser Sprachsekretariat ist derzeit nicht verfuegbar. Bitte rufen Sie spaeter erneut an.",
+  ar: "مرحباً. مساعدنا الصوتي غير متاح حالياً. يرجى معاودة الاتصال لاحقاً.",
 };
 const SESSION_LOST_MSG: Record<RecLang, string> = {
   fr: "Desole, notre echange a ete interrompu. Merci de rappeler pour reprendre. Au revoir.",
   tr: "Uzgunum, gorusmemiz kesildi. Devam etmek icin lutfen tekrar arayin. Hosca kalin.",
   en: "Sorry, our conversation was interrupted. Please call back to continue. Goodbye.",
+  es: "Lo siento, nuestra conversacion se ha interrumpido. Por favor, vuelva a llamar para continuar. Adios.",
+  de: "Entschuldigung, unser Gespraech wurde unterbrochen. Bitte rufen Sie erneut an, um fortzufahren. Auf Wiederhoeren.",
+  ar: "عذراً، لقد انقطعت محادثتنا. يرجى معاودة الاتصال للمتابعة. مع السلامة.",
 };
 const REPROMPT_MSG: Record<RecLang, string> = {
   fr: "Je n'ai pas bien entendu. Pouvez-vous repeter, s'il vous plait ?",
   tr: "Sizi tam duyamadim. Tekrar eder misiniz, lutfen?",
   en: "I didn't quite catch that. Could you please repeat?",
+  es: "No le he entendido bien. Puede repetir, por favor?",
+  de: "Ich habe Sie nicht ganz verstanden. Koennten Sie das bitte wiederholen?",
+  ar: "لم أسمعك جيداً. هل يمكنك التكرار من فضلك؟",
 };
 const NO_INPUT_BYE: Record<RecLang, string> = {
   fr: "Je n'ai rien entendu. Je vous laisse rappeler. Bonne journee.",
   tr: "Bir sey duyamadim. Tekrar arayabilirsiniz. Iyi gunler.",
   en: "I couldn't hear anything. Feel free to call back. Have a good day.",
+  es: "No he oido nada. Puede volver a llamar cuando quiera. Que tenga un buen dia.",
+  de: "Ich habe nichts gehoert. Rufen Sie gerne erneut an. Einen schoenen Tag noch.",
+  ar: "لم أسمع شيئاً. يمكنك معاودة الاتصال. أتمنى لك يوماً سعيداً.",
 };
 const AI_ERROR_BYE: Record<RecLang, string> = {
   fr: "Desole, un probleme technique m'empeche de continuer. Votre appel a ete note, on vous rappellera. Au revoir.",
   tr: "Uzgunum, teknik bir sorun nedeniyle devam edemiyorum. Aramaniz kaydedildi, sizi arayacagiz. Hosca kalin.",
   en: "Sorry, a technical issue prevents me from continuing. Your call was noted and we'll call you back. Goodbye.",
+  es: "Lo siento, un problema tecnico me impide continuar. Su llamada ha sido registrada, le devolveremos la llamada. Adios.",
+  de: "Entschuldigung, ein technisches Problem hindert mich am Fortfahren. Ihr Anruf wurde notiert, wir rufen Sie zurueck. Auf Wiederhoeren.",
+  ar: "عذراً، مشكلة تقنية تمنعني من المتابعة. تم تسجيل مكالمتك وسنعاود الاتصال بك. مع السلامة.",
 };
 
 function normalizeLang(x: unknown): RecLang {
-  return x === "tr" || x === "en" || x === "fr" ? x : "fr";
+  return typeof x === "string" && (REC_LANGS as readonly string[]).includes(x) ? (x as RecLang) : "fr";
 }
 function sanitizeVoice(v: unknown): string | null {
   return typeof v === "string" && /^[A-Za-z0-9._-]{1,40}$/.test(v) ? v : null;
@@ -735,11 +755,17 @@ const TRANSFER_INTRO: Record<RecLang, string> = {
   fr: "Je vous mets en relation avec un conseiller, un instant je vous prie.",
   tr: "Sizi bir yetkiliye baglıyorum, lutfen bir saniye.",
   en: "I'm connecting you with a colleague, one moment please.",
+  es: "Le pongo en contacto con un asesor, un momento por favor.",
+  de: "Ich verbinde Sie mit einem Kollegen, einen Moment bitte.",
+  ar: "سأحوّلك إلى أحد المستشارين، لحظة من فضلك.",
 };
 
 function personalizedGreeting(lang: RecLang, name: string): string {
   if (lang === "tr") return `Merhaba ${name}, tekrar aradiniz. Size nasil yardimci olabilirim?`;
   if (lang === "en") return `Hello ${name}, good to hear from you again. How may I help you?`;
+  if (lang === "es") return `Hola ${name}, me alegra oirle de nuevo. En que puedo ayudarle?`;
+  if (lang === "de") return `Hallo ${name}, schoen wieder von Ihnen zu hoeren. Wie kann ich Ihnen helfen?`;
+  if (lang === "ar") return `مرحباً ${name}، يسعدني سماع صوتك مجدداً. كيف يمكنني مساعدتك؟`;
   return `Bonjour ${name}, ravie de vous reentendre. Comment puis-je vous aider ?`;
 }
 
@@ -959,7 +985,7 @@ function buildSystemInstruction(
     `- "sentiment": evalue l'humeur globale de l'appelant parmi "positif", "neutre", "negatif", "tres_negatif".\n` +
     `- "summary": quand done=true, redige un resume FACTUEL en une phrase de l'appel (motif + issue), sinon laisse "".\n` +
     (opts?.autoDetectLang
-      ? `- "lang": indique la langue PRINCIPALE parlee par l'appelant ("fr", "tr" ou "en"). Si elle differe, je basculerai et tu repondras desormais dans cette langue.\n`
+      ? `- "lang": indique la langue PRINCIPALE parlee par l'appelant ("fr", "tr", "en", "es", "de" ou "ar"). Si elle differe, je basculerai et tu repondras desormais dans cette langue.\n`
       : `- "lang": laisse "${lang}".\n`) +
     `- Quand l'appelant n'a plus rien a ajouter, mets done=true et termine poliment.\n` +
     `- Mets outcome une SEULE fois dans l'appel (ne le repete pas aux tours suivants).`
@@ -1094,7 +1120,9 @@ async function runReceptionistTurn(session: CallSession): Promise<ReceptionistRe
   const summary = typeof parsed.summary === "string" ? parsed.summary.slice(0, 500) : "";
   const transfer = parsed.transfer === true;
   const lang =
-    parsed.lang === "fr" || parsed.lang === "tr" || parsed.lang === "en" ? parsed.lang : null;
+    typeof parsed.lang === "string" && (REC_LANGS as readonly string[]).includes(parsed.lang)
+      ? (parsed.lang as RecLang)
+      : null;
 
   // Memorise l'etat percu pour la finalisation (resume / sentiment / urgence).
   if (summary) session.summary = summary;
@@ -1126,8 +1154,10 @@ async function runReceptionistTurn(session: CallSession): Promise<ReceptionistRe
 // --- Persistance ----------------------------------------------------------
 
 function transcriptText(session: CallSession): string {
-  const userLabel = session.lang === "tr" ? "Arayan" : session.lang === "en" ? "Caller" : "Appelant";
-  const botLabel = session.lang === "tr" ? "Sekreter" : session.lang === "en" ? "Receptionist" : "Secretaire";
+  const USER_LABEL: Record<RecLang, string> = { fr: "Appelant", tr: "Arayan", en: "Caller", es: "Llamante", de: "Anrufer", ar: "المتصل" };
+  const BOT_LABEL: Record<RecLang, string> = { fr: "Secretaire", tr: "Sekreter", en: "Receptionist", es: "Recepcionista", de: "Sekretariat", ar: "الاستقبال" };
+  const userLabel = USER_LABEL[session.lang];
+  const botLabel = BOT_LABEL[session.lang];
   return session.turns
     .map((t) => `${t.role === "user" ? userLabel : botLabel}: ${t.text}`)
     .join("\n");
@@ -1151,6 +1181,24 @@ function smsConfirmText(
       return `Your appointment request${whenText ? ` (${whenText})` : ""} is noted, our team will confirm it. — ${org}`;
     if (kind === "cancel") return `Your appointment has been cancelled. — ${org}`;
     return `Your message has been passed to our team. We'll get back to you shortly. — ${org}`;
+  }
+  if (session.lang === "es") {
+    if (kind === "appointment")
+      return `Su solicitud de cita${whenText ? ` (${whenText})` : ""} ha sido registrada, nuestro equipo la confirmara. — ${org}`;
+    if (kind === "cancel") return `Su solicitud de cancelacion ha sido registrada. Se lo confirmaremos en breve. — ${org}`;
+    return `Su mensaje ha sido transmitido a nuestro equipo. Nos pondremos en contacto con usted en breve. — ${org}`;
+  }
+  if (session.lang === "de") {
+    if (kind === "appointment")
+      return `Ihre Terminanfrage${whenText ? ` (${whenText})` : ""} ist notiert, unser Team wird sie bestaetigen. — ${org}`;
+    if (kind === "cancel") return `Ihre Stornierungsanfrage wurde registriert. Wir bestaetigen sie Ihnen in Kuerze. — ${org}`;
+    return `Ihre Nachricht wurde an unser Team weitergeleitet. Wir melden uns in Kuerze bei Ihnen. — ${org}`;
+  }
+  if (session.lang === "ar") {
+    if (kind === "appointment")
+      return `تم تسجيل طلب موعدك${whenText ? ` (${whenText})` : ""}، وسيؤكده فريقنا. — ${org}`;
+    if (kind === "cancel") return `تم تسجيل طلب الإلغاء الخاص بك. سنؤكده لك قريباً. — ${org}`;
+    return `تم إرسال رسالتك إلى فريقنا. سنعاود التواصل معك قريباً. — ${org}`;
   }
   if (kind === "appointment")
     return `Votre demande de rendez-vous${whenText ? ` (${whenText})` : ""} est bien enregistree, a confirmer par notre equipe. — ${org}`;
@@ -1587,11 +1635,15 @@ voiceReceptionistRouter.post("/voice/twilio/incoming", async (req: Request, res:
     const proto = (req.headers["x-forwarded-proto"] as string) || "https";
     const host = (req.headers["x-forwarded-host"] as string) || (req.headers.host as string) || "";
     const recordUrl = `${proto}://${host}/api/voice/twilio/voicemail-complete?callSid=${encodeURIComponent(callSid)}`;
-    const closedMsg = lang === "tr"
-      ? "Merhaba. Su anda mesai saatleri disindayiz. Lutfen bip sesinden sonra mesajinizi birakin."
-      : lang === "en"
-        ? "Hello. We are currently closed. Please leave a message after the beep."
-        : "Bonjour. Nous sommes actuellement fermes. Merci de laisser votre message apres le bip.";
+    const CLOSED_MSG: Record<RecLang, string> = {
+      fr: "Bonjour. Nous sommes actuellement fermes. Merci de laisser votre message apres le bip.",
+      tr: "Merhaba. Su anda mesai saatleri disindayiz. Lutfen bip sesinden sonra mesajinizi birakin.",
+      en: "Hello. We are currently closed. Please leave a message after the beep.",
+      es: "Hola. En este momento estamos cerrados. Por favor, deje su mensaje despues del tono.",
+      de: "Guten Tag. Wir haben derzeit geschlossen. Bitte hinterlassen Sie Ihre Nachricht nach dem Signalton.",
+      ar: "مرحباً. نحن مغلقون حالياً. يرجى ترك رسالتك بعد الصافرة.",
+    };
+    const closedMsg = CLOSED_MSG[lang];
     res.status(200).send(twimlRecord(recordUrl, closedMsg, lang, voice));
     return;
   }

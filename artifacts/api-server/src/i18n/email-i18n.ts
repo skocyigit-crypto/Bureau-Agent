@@ -228,6 +228,60 @@ SK GROUP`,
     expiry: "Ce lien est valable pendant <strong>1 heure</strong>. Si vous n'avez pas fait cette demande, ignorez cet email.",
     text: "Bonjour {{prenom}}, reinitialiser votre mot de passe: {{link}} (valide 1h)",
   },
+  license: {
+    subject: "Bienvenue sur Ajant Bureau - {{orgName}}",
+    greeting: "Bienvenue, {{name}} !",
+    intro: "Votre compte <strong>Ajant Bureau</strong> pour <strong>{{orgName}}</strong> (plan <strong>{{plan}}</strong>) a ete cree avec succes.",
+    trialInfo: "Votre periode d'essai se termine le <strong>{{date}}</strong>.",
+    resetTitle: "Definissez votre mot de passe",
+    resetIntro: "Cliquez sur le bouton ci-dessous pour creer (ou reinitialiser) le mot de passe de l'administrateur <strong>{{adminEmail}}</strong>. Ce lien securise est valide <strong>24 heures</strong> et ne peut etre utilise qu'une seule fois.",
+    resetBtn: "Definir mon mot de passe",
+    resetCopy: "Ou copiez ce lien : {{resetLink}}",
+    credTitle: "Code de connexion temporaire",
+    credAdminLabel: "Administrateur",
+    credEmailLabel: "Email",
+    credCodeLabel: "Code temporaire",
+    credWarningLabel: "Attention :",
+    credWarning: "Ce code est temporaire. Utilisez-le comme mot de passe pour vous connecter, puis changez votre mot de passe immediatement dans les parametres.",
+    accessBtn: "Acceder a l'application",
+    installTitle: "Installez l'application",
+    installDesktopTitle: "Desktop / Navigateur",
+    installDesktopText: "Ouvrez l'application dans Chrome ou Edge, puis cliquez sur \"Installer\" dans la barre d'adresse pour l'ajouter a votre bureau.",
+    installMobileTitle: "Mobile (iOS / Android)",
+    installMobileText: "Ouvrez l'application sur votre telephone, puis utilisez \"Ajouter a l'ecran d'accueil\" dans le menu du navigateur.",
+    startTitle: "Pour commencer",
+    step1: "Connectez-vous avec votre email et le code temporaire",
+    step2: "Changez votre mot de passe dans les parametres",
+    step3: "Suivez l'assistant de configuration",
+    step4: "Ajoutez vos contacts et invitez vos collaborateurs",
+    textReset: `
+DEFINISSEZ VOTRE MOT DE PASSE:
+- Administrateur: {{admin}}
+- Email: {{adminEmail}}
+- Lien securise (valide 24h, usage unique): {{resetLink}}
+`,
+    textCred: `
+CODE DE CONNEXION TEMPORAIRE:
+- Administrateur: {{admin}}
+- Email: {{adminEmail}}
+- Code temporaire: {{adminPassword}}
+- ATTENTION: Ce code est temporaire. Changez votre mot de passe des votre premiere connexion.
+`,
+    textBody: `Bienvenue {{name}} !
+
+Votre compte Ajant Bureau pour {{orgName}} (plan {{plan}}) a ete cree.
+{{resetBlock}}{{credBlock}}
+Accedez a l'application: {{appUrl}}
+
+POUR COMMENCER:
+1. Connectez-vous avec votre code temporaire
+2. Changez votre mot de passe
+3. Ajoutez vos premiers contacts
+4. Invitez vos collaborateurs
+
+Support: support@agentdebureau.fr
+SK GROUP`,
+  },
 };
 
 const tr: StringTree = {
@@ -350,6 +404,60 @@ SK GROUP`,
     btn: "Parolami sifirla",
     expiry: "Bu baglanti <strong>1 saat</strong> gecerlidir. Bu talebi siz yapmadiysaniz bu e-postayi yok sayin.",
     text: "Merhaba {{prenom}}, parolanizi sifirlayin: {{link}} (1 saat gecerli)",
+  },
+  license: {
+    subject: "Ajant Bureau'ya hos geldiniz - {{orgName}}",
+    greeting: "Hos geldiniz, {{name}}!",
+    intro: "<strong>{{orgName}}</strong> icin <strong>Ajant Bureau</strong> hesabiniz (plan <strong>{{plan}}</strong>) basariyla olusturuldu.",
+    trialInfo: "Deneme sureniz <strong>{{date}}</strong> tarihinde sona eriyor.",
+    resetTitle: "Parolanizi belirleyin",
+    resetIntro: "Yonetici <strong>{{adminEmail}}</strong> icin parola olusturmak (veya sifirlamak) icin asagidaki dugmeye tiklayin. Bu guvenli baglanti <strong>24 saat</strong> gecerlidir ve yalnizca bir kez kullanilabilir.",
+    resetBtn: "Parolami belirle",
+    resetCopy: "Veya bu baglantiyi kopyalayin: {{resetLink}}",
+    credTitle: "Gecici giris kodu",
+    credAdminLabel: "Yonetici",
+    credEmailLabel: "E-posta",
+    credCodeLabel: "Gecici kod",
+    credWarningLabel: "Dikkat:",
+    credWarning: "Bu kod gecicidir. Giris yapmak icin parola olarak kullanin, ardindan ayarlardan parolanizi hemen degistirin.",
+    accessBtn: "Uygulamaya eris",
+    installTitle: "Uygulamayi yukleyin",
+    installDesktopTitle: "Masaustu / Tarayici",
+    installDesktopText: "Uygulamayi Chrome veya Edge'de acin, ardindan masaustunuze eklemek icin adres cubugundaki \"Yukle\" secenegine tiklayin.",
+    installMobileTitle: "Mobil (iOS / Android)",
+    installMobileText: "Uygulamayi telefonunuzda acin, ardindan tarayici menusunden \"Ana ekrana ekle\" secenegini kullanin.",
+    startTitle: "Baslamak icin",
+    step1: "E-postaniz ve gecici kod ile giris yapin",
+    step2: "Ayarlardan parolanizi degistirin",
+    step3: "Kurulum yardimcisini takip edin",
+    step4: "Kisilerinizi ekleyin ve calisma arkadaslarinizi davet edin",
+    textReset: `
+PAROLANIZI BELIRLEYIN:
+- Yonetici: {{admin}}
+- E-posta: {{adminEmail}}
+- Guvenli baglanti (24 saat gecerli, tek kullanimlik): {{resetLink}}
+`,
+    textCred: `
+GECICI GIRIS KODU:
+- Yonetici: {{admin}}
+- E-posta: {{adminEmail}}
+- Gecici kod: {{adminPassword}}
+- DIKKAT: Bu kod gecicidir. Ilk girisinizde parolanizi degistirin.
+`,
+    textBody: `Hos geldiniz {{name}}!
+
+{{orgName}} icin Ajant Bureau hesabiniz (plan {{plan}}) olusturuldu.
+{{resetBlock}}{{credBlock}}
+Uygulamaya erisin: {{appUrl}}
+
+BASLAMAK ICIN:
+1. Gecici kodunuzla giris yapin
+2. Parolanizi degistirin
+3. Ilk kisilerinizi ekleyin
+4. Calisma arkadaslarinizi davet edin
+
+Destek: support@agentdebureau.fr
+SK GROUP`,
   },
 };
 
@@ -474,6 +582,60 @@ SK GROUP`,
     expiry: "This link is valid for <strong>1 hour</strong>. If you did not make this request, ignore this email.",
     text: "Hello {{prenom}}, reset your password: {{link}} (valid 1h)",
   },
+  license: {
+    subject: "Welcome to Ajant Bureau - {{orgName}}",
+    greeting: "Welcome, {{name}}!",
+    intro: "Your <strong>Ajant Bureau</strong> account for <strong>{{orgName}}</strong> (plan <strong>{{plan}}</strong>) has been created successfully.",
+    trialInfo: "Your trial period ends on <strong>{{date}}</strong>.",
+    resetTitle: "Set your password",
+    resetIntro: "Click the button below to create (or reset) the password for the administrator <strong>{{adminEmail}}</strong>. This secure link is valid for <strong>24 hours</strong> and can only be used once.",
+    resetBtn: "Set my password",
+    resetCopy: "Or copy this link: {{resetLink}}",
+    credTitle: "Temporary login code",
+    credAdminLabel: "Administrator",
+    credEmailLabel: "Email",
+    credCodeLabel: "Temporary code",
+    credWarningLabel: "Warning:",
+    credWarning: "This code is temporary. Use it as your password to log in, then change your password immediately in the settings.",
+    accessBtn: "Access the application",
+    installTitle: "Install the app",
+    installDesktopTitle: "Desktop / Browser",
+    installDesktopText: "Open the app in Chrome or Edge, then click \"Install\" in the address bar to add it to your desktop.",
+    installMobileTitle: "Mobile (iOS / Android)",
+    installMobileText: "Open the app on your phone, then use \"Add to Home Screen\" in the browser menu.",
+    startTitle: "Getting started",
+    step1: "Log in with your email and the temporary code",
+    step2: "Change your password in the settings",
+    step3: "Follow the setup assistant",
+    step4: "Add your contacts and invite your colleagues",
+    textReset: `
+SET YOUR PASSWORD:
+- Administrator: {{admin}}
+- Email: {{adminEmail}}
+- Secure link (valid 24h, single use): {{resetLink}}
+`,
+    textCred: `
+TEMPORARY LOGIN CODE:
+- Administrator: {{admin}}
+- Email: {{adminEmail}}
+- Temporary code: {{adminPassword}}
+- WARNING: This code is temporary. Change your password on your first login.
+`,
+    textBody: `Welcome {{name}}!
+
+Your Ajant Bureau account for {{orgName}} (plan {{plan}}) has been created.
+{{resetBlock}}{{credBlock}}
+Access the application: {{appUrl}}
+
+GETTING STARTED:
+1. Log in with your temporary code
+2. Change your password
+3. Add your first contacts
+4. Invite your colleagues
+
+Support: support@agentdebureau.fr
+SK GROUP`,
+  },
 };
 
 const es: StringTree = {
@@ -596,6 +758,60 @@ SK GROUP`,
     btn: "Restablecer mi contrasena",
     expiry: "Este enlace es valido durante <strong>1 hora</strong>. Si no realizo esta solicitud, ignore este correo.",
     text: "Hola {{prenom}}, restablezca su contrasena: {{link}} (valido 1h)",
+  },
+  license: {
+    subject: "Bienvenido a Ajant Bureau - {{orgName}}",
+    greeting: "Bienvenido, {{name}}!",
+    intro: "Su cuenta de <strong>Ajant Bureau</strong> para <strong>{{orgName}}</strong> (plan <strong>{{plan}}</strong>) se ha creado correctamente.",
+    trialInfo: "Su periodo de prueba termina el <strong>{{date}}</strong>.",
+    resetTitle: "Establezca su contrasena",
+    resetIntro: "Haga clic en el boton de abajo para crear (o restablecer) la contrasena del administrador <strong>{{adminEmail}}</strong>. Este enlace seguro es valido durante <strong>24 horas</strong> y solo puede usarse una vez.",
+    resetBtn: "Establecer mi contrasena",
+    resetCopy: "O copie este enlace: {{resetLink}}",
+    credTitle: "Codigo de acceso temporal",
+    credAdminLabel: "Administrador",
+    credEmailLabel: "Correo electronico",
+    credCodeLabel: "Codigo temporal",
+    credWarningLabel: "Atencion:",
+    credWarning: "Este codigo es temporal. Uselo como contrasena para iniciar sesion y luego cambie su contrasena de inmediato en los ajustes.",
+    accessBtn: "Acceder a la aplicacion",
+    installTitle: "Instale la aplicacion",
+    installDesktopTitle: "Escritorio / Navegador",
+    installDesktopText: "Abra la aplicacion en Chrome o Edge y luego haga clic en \"Instalar\" en la barra de direcciones para anadirla a su escritorio.",
+    installMobileTitle: "Movil (iOS / Android)",
+    installMobileText: "Abra la aplicacion en su telefono y luego use \"Anadir a la pantalla de inicio\" en el menu del navegador.",
+    startTitle: "Para empezar",
+    step1: "Inicie sesion con su correo y el codigo temporal",
+    step2: "Cambie su contrasena en los ajustes",
+    step3: "Siga el asistente de configuracion",
+    step4: "Anada sus contactos e invite a sus colaboradores",
+    textReset: `
+ESTABLEZCA SU CONTRASENA:
+- Administrador: {{admin}}
+- Correo electronico: {{adminEmail}}
+- Enlace seguro (valido 24h, un solo uso): {{resetLink}}
+`,
+    textCred: `
+CODIGO DE ACCESO TEMPORAL:
+- Administrador: {{admin}}
+- Correo electronico: {{adminEmail}}
+- Codigo temporal: {{adminPassword}}
+- ATENCION: Este codigo es temporal. Cambie su contrasena en su primer inicio de sesion.
+`,
+    textBody: `Bienvenido {{name}}!
+
+Su cuenta de Ajant Bureau para {{orgName}} (plan {{plan}}) se ha creado.
+{{resetBlock}}{{credBlock}}
+Acceda a la aplicacion: {{appUrl}}
+
+PARA EMPEZAR:
+1. Inicie sesion con su codigo temporal
+2. Cambie su contrasena
+3. Anada sus primeros contactos
+4. Invite a sus colaboradores
+
+Soporte: support@agentdebureau.fr
+SK GROUP`,
   },
 };
 
@@ -720,6 +936,60 @@ SK GROUP`,
     expiry: "Dieser Link ist <strong>1 Stunde</strong> gueltig. Wenn Sie diese Anfrage nicht gestellt haben, ignorieren Sie diese E-Mail.",
     text: "Hallo {{prenom}}, setzen Sie Ihr Passwort zurueck: {{link}} (1h gueltig)",
   },
+  license: {
+    subject: "Willkommen bei Ajant Bureau - {{orgName}}",
+    greeting: "Willkommen, {{name}}!",
+    intro: "Ihr <strong>Ajant Bureau</strong>-Konto fuer <strong>{{orgName}}</strong> (Tarif <strong>{{plan}}</strong>) wurde erfolgreich erstellt.",
+    trialInfo: "Ihre Testphase endet am <strong>{{date}}</strong>.",
+    resetTitle: "Legen Sie Ihr Passwort fest",
+    resetIntro: "Klicken Sie auf die Schaltflaeche unten, um das Passwort fuer den Administrator <strong>{{adminEmail}}</strong> zu erstellen (oder zuruecksetzen). Dieser sichere Link ist <strong>24 Stunden</strong> gueltig und kann nur einmal verwendet werden.",
+    resetBtn: "Mein Passwort festlegen",
+    resetCopy: "Oder kopieren Sie diesen Link: {{resetLink}}",
+    credTitle: "Temporaerer Anmeldecode",
+    credAdminLabel: "Administrator",
+    credEmailLabel: "E-Mail",
+    credCodeLabel: "Temporaerer Code",
+    credWarningLabel: "Achtung:",
+    credWarning: "Dieser Code ist temporaer. Verwenden Sie ihn als Passwort zum Anmelden und aendern Sie Ihr Passwort anschliessend sofort in den Einstellungen.",
+    accessBtn: "Zur Anwendung",
+    installTitle: "Installieren Sie die App",
+    installDesktopTitle: "Desktop / Browser",
+    installDesktopText: "Oeffnen Sie die App in Chrome oder Edge und klicken Sie dann in der Adressleiste auf \"Installieren\", um sie zu Ihrem Desktop hinzuzufuegen.",
+    installMobileTitle: "Mobil (iOS / Android)",
+    installMobileText: "Oeffnen Sie die App auf Ihrem Telefon und verwenden Sie dann \"Zum Startbildschirm hinzufuegen\" im Browsermenue.",
+    startTitle: "Erste Schritte",
+    step1: "Melden Sie sich mit Ihrer E-Mail und dem temporaeren Code an",
+    step2: "Aendern Sie Ihr Passwort in den Einstellungen",
+    step3: "Folgen Sie dem Einrichtungsassistenten",
+    step4: "Fuegen Sie Ihre Kontakte hinzu und laden Sie Ihre Mitarbeiter ein",
+    textReset: `
+LEGEN SIE IHR PASSWORT FEST:
+- Administrator: {{admin}}
+- E-Mail: {{adminEmail}}
+- Sicherer Link (24h gueltig, einmalig): {{resetLink}}
+`,
+    textCred: `
+TEMPORAERER ANMELDECODE:
+- Administrator: {{admin}}
+- E-Mail: {{adminEmail}}
+- Temporaerer Code: {{adminPassword}}
+- ACHTUNG: Dieser Code ist temporaer. Aendern Sie Ihr Passwort bei der ersten Anmeldung.
+`,
+    textBody: `Willkommen {{name}}!
+
+Ihr Ajant Bureau-Konto fuer {{orgName}} (Tarif {{plan}}) wurde erstellt.
+{{resetBlock}}{{credBlock}}
+Zur Anwendung: {{appUrl}}
+
+ERSTE SCHRITTE:
+1. Melden Sie sich mit Ihrem temporaeren Code an
+2. Aendern Sie Ihr Passwort
+3. Fuegen Sie Ihre ersten Kontakte hinzu
+4. Laden Sie Ihre Mitarbeiter ein
+
+Support: support@agentdebureau.fr
+SK GROUP`,
+  },
 };
 
 const ar: StringTree = {
@@ -842,6 +1112,60 @@ SK GROUP`,
     btn: "إعادة تعيين كلمة المرور",
     expiry: "هذا الرابط صالح لمدة <strong>ساعة واحدة</strong>. إذا لم تقم بهذا الطلب، تجاهل هذا البريد.",
     text: "مرحباً {{prenom}}، أعد تعيين كلمة المرور: {{link}} (صالح ساعة واحدة)",
+  },
+  license: {
+    subject: "مرحباً بك في Ajant Bureau - {{orgName}}",
+    greeting: "مرحباً، {{name}}!",
+    intro: "تم إنشاء حسابك في <strong>Ajant Bureau</strong> الخاص بـ <strong>{{orgName}}</strong> (الخطة <strong>{{plan}}</strong>) بنجاح.",
+    trialInfo: "تنتهي فترتك التجريبية في <strong>{{date}}</strong>.",
+    resetTitle: "عيّن كلمة المرور الخاصة بك",
+    resetIntro: "انقر على الزر أدناه لإنشاء (أو إعادة تعيين) كلمة مرور المدير <strong>{{adminEmail}}</strong>. هذا الرابط الآمن صالح لمدة <strong>24 ساعة</strong> ولا يمكن استخدامه إلا مرة واحدة.",
+    resetBtn: "تعيين كلمة المرور",
+    resetCopy: "أو انسخ هذا الرابط: {{resetLink}}",
+    credTitle: "رمز دخول مؤقت",
+    credAdminLabel: "المدير",
+    credEmailLabel: "البريد الإلكتروني",
+    credCodeLabel: "الرمز المؤقت",
+    credWarningLabel: "تنبيه:",
+    credWarning: "هذا الرمز مؤقت. استخدمه ككلمة مرور لتسجيل الدخول، ثم غيّر كلمة المرور فوراً من الإعدادات.",
+    accessBtn: "الوصول إلى التطبيق",
+    installTitle: "ثبّت التطبيق",
+    installDesktopTitle: "سطح المكتب / المتصفح",
+    installDesktopText: "افتح التطبيق في Chrome أو Edge، ثم انقر على \"تثبيت\" في شريط العنوان لإضافته إلى سطح مكتبك.",
+    installMobileTitle: "الهاتف (iOS / Android)",
+    installMobileText: "افتح التطبيق على هاتفك، ثم استخدم \"إضافة إلى الشاشة الرئيسية\" من قائمة المتصفح.",
+    startTitle: "للبدء",
+    step1: "سجّل الدخول ببريدك الإلكتروني والرمز المؤقت",
+    step2: "غيّر كلمة المرور من الإعدادات",
+    step3: "اتبع مساعد الإعداد",
+    step4: "أضف جهات اتصالك وادعُ زملاءك",
+    textReset: `
+عيّن كلمة المرور:
+- المدير: {{admin}}
+- البريد الإلكتروني: {{adminEmail}}
+- رابط آمن (صالح 24 ساعة، استخدام واحد): {{resetLink}}
+`,
+    textCred: `
+رمز الدخول المؤقت:
+- المدير: {{admin}}
+- البريد الإلكتروني: {{adminEmail}}
+- الرمز المؤقت: {{adminPassword}}
+- تنبيه: هذا الرمز مؤقت. غيّر كلمة المرور عند أول تسجيل دخول.
+`,
+    textBody: `مرحباً {{name}}!
+
+تم إنشاء حسابك في Ajant Bureau الخاص بـ {{orgName}} (الخطة {{plan}}).
+{{resetBlock}}{{credBlock}}
+الوصول إلى التطبيق: {{appUrl}}
+
+للبدء:
+1. سجّل الدخول برمزك المؤقت
+2. غيّر كلمة المرور
+3. أضف جهات الاتصال الأولى
+4. ادعُ زملاءك
+
+الدعم: support@agentdebureau.fr
+SK GROUP`,
   },
 };
 
