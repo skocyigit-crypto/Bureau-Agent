@@ -21,6 +21,7 @@ import {
   ArrowUpRight, ArrowDownRight, Activity, Zap, Shield, Brain, Printer, Download,
   FolderKanban
 } from "lucide-react";
+import { useTranslation } from "@/i18n";
 
 const BASE = import.meta.env.BASE_URL ?? "/";
 
@@ -34,6 +35,7 @@ interface AIAnalysis {
 }
 
 export default function Analytics() {
+  const { t } = useTranslation();
   const [period, setPeriod] = useState<"today" | "week" | "month" | "year">("week");
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysis | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -97,15 +99,15 @@ export default function Analytics() {
         credentials: "include",
         body: JSON.stringify({ period }),
       });
-      if (!resp.ok) throw new Error(`Erreur ${resp.status}`);
+      if (!resp.ok) throw new Error(t("analyticsPage.errorStatus", { status: resp.status }));
       const data = await resp.json();
       setAiAnalysis(data);
     } catch (e: any) {
-      setAiError(e.message || "Erreur lors de l'analyse IA");
+      setAiError(e.message || t("analyticsPage.errorAnalysis"));
     } finally {
       setAiLoading(false);
     }
-  }, [period]);
+  }, [period, t]);
 
   const scoreColor = (score: number) => {
     if (score >= 80) return "text-emerald-600";
@@ -126,22 +128,22 @@ export default function Analytics() {
   const answerRate = analytics?.answerRate ?? 0;
 
   const radarData = [
-    { subject: "Reponse", value: answerRate, fullMark: 100 },
-    { subject: "Taches", value: taskStats?.completionRate ?? 0, fullMark: 100 },
-    { subject: "Sentiment+", value: Array.isArray(distribution?.bySentiment) ? Math.round((distribution.bySentiment.find((s: any) => s.sentiment === "positif")?.count ?? 0) / Math.max(1, distribution.bySentiment.reduce((a: number, b: any) => a + (b?.count ?? 0), 0)) * 100) : 0, fullMark: 100 },
-    { subject: "Ponctualite", value: Math.min(100, 100 - (taskStats?.overdueTasks ?? 0) * 10), fullMark: 100 },
-    { subject: "Volume", value: Math.min(100, (weeklyReport?.totalCalls ?? 0) * 5), fullMark: 100 },
+    { subject: t("analyticsPage.radar.reponse"), value: answerRate, fullMark: 100 },
+    { subject: t("analyticsPage.radar.taches"), value: taskStats?.completionRate ?? 0, fullMark: 100 },
+    { subject: t("analyticsPage.radar.sentiment"), value: Array.isArray(distribution?.bySentiment) ? Math.round((distribution.bySentiment.find((s: any) => s.sentiment === "positif")?.count ?? 0) / Math.max(1, distribution.bySentiment.reduce((a: number, b: any) => a + (b?.count ?? 0), 0)) * 100) : 0, fullMark: 100 },
+    { subject: t("analyticsPage.radar.ponctualite"), value: Math.min(100, 100 - (taskStats?.overdueTasks ?? 0) * 10), fullMark: 100 },
+    { subject: t("analyticsPage.radar.volume"), value: Math.min(100, (weeklyReport?.totalCalls ?? 0) * 5), fullMark: 100 },
   ];
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={BarChart3} variant="cyan" size="md" /> Analyse & Rapports</h1>
-          <p className="text-muted-foreground mt-1">Statistiques detaillees et performances du secretariat.</p>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={BarChart3} variant="cyan" size="md" /> {t("analyticsPage.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("analyticsPage.subtitle")}</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}>
+          <Button variant="outline" size="icon" title={t("analyticsPage.print")} onClick={() => window.print()}>
             <Printer className="h-4 w-4" />
           </Button>
           <Button
@@ -150,17 +152,17 @@ export default function Analytics() {
             className="gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-lg"
           >
             {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            Analyse IA Gemini
+            {t("analyticsPage.aiButton")}
           </Button>
           <Select value={period} onValueChange={(val: any) => setPeriod(val)}>
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Periode" />
+              <SelectValue placeholder={t("analyticsPage.periodPlaceholder")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="today">Aujourd'hui</SelectItem>
-              <SelectItem value="week">Cette semaine</SelectItem>
-              <SelectItem value="month">Ce mois</SelectItem>
-              <SelectItem value="year">Cette annee</SelectItem>
+              <SelectItem value="today">{t("analyticsPage.period.today")}</SelectItem>
+              <SelectItem value="week">{t("analyticsPage.period.week")}</SelectItem>
+              <SelectItem value="month">{t("analyticsPage.period.month")}</SelectItem>
+              <SelectItem value="year">{t("analyticsPage.period.year")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -168,12 +170,12 @@ export default function Analytics() {
 
       <Card className="overflow-hidden border-0 shadow-lg">
         <div className="relative h-32">
-          <img src={analyticsWorkImg} alt="Analyse des données" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+          <img src={analyticsWorkImg} alt={t("analyticsPage.heroAlt")} className="w-full h-full object-cover" loading="lazy" decoding="async" />
           <div className="absolute inset-0 bg-gradient-to-r from-cyan-900/80 via-cyan-800/50 to-transparent" />
           <div className="absolute inset-0 flex items-center px-6">
             <div className="text-white">
-              <h3 className="text-lg font-bold">Centre d'analyse intelligent</h3>
-              <p className="text-white/80 text-sm mt-1">Rapports detailles, tendances et recommandations pilotes par l'IA Gemini.</p>
+              <h3 className="text-lg font-bold">{t("analyticsPage.heroTitle")}</h3>
+              <p className="text-white/80 text-sm mt-1">{t("analyticsPage.heroSubtitle")}</p>
             </div>
           </div>
         </div>
@@ -188,8 +190,8 @@ export default function Analytics() {
                   <Brain className="h-5 w-5" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg">Analyse IA - Gemini</CardTitle>
-                  <CardDescription>Insights generes par intelligence artificielle</CardDescription>
+                  <CardTitle className="text-lg">{t("analyticsPage.aiCardTitle")}</CardTitle>
+                  <CardDescription>{t("analyticsPage.aiCardDesc")}</CardDescription>
                 </div>
               </div>
               {aiAnalysis?.scoreGlobal != null && (
@@ -197,7 +199,7 @@ export default function Analytics() {
                   <div className={`text-4xl font-black ${scoreColor(aiAnalysis.scoreGlobal)}`}>
                     {aiAnalysis.scoreGlobal}
                   </div>
-                  <div className="text-xs text-muted-foreground font-medium">Score global</div>
+                  <div className="text-xs text-muted-foreground font-medium">{t("analyticsPage.scoreGlobal")}</div>
                 </div>
               )}
             </div>
@@ -206,7 +208,7 @@ export default function Analytics() {
             {aiLoading && (
               <div className="flex items-center gap-3 py-8 justify-center text-muted-foreground">
                 <Loader2 className="h-5 w-5 animate-spin text-violet-600" />
-                <span>Gemini analyse vos données en profondeur...</span>
+                <span>{t("analyticsPage.analyzing")}</span>
               </div>
             )}
             {aiError && (
@@ -218,10 +220,10 @@ export default function Analytics() {
             {aiAnalysis && !aiLoading && (
               <Tabs defaultValue="resume" className="w-full">
                 <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="resume">Resume</TabsTrigger>
-                  <TabsTrigger value="forces">Forces & Attention</TabsTrigger>
-                  <TabsTrigger value="tendances">Tendances</TabsTrigger>
-                  <TabsTrigger value="actions">Actions</TabsTrigger>
+                  <TabsTrigger value="resume">{t("analyticsPage.tabs.resume")}</TabsTrigger>
+                  <TabsTrigger value="forces">{t("analyticsPage.tabs.forces")}</TabsTrigger>
+                  <TabsTrigger value="tendances">{t("analyticsPage.tabs.tendances")}</TabsTrigger>
+                  <TabsTrigger value="actions">{t("analyticsPage.tabs.actions")}</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="resume" className="mt-4">
@@ -231,7 +233,7 @@ export default function Analytics() {
                 <TabsContent value="forces" className="mt-4 space-y-4">
                   <div>
                     <h4 className="font-semibold text-emerald-700 dark:text-emerald-400 mb-3 flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4" /> Points forts
+                      <CheckCircle2 className="h-4 w-4" /> {t("analyticsPage.pointsForts")}
                     </h4>
                     <div className="grid gap-2">
                       {aiAnalysis.pointsForts.map((p, i) => (
@@ -245,7 +247,7 @@ export default function Analytics() {
                   <Separator />
                   <div>
                     <h4 className="font-semibold text-amber-700 dark:text-amber-400 mb-3 flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4" /> Points d'attention
+                      <AlertTriangle className="h-4 w-4" /> {t("analyticsPage.pointsAttention")}
                     </h4>
                     <div className="grid gap-2">
                       {aiAnalysis.pointsAttention.map((p, i) => (
@@ -285,7 +287,7 @@ export default function Analytics() {
                         <div className="flex-1">
                           <div className="font-medium text-sm">{r.action}</div>
                           <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                            <Target className="h-3 w-3" /> Impact : {r.impact}
+                            <Target className="h-3 w-3" /> {t("analyticsPage.impact", { impact: r.impact })}
                           </div>
                         </div>
                       </div>
@@ -303,7 +305,7 @@ export default function Analytics() {
           <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-primary/10 to-transparent rounded-bl-full" />
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardDescription>Taux de reponse</CardDescription>
+              <CardDescription>{t("analyticsPage.kpi.answerRate")}</CardDescription>
               <div className="p-2 rounded-lg bg-primary/10"><Target className="h-4 w-4 text-primary" /></div>
             </div>
             <CardTitle className="text-3xl">{isAnalyticsLoading ? <Skeleton className="h-9 w-20" /> : `${answerRate}%`}</CardTitle>
@@ -316,14 +318,14 @@ export default function Analytics() {
           <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-emerald-500/10 to-transparent rounded-bl-full" />
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardDescription>Total Repondus</CardDescription>
+              <CardDescription>{t("analyticsPage.kpi.answered")}</CardDescription>
               <div className="p-2 rounded-lg bg-emerald-500/10"><PhoneIncoming className="h-4 w-4 text-emerald-600" /></div>
             </div>
             <CardTitle className="text-3xl text-emerald-600">{isAnalyticsLoading ? <Skeleton className="h-9 w-20" /> : answeredCount}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-xs text-muted-foreground">
-              {totalCalls > 0 ? `${Math.round(answeredCount / totalCalls * 100)}% du total` : "Aucun appel"}
+              {totalCalls > 0 ? t("analyticsPage.pctOfTotal", { pct: Math.round(answeredCount / totalCalls * 100) }) : t("analyticsPage.noCall")}
             </div>
           </CardContent>
         </Card>
@@ -331,14 +333,14 @@ export default function Analytics() {
           <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-destructive/10 to-transparent rounded-bl-full" />
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardDescription>Total Manques</CardDescription>
+              <CardDescription>{t("analyticsPage.kpi.missed")}</CardDescription>
               <div className="p-2 rounded-lg bg-destructive/10"><PhoneMissed className="h-4 w-4 text-destructive" /></div>
             </div>
             <CardTitle className="text-3xl text-destructive">{isAnalyticsLoading ? <Skeleton className="h-9 w-20" /> : missedCount}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-xs text-muted-foreground">
-              {totalCalls > 0 ? `${Math.round(missedCount / totalCalls * 100)}% du total` : "Aucun appel"}
+              {totalCalls > 0 ? t("analyticsPage.pctOfTotal", { pct: Math.round(missedCount / totalCalls * 100) }) : t("analyticsPage.noCall")}
             </div>
           </CardContent>
         </Card>
@@ -346,14 +348,14 @@ export default function Analytics() {
           <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-amber-500/10 to-transparent rounded-bl-full" />
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardDescription>Messages Vocaux</CardDescription>
+              <CardDescription>{t("analyticsPage.kpi.voicemail")}</CardDescription>
               <div className="p-2 rounded-lg bg-amber-500/10"><Voicemail className="h-4 w-4 text-amber-600" /></div>
             </div>
             <CardTitle className="text-3xl text-amber-600">{isAnalyticsLoading ? <Skeleton className="h-9 w-20" /> : voicemailCount}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-xs text-muted-foreground">
-              {totalCalls > 0 ? `${Math.round(voicemailCount / totalCalls * 100)}% du total` : "Aucun appel"}
+              {totalCalls > 0 ? t("analyticsPage.pctOfTotal", { pct: Math.round(voicemailCount / totalCalls * 100) }) : t("analyticsPage.noCall")}
             </div>
           </CardContent>
         </Card>
@@ -364,8 +366,8 @@ export default function Analytics() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Volume horaire des appels</CardTitle>
-                <CardDescription>Repartition des appels par heure (Aujourd'hui)</CardDescription>
+                <CardTitle>{t("analyticsPage.hourlyTitle")}</CardTitle>
+                <CardDescription>{t("analyticsPage.hourlyDesc")}</CardDescription>
               </div>
               <Clock className="h-5 w-5 text-muted-foreground" />
             </div>
@@ -395,8 +397,8 @@ export default function Analytics() {
                       labelFormatter={(h) => `${h}h00`}
                     />
                     <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-                    <Area type="monotone" dataKey="answered" name="Repondus" stroke="hsl(142.1 76.2% 36.3%)" fillOpacity={1} fill="url(#answeredGrad)" strokeWidth={2} />
-                    <Area type="monotone" dataKey="missed" name="Manques" stroke="hsl(0 84.2% 60.2%)" fillOpacity={1} fill="url(#missedGrad)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="answered" name={t("analyticsPage.seriesAnswered")} stroke="hsl(142.1 76.2% 36.3%)" fillOpacity={1} fill="url(#answeredGrad)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="missed" name={t("analyticsPage.seriesMissed")} stroke="hsl(0 84.2% 60.2%)" fillOpacity={1} fill="url(#missedGrad)" strokeWidth={2} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -407,8 +409,8 @@ export default function Analytics() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Volume de la periode</CardTitle>
-                <CardDescription>Historique selon la periode selectionnee</CardDescription>
+                <CardTitle>{t("analyticsPage.periodVolumeTitle")}</CardTitle>
+                <CardDescription>{t("analyticsPage.periodVolumeDesc")}</CardDescription>
               </div>
               <BarChart3 className="h-5 w-5 text-muted-foreground" />
             </div>
@@ -427,9 +429,9 @@ export default function Analytics() {
                       contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: 'var(--radius)' }}
                     />
                     <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-                    <Bar dataKey="answered" name="Repondus" stackId="a" fill="hsl(142.1 76.2% 36.3%)" radius={[0, 0, 0, 0]} />
-                    <Bar dataKey="missed" name="Manques" stackId="a" fill="hsl(0 84.2% 60.2%)" />
-                    <Bar dataKey="voicemail" name="Messagerie" stackId="a" fill="hsl(43 96% 56%)" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="answered" name={t("analyticsPage.seriesAnswered")} stackId="a" fill="hsl(142.1 76.2% 36.3%)" radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="missed" name={t("analyticsPage.seriesMissed")} stackId="a" fill="hsl(0 84.2% 60.2%)" />
+                    <Bar dataKey="voicemail" name={t("analyticsPage.seriesVoicemail")} stackId="a" fill="hsl(43 96% 56%)" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -441,8 +443,8 @@ export default function Analytics() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardTitle>Sentiment des Appels</CardTitle>
-            <CardDescription>Repartition par ressenti</CardDescription>
+            <CardTitle>{t("analyticsPage.sentimentTitle")}</CardTitle>
+            <CardDescription>{t("analyticsPage.sentimentDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             {isDistributionLoading ? (
@@ -466,7 +468,7 @@ export default function Analytics() {
                       ))}
                     </Pie>
                     <RechartsTooltip
-                      formatter={(value: number) => [`${value} appels`]}
+                      formatter={(value: number) => [t("analyticsPage.callsUnit", { value })]}
                       contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: 'var(--radius)' }}
                     />
                     <Legend
@@ -486,8 +488,8 @@ export default function Analytics() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Comparatif Semaine</CardTitle>
-            <CardDescription>Evolution par rapport a la semaine passee</CardDescription>
+            <CardTitle>{t("analyticsPage.weekCompareTitle")}</CardTitle>
+            <CardDescription>{t("analyticsPage.weekCompareDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             {isWeeklyLoading ? (
@@ -497,7 +499,7 @@ export default function Analytics() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Volume d'appels</span>
+                    <span className="text-sm text-muted-foreground">{t("analyticsPage.callVolume")}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="font-bold">{weeklyReport.totalCalls}</span>
@@ -511,7 +513,7 @@ export default function Analytics() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Target className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Taux de reponse</span>
+                    <span className="text-sm text-muted-foreground">{t("analyticsPage.kpi.answerRate")}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="font-bold">{weeklyReport.answerRate}%</span>
@@ -525,7 +527,7 @@ export default function Analytics() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Duree moyenne</span>
+                    <span className="text-sm text-muted-foreground">{t("analyticsPage.avgDuration")}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="font-bold">{Math.floor(weeklyReport.avgDuration / 60)}m {weeklyReport.avgDuration % 60}s</span>
@@ -542,8 +544,8 @@ export default function Analytics() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Performance des Taches</CardTitle>
-            <CardDescription>Indicateurs d'efficacite</CardDescription>
+            <CardTitle>{t("analyticsPage.taskPerfTitle")}</CardTitle>
+            <CardDescription>{t("analyticsPage.taskPerfDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             {isTaskStatsLoading ? (
@@ -552,7 +554,7 @@ export default function Analytics() {
               <div className="space-y-5 mt-2">
                 <div>
                   <div className="flex justify-between text-sm mb-2">
-                    <span className="text-muted-foreground">Taux d'achevement</span>
+                    <span className="text-muted-foreground">{t("analyticsPage.completionRate")}</span>
                     <span className="font-bold">{taskStats.completionRate}%</span>
                   </div>
                   <Progress value={taskStats.completionRate} className="h-2" />
@@ -560,15 +562,15 @@ export default function Analytics() {
                 <div className="grid grid-cols-3 gap-3 pt-3 border-t border-border">
                   <div className="bg-emerald-50 dark:bg-emerald-950/30 p-3 rounded-lg text-center">
                     <span className="block text-xl font-bold text-emerald-600">{taskStats.completedTasks}</span>
-                    <span className="block text-[10px] text-muted-foreground mt-1">Terminees</span>
+                    <span className="block text-[10px] text-muted-foreground mt-1">{t("analyticsPage.completed")}</span>
                   </div>
                   <div className="bg-red-50 dark:bg-red-950/30 p-3 rounded-lg text-center">
                     <span className="block text-xl font-bold text-destructive">{taskStats.overdueTasks}</span>
-                    <span className="block text-[10px] text-muted-foreground mt-1">En retard</span>
+                    <span className="block text-[10px] text-muted-foreground mt-1">{t("analyticsPage.overdue")}</span>
                   </div>
                   <div className="bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg text-center">
                     <span className="block text-xl font-bold text-amber-600">{taskStats.highPriorityPending}</span>
-                    <span className="block text-[10px] text-muted-foreground mt-1">Urgentes</span>
+                    <span className="block text-[10px] text-muted-foreground mt-1">{t("analyticsPage.urgent")}</span>
                   </div>
                 </div>
               </div>
@@ -578,19 +580,19 @@ export default function Analytics() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><FolderKanban className="w-4 h-4 text-indigo-500" />Performance Projets</CardTitle>
-            <CardDescription>Suivi du portefeuille projets</CardDescription>
+            <CardTitle className="flex items-center gap-2"><FolderKanban className="w-4 h-4 text-indigo-500" />{t("analyticsPage.projectsPerfTitle")}</CardTitle>
+            <CardDescription>{t("analyticsPage.projectsPerfDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             {!projetsStats ? (
               <div className="space-y-4"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div>
             ) : projetsStats.total === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">Aucun projet créé.</p>
+              <p className="text-sm text-muted-foreground text-center py-4">{t("analyticsPage.noProject")}</p>
             ) : (
               <div className="space-y-5 mt-2">
                 <div>
                   <div className="flex justify-between text-sm mb-2">
-                    <span className="text-muted-foreground">Avancement moyen</span>
+                    <span className="text-muted-foreground">{t("analyticsPage.avgProgress")}</span>
                     <span className="font-bold">{projetsStats.avgProgress}%</span>
                   </div>
                   <Progress value={projetsStats.avgProgress} className="h-2" />
@@ -598,19 +600,19 @@ export default function Analytics() {
                 <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
                   <div className="bg-indigo-50 dark:bg-indigo-950/30 p-3 rounded-lg text-center">
                     <span className="block text-xl font-bold text-indigo-600">{projetsStats.active}</span>
-                    <span className="block text-[10px] text-muted-foreground mt-1">En cours</span>
+                    <span className="block text-[10px] text-muted-foreground mt-1">{t("analyticsPage.inProgress")}</span>
                   </div>
                   <div className="bg-emerald-50 dark:bg-emerald-950/30 p-3 rounded-lg text-center">
                     <span className="block text-xl font-bold text-emerald-600">{projetsStats.termine}</span>
-                    <span className="block text-[10px] text-muted-foreground mt-1">Terminés</span>
+                    <span className="block text-[10px] text-muted-foreground mt-1">{t("analyticsPage.completedProjects")}</span>
                   </div>
                   <div className={`p-3 rounded-lg text-center ${projetsStats.overdue > 0 ? "bg-red-50 dark:bg-red-950/30" : "bg-slate-50 dark:bg-slate-900/30"}`}>
                     <span className={`block text-xl font-bold ${projetsStats.overdue > 0 ? "text-destructive" : "text-slate-600"}`}>{projetsStats.overdue}</span>
-                    <span className="block text-[10px] text-muted-foreground mt-1">En retard</span>
+                    <span className="block text-[10px] text-muted-foreground mt-1">{t("analyticsPage.overdue")}</span>
                   </div>
                   <div className="bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg text-center">
                     <span className="block text-xl font-bold text-amber-600">{projetsStats.highPriority}</span>
-                    <span className="block text-[10px] text-muted-foreground mt-1">Haute priorité</span>
+                    <span className="block text-[10px] text-muted-foreground mt-1">{t("analyticsPage.highPriority")}</span>
                   </div>
                 </div>
               </div>
@@ -624,8 +626,8 @@ export default function Analytics() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Radar de Performance</CardTitle>
-                <CardDescription>Vue multi-axes des indicateurs cles</CardDescription>
+                <CardTitle>{t("analyticsPage.radarTitle")}</CardTitle>
+                <CardDescription>{t("analyticsPage.radarDesc")}</CardDescription>
               </div>
               <Shield className="h-5 w-5 text-muted-foreground" />
             </div>
@@ -637,7 +639,7 @@ export default function Analytics() {
                   <PolarGrid stroke="hsl(var(--border))" />
                   <PolarAngleAxis dataKey="subject" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
                   <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
-                  <Radar name="Performance" dataKey="value" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.2} strokeWidth={2} />
+                  <Radar name={t("analyticsPage.radarName")} dataKey="value" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.2} strokeWidth={2} />
                 </RadarChart>
               </ResponsiveContainer>
             </div>
@@ -648,8 +650,8 @@ export default function Analytics() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Repartition des Appels</CardTitle>
-                <CardDescription>Par statut et par direction</CardDescription>
+                <CardTitle>{t("analyticsPage.distributionTitle")}</CardTitle>
+                <CardDescription>{t("analyticsPage.distributionDesc")}</CardDescription>
               </div>
               <Phone className="h-5 w-5 text-muted-foreground" />
             </div>
@@ -660,7 +662,7 @@ export default function Analytics() {
             ) : (
               <div className="grid grid-cols-2 gap-6 h-[300px]">
                 <div className="flex flex-col items-center justify-center">
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Par Statut</h4>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t("analyticsPage.byStatus")}</h4>
                   <ResponsiveContainer width="100%" height="80%">
                     <PieChart>
                       <Pie
@@ -678,7 +680,7 @@ export default function Analytics() {
                         ))}
                       </Pie>
                       <RechartsTooltip
-                        formatter={(value: number) => [`${value} appels`]}
+                        formatter={(value: number) => [t("analyticsPage.callsUnit", { value })]}
                         contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: 'var(--radius)', fontSize: '12px' }}
                       />
                     </PieChart>
@@ -693,7 +695,7 @@ export default function Analytics() {
                   </div>
                 </div>
                 <div className="flex flex-col items-center justify-center">
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Par Direction</h4>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t("analyticsPage.byDirection")}</h4>
                   <ResponsiveContainer width="100%" height="80%">
                     <PieChart>
                       <Pie
@@ -711,7 +713,7 @@ export default function Analytics() {
                         ))}
                       </Pie>
                       <RechartsTooltip
-                        formatter={(value: number) => [`${value} appels`]}
+                        formatter={(value: number) => [t("analyticsPage.callsUnit", { value })]}
                         contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: 'var(--radius)', fontSize: '12px' }}
                       />
                     </PieChart>
@@ -736,14 +738,14 @@ export default function Analytics() {
 }
 
 const FIELD_LABELS: Record<string, string> = {
-  note: "Notes internes",
-  prospect_note: "Notes prospect",
-  email_body: "Corps d'e-mail",
-  call_note: "Notes d'appel",
-  task_description: "Descriptions de tâche",
-  message_content: "Messages",
-  project_description: "Descriptions de projet",
-  project_note: "Notes de projet",
+  note: "analyticsPage.fieldLabels.note",
+  prospect_note: "analyticsPage.fieldLabels.prospect_note",
+  email_body: "analyticsPage.fieldLabels.email_body",
+  call_note: "analyticsPage.fieldLabels.call_note",
+  task_description: "analyticsPage.fieldLabels.task_description",
+  message_content: "analyticsPage.fieldLabels.message_content",
+  project_description: "analyticsPage.fieldLabels.project_description",
+  project_note: "analyticsPage.fieldLabels.project_note",
 };
 
 function formatPct(rate: number): string {
@@ -751,6 +753,7 @@ function formatPct(rate: number): string {
 }
 
 function InlineSuggestMetricsCard() {
+  const { t } = useTranslation();
   const { data, isLoading } = useGetAiInlineSuggestMetrics(
     { days: 30 },
     { query: { queryKey: ["aiInlineSuggestMetrics", 30] } },
@@ -771,10 +774,10 @@ function InlineSuggestMetricsCard() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Sparkles className="h-4 w-4 text-primary" />
-          Suggestions IA en ligne — taux d'acceptation (30 jours)
+          {t("analyticsPage.inlineTitle")}
         </CardTitle>
         <CardDescription>
-          Mesure de l'utilité des propositions ghost-text : combien sont affichées et combien sont acceptées par Tab.
+          {t("analyticsPage.inlineDesc")}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -788,31 +791,31 @@ function InlineSuggestMetricsCard() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
               <div className="rounded-md border bg-muted/30 p-3">
-                <div className="text-xs text-muted-foreground">Affichées</div>
+                <div className="text-xs text-muted-foreground">{t("analyticsPage.shown")}</div>
                 <div className="text-lg font-semibold">{totals.shown}</div>
               </div>
               <div className="rounded-md border bg-muted/30 p-3">
-                <div className="text-xs text-muted-foreground">Acceptées</div>
+                <div className="text-xs text-muted-foreground">{t("analyticsPage.accepted")}</div>
                 <div className="text-lg font-semibold text-primary">{totals.accepted}</div>
               </div>
               <div className="rounded-md border bg-muted/30 p-3">
-                <div className="text-xs text-muted-foreground">Rejetées</div>
+                <div className="text-xs text-muted-foreground">{t("analyticsPage.dismissed")}</div>
                 <div className="text-lg font-semibold">{totals.dismissed}</div>
               </div>
               <div className="rounded-md border bg-muted/30 p-3">
-                <div className="text-xs text-muted-foreground">Taux d'acceptation</div>
+                <div className="text-xs text-muted-foreground">{t("analyticsPage.acceptanceRate")}</div>
                 <div className="text-lg font-semibold">{formatPct(totals.acceptanceRate)}</div>
               </div>
               <div className="rounded-md border bg-muted/30 p-3">
-                <div className="text-xs text-muted-foreground" title="Suggestions acceptées puis réécrites en grande partie">
-                  Réécrites après coup
+                <div className="text-xs text-muted-foreground" title={t("analyticsPage.rewrittenTitle")}>
+                  {t("analyticsPage.rewritten")}
                 </div>
                 <div className="text-lg font-semibold">{formatPct(totals.editRate)}</div>
               </div>
             </div>
 
             <div className="space-y-2">
-              <div className="text-xs font-medium text-muted-foreground">Tendance du taux d'acceptation (par jour)</div>
+              <div className="text-xs font-medium text-muted-foreground">{t("analyticsPage.trendTitle")}</div>
               {hasTrend ? (
                 <div className="h-48 w-full">
                   <ResponsiveContainer width="100%" height="100%">
@@ -828,13 +831,13 @@ function InlineSuggestMetricsCard() {
                       <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} width={44} />
                       <RechartsTooltip
                         formatter={(value: number, name: string) => {
-                          if (name === "ratePct") return [`${value}%`, "Taux d'acceptation"];
+                          if (name === "ratePct") return [`${value}%`, t("analyticsPage.acceptanceRate")];
                           return [value, name];
                         }}
                         labelFormatter={(label, payload) => {
                           const p = payload?.[0]?.payload as (typeof dailyChart)[number] | undefined;
                           if (!p) return label;
-                          return `${label} · ${p.accepted}/${p.shown} acceptées`;
+                          return `${label} · ${t("analyticsPage.acceptedOfShown", { accepted: p.accepted, shown: p.shown })}`;
                         }}
                         contentStyle={{ fontSize: 12 }}
                       />
@@ -852,24 +855,24 @@ function InlineSuggestMetricsCard() {
                 </div>
               ) : (
                 <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
-                  Pas assez de données pour tracer une tendance.
+                  {t("analyticsPage.noTrend")}
                 </div>
               )}
             </div>
 
             {byField.length === 0 ? (
               <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
-                Pas encore de suggestions affichées sur les 30 derniers jours.
+                {t("analyticsPage.noSuggestions")}
               </div>
             ) : (
               <div className="space-y-2">
                 {byField.map((row) => (
                   <div key={row.fieldType} className="space-y-1">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-medium">{FIELD_LABELS[row.fieldType] ?? row.fieldType}</span>
+                      <span className="font-medium">{FIELD_LABELS[row.fieldType] ? t(FIELD_LABELS[row.fieldType]) : row.fieldType}</span>
                       <span className="text-muted-foreground">
-                        {row.accepted} / {row.shown} acceptées · {formatPct(row.acceptanceRate)}
-                        {row.edited > 0 ? ` · ${formatPct(row.editRate)} réécrites` : ""}
+                        {t("analyticsPage.acceptedOfShown", { accepted: row.accepted, shown: row.shown })} · {formatPct(row.acceptanceRate)}
+                        {row.edited > 0 ? ` · ${t("analyticsPage.rewrittenShort", { pct: formatPct(row.editRate) })}` : ""}
                       </span>
                     </div>
                     <Progress value={Math.min(100, Math.round((row.acceptanceRate || 0) * 100))} className="h-2" />

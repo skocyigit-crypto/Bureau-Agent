@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -15,6 +16,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export default function TelechargerPage() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -49,20 +51,20 @@ export default function TelechargerPage() {
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === "accepted") {
         setIsInstalled(true);
-        toast({ title: "Installation réussie !", description: "Ajant Bureau a été installé sur votre appareil." });
+        toast({ title: t("telecharger.toast.successTitle"), description: t("telecharger.toast.successDesc") });
       }
       setDeferredPrompt(null);
     } else {
       toast({
-        title: "Installation manuelle",
+        title: t("telecharger.manual.title"),
         description: isIOS
-          ? "Safari : Partager (↑) > Sur l'écran d'accueil"
+          ? t("telecharger.manual.ios")
           : isAndroid
-          ? "Chrome : Menu (⋮) > Ajouter a l'écran d'accueil"
-          : "Chrome : Menu (⋮) > Installer | Safari : Partager > Ajouter au Dock",
+          ? t("telecharger.manual.android")
+          : t("telecharger.manual.other"),
       });
     }
-  }, [deferredPrompt, isIOS, isAndroid, toast]);
+  }, [deferredPrompt, isIOS, isAndroid, toast, t]);
 
   const appUrl = typeof window !== "undefined"
     ? `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/$/, "")}/`
@@ -72,19 +74,19 @@ export default function TelechargerPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Telecharger l'application</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("telecharger.title")}</h1>
           <p className="text-muted-foreground mt-1">
-            Installez Ajant Bureau sur votre ordinateur ou telephone.
+            {t("telecharger.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2">
           {isInstalled && (
             <Badge className="bg-emerald-100 text-emerald-700 border-0 gap-1.5 h-7">
               <CheckCircle2 className="w-3.5 h-3.5" />
-              Application installee
+              {t("telecharger.installed")}
             </Badge>
           )}
-          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+          <Button variant="outline" size="icon" title={t("telecharger.print")} onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
         </div>
       </div>
 
@@ -96,7 +98,7 @@ export default function TelechargerPage() {
           }`}
         >
           <Monitor className="w-4 h-4" />
-          Bureau (PC / Mac)
+          {t("telecharger.tabDesktop")}
         </button>
         <button
           onClick={() => setActiveTab("mobile")}
@@ -105,7 +107,7 @@ export default function TelechargerPage() {
           }`}
         >
           <Smartphone className="w-4 h-4" />
-          Mobile (iOS / Android)
+          {t("telecharger.tabMobile")}
         </button>
       </div>
 
@@ -120,21 +122,21 @@ export default function TelechargerPage() {
                     <Globe className="w-7 h-7 text-white" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg">Application Web (PWA)</CardTitle>
-                    <CardDescription>Installation directe depuis le navigateur</CardDescription>
+                    <CardTitle className="text-lg">{t("telecharger.pwa.title")}</CardTitle>
+                    <CardDescription>{t("telecharger.pwa.desc")}</CardDescription>
                   </div>
                 </div>
-                <Badge className="absolute top-4 right-4 bg-amber-500 text-white border-0 text-[10px]">Recommande</Badge>
+                <Badge className="absolute top-4 right-4 bg-amber-500 text-white border-0 text-[10px]">{t("telecharger.pwa.recommended")}</Badge>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    "Installation instantanee",
-                    "Mises a jour automatiques",
-                    "Fonctionne hors connexion",
-                    "Notifications natives",
-                    "Acces depuis le Dock/Bureau",
-                    "Aucun telechargement lourd",
+                    t("telecharger.pwaFeatures.f1"),
+                    t("telecharger.pwaFeatures.f2"),
+                    t("telecharger.pwaFeatures.f3"),
+                    t("telecharger.pwaFeatures.f4"),
+                    t("telecharger.pwaFeatures.f5"),
+                    t("telecharger.pwaFeatures.f6"),
                   ].map((f) => (
                     <div key={f} className="flex items-center gap-2 text-xs text-muted-foreground">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
@@ -146,8 +148,8 @@ export default function TelechargerPage() {
                 {isInstalled ? (
                   <div className="p-4 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl border border-emerald-200 dark:border-emerald-800 text-center">
                     <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-                    <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Application deja installee !</p>
-                    <p className="text-xs text-emerald-600/70 dark:text-emerald-400/60 mt-1">Vous utilisez Ajant Bureau en mode application.</p>
+                    <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">{t("telecharger.pwa.alreadyInstalledTitle")}</p>
+                    <p className="text-xs text-emerald-600/70 dark:text-emerald-400/60 mt-1">{t("telecharger.pwa.alreadyInstalledDesc")}</p>
                   </div>
                 ) : deferredPrompt ? (
                   <Button
@@ -156,7 +158,7 @@ export default function TelechargerPage() {
                     onClick={handlePwaInstall}
                   >
                     <Download className="w-5 h-5" />
-                    Installer maintenant
+                    {t("telecharger.pwa.installNow")}
                   </Button>
                 ) : (
                   <>
@@ -167,7 +169,7 @@ export default function TelechargerPage() {
                       onClick={handlePwaInstall}
                     >
                       <Info className="w-5 h-5" />
-                      Voir les instructions d'installation
+                      {t("telecharger.pwa.showInstructions")}
                     </Button>
                     <PwaInstructions isSafari={isSafari} isChrome={isChrome} />
                   </>
@@ -183,20 +185,20 @@ export default function TelechargerPage() {
                     <Laptop className="w-7 h-7 text-white" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg">Application native</CardTitle>
-                    <CardDescription>macOS et Windows</CardDescription>
+                    <CardTitle className="text-lg">{t("telecharger.native.title")}</CardTitle>
+                    <CardDescription>{t("telecharger.native.subtitle")}</CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    "Performance optimale",
-                    "Raccourcis clavier natifs",
-                    "Integration systeme complete",
-                    "Notifications systeme",
-                    "Demarrage automatique",
-                    "Menu systeme integre",
+                    t("telecharger.nativeFeatures.f1"),
+                    t("telecharger.nativeFeatures.f2"),
+                    t("telecharger.nativeFeatures.f3"),
+                    t("telecharger.nativeFeatures.f4"),
+                    t("telecharger.nativeFeatures.f5"),
+                    t("telecharger.nativeFeatures.f6"),
                   ].map((f) => (
                     <div key={f} className="flex items-center gap-2 text-xs text-muted-foreground">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
@@ -208,11 +210,10 @@ export default function TelechargerPage() {
                 <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-800">
                   <div className="flex items-center gap-2 mb-2">
                     <Clock className="w-4 h-4 text-blue-600" />
-                    <p className="text-sm font-semibold text-blue-700 dark:text-blue-400">Bientot disponible</p>
+                    <p className="text-sm font-semibold text-blue-700 dark:text-blue-400">{t("telecharger.native.soon")}</p>
                   </div>
                   <p className="text-xs text-blue-600/80 dark:text-blue-400/60">
-                    L'application native pour macOS et Windows est en cours de developpement.
-                    En attendant, utilisez l'installation PWA pour une experience quasi identique.
+                    {t("telecharger.native.soonDesc")}
                   </p>
                 </div>
 
@@ -240,14 +241,14 @@ export default function TelechargerPage() {
                 <Smartphone className="w-10 h-10 text-white" />
               </div>
               <div className="text-center lg:text-left flex-1">
-                <h2 className="text-xl font-bold">Ajant Bureau Mobile</h2>
+                <h2 className="text-xl font-bold">{t("telecharger.mobile.heroTitle")}</h2>
                 <p className="text-muted-foreground text-sm mt-1">
-                  Gerez vos appels, contacts, taches et messages depuis votre telephone.
+                  {t("telecharger.mobile.heroDesc")}
                 </p>
                 <div className="flex flex-wrap gap-2 mt-3 justify-center lg:justify-start">
                   <Badge variant="outline" className="gap-1"><Smartphone className="w-3 h-3" /> iOS 15+</Badge>
                   <Badge variant="outline" className="gap-1"><Smartphone className="w-3 h-3" /> Android 12+</Badge>
-                  <Badge variant="outline" className="gap-1"><Tablet className="w-3 h-3" /> Tablette</Badge>
+                  <Badge variant="outline" className="gap-1"><Tablet className="w-3 h-3" /> {t("telecharger.mobile.tablet")}</Badge>
                 </div>
               </div>
             </div>
@@ -262,21 +263,21 @@ export default function TelechargerPage() {
                     <Download className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <CardTitle>Installation PWA</CardTitle>
-                    <CardDescription>Directement sur votre ecran d'accueil</CardDescription>
+                    <CardTitle>{t("telecharger.mobile.pwaTitle")}</CardTitle>
+                    <CardDescription>{t("telecharger.mobile.pwaDesc")}</CardDescription>
                   </div>
                 </div>
-                <Badge className="absolute top-4 right-4 bg-emerald-500 text-white border-0 text-[10px]">Disponible</Badge>
+                <Badge className="absolute top-4 right-4 bg-emerald-500 text-white border-0 text-[10px]">{t("telecharger.mobile.available")}</Badge>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Ajoutez Ajant Bureau a votre ecran d'accueil en quelques secondes, sans passer par un store.
+                  {t("telecharger.mobile.pwaIntro")}
                 </p>
 
                 {isInstalled ? (
                   <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg border border-emerald-200 dark:border-emerald-800 text-center">
                     <CheckCircle2 className="w-6 h-6 text-emerald-500 mx-auto mb-1" />
-                    <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Deja installe !</p>
+                    <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">{t("telecharger.mobile.alreadyInstalled")}</p>
                   </div>
                 ) : deferredPrompt ? (
                   <Button
@@ -285,7 +286,7 @@ export default function TelechargerPage() {
                     onClick={handlePwaInstall}
                   >
                     <Download className="w-5 h-5" />
-                    Installer maintenant
+                    {t("telecharger.mobile.installNow")}
                   </Button>
                 ) : (
                   <>
@@ -293,14 +294,14 @@ export default function TelechargerPage() {
                       <div className="space-y-3 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border">
                         <p className="text-xs font-semibold flex items-center gap-2">
                           <Share className="w-4 h-4 text-blue-500" />
-                          Installation sur iPhone / iPad :
+                          {t("telecharger.mobile.iosTitle")}
                         </p>
                         <ol className="space-y-2">
                           {[
-                            { icon: <Globe className="w-4 h-4" />, text: "Ouvrez cette page dans Safari" },
-                            { icon: <Share className="w-4 h-4" />, text: "Appuyez sur le bouton Partager (↑)" },
-                            { icon: <PlusSquare className="w-4 h-4" />, text: "Selectionnez \"Sur l'écran d'accueil\"" },
-                            { icon: <CheckCircle2 className="w-4 h-4" />, text: "Appuyez sur \"Ajouter\"" },
+                            { icon: <Globe className="w-4 h-4" />, text: t("telecharger.mobile.iosStep1") },
+                            { icon: <Share className="w-4 h-4" />, text: t("telecharger.mobile.iosStep2") },
+                            { icon: <PlusSquare className="w-4 h-4" />, text: t("telecharger.mobile.iosStep3") },
+                            { icon: <CheckCircle2 className="w-4 h-4" />, text: t("telecharger.mobile.iosStep4") },
                           ].map((step, i) => (
                             <li key={i} className="flex items-center gap-3 text-xs text-muted-foreground">
                               <span className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 flex items-center justify-center text-[10px] font-bold shrink-0">{i + 1}</span>
@@ -315,14 +316,14 @@ export default function TelechargerPage() {
                       <div className="space-y-3 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border">
                         <p className="text-xs font-semibold flex items-center gap-2">
                           <MoreVertical className="w-4 h-4 text-green-500" />
-                          Installation sur Android :
+                          {t("telecharger.mobile.androidTitle")}
                         </p>
                         <ol className="space-y-2">
                           {[
-                            { text: "Ouvrez cette page dans Chrome" },
-                            { text: "Appuyez sur le menu ⋮ (3 points)" },
-                            { text: "Selectionnez \"Ajouter a l'écran d'accueil\"" },
-                            { text: "Confirmez l'installation" },
+                            { text: t("telecharger.mobile.androidStep1") },
+                            { text: t("telecharger.mobile.androidStep2") },
+                            { text: t("telecharger.mobile.androidStep3") },
+                            { text: t("telecharger.mobile.androidStep4") },
                           ].map((step, i) => (
                             <li key={i} className="flex items-center gap-3 text-xs text-muted-foreground">
                               <span className="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 flex items-center justify-center text-[10px] font-bold shrink-0">{i + 1}</span>
@@ -334,9 +335,9 @@ export default function TelechargerPage() {
                     )}
                     {!isIOS && !isAndroid && (
                       <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
-                        <p className="text-xs font-medium">Depuis votre telephone :</p>
+                        <p className="text-xs font-medium">{t("telecharger.mobile.fromPhone")}</p>
                         <p className="text-xs text-muted-foreground">
-                          Ouvrez <strong>{appUrl || "cette adresse"}</strong> dans le navigateur de votre telephone, puis suivez les instructions d'installation PWA de votre appareil.
+                          {t("telecharger.mobile.openPre")} <strong>{appUrl || t("telecharger.mobile.thisAddress")}</strong> {t("telecharger.mobile.openPost")}
                         </p>
                       </div>
                     )}
@@ -353,8 +354,8 @@ export default function TelechargerPage() {
                     <Smartphone className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <CardTitle>Application native mobile</CardTitle>
-                    <CardDescription>App Store et Google Play</CardDescription>
+                    <CardTitle>{t("telecharger.mobile.nativeTitle")}</CardTitle>
+                    <CardDescription>{t("telecharger.mobile.nativeSubtitle")}</CardDescription>
                   </div>
                 </div>
               </CardHeader>
@@ -362,11 +363,10 @@ export default function TelechargerPage() {
                 <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-800">
                   <div className="flex items-center gap-2 mb-2">
                     <Clock className="w-4 h-4 text-blue-600" />
-                    <p className="text-sm font-semibold text-blue-700 dark:text-blue-400">Publication en cours</p>
+                    <p className="text-sm font-semibold text-blue-700 dark:text-blue-400">{t("telecharger.mobile.publishing")}</p>
                   </div>
                   <p className="text-xs text-blue-600/80 dark:text-blue-400/60">
-                    L'application native est en cours de validation sur l'App Store et Google Play.
-                    En attendant, installez la version PWA qui offre les memes fonctionnalites.
+                    {t("telecharger.mobile.publishingDesc")}
                   </p>
                 </div>
 
@@ -391,10 +391,10 @@ export default function TelechargerPage() {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <QrCode className="w-5 h-5 text-amber-600" />
-                  Installer sur votre telephone
+                  {t("telecharger.qr.title")}
                 </CardTitle>
                 <CardDescription>
-                  Scannez ce QR code avec votre telephone pour ouvrir Ajant Bureau et l'installer en PWA.
+                  {t("telecharger.qr.desc")}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -403,13 +403,13 @@ export default function TelechargerPage() {
                     <QrCodeDisplay url={appUrl} />
                   </div>
                   <div className="space-y-3 flex-1">
-                    <p className="text-sm font-medium">Comment installer sur votre telephone :</p>
+                    <p className="text-sm font-medium">{t("telecharger.qr.howTitle")}</p>
                     <ol className="space-y-2 text-xs text-muted-foreground">
                       {[
-                        "Scannez le QR code avec l'appareil photo",
-                        "Ouvrez le lien dans votre navigateur",
-                        "Connectez-vous a votre compte",
-                        "Ajoutez a l'écran d'accueil (Partager > Ajouter)",
+                        t("telecharger.qr.step1"),
+                        t("telecharger.qr.step2"),
+                        t("telecharger.qr.step3"),
+                        t("telecharger.qr.step4"),
                       ].map((step, i) => (
                         <li key={i} className="flex items-start gap-2">
                           <span className="w-5 h-5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 flex items-center justify-center text-[10px] font-bold shrink-0">{i + 1}</span>
@@ -431,15 +431,15 @@ export default function TelechargerPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Pourquoi installer l'application ?</CardTitle>
+          <CardTitle className="text-base">{t("telecharger.why.title")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { icon: Zap, title: "Acces rapide", desc: "Lancez en un clic depuis votre bureau ou ecran d'accueil", color: "text-amber-600 bg-amber-100 dark:bg-amber-900/30" },
-              { icon: Wifi, title: "Mode hors ligne", desc: "Consultez vos données meme sans connexion Internet", color: "text-blue-600 bg-blue-100 dark:bg-blue-900/30" },
-              { icon: Bell, title: "Notifications", desc: "Recevez les alertes d'appels et taches en temps reel", color: "text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30" },
-              { icon: Shield, title: "Securite", desc: "Connexion securisee et donnees chiffrees", color: "text-purple-600 bg-purple-100 dark:bg-purple-900/30" },
+              { icon: Zap, title: t("telecharger.why.fast"), desc: t("telecharger.why.fastDesc"), color: "text-amber-600 bg-amber-100 dark:bg-amber-900/30" },
+              { icon: Wifi, title: t("telecharger.why.offline"), desc: t("telecharger.why.offlineDesc"), color: "text-blue-600 bg-blue-100 dark:bg-blue-900/30" },
+              { icon: Bell, title: t("telecharger.why.notif"), desc: t("telecharger.why.notifDesc"), color: "text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30" },
+              { icon: Shield, title: t("telecharger.why.security"), desc: t("telecharger.why.securityDesc"), color: "text-purple-600 bg-purple-100 dark:bg-purple-900/30" },
             ].map((item) => (
               <div key={item.title} className="text-center space-y-2 p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors">
                 <div className={`w-10 h-10 rounded-xl ${item.color} flex items-center justify-center mx-auto`}>
@@ -457,35 +457,36 @@ export default function TelechargerPage() {
 }
 
 function PwaInstructions({ isSafari, isChrome }: { isSafari: boolean; isChrome: boolean }) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
-      <p className="text-xs font-medium">Comment installer :</p>
+      <p className="text-xs font-medium">{t("telecharger.pwaInstr.howToInstall")}</p>
       <div className="space-y-1.5">
         {isChrome && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Globe className="w-3.5 h-3.5 shrink-0 text-blue-500" />
-            <span><strong>Chrome :</strong> Menu (⋮) &gt; Installer l'application</span>
+            <span><strong>Chrome :</strong> {t("telecharger.pwaInstr.chrome")}</span>
           </div>
         )}
         {isSafari && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Globe className="w-3.5 h-3.5 shrink-0 text-blue-500" />
-            <span><strong>Safari :</strong> Partager &gt; Ajouter au Dock</span>
+            <span><strong>Safari :</strong> {t("telecharger.pwaInstr.safari")}</span>
           </div>
         )}
         {!isChrome && !isSafari && (
           <>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Globe className="w-3.5 h-3.5 shrink-0 text-blue-500" />
-              <span><strong>Chrome :</strong> Menu (⋮) &gt; Installer l'application</span>
+              <span><strong>Chrome :</strong> {t("telecharger.pwaInstr.chrome")}</span>
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Globe className="w-3.5 h-3.5 shrink-0 text-blue-500" />
-              <span><strong>Safari :</strong> Partager &gt; Ajouter au Dock</span>
+              <span><strong>Safari :</strong> {t("telecharger.pwaInstr.safari")}</span>
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Globe className="w-3.5 h-3.5 shrink-0 text-blue-500" />
-              <span><strong>Edge :</strong> Menu (...) &gt; Applications &gt; Installer</span>
+              <span><strong>Edge :</strong> {t("telecharger.pwaInstr.edge")}</span>
             </div>
           </>
         )}

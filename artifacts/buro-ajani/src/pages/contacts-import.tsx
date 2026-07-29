@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
+import { useTranslation } from "@/i18n";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -33,19 +34,20 @@ export default function ContactsImportPage() {
   const [result, setResult] = useState<{ imported: number; skipped: number; errors: string[] } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const handleFile = useCallback((file: File) => {
-    if (!file.name.endsWith(".csv")) { toast({ title: "Fichier CSV requis", variant: "destructive" }); return; }
+    if (!file.name.endsWith(".csv")) { toast({ title: t("contactsImport.toast.csvRequired"), variant: "destructive" }); return; }
     const reader = new FileReader();
     reader.onload = e => {
       const text = e.target?.result as string;
       const parsed = parseCsv(text);
-      if (parsed.length === 0) { toast({ title: "Fichier vide ou invalide", variant: "destructive" }); return; }
+      if (parsed.length === 0) { toast({ title: t("contactsImport.toast.emptyFile"), variant: "destructive" }); return; }
       setRows(parsed);
       setResult(null);
     };
     reader.readAsText(file, "UTF-8");
-  }, []);
+  }, [t]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -62,11 +64,11 @@ export default function ContactsImportPage() {
         body: JSON.stringify({ rows }),
       });
       const d = await r.json();
-      if (!r.ok) { toast({ title: "Erreur", description: d.error, variant: "destructive" }); return; }
+      if (!r.ok) { toast({ title: t("contactsImport.toast.error"), description: d.error, variant: "destructive" }); return; }
       setResult(d);
-      toast({ title: `${d.imported} contact${d.imported !== 1 ? "s" : ""} importé${d.imported !== 1 ? "s" : ""}` });
+      toast({ title: t("contactsImport.importedCount", { count: d.imported }) });
     } catch {
-      toast({ title: "Erreur réseau", variant: "destructive" });
+      toast({ title: t("contactsImport.toast.networkError"), variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -85,10 +87,10 @@ export default function ContactsImportPage() {
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-5xl">
       <div className="flex items-center gap-3">
-        <Link href="/contacts"><Button variant="ghost" size="sm"><ArrowLeft className="w-4 h-4 mr-1" />Retour</Button></Link>
+        <Link href="/contacts"><Button variant="ghost" size="sm"><ArrowLeft className="w-4 h-4 mr-1" />{t("common.back")}</Button></Link>
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2"><Upload className="w-6 h-6 text-blue-500" />Import CSV — Contacts</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Importez jusqu'à 500 contacts depuis un fichier CSV</p>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><Upload className="w-6 h-6 text-blue-500" />{t("contactsImport.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{t("contactsImport.subtitle")}</p>
         </div>
       </div>
 
@@ -103,16 +105,16 @@ export default function ContactsImportPage() {
             >
               <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }} />
               <Upload className="w-10 h-10 mx-auto mb-3 text-muted-foreground/40" />
-              <p className="font-medium text-sm">Glissez votre fichier CSV ici</p>
-              <p className="text-xs text-muted-foreground mt-1">ou cliquez pour parcourir · Max 500 lignes</p>
-              <p className="text-xs text-muted-foreground mt-2">Séparateurs acceptés : virgule (,) ou point-virgule (;)</p>
+              <p className="font-medium text-sm">{t("contactsImport.dropHere")}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t("contactsImport.browseHint")}</p>
+              <p className="text-xs text-muted-foreground mt-2">{t("contactsImport.separators")}</p>
             </div>
           </CardContent>
         </Card>
 
         <div className="space-y-3">
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Colonnes reconnues</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">{t("contactsImport.recognizedColumns")}</CardTitle></CardHeader>
             <CardContent className="text-xs text-muted-foreground space-y-1">
               <p><strong>Prénom</strong> ou <code>prenom</code>, <code>firstName</code></p>
               <p><strong>Nom</strong> ou <code>nom</code>, <code>lastName</code></p>
@@ -124,7 +126,7 @@ export default function ContactsImportPage() {
             </CardContent>
           </Card>
           <Button variant="outline" size="sm" className="w-full" onClick={downloadSample}>
-            <Download className="w-4 h-4 mr-2" />Télécharger le modèle CSV
+            <Download className="w-4 h-4 mr-2" />{t("contactsImport.downloadTemplate")}
           </Button>
         </div>
       </div>
@@ -133,12 +135,12 @@ export default function ContactsImportPage() {
         <Card>
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm flex items-center gap-2"><FileText className="w-4 h-4" />Aperçu — {rows.length} ligne{rows.length !== 1 ? "s" : ""}</CardTitle>
+              <CardTitle className="text-sm flex items-center gap-2"><FileText className="w-4 h-4" />{t("contactsImport.previewTitle", { count: rows.length })}</CardTitle>
               <div className="flex gap-2">
-                <Button variant="ghost" size="sm" onClick={() => { setRows(null); if (fileRef.current) fileRef.current.value = ""; }}><X className="w-4 h-4 mr-1" />Annuler</Button>
+                <Button variant="ghost" size="sm" onClick={() => { setRows(null); if (fileRef.current) fileRef.current.value = ""; }}><X className="w-4 h-4 mr-1" />{t("common.cancel")}</Button>
                 <Button size="sm" disabled={loading} onClick={doImport}>
                   {loading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
-                  Importer {rows.length} contact{rows.length !== 1 ? "s" : ""}
+                  {t("contactsImport.importCount", { count: rows.length })}
                 </Button>
               </div>
             </div>
@@ -160,7 +162,7 @@ export default function ContactsImportPage() {
                 ))}
                 {rows.length > 10 && (
                   <TableRow>
-                    <TableCell colSpan={PREVIEW_COLS.length + 1} className="text-center text-xs text-muted-foreground py-2">… et {rows.length - 10} ligne{rows.length - 10 !== 1 ? "s" : ""} de plus</TableCell>
+                    <TableCell colSpan={PREVIEW_COLS.length + 1} className="text-center text-xs text-muted-foreground py-2">{t("contactsImport.moreRows", { count: rows.length - 10 })}</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -177,16 +179,16 @@ export default function ContactsImportPage() {
                 {result.skipped === 0 ? <CheckCircle className="w-6 h-6 text-emerald-500" /> : <AlertCircle className="w-6 h-6 text-amber-500" />}
               </div>
               <div className="flex-1">
-                <p className="font-semibold text-lg">{result.imported} contact{result.imported !== 1 ? "s" : ""} importé{result.imported !== 1 ? "s" : ""}</p>
-                <p className="text-sm text-muted-foreground">{result.skipped > 0 ? `${result.skipped} ligne${result.skipped !== 1 ? "s" : ""} ignorée${result.skipped !== 1 ? "s" : ""}` : "Tous les contacts ont été importés avec succès"}</p>
+                <p className="font-semibold text-lg">{t("contactsImport.importedCount", { count: result.imported })}</p>
+                <p className="text-sm text-muted-foreground">{result.skipped > 0 ? t("contactsImport.skippedCount", { count: result.skipped }) : t("contactsImport.allImported")}</p>
                 {result.errors.length > 0 && (
                   <div className="mt-3 space-y-1">
                     {result.errors.map((e, i) => <p key={i} className="text-xs text-amber-600 dark:text-amber-400">{e}</p>)}
                   </div>
                 )}
                 <div className="flex gap-2 mt-4">
-                  <Link href="/contacts"><Button>Voir les contacts</Button></Link>
-                  <Button variant="outline" onClick={() => { setRows(null); setResult(null); if (fileRef.current) fileRef.current.value = ""; }}>Nouvel import</Button>
+                  <Link href="/contacts"><Button>{t("contactsImport.viewContacts")}</Button></Link>
+                  <Button variant="outline" onClick={() => { setRows(null); setResult(null); if (fileRef.current) fileRef.current.value = ""; }}>{t("contactsImport.newImport")}</Button>
                 </div>
               </div>
             </div>

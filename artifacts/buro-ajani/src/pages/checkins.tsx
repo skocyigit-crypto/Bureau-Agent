@@ -33,20 +33,21 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import { useWorkspaceUser } from "@/components/workspace-user";
+import { useTranslation } from "@/i18n";
 
 const PAGE_SIZE = 15;
 
 const TYPE_META: Record<string, { label: string; icon: React.ElementType; color: string; bg: string }> = {
-  bureau: { label: "Bureau", icon: Building2, color: "text-blue-600", bg: "bg-blue-100" },
-  distance: { label: "Distance", icon: Wifi, color: "text-purple-600", bg: "bg-purple-100" },
-  terrain: { label: "Terrain", icon: Map, color: "text-emerald-600", bg: "bg-emerald-100" },
+  bureau: { label: "checkins.type.bureau", icon: Building2, color: "text-blue-600", bg: "bg-blue-100" },
+  distance: { label: "checkins.type.distance", icon: Wifi, color: "text-purple-600", bg: "bg-purple-100" },
+  terrain: { label: "checkins.type.terrain", icon: Map, color: "text-emerald-600", bg: "bg-emerald-100" },
 };
 
 const STATUS_META: Record<string, { label: string; color: string; dotColor: string }> = {
-  present: { label: "Present", color: "bg-emerald-100 text-emerald-700 border-emerald-200", dotColor: "bg-emerald-500" },
-  en_pause: { label: "En pause", color: "bg-amber-100 text-amber-700 border-amber-200", dotColor: "bg-amber-500" },
-  termine: { label: "Termine", color: "bg-slate-100 text-slate-600 border-slate-200", dotColor: "bg-slate-400" },
-  absent: { label: "Absent", color: "bg-red-100 text-red-700 border-red-200", dotColor: "bg-red-500" },
+  present: { label: "checkins.status.present", color: "bg-emerald-100 text-emerald-700 border-emerald-200", dotColor: "bg-emerald-500" },
+  en_pause: { label: "checkins.status.en_pause", color: "bg-amber-100 text-amber-700 border-amber-200", dotColor: "bg-amber-500" },
+  termine: { label: "checkins.status.termine", color: "bg-slate-100 text-slate-600 border-slate-200", dotColor: "bg-slate-400" },
+  absent: { label: "checkins.status.absent", color: "bg-red-100 text-red-700 border-red-200", dotColor: "bg-red-500" },
 };
 
 function formatDuration(minutes: number | null | undefined): string {
@@ -88,6 +89,9 @@ function LiveTimer({ startTime }: { startTime: string }) {
 }
 
 export default function CheckinsPage() {
+  const { t } = useTranslation();
+  const typeLabel = (k?: string | null) => { const m = k ? TYPE_META[k] : undefined; return m ? t(m.label) : (k ?? ""); };
+  const statusLabel = (k?: string | null) => { const m = k ? STATUS_META[k] : undefined; return m ? t(m.label) : (k ?? ""); };
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -167,12 +171,12 @@ export default function CheckinsPage() {
       }
     }, {
       onSuccess: () => {
-        toast({ title: "Pointage enregistre", description: `Arrivee enregistree - ${TYPE_META[newCheckin.type]?.label}` });
+        toast({ title: t("checkins.toast.checkedIn"), description: t("checkins.toast.checkedInDesc", { type: typeLabel(newCheckin.type) }) });
         setShowNewDialog(false);
         setNewCheckin({ type: "bureau", location: "", notes: "" });
         invalidateAll();
       },
-      onError: () => toast({ title: "Erreur", description: "Impossible d'enregistrer le pointage", variant: "destructive" }),
+      onError: () => toast({ title: t("checkins.toast.error"), description: t("checkins.toast.checkInError"), variant: "destructive" }),
     });
   };
 
@@ -184,10 +188,10 @@ export default function CheckinsPage() {
       data: { status: "termine", checkOutAt: now },
     }, {
       onSuccess: () => {
-        toast({ title: "Depart enregistre", description: "Bonne fin de journee !" });
+        toast({ title: t("checkins.toast.checkedOut"), description: t("checkins.toast.checkedOutDesc") });
         invalidateAll();
       },
-      onError: () => toast({ title: "Erreur", description: "Impossible d'enregistrer le depart", variant: "destructive" }),
+      onError: () => toast({ title: t("checkins.toast.error"), description: t("checkins.toast.checkOutError"), variant: "destructive" }),
     });
   };
 
@@ -198,10 +202,10 @@ export default function CheckinsPage() {
       data: { status: "en_pause" },
     }, {
       onSuccess: () => {
-        toast({ title: "Pause commencee", description: "Votre session est en pause" });
+        toast({ title: t("checkins.toast.paused"), description: t("checkins.toast.pausedDesc") });
         invalidateAll();
       },
-      onError: () => toast({ title: "Erreur", description: "Impossible de mettre en pause", variant: "destructive" }),
+      onError: () => toast({ title: t("checkins.toast.error"), description: t("checkins.toast.pauseError"), variant: "destructive" }),
     });
   };
 
@@ -213,27 +217,27 @@ export default function CheckinsPage() {
       data: { status: "present", breakMinutes: (pausedSession.breakMinutes || 0) + breakAdd },
     }, {
       onSuccess: () => {
-        toast({ title: "Reprise", description: "Votre session est active" });
+        toast({ title: t("checkins.toast.resumed"), description: t("checkins.toast.resumedDesc") });
         invalidateAll();
       },
-      onError: () => toast({ title: "Erreur", description: "Impossible de reprendre la session", variant: "destructive" }),
+      onError: () => toast({ title: t("checkins.toast.error"), description: t("checkins.toast.resumeError"), variant: "destructive" }),
     });
   };
 
   const handleDuplicate = async (id: number) => {
     const baseUrl = (import.meta.env.BASE_URL || "/").replace(/\/?$/, "/");
     const res = await fetch(`${baseUrl}api/checkins/${id}/duplicate`, { method: "POST", credentials: "include" });
-    if (res.ok) { toast({ title: "Pointage dupliqué" }); invalidateAll(); }
-    else toast({ title: "Erreur", description: "Impossible de dupliquer", variant: "destructive" });
+    if (res.ok) { toast({ title: t("checkins.toast.duplicated") }); invalidateAll(); }
+    else toast({ title: t("checkins.toast.error"), description: t("checkins.toast.duplicateError"), variant: "destructive" });
   };
 
   const handleDelete = (id: number) => {
     deleteCheckin.mutate({ id }, {
       onSuccess: () => {
-        toast({ title: "Pointage supprime" });
+        toast({ title: t("checkins.toast.deleted") });
         invalidateAll();
       },
-      onError: () => toast({ title: "Erreur", description: "Impossible de supprimer le pointage", variant: "destructive" }),
+      onError: () => toast({ title: t("checkins.toast.error"), description: t("checkins.toast.deleteError"), variant: "destructive" }),
     });
   };
 
@@ -244,17 +248,17 @@ export default function CheckinsPage() {
     if (!selectedIds.length) return;
     const baseUrl = import.meta.env.BASE_URL || "/";
     const res = await fetch(`${baseUrl}api/bulk/checkins/status`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids: selectedIds, status }) });
-    if (res.ok) { toast({ title: `${selectedIds.length} pointage(s) mis à jour` }); setSelectedIds([]); invalidateAll(); }
-    else toast({ title: "Erreur", variant: "destructive" });
+    if (res.ok) { toast({ title: t("checkins.toast.bulkUpdated", { count: selectedIds.length }) }); setSelectedIds([]); invalidateAll(); }
+    else toast({ title: t("checkins.toast.error"), variant: "destructive" });
   };
 
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
-    if (!(await confirmAction({ title: `Supprimer ${selectedIds.length} pointage(s) ?`, confirmLabel: "Supprimer", destructive: true }))) return;
+    if (!(await confirmAction({ title: t("checkins.confirmBulkDelete", { count: selectedIds.length }), confirmLabel: t("common.delete"), destructive: true }))) return;
     const baseUrl = import.meta.env.BASE_URL || "/";
     const res = await fetch(`${baseUrl}api/bulk/checkins/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids: selectedIds }) });
-    if (res.ok) { toast({ title: `${selectedIds.length} pointage(s) supprime(s)` }); setSelectedIds([]); invalidateAll(); }
-    else toast({ title: "Erreur", variant: "destructive" });
+    if (res.ok) { toast({ title: t("checkins.toast.bulkDeleted", { count: selectedIds.length }) }); setSelectedIds([]); invalidateAll(); }
+    else toast({ title: t("checkins.toast.error"), variant: "destructive" });
   };
 
   const handleGoogleSync = async () => {
@@ -269,16 +273,16 @@ export default function CheckinsPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setGoogleSync(p => ({ ...p, loading: false, error: data.error || "Erreur inconnue" }));
+        setGoogleSync(p => ({ ...p, loading: false, error: data.error || t("checkins.sync.unknownError") }));
         return;
       }
       setGoogleSync(p => ({ ...p, loading: false, result: data }));
       if (data.imported > 0) {
         invalidateAll();
-        toast({ title: "Synchronisation reussie", description: data.message });
+        toast({ title: t("checkins.sync.success"), description: data.message });
       }
     } catch (err: any) {
-      setGoogleSync(p => ({ ...p, loading: false, error: err.message || "Erreur reseau" }));
+      setGoogleSync(p => ({ ...p, loading: false, error: err.message || t("checkins.sync.networkError") }));
     }
   };
 
@@ -297,35 +301,35 @@ export default function CheckinsPage() {
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={Clock} variant="slate" size="md" /> Pointage & Presence</h1>
-          <p className="text-muted-foreground">Gerez vos heures d'arrivee, de depart et votre temps de travail.</p>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={Clock} variant="slate" size="md" /> {t("checkins.title")}</h1>
+          <p className="text-muted-foreground">{t("checkins.subtitle")}</p>
         </div>
         <div className="flex gap-2">
           <a href={`${(import.meta.env.BASE_URL || "/").replace(/\/$/, "")}/api/checkins/export/csv`} download>
-            <Button variant="outline" size="sm"><Download className="w-4 h-4 mr-2" />CSV</Button>
+            <Button variant="outline" size="sm"><Download className="w-4 h-4 mr-2" />{t("checkins.csv")}</Button>
           </a>
-          <Button variant="outline" size="sm" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+          <Button variant="outline" size="sm" title={t("checkins.print")} onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
           <Button variant="outline" className="border-blue-300 text-blue-700 hover:bg-blue-50" onClick={() => { setGoogleSync(p => ({ ...p, result: null, error: null })); setShowGoogleSyncDialog(true); }}>
-            <CloudDownload className="w-4 h-4 mr-2" /> Sync Google
+            <CloudDownload className="w-4 h-4 mr-2" /> {t("checkins.syncGoogle")}
           </Button>
           {!currentSession ? (
             <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => setShowNewDialog(true)}>
-              <LogIn className="w-4 h-4 mr-2" /> Pointer mon arrivee
+              <LogIn className="w-4 h-4 mr-2" /> {t("checkins.checkIn")}
             </Button>
           ) : (
             <>
               {activeSession && (
                 <Button variant="outline" className="border-amber-300 text-amber-700 hover:bg-amber-50" onClick={handlePause}>
-                  <Pause className="w-4 h-4 mr-2" /> Pause
+                  <Pause className="w-4 h-4 mr-2" /> {t("checkins.pause")}
                 </Button>
               )}
               {pausedSession && (
                 <Button variant="outline" className="border-emerald-300 text-emerald-700 hover:bg-emerald-50" onClick={handleResume}>
-                  <Play className="w-4 h-4 mr-2" /> Reprendre
+                  <Play className="w-4 h-4 mr-2" /> {t("checkins.resume")}
                 </Button>
               )}
               <Button variant="outline" className="border-red-300 text-red-700 hover:bg-red-50" onClick={handleCheckOut}>
-                <LogOut className="w-4 h-4 mr-2" /> Pointer mon depart
+                <LogOut className="w-4 h-4 mr-2" /> {t("checkins.checkOut")}
               </Button>
             </>
           )}
@@ -334,12 +338,12 @@ export default function CheckinsPage() {
 
       <Card className="overflow-hidden border-0 shadow-lg">
         <div className="relative h-28">
-          <img src={receptionImg} alt="Pointage et presence" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+          <img src={receptionImg} alt={t("checkins.heroAlt")} className="w-full h-full object-cover" loading="lazy" decoding="async" />
           <div className="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-800/50 to-transparent" />
           <div className="absolute inset-0 flex items-center px-6">
             <div className="text-white">
-              <h3 className="text-lg font-bold">Suivi du temps de travail</h3>
-              <p className="text-white/80 text-sm mt-1">Enregistrez vos arrivees, pauses et departs en un clic.</p>
+              <h3 className="text-lg font-bold">{t("checkins.heroTitle")}</h3>
+              <p className="text-white/80 text-sm mt-1">{t("checkins.heroSubtitle")}</p>
             </div>
           </div>
         </div>
@@ -355,28 +359,28 @@ export default function CheckinsPage() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-lg">Session en cours</span>
+                    <span className="font-semibold text-lg">{t("checkins.currentSession")}</span>
                     <Badge className={STATUS_META[currentSession.status]?.color}>
                       <span className={`w-2 h-2 rounded-full mr-1.5 ${STATUS_META[currentSession.status]?.dotColor}`} />
-                      {STATUS_META[currentSession.status]?.label}
+                      {statusLabel(currentSession.status)}
                     </Badge>
                     {currentSession.type && (
                       <Badge variant="outline" className="gap-1">
                         {(() => { const T = TYPE_META[currentSession.type]; return T ? <T.icon className={`w-3 h-3 ${T.color}`} /> : null; })()}
-                        {TYPE_META[currentSession.type]?.label}
+                        {typeLabel(currentSession.type)}
                       </Badge>
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    Arrivee a {formatTime(currentSession.checkInAt)}
-                    {currentSession.location && ` - ${currentSession.location}`}
-                    {currentSession.breakMinutes > 0 && ` - ${currentSession.breakMinutes}min de pause`}
+                    {t("checkins.arrivedAt", { time: formatTime(currentSession.checkInAt) })}
+                    {currentSession.location && t("checkins.locationSuffix", { location: currentSession.location })}
+                    {currentSession.breakMinutes > 0 && t("checkins.breakSuffix", { min: currentSession.breakMinutes })}
                   </p>
                 </div>
               </div>
               <div className="text-right">
                 <LiveTimer startTime={currentSession.checkInAt} />
-                <p className="text-xs text-muted-foreground mt-1">Temps ecoule</p>
+                <p className="text-xs text-muted-foreground mt-1">{t("checkins.elapsed")}</p>
               </div>
             </div>
           </CardContent>
@@ -388,7 +392,7 @@ export default function CheckinsPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Sessions</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("checkins.stats.sessions")}</p>
                 <p className="text-2xl font-bold mt-1">{statsData?.totalSessions ?? 0}</p>
               </div>
               <CalendarDays className="w-8 h-8 text-blue-500 opacity-50" />
@@ -399,7 +403,7 @@ export default function CheckinsPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Heures totales</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("checkins.stats.totalHours")}</p>
                 <p className="text-2xl font-bold mt-1">{formatDuration(statsData?.totalMinutes)}</p>
               </div>
               <Timer className="w-8 h-8 text-emerald-500 opacity-50" />
@@ -410,7 +414,7 @@ export default function CheckinsPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Moy. / session</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("checkins.stats.avgSession")}</p>
                 <p className="text-2xl font-bold mt-1">{formatDuration(statsData?.avgSessionMinutes)}</p>
               </div>
               <TrendingUp className="w-8 h-8 text-amber-500 opacity-50" />
@@ -421,7 +425,7 @@ export default function CheckinsPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Pause totale</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("checkins.stats.totalBreak")}</p>
                 <p className="text-2xl font-bold mt-1">{formatDuration(statsData?.totalBreakMinutes)}</p>
               </div>
               <Coffee className="w-8 h-8 text-orange-500 opacity-50" />
@@ -441,7 +445,7 @@ export default function CheckinsPage() {
                     <meta.icon className={`w-5 h-5 ${meta.color}`} />
                   </div>
                   <div>
-                    <p className="text-sm font-medium">{meta.label}</p>
+                    <p className="text-sm font-medium">{t(meta.label)}</p>
                     <p className="text-xl font-bold">{count ?? 0}</p>
                   </div>
                 </div>
@@ -453,54 +457,54 @@ export default function CheckinsPage() {
 
       <Tabs defaultValue="historique" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="historique">Historique</TabsTrigger>
-          <TabsTrigger value="equipe">Equipe</TabsTrigger>
+          <TabsTrigger value="historique">{t("checkins.tabs.history")}</TabsTrigger>
+          <TabsTrigger value="equipe">{t("checkins.tabs.team")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="historique" className="space-y-4">
           <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
             <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v); setPage(0); }}>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Tous les statuts" />
+                <SelectValue placeholder={t("checkins.filters.allStatuses")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="present">Present</SelectItem>
-                <SelectItem value="en_pause">En pause</SelectItem>
-                <SelectItem value="termine">Termine</SelectItem>
-                <SelectItem value="absent">Absent</SelectItem>
+                <SelectItem value="all">{t("checkins.filters.allStatuses")}</SelectItem>
+                <SelectItem value="present">{t("checkins.status.present")}</SelectItem>
+                <SelectItem value="en_pause">{t("checkins.status.en_pause")}</SelectItem>
+                <SelectItem value="termine">{t("checkins.status.termine")}</SelectItem>
+                <SelectItem value="absent">{t("checkins.status.absent")}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={filterType} onValueChange={(v) => { setFilterType(v); setPage(0); }}>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Tous les types" />
+                <SelectValue placeholder={t("checkins.filters.allTypes")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tous les types</SelectItem>
-                <SelectItem value="bureau">Bureau</SelectItem>
-                <SelectItem value="distance">Distance</SelectItem>
-                <SelectItem value="terrain">Terrain</SelectItem>
+                <SelectItem value="all">{t("checkins.filters.allTypes")}</SelectItem>
+                <SelectItem value="bureau">{t("checkins.type.bureau")}</SelectItem>
+                <SelectItem value="distance">{t("checkins.type.distance")}</SelectItem>
+                <SelectItem value="terrain">{t("checkins.type.terrain")}</SelectItem>
               </SelectContent>
             </Select>
             <Button variant="ghost" size="sm" onClick={invalidateAll}>
-              <RefreshCw className="w-4 h-4 mr-1" /> Actualiser
+              <RefreshCw className="w-4 h-4 mr-1" /> {t("checkins.refresh")}
             </Button>
           </div>
 
           {selectedIds.length > 0 && (
             <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg flex-wrap">
-              <span className="text-sm font-medium text-blue-700 dark:text-blue-300">{selectedIds.length} pointage(s) sélectionné(s)</span>
+              <span className="text-sm font-medium text-blue-700 dark:text-blue-300">{t("checkins.selectedCount", { count: selectedIds.length })}</span>
               <Select onValueChange={handleBulkStatus}>
-                <SelectTrigger className="h-7 text-xs w-36"><SelectValue placeholder="Changer statut" /></SelectTrigger>
+                <SelectTrigger className="h-7 text-xs w-36"><SelectValue placeholder={t("checkins.changeStatus")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="present">Présent</SelectItem>
-                  <SelectItem value="en_pause">En pause</SelectItem>
-                  <SelectItem value="termine">Terminé</SelectItem>
-                  <SelectItem value="absent">Absent</SelectItem>
+                  <SelectItem value="present">{t("checkins.status.present")}</SelectItem>
+                  <SelectItem value="en_pause">{t("checkins.status.en_pause")}</SelectItem>
+                  <SelectItem value="termine">{t("checkins.status.termine")}</SelectItem>
+                  <SelectItem value="absent">{t("checkins.status.absent")}</SelectItem>
                 </SelectContent>
               </Select>
-              <Button size="sm" variant="destructive" className="gap-1 h-7 text-xs" onClick={handleBulkDelete}><Trash2 className="w-3 h-3" />Supprimer la sélection</Button>
-              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setSelectedIds([])}>Annuler</Button>
+              <Button size="sm" variant="destructive" className="gap-1 h-7 text-xs" onClick={handleBulkDelete}><Trash2 className="w-3 h-3" />{t("checkins.deleteSelection")}</Button>
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setSelectedIds([])}>{t("common.cancel")}</Button>
             </div>
           )}
 
@@ -510,22 +514,22 @@ export default function CheckinsPage() {
                 <TableRow className="bg-muted/50">
                   <TableHead className="w-10"><Checkbox checked={checkinsList.length > 0 && selectedIds.length === checkinsList.length} onCheckedChange={toggleAll} /></TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => handleSort("employeeName")}>
-                    <span className="flex items-center">Employe{getSortIcon("employeeName")}</span>
+                    <span className="flex items-center">{t("checkins.columns.employee")}{getSortIcon("employeeName")}</span>
                   </TableHead>
-                  <TableHead>Type</TableHead>
+                  <TableHead>{t("checkins.columns.type")}</TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => handleSort("checkInAt")}>
-                    <span className="flex items-center">Date{getSortIcon("checkInAt")}</span>
+                    <span className="flex items-center">{t("checkins.columns.date")}{getSortIcon("checkInAt")}</span>
                   </TableHead>
-                  <TableHead>Arrivee</TableHead>
-                  <TableHead>Depart</TableHead>
+                  <TableHead>{t("checkins.columns.checkIn")}</TableHead>
+                  <TableHead>{t("checkins.columns.checkOut")}</TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => handleSort("totalMinutes")}>
-                    <span className="flex items-center">Duree{getSortIcon("totalMinutes")}</span>
+                    <span className="flex items-center">{t("checkins.columns.duration")}{getSortIcon("totalMinutes")}</span>
                   </TableHead>
-                  <TableHead>Pause</TableHead>
+                  <TableHead>{t("checkins.columns.break")}</TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => handleSort("status")}>
-                    <span className="flex items-center">Statut{getSortIcon("status")}</span>
+                    <span className="flex items-center">{t("checkins.columns.status")}{getSortIcon("status")}</span>
                   </TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="text-right">{t("checkins.columns.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -541,8 +545,8 @@ export default function CheckinsPage() {
                   <TableRow>
                     <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
                       <Clock className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                      <p className="font-medium">Aucun pointage enregistre</p>
-                      <p className="text-sm">Commencez par pointer votre arrivee</p>
+                      <p className="font-medium">{t("checkins.emptyTitle")}</p>
+                      <p className="text-sm">{t("checkins.emptyDesc")}</p>
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -559,7 +563,7 @@ export default function CheckinsPage() {
                         <TableCell>
                           <Badge variant="outline" className="gap-1">
                             <typeMeta.icon className={`w-3 h-3 ${typeMeta.color}`} />
-                            {typeMeta.label}
+                            {t(typeMeta.label)}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm">{formatDate(checkin.checkInAt)}</TableCell>
@@ -570,7 +574,7 @@ export default function CheckinsPage() {
                         <TableCell>
                           <Badge className={statusMeta.color}>
                             <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${statusMeta.dotColor}`} />
-                            {statusMeta.label}
+                            {t(statusMeta.label)}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
@@ -582,20 +586,20 @@ export default function CheckinsPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => { setSelectedCheckin(checkin); setShowDetailDialog(true); }}>
-                                <Eye className="w-4 h-4 mr-2" /> Voir les details
+                                <Eye className="w-4 h-4 mr-2" /> {t("checkins.viewDetails")}
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleDuplicate(checkin.id)}>
-                                <Copy className="w-4 h-4 mr-2" /> Dupliquer
+                                <Copy className="w-4 h-4 mr-2" /> {t("checkins.duplicate")}
                               </DropdownMenuItem>
                               <DropdownMenuItem className="text-indigo-600" onClick={async () => {
                                 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
-                                const res = await fetch(`${BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title: `Pointage - ${checkin.employeeName}`, status: "planifie", priority: "moyenne", progress: 0, notes: `Créé depuis un pointage de ${checkin.employeeName}` }) });
-                                if (res.ok) { toast({ title: "Projet créé" }); setLocation("/projets"); }
-                                else toast({ title: "Erreur", variant: "destructive" });
-                              }}><FolderKanban className="w-4 h-4 mr-2" />Créer un projet</DropdownMenuItem>
+                                const res = await fetch(`${BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title: t("checkins.projectTitle", { name: checkin.employeeName }), status: "planifie", priority: "moyenne", progress: 0, notes: t("checkins.projectNotes", { name: checkin.employeeName }) }) });
+                                if (res.ok) { toast({ title: t("checkins.toast.projectCreated") }); setLocation("/projets"); }
+                                else toast({ title: t("checkins.toast.error"), variant: "destructive" });
+                              }}><FolderKanban className="w-4 h-4 mr-2" />{t("checkins.createProject")}</DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(checkin.id)}>
-                                <Trash2 className="w-4 h-4 mr-2" /> Supprimer
+                                <Trash2 className="w-4 h-4 mr-2" /> {t("common.delete")}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -611,7 +615,7 @@ export default function CheckinsPage() {
           {(listData?.total ?? 0) > 0 && (
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
-                {listData?.total ?? 0} pointage(s) - Page {page + 1} sur {totalPages}
+                {t("checkins.pagination", { total: listData?.total ?? 0, page: page + 1, pages: totalPages })}
               </p>
               <div className="flex items-center gap-1">
                 <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(0)}>
@@ -634,15 +638,15 @@ export default function CheckinsPage() {
         <TabsContent value="equipe" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Equipe - Statut en temps reel</CardTitle>
-              <CardDescription>Visualisez qui est present, en pause ou absent</CardDescription>
+              <CardTitle className="text-base">{t("checkins.teamTitle")}</CardTitle>
+              <CardDescription>{t("checkins.teamDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {!currentData?.active?.length && !currentData?.paused?.length ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">Aucun employe connecte</p>
-                  <p className="text-sm">Personne n'est pointe actuellement</p>
+                  <p className="font-medium">{t("checkins.noEmployeeTitle")}</p>
+                  <p className="text-sm">{t("checkins.noEmployeeDesc")}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -655,14 +659,14 @@ export default function CheckinsPage() {
                         <div>
                           <p className="font-medium text-sm">{c.employeeName}</p>
                           <p className="text-xs text-muted-foreground">
-                            {TYPE_META[c.type]?.label} - Depuis {formatTime(c.checkInAt)}
-                            {c.location && ` - ${c.location}`}
+                            {t("checkins.sinceTime", { type: typeLabel(c.type), time: formatTime(c.checkInAt) })}
+                            {c.location && t("checkins.locationSuffix", { location: c.location })}
                           </p>
                         </div>
                       </div>
                       <Badge className={STATUS_META.present.color}>
                         <span className={`w-1.5 h-1.5 rounded-full mr-1.5 animate-pulse ${STATUS_META.present.dotColor}`} />
-                        Present
+                        {t("checkins.status.present")}
                       </Badge>
                     </div>
                   ))}
@@ -675,13 +679,13 @@ export default function CheckinsPage() {
                         <div>
                           <p className="font-medium text-sm">{c.employeeName}</p>
                           <p className="text-xs text-muted-foreground">
-                            {TYPE_META[c.type]?.label} - En pause depuis {formatTime(c.updatedAt)}
+                            {t("checkins.pausedSinceTime", { type: typeLabel(c.type), time: formatTime(c.updatedAt) })}
                           </p>
                         </div>
                       </div>
                       <Badge className={STATUS_META.en_pause.color}>
                         <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${STATUS_META.en_pause.dotColor}`} />
-                        En pause
+                        {t("checkins.status.en_pause")}
                       </Badge>
                     </div>
                   ))}
@@ -694,36 +698,36 @@ export default function CheckinsPage() {
             <Card className="bg-emerald-50 border-emerald-200">
               <CardContent className="p-4 text-center">
                 <p className="text-3xl font-bold text-emerald-700">{currentData?.active?.length ?? 0}</p>
-                <p className="text-sm text-emerald-600 mt-1">Presents</p>
+                <p className="text-sm text-emerald-600 mt-1">{t("checkins.presents")}</p>
               </CardContent>
             </Card>
             <Card className="bg-amber-50 border-amber-200">
               <CardContent className="p-4 text-center">
                 <p className="text-3xl font-bold text-amber-700">{currentData?.paused?.length ?? 0}</p>
-                <p className="text-sm text-amber-600 mt-1">En pause</p>
+                <p className="text-sm text-amber-600 mt-1">{t("checkins.status.en_pause")}</p>
               </CardContent>
             </Card>
             <Card className="bg-blue-50 border-blue-200">
               <CardContent className="p-4 text-center">
                 <p className="text-3xl font-bold text-blue-700">{(currentData?.active?.length ?? 0) + (currentData?.paused?.length ?? 0)}</p>
-                <p className="text-sm text-blue-600 mt-1">Total connectés</p>
+                <p className="text-sm text-blue-600 mt-1">{t("checkins.totalConnected")}</p>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
       </Tabs>
 
-      <AiSuggestionsCard page="pointage" title="Recommandations IA - Pointage" compact />
+      <AiSuggestionsCard page="pointage" title={t("checkins.aiTitle")} compact />
 
       <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Pointer mon arrivee</DialogTitle>
-            <DialogDescription>Enregistrez votre arrivee au travail</DialogDescription>
+            <DialogTitle>{t("checkins.newDialog.title")}</DialogTitle>
+            <DialogDescription>{t("checkins.newDialog.desc")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Type de travail</Label>
+              <Label>{t("checkins.newDialog.workType")}</Label>
               <div className="grid grid-cols-3 gap-2 mt-2">
                 {Object.entries(TYPE_META).map(([key, meta]) => (
                   <button
@@ -736,25 +740,25 @@ export default function CheckinsPage() {
                     }`}
                   >
                     <meta.icon className={`w-5 h-5 ${meta.color}`} />
-                    <span className="text-xs font-medium">{meta.label}</span>
+                    <span className="text-xs font-medium">{t(meta.label)}</span>
                   </button>
                 ))}
               </div>
             </div>
             <div>
-              <Label htmlFor="location">Lieu (optionnel)</Label>
+              <Label htmlFor="location">{t("checkins.newDialog.locationLabel")}</Label>
               <Input
                 id="location"
-                placeholder="Ex: Bureau Paris, Domicile, Client XYZ..."
+                placeholder={t("checkins.newDialog.locationPlaceholder")}
                 value={newCheckin.location}
                 onChange={e => setNewCheckin(p => ({ ...p, location: e.target.value }))}
               />
             </div>
             <div>
-              <Label htmlFor="notes">Notes (optionnel)</Label>
+              <Label htmlFor="notes">{t("checkins.newDialog.notesLabel")}</Label>
               <Textarea
                 id="notes"
-                placeholder="Commentaire sur votre journee..."
+                placeholder={t("checkins.newDialog.notesPlaceholder")}
                 value={newCheckin.notes}
                 onChange={e => setNewCheckin(p => ({ ...p, notes: e.target.value }))}
                 rows={2}
@@ -762,10 +766,10 @@ export default function CheckinsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowNewDialog(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setShowNewDialog(false)}>{t("common.cancel")}</Button>
             <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleCheckIn} disabled={createCheckin.isPending}>
               {createCheckin.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              <LogIn className="w-4 h-4 mr-2" /> Confirmer l'arrivee
+              <LogIn className="w-4 h-4 mr-2" /> {t("checkins.newDialog.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -774,61 +778,61 @@ export default function CheckinsPage() {
       <Dialog open={showDetailDialog} onOpenChange={(o) => { setShowDetailDialog(o); if (!o) setIsEditingCheckin(false); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Details du pointage</DialogTitle>
+            <DialogTitle>{t("checkins.detail.title")}</DialogTitle>
           </DialogHeader>
           {selectedCheckin && (
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs text-muted-foreground">Employe</Label>
+                  <Label className="text-xs text-muted-foreground">{t("checkins.detail.employee")}</Label>
                   <p className="font-medium">{selectedCheckin.employeeName}</p>
                 </div>
                 <div>
-                  <Label className="text-xs text-muted-foreground">Role</Label>
+                  <Label className="text-xs text-muted-foreground">{t("checkins.detail.role")}</Label>
                   <p>{selectedCheckin.employeeRole || "-"}</p>
                 </div>
                 <div>
-                  <Label className="text-xs text-muted-foreground">Type</Label>
-                  <p>{TYPE_META[selectedCheckin.type]?.label || selectedCheckin.type}</p>
+                  <Label className="text-xs text-muted-foreground">{t("checkins.detail.type")}</Label>
+                  <p>{typeLabel(selectedCheckin.type)}</p>
                 </div>
                 <div>
-                  <Label className="text-xs text-muted-foreground">Statut</Label>
+                  <Label className="text-xs text-muted-foreground">{t("checkins.detail.status")}</Label>
                   <Badge className={STATUS_META[selectedCheckin.status]?.color || ""}>
-                    {STATUS_META[selectedCheckin.status]?.label || selectedCheckin.status}
+                    {statusLabel(selectedCheckin.status)}
                   </Badge>
                 </div>
                 <div>
-                  <Label className="text-xs text-muted-foreground">Arrivee</Label>
-                  <p>{formatDate(selectedCheckin.checkInAt)} a {formatTime(selectedCheckin.checkInAt)}</p>
+                  <Label className="text-xs text-muted-foreground">{t("checkins.detail.checkIn")}</Label>
+                  <p>{t("checkins.detail.dateAtTime", { date: formatDate(selectedCheckin.checkInAt), time: formatTime(selectedCheckin.checkInAt) })}</p>
                 </div>
                 <div>
-                  <Label className="text-xs text-muted-foreground">Depart</Label>
-                  <p>{selectedCheckin.checkOutAt ? `${formatDate(selectedCheckin.checkOutAt)} a ${formatTime(selectedCheckin.checkOutAt)}` : "-"}</p>
+                  <Label className="text-xs text-muted-foreground">{t("checkins.detail.checkOut")}</Label>
+                  <p>{selectedCheckin.checkOutAt ? t("checkins.detail.dateAtTime", { date: formatDate(selectedCheckin.checkOutAt), time: formatTime(selectedCheckin.checkOutAt) }) : "-"}</p>
                 </div>
                 <div>
-                  <Label className="text-xs text-muted-foreground">Duree totale</Label>
+                  <Label className="text-xs text-muted-foreground">{t("checkins.detail.totalDuration")}</Label>
                   <p className="font-medium">{formatDuration(selectedCheckin.totalMinutes)}</p>
                 </div>
                 <div>
-                  <Label className="text-xs text-muted-foreground">Pause</Label>
+                  <Label className="text-xs text-muted-foreground">{t("checkins.detail.break")}</Label>
                   <p>{selectedCheckin.breakMinutes > 0 ? `${selectedCheckin.breakMinutes} min` : "-"}</p>
                 </div>
               </div>
               {selectedCheckin.location && (
                 <div>
-                  <Label className="text-xs text-muted-foreground">Lieu</Label>
+                  <Label className="text-xs text-muted-foreground">{t("checkins.detail.location")}</Label>
                   <p className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {selectedCheckin.location}</p>
                 </div>
               )}
               {selectedCheckin.notes && (
                 <div>
-                  <Label className="text-xs text-muted-foreground">Notes</Label>
+                  <Label className="text-xs text-muted-foreground">{t("checkins.detail.notes")}</Label>
                   <p className="text-sm">{selectedCheckin.notes}</p>
                 </div>
               )}
               {selectedCheckin.ipAddress && (
                 <div>
-                  <Label className="text-xs text-muted-foreground">Adresse IP</Label>
+                  <Label className="text-xs text-muted-foreground">{t("checkins.detail.ipAddress")}</Label>
                   <p className="text-xs font-mono text-muted-foreground">{selectedCheckin.ipAddress}</p>
                 </div>
               )}
@@ -837,25 +841,25 @@ export default function CheckinsPage() {
           <DialogFooter>
             {!isEditingCheckin ? (
               <>
-                <Button variant="outline" onClick={() => setShowDetailDialog(false)}>Fermer</Button>
+                <Button variant="outline" onClick={() => setShowDetailDialog(false)}>{t("common.close")}</Button>
                 <Button variant="outline" onClick={() => { setEditCheckinNotes(selectedCheckin?.notes || ""); setEditCheckinLocation(selectedCheckin?.location || ""); setIsEditingCheckin(true); }}>
-                  Modifier
+                  {t("common.edit")}
                 </Button>
               </>
             ) : (
               <>
-                <Button variant="outline" onClick={() => setIsEditingCheckin(false)}>Annuler</Button>
+                <Button variant="outline" onClick={() => setIsEditingCheckin(false)}>{t("common.cancel")}</Button>
                 <Button onClick={async () => {
                   try {
                     await updateCheckin.mutateAsync({ id: selectedCheckin.id, data: { notes: editCheckinNotes, location: editCheckinLocation } });
                     setSelectedCheckin((c: any) => ({ ...c, notes: editCheckinNotes, location: editCheckinLocation }));
                     setIsEditingCheckin(false);
-                    toast({ title: "Pointage mis à jour" });
+                    toast({ title: t("checkins.toast.updated") });
                   } catch {
-                    toast({ title: "Erreur", description: "Impossible de modifier le pointage", variant: "destructive" });
+                    toast({ title: t("checkins.toast.error"), description: t("checkins.toast.updateError"), variant: "destructive" });
                   }
                 }} disabled={updateCheckin.isPending}>
-                  {updateCheckin.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Enregistrer"}
+                  {updateCheckin.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : t("common.save")}
                 </Button>
               </>
             )}
@@ -863,12 +867,12 @@ export default function CheckinsPage() {
           {isEditingCheckin && selectedCheckin && (
             <div className="space-y-3 border-t pt-3">
               <div>
-                <Label className="text-xs text-muted-foreground">Lieu</Label>
-                <Input value={editCheckinLocation} onChange={e => setEditCheckinLocation(e.target.value)} placeholder="Lieu de travail" className="mt-1" />
+                <Label className="text-xs text-muted-foreground">{t("checkins.detail.location")}</Label>
+                <Input value={editCheckinLocation} onChange={e => setEditCheckinLocation(e.target.value)} placeholder={t("checkins.detail.locationPlaceholder")} className="mt-1" />
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">Notes</Label>
-                <Textarea value={editCheckinNotes} onChange={e => setEditCheckinNotes(e.target.value)} placeholder="Notes..." className="mt-1 min-h-[80px]" />
+                <Label className="text-xs text-muted-foreground">{t("checkins.detail.notes")}</Label>
+                <Textarea value={editCheckinNotes} onChange={e => setEditCheckinNotes(e.target.value)} placeholder={t("checkins.detail.notesPlaceholder")} className="mt-1 min-h-[80px]" />
               </div>
             </div>
           )}
@@ -880,18 +884,17 @@ export default function CheckinsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CloudDownload className="w-5 h-5 text-blue-600" />
-              Synchroniser Google Agenda
+              {t("checkins.sync.title")}
             </DialogTitle>
             <DialogDescription>
-              Importez vos heures de travail depuis Google Agenda vers le pointage.
-              Les evenements de la periode selectionnee seront regroupes par jour.
+              {t("checkins.sync.desc")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="sync-from">Date de debut</Label>
+                <Label htmlFor="sync-from">{t("checkins.sync.dateFrom")}</Label>
                 <Input
                   id="sync-from"
                   type="date"
@@ -901,7 +904,7 @@ export default function CheckinsPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="sync-to">Date de fin</Label>
+                <Label htmlFor="sync-to">{t("checkins.sync.dateTo")}</Label>
                 <Input
                   id="sync-to"
                   type="date"
@@ -915,9 +918,7 @@ export default function CheckinsPage() {
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <p className="text-sm text-blue-800">
-                <strong>Fonctionnement :</strong> Les evenements Google Agenda avec des horaires de debut et fin
-                seront regroupes par jour. Le premier evenement marque l'arrivee, le dernier marque le depart.
-                Les jours deja pointes seront ignores.
+                <strong>{t("checkins.sync.howLabel")}</strong> {t("checkins.sync.howText")}
               </p>
             </div>
 
@@ -935,9 +936,9 @@ export default function CheckinsPage() {
                   <div className="text-sm text-emerald-800">
                     <p className="font-medium">{googleSync.result.message}</p>
                     <div className="flex gap-4 mt-1 text-xs">
-                      <span>{googleSync.result.imported} importe(s)</span>
-                      <span>{googleSync.result.skipped} ignore(s)</span>
-                      {googleSync.result.errors > 0 && <span className="text-red-600">{googleSync.result.errors} erreur(s)</span>}
+                      <span>{t("checkins.sync.imported", { count: googleSync.result.imported })}</span>
+                      <span>{t("checkins.sync.skipped", { count: googleSync.result.skipped })}</span>
+                      {googleSync.result.errors > 0 && <span className="text-red-600">{t("checkins.sync.errors", { count: googleSync.result.errors })}</span>}
                     </div>
                   </div>
                 </div>
@@ -955,7 +956,7 @@ export default function CheckinsPage() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowGoogleSyncDialog(false)}>
-              {googleSync.result ? "Fermer" : "Annuler"}
+              {googleSync.result ? t("common.close") : t("common.cancel")}
             </Button>
             {!googleSync.result && (
               <Button
@@ -964,9 +965,9 @@ export default function CheckinsPage() {
                 disabled={googleSync.loading || !googleSync.dateFrom || !googleSync.dateTo}
               >
                 {googleSync.loading ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Synchronisation...</>
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t("checkins.sync.syncing")}</>
                 ) : (
-                  <><CloudDownload className="w-4 h-4 mr-2" /> Synchroniser</>
+                  <><CloudDownload className="w-4 h-4 mr-2" /> {t("checkins.sync.sync")}</>
                 )}
               </Button>
             )}

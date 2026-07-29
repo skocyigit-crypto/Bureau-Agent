@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useWorkspaceUser } from "@/components/workspace-user";
+import { useTranslation } from "@/i18n";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -44,10 +45,10 @@ interface KbAnswer {
 }
 
 const EXAMPLE_QUESTIONS = [
-  "Quelle est notre politique de congés ?",
-  "Quel est le délai de remboursement client ?",
-  "Que dit le contrat sur la résiliation ?",
-  "Quelles sont nos conditions de paiement ?",
+  "knowledgeBase.examples.q1",
+  "knowledgeBase.examples.q2",
+  "knowledgeBase.examples.q3",
+  "knowledgeBase.examples.q4",
 ];
 
 /** Insère les citations [1], [2] sous forme de pastilles cliquables dans le
@@ -55,6 +56,7 @@ const EXAMPLE_QUESTIONS = [
 function renderAnswerWithCitations(
   answer: string,
   onCite: (ref: number) => void,
+  citeLabel: (ref: number) => string,
 ): React.ReactNode {
   const parts = answer.split(/(\[\d+\])/g);
   return parts.map((part, i) => {
@@ -67,7 +69,7 @@ function renderAnswerWithCitations(
           type="button"
           onClick={() => onCite(ref)}
           className="mx-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary/10 px-1.5 text-xs font-semibold text-primary align-middle hover:bg-primary/20 transition-colors"
-          aria-label={`Voir la source ${ref}`}
+          aria-label={citeLabel(ref)}
         >
           {ref}
         </button>
@@ -78,6 +80,7 @@ function renderAnswerWithCitations(
 }
 
 export default function KnowledgeBasePage() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const { user } = useWorkspaceUser();
   const isAdmin = user.role === "super_admin" || user.role === "administrateur";
@@ -124,26 +127,29 @@ export default function KnowledgeBasePage() {
         remaining?: number;
         status?: KbStatus;
       };
-      if (!res.ok) throw new Error(data.error || "Échec de l'indexation");
+      if (!res.ok) throw new Error(data.error || t("knowledgeBase.toast.reindexFailed"));
       if (data.status) setStatus(data.status);
       toast({
-        title: "Indexation terminée",
-        description: `${data.documentsProcessed ?? 0} document(s) traité(s), ${
-          data.chunksWritten ?? 0
-        } extrait(s) indexé(s)${
-          data.remaining ? `. ${data.remaining} restant(s) — relancez pour continuer.` : "."
-        }`,
+        title: t("knowledgeBase.toast.reindexDone"),
+        description:
+          t("knowledgeBase.toast.reindexDoneDesc", {
+            docs: data.documentsProcessed ?? 0,
+            chunks: data.chunksWritten ?? 0,
+          }) +
+          (data.remaining
+            ? t("knowledgeBase.toast.remainingSuffix", { remaining: data.remaining })
+            : "."),
       });
     } catch (err) {
       toast({
         variant: "destructive",
-        title: "Indexation impossible",
-        description: err instanceof Error ? err.message : "Erreur inconnue",
+        title: t("knowledgeBase.toast.reindexError"),
+        description: err instanceof Error ? err.message : t("knowledgeBase.toast.unknownError"),
       });
     } finally {
       setReindexing(false);
     }
-  }, [toast]);
+  }, [toast, t]);
 
   const handleAsk = useCallback(
     async (q?: string) => {
@@ -160,19 +166,19 @@ export default function KnowledgeBasePage() {
           body: JSON.stringify({ question: text }),
         });
         const data = (await res.json()) as KbAnswer & { error?: string };
-        if (!res.ok) throw new Error(data.error || "Échec de la recherche");
+        if (!res.ok) throw new Error(data.error || t("knowledgeBase.toast.searchFailed"));
         setResult(data);
       } catch (err) {
         toast({
           variant: "destructive",
-          title: "Recherche impossible",
-          description: err instanceof Error ? err.message : "Erreur inconnue",
+          title: t("knowledgeBase.toast.searchError"),
+          description: err instanceof Error ? err.message : t("knowledgeBase.toast.unknownError"),
         });
       } finally {
         setAsking(false);
       }
     },
-    [question, toast],
+    [question, toast, t],
   );
 
   const scrollToSource = useCallback((ref: number) => {
@@ -200,9 +206,9 @@ export default function KnowledgeBasePage() {
             <BookOpen className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Base de connaissances</h1>
+            <h1 className="text-2xl font-bold tracking-tight">{t("knowledgeBase.title")}</h1>
             <p className="text-sm text-muted-foreground">
-              Posez une question, obtenez une réponse fondée sur vos documents, avec sources.
+              {t("knowledgeBase.subtitle")}
             </p>
           </div>
         </div>
@@ -218,7 +224,7 @@ export default function KnowledgeBasePage() {
             ) : (
               <RefreshCw className="mr-2 h-4 w-4" />
             )}
-            {reindexing ? "Indexation…" : "Indexer les documents"}
+            {reindexing ? t("knowledgeBase.indexing") : t("knowledgeBase.indexDocuments")}
           </Button>
         )}
       </div>
@@ -226,21 +232,21 @@ export default function KnowledgeBasePage() {
       {/* Statut */}
       <Card>
         <CardContent className="flex flex-wrap items-center gap-x-6 gap-y-3 p-4">
-          <StatItem icon={FileText} label="Documents indexables" value={status?.indexableDocuments ?? 0} />
-          <StatItem icon={Brain} label="Documents indexés" value={status?.indexedDocuments ?? 0} />
-          <StatItem icon={BookOpen} label="Extraits" value={status?.totalChunks ?? 0} />
+          <StatItem icon={FileText} label={t("knowledgeBase.stats.indexable")} value={status?.indexableDocuments ?? 0} />
+          <StatItem icon={Brain} label={t("knowledgeBase.stats.indexed")} value={status?.indexedDocuments ?? 0} />
+          <StatItem icon={BookOpen} label={t("knowledgeBase.stats.chunks")} value={status?.totalChunks ?? 0} />
           <div className="ml-auto flex items-center gap-2">
             {status && (
               <Badge variant={status.searchMode === "semantic" ? "default" : "secondary"}>
                 {status.searchMode === "semantic" ? (
                   <>
                     <Sparkles className="mr-1 h-3 w-3" />
-                    Recherche sémantique
+                    {t("knowledgeBase.searchSemantic")}
                   </>
                 ) : (
                   <>
                     <KeyRound className="mr-1 h-3 w-3" />
-                    Recherche par mots-clés
+                    {t("knowledgeBase.searchLexical")}
                   </>
                 )}
               </Badge>
@@ -253,10 +259,10 @@ export default function KnowledgeBasePage() {
         <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
-            Certains documents ne sont pas encore indexés.{" "}
+            {t("knowledgeBase.needsIndex")}{" "}
             {isAdmin
-              ? "Cliquez sur « Indexer les documents » pour les rendre interrogeables."
-              : "Demandez à un administrateur de lancer l'indexation."}
+              ? t("knowledgeBase.needsIndexAdmin")
+              : t("knowledgeBase.needsIndexUser")}
           </div>
         </div>
       )}
@@ -267,7 +273,7 @@ export default function KnowledgeBasePage() {
           <Textarea
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
-            placeholder="Ex. : Quelle est notre politique de congés payés ?"
+            placeholder={t("knowledgeBase.questionPlaceholder")}
             rows={3}
             maxLength={1000}
             className="resize-none"
@@ -280,7 +286,7 @@ export default function KnowledgeBasePage() {
           />
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs text-muted-foreground">
-              Astuce : Ctrl/Cmd + Entrée pour envoyer
+              {t("knowledgeBase.hint")}
             </span>
             <Button onClick={() => void handleAsk()} disabled={asking || !question.trim()}>
               {asking ? (
@@ -288,28 +294,31 @@ export default function KnowledgeBasePage() {
               ) : (
                 <Sparkles className="mr-2 h-4 w-4" />
               )}
-              {asking ? "Recherche…" : "Demander"}
+              {asking ? t("knowledgeBase.searching") : t("knowledgeBase.ask")}
             </Button>
           </div>
 
           {!hasIndex && !statusLoading && (
             <p className="text-sm text-muted-foreground">
-              Aucun document indexé pour le moment. Importez des documents puis lancez l'indexation.
+              {t("knowledgeBase.noIndex")}
             </p>
           )}
 
           {hasIndex && !result && !asking && (
             <div className="flex flex-wrap gap-2 pt-1">
-              {EXAMPLE_QUESTIONS.map((ex) => (
-                <button
-                  key={ex}
-                  type="button"
-                  onClick={() => void handleAsk(ex)}
-                  className="rounded-full border border-border bg-muted/40 px-3 py-1 text-xs text-muted-foreground hover:bg-muted transition-colors"
-                >
-                  {ex}
-                </button>
-              ))}
+              {EXAMPLE_QUESTIONS.map((ex) => {
+                const label = t(ex);
+                return (
+                  <button
+                    key={ex}
+                    type="button"
+                    onClick={() => void handleAsk(label)}
+                    className="rounded-full border border-border bg-muted/40 px-3 py-1 text-xs text-muted-foreground hover:bg-muted transition-colors"
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -320,7 +329,7 @@ export default function KnowledgeBasePage() {
         <Card>
           <CardContent className="flex items-center gap-3 p-6 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
-            Recherche dans vos documents…
+            {t("knowledgeBase.searchingDocs")}
           </CardContent>
         </Card>
       )}
@@ -330,26 +339,26 @@ export default function KnowledgeBasePage() {
           <CardContent className="space-y-4 p-5">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-primary" />
-              <span className="text-sm font-semibold">Réponse</span>
+              <span className="text-sm font-semibold">{t("knowledgeBase.answer")}</span>
               {result.grounded ? (
                 <Badge variant="secondary" className="text-xs">
-                  Fondée sur {result.sources.length} source(s)
+                  {t("knowledgeBase.groundedOn", { count: result.sources.length })}
                 </Badge>
               ) : (
                 <Badge variant="outline" className="text-xs">
-                  Hors périmètre
+                  {t("knowledgeBase.outOfScope")}
                 </Badge>
               )}
             </div>
 
             <div className="whitespace-pre-wrap text-sm leading-relaxed">
-              {renderAnswerWithCitations(result.answer, scrollToSource)}
+              {renderAnswerWithCitations(result.answer, scrollToSource, (ref) => t("knowledgeBase.viewSource", { ref }))}
             </div>
 
             {result.sources.length > 0 && (
               <div className="space-y-2 border-t pt-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Sources
+                  {t("knowledgeBase.sources")}
                 </p>
                 {result.sources.map((s) => (
                   <div

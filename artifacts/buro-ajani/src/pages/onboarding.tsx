@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Rocket, Check, ChevronRight, ChevronLeft, Download, Smartphone, Globe, Zap, ExternalLink, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useTranslation } from "@/i18n";
 
 interface IntegrationItem {
   id: string;
@@ -13,15 +14,15 @@ interface IntegrationItem {
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  crm: "CRM",
-  communication: "Communication",
-  gestion_projet: "Gestion de projet",
-  comptabilite: "Comptabilité",
-  documents: "Documents",
-  messagerie: "Messagerie",
-  marketing: "Marketing",
-  automatisation: "Automatisation",
-  support: "Support client",
+  crm: "onboarding.categories.crm",
+  communication: "onboarding.categories.communication",
+  gestion_projet: "onboarding.categories.gestion_projet",
+  comptabilite: "onboarding.categories.comptabilite",
+  documents: "onboarding.categories.documents",
+  messagerie: "onboarding.categories.messagerie",
+  marketing: "onboarding.categories.marketing",
+  automatisation: "onboarding.categories.automatisation",
+  support: "onboarding.categories.support",
 };
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -37,6 +38,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 export default function OnboardingPage({ onComplete }: { onComplete?: () => void }) {
+  const { t } = useTranslation();
   const [step, setStep] = useState(0);
   const [integrations, setIntegrations] = useState<IntegrationItem[]>([]);
   const [selectedIntegrations, setSelectedIntegrations] = useState<Set<string>>(new Set());
@@ -107,10 +109,10 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
   }, {});
 
   const steps = [
-    { title: "Bienvenue", icon: Rocket },
-    { title: "Installer", icon: Download },
-    { title: "Integrations", icon: Zap },
-    { title: "Prêt !", icon: Check },
+    { title: t("onboarding.steps.welcome"), icon: Rocket },
+    { title: t("onboarding.steps.install"), icon: Download },
+    { title: t("onboarding.steps.integrations"), icon: Zap },
+    { title: t("onboarding.steps.ready"), icon: Check },
   ];
 
   return (
@@ -141,24 +143,23 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
                   <Rocket className="w-10 h-10 text-amber-400" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold mb-2">Bienvenue sur Ajant Bureau !</h2>
+                  <h2 className="text-2xl font-bold mb-2">{t("onboarding.welcome.title")}</h2>
                   <p className="text-white/60 text-sm leading-relaxed max-w-md mx-auto">
-                    Configurons votre espace de travail en quelques etapes. 
-                    Nous allons vous aider a installer l'application et connecter vos outils préférés.
+                    {t("onboarding.welcome.desc")}
                   </p>
                 </div>
                 <div className="grid grid-cols-3 gap-4 pt-4">
                   <div className="bg-white/5 rounded-xl p-4 text-center">
                     <Smartphone className="w-8 h-8 text-blue-400 mx-auto mb-2" />
-                    <p className="text-xs text-white/60">Application mobile & desktop</p>
+                    <p className="text-xs text-white/60">{t("onboarding.welcome.feat1")}</p>
                   </div>
                   <div className="bg-white/5 rounded-xl p-4 text-center">
                     <Zap className="w-8 h-8 text-amber-400 mx-auto mb-2" />
-                    <p className="text-xs text-white/60">20+ integrations disponibles</p>
+                    <p className="text-xs text-white/60">{t("onboarding.welcome.feat2")}</p>
                   </div>
                   <div className="bg-white/5 rounded-xl p-4 text-center">
                     <Globe className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
-                    <p className="text-xs text-white/60">Accessible partout</p>
+                    <p className="text-xs text-white/60">{t("onboarding.welcome.feat3")}</p>
                   </div>
                 </div>
               </div>
@@ -167,9 +168,9 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
             {step === 1 && (
               <div className="space-y-6">
                 <div className="text-center">
-                  <h2 className="text-xl font-bold mb-2">Installer l'application</h2>
+                  <h2 className="text-xl font-bold mb-2">{t("onboarding.install.title")}</h2>
                   <p className="text-white/60 text-sm">
-                    Installez Ajant Bureau sur vos appareils pour un accès rapide.
+                    {t("onboarding.install.desc")}
                   </p>
                 </div>
 
@@ -180,11 +181,11 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
                         <Smartphone className="w-6 h-6 text-blue-400" />
                       </div>
                       <div className="flex-1">
-                        <h3 className="font-semibold text-sm">Application Desktop / Navigateur</h3>
+                        <h3 className="font-semibold text-sm">{t("onboarding.install.desktopTitle")}</h3>
                         <p className="text-white/50 text-xs mt-1">
                           {isPwaInstalled
-                            ? "L'application est installée sur cet appareil !"
-                            : "Installez comme une application native depuis votre navigateur."}
+                            ? t("onboarding.install.desktopInstalled")
+                            : t("onboarding.install.desktopDesc")}
                         </p>
                       </div>
                       {isPwaInstalled ? (
@@ -194,10 +195,10 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
                       ) : deferredPrompt ? (
                         <Button size="sm" onClick={handlePwaInstall} className="bg-blue-500 hover:bg-blue-600 text-white text-xs">
                           <Download className="w-3.5 h-3.5 mr-1" />
-                          Installer
+                          {t("onboarding.install.install")}
                         </Button>
                       ) : (
-                        <span className="text-white/30 text-xs">Via menu navigateur</span>
+                        <span className="text-white/30 text-xs">{t("onboarding.install.viaBrowser")}</span>
                       )}
                     </div>
                   </div>
@@ -208,9 +209,9 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
                         <Globe className="w-6 h-6 text-emerald-400" />
                       </div>
                       <div className="flex-1">
-                        <h3 className="font-semibold text-sm">Application Mobile (iOS / Android)</h3>
+                        <h3 className="font-semibold text-sm">{t("onboarding.install.mobileTitle")}</h3>
                         <p className="text-white/50 text-xs mt-1">
-                          Telechargez l'app mobile pour gerer votre bureau en déplacement.
+                          {t("onboarding.install.mobileDesc")}
                         </p>
                       </div>
                       <Button
@@ -220,7 +221,7 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
                         onClick={() => window.open(`${baseUrl}/telecharger`, "_blank")}
                       >
                         <ExternalLink className="w-3.5 h-3.5 mr-1" />
-                        Voir
+                        {t("onboarding.install.view")}
                       </Button>
                     </div>
                   </div>
@@ -231,9 +232,9 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
                         <Globe className="w-6 h-6 text-amber-400" />
                       </div>
                       <div className="flex-1">
-                        <h3 className="font-semibold text-sm">Acces Web</h3>
+                        <h3 className="font-semibold text-sm">{t("onboarding.install.webTitle")}</h3>
                         <p className="text-white/50 text-xs mt-1">
-                          Utilisez Ajant Bureau depuis n'importe quel navigateur, n'importe ou.
+                          {t("onboarding.install.webDesc")}
                         </p>
                       </div>
                       <div className="w-10 h-10 bg-emerald-500/20 rounded-full flex items-center justify-center">
@@ -248,9 +249,9 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
             {step === 2 && (
               <div className="space-y-6">
                 <div className="text-center">
-                  <h2 className="text-xl font-bold mb-2">Connectez vos outils</h2>
+                  <h2 className="text-xl font-bold mb-2">{t("onboarding.integrations.title")}</h2>
                   <p className="text-white/60 text-sm">
-                    Selectionnez les applications que vous utilisez déjà. Vous pourrez les configurer plus tard.
+                    {t("onboarding.integrations.desc")}
                   </p>
                 </div>
 
@@ -264,7 +265,7 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
                       <div key={category}>
                         <h3 className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-2 flex items-center gap-2">
                           <span>{CATEGORY_ICONS[category] || "📦"}</span>
-                          {CATEGORY_LABELS[category] || category}
+                          {CATEGORY_LABELS[category] ? t(CATEGORY_LABELS[category]) : category}
                         </h3>
                         <div className="grid grid-cols-2 gap-2">
                           {items.map(integration => {
@@ -298,7 +299,7 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
 
                 {selectedIntegrations.size > 0 && (
                   <p className="text-center text-amber-400 text-xs">
-                    {selectedIntegrations.size} integration{selectedIntegrations.size > 1 ? "s" : ""} selectionnee{selectedIntegrations.size > 1 ? "s" : ""}
+                    {t("onboarding.integrations.selectedCount", { count: selectedIntegrations.size })}
                   </p>
                 )}
               </div>
@@ -310,30 +311,29 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
                   <Check className="w-10 h-10 text-emerald-400" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold mb-2">Tout est prêt !</h2>
+                  <h2 className="text-2xl font-bold mb-2">{t("onboarding.ready.title")}</h2>
                   <p className="text-white/60 text-sm leading-relaxed max-w-md mx-auto">
-                    Votre espace Ajant Bureau est configure. Vous pouvez commencer a 
-                    gerer vos appels, contacts et taches dès maintenant.
+                    {t("onboarding.ready.desc")}
                   </p>
                 </div>
                 <div className="bg-white/5 rounded-xl p-5 text-left space-y-3">
-                  <h3 className="font-semibold text-sm text-amber-400">Prochaines etapes :</h3>
+                  <h3 className="font-semibold text-sm text-amber-400">{t("onboarding.ready.nextSteps")}</h3>
                   <ul className="space-y-2 text-sm text-white/70">
                     <li className="flex items-center gap-2">
                       <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center text-xs text-amber-400">1</div>
-                      Ajoutez vos premiers contacts
+                      {t("onboarding.ready.step1")}
                     </li>
                     <li className="flex items-center gap-2">
                       <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center text-xs text-amber-400">2</div>
-                      Configurez vos integrations dans les paramètres
+                      {t("onboarding.ready.step2")}
                     </li>
                     <li className="flex items-center gap-2">
                       <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center text-xs text-amber-400">3</div>
-                      Invitez vos collaborateurs
+                      {t("onboarding.ready.step3")}
                     </li>
                     <li className="flex items-center gap-2">
                       <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center text-xs text-amber-400">4</div>
-                      Explorez le tableau de bord et l'IA
+                      {t("onboarding.ready.step4")}
                     </li>
                   </ul>
                 </div>
@@ -344,24 +344,24 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
               {step > 0 ? (
                 <Button variant="ghost" onClick={() => setStep(s => s - 1)} className="text-white/60 hover:text-white">
                   <ChevronLeft className="w-4 h-4 mr-1" />
-                  Retour
+                  {t("common.back")}
                 </Button>
               ) : (
                 <Button variant="ghost" onClick={() => { handleComplete(); }} className="text-white/40 hover:text-white/60 text-xs">
                   <X className="w-3.5 h-3.5 mr-1" />
-                  Passer
+                  {t("onboarding.skip")}
                 </Button>
               )}
 
               {step < steps.length - 1 ? (
                 <Button onClick={() => setStep(s => s + 1)} className="bg-amber-500 hover:bg-amber-600 text-[#0f1729] font-semibold">
-                  Continuer
+                  {t("onboarding.continue")}
                   <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               ) : (
                 <Button onClick={handleComplete} disabled={completing} className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold">
                   {completing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Rocket className="w-4 h-4 mr-2" />}
-                  Commencer !
+                  {t("onboarding.start")}
                 </Button>
               )}
             </div>
