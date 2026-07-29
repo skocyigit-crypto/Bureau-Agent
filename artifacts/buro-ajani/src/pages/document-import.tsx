@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -52,41 +53,25 @@ interface ImportResult {
 
 type Step = "upload" | "processing" | "review" | "importing" | "done";
 
-const MODULE_LABELS: Record<string, string> = {
-  contacts: "Contacts",
-  taches: "Taches",
-  aucun: "Aucun",
-};
+const MODULE_KEYS = new Set(["contacts", "taches", "aucun"]);
 
 const MODULE_ICONS: Record<string, typeof Users> = {
   contacts: Users,
   taches: ListChecks,
 };
 
-const FIELD_LABELS: Record<string, string> = {
-  firstName: "Prenom",
-  lastName: "Nom",
-  email: "Email",
-  phone: "Telephone",
-  mobile: "Mobile",
-  company: "Societe",
-  category: "Categorie",
-  address: "Adresse",
-  notes: "Notes",
-  title: "Titre",
-  description: "Description",
-  status: "Statut",
-  priority: "Priorite",
-  dueDate: "Echeance",
-  assignedTo: "Assigne a",
-  name: "Nom",
-  subject: "Sujet",
-  content: "Contenu",
-};
+const FIELD_KEYS = new Set([
+  "firstName", "lastName", "email", "phone", "mobile", "company", "category",
+  "address", "notes", "title", "description", "status", "priority", "dueDate",
+  "assignedTo", "name", "subject", "content",
+]);
 
 export default function DocumentImportPage() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const moduleLabel = (m: string) => (MODULE_KEYS.has(m) ? t(`documentImport.modules.${m}`) : m);
+  const fieldLabel = (k: string) => (FIELD_KEYS.has(k) ? t(`documentImport.fields.${k}`) : k);
 
   const [step, setStep] = useState<Step>("upload");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -109,7 +94,7 @@ export default function DocumentImportPage() {
 
   const handleFile = useCallback(async (file: File) => {
     if (file.size > 25 * 1024 * 1024) {
-      toast({ title: "Fichier trop volumineux", description: "Maximum 25 Mo", variant: "destructive" });
+      toast({ title: t("documentImport.toast.fileTooLarge"), description: t("documentImport.toast.maxSize"), variant: "destructive" });
       return;
     }
     setSelectedFile(file);
@@ -131,7 +116,7 @@ export default function DocumentImportPage() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Erreur de traitement");
+        throw new Error(err.error || t("documentImport.toast.processError"));
       }
 
       const result: ProcessResult = await res.json();
@@ -142,11 +127,11 @@ export default function DocumentImportPage() {
       setStep("review");
       setProgress(100);
     } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+      toast({ title: t("documentImport.toast.error"), description: err.message, variant: "destructive" });
       setStep("upload");
       setProgress(0);
     }
-  }, [toast]);
+  }, [toast, t]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -173,7 +158,7 @@ export default function DocumentImportPage() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Erreur d'importation");
+        throw new Error(err.error || t("documentImport.toast.importError"));
       }
 
       const result: ImportResult = await res.json();
@@ -181,11 +166,11 @@ export default function DocumentImportPage() {
       setStep("done");
 
       toast({
-        title: "Importation terminee",
-        description: `${result.totalImported} enregistrement(s) importe(s)`,
+        title: t("documentImport.toast.importDone"),
+        description: t("documentImport.toast.importedCount", { count: result.totalImported }),
       });
     } catch (err: any) {
-      toast({ title: "Erreur d'importation", description: err.message, variant: "destructive" });
+      toast({ title: t("documentImport.toast.importError"), description: err.message, variant: "destructive" });
       setStep("review");
     }
   };
@@ -231,21 +216,21 @@ export default function DocumentImportPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Import Intelligent</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t("documentImport.title")}</h1>
           <p className="text-muted-foreground">
-            Deposez un fichier — l'IA l'analysera, vous montrera ce qu'elle a compris, et ecrira les donnees dans le bon module
+            {t("documentImport.subtitle")}
           </p>
         </div>
         {step !== "upload" && (
           <Button variant="outline" onClick={handleReset} className="gap-2">
-            <RotateCcw className="w-4 h-4" /> Recommencer
+            <RotateCcw className="w-4 h-4" /> {t("documentImport.restart")}
           </Button>
         )}
       </div>
 
       <div className="flex items-center gap-2 text-sm">
         {["upload", "processing", "review", "importing", "done"].map((s, i) => {
-          const labels = ["Fichier", "Analyse IA", "Verification", "Importation", "Termine"];
+          const labels = [t("documentImport.steps.file"), t("documentImport.steps.aiAnalysis"), t("documentImport.steps.review"), t("documentImport.steps.import"), t("documentImport.steps.done")];
           const isActive = step === s;
           const isPast = ["upload", "processing", "review", "importing", "done"].indexOf(step) > i;
           return (
@@ -283,9 +268,9 @@ export default function DocumentImportPage() {
                 <Upload className="w-10 h-10 text-violet-500" />
               </div>
               <div>
-                <h3 className="text-xl font-semibold">Deposez votre fichier ici</h3>
+                <h3 className="text-xl font-semibold">{t("documentImport.dropHere")}</h3>
                 <p className="text-muted-foreground mt-2">
-                  Excel, CSV, Word, PDF, images — l'IA detectera automatiquement le contenu
+                  {t("documentImport.dropHint")}
                 </p>
                 <div className="flex flex-wrap justify-center gap-2 mt-3">
                   {[".xlsx", ".csv", ".docx", ".pdf", ".txt"].map(ext => (
@@ -295,7 +280,7 @@ export default function DocumentImportPage() {
               </div>
               <Button onClick={() => fileInputRef.current?.click()} size="lg"
                 className="gap-2 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700">
-                <FileUp className="w-5 h-5" /> Choisir un fichier
+                <FileUp className="w-5 h-5" /> {t("documentImport.chooseFile")}
               </Button>
             </div>
           </CardContent>
@@ -309,10 +294,10 @@ export default function DocumentImportPage() {
               <Brain className="w-10 h-10 text-violet-500 animate-pulse" />
             </div>
             <div>
-              <h3 className="text-xl font-semibold">L'IA analyse votre fichier...</h3>
+              <h3 className="text-xl font-semibold">{t("documentImport.analyzing")}</h3>
               <p className="text-muted-foreground mt-1">{selectedFile?.name}</p>
               <p className="text-sm text-muted-foreground mt-2">
-                Lecture du contenu, detection des colonnes, extraction des données, verification des doublons...
+                {t("documentImport.analyzingHint")}
               </p>
             </div>
             <Progress value={progress} className="max-w-md mx-auto" />
@@ -325,7 +310,7 @@ export default function DocumentImportPage() {
           <Card className="border-violet-500/30 bg-violet-500/5">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <Brain className="w-5 h-5 text-violet-500" /> Ce que l'IA a compris
+                <Brain className="w-5 h-5 text-violet-500" /> {t("documentImport.understoodTitle")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -334,25 +319,25 @@ export default function DocumentImportPage() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="p-3 rounded-lg bg-background border">
                   <p className="text-2xl font-bold">{processResult.totalRows}</p>
-                  <p className="text-xs text-muted-foreground">Enregistrements detectes</p>
+                  <p className="text-xs text-muted-foreground">{t("documentImport.recordsDetected")}</p>
                 </div>
                 <div className="p-3 rounded-lg bg-background border">
                   <p className="text-2xl font-bold text-emerald-600">{processResult.validRows}</p>
-                  <p className="text-xs text-muted-foreground">Valides</p>
+                  <p className="text-xs text-muted-foreground">{t("documentImport.valid")}</p>
                 </div>
                 <div className="p-3 rounded-lg bg-background border">
                   <p className="text-2xl font-bold text-red-500">{processResult.errorRows}</p>
-                  <p className="text-xs text-muted-foreground">Avec erreurs</p>
+                  <p className="text-xs text-muted-foreground">{t("documentImport.withErrors")}</p>
                 </div>
                 <div className="p-3 rounded-lg bg-background border">
                   <p className="text-2xl font-bold text-amber-500">{processResult.rows.filter(r => r.duplicateOf).length}</p>
-                  <p className="text-xs text-muted-foreground">Doublons</p>
+                  <p className="text-xs text-muted-foreground">{t("documentImport.duplicates")}</p>
                 </div>
               </div>
 
               {processResult.columns.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-medium mb-2">Colonnes detectees:</h4>
+                  <h4 className="text-sm font-medium mb-2">{t("documentImport.detectedColumns")}</h4>
                   <div className="flex flex-wrap gap-1">
                     {processResult.columns.map(col => (
                       <Badge key={col} variant="secondary" className="text-xs">{col}</Badge>
@@ -365,7 +350,7 @@ export default function DocumentImportPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Module de destination</CardTitle>
+              <CardTitle className="text-base">{t("documentImport.targetModuleTitle")}</CardTitle>
               <CardDescription>
                 {processResult.suggestedModuleReason}
               </CardDescription>
@@ -374,11 +359,11 @@ export default function DocumentImportPage() {
               <div className="flex items-center gap-4">
                 <Select value={targetModule} onValueChange={setTargetModule}>
                   <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Module cible" />
+                    <SelectValue placeholder={t("documentImport.targetModulePlaceholder")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="contacts">Contacts</SelectItem>
-                    <SelectItem value="taches">Taches</SelectItem>
+                    <SelectItem value="contacts">{t("documentImport.modules.contacts")}</SelectItem>
+                    <SelectItem value="taches">{t("documentImport.modules.taches")}</SelectItem>
                   </SelectContent>
                 </Select>
                 <div className="flex items-center gap-2">
@@ -387,7 +372,7 @@ export default function DocumentImportPage() {
                     checked={skipDuplicates}
                     onCheckedChange={(v) => setSkipDuplicates(v as boolean)}
                   />
-                  <label htmlFor="skipDuplicates" className="text-sm">Ignorer les doublons</label>
+                  <label htmlFor="skipDuplicates" className="text-sm">{t("documentImport.skipDuplicates")}</label>
                 </div>
               </div>
             </CardContent>
@@ -396,11 +381,11 @@ export default function DocumentImportPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="text-base">Donnees a importer</CardTitle>
-                <CardDescription>{selectedRows.size} sur {processResult.rows.length} selectionne(s)</CardDescription>
+                <CardTitle className="text-base">{t("documentImport.dataToImport")}</CardTitle>
+                <CardDescription>{t("documentImport.selectedCount", { selected: selectedRows.size, total: processResult.rows.length })}</CardDescription>
               </div>
               <Button variant="outline" size="sm" onClick={toggleAllRows}>
-                {selectedRows.size === processResult.rows.filter(r => r.errors.length === 0).length ? "Tout deselectionner" : "Tout selectionner"}
+                {selectedRows.size === processResult.rows.filter(r => r.errors.length === 0).length ? t("documentImport.deselectAll") : t("documentImport.selectAll")}
               </Button>
             </CardHeader>
             <CardContent>
@@ -415,7 +400,7 @@ export default function DocumentImportPage() {
                     const displayFields = Object.entries(row.fields).slice(0, 3);
                     const mainLabel = row.fields.firstName
                       ? `${row.fields.firstName} ${row.fields.lastName || ""}`.trim()
-                      : row.fields.title || row.fields.name || row.fields.lastName || `Ligne ${row.rowIndex + 1}`;
+                      : row.fields.title || row.fields.name || row.fields.lastName || t("documentImport.rowFallback", { n: row.rowIndex + 1 });
 
                     return (
                       <div key={row.rowIndex}
@@ -434,13 +419,13 @@ export default function DocumentImportPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <span className="font-medium text-sm truncate">{mainLabel}</span>
-                              {hasErrors && <Badge variant="destructive" className="text-[10px]">Erreur</Badge>}
-                              {isDuplicate && <Badge variant="secondary" className="text-[10px] bg-amber-500/10 text-amber-600">Doublon</Badge>}
+                              {hasErrors && <Badge variant="destructive" className="text-[10px]">{t("documentImport.error")}</Badge>}
+                              {isDuplicate && <Badge variant="secondary" className="text-[10px] bg-amber-500/10 text-amber-600">{t("documentImport.duplicate")}</Badge>}
                             </div>
                             <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
                               {displayFields.map(([key, val]) => (
                                 <span key={key} className="text-xs text-muted-foreground">
-                                  {FIELD_LABELS[key] || key}: <span className="text-foreground">{String(val || "—")}</span>
+                                  {fieldLabel(key)}: <span className="text-foreground">{String(val || "—")}</span>
                                 </span>
                               ))}
                             </div>
@@ -455,7 +440,7 @@ export default function DocumentImportPage() {
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 pt-3 text-xs">
                               {Object.entries(row.fields).map(([key, val]) => (
                                 <div key={key} className="p-2 rounded bg-background border">
-                                  <span className="text-muted-foreground">{FIELD_LABELS[key] || key}</span>
+                                  <span className="text-muted-foreground">{fieldLabel(key)}</span>
                                   <p className="font-medium mt-0.5">{String(val || "—")}</p>
                                 </div>
                               ))}
@@ -481,7 +466,7 @@ export default function DocumentImportPage() {
                             {row.duplicateOf && (
                               <div className="mt-2 p-2 rounded bg-amber-500/10 text-xs text-amber-700">
                                 <Info className="w-3 h-3 inline mr-1" />
-                                Doublon de: {row.duplicateOf.name} (ID: {row.duplicateOf.id})
+                                {t("documentImport.duplicateOf", { name: row.duplicateOf.name, id: row.duplicateOf.id })}
                               </div>
                             )}
                           </div>
@@ -496,7 +481,7 @@ export default function DocumentImportPage() {
 
           <div className="flex items-center justify-between">
             <Button variant="outline" onClick={handleReset} className="gap-2">
-              <ArrowLeft className="w-4 h-4" /> Annuler
+              <ArrowLeft className="w-4 h-4" /> {t("documentImport.cancel")}
             </Button>
             <Button
               onClick={handleImport}
@@ -505,7 +490,7 @@ export default function DocumentImportPage() {
               className="gap-2 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700"
             >
               <Download className="w-5 h-5" />
-              Importer {selectedRows.size} enregistrement(s) dans {MODULE_LABELS[targetModule] || targetModule}
+              {t("documentImport.importInto", { count: selectedRows.size, module: moduleLabel(targetModule) })}
             </Button>
           </div>
         </div>
@@ -516,9 +501,9 @@ export default function DocumentImportPage() {
           <CardContent className="p-12 text-center space-y-6">
             <Loader2 className="w-16 h-16 mx-auto text-emerald-500 animate-spin" />
             <div>
-              <h3 className="text-xl font-semibold">Importation en cours...</h3>
+              <h3 className="text-xl font-semibold">{t("documentImport.importing")}</h3>
               <p className="text-muted-foreground mt-1">
-                Ecriture de {selectedRows.size} enregistrement(s) dans {MODULE_LABELS[targetModule]}
+                {t("documentImport.importingInto", { count: selectedRows.size, module: moduleLabel(targetModule) })}
               </p>
             </div>
           </CardContent>
@@ -530,20 +515,20 @@ export default function DocumentImportPage() {
           <Card className="border-emerald-500/30 bg-emerald-500/5">
             <CardContent className="p-8 text-center space-y-4">
               <CheckCircle2 className="w-16 h-16 mx-auto text-emerald-500" />
-              <h3 className="text-2xl font-bold">Importation terminee!</h3>
+              <h3 className="text-2xl font-bold">{t("documentImport.doneTitle")}</h3>
 
               <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
                 <div className="p-3 rounded-lg bg-background border">
                   <p className="text-2xl font-bold text-emerald-600">{importResult.totalImported}</p>
-                  <p className="text-xs text-muted-foreground">Importes</p>
+                  <p className="text-xs text-muted-foreground">{t("documentImport.imported")}</p>
                 </div>
                 <div className="p-3 rounded-lg bg-background border">
                   <p className="text-2xl font-bold text-amber-500">{importResult.totalSkipped}</p>
-                  <p className="text-xs text-muted-foreground">Ignores</p>
+                  <p className="text-xs text-muted-foreground">{t("documentImport.ignored")}</p>
                 </div>
                 <div className="p-3 rounded-lg bg-background border">
                   <p className="text-2xl font-bold text-red-500">{importResult.totalErrors}</p>
-                  <p className="text-xs text-muted-foreground">Erreurs</p>
+                  <p className="text-xs text-muted-foreground">{t("documentImport.errors")}</p>
                 </div>
               </div>
             </CardContent>
@@ -553,7 +538,7 @@ export default function DocumentImportPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-500" /> Enregistrements ignores
+                  <AlertTriangle className="w-4 h-4 text-amber-500" /> {t("documentImport.skippedRecords")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -573,7 +558,7 @@ export default function DocumentImportPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <XCircle className="w-4 h-4 text-red-500" /> Erreurs
+                  <XCircle className="w-4 h-4 text-red-500" /> {t("documentImport.errors")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -591,11 +576,11 @@ export default function DocumentImportPage() {
 
           <div className="flex items-center justify-center gap-4">
             <Button variant="outline" onClick={handleReset} className="gap-2">
-              <RotateCcw className="w-4 h-4" /> Nouveau fichier
+              <RotateCcw className="w-4 h-4" /> {t("documentImport.newFile")}
             </Button>
             <Button asChild className="gap-2">
               <a href={targetModule === "contacts" ? "/contacts" : "/taches"}>
-                <ArrowRight className="w-4 h-4" /> Voir les {MODULE_LABELS[targetModule]}
+                <ArrowRight className="w-4 h-4" /> {t("documentImport.viewModule", { module: moduleLabel(targetModule) })}
               </a>
             </Button>
           </div>

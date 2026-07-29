@@ -11,19 +11,20 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import { useGetIntegrationsCatalog, useConnectIntegration, useTestIntegration, type SoftwareIntegration } from "@workspace/api-client-react";
 
-const CATEGORY_META: Record<string, { label: string; icon: React.ElementType; color: string }> = {
-  crm: { label: "CRM", icon: Users, color: "text-blue-600 bg-blue-100" },
-  communication: { label: "Communication", icon: MessageSquare, color: "text-green-600 bg-green-100" },
-  gestion_projet: { label: "Gestion de projet", icon: BarChart3, color: "text-purple-600 bg-purple-100" },
-  comptabilite: { label: "Comptabilité", icon: CreditCard, color: "text-amber-600 bg-amber-100" },
-  documents: { label: "Documents", icon: FolderOpen, color: "text-orange-600 bg-orange-100" },
-  messagerie: { label: "Messagerie", icon: Mail, color: "text-sky-600 bg-sky-100" },
-  marketing: { label: "Marketing", icon: Zap, color: "text-pink-600 bg-pink-100" },
-  automatisation: { label: "Automatisation", icon: RefreshCw, color: "text-indigo-600 bg-indigo-100" },
-  support: { label: "Support client", icon: Shield, color: "text-teal-600 bg-teal-100" },
+const CATEGORY_META: Record<string, { icon: React.ElementType; color: string }> = {
+  crm: { icon: Users, color: "text-blue-600 bg-blue-100" },
+  communication: { icon: MessageSquare, color: "text-green-600 bg-green-100" },
+  gestion_projet: { icon: BarChart3, color: "text-purple-600 bg-purple-100" },
+  comptabilite: { icon: CreditCard, color: "text-amber-600 bg-amber-100" },
+  documents: { icon: FolderOpen, color: "text-orange-600 bg-orange-100" },
+  messagerie: { icon: Mail, color: "text-sky-600 bg-sky-100" },
+  marketing: { icon: Zap, color: "text-pink-600 bg-pink-100" },
+  automatisation: { icon: RefreshCw, color: "text-indigo-600 bg-indigo-100" },
+  support: { icon: Shield, color: "text-teal-600 bg-teal-100" },
 };
 
 const LOGO_COLORS: Record<string, string> = {
@@ -70,13 +71,15 @@ function SoftwareLogo({ id, name }: { id: string; name: string }) {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  if (status === "connecte") return <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">Connecte</Badge>;
-  if (status === "en_attente") return <Badge className="bg-amber-100 text-amber-700 text-[10px]">En attente</Badge>;
-  return <Badge variant="outline" className="text-[10px] text-muted-foreground">Non connecte</Badge>;
+  const { t } = useTranslation();
+  if (status === "connecte") return <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">{t("software.status.connected")}</Badge>;
+  if (status === "en_attente") return <Badge className="bg-amber-100 text-amber-700 text-[10px]">{t("software.status.pending")}</Badge>;
+  return <Badge variant="outline" className="text-[10px] text-muted-foreground">{t("software.status.notConnected")}</Badge>;
 }
 
 export default function Software() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
@@ -92,10 +95,10 @@ export default function Software() {
   async function navigateToProjets() {
     const res = await fetch(`${baseUrl}/api/projets`, {
       method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-      body: JSON.stringify({ title: "Projet intégration logicielle", status: "planifie", priority: "moyenne", progress: 0, notes: "Créé depuis Logiciels & Intégrations" }),
+      body: JSON.stringify({ title: t("software.projectTitle"), status: "planifie", priority: "moyenne", progress: 0, notes: t("software.projectNotes") }),
     });
-    if (res.ok) { toast({ title: "Projet créé" }); navigate("/projets"); }
-    else toast({ title: "Erreur lors de la création", variant: "destructive" });
+    if (res.ok) { toast({ title: t("software.toast.projectCreated") }); navigate("/projets"); }
+    else toast({ title: t("software.toast.projectCreateError"), variant: "destructive" });
   }
 
   const { data: catalog, isLoading } = useGetIntegrationsCatalog({
@@ -140,8 +143,8 @@ export default function Software() {
 
     if (missingRequired.length > 0) {
       toast({
-        title: "Champs requis manquants",
-        description: `Veuillez renseigner : ${missingRequired.join(", ")}`,
+        title: t("software.toast.missingRequired"),
+        description: t("software.toast.missingRequiredDesc", { fields: missingRequired.join(", ") }),
         variant: "destructive",
       });
       return;
@@ -152,16 +155,16 @@ export default function Software() {
       {
         onSuccess: (response) => {
           toast({
-            title: `${selectedIntegration.name} configure`,
-            description: response.message || `La connexion a ${selectedIntegration.name} a ete enregistree.`,
+            title: t("software.toast.configured", { name: selectedIntegration.name }),
+            description: response.message || t("software.toast.connectionSaved", { name: selectedIntegration.name }),
           });
           setSelectedIntegration(null);
           setConfigValues({});
         },
         onError: () => {
           toast({
-            title: "Erreur de connexion",
-            description: `Impossible de configurer ${selectedIntegration.name}. Verifiez vos identifiants.`,
+            title: t("software.toast.connectionError"),
+            description: t("software.toast.connectionErrorDesc", { name: selectedIntegration.name }),
             variant: "destructive",
           });
         },
@@ -176,14 +179,14 @@ export default function Software() {
       {
         onSuccess: (response) => {
           toast({
-            title: "Test reussi",
-            description: response.message || `Connexion a ${selectedIntegration.name} verifiee.`,
+            title: t("software.toast.testSuccess"),
+            description: response.message || t("software.toast.testSuccessDesc", { name: selectedIntegration.name }),
           });
         },
         onError: () => {
           toast({
-            title: "Test echoue",
-            description: `Impossible de se connecter a ${selectedIntegration.name}.`,
+            title: t("software.toast.testFailed"),
+            description: t("software.toast.testFailedDesc", { name: selectedIntegration.name }),
             variant: "destructive",
           });
         },
@@ -192,7 +195,7 @@ export default function Software() {
   };
 
   const categoryCounts = [
-    { id: "all", label: "Tous", count: integrations.length },
+    { id: "all", label: t("software.all"), count: integrations.length },
     ...categories.filter((c: any) => c.id !== "all").map((c: any) => ({
       ...c,
       count: integrations.filter((i: SoftwareIntegration) => i.category === c.id).length,
@@ -203,7 +206,7 @@ export default function Software() {
     return (
       <div className="p-4 lg:p-6 flex items-center justify-center gap-3 py-20">
         <Loader2 className="w-6 h-6 animate-spin text-primary" />
-        <span className="text-muted-foreground">Chargement des logiciels...</span>
+        <span className="text-muted-foreground">{t("software.loading")}</span>
       </div>
     );
   }
@@ -212,30 +215,30 @@ export default function Software() {
     <div className="p-4 lg:p-6 space-y-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-3"><Icon3D icon={Puzzle} variant="purple" size="md" /> Logiciels & Integrations</h1>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-3"><Icon3D icon={Puzzle} variant="purple" size="md" /> {t("software.title")}</h1>
           <p className="text-muted-foreground mt-1">
-            Connectez vos outils professionnels pour que l'agent travaille dans votre ecosysteme.
+            {t("software.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-3">
           <Badge className="bg-emerald-100 text-emerald-700 text-sm px-3 py-1">
-            {catalog?.totalAvailable ?? 0} logiciels disponibles
+            {t("software.available", { count: catalog?.totalAvailable ?? 0 })}
           </Badge>
           <Button variant="outline" size="sm" className="gap-1.5 text-indigo-600 border-indigo-300 hover:bg-indigo-50" onClick={navigateToProjets}>
-            <FolderKanban className="w-4 h-4" />Créer un projet
+            <FolderKanban className="w-4 h-4" />{t("software.createProject")}
           </Button>
-          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+          <Button variant="outline" size="icon" title={t("software.print")} onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
         </div>
       </div>
 
       <Card className="overflow-hidden border-0 shadow-lg">
         <div className="relative h-28">
-          <img src={officeTeamImg} alt="Integrations logicielles" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+          <img src={officeTeamImg} alt={t("software.bannerAlt")} className="w-full h-full object-cover" loading="lazy" decoding="async" />
           <div className="absolute inset-0 bg-gradient-to-r from-purple-900/80 via-purple-800/50 to-transparent" />
           <div className="absolute inset-0 flex items-center px-6">
             <div className="text-white">
-              <h3 className="text-lg font-bold">Ecosysteme connecte</h3>
-              <p className="text-white/80 text-sm mt-1">21 integrations professionnelles pour unifier vos outils de travail.</p>
+              <h3 className="text-lg font-bold">{t("software.bannerTitle")}</h3>
+              <p className="text-white/80 text-sm mt-1">{t("software.bannerSubtitle")}</p>
             </div>
           </div>
         </div>
@@ -250,18 +253,18 @@ export default function Software() {
               </div>
               <div>
                 <h3 className="font-bold text-sm flex items-center gap-2">
-                  Decouverte intelligente
+                  {t("software.smartDiscovery")}
                   <Badge className="bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 text-[10px]">
-                    <Sparkles className="w-3 h-3 mr-0.5" /> IA
+                    <Sparkles className="w-3 h-3 mr-0.5" /> {t("software.aiBadge")}
                   </Badge>
                 </h3>
-                <p className="text-xs text-muted-foreground">Analyse automatique de votre ecosysteme et recommandations personnalisees</p>
+                <p className="text-xs text-muted-foreground">{t("software.smartDiscoveryDesc")}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" onClick={loadDiscovery} disabled={discoveryLoading} className="text-xs h-7">
                 {discoveryLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <RefreshCw className="w-3 h-3 mr-1" />}
-                Analyser
+                {t("software.analyze")}
               </Button>
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDiscoveryExpanded(!discoveryExpanded)}>
                 {discoveryExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -275,14 +278,14 @@ export default function Software() {
             {discoveryLoading && (
               <div className="flex items-center justify-center gap-3 py-8">
                 <Loader2 className="w-5 h-5 animate-spin text-violet-600" />
-                <span className="text-sm text-muted-foreground">Analyse de votre ecosysteme en cours...</span>
+                <span className="text-sm text-muted-foreground">{t("software.analyzing")}</span>
               </div>
             )}
 
             {discoveryError && (
               <div className="text-center py-6">
-                <p className="text-sm text-muted-foreground">Impossible de charger la decouverte.</p>
-                <Button variant="outline" size="sm" className="mt-2" onClick={loadDiscovery}>Reessayer</Button>
+                <p className="text-sm text-muted-foreground">{t("software.discoveryError")}</p>
+                <Button variant="outline" size="sm" className="mt-2" onClick={loadDiscovery}>{t("software.retry")}</Button>
               </div>
             )}
 
@@ -291,7 +294,7 @@ export default function Software() {
                 {discovery.detectedPlatforms?.length > 0 && (
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                      <Globe className="w-3.5 h-3.5" /> Plateformes detectees
+                      <Globe className="w-3.5 h-3.5" /> {t("software.detectedPlatforms")}
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                       {discovery.detectedPlatforms.map((p: any, idx: number) => (
@@ -303,8 +306,8 @@ export default function Software() {
                             <p className="font-semibold text-sm">{p.name}</p>
                             <p className="text-[11px] text-muted-foreground">{p.reason}</p>
                             <div className="flex items-center gap-1 mt-1">
-                              <Badge className="bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-[9px] py-0">{p.confidence}% confiance</Badge>
-                              <Badge variant="outline" className="text-[9px] py-0">{p.ecosystem.length} services</Badge>
+                              <Badge className="bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-[9px] py-0">{t("software.confidence", { pct: p.confidence })}</Badge>
+                              <Badge variant="outline" className="text-[9px] py-0">{t("software.servicesCount", { count: p.ecosystem.length })}</Badge>
                             </div>
                             {p.ecosystem.length > 0 && (
                               <p className="text-[10px] text-muted-foreground mt-1 truncate">{p.ecosystem.slice(0, 4).join(" · ")}{p.ecosystem.length > 4 ? ` +${p.ecosystem.length - 4}` : ""}</p>
@@ -319,12 +322,12 @@ export default function Software() {
                 {discovery.detectedIndustry?.length > 0 && (
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                      <Target className="w-3.5 h-3.5" /> Secteur d'activite detecte
+                      <Target className="w-3.5 h-3.5" /> {t("software.detectedIndustry")}
                     </p>
                     {discovery.detectedIndustry.map((ind: any, idx: number) => (
                       <div key={idx} className="p-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50">
                         <p className="text-sm font-medium text-amber-800 dark:text-amber-300">{ind.reason}</p>
-                        <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[9px] mt-1">{ind.confidence}% confiance</Badge>
+                        <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[9px] mt-1">{t("software.confidence", { pct: ind.confidence })}</Badge>
                       </div>
                     ))}
                   </div>
@@ -333,7 +336,7 @@ export default function Software() {
                 {discovery.scoredRecommendations?.length > 0 && (
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                      <TrendingUp className="w-3.5 h-3.5" /> Recommandations ({discovery.scoredRecommendations.length})
+                      <TrendingUp className="w-3.5 h-3.5" /> {t("software.recommendations", { count: discovery.scoredRecommendations.length })}
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                       {discovery.scoredRecommendations.slice(0, 6).map((rec: any, idx: number) => {
@@ -349,14 +352,14 @@ export default function Software() {
                               <div className="flex items-center gap-1.5">
                                 <p className="font-semibold text-sm">{rec.integration.name}</p>
                                 <Badge className={`text-[9px] py-0 ${rec.priority === "haute" ? "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400" : rec.priority === "moyenne" ? "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" : "bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-400"}`}>
-                                  {rec.priority === "haute" ? "Prioritaire" : rec.priority === "moyenne" ? "Recommande" : "Optionnel"}
+                                  {rec.priority === "haute" ? t("software.priorityHigh") : rec.priority === "moyenne" ? t("software.priorityMedium") : t("software.priorityLow")}
                                 </Badge>
                               </div>
                               <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{rec.reasons[0]}</p>
                               <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-1 mt-1.5">
                                 <div className="bg-gradient-to-r from-violet-500 to-indigo-500 h-1 rounded-full" style={{ width: `${rec.score}%` }} />
                               </div>
-                              <p className="text-[9px] text-muted-foreground mt-0.5">Score: {rec.score}/100</p>
+                              <p className="text-[9px] text-muted-foreground mt-0.5">{t("software.score", { score: rec.score })}</p>
                             </div>
                           </div>
                         );
@@ -373,7 +376,7 @@ export default function Software() {
                       </div>
                       <div className="space-y-2 min-w-0">
                         <p className="font-semibold text-sm flex items-center gap-1.5">
-                          Analyse IA
+                          {t("software.aiAnalysis")}
                           <Badge className="bg-violet-200 text-violet-800 dark:bg-violet-800 dark:text-violet-200 text-[9px]">Gemini</Badge>
                         </p>
                         {discovery.aiInsights.insights && (
@@ -410,16 +413,16 @@ export default function Software() {
                 {discovery.orgProfile && (
                   <div className="flex flex-wrap gap-3 pt-1">
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Users className="w-3 h-3" /> {discovery.orgProfile.userCount} utilisateurs
+                      <Users className="w-3 h-3" /> {t("software.usersCount", { count: discovery.orgProfile.userCount })}
                     </div>
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Users className="w-3 h-3" /> {discovery.orgProfile.contactCount} contacts
+                      <Users className="w-3 h-3" /> {t("software.contactsCount", { count: discovery.orgProfile.contactCount })}
                     </div>
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <MessageSquare className="w-3 h-3" /> {discovery.orgProfile.callCount} appels
+                      <MessageSquare className="w-3 h-3" /> {t("software.callsCount", { count: discovery.orgProfile.callCount })}
                     </div>
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <CheckCircle2 className="w-3 h-3" /> {discovery.orgProfile.taskCount} taches
+                      <CheckCircle2 className="w-3 h-3" /> {t("software.tasksCount", { count: discovery.orgProfile.taskCount })}
                     </div>
                   </div>
                 )}
@@ -432,7 +435,7 @@ export default function Software() {
       <div className="relative flex-1">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Rechercher un logiciel..."
+          placeholder={t("software.searchPlaceholder")}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="pl-10"
@@ -452,7 +455,7 @@ export default function Software() {
             >
               {meta && <meta.icon className="w-3.5 h-3.5 mr-1.5" />}
               {cat.id === "all" && <Puzzle className="w-3.5 h-3.5 mr-1.5" />}
-              {cat.label} ({cat.count})
+              {(cat.id === "all" ? cat.label : (CATEGORY_META[cat.id] ? t(`software.categories.${cat.id}`) : cat.label))} ({cat.count})
             </Button>
           );
         })}
@@ -464,8 +467,8 @@ export default function Software() {
         <Card>
           <CardContent className="p-12 flex flex-col items-center justify-center gap-4 text-center">
             <Puzzle className="w-12 h-12 text-muted-foreground/30" />
-            <h3 className="text-lg font-medium">Aucun logiciel trouve</h3>
-            <p className="text-sm text-muted-foreground">Essayez de modifier votre recherche ou changez de categorie.</p>
+            <h3 className="text-lg font-medium">{t("software.empty")}</h3>
+            <p className="text-sm text-muted-foreground">{t("software.emptyHint")}</p>
           </CardContent>
         </Card>
       ) : (
@@ -486,7 +489,7 @@ export default function Software() {
                         <div className="flex items-center gap-1.5 mb-2">
                           <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${catMeta.color}`}>
                             <catMeta.icon className="w-3 h-3" />
-                            {catMeta.label}
+                            {t(`software.categories.${integration.category}`)}
                           </span>
                         </div>
                       )}
@@ -499,7 +502,7 @@ export default function Software() {
                           </div>
                         ))}
                         {integration.features.length > 2 && (
-                          <span className="text-[10px] text-muted-foreground">+{integration.features.length - 2} autres fonctionnalites</span>
+                          <span className="text-[10px] text-muted-foreground">{t("software.moreFeatures", { count: integration.features.length - 2 })}</span>
                         )}
                       </div>
                       <Button
@@ -509,7 +512,7 @@ export default function Software() {
                         onClick={() => handleOpenConfig(integration)}
                       >
                         <Settings2 className="w-3.5 h-3.5 mr-1.5" />
-                        Configurer
+                        {t("software.configure")}
                       </Button>
                     </div>
                   </div>
@@ -537,7 +540,7 @@ export default function Software() {
               <Separator />
 
               <div>
-                <h4 className="text-sm font-semibold mb-2">Fonctionnalites</h4>
+                <h4 className="text-sm font-semibold mb-2">{t("software.features")}</h4>
                 <div className="space-y-1.5">
                   {selectedIntegration.features.map((f, i) => (
                     <div key={i} className="flex items-center gap-2 text-sm">
@@ -551,7 +554,7 @@ export default function Software() {
               <Separator />
 
               <div className="space-y-4">
-                <h4 className="text-sm font-semibold">Configuration</h4>
+                <h4 className="text-sm font-semibold">{t("software.configuration")}</h4>
                 {selectedIntegration.configFields.map((field: any) => (
                   <div key={field.key} className="space-y-1.5">
                     <Label className="text-xs">
@@ -571,18 +574,18 @@ export default function Software() {
               <DialogFooter className="gap-2 sm:gap-0">
                 <Button variant="outline" onClick={() => handleTest()} disabled={testMutation.isPending}>
                   {testMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Tester
+                  {t("software.test")}
                 </Button>
                 <Button onClick={handleConnect} disabled={connectMutation.isPending} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">
                   {connectMutation.isPending ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      Connexion...
+                      {t("software.connecting")}
                     </>
                   ) : (
                     <>
                       <Link2 className="w-4 h-4 mr-2" />
-                      Connecter {selectedIntegration.name}
+                      {t("software.connect", { name: selectedIntegration.name })}
                     </>
                   )}
                 </Button>

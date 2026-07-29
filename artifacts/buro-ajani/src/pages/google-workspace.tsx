@@ -10,6 +10,7 @@ import {
   FolderKanban
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 import { trackScanResult } from "@/lib/scan-result";
 import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
@@ -49,15 +50,17 @@ function formatFileSize(bytes: number | null) {
 }
 
 function SmartDate({ dateStr }: { dateStr: string }) {
+  const { t } = useTranslation();
   if (!dateStr) return <span>-</span>;
   const d = new Date(dateStr);
-  if (isToday(d)) return <span className="text-blue-600 font-medium">Aujourd'hui {format(d, "HH:mm")}</span>;
-  if (isTomorrow(d)) return <span className="text-amber-600 font-medium">Demain {format(d, "HH:mm")}</span>;
+  if (isToday(d)) return <span className="text-blue-600 font-medium">{t("googleWorkspace.today", { time: format(d, "HH:mm") })}</span>;
+  if (isTomorrow(d)) return <span className="text-amber-600 font-medium">{t("googleWorkspace.tomorrow", { time: format(d, "HH:mm") })}</span>;
   return <span>{format(d, "dd MMM HH:mm", { locale: fr })}</span>;
 }
 
 export default function GoogleWorkspace() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
   const [activeTab, setActiveTab] = useState("apps");
@@ -78,13 +81,13 @@ export default function GoogleWorkspace() {
     try {
       const data = await apiFetch(`/google-workspace/drive-search?q=${encodeURIComponent(q)}`);
       setDriveResults(data.files || []);
-      if (!data.files?.length) toast({ title: "Aucun fichier trouvé", description: q });
+      if (!data.files?.length) toast({ title: t("googleWorkspace.toast.driveNoFile"), description: q });
     } catch {
-      toast({ title: "Recherche impossible", description: "Réessayez dans un instant.", variant: "destructive" });
+      toast({ title: t("googleWorkspace.toast.driveSearchError"), description: t("googleWorkspace.toast.retrySoon"), variant: "destructive" });
     } finally {
       setDriveSearching(false);
     }
-  }, [driveQuery, toast]);
+  }, [driveQuery, toast, t]);
 
   // Lance le vrai flux OAuth 2.0 Google : demande l'URL de consentement au
   // backend (tous les scopes par defaut) puis redirige l'utilisateur vers
@@ -104,10 +107,10 @@ export default function GoogleWorkspace() {
       }
       window.location.href = data.authUrl;
     } catch (e: any) {
-      toast({ title: "Connexion impossible", description: "Veuillez réessayer dans un instant.", variant: "destructive" });
+      toast({ title: t("googleWorkspace.toast.connectFailed"), description: t("googleWorkspace.toast.connectRetry"), variant: "destructive" });
       setConnecting(false);
     }
-  }, [toast]);
+  }, [toast, t]);
 
   const handleDisconnect = useCallback(async () => {
     setDisconnecting(true);
@@ -117,13 +120,13 @@ export default function GoogleWorkspace() {
         credentials: "include",
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      toast({ title: "Compte Google déconnecté", description: "Toutes les applications ont été dissociées." });
+      toast({ title: t("googleWorkspace.toast.disconnected"), description: t("googleWorkspace.toast.disconnectedDesc") });
       window.location.reload();
     } catch (e: any) {
-      toast({ title: "Échec de la déconnexion", description: e?.message || "Réessayez.", variant: "destructive" });
+      toast({ title: t("googleWorkspace.toast.disconnectFailed"), description: e?.message || t("googleWorkspace.toast.retry"), variant: "destructive" });
       setDisconnecting(false);
     }
-  }, [toast]);
+  }, [toast, t]);
 
   const handleImportFile = useCallback(async (file: any) => {
     if (!file?.id) return;
@@ -137,17 +140,17 @@ export default function GoogleWorkspace() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
-      toast({ title: "Importé dans Documents", description: `${file.name} — analyse antivirus en cours.` });
+      toast({ title: t("googleWorkspace.toast.importedTitle"), description: t("googleWorkspace.toast.importedDesc", { name: file.name }) });
       // Suivi du verdict antivirus en arriere-plan (Tache #175) : on affichera
       // un toast de suivi des que l'analyse est terminee (sain / dangereux).
       const docId = data?.document?.id ?? data?.id;
-      if (docId) void trackScanResult(toast, docId, file.name || "Le fichier");
+      if (docId) void trackScanResult(toast, docId, file.name || t("googleWorkspace.toast.fallbackFile"));
     } catch (e: any) {
-      toast({ title: "Échec de l'import", description: e?.message || "Réessayez.", variant: "destructive" });
+      toast({ title: t("googleWorkspace.toast.importFailed"), description: e?.message || t("googleWorkspace.toast.retry"), variant: "destructive" });
     } finally {
       setImportingFile(null);
     }
-  }, [toast]);
+  }, [toast, t]);
 
   const { data: hub, isLoading: hubLoading } = useQuery({ queryKey: ["gw-hub"], queryFn: () => apiFetch("/google-workspace/hub") });
   const qc = useQueryClient();
@@ -170,16 +173,16 @@ export default function GoogleWorkspace() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
-      toast({ title: "Évènement créé", description: newEvent.title });
+      toast({ title: t("googleWorkspace.toast.eventCreated"), description: newEvent.title });
       setNewEvent({ title: "", start: "", end: "", location: "" });
       setShowNewEvent(false);
       qc.invalidateQueries({ queryKey: ["gw-events"] });
     } catch (e: any) {
-      toast({ title: "Création impossible", description: e?.message, variant: "destructive" });
+      toast({ title: t("googleWorkspace.toast.eventCreateFailed"), description: e?.message, variant: "destructive" });
     } finally {
       setCreatingEvent(false);
     }
-  }, [newEvent, toast, qc]);
+  }, [newEvent, toast, qc, t]);
   const { data: emailsData, isLoading: emailsLoading } = useQuery({ queryKey: ["gw-emails"], queryFn: () => apiFetch("/google-workspace/recent-emails") });
   const { data: eventsData, isLoading: eventsLoading } = useQuery({ queryKey: ["gw-events"], queryFn: () => apiFetch("/google-workspace/upcoming-events") });
   const { data: filesData, isLoading: filesLoading } = useQuery({ queryKey: ["gw-files"], queryFn: () => apiFetch("/google-workspace/recent-files") });
@@ -201,25 +204,25 @@ export default function GoogleWorkspace() {
           <Icon3D icon={Globe} variant="blue" size="lg" />
           <div>
             <h1 className="text-2xl font-bold">Google Workspace</h1>
-            <p className="text-muted-foreground text-sm">Gerez vos applications Google depuis un seul endroit</p>
+            <p className="text-muted-foreground text-sm">{t("googleWorkspace.subtitle")}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {hub?.authenticated ? (
             <>
-              <Badge variant="default" className="bg-emerald-500 text-white gap-1"><Check className="h-3 w-3" /> Connecte</Badge>
+              <Badge variant="default" className="bg-emerald-500 text-white gap-1"><Check className="h-3 w-3" /> {t("googleWorkspace.connected")}</Badge>
               <Button variant="outline" size="sm" className="gap-1" onClick={handleDisconnect} disabled={disconnecting}>
                 {disconnecting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Link2 className="h-3 w-3" />}
-                Deconnecter
+                {t("googleWorkspace.disconnect")}
               </Button>
             </>
           ) : (
             <Button size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700 text-white" onClick={handleConnect} disabled={connecting}>
               {connecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
-              Se connecter avec Google
+              {t("googleWorkspace.connectWithGoogle")}
             </Button>
           )}
-          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+          <Button variant="outline" size="icon" title={t("googleWorkspace.print")} onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
         </div>
       </div>
 
@@ -228,15 +231,14 @@ export default function GoogleWorkspace() {
           <CardContent className="p-4 flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm">En attente de configuration — aucun compte Google connecte</p>
+              <p className="font-semibold text-sm">{t("googleWorkspace.pendingConfigTitle")}</p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Connectez votre propre compte Google pour synchroniser Gmail, Agenda, Drive, Docs, Sheets, Slides et Meet.
-                Chaque utilisateur lie son propre compte ; vos donnees restent privees.
+                {t("googleWorkspace.pendingConfigDesc")}
               </p>
             </div>
             <Button size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700 text-white shrink-0" onClick={handleConnect} disabled={connecting}>
               {connecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
-              Se connecter avec Google
+              {t("googleWorkspace.connectWithGoogle")}
             </Button>
           </CardContent>
         </Card>
@@ -247,18 +249,18 @@ export default function GoogleWorkspace() {
           <Card><CardContent className="p-4">
             <div className="flex items-center gap-2">
               <Grid3X3 className="h-5 w-5 text-blue-500" />
-              <div><p className="text-xs text-muted-foreground">Applications</p><p className="text-xl font-bold">{hub.stats.totalApps}</p></div>
+              <div><p className="text-xs text-muted-foreground">{t("googleWorkspace.statApplications")}</p><p className="text-xl font-bold">{hub.stats.totalApps}</p></div>
             </div>
           </CardContent></Card>
           <Card><CardContent className="p-4">
             <div className="flex items-center gap-2">
               <Zap className="h-5 w-5 text-emerald-500" />
-              <div><p className="text-xs text-muted-foreground">Connectees</p><p className="text-xl font-bold">{hub.stats.connectedApps}</p></div>
+              <div><p className="text-xs text-muted-foreground">{t("googleWorkspace.statConnected")}</p><p className="text-xl font-bold">{hub.stats.connectedApps}</p></div>
             </div>
           </CardContent></Card>
           <Card><CardContent className="p-4">
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Integration</p>
+              <p className="text-xs text-muted-foreground">{t("googleWorkspace.statIntegration")}</p>
               <Progress value={hub.stats.percentage} className="h-2" />
               <p className="text-xs font-semibold">{hub.stats.percentage}%</p>
             </div>
@@ -266,7 +268,7 @@ export default function GoogleWorkspace() {
           <Card><CardContent className="p-4">
             <div className="flex items-center gap-2">
               <Shield className="h-5 w-5 text-indigo-500" />
-              <div><p className="text-xs text-muted-foreground">Statut</p><p className="text-sm font-semibold">{hub?.tokenValid ? "Token actif" : "Token expire"}</p></div>
+              <div><p className="text-xs text-muted-foreground">{t("googleWorkspace.statStatus")}</p><p className="text-sm font-semibold">{hub?.tokenValid ? t("googleWorkspace.tokenActive") : t("googleWorkspace.tokenExpired")}</p></div>
             </div>
           </CardContent></Card>
         </div>
@@ -274,18 +276,18 @@ export default function GoogleWorkspace() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="apps">Applications ({hub?.stats?.totalApps || 0})</TabsTrigger>
-          <TabsTrigger value="emails">Emails</TabsTrigger>
-          <TabsTrigger value="agenda">Agenda</TabsTrigger>
-          <TabsTrigger value="drive">Drive</TabsTrigger>
-          <TabsTrigger value="tasks">Taches</TabsTrigger>
+          <TabsTrigger value="apps">{t("googleWorkspace.tabApps", { count: hub?.stats?.totalApps || 0 })}</TabsTrigger>
+          <TabsTrigger value="emails">{t("googleWorkspace.tabEmails")}</TabsTrigger>
+          <TabsTrigger value="agenda">{t("googleWorkspace.tabAgenda")}</TabsTrigger>
+          <TabsTrigger value="drive">{t("googleWorkspace.tabDrive")}</TabsTrigger>
+          <TabsTrigger value="tasks">{t("googleWorkspace.tabTasks")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="apps" className="space-y-4">
           <div className="flex gap-2 flex-wrap">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input className="pl-9" placeholder="Rechercher une application..." value={search} onChange={e => setSearch(e.target.value)} />
+              <Input className="pl-9" placeholder={t("googleWorkspace.searchAppPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <div className="flex gap-1 flex-wrap">
               {(hub?.categories || []).map((cat: any) => (
@@ -301,7 +303,7 @@ export default function GoogleWorkspace() {
               {connectedApps.length > 0 && activeCategory === "all" && !search && (
                 <div>
                   <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-500" /> Applications connectees ({connectedApps.length})
+                    <Check className="h-4 w-4 text-emerald-500" /> {t("googleWorkspace.connectedAppsHeading", { count: connectedApps.length })}
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {connectedApps.map((app: any) => <AppCard key={app.id} app={app} hasAccount={hub?.authenticated} />)}
@@ -312,7 +314,7 @@ export default function GoogleWorkspace() {
               {(search || activeCategory !== "all" ? filteredApps : disconnectedApps).length > 0 && (
                 <div>
                   {!search && activeCategory === "all" && connectedApps.length > 0 && (
-                    <h3 className="text-sm font-semibold text-muted-foreground mb-3">Autres applications ({disconnectedApps.length})</h3>
+                    <h3 className="text-sm font-semibold text-muted-foreground mb-3">{t("googleWorkspace.otherAppsHeading", { count: disconnectedApps.length })}</h3>
                   )}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {(search || activeCategory !== "all" ? filteredApps : disconnectedApps).map((app: any) => <AppCard key={app.id} app={app} hasAccount={hub?.authenticated} />)}
@@ -320,7 +322,7 @@ export default function GoogleWorkspace() {
                 </div>
               )}
 
-              {filteredApps.length === 0 && <div className="text-center py-12 text-muted-foreground">Aucune application trouvee</div>}
+              {filteredApps.length === 0 && <div className="text-center py-12 text-muted-foreground">{t("googleWorkspace.noAppFound")}</div>}
             </>
           )}
         </TabsContent>
@@ -328,13 +330,13 @@ export default function GoogleWorkspace() {
         <TabsContent value="emails" className="space-y-3">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2"><Mail className="h-5 w-5 text-red-500" /> Derniers emails</CardTitle>
+              <CardTitle className="text-lg flex items-center gap-2"><Mail className="h-5 w-5 text-red-500" /> {t("googleWorkspace.recentEmails")}</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {emailsLoading ? <div className="p-4"><Skeleton className="h-40" /></div> : emailsData?.error === "non_connecte" ? (
                 <div className="p-8 text-center text-muted-foreground">
                   <Mail className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                  <p>Connectez votre compte Google pour voir vos emails</p>
+                  <p>{t("googleWorkspace.connectForEmails")}</p>
                 </div>
               ) : (
                 <div className="divide-y">
@@ -353,7 +355,7 @@ export default function GoogleWorkspace() {
                       </div>
                     </div>
                   ))}
-                  {(!emailsData?.emails || emailsData.emails.length === 0) && <div className="p-8 text-center text-muted-foreground">Aucun email recent</div>}
+                  {(!emailsData?.emails || emailsData.emails.length === 0) && <div className="p-8 text-center text-muted-foreground">{t("googleWorkspace.noRecentEmail")}</div>}
                 </div>
               )}
             </CardContent>
@@ -364,9 +366,9 @@ export default function GoogleWorkspace() {
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between gap-3">
-                <CardTitle className="text-lg flex items-center gap-2"><Calendar className="h-5 w-5 text-blue-500" /> Evenements a venir</CardTitle>
+                <CardTitle className="text-lg flex items-center gap-2"><Calendar className="h-5 w-5 text-blue-500" /> {t("googleWorkspace.upcomingEvents")}</CardTitle>
                 <Button size="sm" variant="outline" className="h-8" onClick={() => setShowNewEvent(v => !v)}>
-                  {showNewEvent ? "Annuler" : "Nouvel évènement"}
+                  {showNewEvent ? t("googleWorkspace.cancel") : t("googleWorkspace.newEvent")}
                 </Button>
               </div>
               {/* Creation d'evenement: la route existait mais n'etait appelee
@@ -376,12 +378,12 @@ export default function GoogleWorkspace() {
                   <Input
                     value={newEvent.title}
                     onChange={(e) => setNewEvent(v => ({ ...v, title: e.target.value }))}
-                    placeholder="Titre de l'évènement"
+                    placeholder={t("googleWorkspace.eventTitlePlaceholder")}
                     className="h-8 text-sm"
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="text-[11px] text-muted-foreground">Début</label>
+                      <label className="text-[11px] text-muted-foreground">{t("googleWorkspace.start")}</label>
                       <Input
                         type="datetime-local"
                         value={newEvent.start}
@@ -390,7 +392,7 @@ export default function GoogleWorkspace() {
                       />
                     </div>
                     <div>
-                      <label className="text-[11px] text-muted-foreground">Fin</label>
+                      <label className="text-[11px] text-muted-foreground">{t("googleWorkspace.end")}</label>
                       <Input
                         type="datetime-local"
                         value={newEvent.end}
@@ -402,7 +404,7 @@ export default function GoogleWorkspace() {
                   <Input
                     value={newEvent.location}
                     onChange={(e) => setNewEvent(v => ({ ...v, location: e.target.value }))}
-                    placeholder="Lieu (facultatif)"
+                    placeholder={t("googleWorkspace.locationPlaceholder")}
                     className="h-8 text-sm"
                   />
                   <Button
@@ -412,7 +414,7 @@ export default function GoogleWorkspace() {
                     disabled={creatingEvent || !newEvent.title.trim() || !newEvent.start || !newEvent.end}
                   >
                     {creatingEvent && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
-                    Créer dans Google Agenda
+                    {t("googleWorkspace.createInGoogleCalendar")}
                   </Button>
                 </div>
               )}
@@ -421,7 +423,7 @@ export default function GoogleWorkspace() {
               {eventsLoading ? <div className="p-4"><Skeleton className="h-40" /></div> : eventsData?.error === "non_connecte" ? (
                 <div className="p-8 text-center text-muted-foreground">
                   <Calendar className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                  <p>Connectez votre compte Google pour voir votre agenda</p>
+                  <p>{t("googleWorkspace.connectForCalendar")}</p>
                 </div>
               ) : (
                 <div className="divide-y">
@@ -436,13 +438,13 @@ export default function GoogleWorkspace() {
                               <SmartDate dateStr={event.start} />
                               {!event.allDay && event.end && <> - {format(new Date(event.end), "HH:mm")}</>}
                             </span>
-                            {event.allDay && <Badge variant="outline" className="text-[10px]">Toute la journee</Badge>}
+                            {event.allDay && <Badge variant="outline" className="text-[10px]">{t("googleWorkspace.allDay")}</Badge>}
                           </div>
                           {event.location && <p className="text-xs text-muted-foreground mt-1">{event.location}</p>}
                           {event.attendees?.length > 0 && (
                             <div className="flex items-center gap-1 mt-1">
                               <Users className="h-3 w-3 text-muted-foreground" />
-                              <span className="text-[10px] text-muted-foreground">{event.attendees.length} participant{event.attendees.length > 1 ? "s" : ""}</span>
+                              <span className="text-[10px] text-muted-foreground">{t("googleWorkspace.participants", { count: event.attendees.length })}</span>
                             </div>
                           )}
                         </div>
@@ -456,7 +458,7 @@ export default function GoogleWorkspace() {
                       </div>
                     </div>
                   ))}
-                  {(!eventsData?.events || eventsData.events.length === 0) && <div className="p-8 text-center text-muted-foreground">Aucun evenement a venir</div>}
+                  {(!eventsData?.events || eventsData.events.length === 0) && <div className="p-8 text-center text-muted-foreground">{t("googleWorkspace.noUpcomingEvent")}</div>}
                 </div>
               )}
             </CardContent>
@@ -466,7 +468,7 @@ export default function GoogleWorkspace() {
         <TabsContent value="drive" className="space-y-3">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2"><HardDrive className="h-5 w-5 text-green-500" /> {driveResults ? "Résultats de recherche" : "Fichiers recents"}</CardTitle>
+              <CardTitle className="text-lg flex items-center gap-2"><HardDrive className="h-5 w-5 text-green-500" /> {driveResults ? t("googleWorkspace.searchResults") : t("googleWorkspace.recentFiles")}</CardTitle>
               {/* La recherche Drive existait cote serveur mais n'etait exposee
                   nulle part: on ne pouvait que consulter les 15 derniers
                   fichiers modifies. */}
@@ -475,7 +477,7 @@ export default function GoogleWorkspace() {
                   value={driveQuery}
                   onChange={(e) => setDriveQuery(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") runDriveSearch(); }}
-                  placeholder="Rechercher dans Drive..."
+                  placeholder={t("googleWorkspace.searchInDrivePlaceholder")}
                   className="h-8 text-sm"
                 />
                 <Button size="sm" className="h-8" onClick={runDriveSearch} disabled={driveSearching || !driveQuery.trim()}>
@@ -483,7 +485,7 @@ export default function GoogleWorkspace() {
                 </Button>
                 {driveResults && (
                   <Button size="sm" variant="ghost" className="h-8" onClick={() => { setDriveResults(null); setDriveQuery(""); }}>
-                    Effacer
+                    {t("googleWorkspace.clear")}
                   </Button>
                 )}
               </div>
@@ -492,7 +494,7 @@ export default function GoogleWorkspace() {
               {filesLoading ? <div className="p-4"><Skeleton className="h-40" /></div> : filesData?.error === "non_connecte" ? (
                 <div className="p-8 text-center text-muted-foreground">
                   <HardDrive className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                  <p>Connectez votre compte Google pour voir vos fichiers</p>
+                  <p>{t("googleWorkspace.connectForFiles")}</p>
                 </div>
               ) : (
                 <div className="divide-y">
@@ -508,7 +510,7 @@ export default function GoogleWorkspace() {
                               <Badge variant="outline" className="text-[10px]">{file.type}</Badge>
                               {file.size && <span>{formatFileSize(file.size)}</span>}
                               {file.modifiedTime && <span>{formatDistanceToNow(new Date(file.modifiedTime), { addSuffix: true, locale: fr })}</span>}
-                              {file.shared && <Badge variant="secondary" className="text-[10px]">Partage</Badge>}
+                              {file.shared && <Badge variant="secondary" className="text-[10px]">{t("googleWorkspace.shared")}</Badge>}
                             </div>
                           </div>
                           {file.type !== "Dossier" && (
@@ -518,12 +520,12 @@ export default function GoogleWorkspace() {
                               className="h-7 px-2 gap-1"
                               onClick={() => handleImportFile(file)}
                               disabled={importingFile === file.id}
-                              title="Importer dans Documents (analyse antivirus)"
+                              title={t("googleWorkspace.importToDocumentsTitle")}
                             >
                               {importingFile === file.id
                                 ? <Loader2 className="h-3 w-3 animate-spin" />
                                 : <FolderKanban className="h-3 w-3" />}
-                              <span className="hidden sm:inline text-xs">Documents</span>
+                              <span className="hidden sm:inline text-xs">{t("googleWorkspace.documents")}</span>
                             </Button>
                           )}
                           {file.webViewLink && (
@@ -537,7 +539,7 @@ export default function GoogleWorkspace() {
                   })}
                   {((driveResults ?? filesData?.files) || []).length === 0 && (
                     <div className="p-8 text-center text-muted-foreground">
-                      {driveResults ? "Aucun fichier ne correspond à cette recherche" : "Aucun fichier recent"}
+                      {driveResults ? t("googleWorkspace.noFileMatch") : t("googleWorkspace.noRecentFile")}
                     </div>
                   )}
                 </div>
@@ -549,13 +551,13 @@ export default function GoogleWorkspace() {
         <TabsContent value="tasks" className="space-y-3">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2"><CheckSquare className="h-5 w-5 text-blue-500" /> Taches Google</CardTitle>
+              <CardTitle className="text-lg flex items-center gap-2"><CheckSquare className="h-5 w-5 text-blue-500" /> {t("googleWorkspace.googleTasks")}</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {tasksLoading ? <div className="p-4"><Skeleton className="h-40" /></div> : tasksData?.error === "non_connecte" ? (
                 <div className="p-8 text-center text-muted-foreground">
                   <CheckSquare className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                  <p>Connectez votre compte Google pour voir vos taches</p>
+                  <p>{t("googleWorkspace.connectForTasks")}</p>
                 </div>
               ) : (
                 <div className="divide-y">
@@ -576,7 +578,7 @@ export default function GoogleWorkspace() {
                       </div>
                     </div>
                   ))}
-                  {(!tasksData?.tasks || tasksData.tasks.length === 0) && <div className="p-8 text-center text-muted-foreground">Aucune tache en cours</div>}
+                  {(!tasksData?.tasks || tasksData.tasks.length === 0) && <div className="p-8 text-center text-muted-foreground">{t("googleWorkspace.noTaskInProgress")}</div>}
                 </div>
               )}
             </CardContent>
@@ -590,6 +592,7 @@ export default function GoogleWorkspace() {
 function AppCard({ app, hasAccount }: { app: any; hasAccount?: boolean }) {
   const Icon = ICON_MAP[app.icon] || Grid3X3;
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [activating, setActivating] = useState(false);
 
   // Autorisation INCREMENTALE : on ne demande que le scope de cette application.
@@ -610,10 +613,10 @@ function AppCard({ app, hasAccount }: { app: any; hasAccount?: boolean }) {
       if (!res.ok || !data?.authUrl) throw new Error(data?.error || `HTTP ${res.status}`);
       window.location.href = data.authUrl;
     } catch {
-      toast({ title: `Activation de ${app.name} impossible`, description: "Veuillez réessayer dans un instant.", variant: "destructive" });
+      toast({ title: t("googleWorkspace.toast.activateFailed", { name: app.name }), description: t("googleWorkspace.toast.connectRetry"), variant: "destructive" });
       setActivating(false);
     }
-  }, [app.id, app.name, toast]);
+  }, [app.id, app.name, toast, t]);
 
   return (
     <Card className={`transition-all hover:shadow-md ${app.connected ? "border-emerald-200 dark:border-emerald-800/50" : ""}`}>
@@ -626,16 +629,16 @@ function AppCard({ app, hasAccount }: { app: any; hasAccount?: boolean }) {
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-sm">{app.name}</h3>
               {app.connected ? (
-                <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px]">Actif</Badge>
+                <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px]">{t("googleWorkspace.appActive")}</Badge>
               ) : (
-                <Badge variant="outline" className="text-[10px]">Inactif</Badge>
+                <Badge variant="outline" className="text-[10px]">{t("googleWorkspace.appInactive")}</Badge>
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">{app.description}</p>
             {app.lastSync && (
               <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
                 <RefreshCw className="h-2.5 w-2.5" />
-                Sync: {formatDistanceToNow(new Date(app.lastSync), { addSuffix: true, locale: fr })}
+                {t("googleWorkspace.syncLabel", { time: formatDistanceToNow(new Date(app.lastSync), { addSuffix: true, locale: fr }) })}
               </p>
             )}
             {!app.connected && hasAccount && (
@@ -646,7 +649,7 @@ function AppCard({ app, hasAccount }: { app: any; hasAccount?: boolean }) {
                 onClick={activate}
                 disabled={activating}
               >
-                {activating ? "Redirection…" : "Activer"}
+                {activating ? t("googleWorkspace.redirecting") : t("googleWorkspace.activate")}
               </Button>
             )}
           </div>

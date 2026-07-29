@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -58,20 +59,27 @@ function ScoreGauge({ score, size = "lg" }: { score: number; size?: "sm" | "lg" 
   return (
     <div className={`flex flex-col items-center justify-center w-24 h-24 rounded-2xl border-2 ${bg}`}>
       <span className={`text-3xl font-bold ${color}`}>{score}</span>
-      <span className="text-[10px] text-muted-foreground uppercase tracking-wider">score</span>
+      <ScoreCaption />
     </div>
   );
 }
 
+function ScoreCaption() {
+  const { t } = useTranslation();
+  return <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("performancePage.scoreCaption")}</span>;
+}
+
+const NIVEAU_BG: Record<string, string> = {
+  excellent: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 border-emerald-200",
+  bon: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 border-blue-200",
+  moyen: "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 border-amber-200",
+  insuffisant: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300 border-red-200",
+};
+
 function NiveauBadge({ niveau }: { niveau: string }) {
-  const config: Record<string, { bg: string; label: string }> = {
-    excellent: { bg: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 border-emerald-200", label: "Excellent" },
-    bon: { bg: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 border-blue-200", label: "Bon" },
-    moyen: { bg: "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 border-amber-200", label: "Moyen" },
-    insuffisant: { bg: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300 border-red-200", label: "Insuffisant" },
-  };
-  const c = config[niveau] || config.moyen;
-  return <Badge className={`${c.bg} text-xs`}>{c.label}</Badge>;
+  const { t } = useTranslation();
+  const key = NIVEAU_BG[niveau] ? niveau : "moyen";
+  return <Badge className={`${NIVEAU_BG[key]} text-xs`}>{t(`performancePage.niveau.${key}`)}</Badge>;
 }
 
 function MetriqueCard({ icon: Icon, label, value, color }: { icon: any; label: string; value: number | string; color: string }) {
@@ -88,19 +96,23 @@ function MetriqueCard({ icon: Icon, label, value, color }: { icon: any; label: s
   );
 }
 
+const ENUM_LEVELS = new Set(["haute", "moyenne", "basse", "forte", "faible"]);
+
 export default function PerformancePage() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [, navigate] = useLocation();
   const [periode, setPeriode] = useState("semaine");
   const [rapport, setRapport] = useState<any>(null);
+  const enumLabel = (v: string) => (ENUM_LEVELS.has(v) ? t(`performancePage.enums.${v}`) : v);
 
   async function navigateToProjets() {
     const res = await fetch(`${BASE}/api/projets`, {
       method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-      body: JSON.stringify({ title: "Projet performance équipe", status: "planifie", priority: "moyenne", progress: 0, notes: "Créé depuis la page Performance" }),
+      body: JSON.stringify({ title: t("performancePage.projectTitle"), status: "planifie", priority: "moyenne", progress: 0, notes: t("performancePage.projectNotes") }),
     });
-    if (res.ok) { toast({ title: "Projet créé" }); navigate("/projets"); }
-    else toast({ title: "Erreur lors de la création", variant: "destructive" });
+    if (res.ok) { toast({ title: t("performancePage.toast.projectCreated") }); navigate("/projets"); }
+    else toast({ title: t("performancePage.toast.projectCreateError"), variant: "destructive" });
   }
 
   const metriquesQuery = useQuery({
@@ -117,13 +129,13 @@ export default function PerformancePage() {
   const rapportMutation = useMutation({
     mutationFn: () => genererRapport(periode),
     onSuccess: (data) => setRapport(data),
-    onError: () => toast({ title: "Erreur", description: "Impossible de generer le rapport IA", variant: "destructive" }),
+    onError: () => toast({ title: t("performancePage.toast.error"), description: t("performancePage.toast.reportError"), variant: "destructive" }),
   });
 
   const metriques = metriquesQuery.data?.metriques || [];
   const historique = historiqueQuery.data?.historique || [];
 
-  const periodeLabel = periode === "jour" ? "aujourd'hui" : periode === "semaine" ? "cette semaine" : "ce mois";
+  const periodeLabel = periode === "jour" ? t("performancePage.periodLabelDay") : periode === "semaine" ? t("performancePage.periodLabelWeek") : t("performancePage.periodLabelMonth");
 
   return (
     <div className="space-y-6">
@@ -133,9 +145,9 @@ export default function PerformancePage() {
             <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
               <BarChart3 className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
             </div>
-            Performance de l'equipe
+            {t("performancePage.title")}
           </h1>
-          <p className="text-muted-foreground mt-1">Analyse et rapport des activites des employes</p>
+          <p className="text-muted-foreground mt-1">{t("performancePage.subtitle")}</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -144,9 +156,9 @@ export default function PerformancePage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="jour">Aujourd'hui</SelectItem>
-              <SelectItem value="semaine">Cette semaine</SelectItem>
-              <SelectItem value="mois">Ce mois</SelectItem>
+              <SelectItem value="jour">{t("performancePage.periodToday")}</SelectItem>
+              <SelectItem value="semaine">{t("performancePage.periodWeek")}</SelectItem>
+              <SelectItem value="mois">{t("performancePage.periodMonth")}</SelectItem>
             </SelectContent>
           </Select>
 
@@ -160,14 +172,14 @@ export default function PerformancePage() {
             ) : (
               <Brain className="w-4 h-4 mr-2" />
             )}
-            Analyser avec IA
+            {t("performancePage.analyzeWithAi")}
           </Button>
           <a href={`${BASE}/api/performance/metriques/export/csv?periode=${periode}`} download={`performance_${periode}.csv`}>
-            <Button variant="outline" size="icon" title="Exporter CSV"><Download className="w-4 h-4" /></Button>
+            <Button variant="outline" size="icon" title={t("performancePage.exportCsv")}><Download className="w-4 h-4" /></Button>
           </a>
-          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+          <Button variant="outline" size="icon" title={t("performancePage.print")} onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
           <Button variant="outline" size="sm" className="gap-1.5 text-indigo-600 border-indigo-300 hover:bg-indigo-50" onClick={navigateToProjets}>
-            <FolderKanban className="w-4 h-4" />Créer un projet
+            <FolderKanban className="w-4 h-4" />{t("performancePage.createProject")}
           </Button>
         </div>
       </div>
@@ -180,10 +192,9 @@ export default function PerformancePage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <Users className="w-12 h-12 text-muted-foreground/30 mb-4" />
-            <h3 className="text-lg font-medium mb-2">Aucune donnée de performance</h3>
+            <h3 className="text-lg font-medium mb-2">{t("performancePage.emptyTitle")}</h3>
             <p className="text-muted-foreground text-sm max-w-md">
-              Les metriques apparaitront ici au fur et a mesure que les employes utilisent l'application.
-              Ajoutez des utilisateurs et commencez a travailler pour voir les statistiques.
+              {t("performancePage.emptyDesc")}
             </p>
           </CardContent>
         </Card>
@@ -197,7 +208,7 @@ export default function PerformancePage() {
                     <Users className="w-5 h-5 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Employes actifs</p>
+                    <p className="text-xs text-muted-foreground">{t("performancePage.activeEmployees")}</p>
                     <p className="text-2xl font-bold">{metriques.length}</p>
                   </div>
                 </div>
@@ -210,7 +221,7 @@ export default function PerformancePage() {
                     <TrendingUp className="w-5 h-5 text-emerald-600" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Actions totales</p>
+                    <p className="text-xs text-muted-foreground">{t("performancePage.totalActions")}</p>
                     <p className="text-2xl font-bold">{metriques.reduce((s: number, m: any) => s + m.actionsTotal, 0)}</p>
                   </div>
                 </div>
@@ -223,7 +234,7 @@ export default function PerformancePage() {
                     <Clock className="w-5 h-5 text-amber-600" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Heures travaillees</p>
+                    <p className="text-xs text-muted-foreground">{t("performancePage.hoursWorked")}</p>
                     <p className="text-2xl font-bold">{metriques.reduce((s: number, m: any) => s + m.heuresTravaillees, 0).toFixed(1)}h</p>
                   </div>
                 </div>
@@ -236,7 +247,7 @@ export default function PerformancePage() {
                     <CheckSquare className="w-5 h-5 text-violet-600" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Taches terminees</p>
+                    <p className="text-xs text-muted-foreground">{t("performancePage.tasksCompleted")}</p>
                     <p className="text-2xl font-bold">{metriques.reduce((s: number, m: any) => s + m.tachesTerminees, 0)}</p>
                   </div>
                 </div>
@@ -265,25 +276,25 @@ export default function PerformancePage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs text-muted-foreground">Activite {periodeLabel}</p>
-                      <p className="text-lg font-bold">{emp.actionsTotal} actions</p>
+                      <p className="text-xs text-muted-foreground">{t("performancePage.activityLabel", { period: periodeLabel })}</p>
+                      <p className="text-lg font-bold">{t("performancePage.actionsCount", { count: emp.actionsTotal })}</p>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-4">
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                    <MetriqueCard icon={UserCheck} label="Connexions" value={emp.connexions} color="bg-blue-100 dark:bg-blue-900/30 text-blue-600" />
-                    <MetriqueCard icon={Phone} label="Appels traites" value={emp.appelsTraites} color="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600" />
-                    <MetriqueCard icon={CheckSquare} label="Taches creees" value={emp.tachesCreees} color="bg-violet-100 dark:bg-violet-900/30 text-violet-600" />
-                    <MetriqueCard icon={Target} label="Taches terminees" value={emp.tachesTerminees} color="bg-amber-100 dark:bg-amber-900/30 text-amber-600" />
-                    <MetriqueCard icon={Mail} label="Messages" value={emp.messagesEnvoyes} color="bg-pink-100 dark:bg-pink-900/30 text-pink-600" />
-                    <MetriqueCard icon={Users} label="Contacts ajoutes" value={emp.contactsAjoutes} color="bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600" />
-                    <MetriqueCard icon={Calendar} label="Evenements" value={emp.evenementsCrees} color="bg-orange-100 dark:bg-orange-900/30 text-orange-600" />
-                    <MetriqueCard icon={Clock} label="Heures" value={`${emp.heuresTravaillees}h`} color="bg-teal-100 dark:bg-teal-900/30 text-teal-600" />
+                    <MetriqueCard icon={UserCheck} label={t("performancePage.metrics.connexions")} value={emp.connexions} color="bg-blue-100 dark:bg-blue-900/30 text-blue-600" />
+                    <MetriqueCard icon={Phone} label={t("performancePage.metrics.appelsTraites")} value={emp.appelsTraites} color="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600" />
+                    <MetriqueCard icon={CheckSquare} label={t("performancePage.metrics.tachesCreees")} value={emp.tachesCreees} color="bg-violet-100 dark:bg-violet-900/30 text-violet-600" />
+                    <MetriqueCard icon={Target} label={t("performancePage.metrics.tachesTerminees")} value={emp.tachesTerminees} color="bg-amber-100 dark:bg-amber-900/30 text-amber-600" />
+                    <MetriqueCard icon={Mail} label={t("performancePage.metrics.messages")} value={emp.messagesEnvoyes} color="bg-pink-100 dark:bg-pink-900/30 text-pink-600" />
+                    <MetriqueCard icon={Users} label={t("performancePage.metrics.contactsAjoutes")} value={emp.contactsAjoutes} color="bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600" />
+                    <MetriqueCard icon={Calendar} label={t("performancePage.metrics.evenements")} value={emp.evenementsCrees} color="bg-orange-100 dark:bg-orange-900/30 text-orange-600" />
+                    <MetriqueCard icon={Clock} label={t("performancePage.metrics.heures")} value={`${emp.heuresTravaillees}h`} color="bg-teal-100 dark:bg-teal-900/30 text-teal-600" />
                   </div>
                   {emp.derniereActivite && (
                     <p className="text-xs text-muted-foreground mt-3">
-                      Derniere activite : {new Date(emp.derniereActivite).toLocaleDateString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
+                      {t("performancePage.lastActivity", { date: new Date(emp.derniereActivite).toLocaleDateString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) })}
                     </p>
                   )}
                 </CardContent>
@@ -300,8 +311,8 @@ export default function PerformancePage() {
               <Brain className="w-6 h-6 text-indigo-600 animate-pulse" />
             </div>
             <div>
-              <p className="font-medium">Analyse multi-IA en cours...</p>
-              <p className="text-sm text-muted-foreground">Gemini + OpenAI + Anthropic analysent les performances</p>
+              <p className="font-medium">{t("performancePage.multiAiAnalyzing")}</p>
+              <p className="text-sm text-muted-foreground">{t("performancePage.multiAiAnalyzingDesc")}</p>
             </div>
           </CardContent>
         </Card>
@@ -311,7 +322,7 @@ export default function PerformancePage() {
         <div className="space-y-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Brain className="w-5 h-5 text-indigo-600" />
-            Rapport d'analyse IA
+            {t("performancePage.aiReportTitle")}
           </h2>
 
           {rapport.analyseIA.resumeExecutif && (
@@ -338,7 +349,7 @@ export default function PerformancePage() {
                   <CardContent className="space-y-3">
                     {emp.pointsForts?.length > 0 && (
                       <div>
-                        <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400 mb-1">Points forts</p>
+                        <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400 mb-1">{t("performancePage.strengths")}</p>
                         <ul className="space-y-1">
                           {emp.pointsForts.map((p: string, j: number) => (
                             <li key={j} className="text-xs flex items-start gap-1.5">
@@ -351,7 +362,7 @@ export default function PerformancePage() {
                     )}
                     {emp.pointsAmelioration?.length > 0 && (
                       <div>
-                        <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mb-1">A ameliorer</p>
+                        <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mb-1">{t("performancePage.toImprove")}</p>
                         <ul className="space-y-1">
                           {emp.pointsAmelioration.map((p: string, j: number) => (
                             <li key={j} className="text-xs flex items-start gap-1.5">
@@ -378,7 +389,7 @@ export default function PerformancePage() {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <Target className="w-4 h-4 text-indigo-600" />
-                  Recommandations pour l'equipe
+                  {t("performancePage.teamRecommendations")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -390,7 +401,7 @@ export default function PerformancePage() {
                         r.priorite === "moyenne" ? "bg-amber-100 text-amber-700 border-amber-200" :
                         "bg-green-100 text-green-700 border-green-200"
                       }`}>
-                        {r.priorite}
+                        {enumLabel(r.priorite)}
                       </Badge>
                       <div>
                         <p className="text-sm font-medium">{r.action}</p>
@@ -408,7 +419,7 @@ export default function PerformancePage() {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <Award className="w-4 h-4 text-amber-600" />
-                  Comparaison de l'equipe
+                  {t("performancePage.teamComparison")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -417,7 +428,7 @@ export default function PerformancePage() {
                     <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800">
                       <TrendingUp className="w-5 h-5 text-emerald-600 shrink-0" />
                       <div>
-                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Plus productif</p>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("performancePage.mostProductive")}</p>
                         <p className="text-sm font-medium">{rapport.analyseIA.comparaison.plusProductif}</p>
                       </div>
                     </div>
@@ -426,7 +437,7 @@ export default function PerformancePage() {
                     <div className="flex items-center gap-3 p-3 rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
                       <Clock className="w-5 h-5 text-blue-600 shrink-0" />
                       <div>
-                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Plus assidu</p>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("performancePage.mostDiligent")}</p>
                         <p className="text-sm font-medium">{rapport.analyseIA.comparaison.plusAssidu}</p>
                       </div>
                     </div>
@@ -435,7 +446,7 @@ export default function PerformancePage() {
                     <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
                       <Award className="w-5 h-5 text-amber-600 shrink-0" />
                       <div>
-                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Meilleur score</p>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("performancePage.bestScore")}</p>
                         <p className="text-sm font-medium">{rapport.analyseIA.comparaison.meilleurScore}</p>
                       </div>
                     </div>
@@ -456,7 +467,7 @@ export default function PerformancePage() {
 
           {rapport.analyseIA.sourcesIA && (
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-muted-foreground">Sources IA :</span>
+              <span className="text-xs text-muted-foreground">{t("performancePage.aiSources")}</span>
               {rapport.analyseIA.sourcesIA.map((s: string) => (
                 <Badge key={s} variant="outline" className={`text-[10px] ${
                   s === "Gemini" ? "border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950/30" :
@@ -469,7 +480,7 @@ export default function PerformancePage() {
               ))}
               {rapport.analyseIA.analyseMultiIA && (
                 <Badge className="text-[10px] bg-gradient-to-r from-blue-500 via-emerald-500 to-orange-500 text-white border-0">
-                  Multi-IA
+                  {t("performancePage.multiAi")}
                 </Badge>
               )}
             </div>
@@ -480,7 +491,7 @@ export default function PerformancePage() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Eye className="w-4 h-4 text-emerald-600" />
-                  Perspective OpenAI
+                  {t("performancePage.openaiPerspective")}
                   <Badge variant="outline" className="text-[10px] border-emerald-300 text-emerald-700">GPT</Badge>
                 </CardTitle>
               </CardHeader>
@@ -489,7 +500,7 @@ export default function PerformancePage() {
 
                 {rapport.analyseIA.conseilDirection && (
                   <div className="bg-emerald-100/50 dark:bg-emerald-900/20 rounded-lg p-3">
-                    <p className="text-xs font-medium text-emerald-800 dark:text-emerald-300 mb-1">Conseil a la direction</p>
+                    <p className="text-xs font-medium text-emerald-800 dark:text-emerald-300 mb-1">{t("performancePage.adviceToManagement")}</p>
                     <p className="text-xs text-emerald-700 dark:text-emerald-400">{rapport.analyseIA.conseilDirection}</p>
                   </div>
                 )}
@@ -497,7 +508,7 @@ export default function PerformancePage() {
                 {rapport.analyseIA.scoreMoralEquipe != null && (
                   <div className="flex items-center gap-2">
                     <Heart className="w-4 h-4 text-emerald-600" />
-                    <span className="text-xs text-muted-foreground">Moral de l'equipe :</span>
+                    <span className="text-xs text-muted-foreground">{t("performancePage.teamMorale")}</span>
                     <span className="text-sm font-bold text-emerald-700">{rapport.analyseIA.scoreMoralEquipe}/100</span>
                   </div>
                 )}
@@ -505,7 +516,7 @@ export default function PerformancePage() {
                 {rapport.analyseIA.risquesIdentifies?.length > 0 && (
                   <div>
                     <p className="text-xs font-medium text-red-700 dark:text-red-400 mb-2 flex items-center gap-1">
-                      <AlertTriangle className="w-3 h-3" /> Risques identifies
+                      <AlertTriangle className="w-3 h-3" /> {t("performancePage.identifiedRisks")}
                     </p>
                     <div className="space-y-2">
                       {rapport.analyseIA.risquesIdentifies.map((r: any, i: number) => (
@@ -514,7 +525,7 @@ export default function PerformancePage() {
                             r.severite === "haute" ? "bg-red-100 text-red-700 border-red-200" :
                             r.severite === "moyenne" ? "bg-amber-100 text-amber-700 border-amber-200" :
                             "bg-green-100 text-green-700 border-green-200"
-                          }`}>{r.severite}</Badge>
+                          }`}>{enumLabel(r.severite)}</Badge>
                           <div>
                             <p className="text-xs font-medium">{r.employe}</p>
                             <p className="text-xs text-muted-foreground">{r.risque}</p>
@@ -528,7 +539,7 @@ export default function PerformancePage() {
                 {rapport.analyseIA.opportunitesDeveloppement?.length > 0 && (
                   <div>
                     <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400 mb-2 flex items-center gap-1">
-                      <Lightbulb className="w-3 h-3" /> Opportunites de developpement
+                      <Lightbulb className="w-3 h-3" /> {t("performancePage.developmentOpportunities")}
                     </p>
                     <div className="space-y-2">
                       {rapport.analyseIA.opportunitesDeveloppement.map((o: any, i: number) => (
@@ -547,7 +558,7 @@ export default function PerformancePage() {
                 {rapport.analyseIA.alertes?.length > 0 && (
                   <div>
                     <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mb-2 flex items-center gap-1">
-                      <Shield className="w-3 h-3" /> Alertes
+                      <Shield className="w-3 h-3" /> {t("performancePage.alerts")}
                     </p>
                     <div className="space-y-1">
                       {rapport.analyseIA.alertes.map((a: any, i: number) => (
@@ -568,7 +579,7 @@ export default function PerformancePage() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Compass className="w-4 h-4 text-orange-600" />
-                  Vision strategique Anthropic
+                  {t("performancePage.anthropicVision")}
                   <Badge variant="outline" className="text-[10px] border-orange-300 text-orange-700">Claude</Badge>
                 </CardTitle>
               </CardHeader>
@@ -579,12 +590,12 @@ export default function PerformancePage() {
                   <div className="bg-orange-100/50 dark:bg-orange-900/20 rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-2">
                       <Users className="w-3.5 h-3.5 text-orange-600" />
-                      <p className="text-xs font-medium text-orange-800 dark:text-orange-300">Dynamique d'equipe</p>
+                      <p className="text-xs font-medium text-orange-800 dark:text-orange-300">{t("performancePage.teamDynamics")}</p>
                       <Badge className={`text-[10px] ${
                         rapport.analyseIA.dynamiqueEquipe.cohesion === "forte" ? "bg-emerald-100 text-emerald-700" :
                         rapport.analyseIA.dynamiqueEquipe.cohesion === "moyenne" ? "bg-amber-100 text-amber-700" :
                         "bg-red-100 text-red-700"
-                      }`}>{rapport.analyseIA.dynamiqueEquipe.cohesion}</Badge>
+                      }`}>{enumLabel(rapport.analyseIA.dynamiqueEquipe.cohesion)}</Badge>
                     </div>
                     <p className="text-xs text-orange-700 dark:text-orange-400">{rapport.analyseIA.dynamiqueEquipe.analyse}</p>
                     {rapport.analyseIA.dynamiqueEquipe.recommandations?.length > 0 && (
@@ -602,7 +613,7 @@ export default function PerformancePage() {
 
                 {rapport.analyseIA.profilsComportementaux?.length > 0 && (
                   <div>
-                    <p className="text-xs font-medium text-orange-700 dark:text-orange-400 mb-2">Profils comportementaux</p>
+                    <p className="text-xs font-medium text-orange-700 dark:text-orange-400 mb-2">{t("performancePage.behavioralProfiles")}</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {rapport.analyseIA.profilsComportementaux.map((p: any, i: number) => (
                         <div key={i} className="p-3 rounded-lg bg-orange-50/50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900">
@@ -619,12 +630,12 @@ export default function PerformancePage() {
                 {rapport.analyseIA.planAction30Jours?.length > 0 && (
                   <div>
                     <p className="text-xs font-medium text-orange-700 dark:text-orange-400 mb-2 flex items-center gap-1">
-                      <Calendar className="w-3 h-3" /> Plan d'action 30 jours
+                      <Calendar className="w-3 h-3" /> {t("performancePage.actionPlan30")}
                     </p>
                     <div className="space-y-2">
                       {rapport.analyseIA.planAction30Jours.map((a: any, i: number) => (
                         <div key={i} className="flex items-start gap-3 p-2 rounded-lg bg-orange-50/30 dark:bg-orange-950/10">
-                          <Badge className="shrink-0 text-[10px] bg-orange-100 text-orange-700 border-orange-200">S{a.semaine}</Badge>
+                          <Badge className="shrink-0 text-[10px] bg-orange-100 text-orange-700 border-orange-200">{t("performancePage.weekShort", { n: a.semaine })}</Badge>
                           <div>
                             <p className="text-xs font-medium">{a.action}</p>
                             <p className="text-xs text-muted-foreground">{a.responsable} - {a.objectif}</p>
@@ -637,7 +648,7 @@ export default function PerformancePage() {
 
                 {rapport.analyseIA.benchmarkSectoriel && (
                   <div className="bg-orange-100/50 dark:bg-orange-900/20 rounded-lg p-3">
-                    <p className="text-xs font-medium text-orange-800 dark:text-orange-300 mb-1">Benchmark sectoriel</p>
+                    <p className="text-xs font-medium text-orange-800 dark:text-orange-300 mb-1">{t("performancePage.sectorBenchmark")}</p>
                     <p className="text-xs text-orange-700 dark:text-orange-400">{rapport.analyseIA.benchmarkSectoriel}</p>
                   </div>
                 )}
@@ -659,7 +670,7 @@ export default function PerformancePage() {
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <History className="w-4 h-4 text-muted-foreground" />
-              Historique des rapports
+              {t("performancePage.reportsHistory")}
             </CardTitle>
           </CardHeader>
           <CardContent>

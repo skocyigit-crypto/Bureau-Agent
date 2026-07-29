@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 
 const PROACTIVE_API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/proactive";
 
@@ -34,46 +35,42 @@ interface Suggestion {
   createdAt: string;
 }
 
-const SEVERITY_STYLE: Record<Severity, { badge: string; border: string; label: string }> = {
-  urgent: { badge: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300", border: "border-l-red-500", label: "Urgent" },
-  warning: { badge: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300", border: "border-l-amber-500", label: "À traiter" },
-  info: { badge: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300", border: "border-l-blue-500", label: "Info" },
+const SEVERITY_STYLE: Record<Severity, { badge: string; border: string }> = {
+  urgent: { badge: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300", border: "border-l-red-500" },
+  warning: { badge: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300", border: "border-l-amber-500" },
+  info: { badge: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300", border: "border-l-blue-500" },
 };
 
-const TYPE_META: Record<string, { label: string; icon: typeof Clock }> = {
-  overdue_task: { label: "Tâche en retard", icon: Clock },
-  missed_call_followup: { label: "Appel à rappeler", icon: PhoneMissed },
-  calendar_conflict: { label: "Conflit d'agenda", icon: CalendarClock },
-  document_threat: { label: "Document à risque", icon: ShieldAlert },
-  model_fallback: { label: "Modèle IA retiré", icon: AlertTriangle },
-  negative_call_followup: { label: "Appel tendu à rappeler", icon: PhoneOff },
-  urgent_message: { label: "Message prioritaire", icon: MessageSquare },
-  meeting_prep: { label: "Préparer une réunion", icon: CalendarClock },
-  inactive_contact: { label: "Contact à relancer", icon: UserPlus },
-  message_sla_breach: { label: "Message sans réponse", icon: MessageSquare },
-  quiet_customer: { label: "Client silencieux", icon: UserPlus },
-  email_reply_needed: { label: "E-mail à répondre", icon: Mail },
-  payment_reminder: { label: "Relance de paiement", icon: Receipt },
+const TYPE_ICON: Record<string, typeof Clock> = {
+  overdue_task: Clock,
+  missed_call_followup: PhoneMissed,
+  calendar_conflict: CalendarClock,
+  document_threat: ShieldAlert,
+  model_fallback: AlertTriangle,
+  negative_call_followup: PhoneOff,
+  urgent_message: MessageSquare,
+  meeting_prep: CalendarClock,
+  inactive_contact: UserPlus,
+  message_sla_breach: MessageSquare,
+  quiet_customer: UserPlus,
+  email_reply_needed: Mail,
+  payment_reminder: Receipt,
 };
 
-const ACTION_NAV: Record<string, { label: string; path: string }> = {
-  open_task: { label: "Ouvrir la tâche", path: "/taches" },
-  callback: { label: "Voir l'appel", path: "/appels" },
-  open_calendar: { label: "Ouvrir l'agenda", path: "/calendrier" },
-  open_documents_threats: { label: "Voir les documents à risque", path: "/documents?scan=dangerous" },
-  open_messages: { label: "Ouvrir les messages", path: "/messages" },
-  open_contact: { label: "Ouvrir le contact", path: "/contacts" },
+const ACTION_PATH: Record<string, string> = {
+  open_task: "/taches",
+  callback: "/appels",
+  open_calendar: "/calendrier",
+  open_documents_threats: "/documents?scan=dangerous",
+  open_messages: "/messages",
+  open_contact: "/contacts",
 };
 
-const FILTERS: Array<{ key: Status; label: string }> = [
-  { key: "pending", label: "En attente" },
-  { key: "accepted", label: "Acceptées" },
-  { key: "dismissed", label: "Ignorées" },
-  { key: "done", label: "Résolues" },
-];
+const FILTER_KEYS: Status[] = ["pending", "accepted", "dismissed", "done"];
 
 export default function AssistantProactifPage() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [counts, setCounts] = useState({ urgent: 0, warning: 0, info: 0 });
@@ -101,11 +98,11 @@ export default function AssistantProactifPage() {
       setSuggestions(data.suggestions ?? []);
       setCounts(data.counts ?? { urgent: 0, warning: 0, info: 0 });
     } catch {
-      toast({ title: "Erreur", description: "Impossible de charger les suggestions.", variant: "destructive" });
+      toast({ title: t("assistantProactif.toast.error"), description: t("assistantProactif.toast.loadError"), variant: "destructive" });
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, t]);
 
   useEffect(() => { void load(filter); }, [filter, load]);
 
@@ -137,15 +134,15 @@ export default function AssistantProactifPage() {
       const res = await fetch(`${PROACTIVE_API}/run`, { method: "POST", credentials: "include" });
       const data = await res.json().catch(() => ({}));
       if (res.status === 429) {
-        toast({ title: "Patientez", description: data.error ?? "Réessayez dans un instant." });
+        toast({ title: t("assistantProactif.toast.wait"), description: data.error ?? t("assistantProactif.toast.retrySoon") });
       } else if (!res.ok) {
         throw new Error("run");
       } else {
-        toast({ title: "Analyse terminée", description: `${data.created ?? 0} nouvelle(s) suggestion(s).` });
+        toast({ title: t("assistantProactif.toast.analysisDone"), description: t("assistantProactif.toast.newSuggestions", { count: data.created ?? 0 }) });
         if (filter !== "pending") setFilter("pending"); else await load("pending");
       }
     } catch {
-      toast({ title: "Erreur", description: "L'analyse a échoué.", variant: "destructive" });
+      toast({ title: t("assistantProactif.toast.error"), description: t("assistantProactif.toast.analysisFailed"), variant: "destructive" });
     } finally {
       setRunning(false);
     }
@@ -156,9 +153,9 @@ export default function AssistantProactifPage() {
       const res = await fetch(`${PROACTIVE_API}/suggestions/${id}/${action}`, { method: "POST", credentials: "include" });
       if (!res.ok) throw new Error("resolve");
       setSuggestions((prev) => prev.filter((s) => s.id !== id));
-      toast({ title: action === "accept" ? "Accepté" : "Ignoré" });
+      toast({ title: action === "accept" ? t("assistantProactif.toast.accepted") : t("assistantProactif.toast.ignored") });
     } catch {
-      toast({ title: "Erreur", description: "Action impossible.", variant: "destructive" });
+      toast({ title: t("assistantProactif.toast.error"), description: t("assistantProactif.toast.actionImpossible"), variant: "destructive" });
     }
   };
 
@@ -171,9 +168,9 @@ export default function AssistantProactifPage() {
       });
       if (!res.ok) throw new Error("feedback");
       setSuggestions((prev) => prev.map((s) => (s.id === id ? { ...s, feedback: value } : s)));
-      toast({ title: "Merci", description: "L'assistant apprend de votre retour." });
+      toast({ title: t("assistantProactif.toast.thanks"), description: t("assistantProactif.toast.feedbackThanks") });
     } catch {
-      toast({ title: "Erreur", description: "Retour non enregistré.", variant: "destructive" });
+      toast({ title: t("assistantProactif.toast.error"), description: t("assistantProactif.toast.feedbackError"), variant: "destructive" });
     }
   };
 
@@ -201,7 +198,7 @@ export default function AssistantProactifPage() {
     const channel = isReminder ? String((s.actionPayload ?? {}).channel ?? "email") : "email";
     const draft = getDraft(s);
     if (!draft.body.trim()) {
-      toast({ title: "Message vide", description: "Rédigez le message avant l'envoi.", variant: "destructive" });
+      toast({ title: t("assistantProactif.toast.emptyMessage"), description: t("assistantProactif.toast.writeBeforeSend"), variant: "destructive" });
       return;
     }
     setSendingId(s.id);
@@ -217,14 +214,14 @@ export default function AssistantProactifPage() {
       setSuggestions((prev) => prev.filter((x) => x.id !== s.id));
       if (isReminder) {
         toast({
-          title: "Relance envoyée",
-          description: channel === "sms" ? "Le SMS de relance a été envoyé au client." : "L'e-mail de relance a été envoyé au client.",
+          title: t("assistantProactif.toast.reminderSent"),
+          description: channel === "sms" ? t("assistantProactif.toast.reminderSmsSent") : t("assistantProactif.toast.reminderEmailSent"),
         });
       } else {
-        toast({ title: "Réponse envoyée", description: "L'e-mail a été envoyé dans le fil d'origine." });
+        toast({ title: t("assistantProactif.toast.replySent"), description: t("assistantProactif.toast.replySentDesc") });
       }
     } catch (e) {
-      toast({ title: "Erreur", description: e instanceof Error ? e.message : "Envoi impossible.", variant: "destructive" });
+      toast({ title: t("assistantProactif.toast.error"), description: e instanceof Error ? e.message : t("assistantProactif.toast.sendError"), variant: "destructive" });
     } finally {
       setSendingId(null);
     }
@@ -250,11 +247,11 @@ export default function AssistantProactifPage() {
     const sla = Math.round(Number(slaHours));
     const quiet = Math.round(Number(quietDays));
     if (!Number.isFinite(sla) || sla < bounds.slaMin || sla > bounds.slaMax) {
-      toast({ title: "Valeur invalide", description: `Le délai doit être entre ${bounds.slaMin} et ${bounds.slaMax} heures.`, variant: "destructive" });
+      toast({ title: t("assistantProactif.toast.invalidValue"), description: t("assistantProactif.toast.slaRange", { min: bounds.slaMin, max: bounds.slaMax }), variant: "destructive" });
       return;
     }
     if (!Number.isFinite(quiet) || quiet < bounds.quietMin || quiet > bounds.quietMax) {
-      toast({ title: "Valeur invalide", description: `Le seuil doit être entre ${bounds.quietMin} et ${bounds.quietMax} jours.`, variant: "destructive" });
+      toast({ title: t("assistantProactif.toast.invalidValue"), description: t("assistantProactif.toast.quietRange", { min: bounds.quietMin, max: bounds.quietMax }), variant: "destructive" });
       return;
     }
     setSavingWindows(true);
@@ -268,9 +265,9 @@ export default function AssistantProactifPage() {
       if (!res.ok) throw new Error(d.error ?? "settings");
       if (typeof d.messageSlaHours === "number") setSlaHours(String(d.messageSlaHours));
       if (typeof d.quietCustomerAfterDays === "number") setQuietDays(String(d.quietCustomerAfterDays));
-      toast({ title: "Réglages enregistrés", description: "Les seuils d'alerte ont été mis à jour." });
+      toast({ title: t("assistantProactif.toast.thresholdsSaved"), description: t("assistantProactif.toast.thresholdsSavedDesc") });
     } catch (e) {
-      toast({ title: "Erreur", description: e instanceof Error ? e.message : "Réglages non enregistrés.", variant: "destructive" });
+      toast({ title: t("assistantProactif.toast.error"), description: e instanceof Error ? e.message : t("assistantProactif.toast.thresholdsError"), variant: "destructive" });
     } finally {
       setSavingWindows(false);
     }
@@ -285,10 +282,10 @@ export default function AssistantProactifPage() {
         body: JSON.stringify({ enabled: next }),
       });
       if (!res.ok) throw new Error("settings");
-      toast({ title: next ? "Assistant proactif activé" : "Assistant proactif désactivé" });
+      toast({ title: next ? t("assistantProactif.toast.enabledOn") : t("assistantProactif.toast.enabledOff") });
     } catch {
       setEnabled(!next);
-      toast({ title: "Erreur", description: "Réglage non enregistré.", variant: "destructive" });
+      toast({ title: t("assistantProactif.toast.error"), description: t("assistantProactif.toast.settingError"), variant: "destructive" });
     }
   };
 
@@ -298,15 +295,15 @@ export default function AssistantProactifPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Sparkles className="h-6 w-6 text-amber-500" />
-            Assistant proactif
+            {t("assistantProactif.title")}
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Votre agent surveille en continu tâches, appels et agenda, puis propose les actions à mener.
+            {t("assistantProactif.subtitle")}
           </p>
         </div>
         <Button onClick={runNow} disabled={running}>
           {running ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-          Analyser maintenant
+          {t("assistantProactif.analyzeNow")}
         </Button>
       </div>
 
@@ -315,29 +312,28 @@ export default function AssistantProactifPage() {
           <div className="flex items-center gap-3">
             <Switch id="proactive-enabled" checked={enabled} onCheckedChange={toggleEnabled} />
             <Label htmlFor="proactive-enabled" className="cursor-pointer">
-              Surveillance automatique {enabled ? "activée" : "désactivée"}
+              {t("assistantProactif.autoMonitoring", { state: enabled ? t("assistantProactif.stateOn") : t("assistantProactif.stateOff") })}
             </Label>
           </div>
           <div className="flex gap-2 text-xs">
-            {counts.urgent > 0 && <Badge className={SEVERITY_STYLE.urgent.badge}>{counts.urgent} urgent</Badge>}
-            {counts.warning > 0 && <Badge className={SEVERITY_STYLE.warning.badge}>{counts.warning} à traiter</Badge>}
-            {counts.info > 0 && <Badge className={SEVERITY_STYLE.info.badge}>{counts.info} info</Badge>}
+            {counts.urgent > 0 && <Badge className={SEVERITY_STYLE.urgent.badge}>{t("assistantProactif.badgeUrgent", { count: counts.urgent })}</Badge>}
+            {counts.warning > 0 && <Badge className={SEVERITY_STYLE.warning.badge}>{t("assistantProactif.badgeWarning", { count: counts.warning })}</Badge>}
+            {counts.info > 0 && <Badge className={SEVERITY_STYLE.info.badge}>{t("assistantProactif.badgeInfo", { count: counts.info })}</Badge>}
           </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Seuils d'alerte</CardTitle>
+          <CardTitle className="text-base">{t("assistantProactif.thresholdsTitle")}</CardTitle>
           <CardDescription>
-            Réglez à partir de quand l'assistant signale un message resté sans réponse
-            ou un client devenu silencieux. Adaptez ces délais au rythme de votre activité.
+            {t("assistantProactif.thresholdsDesc")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="sla-hours">Message sans réponse après</Label>
+              <Label htmlFor="sla-hours">{t("assistantProactif.messageNoReplyAfter")}</Label>
               <div className="flex items-center gap-2">
                 <Input
                   id="sla-hours" type="number" inputMode="numeric"
@@ -346,14 +342,14 @@ export default function AssistantProactifPage() {
                   onChange={(e) => setSlaHours(e.target.value)}
                   className="w-28"
                 />
-                <span className="text-sm text-muted-foreground">heures</span>
+                <span className="text-sm text-muted-foreground">{t("assistantProactif.hours")}</span>
               </div>
               <p className="text-xs text-muted-foreground">
-                Entre {bounds.slaMin} et {bounds.slaMax} h. Un message entrant sans réponse passé ce délai est signalé.
+                {t("assistantProactif.slaHint", { min: bounds.slaMin, max: bounds.slaMax })}
               </p>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="quiet-days">Client silencieux après</Label>
+              <Label htmlFor="quiet-days">{t("assistantProactif.quietCustomerAfter")}</Label>
               <div className="flex items-center gap-2">
                 <Input
                   id="quiet-days" type="number" inputMode="numeric"
@@ -362,26 +358,26 @@ export default function AssistantProactifPage() {
                   onChange={(e) => setQuietDays(e.target.value)}
                   className="w-28"
                 />
-                <span className="text-sm text-muted-foreground">jours</span>
+                <span className="text-sm text-muted-foreground">{t("assistantProactif.days")}</span>
               </div>
               <p className="text-xs text-muted-foreground">
-                Entre {bounds.quietMin} et {bounds.quietMax} j. Un client actif sans nouvel échange passé ce délai est signalé.
+                {t("assistantProactif.quietHint", { min: bounds.quietMin, max: bounds.quietMax })}
               </p>
             </div>
           </div>
           <div className="flex justify-end">
             <Button onClick={saveWindows} disabled={savingWindows} size="sm">
               {savingWindows ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-              Enregistrer les seuils
+              {t("assistantProactif.saveThresholds")}
             </Button>
           </div>
         </CardContent>
       </Card>
 
       <div className="flex flex-wrap gap-2">
-        {FILTERS.map((f) => (
-          <Button key={f.key} variant={filter === f.key ? "default" : "outline"} size="sm" onClick={() => setFilter(f.key)}>
-            {f.label}
+        {FILTER_KEYS.map((key) => (
+          <Button key={key} variant={filter === key ? "default" : "outline"} size="sm" onClick={() => setFilter(key)}>
+            {t(`assistantProactif.filters.${key}`)}
           </Button>
         ))}
       </div>
@@ -393,12 +389,12 @@ export default function AssistantProactifPage() {
           <CardContent className="flex flex-col items-center justify-center py-16 text-center gap-3">
             <Inbox className="h-12 w-12 text-muted-foreground/40" />
             <CardTitle className="text-lg">
-              {filter === "pending" ? "Tout est sous contrôle" : "Aucune suggestion ici"}
+              {filter === "pending" ? t("assistantProactif.emptyPendingTitle") : t("assistantProactif.emptyOtherTitle")}
             </CardTitle>
             <CardDescription>
               {filter === "pending"
-                ? "Aucune action proactive requise pour l'instant. L'assistant vous préviendra dès qu'il détecte quelque chose."
-                : "Aucune suggestion dans cette catégorie."}
+                ? t("assistantProactif.emptyPendingDesc")
+                : t("assistantProactif.emptyOtherDesc")}
             </CardDescription>
           </CardContent>
         </Card>
@@ -406,9 +402,10 @@ export default function AssistantProactifPage() {
         <div className="space-y-3">
           {suggestions.map((s) => {
             const sev = SEVERITY_STYLE[s.severity] ?? SEVERITY_STYLE.info;
-            const meta = TYPE_META[s.type] ?? { label: s.type, icon: AlertTriangle };
-            const Icon = meta.icon;
-            const nav = s.actionType ? ACTION_NAV[s.actionType] : undefined;
+            const Icon = TYPE_ICON[s.type] ?? AlertTriangle;
+            const typeLabel = TYPE_ICON[s.type] ? t(`assistantProactif.types.${s.type}`) : s.type;
+            const navPath = s.actionType ? ACTION_PATH[s.actionType] : undefined;
+            const navLabel = s.actionType && navPath ? t(`assistantProactif.actions.${s.actionType}`) : "";
             const isEmail = s.type === "email_reply_needed";
             const isReminder = s.type === "payment_reminder";
             const isDraftable = isEmail || isReminder;
@@ -426,7 +423,7 @@ export default function AssistantProactifPage() {
                         {s.detail && <CardDescription className="mt-1">{s.detail}</CardDescription>}
                       </div>
                     </div>
-                    <Badge className={`${sev.badge} shrink-0`}>{sev.label}</Badge>
+                    <Badge className={`${sev.badge} shrink-0`}>{t(`assistantProactif.severity.${s.severity}`)}</Badge>
                   </div>
                 </CardHeader>
                 {isDraftable && draft && s.status === "pending" && (
@@ -435,13 +432,13 @@ export default function AssistantProactifPage() {
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         {reminderChannel === "sms" ? <MessageCircle className="h-3.5 w-3.5" /> : <Mail className="h-3.5 w-3.5" />}
                         <span>
-                          Relance par {reminderChannel === "sms" ? "SMS" : "e-mail"} à {String((s.actionPayload ?? {}).recipient ?? "")}
+                          {t("assistantProactif.reminderVia", { channel: reminderChannel === "sms" ? t("assistantProactif.channelSms") : t("assistantProactif.channelEmail"), recipient: String((s.actionPayload ?? {}).recipient ?? "") })}
                         </span>
                       </div>
                     )}
                     {showSubject && (
                       <div className="space-y-1.5">
-                        <Label htmlFor={`subj-${s.id}`} className="text-xs text-muted-foreground">Objet</Label>
+                        <Label htmlFor={`subj-${s.id}`} className="text-xs text-muted-foreground">{t("assistantProactif.subject")}</Label>
                         <Input
                           id={`subj-${s.id}`}
                           value={draft.subject}
@@ -451,7 +448,7 @@ export default function AssistantProactifPage() {
                     )}
                     <div className="space-y-1.5">
                       <Label htmlFor={`body-${s.id}`} className="text-xs text-muted-foreground">
-                        {isReminder ? "Brouillon de relance (modifiable avant envoi)" : "Brouillon de réponse (modifiable avant envoi)"}
+                        {isReminder ? t("assistantProactif.reminderDraftLabel") : t("assistantProactif.replyDraftLabel")}
                       </Label>
                       <Textarea
                         id={`body-${s.id}`}
@@ -464,41 +461,41 @@ export default function AssistantProactifPage() {
                   </CardContent>
                 )}
                 <CardContent className="flex flex-wrap items-center gap-2 pt-0">
-                  <Badge variant="outline" className="text-xs">{meta.label}</Badge>
+                  <Badge variant="outline" className="text-xs">{typeLabel}</Badge>
                   <div className="flex-1" />
-                  {nav && (
-                    <Button variant="outline" size="sm" onClick={() => setLocation(nav.path)}>
-                      {nav.label} <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                  {navPath && (
+                    <Button variant="outline" size="sm" onClick={() => setLocation(navPath)}>
+                      {navLabel} <ArrowRight className="h-3.5 w-3.5 ml-1" />
                     </Button>
                   )}
                   {s.status === "pending" && isDraftable && (
                     <>
                       <Button variant="outline" size="sm" onClick={() => (isReminder ? rejectReminder(s.id) : rejectEmail(s.id))} disabled={sendingId === s.id}>
-                        <X className="h-4 w-4 mr-1" /> {isReminder ? "Ignorer" : "Rejeter"}
+                        <X className="h-4 w-4 mr-1" /> {isReminder ? t("assistantProactif.ignore") : t("assistantProactif.reject")}
                       </Button>
                       <Button size="sm" onClick={() => sendReply(s)} disabled={sendingId === s.id}>
                         {sendingId === s.id ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />}
-                        Envoyer
+                        {t("assistantProactif.send")}
                       </Button>
                     </>
                   )}
                   {s.status === "pending" && !isDraftable && (
                     <>
-                      <Button variant="ghost" size="icon" title="Utile"
+                      <Button variant="ghost" size="icon" title={t("assistantProactif.useful")}
                         className={s.feedback === "up" ? "text-emerald-600" : ""}
                         onClick={() => sendFeedback(s.id, "up")}>
                         <ThumbsUp className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" title="Pas utile"
+                      <Button variant="ghost" size="icon" title={t("assistantProactif.notUseful")}
                         className={s.feedback === "down" ? "text-red-600" : ""}
                         onClick={() => sendFeedback(s.id, "down")}>
                         <ThumbsDown className="h-4 w-4" />
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => resolve(s.id, "dismiss")}>
-                        <X className="h-4 w-4 mr-1" /> Ignorer
+                        <X className="h-4 w-4 mr-1" /> {t("assistantProactif.ignore")}
                       </Button>
                       <Button size="sm" onClick={() => resolve(s.id, "accept")}>
-                        <CheckCircle2 className="h-4 w-4 mr-1" /> Accepter
+                        <CheckCircle2 className="h-4 w-4 mr-1" /> {t("assistantProactif.accept")}
                       </Button>
                     </>
                   )}

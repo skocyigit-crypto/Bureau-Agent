@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useWorkspaceUser } from "@/components/workspace-user";
+import { useTranslation, type TFunction } from "@/i18n";
 
 const LEARNING_API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/ai-learning";
 
@@ -60,46 +61,33 @@ interface LearnableUser {
   factCount: number;
 }
 
-const SUGGESTION_LABELS: Record<string, string> = {
-  overdue_task: "Tâches en retard",
-  missed_call_followup: "Rappels d'appels manqués",
-  calendar_conflict: "Conflits d'agenda",
-};
-const CATEGORY_LABELS: Record<string, string> = {
-  calls: "Appels", tasks: "Tâches", finance: "Finance", contacts: "Contacts",
-  projets: "Projets", prospects: "Prospects", general: "Général",
-};
-const PROPOSAL_CATEGORY_LABELS: Record<string, string> = {
-  tache: "Tâche", email: "E-mail", sms: "SMS", rappel: "Rappel",
-  relance: "Relance", contact: "Contact", autre: "Divers",
-};
+const SUGGESTION_KEYS = new Set(["overdue_task", "missed_call_followup", "calendar_conflict"]);
+const CATEGORY_KEYS = new Set(["calls", "tasks", "finance", "contacts", "projets", "prospects", "general"]);
+const PROPOSAL_CATEGORY_KEYS = new Set(["tache", "email", "sms", "rappel", "relance", "contact", "autre"]);
+const ROLE_KEYS = new Set(["super_admin", "administrateur", "agent", "lecture_seule"]);
 
-function prefLabel(p: Preference): string {
-  if (p.kind === "suggestion_type") return SUGGESTION_LABELS[p.key] ?? p.key;
-  return CATEGORY_LABELS[p.key] ?? p.key;
+function prefLabel(p: Preference, t: TFunction): string {
+  if (p.kind === "suggestion_type") return SUGGESTION_KEYS.has(p.key) ? t(`iaApprentissage.suggestionLabels.${p.key}`) : p.key;
+  return CATEGORY_KEYS.has(p.key) ? t(`iaApprentissage.categoryLabels.${p.key}`) : p.key;
 }
 
 // "il y a 2 h", "il y a 5 min", "à l'instant"… à partir d'une date ISO.
-function relativeTime(iso: string | null): string | null {
+function relativeTime(iso: string | null, t: TFunction): string | null {
   if (!iso) return null;
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return null;
   const sec = Math.max(0, Math.floor((Date.now() - then) / 1000));
-  if (sec < 60) return "à l'instant";
+  if (sec < 60) return t("iaApprentissage.time.now");
   const min = Math.floor(sec / 60);
-  if (min < 60) return `il y a ${min} min`;
+  if (min < 60) return t("iaApprentissage.time.minAgo", { n: min });
   const h = Math.floor(min / 60);
-  if (h < 24) return `il y a ${h} h`;
+  if (h < 24) return t("iaApprentissage.time.hAgo", { n: h });
   const j = Math.floor(h / 24);
-  if (j < 30) return `il y a ${j} j`;
+  if (j < 30) return t("iaApprentissage.time.dAgo", { n: j });
   const mois = Math.floor(j / 30);
-  return `il y a ${mois} mois`;
+  return t("iaApprentissage.time.moAgo", { n: mois });
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  super_admin: "Dirigeant", administrateur: "Administrateur",
-  agent: "Agent", lecture_seule: "Lecture seule",
-};
 const MANAGER_ROLES = new Set(["super_admin", "administrateur"]);
 
 // Regroupe les faits personnels par catégorie pour l'affichage.
@@ -116,6 +104,7 @@ function groupUserFacts(facts: UserFact[]) {
 
 export default function IaApprentissagePage() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [profile, setProfile] = useState<Profile>({ preferences: [], patterns: [], corrections: [] });
   const [loading, setLoading] = useState(true);
   const [recomputing, setRecomputing] = useState(false);
@@ -129,11 +118,11 @@ export default function IaApprentissagePage() {
       const data = await res.json();
       setProfile({ preferences: data.preferences ?? [], patterns: data.patterns ?? [], corrections: data.corrections ?? [] });
     } catch {
-      toast({ title: "Erreur", description: "Impossible de charger ce que l'IA a appris.", variant: "destructive" });
+      toast({ title: t("iaApprentissage.toast.error"), description: t("iaApprentissage.toast.loadError"), variant: "destructive" });
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, t]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -143,17 +132,17 @@ export default function IaApprentissagePage() {
       const res = await fetch(`${LEARNING_API}/recompute`, { method: "POST", credentials: "include" });
       const data = await res.json().catch(() => ({}));
       if (res.status === 429) {
-        toast({ title: "Patientez", description: data.error ?? "Réessayez dans un instant." });
+        toast({ title: t("iaApprentissage.toast.wait"), description: data.error ?? t("iaApprentissage.toast.retrySoon") });
       } else if (res.status === 403) {
-        toast({ title: "Accès refusé", description: "Réservé aux administrateurs.", variant: "destructive" });
+        toast({ title: t("iaApprentissage.toast.accessDenied"), description: t("iaApprentissage.toast.adminOnly"), variant: "destructive" });
       } else if (!res.ok) {
         throw new Error("recompute");
       } else {
         setProfile({ preferences: data.profile?.preferences ?? [], patterns: data.profile?.patterns ?? [], corrections: data.profile?.corrections ?? [] });
-        toast({ title: "Mémoire mise à jour", description: "L'IA a réanalysé vos préférences et habitudes." });
+        toast({ title: t("iaApprentissage.toast.memoryUpdated"), description: t("iaApprentissage.toast.memoryUpdatedDesc") });
       }
     } catch {
-      toast({ title: "Erreur", description: "Le recalcul a échoué.", variant: "destructive" });
+      toast({ title: t("iaApprentissage.toast.error"), description: t("iaApprentissage.toast.recomputeFailed"), variant: "destructive" });
     } finally {
       setRecomputing(false);
     }
@@ -170,7 +159,7 @@ export default function IaApprentissagePage() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 403) {
-        toast({ title: "Accès refusé", description: "Réservé aux dirigeants.", variant: "destructive" });
+        toast({ title: t("iaApprentissage.toast.accessDenied"), description: t("iaApprentissage.toast.managerOnly"), variant: "destructive" });
       } else if (!res.ok) {
         throw new Error("reactivate");
       } else {
@@ -179,10 +168,10 @@ export default function IaApprentissagePage() {
           patterns: data.profile?.patterns ?? [],
           corrections: data.profile?.corrections ?? [],
         });
-        toast({ title: "Suggestions réactivées", description: "L'IA proposera de nouveau ce type de suggestion." });
+        toast({ title: t("iaApprentissage.toast.suggestionsReactivated"), description: t("iaApprentissage.toast.suggestionsReactivatedDesc") });
       }
     } catch {
-      toast({ title: "Erreur", description: "La réactivation a échoué.", variant: "destructive" });
+      toast({ title: t("iaApprentissage.toast.error"), description: t("iaApprentissage.toast.reactivateFailed"), variant: "destructive" });
     } finally {
       setReactivating(null);
     }
@@ -206,11 +195,11 @@ export default function IaApprentissagePage() {
       setUserProfile({ userId: data.userId ?? uid, computedAt: data.computedAt ?? null, facts: data.facts ?? [] });
     } catch {
       setUserProfile({ userId: uid, computedAt: null, facts: [] });
-      toast({ title: "Erreur", description: "Impossible de charger ce profil personnel.", variant: "destructive" });
+      toast({ title: t("iaApprentissage.toast.error"), description: t("iaApprentissage.toast.profileLoadError"), variant: "destructive" });
     } finally {
       setUserLoading(false);
     }
-  }, [toast]);
+  }, [toast, t]);
 
   useEffect(() => { void loadUserProfile(selectedUserId); }, [selectedUserId, loadUserProfile]);
 
@@ -225,22 +214,22 @@ export default function IaApprentissagePage() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 429) {
-        toast({ title: "Patientez", description: data.error ?? "Réessayez dans un instant." });
+        toast({ title: t("iaApprentissage.toast.wait"), description: data.error ?? t("iaApprentissage.toast.retrySoon") });
       } else if (res.status === 403) {
-        toast({ title: "Accès refusé", description: data.error ?? "Action non autorisée.", variant: "destructive" });
+        toast({ title: t("iaApprentissage.toast.accessDenied"), description: data.error ?? t("iaApprentissage.toast.notAuthorized"), variant: "destructive" });
       } else if (!res.ok) {
         throw new Error("recompute-user");
       } else {
         setUserProfile({ userId: data.profile?.userId ?? selectedUserId, computedAt: data.profile?.computedAt ?? null, facts: data.profile?.facts ?? [] });
         toast({
-          title: "Profil mis à jour",
+          title: t("iaApprentissage.toast.profileUpdated"),
           description: viewingSelf
-            ? "L'IA a réanalysé votre activité."
-            : "L'IA a réanalysé l'activité de cet employé.",
+            ? t("iaApprentissage.toast.profileUpdatedSelf")
+            : t("iaApprentissage.toast.profileUpdatedOther"),
         });
       }
     } catch {
-      toast({ title: "Erreur", description: "Le recalcul du profil a échoué.", variant: "destructive" });
+      toast({ title: t("iaApprentissage.toast.error"), description: t("iaApprentissage.toast.profileRecomputeFailed"), variant: "destructive" });
     } finally {
       setUserRecomputing(false);
     }
@@ -284,15 +273,15 @@ export default function IaApprentissagePage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Brain className="h-6 w-6 text-violet-500" />
-            Ce que l'IA a appris
+            {t("iaApprentissage.title")}
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            À partir de vos retours (👍/👎) et de vos habitudes, l'assistant adapte ses réponses à votre organisation.
+            {t("iaApprentissage.subtitle")}
           </p>
         </div>
         <Button onClick={recompute} disabled={recomputing}>
           {recomputing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-          Réanalyser
+          {t("iaApprentissage.reanalyze")}
         </Button>
       </div>
 
@@ -302,10 +291,9 @@ export default function IaApprentissagePage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 text-center gap-3">
             <Inbox className="h-12 w-12 text-muted-foreground/40" />
-            <CardTitle className="text-lg">L'IA n'a encore rien appris</CardTitle>
+            <CardTitle className="text-lg">{t("iaApprentissage.emptyTitle")}</CardTitle>
             <CardDescription className="max-w-md">
-              Notez les suggestions de l'assistant proactif (👍/👎) et votez sur les analyses : l'IA mémorisera vos
-              préférences et habitudes pour personnaliser ses réponses.
+              {t("iaApprentissage.emptyDesc")}
             </CardDescription>
           </CardContent>
         </Card>
@@ -314,18 +302,18 @@ export default function IaApprentissagePage() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <ThumbsUp className="h-4 w-4 text-emerald-600" /> Préférences apprises
+                <ThumbsUp className="h-4 w-4 text-emerald-600" /> {t("iaApprentissage.learnedPrefs")}
               </CardTitle>
-              <CardDescription>Ce que vous appréciez ou souhaitez éviter.</CardDescription>
+              <CardDescription>{t("iaApprentissage.learnedPrefsDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {liked.length === 0 && disliked.length === 0 && (
-                <p className="text-sm text-muted-foreground">Pas encore assez de retours pour dégager une préférence.</p>
+                <p className="text-sm text-muted-foreground">{t("iaApprentissage.notEnoughFeedback")}</p>
               )}
               {liked.map((p) => (
                 <div key={`up-${p.kind}-${p.key}`} className="flex items-center justify-between gap-2">
                   <span className="text-sm flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-emerald-600 shrink-0" /> {prefLabel(p)}
+                    <TrendingUp className="h-4 w-4 text-emerald-600 shrink-0" /> {prefLabel(p, t)}
                   </span>
                   <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
                     {p.upCount} 👍
@@ -335,7 +323,7 @@ export default function IaApprentissagePage() {
               {disliked.map((p) => (
                 <div key={`down-${p.kind}-${p.key}`} className="flex items-center justify-between gap-2">
                   <span className="text-sm flex items-center gap-2">
-                    <TrendingDown className="h-4 w-4 text-red-600 shrink-0" /> {prefLabel(p)}
+                    <TrendingDown className="h-4 w-4 text-red-600 shrink-0" /> {prefLabel(p, t)}
                   </span>
                   <Badge className="bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300">
                     {p.downCount} 👎
@@ -348,15 +336,15 @@ export default function IaApprentissagePage() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <Lightbulb className="h-4 w-4 text-amber-500" /> Habitudes détectées
+                <Lightbulb className="h-4 w-4 text-amber-500" /> {t("iaApprentissage.detectedHabits")}
               </CardTitle>
-              <CardDescription>Motifs récurrents repérés dans votre activité.</CardDescription>
+              <CardDescription>{t("iaApprentissage.detectedHabitsDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {callers.length > 0 && (
                 <div>
                   <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-2">
-                    <Phone className="h-3.5 w-3.5" /> Interlocuteurs fréquents
+                    <Phone className="h-3.5 w-3.5" /> {t("iaApprentissage.frequentCallers")}
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {callers.slice(0, 6).map((c) => (
@@ -368,7 +356,7 @@ export default function IaApprentissagePage() {
               {hours.length > 0 && (
                 <div>
                   <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-2">
-                    <Clock className="h-3.5 w-3.5" /> Heures d'appels les plus chargées
+                    <Clock className="h-3.5 w-3.5" /> {t("iaApprentissage.busiestCallHours")}
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {hours.map((h) => (
@@ -380,17 +368,17 @@ export default function IaApprentissagePage() {
               {themes.length > 0 && (
                 <div>
                   <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-2">
-                    <ListChecks className="h-3.5 w-3.5" /> Thèmes de tâches récurrents
+                    <ListChecks className="h-3.5 w-3.5" /> {t("iaApprentissage.recurringTaskThemes")}
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {themes.map((t) => (
-                      <Badge key={t.value} variant="outline">{t.label} · {t.occurrences}×</Badge>
+                    {themes.map((th) => (
+                      <Badge key={th.value} variant="outline">{th.label} · {th.occurrences}×</Badge>
                     ))}
                   </div>
                 </div>
               )}
               {callers.length === 0 && hours.length === 0 && themes.length === 0 && (
-                <p className="text-sm text-muted-foreground">Aucune habitude récurrente détectée pour l'instant.</p>
+                <p className="text-sm text-muted-foreground">{t("iaApprentissage.noHabits")}</p>
               )}
             </CardContent>
           </Card>
@@ -399,14 +387,13 @@ export default function IaApprentissagePage() {
             <Card className="md:col-span-2 border-amber-200 dark:border-amber-900/50">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <BellOff className="h-4 w-4 text-amber-600" /> Suggestions mises en sourdine
+                  <BellOff className="h-4 w-4 text-amber-600" /> {t("iaApprentissage.mutedTitle")}
                 </CardTitle>
                 <CardDescription>
-                  Après plusieurs 👎, l'assistant proactif a cessé de proposer ces types de suggestions.
-                  Les alertes urgentes restent toujours affichées.
+                  {t("iaApprentissage.mutedDescBase")}
                   {isManager
-                    ? " Cliquez sur « Réafficher » pour les réactiver."
-                    : " Un dirigeant peut les réactiver."}
+                    ? t("iaApprentissage.mutedDescManager")
+                    : t("iaApprentissage.mutedDescUser")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -417,7 +404,7 @@ export default function IaApprentissagePage() {
                   >
                     <span className="text-sm flex items-center gap-2 min-w-0">
                       <BellOff className="h-4 w-4 text-amber-600 shrink-0" />
-                      <span className="truncate">{prefLabel(p)}</span>
+                      <span className="truncate">{prefLabel(p, t)}</span>
                       <Badge className="bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 shrink-0">
                         {p.downCount} 👎
                       </Badge>
@@ -435,7 +422,7 @@ export default function IaApprentissagePage() {
                         ) : (
                           <Bell className="h-4 w-4 mr-2" />
                         )}
-                        Réafficher
+                        {t("iaApprentissage.reshow")}
                       </Button>
                     )}
                   </div>
@@ -448,10 +435,10 @@ export default function IaApprentissagePage() {
             <Card className="md:col-span-2">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <XCircle className="h-4 w-4 text-red-600" /> Corrections récentes
+                  <XCircle className="h-4 w-4 text-red-600" /> {t("iaApprentissage.recentCorrections")}
                 </CardTitle>
                 <CardDescription>
-                  Propositions que vous avez refusées. L'IA en tient compte pour ne plus les reproduire.
+                  {t("iaApprentissage.recentCorrectionsDesc")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -466,7 +453,7 @@ export default function IaApprentissagePage() {
                       )}
                     </div>
                     <div className="flex flex-col items-end gap-1 shrink-0">
-                      <Badge variant="outline">{PROPOSAL_CATEGORY_LABELS[c.category] ?? c.category}</Badge>
+                      <Badge variant="outline">{PROPOSAL_CATEGORY_KEYS.has(c.category) ? t(`iaApprentissage.proposalCategoryLabels.${c.category}`) : c.category}</Badge>
                       {c.decidedAt && (
                         <span className="text-[11px] text-muted-foreground">
                           {new Date(c.decidedAt).toLocaleDateString("fr-FR")}
@@ -487,25 +474,25 @@ export default function IaApprentissagePage() {
           <div>
             <h2 className="text-lg font-bold flex items-center gap-2">
               <User className="h-5 w-5 text-violet-500" />
-              {viewingSelf ? "Votre profil personnel" : "Profil de l'employé"}
+              {viewingSelf ? t("iaApprentissage.yourPersonalProfile") : t("iaApprentissage.employeeProfile")}
             </h2>
             <p className="text-muted-foreground text-sm mt-1">
               {isManager
-                ? "Ce que l'IA a appris de chaque employé : horaires, domaines, thèmes, interlocuteurs et style d'écriture."
-                : "Ce que l'IA a appris de votre activité pour personnaliser ses suggestions et le ton de ses réponses."}
+                ? t("iaApprentissage.personalProfileDescManager")
+                : t("iaApprentissage.personalProfileDescUser")}
             </p>
           </div>
           <div className="flex flex-col items-end gap-1 shrink-0">
             <Button variant="outline" size="sm" onClick={recomputeUser} disabled={userRecomputing || userLoading}>
               {userRecomputing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-              {viewingSelf ? "Recalculer mon profil" : "Recalculer ce profil"}
+              {viewingSelf ? t("iaApprentissage.recomputeMyProfile") : t("iaApprentissage.recomputeThisProfile")}
             </Button>
             <span className="text-xs text-muted-foreground">
               {userRecomputing
-                ? "Analyse en cours…"
-                : relativeTime(userProfile?.computedAt ?? null)
-                  ? `Dernière analyse : ${relativeTime(userProfile?.computedAt ?? null)}`
-                  : "Jamais analysé"}
+                ? t("iaApprentissage.analyzing")
+                : relativeTime(userProfile?.computedAt ?? null, t)
+                  ? t("iaApprentissage.lastAnalysis", { time: relativeTime(userProfile?.computedAt ?? null, t) ?? "" })
+                  : t("iaApprentissage.neverAnalyzed")}
             </span>
           </div>
         </div>
@@ -514,7 +501,7 @@ export default function IaApprentissagePage() {
           <Card className="mb-4">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
-                <Users className="h-4 w-4 text-muted-foreground" /> Choisir un employé
+                <Users className="h-4 w-4 text-muted-foreground" /> {t("iaApprentissage.chooseEmployee")}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -528,7 +515,7 @@ export default function IaApprentissagePage() {
                   >
                     {m.prenom} {m.nom}
                     <Badge variant="secondary" className="ml-2 text-[10px]">
-                      {ROLE_LABELS[m.role] ?? m.role}
+                      {ROLE_KEYS.has(m.role) ? t(`iaApprentissage.roleLabels.${m.role}`) : m.role}
                     </Badge>
                     {m.factCount > 0 && (
                       <span className="ml-1.5 text-[10px] text-muted-foreground">· {m.factCount}</span>
@@ -547,11 +534,10 @@ export default function IaApprentissagePage() {
             <CardContent className="flex flex-col items-center justify-center py-12 text-center gap-3">
               <Inbox className="h-10 w-10 text-muted-foreground/40" />
               <CardTitle className="text-base">
-                {viewingSelf ? "Rien appris sur vous pour l'instant" : "Rien appris sur cet employé pour l'instant"}
+                {viewingSelf ? t("iaApprentissage.nothingSelf") : t("iaApprentissage.nothingEmployee")}
               </CardTitle>
               <CardDescription className="max-w-md">
-                L'IA apprend automatiquement à partir de l'activité (appels, tâches, messages). Le profil
-                se remplira au fil de l'usage.
+                {t("iaApprentissage.personalEmptyDesc")}
               </CardDescription>
             </CardContent>
           </Card>
@@ -561,9 +547,9 @@ export default function IaApprentissagePage() {
               <Card className="md:col-span-2">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <PenLine className="h-4 w-4 text-violet-500" /> Style d'écriture
+                    <PenLine className="h-4 w-4 text-violet-500" /> {t("iaApprentissage.writingStyle")}
                   </CardTitle>
-                  <CardDescription>L'IA reproduit ce registre dans les rédactions proposées.</CardDescription>
+                  <CardDescription>{t("iaApprentissage.writingStyleDesc")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm">{ug.writingStyle.label}</p>
@@ -574,15 +560,15 @@ export default function IaApprentissagePage() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-amber-500" /> Heures &amp; domaines
+                  <Clock className="h-4 w-4 text-amber-500" /> {t("iaApprentissage.hoursAndDomains")}
                 </CardTitle>
-                <CardDescription>Quand et sur quoi cette personne travaille.</CardDescription>
+                <CardDescription>{t("iaApprentissage.hoursAndDomainsDesc")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {ug.hours.length > 0 && (
                   <div>
                     <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-2">
-                      <Clock className="h-3.5 w-3.5" /> Heures d'activité
+                      <Clock className="h-3.5 w-3.5" /> {t("iaApprentissage.activityHours")}
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {ug.hours.map((h) => <Badge key={h.value} variant="outline">{h.label}</Badge>)}
@@ -592,7 +578,7 @@ export default function IaApprentissagePage() {
                 {ug.focus.length > 0 && (
                   <div>
                     <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-2">
-                      <ListChecks className="h-3.5 w-3.5" /> Domaines de travail
+                      <ListChecks className="h-3.5 w-3.5" /> {t("iaApprentissage.workDomains")}
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {ug.focus.map((f) => <Badge key={f.value} variant="outline">{f.label} · {f.occurrences}×</Badge>)}
@@ -600,7 +586,7 @@ export default function IaApprentissagePage() {
                   </div>
                 )}
                 {ug.hours.length === 0 && ug.focus.length === 0 && (
-                  <p className="text-sm text-muted-foreground">Pas encore de données.</p>
+                  <p className="text-sm text-muted-foreground">{t("iaApprentissage.noData")}</p>
                 )}
               </CardContent>
             </Card>
@@ -608,25 +594,25 @@ export default function IaApprentissagePage() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Lightbulb className="h-4 w-4 text-amber-500" /> Thèmes &amp; contacts
+                  <Lightbulb className="h-4 w-4 text-amber-500" /> {t("iaApprentissage.themesAndContacts")}
                 </CardTitle>
-                <CardDescription>Sujets récurrents et interlocuteurs habituels.</CardDescription>
+                <CardDescription>{t("iaApprentissage.themesAndContactsDesc")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {ug.themes.length > 0 && (
                   <div>
                     <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-2">
-                      <ListChecks className="h-3.5 w-3.5" /> Thèmes de tâches
+                      <ListChecks className="h-3.5 w-3.5" /> {t("iaApprentissage.taskThemes")}
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      {ug.themes.map((t) => <Badge key={t.value} variant="outline">{t.label} · {t.occurrences}×</Badge>)}
+                      {ug.themes.map((th) => <Badge key={th.value} variant="outline">{th.label} · {th.occurrences}×</Badge>)}
                     </div>
                   </div>
                 )}
                 {ug.contacts.length > 0 && (
                   <div>
                     <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-2">
-                      <Phone className="h-3.5 w-3.5" /> Interlocuteurs récurrents
+                      <Phone className="h-3.5 w-3.5" /> {t("iaApprentissage.recurringContacts")}
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {ug.contacts.map((c) => <Badge key={c.value} variant="outline">{c.label} · {c.occurrences}×</Badge>)}
@@ -634,7 +620,7 @@ export default function IaApprentissagePage() {
                   </div>
                 )}
                 {ug.themes.length === 0 && ug.contacts.length === 0 && (
-                  <p className="text-sm text-muted-foreground">Pas encore de données.</p>
+                  <p className="text-sm text-muted-foreground">{t("iaApprentissage.noData")}</p>
                 )}
               </CardContent>
             </Card>

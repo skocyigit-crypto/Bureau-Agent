@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation, type TFunction } from "@/i18n";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -61,21 +62,21 @@ interface ActionResult {
   createdId?: number;
 }
 
-const DOC_TYPE_LABELS: Record<DocumentType, { label: string; color: string }> = {
-  bon_commande: { label: "Bon de commande", color: "bg-purple-500" },
-  bon_livraison: { label: "Bon de livraison", color: "bg-violet-500" },
-  contrat: { label: "Contrat", color: "bg-amber-600" },
-  cv: { label: "CV / Resume", color: "bg-emerald-500" },
-  carte_visite: { label: "Carte de visite", color: "bg-teal-500" },
-  courrier: { label: "Courrier", color: "bg-slate-500" },
-  releve_bancaire: { label: "Releve bancaire", color: "bg-green-600" },
-  rapport: { label: "Rapport", color: "bg-cyan-500" },
-  formulaire: { label: "Formulaire", color: "bg-pink-500" },
-  piece_identite: { label: "Piece d'identite", color: "bg-red-500" },
-  attestation: { label: "Attestation", color: "bg-yellow-600" },
-  note_frais: { label: "Note de frais", color: "bg-lime-600" },
-  planning: { label: "Planning", color: "bg-sky-500" },
-  inconnu: { label: "Inconnu", color: "bg-gray-500" },
+const DOC_TYPE_COLORS: Record<DocumentType, string> = {
+  bon_commande: "bg-purple-500",
+  bon_livraison: "bg-violet-500",
+  contrat: "bg-amber-600",
+  cv: "bg-emerald-500",
+  carte_visite: "bg-teal-500",
+  courrier: "bg-slate-500",
+  releve_bancaire: "bg-green-600",
+  rapport: "bg-cyan-500",
+  formulaire: "bg-pink-500",
+  piece_identite: "bg-red-500",
+  attestation: "bg-yellow-600",
+  note_frais: "bg-lime-600",
+  planning: "bg-sky-500",
+  inconnu: "bg-gray-500",
 };
 
 const MODULE_ICONS: Record<DestinationModule, any> = {
@@ -86,16 +87,18 @@ const MODULE_ICONS: Record<DestinationModule, any> = {
   aucun: FileText,
 };
 
-const MODULE_LABELS: Record<DestinationModule, string> = {
-  contacts: "Contacts",
-  taches: "Taches",
-  messages: "Messages",
-  projets: "Projets",
-  aucun: "Aucun",
-};
+const MODULE_KEYS: DestinationModule[] = ["contacts", "taches", "messages", "projets", "aucun"];
+
+function docTypeLabel(key: string, t: TFunction): string {
+  return key in DOC_TYPE_COLORS ? t(`documentAi.docTypes.${key}`) : key;
+}
+function moduleLabel(key: string, t: TFunction): string {
+  return (MODULE_KEYS as string[]).includes(key) ? t(`documentAi.modules.${key}`) : key;
+}
 
 export default function DocumentAiPage() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -124,11 +127,11 @@ export default function DocumentAiPage() {
     const ext = file.name.toLowerCase().match(/\.[^.]+$/)?.[0] || "";
     const knownExts = [".pdf",".png",".jpg",".jpeg",".webp",".gif",".bmp",".tiff",".xlsx",".xls",".csv",".docx",".doc",".txt",".rtf",".pptx",".ppt"];
     if (!supportedTypes.includes(file.type) && !knownExts.includes(ext)) {
-      toast({ title: "Format non supporte", description: "Formats acceptes: PDF, Excel, Word, CSV, images, PowerPoint, texte", variant: "destructive" });
+      toast({ title: t("documentAi.toast.unsupportedFormat"), description: t("documentAi.toast.unsupportedFormatDesc"), variant: "destructive" });
       return;
     }
     if (file.size > 25 * 1024 * 1024) {
-      toast({ title: "Fichier trop volumineux", description: "Taille maximale: 25 Mo", variant: "destructive" });
+      toast({ title: t("documentAi.toast.fileTooLarge"), description: t("documentAi.toast.maxSize"), variant: "destructive" });
       return;
     }
     setSelectedFile(file);
@@ -143,7 +146,7 @@ export default function DocumentAiPage() {
     } else {
       setFilePreview(null);
     }
-  }, [toast]);
+  }, [toast, t]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -180,17 +183,17 @@ export default function DocumentAiPage() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Erreur d'analyse");
+        throw new Error(err.error || t("documentAi.toast.analyzeError"));
       }
 
       const result = await res.json();
       setAnalysisResult(result);
       toast({
-        title: "Analyse terminee",
-        description: `Document identifie: ${DOC_TYPE_LABELS[result.documentType as DocumentType]?.label || result.documentType} (${Math.round(result.confidence * 100)}% confiance)`,
+        title: t("documentAi.toast.analyzeDone"),
+        description: t("documentAi.toast.documentIdentified", { type: docTypeLabel(result.documentType, t), pct: Math.round(result.confidence * 100) }),
       });
     } catch (err: any) {
-      toast({ title: "Erreur d'analyse", description: err.message, variant: "destructive" });
+      toast({ title: t("documentAi.toast.analyzeError"), description: err.message, variant: "destructive" });
     } finally {
       setAnalyzing(false);
     }
@@ -214,15 +217,15 @@ export default function DocumentAiPage() {
       setActionResults(prev => new Map(prev).set(index, result));
 
       if (result.success) {
-        toast({ title: "Action executee", description: result.message });
+        toast({ title: t("documentAi.toast.actionExecuted"), description: result.message });
       } else {
-        toast({ title: "Echec de l'action", description: result.message, variant: "destructive" });
+        toast({ title: t("documentAi.toast.actionFailed"), description: result.message, variant: "destructive" });
       }
     } catch (err: any) {
       setActionResults(prev => new Map(prev).set(index, {
         success: false, module: action.module, action: action.action, message: err.message,
       }));
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+      toast({ title: t("documentAi.toast.error"), description: err.message, variant: "destructive" });
     } finally {
       setExecutingActions(prev => {
         const next = new Set(prev);
@@ -267,27 +270,27 @@ export default function DocumentAiPage() {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
               <Brain className="w-5 h-5 text-white" />
             </div>
-            Document IA
+            {t("documentAi.title")}
           </h1>
           <p className="text-muted-foreground mt-1">
-            Deposez n'importe quel document — l'IA l'analysera, l'identifiera et le classera automatiquement dans le bon module.
+            {t("documentAi.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             className="gap-2"
-            title="Registre des dépenses"
+            title={t("documentAi.expensesTitle")}
             onClick={() => (window.location.href = `${(import.meta.env.BASE_URL || "/").replace(/\/$/, "")}/depenses`)}
           >
             <Wallet className="w-4 h-4" />
-            <span className="hidden sm:inline">Dépenses</span>
+            <span className="hidden sm:inline">{t("documentAi.expenses")}</span>
           </Button>
-          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+          <Button variant="outline" size="icon" title={t("documentAi.print")} onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
           {analysisResult && (
             <Button variant="outline" onClick={handleReset} className="gap-2">
               <RefreshCw className="w-4 h-4" />
-              Nouveau document
+              {t("documentAi.newDocument")}
             </Button>
           )}
         </div>
@@ -321,9 +324,9 @@ export default function DocumentAiPage() {
                       <Upload className="w-10 h-10 text-violet-500" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold">Deposez votre document ici</h3>
+                      <h3 className="text-lg font-semibold">{t("documentAi.dropHere")}</h3>
                       <p className="text-muted-foreground text-sm mt-1">
-                        PDF, Excel, Word, CSV, images — max 25 Mo
+                        {t("documentAi.dropHint")}
                       </p>
                     </div>
                     <Button
@@ -331,14 +334,14 @@ export default function DocumentAiPage() {
                       className="gap-2 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
                     >
                       <FileUp className="w-4 h-4" />
-                      Choisir un fichier
+                      {t("documentAi.chooseFile")}
                     </Button>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     {filePreview && (
                       <div className="max-w-sm mx-auto rounded-xl overflow-hidden border shadow-sm">
-                        <img src={filePreview} alt="Apercu" className="w-full h-auto max-h-64 object-contain bg-muted/50" />
+                        <img src={filePreview} alt={t("documentAi.previewAlt")} className="w-full h-auto max-h-64 object-contain bg-muted/50" />
                       </div>
                     )}
                     {!filePreview && (
@@ -349,7 +352,7 @@ export default function DocumentAiPage() {
                     <div>
                       <h3 className="text-lg font-semibold">{selectedFile.name}</h3>
                       <p className="text-muted-foreground text-sm">
-                        {(selectedFile.size / 1024 / 1024).toFixed(2)} Mo — {selectedFile.type}
+                        {t("documentAi.fileMeta", { size: (selectedFile.size / 1024 / 1024).toFixed(2), type: selectedFile.type })}
                       </p>
                     </div>
                     <div className="flex gap-3 justify-center">
@@ -361,25 +364,25 @@ export default function DocumentAiPage() {
                         {analyzing ? (
                           <>
                             <Loader2 className="w-4 h-4 animate-spin" />
-                            Analyse en cours...
+                            {t("documentAi.analyzing")}
                           </>
                         ) : (
                           <>
                             <Sparkles className="w-4 h-4" />
-                            Analyser avec l'IA
+                            {t("documentAi.analyzeWithAi")}
                           </>
                         )}
                       </Button>
                       <Button variant="outline" onClick={handleReset} className="gap-2">
                         <Trash2 className="w-4 h-4" />
-                        Retirer
+                        {t("documentAi.remove")}
                       </Button>
                     </div>
                     {analyzing && (
                       <div className="max-w-md mx-auto space-y-2">
                         <Progress value={undefined} className="h-1.5" />
                         <p className="text-xs text-muted-foreground animate-pulse">
-                          L'IA analyse le contenu du document, identifie le type, extrait les donnees et cherche les correspondances...
+                          {t("documentAi.analyzingHint")}
                         </p>
                       </div>
                     )}
@@ -395,14 +398,14 @@ export default function DocumentAiPage() {
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className={`w-12 h-12 rounded-xl ${DOC_TYPE_LABELS[analysisResult.documentType]?.color || "bg-gray-500"} flex items-center justify-center`}>
+                      <div className={`w-12 h-12 rounded-xl ${DOC_TYPE_COLORS[analysisResult.documentType] || "bg-gray-500"} flex items-center justify-center`}>
                         <FileText className="w-6 h-6 text-white" />
                       </div>
                       <div>
                         <CardTitle className="text-xl">{analysisResult.title}</CardTitle>
                         <div className="flex items-center gap-2 mt-1">
                           <Badge variant="secondary" className="font-medium">
-                            {DOC_TYPE_LABELS[analysisResult.documentType]?.label || analysisResult.documentType}
+                            {docTypeLabel(analysisResult.documentType, t)}
                           </Badge>
                           <Badge
                             variant="outline"
@@ -414,7 +417,7 @@ export default function DocumentAiPage() {
                                 : "text-red-600 border-red-300"
                             }
                           >
-                            {Math.round(analysisResult.confidence * 100)}% confiance
+                            {t("documentAi.confidence", { pct: Math.round(analysisResult.confidence * 100) })}
                           </Badge>
                         </div>
                       </div>
@@ -431,7 +434,7 @@ export default function DocumentAiPage() {
                     })()}
                     <div className="flex-1">
                       <span className="font-medium text-sm">
-                        Destination recommandee: {MODULE_LABELS[analysisResult.destination] || analysisResult.destination}
+                        {t("documentAi.recommendedDestination", { module: moduleLabel(analysisResult.destination, t) })}
                       </span>
                       <p className="text-xs text-muted-foreground">{analysisResult.destinationReason}</p>
                     </div>
@@ -457,7 +460,7 @@ export default function DocumentAiPage() {
                       className="gap-2 text-muted-foreground"
                     >
                       <Eye className="w-4 h-4" />
-                      Donnees extraites
+                      {t("documentAi.extractedData")}
                       {showExtracted ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                     </Button>
                     {showExtracted && (
@@ -480,10 +483,10 @@ export default function DocumentAiPage() {
                       <div>
                         <CardTitle className="text-base flex items-center gap-2">
                           <Zap className="w-4 h-4 text-violet-500" />
-                          Actions suggerees
+                          {t("documentAi.suggestedActions")}
                         </CardTitle>
                         <CardDescription>
-                          L'IA propose {analysisResult.suggestedActions.length} action(s) basee(s) sur le contenu du document
+                          {t("documentAi.suggestedActionsDesc", { count: analysisResult.suggestedActions.length })}
                         </CardDescription>
                       </div>
                       {analysisResult.suggestedActions.length > 1 && (
@@ -494,7 +497,7 @@ export default function DocumentAiPage() {
                           className="gap-2 bg-gradient-to-r from-violet-500 to-purple-600"
                         >
                           <Sparkles className="w-3 h-3" />
-                          Tout executer
+                          {t("documentAi.executeAll")}
                         </Button>
                       )}
                     </div>
@@ -530,7 +533,7 @@ export default function DocumentAiPage() {
                             <div className="flex items-center gap-2">
                               <span className="font-medium text-sm">{action.label}</span>
                               <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                                {MODULE_LABELS[action.module]}
+                                {moduleLabel(action.module, t)}
                               </Badge>
                               <Badge
                                 variant="outline"
@@ -542,7 +545,7 @@ export default function DocumentAiPage() {
                                     : "text-amber-600 border-amber-300"
                                 }`}
                               >
-                                {action.priority}
+                                {t(`documentAi.priorities.${action.priority}`)}
                               </Badge>
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5">{action.description}</p>
@@ -564,7 +567,7 @@ export default function DocumentAiPage() {
                               {isExecuting ? (
                                 <Loader2 className="w-3 h-3 animate-spin" />
                               ) : (
-                                "Executer"
+                                t("documentAi.execute")
                               )}
                             </Button>
                           )}
@@ -584,10 +587,10 @@ export default function DocumentAiPage() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Users className="w-4 h-4 text-violet-500" />
-                  Entites liees
+                  {t("documentAi.relatedEntities")}
                 </CardTitle>
                 <CardDescription>
-                  Correspondances trouvees dans votre base de donnees
+                  {t("documentAi.relatedEntitiesDesc")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
@@ -608,13 +611,13 @@ export default function DocumentAiPage() {
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Types de documents reconnus</CardTitle>
+              <CardTitle className="text-base">{t("documentAi.recognizedTypes")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-1.5">
-                {Object.entries(DOC_TYPE_LABELS)
+                {Object.entries(DOC_TYPE_COLORS)
                   .filter(([k]) => k !== "inconnu")
-                  .map(([key, { label, color }]) => (
+                  .map(([key, color]) => (
                     <div
                       key={key}
                       className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs ${
@@ -624,7 +627,7 @@ export default function DocumentAiPage() {
                       }`}
                     >
                       <div className={`w-1.5 h-1.5 rounded-full ${color}`} />
-                      {label}
+                      {t(`documentAi.docTypes.${key}`)}
                     </div>
                   ))}
               </div>
@@ -633,14 +636,14 @@ export default function DocumentAiPage() {
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Modules de destination</CardTitle>
+              <CardTitle className="text-base">{t("documentAi.destinationModules")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-1.5">
-                {Object.entries(MODULE_LABELS)
-                  .filter(([k]) => k !== "aucun")
-                  .map(([key, label]) => {
-                    const Icon = MODULE_ICONS[key as DestinationModule];
+                {MODULE_KEYS
+                  .filter((k) => k !== "aucun")
+                  .map((key) => {
+                    const Icon = MODULE_ICONS[key];
                     return (
                       <div
                         key={key}
@@ -651,7 +654,7 @@ export default function DocumentAiPage() {
                         }`}
                       >
                         <Icon className="w-3.5 h-3.5" />
-                        {label}
+                        {t(`documentAi.modules.${key}`)}
                       </div>
                     );
                   })}
@@ -662,7 +665,7 @@ export default function DocumentAiPage() {
           {processingHistory.length > 0 && (
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Historique de session</CardTitle>
+                <CardTitle className="text-base">{t("documentAi.sessionHistory")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
@@ -672,7 +675,7 @@ export default function DocumentAiPage() {
                       <div className="min-w-0 flex-1">
                         <span className="font-medium truncate block">{h.fileName}</span>
                         <span className="text-muted-foreground">
-                          {DOC_TYPE_LABELS[h.type as DocumentType]?.label || h.type} — {h.actions} action(s) — {h.time}
+                          {t("documentAi.historyItem", { type: docTypeLabel(h.type, t), count: h.actions, time: h.time })}
                         </span>
                       </div>
                     </div>
