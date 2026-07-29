@@ -24,6 +24,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { GhostTextarea } from "@/components/ghost-textarea";
 import { DocumentsPanel } from "@/components/file-upload";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -49,12 +50,14 @@ function fmtEur(v: any) {
 }
 
 function StageBadge({ stage }: { stage: string }) {
+  const { t } = useTranslation();
   const s = STAGES.find(x => x.key === stage) || STAGES[0];
-  return <Badge className={`${s.color} text-xs`} variant="outline">{s.label}</Badge>;
+  return <Badge className={`${s.color} text-xs`} variant="outline">{t(`prospectDetail.stage.${s.key}`)}</Badge>;
 }
 function PriorityBadge({ priority }: { priority: string }) {
+  const { t } = useTranslation();
   const p = PRIORITIES.find(x => x.key === priority) || PRIORITIES[1];
-  return <Badge className={`${p.color} border-0 text-xs`}>{p.label}</Badge>;
+  return <Badge className={`${p.color} border-0 text-xs`}>{t(`prospectDetail.priority.${p.key}`)}</Badge>;
 }
 
 interface Prospect {
@@ -68,6 +71,7 @@ interface Prospect {
 const EMPTY_FORM = { title: "", contactName: "", company: "", email: "", phone: "", stage: "nouveau", priority: "moyenne", value: "", currency: "EUR", probability: "50", source: "", assignedTo: "", expectedCloseDate: "", notes: "" };
 
 export default function ProspectDetail() {
+  const { t } = useTranslation();
   // Module backoffice (super-admin uniquement) — Tâche #52.
   const { user: workspaceUser } = useWorkspaceUser();
   if (workspaceUser.role !== "super_admin") return <AccessDenied />;
@@ -127,7 +131,7 @@ export default function ProspectDetail() {
       }
     } catch {
       if (activeProspectIdRef.current === reqId)
-        toast({ title: "Erreur", description: "Impossible de charger le prospect.", variant: "destructive" });
+        toast({ title: t("prospectDetail.error"), description: t("prospectDetail.loadError"), variant: "destructive" });
     } finally {
       if (activeProspectIdRef.current === reqId) setLoading(false);
     }
@@ -161,7 +165,7 @@ export default function ProspectDetail() {
   };
 
   const handleSave = async () => {
-    if (!form.title.trim()) { toast({ title: "Titre requis", variant: "destructive" }); return; }
+    if (!form.title.trim()) { toast({ title: t("prospectDetail.titleRequired"), variant: "destructive" }); return; }
     setSaving(true);
     try {
       const res = await fetch(`${BASE}/api/prospects/${prospectId}`, {
@@ -171,15 +175,15 @@ export default function ProspectDetail() {
         body: JSON.stringify({ ...form, probability: Number(form.probability), value: form.value || null }),
       });
       if (res.ok) {
-        toast({ title: "Prospect mis à jour" });
+        toast({ title: t("prospectDetail.updated") });
         setEditOpen(false);
         load();
       } else {
         const d = await res.json();
-        toast({ title: "Erreur", description: d.error, variant: "destructive" });
+        toast({ title: t("prospectDetail.error"), description: d.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Sauvegarde échouée.", variant: "destructive" });
+      toast({ title: t("prospectDetail.error"), description: t("prospectDetail.saveFailed"), variant: "destructive" });
     } finally { setSaving(false); }
   };
 
@@ -188,8 +192,8 @@ export default function ProspectDetail() {
       method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
       body: JSON.stringify({ stage }),
     });
-    if (res.ok) { toast({ title: "Étape mise à jour" }); load(); }
-    else toast({ title: "Erreur", variant: "destructive" });
+    if (res.ok) { toast({ title: t("prospectDetail.stageUpdated") }); load(); }
+    else toast({ title: t("prospectDetail.error"), variant: "destructive" });
   };
 
   const saveTags = async (next: string[]) => {
@@ -215,8 +219,8 @@ export default function ProspectDetail() {
         method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
         body: JSON.stringify({ notes: notesValue }),
       });
-      if (res.ok) { toast({ title: "Notes enregistrées" }); setEditingNotes(false); load(); }
-      else toast({ title: "Erreur", variant: "destructive" });
+      if (res.ok) { toast({ title: t("prospectDetail.notesSaved") }); setEditingNotes(false); load(); }
+      else toast({ title: t("prospectDetail.error"), variant: "destructive" });
     } finally { setSavingNotes(false); }
   };
 
@@ -224,32 +228,32 @@ export default function ProspectDetail() {
     const res = await fetch(`${BASE}/api/prospects/${prospectId}/duplicate`, { method: "POST", credentials: "include" });
     if (res.ok) {
       const copy = await res.json();
-      toast({ title: "Prospect dupliqué" });
+      toast({ title: t("prospectDetail.duplicated") });
       navigate(`/prospects/${copy.id}`);
-    } else toast({ title: "Erreur", description: "Impossible de dupliquer", variant: "destructive" });
+    } else toast({ title: t("prospectDetail.error"), description: t("prospectDetail.dupError"), variant: "destructive" });
   };
 
   const handleDelete = async () => {
-    if (!(await confirmAction({ title: "Supprimer ce prospect ?", confirmLabel: "Supprimer", destructive: true }))) return;
+    if (!(await confirmAction({ title: t("prospectDetail.confirmDelete"), confirmLabel: t("common.delete"), destructive: true }))) return;
     const res = await fetch(`${BASE}/api/prospects/${prospectId}`, { method: "DELETE", credentials: "include" });
-    if (res.ok) { toast({ title: "Prospect supprimé" }); navigate("/prospects"); }
-    else { const d = await res.json(); toast({ title: "Erreur", description: d.error, variant: "destructive" }); }
+    if (res.ok) { toast({ title: t("prospectDetail.deleted") }); navigate("/prospects"); }
+    else { const d = await res.json(); toast({ title: t("prospectDetail.error"), description: d.error, variant: "destructive" }); }
   };
 
   const handleConvert = async () => {
-    if (!(await confirmAction({ title: "Convertir en contact ?", description: "Le statut du prospect passera à « Gagné ».", confirmLabel: "Convertir" }))) return;
+    if (!(await confirmAction({ title: t("prospectDetail.confirmConvert"), description: t("prospectDetail.confirmConvertDesc"), confirmLabel: t("prospectDetail.convertAction") }))) return;
     const res = await fetch(`${BASE}/api/prospects/${prospectId}/convert`, { method: "POST", credentials: "include" });
     const d = await res.json();
-    if (res.ok) { toast({ title: "Converti !", description: d.message }); load(); }
-    else toast({ title: "Erreur", description: d.error, variant: "destructive" });
+    if (res.ok) { toast({ title: t("prospectDetail.converted"), description: d.message }); load(); }
+    else toast({ title: t("prospectDetail.error"), description: d.error, variant: "destructive" });
   };
 
   const handleCreateDevis = async () => {
-    if (!(await confirmAction({ title: "Créer un devis ?", description: "Un devis pré-rempli (client + valeur estimée) sera créé et lié à ce prospect.", confirmLabel: "Créer le devis" }))) return;
+    if (!(await confirmAction({ title: t("prospectDetail.confirmDevis"), description: t("prospectDetail.confirmDevisDesc"), confirmLabel: t("prospectDetail.confirmDevisAction") }))) return;
     const res = await fetch(`${BASE}/api/prospects/${prospectId}/create-devis`, { method: "POST", credentials: "include" });
     const d = await res.json();
-    if (res.ok) { toast({ title: "Devis créé", description: `Référence ${d.devis?.reference ?? ""}` }); load(); navigate("/admin/devis"); }
-    else toast({ title: "Erreur", description: d.error, variant: "destructive" });
+    if (res.ok) { toast({ title: t("prospectDetail.devisCreated"), description: t("prospectDetail.devisCreatedDesc", { ref: d.devis?.reference ?? "" }) }); load(); navigate("/admin/devis"); }
+    else toast({ title: t("prospectDetail.error"), description: d.error, variant: "destructive" });
   };
 
   const handleCreateProjet = async () => {
@@ -266,10 +270,10 @@ export default function ProspectDetail() {
           progress: 0, notes: prospect.notes || "",
         }),
       });
-      if (res.ok) { toast({ title: "Projet créé", description: `Le projet "${prospect.title}" a été créé.` }); navigate("/projets"); }
-      else { const d = await res.json(); toast({ title: "Erreur", description: d.error, variant: "destructive" }); }
+      if (res.ok) { toast({ title: t("prospectDetail.projetCreated"), description: t("prospectDetail.projetCreatedDesc", { title: prospect.title }) }); navigate("/projets"); }
+      else { const d = await res.json(); toast({ title: t("prospectDetail.error"), description: d.error, variant: "destructive" }); }
     } catch {
-      toast({ title: "Erreur", description: "Impossible de créer le projet.", variant: "destructive" });
+      toast({ title: t("prospectDetail.error"), description: t("prospectDetail.projetError"), variant: "destructive" });
     }
   };
 
@@ -289,9 +293,9 @@ export default function ProspectDetail() {
     return (
       <div className="space-y-6">
         <Button variant="outline" size="sm" asChild className="gap-2">
-          <Link href="/prospects"><ArrowLeft className="w-4 h-4" /> Retour aux prospects</Link>
+          <Link href="/prospects"><ArrowLeft className="w-4 h-4" /> {t("prospectDetail.backToProspects")}</Link>
         </Button>
-        <Card><CardContent className="py-12 text-center text-muted-foreground">Prospect introuvable.</CardContent></Card>
+        <Card><CardContent className="py-12 text-center text-muted-foreground">{t("prospectDetail.notFound")}</CardContent></Card>
       </div>
     );
   }
@@ -308,15 +312,15 @@ export default function ProspectDetail() {
             <StageBadge stage={prospect.stage} />
             <PriorityBadge priority={prospect.priority} />
             {prospect.value && <span className="text-sm font-semibold text-emerald-600">{fmtEur(prospect.value)}</span>}
-            {prospect.probability != null && <span className="text-xs text-muted-foreground">· {prospect.probability}% de probabilité</span>}
+            {prospect.probability != null && <span className="text-xs text-muted-foreground">· {t("prospectDetail.probabilityLabel", { value: prospect.probability })}</span>}
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
-          <Button variant="outline" onClick={openEdit} className="gap-2"><Edit className="w-4 h-4" /> Modifier</Button>
+          <Button variant="outline" size="icon" title={t("prospectDetail.print")} onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+          <Button variant="outline" onClick={openEdit} className="gap-2"><Edit className="w-4 h-4" /> {t("common.edit")}</Button>
           {prospect.phone && (
             <Button className="bg-primary text-primary-foreground gap-2" onClick={() => window.open(`tel:${prospect.phone}`, "_self")}>
-              <Phone className="w-4 h-4" /> Appeler
+              <Phone className="w-4 h-4" /> {t("prospectDetail.call")}
             </Button>
           )}
         </div>
@@ -326,8 +330,8 @@ export default function ProspectDetail() {
         <div className="space-y-6 md:col-span-1">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><TrendingUp className="w-4 h-4 text-amber-500" />Détails du prospect</CardTitle>
-              <CardDescription>Informations commerciales</CardDescription>
+              <CardTitle className="flex items-center gap-2"><TrendingUp className="w-4 h-4 text-amber-500" />{t("prospectDetail.detailsTitle")}</CardTitle>
+              <CardDescription>{t("prospectDetail.commercialInfo")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               {prospect.contactName && <div className="flex items-center gap-3"><User className="w-4 h-4 text-muted-foreground" /><span>{prospect.contactName}</span></div>}
@@ -336,47 +340,47 @@ export default function ProspectDetail() {
               {prospect.email && <div className="flex items-center gap-3"><Mail className="w-4 h-4 text-muted-foreground" /><span className="truncate">{prospect.email}</span></div>}
               <div className="pt-3 mt-3 border-t border-border space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Étape</span>
+                  <span className="text-xs text-muted-foreground">{t("prospectDetail.stageLabel")}</span>
                   <Select value={prospect.stage} onValueChange={handleStageChange}>
                     <SelectTrigger className="h-7 w-36 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>{STAGES.map(s => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}</SelectContent>
+                    <SelectContent>{STAGES.map(s => <SelectItem key={s.key} value={s.key}>{t(`prospectDetail.stage.${s.key}`)}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
-                {prospect.value && <div className="flex items-center justify-between"><span className="text-xs text-muted-foreground flex items-center gap-1"><DollarSign className="w-3 h-3" />Valeur</span><span className="font-semibold text-emerald-600">{fmtEur(prospect.value)}</span></div>}
-                <div className="flex items-center justify-between"><span className="text-xs text-muted-foreground flex items-center gap-1"><Target className="w-3 h-3" />Probabilité</span><span className="font-medium">{prospect.probability}%</span></div>
+                {prospect.value && <div className="flex items-center justify-between"><span className="text-xs text-muted-foreground flex items-center gap-1"><DollarSign className="w-3 h-3" />{t("prospectDetail.value")}</span><span className="font-semibold text-emerald-600">{fmtEur(prospect.value)}</span></div>}
+                <div className="flex items-center justify-between"><span className="text-xs text-muted-foreground flex items-center gap-1"><Target className="w-3 h-3" />{t("prospectDetail.probability")}</span><span className="font-medium">{prospect.probability}%</span></div>
                 {prospect.expectedCloseDate && (
-                  <div className="flex items-center justify-between"><span className="text-xs text-muted-foreground flex items-center gap-1"><Calendar className="w-3 h-3" />Clôture prévue</span><span className="font-medium">{format(new Date(prospect.expectedCloseDate), "d MMM yyyy", { locale: fr })}</span></div>
+                  <div className="flex items-center justify-between"><span className="text-xs text-muted-foreground flex items-center gap-1"><Calendar className="w-3 h-3" />{t("prospectDetail.expectedClose")}</span><span className="font-medium">{format(new Date(prospect.expectedCloseDate), "d MMM yyyy", { locale: fr })}</span></div>
                 )}
-                {prospect.source && <div className="flex items-center justify-between"><span className="text-xs text-muted-foreground">Source</span><span className="font-medium">{prospect.source}</span></div>}
-                {prospect.assignedTo && <div className="flex items-center justify-between"><span className="text-xs text-muted-foreground">Assigné à</span><span className="font-medium">{prospect.assignedTo}</span></div>}
+                {prospect.source && <div className="flex items-center justify-between"><span className="text-xs text-muted-foreground">{t("prospectDetail.source")}</span><span className="font-medium">{prospect.source}</span></div>}
+                {prospect.assignedTo && <div className="flex items-center justify-between"><span className="text-xs text-muted-foreground">{t("prospectDetail.assignedTo")}</span><span className="font-medium">{prospect.assignedTo}</span></div>}
               </div>
               <div className="pt-3 mt-3 border-t border-border text-xs text-muted-foreground">
-                <div>Créé le {format(new Date(prospect.createdAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}</div>
-                {prospect.updatedAt && <div>Modifié le {format(new Date(prospect.updatedAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}</div>}
-                {prospect.wonAt && <div className="text-emerald-600">Gagné le {format(new Date(prospect.wonAt), "d MMM yyyy", { locale: fr })}</div>}
-                {prospect.lostAt && <div className="text-red-600">Perdu le {format(new Date(prospect.lostAt), "d MMM yyyy", { locale: fr })}{prospect.lostReason ? ` — ${prospect.lostReason}` : ""}</div>}
+                <div>{t("prospectDetail.createdOn", { date: format(new Date(prospect.createdAt), "d MMM yyyy 'à' HH:mm", { locale: fr }) })}</div>
+                {prospect.updatedAt && <div>{t("prospectDetail.modifiedOn", { date: format(new Date(prospect.updatedAt), "d MMM yyyy 'à' HH:mm", { locale: fr }) })}</div>}
+                {prospect.wonAt && <div className="text-emerald-600">{t("prospectDetail.wonOn", { date: format(new Date(prospect.wonAt), "d MMM yyyy", { locale: fr }) })}</div>}
+                {prospect.lostAt && <div className="text-red-600">{t("prospectDetail.lostOn", { date: format(new Date(prospect.lostAt), "d MMM yyyy", { locale: fr }) })}{prospect.lostReason ? ` — ${prospect.lostReason}` : ""}</div>}
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="pb-3"><CardTitle className="text-sm">Actions</CardTitle></CardHeader>
+            <CardHeader className="pb-3"><CardTitle className="text-sm">{t("prospectDetail.actions")}</CardTitle></CardHeader>
             <CardContent className="space-y-2">
-              <Button variant="outline" size="sm" className="w-full justify-start gap-2 text-emerald-600" onClick={handleCreateDevis}><FileText className="w-4 h-4" />Créer un devis</Button>
-              <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={handleConvert}><UserPlus className="w-4 h-4" />Convertir en contact</Button>
-              <Button variant="outline" size="sm" className="w-full justify-start gap-2 text-indigo-600" onClick={handleCreateProjet}><FolderKanban className="w-4 h-4" />Créer un projet</Button>
-              <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={handleDuplicate}><Copy className="w-4 h-4" />Dupliquer</Button>
-              <Button variant="outline" size="sm" className="w-full justify-start gap-2 text-red-600 hover:text-red-700" onClick={handleDelete}><Trash2 className="w-4 h-4" />Supprimer</Button>
+              <Button variant="outline" size="sm" className="w-full justify-start gap-2 text-emerald-600" onClick={handleCreateDevis}><FileText className="w-4 h-4" />{t("prospectDetail.createDevis")}</Button>
+              <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={handleConvert}><UserPlus className="w-4 h-4" />{t("prospectDetail.convert")}</Button>
+              <Button variant="outline" size="sm" className="w-full justify-start gap-2 text-indigo-600" onClick={handleCreateProjet}><FolderKanban className="w-4 h-4" />{t("prospectDetail.createProjet")}</Button>
+              <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={handleDuplicate}><Copy className="w-4 h-4" />{t("prospectDetail.duplicate")}</Button>
+              <Button variant="outline" size="sm" className="w-full justify-start gap-2 text-red-600 hover:text-red-700" onClick={handleDelete}><Trash2 className="w-4 h-4" />{t("common.delete")}</Button>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm flex items-center gap-2"><Tag className="w-4 h-4 text-muted-foreground" />Étiquettes</CardTitle>
+              <CardTitle className="text-sm flex items-center gap-2"><Tag className="w-4 h-4 text-muted-foreground" />{t("prospectDetail.tags")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-1.5 mb-3 min-h-[28px]">
-                {tags.length === 0 && <span className="text-xs text-muted-foreground italic">Aucune étiquette</span>}
+                {tags.length === 0 && <span className="text-xs text-muted-foreground italic">{t("prospectDetail.noTags")}</span>}
                 {tags.map(tag => (
                   <span key={tag} className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full border border-primary/20">
                     {tag}
@@ -387,7 +391,7 @@ export default function ProspectDetail() {
               <div className="flex gap-1.5">
                 <input
                   className="flex-1 text-xs border border-input rounded-md px-2 py-1 bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-                  placeholder="Ajouter une étiquette..."
+                  placeholder={t("prospectDetail.addTag")}
                   value={tagInput}
                   onChange={e => setTagInput(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
@@ -404,25 +408,25 @@ export default function ProspectDetail() {
         <div className="md:col-span-2">
           <Tabs defaultValue="overview">
             <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="overview">Aperçu</TabsTrigger>
-              <TabsTrigger value="history">Historique</TabsTrigger>
-              <TabsTrigger value="contact">Contact lié</TabsTrigger>
-              <TabsTrigger value="notes">Notes</TabsTrigger>
+              <TabsTrigger value="overview">{t("prospectDetail.tabOverview")}</TabsTrigger>
+              <TabsTrigger value="history">{t("prospectDetail.tabHistory")}</TabsTrigger>
+              <TabsTrigger value="contact">{t("prospectDetail.tabContact")}</TabsTrigger>
+              <TabsTrigger value="notes">{t("prospectDetail.tabNotes")}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="mt-4 space-y-4">
               <Card>
-                <CardHeader><CardTitle>Description</CardTitle></CardHeader>
+                <CardHeader><CardTitle>{t("prospectDetail.description")}</CardTitle></CardHeader>
                 <CardContent>
                   {prospect.description ? (
                     <p className="text-sm whitespace-pre-wrap">{prospect.description}</p>
                   ) : (
-                    <p className="text-sm text-muted-foreground italic">Aucune description.</p>
+                    <p className="text-sm text-muted-foreground italic">{t("prospectDetail.noDescription")}</p>
                   )}
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader><CardTitle>Pipeline</CardTitle><CardDescription>Avancement dans les étapes</CardDescription></CardHeader>
+                <CardHeader><CardTitle>{t("prospectDetail.pipeline")}</CardTitle><CardDescription>{t("prospectDetail.pipelineDesc")}</CardDescription></CardHeader>
                 <CardContent>
                   <div className="flex items-center gap-1 overflow-x-auto pb-2">
                     {STAGES.map(s => {
@@ -430,7 +434,7 @@ export default function ProspectDetail() {
                       return (
                         <div key={s.key} className="flex-1 min-w-[80px]">
                           <div className={`h-2 rounded-full ${isCurrent ? "bg-amber-500" : (STAGES.findIndex(x => x.key === prospect.stage) > STAGES.findIndex(x => x.key === s.key) ? "bg-emerald-400" : "bg-slate-200")}`} />
-                          <p className={`text-[10px] mt-1 text-center ${isCurrent ? "font-semibold" : "text-muted-foreground"}`}>{s.label}</p>
+                          <p className={`text-[10px] mt-1 text-center ${isCurrent ? "font-semibold" : "text-muted-foreground"}`}>{t(`prospectDetail.stage.${s.key}`)}</p>
                         </div>
                       );
                     })}
@@ -443,11 +447,11 @@ export default function ProspectDetail() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
-                    <CardTitle className="flex items-center gap-2"><History className="w-4 h-4 text-amber-500" />Historique des appels</CardTitle>
-                    <CardDescription>Appels associés au contact, téléphone ou nom du prospect</CardDescription>
+                    <CardTitle className="flex items-center gap-2"><History className="w-4 h-4 text-amber-500" />{t("prospectDetail.callsHistory")}</CardTitle>
+                    <CardDescription>{t("prospectDetail.callsHistoryDesc")}</CardDescription>
                   </div>
                   <Button variant="outline" size="sm" onClick={() => navigate(`/appels${linkedContact ? `?contactId=${linkedContact.id}` : prospect.phone ? `?search=${encodeURIComponent(prospect.phone)}` : ""}`)}>
-                    <ExternalLink className="w-4 h-4 mr-1" />Voir tous
+                    <ExternalLink className="w-4 h-4 mr-1" />{t("prospectDetail.seeAll")}
                   </Button>
                 </CardHeader>
                 <CardContent>
@@ -468,7 +472,7 @@ export default function ProspectDetail() {
                                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                                     <Calendar className="w-3 h-3" />
                                     {format(new Date(call.createdAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}
-                                    {call.direction === "entrant" ? " · Entrant" : " · Sortant"}
+                                    {call.direction === "entrant" ? ` · ${t("prospectDetail.incoming")}` : ` · ${t("prospectDetail.outgoing")}`}
                                   </p>
                                 </div>
                               </div>
@@ -479,7 +483,7 @@ export default function ProspectDetail() {
                       })}
                     </div>
                   ) : (
-                    <div className="text-center py-6 text-muted-foreground text-sm italic">Aucun appel trouvé pour ce prospect.</div>
+                    <div className="text-center py-6 text-muted-foreground text-sm italic">{t("prospectDetail.noCalls")}</div>
                   )}
                 </CardContent>
               </Card>
@@ -487,11 +491,11 @@ export default function ProspectDetail() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
-                    <CardTitle className="flex items-center gap-2"><CheckSquare className="w-4 h-4 text-blue-500" />Tâches liées</CardTitle>
-                    <CardDescription>Tâches mentionnant ce prospect ou son contact</CardDescription>
+                    <CardTitle className="flex items-center gap-2"><CheckSquare className="w-4 h-4 text-blue-500" />{t("prospectDetail.linkedTasks")}</CardTitle>
+                    <CardDescription>{t("prospectDetail.linkedTasksDesc")}</CardDescription>
                   </div>
                   <Button variant="outline" size="sm" onClick={() => navigate(`/taches`)}>
-                    <ExternalLink className="w-4 h-4 mr-1" />Voir toutes
+                    <ExternalLink className="w-4 h-4 mr-1" />{t("prospectDetail.seeAllF")}
                   </Button>
                 </CardHeader>
                 <CardContent>
@@ -510,7 +514,7 @@ export default function ProspectDetail() {
                                 <p className="text-sm font-medium truncate">{task.title}</p>
                                 <p className="text-xs text-muted-foreground">
                                   <PriorityBadge priority={task.priority} />
-                                  {task.dueDate && <span className="ml-2">Échéance: {format(new Date(task.dueDate), "d MMM yyyy", { locale: fr })}</span>}
+                                  {task.dueDate && <span className="ml-2">{t("prospectDetail.dueDate")} {format(new Date(task.dueDate), "d MMM yyyy", { locale: fr })}</span>}
                                 </p>
                               </div>
                             </div>
@@ -520,7 +524,7 @@ export default function ProspectDetail() {
                       })}
                     </div>
                   ) : (
-                    <div className="text-center py-6 text-muted-foreground text-sm italic">Aucune tâche liée à ce prospect.</div>
+                    <div className="text-center py-6 text-muted-foreground text-sm italic">{t("prospectDetail.noTasks")}</div>
                   )}
                 </CardContent>
               </Card>
@@ -529,8 +533,8 @@ export default function ProspectDetail() {
             <TabsContent value="contact" className="mt-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Contact lié</CardTitle>
-                  <CardDescription>Le contact CRM associé à ce prospect</CardDescription>
+                  <CardTitle>{t("prospectDetail.linkedContact")}</CardTitle>
+                  <CardDescription>{t("prospectDetail.linkedContactDesc")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {linkedContact ? (
@@ -545,15 +549,15 @@ export default function ProspectDetail() {
                         </div>
                       </div>
                       <Button variant="outline" size="sm" asChild className="gap-1">
-                        <Link href={`/contacts/${linkedContact.id}`}><ExternalLink className="w-3.5 h-3.5" /> Ouvrir</Link>
+                        <Link href={`/contacts/${linkedContact.id}`}><ExternalLink className="w-3.5 h-3.5" /> {t("prospectDetail.open")}</Link>
                       </Button>
                     </div>
                   ) : (
                     <div className="text-center py-8 text-muted-foreground text-sm">
                       <Briefcase className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                      Aucun contact CRM lié à ce prospect.
+                      {t("prospectDetail.noLinkedContact")}
                       <div className="mt-3">
-                        <Button size="sm" variant="outline" onClick={handleConvert} className="gap-1"><UserPlus className="w-3.5 h-3.5" />Convertir en contact</Button>
+                        <Button size="sm" variant="outline" onClick={handleConvert} className="gap-1"><UserPlus className="w-3.5 h-3.5" />{t("prospectDetail.convert")}</Button>
                       </div>
                     </div>
                   )}
@@ -564,16 +568,16 @@ export default function ProspectDetail() {
             <TabsContent value="notes" className="mt-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-3">
-                  <div><CardTitle>Notes</CardTitle><CardDescription>Informations supplémentaires sur ce prospect</CardDescription></div>
+                  <div><CardTitle>{t("prospectDetail.notes")}</CardTitle><CardDescription>{t("prospectDetail.notesDesc")}</CardDescription></div>
                   {!editingNotes ? (
                     <Button variant="outline" size="sm" onClick={() => { setNotesValue(prospect.notes || ""); setEditingNotes(true); }}>
-                      <Edit className="w-3.5 h-3.5 mr-1" />Modifier
+                      <Edit className="w-3.5 h-3.5 mr-1" />{t("common.edit")}
                     </Button>
                   ) : (
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setEditingNotes(false)}>Annuler</Button>
+                      <Button variant="outline" size="sm" onClick={() => setEditingNotes(false)}>{t("common.cancel")}</Button>
                       <Button size="sm" disabled={savingNotes} onClick={saveNotes}>
-                        <Save className="w-3.5 h-3.5 mr-1" />{savingNotes ? "Enregistrement..." : "Enregistrer"}
+                        <Save className="w-3.5 h-3.5 mr-1" />{savingNotes ? t("prospectDetail.saving") : t("common.save")}
                       </Button>
                     </div>
                   )}
@@ -584,12 +588,12 @@ export default function ProspectDetail() {
                       className="resize-none min-h-[160px] text-sm"
                       value={notesValue}
                       onChange={e => setNotesValue(e.target.value)}
-                      placeholder="Entrez des notes sur ce prospect..."
+                      placeholder={t("prospectDetail.notesPlaceholder")}
                     />
                   ) : prospect.notes ? (
                     <div className="p-4 bg-muted/50 rounded-lg whitespace-pre-wrap text-sm border border-border">{prospect.notes}</div>
                   ) : (
-                    <div className="text-center py-8 text-muted-foreground italic">Aucune note. Cliquez sur Modifier pour en ajouter.</div>
+                    <div className="text-center py-8 text-muted-foreground italic">{t("prospectDetail.noNotes")}</div>
                   )}
                 </CardContent>
               </Card>
@@ -600,45 +604,45 @@ export default function ProspectDetail() {
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Modifier le prospect</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("prospectDetail.editProspect")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div><Label className="text-xs">Titre *</Label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
+            <div><Label className="text-xs">{t("prospectDetail.fTitle")}</Label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">Étape</Label>
+              <div><Label className="text-xs">{t("prospectDetail.stageLabel")}</Label>
                 <Select value={form.stage} onValueChange={v => setForm(f => ({ ...f, stage: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{STAGES.map(s => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}</SelectContent>
+                  <SelectContent>{STAGES.map(s => <SelectItem key={s.key} value={s.key}>{t(`prospectDetail.stage.${s.key}`)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div><Label className="text-xs">Priorité</Label>
+              <div><Label className="text-xs">{t("prospectDetail.priorityLabel")}</Label>
                 <Select value={form.priority} onValueChange={v => setForm(f => ({ ...f, priority: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{PRIORITIES.map(p => <SelectItem key={p.key} value={p.key}>{p.label}</SelectItem>)}</SelectContent>
+                  <SelectContent>{PRIORITIES.map(p => <SelectItem key={p.key} value={p.key}>{t(`prospectDetail.priority.${p.key}`)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">Valeur (€)</Label><Input type="number" value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} /></div>
-              <div><Label className="text-xs">Probabilité (%)</Label><Input type="number" min="0" max="100" value={form.probability} onChange={e => setForm(f => ({ ...f, probability: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("prospectDetail.valueEur")}</Label><Input type="number" value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("prospectDetail.probabilityPct")}</Label><Input type="number" min="0" max="100" value={form.probability} onChange={e => setForm(f => ({ ...f, probability: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">Contact</Label><Input value={form.contactName} onChange={e => setForm(f => ({ ...f, contactName: e.target.value }))} /></div>
-              <div><Label className="text-xs">Entreprise</Label><Input value={form.company} onChange={e => setForm(f => ({ ...f, company: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("prospectDetail.contact")}</Label><Input value={form.contactName} onChange={e => setForm(f => ({ ...f, contactName: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("prospectDetail.company")}</Label><Input value={form.company} onChange={e => setForm(f => ({ ...f, company: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">Email</Label><Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></div>
-              <div><Label className="text-xs">Téléphone</Label><Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("prospectDetail.email")}</Label><Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("prospectDetail.phone")}</Label><Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">Source</Label><Input value={form.source} onChange={e => setForm(f => ({ ...f, source: e.target.value }))} /></div>
-              <div><Label className="text-xs">Assigné à</Label><Input value={form.assignedTo} onChange={e => setForm(f => ({ ...f, assignedTo: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("prospectDetail.source")}</Label><Input value={form.source} onChange={e => setForm(f => ({ ...f, source: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("prospectDetail.assignedTo")}</Label><Input value={form.assignedTo} onChange={e => setForm(f => ({ ...f, assignedTo: e.target.value }))} /></div>
             </div>
-            <div><Label className="text-xs">Date de clôture prévue</Label><Input type="date" value={form.expectedCloseDate} onChange={e => setForm(f => ({ ...f, expectedCloseDate: e.target.value }))} /></div>
-            <div><Label className="text-xs">Notes</Label><GhostTextarea fieldType="prospect_note" context={{ title: form.title, contactName: form.contactName }} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} /></div>
+            <div><Label className="text-xs">{t("prospectDetail.expectedCloseDate")}</Label><Input type="date" value={form.expectedCloseDate} onChange={e => setForm(f => ({ ...f, expectedCloseDate: e.target.value }))} /></div>
+            <div><Label className="text-xs">{t("prospectDetail.notes")}</Label><GhostTextarea fieldType="prospect_note" context={{ title: form.title, contactName: form.contactName }} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)}>Annuler</Button>
-            <Button onClick={handleSave} disabled={saving}>{saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}Mettre à jour</Button>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>{t("common.cancel")}</Button>
+            <Button onClick={handleSave} disabled={saving}>{saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}{t("prospectDetail.update")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

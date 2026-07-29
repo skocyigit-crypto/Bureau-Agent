@@ -14,6 +14,7 @@ import { useGenerateDailyReport, useListDailyReports, useGetActivitySummary, use
 import { useQueryClient } from "@tanstack/react-query";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import ExecutiveReport from "@/components/executive-report";
+import { useTranslation } from "@/i18n";
 
 type Metrics = {
   calls?: { total?: number; answered?: number; missed?: number; avgDuration?: number; inbound?: number; outbound?: number; answerRate?: number; sentiment?: { tres_positif?: number; positif?: number; negatif?: number; tres_negatif?: number; neutre?: number } };
@@ -85,9 +86,10 @@ function formatDuration(seconds: number) {
 }
 
 function ScoreGauge({ score }: { score: number }) {
+  const { t } = useTranslation();
   const color = score >= 80 ? "text-emerald-600" : score >= 60 ? "text-amber-500" : score >= 40 ? "text-orange-500" : "text-red-500";
   const bgColor = score >= 80 ? "bg-emerald-100" : score >= 60 ? "bg-amber-100" : score >= 40 ? "bg-orange-100" : "bg-red-100";
-  const label = score >= 80 ? "Excellent" : score >= 60 ? "Bon" : score >= 40 ? "Moyen" : "A ameliorer";
+  const label = score >= 80 ? t("reportsPage.scoreExcellent") : score >= 60 ? t("reportsPage.scoreGood") : score >= 40 ? t("reportsPage.scoreAverage") : t("reportsPage.scoreToImprove");
 
   return (
     <div className="flex flex-col items-center gap-1">
@@ -106,12 +108,13 @@ function TrendIcon({ tendance }: { tendance?: string }) {
 }
 
 function PriorityBadge({ priorite }: { priorite?: string }) {
+  const { t } = useTranslation();
   const colors: Record<string, string> = {
     haute: "bg-red-100 text-red-700",
     moyenne: "bg-amber-100 text-amber-700",
     basse: "bg-blue-100 text-blue-700",
   };
-  return <Badge className={`${colors[priorite || ""] || "bg-gray-100 text-gray-700"} text-[10px]`}>{priorite || "inconnue"}</Badge>;
+  return <Badge className={`${colors[priorite || ""] || "bg-gray-100 text-gray-700"} text-[10px]`}>{priorite || t("reportsPage.priorityUnknown")}</Badge>;
 }
 
 function CategoryIcon({ categorie }: { categorie?: string }) {
@@ -132,6 +135,7 @@ function CategoryIcon({ categorie }: { categorie?: string }) {
 }
 
 export default function Reports() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
@@ -146,7 +150,7 @@ export default function Reports() {
   const handleGenerate = () => {
     generateReport.mutate({ data: { date: selectedDate } }, {
       onSuccess: (data: any) => {
-        toast({ title: "Rapport genere", description: `Le rapport du ${formatDate(selectedDate)} a ete genere avec succes.` });
+        toast({ title: t("reportsPage.reportGenerated"), description: t("reportsPage.reportGeneratedDesc", { date: formatDate(selectedDate) }) });
         queryClient.invalidateQueries({ queryKey: getListDailyReportsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetActivitySummaryQueryKey() });
         if (data?.report) {
@@ -155,7 +159,7 @@ export default function Reports() {
         }
       },
       onError: () => {
-        toast({ title: "Erreur", description: "Impossible de generer le rapport. Reessayez.", variant: "destructive" });
+        toast({ title: t("reportsPage.error"), description: t("reportsPage.genError"), variant: "destructive" });
       },
     });
   };
@@ -163,7 +167,7 @@ export default function Reports() {
   const handleDelete = (id: number) => {
     deleteReport.mutate({ id }, {
       onSuccess: () => {
-        toast({ title: "Rapport supprime", description: "Le rapport a été supprimé." });
+        toast({ title: t("reportsPage.reportDeleted"), description: t("reportsPage.reportDeletedDesc") });
         queryClient.invalidateQueries({ queryKey: getListDailyReportsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetActivitySummaryQueryKey() });
         if (viewingReport?.id === id) setViewingReport(null);
@@ -180,8 +184,8 @@ export default function Reports() {
     <div className="p-4 lg:p-6 space-y-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-3"><Icon3D icon={FileText} variant="rose" size="md" /> Rapports Journaliers</h1>
-          <p className="text-muted-foreground mt-1">Suivi des activites et rapports IA generes automatiquement.</p>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-3"><Icon3D icon={FileText} variant="rose" size="md" /> {t("reportsPage.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("reportsPage.subtitle")}</p>
         </div>
         <div className="flex items-center gap-3">
           <Input
@@ -190,17 +194,17 @@ export default function Reports() {
             onChange={(e) => setSelectedDate(e.target.value)}
             className="w-44"
           />
-          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+          <Button variant="outline" size="icon" title={t("reportsPage.print")} onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
           <Button onClick={handleGenerate} disabled={generateReport.isPending} className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white">
             {generateReport.isPending ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                Generation...
+                {t("reportsPage.generating")}
               </>
             ) : (
               <>
                 <Sparkles className="w-4 h-4 mr-2" />
-                Generer le rapport
+                {t("reportsPage.generate")}
               </>
             )}
           </Button>
@@ -209,12 +213,12 @@ export default function Reports() {
 
       <Card className="overflow-hidden border-0 shadow-lg">
         <div className="relative h-28">
-          <img src={analyticsWorkImg} alt="Rapports et analyses" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+          <img src={analyticsWorkImg} alt={t("reportsPage.bannerAlt")} className="w-full h-full object-cover" loading="lazy" decoding="async" />
           <div className="absolute inset-0 bg-gradient-to-r from-rose-900/80 via-rose-800/50 to-transparent" />
           <div className="absolute inset-0 flex items-center px-6">
             <div className="text-white">
-              <h3 className="text-lg font-bold">Rapports automatises</h3>
-              <p className="text-white/80 text-sm mt-1">Bilans quotidiens generes par l'IA avec indicateurs de performance.</p>
+              <h3 className="text-lg font-bold">{t("reportsPage.bannerTitle")}</h3>
+              <p className="text-white/80 text-sm mt-1">{t("reportsPage.bannerDesc")}</p>
             </div>
           </div>
         </div>
@@ -226,9 +230,9 @@ export default function Reports() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground">Appels du jour</p>
+                  <p className="text-xs text-muted-foreground">{t("reportsPage.callsToday")}</p>
                   <p className="text-2xl font-bold">{todayData.calls?.total || 0}</p>
-                  <p className="text-xs text-muted-foreground">{todayData.calls?.answerRate || 0}% repondus</p>
+                  <p className="text-xs text-muted-foreground">{t("reportsPage.answeredPct", { rate: todayData.calls?.answerRate || 0 })}</p>
                 </div>
                 <Phone className="w-8 h-8 text-blue-500 opacity-50" />
               </div>
@@ -238,9 +242,9 @@ export default function Reports() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground">Taches terminees</p>
+                  <p className="text-xs text-muted-foreground">{t("reportsPage.tasksDone")}</p>
                   <p className="text-2xl font-bold">{todayData.tasks?.completed || 0}</p>
-                  <p className="text-xs text-muted-foreground">{todayData.tasks?.created || 0} creees</p>
+                  <p className="text-xs text-muted-foreground">{t("reportsPage.createdCount", { n: todayData.tasks?.created || 0 })}</p>
                 </div>
                 <CheckSquare className="w-8 h-8 text-purple-500 opacity-50" />
               </div>
@@ -250,9 +254,9 @@ export default function Reports() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground">Messages</p>
+                  <p className="text-xs text-muted-foreground">{t("reportsPage.messages")}</p>
                   <p className="text-2xl font-bold">{todayData.messages?.total || 0}</p>
-                  <p className="text-xs text-muted-foreground">{todayData.messages?.unread || 0} non lus</p>
+                  <p className="text-xs text-muted-foreground">{t("reportsPage.unreadCount", { n: todayData.messages?.unread || 0 })}</p>
                 </div>
                 <MessageSquare className="w-8 h-8 text-amber-500 opacity-50" />
               </div>
@@ -262,9 +266,9 @@ export default function Reports() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground">Nouveaux contacts</p>
+                  <p className="text-xs text-muted-foreground">{t("reportsPage.newContacts")}</p>
                   <p className="text-2xl font-bold">{todayData.contacts?.added || 0}</p>
-                  <p className="text-xs text-muted-foreground">Duree moy. {formatDuration(todayData.calls?.avgDuration || 0)}</p>
+                  <p className="text-xs text-muted-foreground">{t("reportsPage.avgDuration", { d: formatDuration(todayData.calls?.avgDuration || 0) })}</p>
                 </div>
                 <Users className="w-8 h-8 text-emerald-500 opacity-50" />
               </div>
@@ -278,21 +282,21 @@ export default function Reports() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <TrendingUp className="w-4 h-4" />
-              Performance hebdomadaire
+              {t("reportsPage.weeklyPerf")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap items-center gap-6">
               <div className="flex flex-col items-center gap-1">
                 <span className="text-3xl font-bold text-primary">{weekStats.avgScore}</span>
-                <span className="text-xs text-muted-foreground">Score moyen</span>
+                <span className="text-xs text-muted-foreground">{t("reportsPage.avgScore")}</span>
               </div>
               <Separator orientation="vertical" className="h-12" />
               <div className="flex flex-col gap-1">
-                <span className="text-sm font-medium">{weekStats.totalReports} rapport(s) cette semaine</span>
+                <span className="text-sm font-medium">{t("reportsPage.reportsThisWeek", { n: weekStats.totalReports })}</span>
                 {weekStats.bestDay && (
                   <span className="text-xs text-muted-foreground">
-                    Meilleur jour : {formatShortDate(weekStats.bestDay.date || weekStats.bestDay.reportDate || "")} (score {weekStats.bestDay.score})
+                    {t("reportsPage.bestDay", { date: formatShortDate(weekStats.bestDay.date || weekStats.bestDay.reportDate || ""), score: weekStats.bestDay.score })}
                   </span>
                 )}
               </div>
@@ -319,11 +323,11 @@ export default function Reports() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="generer">Rapport du jour</TabsTrigger>
+          <TabsTrigger value="generer">{t("reportsPage.tabDaily")}</TabsTrigger>
           <TabsTrigger value="historique">
-            Historique ({reports.length})
+            {t("reportsPage.tabHistory", { n: reports.length })}
           </TabsTrigger>
-          <TabsTrigger value="executif">Synthèse exécutive</TabsTrigger>
+          <TabsTrigger value="executif">{t("reportsPage.tabExecutive")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="generer" className="space-y-4 mt-4">
@@ -333,8 +337,8 @@ export default function Reports() {
             <Card>
               <CardContent className="p-12 flex flex-col items-center justify-center gap-4">
                 <Loader2 className="w-10 h-10 animate-spin text-violet-500" />
-                <p className="text-lg font-medium">L'IA analyse les donnees de la journee...</p>
-                <p className="text-sm text-muted-foreground">Generation du rapport en cours. Cela peut prendre quelques secondes.</p>
+                <p className="text-lg font-medium">{t("reportsPage.analyzing")}</p>
+                <p className="text-sm text-muted-foreground">{t("reportsPage.analyzingDesc")}</p>
               </CardContent>
             </Card>
           )}
@@ -347,9 +351,9 @@ export default function Reports() {
             <Card>
               <CardContent className="p-12 flex flex-col items-center justify-center gap-4 text-center">
                 <FileText className="w-12 h-12 text-muted-foreground/30" />
-                <h3 className="text-lg font-medium">Aucun rapport selectionne</h3>
+                <h3 className="text-lg font-medium">{t("reportsPage.noReportSelected")}</h3>
                 <p className="text-sm text-muted-foreground max-w-md">
-                  Selectionnez une date et cliquez sur "Generer le rapport" pour que l'IA analyse les activites de la journee et produise un rapport detaille.
+                  {t("reportsPage.noReportSelectedDesc")}
                 </p>
               </CardContent>
             </Card>
@@ -361,15 +365,15 @@ export default function Reports() {
             <Card>
               <CardContent className="p-8 flex items-center justify-center gap-3">
                 <Loader2 className="w-5 h-5 animate-spin" />
-                <span>Chargement des rapports...</span>
+                <span>{t("reportsPage.loadingReports")}</span>
               </CardContent>
             </Card>
           ) : reports.length === 0 ? (
             <Card>
               <CardContent className="p-12 flex flex-col items-center justify-center gap-4 text-center">
                 <FileText className="w-12 h-12 text-muted-foreground/30" />
-                <h3 className="text-lg font-medium">Aucun rapport genere</h3>
-                <p className="text-sm text-muted-foreground">Les rapports generes apparaitront ici.</p>
+                <h3 className="text-lg font-medium">{t("reportsPage.noReports")}</h3>
+                <p className="text-sm text-muted-foreground">{t("reportsPage.noReportsDesc")}</p>
               </CardContent>
             </Card>
           ) : (
@@ -385,16 +389,16 @@ export default function Reports() {
                           <p className="text-sm text-muted-foreground line-clamp-1 max-w-lg">{report.summary}</p>
                           <div className="flex gap-3 mt-1.5">
                             <span className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Phone className="w-3 h-3" /> {report.callsCount} appels
+                              <Phone className="w-3 h-3" /> {t("reportsPage.listCalls", { n: report.callsCount })}
                             </span>
                             <span className="text-xs text-muted-foreground flex items-center gap-1">
-                              <CheckSquare className="w-3 h-3" /> {report.tasksCompleted} terminees
+                              <CheckSquare className="w-3 h-3" /> {t("reportsPage.listTasks", { n: report.tasksCompleted })}
                             </span>
                             <span className="text-xs text-muted-foreground flex items-center gap-1">
-                              <MessageSquare className="w-3 h-3" /> {report.messagesCount} messages
+                              <MessageSquare className="w-3 h-3" /> {t("reportsPage.listMessages", { n: report.messagesCount })}
                             </span>
                             <span className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Users className="w-3 h-3" /> {report.contactsAdded} contacts
+                              <Users className="w-3 h-3" /> {t("reportsPage.listContacts", { n: report.contactsAdded })}
                             </span>
                           </div>
                         </div>
@@ -423,8 +427,8 @@ export default function Reports() {
       <Dialog open={!!viewingReport && activeTab === "historique"} onOpenChange={(open) => { if (!open) setViewingReport(null); }}>
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Rapport du {viewingReport ? formatDate(viewingReport.reportDate) : ""}</DialogTitle>
-            <DialogDescription>Rapport genere par l'IA</DialogDescription>
+            <DialogTitle>{t("reportsPage.dialogTitle", { date: viewingReport ? formatDate(viewingReport.reportDate) : "" })}</DialogTitle>
+            <DialogDescription>{t("reportsPage.dialogDesc")}</DialogDescription>
           </DialogHeader>
           {viewingReport && <ReportDetail report={viewingReport} />}
         </DialogContent>
@@ -434,6 +438,7 @@ export default function Reports() {
 }
 
 function ReportDetail({ report }: { report: Report }) {
+  const { t } = useTranslation();
   const metrics = (report.metrics || {}) as Metrics;
   const highlights = Array.isArray(report.highlights) ? report.highlights as string[] : [];
   const recommendations = Array.isArray(report.aiRecommendations) ? report.aiRecommendations as Recommendation[] : [];
@@ -448,7 +453,7 @@ function ReportDetail({ report }: { report: Report }) {
           <div className="flex items-center gap-2 mb-1">
             <h3 className="font-semibold text-lg">{formatDate(report.reportDate)}</h3>
             <TrendIcon tendance={metrics.tendance} />
-            <Badge variant="outline" className="text-xs">{metrics.tendance === "hausse" ? "En hausse" : metrics.tendance === "baisse" ? "En baisse" : "Stable"}</Badge>
+            <Badge variant="outline" className="text-xs">{metrics.tendance === "hausse" ? t("reportsPage.trendUp") : metrics.tendance === "baisse" ? t("reportsPage.trendDown") : t("reportsPage.trendStable")}</Badge>
           </div>
           <p className="text-sm text-muted-foreground">{report.summary}</p>
         </div>
@@ -458,34 +463,34 @@ function ReportDetail({ report }: { report: Report }) {
         <div className="bg-blue-50 rounded-lg p-3">
           <div className="flex items-center gap-2 mb-1">
             <Phone className="w-4 h-4 text-blue-600" />
-            <span className="text-xs font-medium text-blue-700">Appels</span>
+            <span className="text-xs font-medium text-blue-700">{t("reportsPage.detailCalls")}</span>
           </div>
           <p className="text-xl font-bold text-blue-900">{report.callsCount}</p>
-          <p className="text-xs text-blue-600">{report.answerRate}% repondus | {formatDuration(report.avgCallDuration)} moy.</p>
+          <p className="text-xs text-blue-600">{t("reportsPage.detailCallsSub", { rate: report.answerRate, dur: formatDuration(report.avgCallDuration) })}</p>
         </div>
         <div className="bg-purple-50 rounded-lg p-3">
           <div className="flex items-center gap-2 mb-1">
             <CheckSquare className="w-4 h-4 text-purple-600" />
-            <span className="text-xs font-medium text-purple-700">Taches</span>
+            <span className="text-xs font-medium text-purple-700">{t("reportsPage.detailTasks")}</span>
           </div>
           <p className="text-xl font-bold text-purple-900">{report.tasksCompleted}</p>
-          <p className="text-xs text-purple-600">{report.tasksCreated} creees</p>
+          <p className="text-xs text-purple-600">{t("reportsPage.createdCount", { n: report.tasksCreated })}</p>
         </div>
         <div className="bg-amber-50 rounded-lg p-3">
           <div className="flex items-center gap-2 mb-1">
             <MessageSquare className="w-4 h-4 text-amber-600" />
-            <span className="text-xs font-medium text-amber-700">Messages</span>
+            <span className="text-xs font-medium text-amber-700">{t("reportsPage.detailMessages")}</span>
           </div>
           <p className="text-xl font-bold text-amber-900">{report.messagesCount}</p>
-          <p className="text-xs text-amber-600">{metrics.messages?.unread || 0} non lus</p>
+          <p className="text-xs text-amber-600">{t("reportsPage.detailUnread", { n: metrics.messages?.unread || 0 })}</p>
         </div>
         <div className="bg-emerald-50 rounded-lg p-3">
           <div className="flex items-center gap-2 mb-1">
             <Users className="w-4 h-4 text-emerald-600" />
-            <span className="text-xs font-medium text-emerald-700">Contacts</span>
+            <span className="text-xs font-medium text-emerald-700">{t("reportsPage.detailContacts")}</span>
           </div>
           <p className="text-xl font-bold text-emerald-900">{report.contactsAdded}</p>
-          <p className="text-xs text-emerald-600">Nouveaux contacts</p>
+          <p className="text-xs text-emerald-600">{t("reportsPage.detailNewContacts")}</p>
         </div>
       </div>
 
@@ -494,7 +499,7 @@ function ReportDetail({ report }: { report: Report }) {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Award className="w-4 h-4 text-emerald-500" />
-              Points forts
+              {t("reportsPage.strengths")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -515,7 +520,7 @@ function ReportDetail({ report }: { report: Report }) {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-amber-500" />
-              Points d'attention
+              {t("reportsPage.attentionPoints")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -536,7 +541,7 @@ function ReportDetail({ report }: { report: Report }) {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-violet-500" />
-              Recommandations IA
+              {t("reportsPage.aiRecommendations")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -563,7 +568,7 @@ function ReportDetail({ report }: { report: Report }) {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Clock className="w-4 h-4 text-blue-500" />
-              Chronologie des activites
+              {t("reportsPage.activityTimeline")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -589,7 +594,7 @@ function ReportDetail({ report }: { report: Report }) {
               <ChevronRight className="w-4 h-4 text-violet-600" />
             </div>
             <div>
-              <h4 className="text-sm font-semibold text-violet-900">Prochaine priorite</h4>
+              <h4 className="text-sm font-semibold text-violet-900">{t("reportsPage.nextPriority")}</h4>
               <p className="text-sm text-violet-700">{metrics.prochainePriorite}</p>
             </div>
           </CardContent>

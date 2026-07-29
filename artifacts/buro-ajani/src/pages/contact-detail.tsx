@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AiValidationFeedback } from "@/components/ai-validation-feedback";
 import { useAiValidation } from "@/hooks/use-ai-validation";
 import { QueryErrorAlert } from "@/components/safe-component";
+import { useTranslation } from "@/i18n";
 
 const formSchema = z.object({
   firstName: z.string().min(1, "Le prénom est requis"),
@@ -39,6 +40,7 @@ const formSchema = z.object({
 });
 
 export default function ContactDetail() {
+  const { t } = useTranslation();
   const [, params] = useRoute("/contacts/:id");
   const contactId = params?.id ? parseInt(params.id) : 0;
   const { toast } = useToast();
@@ -163,12 +165,12 @@ export default function ContactDetail() {
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     updateContact.mutate({ id: contactId, data: values }, {
       onSuccess: () => {
-        toast({ title: "Contact mis à jour" });
+        toast({ title: t("contactDetail.updated") });
         setIsEditDialogOpen(false);
         queryClient.invalidateQueries({ queryKey: getGetContactQueryKey(contactId) });
       },
       onError: () => {
-        toast({ title: "Erreur", description: "Impossible de mettre à jour le contact", variant: "destructive" });
+        toast({ title: t("contactDetail.error"), description: t("contactDetail.updateError"), variant: "destructive" });
       }
     });
   };
@@ -185,33 +187,33 @@ export default function ContactDetail() {
     );
   }
 
-  if (contactError) return <QueryErrorAlert error={contactError as Error} title="Impossible de charger ce contact" />;
-  if (!contact) return <div>Contact introuvable</div>;
+  if (contactError) return <QueryErrorAlert error={contactError as Error} title={t("contactDetail.loadError")} />;
+  if (!contact) return <div>{t("contactDetail.notFound")}</div>;
 
   const getCategoryBadge = (category: string) => {
     switch (category) {
-      case 'client': return <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 border-blue-500/20">Client</Badge>;
-      case 'prospect': return <Badge variant="secondary" className="bg-purple-500/10 text-purple-600 border-purple-500/20">Prospect</Badge>;
-      case 'fournisseur': return <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 border-amber-500/20">Fournisseur</Badge>;
-      case 'partenaire': return <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">Partenaire</Badge>;
+      case 'client': return <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 border-blue-500/20">{t("contactDetail.cat.client")}</Badge>;
+      case 'prospect': return <Badge variant="secondary" className="bg-purple-500/10 text-purple-600 border-purple-500/20">{t("contactDetail.cat.prospect")}</Badge>;
+      case 'fournisseur': return <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 border-amber-500/20">{t("contactDetail.cat.fournisseur")}</Badge>;
+      case 'partenaire': return <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">{t("contactDetail.cat.partenaire")}</Badge>;
       default: return <Badge variant="outline" className="capitalize">{category}</Badge>;
     }
   };
 
   const getCallStatusBadge = (status: string) => {
     switch (status) {
-      case 'repondu': return <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">Répondu</Badge>;
-      case 'manque': return <Badge variant="secondary" className="bg-destructive/10 text-destructive border-destructive/20"><PhoneMissed className="w-3 h-3 mr-1" /> Manqué</Badge>;
-      case 'messagerie': return <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 border-amber-500/20"><Voicemail className="w-3 h-3 mr-1" /> Messagerie</Badge>;
+      case 'repondu': return <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">{t("contactDetail.callStatus.repondu")}</Badge>;
+      case 'manque': return <Badge variant="secondary" className="bg-destructive/10 text-destructive border-destructive/20"><PhoneMissed className="w-3 h-3 mr-1" /> {t("contactDetail.callStatus.manque")}</Badge>;
+      case 'messagerie': return <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 border-amber-500/20"><Voicemail className="w-3 h-3 mr-1" /> {t("contactDetail.callStatus.messagerie")}</Badge>;
       default: return <Badge variant="outline">{status}</Badge>;
     }
   };
 
   const getTaskStatusBadge = (status: string) => {
     switch (status) {
-      case 'en_attente': return <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 border-amber-500/20"><Clock className="w-3 h-3 mr-1" /> En attente</Badge>;
-      case 'en_cours': return <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 border-blue-500/20"><AlertCircle className="w-3 h-3 mr-1" /> En cours</Badge>;
-      case 'termine': return <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20"><CheckSquare className="w-3 h-3 mr-1" /> Terminé</Badge>;
+      case 'en_attente': return <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 border-amber-500/20"><Clock className="w-3 h-3 mr-1" /> {t("contactDetail.taskStatus.en_attente")}</Badge>;
+      case 'en_cours': return <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 border-blue-500/20"><AlertCircle className="w-3 h-3 mr-1" /> {t("contactDetail.taskStatus.en_cours")}</Badge>;
+      case 'termine': return <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20"><CheckSquare className="w-3 h-3 mr-1" /> {t("contactDetail.taskStatus.termine")}</Badge>;
       default: return <Badge variant="outline" className="capitalize">{status.replace('_', ' ')}</Badge>;
     }
   };
@@ -224,18 +226,18 @@ export default function ContactDetail() {
         </Button>
         <h1 className="text-3xl font-bold tracking-tight flex-1">{contact.firstName} {contact.lastName}</h1>
         <div className="flex gap-2">
-          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+          <Button variant="outline" size="icon" title={t("contactDetail.print")} onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
           <Button variant="outline" onClick={() => setIsEmailComposerOpen(true)} className="gap-2">
-            <Send className="w-4 h-4" /> E-mail IA
+            <Send className="w-4 h-4" /> {t("contactDetail.emailIa")}
           </Button>
           <Button className="bg-primary text-primary-foreground" onClick={() => {
             if (contact?.phone) {
               window.open(`tel:${contact.phone}`, "_self");
             } else {
-              toast({ title: "Aucun numéro de téléphone", variant: "destructive" });
+              toast({ title: t("contactDetail.noPhone"), variant: "destructive" });
             }
           }}>
-            <PhoneCall className="w-4 h-4 mr-2" /> Appeler
+            <PhoneCall className="w-4 h-4 mr-2" /> {t("contactDetail.call")}
           </Button>
         </div>
       </div>
@@ -245,8 +247,8 @@ export default function ContactDetail() {
           <Card>
             <CardHeader className="flex flex-row items-start justify-between space-y-0">
               <div>
-                <CardTitle>Profil</CardTitle>
-                <CardDescription>Détails du contact</CardDescription>
+                <CardTitle>{t("contactDetail.profile")}</CardTitle>
+                <CardDescription>{t("contactDetail.profileDesc")}</CardDescription>
               </div>
               <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
                 <DialogTrigger asChild>
@@ -254,34 +256,34 @@ export default function ContactDetail() {
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[600px]">
                   <DialogHeader>
-                    <DialogTitle>Modifier le contact</DialogTitle>
-                    <DialogDescription>Mettez à jour les informations du contact.</DialogDescription>
+                    <DialogTitle>{t("contactDetail.editContact")}</DialogTitle>
+                    <DialogDescription>{t("contactDetail.editContactDesc")}</DialogDescription>
                   </DialogHeader>
                   <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <FormField control={form.control} name="firstName" render={({ field }) => (
-                          <FormItem><FormLabel>Prénom</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><FormLabel>{t("contactDetail.firstName")}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="lastName" render={({ field }) => (
-                          <FormItem><FormLabel>Nom</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><FormLabel>{t("contactDetail.lastName")}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <FormField control={form.control} name="company" render={({ field }) => (
-                          <FormItem><FormLabel>Entreprise</FormLabel><FormControl><Input {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><FormLabel>{t("contactDetail.company")}</FormLabel><FormControl><Input {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="category" render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Catégorie</FormLabel>
+                            <FormLabel>{t("contactDetail.category")}</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl><SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger></FormControl>
+                              <FormControl><SelectTrigger><SelectValue placeholder={t("contactDetail.selectPlaceholder")} /></SelectTrigger></FormControl>
                               <SelectContent>
-                                <SelectItem value="client">Client</SelectItem>
-                                <SelectItem value="prospect">Prospect</SelectItem>
-                                <SelectItem value="fournisseur">Fournisseur</SelectItem>
-                                <SelectItem value="partenaire">Partenaire</SelectItem>
-                                <SelectItem value="autre">Autre</SelectItem>
+                                <SelectItem value="client">{t("contactDetail.cat.client")}</SelectItem>
+                                <SelectItem value="prospect">{t("contactDetail.cat.prospect")}</SelectItem>
+                                <SelectItem value="fournisseur">{t("contactDetail.cat.fournisseur")}</SelectItem>
+                                <SelectItem value="partenaire">{t("contactDetail.cat.partenaire")}</SelectItem>
+                                <SelectItem value="autre">{t("contactDetail.cat.autre")}</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -290,25 +292,25 @@ export default function ContactDetail() {
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <FormField control={form.control} name="phone" render={({ field }) => (
-                          <FormItem><FormLabel>Téléphone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><FormLabel>{t("contactDetail.phone")}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="mobile" render={({ field }) => (
-                          <FormItem><FormLabel>Mobile</FormLabel><FormControl><Input {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><FormLabel>{t("contactDetail.mobile")}</FormLabel><FormControl><Input {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
                         )} />
                       </div>
                       <FormField control={form.control} name="email" render={({ field }) => (
-                        <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>{t("contactDetail.email")}</FormLabel><FormControl><Input type="email" {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
                       )} />
                       <FormField control={form.control} name="address" render={({ field }) => (
-                        <FormItem><FormLabel>Adresse</FormLabel><FormControl><Input {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>{t("contactDetail.address")}</FormLabel><FormControl><Input {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
                       )} />
                       <FormField control={form.control} name="notes" render={({ field }) => (
-                        <FormItem><FormLabel>Notes</FormLabel><FormControl><Textarea className="resize-none" {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>{t("contactDetail.notes")}</FormLabel><FormControl><Textarea className="resize-none" {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
                       )} />
                       <AiValidationFeedback result={aiValidation.result} isValidating={aiValidation.isValidating} />
                       <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => aiValidation.validate(form.getValues())} disabled={aiValidation.isValidating} className="mr-auto">Verifier IA</Button>
-                        <Button type="submit" disabled={updateContact.isPending}>Enregistrer</Button>
+                        <Button type="button" variant="outline" onClick={() => aiValidation.validate(form.getValues())} disabled={aiValidation.isValidating} className="mr-auto">{t("contactDetail.verifyAi")}</Button>
+                        <Button type="submit" disabled={updateContact.isPending}>{t("common.save")}</Button>
                       </DialogFooter>
                     </form>
                   </Form>
@@ -332,10 +334,10 @@ export default function ContactDetail() {
               {((contact as any).createdByName || (contact as any).updatedByName) && (
                 <div className="pt-4 mt-4 border-t border-border space-y-1.5 text-xs text-muted-foreground">
                   {(contact as any).createdByName && (
-                    <div>Créé par <span className="font-medium text-foreground">{(contact as any).createdByName}</span> {contact.createdAt && <>— {format(new Date(contact.createdAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}</>}</div>
+                    <div>{t("contactDetail.createdBy")} <span className="font-medium text-foreground">{(contact as any).createdByName}</span> {contact.createdAt && <>— {format(new Date(contact.createdAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}</>}</div>
                   )}
                   {(contact as any).updatedByName && contact.updatedAt && (
-                    <div>Modifié par <span className="font-medium text-foreground">{(contact as any).updatedByName}</span> — {format(new Date(contact.updatedAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}</div>
+                    <div>{t("contactDetail.updatedBy")} <span className="font-medium text-foreground">{(contact as any).updatedByName}</span> — {format(new Date(contact.updatedAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}</div>
                   )}
                 </div>
               )}
@@ -343,26 +345,26 @@ export default function ContactDetail() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle>Statistiques</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{t("contactDetail.stats")}</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="flex justify-between items-center pb-4 border-b border-border">
-                <span className="text-muted-foreground text-sm">Total des appels</span>
+                <span className="text-muted-foreground text-sm">{t("contactDetail.totalCalls")}</span>
                 <span className="font-bold text-lg">{contact.totalCalls}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground text-sm">Dernier contact</span>
-                <span className="font-medium text-sm">{contact.lastCallAt ? format(new Date(contact.lastCallAt), "d MMM yyyy", { locale: fr }) : "Jamais"}</span>
+                <span className="text-muted-foreground text-sm">{t("contactDetail.lastContact")}</span>
+                <span className="font-medium text-sm">{contact.lastCallAt ? format(new Date(contact.lastCallAt), "d MMM yyyy", { locale: fr }) : t("contactDetail.never")}</span>
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm flex items-center gap-2"><Tag className="w-4 h-4 text-muted-foreground" />Étiquettes</CardTitle>
+              <CardTitle className="text-sm flex items-center gap-2"><Tag className="w-4 h-4 text-muted-foreground" />{t("contactDetail.tags")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-1.5 mb-3 min-h-[28px]">
-                {tags.length === 0 && <span className="text-xs text-muted-foreground italic">Aucune étiquette</span>}
+                {tags.length === 0 && <span className="text-xs text-muted-foreground italic">{t("contactDetail.noTags")}</span>}
                 {tags.map(tag => (
                   <span key={tag} className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full border border-primary/20">
                     {tag}
@@ -373,7 +375,7 @@ export default function ContactDetail() {
               <div className="flex gap-1.5">
                 <input
                   className="flex-1 text-xs border border-input rounded-md px-2 py-1 bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-                  placeholder="Ajouter une étiquette..."
+                  placeholder={t("contactDetail.addTag")}
                   value={tagInput}
                   onChange={e => setTagInput(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
@@ -390,20 +392,20 @@ export default function ContactDetail() {
         <div className="md:col-span-2">
           <Tabs defaultValue="calls">
             <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="calls">Appels</TabsTrigger>
-              <TabsTrigger value="tasks">Tâches</TabsTrigger>
-              <TabsTrigger value="projets">Projets</TabsTrigger>
-              <TabsTrigger value="notes">Notes</TabsTrigger>
+              <TabsTrigger value="calls">{t("contactDetail.tabCalls")}</TabsTrigger>
+              <TabsTrigger value="tasks">{t("contactDetail.tabTasks")}</TabsTrigger>
+              <TabsTrigger value="projets">{t("contactDetail.tabProjets")}</TabsTrigger>
+              <TabsTrigger value="notes">{t("contactDetail.tabNotes")}</TabsTrigger>
             </TabsList>
             
             <TabsContent value="calls" className="mt-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
-                    <CardTitle>Historique des appels</CardTitle>
-                    <CardDescription>Les 10 derniers appels avec ce contact</CardDescription>
+                    <CardTitle>{t("contactDetail.callsHistory")}</CardTitle>
+                    <CardDescription>{t("contactDetail.callsHistoryDesc")}</CardDescription>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => navigate(`/appels?contactId=${contactId}`)}><Plus className="w-4 h-4 mr-2" /> Nouvel appel</Button>
+                  <Button variant="outline" size="sm" onClick={() => navigate(`/appels?contactId=${contactId}`)}><Plus className="w-4 h-4 mr-2" /> {t("contactDetail.newCall")}</Button>
                 </CardHeader>
                 <CardContent>
                   {isCallsLoading ? (
@@ -416,7 +418,7 @@ export default function ContactDetail() {
                             <div className="flex items-center gap-2">
                               {getCallStatusBadge(call.status)}
                               <span className="text-sm font-medium">
-                                {call.direction === 'entrant' ? 'Appel entrant' : 'Appel sortant'}
+                                {call.direction === 'entrant' ? t("contactDetail.callIncoming") : t("contactDetail.callOutgoing")}
                               </span>
                             </div>
                             <span className="text-sm text-muted-foreground flex items-center gap-1">
@@ -430,7 +432,7 @@ export default function ContactDetail() {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-muted-foreground">Aucun appel enregistré pour ce contact.</div>
+                    <div className="text-center py-8 text-muted-foreground">{t("contactDetail.noCalls")}</div>
                   )}
                 </CardContent>
               </Card>
@@ -440,10 +442,10 @@ export default function ContactDetail() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
-                    <CardTitle>Tâches liées</CardTitle>
-                    <CardDescription>Tâches associées à ce contact</CardDescription>
+                    <CardTitle>{t("contactDetail.linkedTasks")}</CardTitle>
+                    <CardDescription>{t("contactDetail.linkedTasksDesc")}</CardDescription>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => navigate(`/taches?contactId=${contactId}`)}><Plus className="w-4 h-4 mr-2" /> Nouvelle tâche</Button>
+                  <Button variant="outline" size="sm" onClick={() => navigate(`/taches?contactId=${contactId}`)}><Plus className="w-4 h-4 mr-2" /> {t("contactDetail.newTask")}</Button>
                 </CardHeader>
                 <CardContent>
                   {isTasksLoading ? (
@@ -468,7 +470,7 @@ export default function ContactDetail() {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-muted-foreground">Aucune tâche liée à ce contact.</div>
+                    <div className="text-center py-8 text-muted-foreground">{t("contactDetail.noTasks")}</div>
                   )}
                 </CardContent>
               </Card>
@@ -478,11 +480,11 @@ export default function ContactDetail() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-3">
                   <div>
-                    <CardTitle className="flex items-center gap-2"><FolderKanban className="w-4 h-4 text-indigo-500" />Projets liés</CardTitle>
-                    <CardDescription>Projets associés à ce contact</CardDescription>
+                    <CardTitle className="flex items-center gap-2"><FolderKanban className="w-4 h-4 text-indigo-500" />{t("contactDetail.linkedProjets")}</CardTitle>
+                    <CardDescription>{t("contactDetail.linkedProjetsDesc")}</CardDescription>
                   </div>
                   <Button variant="outline" size="sm" onClick={() => navigate(`/projets`)}>
-                    <Plus className="w-4 h-4 mr-1" />Nouveau
+                    <Plus className="w-4 h-4 mr-1" />{t("contactDetail.new")}
                   </Button>
                 </CardHeader>
                 <CardContent>
@@ -492,7 +494,7 @@ export default function ContactDetail() {
                     <div className="space-y-2">
                       {projetsData.map((p: any) => {
                         const statusColors: Record<string, string> = { en_cours: "bg-blue-100 text-blue-700", planifie: "bg-amber-100 text-amber-700", termine: "bg-emerald-100 text-emerald-700", suspendu: "bg-gray-100 text-gray-700", annule: "bg-red-100 text-red-700" };
-                        const statusLabels: Record<string, string> = { en_cours: "En cours", planifie: "Planifié", termine: "Terminé", suspendu: "Suspendu", annule: "Annulé" };
+                        const statusLabels: Record<string, string> = { en_cours: t("contactDetail.projStatus.en_cours"), planifie: t("contactDetail.projStatus.planifie"), termine: t("contactDetail.projStatus.termine"), suspendu: t("contactDetail.projStatus.suspendu"), annule: t("contactDetail.projStatus.annule") };
                         return (
                           <div key={p.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 text-sm">
                             <div className="flex-1 min-w-0">
@@ -509,7 +511,7 @@ export default function ContactDetail() {
                       })}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-muted-foreground text-sm">Aucun projet lié à ce contact.</div>
+                    <div className="text-center py-8 text-muted-foreground text-sm">{t("contactDetail.noProjets")}</div>
                   )}
                 </CardContent>
               </Card>
@@ -519,16 +521,16 @@ export default function ContactDetail() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-3">
                   <div>
-                    <CardTitle>Notes générales</CardTitle>
-                    <CardDescription>Informations supplémentaires sur le contact</CardDescription>
+                    <CardTitle>{t("contactDetail.generalNotes")}</CardTitle>
+                    <CardDescription>{t("contactDetail.generalNotesDesc")}</CardDescription>
                   </div>
                   {!isEditingNotes ? (
                     <Button variant="outline" size="sm" onClick={() => { setNotesValue(contact.notes || ""); setIsEditingNotes(true); }}>
-                      <Edit className="w-3.5 h-3.5 mr-1" />Modifier
+                      <Edit className="w-3.5 h-3.5 mr-1" />{t("common.edit")}
                     </Button>
                   ) : (
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setIsEditingNotes(false)}>Annuler</Button>
+                      <Button variant="outline" size="sm" onClick={() => setIsEditingNotes(false)}>{t("common.cancel")}</Button>
                       <Button size="sm" disabled={isSavingNotes} onClick={async () => {
                         setIsSavingNotes(true);
                         try {
@@ -537,7 +539,7 @@ export default function ContactDetail() {
                           setIsEditingNotes(false);
                         } finally { setIsSavingNotes(false); }
                       }}>
-                        <Save className="w-3.5 h-3.5 mr-1" />{isSavingNotes ? "Enregistrement..." : "Enregistrer"}
+                        <Save className="w-3.5 h-3.5 mr-1" />{isSavingNotes ? t("contactDetail.saving") : t("common.save")}
                       </Button>
                     </div>
                   )}
@@ -548,14 +550,14 @@ export default function ContactDetail() {
                       className="resize-none min-h-[160px] text-sm"
                       value={notesValue}
                       onChange={e => setNotesValue(e.target.value)}
-                      placeholder="Entrez des notes sur ce contact..."
+                      placeholder={t("contactDetail.notesPlaceholder")}
                     />
                   ) : contact.notes ? (
                     <div className="p-4 bg-muted/50 rounded-lg whitespace-pre-wrap text-sm border border-border">
                       {contact.notes}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-muted-foreground italic">Aucune note. Cliquez sur Modifier pour en ajouter.</div>
+                    <div className="text-center py-8 text-muted-foreground italic">{t("contactDetail.noNotes")}</div>
                   )}
                 </CardContent>
               </Card>

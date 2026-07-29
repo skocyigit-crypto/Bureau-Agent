@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
+import { useTranslation } from "@/i18n";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -43,6 +44,7 @@ export default function ActiviteRecentePage() {
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(7);
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -72,16 +74,16 @@ export default function ActiviteRecentePage() {
         createdAt: c.createdAt,
       }));
       (callsR?.calls || callsR?.data || []).forEach((c: any) => items.push({
-        type: "appel", title: c.phoneNumber || c.contactName || "Appel entrant",
-        subtitle: c.contactName || (c.direction === "inbound" ? "Entrant" : "Sortant"),
+        type: "appel", title: c.phoneNumber || c.contactName || t("activiteRecente.callFallback"),
+        subtitle: c.contactName || (c.direction === "inbound" ? t("activiteRecente.incoming") : t("activiteRecente.outgoing")),
         status: c.status, createdAt: c.createdAt,
       }));
-      (tasksR?.tasks || tasksR?.data || []).forEach((t: any) => items.push({
-        type: "tache", title: t.title, subtitle: t.assignedTo || t.priority,
-        status: t.status, createdAt: t.createdAt,
+      (tasksR?.tasks || tasksR?.data || []).forEach((tk: any) => items.push({
+        type: "tache", title: tk.title, subtitle: tk.assignedTo || tk.priority,
+        status: tk.status, createdAt: tk.createdAt,
       }));
       (messagesR?.messages || messagesR?.data || []).forEach((m: any) => items.push({
-        type: "message", title: m.subject || m.content?.slice(0, 50) || "Message",
+        type: "message", title: m.subject || m.content?.slice(0, 50) || t("activiteRecente.messageFallback"),
         subtitle: m.fromName || m.from, status: m.isRead ? "lu" : "non_lu", createdAt: m.createdAt,
       }));
       (projetsR?.projets || []).forEach((p: any) => items.push({
@@ -93,7 +95,7 @@ export default function ActiviteRecentePage() {
       const cutoff = Date.now() - days * 86400000;
       setActivities(items.filter(i => new Date(i.createdAt).getTime() > cutoff).slice(0, 150));
     } catch {
-      toast({ title: "Erreur", description: "Impossible de charger l'activité.", variant: "destructive" });
+      toast({ title: t("activiteRecente.error"), description: t("activiteRecente.loadError"), variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -112,19 +114,19 @@ export default function ActiviteRecentePage() {
     <div className="p-4 md:p-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2"><Activity className="w-6 h-6 text-blue-500" />Activité Récente</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{activities.length} événement{activities.length !== 1 ? "s" : ""} sur {days} dernier{days !== 1 ? "s" : ""} jour{days !== 1 ? "s" : ""}</p>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><Activity className="w-6 h-6 text-blue-500" />{t("activiteRecente.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{t("activiteRecente.eventsSummary", { count: activities.length, days })}</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex gap-1 border rounded-lg p-1">
             {[7, 14, 30].map(d => (
-              <Button key={d} variant={days === d ? "secondary" : "ghost"} size="sm" className="h-7 px-3 text-xs" onClick={() => setDays(d)}>{d}j</Button>
+              <Button key={d} variant={days === d ? "secondary" : "ghost"} size="sm" className="h-7 px-3 text-xs" onClick={() => setDays(d)}>{d}{t("activiteRecente.dayUnit")}</Button>
             ))}
           </div>
           <Button variant="outline" size="sm" onClick={load} disabled={loading}>
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </Button>
-          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+          <Button variant="outline" size="icon" title={t("activiteRecente.print")} onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
         </div>
       </div>
 
@@ -141,8 +143,8 @@ export default function ActiviteRecentePage() {
         <Card className="border-dashed">
           <CardContent className="py-16 text-center">
             <Activity className="w-12 h-12 mx-auto mb-3 opacity-20" />
-            <p className="font-medium text-muted-foreground">Aucune activité sur {days} jours</p>
-            <p className="text-sm text-muted-foreground mt-1">L'activité apparaît dès que vous créez des prospects, contacts, appels, tâches, messages ou projets.</p>
+            <p className="font-medium text-muted-foreground">{t("activiteRecente.emptyTitle", { days })}</p>
+            <p className="text-sm text-muted-foreground mt-1">{t("activiteRecente.emptyDesc")}</p>
           </CardContent>
         </Card>
       ) : (
@@ -163,7 +165,7 @@ export default function ActiviteRecentePage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <Badge variant="outline" className="text-xs px-1.5 py-0">{cfg.label}</Badge>
+                          <Badge variant="outline" className="text-xs px-1.5 py-0">{t(`activiteRecente.entity.${ENTITY_CONFIG[item.type] ? item.type : "contact"}`)}</Badge>
                           <p className="text-sm font-medium truncate">{item.title}</p>
                         </div>
                         {item.subtitle && <p className="text-xs text-muted-foreground truncate">{item.subtitle}</p>}

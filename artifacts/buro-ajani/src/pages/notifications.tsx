@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 async function apiFetch(path: string, opts?: RequestInit) {
@@ -36,6 +37,7 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 export default function Notifications() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { toast } = useToast();
   const [filter, setFilter] = useState("all");
@@ -56,7 +58,7 @@ export default function Notifications() {
         window.dispatchEvent(new CustomEvent("rappel-badge-clear"));
       }
     },
-    onError: () => toast({ title: "Erreur", description: "Impossible de marquer la notification comme lue", variant: "destructive" }),
+    onError: () => toast({ title: t("notificationsPage.error"), description: t("notificationsPage.markReadError"), variant: "destructive" }),
   });
 
   const markAllReadMutation = useMutation({
@@ -64,21 +66,21 @@ export default function Notifications() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["notifications"] });
       window.dispatchEvent(new CustomEvent("rappel-badge-clear"));
-      toast({ title: "Toutes les notifications lues" });
+      toast({ title: t("notificationsPage.allRead") });
     },
-    onError: () => toast({ title: "Erreur", description: "Impossible de marquer les notifications comme lues", variant: "destructive" }),
+    onError: () => toast({ title: t("notificationsPage.error"), description: t("notificationsPage.markAllError"), variant: "destructive" }),
   });
 
   const deleteNotifMutation = useMutation({
     mutationFn: (id: number) => apiFetch(`/notifications/${id}`, { method: "DELETE" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
-    onError: () => toast({ title: "Erreur", description: "Impossible de supprimer la notification", variant: "destructive" }),
+    onError: () => toast({ title: t("notificationsPage.error"), description: t("notificationsPage.deleteError"), variant: "destructive" }),
   });
 
   const deleteAllMutation = useMutation({
     mutationFn: () => apiFetch("/notifications/delete-all", { method: "POST" }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["notifications"] }); toast({ title: "Notifications supprimees" }); },
-    onError: () => toast({ title: "Erreur", description: "Impossible de supprimer les notifications", variant: "destructive" }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["notifications"] }); toast({ title: t("notificationsPage.deleted") }); },
+    onError: () => toast({ title: t("notificationsPage.error"), description: t("notificationsPage.deleteAllError"), variant: "destructive" }),
   });
 
   const notifications = data?.notifications || data || [];
@@ -90,9 +92,9 @@ export default function Notifications() {
         <div className="flex items-center gap-3">
           <Icon3D icon={Bell} variant="amber" size="lg" />
           <div>
-            <h1 className="text-2xl font-bold">Notifications</h1>
+            <h1 className="text-2xl font-bold">{t("notificationsPage.title")}</h1>
             <p className="text-muted-foreground text-sm">
-              {unreadCount > 0 ? `${unreadCount} notification${unreadCount > 1 ? "s" : ""} non lue${unreadCount > 1 ? "s" : ""}` : "Toutes les notifications sont lues"}
+              {unreadCount > 0 ? (unreadCount > 1 ? t("notificationsPage.unreadMany", { count: unreadCount }) : t("notificationsPage.unreadOne", { count: unreadCount })) : t("notificationsPage.allReadStatus")}
             </p>
           </div>
         </div>
@@ -100,21 +102,21 @@ export default function Notifications() {
           <Select value={filter} onValueChange={setFilter}>
             <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Toutes</SelectItem>
-              <SelectItem value="unread">Non lues</SelectItem>
+              <SelectItem value="all">{t("notificationsPage.filterAll")}</SelectItem>
+              <SelectItem value="unread">{t("notificationsPage.filterUnread")}</SelectItem>
             </SelectContent>
           </Select>
           {unreadCount > 0 && (
             <Button variant="outline" onClick={() => markAllReadMutation.mutate()}>
-              <CheckCheck className="h-4 w-4 mr-1" /> Tout lire
+              <CheckCheck className="h-4 w-4 mr-1" /> {t("notificationsPage.readAll")}
             </Button>
           )}
           {notifications.length > 0 && (
             <Button variant="outline" className="text-red-600 hover:text-red-700" onClick={() => deleteAllMutation.mutate()}>
-              <Trash2 className="h-4 w-4 mr-1" /> Tout supprimer
+              <Trash2 className="h-4 w-4 mr-1" /> {t("notificationsPage.deleteAll")}
             </Button>
           )}
-          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="h-4 w-4" /></Button>
+          <Button variant="outline" size="icon" title={t("notificationsPage.print")} onClick={() => window.print()}><Printer className="h-4 w-4" /></Button>
         </div>
       </div>
 
@@ -124,7 +126,7 @@ export default function Notifications() {
         <Card>
           <CardContent className="p-12 text-center">
             <Bell className="h-12 w-12 mx-auto text-muted-foreground/30 mb-3" />
-            <p className="text-muted-foreground">Aucune notification</p>
+            <p className="text-muted-foreground">{t("notificationsPage.empty")}</p>
           </CardContent>
         </Card>
       ) : (
@@ -145,11 +147,11 @@ export default function Notifications() {
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
                           {!n.read && (
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Marquer comme lu" onClick={() => markReadMutation.mutate(n.id)}>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title={t("notificationsPage.markAsRead")} onClick={() => markReadMutation.mutate(n.id)}>
                               <Check className="h-3 w-3" />
                             </Button>
                           )}
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20" title="Supprimer" onClick={() => deleteNotifMutation.mutate(n.id)}>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20" title={t("common.delete")} onClick={() => deleteNotifMutation.mutate(n.id)}>
                             <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
@@ -164,7 +166,7 @@ export default function Notifications() {
                             className="text-xs text-primary hover:underline flex items-center gap-0.5"
                             onClick={() => { if (!n.read) markReadMutation.mutate(n.id); }}
                           >
-                            Voir <ExternalLink className="h-2.5 w-2.5" />
+                            {t("notificationsPage.see")} <ExternalLink className="h-2.5 w-2.5" />
                           </a>
                         )}
                       </div>
