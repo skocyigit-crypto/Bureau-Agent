@@ -30,6 +30,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { QueryErrorAlert } from "@/components/safe-component";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/i18n";
 
 // Clés de cache sémantiques (préfixe commun) pour que l'invalidation temps réel
 // SSE — QUERY_MAP `whatsapp -> [["whatsapp-conversations"]]` dans
@@ -62,6 +63,7 @@ function fmtTime(d: string | Date | null | undefined): string {
 export default function WhatsappInbox() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("open");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -71,8 +73,8 @@ export default function WhatsappInbox() {
   const threadEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search), 300);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
   }, [search]);
 
   const listParams = useMemo(
@@ -151,12 +153,12 @@ export default function WhatsappInbox() {
           setComposer("");
           lastDraftRef.current = null;
           invalidate(conv.id);
-          toast({ title: "Message envoyé", description: "Votre réponse a été transmise au client." });
+          toast({ title: t("whatsappPage.toastSentTitle"), description: t("whatsappPage.toastSentDesc") });
         },
         onError: (e: any) => {
           toast({
-            title: "Échec de l'envoi",
-            description: e?.message || "Le message n'a pas pu être envoyé.",
+            title: t("whatsappPage.toastSendFailTitle"),
+            description: e?.message || t("whatsappPage.toastSendFailDesc"),
             variant: "destructive",
           });
         },
@@ -171,10 +173,10 @@ export default function WhatsappInbox() {
       {
         onSuccess: () => {
           invalidate(conv.id);
-          toast({ title: "Brouillon en préparation", description: "L'IA rédige une suggestion de réponse…" });
+          toast({ title: t("whatsappPage.toastDraftTitle"), description: t("whatsappPage.toastDraftDesc") });
         },
         onError: (e: any) => {
-          toast({ title: "Erreur", description: e?.message || "Impossible de générer un brouillon.", variant: "destructive" });
+          toast({ title: t("whatsappPage.toastErrorTitle"), description: e?.message || t("whatsappPage.toastDraftFailDesc"), variant: "destructive" });
         },
       },
     );
@@ -188,7 +190,7 @@ export default function WhatsappInbox() {
       {
         onSuccess: () => {
           invalidate(conv.id);
-          toast({ title: next === "closed" ? "Conversation archivée" : "Conversation rouverte" });
+          toast({ title: next === "closed" ? t("whatsappPage.toastArchived") : t("whatsappPage.toastReopened") });
         },
       },
     );
@@ -203,9 +205,9 @@ export default function WhatsappInbox() {
           <MessageCircle className="w-5 h-5" />
         </div>
         <div>
-          <h1 className="text-xl font-semibold">Boîte WhatsApp clients</h1>
+          <h1 className="text-xl font-semibold">{t("whatsappPage.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            Les messages de vos clients arrivent ici. L'IA prépare une réponse — vous validez avant l'envoi.
+            {t("whatsappPage.subtitle")}
           </p>
         </div>
       </div>
@@ -217,7 +219,7 @@ export default function WhatsappInbox() {
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Rechercher un client…"
+                placeholder={t("whatsappPage.searchPlaceholder")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-8"
@@ -226,9 +228,9 @@ export default function WhatsappInbox() {
             </div>
             <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
               <TabsList className="grid grid-cols-3 w-full">
-                <TabsTrigger value="open" data-testid="tab-whatsapp-open">Ouvertes</TabsTrigger>
-                <TabsTrigger value="closed" data-testid="tab-whatsapp-closed">Archivées</TabsTrigger>
-                <TabsTrigger value="all" data-testid="tab-whatsapp-all">Toutes</TabsTrigger>
+                <TabsTrigger value="open" data-testid="tab-whatsapp-open">{t("whatsappPage.tabOpen")}</TabsTrigger>
+                <TabsTrigger value="closed" data-testid="tab-whatsapp-closed">{t("whatsappPage.tabClosed")}</TabsTrigger>
+                <TabsTrigger value="all" data-testid="tab-whatsapp-all">{t("whatsappPage.tabAll")}</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -253,8 +255,8 @@ export default function WhatsappInbox() {
             ) : conversations.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center p-6 text-muted-foreground">
                 <MessageCircle className="w-10 h-10 mb-3 opacity-40" />
-                <p className="font-medium">Aucune conversation</p>
-                <p className="text-sm">Les nouveaux messages clients apparaîtront ici.</p>
+                <p className="font-medium">{t("whatsappPage.noConversations")}</p>
+                <p className="text-sm">{t("whatsappPage.noConversationsHint")}</p>
               </div>
             ) : (
               <ul>
@@ -312,8 +314,8 @@ export default function WhatsappInbox() {
           {selectedId === null ? (
             <div className="flex flex-col items-center justify-center h-full text-center p-6 text-muted-foreground">
               <MessageCircle className="w-12 h-12 mb-3 opacity-30" />
-              <p className="font-medium">Sélectionnez une conversation</p>
-              <p className="text-sm">Choisissez un client à gauche pour voir l'échange.</p>
+              <p className="font-medium">{t("whatsappPage.selectConversation")}</p>
+              <p className="text-sm">{t("whatsappPage.selectConversationHint")}</p>
             </div>
           ) : detailError ? (
             <div className="p-4">
@@ -346,9 +348,9 @@ export default function WhatsappInbox() {
                   data-testid="button-toggle-status"
                 >
                   {conv.status === "open" ? (
-                    <><Archive className="w-4 h-4 mr-1.5" /> Archiver</>
+                    <><Archive className="w-4 h-4 mr-1.5" /> {t("whatsappPage.archive")}</>
                   ) : (
-                    <><ArchiveRestore className="w-4 h-4 mr-1.5" /> Rouvrir</>
+                    <><ArchiveRestore className="w-4 h-4 mr-1.5" /> {t("whatsappPage.reopen")}</>
                   )}
                 </Button>
               </div>
@@ -356,7 +358,7 @@ export default function WhatsappInbox() {
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-muted/20">
                 {messages.length === 0 ? (
-                  <p className="text-center text-sm text-muted-foreground py-8">Aucun message.</p>
+                  <p className="text-center text-sm text-muted-foreground py-8">{t("whatsappPage.noMessages")}</p>
                 ) : (
                   messages.map((m) => (
                     <div
@@ -372,7 +374,7 @@ export default function WhatsappInbox() {
                         )}
                         data-testid={`message-${m.id}`}
                       >
-                        {m.body || (m.mediaUrls.length > 0 ? "📎 Pièce jointe" : "")}
+                        {m.body || (m.mediaUrls.length > 0 ? t("whatsappPage.attachment") : "")}
                         <div
                           className={cn(
                             "text-[10px] mt-1 text-right",
@@ -392,7 +394,7 @@ export default function WhatsappInbox() {
               <div className="border-t p-3 space-y-2">
                 {conv.draftStatus === "generating" && (
                   <div className="flex items-center gap-2 text-xs text-amber-600">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> L'IA prépare une suggestion…
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> {t("whatsappPage.draftGenerating")}
                   </div>
                 )}
                 {conv.draftStatus === "failed" && conv.draftError && (
@@ -402,13 +404,13 @@ export default function WhatsappInbox() {
                 )}
                 {conv.draftStatus === "ready" && (
                   <div className="flex items-center gap-2 text-xs text-emerald-600">
-                    <Sparkles className="w-3.5 h-3.5" /> Suggestion IA pré-remplie — relisez avant d'envoyer.
+                    <Sparkles className="w-3.5 h-3.5" /> {t("whatsappPage.draftReady")}
                   </div>
                 )}
                 <Textarea
                   value={composer}
                   onChange={(e) => setComposer(e.target.value)}
-                  placeholder="Écrivez votre réponse ou validez la suggestion de l'IA…"
+                  placeholder={t("whatsappPage.composerPlaceholder")}
                   rows={3}
                   className="resize-none"
                   data-testid="input-composer"
@@ -432,7 +434,7 @@ export default function WhatsappInbox() {
                     ) : (
                       <Sparkles className="w-4 h-4 mr-1.5" />
                     )}
-                    Suggérer une réponse
+                    {t("whatsappPage.suggestReply")}
                   </Button>
                   <Button
                     onClick={handleSend}
@@ -445,7 +447,7 @@ export default function WhatsappInbox() {
                     ) : (
                       <Send className="w-4 h-4 mr-1.5" />
                     )}
-                    Envoyer
+                    {t("whatsappPage.send")}
                   </Button>
                 </div>
               </div>

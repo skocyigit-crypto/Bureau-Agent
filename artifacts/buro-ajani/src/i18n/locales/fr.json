@@ -7498,5 +7498,36 @@
       "messagePlaceholder": "Message optionnel pour l'administrateur...",
       "sendRequest": "Envoyer la demande"
     }
+  },
+  "whatsappPage": {
+    "title": "Boîte WhatsApp clients",
+    "subtitle": "Les messages de vos clients arrivent ici. L'IA prépare une réponse — vous validez avant l'envoi.",
+    "searchPlaceholder": "Rechercher un client…",
+    "tabOpen": "Ouvertes",
+    "tabClosed": "Archivées",
+    "tabAll": "Toutes",
+    "noConversations": "Aucune conversation",
+    "noConversationsHint": "Les nouveaux messages clients apparaîtront ici.",
+    "selectConversation": "Sélectionnez une conversation",
+    "selectConversationHint": "Choisissez un client à gauche pour voir l'échange.",
+    "archive": "Archiver",
+    "reopen": "Rouvrir",
+    "noMessages": "Aucun message.",
+    "attachment": "📎 Pièce jointe",
+    "draftGenerating": "L'IA prépare une suggestion…",
+    "draftReady": "Suggestion IA pré-remplie — relisez avant d'envoyer.",
+    "composerPlaceholder": "Écrivez votre réponse ou validez la suggestion de l'IA…",
+    "suggestReply": "Suggérer une réponse",
+    "send": "Envoyer",
+    "toastSentTitle": "Message envoyé",
+    "toastSentDesc": "Votre réponse a été transmise au client.",
+    "toastSendFailTitle": "Échec de l'envoi",
+    "toastSendFailDesc": "Le message n'a pas pu être envoyé.",
+    "toastDraftTitle": "Brouillon en préparation",
+    "toastDraftDesc": "L'IA rédige une suggestion de réponse…",
+    "toastErrorTitle": "Erreur",
+    "toastDraftFailDesc": "Impossible de générer un brouillon.",
+    "toastArchived": "Conversation archivée",
+    "toastReopened": "Conversation rouverte"
   }
 }

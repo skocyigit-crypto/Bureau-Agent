@@ -7498,5 +7498,36 @@
       "messagePlaceholder": "رسالة اختيارية للمسؤول...",
       "sendRequest": "إرسال الطلب"
     }
+  },
+  "whatsappPage": {
+    "title": "صندوق عملاء WhatsApp",
+    "subtitle": "تصل رسائل عملائك هنا. يُعدّ الذكاء الاصطناعي ردًا — وأنت تؤكده قبل الإرسال.",
+    "searchPlaceholder": "ابحث عن عميل…",
+    "tabOpen": "مفتوحة",
+    "tabClosed": "مؤرشفة",
+    "tabAll": "الكل",
+    "noConversations": "لا توجد محادثة",
+    "noConversationsHint": "ستظهر رسائل العملاء الجديدة هنا.",
+    "selectConversation": "اختر محادثة",
+    "selectConversationHint": "اختر عميلًا على اليسار لعرض المحادثة.",
+    "archive": "أرشفة",
+    "reopen": "إعادة فتح",
+    "noMessages": "لا توجد رسالة.",
+    "attachment": "📎 مرفق",
+    "draftGenerating": "يُعدّ الذكاء الاصطناعي اقتراحًا…",
+    "draftReady": "اقتراح الذكاء الاصطناعي مُعبّأ مسبقًا — راجعه قبل الإرسال.",
+    "composerPlaceholder": "اكتب ردك أو أكّد اقتراح الذكاء الاصطناعي…",
+    "suggestReply": "اقترح ردًا",
+    "send": "إرسال",
+    "toastSentTitle": "تم إرسال الرسالة",
+    "toastSentDesc": "تم تسليم ردك إلى العميل.",
+    "toastSendFailTitle": "فشل الإرسال",
+    "toastSendFailDesc": "تعذّر إرسال الرسالة.",
+    "toastDraftTitle": "جارٍ تحضير المسودة",
+    "toastDraftDesc": "يكتب الذكاء الاصطناعي اقتراح رد…",
+    "toastErrorTitle": "خطأ",
+    "toastDraftFailDesc": "تعذّر إنشاء مسودة.",
+    "toastArchived": "تمت أرشفة المحادثة",
+    "toastReopened": "تمت إعادة فتح المحادثة"
   }
 }

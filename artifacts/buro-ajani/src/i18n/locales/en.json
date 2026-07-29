@@ -7498,5 +7498,36 @@
       "messagePlaceholder": "Optional message for the administrator...",
       "sendRequest": "Send request"
     }
+  },
+  "whatsappPage": {
+    "title": "WhatsApp customer inbox",
+    "subtitle": "Your customers' messages arrive here. The AI prepares a reply — you validate before sending.",
+    "searchPlaceholder": "Search for a customer…",
+    "tabOpen": "Open",
+    "tabClosed": "Archived",
+    "tabAll": "All",
+    "noConversations": "No conversation",
+    "noConversationsHint": "New customer messages will appear here.",
+    "selectConversation": "Select a conversation",
+    "selectConversationHint": "Choose a customer on the left to see the exchange.",
+    "archive": "Archive",
+    "reopen": "Reopen",
+    "noMessages": "No message.",
+    "attachment": "📎 Attachment",
+    "draftGenerating": "The AI is preparing a suggestion…",
+    "draftReady": "AI suggestion pre-filled — review before sending.",
+    "composerPlaceholder": "Write your reply or validate the AI suggestion…",
+    "suggestReply": "Suggest a reply",
+    "send": "Send",
+    "toastSentTitle": "Message sent",
+    "toastSentDesc": "Your reply was delivered to the customer.",
+    "toastSendFailTitle": "Sending failed",
+    "toastSendFailDesc": "The message could not be sent.",
+    "toastDraftTitle": "Draft in preparation",
+    "toastDraftDesc": "The AI is writing a reply suggestion…",
+    "toastErrorTitle": "Error",
+    "toastDraftFailDesc": "Unable to generate a draft.",
+    "toastArchived": "Conversation archived",
+    "toastReopened": "Conversation reopened"
   }
 }

@@ -7498,5 +7498,36 @@
       "messagePlaceholder": "Mensaje opcional para el administrador...",
       "sendRequest": "Enviar la solicitud"
     }
+  },
+  "whatsappPage": {
+    "title": "Bandeja de clientes WhatsApp",
+    "subtitle": "Los mensajes de tus clientes llegan aquí. La IA prepara una respuesta — tú validas antes de enviar.",
+    "searchPlaceholder": "Buscar un cliente…",
+    "tabOpen": "Abiertas",
+    "tabClosed": "Archivadas",
+    "tabAll": "Todas",
+    "noConversations": "Ninguna conversación",
+    "noConversationsHint": "Los nuevos mensajes de clientes aparecerán aquí.",
+    "selectConversation": "Selecciona una conversación",
+    "selectConversationHint": "Elige un cliente a la izquierda para ver el intercambio.",
+    "archive": "Archivar",
+    "reopen": "Reabrir",
+    "noMessages": "Ningún mensaje.",
+    "attachment": "📎 Archivo adjunto",
+    "draftGenerating": "La IA está preparando una sugerencia…",
+    "draftReady": "Sugerencia de la IA precargada — revísala antes de enviar.",
+    "composerPlaceholder": "Escribe tu respuesta o valida la sugerencia de la IA…",
+    "suggestReply": "Sugerir una respuesta",
+    "send": "Enviar",
+    "toastSentTitle": "Mensaje enviado",
+    "toastSentDesc": "Tu respuesta se envió al cliente.",
+    "toastSendFailTitle": "Error al enviar",
+    "toastSendFailDesc": "No se pudo enviar el mensaje.",
+    "toastDraftTitle": "Borrador en preparación",
+    "toastDraftDesc": "La IA está redactando una sugerencia de respuesta…",
+    "toastErrorTitle": "Error",
+    "toastDraftFailDesc": "No se pudo generar un borrador.",
+    "toastArchived": "Conversación archivada",
+    "toastReopened": "Conversación reabierta"
   }
 }

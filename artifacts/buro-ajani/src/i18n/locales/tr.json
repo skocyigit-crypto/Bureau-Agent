@@ -7498,5 +7498,36 @@
       "messagePlaceholder": "Yönetici için isteğe bağlı mesaj...",
       "sendRequest": "Talebi gönder"
     }
+  },
+  "whatsappPage": {
+    "title": "WhatsApp müşteri kutusu",
+    "subtitle": "Müşterilerinizin mesajları burada görünür. Yapay Zeka bir yanıt hazırlar — göndermeden önce siz onaylarsınız.",
+    "searchPlaceholder": "Müşteri ara…",
+    "tabOpen": "Açık",
+    "tabClosed": "Arşivlenmiş",
+    "tabAll": "Tümü",
+    "noConversations": "Sohbet yok",
+    "noConversationsHint": "Yeni müşteri mesajları burada görünecek.",
+    "selectConversation": "Bir sohbet seçin",
+    "selectConversationHint": "Yazışmayı görmek için soldan bir müşteri seçin.",
+    "archive": "Arşivle",
+    "reopen": "Yeniden aç",
+    "noMessages": "Mesaj yok.",
+    "attachment": "📎 Ek dosya",
+    "draftGenerating": "Yapay Zeka bir öneri hazırlıyor…",
+    "draftReady": "Yapay Zeka önerisi önceden dolduruldu — göndermeden önce gözden geçirin.",
+    "composerPlaceholder": "Yanıtınızı yazın veya Yapay Zeka önerisini onaylayın…",
+    "suggestReply": "Yanıt öner",
+    "send": "Gönder",
+    "toastSentTitle": "Mesaj gönderildi",
+    "toastSentDesc": "Yanıtınız müşteriye iletildi.",
+    "toastSendFailTitle": "Gönderim başarısız",
+    "toastSendFailDesc": "Mesaj gönderilemedi.",
+    "toastDraftTitle": "Taslak hazırlanıyor",
+    "toastDraftDesc": "Yapay Zeka bir yanıt önerisi yazıyor…",
+    "toastErrorTitle": "Hata",
+    "toastDraftFailDesc": "Taslak oluşturulamadı.",
+    "toastArchived": "Sohbet arşivlendi",
+    "toastReopened": "Sohbet yeniden açıldı"
   }
 }

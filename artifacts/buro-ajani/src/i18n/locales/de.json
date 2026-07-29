@@ -7498,5 +7498,36 @@
       "messagePlaceholder": "Optionale Nachricht für den Administrator...",
       "sendRequest": "Anfrage senden"
     }
+  },
+  "whatsappPage": {
+    "title": "WhatsApp-Kundenpostfach",
+    "subtitle": "Die Nachrichten Ihrer Kunden landen hier. Die KI bereitet eine Antwort vor — Sie bestätigen vor dem Senden.",
+    "searchPlaceholder": "Nach einem Kunden suchen…",
+    "tabOpen": "Offen",
+    "tabClosed": "Archiviert",
+    "tabAll": "Alle",
+    "noConversations": "Keine Konversation",
+    "noConversationsHint": "Neue Kundennachrichten erscheinen hier.",
+    "selectConversation": "Wählen Sie eine Konversation",
+    "selectConversationHint": "Wählen Sie links einen Kunden, um den Austausch zu sehen.",
+    "archive": "Archivieren",
+    "reopen": "Wieder öffnen",
+    "noMessages": "Keine Nachricht.",
+    "attachment": "📎 Anhang",
+    "draftGenerating": "Die KI bereitet einen Vorschlag vor…",
+    "draftReady": "KI-Vorschlag vorausgefüllt — vor dem Senden prüfen.",
+    "composerPlaceholder": "Schreiben Sie Ihre Antwort oder bestätigen Sie den KI-Vorschlag…",
+    "suggestReply": "Antwort vorschlagen",
+    "send": "Senden",
+    "toastSentTitle": "Nachricht gesendet",
+    "toastSentDesc": "Ihre Antwort wurde an den Kunden übermittelt.",
+    "toastSendFailTitle": "Senden fehlgeschlagen",
+    "toastSendFailDesc": "Die Nachricht konnte nicht gesendet werden.",
+    "toastDraftTitle": "Entwurf wird vorbereitet",
+    "toastDraftDesc": "Die KI verfasst einen Antwortvorschlag…",
+    "toastErrorTitle": "Fehler",
+    "toastDraftFailDesc": "Entwurf konnte nicht erstellt werden.",
+    "toastArchived": "Konversation archiviert",
+    "toastReopened": "Konversation wieder geöffnet"
   }
 }
