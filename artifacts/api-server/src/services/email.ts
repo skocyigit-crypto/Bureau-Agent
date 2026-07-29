@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import { logger } from "../lib/logger";
 import { escapeHtml } from "../lib/html-escape";
 import { getOrgEmailSender } from "./email-providers";
+import { emailT, type EmailLang } from "../i18n/email-i18n";
 
 const SMTP_HOST = process.env.SMTP_HOST || "";
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || "587");
@@ -260,31 +261,30 @@ export async function sendWelcomeEmail(params: {
   loginEmail: string;
   adminName: string;
   trialEndsAt?: Date | null;
-}): Promise<{ success: boolean; error?: string; preview?: string; provider?: string }> {
+}, lang: EmailLang = "fr"): Promise<{ success: boolean; error?: string; preview?: string; provider?: string }> {
   const { to, orgName, plan, licenseKey, loginEmail, adminName, trialEndsAt } = params;
 
   const trialInfo = trialEndsAt
-    ? `<p style="color:#e67e22;font-size:14px;margin:16px 0 0;">&#9888; Votre periode d'essai gratuit se termine le <strong>${new Date(trialEndsAt).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</strong>.</p>`
+    ? `<p style="color:#e67e22;font-size:14px;margin:16px 0 0;">&#9888; ${emailT(lang, "welcome.trialWarning", { date: new Date(trialEndsAt).toLocaleDateString(lang, { weekday: "long", day: "numeric", month: "long", year: "numeric" }) })}</p>`
     : "";
 
   const mobileSection = MOBILE_APP_URL ? `
       <div style="margin-top:24px;">
-        <h3 style="color:#0f1729;font-size:16px;margin:0 0 12px;">&#128241; Application Mobile</h3>
+        <h3 style="color:#0f1729;font-size:16px;margin:0 0 12px;">&#128241; ${emailT(lang, "welcome.mobileTitle")}</h3>
         <p style="color:#64748b;font-size:13px;line-height:1.6;margin:0 0 12px;">
-          Telechargez l'application mobile pour gerer votre bureau depuis votre telephone :
+          ${emailT(lang, "welcome.mobileDownloadIntro")}
         </p>
         <div style="text-align:center;">
           <a href="${MOBILE_APP_URL}" style="display:inline-block;background:#22c55e;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:10px;font-size:14px;font-weight:600;">
-            &#128229; Telecharger l'application mobile
+            &#128229; ${emailT(lang, "welcome.mobileDownloadBtn")}
           </a>
         </div>
       </div>` : `
       <div style="margin-top:24px;">
-        <h3 style="color:#0f1729;font-size:16px;margin:0 0 12px;">&#128241; Application Mobile</h3>
+        <h3 style="color:#0f1729;font-size:16px;margin:0 0 12px;">&#128241; ${emailT(lang, "welcome.mobileTitle")}</h3>
         <p style="color:#64748b;font-size:13px;line-height:1.6;margin:0;">
-          Accedez a l'application mobile depuis votre navigateur sur telephone :<br>
-          Ouvrez <a href="${APP_URL}" style="color:#f59e0b;font-weight:600;">${APP_URL}</a> puis utilisez 
-          <strong>"Ajouter a l'ecran d'accueil"</strong> pour l'installer comme une application native.
+          ${emailT(lang, "welcome.mobileBrowserIntro")}<br>
+          ${emailT(lang, "welcome.mobileBrowserOpen", { url: APP_URL })}
         </p>
       </div>`;
 
@@ -300,42 +300,41 @@ export async function sendWelcomeEmail(params: {
         <span style="font-size:28px;color:#0f1729;">&#9742;</span>
       </div>
       <h1 style="color:#ffffff;font-size:24px;margin:0;">Ajant Bureau</h1>
-      <p style="color:rgba(255,255,255,0.6);font-size:14px;margin:8px 0 0;">Solution professionnelle de gestion</p>
+      <p style="color:rgba(255,255,255,0.6);font-size:14px;margin:8px 0 0;">${emailT(lang, "common.tagline")}</p>
     </div>
 
     <div style="padding:32px;">
-      <h2 style="color:#0f1729;font-size:20px;margin:0 0 8px;">Bienvenue, ${escapeHtml(adminName)} !</h2>
+      <h2 style="color:#0f1729;font-size:20px;margin:0 0 8px;">${emailT(lang, "welcome.greeting", { name: escapeHtml(adminName) })}</h2>
       <p style="color:#64748b;font-size:15px;line-height:1.6;">
-        Votre compte <strong>Ajant Bureau</strong> pour <strong>${escapeHtml(orgName)}</strong> a ete cree avec succes. 
-        Voici toutes les informations pour commencer :
+        ${emailT(lang, "welcome.intro", { orgName: escapeHtml(orgName) })}
       </p>
 
       <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:24px;margin:24px 0;">
-        <h3 style="color:#166534;font-size:16px;margin:0 0 16px;">&#128272; Votre identifiant de connexion</h3>
+        <h3 style="color:#166534;font-size:16px;margin:0 0 16px;">&#128272; ${emailT(lang, "welcome.loginTitle")}</h3>
         <table style="width:100%;border-collapse:collapse;">
           <tr>
-            <td style="padding:8px 0;color:#166534;font-size:13px;width:140px;">Email</td>
+            <td style="padding:8px 0;color:#166534;font-size:13px;width:140px;">${emailT(lang, "welcome.emailLabel")}</td>
             <td style="padding:8px 0;color:#0f1729;font-size:14px;font-weight:600;">${escapeHtml(loginEmail)}</td>
           </tr>
         </table>
         <p style="color:#166534;font-size:11px;margin:12px 0 0;font-style:italic;">
-          Connectez-vous avec le mot de passe que vous avez choisi lors de l'inscription.
+          ${emailT(lang, "welcome.loginHint")}
         </p>
       </div>
 
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:24px;margin:24px 0;">
-        <h3 style="color:#0f1729;font-size:16px;margin:0 0 16px;">&#128188; Votre licence</h3>
+        <h3 style="color:#0f1729;font-size:16px;margin:0 0 16px;">&#128188; ${emailT(lang, "welcome.licenseTitle")}</h3>
         <table style="width:100%;border-collapse:collapse;">
           <tr>
-            <td style="padding:8px 0;color:#64748b;font-size:13px;width:140px;">Organisation</td>
+            <td style="padding:8px 0;color:#64748b;font-size:13px;width:140px;">${emailT(lang, "welcome.orgLabel")}</td>
             <td style="padding:8px 0;color:#0f1729;font-size:14px;font-weight:600;">${escapeHtml(orgName)}</td>
           </tr>
           <tr>
-            <td style="padding:8px 0;color:#64748b;font-size:13px;">Plan</td>
+            <td style="padding:8px 0;color:#64748b;font-size:13px;">${emailT(lang, "welcome.planLabel")}</td>
             <td style="padding:8px 0;color:#0f1729;font-size:14px;font-weight:600;">${escapeHtml(plan)}</td>
           </tr>
           <tr>
-            <td style="padding:8px 0;color:#64748b;font-size:13px;">Cle de licence</td>
+            <td style="padding:8px 0;color:#64748b;font-size:13px;">${emailT(lang, "welcome.licenseKeyLabel")}</td>
             <td style="padding:8px 0;">
               <span style="background:#0f1729;color:#f59e0b;padding:6px 14px;border-radius:8px;font-family:monospace;font-size:14px;font-weight:700;letter-spacing:1px;">${escapeHtml(licenseKey)}</span>
             </td>
@@ -347,7 +346,7 @@ export async function sendWelcomeEmail(params: {
 
       <div style="text-align:center;margin:32px 0 16px;">
         <a href="${APP_URL}" style="display:inline-block;background:#0f1729;color:#ffffff;text-decoration:none;padding:14px 48px;border-radius:10px;font-size:15px;font-weight:600;">
-          &#128187; Acceder a l'application Web
+          &#128187; ${emailT(lang, "welcome.webBtn")}
         </a>
       </div>
 
@@ -355,64 +354,49 @@ export async function sendWelcomeEmail(params: {
 
       <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px;margin-top:24px;">
         <p style="margin:0;color:#92400e;font-size:13px;">
-          <strong>&#128274; Important :</strong> Conservez cet email en lieu sur. 
-          Il contient votre cle de licence et vos informations d'acces.
+          <strong>&#128274; ${emailT(lang, "welcome.importantLabel")}</strong> ${emailT(lang, "welcome.important")}
         </p>
       </div>
 
       <div style="margin-top:24px;padding:20px;background:#f8fafc;border-radius:10px;">
-        <h3 style="color:#0f1729;font-size:14px;margin:0 0 12px;">&#128640; Pour commencer</h3>
+        <h3 style="color:#0f1729;font-size:14px;margin:0 0 12px;">&#128640; ${emailT(lang, "welcome.startTitle")}</h3>
         <ol style="color:#64748b;font-size:13px;line-height:2;margin:0;padding-left:20px;">
-          <li>Connectez-vous avec vos identifiants ci-dessus</li>
-          <li>Changez votre mot de passe dans les parametres</li>
-          <li>Ajoutez vos premiers contacts</li>
-          <li>Commencez a gerer vos appels et taches</li>
-          <li>Invitez vos collaborateurs depuis la gestion des utilisateurs</li>
+          <li>${emailT(lang, "welcome.step1")}</li>
+          <li>${emailT(lang, "welcome.step2")}</li>
+          <li>${emailT(lang, "welcome.step3")}</li>
+          <li>${emailT(lang, "welcome.step4")}</li>
+          <li>${emailT(lang, "welcome.step5")}</li>
         </ol>
       </div>
     </div>
 
     <div style="background:#f8fafc;padding:20px 32px;text-align:center;border-top:1px solid #e2e8f0;">
       <p style="color:#94a3b8;font-size:12px;margin:0 0 4px;">
-        Besoin d'aide ? Contactez-nous : <a href="mailto:support@agentdebureau.fr" style="color:#f59e0b;">support@agentdebureau.fr</a>
+        ${emailT(lang, "common.needHelp")} <a href="mailto:support@agentdebureau.fr" style="color:#f59e0b;">support@agentdebureau.fr</a>
       </p>
       <p style="color:#94a3b8;font-size:11px;margin:0;">
-        &copy; ${new Date().getFullYear()} SK GROUP - Tous droits reserves
+        &copy; ${new Date().getFullYear()} SK GROUP - ${emailT(lang, "common.rightsReserved")}
       </p>
     </div>
   </div>
 </body>
 </html>`;
 
-  const text = `Bienvenue ${adminName} !
+  const mobileLine = MOBILE_APP_URL
+    ? emailT(lang, "welcome.textMobileApp", { url: MOBILE_APP_URL })
+    : emailT(lang, "welcome.textMobileBrowser", { url: APP_URL });
 
-Votre compte Ajant Bureau pour ${orgName} a ete cree.
+  const text = emailT(lang, "welcome.textBody", {
+    name: adminName,
+    orgName,
+    email: loginEmail,
+    plan,
+    licenseKey,
+    appUrl: APP_URL,
+    mobileLine,
+  });
 
-IDENTIFIANT DE CONNEXION:
-- Email: ${loginEmail}
-- Connectez-vous avec le mot de passe choisi lors de l'inscription.
-
-LICENCE:
-- Organisation: ${orgName}
-- Plan: ${plan}
-- Cle de licence: ${licenseKey}
-
-ACCES:
-- Application Web: ${APP_URL}
-${MOBILE_APP_URL ? `- Application Mobile: ${MOBILE_APP_URL}` : "- Mobile: Ouvrez " + APP_URL + " sur votre telephone"}
-
-POUR COMMENCER:
-1. Connectez-vous sur ${APP_URL}
-2. Ajoutez vos premiers contacts
-3. Gerez vos appels et taches
-4. Invitez vos collaborateurs
-
-Conservez cet email - il contient votre licence et informations d'acces.
-
-Support: support@agentdebureau.fr
-SK GROUP`;
-
-  return sendEmail(to, `Bienvenue sur Ajant Bureau - ${orgName}`, html, text);
+  return sendEmail(to, emailT(lang, "welcome.subject", { orgName }), html, text);
 }
 
 export async function sendCredentialsEmail(params: {
@@ -422,15 +406,11 @@ export async function sendCredentialsEmail(params: {
   password: string;
   orgName: string;
   role: string;
-}): Promise<{ success: boolean; error?: string; preview?: string; provider?: string }> {
+}, lang: EmailLang = "fr"): Promise<{ success: boolean; error?: string; preview?: string; provider?: string }> {
   const { to, prenom, nom, password, orgName, role } = params;
 
-  const roleLabels: Record<string, string> = {
-    super_admin: "Super Administrateur",
-    administrateur: "Administrateur",
-    agent: "Agent",
-    lecture_seule: "Lecture seule",
-  };
+  const roleValidKeys = ["super_admin", "administrateur", "agent", "lecture_seule"];
+  const roleLabel = roleValidKeys.includes(role) ? emailT(lang, `role.${role}`) : role;
 
   const html = `
 <!DOCTYPE html>
@@ -444,91 +424,80 @@ export async function sendCredentialsEmail(params: {
         <span style="font-size:28px;color:#0f1729;">&#9742;</span>
       </div>
       <h1 style="color:#ffffff;font-size:24px;margin:0;">Ajant Bureau</h1>
-      <p style="color:rgba(255,255,255,0.6);font-size:14px;margin:8px 0 0;">Code de connexion temporaire</p>
+      <p style="color:rgba(255,255,255,0.6);font-size:14px;margin:8px 0 0;">${emailT(lang, "creds.headerSubtitle")}</p>
     </div>
 
     <div style="padding:32px;">
-      <h2 style="color:#0f1729;font-size:20px;margin:0 0 8px;">Bonjour ${escapeHtml(prenom)} ${escapeHtml(nom)},</h2>
+      <h2 style="color:#0f1729;font-size:20px;margin:0 0 8px;">${emailT(lang, "creds.greeting", { prenom: escapeHtml(prenom), nom: escapeHtml(nom) })}</h2>
       <p style="color:#64748b;font-size:15px;line-height:1.6;">
-        Un code de connexion temporaire a ete genere pour votre compte <strong>Ajant Bureau</strong> 
-        dans l'organisation <strong>${escapeHtml(orgName)}</strong>.
+        ${emailT(lang, "creds.intro", { orgName: escapeHtml(orgName) })}
       </p>
 
       <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:12px;padding:24px;margin:24px 0;">
-        <h3 style="color:#92400e;font-size:16px;margin:0 0 16px;">&#128274; Code de connexion temporaire</h3>
+        <h3 style="color:#92400e;font-size:16px;margin:0 0 16px;">&#128274; ${emailT(lang, "creds.codeTitle")}</h3>
         <table style="width:100%;border-collapse:collapse;">
           <tr>
-            <td style="padding:8px 0;color:#92400e;font-size:13px;width:140px;">Email</td>
+            <td style="padding:8px 0;color:#92400e;font-size:13px;width:140px;">${emailT(lang, "creds.emailLabel")}</td>
             <td style="padding:8px 0;color:#0f1729;font-size:14px;font-weight:600;">${to}</td>
           </tr>
           <tr>
-            <td style="padding:8px 0;color:#92400e;font-size:13px;">Code temporaire</td>
+            <td style="padding:8px 0;color:#92400e;font-size:13px;">${emailT(lang, "creds.codeLabel")}</td>
             <td style="padding:8px 0;">
               <span style="background:#0f1729;color:#f59e0b;padding:10px 20px;border-radius:8px;font-family:monospace;font-size:22px;font-weight:700;letter-spacing:6px;">${password}</span>
             </td>
           </tr>
           <tr>
-            <td style="padding:8px 0;color:#92400e;font-size:13px;">Role</td>
-            <td style="padding:8px 0;color:#0f1729;font-size:14px;font-weight:600;">${roleLabels[role] || role}</td>
+            <td style="padding:8px 0;color:#92400e;font-size:13px;">${emailT(lang, "creds.roleLabel")}</td>
+            <td style="padding:8px 0;color:#0f1729;font-size:14px;font-weight:600;">${roleLabel}</td>
           </tr>
         </table>
       </div>
 
       <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:16px;margin:0 0 24px;">
         <p style="margin:0;color:#991b1b;font-size:13px;">
-          <strong>&#9888; Attention :</strong> Ce code est temporaire. Utilisez-le comme mot de passe pour vous connecter, 
-          puis <strong>changez votre mot de passe</strong> immediatement dans les parametres de votre compte.
+          <strong>&#9888; ${emailT(lang, "creds.warningLabel")}</strong> ${emailT(lang, "creds.warning")}
         </p>
       </div>
 
       <div style="text-align:center;margin:24px 0 16px;">
         <a href="${APP_URL}" style="display:inline-block;background:#0f1729;color:#ffffff;text-decoration:none;padding:14px 48px;border-radius:10px;font-size:15px;font-weight:600;">
-          Se connecter maintenant
+          ${emailT(lang, "creds.loginBtn")}
         </a>
       </div>
 
       <div style="margin-top:24px;padding:20px;background:#f8fafc;border-radius:10px;">
-        <h3 style="color:#0f1729;font-size:14px;margin:0 0 12px;">&#128274; Comment utiliser</h3>
+        <h3 style="color:#0f1729;font-size:14px;margin:0 0 12px;">&#128274; ${emailT(lang, "creds.howTitle")}</h3>
         <ol style="color:#64748b;font-size:13px;line-height:2;margin:0;padding-left:20px;">
-          <li>Connectez-vous avec votre email et le code temporaire ci-dessus</li>
-          <li>Allez dans les parametres de votre compte</li>
-          <li>Changez immediatement votre mot de passe</li>
+          <li>${emailT(lang, "creds.how1")}</li>
+          <li>${emailT(lang, "creds.how2")}</li>
+          <li>${emailT(lang, "creds.how3")}</li>
         </ol>
       </div>
     </div>
 
     <div style="background:#f8fafc;padding:20px 32px;text-align:center;border-top:1px solid #e2e8f0;">
       <p style="color:#94a3b8;font-size:12px;margin:0 0 4px;">
-        Besoin d'aide ? Contactez-nous : <a href="mailto:support@agentdebureau.fr" style="color:#f59e0b;">support@agentdebureau.fr</a>
+        ${emailT(lang, "common.needHelp")} <a href="mailto:support@agentdebureau.fr" style="color:#f59e0b;">support@agentdebureau.fr</a>
       </p>
       <p style="color:#94a3b8;font-size:11px;margin:0;">
-        &copy; ${new Date().getFullYear()} SK GROUP - Tous droits reserves
+        &copy; ${new Date().getFullYear()} SK GROUP - ${emailT(lang, "common.rightsReserved")}
       </p>
     </div>
   </div>
 </body>
 </html>`;
 
-  const text = `Bonjour ${prenom} ${nom},
+  const text = emailT(lang, "creds.textBody", {
+    prenom,
+    nom,
+    orgName,
+    email: to,
+    password,
+    role: roleLabel,
+    appUrl: APP_URL,
+  });
 
-Un code de connexion temporaire a ete genere pour votre compte Ajant Bureau (${orgName}).
-
-CODE DE CONNEXION TEMPORAIRE:
-- Email: ${to}
-- Code temporaire: ${password}
-- Role: ${roleLabels[role] || role}
-
-ATTENTION: Ce code est temporaire. Utilisez-le comme mot de passe pour vous connecter, puis changez votre mot de passe immediatement.
-
-ACCES:
-- Application: ${APP_URL}
-
-IMPORTANT: Changez votre mot de passe des votre premiere connexion.
-
-Support: support@agentdebureau.fr
-SK GROUP`;
-
-  return sendEmail(to, `Code de connexion temporaire - Ajant Bureau (${orgName})`, html, text);
+  return sendEmail(to, emailT(lang, "creds.subject", { orgName }), html, text);
 }
 
 export async function sendLicenseEmail(params: {

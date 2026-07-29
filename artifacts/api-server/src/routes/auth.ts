@@ -7,6 +7,7 @@ import { eq, and, inArray, ne, sql } from "drizzle-orm";
 import { db, usersTable, organisationsTable } from "@workspace/db";
 import { logAudit } from "./audit";
 import { sendCredentialsEmail, sendEmail } from "../services/email";
+import { emailT, resolveEmailLang, type EmailLang } from "../i18n/email-i18n";
 import { logger } from "../lib/logger";
 import { escapeHtml } from "../lib/html-escape";
 import { mintApiToken } from "../lib/api-token";
@@ -664,7 +665,7 @@ router.post("/auth/users", adminEmailLimiter, async (req: Request, res: Response
       password,
       orgName,
       role: role || "agent",
-    });
+    }, resolveEmailLang(req));
 
     logAudit(req.session?.userId, req.session?.userEmail, "create_user", "user", String(newUser.id), { targetEmail: email, role: role || "agent" }, req.ip, req.get("user-agent"), req.session?.organisationId);
 
@@ -888,7 +889,7 @@ router.post("/auth/users/:id/send-credentials", adminEmailLimiter, async (req: R
       password: tempCode,
       orgName,
       role: user.role,
-    });
+    }, resolveEmailLang(req));
 
     logAudit(sessionUserId, req.session?.userEmail, "send_credentials", "user", String(id), { targetEmail: user.email }, req.ip, req.get("user-agent"), req.session?.organisationId);
 
@@ -1012,7 +1013,7 @@ router.post("/auth/users/create-and-send", adminEmailLimiter, async (req: Reques
       password: generatedPassword,
       orgName,
       role: role || "agent",
-    });
+    }, resolveEmailLang(req));
 
     logAudit(sessionUserId, req.session?.userEmail, "create_and_send_credentials", "user", String(newUser.id), { targetEmail: email }, req.ip, req.get("user-agent"), req.session?.organisationId);
 
@@ -1171,18 +1172,19 @@ router.post("/auth/forgot-password", resetLimiter, async (req: Request, res: Res
       || "https://agentdebureau.fr";
     const appBase = process.env.APP_BASE_PATH ?? "";
     const resetLink = `${appUrl}${appBase}?reset_token=${token}`;
+    const lang = resolveEmailLang(req);
 
     const html = `
       <div style="font-family:sans-serif;max-width:500px;margin:auto;padding:24px">
-        <h2 style="color:#1a2744">Reinitialisation de votre mot de passe</h2>
-        <p>Bonjour ${escapeHtml(user.prenom)},</p>
-        <p>Vous avez demande la reinitialisation de votre mot de passe. Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe :</p>
+        <h2 style="color:#1a2744">${emailT(lang, "reset.title")}</h2>
+        <p>${emailT(lang, "reset.greeting", { prenom: escapeHtml(user.prenom) })}</p>
+        <p>${emailT(lang, "reset.intro")}</p>
         <div style="text-align:center;margin:32px 0">
           <a href="${resetLink}" style="background:#1a2744;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">
-            Reinitialiser mon mot de passe
+            ${emailT(lang, "reset.btn")}
           </a>
         </div>
-        <p style="color:#666;font-size:13px">Ce lien est valable pendant <strong>1 heure</strong>. Si vous n'avez pas fait cette demande, ignorez cet email.</p>
+        <p style="color:#666;font-size:13px">${emailT(lang, "reset.expiry")}</p>
         <hr style="border:none;border-top:1px solid #eee;margin:24px 0">
         <p style="color:#999;font-size:11px">Ajant Bureau &mdash; ${appUrl}</p>
       </div>`;
@@ -1191,8 +1193,8 @@ router.post("/auth/forgot-password", resetLimiter, async (req: Request, res: Res
     // selon que le provider Resend/Gmail/SMTP repond vite ou non. Avec
     // background send, le client recoit toujours la meme reponse en
     // ~MIN_LATENCY_MS, qu'il y ait un user ou non.
-    void sendEmail(emailClean, "Reinitialisation de votre mot de passe - Ajant Bureau", html,
-      `Bonjour ${user.prenom}, reinitialiser votre mot de passe: ${resetLink} (valide 1h)`)
+    void sendEmail(emailClean, emailT(lang, "reset.subject"), html,
+      emailT(lang, "reset.text", { prenom: user.prenom, link: resetLink }))
       .catch(err => req.log.error({ err, to: emailClean }, "forgot-password: envoi email echoue"));
 
     await respondGeneric();
@@ -1303,7 +1305,7 @@ router.post("/auth/resend-verification", resetLimiter, async (req: Request, res:
   try {
     const [user] = await db.select({ id: usersTable.id, email: usersTable.email, prenom: usersTable.prenom, emailVerifiedAt: usersTable.emailVerifiedAt }).from(usersTable).where(eq(usersTable.email, email));
     if (!user || user.emailVerifiedAt) { res.json({ message: "Si un compte existe et n'est pas verifie, un email a ete envoye." }); return; }
-    await issueAndSendEmailVerification(user.id, user.email, user.prenom || "");
+    await issueAndSendEmailVerification(user.id, user.email, user.prenom || "", resolveEmailLang(req));
     res.json({ message: "Si un compte existe et n'est pas verifie, un email a ete envoye." });
   } catch (err: any) {
     req.log.error({ err }, "Erreur resend-verification");
@@ -1311,7 +1313,7 @@ router.post("/auth/resend-verification", resetLimiter, async (req: Request, res:
   }
 });
 
-export async function issueAndSendEmailVerification(userId: number, email: string, prenom: string): Promise<string> {
+export async function issueAndSendEmailVerification(userId: number, email: string, prenom: string, lang: EmailLang = "fr"): Promise<string> {
   const rawToken = crypto.randomBytes(32).toString("hex");
   const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
   const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -1320,15 +1322,15 @@ export async function issueAndSendEmailVerification(userId: number, email: strin
   const appBase = process.env.APP_BASE_PATH ?? "";
   const link = `${appUrl}${appBase}?verify_email=${rawToken}`;
   const html = `<div style="font-family:sans-serif;max-width:520px;margin:auto;padding:24px">
-    <h2 style="color:#1a2744">Verifiez votre adresse email</h2>
-    <p>Bonjour ${escapeHtml(prenom)},</p>
-    <p>Pour activer votre compte Ajant Bureau, cliquez sur le bouton ci-dessous :</p>
+    <h2 style="color:#1a2744">${emailT(lang, "verify.title")}</h2>
+    <p>${emailT(lang, "verify.greeting", { prenom: escapeHtml(prenom) })}</p>
+    <p>${emailT(lang, "verify.intro")}</p>
     <div style="text-align:center;margin:32px 0">
-      <a href="${link}" style="background:#1a2744;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Verifier mon email</a>
+      <a href="${link}" style="background:#1a2744;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">${emailT(lang, "verify.btn")}</a>
     </div>
-    <p style="color:#666;font-size:13px">Ce lien est valable pendant <strong>24 heures</strong>. Si vous n'avez pas cree de compte, ignorez cet email.</p>
+    <p style="color:#666;font-size:13px">${emailT(lang, "verify.expiry")}</p>
   </div>`;
-  await sendEmail(email, "Verifiez votre email - Ajant Bureau", html, `Verifiez votre email: ${link} (valide 24h)`);
+  await sendEmail(email, emailT(lang, "verify.subject"), html, emailT(lang, "verify.text", { link }));
   return rawToken;
 }
 

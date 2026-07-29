@@ -7,6 +7,7 @@ import { db, organisationsTable, subscriptionsTable, usersTable } from "@workspa
 import { PLANS, type PlanKey } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { sendWelcomeEmail } from "../services/email";
+import { resolveEmailLang } from "../i18n/email-i18n";
 import { generateUniqueLicenseKey, isUniqueViolation } from "../services/license-key";
 import { logLicenseEvent } from "../services/license-audit";
 import { logger } from "../lib/logger";
@@ -156,7 +157,7 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
     // Email verification: cree et envoie un lien (gate de connexion s'active si REQUIRE_EMAIL_VERIFICATION=1).
     try {
       const { issueAndSendEmailVerification } = await import("./auth");
-      await issueAndSendEmailVerification(result.user.id, emailLower, firstName.trim());
+      await issueAndSendEmailVerification(result.user.id, emailLower, firstName.trim(), resolveEmailLang(req));
     } catch (verifyErr) {
       logger.error({ err: verifyErr }, "[Register] Erreur envoi email verification (non bloquant)");
     }
@@ -169,7 +170,7 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
       loginEmail: emailLower,
       adminName: `${firstName.trim()} ${lastName.trim()}`,
       trialEndsAt: result.subscription.trialEndsAt,
-    });
+    }, resolveEmailLang(req));
 
     const requireVerification = process.env.REQUIRE_EMAIL_VERIFICATION === "1";
     if (!requireVerification) {
