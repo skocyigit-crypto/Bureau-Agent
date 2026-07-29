@@ -7555,5 +7555,199 @@
     "toastDraftFailDesc": "Unable to generate a draft.",
     "toastArchived": "Conversation archived",
     "toastReopened": "Conversation reopened"
+  },
+  "helpCenter": {
+    "openAria": "Help center",
+    "openTitle": "Help center (shortcut: ?)",
+    "title": "Help center",
+    "subtitle": "Find help on every topic",
+    "searchPlaceholder": "Search for help...",
+    "clearSearch": "Clear search",
+    "back": "Back",
+    "tipLabel": "Tip:",
+    "gotoPage": "Go to this page",
+    "noResultsTitle": "No results found",
+    "noResultsDesc": "Try other keywords or contact support.",
+    "subjectsSingular": "{{count}} topic",
+    "subjectsPlural": "{{count}} topics",
+    "support": "Support",
+    "categories": {
+      "demarrage": "Getting started",
+      "communication": "Communication",
+      "carnet": "Address book",
+      "organisation": "Organization",
+      "documents": "Documents",
+      "ia": "Artificial Intelligence",
+      "integrations": "Integrations",
+      "facturation": "Billing",
+      "mobile-app": "Mobile app",
+      "administration": "Administration",
+      "parametres": "Settings"
+    },
+    "topics": {
+      "premiers-pas": {
+        "title": "Getting started with Ajant Bureau",
+        "step0": "Click Initial setup in the System menu.",
+        "step1": "Fill in your company information (name, sector, team).",
+        "step2": "Import your existing contacts from Smart import.",
+        "step3": "Connect Google Workspace to sync Gmail and Calendar.",
+        "step4": "Invite your colleagues from Administration → Users.",
+        "tip": "You can return to onboarding at any time from the System menu."
+      },
+      "appels": {
+        "title": "Managing my phone calls",
+        "step0": "Go to Calls from the Communication menu.",
+        "step1": "Click the + button to start or log a call.",
+        "step2": "View the history with filters (incoming, outgoing, missed).",
+        "step3": "Click a call to see the details and AI analysis.",
+        "tip": "Enable automatic recording in Telephony for AI transcription."
+      },
+      "messages": {
+        "title": "Sending and receiving messages",
+        "step0": "Open Messages from the Communication menu.",
+        "step1": "Select a contact or create a new conversation.",
+        "step2": "Type your message and send (SMS via Twilio if configured).",
+        "step3": "Use AI to suggest contextual replies."
+      },
+      "gmail": {
+        "title": "Using the AI Mail Agent",
+        "step0": "First connect Google Workspace in Integrations.",
+        "step1": "Open AI Mail Agent from the Communication menu.",
+        "step2": "The agent automatically sorts your emails by priority.",
+        "step3": "Click Draft with AI to generate a draft.",
+        "tip": "The agent learns your writing style over time."
+      },
+      "contacts": {
+        "title": "Adding and managing my contacts",
+        "step0": "Click Contacts in the Address book menu.",
+        "step1": "New contact button at the top right to create a record.",
+        "step2": "Fill in name, phone, email and tags (categories).",
+        "step3": "Bulk import via Smart import (CSV or Google)."
+      },
+      "prospects": {
+        "title": "Tracking my sales prospects",
+        "step0": "Open Prospects in the Address book menu.",
+        "step1": "Drag and drop cards between the pipeline stages.",
+        "step2": "Add notes, tasks and reminders to each record.",
+        "step3": "View conversion statistics in Analytics."
+      },
+      "taches": {
+        "title": "Creating and tracking my tasks",
+        "step0": "Go to Tasks in the Work organization menu.",
+        "step1": "Click + New task.",
+        "step2": "Set title, due date, priority and assignee.",
+        "step3": "Track progress by drag-and-drop on the Kanban board."
+      },
+      "projets": {
+        "title": "Managing my projects",
+        "step0": "Open Projects in the Work organization menu.",
+        "step1": "Create a new project with name, description and members.",
+        "step2": "Add tasks, documents and milestones.",
+        "step3": "Track progress in the Gantt or list view."
+      },
+      "calendrier": {
+        "title": "Viewing my calendar",
+        "step0": "Click Calendar in the Today menu.",
+        "step1": "Day, week or month view according to your preferences.",
+        "step2": "Automatic sync with Google Calendar if connected.",
+        "step3": "Drag to create an event directly on the calendar."
+      },
+      "documents": {
+        "title": "Storing and organizing my documents",
+        "step0": "Go to Documents in the Documents & Reports menu.",
+        "step1": "Drag and drop your files or click Upload.",
+        "step2": "Organize by folders and tags.",
+        "step3": "Automatic backup to Google Drive if connected.",
+        "tip": "Use Document AI to automatically extract key information."
+      },
+      "rapports": {
+        "title": "Viewing activity reports",
+        "step0": "Open Reports in the Documents & Reports menu.",
+        "step1": "Choose the period (day, week, month, custom).",
+        "step2": "Filter by user, team or activity type.",
+        "step3": "Export to PDF or Excel for external sharing."
+      },
+      "agents-ia": {
+        "title": "Using AI Agents",
+        "step0": "Open AI Agents in the AI Assistants menu.",
+        "step1": "Choose a pre-configured agent or create your own.",
+        "step2": "Describe the task in natural language.",
+        "step3": "The agent executes and notifies you of the result.",
+        "tip": "Check your AI quota in Settings → Subscription."
+      },
+      "commandant-ia": {
+        "title": "Chatting with the AI Commander",
+        "step0": "Click AI Commander in the AI Assistants menu.",
+        "step1": "Ask your question in French or Turkish.",
+        "step2": "The Commander has access to all your data (contacts, tasks, calls).",
+        "step3": "Ask it to perform actions: \"Create a task to call Jean back tomorrow\"."
+      },
+      "google-workspace": {
+        "title": "Connecting Google Workspace (Gmail)",
+        "step0": "In the left menu, click Google Workspace (globe icon).",
+        "step1": "Click the « Sign in with Google » button.",
+        "step2": "In the Google window, choose the Gmail account to connect.",
+        "step3": "Authorize the 3 requested permissions: Gmail, Calendar and Drive, then click « Allow ».",
+        "step4": "Back in the app, your latest emails, events and files appear automatically.",
+        "tip": "If Google shows a « 403 / access denied » error, it's not the app: the administrator must, once, enable the Gmail/Calendar/Drive APIs and publish the consent screen in Google Cloud Console. See the PDF guide « Connecting Google Workspace »."
+      },
+      "telephonie": {
+        "title": "Configuring telephony (Twilio)",
+        "step0": "Open Telephony in the Integrations menu.",
+        "step1": "Enter your Account SID, Auth Token and Twilio number.",
+        "step2": "Enable recording and AI transcription if desired.",
+        "step3": "Test with an outgoing call."
+      },
+      "abonnement": {
+        "title": "Managing my subscription",
+        "step0": "Go to Settings → Subscription tab.",
+        "step1": "View your current plan and usage.",
+        "step2": "Click Change plan to switch to Starter / Professional / Enterprise.",
+        "step3": "If Stripe is active: Manage my subscription opens the customer portal (invoices, card, cancellation).",
+        "tip": "To cancel, you have two options: at the end of the current period, or immediately."
+      },
+      "factures": {
+        "title": "Downloading my invoices",
+        "step0": "Open License & Billing in the Administration menu.",
+        "step1": "View the history of your monthly invoices.",
+        "step2": "Click Download to get the PDF.",
+        "step3": "Invoices are also sent by email automatically."
+      },
+      "mobile": {
+        "title": "Installing the mobile app",
+        "step0": "Go to Mobile app in the System menu.",
+        "step1": "Scan the QR code with your phone.",
+        "step2": "Install the Expo Go app then open the link.",
+        "step3": "Sign in with your usual credentials."
+      },
+      "utilisateurs": {
+        "title": "Inviting and managing users",
+        "step0": "Open Users in the Administration menu.",
+        "step1": "Click Invite a user.",
+        "step2": "Enter the email and choose the role (admin, manager, user).",
+        "step3": "The invitation is sent by email automatically."
+      },
+      "protection-donnees": {
+        "title": "Data protection (GDPR)",
+        "step0": "Go to Data protection in the Administration menu.",
+        "step1": "Review the detected alerts and anomalies.",
+        "step2": "Configure automatic backup (Google Drive or local).",
+        "step3": "Export or delete a contact's data on GDPR request."
+      },
+      "parametres": {
+        "title": "Customizing my profile and notifications",
+        "step0": "Click Settings in the System menu.",
+        "step1": "Profile tab: name, photo, password.",
+        "step2": "Notifications tab: choose what you receive.",
+        "step3": "Preferences tab: language, time zone, theme."
+      },
+      "notifications": {
+        "title": "Managing notifications",
+        "step0": "Open Settings → Notifications tab.",
+        "step1": "Enable or disable by type (missed call, task, mention).",
+        "step2": "Choose the channel: in-app, email or mobile push.",
+        "step3": "Set quiet hours (Do not disturb mode)."
+      }
+    }
   }
 }

@@ -7555,5 +7555,199 @@
     "toastDraftFailDesc": "No se pudo generar un borrador.",
     "toastArchived": "Conversación archivada",
     "toastReopened": "Conversación reabierta"
+  },
+  "helpCenter": {
+    "openAria": "Centro de ayuda",
+    "openTitle": "Centro de ayuda (atajo: ?)",
+    "title": "Centro de ayuda",
+    "subtitle": "Encuentra ayuda sobre todos los temas",
+    "searchPlaceholder": "Buscar ayuda...",
+    "clearSearch": "Borrar búsqueda",
+    "back": "Volver",
+    "tipLabel": "Consejo:",
+    "gotoPage": "Ir a esta página",
+    "noResultsTitle": "No se encontraron resultados",
+    "noResultsDesc": "Prueba con otras palabras clave o contacta con soporte.",
+    "subjectsSingular": "{{count}} tema",
+    "subjectsPlural": "{{count}} temas",
+    "support": "Soporte",
+    "categories": {
+      "demarrage": "Primeros pasos",
+      "communication": "Comunicación",
+      "carnet": "Agenda de contactos",
+      "organisation": "Organización",
+      "documents": "Documentos",
+      "ia": "Inteligencia Artificial",
+      "integrations": "Integraciones",
+      "facturation": "Facturación",
+      "mobile-app": "Aplicación móvil",
+      "administration": "Administración",
+      "parametres": "Ajustes"
+    },
+    "topics": {
+      "premiers-pas": {
+        "title": "Primeros pasos con Ajant Bureau",
+        "step0": "Haz clic en Configuración inicial en el menú Sistema.",
+        "step1": "Completa la información de tu empresa (nombre, sector, equipo).",
+        "step2": "Importa tus contactos existentes desde Importación inteligente.",
+        "step3": "Conecta Google Workspace para sincronizar Gmail y Calendario.",
+        "step4": "Invita a tus colaboradores desde Administración → Usuarios.",
+        "tip": "Puedes volver a la incorporación en cualquier momento desde el menú Sistema."
+      },
+      "appels": {
+        "title": "Gestionar mis llamadas telefónicas",
+        "step0": "Ve a Llamadas desde el menú Comunicación.",
+        "step1": "Haz clic en el botón + para iniciar o registrar una llamada.",
+        "step2": "Consulta el historial con filtros (entrante, saliente, perdida).",
+        "step3": "Haz clic en una llamada para ver los detalles y el análisis con IA.",
+        "tip": "Activa la grabación automática en Telefonía para la transcripción con IA."
+      },
+      "messages": {
+        "title": "Enviar y recibir mensajes",
+        "step0": "Abre Mensajes desde el menú Comunicación.",
+        "step1": "Selecciona un contacto o crea una nueva conversación.",
+        "step2": "Escribe tu mensaje y envíalo (SMS vía Twilio si está configurado).",
+        "step3": "Usa la IA para sugerir respuestas contextuales."
+      },
+      "gmail": {
+        "title": "Usar el Agente de Correo IA",
+        "step0": "Primero conecta Google Workspace en Integraciones.",
+        "step1": "Abre el Agente de Correo IA desde el menú Comunicación.",
+        "step2": "El agente clasifica automáticamente tus correos por prioridad.",
+        "step3": "Haz clic en Redactar con IA para generar un borrador.",
+        "tip": "El agente aprende tu estilo de escritura con el tiempo."
+      },
+      "contacts": {
+        "title": "Añadir y gestionar mis contactos",
+        "step0": "Haz clic en Contactos en el menú Agenda de contactos.",
+        "step1": "Botón Nuevo contacto arriba a la derecha para crear una ficha.",
+        "step2": "Completa nombre, teléfono, correo y etiquetas (categorías).",
+        "step3": "Importa de forma masiva con Importación inteligente (CSV o Google)."
+      },
+      "prospects": {
+        "title": "Seguir mis prospectos comerciales",
+        "step0": "Abre Prospectos en el menú Agenda de contactos.",
+        "step1": "Arrastra y suelta las tarjetas entre las etapas del pipeline.",
+        "step2": "Añade notas, tareas y recordatorios a cada ficha.",
+        "step3": "Consulta las estadísticas de conversión en Análisis."
+      },
+      "taches": {
+        "title": "Crear y seguir mis tareas",
+        "step0": "Ve a Tareas en el menú Organización del trabajo.",
+        "step1": "Haz clic en + Nueva tarea.",
+        "step2": "Define título, fecha límite, prioridad y persona asignada.",
+        "step3": "Sigue el progreso arrastrando y soltando en el tablero Kanban."
+      },
+      "projets": {
+        "title": "Gestionar mis proyectos",
+        "step0": "Abre Proyectos en el menú Organización del trabajo.",
+        "step1": "Crea un nuevo proyecto con nombre, descripción y miembros.",
+        "step2": "Añade tareas, documentos e hitos.",
+        "step3": "Sigue el progreso en la vista Gantt o lista."
+      },
+      "calendrier": {
+        "title": "Consultar mi calendario",
+        "step0": "Haz clic en Calendario en el menú Hoy.",
+        "step1": "Vista de día, semana o mes según tus preferencias.",
+        "step2": "Sincronización automática con Google Calendar si está conectado.",
+        "step3": "Arrastra para crear un evento directamente en el calendario."
+      },
+      "documents": {
+        "title": "Almacenar y organizar mis documentos",
+        "step0": "Ve a Documentos en el menú Documentos e Informes.",
+        "step1": "Arrastra y suelta tus archivos o haz clic en Subir.",
+        "step2": "Organiza por carpetas y etiquetas.",
+        "step3": "Copia de seguridad automática en Google Drive si está conectado.",
+        "tip": "Usa Documento IA para extraer automáticamente la información clave."
+      },
+      "rapports": {
+        "title": "Consultar los informes de actividad",
+        "step0": "Abre Informes en el menú Documentos e Informes.",
+        "step1": "Elige el período (día, semana, mes, personalizado).",
+        "step2": "Filtra por usuario, equipo o tipo de actividad.",
+        "step3": "Exporta a PDF o Excel para compartir externamente."
+      },
+      "agents-ia": {
+        "title": "Usar los Agentes IA",
+        "step0": "Abre Agentes IA en el menú Asistentes IA.",
+        "step1": "Elige un agente preconfigurado o crea el tuyo.",
+        "step2": "Describe la tarea en lenguaje natural.",
+        "step3": "El agente la ejecuta y te notifica el resultado.",
+        "tip": "Comprueba tu cuota de IA en Ajustes → Suscripción."
+      },
+      "commandant-ia": {
+        "title": "Conversar con el Comandante IA",
+        "step0": "Haz clic en Comandante IA en el menú Asistentes IA.",
+        "step1": "Haz tu pregunta en francés o en turco.",
+        "step2": "El Comandante tiene acceso a todos tus datos (contactos, tareas, llamadas).",
+        "step3": "Pídele que ejecute acciones: \"Crea una tarea para llamar a Jean mañana\"."
+      },
+      "google-workspace": {
+        "title": "Conectar Google Workspace (Gmail)",
+        "step0": "En el menú de la izquierda, haz clic en Google Workspace (icono de globo).",
+        "step1": "Haz clic en el botón « Iniciar sesión con Google ».",
+        "step2": "En la ventana de Google, elige la cuenta de Gmail que quieres conectar.",
+        "step3": "Autoriza los 3 accesos solicitados: Gmail, Calendario y Drive, luego haz clic en « Permitir ».",
+        "step4": "De vuelta en la aplicación, tus últimos correos, eventos y archivos aparecen automáticamente.",
+        "tip": "Si Google muestra un error « 403 / acceso denegado », no es la aplicación: el administrador debe, una sola vez, activar las API de Gmail/Calendario/Drive y publicar la pantalla de consentimiento en Google Cloud Console. Consulta la guía PDF « Conexión a Google Workspace »."
+      },
+      "telephonie": {
+        "title": "Configurar la telefonía (Twilio)",
+        "step0": "Abre Telefonía en el menú Integraciones.",
+        "step1": "Introduce tu Account SID, Auth Token y número de Twilio.",
+        "step2": "Activa la grabación y la transcripción con IA si lo deseas.",
+        "step3": "Prueba con una llamada saliente."
+      },
+      "abonnement": {
+        "title": "Gestionar mi suscripción",
+        "step0": "Ve a Ajustes → pestaña Suscripción.",
+        "step1": "Consulta tu plan actual y tu uso.",
+        "step2": "Haz clic en Cambiar de plan para pasar a Starter / Profesional / Empresa.",
+        "step3": "Si Stripe está activo: Gestionar mi suscripción abre el portal del cliente (facturas, tarjeta, cancelación).",
+        "tip": "Para cancelar, tienes dos opciones: al final del período actual o de inmediato."
+      },
+      "factures": {
+        "title": "Descargar mis facturas",
+        "step0": "Abre Licencia y Facturación en el menú Administración.",
+        "step1": "Consulta el historial de tus facturas mensuales.",
+        "step2": "Haz clic en Descargar para obtener el PDF.",
+        "step3": "Las facturas también se envían por correo automáticamente."
+      },
+      "mobile": {
+        "title": "Instalar la aplicación móvil",
+        "step0": "Ve a Aplicación móvil en el menú Sistema.",
+        "step1": "Escanea el código QR con tu teléfono.",
+        "step2": "Instala la aplicación Expo Go y abre el enlace.",
+        "step3": "Inicia sesión con tus credenciales habituales."
+      },
+      "utilisateurs": {
+        "title": "Invitar y gestionar usuarios",
+        "step0": "Abre Usuarios en el menú Administración.",
+        "step1": "Haz clic en Invitar a un usuario.",
+        "step2": "Introduce el correo y elige el rol (admin, manager, usuario).",
+        "step3": "La invitación se envía por correo automáticamente."
+      },
+      "protection-donnees": {
+        "title": "Protección de datos (RGPD)",
+        "step0": "Ve a Protección de datos en el menú Administración.",
+        "step1": "Consulta las alertas y anomalías detectadas.",
+        "step2": "Configura la copia de seguridad automática (Google Drive o local).",
+        "step3": "Exporta o elimina los datos de un contacto a petición RGPD."
+      },
+      "parametres": {
+        "title": "Personalizar mi perfil y notificaciones",
+        "step0": "Haz clic en Ajustes en el menú Sistema.",
+        "step1": "Pestaña Perfil: nombre, foto, contraseña.",
+        "step2": "Pestaña Notificaciones: elige lo que recibes.",
+        "step3": "Pestaña Preferencias: idioma, zona horaria, tema."
+      },
+      "notifications": {
+        "title": "Gestionar las notificaciones",
+        "step0": "Abre Ajustes → pestaña Notificaciones.",
+        "step1": "Activa o desactiva por tipo (llamada perdida, tarea, mención).",
+        "step2": "Elige el canal: en la app, correo o push móvil.",
+        "step3": "Define las horas de silencio (modo No molestar)."
+      }
+    }
   }
 }

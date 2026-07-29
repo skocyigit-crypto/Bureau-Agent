@@ -7555,5 +7555,199 @@
     "toastDraftFailDesc": "Taslak oluşturulamadı.",
     "toastArchived": "Sohbet arşivlendi",
     "toastReopened": "Sohbet yeniden açıldı"
+  },
+  "helpCenter": {
+    "openAria": "Yardım merkezi",
+    "openTitle": "Yardım merkezi (kısayol: ?)",
+    "title": "Yardım merkezi",
+    "subtitle": "Tüm konularda yardım bulun",
+    "searchPlaceholder": "Yardım ara...",
+    "clearSearch": "Aramayı temizle",
+    "back": "Geri",
+    "tipLabel": "İpucu:",
+    "gotoPage": "Bu sayfaya git",
+    "noResultsTitle": "Sonuç bulunamadı",
+    "noResultsDesc": "Farklı anahtar kelimeler deneyin veya destek ile iletişime geçin.",
+    "subjectsSingular": "{{count}} konu",
+    "subjectsPlural": "{{count}} konu",
+    "support": "Destek",
+    "categories": {
+      "demarrage": "Başlangıç",
+      "communication": "İletişim",
+      "carnet": "Adres defteri",
+      "organisation": "Organizasyon",
+      "documents": "Belgeler",
+      "ia": "Yapay Zekâ",
+      "integrations": "Entegrasyonlar",
+      "facturation": "Faturalandırma",
+      "mobile-app": "Mobil uygulama",
+      "administration": "Yönetim",
+      "parametres": "Ayarlar"
+    },
+    "topics": {
+      "premiers-pas": {
+        "title": "Ajant Bureau ile ilk adımlar",
+        "step0": "Sistem menüsünde İlk kurulum'a tıklayın.",
+        "step1": "Şirket bilgilerinizi girin (ad, sektör, ekip).",
+        "step2": "Mevcut kişilerinizi Akıllı içe aktarma'dan içe aktarın.",
+        "step3": "Gmail ve Takvim'i senkronize etmek için Google Workspace'i bağlayın.",
+        "step4": "Yönetim → Kullanıcılar'dan çalışma arkadaşlarınızı davet edin.",
+        "tip": "Sistem menüsünden istediğiniz zaman tanıtıma geri dönebilirsiniz."
+      },
+      "appels": {
+        "title": "Telefon aramalarımı yönetme",
+        "step0": "İletişim menüsünden Aramalar'a gidin.",
+        "step1": "Bir aramayı başlatmak veya kaydetmek için + düğmesine tıklayın.",
+        "step2": "Geçmişi filtrelerle görüntüleyin (gelen, giden, cevapsız).",
+        "step3": "Ayrıntıları ve YZ analizini görmek için bir aramaya tıklayın.",
+        "tip": "YZ transkripsiyonu için Telefon'da otomatik kaydı etkinleştirin."
+      },
+      "messages": {
+        "title": "Mesaj gönderme ve alma",
+        "step0": "İletişim menüsünden Mesajlar'ı açın.",
+        "step1": "Bir kişi seçin veya yeni bir konuşma oluşturun.",
+        "step2": "Mesajınızı yazın ve gönderin (yapılandırıldıysa Twilio ile SMS).",
+        "step3": "Bağlama uygun yanıtlar önermek için YZ'yi kullanın."
+      },
+      "gmail": {
+        "title": "YZ Mail Ajanını kullanma",
+        "step0": "Önce Entegrasyonlar'da Google Workspace'i bağlayın.",
+        "step1": "İletişim menüsünden YZ Mail Ajanı'nı açın.",
+        "step2": "Ajan e-postalarınızı önceliğe göre otomatik olarak sınıflandırır.",
+        "step3": "Taslak oluşturmak için YZ ile Yaz'a tıklayın.",
+        "tip": "Ajan zamanla yazım tarzınızı öğrenir."
+      },
+      "contacts": {
+        "title": "Kişilerimi ekleme ve yönetme",
+        "step0": "Adres defteri menüsünden Kişiler'e tıklayın.",
+        "step1": "Kart oluşturmak için sağ üstteki Yeni kişi düğmesi.",
+        "step2": "Ad, telefon, e-posta ve etiketleri (kategoriler) doldurun.",
+        "step3": "Akıllı içe aktarma ile toplu içe aktarın (CSV veya Google)."
+      },
+      "prospects": {
+        "title": "Ticari potansiyel müşterilerimi takip etme",
+        "step0": "Adres defteri menüsünden Potansiyel müşteriler'i açın.",
+        "step1": "Kartları pipeline aşamaları arasında sürükleyip bırakın.",
+        "step2": "Her karta not, görev ve hatırlatıcı ekleyin.",
+        "step3": "Dönüşüm istatistiklerini Analiz'de görüntüleyin."
+      },
+      "taches": {
+        "title": "Görevlerimi oluşturma ve takip etme",
+        "step0": "Çalışma organizasyonu menüsünden Görevler'e gidin.",
+        "step1": "+ Yeni görev'e tıklayın.",
+        "step2": "Başlık, son tarih, öncelik ve atanan kişiyi belirleyin.",
+        "step3": "İlerlemeyi Kanban panosunda sürükle-bırak ile takip edin."
+      },
+      "projets": {
+        "title": "Projelerimi yönetme",
+        "step0": "Çalışma organizasyonu menüsünden Projeler'i açın.",
+        "step1": "Ad, açıklama ve üyelerle yeni bir proje oluşturun.",
+        "step2": "Görevler, belgeler ve kilometre taşları ekleyin.",
+        "step3": "İlerlemeyi Gantt veya liste görünümünde takip edin."
+      },
+      "calendrier": {
+        "title": "Takvimimi görüntüleme",
+        "step0": "Bugün menüsünden Takvim'e tıklayın.",
+        "step1": "Tercihlerinize göre gün, hafta veya ay görünümü.",
+        "step2": "Bağlıysa Google Calendar ile otomatik senkronizasyon.",
+        "step3": "Doğrudan takvimde etkinlik oluşturmak için sürükleyin."
+      },
+      "documents": {
+        "title": "Belgelerimi saklama ve düzenleme",
+        "step0": "Belgeler ve Raporlar menüsünden Belgeler'e gidin.",
+        "step1": "Dosyalarınızı sürükleyip bırakın veya Yükle'ye tıklayın.",
+        "step2": "Klasörlere ve etiketlere göre düzenleyin.",
+        "step3": "Bağlıysa Google Drive'a otomatik yedekleme.",
+        "tip": "Anahtar bilgileri otomatik çıkarmak için Belge YZ'yi kullanın."
+      },
+      "rapports": {
+        "title": "Etkinlik raporlarını görüntüleme",
+        "step0": "Belgeler ve Raporlar menüsünden Raporlar'ı açın.",
+        "step1": "Dönemi seçin (gün, hafta, ay, özel).",
+        "step2": "Kullanıcı, ekip veya etkinlik türüne göre filtreleyin.",
+        "step3": "Dış paylaşım için PDF veya Excel olarak dışa aktarın."
+      },
+      "agents-ia": {
+        "title": "YZ Ajanlarını kullanma",
+        "step0": "YZ Asistanları menüsünden YZ Ajanları'nı açın.",
+        "step1": "Önceden yapılandırılmış bir ajan seçin veya kendinizinkini oluşturun.",
+        "step2": "Görevi doğal dilde açıklayın.",
+        "step3": "Ajan görevi yürütür ve sonucu size bildirir.",
+        "tip": "YZ kotanızı Ayarlar → Abonelik'ten kontrol edin."
+      },
+      "commandant-ia": {
+        "title": "YZ Komutanı ile sohbet etme",
+        "step0": "YZ Asistanları menüsünden YZ Komutanı'na tıklayın.",
+        "step1": "Sorunuzu Fransızca veya Türkçe sorun.",
+        "step2": "Komutan tüm verilerinize erişir (kişiler, görevler, aramalar).",
+        "step3": "Ondan işlem yapmasını isteyin: \"Yarın Jean'ı aramak için bir görev oluştur\"."
+      },
+      "google-workspace": {
+        "title": "Google Workspace'i (Gmail) bağlama",
+        "step0": "Sol menüde Google Workspace'e (küre simgesi) tıklayın.",
+        "step1": "« Google ile bağlan » düğmesine tıklayın.",
+        "step2": "Google penceresinde bağlanacak Gmail hesabını seçin.",
+        "step3": "İstenen 3 erişimi onaylayın: Gmail, Takvim ve Drive, ardından « İzin ver »e tıklayın.",
+        "step4": "Uygulamaya döndüğünüzde son e-postalarınız, etkinlikleriniz ve dosyalarınız otomatik olarak görünür.",
+        "tip": "Google « 403 / erişim reddedildi » hatası gösterirse bu uygulama değildir: yönetici bir kez Gmail/Takvim/Drive API'lerini etkinleştirmeli ve Google Cloud Console'da onay ekranını yayınlamalıdır. « Google Workspace Bağlantısı » PDF kılavuzuna bakın."
+      },
+      "telephonie": {
+        "title": "Telefon sistemini (Twilio) yapılandırma",
+        "step0": "Entegrasyonlar menüsünden Telefon'u açın.",
+        "step1": "Account SID, Auth Token ve Twilio numaranızı girin.",
+        "step2": "İstenirse kayıt ve YZ transkripsiyonunu etkinleştirin.",
+        "step3": "Giden bir aramayla test edin."
+      },
+      "abonnement": {
+        "title": "Aboneliğimi yönetme",
+        "step0": "Ayarlar → Abonelik sekmesine gidin.",
+        "step1": "Mevcut planınızı ve kullanımınızı görüntüleyin.",
+        "step2": "Starter / Profesyonel / Kurumsal'a geçmek için Plan değiştir'e tıklayın.",
+        "step3": "Stripe etkinse: Aboneliğimi yönet müşteri portalını açar (faturalar, kart, iptal).",
+        "tip": "İptal etmek için iki seçeneğiniz var: mevcut dönemin sonunda veya hemen."
+      },
+      "factures": {
+        "title": "Faturalarımı indirme",
+        "step0": "Yönetim menüsünden Lisans ve Faturalandırma'yı açın.",
+        "step1": "Aylık faturalarınızın geçmişini görüntüleyin.",
+        "step2": "PDF'i almak için İndir'e tıklayın.",
+        "step3": "Faturalar ayrıca otomatik olarak e-posta ile gönderilir."
+      },
+      "mobile": {
+        "title": "Mobil uygulamayı yükleme",
+        "step0": "Sistem menüsünden Mobil uygulama'ya gidin.",
+        "step1": "QR kodunu telefonunuzla tarayın.",
+        "step2": "Expo Go uygulamasını yükleyin ve bağlantıyı açın.",
+        "step3": "Her zamanki kimlik bilgilerinizle giriş yapın."
+      },
+      "utilisateurs": {
+        "title": "Kullanıcıları davet etme ve yönetme",
+        "step0": "Yönetim menüsünden Kullanıcılar'ı açın.",
+        "step1": "Kullanıcı davet et'e tıklayın.",
+        "step2": "E-postayı girin ve rolü seçin (yönetici, müdür, kullanıcı).",
+        "step3": "Davet otomatik olarak e-posta ile gönderilir."
+      },
+      "protection-donnees": {
+        "title": "Veri koruma (GDPR)",
+        "step0": "Yönetim menüsünden Veri koruma'ya gidin.",
+        "step1": "Tespit edilen uyarıları ve anormallikleri görüntüleyin.",
+        "step2": "Otomatik yedeklemeyi yapılandırın (Google Drive veya yerel).",
+        "step3": "GDPR talebi üzerine bir kişinin verilerini dışa aktarın veya silin."
+      },
+      "parametres": {
+        "title": "Profilimi ve bildirimlerimi özelleştirme",
+        "step0": "Sistem menüsünden Ayarlar'a tıklayın.",
+        "step1": "Profil sekmesi: ad, fotoğraf, şifre.",
+        "step2": "Bildirimler sekmesi: neyi alacağınızı seçin.",
+        "step3": "Tercihler sekmesi: dil, saat dilimi, tema."
+      },
+      "notifications": {
+        "title": "Bildirimleri yönetme",
+        "step0": "Ayarlar → Bildirimler sekmesini açın.",
+        "step1": "Türe göre etkinleştirin veya devre dışı bırakın (cevapsız arama, görev, bahsetme).",
+        "step2": "Kanalı seçin: uygulama içi, e-posta veya mobil push.",
+        "step3": "Sessiz saatleri belirleyin (Rahatsız etme modu)."
+      }
+    }
   }
 }

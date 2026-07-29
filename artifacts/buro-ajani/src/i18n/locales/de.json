@@ -7555,5 +7555,199 @@
     "toastDraftFailDesc": "Entwurf konnte nicht erstellt werden.",
     "toastArchived": "Konversation archiviert",
     "toastReopened": "Konversation wieder geöffnet"
+  },
+  "helpCenter": {
+    "openAria": "Hilfecenter",
+    "openTitle": "Hilfecenter (Kürzel: ?)",
+    "title": "Hilfecenter",
+    "subtitle": "Hilfe zu allen Themen finden",
+    "searchPlaceholder": "Hilfe suchen...",
+    "clearSearch": "Suche löschen",
+    "back": "Zurück",
+    "tipLabel": "Tipp:",
+    "gotoPage": "Zu dieser Seite",
+    "noResultsTitle": "Keine Ergebnisse gefunden",
+    "noResultsDesc": "Versuchen Sie andere Stichwörter oder kontaktieren Sie den Support.",
+    "subjectsSingular": "{{count}} Thema",
+    "subjectsPlural": "{{count}} Themen",
+    "support": "Support",
+    "categories": {
+      "demarrage": "Erste Schritte",
+      "communication": "Kommunikation",
+      "carnet": "Adressbuch",
+      "organisation": "Organisation",
+      "documents": "Dokumente",
+      "ia": "Künstliche Intelligenz",
+      "integrations": "Integrationen",
+      "facturation": "Abrechnung",
+      "mobile-app": "Mobile App",
+      "administration": "Verwaltung",
+      "parametres": "Einstellungen"
+    },
+    "topics": {
+      "premiers-pas": {
+        "title": "Erste Schritte mit Ajant Bureau",
+        "step0": "Klicken Sie im Menü System auf Ersteinrichtung.",
+        "step1": "Geben Sie Ihre Unternehmensdaten ein (Name, Branche, Team).",
+        "step2": "Importieren Sie Ihre bestehenden Kontakte über Intelligenter Import.",
+        "step3": "Verbinden Sie Google Workspace, um Gmail und Kalender zu synchronisieren.",
+        "step4": "Laden Sie Ihre Mitarbeiter über Verwaltung → Benutzer ein.",
+        "tip": "Sie können jederzeit über das Menü System zum Onboarding zurückkehren."
+      },
+      "appels": {
+        "title": "Meine Telefonanrufe verwalten",
+        "step0": "Gehen Sie im Menü Kommunikation zu Anrufe.",
+        "step1": "Klicken Sie auf die Schaltfläche +, um einen Anruf zu starten oder zu protokollieren.",
+        "step2": "Sehen Sie den Verlauf mit Filtern (eingehend, ausgehend, verpasst).",
+        "step3": "Klicken Sie auf einen Anruf, um Details und die KI-Analyse zu sehen.",
+        "tip": "Aktivieren Sie die automatische Aufzeichnung unter Telefonie für die KI-Transkription."
+      },
+      "messages": {
+        "title": "Nachrichten senden und empfangen",
+        "step0": "Öffnen Sie Nachrichten im Menü Kommunikation.",
+        "step1": "Wählen Sie einen Kontakt oder erstellen Sie eine neue Unterhaltung.",
+        "step2": "Geben Sie Ihre Nachricht ein und senden Sie sie (SMS über Twilio, falls konfiguriert).",
+        "step3": "Nutzen Sie die KI, um kontextbezogene Antworten vorzuschlagen."
+      },
+      "gmail": {
+        "title": "Den KI-Mail-Agenten verwenden",
+        "step0": "Verbinden Sie zuerst Google Workspace unter Integrationen.",
+        "step1": "Öffnen Sie den KI-Mail-Agenten im Menü Kommunikation.",
+        "step2": "Der Agent sortiert Ihre E-Mails automatisch nach Priorität.",
+        "step3": "Klicken Sie auf Mit KI verfassen, um einen Entwurf zu erstellen.",
+        "tip": "Der Agent lernt mit der Zeit Ihren Schreibstil."
+      },
+      "contacts": {
+        "title": "Meine Kontakte hinzufügen und verwalten",
+        "step0": "Klicken Sie im Menü Adressbuch auf Kontakte.",
+        "step1": "Schaltfläche Neuer Kontakt oben rechts, um einen Eintrag zu erstellen.",
+        "step2": "Füllen Sie Name, Telefon, E-Mail und Tags (Kategorien) aus.",
+        "step3": "Massenimport über Intelligenter Import (CSV oder Google)."
+      },
+      "prospects": {
+        "title": "Meine Vertriebs-Leads verfolgen",
+        "step0": "Öffnen Sie Leads im Menü Adressbuch.",
+        "step1": "Ziehen Sie die Karten per Drag-and-drop zwischen den Pipeline-Phasen.",
+        "step2": "Fügen Sie jedem Eintrag Notizen, Aufgaben und Erinnerungen hinzu.",
+        "step3": "Sehen Sie die Konversionsstatistiken unter Analyse."
+      },
+      "taches": {
+        "title": "Meine Aufgaben erstellen und verfolgen",
+        "step0": "Gehen Sie im Menü Arbeitsorganisation zu Aufgaben.",
+        "step1": "Klicken Sie auf + Neue Aufgabe.",
+        "step2": "Legen Sie Titel, Fälligkeit, Priorität und zugewiesene Person fest.",
+        "step3": "Verfolgen Sie den Fortschritt per Drag-and-drop im Kanban-Board."
+      },
+      "projets": {
+        "title": "Meine Projekte verwalten",
+        "step0": "Öffnen Sie Projekte im Menü Arbeitsorganisation.",
+        "step1": "Erstellen Sie ein neues Projekt mit Name, Beschreibung und Mitgliedern.",
+        "step2": "Fügen Sie Aufgaben, Dokumente und Meilensteine hinzu.",
+        "step3": "Verfolgen Sie den Fortschritt in der Gantt- oder Listenansicht."
+      },
+      "calendrier": {
+        "title": "Meinen Kalender ansehen",
+        "step0": "Klicken Sie im Menü Heute auf Kalender.",
+        "step1": "Tages-, Wochen- oder Monatsansicht je nach Ihren Vorlieben.",
+        "step2": "Automatische Synchronisierung mit Google Calendar, falls verbunden.",
+        "step3": "Ziehen Sie, um ein Ereignis direkt im Kalender zu erstellen."
+      },
+      "documents": {
+        "title": "Meine Dokumente speichern und organisieren",
+        "step0": "Gehen Sie im Menü Dokumente & Berichte zu Dokumente.",
+        "step1": "Ziehen Sie Ihre Dateien per Drag-and-drop oder klicken Sie auf Hochladen.",
+        "step2": "Organisieren Sie nach Ordnern und Tags.",
+        "step3": "Automatische Sicherung auf Google Drive, falls verbunden.",
+        "tip": "Nutzen Sie Dokument-KI, um wichtige Informationen automatisch zu extrahieren."
+      },
+      "rapports": {
+        "title": "Aktivitätsberichte ansehen",
+        "step0": "Öffnen Sie Berichte im Menü Dokumente & Berichte.",
+        "step1": "Wählen Sie den Zeitraum (Tag, Woche, Monat, benutzerdefiniert).",
+        "step2": "Filtern Sie nach Benutzer, Team oder Aktivitätstyp.",
+        "step3": "Exportieren Sie als PDF oder Excel zum externen Teilen."
+      },
+      "agents-ia": {
+        "title": "KI-Agenten verwenden",
+        "step0": "Öffnen Sie KI-Agenten im Menü KI-Assistenten.",
+        "step1": "Wählen Sie einen vorkonfigurierten Agenten oder erstellen Sie Ihren eigenen.",
+        "step2": "Beschreiben Sie die Aufgabe in natürlicher Sprache.",
+        "step3": "Der Agent führt sie aus und benachrichtigt Sie über das Ergebnis.",
+        "tip": "Prüfen Sie Ihr KI-Kontingent unter Einstellungen → Abonnement."
+      },
+      "commandant-ia": {
+        "title": "Mit dem KI-Kommandanten chatten",
+        "step0": "Klicken Sie im Menü KI-Assistenten auf KI-Kommandant.",
+        "step1": "Stellen Sie Ihre Frage auf Französisch oder Türkisch.",
+        "step2": "Der Kommandant hat Zugriff auf all Ihre Daten (Kontakte, Aufgaben, Anrufe).",
+        "step3": "Bitten Sie ihn, Aktionen auszuführen: \"Erstelle eine Aufgabe, um Jean morgen zurückzurufen\"."
+      },
+      "google-workspace": {
+        "title": "Google Workspace (Gmail) verbinden",
+        "step0": "Klicken Sie im linken Menü auf Google Workspace (Globus-Symbol).",
+        "step1": "Klicken Sie auf die Schaltfläche « Mit Google anmelden ».",
+        "step2": "Wählen Sie im Google-Fenster das zu verbindende Gmail-Konto.",
+        "step3": "Autorisieren Sie die 3 angeforderten Zugriffe: Gmail, Kalender und Drive, und klicken Sie dann auf « Zulassen ».",
+        "step4": "Zurück in der App erscheinen Ihre neuesten E-Mails, Ereignisse und Dateien automatisch.",
+        "tip": "Wenn Google einen Fehler « 403 / Zugriff verweigert » anzeigt, liegt es nicht an der App: Der Administrator muss einmalig die Gmail-/Kalender-/Drive-APIs aktivieren und den Zustimmungsbildschirm in der Google Cloud Console veröffentlichen. Siehe die PDF-Anleitung « Google Workspace verbinden »."
+      },
+      "telephonie": {
+        "title": "Telefonie (Twilio) einrichten",
+        "step0": "Öffnen Sie Telefonie im Menü Integrationen.",
+        "step1": "Geben Sie Ihre Account SID, Ihr Auth Token und Ihre Twilio-Nummer ein.",
+        "step2": "Aktivieren Sie bei Bedarf Aufzeichnung und KI-Transkription.",
+        "step3": "Testen Sie mit einem ausgehenden Anruf."
+      },
+      "abonnement": {
+        "title": "Mein Abonnement verwalten",
+        "step0": "Gehen Sie zu Einstellungen → Registerkarte Abonnement.",
+        "step1": "Sehen Sie Ihren aktuellen Plan und Ihre Nutzung.",
+        "step2": "Klicken Sie auf Plan ändern, um zu Starter / Professional / Enterprise zu wechseln.",
+        "step3": "Wenn Stripe aktiv ist: Mein Abonnement verwalten öffnet das Kundenportal (Rechnungen, Karte, Kündigung).",
+        "tip": "Zum Kündigen haben Sie zwei Optionen: zum Ende des laufenden Zeitraums oder sofort."
+      },
+      "factures": {
+        "title": "Meine Rechnungen herunterladen",
+        "step0": "Öffnen Sie Lizenz & Abrechnung im Menü Verwaltung.",
+        "step1": "Sehen Sie den Verlauf Ihrer monatlichen Rechnungen.",
+        "step2": "Klicken Sie auf Herunterladen, um die PDF zu erhalten.",
+        "step3": "Rechnungen werden auch automatisch per E-Mail gesendet."
+      },
+      "mobile": {
+        "title": "Die mobile App installieren",
+        "step0": "Gehen Sie im Menü System zu Mobile App.",
+        "step1": "Scannen Sie den QR-Code mit Ihrem Telefon.",
+        "step2": "Installieren Sie die App Expo Go und öffnen Sie dann den Link.",
+        "step3": "Melden Sie sich mit Ihren üblichen Zugangsdaten an."
+      },
+      "utilisateurs": {
+        "title": "Benutzer einladen und verwalten",
+        "step0": "Öffnen Sie Benutzer im Menü Verwaltung.",
+        "step1": "Klicken Sie auf Benutzer einladen.",
+        "step2": "Geben Sie die E-Mail ein und wählen Sie die Rolle (Admin, Manager, Benutzer).",
+        "step3": "Die Einladung wird automatisch per E-Mail gesendet."
+      },
+      "protection-donnees": {
+        "title": "Datenschutz (DSGVO)",
+        "step0": "Gehen Sie im Menü Verwaltung zu Datenschutz.",
+        "step1": "Sehen Sie die erkannten Warnungen und Anomalien.",
+        "step2": "Konfigurieren Sie die automatische Sicherung (Google Drive oder lokal).",
+        "step3": "Exportieren oder löschen Sie die Daten eines Kontakts auf DSGVO-Anfrage."
+      },
+      "parametres": {
+        "title": "Mein Profil und meine Benachrichtigungen anpassen",
+        "step0": "Klicken Sie im Menü System auf Einstellungen.",
+        "step1": "Registerkarte Profil: Name, Foto, Passwort.",
+        "step2": "Registerkarte Benachrichtigungen: Wählen Sie, was Sie erhalten.",
+        "step3": "Registerkarte Einstellungen: Sprache, Zeitzone, Design."
+      },
+      "notifications": {
+        "title": "Benachrichtigungen verwalten",
+        "step0": "Öffnen Sie Einstellungen → Registerkarte Benachrichtigungen.",
+        "step1": "Aktivieren oder deaktivieren Sie nach Typ (verpasster Anruf, Aufgabe, Erwähnung).",
+        "step2": "Wählen Sie den Kanal: in der App, E-Mail oder mobiles Push.",
+        "step3": "Legen Sie Ruhezeiten fest (Modus Nicht stören)."
+      }
+    }
   }
 }
