@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 interface AnalyticsData {
   totalCalls: number;
@@ -115,6 +116,7 @@ function ProgressRow({ label, value, max, color }: { label: string; value: numbe
 export default function AnalyticsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
   const [data, setData] = useState<AnalyticsData | null>(null);
@@ -180,7 +182,7 @@ export default function AnalyticsScreen() {
   const completionRate = totalTasks > 0 ? Math.round((data!.completedTasks / totalTasks) * 100) : 0;
 
   const PERIODS: Period[] = ["jour", "semaine", "mois"];
-  const PERIOD_LABELS: Record<Period, string> = { jour: "Aujourd'hui", semaine: "Semaine", mois: "Mois" };
+  const PERIOD_LABELS: Record<Period, string> = { jour: "analyticsScreen.periodDay", semaine: "analyticsScreen.periodWeek", mois: "analyticsScreen.periodMonth" };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -189,11 +191,11 @@ export default function AnalyticsScreen() {
           <Pressable onPress={() => router.back()} hitSlop={12}>
             <Feather name="arrow-left" size={22} color="#ffffff" />
           </Pressable>
-          <Text style={styles.headerTitle}>Analytique</Text>
+          <Text style={styles.headerTitle}>{t("analyticsScreen.header")}</Text>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
             <Pressable onPress={async () => {
               try {
-                const res = await fetchAuth(`${API_BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: "Projet analytique", status: "planifie", priority: "moyenne", progress: 0, notes: "Créé depuis la page Analytique mobile" }) });
+                const res = await fetchAuth(`${API_BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: t("analyticsScreen.newProjectTitle"), status: "planifie", priority: "moyenne", progress: 0, notes: t("analyticsScreen.newProjectNote") }) });
                 if (res.ok) router.push("/projets" as any);
               } catch {}
             }} hitSlop={12}>
@@ -212,7 +214,7 @@ export default function AnalyticsScreen() {
               style={[styles.periodBtn, { backgroundColor: period === p ? colors.primary : "rgba(255,255,255,0.1)" }]}
             >
               <Text style={[styles.periodText, { color: period === p ? "#fff" : "rgba(255,255,255,0.7)" }]}>
-                {PERIOD_LABELS[p]}
+                {t(PERIOD_LABELS[p])}
               </Text>
             </Pressable>
           ))}
@@ -231,20 +233,20 @@ export default function AnalyticsScreen() {
         ) : data ? (
           <>
             <View style={styles.kpiGrid}>
-              <KpiCard icon="phone" label="Appels" value={data.totalCalls} color="#3b82f6" sub={`${answeredCalls} repondus`} />
-              <KpiCard icon="phone-missed" label="Manques" value={data.missedCalls} color="#ef4444" trend={{ value: -5, positive: false }} />
-              <KpiCard icon="users" label="Contacts" value={data.totalContacts} color="#22c55e" />
-              <KpiCard icon="check-square" label="Taches" value={data.completedTasks} color="#8b5cf6" sub={`${completionRate}% complet`} />
-              <KpiCard icon="message-square" label="Non lus" value={data.unreadMessages} color="#f59e0b" />
-              <KpiCard icon="clock" label="Dur. moy." value={`${Math.floor(data.avgCallDuration / 60)}m${data.avgCallDuration % 60}s`} color="#64748b" />
-              <KpiCard icon="folder" label="Projets" value={data.projetsActifs} color="#6366f1" sub="En cours" />
-              <KpiCard icon="alert-circle" label="En retard" value={data.projetsEnRetard} color={data.projetsEnRetard > 0 ? "#ef4444" : "#64748b"} sub="Projets" />
+              <KpiCard icon="phone" label={t("analyticsScreen.kpiCalls")} value={data.totalCalls} color="#3b82f6" sub={t("analyticsScreen.kpiAnsweredSub", { count: answeredCalls })} />
+              <KpiCard icon="phone-missed" label={t("analyticsScreen.kpiMissed")} value={data.missedCalls} color="#ef4444" trend={{ value: -5, positive: false }} />
+              <KpiCard icon="users" label={t("analyticsScreen.kpiContacts")} value={data.totalContacts} color="#22c55e" />
+              <KpiCard icon="check-square" label={t("analyticsScreen.kpiTasks")} value={data.completedTasks} color="#8b5cf6" sub={t("analyticsScreen.kpiCompleteSub", { pct: completionRate })} />
+              <KpiCard icon="message-square" label={t("analyticsScreen.kpiUnread")} value={data.unreadMessages} color="#f59e0b" />
+              <KpiCard icon="clock" label={t("analyticsScreen.kpiAvgDuration")} value={`${Math.floor(data.avgCallDuration / 60)}m${data.avgCallDuration % 60}s`} color="#64748b" />
+              <KpiCard icon="folder" label={t("analyticsScreen.kpiProjects")} value={data.projetsActifs} color="#6366f1" sub={t("analyticsScreen.kpiInProgress")} />
+              <KpiCard icon="alert-circle" label={t("analyticsScreen.kpiLate")} value={data.projetsEnRetard} color={data.projetsEnRetard > 0 ? "#ef4444" : "#64748b"} sub={t("analyticsScreen.kpiProjectsSub")} />
             </View>
 
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.cardTitleRow}>
                 <Feather name="activity" size={16} color={colors.primary} />
-                <Text style={[styles.cardTitle, { color: colors.foreground }]}>Taux de reponse</Text>
+                <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("analyticsScreen.answerRate")}</Text>
                 <View style={[styles.ratePill, { backgroundColor: (data.answeredRate >= 80 ? "#22c55e" : data.answeredRate >= 60 ? "#f59e0b" : "#ef4444") + "20" }]}>
                   <Text style={{ fontSize: 14, fontFamily: "Inter_700Bold", color: data.answeredRate >= 80 ? "#22c55e" : data.answeredRate >= 60 ? "#f59e0b" : "#ef4444" }}>
                     {data.answeredRate}%
@@ -259,7 +261,7 @@ export default function AnalyticsScreen() {
               </View>
               <View style={styles.rateInfo}>
                 <Text style={[styles.rateInfoText, { color: colors.mutedForeground }]}>
-                  {answeredCalls} repondus · {data.missedCalls} manques · durée moy. {Math.floor(data.avgCallDuration / 60)}m{data.avgCallDuration % 60}s
+                  {t("analyticsScreen.rateInfo", { answered: answeredCalls, missed: data.missedCalls, dur: `${Math.floor(data.avgCallDuration / 60)}m${data.avgCallDuration % 60}s` })}
                 </Text>
               </View>
             </View>
@@ -268,7 +270,7 @@ export default function AnalyticsScreen() {
               <View style={styles.cardTitleRow}>
                 <Feather name="bar-chart-2" size={16} color="#3b82f6" />
                 <Text style={[styles.cardTitle, { color: colors.foreground }]}>
-                  {period === "jour" ? "Activite par heure" : "Activite par jour"}
+                  {period === "jour" ? t("analyticsScreen.activityByHour") : t("analyticsScreen.activityByDay")}
                 </Text>
               </View>
               {period === "jour" ? (
@@ -281,24 +283,24 @@ export default function AnalyticsScreen() {
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.cardTitleRow}>
                 <Feather name="pie-chart" size={16} color="#f59e0b" />
-                <Text style={[styles.cardTitle, { color: colors.foreground }]}>Repartition</Text>
+                <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("analyticsScreen.distribution")}</Text>
               </View>
-              <ProgressRow label="Appels repondus" value={answeredCalls} max={data.totalCalls} color="#22c55e" />
-              <ProgressRow label="Appels manques" value={data.missedCalls} max={data.totalCalls} color="#ef4444" />
-              <ProgressRow label="Taches terminees" value={data.completedTasks} max={totalTasks} color="#8b5cf6" />
-              <ProgressRow label="Taches en attente" value={data.pendingTasks} max={totalTasks} color="#f59e0b" />
+              <ProgressRow label={t("analyticsScreen.distAnswered")} value={answeredCalls} max={data.totalCalls} color="#22c55e" />
+              <ProgressRow label={t("analyticsScreen.distMissed")} value={data.missedCalls} max={data.totalCalls} color="#ef4444" />
+              <ProgressRow label={t("analyticsScreen.distTasksDone")} value={data.completedTasks} max={totalTasks} color="#8b5cf6" />
+              <ProgressRow label={t("analyticsScreen.distTasksPending")} value={data.pendingTasks} max={totalTasks} color="#f59e0b" />
             </View>
 
             {weekly?.currentWeek && weekly?.previousWeek && (
               <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={styles.cardTitleRow}>
                   <Feather name="trending-up" size={16} color="#22c55e" />
-                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>Comparaison semaine</Text>
+                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("analyticsScreen.weekComparison")}</Text>
                 </View>
                 {[
-                  { label: "Appels", current: weekly.currentWeek.calls, prev: weekly.previousWeek.calls, color: "#3b82f6" },
-                  { label: "Taches", current: weekly.currentWeek.tasks, prev: weekly.previousWeek.tasks, color: "#8b5cf6" },
-                  { label: "Contacts", current: weekly.currentWeek.contacts, prev: weekly.previousWeek.contacts, color: "#22c55e" },
+                  { label: t("analyticsScreen.cmpCalls"), current: weekly.currentWeek.calls, prev: weekly.previousWeek.calls, color: "#3b82f6" },
+                  { label: t("analyticsScreen.cmpTasks"), current: weekly.currentWeek.tasks, prev: weekly.previousWeek.tasks, color: "#8b5cf6" },
+                  { label: t("analyticsScreen.cmpContacts"), current: weekly.currentWeek.contacts, prev: weekly.previousWeek.contacts, color: "#22c55e" },
                 ].map((row) => {
                   const diff = row.prev > 0 ? Math.round(((row.current - row.prev) / row.prev) * 100) : 0;
                   return (
@@ -315,7 +317,7 @@ export default function AnalyticsScreen() {
                           {Math.abs(diff)}%
                         </Text>
                       </View>
-                      <Text style={[styles.comparePrev, { color: colors.mutedForeground }]}>vs {row.prev}</Text>
+                      <Text style={[styles.comparePrev, { color: colors.mutedForeground }]}>{t("analyticsScreen.cmpPrev", { prev: row.prev })}</Text>
                     </View>
                   );
                 })}

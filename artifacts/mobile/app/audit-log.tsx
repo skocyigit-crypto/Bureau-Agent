@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState } from "@/components/EmptyState";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 interface AuditEntry {
   id: number;
@@ -30,31 +31,32 @@ interface AuditEntry {
 }
 
 const ACTION_MAP: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  create: { label: "Creation", color: "#22c55e", icon: "plus-circle" },
-  update: { label: "Modification", color: "#3b82f6", icon: "edit" },
-  delete: { label: "Suppression", color: "#ef4444", icon: "trash-2" },
-  login: { label: "Connexion", color: "#8b5cf6", icon: "log-in" },
-  logout: { label: "Deconnexion", color: "#64748b", icon: "log-out" },
-  export: { label: "Export", color: "#f59e0b", icon: "download" },
-  import: { label: "Import", color: "#ec4899", icon: "upload" },
+  create: { label: "auditLogScreen.actionCreate", color: "#22c55e", icon: "plus-circle" },
+  update: { label: "auditLogScreen.actionUpdate", color: "#3b82f6", icon: "edit" },
+  delete: { label: "auditLogScreen.actionDelete", color: "#ef4444", icon: "trash-2" },
+  login: { label: "auditLogScreen.actionLogin", color: "#8b5cf6", icon: "log-in" },
+  logout: { label: "auditLogScreen.actionLogout", color: "#64748b", icon: "log-out" },
+  export: { label: "auditLogScreen.actionExport", color: "#f59e0b", icon: "download" },
+  import: { label: "auditLogScreen.actionImport", color: "#ec4899", icon: "upload" },
 };
 
 const RESOURCE_MAP: Record<string, string> = {
-  contact: "Contact",
-  call: "Appel",
-  task: "Tache",
-  message: "Message",
-  stock: "Stock",
-  user: "Utilisateur",
-  organisation: "Organisation",
-  calendar: "Calendrier",
-  checkin: "Pointage",
-  automation_rule: "Automation",
+  contact: "auditLogScreen.resContact",
+  call: "auditLogScreen.resCall",
+  task: "auditLogScreen.resTask",
+  message: "auditLogScreen.resMessage",
+  stock: "auditLogScreen.resStock",
+  user: "auditLogScreen.resUser",
+  organisation: "auditLogScreen.resOrganisation",
+  calendar: "auditLogScreen.resCalendar",
+  checkin: "auditLogScreen.resCheckin",
+  automation_rule: "auditLogScreen.resAutomation",
 };
 
 export default function AuditLogScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
   const [entries, setEntries] = useState<AuditEntry[]>([]);
@@ -87,9 +89,9 @@ export default function AuditLogScreen() {
     const d = new Date(dateStr);
     const now = new Date();
     const diff = now.getTime() - d.getTime();
-    if (diff < 60000) return "A l'instant";
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}min`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
+    if (diff < 60000) return t("auditLogScreen.justNow");
+    if (diff < 3600000) return t("auditLogScreen.minShort", { count: Math.floor(diff / 60000) });
+    if (diff < 86400000) return t("auditLogScreen.hourShort", { count: Math.floor(diff / 3600000) });
     return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   }
 
@@ -108,11 +110,11 @@ export default function AuditLogScreen() {
   const criticalActions = entries.filter(e => e.action === "delete").length;
 
   const filters = [
-    { key: "all", label: "Tous" },
-    { key: "create", label: "Creation" },
-    { key: "update", label: "Modif." },
-    { key: "delete", label: "Suppr." },
-    { key: "login", label: "Connexion" },
+    { key: "all", label: t("auditLogScreen.filterAll") },
+    { key: "create", label: t("auditLogScreen.filterCreate") },
+    { key: "update", label: t("auditLogScreen.filterUpdate") },
+    { key: "delete", label: t("auditLogScreen.filterDelete") },
+    { key: "login", label: t("auditLogScreen.filterLogin") },
   ];
 
   return (
@@ -122,7 +124,7 @@ export default function AuditLogScreen() {
           <Pressable onPress={() => router.back()} hitSlop={12}>
             <Feather name="arrow-left" size={22} color="#ffffff" />
           </Pressable>
-          <Text style={styles.headerTitle}>Journal d'audit</Text>
+          <Text style={styles.headerTitle}>{t("auditLogScreen.header")}</Text>
           <View style={{ width: 22 }} />
         </View>
         <View style={styles.filterRow}>
@@ -149,38 +151,41 @@ export default function AuditLogScreen() {
               <View style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Feather name="activity" size={16} color="#3b82f6" />
                 <Text style={[styles.statVal, { color: colors.foreground }]}>{todayActions}</Text>
-                <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Aujourd'hui</Text>
+                <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{t("auditLogScreen.statToday")}</Text>
               </View>
               <View style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Feather name="alert-triangle" size={16} color="#ef4444" />
                 <Text style={[styles.statVal, { color: colors.foreground }]}>{criticalActions}</Text>
-                <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Suppressions</Text>
+                <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{t("auditLogScreen.statDeletions")}</Text>
               </View>
               <View style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Feather name="list" size={16} color="#8b5cf6" />
                 <Text style={[styles.statVal, { color: colors.foreground }]}>{totalCount}</Text>
-                <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Total</Text>
+                <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{t("auditLogScreen.statTotal")}</Text>
               </View>
             </View>
           }
-          ListEmptyComponent={<EmptyState icon="shield" title="Aucun evenement" subtitle="Le journal d'audit est vide" />}
+          ListEmptyComponent={<EmptyState icon="shield" title={t("auditLogScreen.emptyTitle")} subtitle={t("auditLogScreen.emptySubtitle")} />}
           renderItem={({ item }) => {
-            const action = ACTION_MAP[item.action] || { label: item.action, color: "#64748b", icon: "activity" as const };
-            const resource = RESOURCE_MAP[item.resource] || item.resource;
+            const action = ACTION_MAP[item.action];
+            const actionLabel = action ? t(action.label) : item.action;
+            const actionColor = action?.color ?? "#64748b";
+            const actionIcon = action?.icon ?? ("activity" as const);
+            const resource = RESOURCE_MAP[item.resource] ? t(RESOURCE_MAP[item.resource]) : item.resource;
             const detailsStr = formatDetails(item.details);
             return (
               <View style={[styles.logCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <View style={[styles.logIcon, { backgroundColor: action.color + "18" }]}>
-                  <Feather name={action.icon} size={16} color={action.color} />
+                <View style={[styles.logIcon, { backgroundColor: actionColor + "18" }]}>
+                  <Feather name={actionIcon} size={16} color={actionColor} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <View style={styles.logTitleRow}>
-                    <View style={[styles.actionBadge, { backgroundColor: action.color + "18" }]}>
-                      <Text style={[styles.actionBadgeText, { color: action.color }]}>{action.label}</Text>
+                    <View style={[styles.actionBadge, { backgroundColor: actionColor + "18" }]}>
+                      <Text style={[styles.actionBadgeText, { color: actionColor }]}>{actionLabel}</Text>
                     </View>
                     <Text style={[styles.resourceBadge, { color: colors.mutedForeground }]}>{resource}</Text>
                   </View>
-                  <Text style={[styles.logEmail, { color: colors.foreground }]}>{item.userEmail || "Systeme"}</Text>
+                  <Text style={[styles.logEmail, { color: colors.foreground }]}>{item.userEmail || t("auditLogScreen.systemUser")}</Text>
                   {detailsStr && (
                     <Text style={[styles.logDetails, { color: colors.mutedForeground }]} numberOfLines={2}>
                       {detailsStr.length > 120 ? detailsStr.substring(0, 120) + "..." : detailsStr}

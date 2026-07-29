@@ -30,12 +30,12 @@ import {
 
 const INLINE_SUGGEST_FIELD_OPTIONS: ReadonlyArray<{
   field: InlineSuggestConfigurableField;
-  label: string;
-  description: string;
+  labelKey: string;
+  descriptionKey: string;
 }> = [
-  { field: "note", label: "Notes internes", description: "Suggestions pendant la rédaction des notes internes." },
-  { field: "prospect_note", label: "Notes de prospect", description: "Suggestions dans les notes attachées à un prospect." },
-  { field: "email_body", label: "Corps des e-mails", description: "Suggestions dans le corps des messages d’e-mail." },
+  { field: "note", labelKey: "settingsScreen.iaFieldNoteLabel", descriptionKey: "settingsScreen.iaFieldNoteDesc" },
+  { field: "prospect_note", labelKey: "settingsScreen.iaFieldProspectLabel", descriptionKey: "settingsScreen.iaFieldProspectDesc" },
+  { field: "email_body", labelKey: "settingsScreen.iaFieldEmailLabel", descriptionKey: "settingsScreen.iaFieldEmailDesc" },
 ];
 
 interface Subscription {
@@ -52,10 +52,10 @@ interface Subscription {
 }
 
 const PLAN_LABELS: Record<string, string> = {
-  essai: "Essai gratuit",
-  starter: "Starter",
-  professionnel: "Professionnel",
-  entreprise: "Entreprise",
+  essai: "settingsScreen.planEssai",
+  starter: "settingsScreen.planStarter",
+  professionnel: "settingsScreen.planProfessionnel",
+  entreprise: "settingsScreen.planEntreprise",
 };
 
 const PLAN_COLORS: Record<string, string> = {
@@ -68,6 +68,7 @@ const PLAN_COLORS: Record<string, string> = {
 export default function SettingsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { user, fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
   const [sub, setSub] = useState<Subscription | null>(null);
@@ -99,7 +100,7 @@ export default function SettingsScreen() {
           <Pressable onPress={() => router.back()} hitSlop={12}>
             <Feather name="arrow-left" size={22} color="#ffffff" />
           </Pressable>
-          <Text style={styles.headerTitle}>Parametres</Text>
+          <Text style={styles.headerTitle}>{t("settingsScreen.header")}</Text>
           <View style={{ width: 22 }} />
         </View>
       </View>
@@ -109,20 +110,20 @@ export default function SettingsScreen() {
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.cardHeader}>
               <Feather name="user" size={18} color={colors.primary} />
-              <Text style={[styles.cardTitle, { color: colors.foreground }]}>Profil</Text>
+              <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("settingsScreen.profilTitle")}</Text>
             </View>
-            <InfoRow icon="user" label="Nom" value={`${user.prenom} ${user.nom}`} />
-            <InfoRow icon="mail" label="E-mail" value={user.email} />
-            <InfoRow icon="shield" label="Role" value={user.role === "super_admin" ? "Super Admin" : user.role === "administrateur" ? "Administrateur" : user.role === "agent" ? "Agent" : "Lecture seule"} />
-            {user.departement ? <InfoRow icon="briefcase" label="Departement" value={user.departement} /> : null}
-            {user.organisation ? <InfoRow icon="home" label="Organisation" value={user.organisation} /> : null}
+            <InfoRow icon="user" label={t("settingsScreen.name")} value={`${user.prenom} ${user.nom}`} />
+            <InfoRow icon="mail" label={t("settingsScreen.email")} value={user.email} />
+            <InfoRow icon="shield" label={t("settingsScreen.role")} value={user.role === "super_admin" ? t("settingsScreen.roleSuperAdmin") : user.role === "administrateur" ? t("settingsScreen.roleAdmin") : user.role === "agent" ? t("settingsScreen.roleAgent") : t("settingsScreen.roleReadOnly")} />
+            {user.departement ? <InfoRow icon="briefcase" label={t("settingsScreen.department")} value={user.departement} /> : null}
+            {user.organisation ? <InfoRow icon="home" label={t("settingsScreen.organisation")} value={user.organisation} /> : null}
           </View>
         ) : null}
 
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.cardHeader}>
             <Feather name="credit-card" size={18} color={colors.primary} />
-            <Text style={[styles.cardTitle, { color: colors.foreground }]}>Abonnement</Text>
+            <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("settingsScreen.subscriptionTitle")}</Text>
           </View>
           {loading ? (
             <ActivityIndicator color={colors.primary} style={styles.subLoading} />
@@ -131,22 +132,22 @@ export default function SettingsScreen() {
               <View style={[styles.planBadge, { backgroundColor: (PLAN_COLORS[sub.plan] ?? "#64748b") + "18" }]}>
                 <Feather name="star" size={16} color={PLAN_COLORS[sub.plan] ?? "#64748b"} />
                 <Text style={[styles.planName, { color: PLAN_COLORS[sub.plan] ?? "#64748b" }]}>
-                  {PLAN_LABELS[sub.plan] ?? sub.plan}
+                  {PLAN_LABELS[sub.plan] ? t(PLAN_LABELS[sub.plan]) : sub.plan}
                 </Text>
                 <View style={[styles.statusDot, { backgroundColor: sub.status === "active" ? "#22c55e" : "#f59e0b" }]} />
                 <Text style={[styles.statusText, { color: sub.status === "active" ? "#22c55e" : "#f59e0b" }]}>
-                  {sub.status === "active" ? "Actif" : sub.status}
+                  {sub.status === "active" ? t("settingsScreen.statusActive") : sub.status}
                 </Text>
               </View>
-              <InfoRow icon="users" label="Utilisateurs max" value={`${sub.maxUsers}`} />
-              <InfoRow icon="book" label="Contacts max" value={sub.maxContacts >= 999999 ? "Illimite" : `${sub.maxContacts}`} />
-              <InfoRow icon="phone" label="Appels/mois" value={sub.maxCallsPerMonth >= 999999 ? "Illimite" : `${sub.maxCallsPerMonth}`} />
-              <InfoRow icon="tag" label="Prix" value={`${sub.price} EUR/${sub.billingCycle === "monthly" ? "mois" : "an"}`} />
-              {sub.trialEndsAt ? <InfoRow icon="clock" label="Fin d'essai" value={new Date(sub.trialEndsAt).toLocaleDateString("fr-FR")} color="#f59e0b" /> : null}
-              {sub.currentPeriodEnd ? <InfoRow icon="calendar" label="Prochain renouvellement" value={new Date(sub.currentPeriodEnd).toLocaleDateString("fr-FR")} /> : null}
+              <InfoRow icon="users" label={t("settingsScreen.maxUsers")} value={`${sub.maxUsers}`} />
+              <InfoRow icon="book" label={t("settingsScreen.maxContacts")} value={sub.maxContacts >= 999999 ? t("settingsScreen.unlimited") : `${sub.maxContacts}`} />
+              <InfoRow icon="phone" label={t("settingsScreen.callsPerMonth")} value={sub.maxCallsPerMonth >= 999999 ? t("settingsScreen.unlimited") : `${sub.maxCallsPerMonth}`} />
+              <InfoRow icon="tag" label={t("settingsScreen.price")} value={t("settingsScreen.priceValue", { price: sub.price, cycle: sub.billingCycle === "monthly" ? t("settingsScreen.cycleMonth") : t("settingsScreen.cycleYear") })} />
+              {sub.trialEndsAt ? <InfoRow icon="clock" label={t("settingsScreen.trialEnd")} value={new Date(sub.trialEndsAt).toLocaleDateString("fr-FR")} color="#f59e0b" /> : null}
+              {sub.currentPeriodEnd ? <InfoRow icon="calendar" label={t("settingsScreen.nextRenewal")} value={new Date(sub.currentPeriodEnd).toLocaleDateString("fr-FR")} /> : null}
             </>
           ) : (
-            <Text style={[styles.noSub, { color: colors.mutedForeground }]}>Aucun abonnement actif</Text>
+            <Text style={[styles.noSub, { color: colors.mutedForeground }]}>{t("settingsScreen.noSubscription")}</Text>
           )}
         </View>
 
@@ -167,11 +168,11 @@ export default function SettingsScreen() {
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.cardHeader}>
             <Feather name="info" size={18} color={colors.primary} />
-            <Text style={[styles.cardTitle, { color: colors.foreground }]}>Application</Text>
+            <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("settingsScreen.appTitle")}</Text>
           </View>
-          <InfoRow icon="smartphone" label="Version" value="1.0.0" />
-          <InfoRow icon="globe" label="Plateforme" value={Platform.OS === "ios" ? "iOS" : Platform.OS === "android" ? "Android" : "Web"} />
-          <InfoRow icon="code" label="Framework" value="React Native / Expo" />
+          <InfoRow icon="smartphone" label={t("settingsScreen.version")} value="1.0.0" />
+          <InfoRow icon="globe" label={t("settingsScreen.platform")} value={Platform.OS === "ios" ? "iOS" : Platform.OS === "android" ? "Android" : "Web"} />
+          <InfoRow icon="code" label={t("settingsScreen.framework")} value="React Native / Expo" />
         </View>
       </ScrollView>
     </View>
@@ -182,17 +183,18 @@ export default function SettingsScreen() {
 
 function ThemeCard() {
   const colors = useColors();
+  const { t } = useTranslation();
   const { mode, setMode } = useTheme();
   const modes: { key: "system" | "light" | "dark"; icon: keyof typeof Feather.glyphMap; label: string }[] = [
-    { key: "system", icon: "smartphone", label: "Systeme" },
-    { key: "light", icon: "sun", label: "Clair" },
-    { key: "dark", icon: "moon", label: "Sombre" },
+    { key: "system", icon: "smartphone", label: t("settingsScreen.themeSystem") },
+    { key: "light", icon: "sun", label: t("settingsScreen.themeLight") },
+    { key: "dark", icon: "moon", label: t("settingsScreen.themeDark") },
   ];
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={styles.cardHeader}>
         <Feather name="moon" size={18} color={colors.primary} />
-        <Text style={[styles.cardTitle, { color: colors.foreground }]}>Apparence</Text>
+        <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("settingsScreen.appearance")}</Text>
       </View>
       <View style={styles.themeRow}>
         {modes.map(m => (
@@ -239,15 +241,16 @@ function LanguageCard() {
 // ── Gizlilik kartı ─────────────────────────────────────────────────────────────
 
 const AUTO_LOCK_OPTIONS = [
-  { minutes: 0, label: "Desactive" },
-  { minutes: 1, label: "1 minute" },
-  { minutes: 5, label: "5 minutes" },
-  { minutes: 15, label: "15 minutes" },
-  { minutes: 30, label: "30 minutes" },
+  { minutes: 0, labelKey: "settingsScreen.autoLockDisabled" },
+  { minutes: 1, labelKey: "settingsScreen.autoLock1" },
+  { minutes: 5, labelKey: "settingsScreen.autoLock5" },
+  { minutes: 15, labelKey: "settingsScreen.autoLock15" },
+  { minutes: 30, labelKey: "settingsScreen.autoLock30" },
 ];
 
 function PrivacyCard() {
   const colors = useColors();
+  const { t } = useTranslation();
   const {
     settings,
     updateSettings,
@@ -281,12 +284,12 @@ function PrivacyCard() {
     // vient d'etre saisi — on ne peut pas le reconstruire ici.
     if (v) return;
     Alert.alert(
-      "Désactiver la connexion biométrique",
-      "Vos identifiants enregistrés seront effacés de cet appareil. Vous devrez saisir votre mot de passe à la prochaine connexion.",
+      t("settingsScreen.disableLoginBioTitle"),
+      t("settingsScreen.disableLoginBioMessage"),
       [
-        { text: "Annuler", style: "cancel" },
+        { text: t("common.cancel"), style: "cancel" },
         {
-          text: "Désactiver",
+          text: t("settingsScreen.disable"),
           style: "destructive",
           onPress: async () => {
             await disableBiometric();
@@ -305,14 +308,14 @@ function PrivacyCard() {
 
   const handleSetPIN = useCallback(async () => {
     if (pinStep === "enter") {
-      if (pinInput.length !== 4) { setPinError("Le code PIN doit contenir 4 chiffres"); return; }
+      if (pinInput.length !== 4) { setPinError(t("settingsScreen.pinLength")); return; }
       setPinFirst(pinInput);
       setPinInput("");
       setPinStep("confirm");
       setPinError("");
     } else {
       if (pinInput !== pinFirst) {
-        setPinError("Les codes PIN ne correspondent pas");
+        setPinError(t("settingsScreen.pinMismatch"));
         setPinInput("");
         setPinStep("enter");
         return;
@@ -328,12 +331,12 @@ function PrivacyCard() {
 
   const handleRemovePIN = useCallback(() => {
     Alert.alert(
-      "Supprimer le code PIN",
-      "Etes-vous sur de vouloir supprimer le code PIN ? La protection par PIN sera desactivee.",
+      t("settingsScreen.removePinTitle"),
+      t("settingsScreen.removePinMessage"),
       [
-        { text: "Annuler", style: "cancel" },
+        { text: t("common.cancel"), style: "cancel" },
         {
-          text: "Supprimer",
+          text: t("common.delete"),
           style: "destructive",
           onPress: async () => {
             await removePIN();
@@ -382,14 +385,14 @@ function PrivacyCard() {
       {/* Başlık */}
       <View style={styles.cardHeader}>
         <Feather name="lock" size={18} color={colors.primary} />
-        <Text style={[styles.cardTitle, { color: colors.foreground }]}>Confidentialite et securite</Text>
+        <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("settingsScreen.privacyTitle")}</Text>
       </View>
 
       {/* Arka plan örtüsü */}
       <ToggleRow
         icon="eye-off"
-        label="Ecran de confidentialite"
-        sublabel="Masque le contenu dans le selecteur d'applications"
+        label={t("settingsScreen.privacyScreen")}
+        sublabel={t("settingsScreen.privacyScreenSub")}
         value={settings.privacyScreenEnabled}
         onToggle={v => updateSettings({ privacyScreenEnabled: v })}
       />
@@ -397,8 +400,8 @@ function PrivacyCard() {
       {/* Hassas veri maskesi */}
       <ToggleRow
         icon="minus-circle"
-        label="Masquer les donnees sensibles"
-        sublabel="Telephone, e-mail — appuyez pour afficher"
+        label={t("settingsScreen.maskData")}
+        sublabel={t("settingsScreen.maskDataSub")}
         value={settings.maskSensitiveData}
         onToggle={v => updateSettings({ maskSensitiveData: v })}
       />
@@ -406,12 +409,12 @@ function PrivacyCard() {
       {/* Biyometrik */}
       <ToggleRow
         icon="activity"
-        label={biometricType ? `Deverrouillage ${biometricType}` : "Biometrie"}
+        label={biometricType ? t("settingsScreen.biometricUnlock", { type: biometricType }) : t("settingsScreen.biometricGeneric")}
         sublabel={
           !biometricAvailable && Platform.OS !== "web"
-            ? "Non disponible sur cet appareil"
+            ? t("settingsScreen.biometricUnavailable")
             : !settings.hasPIN
-            ? "Definissez d'abord un code PIN"
+            ? t("settingsScreen.biometricNeedPin")
             : undefined
         }
         value={settings.biometricEnabled}
@@ -426,15 +429,15 @@ function PrivacyCard() {
           enregistres. */}
       <ToggleRow
         icon="log-in"
-        label="Connexion biométrique"
+        label={t("settingsScreen.loginBiometric")}
         sublabel={
           !loginBioCapable
             ? Platform.OS === "web"
-              ? "Non disponible sur la version web"
-              : "Non disponible sur cet appareil"
+              ? t("settingsScreen.loginBioUnavailableWeb")
+              : t("settingsScreen.loginBioUnavailableDevice")
             : loginBioEnabled
-              ? "Identifiants conservés chiffrés sur cet appareil — désactivez pour les effacer"
-              : "Proposée à la prochaine connexion avec mot de passe"
+              ? t("settingsScreen.loginBioEnabledSub")
+              : t("settingsScreen.loginBioProposedSub")
         }
         value={loginBioEnabled}
         onToggle={onToggleLoginBiometric}
@@ -445,9 +448,9 @@ function PrivacyCard() {
       <View style={[styles.toggleRow, { borderBottomColor: colors.border }]}>
         <Feather name="clock" size={16} color={colors.mutedForeground} style={styles.infoIcon} />
         <View style={styles.toggleText}>
-          <Text style={[styles.toggleLabel, { color: colors.foreground }]}>Verrouillage automatique</Text>
+          <Text style={[styles.toggleLabel, { color: colors.foreground }]}>{t("settingsScreen.autoLockTitle")}</Text>
           <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>
-            Apres inactivite
+            {t("settingsScreen.autoLockSub")}
           </Text>
         </View>
       </View>
@@ -468,7 +471,7 @@ function PrivacyCard() {
               styles.lockOptionText,
               { color: settings.autoLockMinutes === opt.minutes ? colors.primary : colors.mutedForeground },
             ]}>
-              {opt.label}
+              {t(opt.labelKey)}
             </Text>
           </Pressable>
         ))}
@@ -482,7 +485,7 @@ function PrivacyCard() {
             onPress={() => { setShowPinSetup(true); setPinStep("enter"); setPinInput(""); setPinError(""); }}
           >
             <Feather name="lock" size={15} color={colors.primary} />
-            <Text style={[styles.pinActionText, { color: colors.primary }]}>Definir un code PIN</Text>
+            <Text style={[styles.pinActionText, { color: colors.primary }]}>{t("settingsScreen.definePinBtn")}</Text>
           </Pressable>
         ) : (
           <View style={styles.pinActionsRow}>
@@ -491,14 +494,14 @@ function PrivacyCard() {
               onPress={() => { setShowPinSetup(true); setPinStep("enter"); setPinInput(""); setPinError(""); }}
             >
               <Feather name="edit-2" size={14} color={colors.mutedForeground} />
-              <Text style={[styles.pinActionText, { color: colors.mutedForeground }]}>Changer le PIN</Text>
+              <Text style={[styles.pinActionText, { color: colors.mutedForeground }]}>{t("settingsScreen.changePinBtn")}</Text>
             </Pressable>
             <Pressable
               style={[styles.pinActionBtn, { flex: 1, borderColor: "#ef444444", backgroundColor: "#ef444408" }]}
               onPress={handleRemovePIN}
             >
               <Feather name="trash-2" size={14} color="#ef4444" />
-              <Text style={[styles.pinActionText, { color: "#ef4444" }]}>Supprimer le PIN</Text>
+              <Text style={[styles.pinActionText, { color: "#ef4444" }]}>{t("settingsScreen.removePinBtn")}</Text>
             </Pressable>
           </View>
         )}
@@ -507,7 +510,7 @@ function PrivacyCard() {
         {showPinSetup && (
           <View style={[styles.pinForm, { backgroundColor: colors.muted, borderColor: colors.border }]}>
             <Text style={[styles.pinFormTitle, { color: colors.foreground }]}>
-              {pinStep === "enter" ? "Nouveau code PIN (4 chiffres)" : "Confirmez le code PIN"}
+              {pinStep === "enter" ? t("settingsScreen.newPinTitle") : t("settingsScreen.confirmPinTitle")}
             </Text>
             <TextInput
               style={[styles.pinInput, { borderColor: pinError ? "#ef4444" : colors.border, color: colors.foreground, backgroundColor: colors.card }]}
@@ -526,14 +529,14 @@ function PrivacyCard() {
                 style={[styles.pinFormBtn, { borderColor: colors.border }]}
                 onPress={() => { setShowPinSetup(false); setPinInput(""); setPinError(""); setPinStep("enter"); }}
               >
-                <Text style={[styles.pinFormBtnText, { color: colors.mutedForeground }]}>Annuler</Text>
+                <Text style={[styles.pinFormBtnText, { color: colors.mutedForeground }]}>{t("common.cancel")}</Text>
               </Pressable>
               <Pressable
                 style={[styles.pinFormBtn, { backgroundColor: colors.primary, borderColor: colors.primary }]}
                 onPress={handleSetPIN}
               >
                 <Text style={[styles.pinFormBtnText, { color: colors.secondary }]}>
-                  {pinStep === "enter" ? "Suivant" : "Confirmer"}
+                  {pinStep === "enter" ? t("settingsScreen.next") : t("common.confirm")}
                 </Text>
               </Pressable>
             </View>
@@ -547,7 +550,7 @@ function PrivacyCard() {
         onPress={() => { lock(); router.back(); }}
       >
         <Feather name="lock" size={15} color="#ef4444" />
-        <Text style={[styles.lockNowText]}>Verrouiller maintenant</Text>
+        <Text style={[styles.lockNowText]}>{t("settingsScreen.lockNow")}</Text>
       </Pressable>
     </View>
   );
@@ -558,26 +561,26 @@ function PrivacyCard() {
 const ALERT_CHANNEL_ROWS: ReadonlyArray<{
   key: "message" | "task" | "call" | "rappel" | "security";
   icon: keyof typeof Feather.glyphMap;
-  label: string;
-  sublabel: string;
+  labelKey: string;
+  sublabelKey: string;
 }> = [
   {
     key: "message",
     icon: "mail",
-    label: "Nouveaux messages",
-    sublabel: "Buzz et notification quand un message arrive.",
+    labelKey: "settingsScreen.chanMessageLabel",
+    sublabelKey: "settingsScreen.chanMessageSub",
   },
   {
     key: "task",
     icon: "check-square",
-    label: "Nouvelles tâches",
-    sublabel: "Buzz et notification quand une tâche vous est assignée.",
+    labelKey: "settingsScreen.chanTaskLabel",
+    sublabelKey: "settingsScreen.chanTaskSub",
   },
   {
     key: "call",
     icon: "phone-missed",
-    label: "Appels manqués",
-    sublabel: "Coupez ce canal si vous suivez les appels sur un autre téléphone.",
+    labelKey: "settingsScreen.chanCallLabel",
+    sublabelKey: "settingsScreen.chanCallSub",
   },
   {
     // Tâche #98 : mute des rappels calendrier. Le compteur de la tuile
@@ -585,8 +588,8 @@ const ALERT_CHANNEL_ROWS: ReadonlyArray<{
     // sont coupées.
     key: "rappel",
     icon: "bell",
-    label: "Rappels",
-    sublabel: "Coupez ce canal si vous gardez votre agenda ouvert ailleurs.",
+    labelKey: "settingsScreen.chanRappelLabel",
+    sublabelKey: "settingsScreen.chanRappelSub",
   },
   {
     // Tâche #146 : mute des alertes de menace documentaire. La suggestion
@@ -594,13 +597,14 @@ const ALERT_CHANNEL_ROWS: ReadonlyArray<{
     // sont coupées. Actif par défaut (les menaces sont urgentes).
     key: "security",
     icon: "shield",
-    label: "Sécurité / Documents",
-    sublabel: "Alerte quand un document analysé est jugé dangereux. La suggestion reste visible dans l'app.",
+    labelKey: "settingsScreen.chanSecurityLabel",
+    sublabelKey: "settingsScreen.chanSecuritySub",
   },
 ];
 
 function AlertsCard() {
   const colors = useColors();
+  const { t } = useTranslation();
   const isWeb = Platform.OS === "web";
   const {
     hapticsEnabled,
@@ -617,10 +621,10 @@ function AlertsCard() {
       const ok = await setNotificationsEnabled(v);
       if (v && !ok) {
         Alert.alert(
-          "Notifications refusées",
+          t("settingsScreen.notifsDeniedTitle"),
           isWeb
-            ? "Les notifications locales ne sont pas disponibles dans la version web."
-            : "Autorisez les notifications dans les réglages système pour recevoir une alerte quand l'app est en arrière-plan.",
+            ? t("settingsScreen.notifsDeniedWeb")
+            : t("settingsScreen.notifsDeniedNative"),
         );
       }
     },
@@ -631,15 +635,15 @@ function AlertsCard() {
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={styles.cardHeader}>
         <Feather name="bell" size={18} color={colors.primary} />
-        <Text style={[styles.cardTitle, { color: colors.foreground }]}>Alertes en temps réel</Text>
+        <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("settingsScreen.alertsTitle")}</Text>
       </View>
 
       <View style={[styles.toggleRow, { borderBottomColor: colors.border, opacity: isWeb ? 0.45 : 1 }]}>
         <Feather name="smartphone" size={16} color={colors.mutedForeground} style={styles.infoIcon} />
         <View style={styles.toggleText}>
-          <Text style={[styles.toggleLabel, { color: colors.foreground }]}>Vibration</Text>
+          <Text style={[styles.toggleLabel, { color: colors.foreground }]}>{t("settingsScreen.vibration")}</Text>
           <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>
-            Buzz léger pour les nouveaux messages, tâches et appels manqués (selon les canaux ci-dessous).
+            {t("settingsScreen.vibrationSub")}
           </Text>
         </View>
         <Switch
@@ -654,9 +658,9 @@ function AlertsCard() {
       <View style={[styles.toggleRow, { borderBottomColor: colors.border, opacity: isWeb ? 0.45 : 1 }]}>
         <Feather name="bell" size={16} color={colors.mutedForeground} style={styles.infoIcon} />
         <View style={styles.toggleText}>
-          <Text style={[styles.toggleLabel, { color: colors.foreground }]}>Notifications système</Text>
+          <Text style={[styles.toggleLabel, { color: colors.foreground }]}>{t("settingsScreen.sysNotifs")}</Text>
           <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>
-            Affiche une notification sur l'écran de verrouillage quand l'app est en arrière-plan.
+            {t("settingsScreen.sysNotifsSub")}
           </Text>
         </View>
         <Switch
@@ -671,7 +675,7 @@ function AlertsCard() {
       {/* Tâche #85 : mute par canal — la secrétaire peut couper un type
           d'alerte (ex. appels manqués) sans toucher aux autres. */}
       <Text style={[styles.channelGroupLabel, { color: colors.mutedForeground }]}>
-        Par type d'alerte
+        {t("settingsScreen.byAlertType")}
       </Text>
       {ALERT_CHANNEL_ROWS.map((row, idx) => {
         const active = !channelMuted[row.key];
@@ -690,9 +694,9 @@ function AlertsCard() {
           >
             <Feather name={row.icon} size={16} color={colors.mutedForeground} style={styles.infoIcon} />
             <View style={styles.toggleText}>
-              <Text style={[styles.toggleLabel, { color: colors.foreground }]}>{row.label}</Text>
+              <Text style={[styles.toggleLabel, { color: colors.foreground }]}>{t(row.labelKey)}</Text>
               <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>
-                {row.sublabel}
+                {t(row.sublabelKey)}
               </Text>
             </View>
             <Switch
@@ -723,13 +727,13 @@ type WhatsAppFlag = "task" | "call" | "appointment" | "message";
 const WHATSAPP_ROWS: ReadonlyArray<{
   key: WhatsAppFlag;
   icon: keyof typeof Feather.glyphMap;
-  label: string;
-  sublabel: string;
+  labelKey: string;
+  sublabelKey: string;
 }> = [
-  { key: "task", icon: "check-square", label: "Nouvelle tache assignee", sublabel: "Quand une tache vous est attribuee." },
-  { key: "call", icon: "phone-incoming", label: "Appel entrant", sublabel: "Lorsque l'agent telephonique recoit un appel." },
-  { key: "appointment", icon: "calendar", label: "Nouveau rendez-vous", sublabel: "Quand un evenement est cree dans l'agenda." },
-  { key: "message", icon: "message-circle", label: "Nouveau message", sublabel: "Lorsqu'un message interne est ajoute." },
+  { key: "task", icon: "check-square", labelKey: "settingsScreen.waTaskLabel", sublabelKey: "settingsScreen.waTaskSub" },
+  { key: "call", icon: "phone-incoming", labelKey: "settingsScreen.waCallLabel", sublabelKey: "settingsScreen.waCallSub" },
+  { key: "appointment", icon: "calendar", labelKey: "settingsScreen.waAppointmentLabel", sublabelKey: "settingsScreen.waAppointmentSub" },
+  { key: "message", icon: "message-circle", labelKey: "settingsScreen.waMessageLabel", sublabelKey: "settingsScreen.waMessageSub" },
 ];
 
 const WA_DEFAULTS: Record<WhatsAppFlag, boolean> = {
@@ -741,6 +745,7 @@ const WA_DEFAULTS: Record<WhatsAppFlag, boolean> = {
 
 function WhatsAppNotificationsCard() {
   const colors = useColors();
+  const { t } = useTranslation();
   const { fetchAuth, isAuthenticated } = useAuth();
   const [serverFlags, setServerFlags] = useState<Record<WhatsAppFlag, boolean>>(WA_DEFAULTS);
   const [draft, setDraft] = useState<Record<WhatsAppFlag, boolean>>(WA_DEFAULTS);
@@ -804,12 +809,12 @@ function WhatsAppNotificationsCard() {
         body: JSON.stringify({ whatsappNotifications: draft }),
       });
       if (!res || !res.ok) {
-        Alert.alert("Echec", "Impossible d'enregistrer les notifications WhatsApp.");
+        Alert.alert(t("settingsScreen.waSaveErrorTitle"), t("settingsScreen.waSaveError"));
         return;
       }
       setServerFlags(draft);
     } catch {
-      Alert.alert("Echec", "Erreur reseau pendant l'enregistrement.");
+      Alert.alert(t("settingsScreen.waSaveErrorTitle"), t("settingsScreen.waNetworkError"));
     } finally {
       setSaving(false);
     }
@@ -821,7 +826,7 @@ function WhatsAppNotificationsCard() {
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={styles.cardHeader}>
         <Feather name="message-circle" size={18} color="#22c55e" />
-        <Text style={[styles.cardTitle, { color: colors.foreground, flex: 1 }]}>Notifications WhatsApp</Text>
+        <Text style={[styles.cardTitle, { color: colors.foreground, flex: 1 }]}>{t("settingsScreen.whatsappTitle")}</Text>
         {dirty && (
           <Pressable
             onPress={onSave}
@@ -835,7 +840,7 @@ function WhatsAppNotificationsCard() {
             })}
           >
             <Text style={{ color: "#fff", fontSize: 12, fontFamily: "Inter_600SemiBold" }}>
-              {saving ? "..." : "Enregistrer"}
+              {saving ? "..." : t("common.save")}
             </Text>
           </Pressable>
         )}
@@ -843,8 +848,7 @@ function WhatsAppNotificationsCard() {
 
       <View style={{ paddingHorizontal: 16, paddingBottom: 10 }}>
         <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>
-          Recevez les alertes du bureau sur WhatsApp. Necessite un numero de telephone
-          dans votre profil et un fournisseur Twilio actif cote organisation.
+          {t("settingsScreen.whatsappIntro")}
         </Text>
       </View>
 
@@ -865,9 +869,9 @@ function WhatsAppNotificationsCard() {
           >
             <Feather name={row.icon} size={16} color={colors.mutedForeground} style={styles.infoIcon} />
             <View style={styles.toggleText}>
-              <Text style={[styles.toggleLabel, { color: colors.foreground }]}>{row.label}</Text>
+              <Text style={[styles.toggleLabel, { color: colors.foreground }]}>{t(row.labelKey)}</Text>
               <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>
-                {row.sublabel}
+                {t(row.sublabelKey)}
               </Text>
             </View>
             <Switch
@@ -884,7 +888,7 @@ function WhatsAppNotificationsCard() {
       {!isAuthenticated && (
         <View style={{ paddingHorizontal: 16, paddingVertical: 10 }}>
           <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>
-            Connectez-vous pour synchroniser cette preference.
+            {t("settingsScreen.waLoginToSync")}
           </Text>
         </View>
       )}
@@ -896,6 +900,7 @@ function WhatsAppNotificationsCard() {
 
 function PreferencesIaCard() {
   const colors = useColors();
+  const { t } = useTranslation();
   const {
     enabled,
     language,
@@ -914,15 +919,15 @@ function PreferencesIaCard() {
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={styles.cardHeader}>
         <Feather name="cpu" size={18} color={colors.primary} />
-        <Text style={[styles.cardTitle, { color: colors.foreground }]}>Préférences IA</Text>
+        <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("settingsScreen.iaTitle")}</Text>
       </View>
 
       <View style={[styles.toggleRow, { borderBottomColor: colors.border }]}>
         <Feather name="zap" size={16} color={colors.mutedForeground} style={styles.infoIcon} />
         <View style={styles.toggleText}>
-          <Text style={[styles.toggleLabel, { color: colors.foreground }]}>Suggestions IA en ligne</Text>
+          <Text style={[styles.toggleLabel, { color: colors.foreground }]}>{t("settingsScreen.iaInlineSuggest")}</Text>
           <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>
-            Affiche une suggestion grise pendant que vous rédigez.
+            {t("settingsScreen.iaInlineSuggestSub")}
           </Text>
         </View>
         <Switch
@@ -937,9 +942,9 @@ function PreferencesIaCard() {
       <View style={[styles.toggleRow, { borderBottomColor: colors.border }]}>
         <Feather name="globe" size={16} color={colors.mutedForeground} style={styles.infoIcon} />
         <View style={styles.toggleText}>
-          <Text style={[styles.toggleLabel, { color: colors.foreground }]}>Langue des suggestions</Text>
+          <Text style={[styles.toggleLabel, { color: colors.foreground }]}>{t("settingsScreen.iaSuggestLang")}</Text>
           <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>
-            Langue dans laquelle l’IA proposera la suite de votre texte.
+            {t("settingsScreen.iaSuggestLangSub")}
           </Text>
         </View>
       </View>
@@ -972,9 +977,9 @@ function PreferencesIaCard() {
       </View>
 
       <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 6 }}>
-        <Text style={[styles.toggleLabel, { color: colors.foreground }]}>Champs concernés</Text>
+        <Text style={[styles.toggleLabel, { color: colors.foreground }]}>{t("settingsScreen.iaFieldsTitle")}</Text>
         <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>
-          Activez ou désactivez les suggestions par type de champ. Le commutateur principal reste prioritaire.
+          {t("settingsScreen.iaFieldsSub")}
         </Text>
       </View>
       {INLINE_SUGGEST_FIELD_OPTIONS.map(opt => {
@@ -987,8 +992,8 @@ function PreferencesIaCard() {
           >
             <Feather name="edit-3" size={16} color={colors.mutedForeground} style={styles.infoIcon} />
             <View style={styles.toggleText}>
-              <Text style={[styles.toggleLabel, { color: colors.foreground }]}>{opt.label}</Text>
-              <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>{opt.description}</Text>
+              <Text style={[styles.toggleLabel, { color: colors.foreground }]}>{t(opt.labelKey)}</Text>
+              <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>{t(opt.descriptionKey)}</Text>
             </View>
             <Switch
               value={value}
@@ -1004,8 +1009,8 @@ function PreferencesIaCard() {
       <View style={{ paddingHorizontal: 16, paddingBottom: 14, paddingTop: 10 }}>
         <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>
           {isAuthenticated
-            ? "Cette préférence est enregistrée sur votre compte et synchronisée sur tous vos appareils."
-            : "Connectez-vous pour synchroniser cette préférence sur vos appareils."}
+            ? t("settingsScreen.iaSyncedAuth")
+            : t("settingsScreen.iaSyncedGuest")}
         </Text>
       </View>
     </View>
@@ -1041,6 +1046,7 @@ function formatClosureDate(start: string, end: string): string {
 
 function ClosuresCard() {
   const colors = useColors();
+  const { t } = useTranslation();
   const { fetchAuth, user } = useAuth();
 
   const isAdmin =
@@ -1079,15 +1085,15 @@ function ClosuresCard() {
     const end = dateEnd.trim() || start;
 
     if (!isValidDate(start)) {
-      setFormError("Date de début invalide (format attendu JJ/MM/AAAA ou AAAA-MM-JJ).");
+      setFormError(t("settingsScreen.closureDateStartInvalid"));
       return;
     }
     if (!isValidDate(end)) {
-      setFormError("Date de fin invalide.");
+      setFormError(t("settingsScreen.closureDateEndInvalid"));
       return;
     }
     if (end < start) {
-      setFormError("La date de fin doit être postérieure ou égale à la date de début.");
+      setFormError(t("settingsScreen.closureDateOrder"));
       return;
     }
 
@@ -1101,7 +1107,7 @@ function ClosuresCard() {
       });
       if (!res || !res.ok) {
         const body = await res?.json().catch(() => ({}));
-        setFormError((body as any)?.error ?? "Impossible d'ajouter la fermeture.");
+        setFormError((body as any)?.error ?? t("settingsScreen.closureAddError"));
         return;
       }
       const row: OrgClosure = await res.json();
@@ -1111,7 +1117,7 @@ function ClosuresCard() {
       setLabel("");
       setShowForm(false);
     } catch {
-      setFormError("Erreur réseau.");
+      setFormError(t("settingsScreen.closureNetworkError"));
     } finally {
       setSaving(false);
     }
@@ -1119,12 +1125,12 @@ function ClosuresCard() {
 
   const handleDelete = useCallback((id: number) => {
     Alert.alert(
-      "Supprimer la fermeture",
-      "Voulez-vous vraiment supprimer cette fermeture exceptionnelle ?",
+      t("settingsScreen.deleteClosureTitle"),
+      t("settingsScreen.deleteClosureMessage"),
       [
-        { text: "Annuler", style: "cancel" },
+        { text: t("common.cancel"), style: "cancel" },
         {
-          text: "Supprimer",
+          text: t("common.delete"),
           style: "destructive",
           onPress: async () => {
             setDeletingId(id);
@@ -1133,10 +1139,10 @@ function ClosuresCard() {
               if (res && res.ok) {
                 setClosures(prev => prev.filter(c => c.id !== id));
               } else {
-                Alert.alert("Erreur", "Impossible de supprimer cette fermeture.");
+                Alert.alert(t("settingsScreen.errorTitle"), t("settingsScreen.deleteClosureError"));
               }
             } catch {
-              Alert.alert("Erreur", "Erreur réseau.");
+              Alert.alert(t("settingsScreen.errorTitle"), t("settingsScreen.closureNetworkError"));
             } finally {
               setDeletingId(null);
             }
@@ -1151,7 +1157,7 @@ function ClosuresCard() {
       <View style={styles.cardHeader}>
         <Feather name="x-circle" size={18} color={colors.primary} />
         <Text style={[styles.cardTitle, { color: colors.foreground, flex: 1 }]}>
-          Fermetures exceptionnelles
+          {t("settingsScreen.closuresTitle")}
         </Text>
         {isAdmin && (
           <Pressable
@@ -1170,7 +1176,7 @@ function ClosuresCard() {
 
       <View style={{ paddingHorizontal: 16, paddingBottom: 10 }}>
         <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>
-          Jours où votre bureau sera fermé — ces dates bloquent la prise de rendez-vous pour toute l'organisation.
+          {t("settingsScreen.closuresIntro")}
         </Text>
       </View>
 
@@ -1178,7 +1184,7 @@ function ClosuresCard() {
         <ActivityIndicator color={colors.primary} style={{ padding: 16 }} />
       ) : closures.length === 0 ? (
         <Text style={[styles.noSub, { color: colors.mutedForeground }]}>
-          Aucune fermeture exceptionnelle enregistrée.
+          {t("settingsScreen.closuresEmpty")}
         </Text>
       ) : (
         <View>
@@ -1232,19 +1238,19 @@ function ClosuresCard() {
       {isAdmin && showForm && (
         <View style={[styles.closureForm, { backgroundColor: colors.muted, borderTopColor: colors.border }]}>
           <Text style={[styles.closureFormTitle, { color: colors.foreground }]}>
-            Nouvelle fermeture
+            {t("settingsScreen.newClosure")}
           </Text>
 
           <View style={styles.closureFormRow}>
             <View style={styles.closureFormField}>
               <Text style={[styles.closureFormLabel, { color: colors.mutedForeground }]}>
-                Date de début *
+                {t("settingsScreen.dateStart")}
               </Text>
               <TextInput
                 style={[styles.closureFormInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]}
                 value={dateStart}
-                onChangeText={t => { setDateStart(t); setFormError(""); }}
-                placeholder="AAAA-MM-JJ"
+                onChangeText={v => { setDateStart(v); setFormError(""); }}
+                placeholder={t("settingsScreen.datePlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 keyboardType="numbers-and-punctuation"
                 autoCapitalize="none"
@@ -1254,13 +1260,13 @@ function ClosuresCard() {
             </View>
             <View style={styles.closureFormField}>
               <Text style={[styles.closureFormLabel, { color: colors.mutedForeground }]}>
-                Date de fin
+                {t("settingsScreen.dateEnd")}
               </Text>
               <TextInput
                 style={[styles.closureFormInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]}
                 value={dateEnd}
-                onChangeText={t => { setDateEnd(t); setFormError(""); }}
-                placeholder="AAAA-MM-JJ"
+                onChangeText={v => { setDateEnd(v); setFormError(""); }}
+                placeholder={t("settingsScreen.datePlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 keyboardType="numbers-and-punctuation"
                 autoCapitalize="none"
@@ -1272,13 +1278,13 @@ function ClosuresCard() {
 
           <View style={styles.closureFormFieldFull}>
             <Text style={[styles.closureFormLabel, { color: colors.mutedForeground }]}>
-              Libellé (optionnel)
+              {t("settingsScreen.closureLabel")}
             </Text>
             <TextInput
               style={[styles.closureFormInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]}
               value={label}
-              onChangeText={t => setLabel(t)}
-              placeholder="ex. Pont du 8 mai, Congés d'été…"
+              onChangeText={v => setLabel(v)}
+              placeholder={t("settingsScreen.closureLabelPlaceholder")}
               placeholderTextColor={colors.mutedForeground}
               maxLength={200}
             />
@@ -1293,7 +1299,7 @@ function ClosuresCard() {
               onPress={() => { setShowForm(false); setDateStart(""); setDateEnd(""); setLabel(""); setFormError(""); }}
               style={[styles.closureFormBtn, { borderColor: colors.border }]}
             >
-              <Text style={[styles.closureFormBtnText, { color: colors.mutedForeground }]}>Annuler</Text>
+              <Text style={[styles.closureFormBtnText, { color: colors.mutedForeground }]}>{t("common.cancel")}</Text>
             </Pressable>
             <Pressable
               onPress={handleAdd}
@@ -1306,7 +1312,7 @@ function ClosuresCard() {
               {saving ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <Text style={[styles.closureFormBtnText, { color: "#fff" }]}>Ajouter</Text>
+                <Text style={[styles.closureFormBtnText, { color: "#fff" }]}>{t("common.add")}</Text>
               )}
             </Pressable>
           </View>

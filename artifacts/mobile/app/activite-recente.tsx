@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState } from "@/components/EmptyState";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation, type TFunction } from "@/lib/i18n";
 
 interface ActivityItem {
   type: string;
@@ -27,27 +28,27 @@ interface ActivityItem {
 }
 
 const ENTITY_CFG: Record<string, { icon: keyof typeof Feather.glyphMap; color: string; label: string }> = {
-  devis:    { icon: "file-text",    color: "#3b82f6", label: "Devis"           },
-  facture:  { icon: "dollar-sign",  color: "#22c55e", label: "Facture"         },
-  prospect: { icon: "trending-up",  color: "#f59e0b", label: "Prospect"        },
-  contact:  { icon: "user",         color: "#0ea5e9", label: "Contact"         },
-  appel:    { icon: "phone",        color: "#22c55e", label: "Appel"           },
-  tache:    { icon: "check-square", color: "#f97316", label: "Tâche"           },
-  message:  { icon: "message-square",color:"#a855f7", label: "Message"         },
-  projet:   { icon: "folder",       color: "#6366f1", label: "Projet"          },
+  devis:    { icon: "file-text",    color: "#3b82f6", label: "activiteRecenteScreen.labelDevis"    },
+  facture:  { icon: "dollar-sign",  color: "#22c55e", label: "activiteRecenteScreen.labelFacture"  },
+  prospect: { icon: "trending-up",  color: "#f59e0b", label: "activiteRecenteScreen.labelProspect" },
+  contact:  { icon: "user",         color: "#0ea5e9", label: "activiteRecenteScreen.labelContact"  },
+  appel:    { icon: "phone",        color: "#22c55e", label: "activiteRecenteScreen.labelAppel"    },
+  tache:    { icon: "check-square", color: "#f97316", label: "activiteRecenteScreen.labelTache"    },
+  message:  { icon: "message-square",color:"#a855f7", label: "activiteRecenteScreen.labelMessage"  },
+  projet:   { icon: "folder",       color: "#6366f1", label: "activiteRecenteScreen.labelProjet"   },
 };
 
-function relativeTime(dateStr: string): string {
+function relativeTime(dateStr: string, t: TFunction): string {
   const now = Date.now();
   const diff = Math.floor((now - new Date(dateStr).getTime()) / 1000);
-  if (diff < 60) return "À l'instant";
-  if (diff < 3600) return `Il y a ${Math.floor(diff / 60)} min`;
-  if (diff < 86400) return `Il y a ${Math.floor(diff / 3600)} h`;
-  if (diff < 604800) return `Il y a ${Math.floor(diff / 86400)} j`;
+  if (diff < 60) return t("activiteRecenteScreen.justNow");
+  if (diff < 3600) return t("activiteRecenteScreen.minAgo", { count: Math.floor(diff / 60) });
+  if (diff < 86400) return t("activiteRecenteScreen.hourAgo", { count: Math.floor(diff / 3600) });
+  if (diff < 604800) return t("activiteRecenteScreen.dayAgo", { count: Math.floor(diff / 86400) });
   return new Date(dateStr).toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
 
-function groupByDate(items: ActivityItem[]): { date: string; items: ActivityItem[] }[] {
+function groupByDate(items: ActivityItem[], t: TFunction): { date: string; items: ActivityItem[] }[] {
   const map: Record<string, ActivityItem[]> = {};
   for (const item of items) {
     const d = new Date(item.createdAt);
@@ -55,8 +56,8 @@ function groupByDate(items: ActivityItem[]): { date: string; items: ActivityItem
     const yesterday = new Date(today);
     yesterday.setDate(today.getDate() - 1);
     let label: string;
-    if (d.toDateString() === today.toDateString()) label = "Aujourd'hui";
-    else if (d.toDateString() === yesterday.toDateString()) label = "Hier";
+    if (d.toDateString() === today.toDateString()) label = t("activiteRecenteScreen.today");
+    else if (d.toDateString() === yesterday.toDateString()) label = t("activiteRecenteScreen.yesterday");
     else label = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
     if (!map[label]) map[label] = [];
     map[label].push(item);
@@ -65,13 +66,15 @@ function groupByDate(items: ActivityItem[]): { date: string; items: ActivityItem
 }
 
 const DAYS_OPTIONS = [
-  { val: 1,  label: "24h"    },
-  { val: 7,  label: "7 jours" },
-  { val: 30, label: "30 jours"},
+  { val: 1,  labelKey: "activiteRecenteScreen.days24h" },
+  { val: 7,  labelKey: "activiteRecenteScreen.days7" },
+  { val: 30, labelKey: "activiteRecenteScreen.days30" },
 ];
 
 function ActivityRow({ item, colors }: { item: ActivityItem; colors: ReturnType<typeof import("@/hooks/useColors").useColors> }) {
+  const { t } = useTranslation();
   const cfg = ENTITY_CFG[item.type] ?? { icon: "activity" as const, color: "#6b7280", label: item.type };
+  const label = ENTITY_CFG[item.type] ? t(cfg.label) : item.type;
   const hasAmount = item.amount !== undefined && item.amount !== null && item.amount !== 0 && item.amount !== "0";
 
   return (
@@ -85,9 +88,9 @@ function ActivityRow({ item, colors }: { item: ActivityItem; colors: ReturnType<
       <View style={[styles.actContent, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.actHeader}>
           <View style={[styles.typePill, { backgroundColor: cfg.color + "18" }]}>
-            <Text style={[styles.typeText, { color: cfg.color }]}>{cfg.label}</Text>
+            <Text style={[styles.typeText, { color: cfg.color }]}>{label}</Text>
           </View>
-          <Text style={[styles.actTime, { color: colors.mutedForeground }]}>{relativeTime(item.createdAt)}</Text>
+          <Text style={[styles.actTime, { color: colors.mutedForeground }]}>{relativeTime(item.createdAt, t)}</Text>
         </View>
         <Text style={[styles.actTitle, { color: colors.foreground }]} numberOfLines={1}>{item.title}</Text>
         {item.subtitle && (
@@ -117,6 +120,7 @@ type FlatItem = { kind: "header"; date: string } | { kind: "item"; data: Activit
 export default function ActiviteRecenteScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
 
@@ -142,11 +146,11 @@ export default function ActiviteRecenteScreen() {
       const items: ActivityItem[] = [];
 
       (devisR?.data || []).forEach((d: any) => items.push({
-        type: "devis", title: d.reference || `Devis #${d.id}`, subtitle: d.clientName,
+        type: "devis", title: d.reference || t("activiteRecenteScreen.titleDevis", { id: d.id }), subtitle: d.clientName,
         amount: d.totalAmount, status: d.status, createdAt: d.createdAt,
       }));
       (facturesR?.data || []).forEach((f: any) => items.push({
-        type: "facture", title: f.reference || `Facture #${f.id}`, subtitle: f.clientName,
+        type: "facture", title: f.reference || t("activiteRecenteScreen.titleFacture", { id: f.id }), subtitle: f.clientName,
         amount: f.totalAmount, status: f.status, createdAt: f.createdAt,
       }));
       (prospectsR?.prospects || []).forEach((p: any) => items.push({
@@ -158,8 +162,8 @@ export default function ActiviteRecenteScreen() {
         createdAt: c.createdAt,
       }));
       (callsR?.calls || callsR?.data || []).forEach((c: any) => items.push({
-        type: "appel", title: c.contactName || c.phoneNumber || "Appel",
-        subtitle: c.direction === "entrant" ? "Appel entrant" : "Appel sortant",
+        type: "appel", title: c.contactName || c.phoneNumber || t("activiteRecenteScreen.titleAppel"),
+        subtitle: c.direction === "entrant" ? t("activiteRecenteScreen.callIncoming") : t("activiteRecenteScreen.callOutgoing"),
         status: c.status, createdAt: c.createdAt,
       }));
       (tasksR?.tasks || tasksR?.data || []).forEach((t: any) => items.push({
@@ -167,7 +171,7 @@ export default function ActiviteRecenteScreen() {
         status: t.status, createdAt: t.createdAt,
       }));
       (messagesR?.messages || messagesR?.data || []).forEach((m: any) => items.push({
-        type: "message", title: m.subject || (m.content || "").slice(0, 60) || "Message",
+        type: "message", title: m.subject || (m.content || "").slice(0, 60) || t("activiteRecenteScreen.titleMessage"),
         subtitle: m.fromName || m.from, status: m.isRead ? "lu" : "non_lu", createdAt: m.createdAt,
       }));
       (projetsR?.projets || []).forEach((p: any) => items.push({
@@ -185,7 +189,7 @@ export default function ActiviteRecenteScreen() {
   function onRefresh() { setRefreshing(true); load(); }
 
   const filtered = typeFilter === "all" ? activities : activities.filter(a => a.type === typeFilter);
-  const grouped = groupByDate(filtered);
+  const grouped = groupByDate(filtered, t);
 
   // Flatten for FlatList
   const flatData: FlatItem[] = [];
@@ -195,15 +199,15 @@ export default function ActiviteRecenteScreen() {
   }
 
   const typeFilters = [
-    { key: "all",     label: "Tout"     },
-    { key: "appel",   label: "Appels"   },
-    { key: "tache",   label: "Tâches"   },
-    { key: "prospect",label: "Prospects"},
-    { key: "devis",   label: "Devis"    },
-    { key: "facture", label: "Factures" },
-    { key: "projet",  label: "Projets"  },
-    { key: "contact", label: "Contacts" },
-    { key: "message", label: "Messages" },
+    { key: "all",     label: t("activiteRecenteScreen.filterAll")      },
+    { key: "appel",   label: t("activiteRecenteScreen.filterAppel")    },
+    { key: "tache",   label: t("activiteRecenteScreen.filterTache")    },
+    { key: "prospect",label: t("activiteRecenteScreen.filterProspect") },
+    { key: "devis",   label: t("activiteRecenteScreen.filterDevis")    },
+    { key: "facture", label: t("activiteRecenteScreen.filterFacture")  },
+    { key: "projet",  label: t("activiteRecenteScreen.filterProjet")   },
+    { key: "contact", label: t("activiteRecenteScreen.filterContact")  },
+    { key: "message", label: t("activiteRecenteScreen.filterMessage")  },
   ];
 
   return (
@@ -214,8 +218,8 @@ export default function ActiviteRecenteScreen() {
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>Activité Récente</Text>
-            {!loading && <Text style={styles.headerSub}>{filtered.length} événement{filtered.length !== 1 ? "s" : ""}</Text>}
+            <Text style={styles.headerTitle}>{t("activiteRecenteScreen.header")}</Text>
+            {!loading && <Text style={styles.headerSub}>{filtered.length !== 1 ? t("activiteRecenteScreen.eventCountMany", { count: filtered.length }) : t("activiteRecenteScreen.eventCountOne", { count: filtered.length })}</Text>}
           </View>
           <Pressable onPress={onRefresh} style={styles.backBtn}>
             <Feather name="refresh-cw" size={18} color="rgba(255,255,255,0.8)" />
@@ -229,7 +233,7 @@ export default function ActiviteRecenteScreen() {
               onPress={() => setDays(p.val)}
               style={[styles.periodChip, { backgroundColor: days === p.val ? "#fff" : "rgba(255,255,255,0.15)" }]}
             >
-              <Text style={[styles.periodText, { color: days === p.val ? "#0f172a" : "rgba(255,255,255,0.85)" }]}>{p.label}</Text>
+              <Text style={[styles.periodText, { color: days === p.val ? "#0f172a" : "rgba(255,255,255,0.85)" }]}>{t(p.labelKey)}</Text>
             </Pressable>
           ))}
         </View>
@@ -276,8 +280,8 @@ export default function ActiviteRecenteScreen() {
           ListEmptyComponent={
             <EmptyState
               icon="activity"
-              title="Aucune activité"
-              subtitle="Il n'y a pas d'activité récente à afficher pour cette période."
+              title={t("activiteRecenteScreen.emptyTitle")}
+              subtitle={t("activiteRecenteScreen.emptySubtitle")}
             />
           }
           renderItem={({ item }) => {

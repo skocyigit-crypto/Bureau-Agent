@@ -19,31 +19,32 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 const ACCENT = "#0d9488";
 
 // Libellés français des catégories — alignés sur EXPENSE_CATEGORIES (schéma) et
 // sur la page web (buro-ajani/src/pages/depenses.tsx).
 const CATEGORY_LABELS: Record<string, string> = {
-  carburant: "Carburant",
-  fournitures: "Fournitures",
-  materiel: "Matériel / outillage",
-  sous_traitance: "Sous-traitance",
-  loyer: "Loyer",
-  assurance: "Assurance",
-  telephone_internet: "Téléphone / Internet",
-  repas: "Repas",
-  deplacement: "Déplacement",
-  entretien_vehicule: "Entretien véhicule",
-  honoraires: "Honoraires",
-  taxes: "Taxes / cotisations",
-  autre: "Autre",
+  carburant: "depensesScreen.catCarburant",
+  fournitures: "depensesScreen.catFournitures",
+  materiel: "depensesScreen.catMateriel",
+  sous_traitance: "depensesScreen.catSousTraitance",
+  loyer: "depensesScreen.catLoyer",
+  assurance: "depensesScreen.catAssurance",
+  telephone_internet: "depensesScreen.catTelephoneInternet",
+  repas: "depensesScreen.catRepas",
+  deplacement: "depensesScreen.catDeplacement",
+  entretien_vehicule: "depensesScreen.catEntretienVehicule",
+  honoraires: "depensesScreen.catHonoraires",
+  taxes: "depensesScreen.catTaxes",
+  autre: "depensesScreen.catAutre",
 };
 
 const SOURCE_LABELS: Record<string, string> = {
-  upload: "Téléversement",
-  gmail: "E-mail",
-  manuel: "Saisie manuelle",
+  upload: "depensesScreen.sourceUpload",
+  gmail: "depensesScreen.sourceGmail",
+  manuel: "depensesScreen.sourceManuel",
 };
 
 interface Depense {
@@ -100,6 +101,7 @@ function fmtDate(d: string | null): string {
 export default function DepensesScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { fetchAuth, authHeaders } = useAuth();
   const isWeb = Platform.OS === "web";
 
@@ -124,7 +126,7 @@ export default function DepensesScreen() {
         setDepenses(Array.isArray(data.depenses) ? data.depenses : []);
         setSummary({ ...EMPTY_SUMMARY, ...(data.summary || {}) });
       } catch {
-        Alert.alert("Erreur", "Impossible de charger les dépenses.");
+        Alert.alert(t("depensesScreen.errorTitle"), t("depensesScreen.loadError"));
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -154,7 +156,7 @@ export default function DepensesScreen() {
         setDepenses((prev) => prev.filter((d) => d.id !== id));
         load({ silent: true });
       } catch {
-        Alert.alert("Erreur", "L'action a échoué.");
+        Alert.alert(t("depensesScreen.errorTitle"), t("depensesScreen.actionError"));
       } finally {
         setBusyId(null);
       }
@@ -172,7 +174,7 @@ export default function DepensesScreen() {
       const mimeType = asset.mimeType || "image/jpeg";
       const fileName = asset.fileName || `recu-${Date.now()}.${ext}`;
       if (asset.fileSize && asset.fileSize > 25 * 1024 * 1024) {
-        Alert.alert("Image trop lourde", "Cette photo dépasse 25 Mo. Reprenez-la d'un peu plus loin.");
+        Alert.alert(t("depensesScreen.imageTooLargeTitle"), t("depensesScreen.imageTooLargeMsg"));
         return;
       }
       setUploading(true);
@@ -201,17 +203,17 @@ export default function DepensesScreen() {
           status = res.status;
         }
         if (status < 200 || status >= 300) {
-          Alert.alert("Envoi impossible", "Le justificatif n'a pas pu être envoyé.");
+          Alert.alert(t("depensesScreen.uploadFailedTitle"), t("depensesScreen.uploadFailedMsg"));
           return;
         }
         if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setTab("queue");
-        setCaptureNotice("Justificatif envoyé. L'IA l'analyse — la dépense apparaîtra ici dans quelques instants.");
+        setCaptureNotice(t("depensesScreen.captureNotice"));
         // La capture est asynchrone côté serveur : on rafraîchit après un court
         // délai pour laisser le temps à Document IA d'extraire les champs.
         setTimeout(() => load({ silent: true }), 4500);
       } catch {
-        Alert.alert("Erreur réseau", "Impossible de contacter le serveur.");
+        Alert.alert(t("depensesScreen.networkErrorTitle"), t("depensesScreen.networkErrorMsg"));
       } finally {
         setUploading(false);
       }
@@ -223,13 +225,13 @@ export default function DepensesScreen() {
     try {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert("Autorisation requise", "Activez l'accès à la caméra pour photographier un justificatif.");
+        Alert.alert(t("depensesScreen.permissionTitle"), t("depensesScreen.cameraPermissionMsg"));
         return;
       }
       const shot = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.6, allowsEditing: false });
       if (!shot.canceled && shot.assets[0]?.uri) await uploadReceipt(shot.assets[0]);
     } catch {
-      Alert.alert("Erreur caméra", "Impossible d'ouvrir la caméra.");
+      Alert.alert(t("depensesScreen.cameraErrorTitle"), t("depensesScreen.cameraErrorMsg"));
     }
   }, [uploadReceipt]);
 
@@ -237,13 +239,13 @@ export default function DepensesScreen() {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert("Autorisation requise", "Activez l'accès à la galerie pour choisir un justificatif.");
+        Alert.alert(t("depensesScreen.permissionTitle"), t("depensesScreen.galleryPermissionMsg"));
         return;
       }
       const picked = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.6 });
       if (!picked.canceled && picked.assets[0]?.uri) await uploadReceipt(picked.assets[0]);
     } catch {
-      Alert.alert("Erreur galerie", "Impossible d'ouvrir la galerie.");
+      Alert.alert(t("depensesScreen.galleryErrorTitle"), t("depensesScreen.galleryErrorMsg"));
     }
   }, [uploadReceipt]);
 
@@ -253,33 +255,33 @@ export default function DepensesScreen() {
         <View style={{ flex: 1, minWidth: 0 }}>
           <View style={styles.rowTop}>
             <Text style={[styles.vendor, { color: colors.foreground }]} numberOfLines={1}>
-              {d.vendor || "Fournisseur inconnu"}
+              {d.vendor || t("depensesScreen.vendorUnknown")}
             </Text>
             <View style={[styles.catBadge, { backgroundColor: ACCENT + "18" }]}>
               <Text style={[styles.catBadgeText, { color: ACCENT }]} numberOfLines={1}>
-                {CATEGORY_LABELS[d.category] || d.category}
+                {CATEGORY_LABELS[d.category] ? t(CATEGORY_LABELS[d.category]) : d.category}
               </Text>
             </View>
           </View>
           <Text style={[styles.meta, { color: colors.mutedForeground }]} numberOfLines={1}>
             {fmtDate(d.expenseDate)}
-            {d.reference ? ` · réf. ${d.reference}` : ""}
-            {` · ${SOURCE_LABELS[d.source] || d.source}`}
+            {d.reference ? ` · ${t("depensesScreen.metaRef", { ref: d.reference })}` : ""}
+            {` · ${SOURCE_LABELS[d.source] ? t(SOURCE_LABELS[d.source]) : d.source}`}
           </Text>
           <View style={styles.tagRow}>
             {d.duplicateOfId ? (
               <View style={[styles.tag, { backgroundColor: "#f59e0b18" }]}>
                 <Feather name="alert-triangle" size={10} color="#b45309" />
-                <Text style={[styles.tagText, { color: "#b45309" }]}>Doublon ?</Text>
+                <Text style={[styles.tagText, { color: "#b45309" }]}>{t("depensesScreen.duplicate")}</Text>
               </View>
             ) : null}
             {d.paymentStatus === "paye" ? (
               <View style={[styles.tag, { backgroundColor: "#22c55e18" }]}>
-                <Text style={[styles.tagText, { color: "#15803d" }]}>Payé</Text>
+                <Text style={[styles.tagText, { color: "#15803d" }]}>{t("depensesScreen.paid")}</Text>
               </View>
             ) : (
               <View style={[styles.tag, { backgroundColor: colors.background }]}>
-                <Text style={[styles.tagText, { color: colors.mutedForeground }]}>À payer</Text>
+                <Text style={[styles.tagText, { color: colors.mutedForeground }]}>{t("depensesScreen.toPay")}</Text>
               </View>
             )}
           </View>
@@ -288,7 +290,7 @@ export default function DepensesScreen() {
         <View style={styles.rowRight}>
           <Text style={[styles.amount, { color: colors.foreground }]}>{eur(Number(d.amountTtc))}</Text>
           <Text style={[styles.amountSub, { color: colors.mutedForeground }]}>
-            HT {eur(Number(d.amountHt))}
+            {t("depensesScreen.htPrefix", { value: eur(Number(d.amountHt)) })}
           </Text>
           {tab === "queue" ? (
             <View style={styles.actions}>
@@ -315,7 +317,7 @@ export default function DepensesScreen() {
         </View>
       </View>
     ),
-    [colors, tab, busyId, act],
+    [colors, tab, busyId, act, t],
   );
 
   return (
@@ -325,8 +327,8 @@ export default function DepensesScreen() {
           <Feather name="arrow-left" size={20} color="#fff" />
         </Pressable>
         <View>
-          <Text style={styles.headerTitle}>Dépenses</Text>
-          <Text style={styles.headerSub}>Justificatifs à valider et registre</Text>
+          <Text style={styles.headerTitle}>{t("depensesScreen.header")}</Text>
+          <Text style={styles.headerSub}>{t("depensesScreen.headerSub")}</Text>
         </View>
       </View>
 
@@ -341,21 +343,21 @@ export default function DepensesScreen() {
             {/* Synthèse */}
             <View style={styles.summaryGrid}>
               <View style={[styles.sumCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.sumLabel, { color: colors.mutedForeground }]}>En attente</Text>
+                <Text style={[styles.sumLabel, { color: colors.mutedForeground }]}>{t("depensesScreen.sumPending")}</Text>
                 <Text style={[styles.sumValue, { color: colors.foreground }]}>{summary.pendingCount}</Text>
               </View>
               <View style={[styles.sumCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.sumLabel, { color: colors.mutedForeground }]}>Approuvées</Text>
+                <Text style={[styles.sumLabel, { color: colors.mutedForeground }]}>{t("depensesScreen.sumApproved")}</Text>
                 <Text style={[styles.sumValue, { color: colors.foreground }]}>{summary.approvedCount}</Text>
               </View>
               <View style={[styles.sumCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.sumLabel, { color: colors.mutedForeground }]}>Total registre</Text>
+                <Text style={[styles.sumLabel, { color: colors.mutedForeground }]}>{t("depensesScreen.sumLedgerTotal")}</Text>
                 <Text style={[styles.sumValue, { color: colors.foreground }]} numberOfLines={1}>
                   {eur(summary.approvedTotal)}
                 </Text>
               </View>
               <View style={[styles.sumCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.sumLabel, { color: colors.mutedForeground }]}>Reste à payer</Text>
+                <Text style={[styles.sumLabel, { color: colors.mutedForeground }]}>{t("depensesScreen.sumToPay")}</Text>
                 <Text style={[styles.sumValue, { color: colors.foreground }]} numberOfLines={1}>
                   {eur(summary.payableTotal)}
                 </Text>
@@ -369,9 +371,9 @@ export default function DepensesScreen() {
                   <Feather name="camera" size={18} color={ACCENT} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.captureTitle, { color: colors.foreground }]}>Photographier un reçu</Text>
+                  <Text style={[styles.captureTitle, { color: colors.foreground }]}>{t("depensesScreen.captureTitle")}</Text>
                   <Text style={[styles.captureSub, { color: colors.mutedForeground }]}>
-                    L'IA lit le montant et le fournisseur, puis crée la dépense à valider.
+                    {t("depensesScreen.captureSub")}
                   </Text>
                 </View>
               </View>
@@ -382,7 +384,7 @@ export default function DepensesScreen() {
                   ) : (
                     <Feather name="camera" size={16} color="#fff" />
                   )}
-                  <Text style={styles.primaryBtnText}>{uploading ? "Envoi…" : "Photo"}</Text>
+                  <Text style={styles.primaryBtnText}>{uploading ? t("depensesScreen.sending") : t("depensesScreen.photo")}</Text>
                 </Pressable>
                 <Pressable
                   onPress={pickFromGallery}
@@ -390,7 +392,7 @@ export default function DepensesScreen() {
                   style={[styles.secondaryBtn, { borderColor: colors.border, opacity: uploading ? 0.7 : 1 }]}
                 >
                   <Feather name="image" size={16} color={colors.mutedForeground} />
-                  <Text style={[styles.secondaryBtnText, { color: colors.mutedForeground }]}>Galerie</Text>
+                  <Text style={[styles.secondaryBtnText, { color: colors.mutedForeground }]}>{t("depensesScreen.gallery")}</Text>
                 </Pressable>
               </View>
               {captureNotice ? (
@@ -403,19 +405,19 @@ export default function DepensesScreen() {
 
             {/* Onglets */}
             <View style={[styles.tabs, { backgroundColor: colors.muted }]}>
-              {(["queue", "ledger"] as Tab[]).map((t) => (
+              {(["queue", "ledger"] as Tab[]).map((tabKey) => (
                 <Pressable
-                  key={t}
-                  onPress={() => setTab(t)}
-                  style={[styles.tabBtn, tab === t && { backgroundColor: colors.card }]}
+                  key={tabKey}
+                  onPress={() => setTab(tabKey)}
+                  style={[styles.tabBtn, tab === tabKey && { backgroundColor: colors.card }]}
                 >
                   <Feather
-                    name={t === "queue" ? "inbox" : "book-open"}
+                    name={tabKey === "queue" ? "inbox" : "book-open"}
                     size={14}
-                    color={tab === t ? ACCENT : colors.mutedForeground}
+                    color={tab === tabKey ? ACCENT : colors.mutedForeground}
                   />
-                  <Text style={[styles.tabText, { color: tab === t ? ACCENT : colors.mutedForeground }]}>
-                    {t === "queue" ? `File (${summary.pendingCount})` : "Registre"}
+                  <Text style={[styles.tabText, { color: tab === tabKey ? ACCENT : colors.mutedForeground }]}>
+                    {tabKey === "queue" ? t("depensesScreen.tabQueue", { count: summary.pendingCount }) : t("depensesScreen.tabLedger")}
                   </Text>
                 </Pressable>
               ))}
@@ -432,8 +434,8 @@ export default function DepensesScreen() {
               <Feather name={tab === "queue" ? "inbox" : "book-open"} size={40} color={colors.mutedForeground} />
               <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
                 {tab === "queue"
-                  ? "Aucun justificatif en attente. Photographiez un reçu pour démarrer."
-                  : "Aucune dépense enregistrée."}
+                  ? t("depensesScreen.emptyQueue")
+                  : t("depensesScreen.emptyLedger")}
               </Text>
             </View>
           )

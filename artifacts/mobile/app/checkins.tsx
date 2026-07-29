@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState } from "@/components/EmptyState";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 interface CheckinSession {
   id: number;
@@ -41,9 +42,9 @@ interface NearestProject {
 }
 
 const TYPE_MAP: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  bureau: { label: "Bureau", color: "#3b82f6", icon: "home" },
-  distance: { label: "Distanciel", color: "#8b5cf6", icon: "wifi" },
-  terrain: { label: "Terrain", color: "#22c55e", icon: "map-pin" },
+  bureau: { label: "checkinsScreen.typeBureau", color: "#3b82f6", icon: "home" },
+  distance: { label: "checkinsScreen.typeDistance", color: "#8b5cf6", icon: "wifi" },
+  terrain: { label: "checkinsScreen.typeTerrain", color: "#22c55e", icon: "map-pin" },
 };
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -58,6 +59,7 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
 export default function CheckinsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { fetchAuth, user: currentUser } = useAuth();
   const isWeb = Platform.OS === "web";
   const [activeSession, setActiveSession] = useState<CheckinSession | null>(null);
@@ -110,7 +112,7 @@ export default function CheckinsScreen() {
         setElapsed(`${h}:${m}:${s}`);
       }, 1000);
     } else if (activeSession && activeSession.status === "en_pause") {
-      setElapsed("En pause");
+      setElapsed(t("checkinsScreen.paused"));
     } else {
       setElapsed("00:00:00");
     }
@@ -219,9 +221,9 @@ export default function CheckinsScreen() {
 
   function confirmCheckout() {
     if (Platform.OS === "web") { checkout(); return; }
-    Alert.alert("Depart", "Confirmer votre depart ?", [
-      { text: "Annuler", style: "cancel" },
-      { text: "Confirmer", style: "destructive", onPress: checkout },
+    Alert.alert(t("checkinsScreen.departConfirmTitle"), t("checkinsScreen.departConfirmMsg"), [
+      { text: t("common.cancel"), style: "cancel" },
+      { text: t("common.confirm"), style: "destructive", onPress: checkout },
     ]);
   }
 
@@ -262,7 +264,7 @@ export default function CheckinsScreen() {
           <Pressable onPress={() => router.back()} hitSlop={12}>
             <Feather name="arrow-left" size={22} color="#ffffff" />
           </Pressable>
-          <Text style={styles.headerTitle}>Pointage</Text>
+          <Text style={styles.headerTitle}>{t("checkinsScreen.header")}</Text>
           <Pressable onPress={onRefresh} hitSlop={12}>
             <Feather name="refresh-cw" size={18} color="rgba(255,255,255,0.7)" />
           </Pressable>
@@ -283,7 +285,7 @@ export default function CheckinsScreen() {
             <View style={[styles.weekCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.weekTop}>
                 <View>
-                  <Text style={[styles.weekTitle, { color: colors.foreground }]}>Cette semaine</Text>
+                  <Text style={[styles.weekTitle, { color: colors.foreground }]}>{t("checkinsScreen.thisWeek")}</Text>
                   <Text style={[styles.weekHours, { color: colors.primary }]}>
                     {Math.floor(weekStats.totalMin / 60)}h{weekStats.totalMin % 60 > 0 ? ` ${weekStats.totalMin % 60}min` : ""}
                   </Text>
@@ -291,13 +293,13 @@ export default function CheckinsScreen() {
                 <View style={styles.weekMetaCol}>
                   <View style={styles.weekMetaRow}>
                     <Feather name="calendar" size={12} color={colors.mutedForeground} />
-                    <Text style={[styles.weekMetaText, { color: colors.mutedForeground }]}>{weekStats.days} jours</Text>
+                    <Text style={[styles.weekMetaText, { color: colors.mutedForeground }]}>{t("checkinsScreen.daysCount", { count: weekStats.days })}</Text>
                   </View>
                   <View style={styles.weekMetaRow}>
                     <Feather name="clock" size={12} color={colors.mutedForeground} />
-                    <Text style={[styles.weekMetaText, { color: colors.mutedForeground }]}>{weekStats.sessions} sessions</Text>
+                    <Text style={[styles.weekMetaText, { color: colors.mutedForeground }]}>{t("checkinsScreen.sessionsCount", { count: weekStats.sessions })}</Text>
                   </View>
-                  <Text style={[styles.weekPct, { color: colors.primary }]}>{weekStats.pct}% / 40h</Text>
+                  <Text style={[styles.weekPct, { color: colors.primary }]}>{t("checkinsScreen.weekTarget", { pct: weekStats.pct })}</Text>
                 </View>
               </View>
               <View style={[styles.weekBar, { backgroundColor: colors.muted }]}>
@@ -309,7 +311,7 @@ export default function CheckinsScreen() {
               <View style={[styles.googleBanner, { backgroundColor: "#4285f415", borderColor: "#4285f430" }]}>
                 <Feather name="refresh-cw" size={14} color="#4285f4" />
                 <Text style={[styles.googleBannerText, { color: "#4285f4" }]}>
-                  Google Workspace : synchronisation automatique active
+                  {t("checkinsScreen.googleSync")}
                 </Text>
               </View>
             )}
@@ -319,7 +321,7 @@ export default function CheckinsScreen() {
                 <View style={styles.activePulse}>
                   <View style={[styles.statusDot, { backgroundColor: isPaused ? "#f59e0b" : "#22c55e" }]} />
                   <Text style={[styles.activeLabel, { color: colors.mutedForeground }]}>
-                    {isPaused ? "En pause" : "Session active"}
+                    {isPaused ? t("checkinsScreen.paused") : t("checkinsScreen.sessionActive")}
                   </Text>
                 </View>
                 <Text style={[styles.timerText, { color: colors.foreground }]}>{elapsed}</Text>
@@ -330,11 +332,11 @@ export default function CheckinsScreen() {
                     color={TYPE_MAP[activeSession.type]?.color || "#64748b"}
                   />
                   <Text style={[styles.activeTypeText, { color: TYPE_MAP[activeSession.type]?.color || "#64748b" }]}>
-                    {TYPE_MAP[activeSession.type]?.label || activeSession.type}
+                    {TYPE_MAP[activeSession.type] ? t(TYPE_MAP[activeSession.type].label) : activeSession.type}
                   </Text>
                 </View>
                 <Text style={[styles.startedAt, { color: colors.mutedForeground }]}>
-                  Debut: {new Date(activeSession.checkInAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                  {t("checkinsScreen.startedAt", { time: new Date(activeSession.checkInAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) })}
                 </Text>
                 {activeSession.notes && activeSession.notes.includes("Chantier:") && (
                   <View style={[styles.locationNote, { backgroundColor: "#22c55e12" }]}>
@@ -354,7 +356,7 @@ export default function CheckinsScreen() {
                       <>
                         <Feather name={isPaused ? "play" : "pause"} size={18} color="#f59e0b" />
                         <Text style={[styles.actionBtnText, { color: "#f59e0b" }]}>
-                          {isPaused ? "Reprendre" : "Pause"}
+                          {isPaused ? t("checkinsScreen.resume") : t("checkinsScreen.pause")}
                         </Text>
                       </>
                     )}
@@ -367,7 +369,7 @@ export default function CheckinsScreen() {
                     {acting ? <ActivityIndicator size="small" color="#ef4444" /> : (
                       <>
                         <Feather name="log-out" size={18} color="#ef4444" />
-                        <Text style={[styles.actionBtnText, { color: "#ef4444" }]}>Depart</Text>
+                        <Text style={[styles.actionBtnText, { color: "#ef4444" }]}>{t("checkinsScreen.depart")}</Text>
                       </>
                     )}
                   </Pressable>
@@ -375,13 +377,13 @@ export default function CheckinsScreen() {
               </View>
             ) : (
               <View style={[styles.checkinCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.checkinTitle, { color: colors.foreground }]}>Pointer votre arrivee</Text>
-                <Text style={[styles.checkinSubtitle, { color: colors.mutedForeground }]}>Choisissez votre mode de travail</Text>
+                <Text style={[styles.checkinTitle, { color: colors.foreground }]}>{t("checkinsScreen.checkinTitle")}</Text>
+                <Text style={[styles.checkinSubtitle, { color: colors.mutedForeground }]}>{t("checkinsScreen.checkinSubtitle")}</Text>
                 {locGranted === false && (
                   <View style={[styles.locWarning, { backgroundColor: "#ef444412" }]}>
                     <Feather name="alert-triangle" size={12} color="#ef4444" />
                     <Text style={[styles.locWarningText, { color: "#ef4444" }]}>
-                      Permission GPS refusee. Activez-la dans les parametres pour le mode Terrain.
+                      {t("checkinsScreen.gpsDenied")}
                     </Text>
                   </View>
                 )}
@@ -416,9 +418,9 @@ export default function CheckinsScreen() {
                           <View style={[styles.typeBtnIcon, { backgroundColor: val.color + "30" }]}>
                             <Feather name={val.icon} size={24} color={val.color} />
                           </View>
-                          <Text style={[styles.typeBtnLabel, { color: val.color }]}>{val.label}</Text>
+                          <Text style={[styles.typeBtnLabel, { color: val.color }]}>{t(val.label)}</Text>
                           {key === "terrain" && (
-                            <Text style={[styles.typeBtnHint, { color: val.color + "90" }]}>GPS</Text>
+                            <Text style={[styles.typeBtnHint, { color: val.color + "90" }]}>{t("checkinsScreen.gpsHint")}</Text>
                           )}
                         </>
                       )}
@@ -428,16 +430,17 @@ export default function CheckinsScreen() {
               </View>
             )}
 
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Historique</Text>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("checkinsScreen.historyTitle")}</Text>
             {history.length === 0 ? (
-              <EmptyState icon="clock" title="Aucun pointage" subtitle="Votre historique apparaitra ici" />
+              <EmptyState icon="clock" title={t("checkinsScreen.emptyTitle")} subtitle={t("checkinsScreen.emptySubtitle")} />
             ) : (
               history.map((session) => {
-                const typeInfo = TYPE_MAP[session.type] || { label: session.type, color: "#64748b", icon: "clock" as const };
+                const typeInfo = TYPE_MAP[session.type];
+                const typeLbl = typeInfo ? t(typeInfo.label) : session.type;
                 const isGoogleSync = session.notes?.includes("[google-auto]") || session.notes?.includes("[google-sync]");
                 const hasGPS = session.notes?.includes("Chantier:") || session.notes?.includes("GPS:");
-                const color = isGoogleSync ? "#4285f4" : typeInfo.color;
-                const icon = isGoogleSync ? "refresh-cw" : typeInfo.icon;
+                const color = isGoogleSync ? "#4285f4" : (typeInfo?.color ?? "#64748b");
+                const icon = isGoogleSync ? "refresh-cw" : (typeInfo?.icon ?? "clock");
                 return (
                   <View key={session.id} style={[styles.historyCard, { backgroundColor: colors.card, borderColor: colors.border, borderLeftColor: color }]}>
                     <View style={[styles.historyIcon, { backgroundColor: color + "18" }]}>
@@ -446,10 +449,10 @@ export default function CheckinsScreen() {
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                         <Text style={[styles.historyName, { color: colors.foreground }]}>
-                          {isGoogleSync ? "Google Workspace" : typeInfo.label}
+                          {isGoogleSync ? "Google Workspace" : typeLbl}
                         </Text>
                         {isGoogleSync && (
-                          <View style={styles.googleChip}><Text style={styles.googleChipText}>Auto</Text></View>
+                          <View style={styles.googleChip}><Text style={styles.googleChipText}>{t("checkinsScreen.autoChip")}</Text></View>
                         )}
                         {hasGPS && !isGoogleSync && (
                           <Feather name="map-pin" size={10} color="#22c55e" />
