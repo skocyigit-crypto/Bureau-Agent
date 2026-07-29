@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { confirmAction } from "@/hooks/use-confirm";
+import { useTranslation } from "@/i18n";
 import {
   Building2, Plus, Edit, Trash2, Crown, Users, Phone, Mail,
   MapPin, CheckCircle2, XCircle, Loader2, Key, AlertTriangle,
@@ -42,14 +43,6 @@ const INVOICE_STATUS_COLORS: Record<string, string> = {
   partiel: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
   retard: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
   annulee: "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500",
-};
-
-const INVOICE_STATUS_LABELS: Record<string, string> = {
-  en_attente: "En attente",
-  payee: "Payee",
-  partiel: "Partiel",
-  retard: "En retard",
-  annulee: "Annulee",
 };
 
 interface Organisation {
@@ -165,6 +158,7 @@ interface LegalSummary {
 
 export default function OrganisationsPage() {
   const { isSuperAdmin } = useWorkspaceUser();
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [organisations, setOrganisations] = useState<Organisation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -267,10 +261,10 @@ export default function OrganisationsPage() {
         const data = await res.json();
         setOrganisations(data.organisations || []);
       } else if (res.status === 403) {
-        toast({ title: "Acces refuse", description: "Seul le super administrateur peut gerer les organisations.", variant: "destructive" });
+        toast({ title: t("organisationsPage.toast.accessRefused"), description: t("organisationsPage.toast.accessRefusedDesc"), variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Impossible de charger les organisations.", variant: "destructive" });
+      toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.loadOrgsError"), variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -282,13 +276,13 @@ export default function OrganisationsPage() {
       if (res.ok) {
         setBillingSummary(await res.json());
       } else {
-        toast({ title: "Erreur", description: "Impossible de charger le resume de facturation", variant: "destructive" });
+        toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.loadBillingSummaryError"), variant: "destructive" });
       }
     } catch (err) {
       console.error("[Organisations] loadBillingSummary failed:", err);
-      toast({ title: "Erreur", description: "Erreur reseau lors du chargement de la facturation", variant: "destructive" });
+      toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.billingNetworkError"), variant: "destructive" });
     }
-  }, []);
+  }, [t]);
 
   const loadLegalCompliance = useCallback(async () => {
     setLegalLoading(true);
@@ -299,15 +293,15 @@ export default function OrganisationsPage() {
         setLegalCompliance(data.compliance || []);
         setLegalSummary(data.summary || null);
       } else {
-        toast({ title: "Erreur", description: "Impossible de charger la conformite juridique", variant: "destructive" });
+        toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.loadLegalError"), variant: "destructive" });
       }
     } catch (err) {
       console.error("[Organisations] loadLegalCompliance failed:", err);
-      toast({ title: "Erreur", description: "Erreur reseau lors du chargement juridique", variant: "destructive" });
+      toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.legalNetworkError"), variant: "destructive" });
     } finally {
       setLegalLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const openLegalDetail = async (org: LegalCompliance) => {
     setLegalDetailOrg(org);
@@ -335,15 +329,15 @@ export default function OrganisationsPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Document accepte", description: data.message });
+        toast({ title: t("organisationsPage.toast.docAccepted"), description: data.message });
         loadLegalCompliance().then(() => {
           if (legalDetailOrg) openLegalDetail({ ...legalDetailOrg, id: legalDetailOrg.id });
         });
       } else {
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("organisationsPage.toast.error"), description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Erreur lors de l'acceptation.", variant: "destructive" });
+      toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.acceptError"), variant: "destructive" });
     } finally {
       setAcceptingLegal(null);
     }
@@ -360,22 +354,22 @@ export default function OrganisationsPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Tous les documents acceptes", description: data.message });
+        toast({ title: t("organisationsPage.toast.allDocsAccepted"), description: data.message });
         loadLegalCompliance().then(() => {
           if (legalDetailOrg) openLegalDetail({ ...legalDetailOrg, id: legalDetailOrg.id });
         });
       } else {
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("organisationsPage.toast.error"), description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Erreur.", variant: "destructive" });
+      toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.genericError"), variant: "destructive" });
     } finally {
       setAcceptingAll(false);
     }
   };
 
   const handleRevokeLegal = async (agreementId: number, docTitle: string) => {
-    if (!(await confirmAction({ title: `Révoquer l'acceptation de « ${docTitle} » ?`, description: "Cette action peut affecter la conformité de l'organisation.", confirmLabel: "Révoquer", destructive: true }))) return;
+    if (!(await confirmAction({ title: t("organisationsPage.confirm.revokeTitle", { title: docTitle }), description: t("organisationsPage.confirm.revokeDesc"), confirmLabel: t("organisationsPage.confirm.revokeLabel"), destructive: true }))) return;
     try {
       const res = await fetch(`${BASE}api/legal/revoke`, {
         method: "POST",
@@ -385,15 +379,15 @@ export default function OrganisationsPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Accord revoque", description: data.message });
+        toast({ title: t("organisationsPage.toast.agreementRevoked"), description: data.message });
         loadLegalCompliance().then(() => {
           if (legalDetailOrg) openLegalDetail({ ...legalDetailOrg, id: legalDetailOrg.id });
         });
       } else {
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("organisationsPage.toast.error"), description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Erreur.", variant: "destructive" });
+      toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.genericError"), variant: "destructive" });
     }
   };
 
@@ -438,14 +432,14 @@ export default function OrganisationsPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast({ title: "Action refusée", description: data.error, variant: "destructive" });
+        toast({ title: t("organisationsPage.toast.actionRefused"), description: data.error, variant: "destructive" });
         return;
       }
       const messages: Record<string, string> = {
-        "extend-trial": `Essai prolongé jusqu'au ${data.trialEndsAt ? new Date(data.trialEndsAt).toLocaleDateString("fr-FR") : "-"}`,
-        suspend: "Abonnement suspendu",
-        reactivate: "Abonnement réactivé",
-        "regenerate-key": `Nouvelle clé : ${data.licenseKey ?? "générée"}`,
+        "extend-trial": t("organisationsPage.toast.trialExtended", { date: data.trialEndsAt ? new Date(data.trialEndsAt).toLocaleDateString("fr-FR") : "-" }),
+        suspend: t("organisationsPage.toast.subSuspended"),
+        reactivate: t("organisationsPage.toast.subReactivated"),
+        "regenerate-key": t("organisationsPage.toast.newKey", { key: data.licenseKey ?? t("organisationsPage.toast.newKeyGenerated") }),
       };
       toast({ title: messages[action] });
       setLicenseDialog(null);
@@ -453,7 +447,7 @@ export default function OrganisationsPage() {
       loadOrganisations();
       loadSaasMetrics();
     } catch {
-      toast({ title: "Erreur", description: "L'action n'a pas abouti.", variant: "destructive" });
+      toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.actionFailed"), variant: "destructive" });
     } finally {
       setLicenseBusy(false);
     }
@@ -462,7 +456,7 @@ export default function OrganisationsPage() {
   const handleToggleStatus = async (org: Organisation) => {
     if (org.id === 1) return;
     if (org.actif) {
-      if (!(await confirmAction({ title: `Suspendre « ${org.name} » ?`, description: "Les utilisateurs de cette organisation perdront l'accès à l'application jusqu'à réactivation.", confirmLabel: "Suspendre", destructive: true }))) return;
+      if (!(await confirmAction({ title: t("organisationsPage.confirm.suspendOrgTitle", { name: org.name }), description: t("organisationsPage.confirm.suspendOrgDesc"), confirmLabel: t("organisationsPage.confirm.suspendLabel"), destructive: true }))) return;
     }
     setTogglingId(org.id);
     try {
@@ -472,14 +466,14 @@ export default function OrganisationsPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: org.actif ? "Organisation suspendue" : "Organisation activee", description: data.message });
+        toast({ title: org.actif ? t("organisationsPage.toast.orgSuspended") : t("organisationsPage.toast.orgActivated"), description: data.message });
         loadOrganisations();
         loadSaasMetrics();
       } else {
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("organisationsPage.toast.error"), description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Erreur lors du changement de statut.", variant: "destructive" });
+      toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.statusChangeError"), variant: "destructive" });
     } finally {
       setTogglingId(null);
     }
@@ -526,10 +520,10 @@ export default function OrganisationsPage() {
   };
 
   const handleCreate = async () => {
-    if (!formName.trim()) { toast({ title: "Erreur", description: "Le nom est requis.", variant: "destructive" }); return; }
+    if (!formName.trim()) { toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.nameRequired"), variant: "destructive" }); return; }
     if (formAdminPrenom || formAdminNom || formAdminEmail) {
       if (!formAdminPrenom || !formAdminNom || !formAdminEmail) {
-        toast({ title: "Erreur", description: "Pour creer un administrateur, remplissez prenom, nom et email.", variant: "destructive" });
+        toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.adminFieldsRequired"), variant: "destructive" });
         return;
       }
     }
@@ -554,12 +548,12 @@ export default function OrganisationsPage() {
         // "Identifiants envoyes" sans jamais regarder data.emailSent — un envoi
         // en echec ressemblait a un succes et la fenetre se fermait toute seule.
         if (data.emailSent) {
-          const adminMsg = data.adminUser ? ` Identifiants envoyes a ${data.adminUser.email}.` : "";
-          toast({ title: "Organisation creee", description: `${formName} avec le plan ${data.subscription?.plan || formPlan}.${adminMsg}` });
+          const adminMsg = data.adminUser ? t("organisationsPage.toast.orgCreatedAdminMsg", { email: data.adminUser.email }) : "";
+          toast({ title: t("organisationsPage.toast.orgCreated"), description: t("organisationsPage.toast.orgCreatedDesc", { name: formName, plan: data.subscription?.plan || formPlan, adminMsg }) });
         } else {
           toast({
-            title: "Organisation creee — e-mail NON envoye",
-            description: `${data.emailNote || "L'envoi a echoue."} La licence n'est pas perdue : utilisez le bouton « Renvoyer la licence » sur la fiche de ${formName}.`,
+            title: t("organisationsPage.toast.orgCreatedNoEmail"),
+            description: t("organisationsPage.toast.orgCreatedNoEmailDesc", { note: data.emailNote || t("organisationsPage.toast.emailSendFailed"), name: formName }),
             variant: "destructive",
             duration: 15000,
           });
@@ -567,10 +561,10 @@ export default function OrganisationsPage() {
         setShowCreate(false);
         loadOrganisations();
       } else {
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("organisationsPage.toast.error"), description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Erreur lors de la creation.", variant: "destructive" });
+      toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.createError"), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -588,14 +582,14 @@ export default function OrganisationsPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Mis à jour", description: data.message });
+        toast({ title: t("organisationsPage.toast.updated"), description: data.message });
         setShowEdit(false);
         loadOrganisations();
       } else {
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("organisationsPage.toast.error"), description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Erreur lors de la mise a jour.", variant: "destructive" });
+      toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.updateError"), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -613,14 +607,14 @@ export default function OrganisationsPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Plan mis à jour", description: data.message });
+        toast({ title: t("organisationsPage.toast.planUpdated"), description: data.message });
         setShowPlan(false);
         loadOrganisations();
       } else {
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("organisationsPage.toast.error"), description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Erreur lors du changement de plan.", variant: "destructive" });
+      toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.planChangeError"), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -636,14 +630,14 @@ export default function OrganisationsPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Supprimee", description: data.message });
+        toast({ title: t("organisationsPage.toast.deleted"), description: data.message });
         setShowDelete(false);
         loadOrganisations();
       } else {
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("organisationsPage.toast.error"), description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Erreur lors de la suppression.", variant: "destructive" });
+      toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.deleteError"), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -659,10 +653,10 @@ export default function OrganisationsPage() {
 
   const resendLicense = async (org: Organisation, resetPassword = false) => {
     if (!org.email) {
-      toast({ title: "Erreur", description: "Aucun email associe a cette organisation.", variant: "destructive" });
+      toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.noEmailForOrg"), variant: "destructive" });
       return;
     }
-    if (resetPassword && !(await confirmAction({ title: "Réinitialiser le mot de passe ?", description: `Les nouveaux identifiants de l'administrateur de ${org.name} seront envoyés par email.`, confirmLabel: "Réinitialiser", destructive: true }))) return;
+    if (resetPassword && !(await confirmAction({ title: t("organisationsPage.confirm.resetPasswordTitle"), description: t("organisationsPage.confirm.resetPasswordDesc", { name: org.name }), confirmLabel: t("organisationsPage.confirm.resetPasswordLabel"), destructive: true }))) return;
     setSendingEmail(org.id);
     try {
       const res = await fetch(`${BASE}api/organisations/${org.id}/resend-license`, {
@@ -673,12 +667,12 @@ export default function OrganisationsPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Email envoye", description: data.message || `Licence envoyee a ${org.email}` });
+        toast({ title: t("organisationsPage.toast.emailSent"), description: data.message || t("organisationsPage.toast.licenseSentTo", { email: org.email }) });
       } else {
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("organisationsPage.toast.error"), description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Erreur lors de l'envoi.", variant: "destructive" });
+      toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.sendError"), variant: "destructive" });
     } finally {
       setSendingEmail(null);
     }
@@ -718,14 +712,14 @@ export default function OrganisationsPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("organisationsPage.toast.error"), description: data.error, variant: "destructive" });
         return;
       }
-      toast({ title: `${data.validated} facture(s) validée(s)`, description: "Elles passent en attente de paiement." });
+      toast({ title: t("organisationsPage.toast.draftsValidated", { count: data.validated }), description: t("organisationsPage.toast.draftsValidatedDesc") });
       loadInvoiceDrafts();
       loadBillingSummary();
     } catch {
-      toast({ title: "Erreur", description: "Validation impossible.", variant: "destructive" });
+      toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.validationError"), variant: "destructive" });
     } finally {
       setValidatingDrafts(false);
     }
@@ -745,13 +739,13 @@ export default function OrganisationsPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Factures generees", description: data.message });
+        toast({ title: t("organisationsPage.toast.invoicesGenerated"), description: data.message });
         loadBillingSummary();
       } else {
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("organisationsPage.toast.error"), description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Erreur lors de la generation.", variant: "destructive" });
+      toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.generationError"), variant: "destructive" });
     } finally {
       setGenerating(false);
     }
@@ -773,7 +767,7 @@ export default function OrganisationsPage() {
       }).filter(l => l.amount > 0);
 
       if (lines.length === 0) {
-        toast({ title: "Erreur", description: "Aucune ligne valide trouvee.", variant: "destructive" });
+        toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.noValidLines"), variant: "destructive" });
         setUploading(false);
         return;
       }
@@ -786,15 +780,15 @@ export default function OrganisationsPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Import reussi", description: data.message });
+        toast({ title: t("organisationsPage.toast.importSuccess"), description: data.message });
         setBankLines("");
         setShowUpload(false);
         loadBillingSummary();
       } else {
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("organisationsPage.toast.error"), description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Erreur lors de l'import.", variant: "destructive" });
+      toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.importError"), variant: "destructive" });
     } finally {
       setUploading(false);
     }
@@ -809,21 +803,21 @@ export default function OrganisationsPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Rapprochement", description: data.message });
+        toast({ title: t("organisationsPage.toast.reconciliation"), description: data.message });
         loadBillingSummary();
       } else {
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("organisationsPage.toast.error"), description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Erreur lors du rapprochement.", variant: "destructive" });
+      toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.reconciliationError"), variant: "destructive" });
     } finally {
       setMatching(false);
     }
   };
 
   const updateInvoiceStatus = async (invoiceId: number, status: string) => {
-    const labels: Record<string, string> = { payee: "marquer cette facture comme payée", retard: "marquer cette facture en retard", annulee: "annuler cette facture" };
-    if (!(await confirmAction({ title: "Confirmer le changement de statut", description: `Voulez-vous ${labels[status] || "modifier le statut de cette facture"} ?`, confirmLabel: "Confirmer", destructive: status === "annulee" }))) return;
+    const labels: Record<string, string> = { payee: t("organisationsPage.confirm.invoicePayee"), retard: t("organisationsPage.confirm.invoiceRetard"), annulee: t("organisationsPage.confirm.invoiceAnnulee") };
+    if (!(await confirmAction({ title: t("organisationsPage.confirm.statusChangeTitle"), description: t("organisationsPage.confirm.statusChangeDesc", { action: labels[status] || t("organisationsPage.confirm.invoiceDefault") }), confirmLabel: t("organisationsPage.confirm.statusChangeLabel"), destructive: status === "annulee" }))) return;
     try {
       const res = await fetch(`${BASE}api/billing/invoices/${invoiceId}/status`, {
         method: "PATCH",
@@ -833,14 +827,14 @@ export default function OrganisationsPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Statut mis à jour", description: data.message });
+        toast({ title: t("organisationsPage.toast.statusUpdated"), description: data.message });
         if (billingOrg) openBilling(billingOrg);
         loadBillingSummary();
       } else {
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast({ title: t("organisationsPage.toast.error"), description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Erreur.", variant: "destructive" });
+      toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.genericError"), variant: "destructive" });
     }
   };
 
@@ -874,7 +868,7 @@ export default function OrganisationsPage() {
     );
   }
 
-  if (!isSuperAdmin()) return <AccessDenied message="Cette section est reservee aux super administrateurs. Contactez votre administrateur pour plus d'informations." />;
+  if (!isSuperAdmin()) return <AccessDenied message={t("organisationsPage.accessDenied")} />;
 
   return (
     <div className="space-y-6 p-6">
@@ -884,19 +878,19 @@ export default function OrganisationsPage() {
           <div className="flex items-center gap-4">
             <Icon3D icon={Building2} variant="amber" size="lg" />
             <div>
-              <h1 className="text-2xl font-bold text-white">Gestion des Organisations</h1>
-              <p className="text-white/60 mt-1">Creez et gerez les licences et la facturation de vos clients</p>
+              <h1 className="text-2xl font-bold text-white">{t("organisationsPage.header.title")}</h1>
+              <p className="text-white/60 mt-1">{t("organisationsPage.header.subtitle")}</p>
             </div>
           </div>
           <div className="flex gap-3">
             <Button variant="outline" className="border-white/20 text-white hover:bg-white/10" onClick={() => { loadOrganisations(); loadBillingSummary(); }}>
               <RefreshCw className="w-4 h-4 mr-2" />
-              Actualiser
+              {t("organisationsPage.header.refresh")}
             </Button>
-            <Button variant="outline" size="icon" className="border-white/20 text-white hover:bg-white/10" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+            <Button variant="outline" size="icon" className="border-white/20 text-white hover:bg-white/10" title={t("organisationsPage.header.print")} onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
             <Button className="bg-amber-500 hover:bg-amber-600 text-black" onClick={openCreate}>
               <Plus className="w-4 h-4 mr-2" />
-              Nouvelle Organisation
+              {t("organisationsPage.header.newOrg")}
             </Button>
           </div>
         </div>
@@ -904,10 +898,10 @@ export default function OrganisationsPage() {
 
       <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v === "saas") loadSaasMetrics(); }}>
         <TabsList>
-          <TabsTrigger value="saas" className="gap-2"><Activity className="w-4 h-4" />Tableau SaaS</TabsTrigger>
-          <TabsTrigger value="organisations" className="gap-2"><Building2 className="w-4 h-4" />Licences</TabsTrigger>
-          <TabsTrigger value="facturation" className="gap-2"><Receipt className="w-4 h-4" />Facturation</TabsTrigger>
-          <TabsTrigger value="juridique" className="gap-2"><Scale className="w-4 h-4" />Juridique</TabsTrigger>
+          <TabsTrigger value="saas" className="gap-2"><Activity className="w-4 h-4" />{t("organisationsPage.tabs.saas")}</TabsTrigger>
+          <TabsTrigger value="organisations" className="gap-2"><Building2 className="w-4 h-4" />{t("organisationsPage.tabs.licences")}</TabsTrigger>
+          <TabsTrigger value="facturation" className="gap-2"><Receipt className="w-4 h-4" />{t("organisationsPage.tabs.facturation")}</TabsTrigger>
+          <TabsTrigger value="juridique" className="gap-2"><Scale className="w-4 h-4" />{t("organisationsPage.tabs.juridique")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="saas" className="space-y-6 mt-4">
@@ -920,12 +914,12 @@ export default function OrganisationsPage() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 text-amber-600" />
-                  À traiter ({attention.total})
+                  {t("organisationsPage.attention.title", { total: attention.total })}
                 </CardTitle>
                 <CardDescription>
-                  {attention.bySeverity.critique > 0 && `${attention.bySeverity.critique} critique(s) · `}
-                  {attention.bySeverity.haute > 0 && `${attention.bySeverity.haute} haute(s) · `}
-                  Situations nécessitant une décision sur l'ensemble des organisations.
+                  {attention.bySeverity.critique > 0 && t("organisationsPage.attention.critique", { count: attention.bySeverity.critique })}
+                  {attention.bySeverity.haute > 0 && t("organisationsPage.attention.haute", { count: attention.bySeverity.haute })}
+                  {t("organisationsPage.attention.desc")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
@@ -937,13 +931,13 @@ export default function OrganisationsPage() {
                     basse: "text-muted-foreground",
                   };
                   const catLabel: Record<string, string> = {
-                    trial_expiring: "Essai expire bientôt",
-                    trial_expired: "Essai expiré",
-                    payment_failed: "Échec de paiement",
-                    subscription_past_due: "Impayé",
-                    quota_breach: "Quota saturé",
-                    overdue_saas_invoice: "Facture en retard",
-                    suspended: "Suspendu",
+                    trial_expiring: t("organisationsPage.attention.cat.trial_expiring"),
+                    trial_expired: t("organisationsPage.attention.cat.trial_expired"),
+                    payment_failed: t("organisationsPage.attention.cat.payment_failed"),
+                    subscription_past_due: t("organisationsPage.attention.cat.subscription_past_due"),
+                    quota_breach: t("organisationsPage.attention.cat.quota_breach"),
+                    overdue_saas_invoice: t("organisationsPage.attention.cat.overdue_saas_invoice"),
+                    suspended: t("organisationsPage.attention.cat.suspended"),
                   };
                   return (
                     <div key={i} className="flex items-center justify-between gap-3 border rounded-md px-3 py-2">
@@ -957,13 +951,13 @@ export default function OrganisationsPage() {
                         <p className="text-xs text-muted-foreground mt-0.5">{it.detail} — <span className="italic">{it.suggestedAction}</span></p>
                       </div>
                       <Button variant="ghost" size="sm" className="shrink-0" onClick={() => { const org = organisations.find(o => o.id === it.organisationId); if (org) openEdit(org); }}>
-                        Ouvrir
+                        {t("organisationsPage.attention.open")}
                       </Button>
                     </div>
                   );
                 })}
                 {attention.total > 20 && (
-                  <p className="text-xs text-muted-foreground pt-1">… et {attention.total - 20} autre(s).</p>
+                  <p className="text-xs text-muted-foreground pt-1">{t("organisationsPage.attention.more", { count: attention.total - 20 })}</p>
                 )}
               </CardContent>
             </Card>
@@ -976,41 +970,41 @@ export default function OrganisationsPage() {
                 <Card className="border-emerald-200 dark:border-emerald-900 bg-emerald-50/30 dark:bg-emerald-950/10">
                   <CardContent className="py-4">
                     <div className="flex items-center justify-between mb-1">
-                      <p className="text-xs text-emerald-600 font-medium">MRR</p>
+                      <p className="text-xs text-emerald-600 font-medium">{t("organisationsPage.saas.mrr")}</p>
                       <DollarSign className="w-4 h-4 text-emerald-600" />
                     </div>
                     <p className="text-2xl font-bold text-emerald-700">{saasMetrics.mrr.toFixed(0)} EUR</p>
-                    <p className="text-[11px] text-emerald-600/70 mt-0.5">ARR : {saasMetrics.arr.toFixed(0)} EUR</p>
+                    <p className="text-[11px] text-emerald-600/70 mt-0.5">{t("organisationsPage.saas.arr", { value: saasMetrics.arr.toFixed(0) })}</p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="py-4">
                     <div className="flex items-center justify-between mb-1">
-                      <p className="text-xs text-muted-foreground font-medium">Clients payants</p>
+                      <p className="text-xs text-muted-foreground font-medium">{t("organisationsPage.saas.paidCustomers")}</p>
                       <Crown className="w-4 h-4 text-amber-500" />
                     </div>
                     <p className="text-2xl font-bold">{saasMetrics.paidCustomers}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">sur {saasMetrics.totalCustomers} clients</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{t("organisationsPage.saas.ofCustomers", { total: saasMetrics.totalCustomers })}</p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="py-4">
                     <div className="flex items-center justify-between mb-1">
-                      <p className="text-xs text-muted-foreground font-medium">En essai</p>
+                      <p className="text-xs text-muted-foreground font-medium">{t("organisationsPage.saas.inTrial")}</p>
                       <Clock className="w-4 h-4 text-blue-500" />
                     </div>
                     <p className="text-2xl font-bold">{saasMetrics.trialCustomers}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{saasMetrics.trialExpiringSoon?.length || 0} expirent dans 7j</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{t("organisationsPage.saas.trialExpiring", { count: saasMetrics.trialExpiringSoon?.length || 0 })}</p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="py-4">
                     <div className="flex items-center justify-between mb-1">
-                      <p className="text-xs text-muted-foreground font-medium">Taux conversion</p>
+                      <p className="text-xs text-muted-foreground font-medium">{t("organisationsPage.saas.conversionRate")}</p>
                       <Percent className="w-4 h-4 text-purple-500" />
                     </div>
                     <p className="text-2xl font-bold">{saasMetrics.conversionRate}%</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{saasMetrics.suspendedCustomers} suspendu(s)</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{t("organisationsPage.saas.suspendedCount", { count: saasMetrics.suspendedCustomers })}</p>
                   </CardContent>
                 </Card>
               </div>
@@ -1020,43 +1014,43 @@ export default function OrganisationsPage() {
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm flex items-center gap-2 text-amber-700 dark:text-amber-400">
                       <AlertTriangle className="w-4 h-4" />
-                      {saasMetrics.trialExpiringSoon.length} essai(s) expirant dans les 7 prochains jours
+                      {t("organisationsPage.saas.trialsExpiringTitle", { count: saasMetrics.trialExpiringSoon.length })}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    {saasMetrics.trialExpiringSoon.map((t: any) => (
-                      <div key={t.id} className="flex items-center justify-between p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900">
+                    {saasMetrics.trialExpiringSoon.map((trial: any) => (
+                      <div key={trial.id} className="flex items-center justify-between p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-lg bg-amber-200 dark:bg-amber-900 flex items-center justify-center text-amber-800 font-bold text-xs">
-                            {t.name.substring(0, 2).toUpperCase()}
+                            {trial.name.substring(0, 2).toUpperCase()}
                           </div>
                           <div>
-                            <p className="font-semibold text-sm">{t.name}</p>
-                            <p className="text-xs text-muted-foreground">{t.email || "Pas d'email"}</p>
+                            <p className="font-semibold text-sm">{trial.name}</p>
+                            <p className="text-xs text-muted-foreground">{trial.email || t("organisationsPage.saas.noEmail")}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
                           <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400">
-                            J-{t.daysLeft}
+                            {t("organisationsPage.saas.daysLeft", { days: trial.daysLeft })}
                           </Badge>
                           <Button
                             size="sm"
                             variant="outline"
                             className="text-amber-700"
-                            onClick={() => { const org = organisations.find(o => o.id === t.id); if (org) openPlanChange(org); }}
+                            onClick={() => { const org = organisations.find(o => o.id === trial.id); if (org) openPlanChange(org); }}
                           >
                             <Crown className="w-3.5 h-3.5 mr-1" />
-                            Convertir
+                            {t("organisationsPage.saas.convert")}
                           </Button>
-                          {t.email && (
+                          {trial.email && (
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => { const org = organisations.find(o => o.id === t.id); if (org) resendLicense(org); }}
-                              disabled={sendingEmail === t.id}
+                              onClick={() => { const org = organisations.find(o => o.id === trial.id); if (org) resendLicense(org); }}
+                              disabled={sendingEmail === trial.id}
                             >
-                              {sendingEmail === t.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-1" />}
-                              Relancer
+                              {sendingEmail === trial.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-1" />}
+                              {t("organisationsPage.saas.remind")}
                             </Button>
                           )}
                         </div>
@@ -1069,7 +1063,7 @@ export default function OrganisationsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-sm flex items-center gap-2"><Target className="w-4 h-4" />Repartition des plans</CardTitle>
+                    <CardTitle className="text-sm flex items-center gap-2"><Target className="w-4 h-4" />{t("organisationsPage.saas.plansDistribution")}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {[
@@ -1086,8 +1080,8 @@ export default function OrganisationsPage() {
                           <div className="flex items-center justify-between text-sm">
                             <div className="flex items-center gap-2">
                               <div className={`w-2.5 h-2.5 rounded-full ${plan.color}`} />
-                              <span>{plan.label}</span>
-                              {plan.price > 0 && <span className="text-xs text-muted-foreground">{plan.price} EUR/mois</span>}
+                              <span>{t("organisationsPage.plans." + plan.key)}</span>
+                              {plan.price > 0 && <span className="text-xs text-muted-foreground">{t("organisationsPage.saas.perMonth", { price: plan.price })}</span>}
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="font-bold">{count}</span>
@@ -1100,9 +1094,9 @@ export default function OrganisationsPage() {
                     })}
                     <Separator />
                     <div className="flex items-center justify-between text-sm font-semibold">
-                      <span>Revenus en attente</span>
+                      <span>{t("organisationsPage.saas.pendingRevenue")}</span>
                       <span className={saasMetrics.pendingRevenue?.total > 0 ? "text-amber-600" : "text-emerald-600"}>
-                        {saasMetrics.pendingRevenue?.total?.toFixed(2) || "0.00"} EUR ({saasMetrics.pendingRevenue?.count || 0} facture(s))
+                        {t("organisationsPage.saas.pendingRevenueValue", { amount: saasMetrics.pendingRevenue?.total?.toFixed(2) || "0.00", count: saasMetrics.pendingRevenue?.count || 0 })}
                       </span>
                     </div>
                   </CardContent>
@@ -1110,11 +1104,11 @@ export default function OrganisationsPage() {
 
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-sm flex items-center gap-2"><UserPlus className="w-4 h-4" />Nouveaux clients (30 derniers jours)</CardTitle>
+                    <CardTitle className="text-sm flex items-center gap-2"><UserPlus className="w-4 h-4" />{t("organisationsPage.saas.newCustomers")}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     {saasMetrics.recentSignups?.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">Aucun nouveau client ce mois.</p>
+                      <p className="text-sm text-muted-foreground text-center py-4">{t("organisationsPage.saas.noNewCustomers")}</p>
                     ) : (
                       <div className="space-y-2">
                         {saasMetrics.recentSignups?.slice(0, 6).map((s: any) => (
@@ -1130,7 +1124,7 @@ export default function OrganisationsPage() {
                             </div>
                             <div className="flex items-center gap-2">
                               <Badge className={`text-[10px] ${PLAN_COLORS[s.plan] || ""}`}>{s.plan}</Badge>
-                              {!s.actif && <Badge variant="secondary" className="text-[10px]">Suspendu</Badge>}
+                              {!s.actif && <Badge variant="secondary" className="text-[10px]">{t("organisationsPage.saas.suspendedBadge")}</Badge>}
                             </div>
                           </div>
                         ))}
@@ -1143,21 +1137,21 @@ export default function OrganisationsPage() {
               {saasMetrics.revenueTrend?.length > 0 && (
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-sm flex items-center gap-2"><TrendingUp className="w-4 h-4" />Revenus encaisses (6 derniers mois)</CardTitle>
+                    <CardTitle className="text-sm flex items-center gap-2"><TrendingUp className="w-4 h-4" />{t("organisationsPage.saas.revenueCollected")}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-end gap-2 h-32">
                       {(() => {
                         const trend = saasMetrics.revenueTrend as { month: string; revenue: number; invoices: number }[];
-                        const max = Math.max(...trend.map(t => t.revenue), 1);
-                        return trend.map(t => (
-                          <div key={t.month} className="flex-1 flex flex-col items-center gap-1">
-                            <span className="text-[10px] text-muted-foreground font-medium">{t.revenue > 0 ? `${t.revenue.toFixed(0)}€` : ""}</span>
+                        const max = Math.max(...trend.map(m => m.revenue), 1);
+                        return trend.map(m => (
+                          <div key={m.month} className="flex-1 flex flex-col items-center gap-1">
+                            <span className="text-[10px] text-muted-foreground font-medium">{m.revenue > 0 ? `${m.revenue.toFixed(0)}€` : ""}</span>
                             <div
                               className="w-full rounded-t bg-emerald-500 dark:bg-emerald-600 min-h-[4px] transition-all"
-                              style={{ height: `${Math.max(4, (t.revenue / max) * 96)}px` }}
+                              style={{ height: `${Math.max(4, (m.revenue / max) * 96)}px` }}
                             />
-                            <span className="text-[10px] text-muted-foreground">{t.month.slice(5)}/{t.month.slice(2, 4)}</span>
+                            <span className="text-[10px] text-muted-foreground">{m.month.slice(5)}/{m.month.slice(2, 4)}</span>
                           </div>
                         ));
                       })()}
@@ -1171,7 +1165,7 @@ export default function OrganisationsPage() {
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm flex items-center gap-2 text-red-600 dark:text-red-400">
                       <Pause className="w-4 h-4" />
-                      {saasMetrics.suspendedOrgs.length} organisation(s) suspendue(s)
+                      {t("organisationsPage.saas.suspendedOrgs", { count: saasMetrics.suspendedOrgs.length })}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
@@ -1183,7 +1177,7 @@ export default function OrganisationsPage() {
                           </div>
                           <div>
                             <p className="font-semibold text-sm">{s.name}</p>
-                            <p className="text-xs text-muted-foreground">{s.email || "Pas d'email"} · Plan {s.plan}</p>
+                            <p className="text-xs text-muted-foreground">{t("organisationsPage.saas.planEmail", { email: s.email || t("organisationsPage.saas.noEmail"), plan: s.plan })}</p>
                           </div>
                         </div>
                         <Button
@@ -1194,7 +1188,7 @@ export default function OrganisationsPage() {
                           disabled={togglingId === s.id}
                         >
                           {togglingId === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5 mr-1" />}
-                          Reactiver
+                          {t("organisationsPage.saas.reactivate")}
                         </Button>
                       </div>
                     ))}
@@ -1205,14 +1199,14 @@ export default function OrganisationsPage() {
               <div className="flex justify-center">
                 <Button variant="outline" onClick={loadSaasMetrics} disabled={saasLoading}>
                   <RefreshCw className={`w-4 h-4 mr-2 ${saasLoading ? "animate-spin" : ""}`} />
-                  Actualiser les metriques
+                  {t("organisationsPage.saas.refreshMetrics")}
                 </Button>
               </div>
             </>
           ) : (
             <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
               <Activity className="w-12 h-12 opacity-30" />
-              <Button variant="outline" onClick={loadSaasMetrics}>Charger les metriques</Button>
+              <Button variant="outline" onClick={loadSaasMetrics}>{t("organisationsPage.saas.loadMetrics")}</Button>
             </div>
           )}
         </TabsContent>
@@ -1224,7 +1218,7 @@ export default function OrganisationsPage() {
                 <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30"><Building2 className="w-5 h-5 text-blue-600" /></div>
                 <div>
                   <p className="text-2xl font-bold">{stats.total}</p>
-                  <p className="text-xs text-muted-foreground">Total</p>
+                  <p className="text-xs text-muted-foreground">{t("organisationsPage.stats.total")}</p>
                 </div>
               </CardContent>
             </Card>
@@ -1233,7 +1227,7 @@ export default function OrganisationsPage() {
                 <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30"><CheckCircle2 className="w-5 h-5 text-emerald-600" /></div>
                 <div>
                   <p className="text-2xl font-bold">{stats.active}</p>
-                  <p className="text-xs text-muted-foreground">Actives</p>
+                  <p className="text-xs text-muted-foreground">{t("organisationsPage.stats.active")}</p>
                 </div>
               </CardContent>
             </Card>
@@ -1242,7 +1236,7 @@ export default function OrganisationsPage() {
                 <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800"><AlertTriangle className="w-5 h-5 text-gray-600" /></div>
                 <div>
                   <p className="text-2xl font-bold">{stats.trial}</p>
-                  <p className="text-xs text-muted-foreground">En essai</p>
+                  <p className="text-xs text-muted-foreground">{t("organisationsPage.stats.trial")}</p>
                 </div>
               </CardContent>
             </Card>
@@ -1251,7 +1245,7 @@ export default function OrganisationsPage() {
                 <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30"><Crown className="w-5 h-5 text-amber-600" /></div>
                 <div>
                   <p className="text-2xl font-bold">{stats.paid}</p>
-                  <p className="text-xs text-muted-foreground">Payantes</p>
+                  <p className="text-xs text-muted-foreground">{t("organisationsPage.stats.paid")}</p>
                 </div>
               </CardContent>
             </Card>
@@ -1261,13 +1255,13 @@ export default function OrganisationsPage() {
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Rechercher une organisation..."
+                placeholder={t("organisationsPage.licences.searchPlaceholder")}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
-            <Badge variant="outline">{filtered.length} organisation(s)</Badge>
+            <Badge variant="outline">{t("organisationsPage.licences.orgCount", { count: filtered.length })}</Badge>
           </div>
 
           {loading ? (
@@ -1278,12 +1272,12 @@ export default function OrganisationsPage() {
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-16">
                 <Building2 className="w-16 h-16 text-muted-foreground/30 mb-4" />
-                <h3 className="text-lg font-semibold mb-2">{searchTerm ? "Aucun resultat" : "Aucune organisation"}</h3>
-                <p className="text-muted-foreground mb-4">{searchTerm ? "Essayez un autre terme de recherche." : "Creez votre premiere organisation pour commencer."}</p>
+                <h3 className="text-lg font-semibold mb-2">{searchTerm ? t("organisationsPage.licences.emptyResultTitle") : t("organisationsPage.licences.emptyTitle")}</h3>
+                <p className="text-muted-foreground mb-4">{searchTerm ? t("organisationsPage.licences.emptyResultDesc") : t("organisationsPage.licences.emptyDesc")}</p>
                 {!searchTerm && (
                   <Button onClick={openCreate}>
                     <Plus className="w-4 h-4 mr-2" />
-                    Creer une organisation
+                    {t("organisationsPage.licences.createOrg")}
                   </Button>
                 )}
               </CardContent>
@@ -1308,7 +1302,7 @@ export default function OrganisationsPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant={org.actif ? "default" : "secondary"}>
-                          {org.actif ? "Actif" : "Inactif"}
+                          {org.actif ? t("organisationsPage.licences.active") : t("organisationsPage.licences.inactive")}
                         </Badge>
                         {org.subscription && (
                           <Badge className={PLAN_COLORS[org.subscription.plan] || ""}>
@@ -1334,12 +1328,12 @@ export default function OrganisationsPage() {
                       )}
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Users className="w-3.5 h-3.5" />
-                        {org.userCount} / {org.maxUsers} utilisateurs
+                        {t("organisationsPage.licences.usersCount", { count: org.userCount, max: org.maxUsers })}
                       </div>
                       {org.subscription && (
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <Package className="w-3.5 h-3.5" />
-                          {Number(org.subscription.price) > 0 ? `${org.subscription.price} EUR/mois` : "Gratuit"}
+                          {Number(org.subscription.price) > 0 ? t("organisationsPage.saas.perMonth", { price: org.subscription.price }) : t("organisationsPage.licences.free")}
                         </div>
                       )}
                     </div>
@@ -1347,11 +1341,11 @@ export default function OrganisationsPage() {
                     {org.subscription && org.subscription.plan !== "essai" && (
                       <div className="space-y-2 p-3 rounded-lg bg-muted/30 border">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold flex items-center gap-1"><BarChart3 className="w-3.5 h-3.5" />Utilisation forfait</span>
+                          <span className="text-xs font-semibold flex items-center gap-1"><BarChart3 className="w-3.5 h-3.5" />{t("organisationsPage.licences.usageTitle")}</span>
                         </div>
-                        <UsageBar label="Utilisateurs" current={org.userCount} max={org.maxUsers} icon={<Users className="w-3 h-3" />} />
-                        <UsageBar label="Contacts" current={org.contactCount} max={org.subscription.maxContacts} icon={<Phone className="w-3 h-3" />} />
-                        <UsageBar label="Appels/mois" current={org.callCount} max={org.subscription.maxCallsPerMonth} icon={<Phone className="w-3 h-3" />} />
+                        <UsageBar label={t("organisationsPage.licences.usageUsers")} current={org.userCount} max={org.maxUsers} icon={<Users className="w-3 h-3" />} />
+                        <UsageBar label={t("organisationsPage.licences.usageContacts")} current={org.contactCount} max={org.subscription.maxContacts} icon={<Phone className="w-3 h-3" />} />
+                        <UsageBar label={t("organisationsPage.licences.usageCalls")} current={org.callCount} max={org.subscription.maxCallsPerMonth} icon={<Phone className="w-3 h-3" />} />
                       </div>
                     )}
 
@@ -1373,16 +1367,16 @@ export default function OrganisationsPage() {
                     {org.subscription?.isTrialExpired && (
                       <div className="flex items-center gap-2 p-2 rounded bg-red-50 dark:bg-red-950/20 text-red-600 text-xs">
                         <AlertTriangle className="w-3.5 h-3.5" />
-                        Periode d'essai expiree
+                        {t("organisationsPage.licences.trialExpired")}
                       </div>
                     )}
 
                     <div className="flex items-center gap-1 flex-wrap">
                       {org.subscription?.aiEnabled && (
-                        <Badge variant="outline" className="text-xs"><Brain className="w-3 h-3 mr-1" />IA</Badge>
+                        <Badge variant="outline" className="text-xs"><Brain className="w-3 h-3 mr-1" />{t("organisationsPage.licences.aiBadge")}</Badge>
                       )}
                       {org.subscription?.automationEnabled && (
-                        <Badge variant="outline" className="text-xs"><Zap className="w-3 h-3 mr-1" />Auto</Badge>
+                        <Badge variant="outline" className="text-xs"><Zap className="w-3 h-3 mr-1" />{t("organisationsPage.licences.autoBadge")}</Badge>
                       )}
                     </div>
 
@@ -1392,7 +1386,7 @@ export default function OrganisationsPage() {
                       {org.subscription && org.subscription.plan !== "essai" && (
                         <Button variant="outline" size="sm" onClick={() => openBilling(org)} className="text-emerald-600 hover:text-emerald-700">
                           <Receipt className="w-3.5 h-3.5 mr-1" />
-                          Facturation
+                          {t("organisationsPage.licences.billing")}
                         </Button>
                       )}
                       {org.email && org.subscription?.licenseKey && (
@@ -1405,7 +1399,7 @@ export default function OrganisationsPage() {
                             className="text-amber-600 hover:text-amber-700"
                           >
                             {sendingEmail === org.id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-1" />}
-                            Envoyer la licence
+                            {t("organisationsPage.licences.sendLicense")}
                           </Button>
                           <Button
                             variant="outline"
@@ -1415,17 +1409,17 @@ export default function OrganisationsPage() {
                             className="text-blue-600 hover:text-blue-700"
                           >
                             {sendingEmail === org.id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Key className="w-3.5 h-3.5 mr-1" />}
-                            Reinitialiser MDP
+                            {t("organisationsPage.licences.resetPassword")}
                           </Button>
                         </>
                       )}
                       <Button variant="outline" size="sm" onClick={() => openPlanChange(org)}>
                         <Shield className="w-3.5 h-3.5 mr-1" />
-                        Changer le plan
+                        {t("organisationsPage.licences.changePlan")}
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => openEdit(org)}>
                         <Edit className="w-3.5 h-3.5 mr-1" />
-                        Modifier
+                        {t("organisationsPage.licences.edit")}
                       </Button>
                       {org.id !== 1 && (
                         <>
@@ -1433,47 +1427,47 @@ export default function OrganisationsPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => { setLicenseDialog({ org, action: "extend-trial" }); setTrialDays("14"); }}
-                            title="Prolonger la periode d'essai de cette organisation"
+                            title={t("organisationsPage.licences.extendTrialTitle")}
                           >
                             <Clock className="w-3.5 h-3.5 mr-1" />
-                            Prolonger l'essai
+                            {t("organisationsPage.licences.extendTrial")}
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => { setLicenseDialog({ org, action: "suspend" }); setConfirmOrgName(""); }}
                             className="text-amber-600 hover:text-amber-700"
-                            title="Suspendre l'abonnement (different du drapeau actif de l'organisation)"
+                            title={t("organisationsPage.licences.suspendSubTitle")}
                           >
                             <Pause className="w-3.5 h-3.5 mr-1" />
-                            Suspendre l'abonnement
+                            {t("organisationsPage.licences.suspendSub")}
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => setLicenseDialog({ org, action: "reactivate" })}
                             className="text-emerald-600 hover:text-emerald-700"
-                            title="Reactiver l'abonnement suspendu"
+                            title={t("organisationsPage.licences.reactivateTitle")}
                           >
                             <Play className="w-3.5 h-3.5 mr-1" />
-                            Réactiver
+                            {t("organisationsPage.licences.reactivate")}
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => { setLicenseDialog({ org, action: "regenerate-key" }); setConfirmOrgName(""); }}
-                            title="Generer une nouvelle cle de licence (l'ancienne cesse de fonctionner)"
+                            title={t("organisationsPage.licences.newKeyTitle")}
                           >
                             <Key className="w-3.5 h-3.5 mr-1" />
-                            Nouvelle clé
+                            {t("organisationsPage.licences.newKey")}
                           </Button>
                           {/* Export complet des donnees de l'organisation
                               (portabilite RGPD). Route GET: un simple lien
                               suffit, le navigateur telecharge le fichier. */}
-                          <Button variant="outline" size="sm" asChild title="Exporter toutes les donnees de cette organisation">
+                          <Button variant="outline" size="sm" asChild title={t("organisationsPage.licences.exportTitle")}>
                             <a href={`${BASE}api/license-management/orgs/${org.id}/export`}>
                               <Download className="w-3.5 h-3.5 mr-1" />
-                              Exporter
+                              {t("organisationsPage.licences.export")}
                             </a>
                           </Button>
                         </>
@@ -1485,7 +1479,7 @@ export default function OrganisationsPage() {
                           className={org.actif ? "text-amber-600 hover:text-amber-700" : "text-emerald-600 hover:text-emerald-700"}
                           onClick={() => handleToggleStatus(org)}
                           disabled={togglingId === org.id}
-                          title={org.actif ? "Suspendre l'acces" : "Reactiver l'acces"}
+                          title={org.actif ? t("organisationsPage.licences.suspendAccessTitle") : t("organisationsPage.licences.reactivateAccessTitle")}
                         >
                           {togglingId === org.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : org.actif ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
                         </Button>
@@ -1511,15 +1505,15 @@ export default function OrganisationsPage() {
                   <div>
                     <CardTitle className="text-base flex items-center gap-2">
                       <FileText className="w-4 h-4 text-amber-600" />
-                      Brouillons de factures ({invoiceDrafts.length})
+                      {t("organisationsPage.facturation.draftsTitle", { count: invoiceDrafts.length })}
                     </CardTitle>
                     <CardDescription>
-                      Générés automatiquement. Ils ne sont pas exigibles tant qu'ils ne sont pas validés.
+                      {t("organisationsPage.facturation.draftsDesc")}
                     </CardDescription>
                   </div>
                   <Button size="sm" onClick={() => validateInvoiceDrafts()} disabled={validatingDrafts}>
                     {validatingDrafts && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
-                    Tout valider
+                    {t("organisationsPage.facturation.validateAll")}
                   </Button>
                 </div>
               </CardHeader>
@@ -1527,10 +1521,10 @@ export default function OrganisationsPage() {
                 {invoiceDrafts.map((d: any) => (
                   <div key={d.id} className="flex items-center justify-between gap-3 border rounded-md px-3 py-2">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{d.organisationName ?? `Organisation #${d.organisationId}`}</p>
+                      <p className="text-sm font-medium truncate">{d.organisationName ?? t("organisationsPage.facturation.orgFallback", { id: d.organisationId })}</p>
                       <p className="text-xs text-muted-foreground">
-                        {d.periodLabel} · plan {d.plan} · {Number(d.totalAmount).toFixed(2)} {d.currency ?? "EUR"}
-                        {Number(d.overageAmount) > 0 && ` (dont ${Number(d.overageAmount).toFixed(2)} de dépassement)`}
+                        {t("organisationsPage.facturation.draftLine", { period: d.periodLabel, plan: d.plan, amount: Number(d.totalAmount).toFixed(2), currency: d.currency ?? "EUR" })}
+                        {Number(d.overageAmount) > 0 && t("organisationsPage.facturation.draftOverage", { amount: Number(d.overageAmount).toFixed(2) })}
                       </p>
                     </div>
                     <Button
@@ -1539,7 +1533,7 @@ export default function OrganisationsPage() {
                       onClick={() => validateInvoiceDrafts([d.id])}
                       disabled={validatingDrafts}
                     >
-                      Valider
+                      {t("organisationsPage.facturation.validate")}
                     </Button>
                   </div>
                 ))}
@@ -1552,7 +1546,7 @@ export default function OrganisationsPage() {
                 <div className="p-2 rounded-lg bg-yellow-100 dark:bg-yellow-900/30"><Clock className="w-5 h-5 text-yellow-600" /></div>
                 <div>
                   <p className="text-2xl font-bold">{billingSummary ? `${Number(billingSummary.totalDue).toFixed(0)} EUR` : "..."}</p>
-                  <p className="text-xs text-muted-foreground">{billingSummary?.totalDueCount || 0} facture(s) en attente</p>
+                  <p className="text-xs text-muted-foreground">{t("organisationsPage.facturation.pendingInvoices", { count: billingSummary?.totalDueCount || 0 })}</p>
                 </div>
               </CardContent>
             </Card>
@@ -1561,7 +1555,7 @@ export default function OrganisationsPage() {
                 <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30"><CheckCircle2 className="w-5 h-5 text-emerald-600" /></div>
                 <div>
                   <p className="text-2xl font-bold">{billingSummary ? `${Number(billingSummary.totalPaid).toFixed(0)} EUR` : "..."}</p>
-                  <p className="text-xs text-muted-foreground">{billingSummary?.totalPaidCount || 0} payee(s)</p>
+                  <p className="text-xs text-muted-foreground">{t("organisationsPage.facturation.paidCount", { count: billingSummary?.totalPaidCount || 0 })}</p>
                 </div>
               </CardContent>
             </Card>
@@ -1570,7 +1564,7 @@ export default function OrganisationsPage() {
                 <div className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30"><AlertCircle className="w-5 h-5 text-red-600" /></div>
                 <div>
                   <p className="text-2xl font-bold">{billingSummary ? `${Number(billingSummary.overdue).toFixed(0)} EUR` : "..."}</p>
-                  <p className="text-xs text-muted-foreground">{billingSummary?.overdueCount || 0} en retard</p>
+                  <p className="text-xs text-muted-foreground">{t("organisationsPage.facturation.overdueCount", { count: billingSummary?.overdueCount || 0 })}</p>
                 </div>
               </CardContent>
             </Card>
@@ -1579,7 +1573,7 @@ export default function OrganisationsPage() {
                 <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30"><ArrowUpDown className="w-5 h-5 text-blue-600" /></div>
                 <div>
                   <p className="text-2xl font-bold">{billingSummary?.pendingPayments || 0}</p>
-                  <p className="text-xs text-muted-foreground">Paiement(s) a rapprocher</p>
+                  <p className="text-xs text-muted-foreground">{t("organisationsPage.facturation.paymentsToReconcile")}</p>
                 </div>
               </CardContent>
             </Card>
@@ -1588,22 +1582,22 @@ export default function OrganisationsPage() {
           <div className="flex items-center gap-3 flex-wrap">
             <Button onClick={handleGenerateInvoices} disabled={generating} className="bg-emerald-600 hover:bg-emerald-700">
               {generating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Receipt className="w-4 h-4 mr-2" />}
-              Generer les factures du mois
+              {t("organisationsPage.facturation.generateMonth")}
             </Button>
             <Button variant="outline" onClick={() => setShowUpload(true)}>
               <Upload className="w-4 h-4 mr-2" />
-              Importer un releve bancaire
+              {t("organisationsPage.facturation.importBank")}
             </Button>
             <Button variant="outline" onClick={handleMatchPayments} disabled={matching}>
               {matching ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ArrowUpDown className="w-4 h-4 mr-2" />}
-              Rapprochement automatique
+              {t("organisationsPage.facturation.autoReconcile")}
             </Button>
           </div>
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base"><FileText className="w-5 h-5" />Factures par organisation</CardTitle>
-              <CardDescription>Cliquez sur "Facturation" dans la carte d'une organisation pour voir ses factures detaillees.</CardDescription>
+              <CardTitle className="flex items-center gap-2 text-base"><FileText className="w-5 h-5" />{t("organisationsPage.facturation.invoicesByOrg")}</CardTitle>
+              <CardDescription>{t("organisationsPage.facturation.invoicesByOrgDesc")}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
@@ -1615,17 +1609,17 @@ export default function OrganisationsPage() {
                       </div>
                       <div>
                         <p className="text-sm font-medium">{org.name}</p>
-                        <p className="text-xs text-muted-foreground">{org.subscription?.planDetails?.name} - {org.subscription?.price} EUR/mois</p>
+                        <p className="text-xs text-muted-foreground">{t("organisationsPage.facturation.planPerMonth", { plan: org.subscription?.planDetails?.name ?? "", price: org.subscription?.price ?? "" })}</p>
                       </div>
                     </div>
                     <Button variant="outline" size="sm" onClick={() => openBilling(org)}>
                       <Receipt className="w-3.5 h-3.5 mr-1" />
-                      Voir les factures
+                      {t("organisationsPage.facturation.viewInvoices")}
                     </Button>
                   </div>
                 ))}
                 {organisations.filter(o => o.subscription && o.subscription.plan !== "essai").length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-8">Aucune organisation avec un plan payant.</p>
+                  <p className="text-sm text-muted-foreground text-center py-8">{t("organisationsPage.facturation.noPaidOrg")}</p>
                 )}
               </div>
             </CardContent>
@@ -1639,7 +1633,7 @@ export default function OrganisationsPage() {
                 <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30"><ShieldCheck className="w-5 h-5 text-emerald-600" /></div>
                 <div>
                   <p className="text-2xl font-bold">{legalSummary?.compliantOrgs ?? 0}</p>
-                  <p className="text-xs text-muted-foreground">Conformes</p>
+                  <p className="text-xs text-muted-foreground">{t("organisationsPage.juridique.compliant")}</p>
                 </div>
               </CardContent>
             </Card>
@@ -1648,7 +1642,7 @@ export default function OrganisationsPage() {
                 <div className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30"><AlertTriangle className="w-5 h-5 text-red-600" /></div>
                 <div>
                   <p className="text-2xl font-bold">{legalSummary?.nonCompliantOrgs ?? 0}</p>
-                  <p className="text-xs text-muted-foreground">Non conformes</p>
+                  <p className="text-xs text-muted-foreground">{t("organisationsPage.juridique.nonCompliant")}</p>
                 </div>
               </CardContent>
             </Card>
@@ -1657,7 +1651,7 @@ export default function OrganisationsPage() {
                 <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30"><Scale className="w-5 h-5 text-blue-600" /></div>
                 <div>
                   <p className="text-2xl font-bold">{legalSummary?.complianceRate ?? 0}%</p>
-                  <p className="text-xs text-muted-foreground">Taux de conformite</p>
+                  <p className="text-xs text-muted-foreground">{t("organisationsPage.juridique.complianceRate")}</p>
                 </div>
               </CardContent>
             </Card>
@@ -1666,7 +1660,7 @@ export default function OrganisationsPage() {
                 <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30"><FileCheck className="w-5 h-5 text-purple-600" /></div>
                 <div>
                   <p className="text-2xl font-bold">{legalSummary?.mandatoryDocuments ?? 0}/{legalSummary?.totalDocuments ?? 0}</p>
-                  <p className="text-xs text-muted-foreground">Documents obligatoires</p>
+                  <p className="text-xs text-muted-foreground">{t("organisationsPage.juridique.mandatoryDocs")}</p>
                 </div>
               </CardContent>
             </Card>
@@ -1679,10 +1673,10 @@ export default function OrganisationsPage() {
                   <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
                   <div>
                     <p className="text-sm font-semibold text-red-700 dark:text-red-400">
-                      {legalSummary.nonCompliantOrgs} organisation(s) ne sont pas en conformite juridique
+                      {t("organisationsPage.juridique.nonCompliantAlert", { count: legalSummary.nonCompliantOrgs })}
                     </p>
                     <p className="text-xs text-red-600/80 dark:text-red-400/60 mt-0.5">
-                      Des documents obligatoires n'ont pas ete acceptes. Cliquez sur une organisation pour gerer ses accords.
+                      {t("organisationsPage.juridique.nonCompliantAlertDesc")}
                     </p>
                   </div>
                 </div>
@@ -1694,10 +1688,10 @@ export default function OrganisationsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Scale className="w-5 h-5" />
-                Conformite juridique par organisation
+                {t("organisationsPage.juridique.complianceByOrg")}
               </CardTitle>
               <CardDescription>
-                Suivi des documents legaux acceptes par chaque client. Les documents obligatoires doivent etre acceptes pour une conformite totale.
+                {t("organisationsPage.juridique.complianceByOrgDesc")}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1728,10 +1722,10 @@ export default function OrganisationsPage() {
                           <div>
                             <p className="font-semibold text-sm">{org.name}</p>
                             <p className="text-xs text-muted-foreground">
-                              {org.acceptedCount}/{org.totalDocuments} documents acceptes
+                              {t("organisationsPage.juridique.docsAccepted", { accepted: org.acceptedCount, total: org.totalDocuments })}
                               {org.missingDocuments.length > 0 && (
                                 <span className="text-red-600 ml-2">
-                                  ({org.missingDocuments.length} obligatoire(s) manquant(s))
+                                  {t("organisationsPage.juridique.missingMandatory", { count: org.missingDocuments.length })}
                                 </span>
                               )}
                             </p>
@@ -1743,7 +1737,7 @@ export default function OrganisationsPage() {
                               ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
                               : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
                             }>
-                              {org.isCompliant ? "Conforme" : "Non conforme"}
+                              {org.isCompliant ? t("organisationsPage.juridique.compliantBadge") : t("organisationsPage.juridique.nonCompliantBadge")}
                             </Badge>
                           </div>
                           <div className="w-16">
@@ -1756,7 +1750,7 @@ export default function OrganisationsPage() {
                     </div>
                   ))}
                   {legalCompliance.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-8">Aucune organisation trouvee.</p>
+                    <p className="text-sm text-muted-foreground text-center py-8">{t("organisationsPage.juridique.noOrgFound")}</p>
                   )}
                 </div>
               )}
@@ -1767,10 +1761,10 @@ export default function OrganisationsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <BookOpen className="w-5 h-5" />
-                Documents juridiques requis
+                {t("organisationsPage.juridique.requiredDocs")}
               </CardTitle>
               <CardDescription>
-                Liste des documents contractuels et reglementaires integres a la plateforme.
+                {t("organisationsPage.juridique.requiredDocsDesc")}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1790,15 +1784,15 @@ export default function OrganisationsPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="font-semibold text-sm">{doc.title}</p>
+                        <p className="font-semibold text-sm">{doc.code === "propriete" ? t("organisationsPage.juridique.docs.proprieteTitle") : doc.code === "securite" ? t("organisationsPage.juridique.docs.securiteTitle") : doc.title}</p>
                         {doc.mandatory ? (
-                          <Badge variant="outline" className="text-[10px] border-red-300 text-red-600">Obligatoire</Badge>
+                          <Badge variant="outline" className="text-[10px] border-red-300 text-red-600">{t("organisationsPage.juridique.mandatory")}</Badge>
                         ) : (
-                          <Badge variant="outline" className="text-[10px]">Optionnel</Badge>
+                          <Badge variant="outline" className="text-[10px]">{t("organisationsPage.juridique.optional")}</Badge>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">{doc.desc}</p>
-                      <p className="text-[10px] text-muted-foreground mt-1">Categorie : {doc.cat} | Version 1.0</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{t("organisationsPage.juridique.docs." + doc.code)}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">{t("organisationsPage.juridique.categoryVersion", { category: t("organisationsPage.juridique.cat." + doc.cat.toLowerCase()) })}</p>
                     </div>
                   </div>
                 ))}
@@ -1814,12 +1808,12 @@ export default function OrganisationsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Scale className="w-5 h-5" />
-              Conformite juridique : {legalDetailOrg?.name}
+              {t("organisationsPage.legalDetail.title", { name: legalDetailOrg?.name ?? "" })}
             </DialogTitle>
             <DialogDescription>
               {legalDetailOrg?.isCompliant
-                ? "Cette organisation est en conformite avec tous les documents obligatoires."
-                : `${legalDetailOrg?.missingDocuments.length} document(s) obligatoire(s) manquant(s).`
+                ? t("organisationsPage.legalDetail.compliantDesc")
+                : t("organisationsPage.legalDetail.missingDesc", { count: legalDetailOrg?.missingDocuments.length ?? 0 })
               }
             </DialogDescription>
           </DialogHeader>
@@ -1837,13 +1831,13 @@ export default function OrganisationsPage() {
                     : <AlertTriangle className="w-5 h-5 text-red-600" />
                   }
                   <span className="text-sm font-semibold">
-                    {legalDetailDocs.filter(d => d.status === "accepted").length}/{legalDetailDocs.length} documents acceptes
+                    {t("organisationsPage.legalDetail.docsAccepted", { accepted: legalDetailDocs.filter(d => d.status === "accepted").length, total: legalDetailDocs.length })}
                   </span>
                 </div>
                 {!legalDetailOrg?.isCompliant && legalDetailOrg && (
                   <Button size="sm" onClick={() => handleAcceptAll(legalDetailOrg.id)} disabled={acceptingAll}>
                     {acceptingAll ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <FileCheck className="w-3.5 h-3.5 mr-1" />}
-                    Accepter tous
+                    {t("organisationsPage.legalDetail.acceptAll")}
                   </Button>
                 )}
               </div>
@@ -1862,24 +1856,24 @@ export default function OrganisationsPage() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-semibold text-sm">{doc.title}</p>
                           {doc.mandatory && (
-                            <Badge variant="outline" className="text-[10px] border-red-300 text-red-600">Obligatoire</Badge>
+                            <Badge variant="outline" className="text-[10px] border-red-300 text-red-600">{t("organisationsPage.legalDetail.mandatory")}</Badge>
                           )}
                           <Badge className={doc.status === "accepted"
                             ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
                             : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
                           }>
-                            {doc.status === "accepted" ? "Accepte" : "En attente"}
+                            {doc.status === "accepted" ? t("organisationsPage.legalDetail.accepted") : t("organisationsPage.legalDetail.pending")}
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">{doc.description}</p>
-                        <p className="text-[10px] text-muted-foreground mt-1">Version {doc.version} | Categorie : {doc.category}</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">{t("organisationsPage.legalDetail.versionCategory", { version: doc.version, category: doc.category })}</p>
 
                         {doc.agreement && (
                           <div className="mt-2 p-2 rounded bg-emerald-50 dark:bg-emerald-950/20 text-xs space-y-0.5">
-                            <p className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-600" /> Accepte par : <strong>{doc.agreement.acceptedBy}</strong></p>
-                            <p>Date : {new Date(doc.agreement.acceptedAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
-                            <p>Adresse IP : {doc.agreement.acceptedIp}</p>
-                            {doc.agreement.notes && <p>Notes : {doc.agreement.notes}</p>}
+                            <p className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-600" /> {t("organisationsPage.legalDetail.acceptedByLabel")} <strong>{doc.agreement.acceptedBy}</strong></p>
+                            <p>{t("organisationsPage.legalDetail.dateLabel", { date: new Date(doc.agreement.acceptedAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }) })}</p>
+                            <p>{t("organisationsPage.legalDetail.ipLabel", { ip: doc.agreement.acceptedIp })}</p>
+                            {doc.agreement.notes && <p>{t("organisationsPage.legalDetail.notesLabel", { notes: doc.agreement.notes })}</p>}
                           </div>
                         )}
                       </div>
@@ -1888,12 +1882,12 @@ export default function OrganisationsPage() {
                         {doc.status === "accepted" ? (
                           <Button size="sm" variant="outline" className="text-red-600 text-xs" onClick={() => doc.agreement && handleRevokeLegal(doc.agreement.id, doc.title)}>
                             <XCircle className="w-3.5 h-3.5 mr-1" />
-                            Revoquer
+                            {t("organisationsPage.legalDetail.revoke")}
                           </Button>
                         ) : legalDetailOrg && (
                           <Button size="sm" className="text-xs" onClick={() => handleAcceptDocument(legalDetailOrg.id, doc.code)} disabled={acceptingLegal === doc.code}>
                             {acceptingLegal === doc.code ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5 mr-1" />}
-                            Accepter
+                            {t("organisationsPage.legalDetail.accept")}
                           </Button>
                         )}
                       </div>
@@ -1912,10 +1906,10 @@ export default function OrganisationsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Receipt className="w-5 h-5" />
-              Facturation : {billingOrg?.name}
+              {t("organisationsPage.billingDialog.title", { name: billingOrg?.name ?? "" })}
             </DialogTitle>
             <DialogDescription>
-              Plan {billingOrg?.subscription?.planDetails?.name} - {billingOrg?.subscription?.price} EUR/mois
+              {t("organisationsPage.billingDialog.subtitle", { plan: billingOrg?.subscription?.planDetails?.name ?? "", price: billingOrg?.subscription?.price ?? "" })}
             </DialogDescription>
           </DialogHeader>
 
@@ -1927,11 +1921,11 @@ export default function OrganisationsPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 rounded-lg bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-900">
-                  <p className="text-xs text-yellow-600">Total du</p>
+                  <p className="text-xs text-yellow-600">{t("organisationsPage.billingDialog.totalDue")}</p>
                   <p className="text-xl font-bold text-yellow-700">{orgBilling.totalDue} EUR</p>
                 </div>
                 <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900">
-                  <p className="text-xs text-emerald-600">Total paye</p>
+                  <p className="text-xs text-emerald-600">{t("organisationsPage.billingDialog.totalPaid")}</p>
                   <p className="text-xl font-bold text-emerald-700">{orgBilling.totalPaid} EUR</p>
                 </div>
               </div>
@@ -1939,8 +1933,8 @@ export default function OrganisationsPage() {
               {orgBilling.invoices.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Receipt className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p>Aucune facture pour cette organisation.</p>
-                  <p className="text-xs mt-1">Generez les factures du mois via l'onglet Facturation.</p>
+                  <p>{t("organisationsPage.billingDialog.noInvoices")}</p>
+                  <p className="text-xs mt-1">{t("organisationsPage.billingDialog.noInvoicesHint")}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -1948,12 +1942,12 @@ export default function OrganisationsPage() {
                     <div key={inv.id} className="border rounded-lg p-4 space-y-3">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="font-semibold text-sm">Periode : {inv.periodLabel}</p>
-                          <p className="text-xs text-muted-foreground">Plan : {inv.plan}</p>
+                          <p className="font-semibold text-sm">{t("organisationsPage.billingDialog.period", { period: inv.periodLabel })}</p>
+                          <p className="text-xs text-muted-foreground">{t("organisationsPage.billingDialog.plan", { plan: inv.plan })}</p>
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge className={INVOICE_STATUS_COLORS[inv.status] || ""}>
-                            {INVOICE_STATUS_LABELS[inv.status] || inv.status}
+                            {["en_attente", "payee", "partiel", "retard", "annulee"].includes(inv.status) ? t("organisationsPage.invoiceStatus." + inv.status) : inv.status}
                           </Badge>
                           <p className="font-bold text-lg">{Number(inv.totalAmount).toFixed(2)} EUR</p>
                         </div>
@@ -1961,38 +1955,38 @@ export default function OrganisationsPage() {
 
                       <div className="grid grid-cols-3 gap-2 text-xs">
                         <div className="p-2 rounded bg-muted/50">
-                          <p className="text-muted-foreground">Forfait</p>
+                          <p className="text-muted-foreground">{t("organisationsPage.billingDialog.forfait")}</p>
                           <p className="font-semibold">{Number(inv.baseAmount).toFixed(2)} EUR</p>
                         </div>
                         <div className="p-2 rounded bg-muted/50">
-                          <p className="text-muted-foreground">Depassement</p>
+                          <p className="text-muted-foreground">{t("organisationsPage.billingDialog.overage")}</p>
                           <p className={`font-semibold ${Number(inv.overageAmount) > 0 ? "text-red-600" : ""}`}>
                             {Number(inv.overageAmount).toFixed(2)} EUR
                           </p>
                         </div>
                         <div className="p-2 rounded bg-muted/50">
-                          <p className="text-muted-foreground">Total</p>
+                          <p className="text-muted-foreground">{t("organisationsPage.billingDialog.total")}</p>
                           <p className="font-bold">{Number(inv.totalAmount).toFixed(2)} EUR</p>
                         </div>
                       </div>
 
                       {inv.usageSnapshot && (
                         <div className="space-y-1.5 p-2 rounded bg-muted/30">
-                          <p className="text-xs font-semibold text-muted-foreground">Utilisation du forfait</p>
-                          <UsageBar label="Utilisateurs" current={inv.usageSnapshot.users.current} max={inv.usageSnapshot.users.max} icon={<Users className="w-3 h-3" />} />
-                          <UsageBar label="Contacts" current={inv.usageSnapshot.contacts.current} max={inv.usageSnapshot.contacts.max} icon={<Phone className="w-3 h-3" />} />
-                          <UsageBar label="Appels" current={inv.usageSnapshot.calls.current} max={inv.usageSnapshot.calls.max} icon={<Phone className="w-3 h-3" />} />
+                          <p className="text-xs font-semibold text-muted-foreground">{t("organisationsPage.billingDialog.usageTitle")}</p>
+                          <UsageBar label={t("organisationsPage.billingDialog.usageUsers")} current={inv.usageSnapshot.users.current} max={inv.usageSnapshot.users.max} icon={<Users className="w-3 h-3" />} />
+                          <UsageBar label={t("organisationsPage.billingDialog.usageContacts")} current={inv.usageSnapshot.contacts.current} max={inv.usageSnapshot.contacts.max} icon={<Phone className="w-3 h-3" />} />
+                          <UsageBar label={t("organisationsPage.billingDialog.usageCalls")} current={inv.usageSnapshot.calls.current} max={inv.usageSnapshot.calls.max} icon={<Phone className="w-3 h-3" />} />
                           {inv.usageSnapshot.overageDetails && (Number(inv.overageAmount) > 0) && (
                             <div className="mt-2 p-2 rounded bg-red-50 dark:bg-red-950/20 text-xs text-red-600 space-y-0.5">
-                              <p className="font-semibold">Detail du depassement :</p>
+                              <p className="font-semibold">{t("organisationsPage.billingDialog.overageDetail")}</p>
                               {inv.usageSnapshot.overageDetails.extraUsers > 0 && (
-                                <p>+{inv.usageSnapshot.overageDetails.extraUsers} utilisateur(s) : {inv.usageSnapshot.overageDetails.extraUsersAmount} EUR</p>
+                                <p>{t("organisationsPage.billingDialog.extraUsers", { count: inv.usageSnapshot.overageDetails.extraUsers, amount: inv.usageSnapshot.overageDetails.extraUsersAmount })}</p>
                               )}
                               {inv.usageSnapshot.overageDetails.extraContacts > 0 && (
-                                <p>+{inv.usageSnapshot.overageDetails.extraContacts} contact(s) : {inv.usageSnapshot.overageDetails.extraContactsAmount} EUR</p>
+                                <p>{t("organisationsPage.billingDialog.extraContacts", { count: inv.usageSnapshot.overageDetails.extraContacts, amount: inv.usageSnapshot.overageDetails.extraContactsAmount })}</p>
                               )}
                               {inv.usageSnapshot.overageDetails.extraCalls > 0 && (
-                                <p>+{inv.usageSnapshot.overageDetails.extraCalls} appel(s) : {inv.usageSnapshot.overageDetails.extraCallsAmount} EUR</p>
+                                <p>{t("organisationsPage.billingDialog.extraCalls", { count: inv.usageSnapshot.overageDetails.extraCalls, amount: inv.usageSnapshot.overageDetails.extraCallsAmount })}</p>
                               )}
                             </div>
                           )}
@@ -2002,13 +1996,13 @@ export default function OrganisationsPage() {
                       {inv.status !== "payee" && inv.status !== "annulee" && (
                         <div className="flex gap-2 pt-1">
                           <Button size="sm" variant="outline" className="text-emerald-600" onClick={() => updateInvoiceStatus(inv.id, "payee")}>
-                            <CheckCircle2 className="w-3.5 h-3.5 mr-1" />Marquer payee
+                            <CheckCircle2 className="w-3.5 h-3.5 mr-1" />{t("organisationsPage.billingDialog.markPaid")}
                           </Button>
                           <Button size="sm" variant="outline" className="text-red-600" onClick={() => updateInvoiceStatus(inv.id, "retard")}>
-                            <AlertCircle className="w-3.5 h-3.5 mr-1" />En retard
+                            <AlertCircle className="w-3.5 h-3.5 mr-1" />{t("organisationsPage.billingDialog.markOverdue")}
                           </Button>
                           <Button size="sm" variant="outline" className="text-gray-500" onClick={() => updateInvoiceStatus(inv.id, "annulee")}>
-                            <XCircle className="w-3.5 h-3.5 mr-1" />Annuler
+                            <XCircle className="w-3.5 h-3.5 mr-1" />{t("organisationsPage.billingDialog.cancel")}
                           </Button>
                         </div>
                       )}
@@ -2018,7 +2012,7 @@ export default function OrganisationsPage() {
               )}
             </div>
           ) : (
-            <p className="text-muted-foreground text-center py-8">Aucune donnée.</p>
+            <p className="text-muted-foreground text-center py-8">{t("organisationsPage.billingDialog.noData")}</p>
           )}
         </DialogContent>
       </Dialog>
@@ -2029,27 +2023,27 @@ export default function OrganisationsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Upload className="w-5 h-5" />
-              Importer un releve bancaire
+              {t("organisationsPage.uploadDialog.title")}
             </DialogTitle>
             <DialogDescription>
-              Collez les lignes du releve bancaire. Format : date;nom_payeur;reference;montant;iban (separateur: ; ou tabulation)
+              {t("organisationsPage.uploadDialog.desc")}
             </DialogDescription>
           </DialogHeader>
           <Textarea
             value={bankLines}
             onChange={(e) => setBankLines(e.target.value)}
-            placeholder={"2025-03-15;Societe ABC;FAC-2025-03;79.00;FR7612345\n2025-03-16;Entreprise XYZ;FAC-2025-03;199.00;FR7698765"}
+            placeholder={t("organisationsPage.uploadDialog.placeholder")}
             rows={8}
             className="font-mono text-xs"
           />
           <p className="text-xs text-muted-foreground">
-            Apres l'import, utilisez "Rapprochement automatique" pour associer les paiements aux factures.
+            {t("organisationsPage.uploadDialog.hint")}
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowUpload(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setShowUpload(false)}>{t("organisationsPage.uploadDialog.cancel")}</Button>
             <Button onClick={handleUploadBank} disabled={uploading || !bankLines.trim()}>
               {uploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
-              Importer
+              {t("organisationsPage.uploadDialog.import")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2061,22 +2055,22 @@ export default function OrganisationsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="w-5 h-5" />
-              Nouvelle Organisation
+              {t("organisationsPage.createDialog.title")}
             </DialogTitle>
-            <DialogDescription>Creez une organisation, attribuez un plan et un administrateur.</DialogDescription>
+            <DialogDescription>{t("organisationsPage.createDialog.desc")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-3">
-              <h4 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground"><Building2 className="w-4 h-4" /> Organisation</h4>
+              <h4 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground"><Building2 className="w-4 h-4" /> {t("organisationsPage.createDialog.sectionOrg")}</h4>
               <div className="relative">
-                <Label>Nom de l'organisation *</Label>
+                <Label>{t("organisationsPage.createDialog.orgName")}</Label>
                 <div className="relative">
                   <Input
                     value={formName}
                     onChange={(e) => handleFormNameChange(e.target.value)}
                     onFocus={() => { if (companyResults.length > 0) setCompanySearchOpen(true); }}
                     onBlur={() => setTimeout(() => setCompanySearchOpen(false), 150)}
-                    placeholder="Ex: Societe ABC"
+                    placeholder={t("organisationsPage.createDialog.orgNamePlaceholder")}
                     autoComplete="off"
                   />
                   {companySearching && (
@@ -2095,69 +2089,69 @@ export default function OrganisationsPage() {
                       >
                         <span className="font-medium">{c.nom}</span>
                         {c.adresse && <span className="text-xs text-muted-foreground">{c.adresse}</span>}
-                        {c.dirigeant && <span className="text-[11px] text-muted-foreground/80">Dirigeant : {c.dirigeant}</span>}
+                        {c.dirigeant && <span className="text-[11px] text-muted-foreground/80">{t("organisationsPage.createDialog.director", { name: c.dirigeant })}</span>}
                       </button>
                     ))}
                   </div>
                 )}
-                <p className="text-[11px] text-muted-foreground mt-1">Tapez le nom LEGAL de l'entreprise, son SIREN (9 chiffres) ou SIRET (14 chiffres). La recherche porte sur le registre officiel (SIRENE), pas sur un nom commercial ou une marque : si le nom commercial ne donne rien, essayez la raison sociale ou le SIREN. La ville et le dirigeant affiches aident a distinguer les homonymes.</p>
+                <p className="text-[11px] text-muted-foreground mt-1">{t("organisationsPage.createDialog.orgNameHint")}</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>Telephone</Label>
-                  <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="+33 1 23 45 67 89" />
+                  <Label>{t("organisationsPage.createDialog.phone")}</Label>
+                  <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder={t("organisationsPage.createDialog.phonePlaceholder")} />
                 </div>
                 <div>
-                  <Label>Email de contact</Label>
-                  <Input type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} placeholder="contact@societe.fr" />
+                  <Label>{t("organisationsPage.createDialog.contactEmail")}</Label>
+                  <Input type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} placeholder={t("organisationsPage.createDialog.contactEmailPlaceholder")} />
                 </div>
               </div>
               <div>
-                <Label>Adresse</Label>
-                <Input value={formAddress} onChange={(e) => setFormAddress(e.target.value)} placeholder="123 rue de Paris, 75001 Paris" />
+                <Label>{t("organisationsPage.createDialog.address")}</Label>
+                <Input value={formAddress} onChange={(e) => setFormAddress(e.target.value)} placeholder={t("organisationsPage.createDialog.addressPlaceholder")} />
               </div>
               <div>
-                <Label>SIRET</Label>
-                <Input value={formSiret} onChange={(e) => setFormSiret(e.target.value)} placeholder="Rempli automatiquement si trouve" />
+                <Label>{t("organisationsPage.createDialog.siret")}</Label>
+                <Input value={formSiret} onChange={(e) => setFormSiret(e.target.value)} placeholder={t("organisationsPage.createDialog.siretPlaceholder")} />
               </div>
               <div>
-                <Label>Plan de licence</Label>
+                <Label>{t("organisationsPage.createDialog.licensePlan")}</Label>
                 <Select value={formPlan} onValueChange={setFormPlan}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="essai">Essai Gratuit (14 jours)</SelectItem>
-                    <SelectItem value="starter">Starter (29 EUR/mois)</SelectItem>
-                    <SelectItem value="professionnel">Professionnel (79 EUR/mois)</SelectItem>
-                    <SelectItem value="entreprise">Entreprise (199 EUR/mois)</SelectItem>
+                    <SelectItem value="essai">{t("organisationsPage.createDialog.planEssai")}</SelectItem>
+                    <SelectItem value="starter">{t("organisationsPage.createDialog.planStarter")}</SelectItem>
+                    <SelectItem value="professionnel">{t("organisationsPage.createDialog.planPro")}</SelectItem>
+                    <SelectItem value="entreprise">{t("organisationsPage.createDialog.planEnterprise")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <Separator />
             <div className="space-y-3">
-              <h4 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground"><Crown className="w-4 h-4" /> Administrateur (mot de passe genere et envoye par email)</h4>
+              <h4 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground"><Crown className="w-4 h-4" /> {t("organisationsPage.createDialog.sectionAdmin")}</h4>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>Prenom *</Label>
-                  <Input value={formAdminPrenom} onChange={(e) => setFormAdminPrenom(e.target.value)} placeholder="Jean" />
+                  <Label>{t("organisationsPage.createDialog.firstName")}</Label>
+                  <Input value={formAdminPrenom} onChange={(e) => setFormAdminPrenom(e.target.value)} placeholder={t("organisationsPage.createDialog.firstNamePlaceholder")} />
                 </div>
                 <div>
-                  <Label>Nom *</Label>
-                  <Input value={formAdminNom} onChange={(e) => setFormAdminNom(e.target.value)} placeholder="Dupont" />
+                  <Label>{t("organisationsPage.createDialog.lastName")}</Label>
+                  <Input value={formAdminNom} onChange={(e) => setFormAdminNom(e.target.value)} placeholder={t("organisationsPage.createDialog.lastNamePlaceholder")} />
                 </div>
               </div>
               <div>
-                <Label>Email de connexion *</Label>
-                <Input type="email" value={formAdminEmail} onChange={(e) => setFormAdminEmail(e.target.value)} placeholder="jean.dupont@societe.fr" />
+                <Label>{t("organisationsPage.createDialog.loginEmail")}</Label>
+                <Input type="email" value={formAdminEmail} onChange={(e) => setFormAdminEmail(e.target.value)} placeholder={t("organisationsPage.createDialog.loginEmailPlaceholder")} />
               </div>
-              <p className="text-[11px] text-muted-foreground">Un mot de passe securise sera genere automatiquement et envoye avec la licence par email.</p>
+              <p className="text-[11px] text-muted-foreground">{t("organisationsPage.createDialog.adminHint")}</p>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreate(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>{t("organisationsPage.createDialog.cancel")}</Button>
             <Button onClick={handleCreate} disabled={saving} className="gap-2">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              Creer et envoyer
+              {t("organisationsPage.createDialog.createSend")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2168,36 +2162,36 @@ export default function OrganisationsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Edit className="w-5 h-5" />
-              Modifier : {selectedOrg?.name}
+              {t("organisationsPage.editDialog.title", { name: selectedOrg?.name ?? "" })}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Nom</Label>
+              <Label>{t("organisationsPage.editDialog.name")}</Label>
               <Input value={formName} onChange={(e) => setFormName(e.target.value)} />
             </div>
             <div>
-              <Label>Email</Label>
+              <Label>{t("organisationsPage.editDialog.email")}</Label>
               <Input type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
             </div>
             <div>
-              <Label>Telephone</Label>
+              <Label>{t("organisationsPage.editDialog.phone")}</Label>
               <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} />
             </div>
             <div>
-              <Label>Adresse</Label>
+              <Label>{t("organisationsPage.editDialog.address")}</Label>
               <Input value={formAddress} onChange={(e) => setFormAddress(e.target.value)} />
             </div>
             <div className="flex items-center justify-between">
-              <Label>Organisation active</Label>
+              <Label>{t("organisationsPage.editDialog.orgActive")}</Label>
               <Switch checked={formActif} onCheckedChange={setFormActif} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEdit(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setShowEdit(false)}>{t("organisationsPage.editDialog.cancel")}</Button>
             <Button onClick={handleEdit} disabled={saving}>
               {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              Enregistrer
+              {t("organisationsPage.editDialog.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2208,27 +2202,27 @@ export default function OrganisationsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Shield className="w-5 h-5" />
-              Changer le plan : {selectedOrg?.name}
+              {t("organisationsPage.planDialog.title", { name: selectedOrg?.name ?? "" })}
             </DialogTitle>
-            <DialogDescription>Plan actuel : {selectedOrg?.subscription?.planDetails?.name || selectedOrg?.subscription?.plan}</DialogDescription>
+            <DialogDescription>{t("organisationsPage.planDialog.current", { plan: selectedOrg?.subscription?.planDetails?.name || selectedOrg?.subscription?.plan || "" })}</DialogDescription>
           </DialogHeader>
           <div>
-            <Label>Nouveau plan</Label>
+            <Label>{t("organisationsPage.planDialog.newPlan")}</Label>
             <Select value={formPlan} onValueChange={setFormPlan}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="essai">Essai Gratuit</SelectItem>
-                <SelectItem value="starter">Starter (29 EUR/mois)</SelectItem>
-                <SelectItem value="professionnel">Professionnel (79 EUR/mois)</SelectItem>
-                <SelectItem value="entreprise">Entreprise (199 EUR/mois)</SelectItem>
+                <SelectItem value="essai">{t("organisationsPage.planDialog.planEssai")}</SelectItem>
+                <SelectItem value="starter">{t("organisationsPage.planDialog.planStarter")}</SelectItem>
+                <SelectItem value="professionnel">{t("organisationsPage.planDialog.planPro")}</SelectItem>
+                <SelectItem value="entreprise">{t("organisationsPage.planDialog.planEnterprise")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPlan(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setShowPlan(false)}>{t("organisationsPage.planDialog.cancel")}</Button>
             <Button onClick={handlePlanChange} disabled={saving}>
               {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              Changer le plan
+              {t("organisationsPage.planDialog.change")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2241,10 +2235,10 @@ export default function OrganisationsPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {licenseDialog?.action === "extend-trial" && "Prolonger la période d'essai"}
-              {licenseDialog?.action === "suspend" && "Suspendre l'abonnement"}
-              {licenseDialog?.action === "reactivate" && "Réactiver l'abonnement"}
-              {licenseDialog?.action === "regenerate-key" && "Générer une nouvelle clé de licence"}
+              {licenseDialog?.action === "extend-trial" && t("organisationsPage.licenseDialog.extendTitle")}
+              {licenseDialog?.action === "suspend" && t("organisationsPage.licenseDialog.suspendTitle")}
+              {licenseDialog?.action === "reactivate" && t("organisationsPage.licenseDialog.reactivateTitle")}
+              {licenseDialog?.action === "regenerate-key" && t("organisationsPage.licenseDialog.regenerateTitle")}
             </DialogTitle>
             <DialogDescription>{licenseDialog?.org.name}</DialogDescription>
           </DialogHeader>
@@ -2252,7 +2246,7 @@ export default function OrganisationsPage() {
           <div className="space-y-3">
             {licenseDialog?.action === "extend-trial" && (
               <div className="space-y-1.5">
-                <Label className="text-xs">Nombre de jours (1 à 365)</Label>
+                <Label className="text-xs">{t("organisationsPage.licenseDialog.daysLabel")}</Label>
                 <Input
                   value={trialDays}
                   onChange={(e) => setTrialDays(e.target.value.replace(/\D/g, "").slice(0, 3))}
@@ -2264,21 +2258,20 @@ export default function OrganisationsPage() {
 
             {licenseDialog?.action === "suspend" && (
               <p className="text-xs text-muted-foreground">
-                L'organisation passe en lecture seule ; ses données sont conservées. Différent du bouton
-                « Suspendre » de la ligne, qui désactive le compte lui-même.
+                {t("organisationsPage.licenseDialog.suspendInfo")}
               </p>
             )}
 
             {licenseDialog?.action === "regenerate-key" && (
               <p className="text-xs text-amber-700">
-                L'ancienne clé cesse immédiatement de fonctionner. Communiquez la nouvelle clé au client.
+                {t("organisationsPage.licenseDialog.regenerateInfo")}
               </p>
             )}
 
             {(licenseDialog?.action === "suspend" || licenseDialog?.action === "regenerate-key") && (
               <div className="space-y-1.5">
                 <Label className="text-xs">
-                  Tapez exactement <strong>{licenseDialog.org.name}</strong> pour confirmer
+                  {t("organisationsPage.licenseDialog.confirmName1")} <strong>{licenseDialog.org.name}</strong> {t("organisationsPage.licenseDialog.confirmName2")}
                 </Label>
                 <Input value={confirmOrgName} onChange={(e) => setConfirmOrgName(e.target.value)} />
               </div>
@@ -2287,7 +2280,7 @@ export default function OrganisationsPage() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => { setLicenseDialog(null); setConfirmOrgName(""); }}>
-              Annuler
+              {t("organisationsPage.licenseDialog.cancel")}
             </Button>
             <Button
               disabled={
@@ -2308,7 +2301,7 @@ export default function OrganisationsPage() {
               }}
             >
               {licenseBusy && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
-              Confirmer
+              {t("organisationsPage.licenseDialog.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2319,17 +2312,17 @@ export default function OrganisationsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600">
               <Trash2 className="w-5 h-5" />
-              Supprimer l'organisation
+              {t("organisationsPage.deleteDialog.title")}
             </DialogTitle>
             <DialogDescription>
-              Etes-vous sur de vouloir supprimer <strong>{selectedOrg?.name}</strong> ? Cette action est irreversible et supprimera toutes les donnees associees.
+              {t("organisationsPage.deleteDialog.descBefore")} <strong>{selectedOrg?.name}</strong> {t("organisationsPage.deleteDialog.descAfter")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDelete(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setShowDelete(false)}>{t("organisationsPage.deleteDialog.cancel")}</Button>
             <Button variant="destructive" onClick={handleDelete} disabled={saving}>
               {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              Supprimer
+              {t("organisationsPage.deleteDialog.delete")}
             </Button>
           </DialogFooter>
         </DialogContent>
