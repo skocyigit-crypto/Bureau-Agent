@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { MOBILE_APP_ORIGIN } from "@/lib/api-config";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 import {
   disableBiometric,
   enableBiometric,
@@ -37,6 +38,7 @@ type Mode = "login" | "forgot" | "forgot_done";
 type LoginOutcome = "ok" | "mfa" | "rejected";
 
 export default function LoginScreen() {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { login } = useAuth();
@@ -64,16 +66,16 @@ export default function LoginScreen() {
     (label: string): Promise<boolean> =>
       new Promise((resolve) => {
         Alert.alert(
-          `Activer le déverrouillage ${label} ?`,
-          "Vos identifiants seront conservés chiffrés sur cet appareil (trousseau sécurisé) pour vous reconnecter sans saisir votre mot de passe. Vous pourrez le désactiver à tout moment dans Réglages › Confidentialité et sécurité.",
+          t("loginScreen.enableBiometricTitle", { label }),
+          t("loginScreen.enableBiometricMessage"),
           [
-            { text: "Plus tard", style: "cancel", onPress: () => resolve(false) },
-            { text: "Activer", onPress: () => resolve(true) },
+            { text: t("loginScreen.later"), style: "cancel", onPress: () => resolve(false) },
+            { text: t("loginScreen.enable"), onPress: () => resolve(true) },
           ],
           { cancelable: true, onDismiss: () => resolve(false) },
         );
       }),
-    [],
+    [t],
   );
 
   const finishLogin = useCallback(
@@ -84,12 +86,12 @@ export default function LoginScreen() {
       // pouvait tout simplement plus ouvrir l'application mobile.
       if (result.requiresMfa) {
         setMfaRequired(true);
-        setError(totpCode ? "Code invalide. Réessayez." : "");
+        setError(totpCode ? t("loginScreen.invalidCode") : "");
         setTotpCode("");
         return "mfa";
       }
       if (!result.success) {
-        setError(result.error ?? "Erreur inconnue.");
+        setError(result.error ?? t("loginScreen.unknownError"));
         return "rejected";
       }
       setMfaRequired(false);
@@ -100,7 +102,7 @@ export default function LoginScreen() {
       //    changement de mot de passe casserait le déverrouillage sans recours.
       if (offerBiometric && bioCapable) {
         if (!bioEnabled) {
-          const accepted = await askEnableBiometric(bioLabel || "biométrique");
+          const accepted = await askEnableBiometric(bioLabel || t("loginScreen.biometricFallback"));
           if (accepted) setBioEnabled(await enableBiometric(mail.trim(), pwd));
         } else {
           await refreshBiometricCredentials(mail.trim(), pwd);
@@ -109,7 +111,7 @@ export default function LoginScreen() {
       router.replace("/(tabs)");
       return "ok";
     },
-    [login, bioCapable, bioEnabled, bioLabel, askEnableBiometric, totpCode],
+    [login, bioCapable, bioEnabled, bioLabel, askEnableBiometric, totpCode, t],
   );
 
   const unlockWithBiometric = useCallback(async () => {
@@ -133,9 +135,7 @@ export default function LoginScreen() {
           await disableBiometric();
           setBioEnabled(false);
           setEmail(creds.email);
-          setError(
-            "Le déverrouillage biométrique a été désactivé : vos identifiants enregistrés ne sont plus valides. Connectez-vous avec votre mot de passe.",
-          );
+          setError(t("loginScreen.biometricDisabled"));
         }
       }
     } catch {
@@ -167,7 +167,7 @@ export default function LoginScreen() {
 
   async function handleLogin() {
     if (!email.trim() || !password.trim()) {
-      setError("Veuillez remplir tous les champs.");
+      setError(t("loginScreen.fillAllFields"));
       return;
     }
     setLoading(true);
@@ -178,7 +178,7 @@ export default function LoginScreen() {
 
   async function handleForgot() {
     if (!email.trim()) {
-      setError("Entrez votre adresse e-mail.");
+      setError(t("loginScreen.enterEmail"));
       return;
     }
     setLoading(true);
@@ -191,7 +191,7 @@ export default function LoginScreen() {
       });
       setMode("forgot_done");
     } catch {
-      setError("Erreur lors de l'envoi. Réessayez.");
+      setError(t("loginScreen.sendError"));
     } finally {
       setLoading(false);
     }
@@ -215,12 +215,12 @@ export default function LoginScreen() {
           <Feather name="headphones" size={32} color={colors.secondary} />
         </View>
         <Text style={styles.brandTitle}>Ajant Bureau</Text>
-        <Text style={styles.brandSubtitle}>Solution professionnelle de gestion</Text>
+        <Text style={styles.brandSubtitle}>{t("loginScreen.brandSubtitle")}</Text>
       </View>
 
       <View style={[styles.formSection, { backgroundColor: colors.background }]}>
         <Text style={[styles.formTitle, { color: colors.foreground }]}>
-          {mode === "login" ? "Connexion" : mode === "forgot" ? "Mot de passe oublié" : "E-mail envoyé"}
+          {mode === "login" ? t("loginScreen.loginTitle") : mode === "forgot" ? t("loginScreen.forgotTitle") : t("loginScreen.emailSentTitle")}
         </Text>
 
         {error ? (
@@ -235,25 +235,25 @@ export default function LoginScreen() {
             <View style={[styles.infoBox, { backgroundColor: colors.success ? colors.success + "15" : "#22c55e15" }]}>
               <Feather name="mail" size={18} color={colors.success ?? "#22c55e"} />
               <Text style={[styles.infoText, { color: colors.foreground }]}>
-                Si un compte existe pour {email.trim()}, un lien de réinitialisation vient d'être envoyé. Vérifiez votre boîte mail (et les indésirables).
+                {t("loginScreen.forgotDoneInfo", { email: email.trim() })}
               </Text>
             </View>
             <Pressable
               onPress={() => { setMode("login"); setError(""); }}
               style={[styles.loginButton, { backgroundColor: colors.primary, marginTop: 8 }]}
             >
-              <Text style={[styles.loginButtonText, { color: colors.primaryForeground }]}>Retour à la connexion</Text>
+              <Text style={[styles.loginButtonText, { color: colors.primaryForeground }]}>{t("loginScreen.backToLogin")}</Text>
             </Pressable>
           </>
         ) : (
           <>
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: colors.mutedForeground }]}>Adresse e-mail</Text>
+              <Text style={[styles.label, { color: colors.mutedForeground }]}>{t("loginScreen.emailLabel")}</Text>
               <View style={[styles.inputContainer, { backgroundColor: colors.muted, borderColor: colors.border }]}>
                 <Feather name="mail" size={18} color={colors.mutedForeground} style={styles.inputIcon} />
                 <TextInput
                   style={[styles.input, { color: colors.foreground }]}
-                  placeholder="nom@entreprise.fr"
+                  placeholder={t("loginScreen.emailPlaceholder")}
                   placeholderTextColor={colors.mutedForeground}
                   value={email}
                   onChangeText={setEmail}
@@ -268,16 +268,16 @@ export default function LoginScreen() {
             {mode === "login" && (
               <View style={styles.inputGroup}>
                 <View style={styles.passwordLabelRow}>
-                  <Text style={[styles.label, { color: colors.mutedForeground }]}>Mot de passe</Text>
+                  <Text style={[styles.label, { color: colors.mutedForeground }]}>{t("loginScreen.passwordLabel")}</Text>
                   <Pressable onPress={() => { setMode("forgot"); setError(""); }} hitSlop={10} testID="forgot-link">
-                    <Text style={[styles.forgotLink, { color: colors.primary }]}>Mot de passe oublié ?</Text>
+                    <Text style={[styles.forgotLink, { color: colors.primary }]}>{t("loginScreen.forgotLink")}</Text>
                   </Pressable>
                 </View>
                 <View style={[styles.inputContainer, { backgroundColor: colors.muted, borderColor: colors.border }]}>
                   <Feather name="lock" size={18} color={colors.mutedForeground} style={styles.inputIcon} />
                   <TextInput
                     style={[styles.input, { color: colors.foreground }]}
-                    placeholder="Votre mot de passe"
+                    placeholder={t("loginScreen.passwordPlaceholder")}
                     placeholderTextColor={colors.mutedForeground}
                     value={password}
                     onChangeText={setPassword}
@@ -297,7 +297,7 @@ export default function LoginScreen() {
 
             {mode === "login" && mfaRequired && (
               <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: colors.mutedForeground }]}>Code de vérification</Text>
+                <Text style={[styles.label, { color: colors.mutedForeground }]}>{t("loginScreen.verificationCode")}</Text>
                 <View style={[styles.inputContainer, { backgroundColor: colors.muted, borderColor: colors.border }]}>
                   <Feather name="shield" size={18} color={colors.mutedForeground} style={styles.inputIcon} />
                   <TextInput
@@ -328,7 +328,7 @@ export default function LoginScreen() {
                 <ActivityIndicator color={colors.primaryForeground} />
               ) : (
                 <Text style={[styles.loginButtonText, { color: colors.primaryForeground }]}>
-                  {mode !== "login" ? "Envoyer le lien" : mfaRequired ? "Vérifier le code" : "Se connecter"}
+                  {mode !== "login" ? t("loginScreen.sendLink") : mfaRequired ? t("loginScreen.verifyCode") : t("loginScreen.signIn")}
                 </Text>
               )}
             </Pressable>
@@ -349,7 +349,7 @@ export default function LoginScreen() {
                   <>
                     <Feather name={bioIcon as any} size={18} color={colors.primary} />
                     <Text style={[styles.bioButtonText, { color: colors.primary }]}>
-                      Déverrouiller avec {bioLabel}
+                      {t("loginScreen.unlockWith", { label: bioLabel })}
                     </Text>
                   </>
                 )}
@@ -363,7 +363,7 @@ export default function LoginScreen() {
                 hitSlop={10}
               >
                 <Feather name="arrow-left" size={14} color={colors.mutedForeground} />
-                <Text style={[styles.backLinkText, { color: colors.mutedForeground }]}>Retour à la connexion</Text>
+                <Text style={[styles.backLinkText, { color: colors.mutedForeground }]}>{t("loginScreen.backToLogin")}</Text>
               </Pressable>
             )}
           </>

@@ -39,63 +39,73 @@ import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useUnreadBadges } from "@/contexts/UnreadBadgesContext";
 import { useColors } from "@/hooks/useColors";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
+import { useTranslation } from "@/lib/i18n";
 import { router, useFocusEffect } from "expo-router";
 
-const STATUS_MAP: Record<string, { label: string; color: string }> = {
-  repondu: { label: "Repondu", color: "#22c55e" },
-  manque: { label: "Manque", color: "#ef4444" },
-  messagerie: { label: "Messagerie", color: "#f59e0b" },
-  en_cours: { label: "En cours", color: "#3b82f6" },
+const STATUS_COLORS: Record<string, string> = {
+  repondu: "#22c55e",
+  manque: "#ef4444",
+  messagerie: "#f59e0b",
+  en_cours: "#3b82f6",
 };
 
-const DIRECTION_OPTIONS = [
-  { value: "entrant", label: "Entrant" },
-  { value: "sortant", label: "Sortant" },
-];
-
-const STATUS_OPTIONS = [
-  { value: "repondu", label: "Repondu" },
-  { value: "manque", label: "Manque" },
-  { value: "messagerie", label: "Messagerie" },
-];
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  repondu: "callsScreen.statusAnswered",
+  manque: "callsScreen.statusMissed",
+  messagerie: "callsScreen.statusVoicemail",
+  en_cours: "callsScreen.statusInProgress",
+};
 
 type ContactOption = { id: number; name: string; phone?: string | null };
 
-// A la creation on propose, comme sur le web et le flux message (Tâche #265),
-// soit de choisir un contact existant (-> contactId + pré-remplissage du
-// téléphone), soit de saisir un nouveau numero a la main. Le serveur derive le
-// nom du contact du contactId lie quand il est fourni.
-function buildCreateFields(contactOptions: ContactOption[]) {
-  return [
-    {
-      key: "contactId",
-      label: "Contact existant",
-      type: "contact" as const,
-      contactOptions,
-      linkedPhoneKey: "phoneNumber",
-      placeholder: "Rechercher un contact...",
-    },
-    { key: "phoneNumber", label: "Numero de telephone", type: "phone" as const, required: true },
-    { key: "direction", label: "Direction", type: "select" as const, options: DIRECTION_OPTIONS },
-    { key: "status", label: "Statut", type: "select" as const, options: STATUS_OPTIONS },
-    { key: "duration", label: "Duree (secondes)" },
-    { key: "notes", label: "Notes", type: "multiline" as const },
-  ];
-}
-
-// A l'edition: numero et direction sont immuables cote serveur (UpdateCallBody
-// ne les expose pas) -> affiches en lecture seule pour le contexte. Seuls
-// statut / duree / notes sont reellement modifiables.
-const EDIT_FIELDS = [
-  { key: "phoneNumber", label: "Numero de telephone", type: "phone" as const, readOnly: true },
-  { key: "direction", label: "Direction", type: "select" as const, options: DIRECTION_OPTIONS, readOnly: true },
-  { key: "status", label: "Statut", type: "select" as const, options: STATUS_OPTIONS },
-  { key: "duration", label: "Duree (secondes)" },
-  { key: "notes", label: "Notes", type: "multiline" as const },
-];
-
 export default function CallsScreen() {
+  const { t } = useTranslation();
   const colors = useColors();
+
+  const DIRECTION_OPTIONS = [
+    { value: "entrant", label: t("callsScreen.directionIncoming") },
+    { value: "sortant", label: t("callsScreen.directionOutgoing") },
+  ];
+
+  const STATUS_OPTIONS = [
+    { value: "repondu", label: t("callsScreen.statusAnswered") },
+    { value: "manque", label: t("callsScreen.statusMissed") },
+    { value: "messagerie", label: t("callsScreen.statusVoicemail") },
+  ];
+
+  // A la creation on propose, comme sur le web et le flux message (Tâche #265),
+  // soit de choisir un contact existant (-> contactId + pré-remplissage du
+  // téléphone), soit de saisir un nouveau numero a la main. Le serveur derive le
+  // nom du contact du contactId lie quand il est fourni.
+  function buildCreateFields(contactOptions: ContactOption[]) {
+    return [
+      {
+        key: "contactId",
+        label: t("callsScreen.existingContact"),
+        type: "contact" as const,
+        contactOptions,
+        linkedPhoneKey: "phoneNumber",
+        placeholder: t("callsScreen.searchContactPlaceholder"),
+      },
+      { key: "phoneNumber", label: t("callsScreen.phoneNumber"), type: "phone" as const, required: true },
+      { key: "direction", label: t("callsScreen.direction"), type: "select" as const, options: DIRECTION_OPTIONS },
+      { key: "status", label: t("callsScreen.status"), type: "select" as const, options: STATUS_OPTIONS },
+      { key: "duration", label: t("callsScreen.durationSeconds") },
+      { key: "notes", label: t("callsScreen.notes"), type: "multiline" as const },
+    ];
+  }
+
+  // A l'edition: numero et direction sont immuables cote serveur (UpdateCallBody
+  // ne les expose pas) -> affiches en lecture seule pour le contexte. Seuls
+  // statut / duree / notes sont reellement modifiables.
+  const EDIT_FIELDS = [
+    { key: "phoneNumber", label: t("callsScreen.phoneNumber"), type: "phone" as const, readOnly: true },
+    { key: "direction", label: t("callsScreen.direction"), type: "select" as const, options: DIRECTION_OPTIONS, readOnly: true },
+    { key: "status", label: t("callsScreen.status"), type: "select" as const, options: STATUS_OPTIONS },
+    { key: "duration", label: t("callsScreen.durationSeconds") },
+    { key: "notes", label: t("callsScreen.notes"), type: "multiline" as const },
+  ];
+
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
   const { clearKey } = useUnreadBadges();
@@ -252,9 +262,9 @@ export default function CallsScreen() {
 
   function confirmDelete(id: number) {
     if (Platform.OS === "web") { handleDelete(id); return; }
-    Alert.alert("Supprimer", "Supprimer cet appel ?", [
-      { text: "Annuler", style: "cancel", onPress: () => swipeRefs.current[id]?.close() },
-      { text: "Supprimer", style: "destructive", onPress: () => handleDelete(id) },
+    Alert.alert(t("common.delete"), t("callsScreen.deleteConfirm"), [
+      { text: t("common.cancel"), style: "cancel", onPress: () => swipeRefs.current[id]?.close() },
+      { text: t("common.delete"), style: "destructive", onPress: () => handleDelete(id) },
     ]);
   }
 
@@ -284,7 +294,7 @@ export default function CallsScreen() {
         style={[styles.swipeAction, { backgroundColor: "#ef4444" }]}
       >
         <Feather name="trash-2" size={18} color="#fff" />
-        <Text style={styles.swipeText}>Suppr.</Text>
+        <Text style={styles.swipeText}>{t("callsScreen.swipeDelete")}</Text>
       </Pressable>
     );
   }
@@ -297,16 +307,16 @@ export default function CallsScreen() {
         style={[styles.swipeAction, { backgroundColor: "#22c55e" }]}
       >
         <Feather name="phone-call" size={18} color="#fff" />
-        <Text style={styles.swipeText}>Rappel</Text>
+        <Text style={styles.swipeText}>{t("callsScreen.swipeCallback")}</Text>
       </Pressable>
     );
   }
 
   const filters = [
-    { key: "all", label: "Tous" },
-    { key: "answered", label: "Repondus" },
-    { key: "missed", label: "Manques" },
-    { key: "outgoing", label: "Sortants" },
+    { key: "all", label: t("callsScreen.filterAll") },
+    { key: "answered", label: t("callsScreen.filterAnswered") },
+    { key: "missed", label: t("callsScreen.filterMissed") },
+    { key: "outgoing", label: t("callsScreen.filterOutgoing") },
   ];
 
   const missedCount = calls.filter((c) => c.status === "manque").length;
@@ -316,7 +326,7 @@ export default function CallsScreen() {
       <View style={[styles.header, { backgroundColor: colors.secondary, paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={styles.headerTop}>
           <View style={styles.headerTitleRow}>
-            <Text style={styles.headerTitle}>Appels</Text>
+            <Text style={styles.headerTitle}>{t("callsScreen.title")}</Text>
             {missedCount > 0 && (
               <View style={styles.missedBadge}>
                 <Text style={styles.missedBadgeText}>{missedCount}</Text>
@@ -326,7 +336,7 @@ export default function CallsScreen() {
           {isFromCache && (
             <View style={styles.cacheRow}>
               <Feather name="wifi-off" size={10} color="rgba(255,255,255,0.5)" />
-              <Text style={styles.cacheText}>Cache</Text>
+              <Text style={styles.cacheText}>{t("callsScreen.cache")}</Text>
             </View>
           )}
         </View>
@@ -334,7 +344,7 @@ export default function CallsScreen() {
           <Feather name="search" size={16} color="rgba(255,255,255,0.5)" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Rechercher..."
+            placeholder={t("callsScreen.searchPlaceholder")}
             placeholderTextColor="rgba(255,255,255,0.4)"
             value={searchInput}
             onChangeText={setSearchInput}
@@ -369,13 +379,13 @@ export default function CallsScreen() {
           ListHeaderComponent={
             todayStats.total > 0 ? (
               <View style={[styles.todaySummary, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.todayLabel, { color: colors.foreground }]}>Aujourd'hui</Text>
+                <Text style={[styles.todayLabel, { color: colors.foreground }]}>{t("callsScreen.today")}</Text>
                 <View style={styles.todayRow}>
                   {[
-                    { icon: "phone" as const, value: todayStats.total, color: colors.primary, label: "Total" },
-                    { icon: "check-circle" as const, value: todayStats.answered, color: "#22c55e", label: "Repondus" },
-                    { icon: "phone-missed" as const, value: todayStats.missed, color: "#ef4444", label: "Manques" },
-                    { icon: "clock" as const, value: formatDuration(todayStats.totalDuration), color: colors.mutedForeground, label: "Duree" },
+                    { icon: "phone" as const, value: todayStats.total, color: colors.primary, label: t("callsScreen.total") },
+                    { icon: "check-circle" as const, value: todayStats.answered, color: "#22c55e", label: t("callsScreen.filterAnswered") },
+                    { icon: "phone-missed" as const, value: todayStats.missed, color: "#ef4444", label: t("callsScreen.filterMissed") },
+                    { icon: "clock" as const, value: formatDuration(todayStats.totalDuration), color: colors.mutedForeground, label: t("callsScreen.durationShort") },
                   ].map((stat, i) => (
                     <View key={i} style={styles.todayStat}>
                       <Feather name={stat.icon} size={13} color={stat.color} />
@@ -387,9 +397,10 @@ export default function CallsScreen() {
               </View>
             ) : null
           }
-          ListEmptyComponent={<EmptyState icon="phone-off" title="Aucun appel" subtitle="Les appels apparaitront ici" />}
+          ListEmptyComponent={<EmptyState icon="phone-off" title={t("callsScreen.emptyTitle")} subtitle={t("callsScreen.emptySubtitle")} />}
           renderItem={({ item }) => {
-            const status = STATUS_MAP[item.status] ?? { label: item.status, color: colors.mutedForeground };
+            const statusColor = STATUS_COLORS[item.status] ?? colors.mutedForeground;
+            const statusLabel = STATUS_LABEL_KEYS[item.status] ? t(STATUS_LABEL_KEYS[item.status]) : item.status;
             const isMissed = item.status === "manque";
             const isOutgoing = item.direction === "sortant";
             return (
@@ -412,29 +423,29 @@ export default function CallsScreen() {
                   {
                     backgroundColor: colors.card,
                     borderColor: isMissed ? "#ef444425" : colors.border,
-                    borderLeftColor: status.color,
+                    borderLeftColor: statusColor,
                   },
                 ]}>
-                  <View style={[styles.callIcon, { backgroundColor: status.color + "18" }]}>
+                  <View style={[styles.callIcon, { backgroundColor: statusColor + "18" }]}>
                     <Feather
                       name={isMissed ? "phone-missed" : isOutgoing ? "phone-outgoing" : "phone-incoming"}
                       size={16}
-                      color={status.color}
+                      color={statusColor}
                     />
                   </View>
                   <Pressable onPress={() => setSelected(item)} style={styles.callContent}>
                     <View style={styles.callTop}>
                       <Text style={[styles.callName, { color: colors.foreground }]} numberOfLines={1}>
-                        {item.contactName || item.phoneNumber || "Inconnu"}
+                        {item.contactName || item.phoneNumber || t("callsScreen.unknown")}
                       </Text>
                       <Text style={[styles.callTime, { color: colors.mutedForeground }]}>{formatTime(item.createdAt)}</Text>
                     </View>
                     <View style={styles.callMeta}>
-                      <View style={[styles.statusPill, { backgroundColor: status.color + "18" }]}>
-                        <Text style={[styles.statusPillText, { color: status.color }]}>{status.label}</Text>
+                      <View style={[styles.statusPill, { backgroundColor: statusColor + "18" }]}>
+                        <Text style={[styles.statusPillText, { color: statusColor }]}>{statusLabel}</Text>
                       </View>
                       <Text style={[styles.callDir, { color: colors.mutedForeground }]}>
-                        {isOutgoing ? "Sortant" : "Entrant"}
+                        {isOutgoing ? t("callsScreen.directionOutgoing") : t("callsScreen.directionIncoming")}
                       </Text>
                       {item.duration > 0 && (
                         <Text style={[styles.callDuration, { color: colors.mutedForeground }]}>
@@ -465,12 +476,12 @@ export default function CallsScreen() {
         visible={showForm}
         onClose={() => { setShowForm(false); setEditId(null); }}
         onSubmit={handleSubmit}
-        title={editId ? "Modifier l'appel" : "Nouvel appel"}
+        title={editId ? t("callsScreen.editTitle") : t("callsScreen.newTitle")}
         fields={editId ? EDIT_FIELDS : buildCreateFields(contactOptions)}
         values={formValues}
         onChange={(k, v) => setFormValues((p) => ({ ...p, [k]: v }))}
         loading={formLoading}
-        submitLabel={editId ? "Enregistrer" : "Creer"}
+        submitLabel={editId ? t("common.save") : t("callsScreen.create")}
       />
 
       {selected ? (
@@ -479,31 +490,31 @@ export default function CallsScreen() {
           onClose={() => setSelected(null)}
           onEdit={() => openEdit(selected)}
           onDelete={() => handleDelete(selected.id)}
-          title={selected.contactName || selected.phoneNumber || "Inconnu"}
-          subtitle={selected.direction === "entrant" ? "Appel entrant" : "Appel sortant"}
+          title={selected.contactName || selected.phoneNumber || t("callsScreen.unknown")}
+          subtitle={selected.direction === "entrant" ? t("callsScreen.incomingCall") : t("callsScreen.outgoingCall")}
           icon={selected.status === "manque" ? "phone-missed" : "phone"}
-          iconColor={STATUS_MAP[selected.status]?.color}
-          badge={{ label: STATUS_MAP[selected.status]?.label ?? selected.status, color: STATUS_MAP[selected.status]?.color ?? "#64748b" }}
+          iconColor={STATUS_COLORS[selected.status]}
+          badge={{ label: STATUS_LABEL_KEYS[selected.status] ? t(STATUS_LABEL_KEYS[selected.status]) : selected.status, color: STATUS_COLORS[selected.status] ?? "#64748b" }}
           fields={[
-            { label: "Telephone", value: selected.phoneNumber || "-", icon: "phone", action: selected.phoneNumber ? "call" : undefined },
-            { label: "Duree", value: selected.duration > 0 ? formatDuration(selected.duration) : "0s", icon: "clock" },
-            { label: "Date", value: new Date(selected.createdAt).toLocaleString("fr-FR"), icon: "calendar" },
-            ...(selected.notes ? [{ label: "Notes", value: selected.notes, icon: "file-text" as const }] : []),
+            { label: t("callsScreen.phone"), value: selected.phoneNumber || "-", icon: "phone", action: selected.phoneNumber ? "call" : undefined },
+            { label: t("callsScreen.duration"), value: selected.duration > 0 ? formatDuration(selected.duration) : "0s", icon: "clock" },
+            { label: t("callsScreen.date"), value: new Date(selected.createdAt).toLocaleString("fr-FR"), icon: "calendar" },
+            ...(selected.notes ? [{ label: t("callsScreen.notes"), value: selected.notes, icon: "file-text" as const }] : []),
           ]}
           extraActions={[
             ...(selected.contactId ? [{
-              label: "Voir le contact",
+              label: t("callsScreen.viewContact"),
               icon: "user" as const,
               color: "#22c55e",
               onPress: () => { const id = selected.contactId; setSelected(null); router.push(`/contact-detail?id=${id}` as any); },
             }] : []),
             {
-              label: "Projet",
+              label: t("callsScreen.project"),
               icon: "folder" as const,
               color: "#6366f1",
               onPress: async () => {
                 try {
-                  const res = await fetchAuth(`${API_BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: `Appel - ${selected.contactName || selected.phoneNumber}`, status: "planifie", priority: "moyenne", progress: 0, notes: `Projet créé depuis un appel de ${selected.contactName || selected.phoneNumber}` }) });
+                  const res = await fetchAuth(`${API_BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: t("callsScreen.projectTitle", { name: selected.contactName || selected.phoneNumber }), status: "planifie", priority: "moyenne", progress: 0, notes: t("callsScreen.projectNotes", { name: selected.contactName || selected.phoneNumber }) }) });
                   if (res.ok) { setSelected(null); router.push("/projets" as any); }
                 } catch {}
               },

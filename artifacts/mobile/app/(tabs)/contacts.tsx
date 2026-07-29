@@ -36,6 +36,7 @@ import { FormModal } from "@/components/FormModal";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 const CATEGORY_COLORS: Record<string, string> = {
   client: "#22c55e",
@@ -45,32 +46,13 @@ const CATEGORY_COLORS: Record<string, string> = {
   autre: "#64748b",
 };
 
-const CATEGORY_LABELS: Record<string, string> = {
-  client: "Client",
-  prospect: "Prospect",
-  fournisseur: "Fournisseur",
-  partenaire: "Partenaire",
-  autre: "Autre",
+const CATEGORY_LABEL_KEYS: Record<string, string> = {
+  client: "contactsScreen.catClient",
+  prospect: "contactsScreen.catProspect",
+  fournisseur: "contactsScreen.catSupplier",
+  partenaire: "contactsScreen.catPartner",
+  autre: "contactsScreen.catOther",
 };
-
-const FORM_FIELDS = [
-  { key: "firstName", label: "Prenom", required: true },
-  { key: "lastName", label: "Nom", required: true },
-  { key: "company", label: "Entreprise" },
-  { key: "phone", label: "Telephone", type: "phone" as const },
-  { key: "email", label: "E-mail", type: "email" as const },
-  {
-    key: "category", label: "Categorie", type: "select" as const, options: [
-      { value: "client", label: "Client" },
-      { value: "prospect", label: "Prospect" },
-      { value: "fournisseur", label: "Fournisseur" },
-      { value: "partenaire", label: "Partenaire" },
-      { value: "autre", label: "Autre" },
-    ],
-  },
-  { key: "address", label: "Adresse" },
-  { key: "notes", label: "Notes", type: "multiline" as const },
-];
 
 function ContactRow({
   item,
@@ -87,6 +69,7 @@ function ContactRow({
   onSms: () => void;
   onEmail: () => void;
 }) {
+  const { t } = useTranslation();
   const catColor = CATEGORY_COLORS[item.category] ?? colors.mutedForeground;
 
   function formatLastContact(dateStr?: string | null): string {
@@ -95,10 +78,10 @@ function ContactRow({
     const now = new Date();
     const diff = now.getTime() - d.getTime();
     const days = Math.floor(diff / 86400000);
-    if (days === 0) return "Aujourd'hui";
-    if (days === 1) return "Hier";
-    if (days < 7) return `${days}j`;
-    if (days < 30) return `${Math.floor(days / 7)}sem`;
+    if (days === 0) return t("contactsScreen.today");
+    if (days === 1) return t("contactsScreen.yesterday");
+    if (days < 7) return t("contactsScreen.daysShort", { count: days });
+    if (days < 30) return t("contactsScreen.weeksShort", { count: Math.floor(days / 7) });
     return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
   }
 
@@ -125,7 +108,7 @@ function ContactRow({
         <View style={styles.contactMeta}>
           <View style={[styles.catDot, { backgroundColor: catColor }]} />
           <Text style={[styles.contactSub, { color: colors.mutedForeground }]} numberOfLines={1}>
-            {item.company || CATEGORY_LABELS[item.category] || item.category}
+            {item.company || (CATEGORY_LABEL_KEYS[item.category] ? t(CATEGORY_LABEL_KEYS[item.category]) : item.category)}
           </Text>
           {lastContact ? (
             <Text style={[styles.lastContactText, { color: colors.mutedForeground }]}> · {lastContact}</Text>
@@ -154,8 +137,28 @@ function ContactRow({
 }
 
 export default function ContactsScreen() {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
+
+  const FORM_FIELDS = [
+    { key: "firstName", label: t("contactsScreen.firstName"), required: true },
+    { key: "lastName", label: t("contactsScreen.lastName"), required: true },
+    { key: "company", label: t("contactsScreen.company") },
+    { key: "phone", label: t("contactsScreen.phone"), type: "phone" as const },
+    { key: "email", label: t("contactsScreen.email"), type: "email" as const },
+    {
+      key: "category", label: t("contactsScreen.category"), type: "select" as const, options: [
+        { value: "client", label: t("contactsScreen.catClient") },
+        { value: "prospect", label: t("contactsScreen.catProspect") },
+        { value: "fournisseur", label: t("contactsScreen.catSupplier") },
+        { value: "partenaire", label: t("contactsScreen.catPartner") },
+        { value: "autre", label: t("contactsScreen.catOther") },
+      ],
+    },
+    { key: "address", label: t("contactsScreen.address") },
+    { key: "notes", label: t("contactsScreen.notes"), type: "multiline" as const },
+  ];
   const { fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -274,10 +277,10 @@ export default function ContactsScreen() {
   }
 
   const catFilters = [
-    { key: "all", label: "Tous" },
-    { key: "client", label: "Clients" },
-    { key: "prospect", label: "Prospects" },
-    { key: "fournisseur", label: "Fourn." },
+    { key: "all", label: t("contactsScreen.filterAll") },
+    { key: "client", label: t("contactsScreen.filterClients") },
+    { key: "prospect", label: t("contactsScreen.filterProspects") },
+    { key: "fournisseur", label: t("contactsScreen.filterSuppliers") },
   ];
 
   const sections = useMemo(() => {
@@ -318,7 +321,7 @@ export default function ContactsScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.secondary, paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={styles.headerRow}>
-          <Text style={styles.headerTitle}>Contacts</Text>
+          <Text style={styles.headerTitle}>{t("contactsScreen.title")}</Text>
           <View style={[styles.countBadge, { backgroundColor: colors.primary + "30" }]}>
             <Text style={[styles.countText, { color: colors.primary }]}>{contacts.length}</Text>
           </View>
@@ -332,7 +335,7 @@ export default function ContactsScreen() {
           <Feather name="search" size={16} color="rgba(255,255,255,0.5)" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Rechercher un contact..."
+            placeholder={t("contactsScreen.searchPlaceholder")}
             placeholderTextColor="rgba(255,255,255,0.4)"
             value={searchInput}
             onChangeText={setSearchInput}
@@ -359,7 +362,7 @@ export default function ContactsScreen() {
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : contacts.length === 0 ? (
-        <EmptyState icon="users" title="Aucun contact" subtitle="Vos contacts apparaitront ici" />
+        <EmptyState icon="users" title={t("contactsScreen.emptyTitle")} subtitle={t("contactsScreen.emptySubtitle")} />
       ) : isSearchMode ? (
         <FlatList
           ref={flatListRef}
@@ -367,7 +370,7 @@ export default function ContactsScreen() {
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={[styles.listContent, { paddingBottom: isWeb ? 118 : 100 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
-          ListEmptyComponent={<EmptyState icon="users" title="Aucun contact" subtitle="Affinez votre recherche" />}
+          ListEmptyComponent={<EmptyState icon="users" title={t("contactsScreen.emptyTitle")} subtitle={t("contactsScreen.refineSearch")} />}
           renderItem={({ item }) => (
             <ContactRow
               item={item}
@@ -424,13 +427,13 @@ export default function ContactsScreen() {
         visible={showForm}
         onClose={() => { setShowForm(false); setEditId(null); }}
         onSubmit={handleSubmit}
-        title={editId ? "Modifier le contact" : "Nouveau contact"}
+        title={editId ? t("contactsScreen.editTitle") : t("contactsScreen.newTitle")}
         fields={FORM_FIELDS}
         values={formValues}
         onChange={(k, v) => setFormValues((p) => ({ ...p, [k]: v }))}
         loading={formLoading}
         icon="user-plus"
-        submitLabel={editId ? "Enregistrer" : "Creer"}
+        submitLabel={editId ? t("common.save") : t("contactsScreen.create")}
       />
 
       {selected ? (
@@ -443,23 +446,23 @@ export default function ContactsScreen() {
           subtitle={selected.company ?? undefined}
           icon="user"
           iconColor={CATEGORY_COLORS[selected.category]}
-          badge={{ label: CATEGORY_LABELS[selected.category] ?? selected.category, color: CATEGORY_COLORS[selected.category] ?? "#64748b" }}
+          badge={{ label: CATEGORY_LABEL_KEYS[selected.category] ? t(CATEGORY_LABEL_KEYS[selected.category]) : selected.category, color: CATEGORY_COLORS[selected.category] ?? "#64748b" }}
           fields={[
-            ...(selected.phone ? [{ label: "Telephone", value: selected.phone, icon: "phone" as const, action: "call" as const }] : []),
-            ...(selected.email ? [{ label: "E-mail", value: selected.email, icon: "mail" as const, action: "email" as const }] : []),
-            ...(selected.company ? [{ label: "Entreprise", value: selected.company, icon: "briefcase" as const }] : []),
-            ...(selected.address ? [{ label: "Adresse", value: selected.address, icon: "map-pin" as const }] : []),
-            { label: "Appels", value: `${selected.totalCalls || 0}`, icon: "phone" },
-            ...(selected.notes ? [{ label: "Notes", value: selected.notes, icon: "file-text" as const }] : []),
+            ...(selected.phone ? [{ label: t("contactsScreen.phone"), value: selected.phone, icon: "phone" as const, action: "call" as const }] : []),
+            ...(selected.email ? [{ label: t("contactsScreen.email"), value: selected.email, icon: "mail" as const, action: "email" as const }] : []),
+            ...(selected.company ? [{ label: t("contactsScreen.company"), value: selected.company, icon: "briefcase" as const }] : []),
+            ...(selected.address ? [{ label: t("contactsScreen.address"), value: selected.address, icon: "map-pin" as const }] : []),
+            { label: t("contactsScreen.calls"), value: `${selected.totalCalls || 0}`, icon: "phone" },
+            ...(selected.notes ? [{ label: t("contactsScreen.notes"), value: selected.notes, icon: "file-text" as const }] : []),
           ]}
           extraActions={[{
-            label: "Créer un projet",
+            label: t("contactsScreen.createProject"),
             icon: "folder",
             color: "#6366f1",
             onPress: async () => {
               try {
-                const name = `${selected.firstName} ${selected.lastName}`.trim() || selected.company || "Contact";
-                const res = await fetchAuth(`${API_BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: `Projet - ${name}`, clientName: name, contactId: selected.id, status: "planifie", priority: "moyenne", progress: 0, notes: `Créé depuis le contact mobile` }) });
+                const name = `${selected.firstName} ${selected.lastName}`.trim() || selected.company || t("contactsScreen.contactFallback");
+                const res = await fetchAuth(`${API_BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: t("contactsScreen.projectTitle", { name }), clientName: name, contactId: selected.id, status: "planifie", priority: "moyenne", progress: 0, notes: t("contactsScreen.projectNotes") }) });
                 if (res.ok) { setSelected(null); router.push("/projets" as any); }
               } catch {}
             },

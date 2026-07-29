@@ -38,12 +38,20 @@ import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useUnreadBadges } from "@/contexts/UnreadBadgesContext";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
-const STATUS_MAP: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  en_attente: { label: "En attente", color: "#f59e0b", icon: "clock" },
-  en_cours: { label: "En cours", color: "#3b82f6", icon: "play-circle" },
-  termine: { label: "Termine", color: "#22c55e", icon: "check-circle" },
-  annule: { label: "Annule", color: "#64748b", icon: "x-circle" },
+const STATUS_MAP: Record<string, { color: string; icon: keyof typeof Feather.glyphMap }> = {
+  en_attente: { color: "#f59e0b", icon: "clock" },
+  en_cours: { color: "#3b82f6", icon: "play-circle" },
+  termine: { color: "#22c55e", icon: "check-circle" },
+  annule: { color: "#64748b", icon: "x-circle" },
+};
+
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  en_attente: "tasksScreen.statusPending",
+  en_cours: "tasksScreen.statusInProgress",
+  termine: "tasksScreen.statusDone",
+  annule: "tasksScreen.statusCancelled",
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -52,48 +60,30 @@ const PRIORITY_COLORS: Record<string, string> = {
   basse: "#22c55e",
 };
 
-const PRIORITY_LABELS: Record<string, string> = {
-  haute: "Haute",
-  moyenne: "Moyenne",
-  basse: "Basse",
+const PRIORITY_LABEL_KEYS: Record<string, string> = {
+  haute: "tasksScreen.priorityHigh",
+  moyenne: "tasksScreen.priorityMedium",
+  basse: "tasksScreen.priorityLow",
 };
 
-const FORM_FIELDS = [
-  { key: "title", label: "Titre", required: true },
-  { key: "description", label: "Description", type: "multiline" as const },
-  {
-    key: "priority", label: "Priorite", type: "select" as const, options: [
-      { value: "basse", label: "Basse" },
-      { value: "moyenne", label: "Moyenne" },
-      { value: "haute", label: "Haute" },
-    ],
-  },
-  {
-    key: "status", label: "Statut", type: "select" as const, options: [
-      { value: "en_attente", label: "En attente" },
-      { value: "en_cours", label: "En cours" },
-      { value: "termine", label: "Termine" },
-    ],
-  },
-  { key: "assignedTo", label: "Assigne a" },
-];
-
 function LeftAction({ progress }: { progress: Animated.AnimatedInterpolation<number> }) {
+  const { t } = useTranslation();
   const scale = progress.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1], extrapolate: "clamp" });
   return (
     <Animated.View style={[styles.swipeAction, styles.swipeLeft, { transform: [{ scale }] }]}>
       <Feather name="check-circle" size={22} color="#fff" />
-      <Text style={styles.swipeActionText}>Terminer</Text>
+      <Text style={styles.swipeActionText}>{t("tasksScreen.complete")}</Text>
     </Animated.View>
   );
 }
 
 function RightAction({ progress }: { progress: Animated.AnimatedInterpolation<number> }) {
+  const { t } = useTranslation();
   const scale = progress.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1], extrapolate: "clamp" });
   return (
     <Animated.View style={[styles.swipeAction, styles.swipeRight, { transform: [{ scale }] }]}>
       <Feather name="trash-2" size={22} color="#fff" />
-      <Text style={styles.swipeActionText}>Supprimer</Text>
+      <Text style={styles.swipeActionText}>{t("common.delete")}</Text>
     </Animated.View>
   );
 }
@@ -107,8 +97,10 @@ interface SwipeableTaskProps {
 }
 
 function SwipeableTask({ item, colors, onToggle, onDelete, onOpen }: SwipeableTaskProps) {
+  const { t } = useTranslation();
   const swipeRef = useRef<Swipeable>(null);
-  const status = STATUS_MAP[item.status] ?? { label: item.status, color: "#64748b", icon: "circle" as const };
+  const statusColor = STATUS_MAP[item.status]?.color ?? "#64748b";
+  const statusIcon = STATUS_MAP[item.status]?.icon ?? ("circle" as const);
   const prioColor = PRIORITY_COLORS[item.priority] ?? colors.mutedForeground;
 
   function getDueDateInfo(dateStr: string | null) {
@@ -116,10 +108,10 @@ function SwipeableTask({ item, colors, onToggle, onDelete, onOpen }: SwipeableTa
     const d = new Date(dateStr);
     const now = new Date();
     const diffDays = Math.ceil((d.getTime() - now.getTime()) / 86400000);
-    if (diffDays < 0) return { label: `${Math.abs(diffDays)}j retard`, color: "#ef4444", urgent: true };
-    if (diffDays === 0) return { label: "Aujourd'hui", color: "#f59e0b", urgent: true };
-    if (diffDays === 1) return { label: "Demain", color: "#f59e0b", urgent: false };
-    if (diffDays <= 3) return { label: `${diffDays}j`, color: "#3b82f6", urgent: false };
+    if (diffDays < 0) return { label: t("tasksScreen.daysOverdue", { count: Math.abs(diffDays) }), color: "#ef4444", urgent: true };
+    if (diffDays === 0) return { label: t("tasksScreen.today"), color: "#f59e0b", urgent: true };
+    if (diffDays === 1) return { label: t("tasksScreen.tomorrow"), color: "#f59e0b", urgent: false };
+    if (diffDays <= 3) return { label: t("tasksScreen.daysShort", { count: diffDays }), color: "#3b82f6", urgent: false };
     return { label: new Date(dateStr).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }), color: colors.mutedForeground, urgent: false };
   }
 
@@ -135,9 +127,9 @@ function SwipeableTask({ item, colors, onToggle, onDelete, onOpen }: SwipeableTa
       if (Platform.OS === "web") {
         onDelete(item.id);
       } else {
-        Alert.alert("Supprimer", `Supprimer "${item.title}" ?`, [
-          { text: "Annuler", style: "cancel" },
-          { text: "Supprimer", style: "destructive", onPress: () => onDelete(item.id) },
+        Alert.alert(t("common.delete"), t("tasksScreen.deleteConfirm", { title: item.title }), [
+          { text: t("common.cancel"), style: "cancel" },
+          { text: t("common.delete"), style: "destructive", onPress: () => onDelete(item.id) },
         ]);
       }
     }
@@ -161,8 +153,8 @@ function SwipeableTask({ item, colors, onToggle, onDelete, onOpen }: SwipeableTa
           dueInfo?.urgent && { borderLeftWidth: 3, borderLeftColor: dueInfo.color },
         ]}
       >
-        <Pressable onPress={() => onToggle(item)} style={[styles.checkCircle, { borderColor: status.color }]}>
-          {item.status === "termine" ? <Feather name="check" size={14} color={status.color} /> : null}
+        <Pressable onPress={() => onToggle(item)} style={[styles.checkCircle, { borderColor: statusColor }]}>
+          {item.status === "termine" ? <Feather name="check" size={14} color={statusColor} /> : null}
         </Pressable>
         <Pressable onPress={() => onOpen(item)} style={styles.taskContent}>
           <Text
@@ -174,7 +166,7 @@ function SwipeableTask({ item, colors, onToggle, onDelete, onOpen }: SwipeableTa
           <View style={styles.taskMeta}>
             <View style={[styles.prioDot, { backgroundColor: prioColor }]} />
             <Text style={[styles.taskMetaText, { color: colors.mutedForeground }]}>
-              {PRIORITY_LABELS[item.priority] ?? item.priority}
+              {PRIORITY_LABEL_KEYS[item.priority] ? t(PRIORITY_LABEL_KEYS[item.priority]) : item.priority}
             </Text>
             {dueInfo ? (
               <View style={[styles.dueBadge, { backgroundColor: dueInfo.color + "15" }]}>
@@ -191,8 +183,8 @@ function SwipeableTask({ item, colors, onToggle, onDelete, onOpen }: SwipeableTa
             ) : null}
           </View>
         </Pressable>
-        <View style={[styles.statusPill, { backgroundColor: status.color + "18" }]}>
-          <Feather name={status.icon} size={12} color={status.color} />
+        <View style={[styles.statusPill, { backgroundColor: statusColor + "18" }]}>
+          <Feather name={statusIcon} size={12} color={statusColor} />
         </View>
       </View>
     </Swipeable>
@@ -200,8 +192,29 @@ function SwipeableTask({ item, colors, onToggle, onDelete, onOpen }: SwipeableTa
 }
 
 export default function TasksScreen() {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
+
+  const FORM_FIELDS = [
+    { key: "title", label: t("tasksScreen.fieldTitle"), required: true },
+    { key: "description", label: t("tasksScreen.description"), type: "multiline" as const },
+    {
+      key: "priority", label: t("tasksScreen.priority"), type: "select" as const, options: [
+        { value: "basse", label: t("tasksScreen.priorityLow") },
+        { value: "moyenne", label: t("tasksScreen.priorityMedium") },
+        { value: "haute", label: t("tasksScreen.priorityHigh") },
+      ],
+    },
+    {
+      key: "status", label: t("tasksScreen.status"), type: "select" as const, options: [
+        { value: "en_attente", label: t("tasksScreen.statusPending") },
+        { value: "en_cours", label: t("tasksScreen.statusInProgress") },
+        { value: "termine", label: t("tasksScreen.statusDone") },
+      ],
+    },
+    { key: "assignedTo", label: t("tasksScreen.assignedTo") },
+  ];
   const { fetchAuth } = useAuth();
   const { clearKey } = useUnreadBadges();
   // Tâche #83 : `open=<id>` est posé par le tap sur la notification
@@ -344,7 +357,7 @@ export default function TasksScreen() {
       setFormValues({ priority: "moyenne", status: "en_attente" });
       fetchTasks();
     } catch {
-      if (Platform.OS !== "web") Alert.alert("Erreur", "Impossible de sauvegarder la tache.");
+      if (Platform.OS !== "web") Alert.alert(t("message.error"), t("tasksScreen.saveError"));
     } finally { setFormLoading(false); }
   }
 
@@ -376,23 +389,23 @@ export default function TasksScreen() {
   };
 
   const filters = [
-    { key: "all", label: "Toutes" },
-    { key: "en_attente", label: "Attente" },
-    { key: "en_cours", label: "En cours" },
-    { key: "termine", label: "Terminees" },
+    { key: "all", label: t("tasksScreen.filterAll") },
+    { key: "en_attente", label: t("tasksScreen.filterPending") },
+    { key: "en_cours", label: t("tasksScreen.statusInProgress") },
+    { key: "termine", label: t("tasksScreen.filterDone") },
   ];
 
-  const hintText = isWeb ? "" : "← Terminer  |  Supprimer →";
+  const hintText = isWeb ? "" : t("tasksScreen.swipeHint");
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.secondary, paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={styles.headerTop}>
-          <Text style={styles.headerTitle}>Taches</Text>
+          <Text style={styles.headerTitle}>{t("tasksScreen.title")}</Text>
           {isFromCache && (
             <View style={[styles.cacheBadge, { backgroundColor: "rgba(255,255,255,0.12)" }]}>
               <Feather name="wifi-off" size={10} color="rgba(255,255,255,0.6)" />
-              <Text style={styles.cacheText}>Cache</Text>
+              <Text style={styles.cacheText}>{t("tasksScreen.cache")}</Text>
             </View>
           )}
         </View>
@@ -400,7 +413,7 @@ export default function TasksScreen() {
           <Feather name="search" size={16} color="rgba(255,255,255,0.5)" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Rechercher une tache..."
+            placeholder={t("tasksScreen.searchPlaceholder")}
             placeholderTextColor="rgba(255,255,255,0.4)"
             value={searchInput}
             onChangeText={setSearchInput}
@@ -438,29 +451,29 @@ export default function TasksScreen() {
                 <View style={[styles.statsBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.statItem}>
                     <Text style={[styles.statNum, { color: colors.primary }]}>{statsRow.total}</Text>
-                    <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>Total</Text>
+                    <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>{t("tasksScreen.total")}</Text>
                   </View>
                   <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
                   <View style={styles.statItem}>
                     <Text style={[styles.statNum, { color: "#f59e0b" }]}>{statsRow.pending}</Text>
-                    <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>Attente</Text>
+                    <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>{t("tasksScreen.filterPending")}</Text>
                   </View>
                   <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
                   <View style={styles.statItem}>
                     <Text style={[styles.statNum, { color: "#3b82f6" }]}>{statsRow.inProgress}</Text>
-                    <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>En cours</Text>
+                    <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>{t("tasksScreen.statusInProgress")}</Text>
                   </View>
                   <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
                   <View style={styles.statItem}>
                     <Text style={[styles.statNum, { color: "#22c55e" }]}>{statsRow.done}</Text>
-                    <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>Faites</Text>
+                    <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>{t("tasksScreen.done")}</Text>
                   </View>
                   {statsRow.overdue > 0 && (
                     <>
                       <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
                       <View style={styles.statItem}>
                         <Text style={[styles.statNum, { color: "#ef4444" }]}>{statsRow.overdue}</Text>
-                        <Text style={[styles.statLbl, { color: "#ef4444" }]}>Retard</Text>
+                        <Text style={[styles.statLbl, { color: "#ef4444" }]}>{t("tasksScreen.overdue")}</Text>
                       </View>
                     </>
                   )}
@@ -471,7 +484,7 @@ export default function TasksScreen() {
               </>
             ) : null
           }
-          ListEmptyComponent={<EmptyState icon="check-square" title="Aucune tache" subtitle="Vos taches apparaitront ici" />}
+          ListEmptyComponent={<EmptyState icon="check-square" title={t("tasksScreen.emptyTitle")} subtitle={t("tasksScreen.emptySubtitle")} />}
           renderItem={({ item }) => (
             <SwipeableTask
               item={item}
@@ -490,13 +503,13 @@ export default function TasksScreen() {
         visible={showForm}
         onClose={() => { setShowForm(false); setEditId(null); }}
         onSubmit={handleSubmit}
-        title={editId ? "Modifier la tache" : "Nouvelle tache"}
+        title={editId ? t("tasksScreen.editTitle") : t("tasksScreen.newTitle")}
         fields={FORM_FIELDS}
         values={formValues}
         onChange={(k, v) => setFormValues((p) => ({ ...p, [k]: v }))}
         loading={formLoading}
         icon="check-square"
-        submitLabel={editId ? "Enregistrer" : "Creer"}
+        submitLabel={editId ? t("common.save") : t("tasksScreen.create")}
       />
 
       {selected ? (
@@ -509,21 +522,21 @@ export default function TasksScreen() {
           subtitle={selected.description ?? undefined}
           icon={(STATUS_MAP[selected.status]?.icon ?? "check-square") as keyof typeof Feather.glyphMap}
           iconColor={STATUS_MAP[selected.status]?.color}
-          badge={{ label: STATUS_MAP[selected.status]?.label ?? selected.status, color: STATUS_MAP[selected.status]?.color ?? "#64748b" }}
+          badge={{ label: STATUS_LABEL_KEYS[selected.status] ? t(STATUS_LABEL_KEYS[selected.status]) : selected.status, color: STATUS_MAP[selected.status]?.color ?? "#64748b" }}
           fields={[
-            { label: "Priorite", value: PRIORITY_LABELS[selected.priority] ?? selected.priority, icon: "flag", color: PRIORITY_COLORS[selected.priority] },
-            { label: "Statut", value: STATUS_MAP[selected.status]?.label ?? selected.status, icon: "info" },
-            ...(selected.dueDate ? [{ label: "Echeance", value: new Date(selected.dueDate).toLocaleDateString("fr-FR"), icon: "calendar" as const }] : []),
-            ...(selected.assignedTo ? [{ label: "Assigne a", value: selected.assignedTo, icon: "user" as const }] : []),
-            ...(selected.description ? [{ label: "Description", value: selected.description, icon: "file-text" as const }] : []),
+            { label: t("tasksScreen.priority"), value: PRIORITY_LABEL_KEYS[selected.priority] ? t(PRIORITY_LABEL_KEYS[selected.priority]) : selected.priority, icon: "flag", color: PRIORITY_COLORS[selected.priority] },
+            { label: t("tasksScreen.status"), value: STATUS_LABEL_KEYS[selected.status] ? t(STATUS_LABEL_KEYS[selected.status]) : selected.status, icon: "info" },
+            ...(selected.dueDate ? [{ label: t("tasksScreen.dueDate"), value: new Date(selected.dueDate).toLocaleDateString("fr-FR"), icon: "calendar" as const }] : []),
+            ...(selected.assignedTo ? [{ label: t("tasksScreen.assignedTo"), value: selected.assignedTo, icon: "user" as const }] : []),
+            ...(selected.description ? [{ label: t("tasksScreen.description"), value: selected.description, icon: "file-text" as const }] : []),
           ]}
           extraActions={[{
-            label: "Créer un projet",
+            label: t("tasksScreen.createProject"),
             icon: "folder",
             color: "#6366f1",
             onPress: async () => {
               try {
-                const res = await fetchAuth(`${API_BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: selected.title, status: "planifie", priority: selected.priority || "moyenne", progress: 0, notes: `Créé depuis la tâche mobile` }) });
+                const res = await fetchAuth(`${API_BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: selected.title, status: "planifie", priority: selected.priority || "moyenne", progress: 0, notes: t("tasksScreen.projectNotes") }) });
                 if (res.ok) { setSelected(null); router.push("/projets" as any); }
               } catch {}
             },

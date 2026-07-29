@@ -33,6 +33,7 @@ import { useUnreadBadges } from "@/contexts/UnreadBadgesContext";
 import { useCalendarEvents } from "@/contexts/CalendarEventsContext";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 type DashboardData = DashboardSummary;
 
@@ -60,6 +61,7 @@ function formatCumulativeSaved(savedMs: number): string {
 }
 
 export default function DashboardScreen() {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, fetchAuth } = useAuth();
@@ -226,7 +228,7 @@ export default function DashboardScreen() {
   function formatLastRefresh() {
     if (!lastRefresh) return "";
     const diff = Date.now() - lastRefresh.getTime();
-    if (diff < 60000) return "maintenant";
+    if (diff < 60000) return t("home.refreshNow");
     return `${Math.floor(diff / 60000)} min`;
   }
 
@@ -237,7 +239,7 @@ export default function DashboardScreen() {
   const now = new Date();
   const dayName = now.toLocaleDateString("fr-FR", { weekday: "long" });
   const dateStr = now.toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
-  const greeting = user ? `Bonjour, ${user.prenom}` : "Tableau de bord";
+  const greeting = user ? t("home.greeting", { name: user.prenom }) : t("home.dashboard");
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -258,7 +260,7 @@ export default function DashboardScreen() {
               {isFromCache && (
                 <View style={[styles.refreshBadge, { backgroundColor: "rgba(255,255,255,0.08)" }]}>
                   <Feather name="wifi-off" size={8} color="rgba(255,255,255,0.4)" />
-                  <Text style={[styles.refreshText, { color: "rgba(255,255,255,0.4)" }]}>Cache</Text>
+                  <Text style={[styles.refreshText, { color: "rgba(255,255,255,0.4)" }]}>{t("home.cache")}</Text>
                 </View>
               )}
             </View>
@@ -280,10 +282,10 @@ export default function DashboardScreen() {
 
         <View style={styles.quickCreateRow}>
           {[
-            { icon: "phone-call" as const, label: "Appel", route: "/(tabs)/calls", color: "#3b82f6" },
-            { icon: "user-plus" as const, label: "Contact", route: "/(tabs)/contacts", color: "#22c55e" },
-            { icon: "plus-square" as const, label: "Tache", route: "/(tabs)/tasks", color: "#f59e0b" },
-            { icon: "search" as const, label: "Recherche", route: "/recherche", color: "#64748b" },
+            { icon: "phone-call" as const, label: t("home.quickAppel"), route: "/(tabs)/calls", color: "#3b82f6" },
+            { icon: "user-plus" as const, label: t("home.quickContact"), route: "/(tabs)/contacts", color: "#22c55e" },
+            { icon: "plus-square" as const, label: t("home.quickTache"), route: "/(tabs)/tasks", color: "#f59e0b" },
+            { icon: "search" as const, label: t("home.quickRecherche"), route: "/recherche", color: "#64748b" },
           ].map((a) => (
             <Pressable
               key={a.label}
@@ -309,7 +311,7 @@ export default function DashboardScreen() {
             <ActivityIndicator size="large" color={colors.primary} />
           </View>
         ) : !data ? (
-          <EmptyState icon="bar-chart-2" title="Donnees indisponibles" subtitle="Impossible de charger les statistiques" />
+          <EmptyState icon="bar-chart-2" title={t("home.noDataTitle")} subtitle={t("home.noDataSubtitle")} />
         ) : (
           <>
             {overdueTasks.length > 0 && (
@@ -318,7 +320,7 @@ export default function DashboardScreen() {
                 <View style={{ flex: 1, marginLeft: 10 }}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                     <Text style={[styles.urgentTitle, { color: "#ef4444" }]}>
-                      {overdueTasks.length} tache{overdueTasks.length > 1 ? "s" : ""} en retard
+                      {t(overdueTasks.length > 1 ? "home.overdueTasksMany" : "home.overdueTasksOne", { count: overdueTasks.length })}
                     </Text>
                     {overdueFromCache && (
                       <Feather name="wifi-off" size={10} color="#ef444480" />
@@ -333,27 +335,27 @@ export default function DashboardScreen() {
             )}
 
             <View style={styles.statsRow}>
-              <StatCard title="Appels" value={data.totalCalls} icon="phone" color={colors.info ?? "#3b82f6"} badge={unreadCounts.call} />
-              <StatCard title="Manques" value={data.missedCalls} icon="phone-missed" color={colors.destructive} badge={unreadCounts.call} />
+              <StatCard title={t("home.statCalls")} value={data.totalCalls} icon="phone" color={colors.info ?? "#3b82f6"} badge={unreadCounts.call} />
+              <StatCard title={t("home.statMissed")} value={data.missedCalls} icon="phone-missed" color={colors.destructive} badge={unreadCounts.call} />
             </View>
             <View style={styles.statsRow}>
-              <StatCard title="Contacts" value={data.totalContacts} icon="users" color={colors.success ?? "#22c55e"} />
-              <StatCard title="Taches" value={data.pendingTasks} icon="check-square" color={colors.warning ?? "#f59e0b"} subtitle="En attente" badge={unreadCounts.task} />
+              <StatCard title={t("home.statContacts")} value={data.totalContacts} icon="users" color={colors.success ?? "#22c55e"} />
+              <StatCard title={t("home.statTasks")} value={data.pendingTasks} icon="check-square" color={colors.warning ?? "#f59e0b"} subtitle={t("home.statTasksSub")} badge={unreadCounts.task} />
             </View>
             <Pressable style={[styles.statsRow, { flex: undefined }]} onPress={() => quickNav("/(tabs)/tasks")}>
-              <StatCard title="Aujourd'hui" value={data.todayTasks} icon="calendar" color="#0ea5e9" subtitle="Echeance du jour" />
+              <StatCard title={t("home.statToday")} value={data.todayTasks} icon="calendar" color="#0ea5e9" subtitle={t("home.statTodaySub")} />
             </Pressable>
             <Pressable style={[styles.statsRow, { flex: undefined }]} onPress={() => quickNav("/projets")}>
-              <StatCard title="Projets" value={data.projetsActifs} icon="folder" color="#6366f1" subtitle="En cours" />
-              <StatCard title="En retard" value={data.projetsEnRetard} icon="alert-circle" color={data.projetsEnRetard > 0 ? colors.destructive : colors.mutedForeground} subtitle="Projets" />
+              <StatCard title={t("home.statProjects")} value={data.projetsActifs} icon="folder" color="#6366f1" subtitle={t("home.statProjectsSub")} />
+              <StatCard title={t("home.statLate")} value={data.projetsEnRetard} icon="alert-circle" color={data.projetsEnRetard > 0 ? colors.destructive : colors.mutedForeground} subtitle={t("home.statLateSub")} />
             </Pressable>
 
             {reuseSavings && reuseSavings.reusedScanCount > 0 && (
               <View style={[styles.reuseBanner, { backgroundColor: colors.card, borderColor: "#0ea5e940" }]}>
                 <Feather name="zap" size={15} color="#0ea5e9" />
                 <Text style={[styles.reuseBannerText, { color: colors.foreground }]}>
-                  Vous avez gagné ~<Text style={styles.reuseBannerStrong}>{formatCumulativeSaved(reuseSavings.reusedScanSavedMs)}</Text>{" "}
-                  grâce à {reuseSavings.reusedScanCount} analyse{reuseSavings.reusedScanCount > 1 ? "s" : ""} réutilisée{reuseSavings.reusedScanCount > 1 ? "s" : ""}.
+                  {t("home.reusePrefix")}<Text style={styles.reuseBannerStrong}>{formatCumulativeSaved(reuseSavings.reusedScanSavedMs)}</Text>
+                  {t(reuseSavings.reusedScanCount > 1 ? "home.reuseSuffixMany" : "home.reuseSuffixOne", { count: reuseSavings.reusedScanCount })}
                 </Text>
               </View>
             )}
@@ -368,17 +370,17 @@ export default function DashboardScreen() {
                 <View style={styles.securityHeader}>
                   <View style={styles.securityTitleRow}>
                     <Feather name="shield" size={16} color={security.dangerous > 0 ? "#ef4444" : colors.mutedForeground} />
-                    <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 0 }]}>Securite des documents</Text>
+                    <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 0 }]}>{t("home.securityTitle")}</Text>
                   </View>
                   <Pressable onPress={() => quickNav("/documents")}>
-                    <Text style={[styles.seeAll, { color: colors.primary }]}>Voir</Text>
+                    <Text style={[styles.seeAll, { color: colors.primary }]}>{t("home.see")}</Text>
                   </Pressable>
                 </View>
                 <View style={styles.securityRow}>
                   {([
-                    { key: "safe", label: "Verifies", count: security.safe, icon: "shield" as const, color: "#10b981" },
-                    { key: "dangerous", label: "Menaces", count: security.dangerous, icon: "alert-triangle" as const, color: "#ef4444" },
-                    { key: "none", label: "Non analyses", count: security.unscanned, icon: "help-circle" as const, color: "#64748b" },
+                    { key: "safe", label: t("home.securityVerified"), count: security.safe, icon: "shield" as const, color: "#10b981" },
+                    { key: "dangerous", label: t("home.securityThreats"), count: security.dangerous, icon: "alert-triangle" as const, color: "#ef4444" },
+                    { key: "none", label: t("home.securityUnscanned"), count: security.unscanned, icon: "help-circle" as const, color: "#64748b" },
                   ]).map((item) => (
                     <Pressable
                       key={item.key}
@@ -399,23 +401,23 @@ export default function DashboardScreen() {
             )}
 
             <View style={[styles.performanceCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Performance</Text>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("home.performance")}</Text>
               <View style={styles.perfRow}>
                 <View style={styles.perfItem}>
                   <Text style={[styles.perfValue, { color: colors.primary }]}>{data.answeredRate}%</Text>
-                  <Text style={[styles.perfLabel, { color: colors.mutedForeground }]}>Taux reponse</Text>
+                  <Text style={[styles.perfLabel, { color: colors.mutedForeground }]}>{t("home.answerRate")}</Text>
                 </View>
                 <View style={[styles.perfDivider, { backgroundColor: colors.border }]} />
                 <View style={styles.perfItem}>
                   <Text style={[styles.perfValue, { color: colors.primary }]}>
                     {Math.floor(data.avgCallDuration / 60)}m {data.avgCallDuration % 60}s
                   </Text>
-                  <Text style={[styles.perfLabel, { color: colors.mutedForeground }]}>Duree moy.</Text>
+                  <Text style={[styles.perfLabel, { color: colors.mutedForeground }]}>{t("home.avgDuration")}</Text>
                 </View>
                 <View style={[styles.perfDivider, { backgroundColor: colors.border }]} />
                 <View style={styles.perfItem}>
                   <Text style={[styles.perfValue, { color: colors.primary }]}>{data.todayCalls}</Text>
-                  <Text style={[styles.perfLabel, { color: colors.mutedForeground }]}>Appels/jour</Text>
+                  <Text style={[styles.perfLabel, { color: colors.mutedForeground }]}>{t("home.callsPerDay")}</Text>
                 </View>
               </View>
             </View>
@@ -423,9 +425,9 @@ export default function DashboardScreen() {
             {todayEvents.length > 0 && (
               <>
                 <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 0 }]}>Agenda du jour</Text>
+                  <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 0 }]}>{t("home.todayAgenda")}</Text>
                   <Pressable onPress={() => quickNav("/calendar")}>
-                    <Text style={[styles.seeAll, { color: colors.primary }]}>Voir tout</Text>
+                    <Text style={[styles.seeAll, { color: colors.primary }]}>{t("home.seeAll")}</Text>
                   </Pressable>
                 </View>
                 {todayEvents.slice(0, 3).map((evt) => (
@@ -441,7 +443,7 @@ export default function DashboardScreen() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.eventTitle, { color: colors.foreground }]} numberOfLines={1}>{evt.title}</Text>
-                      <Text style={[styles.eventType, { color: colors.mutedForeground }]}>{evt.type || "Evenement"}</Text>
+                      <Text style={[styles.eventType, { color: colors.mutedForeground }]}>{evt.type || t("home.event")}</Text>
                     </View>
                     <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
                   </Pressable>
@@ -452,9 +454,9 @@ export default function DashboardScreen() {
             {recentCalls.length > 0 && (
               <>
                 <View style={[styles.sectionHeader, { marginTop: todayEvents.length > 0 ? 8 : 0 }]}>
-                  <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 0 }]}>Appels recents</Text>
+                  <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 0 }]}>{t("home.recentCalls")}</Text>
                   <Pressable onPress={() => quickNav("/(tabs)/calls")}>
-                    <Text style={[styles.seeAll, { color: colors.primary }]}>Voir tout</Text>
+                    <Text style={[styles.seeAll, { color: colors.primary }]}>{t("home.seeAll")}</Text>
                   </Pressable>
                 </View>
                 {recentCalls.map((call) => (
@@ -471,7 +473,7 @@ export default function DashboardScreen() {
                         {call.contactName || call.phoneNumber}
                       </Text>
                       <Text style={[styles.recentSub, { color: colors.mutedForeground }]}>
-                        {call.direction === "entrant" ? "Entrant" : "Sortant"}
+                        {call.direction === "entrant" ? t("home.incoming") : t("home.outgoing")}
                       </Text>
                     </Pressable>
                     {call.status === "manque" && call.phoneNumber && (
@@ -492,17 +494,17 @@ export default function DashboardScreen() {
               </>
             )}
 
-            <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 8 }]}>Acces rapide</Text>
+            <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 8 }]}>{t("home.quickAccess")}</Text>
             <View style={styles.quickGrid}>
               {[
-                { icon: "camera" as const, label: "Capture IA", route: "/smart-capture", color: "#0d9488" },
-                { icon: "message-square" as const, label: "Messages", route: "/messages", color: "#8b5cf6", badge: unreadCounts.message },
-                { icon: "bell" as const, label: "Rappels", route: "/rappels", color: "#ef4444", badge: rappelsUnread },
-                { icon: "calendar" as const, label: "Calendrier", route: "/calendar", color: "#ec4899" },
-                { icon: "bar-chart-2" as const, label: "Analytique", route: "/analytics", color: "#f59e0b" },
-                { icon: "clock" as const, label: "Pointage", route: "/checkins", color: "#14b8a6" },
-                { icon: "users" as const, label: "Reunion IA", route: "/meetings", color: "#8b5cf6" },
-                { icon: "cpu" as const, label: "Agents IA", route: "/ai-agents", color: "#6366f1" },
+                { icon: "camera" as const, label: t("home.qaCapture"), route: "/smart-capture", color: "#0d9488" },
+                { icon: "message-square" as const, label: t("home.qaMessages"), route: "/messages", color: "#8b5cf6", badge: unreadCounts.message },
+                { icon: "bell" as const, label: t("home.qaReminders"), route: "/rappels", color: "#ef4444", badge: rappelsUnread },
+                { icon: "calendar" as const, label: t("home.qaCalendar"), route: "/calendar", color: "#ec4899" },
+                { icon: "bar-chart-2" as const, label: t("home.qaAnalytics"), route: "/analytics", color: "#f59e0b" },
+                { icon: "clock" as const, label: t("home.qaCheckins"), route: "/checkins", color: "#14b8a6" },
+                { icon: "users" as const, label: t("home.qaMeetings"), route: "/meetings", color: "#8b5cf6" },
+                { icon: "cpu" as const, label: t("home.qaAgents"), route: "/ai-agents", color: "#6366f1" },
               ].map((qa) => (
                 <Pressable
                   key={qa.label}
@@ -529,8 +531,8 @@ export default function DashboardScreen() {
             <Pressable onPress={() => quickNav("/ai-chat")} style={[styles.infoCard, { backgroundColor: colors.secondary }]}>
               <Feather name="message-circle" size={20} color={colors.primary} />
               <View style={styles.infoContent}>
-                <Text style={styles.infoTitle}>Assistant IA</Text>
-                <Text style={styles.infoSubtitle}>Chat intelligent pour votre activite</Text>
+                <Text style={styles.infoTitle}>{t("home.assistantTitle")}</Text>
+                <Text style={styles.infoSubtitle}>{t("home.assistantSub")}</Text>
               </View>
               <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.5)" />
             </Pressable>
@@ -538,8 +540,8 @@ export default function DashboardScreen() {
             <Pressable onPress={() => quickNav("/meetings")} style={[styles.infoCard, { backgroundColor: "#8b5cf615", borderWidth: 1, borderColor: "#8b5cf630", marginTop: 8 }]}>
               <Feather name="video" size={20} color="#8b5cf6" />
               <View style={styles.infoContent}>
-                <Text style={[styles.infoTitle, { color: "#8b5cf6" }]}>Reunion IA</Text>
-                <Text style={[styles.infoSubtitle, { color: "rgba(139,92,246,0.7)" }]}>Compiler · GPS chantier · Taches auto</Text>
+                <Text style={[styles.infoTitle, { color: "#8b5cf6" }]}>{t("home.meetingTitle")}</Text>
+                <Text style={[styles.infoSubtitle, { color: "rgba(139,92,246,0.7)" }]}>{t("home.meetingSub")}</Text>
               </View>
               <Feather name="chevron-right" size={16} color="#8b5cf6" />
             </Pressable>

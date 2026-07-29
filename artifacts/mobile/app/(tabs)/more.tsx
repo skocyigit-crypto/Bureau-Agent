@@ -17,6 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUnreadBadges } from "@/contexts/UnreadBadgesContext";
 import { usePendingApprovals } from "@/hooks/usePendingApprovals";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 interface MenuItemProps {
   icon: keyof typeof Feather.glyphMap;
@@ -70,6 +71,7 @@ function MenuItem({ icon, label, sublabel, color, onPress, danger, badge }: Menu
 }
 
 export default function MoreScreen() {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
@@ -82,9 +84,9 @@ export default function MoreScreen() {
       doLogout();
       return;
     }
-    Alert.alert("Deconnexion", "Voulez-vous vraiment vous deconnecter ?", [
-      { text: "Annuler", style: "cancel" },
-      { text: "Se deconnecter", style: "destructive", onPress: doLogout },
+    Alert.alert(t("moreScreen.logoutTitle"), t("moreScreen.logoutMessage"), [
+      { text: t("common.cancel"), style: "cancel" },
+      { text: t("moreScreen.logout"), style: "destructive", onPress: doLogout },
     ]);
   }
 
@@ -108,7 +110,7 @@ export default function MoreScreen() {
           },
         ]}
       >
-        <Text style={styles.headerTitle}>Plus</Text>
+        <Text style={styles.headerTitle}>{t("moreScreen.title")}</Text>
       </View>
 
       <ScrollView
@@ -138,7 +140,7 @@ export default function MoreScreen() {
               </Text>
               <View style={[styles.roleBadge, { backgroundColor: colors.primary + "20" }]}>
                 <Text style={[styles.roleText, { color: colors.primary }]}>
-                  {user.role === "super_admin" ? "Super Admin" : user.role === "administrateur" ? "Administrateur" : user.role === "agent" ? "Agent" : "Lecture seule"}
+                  {user.role === "super_admin" ? t("moreScreen.roleSuperAdmin") : user.role === "administrateur" ? t("moreScreen.roleAdmin") : user.role === "agent" ? t("moreScreen.roleAgent") : t("moreScreen.roleReadOnly")}
                 </Text>
               </View>
             </View>
@@ -147,105 +149,105 @@ export default function MoreScreen() {
         ) : null}
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>COMMUNICATION</Text>
-          <MenuItem icon="inbox" label="File d'approbation" sublabel="Actions préparées par l'IA · à valider avant exécution" color="#059669" badge={pendingApprovals} onPress={() => nav("/file-approbation")} />
-          <MenuItem icon="zap" label="Assistant proactif" sublabel="Suggestions automatiques : tâches, appels, agenda" color="#f59e0b" onPress={() => nav("/assistant-proactif")} />
-          <MenuItem icon="cpu" label="Ce que l'IA a appris" sublabel="Préférences et habitudes mémorisées par l'IA" color="#8b5cf6" onPress={() => nav("/ia-apprentissage")} />
-          <MenuItem icon="message-square" label="Messages" sublabel="Messagerie vocale et notes" color="#3b82f6" badge={counts.message} onPress={() => nav("/messages")} />
-          <MenuItem icon="message-circle" label="WhatsApp clients" sublabel="Boîte de réception client · brouillon IA à valider" color="#25D366" onPress={() => nav("/whatsapp")} />
-          <MenuItem icon="shield" label="Centre de sécurité" sublabel="Scanner liens, fichiers, appels" color="#10b981" onPress={() => nav("/securite")} />
-          <MenuItem icon="phone-call" label="Telephonie" sublabel="Appels et SMS multi-fournisseurs" color="#22c55e" onPress={() => nav("/telephony")} />
-          <MenuItem icon="phone" label="Journal d'Appels" sublabel="Historique et enregistrement des appels" color="#166534" onPress={() => nav("/calls")} />
-          <MenuItem icon="users" label="Contacts" sublabel="Annuaire clients et partenaires" color="#0369a1" onPress={() => nav("/contacts")} />
-          <MenuItem icon="upload" label="Importer des contacts" sublabel="Import CSV ou saisie manuelle" color="#0369a1" onPress={() => nav("/contacts-import")} />
+          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{t("moreScreen.secCommunication")}</Text>
+          <MenuItem icon="inbox" label={t("moreScreen.approvalQueue")} sublabel={t("moreScreen.approvalQueueSub")} color="#059669" badge={pendingApprovals} onPress={() => nav("/file-approbation")} />
+          <MenuItem icon="zap" label={t("moreScreen.proactiveAssistant")} sublabel={t("moreScreen.proactiveAssistantSub")} color="#f59e0b" onPress={() => nav("/assistant-proactif")} />
+          <MenuItem icon="cpu" label={t("moreScreen.aiLearned")} sublabel={t("moreScreen.aiLearnedSub")} color="#8b5cf6" onPress={() => nav("/ia-apprentissage")} />
+          <MenuItem icon="message-square" label={t("moreScreen.messages")} sublabel={t("moreScreen.messagesSub")} color="#3b82f6" badge={counts.message} onPress={() => nav("/messages")} />
+          <MenuItem icon="message-circle" label={t("moreScreen.whatsapp")} sublabel={t("moreScreen.whatsappSub")} color="#25D366" onPress={() => nav("/whatsapp")} />
+          <MenuItem icon="shield" label={t("moreScreen.securityCenter")} sublabel={t("moreScreen.securityCenterSub")} color="#10b981" onPress={() => nav("/securite")} />
+          <MenuItem icon="phone-call" label={t("moreScreen.telephony")} sublabel={t("moreScreen.telephonySub")} color="#22c55e" onPress={() => nav("/telephony")} />
+          <MenuItem icon="phone" label={t("moreScreen.callLog")} sublabel={t("moreScreen.callLogSub")} color="#166534" onPress={() => nav("/calls")} />
+          <MenuItem icon="users" label={t("moreScreen.contacts")} sublabel={t("moreScreen.contactsSub")} color="#0369a1" onPress={() => nav("/contacts")} />
+          <MenuItem icon="upload" label={t("moreScreen.importContacts")} sublabel={t("moreScreen.importContactsSub")} color="#0369a1" onPress={() => nav("/contacts-import")} />
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>PRODUCTIVITÉ</Text>
-          <MenuItem icon="check-square" label="Tâches" sublabel="Gestion des tâches et suivi" color="#1e3a5f" onPress={() => nav("/tasks")} />
+          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{t("moreScreen.secProductivity")}</Text>
+          <MenuItem icon="check-square" label={t("moreScreen.tasks")} sublabel={t("moreScreen.tasksSub")} color="#1e3a5f" onPress={() => nav("/tasks")} />
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>CRM & AGENTS</Text>
+          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{t("moreScreen.secCrm")}</Text>
           {/* Prospects deplacé dans le backoffice SaaS (super-admin uniquement).
               Voir Tâche #52 — Admin Backoffice + Müşteri Sadeleştirme. */}
           {user?.role === "super_admin" && (
-            <MenuItem icon="trending-up" label="Prospects" sublabel="Backoffice SaaS — leads commerciaux" color="#8b5cf6" onPress={() => nav("/prospects")} />
+            <MenuItem icon="trending-up" label={t("moreScreen.prospects")} sublabel={t("moreScreen.prospectsSub")} color="#8b5cf6" onPress={() => nav("/prospects")} />
           )}
-          <MenuItem icon="edit-2" label="Notes internes" sublabel="Mémos colorés et mémorisation" color="#f59e0b" onPress={() => nav("/notes-internes")} />
+          <MenuItem icon="edit-2" label={t("moreScreen.internalNotes")} sublabel={t("moreScreen.internalNotesSub")} color="#f59e0b" onPress={() => nav("/notes-internes")} />
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>DOCUMENTS</Text>
-          <MenuItem icon="folder" label="Documents" sublabel="Fichiers, contrats et pièces jointes" color="#0f766e" onPress={() => nav("/documents")} />
-          <MenuItem icon="book-open" label="Base de connaissances" sublabel="Questions-réponses IA fondées sur vos documents" color="#0ea5e9" onPress={() => nav("/knowledge-base")} />
-          <MenuItem icon="upload" label="Importer des Documents" sublabel="Upload PDF, images, Word, Excel" color="#0f766e" onPress={() => nav("/document-import")} />
-          <MenuItem icon="credit-card" label="Dépenses" sublabel="Photographier un reçu, valider la file et le registre" color="#0d9488" onPress={() => nav("/depenses")} />
+          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{t("moreScreen.secDocuments")}</Text>
+          <MenuItem icon="folder" label={t("moreScreen.documents")} sublabel={t("moreScreen.documentsSub")} color="#0f766e" onPress={() => nav("/documents")} />
+          <MenuItem icon="book-open" label={t("moreScreen.knowledgeBase")} sublabel={t("moreScreen.knowledgeBaseSub")} color="#0ea5e9" onPress={() => nav("/knowledge-base")} />
+          <MenuItem icon="upload" label={t("moreScreen.importDocuments")} sublabel={t("moreScreen.importDocumentsSub")} color="#0f766e" onPress={() => nav("/document-import")} />
+          <MenuItem icon="credit-card" label={t("moreScreen.expenses")} sublabel={t("moreScreen.expensesSub")} color="#0d9488" onPress={() => nav("/depenses")} />
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>RAPPORTS</Text>
-          <MenuItem icon="sun" label="Mon Bilan du Jour" sublabel="Resume IA de votre journee + recommandations" color="#f59e0b" onPress={() => nav("/daily-digest")} />
-          <MenuItem icon="cpu" label="Agent IA Equipe" sublabel="Ajan IA otonom · 4 phases Gemini · Auto-apprentissage" color="#7c3aed" onPress={() => nav("/workforce-agent")} />
-          <MenuItem icon="users" label="Intelligence Equipe" sublabel="Suivi IA continu de tous les collaborateurs" color="#6366f1" onPress={() => nav("/workforce-intelligence")} />
-          <MenuItem icon="bar-chart-2" label="Performance Équipe" sublabel="Métriques et rapport IA par employé" color="#0f4c81" onPress={() => nav("/performance")} />
-          <MenuItem icon="award" label="Rapport Exécutif" sublabel="Score global + insights IA opérationnels" color="#1e293b" onPress={() => nav("/rapport-executif")} />
-          <MenuItem icon="file-text" label="Rapports & Tickets" sublabel="Signalements et demandes d'assistance" color="#7c3aed" onPress={() => nav("/reports")} />
+          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{t("moreScreen.secReports")}</Text>
+          <MenuItem icon="sun" label={t("moreScreen.dailyDigest")} sublabel={t("moreScreen.dailyDigestSub")} color="#f59e0b" onPress={() => nav("/daily-digest")} />
+          <MenuItem icon="cpu" label={t("moreScreen.teamAgent")} sublabel={t("moreScreen.teamAgentSub")} color="#7c3aed" onPress={() => nav("/workforce-agent")} />
+          <MenuItem icon="users" label={t("moreScreen.teamIntelligence")} sublabel={t("moreScreen.teamIntelligenceSub")} color="#6366f1" onPress={() => nav("/workforce-intelligence")} />
+          <MenuItem icon="bar-chart-2" label={t("moreScreen.teamPerformance")} sublabel={t("moreScreen.teamPerformanceSub")} color="#0f4c81" onPress={() => nav("/performance")} />
+          <MenuItem icon="award" label={t("moreScreen.executiveReport")} sublabel={t("moreScreen.executiveReportSub")} color="#1e293b" onPress={() => nav("/rapport-executif")} />
+          <MenuItem icon="file-text" label={t("moreScreen.reportsTickets")} sublabel={t("moreScreen.reportsTicketsSub")} color="#7c3aed" onPress={() => nav("/reports")} />
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>OUTILS</Text>
-          <MenuItem icon="search" label="Recherche Globale" sublabel="Cherchez dans contacts, devis, tâches…" color="#1e293b" onPress={() => nav("/recherche")} />
-          <MenuItem icon="globe" label="Recherche Web" sublabel="Web sécurisé : liens analysés par l'antivirus" color="#0ea5e9" onPress={() => nav("/recherche-web")} />
-          <MenuItem icon="activity" label="Activité Récente" sublabel="Flux en temps réel de toutes les actions" color="#0f172a" onPress={() => nav("/activite-recente")} />
-          <MenuItem icon="bar-chart-2" label="Analytique" sublabel="Rapports et statistiques" color="#f59e0b" onPress={() => nav("/analytics")} />
-          <MenuItem icon="calendar" label="Calendrier" sublabel="Evenements et rendez-vous" color="#ec4899" onPress={() => nav("/calendar")} />
-          <MenuItem icon="bell" label="Rappels" sublabel="Buzz calendrier des dernieres 24h" color="#3b82f6" onPress={() => nav("/rappels")} />
-          <MenuItem icon="folder" label="Projets" sublabel="Gestion de portefeuille projets" color="#6366f1" onPress={() => nav("/projets")} />
-          <MenuItem icon="clock" label="Pointage" sublabel="Gestion de presence" color="#14b8a6" onPress={() => nav("/checkins")} />
-          <MenuItem icon="users" label="Réunion IA" sublabel="Compiler, taches & chantier GPS" color="#8b5cf6" onPress={() => nav("/meetings")} />
+          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{t("moreScreen.secTools")}</Text>
+          <MenuItem icon="search" label={t("moreScreen.globalSearch")} sublabel={t("moreScreen.globalSearchSub")} color="#1e293b" onPress={() => nav("/recherche")} />
+          <MenuItem icon="globe" label={t("moreScreen.webSearch")} sublabel={t("moreScreen.webSearchSub")} color="#0ea5e9" onPress={() => nav("/recherche-web")} />
+          <MenuItem icon="activity" label={t("moreScreen.recentActivity")} sublabel={t("moreScreen.recentActivitySub")} color="#0f172a" onPress={() => nav("/activite-recente")} />
+          <MenuItem icon="bar-chart-2" label={t("moreScreen.analytics")} sublabel={t("moreScreen.analyticsSub")} color="#f59e0b" onPress={() => nav("/analytics")} />
+          <MenuItem icon="calendar" label={t("moreScreen.calendar")} sublabel={t("moreScreen.calendarSub")} color="#ec4899" onPress={() => nav("/calendar")} />
+          <MenuItem icon="bell" label={t("moreScreen.reminders")} sublabel={t("moreScreen.remindersSub")} color="#3b82f6" onPress={() => nav("/rappels")} />
+          <MenuItem icon="folder" label={t("moreScreen.projects")} sublabel={t("moreScreen.projectsSub")} color="#6366f1" onPress={() => nav("/projets")} />
+          <MenuItem icon="clock" label={t("moreScreen.checkins")} sublabel={t("moreScreen.checkinsSub")} color="#14b8a6" onPress={() => nav("/checkins")} />
+          <MenuItem icon="users" label={t("moreScreen.aiMeeting")} sublabel={t("moreScreen.aiMeetingSub")} color="#8b5cf6" onPress={() => nav("/meetings")} />
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>INTELLIGENCE ARTIFICIELLE</Text>
-          <MenuItem icon="mail" label="Gmail Agent" sublabel="Boîte mail, réponses et envoi IA" color="#dc2626" onPress={() => nav("/gmail-agent")} />
-          <MenuItem icon="file-text" label="Document IA" sublabel="Analyse intelligente de documents" color="#7c3aed" onPress={() => nav("/document-ai")} />
-          <MenuItem icon="cpu" label="AI Commandant" sublabel="Briefing quotidien, email IA, finance" color="#7c3aed" onPress={() => nav("/commandant-ia")} />
-          <MenuItem icon="phone-call" label="Assistant IA Appels" sublabel="Préparer, scripter et compiler vos appels" color="#166534" onPress={() => nav("/call-assistant")} />
-          <MenuItem icon="activity" label="Super Agent IA" sublabel="Agent otonom : email, chantier, système" color="#0f172a" onPress={() => nav("/super-agent")} />
-          <MenuItem icon="message-circle" label="Assistant IA" sublabel="Chat conversationnel intelligent" color="#8b5cf6" onPress={() => nav("/ai-chat")} />
-          <MenuItem icon="mic" label="Assistant Vocal" sublabel='Commandes vocales "Hey Bureau"' color="#ef4444" onPress={() => nav("/voice-assistant")} />
-          <MenuItem icon="cpu" label="Agents IA" sublabel="Analyse et recommandations" color="#6366f1" onPress={() => nav("/ai-agents")} />
-          <MenuItem icon="aperture" label="Reconnaissance faciale" sublabel="Identification IA en temps reel" color="#ec4899" onPress={() => nav("/face-recognition")} />
-          <MenuItem icon="zap" label="Automations" sublabel="Regles et executions" color="#f97316" onPress={() => nav("/automations")} />
+          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{t("moreScreen.secAI")}</Text>
+          <MenuItem icon="mail" label={t("moreScreen.gmailAgent")} sublabel={t("moreScreen.gmailAgentSub")} color="#dc2626" onPress={() => nav("/gmail-agent")} />
+          <MenuItem icon="file-text" label={t("moreScreen.documentAI")} sublabel={t("moreScreen.documentAISub")} color="#7c3aed" onPress={() => nav("/document-ai")} />
+          <MenuItem icon="cpu" label={t("moreScreen.aiCommander")} sublabel={t("moreScreen.aiCommanderSub")} color="#7c3aed" onPress={() => nav("/commandant-ia")} />
+          <MenuItem icon="phone-call" label={t("moreScreen.callAssistant")} sublabel={t("moreScreen.callAssistantSub")} color="#166534" onPress={() => nav("/call-assistant")} />
+          <MenuItem icon="activity" label={t("moreScreen.superAgent")} sublabel={t("moreScreen.superAgentSub")} color="#0f172a" onPress={() => nav("/super-agent")} />
+          <MenuItem icon="message-circle" label={t("moreScreen.aiAssistant")} sublabel={t("moreScreen.aiAssistantSub")} color="#8b5cf6" onPress={() => nav("/ai-chat")} />
+          <MenuItem icon="mic" label={t("moreScreen.voiceAssistant")} sublabel={t("moreScreen.voiceAssistantSub")} color="#ef4444" onPress={() => nav("/voice-assistant")} />
+          <MenuItem icon="cpu" label={t("moreScreen.aiAgents")} sublabel={t("moreScreen.aiAgentsSub")} color="#6366f1" onPress={() => nav("/ai-agents")} />
+          <MenuItem icon="aperture" label={t("moreScreen.faceRecognition")} sublabel={t("moreScreen.faceRecognitionSub")} color="#ec4899" onPress={() => nav("/face-recognition")} />
+          <MenuItem icon="zap" label={t("moreScreen.automations")} sublabel={t("moreScreen.automationsSub")} color="#f97316" onPress={() => nav("/automations")} />
         </View>
 
         {(user?.role === "super_admin" || user?.role === "administrateur") ? (
           <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>ADMINISTRATION</Text>
-            <MenuItem icon="briefcase" label="Mon Espace" sublabel="Equipe et rapports admin" color="#14b8a6" onPress={() => nav("/admin-reports")} />
-            <MenuItem icon="users" label="Utilisateurs" sublabel="Gestion de l'equipe" color="#3b82f6" onPress={() => nav("/users")} />
-            <MenuItem icon="shield" label="Journal d'audit" sublabel="Securite et historique" color="#ef4444" onPress={() => nav("/audit-log")} />
-            <MenuItem icon="grid" label="Integrations" sublabel="Logiciels connectes" color="#22c55e" onPress={() => nav("/integrations")} />
-            <MenuItem icon="monitor" label="Logiciels" sublabel="Catalogue et connexions SaaS" color="#0891b2" onPress={() => nav("/integrations")} />
-            <MenuItem icon="globe" label="Google Workspace" sublabel="Gmail, Drive, Agenda, Meet" color="#4285f4" onPress={() => nav("/google-workspace")} />
-            <MenuItem icon="clock" label="Horaires d'ouverture" sublabel="Jours, heures et fuseau horaire des rendez-vous" color="#6366f1" onPress={() => nav("/horaires-ouverture")} />
-            <MenuItem icon="key" label="Licences & Facturation" sublabel="Tableau de bord licences et paiements" color="#166534" onPress={() => nav("/license-management")} />
+            <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{t("moreScreen.secAdmin")}</Text>
+            <MenuItem icon="briefcase" label={t("moreScreen.mySpace")} sublabel={t("moreScreen.mySpaceSub")} color="#14b8a6" onPress={() => nav("/admin-reports")} />
+            <MenuItem icon="users" label={t("moreScreen.users")} sublabel={t("moreScreen.usersSub")} color="#3b82f6" onPress={() => nav("/users")} />
+            <MenuItem icon="shield" label={t("moreScreen.auditLog")} sublabel={t("moreScreen.auditLogSub")} color="#ef4444" onPress={() => nav("/audit-log")} />
+            <MenuItem icon="grid" label={t("moreScreen.integrations")} sublabel={t("moreScreen.integrationsSub")} color="#22c55e" onPress={() => nav("/integrations")} />
+            <MenuItem icon="monitor" label={t("moreScreen.software")} sublabel={t("moreScreen.softwareSub")} color="#0891b2" onPress={() => nav("/integrations")} />
+            <MenuItem icon="globe" label={t("moreScreen.googleWorkspace")} sublabel={t("moreScreen.googleWorkspaceSub")} color="#4285f4" onPress={() => nav("/google-workspace")} />
+            <MenuItem icon="clock" label={t("moreScreen.openingHours")} sublabel={t("moreScreen.openingHoursSub")} color="#6366f1" onPress={() => nav("/horaires-ouverture")} />
+            <MenuItem icon="key" label={t("moreScreen.licenses")} sublabel={t("moreScreen.licensesSub")} color="#166534" onPress={() => nav("/license-management")} />
             {user?.role === "super_admin" ? (
-              <MenuItem icon="home" label="Organisations" sublabel="Gestion des licences" color="#f59e0b" onPress={() => nav("/organisations")} />
+              <MenuItem icon="home" label={t("moreScreen.organisations")} sublabel={t("moreScreen.organisationsSub")} color="#f59e0b" onPress={() => nav("/organisations")} />
             ) : null}
           </View>
         ) : null}
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>COMPTE</Text>
-          <MenuItem icon="settings" label="Parametres" sublabel="Profil et abonnement" color="#64748b" onPress={() => nav("/settings")} />
-          <MenuItem icon="credit-card" label="Mon Abonnement" sublabel="Plan, licences et facturation" color="#7c3aed" onPress={() => nav("/abonnement")} />
-          <MenuItem icon="log-out" label="Se deconnecter" onPress={handleLogout} danger />
+          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{t("moreScreen.secAccount")}</Text>
+          <MenuItem icon="settings" label={t("moreScreen.settings")} sublabel={t("moreScreen.settingsSub")} color="#64748b" onPress={() => nav("/settings")} />
+          <MenuItem icon="credit-card" label={t("moreScreen.subscription")} sublabel={t("moreScreen.subscriptionSub")} color="#7c3aed" onPress={() => nav("/abonnement")} />
+          <MenuItem icon="log-out" label={t("moreScreen.logout")} onPress={handleLogout} danger />
         </View>
 
         <Text style={[styles.version, { color: colors.mutedForeground }]}>
-          Ajant Bureau v1.0.0
+          {t("moreScreen.version", { version: "1.0.0" })}
         </Text>
       </ScrollView>
     </View>
