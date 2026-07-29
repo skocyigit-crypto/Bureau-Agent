@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCreateCall, useListContacts, getListCallsQueryKey, getListTasksQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 
 type CallPhase = "ringing" | "active" | "ended" | "missed" | "ai_active" | "ai_ended";
 
@@ -103,6 +104,17 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
   const createCall = useCreateCall();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useTranslation();
+  const intentLabel = useCallback((i: string) => {
+    const key = `incomingCall.intents.${i}`;
+    const label = t(key);
+    return label === key ? i : label;
+  }, [t]);
+  const langLabel = useCallback((code: string) => {
+    const key = `incomingCall.lang.${code}`;
+    const label = t(key);
+    return label === key ? code : label;
+  }, [t]);
   const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 
   useEffect(() => {
@@ -269,16 +281,17 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
       if (data.proactiveInsights?.length > 0) setAiProactiveInsights(data.proactiveInsights);
       if (data.detectedLanguage) setAiDetectedLanguage(data.detectedLanguage);
       if (data.shouldEscalate) {
-        const urgencyLabels: Record<string, string> = { immediate: "IMMEDIATE", dans_heure: "dans l'heure", dans_journee: "dans la journee" };
-        toast({ title: `Escalade ${data.escalateUrgency ? urgencyLabels[data.escalateUrgency] || "" : ""}`, description: data.escalateReason || "Sophie recommande un transfert a un agent humain.", variant: "destructive" });
+        const urgency = data.escalateUrgency ? t(`incomingCall.toast.urgency.${data.escalateUrgency}`) : "";
+        const urgencyLabel = urgency === `incomingCall.toast.urgency.${data.escalateUrgency}` ? "" : urgency;
+        toast({ title: t("incomingCall.toast.escalade", { urgency: urgencyLabel }), description: data.escalateReason || t("incomingCall.toast.escaladeDefault"), variant: "destructive" });
       }
     } catch {
       const now = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-      setAiConversation(prev => [...prev, { role: "agent", text: "Excusez-moi, puis-je prendre votre message ?", time: now }]);
+      setAiConversation(prev => [...prev, { role: "agent", text: t("incomingCall.toast.fallbackMessage"), time: now }]);
     } finally {
       setAiTyping(false);
     }
-  }, [baseUrl, callData, toast]);
+  }, [baseUrl, callData, toast, t]);
 
   const handleAiAnswer = useCallback(() => {
     setPhase("ai_active");
@@ -329,13 +342,13 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
       queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() });
       queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
       queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
-      toast({ title: "Appel IA enregistre", description: data.message });
+      toast({ title: t("incomingCall.toast.aiCallSaved"), description: data.message });
     } catch {
-      toast({ title: "Erreur", description: "Impossible d'enregistrer l'appel IA.", variant: "destructive" });
+      toast({ title: t("incomingCall.toast.error"), description: t("incomingCall.toast.aiCallSaveError"), variant: "destructive" });
     } finally {
       setAiSaving(false);
     }
-  }, [baseUrl, callData, aiCallTimer, aiConversation, aiSummary, aiDetectedIntents, aiActions, aiSentiment, aiSatisfactionScore, aiKeyInfo, aiNextBestAction, queryClient, toast]);
+  }, [baseUrl, callData, aiCallTimer, aiConversation, aiSummary, aiDetectedIntents, aiActions, aiSentiment, aiSatisfactionScore, aiKeyInfo, aiNextBestAction, queryClient, toast, t]);
 
   const saveCall = useCallback((status: "repondu" | "manque" | "messagerie") => {
     createCall.mutate({
@@ -351,7 +364,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
     }, {
       onSuccess: (data: any) => {
         queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() });
-        const toastMsg = status === "repondu" ? "Appel enregistre" : status === "manque" ? "Appel manque enregistre" : "Message vocal enregistre";
+        const toastMsg = status === "repondu" ? t("incomingCall.toast.callSaved") : status === "manque" ? t("incomingCall.toast.missedCallSaved") : t("incomingCall.toast.voicemailSaved");
         toast({ title: toastMsg });
 
         if (status === "repondu" && notes && notes.trim().length > 5 && data?.id) {
@@ -366,8 +379,8 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
               queryClient.invalidateQueries({ queryKey: ["notifications"] });
               if (result.tasksCreated > 0 || result.appointmentCreated) {
                 toast({
-                  title: "IA : Actions creees",
-                  description: `${result.tasksCreated || 0} tache(s) et ${result.appointmentCreated ? "1 rendez-vous" : "0 rendez-vous"} cree(s) automatiquement.`,
+                  title: t("incomingCall.toast.actionsCreated"),
+                  description: t("incomingCall.toast.actionsCreatedDesc", { tasks: result.tasksCreated || 0, appointment: result.appointmentCreated ? t("incomingCall.toast.oneAppointment") : t("incomingCall.toast.zeroAppointment") }),
                 });
               }
             })
@@ -379,10 +392,10 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
         }
       },
       onError: () => {
-        toast({ title: "Erreur d'enregistrement", variant: "destructive" });
+        toast({ title: t("incomingCall.toast.saveError"), variant: "destructive" });
       }
     });
-  }, [callData, callTimer, notes, createCall, queryClient, toast, onClose, baseUrl]);
+  }, [callData, callTimer, notes, createCall, queryClient, toast, onClose, baseUrl, t]);
 
   const getCategoryColor = (cat?: string) => {
     switch (cat) {
@@ -396,11 +409,11 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
 
   const getCategoryLabel = (cat?: string) => {
     switch (cat) {
-      case "client": return "Client";
-      case "prospect": return "Prospect";
-      case "fournisseur": return "Fournisseur";
-      case "partenaire": return "Partenaire";
-      default: return "Autre";
+      case "client": return t("incomingCall.category.client");
+      case "prospect": return t("incomingCall.category.prospect");
+      case "fournisseur": return t("incomingCall.category.fournisseur");
+      case "partenaire": return t("incomingCall.category.partenaire");
+      default: return t("incomingCall.category.autre");
     }
   };
 
@@ -412,16 +425,6 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
     reclamation: AlertTriangle,
     information: MessageCircle,
     urgence: Zap,
-  };
-
-  const intentLabels: Record<string, string> = {
-    rdv: "Rendez-vous",
-    devis: "Devis",
-    facture: "Facture",
-    rappel: "Rappel",
-    reclamation: "Reclamation",
-    information: "Information",
-    urgence: "Urgence",
   };
 
   return (
@@ -456,7 +459,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                     <div className="flex justify-center mb-1">
                       <Badge className="bg-white/20 text-white/90 border-white/30 text-[10px] px-2">
                         <PhoneIncoming className="w-3 h-3 mr-1" />
-                        Appel entrant
+                        {t("incomingCall.incomingBadge")}
                       </Badge>
                     </div>
 
@@ -468,7 +471,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                       )}
                     </div>
 
-                    <h2 className="text-2xl font-bold mb-1">{callData.contactName || "Numero inconnu"}</h2>
+                    <h2 className="text-2xl font-bold mb-1">{callData.contactName || t("incomingCall.unknownNumber")}</h2>
                     <p className="text-white/80 text-lg mb-2 tabular-nums">{callData.phoneNumber}</p>
 
                     <div className="flex items-center justify-center gap-2 mb-3 flex-wrap">
@@ -485,13 +488,13 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                       )}
                       {callData.previousCalls !== undefined && callData.previousCalls > 0 && (
                         <Badge className="bg-white/15 text-white border-white/20 text-xs">
-                          {callData.previousCalls} appel(s)
+                          {t("incomingCall.callsCount", { count: callData.previousCalls })}
                         </Badge>
                       )}
                     </div>
 
                     <div className="text-white/50 text-sm tabular-nums">
-                      Sonnerie... {ringTimer}s
+                      {t("incomingCall.ringing", { seconds: ringTimer })}
                     </div>
                   </motion.div>
                 </div>
@@ -505,16 +508,16 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                   >
                     <div className="flex items-center gap-2 mb-2">
                       <Brain className="w-4 h-4 text-amber-300" />
-                      <span className="text-sm font-semibold text-amber-200">Brifing IA</span>
+                      <span className="text-sm font-semibold text-amber-200">{t("incomingCall.briefingTitle")}</span>
                       {briefing?.priority === "haute" && (
-                        <Badge className="bg-red-500/30 text-red-200 border-red-400/30 text-[10px] ml-auto">Priorite haute</Badge>
+                        <Badge className="bg-red-500/30 text-red-200 border-red-400/30 text-[10px] ml-auto">{t("incomingCall.highPriority")}</Badge>
                       )}
                     </div>
 
                     {briefingLoading ? (
                       <div className="flex items-center gap-2 text-white/60 text-xs">
                         <Loader2 className="w-3 h-3 animate-spin" />
-                        Preparation du brifing...
+                        {t("incomingCall.briefingLoading")}
                       </div>
                     ) : briefing ? (
                       <div className="space-y-2">
@@ -533,7 +536,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
 
                         {briefing.keyPoints.length > 0 && (
                           <div className="space-y-1">
-                            <p className="text-[10px] font-medium text-white/50 uppercase tracking-wider">Points cles</p>
+                            <p className="text-[10px] font-medium text-white/50 uppercase tracking-wider">{t("incomingCall.keyPoints")}</p>
                             {briefing.keyPoints.slice(0, 3).map((point, i) => (
                               <div key={i} className="flex items-start gap-1.5 text-[11px] text-white/70">
                                 <Target className="w-3 h-3 mt-0.5 shrink-0 text-emerald-300" />
@@ -545,7 +548,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
 
                         {briefing.suggestedPhrases.length > 0 && (
                           <div className="space-y-1 pt-1 border-t border-white/10">
-                            <p className="text-[10px] font-medium text-white/50 uppercase tracking-wider">Phrases suggerees</p>
+                            <p className="text-[10px] font-medium text-white/50 uppercase tracking-wider">{t("incomingCall.suggestedPhrases")}</p>
                             {briefing.suggestedPhrases.slice(0, 2).map((phrase, i) => (
                               <div key={i} className="flex items-start gap-1.5 text-[11px] text-white/80 bg-white/5 rounded-lg px-2 py-1.5">
                                 <MessageCircle className="w-3 h-3 mt-0.5 shrink-0 text-blue-300" />
@@ -557,8 +560,8 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
 
                         {briefingContext && (
                           <div className="flex gap-3 pt-1 text-[10px] text-white/50">
-                            {briefingContext.openTasks > 0 && <span>{briefingContext.openTasks} tache(s) ouvertes</span>}
-                            {briefingContext.upcomingEvents > 0 && <span>{briefingContext.upcomingEvents} RDV a venir</span>}
+                            {briefingContext.openTasks > 0 && <span>{t("incomingCall.openTasks", { count: briefingContext.openTasks })}</span>}
+                            {briefingContext.upcomingEvents > 0 && <span>{t("incomingCall.upcomingEvents", { count: briefingContext.upcomingEvents })}</span>}
                           </div>
                         )}
                       </div>
@@ -573,7 +576,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                       whileTap={{ scale: 0.95 }}
                       className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-lg shadow-red-500/30 transition-colors"
                       onClick={handleReject}
-                      aria-label="Refuser l'appel"
+                      aria-label={t("incomingCall.rejectAria")}
                     >
                       <PhoneOff className="w-7 h-7 text-white" />
                     </motion.button>
@@ -585,7 +588,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                       transition={{ duration: 1, repeat: Infinity }}
                       className="w-20 h-20 rounded-full bg-white hover:bg-gray-100 flex items-center justify-center shadow-xl shadow-white/30 transition-colors"
                       onClick={handleAnswer}
-                      aria-label="Repondre a l'appel"
+                      aria-label={t("incomingCall.answerAria")}
                     >
                       <Phone className="w-9 h-9 text-emerald-600" />
                     </motion.button>
@@ -595,15 +598,15 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                       whileTap={{ scale: 0.95 }}
                       className="w-16 h-16 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center backdrop-blur-sm transition-colors"
                       onClick={() => { setPhase("missed"); saveCall("messagerie"); }}
-                      aria-label="Envoyer vers la messagerie"
+                      aria-label={t("incomingCall.voicemailAria")}
                     >
                       <Voicemail className="w-7 h-7 text-white" />
                     </motion.button>
                   </div>
                   <div className="flex justify-center gap-12 mt-3 text-xs text-white/60">
-                    <span>Refuser</span>
-                    <span className="ml-2">Repondre</span>
-                    <span>Messagerie</span>
+                    <span>{t("incomingCall.reject")}</span>
+                    <span className="ml-2">{t("incomingCall.answer")}</span>
+                    <span>{t("incomingCall.voicemail")}</span>
                   </div>
                 </div>
 
@@ -618,8 +621,8 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                     className="w-full py-3 rounded-2xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-medium text-sm flex items-center justify-center gap-2 shadow-lg shadow-violet-500/30 transition-all"
                   >
                     <Bot className="w-5 h-5" />
-                    Sophie IA repond
-                    <Badge className="bg-white/20 text-white border-0 text-[10px] ml-1">Auto</Badge>
+                    {t("incomingCall.sophieAnswers")}
+                    <Badge className="bg-white/20 text-white border-0 text-[10px] ml-1">{t("incomingCall.autoBadge")}</Badge>
                   </button>
                 </motion.div>
               </div>
@@ -631,14 +634,14 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                   <div className="flex justify-between items-center mb-2">
                     <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs animate-pulse">
                       <span className="w-2 h-2 rounded-full bg-emerald-400 mr-1.5 inline-block" />
-                      En cours
+                      {t("incomingCall.inProgress")}
                     </Badge>
                     <button
                       onClick={() => setShowAiPanel(!showAiPanel)}
                       className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] transition-colors ${showAiPanel ? "bg-violet-500/20 text-violet-400 border border-violet-500/30" : "bg-white/5 text-white/40 border border-white/10"}`}
                     >
                       <Brain className="w-3 h-3" />
-                      IA Coach
+                      {t("incomingCall.aiCoach")}
                     </button>
                   </div>
 
@@ -651,7 +654,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                       )}
                     </div>
                     <div className="text-left flex-1">
-                      <h2 className="text-lg font-bold leading-tight">{callData.contactName || "Numero inconnu"}</h2>
+                      <h2 className="text-lg font-bold leading-tight">{callData.contactName || t("incomingCall.unknownNumber")}</h2>
                       <p className="text-white/50 text-xs">{callData.phoneNumber}</p>
                     </div>
                     <div className="text-2xl font-mono font-light text-emerald-400 tabular-nums">
@@ -661,7 +664,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
 
                   {isOnHold && (
                     <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-2">
-                      <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">En attente</Badge>
+                      <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">{t("incomingCall.onHold")}</Badge>
                     </motion.div>
                   )}
                 </div>
@@ -673,21 +676,21 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                       onClick={() => setIsMuted(!isMuted)}
                     >
                       {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-                      <span className="text-[10px]">{isMuted ? "Active" : "Muet"}</span>
+                      <span className="text-[10px]">{isMuted ? t("incomingCall.unmute") : t("incomingCall.mute")}</span>
                     </button>
                     <button
                       className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-colors ${isOnHold ? "bg-amber-500/20 text-amber-400" : "bg-white/5 hover:bg-white/10 text-white/70"}`}
                       onClick={() => setIsOnHold(!isOnHold)}
                     >
                       {isOnHold ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
-                      <span className="text-[10px]">{isOnHold ? "Reprendre" : "Attente"}</span>
+                      <span className="text-[10px]">{isOnHold ? t("incomingCall.resume") : t("incomingCall.hold")}</span>
                     </button>
                     <button
                       className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-colors ${showNotes ? "bg-blue-500/20 text-blue-400" : "bg-white/5 hover:bg-white/10 text-white/70"}`}
                       onClick={() => setShowNotes(!showNotes)}
                     >
                       <MessageSquare className="w-4 h-4" />
-                      <span className="text-[10px]">Notes</span>
+                      <span className="text-[10px]">{t("incomingCall.notes")}</span>
                     </button>
                     <button
                       className="flex flex-col items-center gap-1 p-2 rounded-xl bg-violet-500/15 hover:bg-violet-500/25 text-violet-400 transition-colors"
@@ -695,7 +698,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                       disabled={coachingLoading || notes.length < 5}
                     >
                       {coachingLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                      <span className="text-[10px]">Analyser</span>
+                      <span className="text-[10px]">{t("incomingCall.analyze")}</span>
                     </button>
                   </div>
 
@@ -708,14 +711,14 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                         className="overflow-hidden mb-3"
                       >
                         <Textarea
-                          placeholder="Tapez vos notes ici... L'IA analysera en temps reel et vous proposera des suggestions."
+                          placeholder={t("incomingCall.notesPlaceholder")}
                           className="bg-white/5 border-white/10 text-white placeholder:text-white/30 resize-none h-20 text-sm"
                           value={notes}
                           onChange={(e) => handleNotesChange(e.target.value)}
                         />
                         <p className="text-[10px] text-white/30 mt-1 flex items-center gap-1">
                           <Brain className="w-2.5 h-2.5" />
-                          L'IA analyse vos notes automatiquement apres 2 secondes de pause
+                          {t("incomingCall.notesHint")}
                         </p>
                       </motion.div>
                     )}
@@ -733,7 +736,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5">
                               <Brain className="w-3.5 h-3.5 text-violet-400" />
-                              <span className="text-xs font-semibold text-violet-300">Coach IA</span>
+                              <span className="text-xs font-semibold text-violet-300">{t("incomingCall.coachTitle")}</span>
                             </div>
                             {coaching.urgencyLevel && (
                               <Badge className={`text-[9px] border-0 ${
@@ -753,7 +756,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                                 return (
                                   <Badge key={i} className="bg-white/10 text-white/80 border-white/20 text-[9px] gap-1">
                                     <Icon className="w-2.5 h-2.5" />
-                                    {intentLabels[intent] || intent}
+                                    {intentLabel(intent)}
                                   </Badge>
                                 );
                               })}
@@ -764,7 +767,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                             <div className="bg-white/5 rounded-lg p-2 border border-white/10">
                               <p className="text-[10px] text-white/40 mb-1 flex items-center gap-1">
                                 <Send className="w-2.5 h-2.5" />
-                                Reponse suggeree
+                                {t("incomingCall.suggestedResponse")}
                               </p>
                               <p className="text-xs text-white/90 italic leading-relaxed">"{coaching.proposedResponse}"</p>
                             </div>
@@ -774,7 +777,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                             <div className="space-y-1">
                               <p className="text-[10px] text-white/40 flex items-center gap-1">
                                 <Lightbulb className="w-2.5 h-2.5" />
-                                Prochaines actions
+                                {t("incomingCall.nextActions")}
                               </p>
                               {coaching.suggestions.map((s, i) => (
                                 <div key={i} className="flex items-start gap-1.5 text-[11px] text-white/70">
@@ -789,7 +792,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                             <div className="space-y-1 pt-1 border-t border-white/10">
                               <p className="text-[10px] text-white/40 flex items-center gap-1">
                                 <CheckSquare className="w-2.5 h-2.5" />
-                                Actions detectees (seront creees automatiquement)
+                                {t("incomingCall.detectedActions")}
                               </p>
                               {coaching.actionItems.map((item, i) => (
                                 <div key={i} className="flex items-center gap-1.5 text-[11px] text-amber-300/80">
@@ -819,11 +822,11 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                     whileTap={{ scale: 0.95 }}
                     className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-lg shadow-red-500/30 mx-auto transition-colors"
                     onClick={handleHangup}
-                    aria-label="Raccrocher"
+                    aria-label={t("incomingCall.hangup")}
                   >
                     <PhoneOff className="w-7 h-7 text-white" />
                   </motion.button>
-                  <p className="text-center text-white/40 text-xs mt-2">Raccrocher</p>
+                  <p className="text-center text-white/40 text-xs mt-2">{t("incomingCall.hangup")}</p>
                 </div>
               </div>
             )}
@@ -834,12 +837,12 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                   <div className="flex justify-between items-center mb-2">
                     <Badge className="bg-violet-500/20 text-violet-300 border-violet-500/30 text-xs animate-pulse">
                       <Bot className="w-3 h-3 mr-1" />
-                      Sophie IA
+                      {t("incomingCall.sophieBadge")}
                     </Badge>
                     <span className="text-xs text-white/50 font-mono">{formatTimer(aiCallTimer)}</span>
                     <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1 inline-block animate-pulse" />
-                      Active
+                      {t("incomingCall.active")}
                     </Badge>
                   </div>
                   <p className="text-sm text-white/70 flex items-center justify-center gap-2">
@@ -859,11 +862,11 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                       </Badge>
                     )}
                     <Badge className="bg-blue-500/10 text-blue-300 border-blue-500/20 text-[10px]">
-                      {aiDetectedLanguage === "fr" ? "Francais" : aiDetectedLanguage === "en" ? "English" : aiDetectedLanguage === "tr" ? "Turc" : aiDetectedLanguage === "de" ? "Allemand" : aiDetectedLanguage === "es" ? "Espagnol" : aiDetectedLanguage === "ar" ? "Arabe" : aiDetectedLanguage}
+                      {langLabel(aiDetectedLanguage)}
                     </Badge>
                     {aiDetectedIntents.map((i, idx) => (
                       <Badge key={idx} className="bg-violet-500/10 text-violet-300 border-violet-500/20 text-[10px]">
-                        {i === "rdv" ? "Rendez-vous" : i === "devis" ? "Devis" : i === "reclamation" ? "Reclamation" : i === "urgence" ? "Urgence" : i === "rappel" ? "Rappel" : i === "information" ? "Information" : i === "achat" ? "Achat" : i === "annulation" ? "Annulation" : i === "suivi_commande" ? "Suivi" : i === "demande_technique" ? "Technique" : i === "plainte" ? "Plainte" : i === "partenariat" ? "Partenariat" : i}
+                        {intentLabel(i)}
                       </Badge>
                     ))}
                   </div>
@@ -871,7 +874,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                     <div className="mt-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
                       <div className="flex items-center gap-1 text-[10px] text-amber-300 mb-1">
                         <Lightbulb className="w-3 h-3" />
-                        Insights Sophie
+                        {t("incomingCall.sophieInsights")}
                       </div>
                       {aiProactiveInsights.map((insight, idx) => (
                         <p key={idx} className="text-[10px] text-amber-200/80">{insight}</p>
@@ -920,14 +923,14 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                 </div>
 
                 <div className="px-4 py-3 border-t border-violet-500/20">
-                  <p className="text-[10px] text-white/30 mb-2 text-center">Simulez la reponse du client pour tester l'agent IA</p>
+                  <p className="text-[10px] text-white/30 mb-2 text-center">{t("incomingCall.simulateHint")}</p>
                   <div className="flex gap-2">
                     <input
                       type="text"
                       value={aiClientInput}
                       onChange={e => setAiClientInput(e.target.value)}
                       onKeyDown={e => e.key === "Enter" && handleAiClientSend()}
-                      placeholder="Ecrivez comme le client..."
+                      placeholder={t("incomingCall.clientInputPlaceholder")}
                       className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-violet-500/50"
                       disabled={aiTyping}
                     />
@@ -947,14 +950,14 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                     className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium flex items-center gap-1.5 transition-colors"
                   >
                     <Phone className="w-3.5 h-3.5" />
-                    Reprendre
+                    {t("incomingCall.resume")}
                   </button>
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={handleAiHangup}
                     className="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-lg shadow-red-500/30 transition-colors"
-                    aria-label="Raccrocher"
+                    aria-label={t("incomingCall.hangup")}
                   >
                     <PhoneOff className="w-6 h-6 text-white" />
                   </motion.button>
@@ -973,9 +976,9 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                   <div className="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center bg-violet-100 dark:bg-violet-900/30">
                     <Bot className="w-7 h-7 text-violet-600 dark:text-violet-400" />
                   </div>
-                  <h3 className="text-lg font-bold">Appel gere par Sophie IA</h3>
+                  <h3 className="text-lg font-bold">{t("incomingCall.handledBySophie")}</h3>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Duree: {formatTimer(aiCallTimer)} • {aiConversation.length} messages
+                    {t("incomingCall.durationMessages", { time: formatTimer(aiCallTimer), count: aiConversation.length })}
                   </p>
                 </div>
 
@@ -987,18 +990,18 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                   {aiSatisfactionScore != null && (
                     <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${aiSatisfactionScore >= 7 ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300" : aiSatisfactionScore >= 4 ? "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300" : "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300"}`}>
                       <Star className="w-3.5 h-3.5" />
-                      Satisfaction: {aiSatisfactionScore}/10
+                      {t("incomingCall.satisfaction", { score: aiSatisfactionScore })}
                     </div>
                   )}
                   <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
-                    {aiDetectedLanguage === "fr" ? "Francais" : aiDetectedLanguage === "en" ? "English" : aiDetectedLanguage === "tr" ? "Turc" : aiDetectedLanguage === "de" ? "Allemand" : aiDetectedLanguage === "es" ? "Espagnol" : aiDetectedLanguage === "ar" ? "Arabe" : aiDetectedLanguage}
+                    {langLabel(aiDetectedLanguage)}
                   </div>
                 </div>
 
                 {aiSummary && (
                   <div className="mx-6 mb-3 p-3 rounded-xl bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800">
                     <p className="text-xs font-medium text-violet-700 dark:text-violet-300 mb-1 flex items-center gap-1">
-                      <Brain className="w-3 h-3" /> Resume Sophie
+                      <Brain className="w-3 h-3" /> {t("incomingCall.sophieSummary")}
                     </p>
                     <p className="text-sm text-violet-900 dark:text-violet-100">{aiSummary}</p>
                   </div>
@@ -1007,7 +1010,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                 {aiNextBestAction && (
                   <div className="mx-6 mb-3 p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
                     <p className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-1 flex items-center gap-1">
-                      <ArrowRight className="w-3 h-3" /> Prochaine action recommandee
+                      <ArrowRight className="w-3 h-3" /> {t("incomingCall.nextRecommendedAction")}
                     </p>
                     <p className="text-sm text-blue-900 dark:text-blue-100">{aiNextBestAction}</p>
                   </div>
@@ -1016,23 +1019,23 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                 {aiKeyInfo && (aiKeyInfo.budget || aiKeyInfo.deadline || aiKeyInfo.specificNeeds?.length > 0) && (
                   <div className="mx-6 mb-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
                     <p className="text-xs font-medium text-amber-700 dark:text-amber-300 mb-1 flex items-center gap-1">
-                      <Target className="w-3 h-3" /> Informations extraites
+                      <Target className="w-3 h-3" /> {t("incomingCall.extractedInfo")}
                     </p>
                     <div className="text-xs space-y-0.5 text-amber-900 dark:text-amber-100">
-                      {aiKeyInfo.budget && <p>Budget: {aiKeyInfo.budget}</p>}
-                      {aiKeyInfo.deadline && <p>Echeance: {aiKeyInfo.deadline}</p>}
-                      {aiKeyInfo.specificNeeds?.length > 0 && <p>Besoins: {aiKeyInfo.specificNeeds.join(", ")}</p>}
+                      {aiKeyInfo.budget && <p>{t("incomingCall.budget", { value: aiKeyInfo.budget })}</p>}
+                      {aiKeyInfo.deadline && <p>{t("incomingCall.deadline", { value: aiKeyInfo.deadline })}</p>}
+                      {aiKeyInfo.specificNeeds?.length > 0 && <p>{t("incomingCall.needs", { value: aiKeyInfo.specificNeeds.join(", ") })}</p>}
                     </div>
                   </div>
                 )}
 
                 {aiDetectedIntents.length > 0 && (
                   <div className="mx-6 mb-3">
-                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Intentions detectees</p>
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">{t("incomingCall.detectedIntents")}</p>
                     <div className="flex flex-wrap gap-1">
                       {aiDetectedIntents.map((i, idx) => (
                         <Badge key={idx} variant="outline" className="text-xs">
-                          {i === "rdv" ? "Rendez-vous" : i === "devis" ? "Devis" : i === "reclamation" ? "Reclamation" : i === "urgence" ? "Urgence" : i === "rappel" ? "Rappel" : i === "information" ? "Information" : i === "achat" ? "Achat" : i === "annulation" ? "Annulation" : i === "suivi_commande" ? "Suivi" : i === "demande_technique" ? "Technique" : i === "plainte" ? "Plainte" : i === "partenariat" ? "Partenariat" : i}
+                          {intentLabel(i)}
                         </Badge>
                       ))}
                     </div>
@@ -1041,7 +1044,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
 
                 {aiActions.length > 0 && (
                   <div className="mx-6 mb-3">
-                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Actions suggerees</p>
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">{t("incomingCall.suggestedActions")}</p>
                     <div className="space-y-1.5">
                       {aiActions.map((a, idx) => (
                         <div key={idx} className={`flex items-start gap-2 p-2 rounded-lg text-sm ${a.type === "escalation" ? "bg-red-50 dark:bg-red-900/10" : "bg-muted/50"}`}>
@@ -1053,7 +1056,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                            <MessageSquare className="w-3.5 h-3.5 text-orange-500 mt-0.5" />}
                           <div>
                             <p className="font-medium text-xs">{a.description}</p>
-                            <p className="text-[10px] text-muted-foreground">{a.type === "escalation" ? "Escalade" : a.type === "devis" ? "Devis" : a.type === "email" ? "Email" : a.type} • {a.priority}{a.dueInHours ? ` • ${a.dueInHours}h` : ""}</p>
+                            <p className="text-[10px] text-muted-foreground">{a.type === "escalation" ? t("incomingCall.actionTypes.escalation") : a.type === "devis" ? t("incomingCall.actionTypes.devis") : a.type === "email" ? t("incomingCall.actionTypes.email") : a.type} • {a.priority}{a.dueInHours ? ` • ${a.dueInHours}h` : ""}</p>
                           </div>
                         </div>
                       ))}
@@ -1065,12 +1068,12 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                   <details className="group">
                     <summary className="text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground flex items-center gap-1">
                       <MessageCircle className="w-3 h-3" />
-                      Transcription ({aiConversation.length} messages)
+                      {t("incomingCall.transcription", { count: aiConversation.length })}
                     </summary>
                     <div className="mt-2 space-y-2 max-h-[200px] overflow-y-auto">
                       {aiConversation.map((msg, idx) => (
                         <div key={idx} className={`text-xs p-2 rounded-lg ${msg.role === "agent" ? "bg-violet-50 dark:bg-violet-900/10" : "bg-muted/50"}`}>
-                          <span className="font-medium">{msg.role === "agent" ? "Sophie IA" : "Client"}</span>
+                          <span className="font-medium">{msg.role === "agent" ? t("incomingCall.sophieName") : t("incomingCall.clientName")}</span>
                           <span className="text-muted-foreground ml-1">{msg.time}</span>
                           <p className="mt-0.5">{msg.text}</p>
                         </div>
@@ -1087,7 +1090,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                       className="w-full bg-violet-600 hover:bg-violet-700"
                     >
                       {aiSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckSquare className="w-4 h-4 mr-2" />}
-                      Enregistrer l'appel et creer les taches
+                      {t("incomingCall.saveAndCreateTasks")}
                     </Button>
                   ) : (
                     <div className="text-center p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
@@ -1096,7 +1099,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                   )}
                   <Button variant="outline" onClick={() => onClose?.()} className="w-full">
                     <X className="w-4 h-4 mr-2" />
-                    Fermer
+                    {t("incomingCall.close")}
                   </Button>
                 </div>
               </motion.div>
@@ -1118,7 +1121,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                   </div>
 
                   <h3 className="text-lg font-semibold mb-1">
-                    {phase === "ended" ? "Appel termine" : "Appel manque"}
+                    {phase === "ended" ? t("incomingCall.callEnded") : t("incomingCall.callMissed")}
                   </h3>
                   <p className="text-muted-foreground text-sm">
                     {callData.contactName || callData.phoneNumber}
@@ -1129,14 +1132,14 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                 {phase === "ended" && !aiResult && (
                   <div className="px-8 pb-4">
                     <Textarea
-                      placeholder="Notes de l'appel (l'IA analysera automatiquement)..."
+                      placeholder={t("incomingCall.callNotesPlaceholder")}
                       className="resize-none h-20"
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                     />
                     <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
                       <Sparkles className="w-3 h-3" />
-                      L'IA detectera les rendez-vous, creera les taches et coordonnera les agents automatiquement
+                      {t("incomingCall.aiDetectHint")}
                     </p>
                   </div>
                 )}
@@ -1153,18 +1156,18 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                           <Brain className="w-4 h-4 text-violet-600 dark:text-violet-400 animate-pulse" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium">Analyse IA & coordination agents...</p>
-                          <p className="text-xs text-muted-foreground">Detection RDV, creation taches, dispatch agents</p>
+                          <p className="text-sm font-medium">{t("incomingCall.aiCoordinating")}</p>
+                          <p className="text-xs text-muted-foreground">{t("incomingCall.aiCoordinatingSub")}</p>
                         </div>
                       </div>
                       <div className="space-y-1.5 mt-2">
                         <div className="flex items-center gap-2">
                           <Loader2 className="w-3 h-3 animate-spin text-violet-500" />
-                          <span className="text-xs text-violet-600 dark:text-violet-400">Traitement Gemini...</span>
+                          <span className="text-xs text-violet-600 dark:text-violet-400">{t("incomingCall.processingGemini")}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
-                          <span className="text-xs text-blue-600 dark:text-blue-400">Coordination avec les agents IA...</span>
+                          <span className="text-xs text-blue-600 dark:text-blue-400">{t("incomingCall.coordinatingAgents")}</span>
                         </div>
                       </div>
                     </div>
@@ -1180,7 +1183,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                     <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 rounded-xl p-4 border border-emerald-200 dark:border-emerald-800">
                       <div className="flex items-center gap-2 mb-2">
                         <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                        <span className="text-sm font-medium">Analyse IA</span>
+                        <span className="text-sm font-medium">{t("incomingCall.aiAnalysis")}</span>
                         {aiResult.analysis?.sentiment && (
                           <Badge className={`ml-auto text-[10px] ${
                             aiResult.analysis.sentiment === "tres_positif" ? "bg-emerald-200 text-emerald-800 dark:bg-emerald-900/70 dark:text-emerald-300 border-emerald-300" :
@@ -1207,7 +1210,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                       >
                         <div className="flex items-center gap-2 mb-2">
                           <CalendarPlus className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                          <span className="text-sm font-medium">Rendez-vous cree</span>
+                          <span className="text-sm font-medium">{t("incomingCall.appointmentCreatedTitle")}</span>
                         </div>
                         <p className="text-sm font-medium text-blue-900 dark:text-blue-200">{aiResult.appointment.title}</p>
                         {aiResult.appointment.startDate && (
@@ -1233,7 +1236,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                       >
                         <div className="flex items-center gap-2 mb-2">
                           <CheckSquare className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                          <span className="text-sm font-medium">{aiResult.tasksCreated} tache(s) creee(s)</span>
+                          <span className="text-sm font-medium">{t("incomingCall.tasksCreatedCount", { count: aiResult.tasksCreated })}</span>
                         </div>
                         <div className="space-y-1.5">
                           {aiResult.tasks.map((task: any, i: number) => (
@@ -1258,7 +1261,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                       >
                         <div className="flex items-center gap-2 mb-2">
                           <Smile className="w-4 h-4 text-pink-600 dark:text-pink-400" />
-                          <span className="text-sm font-medium">Petite blague du jour</span>
+                          <span className="text-sm font-medium">{t("incomingCall.jokeOfDay")}</span>
                         </div>
                         <p className="text-xs text-pink-800 dark:text-pink-300 leading-relaxed italic">
                           "{aiResult.analysis.joke}"
@@ -1276,7 +1279,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                         className="flex-1"
                         onClick={onClose}
                       >
-                        Fermer
+                        {t("incomingCall.close")}
                       </Button>
                       <Button
                         className="flex-1"
@@ -1286,19 +1289,19 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                         {createCall.isPending ? (
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         ) : null}
-                        Enregistrer
+                        {t("incomingCall.save")}
                       </Button>
                     </>
                   )}
                   {aiProcessing && (
                     <Button variant="outline" className="flex-1" disabled>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Analyse en cours...
+                      {t("incomingCall.analyzing")}
                     </Button>
                   )}
                   {aiResult && (
                     <Button className="flex-1" onClick={onClose}>
-                      Terminer
+                      {t("incomingCall.finish")}
                     </Button>
                   )}
                 </div>

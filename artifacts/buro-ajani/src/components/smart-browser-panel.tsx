@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 import {
   useNetworkStatus,
   usePageVisibility,
@@ -27,6 +28,7 @@ import {
 } from "@/hooks/use-smart-browser";
 
 function SmartStatusBar() {
+  const { t } = useTranslation();
   const network = useNetworkStatus();
   const battery = useBatteryStatus();
   const visibility = usePageVisibility();
@@ -43,7 +45,7 @@ function SmartStatusBar() {
             </div>
           </TooltipTrigger>
           <TooltipContent>
-            {network.isOnline ? `En ligne - ${network.connectionType}` : "Hors ligne"}
+            {network.isOnline ? t("smartBrowserPanel.online", { type: network.connectionType }) : t("smartBrowserPanel.offline")}
             {network.downlink ? ` (${network.downlink} Mbps)` : ""}
           </TooltipContent>
         </Tooltip>
@@ -57,7 +59,7 @@ function SmartStatusBar() {
               </div>
             </TooltipTrigger>
             <TooltipContent>
-              Batterie: {battery.level}% {battery.charging ? "(en charge)" : ""}
+              {t("smartBrowserPanel.battery", { level: battery.level })} {battery.charging ? t("smartBrowserPanel.charging") : ""}
             </TooltipContent>
           </Tooltip>
         )}
@@ -70,7 +72,7 @@ function SmartStatusBar() {
             </div>
           </TooltipTrigger>
           <TooltipContent>
-            {perf.fps} FPS | RAM: {perf.memoryUsed}MB/{perf.memoryTotal}MB
+            {t("smartBrowserPanel.perfInfo", { fps: perf.fps, used: perf.memoryUsed, total: perf.memoryTotal })}
           </TooltipContent>
         </Tooltip>
 
@@ -82,7 +84,7 @@ function SmartStatusBar() {
                 <span>{visibility.idleMinutes}m</span>
               </div>
             </TooltipTrigger>
-            <TooltipContent>Inactif depuis {visibility.idleMinutes} min</TooltipContent>
+            <TooltipContent>{t("smartBrowserPanel.idle", { count: visibility.idleMinutes })}</TooltipContent>
           </Tooltip>
         )}
       </TooltipProvider>
@@ -91,6 +93,7 @@ function SmartStatusBar() {
 }
 
 function NetworkAlert() {
+  const { t } = useTranslation();
   const { isOnline, wasOffline } = useNetworkStatus();
 
   if (isOnline && !wasOffline) return null;
@@ -99,8 +102,8 @@ function NetworkAlert() {
     return (
       <div className="fixed top-14 left-0 right-0 z-50 bg-red-600 text-white px-4 py-2 flex items-center justify-center gap-2 text-sm shadow-lg animate-in slide-in-from-top">
         <WifiOff className="h-4 w-4" />
-        <span className="font-medium">Connexion perdue</span>
-        <span className="opacity-75">— Mode hors ligne active. Vos modifications seront synchronisees au retour.</span>
+        <span className="font-medium">{t("smartBrowserPanel.connectionLost")}</span>
+        <span className="opacity-75">{t("smartBrowserPanel.offlineMode")}</span>
       </div>
     );
   }
@@ -109,9 +112,9 @@ function NetworkAlert() {
     return (
       <div className="fixed top-14 left-0 right-0 z-50 bg-green-600 text-white px-4 py-2 flex items-center justify-center gap-2 text-sm shadow-lg animate-in slide-in-from-top">
         <Wifi className="h-4 w-4" />
-        <span className="font-medium">Connexion retablie</span>
+        <span className="font-medium">{t("smartBrowserPanel.connectionRestored")}</span>
         <RefreshCw className="h-3 w-3 animate-spin ml-1" />
-        <span className="opacity-75">Synchronisation en cours...</span>
+        <span className="opacity-75">{t("smartBrowserPanel.syncing")}</span>
       </div>
     );
   }
@@ -120,6 +123,7 @@ function NetworkAlert() {
 }
 
 function BatteryAlert() {
+  const { t } = useTranslation();
   const battery = useBatteryStatus();
   const [dismissed, setDismissed] = useState(false);
 
@@ -130,11 +134,11 @@ function BatteryAlert() {
       <div className="flex items-center gap-2">
         <BatteryLow className="h-5 w-5 animate-pulse" />
         <div>
-          <p className="font-medium text-sm">Batterie faible ({battery.level}%)</p>
-          <p className="text-xs opacity-80">Branchez votre appareil pour eviter la perte de donnees</p>
+          <p className="font-medium text-sm">{t("smartBrowserPanel.lowBattery", { level: battery.level })}</p>
+          <p className="text-xs opacity-80">{t("smartBrowserPanel.lowBatteryDesc")}</p>
         </div>
         <button onClick={() => setDismissed(true)} className="ml-2 text-white/60 hover:text-white text-xs">
-          OK
+          {t("smartBrowserPanel.ok")}
         </button>
       </div>
     </div>
@@ -142,6 +146,7 @@ function BatteryAlert() {
 }
 
 function VoiceCommandButton() {
+  const { t } = useTranslation();
   const { isListening, transcript, interimTranscript, isSupported, startListening, stopListening, resetTranscript } = useSpeechRecognition();
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -166,13 +171,13 @@ function VoiceCommandButton() {
     for (const [regex, action] of commands) {
       if (regex.test(text)) {
         action();
-        toast({ title: "Commande vocale", description: `Navigation: ${text}` });
+        toast({ title: t("smartBrowserPanel.voiceCommand"), description: t("smartBrowserPanel.voiceNav", { text }) });
         resetTranscript();
         stopListening();
         return;
       }
     }
-  }, [transcript, navigate, toast, resetTranscript, stopListening]);
+  }, [transcript, navigate, toast, resetTranscript, stopListening, t]);
 
   if (!isSupported) return null;
 
@@ -193,12 +198,12 @@ function VoiceCommandButton() {
         <TooltipContent>
           {isListening ? (
             <div>
-              <p className="font-medium">Ecoute en cours...</p>
+              <p className="font-medium">{t("smartBrowserPanel.listening")}</p>
               {(transcript || interimTranscript) && (
                 <p className="text-xs opacity-80 mt-1 max-w-[200px]">{transcript}{interimTranscript}</p>
               )}
             </div>
-          ) : "Commande vocale (Francais)"}
+          ) : t("smartBrowserPanel.voiceCommandLang")}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
@@ -206,6 +211,7 @@ function VoiceCommandButton() {
 }
 
 function SmartQuickActions() {
+  const { t } = useTranslation();
   const { isFullscreen, toggleFullscreen } = useFullscreen();
   const { canShare, share } = useSmartShare();
   const { isLocked, requestWakeLock, releaseWakeLock } = useWakeLock();
@@ -220,10 +226,10 @@ function SmartQuickActions() {
   const handleShare = async () => {
     const success = await share({
       title: "Ajant Bureau",
-      text: "Decouvrez Ajant Bureau - Solution de gestion de bureau intelligente",
+      text: t("smartBrowserPanel.shareText"),
       url: window.location.href,
     });
-    if (success) toast({ title: "Partage reussi" });
+    if (success) toast({ title: t("smartBrowserPanel.shareSuccess") });
   };
 
   return (
@@ -235,7 +241,7 @@ function SmartQuickActions() {
               {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>{isFullscreen ? "Quitter plein ecran" : "Mode plein ecran (Focus)"}</TooltipContent>
+          <TooltipContent>{isFullscreen ? t("smartBrowserPanel.exitFullscreen") : t("smartBrowserPanel.fullscreenMode")}</TooltipContent>
         </Tooltip>
 
         <Tooltip>
@@ -249,7 +255,7 @@ function SmartQuickActions() {
               {isLocked ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>{isLocked ? "Ecran reste allume (actif)" : "Garder l'ecran allume"}</TooltipContent>
+          <TooltipContent>{isLocked ? t("smartBrowserPanel.screenOn") : t("smartBrowserPanel.keepScreenOn")}</TooltipContent>
         </Tooltip>
 
         {canShare && (
@@ -259,7 +265,7 @@ function SmartQuickActions() {
                 <Share2 className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Partager</TooltipContent>
+            <TooltipContent>{t("smartBrowserPanel.share")}</TooltipContent>
           </Tooltip>
         )}
 
@@ -269,7 +275,7 @@ function SmartQuickActions() {
               <Printer className="h-3.5 w-3.5" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Imprimer / Exporter PDF</TooltipContent>
+          <TooltipContent>{t("smartBrowserPanel.printExport")}</TooltipContent>
         </Tooltip>
       </TooltipProvider>
     </div>
@@ -277,6 +283,7 @@ function SmartQuickActions() {
 }
 
 function ClipboardDetector() {
+  const { t } = useTranslation();
   const { detected, readClipboard } = useSmartClipboard();
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -304,19 +311,19 @@ function ClipboardDetector() {
   if (!show || !detected) return null;
 
   const typeLabels: Record<string, string> = {
-    email: "Email detecte",
-    phone: "Telephone detecte",
-    url: "URL detectee",
-    iban: "IBAN detecte",
-    siret: "SIRET detecte",
+    email: t("smartBrowserPanel.clipboardTypes.email"),
+    phone: t("smartBrowserPanel.clipboardTypes.phone"),
+    url: t("smartBrowserPanel.clipboardTypes.url"),
+    iban: t("smartBrowserPanel.clipboardTypes.iban"),
+    siret: t("smartBrowserPanel.clipboardTypes.siret"),
   };
 
   const actions: Record<string, { label: string; action: () => void }> = {
-    email: { label: "Ajouter contact", action: () => navigate("/contacts") },
-    phone: { label: "Ajouter contact", action: () => navigate("/contacts") },
-    url: { label: "Ouvrir", action: () => window.open(detected.value, "_blank") },
-    iban: { label: "Voir facturation", action: () => navigate("/parametres") },
-    siret: { label: "Voir facturation", action: () => navigate("/parametres") },
+    email: { label: t("smartBrowserPanel.clipboardActions.addContact"), action: () => navigate("/contacts") },
+    phone: { label: t("smartBrowserPanel.clipboardActions.addContact"), action: () => navigate("/contacts") },
+    url: { label: t("smartBrowserPanel.clipboardActions.open"), action: () => window.open(detected.value, "_blank") },
+    iban: { label: t("smartBrowserPanel.clipboardActions.viewBilling"), action: () => navigate("/parametres") },
+    siret: { label: t("smartBrowserPanel.clipboardActions.viewBilling"), action: () => navigate("/parametres") },
   };
 
   const actionInfo = actions[detected.type];
@@ -339,6 +346,7 @@ function ClipboardDetector() {
 }
 
 function SmartKeyboardShortcutsHelp() {
+  const { t } = useTranslation();
   const [show, setShow] = useState(false);
 
   useEffect(() => {
@@ -356,14 +364,14 @@ function SmartKeyboardShortcutsHelp() {
   if (!show) return null;
 
   const shortcuts = [
-    { keys: "Ctrl+K", desc: "Palette de commandes" },
-    { keys: "Ctrl+/", desc: "Aide raccourcis" },
-    { keys: "Ctrl+Shift+F", desc: "Recherche globale" },
-    { keys: "Ctrl+Shift+N", desc: "Nouveau contact" },
-    { keys: "Ctrl+Shift+T", desc: "Nouvelle tache" },
-    { keys: "Ctrl+P", desc: "Imprimer / PDF" },
-    { keys: "F11", desc: "Plein ecran" },
-    { keys: "Escape", desc: "Fermer les dialogues" },
+    { keys: "Ctrl+K", desc: t("smartBrowserPanel.shortcuts.commandPalette") },
+    { keys: "Ctrl+/", desc: t("smartBrowserPanel.shortcuts.shortcutsHelp") },
+    { keys: "Ctrl+Shift+F", desc: t("smartBrowserPanel.shortcuts.globalSearch") },
+    { keys: "Ctrl+Shift+N", desc: t("smartBrowserPanel.shortcuts.newContact") },
+    { keys: "Ctrl+Shift+T", desc: t("smartBrowserPanel.shortcuts.newTask") },
+    { keys: "Ctrl+P", desc: t("smartBrowserPanel.shortcuts.printPdf") },
+    { keys: "F11", desc: t("smartBrowserPanel.shortcuts.fullscreen") },
+    { keys: "Escape", desc: t("smartBrowserPanel.shortcuts.closeDialogs") },
   ];
 
   return (
@@ -371,7 +379,7 @@ function SmartKeyboardShortcutsHelp() {
       <div className="bg-card rounded-xl shadow-2xl p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center gap-2 mb-4">
           <Keyboard className="h-5 w-5 text-indigo-500" />
-          <h3 className="font-semibold">Raccourcis Clavier</h3>
+          <h3 className="font-semibold">{t("smartBrowserPanel.keyboardShortcuts")}</h3>
         </div>
         <div className="space-y-2">
           {shortcuts.map(s => (
@@ -381,13 +389,14 @@ function SmartKeyboardShortcutsHelp() {
             </div>
           ))}
         </div>
-        <p className="text-xs text-muted-foreground mt-4 text-center">Appuyez sur Escape pour fermer</p>
+        <p className="text-xs text-muted-foreground mt-4 text-center">{t("smartBrowserPanel.pressEscape")}</p>
       </div>
     </div>
   );
 }
 
 function DeviceCapabilitiesPanel() {
+  const { t } = useTranslation();
   const caps = useDeviceCapabilities();
   const [show, setShow] = useState(false);
 
@@ -400,27 +409,27 @@ function DeviceCapabilitiesPanel() {
               <Monitor className="h-3.5 w-3.5" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Capacites du navigateur</TooltipContent>
+          <TooltipContent>{t("smartBrowserPanel.browserCapabilities")}</TooltipContent>
         </Tooltip>
       </TooltipProvider>
     );
   }
 
   const features = [
-    { name: "Camera", icon: Camera, active: caps.hasCamera },
-    { name: "Microphone", icon: Mic, active: caps.hasMicrophone },
-    { name: "GPS", icon: MapPin, active: caps.hasGeolocation },
-    { name: "Notifications", icon: Bell, active: caps.hasNotifications },
-    { name: "Reconnaissance vocale", icon: Volume2, active: caps.hasSpeechRecognition },
-    { name: "Synthese vocale", icon: Volume2, active: caps.hasSpeechSynthesis },
-    { name: "Presse-papier", icon: Clipboard, active: caps.hasClipboard },
-    { name: "Partage natif", icon: Share2, active: caps.hasShare },
-    { name: "Vibration", icon: Smartphone, active: caps.hasVibrate },
-    { name: "Barcode/QR", icon: Fingerprint, active: caps.hasBarcodeDetector },
-    { name: "WebGL", icon: Sparkles, active: caps.hasWebGL },
-    { name: "Bluetooth", icon: Bluetooth, active: caps.hasBluetooth },
-    { name: "Tactile", icon: Smartphone, active: caps.hasTouchScreen },
-    { name: "PWA installe", icon: Monitor, active: caps.isPWA },
+    { name: t("smartBrowserPanel.features.camera"), icon: Camera, active: caps.hasCamera },
+    { name: t("smartBrowserPanel.features.microphone"), icon: Mic, active: caps.hasMicrophone },
+    { name: t("smartBrowserPanel.features.gps"), icon: MapPin, active: caps.hasGeolocation },
+    { name: t("smartBrowserPanel.features.notifications"), icon: Bell, active: caps.hasNotifications },
+    { name: t("smartBrowserPanel.features.speechRecognition"), icon: Volume2, active: caps.hasSpeechRecognition },
+    { name: t("smartBrowserPanel.features.speechSynthesis"), icon: Volume2, active: caps.hasSpeechSynthesis },
+    { name: t("smartBrowserPanel.features.clipboard"), icon: Clipboard, active: caps.hasClipboard },
+    { name: t("smartBrowserPanel.features.nativeShare"), icon: Share2, active: caps.hasShare },
+    { name: t("smartBrowserPanel.features.vibration"), icon: Smartphone, active: caps.hasVibrate },
+    { name: t("smartBrowserPanel.features.barcode"), icon: Fingerprint, active: caps.hasBarcodeDetector },
+    { name: t("smartBrowserPanel.features.webgl"), icon: Sparkles, active: caps.hasWebGL },
+    { name: t("smartBrowserPanel.features.bluetooth"), icon: Bluetooth, active: caps.hasBluetooth },
+    { name: t("smartBrowserPanel.features.touch"), icon: Smartphone, active: caps.hasTouchScreen },
+    { name: t("smartBrowserPanel.features.pwa"), icon: Monitor, active: caps.isPWA },
   ];
 
   return (
@@ -428,7 +437,7 @@ function DeviceCapabilitiesPanel() {
       <div className="bg-card rounded-xl shadow-2xl p-6 max-w-lg w-full mx-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center gap-2 mb-4">
           <BrainCircuit className="h-5 w-5 text-indigo-500" />
-          <h3 className="font-semibold">Capacites du Navigateur</h3>
+          <h3 className="font-semibold">{t("smartBrowserPanel.browserCapabilitiesTitle")}</h3>
           <button onClick={() => setShow(false)} className="ml-auto text-muted-foreground hover:text-foreground">x</button>
         </div>
 
@@ -443,12 +452,12 @@ function DeviceCapabilitiesPanel() {
         </div>
 
         <div className="border-t pt-3 space-y-1 text-xs text-muted-foreground">
-          <div className="flex justify-between"><span>Ecran</span><span>{caps.screenWidth}x{caps.screenHeight} @{caps.devicePixelRatio}x</span></div>
-          <div className="flex justify-between"><span>Plateforme</span><span>{caps.platform}</span></div>
-          <div className="flex justify-between"><span>Langue</span><span>{caps.language}</span></div>
-          {caps.memory && <div className="flex justify-between"><span>Memoire</span><span>{caps.memory} GB</span></div>}
-          {caps.cores && <div className="flex justify-between"><span>Coeurs CPU</span><span>{caps.cores}</span></div>}
-          {caps.maxTouchPoints > 0 && <div className="flex justify-between"><span>Points tactiles</span><span>{caps.maxTouchPoints}</span></div>}
+          <div className="flex justify-between"><span>{t("smartBrowserPanel.deviceInfo.screen")}</span><span>{caps.screenWidth}x{caps.screenHeight} @{caps.devicePixelRatio}x</span></div>
+          <div className="flex justify-between"><span>{t("smartBrowserPanel.deviceInfo.platform")}</span><span>{caps.platform}</span></div>
+          <div className="flex justify-between"><span>{t("smartBrowserPanel.deviceInfo.language")}</span><span>{caps.language}</span></div>
+          {caps.memory && <div className="flex justify-between"><span>{t("smartBrowserPanel.deviceInfo.memory")}</span><span>{caps.memory} GB</span></div>}
+          {caps.cores && <div className="flex justify-between"><span>{t("smartBrowserPanel.deviceInfo.cpuCores")}</span><span>{caps.cores}</span></div>}
+          {caps.maxTouchPoints > 0 && <div className="flex justify-between"><span>{t("smartBrowserPanel.deviceInfo.touchPoints")}</span><span>{caps.maxTouchPoints}</span></div>}
         </div>
       </div>
     </div>
@@ -456,13 +465,14 @@ function DeviceCapabilitiesPanel() {
 }
 
 function GeolocationButton() {
+  const { t } = useTranslation();
   const { position, loading, getCurrentPosition } = useGeolocation();
   const { toast } = useToast();
 
   const handleClick = () => {
     getCurrentPosition();
     if (position) {
-      toast({ title: "Position actuelle", description: `Lat: ${position.lat.toFixed(4)}, Lng: ${position.lng.toFixed(4)}` });
+      toast({ title: t("smartBrowserPanel.currentPosition"), description: t("smartBrowserPanel.positionDesc", { lat: position.lat.toFixed(4), lng: position.lng.toFixed(4) }) });
     }
   };
 
@@ -481,7 +491,7 @@ function GeolocationButton() {
           </Button>
         </TooltipTrigger>
         <TooltipContent>
-          {position ? `Position: ${position.lat.toFixed(4)}, ${position.lng.toFixed(4)}` : "Localiser ma position"}
+          {position ? t("smartBrowserPanel.positionCoords", { lat: position.lat.toFixed(4), lng: position.lng.toFixed(4) }) : t("smartBrowserPanel.locateMe")}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
@@ -534,6 +544,7 @@ export function SmartBrowserOverlays() {
 }
 
 export function SmartBrowserShortcuts() {
+  const { t } = useTranslation();
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
@@ -552,12 +563,12 @@ export function SmartBrowserShortcuts() {
           case "n":
             e.preventDefault();
             navigate("/contacts");
-            toast({ title: "Nouveau contact", description: "Utilisez le bouton + pour creer" });
+            toast({ title: t("smartBrowserPanel.newContact"), description: t("smartBrowserPanel.useAddButton") });
             break;
           case "t":
             e.preventDefault();
             navigate("/taches");
-            toast({ title: "Nouvelle tache", description: "Utilisez le bouton + pour creer" });
+            toast({ title: t("smartBrowserPanel.newTask"), description: t("smartBrowserPanel.useAddButton") });
             break;
         }
       }
@@ -565,7 +576,7 @@ export function SmartBrowserShortcuts() {
 
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [navigate, toast]);
+  }, [navigate, toast, t]);
 
   return null;
 }
