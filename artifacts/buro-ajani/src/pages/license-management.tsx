@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,14 +31,15 @@ import { useWorkspaceUser } from "@/components/workspace-user";
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 function AccessDenied() {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center">
       <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
         <Shield className="w-8 h-8 text-red-500" />
       </div>
-      <h2 className="text-xl font-bold">Acces restreint</h2>
+      <h2 className="text-xl font-bold">{t("licenseManagement.accessDenied.title")}</h2>
       <p className="text-muted-foreground max-w-md">
-        Cette section est reservee aux administrateurs. Contactez votre administrateur pour plus d'informations.
+        {t("licenseManagement.accessDenied.desc")}
       </p>
     </div>
   );
@@ -50,6 +52,7 @@ export default function LicenseManagementPage() {
   const [tab, setTab] = useState("overview");
   const [deepLinkInvoice, setDeepLinkInvoice] = useState<any>(null);
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const reloadDeepLinkInvoice = useCallback(async (id: number) => {
     try {
@@ -57,7 +60,7 @@ export default function LicenseManagementPage() {
       if (!r.ok) throw new Error("introuvable");
       setDeepLinkInvoice(await r.json());
     } catch {
-      toast({ title: "Erreur", description: "Impossible d'ouvrir cette facture.", variant: "destructive" });
+      toast({ title: t("licenseManagement.toast.error"), description: t("licenseManagement.cannotOpenInvoice"), variant: "destructive" });
     }
   }, [toast]);
 
@@ -78,7 +81,7 @@ export default function LicenseManagementPage() {
       if (!res.ok) throw new Error("Erreur");
       setData(await res.json());
     } catch {
-      toast({ title: "Erreur", description: "Impossible de charger les donnees", variant: "destructive" });
+      toast({ title: t("licenseManagement.toast.error"), description: t("licenseManagement.cannotLoad"), variant: "destructive" });
     }
     setLoading(false);
   }, []);
@@ -95,7 +98,7 @@ export default function LicenseManagementPage() {
     </div>
   );
 
-  if (!data) return <div className="p-6 text-center text-muted-foreground">Erreur de chargement</div>;
+  if (!data) return <div className="p-6 text-center text-muted-foreground">{t("licenseManagement.loadError")}</div>;
 
   return (
     <div className="p-6 space-y-6">
@@ -103,13 +106,13 @@ export default function LicenseManagementPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Shield className="h-6 w-6 text-amber-500" />
-            Gestion de Licence & Facturation
+            {t("licenseManagement.header.title")}
           </h1>
-          <p className="text-sm text-muted-foreground">{data.organisation?.name} — Securite, paiements et factures</p>
+          <p className="text-sm text-muted-foreground">{t("licenseManagement.header.subtitle", { org: data.organisation?.name || "" })}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={fetchData}><RefreshCw className="h-4 w-4 mr-2" />Actualiser</Button>
-          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="h-4 w-4" /></Button>
+          <Button variant="outline" onClick={fetchData}><RefreshCw className="h-4 w-4 mr-2" />{t("licenseManagement.header.refresh")}</Button>
+          <Button variant="outline" size="icon" title={t("licenseManagement.header.print")} onClick={() => window.print()}><Printer className="h-4 w-4" /></Button>
         </div>
       </div>
 
@@ -128,47 +131,47 @@ export default function LicenseManagementPage() {
         <Card className="border-2 border-primary/20">
           <CardContent className="p-4 text-center">
             <Key className="h-5 w-5 mx-auto mb-2 text-amber-500" />
-            <div className="text-xs text-muted-foreground">Plan</div>
+            <div className="text-xs text-muted-foreground">{t("licenseManagement.stat.plan")}</div>
             <div className="text-lg font-bold capitalize">{data.subscription?.plan || "N/A"}</div>
-            <Badge variant={data.subscription?.status === "active" ? "default" : "destructive"} className="text-[10px] mt-1">{data.subscription?.status || "inconnu"}</Badge>
+            <Badge variant={data.subscription?.status === "active" ? "default" : "destructive"} className="text-[10px] mt-1">{data.subscription?.status || t("licenseManagement.stat.statusUnknown")}</Badge>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
             <DollarSign className="h-5 w-5 mx-auto mb-2 text-green-500" />
-            <div className="text-xs text-muted-foreground">Abonnement mensuel</div>
+            <div className="text-xs text-muted-foreground">{t("licenseManagement.stat.monthlySub")}</div>
             <div className="text-lg font-bold">{data.subscription?.price?.toFixed(2) || "0.00"} EUR</div>
-            <div className="text-[10px] text-muted-foreground">par mois</div>
+            <div className="text-[10px] text-muted-foreground">{t("licenseManagement.stat.perMonth")}</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
             <Receipt className="h-5 w-5 mx-auto mb-2 text-orange-500" />
-            <div className="text-xs text-muted-foreground">A payer (abonnement)</div>
+            <div className="text-xs text-muted-foreground">{t("licenseManagement.stat.toPay")}</div>
             <div className="text-lg font-bold text-orange-600">{data.billing?.totalOwed?.toFixed(2) || "0.00"} EUR</div>
-            <div className="text-[10px] text-muted-foreground">{data.billing?.pendingCount || 0} factures</div>
+            <div className="text-[10px] text-muted-foreground">{t("licenseManagement.stat.invoicesCount", { count: data.billing?.pendingCount || 0 })}</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
             <BanknoteIcon className="h-5 w-5 mx-auto mb-2 text-red-500" />
-            <div className="text-xs text-muted-foreground">Creances clients</div>
+            <div className="text-xs text-muted-foreground">{t("licenseManagement.stat.receivables")}</div>
             <div className="text-lg font-bold text-red-600">{data.clientBilling?.totalClientOwed?.toFixed(2) || "0.00"} EUR</div>
-            <div className="text-[10px] text-muted-foreground">{data.clientBilling?.overdueCount || 0} en retard</div>
+            <div className="text-[10px] text-muted-foreground">{t("licenseManagement.stat.overdueCount", { count: data.clientBilling?.overdueCount || 0 })}</div>
           </CardContent>
         </Card>
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="grid grid-cols-8 w-full">
-          <TabsTrigger value="overview" className="text-xs gap-1"><BarChart3 className="h-3 w-3" />Tableau</TabsTrigger>
-          <TabsTrigger value="abonnement" className="text-xs gap-1"><KeyRound className="h-3 w-3" />Abonnement</TabsTrigger>
-          <TabsTrigger value="client-invoices" className="text-xs gap-1"><FileText className="h-3 w-3" />Factures</TabsTrigger>
-          <TabsTrigger value="payments" className="text-xs gap-1"><CreditCard className="h-3 w-3" />Paiements</TabsTrigger>
-          <TabsTrigger value="reminders" className="text-xs gap-1"><Bell className="h-3 w-3" />Rappels</TabsTrigger>
-          <TabsTrigger value="settings" className="text-xs gap-1"><Settings2 className="h-3 w-3" />Parametres</TabsTrigger>
-          <TabsTrigger value="licence-audit" className="text-xs gap-1"><History className="h-3 w-3" />Journal</TabsTrigger>
-          <TabsTrigger value="audit-systeme" className="text-xs gap-1"><Shield className="h-3 w-3" />Audit</TabsTrigger>
+          <TabsTrigger value="overview" className="text-xs gap-1"><BarChart3 className="h-3 w-3" />{t("licenseManagement.tabs.overview")}</TabsTrigger>
+          <TabsTrigger value="abonnement" className="text-xs gap-1"><KeyRound className="h-3 w-3" />{t("licenseManagement.tabs.abonnement")}</TabsTrigger>
+          <TabsTrigger value="client-invoices" className="text-xs gap-1"><FileText className="h-3 w-3" />{t("licenseManagement.tabs.clientInvoices")}</TabsTrigger>
+          <TabsTrigger value="payments" className="text-xs gap-1"><CreditCard className="h-3 w-3" />{t("licenseManagement.tabs.payments")}</TabsTrigger>
+          <TabsTrigger value="reminders" className="text-xs gap-1"><Bell className="h-3 w-3" />{t("licenseManagement.tabs.reminders")}</TabsTrigger>
+          <TabsTrigger value="settings" className="text-xs gap-1"><Settings2 className="h-3 w-3" />{t("licenseManagement.tabs.settings")}</TabsTrigger>
+          <TabsTrigger value="licence-audit" className="text-xs gap-1"><History className="h-3 w-3" />{t("licenseManagement.tabs.licenceAudit")}</TabsTrigger>
+          <TabsTrigger value="audit-systeme" className="text-xs gap-1"><Shield className="h-3 w-3" />{t("licenseManagement.tabs.auditSysteme")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -209,6 +212,7 @@ export default function LicenseManagementPage() {
 
 function InvoiceDetailDialog({ invoice, onClose, onRefresh, onReloadInvoice }: { invoice: any; onClose: () => void; onRefresh: () => void; onReloadInvoice: (id: number) => Promise<void> }) {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [busy, setBusy] = useState<null | "send" | "paid" | "payment" | "reminder">(null);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState("");
@@ -229,12 +233,12 @@ function InvoiceDetailDialog({ invoice, onClose, onRefresh, onReloadInvoice }: {
         body: JSON.stringify(body),
       });
       const d = await r.json();
-      if (!d.success) throw new Error(d.error || "Erreur");
-      toast({ title: "Succes", description: successMsg(d) });
+      if (!d.success) throw new Error(d.error || t("licenseManagement.toast.error"));
+      toast({ title: t("licenseManagement.toast.success"), description: successMsg(d) });
       await Promise.all([onReloadInvoice(invoice.id), Promise.resolve(onRefresh())]);
       return true;
     } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+      toast({ title: t("licenseManagement.toast.error"), description: err.message, variant: "destructive" });
       return false;
     } finally {
       setBusy(null);
@@ -243,18 +247,18 @@ function InvoiceDetailDialog({ invoice, onClose, onRefresh, onReloadInvoice }: {
 
   const [markPaidOpen, setMarkPaidOpen] = useState(false);
   const [markPaidMethod, setMarkPaidMethod] = useState("virement");
-  const sendInvoice = () => callAction("send", "/api/license-management/send-invoice-email", { factureClientId: invoice.id }, (d) => d.message || "Facture envoyée");
+  const sendInvoice = () => callAction("send", "/api/license-management/send-invoice-email", { factureClientId: invoice.id }, (d) => d.message || t("licenseManagement.toastMsg.invoiceSent"));
   const markPaid = async () => {
-    const ok = await callAction("paid", "/api/license-management/mark-invoice-paid", { factureClientId: invoice.id, paymentMethod: markPaidMethod }, (d) => d.message || "Facture soldée");
+    const ok = await callAction("paid", "/api/license-management/mark-invoice-paid", { factureClientId: invoice.id, paymentMethod: markPaidMethod }, (d) => d.message || t("licenseManagement.toastMsg.invoicePaid"));
     if (ok) setMarkPaidOpen(false);
   };
   const recordPayment = async () => {
     if (!paymentAmount) return;
-    const ok = await callAction("payment", "/api/license-management/record-payment", { factureClientId: invoice.id, amount: parseFloat(paymentAmount), paymentMethod }, (d) => d.message || "Paiement enregistre");
+    const ok = await callAction("payment", "/api/license-management/record-payment", { factureClientId: invoice.id, amount: parseFloat(paymentAmount), paymentMethod }, (d) => d.message || t("licenseManagement.toastMsg.paymentRecorded"));
     if (ok) { setPaymentOpen(false); setPaymentAmount(""); }
   };
   const sendReminder = async () => {
-    const ok = await callAction("reminder", "/api/license-management/send-payment-reminder", { factureClientId: invoice.id, customMessage }, (d) => `Rappel niveau ${d.reminderLevel} envoye`);
+    const ok = await callAction("reminder", "/api/license-management/send-payment-reminder", { factureClientId: invoice.id, customMessage }, (d) => t("licenseManagement.toastMsg.reminderSent", { level: d.reminderLevel }));
     if (ok) { setReminderOpen(false); setCustomMessage(""); }
   };
 
@@ -264,27 +268,27 @@ function InvoiceDetailDialog({ invoice, onClose, onRefresh, onReloadInvoice }: {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Receipt className="h-5 w-5 text-primary" />
-            Facture {invoice.reference}
+            {t("licenseManagement.dialog.invoiceTitle", { ref: invoice.reference })}
           </DialogTitle>
           <DialogDescription>{invoice.title}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3 text-sm">
           <div className="flex items-center justify-between">
             <Badge variant={invoice.status === "payee" ? "default" : invoice.status === "envoyee" ? "secondary" : isOverdue ? "destructive" : "outline"}>
-              {invoice.status === "payee" ? "Payee" : invoice.status === "envoyee" ? "Envoyee" : isOverdue ? "En retard" : invoice.status === "brouillon" ? "Brouillon" : invoice.status}
+              {invoice.status === "payee" ? t("licenseManagement.status.payee") : invoice.status === "envoyee" ? t("licenseManagement.status.envoyee") : isOverdue ? t("licenseManagement.status.enRetard") : invoice.status === "brouillon" ? t("licenseManagement.status.brouillon") : invoice.status}
             </Badge>
-            <span className="text-xs text-muted-foreground">Creee le {format(new Date(invoice.createdAt), "dd/MM/yyyy", { locale: fr })}</span>
+            <span className="text-xs text-muted-foreground">{t("licenseManagement.dialog.createdOn", { date: format(new Date(invoice.createdAt), "dd/MM/yyyy", { locale: fr }) })}</span>
           </div>
           <div className="grid grid-cols-2 gap-3 p-3 rounded-lg bg-muted/50">
-            <div><div className="text-xs text-muted-foreground">Client</div><div className="font-semibold">{invoice.clientName}</div></div>
-            {invoice.clientCompany && <div><div className="text-xs text-muted-foreground">Entreprise</div><div>{invoice.clientCompany}</div></div>}
-            {invoice.clientEmail && <div><div className="text-xs text-muted-foreground">Email</div><div>{invoice.clientEmail}</div></div>}
-            {invoice.clientPhone && <div><div className="text-xs text-muted-foreground">Telephone</div><div>{invoice.clientPhone}</div></div>}
-            {invoice.dueDate && <div><div className="text-xs text-muted-foreground">Echeance</div><div>{format(new Date(invoice.dueDate), "dd/MM/yyyy", { locale: fr })}</div></div>}
+            <div><div className="text-xs text-muted-foreground">{t("licenseManagement.dialog.client")}</div><div className="font-semibold">{invoice.clientName}</div></div>
+            {invoice.clientCompany && <div><div className="text-xs text-muted-foreground">{t("licenseManagement.dialog.company")}</div><div>{invoice.clientCompany}</div></div>}
+            {invoice.clientEmail && <div><div className="text-xs text-muted-foreground">{t("licenseManagement.dialog.email")}</div><div>{invoice.clientEmail}</div></div>}
+            {invoice.clientPhone && <div><div className="text-xs text-muted-foreground">{t("licenseManagement.dialog.phone")}</div><div>{invoice.clientPhone}</div></div>}
+            {invoice.dueDate && <div><div className="text-xs text-muted-foreground">{t("licenseManagement.dialog.dueDate")}</div><div>{format(new Date(invoice.dueDate), "dd/MM/yyyy", { locale: fr })}</div></div>}
           </div>
           {Array.isArray(invoice.items) && invoice.items.length > 0 && (
             <div className="space-y-1">
-              <div className="text-xs font-semibold text-muted-foreground uppercase">Lignes</div>
+              <div className="text-xs font-semibold text-muted-foreground uppercase">{t("licenseManagement.dialog.lines")}</div>
               <div className="space-y-1">
                 {invoice.items.map((it: any, i: number) => (
                   <div key={i} className="flex items-center justify-between text-xs border-b pb-1">
@@ -298,63 +302,63 @@ function InvoiceDetailDialog({ invoice, onClose, onRefresh, onReloadInvoice }: {
           )}
           <Separator />
           <div className="space-y-1">
-            <div className="flex justify-between text-xs"><span className="text-muted-foreground">Sous-total HT</span><span className="font-mono">{(invoice.subtotal || 0).toFixed(2)} EUR</span></div>
-            <div className="flex justify-between text-xs"><span className="text-muted-foreground">TVA</span><span className="font-mono">{(invoice.taxAmount || 0).toFixed(2)} EUR</span></div>
-            <div className="flex justify-between font-semibold"><span>Total TTC</span><span className="font-mono">{(invoice.totalAmount || 0).toFixed(2)} EUR</span></div>
-            {invoice.paidAmount > 0 && <div className="flex justify-between text-xs text-green-600"><span>Paye</span><span className="font-mono">{invoice.paidAmount.toFixed(2)} EUR</span></div>}
-            {remaining > 0 && invoice.status !== "payee" && <div className="flex justify-between text-sm font-semibold text-orange-600"><span>Reste a payer</span><span className="font-mono">{remaining.toFixed(2)} EUR</span></div>}
+            <div className="flex justify-between text-xs"><span className="text-muted-foreground">{t("licenseManagement.dialog.subtotalHT")}</span><span className="font-mono">{(invoice.subtotal || 0).toFixed(2)} EUR</span></div>
+            <div className="flex justify-between text-xs"><span className="text-muted-foreground">{t("licenseManagement.dialog.tva")}</span><span className="font-mono">{(invoice.taxAmount || 0).toFixed(2)} EUR</span></div>
+            <div className="flex justify-between font-semibold"><span>{t("licenseManagement.dialog.totalTTC")}</span><span className="font-mono">{(invoice.totalAmount || 0).toFixed(2)} EUR</span></div>
+            {invoice.paidAmount > 0 && <div className="flex justify-between text-xs text-green-600"><span>{t("licenseManagement.dialog.paid")}</span><span className="font-mono">{invoice.paidAmount.toFixed(2)} EUR</span></div>}
+            {remaining > 0 && invoice.status !== "payee" && <div className="flex justify-between text-sm font-semibold text-orange-600"><span>{t("licenseManagement.dialog.remaining")}</span><span className="font-mono">{remaining.toFixed(2)} EUR</span></div>}
           </div>
         </div>
         {!isPaid && (
           <div className="flex flex-wrap gap-2 pt-2">
-            <Button size="sm" variant="outline" onClick={sendInvoice} disabled={busy !== null || !invoice.clientEmail} title={!invoice.clientEmail ? "Aucun email client" : "Envoyer la facture par email"}>
+            <Button size="sm" variant="outline" onClick={sendInvoice} disabled={busy !== null || !invoice.clientEmail} title={!invoice.clientEmail ? t("licenseManagement.dialog.noClientEmail") : t("licenseManagement.dialog.sendInvoiceEmail")}>
               {busy === "send" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />}
-              Envoyer
+              {t("licenseManagement.dialog.send")}
             </Button>
             <Button size="sm" variant="outline" className="text-blue-600 hover:text-blue-700" onClick={() => { setPaymentAmount(remaining.toFixed(2)); setPaymentOpen(true); }} disabled={busy !== null || remaining <= 0}>
-              <DollarSign className="h-3.5 w-3.5 mr-1" />Enregistrer un paiement
+              <DollarSign className="h-3.5 w-3.5 mr-1" />{t("licenseManagement.dialog.recordPayment")}
             </Button>
             <Button size="sm" variant="outline" className="text-green-600 hover:text-green-700" onClick={() => setMarkPaidOpen(true)} disabled={busy !== null}>
               <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-              Marquer payée
+              {t("licenseManagement.dialog.markPaid")}
             </Button>
-            <Button size="sm" variant="outline" className="text-orange-600 hover:text-orange-700" onClick={() => setReminderOpen(true)} disabled={busy !== null || !invoice.clientEmail} title={!invoice.clientEmail ? "Aucun email client" : "Envoyer un rappel"}>
-              <Bell className="h-3.5 w-3.5 mr-1" />Envoyer un rappel
+            <Button size="sm" variant="outline" className="text-orange-600 hover:text-orange-700" onClick={() => setReminderOpen(true)} disabled={busy !== null || !invoice.clientEmail} title={!invoice.clientEmail ? t("licenseManagement.dialog.noClientEmail") : t("licenseManagement.dialog.sendReminder")}>
+              <Bell className="h-3.5 w-3.5 mr-1" />{t("licenseManagement.dialog.sendReminder")}
             </Button>
           </div>
         )}
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Fermer</Button>
+          <Button variant="outline" onClick={onClose}>{t("licenseManagement.dialog.close")}</Button>
         </DialogFooter>
       </DialogContent>
 
       <Dialog open={paymentOpen} onOpenChange={(o) => { if (!o) { setPaymentOpen(false); setPaymentAmount(""); } }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><DollarSign className="h-5 w-5 text-blue-500" />Enregistrer un paiement</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><DollarSign className="h-5 w-5 text-blue-500" />{t("licenseManagement.dialog.recordPayment")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <div className="text-sm"><span className="text-muted-foreground">Facture:</span> <span className="font-semibold">{invoice.reference}</span> — {invoice.clientName}</div>
-            <div className="text-sm"><span className="text-muted-foreground">Reste a payer:</span> <span className="font-bold text-orange-600">{remaining.toFixed(2)} EUR</span></div>
-            <div className="space-y-1"><Label className="text-xs">Montant recu (EUR)</Label><Input type="number" step="0.01" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} placeholder="0.00" /></div>
-            <div className="space-y-1"><Label className="text-xs">Mode de paiement</Label>
+            <div className="text-sm"><span className="text-muted-foreground">{t("licenseManagement.dialog.invoiceLabel")}</span> <span className="font-semibold">{invoice.reference}</span> — {invoice.clientName}</div>
+            <div className="text-sm"><span className="text-muted-foreground">{t("licenseManagement.dialog.remainingLabel")}</span> <span className="font-bold text-orange-600">{remaining.toFixed(2)} EUR</span></div>
+            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.amountReceived")}</Label><Input type="number" step="0.01" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} placeholder="0.00" /></div>
+            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.paymentMethod")}</Label>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="virement">Virement bancaire</SelectItem>
-                  <SelectItem value="cheque">Cheque</SelectItem>
-                  <SelectItem value="especes">Especes</SelectItem>
-                  <SelectItem value="carte">Carte bancaire</SelectItem>
-                  <SelectItem value="prelevement">Prelevement automatique</SelectItem>
+                  <SelectItem value="virement">{t("licenseManagement.method.virement")}</SelectItem>
+                  <SelectItem value="cheque">{t("licenseManagement.method.cheque")}</SelectItem>
+                  <SelectItem value="especes">{t("licenseManagement.method.especes")}</SelectItem>
+                  <SelectItem value="carte">{t("licenseManagement.method.carte")}</SelectItem>
+                  <SelectItem value="prelevement">{t("licenseManagement.method.prelevement")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setPaymentOpen(false); setPaymentAmount(""); }}>Annuler</Button>
+            <Button variant="outline" onClick={() => { setPaymentOpen(false); setPaymentAmount(""); }}>{t("common.cancel")}</Button>
             <Button onClick={recordPayment} disabled={!paymentAmount || parseFloat(paymentAmount) <= 0 || busy === "payment"} className="bg-blue-500 hover:bg-blue-600">
               {busy === "payment" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <DollarSign className="h-4 w-4 mr-2" />}
-              Enregistrer
+              {t("licenseManagement.dialog.record")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -363,30 +367,30 @@ function InvoiceDetailDialog({ invoice, onClose, onRefresh, onReloadInvoice }: {
       <Dialog open={markPaidOpen} onOpenChange={(o) => { if (!o) setMarkPaidOpen(false); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-green-500" />Marquer la facture payée</DialogTitle>
-            <DialogDescription>Confirmez le mode de paiement utilisé. Le montant restant ({remaining.toFixed(2)} EUR) sera enregistré comme payé.</DialogDescription>
+            <DialogTitle className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-green-500" />{t("licenseManagement.dialog.markPaidTitle")}</DialogTitle>
+            <DialogDescription>{t("licenseManagement.dialog.markPaidDesc", { amount: remaining.toFixed(2) })}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <div className="text-sm"><span className="text-muted-foreground">Facture :</span> <span className="font-semibold">{invoice.reference}</span> — {invoice.clientName}</div>
-            <div className="space-y-1"><Label className="text-xs">Mode de paiement</Label>
+            <div className="text-sm"><span className="text-muted-foreground">{t("licenseManagement.dialog.invoiceLabel")}</span> <span className="font-semibold">{invoice.reference}</span> — {invoice.clientName}</div>
+            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.paymentMethod")}</Label>
               <Select value={markPaidMethod} onValueChange={setMarkPaidMethod}>
                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="virement">Virement bancaire</SelectItem>
-                  <SelectItem value="cheque">Chèque</SelectItem>
-                  <SelectItem value="especes">Espèces</SelectItem>
-                  <SelectItem value="carte">Carte bancaire</SelectItem>
-                  <SelectItem value="prelevement">Prélèvement automatique</SelectItem>
-                  <SelectItem value="stripe">Stripe</SelectItem>
+                  <SelectItem value="virement">{t("licenseManagement.method.virement")}</SelectItem>
+                  <SelectItem value="cheque">{t("licenseManagement.method.cheque")}</SelectItem>
+                  <SelectItem value="especes">{t("licenseManagement.method.especes")}</SelectItem>
+                  <SelectItem value="carte">{t("licenseManagement.method.carte")}</SelectItem>
+                  <SelectItem value="prelevement">{t("licenseManagement.method.prelevement")}</SelectItem>
+                  <SelectItem value="stripe">{t("licenseManagement.method.stripe")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setMarkPaidOpen(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setMarkPaidOpen(false)}>{t("common.cancel")}</Button>
             <Button onClick={markPaid} disabled={busy === "paid"} className="bg-green-600 hover:bg-green-700">
               {busy === "paid" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-              Confirmer
+              {t("licenseManagement.dialog.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -395,16 +399,16 @@ function InvoiceDetailDialog({ invoice, onClose, onRefresh, onReloadInvoice }: {
       <Dialog open={reminderOpen} onOpenChange={(o) => { if (!o) { setReminderOpen(false); setCustomMessage(""); } }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Bell className="h-5 w-5 text-orange-500" />Envoyer un rappel de paiement</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><Bell className="h-5 w-5 text-orange-500" />{t("licenseManagement.dialog.reminderTitle")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <div className="text-sm"><span className="text-muted-foreground">Facture:</span> <span className="font-semibold">{invoice.reference}</span></div>
-            <div className="text-sm"><span className="text-muted-foreground">Client:</span> <span>{invoice.clientName}{invoice.clientEmail ? ` (${invoice.clientEmail})` : ""}</span></div>
-            <div className="text-sm"><span className="text-muted-foreground">Montant restant:</span> <span className="font-bold text-red-600">{remaining.toFixed(2)} EUR</span></div>
-            <div className="space-y-1"><Label className="text-xs">Message personnalise (optionnel)</Label><Textarea value={customMessage} onChange={(e) => setCustomMessage(e.target.value)} placeholder="Ajoutez un message personnalise..." rows={3} /></div>
+            <div className="text-sm"><span className="text-muted-foreground">{t("licenseManagement.dialog.invoiceLabel")}</span> <span className="font-semibold">{invoice.reference}</span></div>
+            <div className="text-sm"><span className="text-muted-foreground">{t("licenseManagement.dialog.clientLabel")}</span> <span>{invoice.clientName}{invoice.clientEmail ? ` (${invoice.clientEmail})` : ""}</span></div>
+            <div className="text-sm"><span className="text-muted-foreground">{t("licenseManagement.dialog.remainingAmount")}</span> <span className="font-bold text-red-600">{remaining.toFixed(2)} EUR</span></div>
+            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.customMessage")}</Label><Textarea value={customMessage} onChange={(e) => setCustomMessage(e.target.value)} placeholder={t("licenseManagement.dialog.customPlaceholder")} rows={3} /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setReminderOpen(false); setCustomMessage(""); }}>Annuler</Button>
+            <Button variant="outline" onClick={() => { setReminderOpen(false); setCustomMessage(""); }}>{t("common.cancel")}</Button>
             <Button onClick={sendReminder} disabled={busy === "reminder"} className="bg-orange-500 hover:bg-orange-600">
               {busy === "reminder" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
               Envoyer le rappel
@@ -419,6 +423,7 @@ function InvoiceDetailDialog({ invoice, onClose, onRefresh, onReloadInvoice }: {
 function OverviewTab({ data, onRefresh }: { data: any; onRefresh: () => void }) {
   const sub = data.subscription;
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [generating, setGenerating] = useState(false);
 
   const generateInvoice = async () => {
@@ -429,10 +434,10 @@ function OverviewTab({ data, onRefresh }: { data: any; onRefresh: () => void }) 
         body: JSON.stringify({}),
       });
       const d = await r.json();
-      if (d.success) { toast({ title: "Facture generee", description: `${d.invoice?.totalAmount?.toFixed(2)} EUR` }); onRefresh(); }
-      else throw new Error(d.error || "Erreur");
+      if (d.success) { toast({ title: t("licenseManagement.toastMsg.invoiceGenerated"), description: `${d.invoice?.totalAmount?.toFixed(2)} EUR` }); onRefresh(); }
+      else throw new Error(d.error || t("licenseManagement.toast.error"));
     } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+      toast({ title: t("licenseManagement.toast.error"), description: err.message, variant: "destructive" });
     }
     setGenerating(false);
   };
@@ -448,22 +453,22 @@ function OverviewTab({ data, onRefresh }: { data: any; onRefresh: () => void }) 
       <div className="grid grid-cols-2 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2"><Key className="h-4 w-4 text-amber-500" />Licence</CardTitle>
+            <CardTitle className="text-sm flex items-center gap-2"><Key className="h-4 w-4 text-amber-500" />{t("licenseManagement.overview.licence")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="flex justify-between items-center gap-2">
-                <span className="text-muted-foreground">Cle</span>
+                <span className="text-muted-foreground">{t("licenseManagement.overview.key")}</span>
                 <code className="font-mono text-amber-600 truncate text-[10px]">{sub?.licenseKey || "N/A"}</code>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Plan</span>
+                <span className="text-muted-foreground">{t("licenseManagement.overview.plan")}</span>
                 <span className="font-semibold capitalize">{sub?.plan || "N/A"}</span>
               </div>
             </div>
             {sub?.trialDaysLeft !== null && sub?.trialDaysLeft !== undefined && (
               <div className={`p-2 rounded text-xs font-medium ${sub.trialDaysLeft <= 3 ? "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400" : sub.trialDaysLeft <= 7 ? "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400" : "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400"}`}>
-                {sub.trialDaysLeft > 0 ? `Essai: ${sub.trialDaysLeft} jours restants` : "Essai expire"}
+                {sub.trialDaysLeft > 0 ? t("licenseManagement.overview.trialLeft", { days: sub.trialDaysLeft }) : t("licenseManagement.overview.trialExpired")}
               </div>
             )}
             <Separator />
@@ -486,29 +491,29 @@ function OverviewTab({ data, onRefresh }: { data: any; onRefresh: () => void }) 
             </div>
             <Separator />
             <div className="flex flex-wrap gap-1">
-              {sub?.aiEnabled && <Badge variant="secondary" className="text-[10px]"><Zap className="h-3 w-3 mr-0.5" />IA</Badge>}
-              {sub?.stockEnabled && <Badge variant="secondary" className="text-[10px]">Stock</Badge>}
-              {sub?.automationEnabled && <Badge variant="secondary" className="text-[10px]">Automatisations</Badge>}
+              {sub?.aiEnabled && <Badge variant="secondary" className="text-[10px]"><Zap className="h-3 w-3 mr-0.5" />{t("licenseManagement.overview.ai")}</Badge>}
+              {sub?.stockEnabled && <Badge variant="secondary" className="text-[10px]">{t("licenseManagement.overview.stock")}</Badge>}
+              {sub?.automationEnabled && <Badge variant="secondary" className="text-[10px]">{t("licenseManagement.overview.automations")}</Badge>}
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2"><Building2 className="h-4 w-4 text-blue-500" />Organisation</CardTitle>
+            <CardTitle className="text-sm flex items-center gap-2"><Building2 className="h-4 w-4 text-blue-500" />{t("licenseManagement.overview.organisation")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-xs">
-            <div className="flex justify-between"><span className="text-muted-foreground">IBAN</span><span className="font-mono">{data.organisation?.bankIban || <span className="text-red-500">Non configure</span>}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">IBAN</span><span className="font-mono">{data.organisation?.bankIban || <span className="text-red-500">{t("licenseManagement.overview.notConfigured")}</span>}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">BIC</span><span>{data.organisation?.bankBic || "—"}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">SIRET</span><span>{data.organisation?.siret || <span className="text-red-500">Non configure</span>}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">SIRET</span><span>{data.organisation?.siret || <span className="text-red-500">{t("licenseManagement.overview.notConfigured")}</span>}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">TVA</span><span>{data.organisation?.tvaNumber || "—"}</span></div>
             <Separator />
-            <div className="flex justify-between"><span className="text-muted-foreground">Facturation auto</span><Badge variant={data.organisation?.autoInvoiceEnabled ? "default" : "outline"} className="text-[10px]">{data.organisation?.autoInvoiceEnabled ? "Active" : "Inactive"}</Badge></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Email auto factures</span><Badge variant={data.organisation?.autoEmailInvoice ? "default" : "outline"} className="text-[10px]">{data.organisation?.autoEmailInvoice ? "Active" : "Inactive"}</Badge></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">{t("licenseManagement.overview.autoInvoicing")}</span><Badge variant={data.organisation?.autoInvoiceEnabled ? "default" : "outline"} className="text-[10px]">{data.organisation?.autoInvoiceEnabled ? t("licenseManagement.status.active") : t("licenseManagement.status.inactive")}</Badge></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">{t("licenseManagement.overview.autoEmailInvoices")}</span><Badge variant={data.organisation?.autoEmailInvoice ? "default" : "outline"} className="text-[10px]">{data.organisation?.autoEmailInvoice ? t("licenseManagement.status.active") : t("licenseManagement.status.inactive")}</Badge></div>
             <Separator />
             <Button size="sm" variant="outline" className="w-full text-xs gap-2" onClick={generateInvoice} disabled={generating}>
               {generating ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />}
-              Generer la facture du mois
+              {t("licenseManagement.overview.generateMonthInvoice")}
             </Button>
           </CardContent>
         </Card>
@@ -516,7 +521,7 @@ function OverviewTab({ data, onRefresh }: { data: any; onRefresh: () => void }) 
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2"><Receipt className="h-4 w-4 text-purple-500" />Historique des factures (abonnement)</CardTitle>
+          <CardTitle className="text-sm flex items-center gap-2"><Receipt className="h-4 w-4 text-purple-500" />{t("licenseManagement.overview.subInvoiceHistory")}</CardTitle>
         </CardHeader>
         <CardContent>
           {data.billing?.invoices?.length > 0 ? (
@@ -527,19 +532,19 @@ function OverviewTab({ data, onRefresh }: { data: any; onRefresh: () => void }) 
                     <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
                     <span className="font-medium">{inv.periodLabel}</span>
                     <span className="text-muted-foreground capitalize">{inv.plan}</span>
-                    {inv.overageAmount > 0 && <Badge variant="outline" className="text-[10px] text-orange-600">+{inv.overageAmount.toFixed(2)} EUR depassement</Badge>}
+                    {inv.overageAmount > 0 && <Badge variant="outline" className="text-[10px] text-orange-600">{t("licenseManagement.overview.overage", { amount: inv.overageAmount.toFixed(2) })}</Badge>}
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="font-mono">{inv.totalAmount?.toFixed(2)} EUR</span>
                     <Badge variant={inv.status === "payee" ? "default" : inv.status === "en_attente" ? "secondary" : "destructive"} className="text-[10px]">
-                      {inv.status === "payee" ? "Payee" : inv.status === "en_attente" ? "En attente" : inv.status}
+                      {inv.status === "payee" ? t("licenseManagement.status.payee") : inv.status === "en_attente" ? t("licenseManagement.status.enAttente") : inv.status}
                     </Badge>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-xs text-muted-foreground text-center py-4">Aucune facture d'abonnement</p>
+            <p className="text-xs text-muted-foreground text-center py-4">{t("licenseManagement.overview.noSubInvoice")}</p>
           )}
         </CardContent>
       </Card>
@@ -549,6 +554,7 @@ function OverviewTab({ data, onRefresh }: { data: any; onRefresh: () => void }) 
 
 function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => void }) {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [sendingId, setSendingId] = useState<number | null>(null);
   const [markingId, setMarkingId] = useState<number | null>(null);
   const [reminderDialog, setReminderDialog] = useState<any>(null);
@@ -573,10 +579,10 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
         body: JSON.stringify({ factureClientId: id }),
       });
       const d = await r.json();
-      if (d.success) { toast({ title: "Succes", description: d.message }); onRefresh(); }
-      else throw new Error(d.error || "Erreur");
+      if (d.success) { toast({ title: t("licenseManagement.toast.success"), description: d.message }); onRefresh(); }
+      else throw new Error(d.error || t("licenseManagement.toast.error"));
     } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+      toast({ title: t("licenseManagement.toast.error"), description: err.message, variant: "destructive" });
     }
     setSendingId(null);
   };
@@ -592,10 +598,10 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
         body: JSON.stringify({ factureClientId: markPaidDialog.id, paymentMethod: markPaidMethod }),
       });
       const d = await r.json();
-      if (d.success) { toast({ title: "Payée", description: d.message }); onRefresh(); setMarkPaidDialog(null); }
-      else throw new Error(d.error || "Erreur");
+      if (d.success) { toast({ title: t("licenseManagement.toastMsg.markedPaid"), description: d.message }); onRefresh(); setMarkPaidDialog(null); }
+      else throw new Error(d.error || t("licenseManagement.toast.error"));
     } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+      toast({ title: t("licenseManagement.toast.error"), description: err.message, variant: "destructive" });
     }
     setMarkingId(null);
   };
@@ -609,12 +615,12 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
       });
       const d = await r.json();
       if (d.success) {
-        toast({ title: "Paiement enregistre", description: d.message });
+        toast({ title: t("licenseManagement.toastMsg.paymentRecorded"), description: d.message });
         onRefresh();
         setPaymentDialog(null); setPaymentAmount("");
-      } else throw new Error(d.error || "Erreur");
+      } else throw new Error(d.error || t("licenseManagement.toast.error"));
     } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+      toast({ title: t("licenseManagement.toast.error"), description: err.message, variant: "destructive" });
     }
   };
 
@@ -626,10 +632,10 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
         body: JSON.stringify({ factureClientId: reminderDialog.id, customMessage }),
       });
       const d = await r.json();
-      if (d.success) { toast({ title: "Succes", description: `Rappel niveau ${d.reminderLevel} envoye` }); onRefresh(); }
-      else throw new Error(d.error || "Erreur");
+      if (d.success) { toast({ title: t("licenseManagement.toast.success"), description: `Rappel niveau ${d.reminderLevel} envoye` }); onRefresh(); }
+      else throw new Error(d.error || t("licenseManagement.toast.error"));
     } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+      toast({ title: t("licenseManagement.toast.error"), description: err.message, variant: "destructive" });
     }
     setReminderDialog(null); setCustomMessage("");
   };
@@ -643,12 +649,12 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
       });
       const d = await r.json();
       if (d.success) {
-        toast({ title: "Facture creee", description: `${d.facture.reference} — ${d.facture.totalAmount.toFixed(2)} EUR` });
+        toast({ title: t("licenseManagement.toastMsg.invoiceCreated"), description: `${d.facture.reference} — ${d.facture.totalAmount.toFixed(2)} EUR` });
         onRefresh(); setCreateOpen(false);
         setNewInvoice({ clientName: "", clientEmail: "", clientPhone: "", clientCompany: "", title: "", dueDate: "", notes: "", items: [{ description: "", quantity: 1, unitPrice: 0, taxRate: 20 }] });
-      } else throw new Error(d.error || "Erreur");
+      } else throw new Error(d.error || t("licenseManagement.toast.error"));
     } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+      toast({ title: t("licenseManagement.toast.error"), description: err.message, variant: "destructive" });
     }
     setCreating(false);
   };
@@ -667,24 +673,24 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
       <div className="grid grid-cols-3 gap-4">
         <Card className="text-center p-4">
           <div className="text-2xl font-bold text-green-600">{data.clientBilling?.totalClientPaid?.toFixed(2) || "0.00"}</div>
-          <div className="text-xs text-muted-foreground">EUR encaisses</div>
+          <div className="text-xs text-muted-foreground">{t("licenseManagement.clientInv.collected")}</div>
         </Card>
         <Card className="text-center p-4">
           <div className="text-2xl font-bold text-orange-600">{data.clientBilling?.pendingCount || 0}</div>
-          <div className="text-xs text-muted-foreground">En attente de paiement</div>
+          <div className="text-xs text-muted-foreground">{t("licenseManagement.clientInv.pendingPayment")}</div>
         </Card>
         <Card className="text-center p-4">
           <div className="text-2xl font-bold text-red-600">{data.clientBilling?.overdueCount || 0}</div>
-          <div className="text-xs text-muted-foreground">En retard</div>
+          <div className="text-xs text-muted-foreground">{t("licenseManagement.clientInv.overdue")}</div>
         </Card>
       </div>
 
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm">Factures clients</CardTitle>
+            <CardTitle className="text-sm">{t("licenseManagement.clientInv.title")}</CardTitle>
             <Button size="sm" onClick={() => setCreateOpen(true)} className="gap-1 h-8">
-              <Plus className="h-3 w-3" />Nouvelle facture
+              <Plus className="h-3 w-3" />{t("licenseManagement.clientInv.newInvoice")}
             </Button>
           </div>
         </CardHeader>
@@ -704,30 +710,30 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
                         {inv.clientEmail && <span className="text-xs text-muted-foreground hidden xl:inline">{inv.clientEmail}</span>}
                       </div>
                       <Badge variant={inv.status === "payee" ? "default" : inv.status === "envoyee" ? "secondary" : isOverdue ? "destructive" : "outline"} className="text-[10px]">
-                        {inv.status === "payee" ? "Payee" : inv.status === "envoyee" ? "Envoyee" : isOverdue ? "En retard" : inv.status === "brouillon" ? "Brouillon" : inv.status}
+                        {inv.status === "payee" ? t("licenseManagement.status.payee") : inv.status === "envoyee" ? t("licenseManagement.status.envoyee") : isOverdue ? t("licenseManagement.status.enRetard") : inv.status === "brouillon" ? t("licenseManagement.status.brouillon") : inv.status}
                       </Badge>
                     </div>
                     <div className="flex items-center justify-between text-xs mb-1.5">
                       <div className="flex items-center gap-3 text-muted-foreground">
                         <span className="font-mono font-medium text-foreground">{inv.totalAmount?.toFixed(2)} EUR</span>
-                        {inv.paidAmount > 0 && inv.status !== "payee" && <span className="text-green-600">Paye: {inv.paidAmount.toFixed(2)} EUR</span>}
-                        {inv.dueDate && <span>Echeance: {format(new Date(inv.dueDate), "dd/MM/yyyy")}</span>}
+                        {inv.paidAmount > 0 && inv.status !== "payee" && <span className="text-green-600">{t("licenseManagement.clientInv.paidLabel", { amount: inv.paidAmount.toFixed(2) })}</span>}
+                        {inv.dueDate && <span>{t("licenseManagement.clientInv.dueLabel", { date: format(new Date(inv.dueDate), "dd/MM/yyyy") })}</span>}
                       </div>
                       {inv.status !== "payee" && (
                         <div className="flex gap-1 flex-wrap justify-end">
                           <Button size="sm" variant="outline" className="h-6 text-[10px] px-2" onClick={() => sendInvoice(inv.id)} disabled={sendingId === inv.id}>
                             {sendingId === inv.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3 mr-0.5" />}
-                            Envoyer
+                            {t("licenseManagement.dialog.send")}
                           </Button>
                           <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 text-blue-600 hover:text-blue-700" onClick={() => { setPaymentDialog(inv); setPaymentAmount(remaining.toFixed(2)); }}>
-                            <DollarSign className="h-3 w-3 mr-0.5" />Paiement partiel
+                            <DollarSign className="h-3 w-3 mr-0.5" />{t("licenseManagement.clientInv.partialPayment")}
                           </Button>
                           <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 text-green-600 hover:text-green-700" onClick={() => { setMarkPaidMethod("virement"); setMarkPaidDialog({ id: inv.id, ref: inv.reference }); }} disabled={markingId === inv.id}>
                             {markingId === inv.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3 mr-0.5" />}
-                            Soldee
+                            {t("licenseManagement.clientInv.settled")}
                           </Button>
                           <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 text-orange-600 hover:text-orange-700" onClick={() => setReminderDialog(inv)}>
-                            <Bell className="h-3 w-3 mr-0.5" />Rappel
+                            <Bell className="h-3 w-3 mr-0.5" />{t("licenseManagement.clientInv.reminder")}
                           </Button>
                         </div>
                       )}
@@ -738,7 +744,7 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
                   </div>
                 );
               })}
-              {invoices.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">Aucune facture client — creez votre premiere facture</p>}
+              {invoices.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">{t("licenseManagement.clientInv.noInvoices")}</p>}
             </div>
           </ScrollArea>
         </CardContent>
@@ -747,41 +753,41 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Plus className="h-5 w-5 text-primary" />Nouvelle facture client</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><Plus className="h-5 w-5 text-primary" />{t("licenseManagement.clientInv.createTitle")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Informations client</h4>
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t("licenseManagement.clientInv.clientInfo")}</h4>
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1"><Label className="text-xs">Nom client *</Label><Input value={newInvoice.clientName} onChange={e => setNewInvoice(p => ({ ...p, clientName: e.target.value }))} placeholder="ACME SARL" /></div>
-                <div className="space-y-1"><Label className="text-xs">Entreprise</Label><Input value={newInvoice.clientCompany} onChange={e => setNewInvoice(p => ({ ...p, clientCompany: e.target.value }))} placeholder="Nom de la societe" /></div>
-                <div className="space-y-1"><Label className="text-xs">Email</Label><Input type="email" value={newInvoice.clientEmail} onChange={e => setNewInvoice(p => ({ ...p, clientEmail: e.target.value }))} placeholder="client@exemple.fr" /></div>
-                <div className="space-y-1"><Label className="text-xs">Telephone</Label><Input value={newInvoice.clientPhone} onChange={e => setNewInvoice(p => ({ ...p, clientPhone: e.target.value }))} placeholder="06 12 34 56 78" /></div>
+                <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.clientInv.clientName")}</Label><Input value={newInvoice.clientName} onChange={e => setNewInvoice(p => ({ ...p, clientName: e.target.value }))} placeholder="ACME SARL" /></div>
+                <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.clientInv.companyName")}</Label><Input value={newInvoice.clientCompany} onChange={e => setNewInvoice(p => ({ ...p, clientCompany: e.target.value }))} placeholder={t("licenseManagement.clientInv.companyPlaceholder")} /></div>
+                <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.email")}</Label><Input type="email" value={newInvoice.clientEmail} onChange={e => setNewInvoice(p => ({ ...p, clientEmail: e.target.value }))} placeholder="client@exemple.fr" /></div>
+                <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.clientInv.telephone")}</Label><Input value={newInvoice.clientPhone} onChange={e => setNewInvoice(p => ({ ...p, clientPhone: e.target.value }))} placeholder="06 12 34 56 78" /></div>
               </div>
             </div>
             <div>
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Facture</h4>
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t("licenseManagement.clientInv.invoice")}</h4>
               <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2 space-y-1"><Label className="text-xs">Titre *</Label><Input value={newInvoice.title} onChange={e => setNewInvoice(p => ({ ...p, title: e.target.value }))} placeholder="Prestation de service — Mai 2026" /></div>
-                <div className="space-y-1"><Label className="text-xs">Date d'echeance</Label><Input type="date" value={newInvoice.dueDate} onChange={e => setNewInvoice(p => ({ ...p, dueDate: e.target.value }))} /></div>
+                <div className="col-span-2 space-y-1"><Label className="text-xs">{t("licenseManagement.clientInv.titleReq")}</Label><Input value={newInvoice.title} onChange={e => setNewInvoice(p => ({ ...p, title: e.target.value }))} placeholder={t("licenseManagement.clientInv.titlePlaceholder")} /></div>
+                <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.clientInv.dueDateLabel")}</Label><Input type="date" value={newInvoice.dueDate} onChange={e => setNewInvoice(p => ({ ...p, dueDate: e.target.value }))} /></div>
               </div>
             </div>
             <div>
               <div className="flex items-center justify-between mb-2">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Lignes de facturation</h4>
-                <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1" onClick={addItem}><Plus className="h-3 w-3" />Ajouter</Button>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("licenseManagement.clientInv.billingLines")}</h4>
+                <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1" onClick={addItem}><Plus className="h-3 w-3" />{t("licenseManagement.clientInv.add")}</Button>
               </div>
               <div className="space-y-2">
                 <div className="grid grid-cols-12 gap-1 text-[10px] text-muted-foreground font-medium px-1">
-                  <span className="col-span-5">Description</span>
-                  <span className="col-span-2 text-center">Qte</span>
-                  <span className="col-span-2 text-right">Prix HT</span>
-                  <span className="col-span-2 text-right">TVA %</span>
+                  <span className="col-span-5">{t("licenseManagement.clientInv.description")}</span>
+                  <span className="col-span-2 text-center">{t("licenseManagement.clientInv.qty")}</span>
+                  <span className="col-span-2 text-right">{t("licenseManagement.clientInv.priceHT")}</span>
+                  <span className="col-span-2 text-right">{t("licenseManagement.clientInv.tvaPct")}</span>
                   <span className="col-span-1" />
                 </div>
                 {newInvoice.items.map((item, i) => (
                   <div key={i} className="grid grid-cols-12 gap-1 items-center">
-                    <Input className="col-span-5 h-7 text-xs" value={item.description} onChange={e => updateItem(i, "description", e.target.value)} placeholder="Prestation..." />
+                    <Input className="col-span-5 h-7 text-xs" value={item.description} onChange={e => updateItem(i, "description", e.target.value)} placeholder={t("licenseManagement.clientInv.itemPlaceholder")} />
                     <Input className="col-span-2 h-7 text-xs text-center" type="number" min="1" value={item.quantity} onChange={e => updateItem(i, "quantity", parseFloat(e.target.value) || 1)} />
                     <Input className="col-span-2 h-7 text-xs text-right" type="number" min="0" step="0.01" value={item.unitPrice} onChange={e => updateItem(i, "unitPrice", parseFloat(e.target.value) || 0)} />
                     <Input className="col-span-2 h-7 text-xs text-right" type="number" min="0" max="100" value={item.taxRate} onChange={e => updateItem(i, "taxRate", parseFloat(e.target.value) || 0)} />
@@ -790,19 +796,19 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
                 ))}
               </div>
               <div className="mt-3 p-3 bg-muted/50 rounded-lg space-y-1 text-xs">
-                <div className="flex justify-between"><span className="text-muted-foreground">Sous-total HT</span><span className="font-mono">{totalHT.toFixed(2)} EUR</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">{t("licenseManagement.dialog.subtotalHT")}</span><span className="font-mono">{totalHT.toFixed(2)} EUR</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">TVA</span><span className="font-mono">{totalTVA.toFixed(2)} EUR</span></div>
                 <Separator className="my-1" />
-                <div className="flex justify-between font-semibold"><span>Total TTC</span><span className="font-mono text-base">{totalTTC.toFixed(2)} EUR</span></div>
+                <div className="flex justify-between font-semibold"><span>{t("licenseManagement.dialog.totalTTC")}</span><span className="font-mono text-base">{totalTTC.toFixed(2)} EUR</span></div>
               </div>
             </div>
-            <div className="space-y-1"><Label className="text-xs">Notes internes (optionnel)</Label><Textarea value={newInvoice.notes} onChange={e => setNewInvoice(p => ({ ...p, notes: e.target.value }))} placeholder="Conditions de paiement, mentions..." rows={2} /></div>
+            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.clientInv.internalNotes")}</Label><Textarea value={newInvoice.notes} onChange={e => setNewInvoice(p => ({ ...p, notes: e.target.value }))} placeholder={t("licenseManagement.clientInv.notesPlaceholder")} rows={2} /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel")}</Button>
             <Button onClick={createInvoice} disabled={creating || !newInvoice.clientName || !newInvoice.title}>
               {creating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileText className="h-4 w-4 mr-2" />}
-              Creer la facture
+              {t("licenseManagement.clientInv.createInvoice")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -811,29 +817,29 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
       <Dialog open={!!paymentDialog} onOpenChange={() => setPaymentDialog(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><DollarSign className="h-5 w-5 text-blue-500" />Enregistrer un paiement</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><DollarSign className="h-5 w-5 text-blue-500" />{t("licenseManagement.dialog.recordPayment")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <div className="text-sm"><span className="text-muted-foreground">Facture:</span> <span className="font-semibold">{paymentDialog?.reference}</span> — {paymentDialog?.clientName}</div>
-            <div className="text-sm"><span className="text-muted-foreground">Reste a payer:</span> <span className="font-bold text-orange-600">{((paymentDialog?.totalAmount || 0) - (paymentDialog?.paidAmount || 0)).toFixed(2)} EUR</span></div>
-            <div className="space-y-1"><Label className="text-xs">Montant recu (EUR)</Label><Input type="number" step="0.01" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} placeholder="0.00" /></div>
-            <div className="space-y-1"><Label className="text-xs">Mode de paiement</Label>
+            <div className="text-sm"><span className="text-muted-foreground">{t("licenseManagement.dialog.invoiceLabel")}</span> <span className="font-semibold">{paymentDialog?.reference}</span> — {paymentDialog?.clientName}</div>
+            <div className="text-sm"><span className="text-muted-foreground">{t("licenseManagement.dialog.remainingLabel")}</span> <span className="font-bold text-orange-600">{((paymentDialog?.totalAmount || 0) - (paymentDialog?.paidAmount || 0)).toFixed(2)} EUR</span></div>
+            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.amountReceived")}</Label><Input type="number" step="0.01" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} placeholder="0.00" /></div>
+            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.paymentMethod")}</Label>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="virement">Virement bancaire</SelectItem>
-                  <SelectItem value="cheque">Cheque</SelectItem>
-                  <SelectItem value="especes">Especes</SelectItem>
-                  <SelectItem value="carte">Carte bancaire</SelectItem>
-                  <SelectItem value="prelevement">Prelevement automatique</SelectItem>
+                  <SelectItem value="virement">{t("licenseManagement.method.virement")}</SelectItem>
+                  <SelectItem value="cheque">{t("licenseManagement.method.cheque")}</SelectItem>
+                  <SelectItem value="especes">{t("licenseManagement.method.especes")}</SelectItem>
+                  <SelectItem value="carte">{t("licenseManagement.method.carte")}</SelectItem>
+                  <SelectItem value="prelevement">{t("licenseManagement.method.prelevement")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPaymentDialog(null)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setPaymentDialog(null)}>{t("common.cancel")}</Button>
             <Button onClick={recordPayment} disabled={!paymentAmount || parseFloat(paymentAmount) <= 0} className="bg-blue-500 hover:bg-blue-600">
-              <DollarSign className="h-4 w-4 mr-2" />Enregistrer
+              <DollarSign className="h-4 w-4 mr-2" />{t("licenseManagement.dialog.record")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -842,30 +848,30 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
       <Dialog open={!!markPaidDialog} onOpenChange={(o) => { if (!o) setMarkPaidDialog(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-green-500" />Marquer la facture payée</DialogTitle>
-            <DialogDescription>Confirmez le mode de paiement utilisé pour solder cette facture.</DialogDescription>
+            <DialogTitle className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-green-500" />{t("licenseManagement.dialog.markPaidTitle")}</DialogTitle>
+            <DialogDescription>{t("licenseManagement.dialog.markPaidDescSimple")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <div className="text-sm"><span className="text-muted-foreground">Facture :</span> <span className="font-semibold">{markPaidDialog?.ref}</span></div>
-            <div className="space-y-1"><Label className="text-xs">Mode de paiement</Label>
+            <div className="text-sm"><span className="text-muted-foreground">{t("licenseManagement.dialog.invoiceLabel")}</span> <span className="font-semibold">{markPaidDialog?.ref}</span></div>
+            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.paymentMethod")}</Label>
               <Select value={markPaidMethod} onValueChange={setMarkPaidMethod}>
                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="virement">Virement bancaire</SelectItem>
-                  <SelectItem value="cheque">Chèque</SelectItem>
-                  <SelectItem value="especes">Espèces</SelectItem>
-                  <SelectItem value="carte">Carte bancaire</SelectItem>
-                  <SelectItem value="prelevement">Prélèvement automatique</SelectItem>
-                  <SelectItem value="stripe">Stripe</SelectItem>
+                  <SelectItem value="virement">{t("licenseManagement.method.virement")}</SelectItem>
+                  <SelectItem value="cheque">{t("licenseManagement.method.cheque")}</SelectItem>
+                  <SelectItem value="especes">{t("licenseManagement.method.especes")}</SelectItem>
+                  <SelectItem value="carte">{t("licenseManagement.method.carte")}</SelectItem>
+                  <SelectItem value="prelevement">{t("licenseManagement.method.prelevement")}</SelectItem>
+                  <SelectItem value="stripe">{t("licenseManagement.method.stripe")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setMarkPaidDialog(null)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setMarkPaidDialog(null)}>{t("common.cancel")}</Button>
             <Button onClick={markPaid} disabled={markingId !== null} className="bg-green-600 hover:bg-green-700">
               {markingId !== null ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-              Confirmer
+              {t("licenseManagement.dialog.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -874,17 +880,17 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
       <Dialog open={!!reminderDialog} onOpenChange={() => setReminderDialog(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Bell className="h-5 w-5 text-orange-500" />Envoyer un rappel de paiement</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><Bell className="h-5 w-5 text-orange-500" />{t("licenseManagement.dialog.reminderTitle")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <div className="text-sm"><span className="text-muted-foreground">Facture:</span> <span className="font-semibold">{reminderDialog?.reference}</span></div>
-            <div className="text-sm"><span className="text-muted-foreground">Client:</span> <span>{reminderDialog?.clientName} ({reminderDialog?.clientEmail})</span></div>
-            <div className="text-sm"><span className="text-muted-foreground">Montant restant:</span> <span className="font-bold text-red-600">{((reminderDialog?.totalAmount || 0) - (reminderDialog?.paidAmount || 0)).toFixed(2)} EUR</span></div>
-            <div className="space-y-1"><Label className="text-xs">Message personnalise (optionnel)</Label><Textarea value={customMessage} onChange={e => setCustomMessage(e.target.value)} placeholder="Ajoutez un message personnalise..." rows={3} /></div>
+            <div className="text-sm"><span className="text-muted-foreground">{t("licenseManagement.dialog.invoiceLabel")}</span> <span className="font-semibold">{reminderDialog?.reference}</span></div>
+            <div className="text-sm"><span className="text-muted-foreground">{t("licenseManagement.dialog.clientLabel")}</span> <span>{reminderDialog?.clientName} ({reminderDialog?.clientEmail})</span></div>
+            <div className="text-sm"><span className="text-muted-foreground">{t("licenseManagement.dialog.remainingAmount")}</span> <span className="font-bold text-red-600">{((reminderDialog?.totalAmount || 0) - (reminderDialog?.paidAmount || 0)).toFixed(2)} EUR</span></div>
+            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.customMessage")}</Label><Textarea value={customMessage} onChange={e => setCustomMessage(e.target.value)} placeholder={t("licenseManagement.dialog.customPlaceholder")} rows={3} /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReminderDialog(null)}>Annuler</Button>
-            <Button onClick={sendReminder} className="bg-orange-500 hover:bg-orange-600"><Send className="h-4 w-4 mr-2" />Envoyer le rappel</Button>
+            <Button variant="outline" onClick={() => setReminderDialog(null)}>{t("common.cancel")}</Button>
+            <Button onClick={sendReminder} className="bg-orange-500 hover:bg-orange-600"><Send className="h-4 w-4 mr-2" />{t("licenseManagement.dialog.sendReminderBtn")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -893,15 +899,16 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
 }
 
 function PaymentsTab({ data, onRefresh }: { data: any; onRefresh: () => void }) {
+  const { t } = useTranslation();
   const payments = data.payments || [];
   return (
     <div className="mt-4 space-y-4">
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm flex items-center gap-2"><CreditCard className="h-4 w-4 text-green-500" />Paiements d'abonnement recus</CardTitle>
+            <CardTitle className="text-sm flex items-center gap-2"><CreditCard className="h-4 w-4 text-green-500" />{t("licenseManagement.payments.title")}</CardTitle>
           </div>
-          <CardDescription className="text-xs">Historique des virements bancaires pour votre abonnement Ajant Bureau</CardDescription>
+          <CardDescription className="text-xs">{t("licenseManagement.payments.desc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <ScrollArea className="h-72">
@@ -911,12 +918,12 @@ function PaymentsTab({ data, onRefresh }: { data: any; onRefresh: () => void }) 
                   <div key={p.id} className="flex items-center justify-between p-2 rounded hover:bg-muted/50 text-xs">
                     <div className="flex items-center gap-2">
                       <div className={`w-2 h-2 rounded-full ${p.status === "matched" ? "bg-green-500" : p.status === "pending" ? "bg-amber-500" : "bg-gray-400"}`} />
-                      <span className="font-medium">{p.payerName || "Inconnu"}</span>
+                      <span className="font-medium">{p.payerName || t("licenseManagement.payments.unknown")}</span>
                       {p.bankRef && <code className="text-[10px] text-muted-foreground">{p.bankRef}</code>}
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="font-mono font-semibold">{p.amount?.toFixed(2)} EUR</span>
-                      <Badge variant={p.status === "matched" ? "default" : "secondary"} className="text-[10px]">{p.status === "matched" ? "Associe" : p.status === "pending" ? "En attente" : p.status}</Badge>
+                      <Badge variant={p.status === "matched" ? "default" : "secondary"} className="text-[10px]">{p.status === "matched" ? t("licenseManagement.payments.associe") : p.status === "pending" ? t("licenseManagement.payments.pending") : p.status}</Badge>
                       {p.bankDate && <span className="text-muted-foreground">{format(new Date(p.bankDate), "dd/MM/yyyy")}</span>}
                     </div>
                   </div>
@@ -925,8 +932,8 @@ function PaymentsTab({ data, onRefresh }: { data: any; onRefresh: () => void }) 
             ) : (
               <div className="text-center py-8 text-xs text-muted-foreground space-y-1">
                 <CreditCard className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
-                <p>Aucun paiement d'abonnement enregistre</p>
-                <p className="text-[10px]">Les paiements des clients pour leurs factures se gerent dans l'onglet "Factures clients"</p>
+                <p>{t("licenseManagement.payments.none")}</p>
+                <p className="text-[10px]">{t("licenseManagement.payments.noneHint")}</p>
               </div>
             )}
           </ScrollArea>
@@ -938,6 +945,7 @@ function PaymentsTab({ data, onRefresh }: { data: any; onRefresh: () => void }) 
 
 function RemindersTab({ data, onRefresh }: { data: any; onRefresh: () => void }) {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [running, setRunning] = useState(false);
 
   const runAutoReminders = async () => {
@@ -948,11 +956,11 @@ function RemindersTab({ data, onRefresh }: { data: any; onRefresh: () => void })
       });
       const d = await r.json();
       if (d.success) {
-        toast({ title: "Succes", description: `${d.sent} rappel${d.sent > 1 ? "s" : ""} envoye${d.sent > 1 ? "s" : ""} (${d.skipped} ignore${d.skipped > 1 ? "s" : ""} sur ${d.total} en retard)` });
+        toast({ title: t("licenseManagement.toast.success"), description: t("licenseManagement.reminders.autoSent", { sent: d.sent, skipped: d.skipped, total: d.total }) });
         onRefresh();
-      } else throw new Error(d.error || "Erreur");
+      } else throw new Error(d.error || t("licenseManagement.toast.error"));
     } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+      toast({ title: t("licenseManagement.toast.error"), description: err.message, variant: "destructive" });
     }
     setRunning(false);
   };
@@ -962,10 +970,10 @@ function RemindersTab({ data, onRefresh }: { data: any; onRefresh: () => void })
   return (
     <div className="space-y-4 mt-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold flex items-center gap-2"><Bell className="h-4 w-4 text-amber-500" />Rappels de paiement</h3>
+        <h3 className="text-sm font-semibold flex items-center gap-2"><Bell className="h-4 w-4 text-amber-500" />{t("licenseManagement.reminders.title")}</h3>
         <Button onClick={runAutoReminders} disabled={running} className="bg-amber-500 hover:bg-amber-600">
           {running ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Zap className="h-4 w-4 mr-2" />}
-          Envoyer les rappels automatiques
+          {t("licenseManagement.reminders.sendAuto")}
         </Button>
       </div>
 
@@ -984,15 +992,15 @@ function RemindersTab({ data, onRefresh }: { data: any; onRefresh: () => void })
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <Badge variant="outline" className="text-[10px]">Niveau {r.reminderLevel}</Badge>
-                      <Badge variant={r.status === "sent" ? "default" : "destructive"} className="text-[10px]">{r.status === "sent" ? "Envoye" : r.status === "failed" ? "Echec" : r.status}</Badge>
+                      <Badge variant="outline" className="text-[10px]">{t("licenseManagement.reminders.level", { level: r.reminderLevel })}</Badge>
+                      <Badge variant={r.status === "sent" ? "default" : "destructive"} className="text-[10px]">{r.status === "sent" ? t("licenseManagement.reminders.sent") : r.status === "failed" ? t("licenseManagement.reminders.failed") : r.status}</Badge>
                       {r.sentAt && <span className="text-muted-foreground">{format(new Date(r.sentAt), "dd/MM HH:mm")}</span>}
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-muted-foreground text-xs">Aucun rappel envoye</div>
+              <div className="text-center py-8 text-muted-foreground text-xs">{t("licenseManagement.reminders.none")}</div>
             )}
           </ScrollArea>
         </CardContent>
@@ -1003,6 +1011,7 @@ function RemindersTab({ data, onRefresh }: { data: any; onRefresh: () => void })
 
 function BillingSettingsTab({ data, onRefresh }: { data: any; onRefresh: () => void }) {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [saving, setSaving] = useState(false);
   const [bankIban, setBankIban] = useState("");
   const [bankBic, setBankBic] = useState(data.organisation?.bankBic || "");
@@ -1022,10 +1031,10 @@ function BillingSettingsTab({ data, onRefresh }: { data: any; onRefresh: () => v
         body: JSON.stringify(payload),
       });
       const d = await r.json();
-      if (d.success) { toast({ title: "Enregistre", description: "Parametres mis à jour" }); setBankIban(""); onRefresh(); }
-      else throw new Error(d.error || "Erreur");
+      if (d.success) { toast({ title: t("licenseManagement.toastMsg.saved"), description: t("licenseManagement.toastMsg.settingsUpdated") }); setBankIban(""); onRefresh(); }
+      else throw new Error(d.error || t("licenseManagement.toast.error"));
     } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+      toast({ title: t("licenseManagement.toast.error"), description: err.message, variant: "destructive" });
     }
     setSaving(false);
   };
@@ -1034,8 +1043,8 @@ function BillingSettingsTab({ data, onRefresh }: { data: any; onRefresh: () => v
     <div className="space-y-4 mt-4">
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2"><Building2 className="h-4 w-4 text-blue-500" />Coordonnees bancaires</CardTitle>
-          <CardDescription className="text-xs">Ces informations apparaissent sur vos factures et rappels de paiement</CardDescription>
+          <CardTitle className="text-sm flex items-center gap-2"><Building2 className="h-4 w-4 text-blue-500" />{t("licenseManagement.settings.bankTitle")}</CardTitle>
+          <CardDescription className="text-xs">{t("licenseManagement.settings.bankDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
@@ -1048,36 +1057,36 @@ function BillingSettingsTab({ data, onRefresh }: { data: any; onRefresh: () => v
               </div>
               <Input value={bankIban} onChange={e => setBankIban(e.target.value)} placeholder="FR76 1234 5678 9012 3456 7890 123" />
               {data.organisation?.bankIban && (
-                <p className="text-[10px] text-muted-foreground mt-1">Laissez vide pour conserver l'IBAN actuel</p>
+                <p className="text-[10px] text-muted-foreground mt-1">{t("licenseManagement.settings.ibanKeep")}</p>
               )}
             </div>
-            <div className="space-y-1"><Label className="text-xs">BIC/SWIFT</Label><Input value={bankBic} onChange={e => setBankBic(e.target.value)} placeholder="BNPAFRPP" /></div>
+            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.settings.bicSwift")}</Label><Input value={bankBic} onChange={e => setBankBic(e.target.value)} placeholder="BNPAFRPP" /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><Label className="text-xs">SIRET</Label><Input value={siret} onChange={e => setSiret(e.target.value)} placeholder="123 456 789 00012" /></div>
-            <div className="space-y-1"><Label className="text-xs">N° TVA intracommunautaire</Label><Input value={tvaNumber} onChange={e => setTvaNumber(e.target.value)} placeholder="FR 12 123456789" /></div>
+            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.settings.siret")}</Label><Input value={siret} onChange={e => setSiret(e.target.value)} placeholder="123 456 789 00012" /></div>
+            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.settings.tvaNumber")}</Label><Input value={tvaNumber} onChange={e => setTvaNumber(e.target.value)} placeholder="FR 12 123456789" /></div>
           </div>
-          <div className="space-y-1"><Label className="text-xs">Mentions legales / pied de facture</Label><Textarea value={invoiceFooter} onChange={e => setInvoiceFooter(e.target.value)} placeholder="Conditions de paiement, mentions legales..." rows={3} /></div>
+          <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.settings.invoiceFooter")}</Label><Textarea value={invoiceFooter} onChange={e => setInvoiceFooter(e.target.value)} placeholder={t("licenseManagement.settings.footerPlaceholder")} rows={3} /></div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2"><Zap className="h-4 w-4 text-amber-500" />Automatisations</CardTitle>
+          <CardTitle className="text-sm flex items-center gap-2"><Zap className="h-4 w-4 text-amber-500" />{t("licenseManagement.settings.automations")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm font-medium">Facturation automatique mensuelle</div>
-              <div className="text-xs text-muted-foreground">Genere automatiquement les factures d'abonnement chaque mois</div>
+              <div className="text-sm font-medium">{t("licenseManagement.settings.autoMonthlyTitle")}</div>
+              <div className="text-xs text-muted-foreground">{t("licenseManagement.settings.autoMonthlyDesc")}</div>
             </div>
             <Switch checked={autoInvoice} onCheckedChange={setAutoInvoice} />
           </div>
           <Separator />
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm font-medium">Envoi automatique par email</div>
-              <div className="text-xs text-muted-foreground">Envoie les factures et rappels par email automatiquement</div>
+              <div className="text-sm font-medium">{t("licenseManagement.settings.autoEmailTitle")}</div>
+              <div className="text-xs text-muted-foreground">{t("licenseManagement.settings.autoEmailDesc")}</div>
             </div>
             <Switch checked={autoEmail} onCheckedChange={setAutoEmail} />
           </div>
@@ -1087,7 +1096,7 @@ function BillingSettingsTab({ data, onRefresh }: { data: any; onRefresh: () => v
       <div className="flex justify-end">
         <Button onClick={save} disabled={saving}>
           {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
-          Enregistrer les parametres
+          {t("licenseManagement.settings.saveSettings")}
         </Button>
       </div>
     </div>
@@ -1095,6 +1104,7 @@ function BillingSettingsTab({ data, onRefresh }: { data: any; onRefresh: () => v
 }
 
 function LicenceAuditTab() {
+  const { t } = useTranslation();
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -1118,7 +1128,7 @@ function LicenceAuditTab() {
     <div className="mt-4">
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2"><History className="h-4 w-4 text-indigo-500" />Journal d'audit — Licence & Facturation</CardTitle>
+          <CardTitle className="text-sm flex items-center gap-2"><History className="h-4 w-4 text-indigo-500" />{t("licenseManagement.licenceAudit.title")}</CardTitle>
         </CardHeader>
         <CardContent>
           <ScrollArea className="h-[500px]">
@@ -1136,7 +1146,7 @@ function LicenceAuditTab() {
                 ))}
               </div>
             ) : (
-              <p className="text-center py-8 text-muted-foreground text-xs">Aucune entree dans le journal</p>
+              <p className="text-center py-8 text-muted-foreground text-xs">{t("licenseManagement.licenceAudit.none")}</p>
             )}
           </ScrollArea>
         </CardContent>
@@ -1155,19 +1165,15 @@ const AUDIT_ACTION_COLORS: Record<string, string> = {
   export: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300",
 };
 
-const AUDIT_ACTION_LABELS: Record<string, string> = {
-  login: "Connexion", logout: "Deconnexion", create: "Creation",
-  update: "Modification", delete: "Suppression", view: "Consultation", export: "Export",
-};
+const AUDIT_ACTION_KEYS = ["login", "logout", "create", "update", "delete", "view", "export"];
 
-const AUDIT_RESOURCE_LABELS: Record<string, string> = {
-  auth: "Auth", contact: "Contact", call: "Appel", task: "Tache", message: "Message",
-  stock: "Stock", user: "Utilisateur", settings: "Parametres", calendar: "Calendrier",
-  prospect: "Prospect", devis: "Devis", facture: "Facture", commande: "Commande",
-  checkin: "Pointage", document: "Document", projet: "Projet",
-};
+const AUDIT_RESOURCE_KEYS = [
+  "auth", "contact", "call", "task", "message", "stock", "user", "settings",
+  "calendar", "prospect", "devis", "facture", "commande", "checkin", "document", "projet",
+];
 
 function SystemAuditTab() {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [actionFilter, setActionFilter] = useState("all");
   const [resourceFilter, setResourceFilter] = useState("all");
@@ -1231,7 +1237,7 @@ function SystemAuditTab() {
             </div>
             <div>
               <p className="text-2xl font-bold">{statsData?.todayTotal || 0}</p>
-              <p className="text-xs text-muted-foreground">Actions aujourd'hui</p>
+              <p className="text-xs text-muted-foreground">{t("licenseManagement.systemAudit.actionsToday")}</p>
             </div>
           </CardContent>
         </Card>
@@ -1242,7 +1248,7 @@ function SystemAuditTab() {
             </div>
             <div>
               <p className="text-2xl font-bold">{statsData?.activeUsers?.length || 0}</p>
-              <p className="text-xs text-muted-foreground">Utilisateurs actifs</p>
+              <p className="text-xs text-muted-foreground">{t("licenseManagement.systemAudit.activeUsers")}</p>
             </div>
           </CardContent>
         </Card>
@@ -1253,7 +1259,7 @@ function SystemAuditTab() {
             </div>
             <div>
               <p className="text-2xl font-bold">{statsData?.actionBreakdown?.find((a: any) => a.action === "delete")?.count || 0}</p>
-              <p className="text-xs text-muted-foreground">Suppressions aujourd'hui</p>
+              <p className="text-xs text-muted-foreground">{t("licenseManagement.systemAudit.deletionsToday")}</p>
             </div>
           </CardContent>
         </Card>
@@ -1262,7 +1268,7 @@ function SystemAuditTab() {
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <CardTitle className="text-base flex items-center gap-2"><Shield className="h-4 w-4 text-indigo-500" />Journal d'audit systeme</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2"><Shield className="h-4 w-4 text-indigo-500" />{t("licenseManagement.systemAudit.title")}</CardTitle>
             <div className="flex items-center gap-2">
               <a href={exportUrl()} download="journal_audit.csv">
                 <Button variant="outline" size="sm" className="h-8 text-xs gap-1"><Download className="w-3 h-3" />CSV</Button>
@@ -1273,42 +1279,42 @@ function SystemAuditTab() {
           <div className="flex flex-col sm:flex-row gap-2 pt-2">
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <Input value={userEmailSearch} onChange={e => setUserEmailSearch(e.target.value)} onKeyDown={e => { if (e.key === "Enter") applyFilters(); }} placeholder="Rechercher par email..." className="pl-8 h-8 text-xs" />
+              <Input value={userEmailSearch} onChange={e => setUserEmailSearch(e.target.value)} onKeyDown={e => { if (e.key === "Enter") applyFilters(); }} placeholder={t("licenseManagement.systemAudit.searchEmail")} className="pl-8 h-8 text-xs" />
             </div>
             <Select value={actionFilter} onValueChange={v => { setActionFilter(v); setPage(1); }}>
-              <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue placeholder="Action" /></SelectTrigger>
+              <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue placeholder={t("licenseManagement.systemAudit.actionPlaceholder")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Toutes les actions</SelectItem>
-                {Object.entries(AUDIT_ACTION_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                <SelectItem value="all">{t("licenseManagement.systemAudit.allActions")}</SelectItem>
+                {AUDIT_ACTION_KEYS.map((k) => <SelectItem key={k} value={k}>{t("licenseManagement.auditAction." + k)}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={resourceFilter} onValueChange={v => { setResourceFilter(v); setPage(1); }}>
-              <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue placeholder="Ressource" /></SelectTrigger>
+              <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue placeholder={t("licenseManagement.systemAudit.resourcePlaceholder")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Toutes les ressources</SelectItem>
-                {Object.entries(AUDIT_RESOURCE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                <SelectItem value="all">{t("licenseManagement.systemAudit.allResources")}</SelectItem>
+                {AUDIT_RESOURCE_KEYS.map((k) => <SelectItem key={k} value={k}>{t("licenseManagement.auditResource." + k)}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 pt-1">
             <div className="flex items-center gap-2 flex-1">
-              <span className="text-xs text-muted-foreground whitespace-nowrap">Du</span>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">{t("licenseManagement.systemAudit.from")}</span>
               <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-8 text-xs flex-1" />
-              <span className="text-xs text-muted-foreground whitespace-nowrap">au</span>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">{t("licenseManagement.systemAudit.to")}</span>
               <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-8 text-xs flex-1" />
             </div>
             <div className="flex gap-2">
-              <Button size="sm" className="h-8 text-xs px-3" onClick={applyFilters}><Search className="w-3 h-3 mr-1" />Filtrer</Button>
-              {hasActiveFilters && <Button size="sm" variant="outline" className="h-8 text-xs px-3" onClick={clearFilters}><X className="w-3 h-3 mr-1" />Effacer</Button>}
+              <Button size="sm" className="h-8 text-xs px-3" onClick={applyFilters}><Search className="w-3 h-3 mr-1" />{t("licenseManagement.systemAudit.filter")}</Button>
+              {hasActiveFilters && <Button size="sm" variant="outline" className="h-8 text-xs px-3" onClick={clearFilters}><X className="w-3 h-3 mr-1" />{t("licenseManagement.systemAudit.clear")}</Button>}
             </div>
           </div>
-          {hasActiveFilters && <p className="text-xs text-blue-600 dark:text-blue-400 pt-1">Filtres actifs — {logsData?.total ?? "..."} resultat(s)</p>}
+          {hasActiveFilters && <p className="text-xs text-blue-600 dark:text-blue-400 pt-1">{t("licenseManagement.systemAudit.activeFilters", { count: logsData?.total ?? "..." })}</p>}
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">Chargement...</div>
+            <div className="text-center py-8 text-muted-foreground text-sm">{t("licenseManagement.systemAudit.loading")}</div>
           ) : !logsData?.logs?.length ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">Aucune activite enregistree</div>
+            <div className="text-center py-8 text-muted-foreground text-sm">{t("licenseManagement.systemAudit.noActivity")}</div>
           ) : (
             <div className="space-y-1">
               {logsData.logs.map((log: any) => (
@@ -1318,11 +1324,11 @@ function SystemAuditTab() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium">{log.userEmail || "Systeme"}</span>
+                      <span className="text-sm font-medium">{log.userEmail || t("licenseManagement.systemAudit.system")}</span>
                       <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${AUDIT_ACTION_COLORS[log.action] || "bg-gray-100 text-gray-700"}`}>
-                        {AUDIT_ACTION_LABELS[log.action] || log.action}
+                        {AUDIT_ACTION_KEYS.includes(log.action) ? t("licenseManagement.auditAction." + log.action) : log.action}
                       </Badge>
-                      <span className="text-xs text-muted-foreground">{AUDIT_RESOURCE_LABELS[log.resource] || log.resource}</span>
+                      <span className="text-xs text-muted-foreground">{AUDIT_RESOURCE_KEYS.includes(log.resource) ? t("licenseManagement.auditResource." + log.resource) : log.resource}</span>
                       {log.resourceId && <span className="text-xs text-muted-foreground/60">#{log.resourceId}</span>}
                     </div>
                     {log.details && typeof log.details === "object" && (
@@ -1340,7 +1346,7 @@ function SystemAuditTab() {
           )}
           {logsData && logsData.totalPages > 1 && (
             <div className="flex items-center justify-between pt-4 border-t mt-4">
-              <span className="text-xs text-muted-foreground">Page {logsData.page} sur {logsData.totalPages} ({logsData.total} entrees)</span>
+              <span className="text-xs text-muted-foreground">{t("licenseManagement.systemAudit.pageInfo", { page: logsData.page, pages: logsData.totalPages, total: logsData.total })}</span>
               <div className="flex gap-1">
                 <Button variant="outline" size="icon" className="h-7 w-7" disabled={page <= 1} onClick={() => setPage(p => p - 1)}><ChevronLeft className="w-4 h-4" /></Button>
                 <Button variant="outline" size="icon" className="h-7 w-7" disabled={page >= logsData.totalPages} onClick={() => setPage(p => p + 1)}><ChevronRight className="w-4 h-4" /></Button>
@@ -1355,6 +1361,7 @@ function SystemAuditTab() {
 
 function AbonnementTab() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [upgradeMessage, setUpgradeMessage] = useState("");
@@ -1379,26 +1386,26 @@ function AbonnementTab() {
       });
       const result = await res.json();
       if (res.ok) {
-        toast({ title: "Demande envoyée", description: result.message });
+        toast({ title: t("licenseManagement.toastMsg.requestSent"), description: result.message });
         setShowUpgrade(false); setSelectedPlan(null); setUpgradeMessage("");
-      } else throw new Error(result.error || "Erreur");
+      } else throw new Error(result.error || t("licenseManagement.toast.error"));
     } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+      toast({ title: t("licenseManagement.toast.error"), description: err.message, variant: "destructive" });
     }
     setSending(false);
   };
 
   if (isLoading) return <div className="mt-4 flex items-center justify-center h-40"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
-  if (!data) return <div className="mt-4 text-center text-muted-foreground py-10">Impossible de charger les informations d'abonnement.</div>;
+  if (!data) return <div className="mt-4 text-center text-muted-foreground py-10">{t("licenseManagement.abonnement.cannotLoad")}</div>;
 
   const { subscription: sub, limits, usage, isActive, plans } = data;
   const usagePct = (cur: number, max: number) => max > 0 ? Math.min(100, Math.round((cur / max) * 100)) : 0;
 
   const statusBadge = () => {
-    if (!sub) return <Badge variant="secondary">Aucun</Badge>;
-    if (sub.trialExpired) return <Badge variant="destructive">Essai expire</Badge>;
-    if (sub.status === "cancelled") return <Badge variant="destructive">Annule</Badge>;
-    if (sub.status === "active") return <Badge className="bg-emerald-500 text-white">Actif</Badge>;
+    if (!sub) return <Badge variant="secondary">{t("licenseManagement.abonnement.none")}</Badge>;
+    if (sub.trialExpired) return <Badge variant="destructive">{t("licenseManagement.abonnement.trialExpired")}</Badge>;
+    if (sub.status === "cancelled") return <Badge variant="destructive">{t("licenseManagement.abonnement.cancelled")}</Badge>;
+    if (sub.status === "active") return <Badge className="bg-emerald-500 text-white">{t("licenseManagement.abonnement.active")}</Badge>;
     return <Badge variant="secondary">{sub.status}</Badge>;
   };
 
@@ -1406,7 +1413,7 @@ function AbonnementTab() {
     <div className="mt-4 space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">{statusBadge()}</div>
-        <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-1"><RefreshCw className="h-3 w-3" />Actualiser</Button>
+        <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-1"><RefreshCw className="h-3 w-3" />{t("licenseManagement.abonnement.refresh")}</Button>
       </div>
 
       {!isActive && (
@@ -1414,9 +1421,9 @@ function AbonnementTab() {
           <CardContent className="p-4 flex items-center gap-3">
             <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
             <p className="text-sm font-medium text-destructive">
-              {sub?.trialExpired ? "Votre periode d'essai est terminee. Veuillez passer a un plan payant pour continuer a utiliser le service."
-                : sub?.status === "cancelled" ? "Votre abonnement a ete annule. Contactez l'administrateur pour le reactiver."
-                : "Votre compte est actuellement inactif."}
+              {sub?.trialExpired ? t("licenseManagement.abonnement.trialOver")
+                : sub?.status === "cancelled" ? t("licenseManagement.abonnement.subCancelled")
+                : t("licenseManagement.abonnement.inactive")}
             </p>
           </CardContent>
         </Card>
@@ -1425,21 +1432,21 @@ function AbonnementTab() {
       <div className="grid grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-1"><Crown className="h-4 w-4 text-amber-500" /><span className="text-sm text-muted-foreground">Plan actuel</span></div>
-            <p className="text-2xl font-bold">{sub?.planName || "Essai Gratuit"}</p>
-            {sub && Number(sub.price) > 0 && <p className="text-sm text-muted-foreground mt-1">{sub.price} {sub.currency}/{sub.billingCycle === "monthly" ? "mois" : "an"}</p>}
+            <div className="flex items-center gap-2 mb-1"><Crown className="h-4 w-4 text-amber-500" /><span className="text-sm text-muted-foreground">{t("licenseManagement.abonnement.currentPlan")}</span></div>
+            <p className="text-2xl font-bold">{sub?.planName || t("licenseManagement.abonnement.freeTrial")}</p>
+            {sub && Number(sub.price) > 0 && <p className="text-sm text-muted-foreground mt-1">{sub.price} {sub.currency}/{sub.billingCycle === "monthly" ? t("licenseManagement.abonnement.perMonth") : t("licenseManagement.abonnement.perYear")}</p>}
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-1"><Clock className="h-4 w-4 text-blue-500" /><span className="text-sm text-muted-foreground">{sub?.plan === "essai" ? "Jours d'essai restants" : "Prochaine echeance"}</span></div>
-            <p className="text-2xl font-bold">{sub?.plan === "essai" ? (sub.daysRemaining !== null ? `${sub.daysRemaining} jours` : "—") : (sub?.periodDaysRemaining !== null ? `${sub?.periodDaysRemaining} jours` : "—")}</p>
-            {sub?.trialEndsAt && sub.plan === "essai" && <p className="text-xs text-muted-foreground mt-1">Expire le {new Date(sub.trialEndsAt).toLocaleDateString("fr-FR")}</p>}
+            <div className="flex items-center gap-2 mb-1"><Clock className="h-4 w-4 text-blue-500" /><span className="text-sm text-muted-foreground">{sub?.plan === "essai" ? t("licenseManagement.abonnement.trialDaysLeft") : t("licenseManagement.abonnement.nextDue")}</span></div>
+            <p className="text-2xl font-bold">{sub?.plan === "essai" ? (sub.daysRemaining !== null ? t("licenseManagement.abonnement.days", { n: sub.daysRemaining }) : "—") : (sub?.periodDaysRemaining !== null ? t("licenseManagement.abonnement.days", { n: sub?.periodDaysRemaining }) : "—")}</p>
+            {sub?.trialEndsAt && sub.plan === "essai" && <p className="text-xs text-muted-foreground mt-1">{t("licenseManagement.abonnement.expiresOn", { date: new Date(sub.trialEndsAt).toLocaleDateString("fr-FR") })}</p>}
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-1"><Shield className="h-4 w-4 text-green-500" /><span className="text-sm text-muted-foreground">Clé de licence</span></div>
+            <div className="flex items-center gap-2 mb-1"><Shield className="h-4 w-4 text-green-500" /><span className="text-sm text-muted-foreground">{t("licenseManagement.abonnement.licenseKey")}</span></div>
             <p className="text-sm font-mono font-medium break-all select-all">{sub?.licenseKey || "—"}</p>
           </CardContent>
         </Card>
@@ -1447,14 +1454,14 @@ function AbonnementTab() {
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Utilisation actuelle</CardTitle>
-          <CardDescription className="text-xs">Consommation par rapport aux limites de votre plan</CardDescription>
+          <CardTitle className="text-base">{t("licenseManagement.abonnement.currentUsage")}</CardTitle>
+          <CardDescription className="text-xs">{t("licenseManagement.abonnement.usageDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {[
-            { label: "Utilisateurs", current: usage.users, max: limits.maxUsers, icon: Users, color: "text-blue-500" },
-            { label: "Contacts", current: usage.contacts, max: limits.maxContacts, icon: BookUser, color: "text-green-500" },
-            { label: "Appels ce mois", current: usage.calls, max: limits.maxCallsPerMonth, icon: Phone, color: "text-purple-500" },
+            { label: t("licenseManagement.abonnement.users"), current: usage.users, max: limits.maxUsers, icon: Users, color: "text-blue-500" },
+            { label: t("licenseManagement.abonnement.contacts"), current: usage.contacts, max: limits.maxContacts, icon: BookUser, color: "text-green-500" },
+            { label: t("licenseManagement.abonnement.callsMonth"), current: usage.calls, max: limits.maxCallsPerMonth, icon: Phone, color: "text-purple-500" },
           ].map(item => (
             <div key={item.label}>
               <div className="flex items-center justify-between mb-2">
@@ -1468,15 +1475,15 @@ function AbonnementTab() {
           <div className="grid grid-cols-3 gap-4 text-center">
             <div className="flex flex-col items-center gap-1">
               <Brain className={`h-5 w-5 ${limits.aiEnabled ? "text-emerald-500" : "text-muted-foreground"}`} />
-              <span className="text-xs font-medium">{limits.aiEnabled ? "IA Active" : "IA Inactive"}</span>
+              <span className="text-xs font-medium">{limits.aiEnabled ? t("licenseManagement.abonnement.aiActive") : t("licenseManagement.abonnement.aiInactive")}</span>
             </div>
             <div className="flex flex-col items-center gap-1">
               <Package className={`h-5 w-5 ${limits.stockEnabled ? "text-emerald-500" : "text-muted-foreground"}`} />
-              <span className="text-xs font-medium">{limits.stockEnabled ? "Stock Actif" : "Stock Inactif"}</span>
+              <span className="text-xs font-medium">{limits.stockEnabled ? t("licenseManagement.abonnement.stockActive") : t("licenseManagement.abonnement.stockInactive")}</span>
             </div>
             <div className="flex flex-col items-center gap-1">
               <Zap className={`h-5 w-5 ${limits.automationEnabled ? "text-emerald-500" : "text-muted-foreground"}`} />
-              <span className="text-xs font-medium">{limits.automationEnabled ? "Auto. Active" : "Auto. Inactive"}</span>
+              <span className="text-xs font-medium">{limits.automationEnabled ? t("licenseManagement.abonnement.autoActive") : t("licenseManagement.abonnement.autoInactive")}</span>
             </div>
           </div>
         </CardContent>
@@ -1484,27 +1491,27 @@ function AbonnementTab() {
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Plans disponibles</CardTitle>
-          <CardDescription className="text-xs">Comparez les plans et demandez un changement</CardDescription>
+          <CardTitle className="text-base">{t("licenseManagement.abonnement.availablePlans")}</CardTitle>
+          <CardDescription className="text-xs">{t("licenseManagement.abonnement.plansDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {plans?.map((plan: any) => (
               <div key={plan.key} className={`border rounded-lg p-4 relative ${plan.isCurrent ? "border-primary ring-2 ring-primary/20" : "border-border"}`}>
-                {plan.isCurrent && <Badge className="absolute -top-2 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px]">Plan actuel</Badge>}
+                {plan.isCurrent && <Badge className="absolute -top-2 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px]">{t("licenseManagement.abonnement.planBadge")}</Badge>}
                 <h3 className="font-bold text-base mt-2">{plan.name}</h3>
-                <p className="text-xl font-bold mt-1">{plan.price === 0 ? "Gratuit" : `${plan.price}€`}{plan.price > 0 && <span className="text-xs font-normal text-muted-foreground">/mois</span>}</p>
+                <p className="text-xl font-bold mt-1">{plan.price === 0 ? t("licenseManagement.abonnement.free") : `${plan.price}€`}{plan.price > 0 && <span className="text-xs font-normal text-muted-foreground">/{t("licenseManagement.abonnement.perMonth")}</span>}</p>
                 <ul className="mt-3 space-y-1.5 text-xs">
-                  <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-500" />{plan.maxUsers} utilisateurs</li>
-                  <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-500" />{plan.maxContacts.toLocaleString()} contacts</li>
-                  <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-500" />{plan.maxCallsPerMonth.toLocaleString()} appels/mois</li>
-                  <li className={`flex items-center gap-1.5 ${!plan.aiEnabled ? "text-muted-foreground" : ""}`}>{plan.aiEnabled ? <Check className="h-3 w-3 text-emerald-500" /> : <span className="w-3 text-center">—</span>}Intelligence Artificielle</li>
-                  <li className={`flex items-center gap-1.5 ${!plan.stockEnabled ? "text-muted-foreground" : ""}`}>{plan.stockEnabled ? <Check className="h-3 w-3 text-emerald-500" /> : <span className="w-3 text-center">—</span>}Gestion de stock</li>
-                  <li className={`flex items-center gap-1.5 ${!plan.automationEnabled ? "text-muted-foreground" : ""}`}>{plan.automationEnabled ? <Check className="h-3 w-3 text-emerald-500" /> : <span className="w-3 text-center">—</span>}Automatisations</li>
+                  <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-500" />{t("licenseManagement.abonnement.usersCount", { n: plan.maxUsers })}</li>
+                  <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-500" />{t("licenseManagement.abonnement.contactsCount", { n: plan.maxContacts.toLocaleString() })}</li>
+                  <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-500" />{t("licenseManagement.abonnement.callsCount", { n: plan.maxCallsPerMonth.toLocaleString() })}</li>
+                  <li className={`flex items-center gap-1.5 ${!plan.aiEnabled ? "text-muted-foreground" : ""}`}>{plan.aiEnabled ? <Check className="h-3 w-3 text-emerald-500" /> : <span className="w-3 text-center">—</span>}{t("licenseManagement.abonnement.ai")}</li>
+                  <li className={`flex items-center gap-1.5 ${!plan.stockEnabled ? "text-muted-foreground" : ""}`}>{plan.stockEnabled ? <Check className="h-3 w-3 text-emerald-500" /> : <span className="w-3 text-center">—</span>}{t("licenseManagement.abonnement.stockMgmt")}</li>
+                  <li className={`flex items-center gap-1.5 ${!plan.automationEnabled ? "text-muted-foreground" : ""}`}>{plan.automationEnabled ? <Check className="h-3 w-3 text-emerald-500" /> : <span className="w-3 text-center">—</span>}{t("licenseManagement.abonnement.automations")}</li>
                 </ul>
                 {!plan.isCurrent && (
                   <Button size="sm" className="w-full mt-3 text-xs" variant={plan.price > (Number(sub?.price) || 0) ? "default" : "outline"} onClick={() => { setSelectedPlan(plan); setShowUpgrade(true); }}>
-                    <ArrowUpRight className="h-3 w-3 mr-1" />{plan.price > (Number(sub?.price) || 0) ? "Passer a ce plan" : "Changer de plan"}
+                    <ArrowUpRight className="h-3 w-3 mr-1" />{plan.price > (Number(sub?.price) || 0) ? t("licenseManagement.abonnement.upgradeTo") : t("licenseManagement.abonnement.changePlan")}
                   </Button>
                 )}
               </div>
@@ -1516,15 +1523,15 @@ function AbonnementTab() {
       <Dialog open={showUpgrade} onOpenChange={setShowUpgrade}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Demande de changement de plan</DialogTitle>
+            <DialogTitle>{t("licenseManagement.abonnement.changeRequestTitle")}</DialogTitle>
             <DialogDescription>
-              Vous souhaitez passer au plan <strong>{selectedPlan?.name}</strong> ({selectedPlan?.price === 0 ? "Gratuit" : `${selectedPlan?.price}€/mois`}). Un administrateur examinera votre demande.
+              {t("licenseManagement.abonnement.changeRequestDesc", { plan: selectedPlan?.name, price: selectedPlan?.price === 0 ? t("licenseManagement.abonnement.free") : `${selectedPlan?.price}€/mois` })}
             </DialogDescription>
           </DialogHeader>
-          <Textarea placeholder="Message optionnel pour l'administrateur..." value={upgradeMessage} onChange={e => setUpgradeMessage(e.target.value)} rows={3} />
+          <Textarea placeholder={t("licenseManagement.abonnement.messagePlaceholder")} value={upgradeMessage} onChange={e => setUpgradeMessage(e.target.value)} rows={3} />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowUpgrade(false)}>Annuler</Button>
-            <Button onClick={sendUpgradeRequest} disabled={sending}>{sending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Envoyer la demande</Button>
+            <Button variant="outline" onClick={() => setShowUpgrade(false)}>{t("common.cancel")}</Button>
+            <Button onClick={sendUpgradeRequest} disabled={sending}>{sending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}{t("licenseManagement.abonnement.sendRequest")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
