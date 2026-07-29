@@ -2,6 +2,7 @@ import * as React from "react";
 import { Sparkles } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/i18n";
 import {
   useInlineSuggest,
   useInlineSuggestEnabled,
@@ -26,6 +27,7 @@ export const GhostTextarea = React.forwardRef<HTMLTextAreaElement, GhostTextarea
     { value, onChange, fieldType, context, enableSuggest = true, showToggle = false, className, onKeyDown, onBlur, ...rest },
     forwardedRef,
   ) {
+    const { t } = useTranslation();
     const innerRef = React.useRef<HTMLTextAreaElement | null>(null);
     const ghostRef = React.useRef<HTMLDivElement | null>(null);
     const [globalEnabled, setGlobalEnabled] = useInlineSuggestEnabled();
@@ -141,7 +143,7 @@ export const GhostTextarea = React.forwardRef<HTMLTextAreaElement, GhostTextarea
         {suggestion && detectedLanguage && (
           <div
             className="pointer-events-none absolute bottom-1 left-2 flex items-center gap-1 rounded-md border border-border/60 bg-background/90 px-1.5 py-0.5 text-[10px] text-muted-foreground shadow-sm backdrop-blur-sm"
-            title="Langue détectée automatiquement pour cette suggestion"
+            title={t("ghostTextarea.detectedLanguage")}
           >
             <span aria-hidden>🌐</span>
             <span>{inlineSuggestLanguageLabel(detectedLanguage)}</span>
@@ -157,8 +159,8 @@ export const GhostTextarea = React.forwardRef<HTMLTextAreaElement, GhostTextarea
             )}
             title={
               globalEnabled
-                ? "Désactiver les suggestions IA en ligne"
-                : "Activer les suggestions IA en ligne"
+                ? t("ghostTextarea.disableSuggest")
+                : t("ghostTextarea.enableSuggest")
             }
           >
             <Sparkles className="h-2.5 w-2.5" />

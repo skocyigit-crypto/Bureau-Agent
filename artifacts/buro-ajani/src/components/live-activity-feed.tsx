@@ -55,7 +55,7 @@ export function LiveActivityFeed({ compact = false }: { compact?: boolean }) {
         id: `${item.type}_${item.id || idx}`,
         type: item.type === "call" ? "appel" : item.type === "task" ? "tache" : item.type,
         action: item.action || "creation",
-        title: item.title || item.callerName || item.contactName || "Activite",
+        title: item.title || item.callerName || item.contactName || "",
         description: item.description || item.content || item.notes || "",
         time: item.createdAt || item.time || new Date().toISOString(),
         user: item.userName || "",
@@ -163,7 +163,7 @@ export function LiveActivityFeed({ compact = false }: { compact?: boolean }) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-medium truncate">{activity.title}</span>
+                        <span className="text-xs font-medium truncate">{activity.title || t("liveActivityFeed.defaultTitle")}</span>
                         <Badge variant="outline" className="text-[9px] px-1 shrink-0">{t(`liveActivityFeed.${config.labelKey}`)}</Badge>
                       </div>
                       {activity.description && (

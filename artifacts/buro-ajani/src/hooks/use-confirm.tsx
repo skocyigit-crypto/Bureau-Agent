@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useTranslation } from "@/i18n";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,6 +38,7 @@ interface QueueEntry {
 }
 
 export function ConfirmProvider({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
   const [current, setCurrent] = useState<QueueEntry | null>(null);
   const queueRef = useRef<QueueEntry[]>([]);
   const currentRef = useRef<QueueEntry | null>(null);
@@ -84,13 +86,13 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => close(false)}>
-              {current?.opts.cancelLabel ?? "Annuler"}
+              {current?.opts.cancelLabel ?? t("common.cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => close(true)}
               className={current?.opts.destructive ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : undefined}
             >
-              {current?.opts.confirmLabel ?? "Confirmer"}
+              {current?.opts.confirmLabel ?? t("common.confirm")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -139,12 +139,29 @@
       "voirRapports": "Voir les rapports",
       "utiliserIA": "Utiliser l'IA",
       "gererIntegrations": "Gérer les intégrations"
-    }
+    },
+    "roles": {
+      "super_admin": "Super Administrateur",
+      "administrateur": "Administrateur",
+      "agent": "Agent",
+      "lecture_seule": "Lecture seule"
+    },
+    "lastAccess": "Dernier accès :"
   },
   "header": {
     "guide": "Guide d'utilisation",
     "searchEverywhere": "Rechercher partout...",
-    "simulateCall": "Simuler un appel entrant (test)"
+    "simulateCall": "Simuler un appel entrant (test)",
+    "net": {
+      "offline": "Hors ligne",
+      "slow": "Connexion lente",
+      "moderate": "Connexion modérée",
+      "fast": "Connexion rapide"
+    },
+    "device": "Appareil",
+    "appMode": "Mode application",
+    "newBadgeAria": "{{count}} nouveau {{name}}",
+    "newBadgeAriaPlural": "{{count}} nouveaux {{name}}"
   },
   "dashboard": {
     "title": "Tableau de bord",
@@ -8299,7 +8316,9 @@
       "copiedTitle": "E-mail copié",
       "copiedDesc": "L'e-mail a été copié dans le presse-papiers.",
       "clipboardError": "Impossible de copier dans le presse-papiers."
-    }
+    },
+    "clipboardTo": "À :",
+    "clipboardSubject": "Objet :"
   },
   "commandPalette": {
     "searchPlaceholder": "Rechercher une commande...",
@@ -8733,7 +8752,8 @@
     "typeEvenement": "Événement",
     "typeProspect": "Prospect",
     "typeFacture": "Facture",
-    "typeProjet": "Projet"
+    "typeProjet": "Projet",
+    "defaultTitle": "Activité"
   },
   "dataExportPanel": {
     "title": "Exporter les données",
@@ -8952,5 +8972,54 @@
     "clear_chat": "Effacer la conversation",
     "retry_last": "Reessayer",
     "live_mode_title": "Mode Live (conversation continue avec Gemini)"
+  },
+  "realtimeSync": {
+    "riskDocTitle": "Document à risque détecté",
+    "viewRiskDocs": "Voir les documents à risque",
+    "view": "Voir",
+    "newMessage": "Nouveau message",
+    "newTask": "Nouvelle tâche",
+    "newMessageDesc": "Un message vient d'arriver dans votre boîte.",
+    "newTaskDesc": "Une nouvelle tâche a été ajoutée.",
+    "openMessage": "Ouvrir le message",
+    "openTask": "Ouvrir la tâche"
+  },
+  "scanResult": {
+    "safeTitle": "Analyse antivirus terminée",
+    "safeDesc": "{{fileName}} : aucune menace détectée. Le fichier est sûr.",
+    "detail": " Détail : {{detail}}",
+    "dangerTitle": "Menace détectée",
+    "dangerDesc": "ATTENTION : {{fileName}} a été signalé comme DANGEREUX par l'analyse antivirus. N'ouvrez pas ce fichier.{{detail}}"
+  },
+  "smartBrowser": {
+    "geoUnavailable": "Géolocalisation non disponible"
+  },
+  "inlineSuggest": {
+    "autoDetect": "Auto (détection)"
+  },
+  "globalSearch": {
+    "noResults": "Aucun résultat pour \"{{query}}\"",
+    "resultsCount": "{{count}} résultat(s) trouvé(s)",
+    "incoming": "Entrant",
+    "outgoing": "Sortant",
+    "projectFallback": "Projet #{{id}}",
+    "type": {
+      "contacts": "Contacts",
+      "calls": "Appels",
+      "tasks": "Tâches",
+      "messages": "Messages",
+      "prospects": "Prospects",
+      "projets": "Projets"
+    }
+  },
+  "aiValidationFeedback": {
+    "validating": "Vérification IA en cours...",
+    "noIssues": "L'IA n'a détecté aucun problème. Les données sont valides.",
+    "aiFeedback": "Retours de l'IA"
+  },
+  "ghostTextarea": {
+    "detectedLanguage": "Langue détectée automatiquement pour cette suggestion",
+    "disableSuggest": "Désactiver les suggestions IA en ligne",
+    "enableSuggest": "Activer les suggestions IA en ligne"
   }
 }

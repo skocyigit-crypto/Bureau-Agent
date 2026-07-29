@@ -56,14 +56,14 @@ export interface UserPermissions {
 }
 
 const ROLE_CONFIG: Record<UserRole, {
-  label: string;
+  labelKey: string;
   niveau: number;
   couleur: string;
   badgeClass: string;
   permissions: UserPermissions;
 }> = {
   super_admin: {
-    label: "Super Administrateur",
+    labelKey: "userMenu.roles.super_admin",
     niveau: 4,
     couleur: "red",
     badgeClass: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0",
@@ -84,7 +84,7 @@ const ROLE_CONFIG: Record<UserRole, {
     },
   },
   administrateur: {
-    label: "Administrateur",
+    labelKey: "userMenu.roles.administrateur",
     niveau: 3,
     couleur: "amber",
     badgeClass: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0",
@@ -105,7 +105,7 @@ const ROLE_CONFIG: Record<UserRole, {
     },
   },
   agent: {
-    label: "Agent",
+    labelKey: "userMenu.roles.agent",
     niveau: 2,
     couleur: "blue",
     badgeClass: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-0",
@@ -126,7 +126,7 @@ const ROLE_CONFIG: Record<UserRole, {
     },
   },
   lecture_seule: {
-    label: "Lecture seule",
+    labelKey: "userMenu.roles.lecture_seule",
     niveau: 1,
     couleur: "gray",
     badgeClass: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400 border-0",
@@ -243,7 +243,7 @@ export function UserProfileButton() {
             </div>
             <div className="hidden lg:flex flex-col items-start">
               <span className="text-xs font-medium leading-none">{user.prenom} {user.nom}</span>
-              <span className="text-[10px] text-muted-foreground leading-none mt-0.5">{roleConfig.label}</span>
+              <span className="text-[10px] text-muted-foreground leading-none mt-0.5">{t(roleConfig.labelKey)}</span>
             </div>
             <ChevronDown className="w-3 h-3 text-muted-foreground hidden lg:block" />
           </button>
@@ -262,7 +262,7 @@ export function UserProfileButton() {
             <div className="flex items-center gap-2 mt-2">
               <Badge className={roleConfig.badgeClass + " text-[10px]"}>
                 <Shield className="w-3 h-3 mr-1" />
-                {roleConfig.label}
+                {t(roleConfig.labelKey)}
               </Badge>
               <Badge variant="outline" className="text-[10px]">
                 {t("userMenu.level", { n: roleConfig.niveau })}
@@ -350,7 +350,7 @@ export function UserProfileButton() {
                 <div className="flex items-center gap-2 mt-1">
                   <Badge className={roleConfig.badgeClass + " text-xs"}>
                     <Shield className="w-3 h-3 mr-1" />
-                    {roleConfig.label}
+                    {t(roleConfig.labelKey)}
                   </Badge>
                 </div>
               </div>
@@ -416,11 +416,11 @@ export function UserProfileButton() {
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Clock className="w-3 h-3" />
-                <span>Dernier acces : {user.dernierAcces}</span>
+                <span>{t("userMenu.lastAccess")} {user.dernierAcces}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Fingerprint className="w-3 h-3 text-emerald-500" />
-                <span>MFA {user.mfaActif ? "actif" : "inactif"}</span>
+                <span>MFA {user.mfaActif ? t("userMenu.mfaActive") : t("userMenu.mfaInactive")}</span>
               </div>
             </div>
           </div>
@@ -431,6 +431,7 @@ export function UserProfileButton() {
 }
 
 export function WorkspaceUserSidebarInfo() {
+  const { t } = useTranslation();
   const { user, roleConfig } = useWorkspaceUser();
 
   return (
@@ -447,7 +448,7 @@ export function WorkspaceUserSidebarInfo() {
               user.role === "administrateur" ? "bg-amber-400" :
               user.role === "agent" ? "bg-blue-400" : "bg-gray-400"
             }`} />
-            <span className="text-sidebar-foreground/60 text-[10px]">{roleConfig.label}</span>
+            <span className="text-sidebar-foreground/60 text-[10px]">{t(roleConfig.labelKey)}</span>
           </div>
         </div>
       </div>

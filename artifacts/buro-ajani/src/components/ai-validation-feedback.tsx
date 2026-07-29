@@ -1,4 +1,5 @@
 import { AlertCircle, AlertTriangle, Lightbulb, CheckCircle2, Loader2, Brain } from "lucide-react";
+import { useTranslation } from "@/i18n";
 
 interface ValidationResult {
   isValid: boolean;
@@ -13,11 +14,12 @@ interface AiValidationFeedbackProps {
 }
 
 export function AiValidationFeedback({ result, isValidating }: AiValidationFeedbackProps) {
+  const { t } = useTranslation();
   if (isValidating) {
     return (
       <div className="flex items-center gap-2 p-3 rounded-lg bg-purple-50 dark:bg-purple-950/20 border border-purple-200/50 dark:border-purple-800/30">
         <Loader2 className="w-4 h-4 animate-spin text-purple-500" />
-        <span className="text-xs text-purple-700 dark:text-purple-300">Verification IA en cours...</span>
+        <span className="text-xs text-purple-700 dark:text-purple-300">{t("aiValidationFeedback.validating")}</span>
       </div>
     );
   }
@@ -30,7 +32,7 @@ export function AiValidationFeedback({ result, isValidating }: AiValidationFeedb
     return (
       <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-800/30">
         <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-        <span className="text-xs text-emerald-700 dark:text-emerald-300">L'IA n'a detecte aucun probleme. Les donnees sont valides.</span>
+        <span className="text-xs text-emerald-700 dark:text-emerald-300">{t("aiValidationFeedback.noIssues")}</span>
       </div>
     );
   }
@@ -39,7 +41,7 @@ export function AiValidationFeedback({ result, isValidating }: AiValidationFeedb
     <div className="space-y-2 p-3 rounded-lg bg-muted/50 border border-border">
       <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-2">
         <Brain className="w-3.5 h-3.5 text-purple-500" />
-        Retours de l'IA
+        {t("aiValidationFeedback.aiFeedback")}
       </div>
 
       {result.errors.map((e, i) => (

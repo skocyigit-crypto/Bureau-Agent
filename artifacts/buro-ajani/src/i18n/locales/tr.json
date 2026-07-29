@@ -139,12 +139,29 @@
       "voirRapports": "Raporları görüntüle",
       "utiliserIA": "Yapay zekayı kullan",
       "gererIntegrations": "Entegrasyonları yönet"
-    }
+    },
+    "roles": {
+      "super_admin": "Süper Yönetici",
+      "administrateur": "Yönetici",
+      "agent": "Temsilci",
+      "lecture_seule": "Salt okunur"
+    },
+    "lastAccess": "Son erişim:"
   },
   "header": {
     "guide": "Kullanım kılavuzu",
     "searchEverywhere": "Her yerde ara...",
-    "simulateCall": "Gelen çağrıyı simüle et (test)"
+    "simulateCall": "Gelen çağrıyı simüle et (test)",
+    "net": {
+      "offline": "Çevrimdışı",
+      "slow": "Yavaş bağlantı",
+      "moderate": "Orta bağlantı",
+      "fast": "Hızlı bağlantı"
+    },
+    "device": "Cihaz",
+    "appMode": "Uygulama modu",
+    "newBadgeAria": "{{count}} yeni {{name}}",
+    "newBadgeAriaPlural": "{{count}} yeni {{name}}"
   },
   "dashboard": {
     "title": "Kontrol Paneli",
@@ -8299,7 +8316,9 @@
       "copiedTitle": "E-posta kopyalandı",
       "copiedDesc": "E-posta panoya kopyalandı.",
       "clipboardError": "Panoya kopyalanamadı."
-    }
+    },
+    "clipboardTo": "Kime:",
+    "clipboardSubject": "Konu:"
   },
   "commandPalette": {
     "searchPlaceholder": "Bir komut ara...",
@@ -8733,7 +8752,8 @@
     "typeEvenement": "Etkinlik",
     "typeProspect": "Potansiyel",
     "typeFacture": "Fatura",
-    "typeProjet": "Proje"
+    "typeProjet": "Proje",
+    "defaultTitle": "Etkinlik"
   },
   "dataExportPanel": {
     "title": "Verileri dışa aktar",
@@ -8952,5 +8972,54 @@
     "clear_chat": "Konusmayi temizle",
     "retry_last": "Yeniden dene",
     "live_mode_title": "Canli Mod (Gemini ile surekli konusma)"
+  },
+  "realtimeSync": {
+    "riskDocTitle": "Riskli belge tespit edildi",
+    "viewRiskDocs": "Riskli belgeleri görüntüle",
+    "view": "Görüntüle",
+    "newMessage": "Yeni mesaj",
+    "newTask": "Yeni görev",
+    "newMessageDesc": "Gelen kutunuza yeni bir mesaj geldi.",
+    "newTaskDesc": "Yeni bir görev eklendi.",
+    "openMessage": "Mesajı aç",
+    "openTask": "Görevi aç"
+  },
+  "scanResult": {
+    "safeTitle": "Antivirüs taraması tamamlandı",
+    "safeDesc": "{{fileName}}: tehdit algılanmadı. Dosya güvenli.",
+    "detail": " Ayrıntı: {{detail}}",
+    "dangerTitle": "Tehdit algılandı",
+    "dangerDesc": "DİKKAT: {{fileName}} antivirüs taraması tarafından TEHLİKELİ olarak işaretlendi. Bu dosyayı açmayın.{{detail}}"
+  },
+  "smartBrowser": {
+    "geoUnavailable": "Konum bilgisi kullanılamıyor"
+  },
+  "inlineSuggest": {
+    "autoDetect": "Otomatik (algılama)"
+  },
+  "globalSearch": {
+    "noResults": "\"{{query}}\" için sonuç bulunamadı",
+    "resultsCount": "{{count}} sonuç bulundu",
+    "incoming": "Gelen",
+    "outgoing": "Giden",
+    "projectFallback": "Proje #{{id}}",
+    "type": {
+      "contacts": "Kişiler",
+      "calls": "Aramalar",
+      "tasks": "Görevler",
+      "messages": "Mesajlar",
+      "prospects": "Potansiyeller",
+      "projets": "Projeler"
+    }
+  },
+  "aiValidationFeedback": {
+    "validating": "Yapay Zeka kontrolü sürüyor...",
+    "noIssues": "Yapay Zeka herhangi bir sorun tespit etmedi. Veriler geçerli.",
+    "aiFeedback": "Yapay Zeka geri bildirimi"
+  },
+  "ghostTextarea": {
+    "detectedLanguage": "Bu öneri için dil otomatik algılandı",
+    "disableSuggest": "Satır içi Yapay Zeka önerilerini devre dışı bırak",
+    "enableSuggest": "Satır içi Yapay Zeka önerilerini etkinleştir"
   }
 }

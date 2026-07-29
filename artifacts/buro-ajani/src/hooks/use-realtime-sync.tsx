@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
+import { useTranslation } from "@/i18n";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { toast } from "@/hooks/use-toast";
@@ -40,6 +41,7 @@ type SyncEvent = {
 };
 
 export function useRealtimeSync() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [, navigate] = useLocation();
   const navigateRef = useRef(navigate);
@@ -90,14 +92,14 @@ export function useRealtimeSync() {
           const href = scan ? `${route}?scan=${encodeURIComponent(scan)}` : route;
           toast({
             variant: "destructive",
-            title: event.meta.title || "Document à risque détecté",
+            title: event.meta.title || t("realtimeSync.riskDocTitle"),
             description: event.meta.body,
             action: (
               <ToastAction
-                altText="Voir les documents à risque"
+                altText={t("realtimeSync.viewRiskDocs")}
                 onClick={() => navigateRef.current(href)}
               >
-                Voir
+                {t("realtimeSync.view")}
               </ToastAction>
             ),
           });
@@ -121,16 +123,16 @@ export function useRealtimeSync() {
               ? `${listRoute}?id=${event.resourceId}`
               : listRoute;
           toast({
-            title: isMessage ? "Nouveau message" : "Nouvelle tâche",
+            title: isMessage ? t("realtimeSync.newMessage") : t("realtimeSync.newTask"),
             description: isMessage
-              ? "Un message vient d'arriver dans votre boîte."
-              : "Une nouvelle tâche a été ajoutée.",
+              ? t("realtimeSync.newMessageDesc")
+              : t("realtimeSync.newTaskDesc"),
             action: (
               <ToastAction
-                altText={isMessage ? "Ouvrir le message" : "Ouvrir la tâche"}
+                altText={isMessage ? t("realtimeSync.openMessage") : t("realtimeSync.openTask")}
                 onClick={() => navigateRef.current(href)}
               >
-                Voir
+                {t("realtimeSync.view")}
               </ToastAction>
             ),
           });
@@ -150,7 +152,7 @@ export function useRealtimeSync() {
         connect();
       }, reconnectDelay.current);
     };
-  }, [qc]);
+  }, [qc, t]);
 
   useEffect(() => {
     connect();

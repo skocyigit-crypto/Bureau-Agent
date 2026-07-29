@@ -126,7 +126,7 @@ export function TabPreferencesIa() {
               <SelectContent>
                 {INLINE_SUGGEST_LANGUAGES.map((lang) => (
                   <SelectItem key={lang.value} value={lang.value}>
-                    {lang.label}
+                    {lang.value === "auto" ? t("inlineSuggest.autoDetect") : lang.label}
                   </SelectItem>
                 ))}
               </SelectContent>

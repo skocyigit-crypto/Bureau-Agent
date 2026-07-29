@@ -36,11 +36,12 @@ export const useSimulateCall = () => useContext(IncomingCallContext);
 
 function ConnectionIndicator() {
   const env = useDeviceEnvContext();
+  const { t } = useTranslation();
   const tierConfig = {
-    offline: { icon: WifiOff, color: "text-red-500", label: "Hors ligne" },
-    slow: { icon: Wifi, color: "text-amber-500", label: "Connexion lente" },
-    moderate: { icon: Wifi, color: "text-yellow-500", label: "Connexion modérée" },
-    fast: { icon: Wifi, color: "text-emerald-500", label: "Connexion rapide" },
+    offline: { icon: WifiOff, color: "text-red-500", labelKey: "header.net.offline" },
+    slow: { icon: Wifi, color: "text-amber-500", labelKey: "header.net.slow" },
+    moderate: { icon: Wifi, color: "text-yellow-500", labelKey: "header.net.moderate" },
+    fast: { icon: Wifi, color: "text-emerald-500", labelKey: "header.net.fast" },
   };
   const cfg = tierConfig[env.connectionTier];
   const DeviceIcon = env.screenClass === "mobile" ? Smartphone : env.screenClass === "tablet" ? Tablet : Monitor;
@@ -58,9 +59,9 @@ function ConnectionIndicator() {
       </TooltipTrigger>
       <TooltipContent>
         <div className="text-xs space-y-0.5">
-          <p className="font-medium">{env.platform === "ios" ? "iOS" : env.platform === "macos" ? "macOS" : env.platform === "android" ? "Android" : env.platform === "windows" ? "Windows" : "Appareil"} — {env.screenClass}</p>
-          <p className={cfg.color}>{cfg.label}</p>
-          {env.isStandalone && <p className="text-emerald-600">Mode application</p>}
+          <p className="font-medium">{env.platform === "ios" ? "iOS" : env.platform === "macos" ? "macOS" : env.platform === "android" ? "Android" : env.platform === "windows" ? "Windows" : t("header.device")} — {env.screenClass}</p>
+          <p className={cfg.color}>{t(cfg.labelKey)}</p>
+          {env.isStandalone && <p className="text-emerald-600">{t("header.appMode")}</p>}
         </div>
       </TooltipContent>
     </Tooltip>
@@ -463,7 +464,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                             <SidebarMenuBadge
                               className="bg-emerald-500 text-white"
                               data-testid={`sidebar-badge-${item.name.toLowerCase().replace(/\s+/g, "-")}`}
-                              aria-label={`${badgeCount} nouveau${badgeCount > 1 ? "x" : ""} ${item.name.toLowerCase()}`}
+                              aria-label={t(badgeCount > 1 ? "header.newBadgeAriaPlural" : "header.newBadgeAria", { count: badgeCount, name: item.name.toLowerCase() })}
                             >
                               {badgeCount > 99 ? "99+" : badgeCount}
                             </SidebarMenuBadge>

@@ -139,12 +139,29 @@
       "voirRapports": "Berichte anzeigen",
       "utiliserIA": "KI verwenden",
       "gererIntegrations": "Integrationen verwalten"
-    }
+    },
+    "roles": {
+      "super_admin": "Superadministrator",
+      "administrateur": "Administrator",
+      "agent": "Agent",
+      "lecture_seule": "Nur Lesen"
+    },
+    "lastAccess": "Letzter Zugriff:"
   },
   "header": {
     "guide": "Benutzerhandbuch",
     "searchEverywhere": "Überall suchen...",
-    "simulateCall": "Eingehenden Anruf simulieren (Test)"
+    "simulateCall": "Eingehenden Anruf simulieren (Test)",
+    "net": {
+      "offline": "Offline",
+      "slow": "Langsame Verbindung",
+      "moderate": "Mäßige Verbindung",
+      "fast": "Schnelle Verbindung"
+    },
+    "device": "Gerät",
+    "appMode": "App-Modus",
+    "newBadgeAria": "{{count}} neu {{name}}",
+    "newBadgeAriaPlural": "{{count}} neue {{name}}"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -8299,7 +8316,9 @@
       "copiedTitle": "E-Mail kopiert",
       "copiedDesc": "Die E-Mail wurde in die Zwischenablage kopiert.",
       "clipboardError": "Kopieren in die Zwischenablage nicht möglich."
-    }
+    },
+    "clipboardTo": "An:",
+    "clipboardSubject": "Betreff:"
   },
   "commandPalette": {
     "searchPlaceholder": "Befehl suchen...",
@@ -8733,7 +8752,8 @@
     "typeEvenement": "Termin",
     "typeProspect": "Interessent",
     "typeFacture": "Rechnung",
-    "typeProjet": "Projekt"
+    "typeProjet": "Projekt",
+    "defaultTitle": "Aktivität"
   },
   "dataExportPanel": {
     "title": "Daten exportieren",
@@ -8952,5 +8972,54 @@
     "clear_chat": "Unterhaltung löschen",
     "retry_last": "Erneut versuchen",
     "live_mode_title": "Live-Modus (fortlaufendes Gespräch mit Gemini)"
+  },
+  "realtimeSync": {
+    "riskDocTitle": "Risikodokument erkannt",
+    "viewRiskDocs": "Risikodokumente anzeigen",
+    "view": "Anzeigen",
+    "newMessage": "Neue Nachricht",
+    "newTask": "Neue Aufgabe",
+    "newMessageDesc": "Eine Nachricht ist gerade in Ihrem Postfach eingegangen.",
+    "newTaskDesc": "Eine neue Aufgabe wurde hinzugefügt.",
+    "openMessage": "Nachricht öffnen",
+    "openTask": "Aufgabe öffnen"
+  },
+  "scanResult": {
+    "safeTitle": "Virenscan abgeschlossen",
+    "safeDesc": "{{fileName}}: keine Bedrohung erkannt. Die Datei ist sicher.",
+    "detail": " Detail: {{detail}}",
+    "dangerTitle": "Bedrohung erkannt",
+    "dangerDesc": "ACHTUNG: {{fileName}} wurde vom Virenscan als GEFÄHRLICH eingestuft. Öffnen Sie diese Datei nicht.{{detail}}"
+  },
+  "smartBrowser": {
+    "geoUnavailable": "Standortbestimmung nicht verfügbar"
+  },
+  "inlineSuggest": {
+    "autoDetect": "Automatisch (Erkennung)"
+  },
+  "globalSearch": {
+    "noResults": "Keine Ergebnisse für \"{{query}}\"",
+    "resultsCount": "{{count}} Ergebnis(se) gefunden",
+    "incoming": "Eingehend",
+    "outgoing": "Ausgehend",
+    "projectFallback": "Projekt #{{id}}",
+    "type": {
+      "contacts": "Kontakte",
+      "calls": "Anrufe",
+      "tasks": "Aufgaben",
+      "messages": "Nachrichten",
+      "prospects": "Interessenten",
+      "projets": "Projekte"
+    }
+  },
+  "aiValidationFeedback": {
+    "validating": "KI-Prüfung läuft...",
+    "noIssues": "Die KI hat keine Probleme festgestellt. Die Daten sind gültig.",
+    "aiFeedback": "KI-Feedback"
+  },
+  "ghostTextarea": {
+    "detectedLanguage": "Sprache für diesen Vorschlag automatisch erkannt",
+    "disableSuggest": "Inline-KI-Vorschläge deaktivieren",
+    "enableSuggest": "Inline-KI-Vorschläge aktivieren"
   }
 }

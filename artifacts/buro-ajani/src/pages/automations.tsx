@@ -338,7 +338,7 @@ function CreateRuleDialog({ onCreated }: { onCreated: () => void }) {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Erreur serveur");
+        throw new Error(err.error || "HTTP error");
       }
 
       toast({ title: t("automationsPage.toast.ruleCreated"), description: t("automationsPage.toast.ruleCreatedDesc", { name: form.name }) });

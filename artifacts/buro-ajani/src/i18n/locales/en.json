@@ -139,12 +139,29 @@
       "voirRapports": "View reports",
       "utiliserIA": "Use AI",
       "gererIntegrations": "Manage integrations"
-    }
+    },
+    "roles": {
+      "super_admin": "Super Administrator",
+      "administrateur": "Administrator",
+      "agent": "Agent",
+      "lecture_seule": "Read only"
+    },
+    "lastAccess": "Last access:"
   },
   "header": {
     "guide": "User guide",
     "searchEverywhere": "Search everywhere...",
-    "simulateCall": "Simulate an incoming call (test)"
+    "simulateCall": "Simulate an incoming call (test)",
+    "net": {
+      "offline": "Offline",
+      "slow": "Slow connection",
+      "moderate": "Moderate connection",
+      "fast": "Fast connection"
+    },
+    "device": "Device",
+    "appMode": "App mode",
+    "newBadgeAria": "{{count}} new {{name}}",
+    "newBadgeAriaPlural": "{{count}} new {{name}}"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -8299,7 +8316,9 @@
       "copiedTitle": "Email copied",
       "copiedDesc": "The email has been copied to the clipboard.",
       "clipboardError": "Unable to copy to the clipboard."
-    }
+    },
+    "clipboardTo": "To:",
+    "clipboardSubject": "Subject:"
   },
   "commandPalette": {
     "searchPlaceholder": "Search for a command...",
@@ -8733,7 +8752,8 @@
     "typeEvenement": "Event",
     "typeProspect": "Prospect",
     "typeFacture": "Invoice",
-    "typeProjet": "Project"
+    "typeProjet": "Project",
+    "defaultTitle": "Activity"
   },
   "dataExportPanel": {
     "title": "Export data",
@@ -8952,5 +8972,54 @@
     "clear_chat": "Clear conversation",
     "retry_last": "Retry",
     "live_mode_title": "Live Mode (continuous conversation with Gemini)"
+  },
+  "realtimeSync": {
+    "riskDocTitle": "Risky document detected",
+    "viewRiskDocs": "View risky documents",
+    "view": "View",
+    "newMessage": "New message",
+    "newTask": "New task",
+    "newMessageDesc": "A message has just arrived in your inbox.",
+    "newTaskDesc": "A new task has been added.",
+    "openMessage": "Open message",
+    "openTask": "Open task"
+  },
+  "scanResult": {
+    "safeTitle": "Antivirus scan complete",
+    "safeDesc": "{{fileName}}: no threat detected. The file is safe.",
+    "detail": " Details: {{detail}}",
+    "dangerTitle": "Threat detected",
+    "dangerDesc": "WARNING: {{fileName}} was flagged as DANGEROUS by the antivirus scan. Do not open this file.{{detail}}"
+  },
+  "smartBrowser": {
+    "geoUnavailable": "Geolocation unavailable"
+  },
+  "inlineSuggest": {
+    "autoDetect": "Auto (detection)"
+  },
+  "globalSearch": {
+    "noResults": "No results for \"{{query}}\"",
+    "resultsCount": "{{count}} result(s) found",
+    "incoming": "Incoming",
+    "outgoing": "Outgoing",
+    "projectFallback": "Project #{{id}}",
+    "type": {
+      "contacts": "Contacts",
+      "calls": "Calls",
+      "tasks": "Tasks",
+      "messages": "Messages",
+      "prospects": "Prospects",
+      "projets": "Projects"
+    }
+  },
+  "aiValidationFeedback": {
+    "validating": "AI check in progress...",
+    "noIssues": "The AI detected no issues. The data is valid.",
+    "aiFeedback": "AI feedback"
+  },
+  "ghostTextarea": {
+    "detectedLanguage": "Language automatically detected for this suggestion",
+    "disableSuggest": "Disable inline AI suggestions",
+    "enableSuggest": "Enable inline AI suggestions"
   }
 }

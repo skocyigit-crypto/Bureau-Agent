@@ -161,7 +161,7 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
   };
 
   const handleCopyToClipboard = async () => {
-    const emailText = `A: ${recipientEmail}\nObjet: ${editedSubject}\n\n${editedBody}`;
+    const emailText = `${t("emailComposer.clipboardTo")} ${recipientEmail}\n${t("emailComposer.clipboardSubject")} ${editedSubject}\n\n${editedBody}`;
     try {
       await navigator.clipboard.writeText(emailText);
       toast({ title: t("emailComposer.toast.copiedTitle"), description: t("emailComposer.toast.copiedDesc") });

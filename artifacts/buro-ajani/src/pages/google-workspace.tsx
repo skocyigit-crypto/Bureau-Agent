@@ -144,7 +144,7 @@ export default function GoogleWorkspace() {
       // Suivi du verdict antivirus en arriere-plan (Tache #175) : on affichera
       // un toast de suivi des que l'analyse est terminee (sain / dangereux).
       const docId = data?.document?.id ?? data?.id;
-      if (docId) void trackScanResult(toast, docId, file.name || t("googleWorkspace.toast.fallbackFile"));
+      if (docId) void trackScanResult(toast, docId, file.name || t("googleWorkspace.toast.fallbackFile"), t);
     } catch (e: any) {
       toast({ title: t("googleWorkspace.toast.importFailed"), description: e?.message || t("googleWorkspace.toast.retry"), variant: "destructive" });
     } finally {

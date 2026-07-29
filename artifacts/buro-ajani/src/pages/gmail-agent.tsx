@@ -330,7 +330,7 @@ export default function GmailAgentPage() {
       // Suivi du verdict antivirus en arriere-plan (Tache #175) : on affichera
       // un toast de suivi des que l'analyse est terminee (sain / dangereux).
       const docId = saved?.document?.id ?? saved?.id;
-      if (docId) void trackScanResult(toast, docId, att.filename || t("gmailAgent.toast.fileFallback"));
+      if (docId) void trackScanResult(toast, docId, att.filename || t("gmailAgent.toast.fileFallback"), t);
     } catch (e: any) {
       toast({ title: t("gmailAgent.toast.saveFailed"), description: e?.message || t("gmailAgent.toast.retry"), variant: "destructive" });
     } finally {

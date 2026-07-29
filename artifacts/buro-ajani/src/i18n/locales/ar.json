@@ -139,12 +139,29 @@
       "voirRapports": "عرض التقارير",
       "utiliserIA": "استخدام الذكاء الاصطناعي",
       "gererIntegrations": "إدارة عمليات التكامل"
-    }
+    },
+    "roles": {
+      "super_admin": "مدير عام",
+      "administrateur": "مسؤول",
+      "agent": "وكيل",
+      "lecture_seule": "قراءة فقط"
+    },
+    "lastAccess": "آخر وصول:"
   },
   "header": {
     "guide": "دليل الاستخدام",
     "searchEverywhere": "ابحث في كل مكان...",
-    "simulateCall": "محاكاة مكالمة واردة (اختبار)"
+    "simulateCall": "محاكاة مكالمة واردة (اختبار)",
+    "net": {
+      "offline": "غير متصل",
+      "slow": "اتصال بطيء",
+      "moderate": "اتصال متوسط",
+      "fast": "اتصال سريع"
+    },
+    "device": "الجهاز",
+    "appMode": "وضع التطبيق",
+    "newBadgeAria": "{{count}} {{name}} جديد",
+    "newBadgeAriaPlural": "{{count}} {{name}} جديدة"
   },
   "dashboard": {
     "title": "لوحة التحكم",
@@ -8299,7 +8316,9 @@
       "copiedTitle": "تم نسخ البريد الإلكتروني",
       "copiedDesc": "تم نسخ البريد الإلكتروني إلى الحافظة.",
       "clipboardError": "تعذر النسخ إلى الحافظة."
-    }
+    },
+    "clipboardTo": "إلى:",
+    "clipboardSubject": "الموضوع:"
   },
   "commandPalette": {
     "searchPlaceholder": "ابحث عن أمر...",
@@ -8733,7 +8752,8 @@
     "typeEvenement": "حدث",
     "typeProspect": "عميل محتمل",
     "typeFacture": "فاتورة",
-    "typeProjet": "مشروع"
+    "typeProjet": "مشروع",
+    "defaultTitle": "نشاط"
   },
   "dataExportPanel": {
     "title": "تصدير البيانات",
@@ -8952,5 +8972,54 @@
     "clear_chat": "مسح المحادثة",
     "retry_last": "إعادة المحاولة",
     "live_mode_title": "الوضع المباشر (محادثة مستمرة مع Gemini)"
+  },
+  "realtimeSync": {
+    "riskDocTitle": "تم اكتشاف مستند خطير",
+    "viewRiskDocs": "عرض المستندات الخطيرة",
+    "view": "عرض",
+    "newMessage": "رسالة جديدة",
+    "newTask": "مهمة جديدة",
+    "newMessageDesc": "وصلت رسالة للتو إلى صندوق الوارد.",
+    "newTaskDesc": "تمت إضافة مهمة جديدة.",
+    "openMessage": "فتح الرسالة",
+    "openTask": "فتح المهمة"
+  },
+  "scanResult": {
+    "safeTitle": "اكتمل فحص مكافحة الفيروسات",
+    "safeDesc": "{{fileName}}: لم يتم اكتشاف أي تهديد. الملف آمن.",
+    "detail": " التفاصيل: {{detail}}",
+    "dangerTitle": "تم اكتشاف تهديد",
+    "dangerDesc": "تحذير: تم وضع علامة على {{fileName}} كملف خطير بواسطة فحص مكافحة الفيروسات. لا تفتح هذا الملف.{{detail}}"
+  },
+  "smartBrowser": {
+    "geoUnavailable": "تحديد الموقع الجغرافي غير متاح"
+  },
+  "inlineSuggest": {
+    "autoDetect": "تلقائي (كشف)"
+  },
+  "globalSearch": {
+    "noResults": "لا توجد نتائج لـ \"{{query}}\"",
+    "resultsCount": "تم العثور على {{count}} نتيجة",
+    "incoming": "وارد",
+    "outgoing": "صادر",
+    "projectFallback": "مشروع #{{id}}",
+    "type": {
+      "contacts": "جهات الاتصال",
+      "calls": "المكالمات",
+      "tasks": "المهام",
+      "messages": "الرسائل",
+      "prospects": "العملاء المحتملون",
+      "projets": "المشاريع"
+    }
+  },
+  "aiValidationFeedback": {
+    "validating": "جارٍ التحقق بواسطة الذكاء الاصطناعي...",
+    "noIssues": "لم يكتشف الذكاء الاصطناعي أي مشكلة. البيانات صالحة.",
+    "aiFeedback": "ملاحظات الذكاء الاصطناعي"
+  },
+  "ghostTextarea": {
+    "detectedLanguage": "تم اكتشاف اللغة تلقائيًا لهذا الاقتراح",
+    "disableSuggest": "تعطيل اقتراحات الذكاء الاصطناعي المضمّنة",
+    "enableSuggest": "تفعيل اقتراحات الذكاء الاصطناعي المضمّنة"
   }
 }

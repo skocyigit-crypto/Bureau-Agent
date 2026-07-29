@@ -18,6 +18,8 @@
  * l'utilisateur, et la page Documents affiche le badge definitif.
  */
 
+import type { TFunction } from "@/i18n";
+
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const POLL_INTERVAL_MS = 1500;
@@ -44,6 +46,7 @@ export async function trackScanResult(
   toast: ToastFn,
   documentId: number | string,
   fileName: string,
+  t: TFunction,
 ): Promise<void> {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     await wait(POLL_INTERVAL_MS);
@@ -60,21 +63,19 @@ export async function trackScanResult(
 
       if (verdict === "safe") {
         toast({
-          title: "Analyse antivirus terminée",
-          description: `${fileName} : aucune menace détectée. Le fichier est sûr.`,
+          title: t("scanResult.safeTitle"),
+          description: t("scanResult.safeDesc", { fileName }),
         });
         return;
       }
       if (verdict === "dangerous") {
         const detail =
           doc?.scanDetail && doc.scanDetail.trim() !== ""
-            ? ` Détail : ${doc.scanDetail}`
+            ? t("scanResult.detail", { detail: doc.scanDetail })
             : "";
         toast({
-          title: "Menace détectée",
-          description:
-            `ATTENTION : ${fileName} a été signalé comme DANGEREUX par l'analyse antivirus. ` +
-            `N'ouvrez pas ce fichier.${detail}`,
+          title: t("scanResult.dangerTitle"),
+          description: t("scanResult.dangerDesc", { fileName, detail }),
           variant: "destructive",
         });
         return;

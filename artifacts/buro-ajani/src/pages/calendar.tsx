@@ -1086,7 +1086,7 @@ export default function CalendarPage() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Erreur création fermeture");
+        throw new Error(err.error || "HTTP error");
       }
       return res.json();
     },
@@ -1104,7 +1104,7 @@ export default function CalendarPage() {
       const res = await fetch(`${baseUrl}/api/org-closures/${id}`, { method: "DELETE", credentials: "include" });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Erreur suppression fermeture");
+        throw new Error(err.error || "HTTP error");
       }
     },
     onSuccess: () => {

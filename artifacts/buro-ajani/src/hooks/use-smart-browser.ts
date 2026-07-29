@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useTranslation } from "@/i18n";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -410,13 +411,14 @@ export function usePrintMode() {
 }
 
 export function useGeolocation() {
+  const { t } = useTranslation();
   const [position, setPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const getCurrentPosition = useCallback(() => {
     if (!navigator.geolocation) {
-      setError("Geolocalisation non disponible");
+      setError(t("smartBrowser.geoUnavailable"));
       return;
     }
     setLoading(true);
@@ -428,7 +430,7 @@ export function useGeolocation() {
       (err) => { setError(err.message); setLoading(false); },
       { enableHighAccuracy: true, timeout: 10000 }
     );
-  }, []);
+  }, [t]);
 
   return { position, error, loading, getCurrentPosition };
 }

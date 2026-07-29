@@ -15,15 +15,6 @@ const ICON_MAP: Record<string, any> = {
   projets: FolderKanban,
 };
 
-const LABEL_MAP: Record<string, string> = {
-  contacts: "Contacts",
-  calls: "Appels",
-  tasks: "Taches",
-  messages: "Messages",
-  prospects: "Prospects",
-  projets: "Projets",
-};
-
 const COLOR_MAP: Record<string, string> = {
   contacts: "text-blue-500",
   calls: "text-green-500",
@@ -97,7 +88,7 @@ export function GlobalSearch() {
       case "tasks": return item.title;
       case "messages": return item.contactName || item.content?.substring(0, 40);
       case "prospects": return item.title || item.contactName || item.company || item.email || "";
-      case "projets": return item.title || `Projet #${item.id}`;
+      case "projets": return item.title || t("globalSearch.projectFallback", { id: item.id });
       default: return "";
     }
   }
@@ -105,7 +96,7 @@ export function GlobalSearch() {
   function getItemSub(type: string, item: any): string {
     switch (type) {
       case "contacts": return item.company || item.email || "";
-      case "calls": return `${item.direction === "entrant" ? "Entrant" : "Sortant"} - ${item.status}`;
+      case "calls": return `${item.direction === "entrant" ? t("globalSearch.incoming") : t("globalSearch.outgoing")} - ${item.status}`;
       case "tasks": return `${item.status} - ${item.priority}`;
       case "messages": return item.type || "";
       case "prospects": return item.stage ? `${item.stage}${item.value ? ` · ${item.value} €` : ""}` : item.email || "";
@@ -138,7 +129,7 @@ export function GlobalSearch() {
       {open && results && (
         <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-lg z-50 max-h-[480px] overflow-auto">
           {!hasResults ? (
-            <div className="p-4 text-center text-sm text-muted-foreground">Aucun resultat pour "{query}"</div>
+            <div className="p-4 text-center text-sm text-muted-foreground">{t("globalSearch.noResults", { query })}</div>
           ) : (
             <>
               {ALL_TYPES.map(type => {
@@ -149,7 +140,7 @@ export function GlobalSearch() {
                   <div key={type}>
                     <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground bg-muted/50 flex items-center gap-1.5">
                       <Icon className={`w-3 h-3 ${COLOR_MAP[type]}`} />
-                      {LABEL_MAP[type]} ({items.length})
+                      {t(`globalSearch.type.${type}`)} ({items.length})
                     </div>
                     {items.map((item: any) => (
                       <button
@@ -167,7 +158,7 @@ export function GlobalSearch() {
                 );
               })}
               <div className="px-3 py-2 text-center text-xs text-muted-foreground border-t">
-                {results.totalResults} resultat(s) trouve(s)
+                {t("globalSearch.resultsCount", { count: results.totalResults })}
               </div>
             </>
           )}

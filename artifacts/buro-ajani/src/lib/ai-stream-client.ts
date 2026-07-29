@@ -14,7 +14,7 @@ export async function streamSse(path: string, body: any, handlers: SseHandlers):
   });
   if (!res.ok || !res.body) {
     const errText = await res.text().catch(() => "");
-    throw new Error(errText || `Erreur ${res.status}`);
+    throw new Error(errText || `HTTP ${res.status}`);
   }
   const reader = res.body.getReader();
   const decoder = new TextDecoder();

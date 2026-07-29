@@ -27,7 +27,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error((body as any).error || `Erreur ${res.status}`);
+    throw new Error((body as any).error || `HTTP ${res.status}`);
   }
   return res.json() as Promise<T>;
 }
