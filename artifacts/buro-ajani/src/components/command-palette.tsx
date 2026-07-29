@@ -3,10 +3,10 @@ import { useLocation } from "wouter";
 import { Phone, Users, CheckSquare, MessageSquare, BarChart, LayoutDashboard, Settings, FileText, Package, Calendar, Shield, Zap, BarChart3, Brain, Clock, Target, FolderKanban, Search, UserCog, KeyRound } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useTranslation } from "@/i18n";
 
 type CommandItem = {
   id: string;
-  label: string;
   icon: any;
   action: () => void;
   category: string;
@@ -18,6 +18,7 @@ export function CommandPalette() {
   const [search, setSearch] = useState("");
   const [, navigate] = useLocation();
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const { t } = useTranslation();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -32,33 +33,34 @@ export function CommandPalette() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // `category` = slug stable; libelle rendu via t(`commandPalette.category.${category}`).
   const commands: CommandItem[] = [
-    { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, action: () => navigate("/"), category: "Navigation", keywords: ["accueil", "home"] },
-    { id: "calls", label: "Appels", icon: Phone, action: () => navigate("/appels"), category: "Navigation", keywords: ["telephone", "phone"] },
-    { id: "contacts", label: "Contacts", icon: Users, action: () => navigate("/contacts"), category: "Navigation", keywords: ["client", "carnet"] },
-    { id: "tasks", label: "Taches", icon: CheckSquare, action: () => navigate("/taches"), category: "Navigation", keywords: ["todo", "travail"] },
-    { id: "messages", label: "Messages", icon: MessageSquare, action: () => navigate("/messages"), category: "Navigation", keywords: ["sms", "chat"] },
-    { id: "calendar", label: "Calendrier", icon: Calendar, action: () => navigate("/calendrier"), category: "Navigation", keywords: ["agenda", "rdv"] },
-    { id: "reports", label: "Rapports", icon: FileText, action: () => navigate("/rapports"), category: "Navigation" },
-    { id: "analytics", label: "Analyse", icon: BarChart, action: () => navigate("/analyse"), category: "Navigation" },
-    { id: "performance", label: "Performance", icon: BarChart3, action: () => navigate("/performance"), category: "Navigation" },
-    { id: "checkins", label: "Pointage", icon: Clock, action: () => navigate("/pointage"), category: "Navigation" },
-    { id: "ai", label: "Agents IA", icon: Brain, action: () => navigate("/agents-ia"), category: "Navigation" },
-    { id: "automations", label: "Automatisations", icon: Zap, action: () => navigate("/automatisations"), category: "Administration" },
-    { id: "users", label: "Utilisateurs", icon: UserCog, action: () => navigate("/utilisateurs"), category: "Administration" },
-    { id: "audit", label: "Journal d'audit", icon: Shield, action: () => navigate("/gestion-licence"), category: "Administration", keywords: ["audit", "log", "journal"] },
-    { id: "organisations", label: "Licences", icon: KeyRound, action: () => navigate("/organisations"), category: "Administration" },
-    { id: "abonnement", label: "Licence & Abonnement", icon: KeyRound, action: () => navigate("/gestion-licence"), category: "Navigation", keywords: ["licence", "plan", "subscription", "abonnement", "facturation"] },
-    { id: "settings", label: "Parametres", icon: Settings, action: () => navigate("/parametres"), category: "Administration" },
-    { id: "notifications", label: "Notifications", icon: MessageSquare, action: () => navigate("/notifications"), category: "Navigation" },
-    { id: "projets", label: "Projets", icon: FolderKanban, action: () => navigate("/projets"), category: "Navigation", keywords: ["chantier", "project", "kanban"] },
-    { id: "google-workspace", label: "Google Workspace", icon: Search, action: () => navigate("/google-workspace"), category: "Navigation", keywords: ["gmail", "drive", "docs", "sheets", "calendar", "google"] },
+    { id: "dashboard", icon: LayoutDashboard, action: () => navigate("/"), category: "navigation", keywords: ["accueil", "home"] },
+    { id: "calls", icon: Phone, action: () => navigate("/appels"), category: "navigation", keywords: ["telephone", "phone"] },
+    { id: "contacts", icon: Users, action: () => navigate("/contacts"), category: "navigation", keywords: ["client", "carnet"] },
+    { id: "tasks", icon: CheckSquare, action: () => navigate("/taches"), category: "navigation", keywords: ["todo", "travail"] },
+    { id: "messages", icon: MessageSquare, action: () => navigate("/messages"), category: "navigation", keywords: ["sms", "chat"] },
+    { id: "calendar", icon: Calendar, action: () => navigate("/calendrier"), category: "navigation", keywords: ["agenda", "rdv"] },
+    { id: "reports", icon: FileText, action: () => navigate("/rapports"), category: "navigation" },
+    { id: "analytics", icon: BarChart, action: () => navigate("/analyse"), category: "navigation" },
+    { id: "performance", icon: BarChart3, action: () => navigate("/performance"), category: "navigation" },
+    { id: "checkins", icon: Clock, action: () => navigate("/pointage"), category: "navigation" },
+    { id: "ai", icon: Brain, action: () => navigate("/agents-ia"), category: "navigation" },
+    { id: "automations", icon: Zap, action: () => navigate("/automatisations"), category: "administration" },
+    { id: "users", icon: UserCog, action: () => navigate("/utilisateurs"), category: "administration" },
+    { id: "audit", icon: Shield, action: () => navigate("/gestion-licence"), category: "administration", keywords: ["audit", "log", "journal"] },
+    { id: "organisations", icon: KeyRound, action: () => navigate("/organisations"), category: "administration" },
+    { id: "abonnement", icon: KeyRound, action: () => navigate("/gestion-licence"), category: "navigation", keywords: ["licence", "plan", "subscription", "abonnement", "facturation"] },
+    { id: "settings", icon: Settings, action: () => navigate("/parametres"), category: "administration" },
+    { id: "notifications", icon: MessageSquare, action: () => navigate("/notifications"), category: "navigation" },
+    { id: "projets", icon: FolderKanban, action: () => navigate("/projets"), category: "navigation", keywords: ["chantier", "project", "kanban"] },
+    { id: "google-workspace", icon: Search, action: () => navigate("/google-workspace"), category: "navigation", keywords: ["gmail", "drive", "docs", "sheets", "calendar", "google"] },
   ];
 
   const filtered = commands.filter(cmd => {
     if (!search) return true;
     const s = search.toLowerCase();
-    return cmd.label.toLowerCase().includes(s) || cmd.category.toLowerCase().includes(s) || cmd.keywords?.some(k => k.includes(s));
+    return t(`commandPalette.cmd.${cmd.id}`).toLowerCase().includes(s) || t(`commandPalette.category.${cmd.category}`).toLowerCase().includes(s) || cmd.keywords?.some(k => k.includes(s));
   });
 
   useEffect(() => { setSelectedIndex(0); }, [search]);
@@ -78,14 +80,14 @@ export function CommandPalette() {
         <div className="border-b p-3">
           <div className="flex items-center gap-2">
             <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-            <Input className="border-0 shadow-none focus-visible:ring-0 p-0 h-8" placeholder="Rechercher une commande..." value={search} onChange={e => setSearch(e.target.value)} autoFocus />
+            <Input className="border-0 shadow-none focus-visible:ring-0 p-0 h-8" placeholder={t("commandPalette.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} autoFocus />
             <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] text-muted-foreground">ESC</kbd>
           </div>
         </div>
         <div className="max-h-[300px] overflow-y-auto p-2">
           {categories.map(cat => (
             <div key={cat}>
-              <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">{cat}</div>
+              <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">{t(`commandPalette.category.${cat}`)}</div>
               {filtered.filter(c => c.category === cat).map((cmd, idx) => {
                 const globalIdx = filtered.indexOf(cmd);
                 const Icon = cmd.icon;
@@ -93,18 +95,18 @@ export function CommandPalette() {
                   <button key={cmd.id} className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${globalIdx === selectedIndex ? "bg-accent text-accent-foreground" : "hover:bg-accent/50"}`}
                     onClick={() => { cmd.action(); setOpen(false); }} onMouseEnter={() => setSelectedIndex(globalIdx)}>
                     <Icon className="h-4 w-4 shrink-0" />
-                    <span>{cmd.label}</span>
+                    <span>{t(`commandPalette.cmd.${cmd.id}`)}</span>
                   </button>
                 );
               })}
             </div>
           ))}
-          {filtered.length === 0 && <div className="text-center py-6 text-sm text-muted-foreground">Aucun resultat</div>}
+          {filtered.length === 0 && <div className="text-center py-6 text-sm text-muted-foreground">{t("commandPalette.noResults")}</div>}
         </div>
         <div className="border-t px-3 py-2 text-xs text-muted-foreground flex items-center gap-4">
-          <span className="flex items-center gap-1"><kbd className="rounded border bg-muted px-1">↑↓</kbd> naviguer</span>
-          <span className="flex items-center gap-1"><kbd className="rounded border bg-muted px-1">↵</kbd> ouvrir</span>
-          <span className="flex items-center gap-1"><kbd className="rounded border bg-muted px-1">esc</kbd> fermer</span>
+          <span className="flex items-center gap-1"><kbd className="rounded border bg-muted px-1">↑↓</kbd> {t("commandPalette.navigate")}</span>
+          <span className="flex items-center gap-1"><kbd className="rounded border bg-muted px-1">↵</kbd> {t("commandPalette.openHint")}</span>
+          <span className="flex items-center gap-1"><kbd className="rounded border bg-muted px-1">esc</kbd> {t("commandPalette.closeHint")}</span>
         </div>
       </DialogContent>
     </Dialog>

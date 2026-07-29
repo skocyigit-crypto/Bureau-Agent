@@ -8066,5 +8066,242 @@
     "newContact": "Yeni kişi",
     "newTask": "Yeni görev",
     "useAddButton": "Oluşturmak için + düğmesini kullanın"
+  },
+  "quickActionHub": {
+    "title": "Hızlı işlem",
+    "entity": {
+      "contact": "Kişi",
+      "tache": "Görev",
+      "appel": "Arama",
+      "message": "Mesaj",
+      "evenement": "Etkinlik",
+      "projet": "Proje"
+    },
+    "toast": {
+      "successTitle": "Başarılı",
+      "errorTitle": "Hata",
+      "created": "{{label}} başarıyla oluşturuldu",
+      "errorStatus": "Hata {{status}}"
+    },
+    "contact": {
+      "firstName": "Ad *",
+      "lastName": "Soyad *",
+      "email": "E-posta",
+      "phone": "Telefon *",
+      "company": "Şirket",
+      "category": "Kategori",
+      "phFirstName": "Jean",
+      "phLastName": "Dupont",
+      "phEmail": "jean@example.fr",
+      "phPhone": "+33 6 12 34 56 78",
+      "phCompany": "Acme Inc.",
+      "catClient": "Müşteri",
+      "catFournisseur": "Tedarikçi",
+      "catPartenaire": "Ortak",
+      "catProspect": "Potansiyel müşteri",
+      "catAutre": "Diğer",
+      "submit": "Kişi oluştur"
+    },
+    "task": {
+      "title": "Başlık *",
+      "description": "Açıklama",
+      "priority": "Öncelik",
+      "dueDate": "Son tarih",
+      "phTitle": "M. Dupont'u ara",
+      "phDesc": "Ayrıntılar...",
+      "prioBasse": "Düşük",
+      "prioMoyenne": "Orta",
+      "prioHaute": "Yüksek",
+      "prioUrgente": "Acil",
+      "submit": "Görev oluştur"
+    },
+    "call": {
+      "callerName": "Arayan adı",
+      "callerNumber": "Numara *",
+      "direction": "Yön",
+      "notes": "Notlar",
+      "phCallerName": "Jean Dupont",
+      "phCallerNumber": "+33 6 ...",
+      "phNotes": "Arama notları...",
+      "dirEntrant": "Gelen",
+      "dirSortant": "Giden",
+      "submit": "Aramayı kaydet"
+    },
+    "message": {
+      "sender": "Gönderen",
+      "channel": "Kanal",
+      "content": "İçerik *",
+      "phSender": "M. Dupont",
+      "phContent": "Mesaj içeriği...",
+      "chEmail": "E-posta",
+      "chSms": "SMS",
+      "chWhatsapp": "WhatsApp",
+      "chChat": "Sohbet",
+      "submit": "Mesajı kaydet"
+    },
+    "event": {
+      "title": "Başlık *",
+      "start": "Başlangıç *",
+      "end": "Bitiş",
+      "type": "Tür",
+      "description": "Açıklama",
+      "phTitle": "Ticari toplantı",
+      "phDesc": "Ayrıntılar...",
+      "typeReunion": "Toplantı",
+      "typeAppel": "Arama",
+      "typeFormation": "Eğitim",
+      "typeDeadline": "Son teslim",
+      "typeAutre": "Diğer",
+      "submit": "Etkinlik oluştur"
+    },
+    "projet": {
+      "title": "Proje başlığı *",
+      "description": "Açıklama",
+      "client": "Müşteri",
+      "priority": "Öncelik",
+      "budget": "Bütçe (€)",
+      "endDate": "Bitiş tarihi",
+      "phTitle": "Vitrin sitesi yenileme",
+      "phDesc": "Bağlam ve hedefler...",
+      "phClient": "Acme Inc.",
+      "phBudget": "5000",
+      "prioBasse": "Düşük",
+      "prioMoyenne": "Orta",
+      "prioHaute": "Yüksek",
+      "submit": "Proje oluştur"
+    }
+  },
+  "emailComposer": {
+    "title": "Yapay zekâ e-posta oluşturucu",
+    "subtitle": {
+      "configure": "E-postanızın parametrelerini yapılandırın",
+      "generating": "Yapay zekâ e-postanızı yazıyor...",
+      "preview": "Göndermeden önce kontrol edip onaylayın",
+      "approved": "E-posta gönderilmeye hazır"
+    },
+    "stepIndicator": {
+      "step1": "Adım 1/3",
+      "generating": "Oluşturuluyor...",
+      "step2": "Adım 2/3",
+      "step3": "Adım 3/3"
+    },
+    "recipient": {
+      "label": "Alıcı",
+      "selectPlaceholder": "Bir kişi seçin...",
+      "free": "Serbest alıcı",
+      "emailPlaceholder": "adres@email.com"
+    },
+    "purposeLabel": "E-postanın amacı",
+    "purpose": {
+      "suivi_appel": { "label": "Arama takibi", "desc": "Bir telefon görüşmesinden sonra" },
+      "relance_prospect": { "label": "Potansiyel takibi", "desc": "Ticari takip" },
+      "confirmation_rdv": { "label": "Randevu onayı", "desc": "Bir randevuyu onaylayın" },
+      "remerciement": { "label": "Teşekkür", "desc": "Bir görüşmeden sonra" },
+      "rappel_paiement": { "label": "Ödeme hatırlatması", "desc": "Fatura veya ödeme" },
+      "information": { "label": "Bilgilendirme", "desc": "Belge iletme" },
+      "presentation": { "label": "Tanıtım", "desc": "Hizmetleri tanıtın" },
+      "excuses": { "label": "Özür", "desc": "Bir rahatsızlık için" },
+      "bienvenue": { "label": "Hoş geldiniz", "desc": "Yeni kişi" },
+      "personnalise": { "label": "Özel", "desc": "Serbest talimatlar" }
+    },
+    "toneLabel": "İstenen ton",
+    "tone": {
+      "formel": "Resmî",
+      "cordial": "Samimi",
+      "direct": "Doğrudan",
+      "empathique": "Empatik"
+    },
+    "aiInstructions": {
+      "label": "Yapay zekâ için talimatlar",
+      "placeholder": "Bu e-postada ne istediğinizi açıklayın..."
+    },
+    "additionalContext": {
+      "label": "Ek bağlam (isteğe bağlı)",
+      "placeholder": "Ayrıntılar veya özel talimatlar ekleyin..."
+    },
+    "generateBtn": "Yapay zekâ ile oluştur",
+    "generating": {
+      "heading": "Yapay zekâ e-postanızı yazıyor",
+      "desc": "Bağlam ve kişi geçmişi analiz ediliyor, uygun profesyonel bir e-posta oluşturuluyor...",
+      "inProgress": "Oluşturuluyor..."
+    },
+    "preview": {
+      "aiAnalysis": "Yapay zekâ analizi",
+      "toneBadge": "Ton: {{tone}}",
+      "recipientBadge": "Alıcı: {{recipient}}",
+      "emailPreview": "E-posta önizlemesi",
+      "copy": "Kopyala",
+      "previewMode": "Önizleme modu",
+      "to": "Kime:",
+      "notProvided": "Belirtilmemiş",
+      "subject": "Konu:",
+      "alternatives": "Yapay zekânın önerdiği alternatifler",
+      "selected": "Seçildi",
+      "subjectPrefix": "Konu: {{subject}}",
+      "revert": "Orijinal sürüme dön",
+      "editSettings": "Parametreleri düzenle",
+      "regenerate": "Yeniden oluştur",
+      "preparing": "Hazırlanıyor...",
+      "approveCopy": "Onayla ve kopyala"
+    },
+    "warning": {
+      "title": "Doğrulama gerekli",
+      "desc": "Onaylamadan önce lütfen e-postayı dikkatlice okuyun. Yapay zekâ yanlış içerik oluşturabilir. Gönderilen nihai içerikten siz sorumlusunuz."
+    },
+    "approved": {
+      "heading": "E-posta onaylandı ve hazır",
+      "desc": "E-posta panoya kopyalandı. {{email}} adresine göndermek için e-posta istemcinize yapıştırın. Doğrudan gönderim için Ayarlar'da Gmail'i bağlayın.",
+      "recipient": "Alıcı:",
+      "subject": "Konu:",
+      "status": "Durum:",
+      "ready": "Hazır",
+      "newEmail": "Yeni e-posta"
+    },
+    "toast": {
+      "purposeRequiredTitle": "Amaç gerekli",
+      "purposeRequiredDesc": "Lütfen e-postanın amacını seçin.",
+      "genErrorTitle": "Oluşturma hatası",
+      "genErrorDesc": "Yapay zekâ e-postayı oluşturamadı. Tekrar deneyin.",
+      "emailRequiredTitle": "E-posta adresi gerekli",
+      "emailRequiredDesc": "Lütfen alıcının e-posta adresini girin.",
+      "errorTitle": "Hata",
+      "copyEmailError": "E-posta kopyalanamadı.",
+      "copiedTitle": "E-posta kopyalandı",
+      "copiedDesc": "E-posta panoya kopyalandı.",
+      "clipboardError": "Panoya kopyalanamadı."
+    }
+  },
+  "commandPalette": {
+    "searchPlaceholder": "Bir komut ara...",
+    "noResults": "Sonuç yok",
+    "navigate": "gezin",
+    "openHint": "aç",
+    "closeHint": "kapat",
+    "category": {
+      "navigation": "Gezinme",
+      "administration": "Yönetim"
+    },
+    "cmd": {
+      "dashboard": "Kontrol paneli",
+      "calls": "Aramalar",
+      "contacts": "Kişiler",
+      "tasks": "Görevler",
+      "messages": "Mesajlar",
+      "calendar": "Takvim",
+      "reports": "Raporlar",
+      "analytics": "Analiz",
+      "performance": "Performans",
+      "checkins": "Giriş kaydı",
+      "ai": "Yapay zekâ ajanları",
+      "automations": "Otomasyonlar",
+      "users": "Kullanıcılar",
+      "audit": "Denetim günlüğü",
+      "organisations": "Lisanslar",
+      "abonnement": "Lisans ve Abonelik",
+      "settings": "Ayarlar",
+      "notifications": "Bildirimler",
+      "projets": "Projeler",
+      "google-workspace": "Google Workspace"
+    }
   }
 }

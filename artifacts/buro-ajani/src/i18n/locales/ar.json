@@ -8066,5 +8066,242 @@
     "newContact": "جهة اتصال جديدة",
     "newTask": "مهمة جديدة",
     "useAddButton": "استخدم الزر + للإنشاء"
+  },
+  "quickActionHub": {
+    "title": "إجراء سريع",
+    "entity": {
+      "contact": "جهة اتصال",
+      "tache": "مهمة",
+      "appel": "مكالمة",
+      "message": "رسالة",
+      "evenement": "حدث",
+      "projet": "مشروع"
+    },
+    "toast": {
+      "successTitle": "نجاح",
+      "errorTitle": "خطأ",
+      "created": "تم إنشاء {{label}} بنجاح",
+      "errorStatus": "خطأ {{status}}"
+    },
+    "contact": {
+      "firstName": "الاسم الأول *",
+      "lastName": "اسم العائلة *",
+      "email": "البريد الإلكتروني",
+      "phone": "الهاتف *",
+      "company": "الشركة",
+      "category": "الفئة",
+      "phFirstName": "Jean",
+      "phLastName": "Dupont",
+      "phEmail": "jean@example.fr",
+      "phPhone": "+33 6 12 34 56 78",
+      "phCompany": "Acme Inc.",
+      "catClient": "عميل",
+      "catFournisseur": "مورّد",
+      "catPartenaire": "شريك",
+      "catProspect": "عميل محتمل",
+      "catAutre": "أخرى",
+      "submit": "إنشاء جهة الاتصال"
+    },
+    "task": {
+      "title": "العنوان *",
+      "description": "الوصف",
+      "priority": "الأولوية",
+      "dueDate": "تاريخ الاستحقاق",
+      "phTitle": "معاودة الاتصال بالسيد دوبون",
+      "phDesc": "التفاصيل...",
+      "prioBasse": "منخفضة",
+      "prioMoyenne": "متوسطة",
+      "prioHaute": "عالية",
+      "prioUrgente": "عاجلة",
+      "submit": "إنشاء المهمة"
+    },
+    "call": {
+      "callerName": "اسم المتصل",
+      "callerNumber": "الرقم *",
+      "direction": "الاتجاه",
+      "notes": "ملاحظات",
+      "phCallerName": "Jean Dupont",
+      "phCallerNumber": "+33 6 ...",
+      "phNotes": "ملاحظات المكالمة...",
+      "dirEntrant": "وارد",
+      "dirSortant": "صادر",
+      "submit": "حفظ المكالمة"
+    },
+    "message": {
+      "sender": "المرسل",
+      "channel": "القناة",
+      "content": "المحتوى *",
+      "phSender": "السيد دوبون",
+      "phContent": "محتوى الرسالة...",
+      "chEmail": "البريد الإلكتروني",
+      "chSms": "SMS",
+      "chWhatsapp": "WhatsApp",
+      "chChat": "دردشة",
+      "submit": "حفظ الرسالة"
+    },
+    "event": {
+      "title": "العنوان *",
+      "start": "البداية *",
+      "end": "النهاية",
+      "type": "النوع",
+      "description": "الوصف",
+      "phTitle": "اجتماع تجاري",
+      "phDesc": "التفاصيل...",
+      "typeReunion": "اجتماع",
+      "typeAppel": "مكالمة",
+      "typeFormation": "تدريب",
+      "typeDeadline": "موعد نهائي",
+      "typeAutre": "أخرى",
+      "submit": "إنشاء الحدث"
+    },
+    "projet": {
+      "title": "عنوان المشروع *",
+      "description": "الوصف",
+      "client": "العميل",
+      "priority": "الأولوية",
+      "budget": "الميزانية (€)",
+      "endDate": "تاريخ الانتهاء",
+      "phTitle": "إعادة تصميم موقع العرض",
+      "phDesc": "السياق والأهداف...",
+      "phClient": "Acme Inc.",
+      "phBudget": "5000",
+      "prioBasse": "منخفضة",
+      "prioMoyenne": "متوسطة",
+      "prioHaute": "عالية",
+      "submit": "إنشاء المشروع"
+    }
+  },
+  "emailComposer": {
+    "title": "منشئ البريد الإلكتروني بالذكاء الاصطناعي",
+    "subtitle": {
+      "configure": "قم بتكوين معلمات بريدك الإلكتروني",
+      "generating": "يقوم الذكاء الاصطناعي بكتابة بريدك الإلكتروني...",
+      "preview": "راجع ووافق قبل الإرسال",
+      "approved": "البريد الإلكتروني جاهز للإرسال"
+    },
+    "stepIndicator": {
+      "step1": "الخطوة 1/3",
+      "generating": "جارٍ الإنشاء...",
+      "step2": "الخطوة 2/3",
+      "step3": "الخطوة 3/3"
+    },
+    "recipient": {
+      "label": "المستلم",
+      "selectPlaceholder": "اختر جهة اتصال...",
+      "free": "مستلم حر",
+      "emailPlaceholder": "address@email.com"
+    },
+    "purposeLabel": "هدف البريد الإلكتروني",
+    "purpose": {
+      "suivi_appel": { "label": "متابعة مكالمة", "desc": "بعد مكالمة هاتفية" },
+      "relance_prospect": { "label": "متابعة عميل محتمل", "desc": "متابعة تجارية" },
+      "confirmation_rdv": { "label": "تأكيد موعد", "desc": "تأكيد موعد" },
+      "remerciement": { "label": "شكر", "desc": "بعد تبادل" },
+      "rappel_paiement": { "label": "تذكير بالدفع", "desc": "فاتورة أو دفعة" },
+      "information": { "label": "معلومات", "desc": "إرسال مستندات" },
+      "presentation": { "label": "عرض تقديمي", "desc": "تقديم الخدمات" },
+      "excuses": { "label": "اعتذار", "desc": "عن إزعاج" },
+      "bienvenue": { "label": "ترحيب", "desc": "جهة اتصال جديدة" },
+      "personnalise": { "label": "مخصص", "desc": "تعليمات حرة" }
+    },
+    "toneLabel": "النبرة المطلوبة",
+    "tone": {
+      "formel": "رسمي",
+      "cordial": "ودّي",
+      "direct": "مباشر",
+      "empathique": "متعاطف"
+    },
+    "aiInstructions": {
+      "label": "تعليمات للذكاء الاصطناعي",
+      "placeholder": "صف ما تريده في هذا البريد الإلكتروني..."
+    },
+    "additionalContext": {
+      "label": "سياق إضافي (اختياري)",
+      "placeholder": "أضف تفاصيل أو تعليمات محددة..."
+    },
+    "generateBtn": "إنشاء بالذكاء الاصطناعي",
+    "generating": {
+      "heading": "يقوم الذكاء الاصطناعي بكتابة بريدك الإلكتروني",
+      "desc": "تحليل السياق وسجل جهة الاتصال وإنشاء بريد إلكتروني احترافي مناسب...",
+      "inProgress": "جارٍ الإنشاء..."
+    },
+    "preview": {
+      "aiAnalysis": "تحليل الذكاء الاصطناعي",
+      "toneBadge": "النبرة: {{tone}}",
+      "recipientBadge": "المستلم: {{recipient}}",
+      "emailPreview": "معاينة البريد الإلكتروني",
+      "copy": "نسخ",
+      "previewMode": "وضع المعاينة",
+      "to": "إلى:",
+      "notProvided": "غير محدد",
+      "subject": "الموضوع:",
+      "alternatives": "بدائل مقترحة من الذكاء الاصطناعي",
+      "selected": "محدد",
+      "subjectPrefix": "الموضوع: {{subject}}",
+      "revert": "العودة إلى النسخة الأصلية",
+      "editSettings": "تعديل المعلمات",
+      "regenerate": "إعادة الإنشاء",
+      "preparing": "جارٍ التحضير...",
+      "approveCopy": "الموافقة والنسخ"
+    },
+    "warning": {
+      "title": "التحقق مطلوب",
+      "desc": "يرجى قراءة البريد الإلكتروني بعناية قبل الموافقة عليه. قد ينشئ الذكاء الاصطناعي محتوى غير دقيق. أنت مسؤول عن المحتوى النهائي المرسل."
+    },
+    "approved": {
+      "heading": "تمت الموافقة على البريد الإلكتروني وهو جاهز",
+      "desc": "تم نسخ البريد الإلكتروني إلى الحافظة. الصقه في برنامج البريد لديك لإرساله إلى {{email}}. قم بربط Gmail في الإعدادات للإرسال المباشر.",
+      "recipient": "المستلم:",
+      "subject": "الموضوع:",
+      "status": "الحالة:",
+      "ready": "جاهز",
+      "newEmail": "بريد إلكتروني جديد"
+    },
+    "toast": {
+      "purposeRequiredTitle": "الهدف مطلوب",
+      "purposeRequiredDesc": "يرجى تحديد هدف البريد الإلكتروني.",
+      "genErrorTitle": "خطأ في الإنشاء",
+      "genErrorDesc": "تعذر على الذكاء الاصطناعي إنشاء البريد الإلكتروني. حاول مرة أخرى.",
+      "emailRequiredTitle": "عنوان البريد الإلكتروني مطلوب",
+      "emailRequiredDesc": "يرجى إدخال عنوان البريد الإلكتروني للمستلم.",
+      "errorTitle": "خطأ",
+      "copyEmailError": "تعذر نسخ البريد الإلكتروني.",
+      "copiedTitle": "تم نسخ البريد الإلكتروني",
+      "copiedDesc": "تم نسخ البريد الإلكتروني إلى الحافظة.",
+      "clipboardError": "تعذر النسخ إلى الحافظة."
+    }
+  },
+  "commandPalette": {
+    "searchPlaceholder": "ابحث عن أمر...",
+    "noResults": "لا توجد نتائج",
+    "navigate": "التنقل",
+    "openHint": "فتح",
+    "closeHint": "إغلاق",
+    "category": {
+      "navigation": "التنقل",
+      "administration": "الإدارة"
+    },
+    "cmd": {
+      "dashboard": "لوحة التحكم",
+      "calls": "المكالمات",
+      "contacts": "جهات الاتصال",
+      "tasks": "المهام",
+      "messages": "الرسائل",
+      "calendar": "التقويم",
+      "reports": "التقارير",
+      "analytics": "التحليل",
+      "performance": "الأداء",
+      "checkins": "تسجيل الحضور",
+      "ai": "وكلاء الذكاء الاصطناعي",
+      "automations": "الأتمتة",
+      "users": "المستخدمون",
+      "audit": "سجل التدقيق",
+      "organisations": "التراخيص",
+      "abonnement": "الترخيص والاشتراك",
+      "settings": "الإعدادات",
+      "notifications": "الإشعارات",
+      "projets": "المشاريع",
+      "google-workspace": "Google Workspace"
+    }
   }
 }

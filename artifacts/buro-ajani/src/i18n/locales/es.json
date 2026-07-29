@@ -8066,5 +8066,242 @@
     "newContact": "Nuevo contacto",
     "newTask": "Nueva tarea",
     "useAddButton": "Usa el botón + para crear"
+  },
+  "quickActionHub": {
+    "title": "Acción rápida",
+    "entity": {
+      "contact": "Contacto",
+      "tache": "Tarea",
+      "appel": "Llamada",
+      "message": "Mensaje",
+      "evenement": "Evento",
+      "projet": "Proyecto"
+    },
+    "toast": {
+      "successTitle": "Éxito",
+      "errorTitle": "Error",
+      "created": "{{label}} creado con éxito",
+      "errorStatus": "Error {{status}}"
+    },
+    "contact": {
+      "firstName": "Nombre *",
+      "lastName": "Apellido *",
+      "email": "Correo electrónico",
+      "phone": "Teléfono *",
+      "company": "Empresa",
+      "category": "Categoría",
+      "phFirstName": "Jean",
+      "phLastName": "Dupont",
+      "phEmail": "jean@example.fr",
+      "phPhone": "+33 6 12 34 56 78",
+      "phCompany": "Acme Inc.",
+      "catClient": "Cliente",
+      "catFournisseur": "Proveedor",
+      "catPartenaire": "Socio",
+      "catProspect": "Prospecto",
+      "catAutre": "Otro",
+      "submit": "Crear contacto"
+    },
+    "task": {
+      "title": "Título *",
+      "description": "Descripción",
+      "priority": "Prioridad",
+      "dueDate": "Vencimiento",
+      "phTitle": "Llamar al Sr. Dupont",
+      "phDesc": "Detalles...",
+      "prioBasse": "Baja",
+      "prioMoyenne": "Media",
+      "prioHaute": "Alta",
+      "prioUrgente": "Urgente",
+      "submit": "Crear tarea"
+    },
+    "call": {
+      "callerName": "Nombre del llamante",
+      "callerNumber": "Número *",
+      "direction": "Dirección",
+      "notes": "Notas",
+      "phCallerName": "Jean Dupont",
+      "phCallerNumber": "+33 6 ...",
+      "phNotes": "Notas de la llamada...",
+      "dirEntrant": "Entrante",
+      "dirSortant": "Saliente",
+      "submit": "Guardar llamada"
+    },
+    "message": {
+      "sender": "Remitente",
+      "channel": "Canal",
+      "content": "Contenido *",
+      "phSender": "Sr. Dupont",
+      "phContent": "Contenido del mensaje...",
+      "chEmail": "Correo electrónico",
+      "chSms": "SMS",
+      "chWhatsapp": "WhatsApp",
+      "chChat": "Chat",
+      "submit": "Guardar mensaje"
+    },
+    "event": {
+      "title": "Título *",
+      "start": "Inicio *",
+      "end": "Fin",
+      "type": "Tipo",
+      "description": "Descripción",
+      "phTitle": "Reunión comercial",
+      "phDesc": "Detalles...",
+      "typeReunion": "Reunión",
+      "typeAppel": "Llamada",
+      "typeFormation": "Formación",
+      "typeDeadline": "Fecha límite",
+      "typeAutre": "Otro",
+      "submit": "Crear evento"
+    },
+    "projet": {
+      "title": "Título del proyecto *",
+      "description": "Descripción",
+      "client": "Cliente",
+      "priority": "Prioridad",
+      "budget": "Presupuesto (€)",
+      "endDate": "Fecha de fin",
+      "phTitle": "Rediseño del sitio vitrina",
+      "phDesc": "Contexto y objetivos...",
+      "phClient": "Acme Inc.",
+      "phBudget": "5000",
+      "prioBasse": "Baja",
+      "prioMoyenne": "Media",
+      "prioHaute": "Alta",
+      "submit": "Crear proyecto"
+    }
+  },
+  "emailComposer": {
+    "title": "Compositor de correo con IA",
+    "subtitle": {
+      "configure": "Configure los parámetros de su correo",
+      "generating": "La IA está redactando su correo...",
+      "preview": "Revise y apruebe antes de enviar",
+      "approved": "Correo listo para enviar"
+    },
+    "stepIndicator": {
+      "step1": "Paso 1/3",
+      "generating": "Generando...",
+      "step2": "Paso 2/3",
+      "step3": "Paso 3/3"
+    },
+    "recipient": {
+      "label": "Destinatario",
+      "selectPlaceholder": "Elegir un contacto...",
+      "free": "Destinatario libre",
+      "emailPlaceholder": "direccion@email.com"
+    },
+    "purposeLabel": "Objetivo del correo",
+    "purpose": {
+      "suivi_appel": { "label": "Seguimiento de llamada", "desc": "Tras una llamada telefónica" },
+      "relance_prospect": { "label": "Seguimiento de prospecto", "desc": "Seguimiento comercial" },
+      "confirmation_rdv": { "label": "Confirmación de cita", "desc": "Confirmar una cita" },
+      "remerciement": { "label": "Agradecimiento", "desc": "Tras un intercambio" },
+      "rappel_paiement": { "label": "Recordatorio de pago", "desc": "Factura o pago" },
+      "information": { "label": "Información", "desc": "Enviar documentos" },
+      "presentation": { "label": "Presentación", "desc": "Presentar servicios" },
+      "excuses": { "label": "Disculpas", "desc": "Por un inconveniente" },
+      "bienvenue": { "label": "Bienvenida", "desc": "Nuevo contacto" },
+      "personnalise": { "label": "Personalizado", "desc": "Instrucciones libres" }
+    },
+    "toneLabel": "Tono deseado",
+    "tone": {
+      "formel": "Formal",
+      "cordial": "Cordial",
+      "direct": "Directo",
+      "empathique": "Empático"
+    },
+    "aiInstructions": {
+      "label": "Instrucciones para la IA",
+      "placeholder": "Describa lo que desea en este correo..."
+    },
+    "additionalContext": {
+      "label": "Contexto adicional (opcional)",
+      "placeholder": "Añada detalles o instrucciones específicas..."
+    },
+    "generateBtn": "Generar con IA",
+    "generating": {
+      "heading": "La IA está redactando su correo",
+      "desc": "Analizando el contexto y el historial del contacto y generando un correo profesional adecuado...",
+      "inProgress": "Generando..."
+    },
+    "preview": {
+      "aiAnalysis": "Análisis de IA",
+      "toneBadge": "Tono: {{tone}}",
+      "recipientBadge": "Destinatario: {{recipient}}",
+      "emailPreview": "Vista previa del correo",
+      "copy": "Copiar",
+      "previewMode": "Modo vista previa",
+      "to": "Para:",
+      "notProvided": "No indicado",
+      "subject": "Asunto:",
+      "alternatives": "Alternativas propuestas por la IA",
+      "selected": "Seleccionado",
+      "subjectPrefix": "Asunto: {{subject}}",
+      "revert": "Volver a la versión original",
+      "editSettings": "Editar parámetros",
+      "regenerate": "Regenerar",
+      "preparing": "Preparando...",
+      "approveCopy": "Aprobar y copiar"
+    },
+    "warning": {
+      "title": "Verificación requerida",
+      "desc": "Lea atentamente el correo antes de aprobarlo. La IA puede generar contenido inexacto. Usted es responsable del contenido final enviado."
+    },
+    "approved": {
+      "heading": "Correo aprobado y listo",
+      "desc": "El correo se ha copiado al portapapeles. Péguelo en su cliente de correo para enviarlo a {{email}}. Conecte Gmail en Ajustes para el envío directo.",
+      "recipient": "Destinatario:",
+      "subject": "Asunto:",
+      "status": "Estado:",
+      "ready": "Listo",
+      "newEmail": "Nuevo correo"
+    },
+    "toast": {
+      "purposeRequiredTitle": "Objetivo requerido",
+      "purposeRequiredDesc": "Seleccione el objetivo del correo.",
+      "genErrorTitle": "Error de generación",
+      "genErrorDesc": "La IA no pudo generar el correo. Inténtelo de nuevo.",
+      "emailRequiredTitle": "Dirección de correo requerida",
+      "emailRequiredDesc": "Indique la dirección de correo del destinatario.",
+      "errorTitle": "Error",
+      "copyEmailError": "No se pudo copiar el correo.",
+      "copiedTitle": "Correo copiado",
+      "copiedDesc": "El correo se ha copiado al portapapeles.",
+      "clipboardError": "No se pudo copiar al portapapeles."
+    }
+  },
+  "commandPalette": {
+    "searchPlaceholder": "Buscar un comando...",
+    "noResults": "Sin resultados",
+    "navigate": "navegar",
+    "openHint": "abrir",
+    "closeHint": "cerrar",
+    "category": {
+      "navigation": "Navegación",
+      "administration": "Administración"
+    },
+    "cmd": {
+      "dashboard": "Panel",
+      "calls": "Llamadas",
+      "contacts": "Contactos",
+      "tasks": "Tareas",
+      "messages": "Mensajes",
+      "calendar": "Calendario",
+      "reports": "Informes",
+      "analytics": "Análisis",
+      "performance": "Rendimiento",
+      "checkins": "Fichajes",
+      "ai": "Agentes de IA",
+      "automations": "Automatizaciones",
+      "users": "Usuarios",
+      "audit": "Registro de auditoría",
+      "organisations": "Licencias",
+      "abonnement": "Licencia y suscripción",
+      "settings": "Ajustes",
+      "notifications": "Notificaciones",
+      "projets": "Proyectos",
+      "google-workspace": "Google Workspace"
+    }
   }
 }

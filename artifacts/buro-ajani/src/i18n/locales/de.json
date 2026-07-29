@@ -8066,5 +8066,242 @@
     "newContact": "Neuer Kontakt",
     "newTask": "Neue Aufgabe",
     "useAddButton": "Verwenden Sie die + Schaltfläche zum Erstellen"
+  },
+  "quickActionHub": {
+    "title": "Schnellaktion",
+    "entity": {
+      "contact": "Kontakt",
+      "tache": "Aufgabe",
+      "appel": "Anruf",
+      "message": "Nachricht",
+      "evenement": "Termin",
+      "projet": "Projekt"
+    },
+    "toast": {
+      "successTitle": "Erfolg",
+      "errorTitle": "Fehler",
+      "created": "{{label}} erfolgreich erstellt",
+      "errorStatus": "Fehler {{status}}"
+    },
+    "contact": {
+      "firstName": "Vorname *",
+      "lastName": "Nachname *",
+      "email": "E-Mail",
+      "phone": "Telefon *",
+      "company": "Unternehmen",
+      "category": "Kategorie",
+      "phFirstName": "Jean",
+      "phLastName": "Dupont",
+      "phEmail": "jean@example.fr",
+      "phPhone": "+33 6 12 34 56 78",
+      "phCompany": "Acme Inc.",
+      "catClient": "Kunde",
+      "catFournisseur": "Lieferant",
+      "catPartenaire": "Partner",
+      "catProspect": "Interessent",
+      "catAutre": "Sonstige",
+      "submit": "Kontakt erstellen"
+    },
+    "task": {
+      "title": "Titel *",
+      "description": "Beschreibung",
+      "priority": "Priorität",
+      "dueDate": "Fälligkeit",
+      "phTitle": "Herrn Dupont zurückrufen",
+      "phDesc": "Details...",
+      "prioBasse": "Niedrig",
+      "prioMoyenne": "Mittel",
+      "prioHaute": "Hoch",
+      "prioUrgente": "Dringend",
+      "submit": "Aufgabe erstellen"
+    },
+    "call": {
+      "callerName": "Name des Anrufers",
+      "callerNumber": "Nummer *",
+      "direction": "Richtung",
+      "notes": "Notizen",
+      "phCallerName": "Jean Dupont",
+      "phCallerNumber": "+33 6 ...",
+      "phNotes": "Anrufnotizen...",
+      "dirEntrant": "Eingehend",
+      "dirSortant": "Ausgehend",
+      "submit": "Anruf speichern"
+    },
+    "message": {
+      "sender": "Absender",
+      "channel": "Kanal",
+      "content": "Inhalt *",
+      "phSender": "Herr Dupont",
+      "phContent": "Nachrichteninhalt...",
+      "chEmail": "E-Mail",
+      "chSms": "SMS",
+      "chWhatsapp": "WhatsApp",
+      "chChat": "Chat",
+      "submit": "Nachricht speichern"
+    },
+    "event": {
+      "title": "Titel *",
+      "start": "Beginn *",
+      "end": "Ende",
+      "type": "Typ",
+      "description": "Beschreibung",
+      "phTitle": "Geschäftstreffen",
+      "phDesc": "Details...",
+      "typeReunion": "Besprechung",
+      "typeAppel": "Anruf",
+      "typeFormation": "Schulung",
+      "typeDeadline": "Frist",
+      "typeAutre": "Sonstige",
+      "submit": "Termin erstellen"
+    },
+    "projet": {
+      "title": "Projekttitel *",
+      "description": "Beschreibung",
+      "client": "Kunde",
+      "priority": "Priorität",
+      "budget": "Budget (€)",
+      "endDate": "Enddatum",
+      "phTitle": "Neugestaltung der Schaufensterseite",
+      "phDesc": "Kontext und Ziele...",
+      "phClient": "Acme Inc.",
+      "phBudget": "5000",
+      "prioBasse": "Niedrig",
+      "prioMoyenne": "Mittel",
+      "prioHaute": "Hoch",
+      "submit": "Projekt erstellen"
+    }
+  },
+  "emailComposer": {
+    "title": "KI-E-Mail-Editor",
+    "subtitle": {
+      "configure": "Konfigurieren Sie die Parameter Ihrer E-Mail",
+      "generating": "Die KI verfasst Ihre E-Mail...",
+      "preview": "Prüfen und vor dem Senden freigeben",
+      "approved": "E-Mail versandbereit"
+    },
+    "stepIndicator": {
+      "step1": "Schritt 1/3",
+      "generating": "Wird erstellt...",
+      "step2": "Schritt 2/3",
+      "step3": "Schritt 3/3"
+    },
+    "recipient": {
+      "label": "Empfänger",
+      "selectPlaceholder": "Kontakt auswählen...",
+      "free": "Freier Empfänger",
+      "emailPlaceholder": "adresse@email.com"
+    },
+    "purposeLabel": "Zweck der E-Mail",
+    "purpose": {
+      "suivi_appel": { "label": "Anruf-Nachfassung", "desc": "Nach einem Telefonat" },
+      "relance_prospect": { "label": "Interessenten-Nachfassung", "desc": "Vertriebliche Nachfassung" },
+      "confirmation_rdv": { "label": "Terminbestätigung", "desc": "Einen Termin bestätigen" },
+      "remerciement": { "label": "Danksagung", "desc": "Nach einem Austausch" },
+      "rappel_paiement": { "label": "Zahlungserinnerung", "desc": "Rechnung oder Zahlung" },
+      "information": { "label": "Information", "desc": "Dokumente übermitteln" },
+      "presentation": { "label": "Präsentation", "desc": "Leistungen vorstellen" },
+      "excuses": { "label": "Entschuldigung", "desc": "Für eine Unannehmlichkeit" },
+      "bienvenue": { "label": "Willkommen", "desc": "Neuer Kontakt" },
+      "personnalise": { "label": "Individuell", "desc": "Freie Anweisungen" }
+    },
+    "toneLabel": "Gewünschter Ton",
+    "tone": {
+      "formel": "Formell",
+      "cordial": "Herzlich",
+      "direct": "Direkt",
+      "empathique": "Empathisch"
+    },
+    "aiInstructions": {
+      "label": "Anweisungen für die KI",
+      "placeholder": "Beschreiben Sie, was Sie in dieser E-Mail wünschen..."
+    },
+    "additionalContext": {
+      "label": "Zusätzlicher Kontext (optional)",
+      "placeholder": "Fügen Sie Details oder spezifische Anweisungen hinzu..."
+    },
+    "generateBtn": "Mit KI erstellen",
+    "generating": {
+      "heading": "Die KI verfasst Ihre E-Mail",
+      "desc": "Analyse des Kontexts und des Kontaktverlaufs sowie Erstellung einer passenden professionellen E-Mail...",
+      "inProgress": "Wird erstellt..."
+    },
+    "preview": {
+      "aiAnalysis": "KI-Analyse",
+      "toneBadge": "Ton: {{tone}}",
+      "recipientBadge": "Empfänger: {{recipient}}",
+      "emailPreview": "E-Mail-Vorschau",
+      "copy": "Kopieren",
+      "previewMode": "Vorschaumodus",
+      "to": "An:",
+      "notProvided": "Nicht angegeben",
+      "subject": "Betr.:",
+      "alternatives": "Von der KI vorgeschlagene Alternativen",
+      "selected": "Ausgewählt",
+      "subjectPrefix": "Betreff: {{subject}}",
+      "revert": "Zur Originalversion zurückkehren",
+      "editSettings": "Parameter bearbeiten",
+      "regenerate": "Neu erstellen",
+      "preparing": "Wird vorbereitet...",
+      "approveCopy": "Freigeben und kopieren"
+    },
+    "warning": {
+      "title": "Prüfung erforderlich",
+      "desc": "Bitte lesen Sie die E-Mail sorgfältig, bevor Sie sie freigeben. Die KI kann ungenaue Inhalte erzeugen. Sie sind für den endgültig gesendeten Inhalt verantwortlich."
+    },
+    "approved": {
+      "heading": "E-Mail freigegeben und bereit",
+      "desc": "Die E-Mail wurde in die Zwischenablage kopiert. Fügen Sie sie in Ihr E-Mail-Programm ein, um sie an {{email}} zu senden. Verbinden Sie Gmail in den Einstellungen für den direkten Versand.",
+      "recipient": "Empfänger:",
+      "subject": "Betreff:",
+      "status": "Status:",
+      "ready": "Bereit",
+      "newEmail": "Neue E-Mail"
+    },
+    "toast": {
+      "purposeRequiredTitle": "Zweck erforderlich",
+      "purposeRequiredDesc": "Bitte wählen Sie den Zweck der E-Mail aus.",
+      "genErrorTitle": "Fehler bei der Erstellung",
+      "genErrorDesc": "Die KI konnte die E-Mail nicht erstellen. Versuchen Sie es erneut.",
+      "emailRequiredTitle": "E-Mail-Adresse erforderlich",
+      "emailRequiredDesc": "Bitte geben Sie die E-Mail-Adresse des Empfängers an.",
+      "errorTitle": "Fehler",
+      "copyEmailError": "E-Mail konnte nicht kopiert werden.",
+      "copiedTitle": "E-Mail kopiert",
+      "copiedDesc": "Die E-Mail wurde in die Zwischenablage kopiert.",
+      "clipboardError": "Kopieren in die Zwischenablage nicht möglich."
+    }
+  },
+  "commandPalette": {
+    "searchPlaceholder": "Befehl suchen...",
+    "noResults": "Keine Ergebnisse",
+    "navigate": "navigieren",
+    "openHint": "öffnen",
+    "closeHint": "schließen",
+    "category": {
+      "navigation": "Navigation",
+      "administration": "Verwaltung"
+    },
+    "cmd": {
+      "dashboard": "Dashboard",
+      "calls": "Anrufe",
+      "contacts": "Kontakte",
+      "tasks": "Aufgaben",
+      "messages": "Nachrichten",
+      "calendar": "Kalender",
+      "reports": "Berichte",
+      "analytics": "Analyse",
+      "performance": "Leistung",
+      "checkins": "Zeiterfassung",
+      "ai": "KI-Agenten",
+      "automations": "Automatisierungen",
+      "users": "Benutzer",
+      "audit": "Audit-Protokoll",
+      "organisations": "Lizenzen",
+      "abonnement": "Lizenz & Abonnement",
+      "settings": "Einstellungen",
+      "notifications": "Benachrichtigungen",
+      "projets": "Projekte",
+      "google-workspace": "Google Workspace"
+    }
   }
 }

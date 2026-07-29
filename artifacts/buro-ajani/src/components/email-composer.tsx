@@ -13,6 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useListContacts, useDraftAiEmail } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { GhostTextarea } from "@/components/ghost-textarea";
+import { useTranslation } from "@/i18n";
 
 type ComposerStep = "configure" | "generating" | "preview" | "approved";
 
@@ -23,24 +24,25 @@ interface EmailComposerProps {
   preselectedPurpose?: string;
 }
 
+// Cles stables; libelles/descriptions rendus via t() au point d'usage.
 const PURPOSE_OPTIONS = [
-  { value: "suivi_appel", label: "Suivi d'appel", description: "Apres un appel telephonique" },
-  { value: "relance_prospect", label: "Relance prospect", description: "Relance commerciale" },
-  { value: "confirmation_rdv", label: "Confirmation RDV", description: "Confirmer un rendez-vous" },
-  { value: "remerciement", label: "Remerciement", description: "Apres un echange" },
-  { value: "rappel_paiement", label: "Rappel de paiement", description: "Facture ou paiement" },
-  { value: "information", label: "Information", description: "Transmettre des documents" },
-  { value: "presentation", label: "Presentation", description: "Presenter des services" },
-  { value: "excuses", label: "Excuses", description: "Pour un desagrement" },
-  { value: "bienvenue", label: "Bienvenue", description: "Nouveau contact" },
-  { value: "personnalise", label: "Personnalise", description: "Instructions libres" },
+  { value: "suivi_appel" },
+  { value: "relance_prospect" },
+  { value: "confirmation_rdv" },
+  { value: "remerciement" },
+  { value: "rappel_paiement" },
+  { value: "information" },
+  { value: "presentation" },
+  { value: "excuses" },
+  { value: "bienvenue" },
+  { value: "personnalise" },
 ];
 
 const TONE_OPTIONS = [
-  { value: "formel", label: "Formel", color: "bg-slate-500" },
-  { value: "cordial", label: "Cordial", color: "bg-blue-500" },
-  { value: "direct", label: "Direct", color: "bg-amber-500" },
-  { value: "empathique", label: "Empathique", color: "bg-emerald-500" },
+  { value: "formel", color: "bg-slate-500" },
+  { value: "cordial", color: "bg-blue-500" },
+  { value: "direct", color: "bg-amber-500" },
+  { value: "empathique", color: "bg-emerald-500" },
 ];
 
 export function EmailComposer({ isOpen, onClose, preselectedContactId, preselectedPurpose }: EmailComposerProps) {
@@ -59,6 +61,7 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
   const { data: contactsData } = useListContacts({ limit: 200 }, { query: { queryKey: ["contacts", "all-composer"] } });
   const draftEmail = useDraftAiEmail();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const selectedContact = contactsData?.contacts?.find(c => c.id.toString() === selectedContactId);
 
@@ -86,7 +89,7 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
 
   const handleGenerate = () => {
     if (!purpose) {
-      toast({ title: "Objectif requis", description: "Veuillez selectionner l'objectif de l'e-mail.", variant: "destructive" });
+      toast({ title: t("emailComposer.toast.purposeRequiredTitle"), description: t("emailComposer.toast.purposeRequiredDesc"), variant: "destructive" });
       return;
     }
 
@@ -116,7 +119,7 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
       },
       onError: () => {
         if (currentGenId !== generationId) return;
-        toast({ title: "Erreur de generation", description: "L'IA n'a pas pu generer l'e-mail. Reessayez.", variant: "destructive" });
+        toast({ title: t("emailComposer.toast.genErrorTitle"), description: t("emailComposer.toast.genErrorDesc"), variant: "destructive" });
         setStep("configure");
       }
     });
@@ -141,7 +144,7 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
 
   const handleApproveAndSend = async () => {
     if (!recipientEmail) {
-      toast({ title: "Adresse e-mail requise", description: "Veuillez renseigner l'adresse e-mail du destinataire.", variant: "destructive" });
+      toast({ title: t("emailComposer.toast.emailRequiredTitle"), description: t("emailComposer.toast.emailRequiredDesc"), variant: "destructive" });
       return;
     }
 
@@ -150,7 +153,7 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
     try {
       await handleCopyToClipboard();
     } catch (err) {
-      toast({ title: "Erreur", description: "Impossible de copier l'e-mail.", variant: "destructive" });
+      toast({ title: t("emailComposer.toast.errorTitle"), description: t("emailComposer.toast.copyEmailError"), variant: "destructive" });
     }
 
     setStep("approved");
@@ -161,9 +164,9 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
     const emailText = `A: ${recipientEmail}\nObjet: ${editedSubject}\n\n${editedBody}`;
     try {
       await navigator.clipboard.writeText(emailText);
-      toast({ title: "E-mail copie", description: "L'e-mail a ete copie dans le presse-papiers." });
+      toast({ title: t("emailComposer.toast.copiedTitle"), description: t("emailComposer.toast.copiedDesc") });
     } catch {
-      toast({ title: "Erreur", description: "Impossible de copier dans le presse-papiers.", variant: "destructive" });
+      toast({ title: t("emailComposer.toast.errorTitle"), description: t("emailComposer.toast.clipboardError"), variant: "destructive" });
     }
   };
 
@@ -177,12 +180,12 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                 <Mail className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <span className="text-lg">Compositeur d'e-mail IA</span>
+                <span className="text-lg">{t("emailComposer.title")}</span>
                 <p className="text-sm font-normal text-muted-foreground mt-0.5">
-                  {step === "configure" && "Configurez les parametres de votre e-mail"}
-                  {step === "generating" && "L'IA redige votre e-mail..."}
-                  {step === "preview" && "Verifiez et approuvez avant envoi"}
-                  {step === "approved" && "E-mail pret a etre envoye"}
+                  {step === "configure" && t("emailComposer.subtitle.configure")}
+                  {step === "generating" && t("emailComposer.subtitle.generating")}
+                  {step === "preview" && t("emailComposer.subtitle.preview")}
+                  {step === "approved" && t("emailComposer.subtitle.approved")}
                 </p>
               </div>
             </DialogTitle>
@@ -206,10 +209,10 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
               ))}
               <div className="flex-1" />
               <div className="text-xs text-muted-foreground">
-                {step === "configure" && "Etape 1/3"}
-                {step === "generating" && "Generation..."}
-                {step === "preview" && "Etape 2/3"}
-                {step === "approved" && "Etape 3/3"}
+                {step === "configure" && t("emailComposer.stepIndicator.step1")}
+                {step === "generating" && t("emailComposer.stepIndicator.generating")}
+                {step === "preview" && t("emailComposer.stepIndicator.step2")}
+                {step === "approved" && t("emailComposer.stepIndicator.step3")}
               </div>
             </div>
           </div>
@@ -220,17 +223,17 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
             {step === "configure" && (
               <motion.div key="configure" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Destinataire</Label>
+                  <Label className="text-sm font-medium">{t("emailComposer.recipient.label")}</Label>
                   <Select value={selectedContactId} onValueChange={(v) => {
                     setSelectedContactId(v);
                     const c = contactsData?.contacts?.find(ct => ct.id.toString() === v);
                     setRecipientEmail(c?.email || "");
                   }}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Choisir un contact..." />
+                      <SelectValue placeholder={t("emailComposer.recipient.selectPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Destinataire libre</SelectItem>
+                      <SelectItem value="none">{t("emailComposer.recipient.free")}</SelectItem>
                       {contactsData?.contacts?.map(c => (
                         <SelectItem key={c.id} value={c.id.toString()}>
                           <div className="flex items-center gap-2">
@@ -244,7 +247,7 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                   </Select>
                   {selectedContactId === "none" && (
                     <Input
-                      placeholder="adresse@email.com"
+                      placeholder={t("emailComposer.recipient.emailPlaceholder")}
                       value={recipientEmail}
                       onChange={(e) => setRecipientEmail(e.target.value)}
                       className="mt-2"
@@ -268,7 +271,7 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Objectif de l'e-mail</Label>
+                  <Label className="text-sm font-medium">{t("emailComposer.purposeLabel")}</Label>
                   <div className="grid grid-cols-2 gap-2">
                     {PURPOSE_OPTIONS.map(opt => (
                       <button
@@ -280,15 +283,15 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                         }`}
                         onClick={() => setPurpose(opt.value)}
                       >
-                        <div className="text-sm font-medium">{opt.label}</div>
-                        <div className="text-xs text-muted-foreground">{opt.description}</div>
+                        <div className="text-sm font-medium">{t(`emailComposer.purpose.${opt.value}.label`)}</div>
+                        <div className="text-xs text-muted-foreground">{t(`emailComposer.purpose.${opt.value}.desc`)}</div>
                       </button>
                     ))}
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Ton souhaite</Label>
+                  <Label className="text-sm font-medium">{t("emailComposer.toneLabel")}</Label>
                   <div className="flex gap-2">
                     {TONE_OPTIONS.map(opt => (
                       <button
@@ -301,7 +304,7 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                         onClick={() => setTone(opt.value)}
                       >
                         <div className={`w-3 h-3 rounded-full ${opt.color} mx-auto mb-1`} />
-                        <span className="text-xs font-medium">{opt.label}</span>
+                        <span className="text-xs font-medium">{t(`emailComposer.tone.${opt.value}`)}</span>
                       </button>
                     ))}
                   </div>
@@ -309,9 +312,9 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
 
                 {purpose === "personnalise" && (
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Instructions pour l'IA</Label>
+                    <Label className="text-sm font-medium">{t("emailComposer.aiInstructions.label")}</Label>
                     <Textarea
-                      placeholder="Decrivez ce que vous souhaitez dans cet e-mail..."
+                      placeholder={t("emailComposer.aiInstructions.placeholder")}
                       value={additionalContext}
                       onChange={(e) => setAdditionalContext(e.target.value)}
                       className="h-24 resize-none"
@@ -321,9 +324,9 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
 
                 {purpose !== "personnalise" && (
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Contexte supplementaire (optionnel)</Label>
+                    <Label className="text-sm font-medium">{t("emailComposer.additionalContext.label")}</Label>
                     <Textarea
-                      placeholder="Ajoutez des details ou instructions specifiques..."
+                      placeholder={t("emailComposer.additionalContext.placeholder")}
                       value={additionalContext}
                       onChange={(e) => setAdditionalContext(e.target.value)}
                       className="h-16 resize-none"
@@ -332,10 +335,10 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                 )}
 
                 <div className="flex justify-end gap-3 pt-2">
-                  <Button variant="outline" onClick={handleClose}>Annuler</Button>
+                  <Button variant="outline" onClick={handleClose}>{t("common.cancel")}</Button>
                   <Button onClick={handleGenerate} disabled={!purpose} className="gap-2">
                     <Brain className="w-4 h-4" />
-                    Generer avec l'IA
+                    {t("emailComposer.generateBtn")}
                     <ArrowRight className="w-4 h-4" />
                   </Button>
                 </div>
@@ -354,13 +357,13 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                     transition={{ duration: 2, repeat: Infinity }}
                   />
                 </div>
-                <h3 className="text-lg font-semibold mb-2">L'IA redige votre e-mail</h3>
+                <h3 className="text-lg font-semibold mb-2">{t("emailComposer.generating.heading")}</h3>
                 <p className="text-sm text-muted-foreground text-center max-w-sm">
-                  Analyse du contexte, de l'historique du contact et generation d'un e-mail professionnel adapte...
+                  {t("emailComposer.generating.desc")}
                 </p>
                 <div className="flex items-center gap-2 mt-6 text-xs text-muted-foreground">
                   <Loader2 className="w-3 h-3 animate-spin" />
-                  Generation en cours...
+                  {t("emailComposer.generating.inProgress")}
                 </div>
               </motion.div>
             )}
@@ -374,11 +377,11 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                         <Sparkles className="w-4 h-4 text-primary" />
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-medium">Analyse IA</p>
+                        <p className="text-sm font-medium">{t("emailComposer.preview.aiAnalysis")}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">{draftEmail.data.resumeIA}</p>
                         <div className="flex items-center gap-2 mt-2">
-                          <Badge variant="secondary" className="text-[10px]">Ton: {draftEmail.data.tonUtilise}</Badge>
-                          <Badge variant="secondary" className="text-[10px]">Destinataire: {draftEmail.data.destinataire}</Badge>
+                          <Badge variant="secondary" className="text-[10px]">{t("emailComposer.preview.toneBadge", { tone: draftEmail.data.tonUtilise })}</Badge>
+                          <Badge variant="secondary" className="text-[10px]">{t("emailComposer.preview.recipientBadge", { recipient: draftEmail.data.destinataire })}</Badge>
                         </div>
                       </div>
                     </div>
@@ -389,12 +392,12 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                   <div className="flex items-center justify-between">
                     <Label className="text-sm font-medium flex items-center gap-2">
                       <Eye className="w-4 h-4" />
-                      Apercu de l'e-mail
+                      {t("emailComposer.preview.emailPreview")}
                     </Label>
                     <div className="flex items-center gap-2">
                       <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={handleCopyToClipboard}>
                         <Copy className="w-3 h-3" />
-                        Copier
+                        {t("emailComposer.preview.copy")}
                       </Button>
                       <Button
                         variant={isEditing ? "default" : "outline"}
@@ -403,7 +406,7 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                         onClick={() => setIsEditing(!isEditing)}
                       >
                         <Edit3 className="w-3 h-3" />
-                        {isEditing ? "Mode apercu" : "Modifier"}
+                        {isEditing ? t("emailComposer.preview.previewMode") : t("common.edit")}
                       </Button>
                     </div>
                   </div>
@@ -411,20 +414,20 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                   <div className="border rounded-xl overflow-hidden">
                     <div className="bg-muted/50 px-4 py-3 border-b space-y-2">
                       <div className="flex items-center gap-2 text-sm">
-                        <span className="text-muted-foreground w-8">A:</span>
+                        <span className="text-muted-foreground w-8">{t("emailComposer.preview.to")}</span>
                         {isEditing ? (
                           <Input
                             value={recipientEmail}
                             onChange={(e) => setRecipientEmail(e.target.value)}
                             className="h-7 text-sm flex-1"
-                            placeholder="adresse@email.com"
+                            placeholder={t("emailComposer.recipient.emailPlaceholder")}
                           />
                         ) : (
-                          <span className="font-medium">{recipientEmail || selectedContact?.email || "Non renseigne"}</span>
+                          <span className="font-medium">{recipientEmail || selectedContact?.email || t("emailComposer.preview.notProvided")}</span>
                         )}
                       </div>
                       <div className="flex items-center gap-2 text-sm">
-                        <span className="text-muted-foreground w-8">Obj:</span>
+                        <span className="text-muted-foreground w-8">{t("emailComposer.preview.subject")}</span>
                         {isEditing ? (
                           <Input
                             value={editedSubject}
@@ -461,7 +464,7 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                   <div className="space-y-2">
                     <Label className="text-sm font-medium flex items-center gap-2">
                       <RefreshCw className="w-4 h-4" />
-                      Alternatives proposees par l'IA
+                      {t("emailComposer.preview.alternatives")}
                     </Label>
                     <div className="grid gap-2">
                       {draftEmail.data.suggestionsAlternatives.map((alt, i) => (
@@ -476,14 +479,14 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                         >
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium">{alt.label}</span>
-                            {selectedAlternative === i && <Badge className="text-[10px] bg-primary">Selectionne</Badge>}
+                            {selectedAlternative === i && <Badge className="text-[10px] bg-primary">{t("emailComposer.preview.selected")}</Badge>}
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">Objet: {alt.objet}</p>
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{t("emailComposer.preview.subjectPrefix", { subject: alt.objet })}</p>
                         </button>
                       ))}
                       {selectedAlternative !== null && (
                         <Button variant="ghost" size="sm" className="text-xs" onClick={handleRevertToOriginal}>
-                          Revenir a la version originale
+                          {t("emailComposer.preview.revert")}
                         </Button>
                       )}
                     </div>
@@ -496,10 +499,9 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                   <div className="flex items-start gap-3">
                     <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Verification requise</p>
+                      <p className="text-sm font-medium text-amber-800 dark:text-amber-200">{t("emailComposer.warning.title")}</p>
                       <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                        Veuillez relire attentivement l'e-mail avant de l'approuver. L'IA peut generer du contenu inexact.
-                        Vous etes responsable du contenu final envoye.
+                        {t("emailComposer.warning.desc")}
                       </p>
                     </div>
                   </div>
@@ -508,12 +510,12 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                 <div className="flex justify-between gap-3 pt-2">
                   <Button variant="outline" onClick={() => setStep("configure")} className="gap-2">
                     <ChevronLeft className="w-4 h-4" />
-                    Modifier les parametres
+                    {t("emailComposer.preview.editSettings")}
                   </Button>
                   <div className="flex gap-2">
                     <Button variant="outline" onClick={handleGenerate} className="gap-2">
                       <RefreshCw className="w-4 h-4" />
-                      Regenerer
+                      {t("emailComposer.preview.regenerate")}
                     </Button>
                     <Button onClick={handleApproveAndSend} disabled={isSending || !recipientEmail} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
                       {isSending ? (
@@ -521,7 +523,7 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                       ) : (
                         <CheckCircle2 className="w-4 h-4" />
                       )}
-                      {isSending ? "Preparation..." : "Approuver et copier"}
+                      {isSending ? t("emailComposer.preview.preparing") : t("emailComposer.preview.approveCopy")}
                     </Button>
                   </div>
                 </div>
@@ -538,32 +540,31 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                 >
                   <CheckCircle2 className="w-10 h-10 text-emerald-600" />
                 </motion.div>
-                <h3 className="text-xl font-bold mb-2">E-mail approuve et pret</h3>
+                <h3 className="text-xl font-bold mb-2">{t("emailComposer.approved.heading")}</h3>
                 <p className="text-sm text-muted-foreground text-center max-w-sm mb-6">
-                  L'e-mail a ete copie dans le presse-papiers. Collez-le dans votre client de messagerie pour l'envoyer a {recipientEmail}.
-                  Connectez Gmail dans les Parametres pour l'envoi direct.
+                  {t("emailComposer.approved.desc", { email: recipientEmail })}
                 </p>
                 <div className="border rounded-lg p-4 w-full max-w-md bg-muted/30">
                   <div className="text-xs text-muted-foreground space-y-1">
                     <div className="flex justify-between">
-                      <span>Destinataire:</span>
+                      <span>{t("emailComposer.approved.recipient")}</span>
                       <span className="font-medium text-foreground">{recipientEmail}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Objet:</span>
+                      <span>{t("emailComposer.approved.subject")}</span>
                       <span className="font-medium text-foreground truncate ml-4">{editedSubject}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Statut:</span>
-                      <Badge className="bg-emerald-500 text-white text-[10px]">Pret</Badge>
+                      <span>{t("emailComposer.approved.status")}</span>
+                      <Badge className="bg-emerald-500 text-white text-[10px]">{t("emailComposer.approved.ready")}</Badge>
                     </div>
                   </div>
                 </div>
                 <div className="flex gap-3 mt-8">
-                  <Button variant="outline" onClick={handleClose}>Fermer</Button>
+                  <Button variant="outline" onClick={handleClose}>{t("common.close")}</Button>
                   <Button onClick={() => { resetComposer(); }} className="gap-2">
                     <Mail className="w-4 h-4" />
-                    Nouvel e-mail
+                    {t("emailComposer.approved.newEmail")}
                   </Button>
                 </div>
               </motion.div>

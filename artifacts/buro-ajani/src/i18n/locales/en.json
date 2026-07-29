@@ -8066,5 +8066,242 @@
     "newContact": "New contact",
     "newTask": "New task",
     "useAddButton": "Use the + button to create"
+  },
+  "quickActionHub": {
+    "title": "Quick action",
+    "entity": {
+      "contact": "Contact",
+      "tache": "Task",
+      "appel": "Call",
+      "message": "Message",
+      "evenement": "Event",
+      "projet": "Project"
+    },
+    "toast": {
+      "successTitle": "Success",
+      "errorTitle": "Error",
+      "created": "{{label}} created successfully",
+      "errorStatus": "Error {{status}}"
+    },
+    "contact": {
+      "firstName": "First name *",
+      "lastName": "Last name *",
+      "email": "Email",
+      "phone": "Phone *",
+      "company": "Company",
+      "category": "Category",
+      "phFirstName": "Jean",
+      "phLastName": "Dupont",
+      "phEmail": "jean@example.fr",
+      "phPhone": "+33 6 12 34 56 78",
+      "phCompany": "Acme Inc.",
+      "catClient": "Client",
+      "catFournisseur": "Supplier",
+      "catPartenaire": "Partner",
+      "catProspect": "Prospect",
+      "catAutre": "Other",
+      "submit": "Create contact"
+    },
+    "task": {
+      "title": "Title *",
+      "description": "Description",
+      "priority": "Priority",
+      "dueDate": "Due date",
+      "phTitle": "Call Mr. Dupont back",
+      "phDesc": "Details...",
+      "prioBasse": "Low",
+      "prioMoyenne": "Medium",
+      "prioHaute": "High",
+      "prioUrgente": "Urgent",
+      "submit": "Create task"
+    },
+    "call": {
+      "callerName": "Caller name",
+      "callerNumber": "Number *",
+      "direction": "Direction",
+      "notes": "Notes",
+      "phCallerName": "Jean Dupont",
+      "phCallerNumber": "+33 6 ...",
+      "phNotes": "Call notes...",
+      "dirEntrant": "Inbound",
+      "dirSortant": "Outbound",
+      "submit": "Save call"
+    },
+    "message": {
+      "sender": "Sender",
+      "channel": "Channel",
+      "content": "Content *",
+      "phSender": "Mr. Dupont",
+      "phContent": "Message content...",
+      "chEmail": "Email",
+      "chSms": "SMS",
+      "chWhatsapp": "WhatsApp",
+      "chChat": "Chat",
+      "submit": "Save message"
+    },
+    "event": {
+      "title": "Title *",
+      "start": "Start *",
+      "end": "End",
+      "type": "Type",
+      "description": "Description",
+      "phTitle": "Business meeting",
+      "phDesc": "Details...",
+      "typeReunion": "Meeting",
+      "typeAppel": "Call",
+      "typeFormation": "Training",
+      "typeDeadline": "Deadline",
+      "typeAutre": "Other",
+      "submit": "Create event"
+    },
+    "projet": {
+      "title": "Project title *",
+      "description": "Description",
+      "client": "Client",
+      "priority": "Priority",
+      "budget": "Budget (€)",
+      "endDate": "End date",
+      "phTitle": "Showcase site redesign",
+      "phDesc": "Context and objectives...",
+      "phClient": "Acme Inc.",
+      "phBudget": "5000",
+      "prioBasse": "Low",
+      "prioMoyenne": "Medium",
+      "prioHaute": "High",
+      "submit": "Create project"
+    }
+  },
+  "emailComposer": {
+    "title": "AI email composer",
+    "subtitle": {
+      "configure": "Configure your email settings",
+      "generating": "The AI is writing your email...",
+      "preview": "Review and approve before sending",
+      "approved": "Email ready to send"
+    },
+    "stepIndicator": {
+      "step1": "Step 1/3",
+      "generating": "Generating...",
+      "step2": "Step 2/3",
+      "step3": "Step 3/3"
+    },
+    "recipient": {
+      "label": "Recipient",
+      "selectPlaceholder": "Choose a contact...",
+      "free": "Free recipient",
+      "emailPlaceholder": "address@email.com"
+    },
+    "purposeLabel": "Email purpose",
+    "purpose": {
+      "suivi_appel": { "label": "Call follow-up", "desc": "After a phone call" },
+      "relance_prospect": { "label": "Prospect follow-up", "desc": "Sales follow-up" },
+      "confirmation_rdv": { "label": "Appointment confirmation", "desc": "Confirm an appointment" },
+      "remerciement": { "label": "Thank you", "desc": "After an exchange" },
+      "rappel_paiement": { "label": "Payment reminder", "desc": "Invoice or payment" },
+      "information": { "label": "Information", "desc": "Send documents" },
+      "presentation": { "label": "Presentation", "desc": "Present services" },
+      "excuses": { "label": "Apology", "desc": "For an inconvenience" },
+      "bienvenue": { "label": "Welcome", "desc": "New contact" },
+      "personnalise": { "label": "Custom", "desc": "Free instructions" }
+    },
+    "toneLabel": "Desired tone",
+    "tone": {
+      "formel": "Formal",
+      "cordial": "Cordial",
+      "direct": "Direct",
+      "empathique": "Empathetic"
+    },
+    "aiInstructions": {
+      "label": "Instructions for the AI",
+      "placeholder": "Describe what you want in this email..."
+    },
+    "additionalContext": {
+      "label": "Additional context (optional)",
+      "placeholder": "Add specific details or instructions..."
+    },
+    "generateBtn": "Generate with AI",
+    "generating": {
+      "heading": "The AI is writing your email",
+      "desc": "Analyzing the context and contact history and generating a suitable professional email...",
+      "inProgress": "Generating..."
+    },
+    "preview": {
+      "aiAnalysis": "AI analysis",
+      "toneBadge": "Tone: {{tone}}",
+      "recipientBadge": "Recipient: {{recipient}}",
+      "emailPreview": "Email preview",
+      "copy": "Copy",
+      "previewMode": "Preview mode",
+      "to": "To:",
+      "notProvided": "Not provided",
+      "subject": "Subj:",
+      "alternatives": "Alternatives suggested by the AI",
+      "selected": "Selected",
+      "subjectPrefix": "Subject: {{subject}}",
+      "revert": "Revert to original version",
+      "editSettings": "Edit settings",
+      "regenerate": "Regenerate",
+      "preparing": "Preparing...",
+      "approveCopy": "Approve and copy"
+    },
+    "warning": {
+      "title": "Review required",
+      "desc": "Please read the email carefully before approving it. The AI may generate inaccurate content. You are responsible for the final content sent."
+    },
+    "approved": {
+      "heading": "Email approved and ready",
+      "desc": "The email has been copied to the clipboard. Paste it into your email client to send it to {{email}}. Connect Gmail in Settings for direct sending.",
+      "recipient": "Recipient:",
+      "subject": "Subject:",
+      "status": "Status:",
+      "ready": "Ready",
+      "newEmail": "New email"
+    },
+    "toast": {
+      "purposeRequiredTitle": "Purpose required",
+      "purposeRequiredDesc": "Please select the purpose of the email.",
+      "genErrorTitle": "Generation error",
+      "genErrorDesc": "The AI could not generate the email. Try again.",
+      "emailRequiredTitle": "Email address required",
+      "emailRequiredDesc": "Please provide the recipient's email address.",
+      "errorTitle": "Error",
+      "copyEmailError": "Unable to copy the email.",
+      "copiedTitle": "Email copied",
+      "copiedDesc": "The email has been copied to the clipboard.",
+      "clipboardError": "Unable to copy to the clipboard."
+    }
+  },
+  "commandPalette": {
+    "searchPlaceholder": "Search for a command...",
+    "noResults": "No results",
+    "navigate": "navigate",
+    "openHint": "open",
+    "closeHint": "close",
+    "category": {
+      "navigation": "Navigation",
+      "administration": "Administration"
+    },
+    "cmd": {
+      "dashboard": "Dashboard",
+      "calls": "Calls",
+      "contacts": "Contacts",
+      "tasks": "Tasks",
+      "messages": "Messages",
+      "calendar": "Calendar",
+      "reports": "Reports",
+      "analytics": "Analytics",
+      "performance": "Performance",
+      "checkins": "Check-ins",
+      "ai": "AI agents",
+      "automations": "Automations",
+      "users": "Users",
+      "audit": "Audit log",
+      "organisations": "Licenses",
+      "abonnement": "License & Subscription",
+      "settings": "Settings",
+      "notifications": "Notifications",
+      "projets": "Projects",
+      "google-workspace": "Google Workspace"
+    }
   }
 }
