@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent } from "@/components/ui/card";
 import { useRequestAiRecognition, type AiRecognitionResult } from "@workspace/api-client-react";
+import { useTranslation } from "@/i18n";
 
 type RecognitionContextValue = {
   data: AiRecognitionResult | undefined;
@@ -74,15 +75,6 @@ const SEVERITE_CONFIG: Record<string, { bg: string; text: string; border: string
   positif: { bg: "bg-emerald-50 dark:bg-emerald-950/20", text: "text-emerald-700 dark:text-emerald-300", border: "border-emerald-200 dark:border-emerald-900/50", label: "Positif", dot: "bg-emerald-500" },
 };
 
-const CATEGORIE_LABELS: Record<string, string> = {
-  appels: "Appels",
-  contacts: "Contacts",
-  taches: "Taches",
-  messages: "Messages",
-  performance: "Performance",
-  reconnaissance: "Reconnaissance",
-};
-
 function getScoreColor(score: number) {
   if (score >= 85) return "text-emerald-600 dark:text-emerald-400";
   if (score >= 70) return "text-blue-600 dark:text-blue-400";
@@ -107,22 +99,24 @@ function getHealthIcon(niveau: string) {
   }
 }
 
-function getHealthLabel(niveau: string) {
-  switch (niveau) {
-    case "excellent": return "Excellent";
-    case "bon": return "Bon";
-    case "moyen": return "Moyen";
-    case "critique": return "Critique";
-    default: return niveau;
-  }
+function getHealthLabel(niveau: string, t: (k: string) => string) {
+  const key = `aiRecognitionPanel.health.${niveau}`;
+  const label = t(key);
+  return label === key ? niveau : label;
 }
 
 export function AiRecognitionPanel() {
+  const { t } = useTranslation();
   const recognition = useRecognition();
   const [isExpanded, setIsExpanded] = useState(true);
   const [activeFilter, setActiveFilter] = useState<string>("all");
 
   const data = recognition.data;
+  const catLabel = (c: string) => {
+    const k = `aiRecognitionPanel.categorie.${c}`;
+    const l = t(k);
+    return l === k ? c : l;
+  };
 
   const filteredDetections = data?.detections?.filter(d =>
     activeFilter === "all" || d.categorie === activeFilter
@@ -144,9 +138,9 @@ export function AiRecognitionPanel() {
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin text-purple-500" />
-                <span className="text-sm font-medium text-purple-700 dark:text-purple-300">Analyse en cours...</span>
+                <span className="text-sm font-medium text-purple-700 dark:text-purple-300">{t("aiRecognitionPanel.analyzing")}</span>
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">Reconnaissance de motifs et detection d'anomalies sur toutes les donnees</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{t("aiRecognitionPanel.analyzingSub")}</p>
             </div>
           </div>
         </CardContent>
@@ -161,13 +155,13 @@ export function AiRecognitionPanel() {
           <div className="flex items-center gap-3">
             <Brain className="w-5 h-5 text-purple-500" />
             <div>
-              <p className="text-sm font-medium">Reconnaissance IA</p>
-              <p className="text-xs text-muted-foreground">Analysez votre bureau pour des detections intelligentes</p>
+              <p className="text-sm font-medium">{t("aiRecognitionPanel.title")}</p>
+              <p className="text-xs text-muted-foreground">{t("aiRecognitionPanel.scanPrompt")}</p>
             </div>
           </div>
           <Button size="sm" variant="outline" onClick={recognition.refresh} className="border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-300">
             <Eye className="w-4 h-4 mr-1.5" />
-            Scanner
+            {t("aiRecognitionPanel.scan")}
           </Button>
         </CardContent>
       </Card>
@@ -187,12 +181,12 @@ export function AiRecognitionPanel() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-white font-semibold text-sm">Reconnaissance IA</h3>
+                <h3 className="text-white font-semibold text-sm">{t("aiRecognitionPanel.title")}</h3>
                 <Badge variant="outline" className="border-white/20 text-white/80 text-[10px] h-5 px-1.5">
-                  {getHealthLabel(resume.niveauSante)}
+                  {getHealthLabel(resume.niveauSante, t)}
                 </Badge>
               </div>
-              <p className="text-white/50 text-[11px] mt-0.5">{resume.totalDetections} detection(s) - Score global de sante</p>
+              <p className="text-white/50 text-[11px] mt-0.5">{t("aiRecognitionPanel.detectionsSummary", { count: resume.totalDetections })}</p>
             </div>
           </div>
 
@@ -212,17 +206,17 @@ export function AiRecognitionPanel() {
             <div className="flex items-center gap-1.5 border-l border-white/10 pl-4">
               {resume.critiques > 0 && (
                 <Badge className="bg-red-500/20 text-red-300 border-red-500/30 text-[10px] h-5 px-1.5">
-                  {resume.critiques} critique{resume.critiques > 1 ? "s" : ""}
+                  {t("aiRecognitionPanel.badge.critiques", { count: resume.critiques })}
                 </Badge>
               )}
               {resume.alertes > 0 && (
                 <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30 text-[10px] h-5 px-1.5">
-                  {resume.alertes} alerte{resume.alertes > 1 ? "s" : ""}
+                  {t("aiRecognitionPanel.badge.alertes", { count: resume.alertes })}
                 </Badge>
               )}
               {resume.positifs > 0 && (
                 <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-[10px] h-5 px-1.5">
-                  {resume.positifs} positif{resume.positifs > 1 ? "s" : ""}
+                  {t("aiRecognitionPanel.badge.positifs", { count: resume.positifs })}
                 </Badge>
               )}
             </div>
@@ -246,7 +240,7 @@ export function AiRecognitionPanel() {
               onClick={() => setActiveFilter("all")}
               className={`shrink-0 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${activeFilter === "all" ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
             >
-              Tout ({detections.length})
+              {t("aiRecognitionPanel.all", { count: detections.length })}
             </button>
             {categories.map(cat => {
               const catCount = detections.filter(d => d.categorie === cat).length;
@@ -258,7 +252,7 @@ export function AiRecognitionPanel() {
                   className={`shrink-0 px-2.5 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${activeFilter === cat ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
                 >
                   {hasCritical && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
-                  {CATEGORIE_LABELS[cat] || cat} ({catCount})
+                  {catLabel(cat)} ({catCount})
                 </button>
               );
             })}
@@ -266,7 +260,8 @@ export function AiRecognitionPanel() {
 
           <div className="divide-y divide-border max-h-[400px] overflow-y-auto">
             {filteredDetections.map(det => {
-              const sev = SEVERITE_CONFIG[det.severite] || SEVERITE_CONFIG.info;
+              const sevKey = SEVERITE_CONFIG[det.severite] ? det.severite : "info";
+              const sev = SEVERITE_CONFIG[sevKey];
               return (
                 <div key={det.id} className={`flex items-center gap-3 px-4 py-3 ${sev.bg} hover:brightness-95 dark:hover:brightness-110 transition-all group`}>
                   <div className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${sev.text} ${sev.border} border bg-white/80 dark:bg-white/5`}>
@@ -277,10 +272,10 @@ export function AiRecognitionPanel() {
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className={`text-sm font-semibold ${sev.text}`}>{det.titre}</span>
                       <Badge variant="outline" className={`h-4 px-1 text-[9px] shrink-0 ${sev.border} ${sev.text}`}>
-                        {sev.label}
+                        {t(`aiRecognitionPanel.severite.${sevKey}`)}
                       </Badge>
                       <Badge variant="outline" className="h-4 px-1 text-[9px] text-muted-foreground shrink-0">
-                        {CATEGORIE_LABELS[det.categorie] || det.categorie}
+                        {catLabel(det.categorie)}
                       </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground line-clamp-1">{det.description}</p>
@@ -304,7 +299,7 @@ export function AiRecognitionPanel() {
 
             {filteredDetections.length === 0 && (
               <div className="p-6 text-center text-sm text-muted-foreground">
-                Aucune detection dans cette categorie.
+                {t("aiRecognitionPanel.emptyCategory")}
               </div>
             )}
           </div>

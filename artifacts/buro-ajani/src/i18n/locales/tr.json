@@ -8193,16 +8193,46 @@
     },
     "purposeLabel": "E-postanın amacı",
     "purpose": {
-      "suivi_appel": { "label": "Arama takibi", "desc": "Bir telefon görüşmesinden sonra" },
-      "relance_prospect": { "label": "Potansiyel takibi", "desc": "Ticari takip" },
-      "confirmation_rdv": { "label": "Randevu onayı", "desc": "Bir randevuyu onaylayın" },
-      "remerciement": { "label": "Teşekkür", "desc": "Bir görüşmeden sonra" },
-      "rappel_paiement": { "label": "Ödeme hatırlatması", "desc": "Fatura veya ödeme" },
-      "information": { "label": "Bilgilendirme", "desc": "Belge iletme" },
-      "presentation": { "label": "Tanıtım", "desc": "Hizmetleri tanıtın" },
-      "excuses": { "label": "Özür", "desc": "Bir rahatsızlık için" },
-      "bienvenue": { "label": "Hoş geldiniz", "desc": "Yeni kişi" },
-      "personnalise": { "label": "Özel", "desc": "Serbest talimatlar" }
+      "suivi_appel": {
+        "label": "Arama takibi",
+        "desc": "Bir telefon görüşmesinden sonra"
+      },
+      "relance_prospect": {
+        "label": "Potansiyel takibi",
+        "desc": "Ticari takip"
+      },
+      "confirmation_rdv": {
+        "label": "Randevu onayı",
+        "desc": "Bir randevuyu onaylayın"
+      },
+      "remerciement": {
+        "label": "Teşekkür",
+        "desc": "Bir görüşmeden sonra"
+      },
+      "rappel_paiement": {
+        "label": "Ödeme hatırlatması",
+        "desc": "Fatura veya ödeme"
+      },
+      "information": {
+        "label": "Bilgilendirme",
+        "desc": "Belge iletme"
+      },
+      "presentation": {
+        "label": "Tanıtım",
+        "desc": "Hizmetleri tanıtın"
+      },
+      "excuses": {
+        "label": "Özür",
+        "desc": "Bir rahatsızlık için"
+      },
+      "bienvenue": {
+        "label": "Hoş geldiniz",
+        "desc": "Yeni kişi"
+      },
+      "personnalise": {
+        "label": "Özel",
+        "desc": "Serbest talimatlar"
+      }
     },
     "toneLabel": "İstenen ton",
     "tone": {
@@ -8302,6 +8332,287 @@
       "notifications": "Bildirimler",
       "projets": "Projeler",
       "google-workspace": "Google Workspace"
+    }
+  },
+  "centralIntelligence": {
+    "categorie": {
+      "CRITIQUE": "Kritik",
+      "A_PLANIFIER": "Planlanacak",
+      "INFO": "Bilgi"
+    },
+    "eisenhower": {
+      "urgent_important": "Acil + Önemli",
+      "urgent": "Acil",
+      "important": "Önemli",
+      "info": "Bilgi"
+    },
+    "ton": {
+      "client": "Müşteri",
+      "fournisseur": "Tedarikçi",
+      "interne": "Dahili"
+    },
+    "module": {
+      "comptabilite": "Muhasebe",
+      "secretariat": "Sekreterlik",
+      "logistique": "Lojistik"
+    },
+    "priorite": {
+      "haute": "yüksek",
+      "moyenne": "orta",
+      "basse": "düşük"
+    },
+    "serverError": "Sunucu hatası",
+    "analyzing": "Yönetici Asistanı analiz ediyor...",
+    "scanning": "Tarama: muhasebe, mesajlar, aramalar, stok, vergi son tarihleri",
+    "unavailable": "Yönetici Asistanı kullanılamıyor",
+    "willResume": "Analiz birazdan devam edecek",
+    "retry": "Yeniden dene",
+    "title": "Yönetici Asistanı",
+    "commandoMode": "Komando Modu",
+    "etat": {
+      "critique": "Kritik durum",
+      "alerte": "Aktif uyarı",
+      "vigilance": "Dikkat",
+      "excellent": "İdeal durum",
+      "bon": "Kontrol altında"
+    },
+    "subtitle": "Muhasebe & Sekreterlik | Otonom yönetim",
+    "refresh": "Yenile",
+    "kpi": {
+      "tauxReponse": "Yanıt oranı",
+      "retards": "Gecikmeler",
+      "msgUrgents": "Acil msj",
+      "relances": "Takipler",
+      "stock": "Stok"
+    },
+    "tabs": {
+      "resolutions": "Çözümler",
+      "courrier": "Yazışma",
+      "appels": "Aramalar",
+      "gestion": "Yönetim"
+    },
+    "emptyResolutions": "Sıfır sorun tespit edildi. İdeal durum.",
+    "emptyMessages": "Bekleyen mesaj yok.",
+    "afterSend": "Gönderdikten sonra: {{action}}",
+    "copied": "Kopyalandı",
+    "copy": "Kopyala",
+    "send": "Gönder",
+    "fichesRappel": "Geri arama fişleri",
+    "script": "Metin",
+    "callBack": "Geri ara",
+    "relancesStrategiques": "Stratejik takipler",
+    "daysNoContact": "{{jours}} gün iletişimsiz",
+    "call": "Ara",
+    "emptyAppels": "İşlenecek arama yok.",
+    "echeancesFiscales": "Vergi son tarihleri",
+    "documentsToPrepare": "Hazırlanacak belgeler:",
+    "prepare": "Hazırla",
+    "stockAlerts": "Stok & malzeme uyarıları",
+    "rupture48h": "48s tükenme",
+    "qtySeuil": "adet/eşik",
+    "purchaseOrder": "Sipariş formu:",
+    "copyPO": "SF Kopyala",
+    "planningOptimizations": "Planlama iyileştirmeleri",
+    "emptyLogistique": "Stok, son tarihler ve planlama kontrol altında.",
+    "flashInfo": "Flaş Bilgi",
+    "done": "Yapıldı",
+    "remaining": "Kalanlar",
+    "priority1": "Bir numaralı öncelik",
+    "validate": "Onayla",
+    "process": "İşle"
+  },
+  "aiAssistant": {
+    "title": "Elit Yapay Zeka Asistanı",
+    "subtitle": "Ultra YZ · E-posta · Telefon · Arama · Eylemler",
+    "newConversation": "Yeni sohbet",
+    "serverError": "Sunucu hatası",
+    "responseUnavailable": "Yanıt mevcut değil.",
+    "genericError": "Üzgünüm, bir hata oluştu. Lütfen tekrar deneyin.",
+    "executionError": "Yürütme hatası",
+    "autoFixDone": "Otomatik düzeltme tamamlandı: {{count}} düzeltme uygulandı.",
+    "toast": {
+      "reminderSet": "Hatırlatıcı ayarlandı",
+      "fixesApplied": "Düzeltmeler uygulandı",
+      "fixesAppliedDesc": "{{count}} düzeltme yapıldı.",
+      "actionExecuted": "Eylem yürütüldü",
+      "failure": "Başarısız",
+      "actionFailed": "Eylem başarısız.",
+      "actionUnrecognized": "Tanınmayan eylem.",
+      "error": "Hata",
+      "cannotExecute": "Bu eylem yürütülemiyor."
+    },
+    "mood": {
+      "positif": "Her şey yolunda",
+      "alerte": "Dikkat gerekli",
+      "critique": "Acil eylem",
+      "normal": "Normal"
+    },
+    "priorite": {
+      "haute": "yüksek",
+      "moyenne": "orta",
+      "basse": "düşük"
+    },
+    "proactiveSuggestions": "Proaktif öneriler ({{count}})",
+    "analyzingContext": "Bağlamsal analiz sürüyor...",
+    "officeIntelligence": "Ofis Zekâsı",
+    "intro": "Ofisiniz, görevleriniz, aramalarınız, e-postalarınız — hepsini yönetiyorum. Bana her şeyi sorun.",
+    "insights": "İçgörüler",
+    "executableActions": "Yürütülebilir eylemler ({{count}})",
+    "analyzingMultiAi": "Çoklu YZ analizi sürüyor...",
+    "inputPlaceholder": "Ofisinizle ilgili her şeyi sorun...",
+    "calculations": "Hesaplamalar ({{count}})",
+    "quickQuestions": {
+      "q0": "Bana günün tam yönetici brifingini ver",
+      "q1": "Şimdi ele alınacak aciliyetler neler?",
+      "q2": "Pasif kişiler için takip planla",
+      "q3": "Genel performans raporu oluştur",
+      "q4": "Bu hafta kaç arama?",
+      "q5": "Hangi görevler gecikmiş?",
+      "q6": "Hizmetlerimiz için piyasa fiyatlarını araştır",
+      "q7": "Öncelikli kişilere hatırlatıcı gönder"
+    },
+    "mathType": {
+      "arithmetic": "Aritmetik",
+      "percentage": "Yüzde",
+      "power": "Üs",
+      "root": "Kök",
+      "logarithm": "Logaritma",
+      "trigonometry": "Trigonometri",
+      "statistics": "İstatistik",
+      "financial": "Finansal",
+      "conversion": "Dönüşüm",
+      "geometry": "Geometri"
+    }
+  },
+  "aiRecognitionPanel": {
+    "analyzing": "Analiz sürüyor...",
+    "analyzingSub": "Tüm verilerde örüntü tanıma ve anomali tespiti",
+    "title": "Yapay Zeka Tanıma",
+    "scanPrompt": "Akıllı tespitler için ofisinizi analiz edin",
+    "scan": "Tara",
+    "detectionsSummary": "{{count}} tespit - Genel sağlık skoru",
+    "all": "Tümü ({{count}})",
+    "emptyCategory": "Bu kategoride tespit yok.",
+    "badge": {
+      "critiques": "{{count}} kritik",
+      "alertes": "{{count}} uyarı",
+      "positifs": "{{count}} olumlu"
+    },
+    "health": {
+      "excellent": "Mükemmel",
+      "bon": "İyi",
+      "moyen": "Orta",
+      "critique": "Kritik"
+    },
+    "severite": {
+      "critique": "Kritik",
+      "alerte": "Uyarı",
+      "attention": "Dikkat",
+      "info": "Bilgi",
+      "positif": "Olumlu"
+    },
+    "categorie": {
+      "appels": "Aramalar",
+      "contacts": "Kişiler",
+      "taches": "Görevler",
+      "messages": "Mesajlar",
+      "performance": "Performans",
+      "reconnaissance": "Tanıma"
+    }
+  },
+  "aiDiscoveryPanel": {
+    "serverError": "Sunucu hatası",
+    "loading": "Yapay Zeka Ajanı profilinizi ve uygulamalarınızı analiz ediyor...",
+    "loadError": "Yapay Zeka keşfi yüklenemedi.",
+    "retry": "Yeniden dene",
+    "title": "Yapay Zeka Ajanı - Keşif",
+    "subtitle": "Alanınızın kişiselleştirilmiş analizi",
+    "profile": "Profil",
+    "complete": "Tamamlandı",
+    "incomplete": "Eksik",
+    "missing": "Eksik: {{fields}}",
+    "allFieldsFilled": "Tüm alanlar dolduruldu",
+    "applications": "Uygulamalar",
+    "connectedCount": "{{count}} bağlı",
+    "activity": "Etkinlik",
+    "analyzing": "Analiz sürüyor...",
+    "recommendedApps": "Sizin için önerilen uygulamalar",
+    "recommended": "Önerilen",
+    "useful": "Yararlı",
+    "optional": "İsteğe bağlı",
+    "seeLess": "Daha az göster",
+    "moreRecommendations": "+{{count}} diğer öneri",
+    "suggestedActions": "Önerilen eylemler",
+    "priorite": {
+      "haute": "yüksek",
+      "moyenne": "orta",
+      "basse": "düşük"
+    }
+  },
+  "aiSpot": {
+    "error": "Hata",
+    "cannotHide": "Gizlenemiyor.",
+    "wait": "Lütfen bekleyin",
+    "tryLater": "Daha sonra tekrar deneyin.",
+    "insightsRefreshed": "İçgörüler güncellendi",
+    "suggestionsGenerated": "{{count}} öneri oluşturuldu.",
+    "regenFailed": "Yeniden oluşturma başarısız.",
+    "analyzing": "Analiz sürüyor...",
+    "noAlert": "Uyarı yok. Her şey kontrol altında.",
+    "refresh": "Yenile",
+    "subtitle": "Öncelikli proaktif öneriler",
+    "useful": "Yararlı",
+    "notUseful": "Yararlı değil",
+    "hide": "Gizle"
+  },
+  "smartPulsePanel": {
+    "health": "sağlık",
+    "riskLow": "Düşük risk",
+    "riskMedium": "Orta risk",
+    "riskHigh": "Yüksek risk",
+    "analyzing": "Akıllı analiz sürüyor...",
+    "title": "Akıllı Radar",
+    "subtitle": "Gerçek zamanlı izleme - Her dakika güncellenir",
+    "criticalCount": "{{count}} kritik",
+    "alertCount": "{{count}} uyarı",
+    "hourlyDistribution": "Saatlik arama dağılımı",
+    "peakHour": "Yoğun saat:",
+    "weekGrowth": "Geçen haftaya göre {{sign}}{{growth}}% etkinlik ({{week}} / {{prev}} arama)",
+    "alertsAnomalies": "Uyarılar & Anormallikler",
+    "seeLess": "Daha az göster",
+    "seeOthers": "Diğer {{count}} tanesini gör",
+    "recommendations": "Yapay Zeka Önerileri",
+    "metric": {
+      "todayCalls": "Bugünkü aramalar",
+      "missed": "Kaçırılan",
+      "overdueTasks": "Geciken görevler",
+      "completedWeek": "Bu hafta tamamlanan",
+      "unread": "Okunmamış"
+    },
+    "severite": {
+      "critique": "Kritik",
+      "alerte": "Uyarı",
+      "attention": "Dikkat",
+      "info": "Bilgi"
+    }
+  },
+  "aiSuggestionsCard": {
+    "available": "Yapay Zeka mevcut",
+    "availableSub": "Bu sayfa için kişiselleştirilmiş öneriler alın",
+    "analyze": "Analiz et",
+    "title": "Yapay Zeka Önerileri",
+    "analyzing": "Analiz sürüyor...",
+    "empty": "Şu anda öneri yok.",
+    "priorite": {
+      "haute": "Yüksek",
+      "moyenne": "Orta",
+      "basse": "Düşük"
+    },
+    "type": {
+      "urgence": "Acil",
+      "amelioration": "İyileştirme",
+      "information": "Bilgi",
+      "action": "Eylem"
     }
   }
 }

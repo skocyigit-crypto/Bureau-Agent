@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "wouter";
+import { useTranslation } from "@/i18n";
 
 const VALID_ROUTES = [
   "/", "/appels", "/contacts", "/taches", "/messages", "/calendrier",
@@ -183,37 +184,44 @@ function ScoreGauge({ score, niveau, commando }: { score: number; niveau: string
 }
 
 function CategorieTag({ categorie }: { categorie: string }) {
-  const cfg = CATEGORIE_CONFIG[categorie] || CATEGORIE_CONFIG.INFO;
+  const { t } = useTranslation();
+  const key = CATEGORIE_CONFIG[categorie] ? categorie : "INFO";
+  const cfg = CATEGORIE_CONFIG[key];
   const Icon = cfg.icon;
   return (
     <Badge variant="outline" className={`text-[9px] h-5 gap-1 ${cfg.bg} ${cfg.color} ${cfg.border} border shrink-0`}>
       <Icon className="w-3 h-3" />
-      {cfg.label}
+      {t(`centralIntelligence.categorie.${key}`)}
     </Badge>
   );
 }
 
 function EisenhowerTag({ eisenhower }: { eisenhower: string }) {
-  const cfg = EISENHOWER_CONFIG[eisenhower] || EISENHOWER_CONFIG.info;
+  const { t } = useTranslation();
+  const key = EISENHOWER_CONFIG[eisenhower] ? eisenhower : "info";
+  const cfg = EISENHOWER_CONFIG[key];
   return (
     <Badge variant="outline" className={`text-[9px] h-5 gap-0.5 ${cfg.bg} ${cfg.color} border shrink-0`}>
-      {cfg.label}
+      {t(`centralIntelligence.eisenhower.${key}`)}
     </Badge>
   );
 }
 
 function TonTag({ ton }: { ton: string }) {
-  const cfg = TON_CONFIG[ton] || TON_CONFIG.interne;
+  const { t } = useTranslation();
+  const key = TON_CONFIG[ton] ? ton : "interne";
+  const cfg = TON_CONFIG[key];
   const Icon = cfg.icon;
   return (
     <Badge variant="outline" className={`text-[9px] h-5 gap-0.5 bg-white/80 ${cfg.color} border shrink-0`}>
       <Icon className="w-2.5 h-2.5" />
-      {cfg.label}
+      {t(`centralIntelligence.ton.${key}`)}
     </Badge>
   );
 }
 
 export function CentralIntelligence() {
+  const { t } = useTranslation();
   const [data, setData] = useState<CentralIntelligenceData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -250,7 +258,7 @@ export function CentralIntelligence() {
       });
       if (!resp.ok) {
         if (resp.status === 401) return;
-        throw new Error("Erreur serveur");
+        throw new Error(t("centralIntelligence.serverError"));
       }
       const result = await resp.json();
       setData(result);
@@ -277,8 +285,8 @@ export function CentralIntelligence() {
             <Loader2 className="w-4 h-4 animate-spin text-white" />
           </div>
           <div>
-            <p className="text-sm font-medium">Assistant Executif en analyse...</p>
-            <p className="text-[11px] text-muted-foreground">Scan : comptabilite, messages, appels, stock, echeances fiscales</p>
+            <p className="text-sm font-medium">{t("centralIntelligence.analyzing")}</p>
+            <p className="text-[11px] text-muted-foreground">{t("centralIntelligence.scanning")}</p>
           </div>
         </CardContent>
       </Card>
@@ -294,13 +302,13 @@ export function CentralIntelligence() {
               <AlertTriangle className="w-4 h-4 text-white" />
             </div>
             <div>
-              <p className="text-sm font-medium">Assistant Executif indisponible</p>
-              <p className="text-[11px] text-muted-foreground">L'analyse reprendra dans quelques instants</p>
+              <p className="text-sm font-medium">{t("centralIntelligence.unavailable")}</p>
+              <p className="text-[11px] text-muted-foreground">{t("centralIntelligence.willResume")}</p>
             </div>
           </div>
           <Button variant="outline" size="sm" onClick={() => { setError(null); loadData(); }}>
             <RefreshCw className="w-3 h-3 mr-1" />
-            Reessayer
+            {t("centralIntelligence.retry")}
           </Button>
         </CardContent>
       </Card>
@@ -333,26 +341,26 @@ export function CentralIntelligence() {
             </div>
             <div>
               <CardTitle className="text-sm flex items-center gap-2">
-                Assistant Executif
+                {t("centralIntelligence.title")}
                 {data.modeCommando && (
                   <Badge className="text-[9px] h-4 bg-red-600 text-white border-0 animate-pulse">
-                    Mode Commando
+                    {t("centralIntelligence.commandoMode")}
                   </Badge>
                 )}
                 <Badge variant="outline" className={`text-[9px] h-4 ${config.color}`}>
-                  {data.niveauSante === "critique" ? "Etat critique" :
-                   data.niveauSante === "alerte" ? "Alerte active" :
-                   data.niveauSante === "vigilance" ? "Vigilance" :
-                   data.niveauSante === "excellent" ? "Situation optimale" : "Sous controle"}
+                  {data.niveauSante === "critique" ? t("centralIntelligence.etat.critique") :
+                   data.niveauSante === "alerte" ? t("centralIntelligence.etat.alerte") :
+                   data.niveauSante === "vigilance" ? t("centralIntelligence.etat.vigilance") :
+                   data.niveauSante === "excellent" ? t("centralIntelligence.etat.excellent") : t("centralIntelligence.etat.bon")}
                 </Badge>
               </CardTitle>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                Comptabilite & Secretariat | Gestion autonome
+                {t("centralIntelligence.subtitle")}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { sessionStorage.removeItem("adb_ci_data"); sessionStorage.removeItem("adb_ci_ts"); loadData(); }} title="Actualiser">
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { sessionStorage.removeItem("adb_ci_data"); sessionStorage.removeItem("adb_ci_ts"); loadData(); }} title={t("centralIntelligence.refresh")}>
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
             </Button>
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCollapsed(!collapsed)}>
@@ -368,11 +376,11 @@ export function CentralIntelligence() {
           <div className="flex-1 min-w-0 space-y-2">
             <div className="grid grid-cols-5 gap-2">
               {[
-                { label: "Taux reponse", value: m.tauxReponse, icon: Phone, alert: parseInt(m.tauxReponse) < 80 },
-                { label: "Retards", value: String(m.tachesEnRetard), icon: Clock, alert: m.tachesEnRetard > 0 },
-                { label: "Msg urgents", value: String(m.messagesUrgents), icon: MessageSquare, alert: m.messagesUrgents > 0 },
-                { label: "Relances", value: String(m.contactsARelancer), icon: Users, alert: m.contactsARelancer > 3 },
-                { label: "Stock", value: String(m.articlesEnAlerte), icon: Package, alert: m.articlesEnAlerte > 0 },
+                { label: t("centralIntelligence.kpi.tauxReponse"), value: m.tauxReponse, icon: Phone, alert: parseInt(m.tauxReponse) < 80 },
+                { label: t("centralIntelligence.kpi.retards"), value: String(m.tachesEnRetard), icon: Clock, alert: m.tachesEnRetard > 0 },
+                { label: t("centralIntelligence.kpi.msgUrgents"), value: String(m.messagesUrgents), icon: MessageSquare, alert: m.messagesUrgents > 0 },
+                { label: t("centralIntelligence.kpi.relances"), value: String(m.contactsARelancer), icon: Users, alert: m.contactsARelancer > 3 },
+                { label: t("centralIntelligence.kpi.stock"), value: String(m.articlesEnAlerte), icon: Package, alert: m.articlesEnAlerte > 0 },
               ].map((kpi) => (
                 <div key={kpi.label} className={`p-2 rounded-lg border text-center ${kpi.alert ? "bg-red-50/70 border-red-200/60" : "bg-white/60 border-slate-100"}`}>
                   <kpi.icon className={`w-3.5 h-3.5 mx-auto mb-1 ${kpi.alert ? "text-red-500" : "text-slate-400"}`} />
@@ -396,16 +404,16 @@ export function CentralIntelligence() {
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="h-8 w-full">
                 <TabsTrigger value="resolutions" className="text-[11px] h-6 gap-1">
-                  <Target className="w-3 h-3" /> Resolutions ({tabCounts.resolutions})
+                  <Target className="w-3 h-3" /> {t("centralIntelligence.tabs.resolutions")} ({tabCounts.resolutions})
                 </TabsTrigger>
                 <TabsTrigger value="messages" className="text-[11px] h-6 gap-1">
-                  <MessageSquare className="w-3 h-3" /> Courrier ({tabCounts.messages})
+                  <MessageSquare className="w-3 h-3" /> {t("centralIntelligence.tabs.courrier")} ({tabCounts.messages})
                 </TabsTrigger>
                 <TabsTrigger value="appels" className="text-[11px] h-6 gap-1">
-                  <Phone className="w-3 h-3" /> Appels ({tabCounts.appels})
+                  <Phone className="w-3 h-3" /> {t("centralIntelligence.tabs.appels")} ({tabCounts.appels})
                 </TabsTrigger>
                 <TabsTrigger value="logistique" className="text-[11px] h-6 gap-1">
-                  <Calculator className="w-3 h-3" /> Gestion ({tabCounts.logistique})
+                  <Calculator className="w-3 h-3" /> {t("centralIntelligence.tabs.gestion")} ({tabCounts.logistique})
                 </TabsTrigger>
               </TabsList>
 
@@ -414,7 +422,7 @@ export function CentralIntelligence() {
                 {data.resolutions.length === 0 ? (
                   <div className="text-center py-4">
                     <CheckCircle2 className="w-8 h-8 mx-auto text-emerald-400 mb-1" />
-                    <p className="text-xs text-muted-foreground">Zero probleme detecte. Situation optimale.</p>
+                    <p className="text-xs text-muted-foreground">{t("centralIntelligence.emptyResolutions")}</p>
                   </div>
                 ) : (
                   <>
@@ -436,7 +444,7 @@ export function CentralIntelligence() {
                 {data.brouillonsReponses.length === 0 ? (
                   <div className="text-center py-4">
                     <CheckCircle2 className="w-8 h-8 mx-auto text-emerald-400 mb-1" />
-                    <p className="text-xs text-muted-foreground">Aucun message en attente.</p>
+                    <p className="text-xs text-muted-foreground">{t("centralIntelligence.emptyMessages")}</p>
                   </div>
                 ) : (
                   data.brouillonsReponses.map((br, i) => (
@@ -463,7 +471,7 @@ export function CentralIntelligence() {
                       {br.actionSuggestion && (
                         <p className="text-[10px] text-slate-500 flex items-center gap-1">
                           <TrendingUp className="w-3 h-3" />
-                          Apres envoi : {br.actionSuggestion}
+                          {t("centralIntelligence.afterSend", { action: br.actionSuggestion })}
                         </p>
                       )}
                       <div className="flex justify-end gap-1.5">
@@ -474,11 +482,11 @@ export function CentralIntelligence() {
                           onClick={() => handleCopy(`draft-${i}`, br.brouillon)}
                         >
                           {copiedId === `draft-${i}` ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                          {copiedId === `draft-${i}` ? "Copie" : "Copier"}
+                          {copiedId === `draft-${i}` ? t("centralIntelligence.copied") : t("centralIntelligence.copy")}
                         </Button>
                         <Link href="/messages">
                           <Button variant="default" size="sm" className="h-6 text-[10px] gap-1 bg-indigo-600 hover:bg-indigo-700">
-                            <Send className="w-3 h-3" /> Envoyer
+                            <Send className="w-3 h-3" /> {t("centralIntelligence.send")}
                           </Button>
                         </Link>
                       </div>
@@ -492,7 +500,7 @@ export function CentralIntelligence() {
                 {data.fichesRappel.length > 0 && (
                   <div className="space-y-1.5">
                     <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                      <CircleAlert className="w-3 h-3" /> Fiches de rappel
+                      <CircleAlert className="w-3 h-3" /> {t("centralIntelligence.fichesRappel")}
                     </p>
                     {data.fichesRappel.map((f, i) => (
                       <div key={i} className="p-3 rounded-lg bg-white/80 border text-xs space-y-1.5">
@@ -512,7 +520,7 @@ export function CentralIntelligence() {
                             f.priorite === "moyenne" ? "bg-amber-50 text-amber-600 border-amber-200" :
                             "bg-blue-50 text-blue-600 border-blue-200"
                           }`}>
-                            {f.priorite}
+                            {t(`centralIntelligence.priorite.${f.priorite}`)}
                           </Badge>
                         </div>
                         <p className="text-muted-foreground">{f.motif}</p>
@@ -524,11 +532,11 @@ export function CentralIntelligence() {
                         <div className="flex justify-end gap-1.5">
                           <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1" onClick={() => handleCopy(`rappel-${i}`, f.scriptAppel)}>
                             {copiedId === `rappel-${i}` ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                            Script
+                            {t("centralIntelligence.script")}
                           </Button>
                           <Link href="/appels">
                             <Button variant="default" size="sm" className="h-6 text-[10px] gap-1 bg-indigo-600 hover:bg-indigo-700">
-                              <Phone className="w-3 h-3" /> Rappeler
+                              <Phone className="w-3 h-3" /> {t("centralIntelligence.callBack")}
                             </Button>
                           </Link>
                         </div>
@@ -540,7 +548,7 @@ export function CentralIntelligence() {
                 {data.relancesStrategiques.length > 0 && (
                   <div className="space-y-1.5">
                     <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                      <Target className="w-3 h-3" /> Relances strategiques
+                      <Target className="w-3 h-3" /> {t("centralIntelligence.relancesStrategiques")}
                     </p>
                     {data.relancesStrategiques.map((c, i) => (
                       <div key={i} className="p-3 rounded-lg bg-white/80 border text-xs space-y-1.5">
@@ -560,7 +568,7 @@ export function CentralIntelligence() {
                               )}
                             </div>
                           </div>
-                          <p className="text-[10px] text-muted-foreground shrink-0">{c.joursDepuisDernierAppel}j sans contact</p>
+                          <p className="text-[10px] text-muted-foreground shrink-0">{t("centralIntelligence.daysNoContact", { jours: c.joursDepuisDernierAppel })}</p>
                         </div>
                         <p className="text-muted-foreground">{c.potentiel}</p>
                         {c.scriptRelance && (
@@ -571,11 +579,11 @@ export function CentralIntelligence() {
                         <div className="flex justify-end gap-1.5">
                           <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1" onClick={() => handleCopy(`relance-${i}`, c.scriptRelance)}>
                             {copiedId === `relance-${i}` ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                            Script
+                            {t("centralIntelligence.script")}
                           </Button>
                           <Link href="/contacts">
                             <Button variant="default" size="sm" className="h-6 text-[10px] gap-1 bg-indigo-600 hover:bg-indigo-700">
-                              <Phone className="w-3 h-3" /> Appeler
+                              <Phone className="w-3 h-3" /> {t("centralIntelligence.call")}
                             </Button>
                           </Link>
                         </div>
@@ -587,7 +595,7 @@ export function CentralIntelligence() {
                 {data.fichesRappel.length === 0 && data.relancesStrategiques.length === 0 && (
                   <div className="text-center py-4">
                     <CheckCircle2 className="w-8 h-8 mx-auto text-emerald-400 mb-1" />
-                    <p className="text-xs text-muted-foreground">Aucun appel a traiter.</p>
+                    <p className="text-xs text-muted-foreground">{t("centralIntelligence.emptyAppels")}</p>
                   </div>
                 )}
               </TabsContent>
@@ -597,7 +605,7 @@ export function CentralIntelligence() {
                 {hasFiscal && (
                   <div className="space-y-1.5">
                     <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                      <Calendar className="w-3 h-3" /> Echeances fiscales
+                      <Calendar className="w-3 h-3" /> {t("centralIntelligence.echeancesFiscales")}
                     </p>
                     {data.alertesFiscales.map((a, i) => (
                       <div key={i} className={`p-3 rounded-lg border text-xs space-y-1.5 ${a.urgence === "CRITIQUE" ? "bg-red-50/50 border-red-200" : "bg-amber-50/30 border-amber-200/50"}`}>
@@ -611,7 +619,7 @@ export function CentralIntelligence() {
                         {a.documentsAPreparer.length > 0 && (
                           <div className="p-2 rounded-lg bg-white/80 border border-slate-100">
                             <p className="text-[10px] font-medium text-slate-600 mb-1 flex items-center gap-1">
-                              <BookOpen className="w-3 h-3" /> Documents a preparer :
+                              <BookOpen className="w-3 h-3" /> {t("centralIntelligence.documentsToPrepare")}
                             </p>
                             <ul className="space-y-0.5">
                               {a.documentsAPreparer.map((doc, j) => (
@@ -626,7 +634,7 @@ export function CentralIntelligence() {
                         <div className="flex justify-end">
                           <Link href="/taches">
                             <Button variant="default" size="sm" className="h-6 text-[10px] gap-1 bg-indigo-600 hover:bg-indigo-700">
-                              <ArrowRight className="w-3 h-3" /> Preparer
+                              <ArrowRight className="w-3 h-3" /> {t("centralIntelligence.prepare")}
                             </Button>
                           </Link>
                         </div>
@@ -638,7 +646,7 @@ export function CentralIntelligence() {
                 {data.alertesStock.length > 0 && (
                   <div className="space-y-1.5">
                     <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                      <Package className="w-3 h-3" /> Alertes stock & fournitures
+                      <Package className="w-3 h-3" /> {t("centralIntelligence.stockAlerts")}
                     </p>
                     {data.alertesStock.map((s, i) => (
                       <div key={i} className={`p-3 rounded-lg border text-xs space-y-1.5 ${s.rupturePrevue48h ? "bg-red-50/50 border-red-200" : "bg-white/80"}`}>
@@ -648,7 +656,7 @@ export function CentralIntelligence() {
                             <span className="font-semibold">{s.article}</span>
                             {s.rupturePrevue48h && (
                               <Badge className="text-[9px] h-4 bg-red-600 text-white border-0">
-                                Rupture 48h
+                                {t("centralIntelligence.rupture48h")}
                               </Badge>
                             )}
                           </div>
@@ -656,14 +664,14 @@ export function CentralIntelligence() {
                             <p className={`text-sm font-bold ${s.quantiteActuelle <= 0 ? "text-red-600" : s.quantiteActuelle <= s.seuilMin ? "text-amber-600" : ""}`}>
                               {s.quantiteActuelle}/{s.seuilMin}
                             </p>
-                            <p className="text-[9px] text-muted-foreground">qte/seuil</p>
+                            <p className="text-[9px] text-muted-foreground">{t("centralIntelligence.qtySeuil")}</p>
                           </div>
                         </div>
                         <p className="text-muted-foreground">{s.action}</p>
                         {s.bonCommande && (
                           <div className="p-2 rounded-lg bg-amber-50/60 border border-amber-100">
                             <p className="text-[10px] font-medium text-amber-800 flex items-center gap-1 mb-1">
-                              <FileText className="w-3 h-3" /> Bon de commande :
+                              <FileText className="w-3 h-3" /> {t("centralIntelligence.purchaseOrder")}
                             </p>
                             <p className="text-[10px] text-amber-700">{s.bonCommande}</p>
                           </div>
@@ -672,7 +680,7 @@ export function CentralIntelligence() {
                           {s.bonCommande && (
                             <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1" onClick={() => handleCopy(`stock-${i}`, s.bonCommande)}>
                               {copiedId === `stock-${i}` ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                              Copier BC
+                              {t("centralIntelligence.copyPO")}
                             </Button>
                           )}
                         </div>
@@ -684,7 +692,7 @@ export function CentralIntelligence() {
                 {data.optimisationsPlanning.length > 0 && (
                   <div className="space-y-1.5">
                     <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                      <BarChart3 className="w-3 h-3" /> Optimisations planning
+                      <BarChart3 className="w-3 h-3" /> {t("centralIntelligence.planningOptimizations")}
                     </p>
                     {data.optimisationsPlanning.map((o, i) => (
                       <div key={i} className="p-3 rounded-lg bg-white/80 border text-xs">
@@ -701,7 +709,7 @@ export function CentralIntelligence() {
                 {data.alertesStock.length === 0 && !hasFiscal && data.optimisationsPlanning.length === 0 && (
                   <div className="text-center py-4">
                     <CheckCircle2 className="w-8 h-8 mx-auto text-emerald-400 mb-1" />
-                    <p className="text-xs text-muted-foreground">Stock, echeances et planning sous controle.</p>
+                    <p className="text-xs text-muted-foreground">{t("centralIntelligence.emptyLogistique")}</p>
                   </div>
                 )}
               </TabsContent>
@@ -713,12 +721,12 @@ export function CentralIntelligence() {
                 <Separator />
                 <div className="p-3 rounded-lg bg-gradient-to-r from-slate-50 to-indigo-50/30 border border-slate-200/60">
                   <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1 mb-2">
-                    <ListChecks className="w-3 h-3" /> Flash Info
+                    <ListChecks className="w-3 h-3" /> {t("centralIntelligence.flashInfo")}
                   </p>
                   <div className="grid grid-cols-2 gap-3">
                     {data.flashInfo.fait.length > 0 && (
                       <div>
-                        <p className="text-[10px] font-medium text-emerald-700 mb-1">Fait</p>
+                        <p className="text-[10px] font-medium text-emerald-700 mb-1">{t("centralIntelligence.done")}</p>
                         <ul className="space-y-0.5">
                           {data.flashInfo.fait.map((f, i) => (
                             <li key={i} className="text-[10px] text-slate-600 flex items-start gap-1">
@@ -731,7 +739,7 @@ export function CentralIntelligence() {
                     )}
                     {data.flashInfo.resteDemain.length > 0 && (
                       <div>
-                        <p className="text-[10px] font-medium text-amber-700 mb-1">Reste a faire</p>
+                        <p className="text-[10px] font-medium text-amber-700 mb-1">{t("centralIntelligence.remaining")}</p>
                         <ul className="space-y-0.5">
                           {data.flashInfo.resteDemain.map((r, i) => (
                             <li key={i} className="text-[10px] text-slate-600 flex items-start gap-1">
@@ -760,7 +768,7 @@ export function CentralIntelligence() {
                 <div className={`flex items-start gap-2 p-3 rounded-lg border ${data.modeCommando ? "bg-gradient-to-r from-red-50/50 to-amber-50/30 border-red-200/50" : "bg-gradient-to-r from-amber-50/50 to-orange-50/30 border-amber-100/50"}`}>
                   <Zap className={`w-4 h-4 mt-0.5 shrink-0 ${data.modeCommando ? "text-red-500" : "text-amber-500"}`} />
                   <div>
-                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Priorite numero 1</p>
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-0.5">{t("centralIntelligence.priority1")}</p>
                     <p className={`text-xs font-medium ${data.modeCommando ? "text-red-800" : "text-amber-900"}`}>{data.directiveStrategique}</p>
                   </div>
                 </div>
@@ -774,7 +782,9 @@ export function CentralIntelligence() {
 }
 
 function ResolutionCard({ resolution, onCopy, copiedId, idx }: { resolution: Resolution; onCopy: () => void; copiedId: string | null; idx: string }) {
-  const modCfg = MODULE_CONFIG[resolution.module] || MODULE_CONFIG.comptabilite;
+  const { t } = useTranslation();
+  const modKey = MODULE_CONFIG[resolution.module] ? resolution.module : "comptabilite";
+  const modCfg = MODULE_CONFIG[modKey];
   const ModIcon = modCfg.icon;
 
   return (
@@ -783,7 +793,7 @@ function ResolutionCard({ resolution, onCopy, copiedId, idx }: { resolution: Res
         <CategorieTag categorie={resolution.categorie} />
         <Badge variant="outline" className={`text-[9px] h-5 gap-0.5 bg-white/80 ${modCfg.color} border shrink-0`}>
           <ModIcon className="w-2.5 h-2.5" />
-          {modCfg.label}
+          {t(`centralIntelligence.module.${modKey}`)}
         </Badge>
       </div>
       <p className="font-semibold text-slate-800">{resolution.probleme}</p>
@@ -794,12 +804,12 @@ function ResolutionCard({ resolution, onCopy, copiedId, idx }: { resolution: Res
         {(resolution.actionType === "copier" || resolution.solution.length > 50) && (
           <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1" onClick={onCopy}>
             {copiedId === idx ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-            {copiedId === idx ? "Copie" : "Copier"}
+            {copiedId === idx ? t("centralIntelligence.copied") : t("centralIntelligence.copy")}
           </Button>
         )}
         <Link href={safeLink(resolution.lien)}>
           <Button variant="default" size="sm" className="h-6 text-[10px] gap-1 bg-indigo-600 hover:bg-indigo-700">
-            <ArrowRight className="w-3 h-3" /> {resolution.actionType === "valider" ? "Valider" : "Traiter"}
+            <ArrowRight className="w-3 h-3" /> {resolution.actionType === "valider" ? t("centralIntelligence.validate") : t("centralIntelligence.process")}
           </Button>
         </Link>
       </div>

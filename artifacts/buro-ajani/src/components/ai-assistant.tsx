@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRequestAiSuggestions } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -45,6 +46,7 @@ const MOOD_CONFIG: Record<string, { icon: any; color: string; bg: string }> = {
 };
 
 export function AiAssistantButton() {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
@@ -58,7 +60,7 @@ export function AiAssistantButton() {
       <button
         onClick={() => setIsOpen(true)}
         className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/30 hover:shadow-xl hover:shadow-purple-500/40 transition-all duration-300 flex items-center justify-center group hover:scale-105"
-        title="Assistant IA Elite"
+        title={t("aiAssistant.title")}
       >
         <Brain className="w-6 h-6 group-hover:scale-110 transition-transform" />
         <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-400 rounded-full border-2 border-white animate-pulse" />
@@ -69,6 +71,7 @@ export function AiAssistantButton() {
 }
 
 function AiAssistantPanel({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
   const [location] = useLocation();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -118,12 +121,12 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
         }),
       });
 
-      if (!res.ok) throw new Error("Erreur serveur");
+      if (!res.ok) throw new Error(t("aiAssistant.serverError"));
       const data = await res.json();
 
       const assistantMessage: ChatMessage = {
         role: "assistant",
-        content: data.message || "Reponse non disponible.",
+        content: data.message || t("aiAssistant.responseUnavailable"),
         actions: data.actions || [],
         insights: data.insights || [],
         mood: data.mood || "neutre",
@@ -135,7 +138,7 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
       console.error("[AIAssistant] chat error:", err);
       setMessages(prev => [...prev, {
         role: "assistant",
-        content: "Desole, une erreur s'est produite. Veuillez reessayer.",
+        content: t("aiAssistant.genericError"),
         timestamp: new Date(),
       }]);
     } finally {
@@ -155,7 +158,7 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
       credentials: "include",
       body: JSON.stringify({ type, target }),
     });
-    if (!res.ok) throw new Error("Erreur d'execution");
+    if (!res.ok) throw new Error(t("aiAssistant.executionError"));
     return res.json();
   };
 
@@ -172,7 +175,7 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
       }
 
       if (action.type === "reminder") {
-        toast({ title: "Rappel programme", description: action.details || action.label });
+        toast({ title: t("aiAssistant.toast.reminderSet"), description: action.details || action.label });
         return;
       }
 
@@ -184,8 +187,8 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
         });
         if (res.ok) {
           const data = await res.json();
-          toast({ title: "Corrections appliquees", description: `${data.totalFixes} corrections effectuees.` });
-          setMessages(prev => [...prev, { role: "assistant", content: `Auto-correction terminee: ${data.totalFixes} corrections appliquees.`, mood: "positif", timestamp: new Date() }]);
+          toast({ title: t("aiAssistant.toast.fixesApplied"), description: t("aiAssistant.toast.fixesAppliedDesc", { count: data.totalFixes }) });
+          setMessages(prev => [...prev, { role: "assistant", content: t("aiAssistant.autoFixDone", { count: data.totalFixes }), mood: "positif", timestamp: new Date() }]);
         }
         return;
       }
@@ -194,19 +197,19 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
       if (executableTypes.includes(action.type)) {
         const result = await executeAiAction(action.type, action.target);
         if (result.success) {
-          toast({ title: "Action executee", description: result.message });
+          toast({ title: t("aiAssistant.toast.actionExecuted"), description: result.message });
           const extraContent = result.data ? `\n\n${typeof result.data === "string" ? result.data : (result.data.answer || result.data.content || JSON.stringify(result.data, null, 2))}` : "";
           setMessages(prev => [...prev, { role: "assistant", content: `${result.message}${extraContent}`, mood: "positif", timestamp: new Date() }]);
         } else {
-          toast({ title: "Echec", description: result.message || "Action echouee.", variant: "destructive" });
+          toast({ title: t("aiAssistant.toast.failure"), description: result.message || t("aiAssistant.toast.actionFailed"), variant: "destructive" });
         }
         return;
       }
 
-      toast({ title: action.label, description: action.details || "Action non reconnue." });
+      toast({ title: action.label, description: action.details || t("aiAssistant.toast.actionUnrecognized") });
     } catch (err) {
       console.error("[AIAssistant] action error:", err);
-      toast({ title: "Erreur", description: "Impossible d'executer cette action.", variant: "destructive" });
+      toast({ title: t("aiAssistant.toast.error"), description: t("aiAssistant.toast.cannotExecute"), variant: "destructive" });
     } finally {
       setExecutingAction(null);
     }
@@ -309,14 +312,14 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
   };
 
   const quickQuestions = [
-    "Donne-moi le briefing executif complet du jour",
-    "Quelles sont les urgences a traiter maintenant ?",
-    "Planifie un suivi pour les contacts inactifs",
-    "Genere un rapport de performance global",
-    "Combien d'appels cette semaine ?",
-    "Quelles taches sont en retard ?",
-    "Recherche les tarifs du marche pour nos services",
-    "Envoie un rappel aux contacts prioritaires",
+    t("aiAssistant.quickQuestions.q0"),
+    t("aiAssistant.quickQuestions.q1"),
+    t("aiAssistant.quickQuestions.q2"),
+    t("aiAssistant.quickQuestions.q3"),
+    t("aiAssistant.quickQuestions.q4"),
+    t("aiAssistant.quickQuestions.q5"),
+    t("aiAssistant.quickQuestions.q6"),
+    t("aiAssistant.quickQuestions.q7"),
   ];
 
   return (
@@ -328,12 +331,12 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
             <Sparkles className="w-2.5 h-2.5 absolute -top-1 -right-1 text-yellow-300" />
           </div>
           <div>
-            <h3 className="font-semibold text-sm">Assistant IA Elite</h3>
-            <p className="text-[10px] text-white/70">IA Ultra · Email · Telephonie · Recherche · Actions</p>
+            <h3 className="font-semibold text-sm">{t("aiAssistant.title")}</h3>
+            <p className="text-[10px] text-white/70">{t("aiAssistant.subtitle")}</p>
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/20" onClick={() => setMessages([])} title="Nouvelle conversation">
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/20" onClick={() => setMessages([])} title={t("aiAssistant.newConversation")}>
             <RotateCcw className="w-3.5 h-3.5" />
           </Button>
           <Button variant="ghost" size="icon" className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/20" onClick={onClose}>
@@ -347,7 +350,7 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
           <button className="w-full flex items-center justify-between px-4 py-2 text-xs font-medium text-muted-foreground hover:bg-muted/50 transition-colors" onClick={() => setShowSuggestions(!showSuggestions)}>
             <span className="flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-purple-500" />
-              Suggestions proactives ({requestSuggestions.data.suggestions.length})
+              {t("aiAssistant.proactiveSuggestions", { count: requestSuggestions.data.suggestions.length })}
             </span>
             {showSuggestions ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
@@ -363,7 +366,7 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="text-xs font-medium truncate">{s.titre}</span>
                       <Badge variant="outline" className={`h-4 px-1 text-[9px] shrink-0 ${getPriorityColor(s.priorite)}`}>
-                        {s.priorite}
+                        {t(`aiAssistant.priorite.${s.priorite}`)}
                       </Badge>
                     </div>
                     <p className="text-[11px] text-muted-foreground line-clamp-2">{s.description}</p>
@@ -378,7 +381,7 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
       {requestSuggestions.isPending && (
         <div className="flex items-center gap-2 px-4 py-3 border-b border-border text-xs text-muted-foreground">
           <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-500" />
-          Analyse contextuelle en cours...
+          {t("aiAssistant.analyzingContext")}
         </div>
       )}
 
@@ -389,9 +392,9 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
               <Brain className="w-7 h-7 text-purple-500" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-foreground mb-1">Intelligence de Bureau</p>
+              <p className="text-sm font-semibold text-foreground mb-1">{t("aiAssistant.officeIntelligence")}</p>
               <p className="text-[11px] text-muted-foreground max-w-[280px]">
-                Votre bureau, vos taches, vos appels, vos emails — je gere tout. Demandez-moi n'importe quoi.
+                {t("aiAssistant.intro")}
               </p>
             </div>
             <div className="w-full space-y-1.5 mt-1">
@@ -421,7 +424,7 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
                         return (
                           <Badge variant="outline" className={`h-4 px-1.5 text-[9px] ${mc.color} ${mc.bg} border-current/20`}>
                             <MoodIcon className="w-2.5 h-2.5 mr-0.5" />
-                            {msg.mood === "positif" ? "Tout va bien" : msg.mood === "alerte" ? "Attention requise" : msg.mood === "critique" ? "Action urgente" : "Normal"}
+                            {msg.mood === "positif" ? t("aiAssistant.mood.positif") : msg.mood === "alerte" ? t("aiAssistant.mood.alerte") : msg.mood === "critique" ? t("aiAssistant.mood.critique") : t("aiAssistant.mood.normal")}
                           </Badge>
                         );
                       })()}
@@ -434,7 +437,7 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
                     <div className="mt-2 space-y-1 border-t border-border/50 pt-2">
                       <div className="flex items-center gap-1 mb-1">
                         <Target className="w-3 h-3 text-violet-500" />
-                        <span className="text-[10px] font-semibold text-violet-600 uppercase tracking-wider">Insights</span>
+                        <span className="text-[10px] font-semibold text-violet-600 uppercase tracking-wider">{t("aiAssistant.insights")}</span>
                       </div>
                       {msg.insights.map((insight, j) => (
                         <div key={j} className="flex items-start gap-1.5 text-[11px]">
@@ -449,7 +452,7 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
                     <div className="mt-2 space-y-1.5 border-t border-border/50 pt-2">
                       <div className="flex items-center gap-1 mb-1">
                         <Zap className="w-3 h-3 text-amber-500" />
-                        <span className="text-[10px] font-semibold text-amber-600 uppercase tracking-wider">Actions executables ({msg.actions.length})</span>
+                        <span className="text-[10px] font-semibold text-amber-600 uppercase tracking-wider">{t("aiAssistant.executableActions", { count: msg.actions.length })}</span>
                       </div>
                       {msg.actions.map((a, j) => {
                         const actionKey = `${a.type}-${a.target}`;
@@ -497,7 +500,7 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
                     <span className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: "150ms" }} />
                     <span className="w-2 h-2 rounded-full bg-violet-500 animate-bounce" style={{ animationDelay: "300ms" }} />
                   </div>
-                  <span className="text-sm text-muted-foreground">Analyse multi-IA en cours...</span>
+                  <span className="text-sm text-muted-foreground">{t("aiAssistant.analyzingMultiAi")}</span>
                 </div>
               </div>
             )}
@@ -511,7 +514,7 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Demandez n'importe quoi sur votre bureau..."
+            placeholder={t("aiAssistant.inputPlaceholder")}
             className="flex-1 h-9 text-sm bg-muted/50 border-none"
             disabled={isLoading}
           />
@@ -529,6 +532,7 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
 }
 
 function MathResultsPanel({ results }: { results: MathResult[] }) {
+  const { t } = useTranslation();
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
   const getMathTypeIcon = (type: string) => {
@@ -544,20 +548,16 @@ function MathResultsPanel({ results }: { results: MathResult[] }) {
   };
 
   const getMathTypeLabel = (type: string) => {
-    const labels: Record<string, string> = {
-      arithmetic: "Arithmetique", percentage: "Pourcentage", power: "Puissance",
-      root: "Racine", logarithm: "Logarithme", trigonometry: "Trigonometrie",
-      statistics: "Statistiques", financial: "Financier", conversion: "Conversion",
-      geometry: "Geometrie",
-    };
-    return labels[type] || type;
+    const key = `aiAssistant.mathType.${type}`;
+    const label = t(key);
+    return label === key ? type : label;
   };
 
   return (
     <div className="mt-2 border-t border-border/50 pt-2">
       <div className="flex items-center gap-1.5 mb-1.5">
         <Calculator className="w-3.5 h-3.5 text-blue-500" />
-        <span className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider">Calculs ({results.length})</span>
+        <span className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider">{t("aiAssistant.calculations", { count: results.length })}</span>
       </div>
       <div className="space-y-1.5">
         {results.map((mr, idx) => (

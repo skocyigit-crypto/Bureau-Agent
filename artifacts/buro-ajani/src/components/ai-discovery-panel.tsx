@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { useTranslation } from "@/i18n";
 
 interface DiscoveryData {
   salutation: string;
@@ -57,6 +58,7 @@ const PRIORITY_COLORS: Record<string, string> = {
 };
 
 export function AiDiscoveryPanel() {
+  const { t } = useTranslation();
   const [data, setData] = useState<DiscoveryData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -99,7 +101,7 @@ export function AiDiscoveryPanel() {
         credentials: "include",
         body: JSON.stringify({}),
       });
-      if (!resp.ok) throw new Error("Erreur serveur");
+      if (!resp.ok) throw new Error(t("aiDiscoveryPanel.serverError"));
       const result = await resp.json();
       setData(result);
       setHasLoaded(true);
@@ -125,7 +127,7 @@ export function AiDiscoveryPanel() {
       <Card className="border-indigo-200/50 bg-gradient-to-br from-indigo-50/50 to-purple-50/30 dark:from-indigo-950/20 dark:to-purple-950/10">
         <CardContent className="p-5 flex items-center gap-3">
           <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
-          <span className="text-sm text-muted-foreground">L'Agent IA analyse votre profil et vos applications...</span>
+          <span className="text-sm text-muted-foreground">{t("aiDiscoveryPanel.loading")}</span>
         </CardContent>
       </Card>
     );
@@ -137,10 +139,10 @@ export function AiDiscoveryPanel() {
         <CardContent className="p-4 flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm text-amber-700">
             <AlertCircle className="w-4 h-4" />
-            <span>La decouverte IA n'a pas pu se charger.</span>
+            <span>{t("aiDiscoveryPanel.loadError")}</span>
           </div>
           <Button variant="ghost" size="sm" className="text-xs h-7" onClick={loadDiscovery}>
-            Reessayer
+            {t("aiDiscoveryPanel.retry")}
           </Button>
         </CardContent>
       </Card>
@@ -161,8 +163,8 @@ export function AiDiscoveryPanel() {
               <Brain className="w-5 h-5 text-white" />
             </div>
             <div>
-              <CardTitle className="text-sm">Agent IA - Decouverte</CardTitle>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Analyse personnalisee de votre espace</p>
+              <CardTitle className="text-sm">{t("aiDiscoveryPanel.title")}</CardTitle>
+              <p className="text-[11px] text-muted-foreground mt-0.5">{t("aiDiscoveryPanel.subtitle")}</p>
             </div>
           </div>
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleDismiss}>
@@ -177,29 +179,29 @@ export function AiDiscoveryPanel() {
           <div className="p-3 rounded-lg bg-white/60 dark:bg-white/5 border border-indigo-100 dark:border-indigo-900/30">
             <div className="flex items-center gap-2 mb-2">
               <User className="w-4 h-4 text-indigo-500" />
-              <span className="text-xs font-semibold">Profil</span>
+              <span className="text-xs font-semibold">{t("aiDiscoveryPanel.profile")}</span>
               {data.profilStatus.complet ? (
-                <Badge variant="outline" className="text-[9px] h-4 ml-auto bg-emerald-100 text-emerald-700 border-emerald-300">Complet</Badge>
+                <Badge variant="outline" className="text-[9px] h-4 ml-auto bg-emerald-100 text-emerald-700 border-emerald-300">{t("aiDiscoveryPanel.complete")}</Badge>
               ) : (
-                <Badge variant="outline" className="text-[9px] h-4 ml-auto bg-amber-100 text-amber-700 border-amber-300">Incomplet</Badge>
+                <Badge variant="outline" className="text-[9px] h-4 ml-auto bg-amber-100 text-amber-700 border-amber-300">{t("aiDiscoveryPanel.incomplete")}</Badge>
               )}
             </div>
             <Progress value={profilProgress} className="h-1.5 mb-1.5" />
             {!data.profilStatus.complet && data.profilStatus.champsManquants.length > 0 && (
               <p className="text-[10px] text-muted-foreground">
-                Manquant: {data.profilStatus.champsManquants.join(", ")}
+                {t("aiDiscoveryPanel.missing", { fields: data.profilStatus.champsManquants.join(", ") })}
               </p>
             )}
             {data.profilStatus.complet && (
-              <p className="text-[10px] text-emerald-600">Tous les champs sont remplis</p>
+              <p className="text-[10px] text-emerald-600">{t("aiDiscoveryPanel.allFieldsFilled")}</p>
             )}
           </div>
 
           <div className="p-3 rounded-lg bg-white/60 dark:bg-white/5 border border-indigo-100 dark:border-indigo-900/30">
             <div className="flex items-center gap-2 mb-2">
               <Plug className="w-4 h-4 text-purple-500" />
-              <span className="text-xs font-semibold">Applications</span>
-              <Badge variant="outline" className="text-[9px] h-4 ml-auto">{data.appsConnectees.count} connectee{data.appsConnectees.count !== 1 ? 's' : ''}</Badge>
+              <span className="text-xs font-semibold">{t("aiDiscoveryPanel.applications")}</span>
+              <Badge variant="outline" className="text-[9px] h-4 ml-auto">{t("aiDiscoveryPanel.connectedCount", { count: data.appsConnectees.count })}</Badge>
             </div>
             <p className="text-[10px] text-muted-foreground">{data.appsConnectees.resume}</p>
           </div>
@@ -207,16 +209,16 @@ export function AiDiscoveryPanel() {
           <div className="p-3 rounded-lg bg-white/60 dark:bg-white/5 border border-indigo-100 dark:border-indigo-900/30">
             <div className="flex items-center gap-2 mb-2">
               <Zap className="w-4 h-4 text-amber-500" />
-              <span className="text-xs font-semibold">Activite</span>
+              <span className="text-xs font-semibold">{t("aiDiscoveryPanel.activity")}</span>
             </div>
-            <p className="text-[10px] text-muted-foreground">{(data.habituesTravail?.resume || "Analyse en cours...").slice(0, 120)}{(data.habituesTravail?.resume?.length || 0) > 120 ? "..." : ""}</p>
+            <p className="text-[10px] text-muted-foreground">{(data.habituesTravail?.resume || t("aiDiscoveryPanel.analyzing")).slice(0, 120)}{(data.habituesTravail?.resume?.length || 0) > 120 ? "..." : ""}</p>
           </div>
         </div>
 
         {data.appsRecommandees.length > 0 && (
           <div className="space-y-2">
             <h4 className="text-xs font-semibold flex items-center gap-1.5 text-purple-700">
-              <Lightbulb className="w-3.5 h-3.5" /> Applications recommandees pour vous
+              <Lightbulb className="w-3.5 h-3.5" /> {t("aiDiscoveryPanel.recommendedApps")}
             </h4>
             <div className="grid gap-2 md:grid-cols-2">
               {data.appsRecommandees.slice(0, expanded ? undefined : 2).map((app, i) => (
@@ -224,7 +226,7 @@ export function AiDiscoveryPanel() {
                   <div className="flex items-center justify-between">
                     <span className="font-medium">{app.nom}</span>
                     <Badge variant="outline" className={`text-[9px] h-4 ${PRIORITY_COLORS[app.priorite] || ""}`}>
-                      {app.priorite === "haute" ? "Recommande" : app.priorite === "moyenne" ? "Utile" : "Optionnel"}
+                      {app.priorite === "haute" ? t("aiDiscoveryPanel.recommended") : app.priorite === "moyenne" ? t("aiDiscoveryPanel.useful") : t("aiDiscoveryPanel.optional")}
                     </Badge>
                   </div>
                   <p className="text-muted-foreground">{app.raison}</p>
@@ -235,7 +237,7 @@ export function AiDiscoveryPanel() {
             {data.appsRecommandees.length > 2 && (
               <Button variant="ghost" size="sm" className="text-[11px] h-7 w-full" onClick={() => setExpanded(!expanded)}>
                 {expanded ? <ChevronUp className="w-3 h-3 mr-1" /> : <ChevronDown className="w-3 h-3 mr-1" />}
-                {expanded ? "Voir moins" : `+${data.appsRecommandees.length - 2} autres recommandations`}
+                {expanded ? t("aiDiscoveryPanel.seeLess") : t("aiDiscoveryPanel.moreRecommendations", { count: data.appsRecommandees.length - 2 })}
               </Button>
             )}
           </div>
@@ -244,7 +246,7 @@ export function AiDiscoveryPanel() {
         {data.actionsSuggerees.length > 0 && (
           <div className="space-y-2">
             <h4 className="text-xs font-semibold flex items-center gap-1.5 text-indigo-700">
-              <ArrowRight className="w-3.5 h-3.5" /> Actions suggerees
+              <ArrowRight className="w-3.5 h-3.5" /> {t("aiDiscoveryPanel.suggestedActions")}
             </h4>
             <div className="space-y-1.5">
               {data.actionsSuggerees.slice(0, 3).map((action, i) => {
@@ -264,7 +266,7 @@ export function AiDiscoveryPanel() {
                       <p className="text-[10px] text-muted-foreground truncate">{action.description}</p>
                     </div>
                     <Badge variant="outline" className={`text-[9px] h-4 shrink-0 ${PRIORITY_COLORS[action.priorite] || ""}`}>
-                      {action.priorite}
+                      {t(`aiDiscoveryPanel.priorite.${action.priorite}`)}
                     </Badge>
                   </div>
                 );

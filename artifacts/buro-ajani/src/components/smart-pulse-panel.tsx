@@ -13,6 +13,7 @@ import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
   Tooltip as RechartsTooltip, CartesianGrid
 } from "recharts";
+import { useTranslation } from "@/i18n";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -64,6 +65,7 @@ const SEVERITY_CONFIG = {
 };
 
 function HealthGauge({ score, riskLevel }: { score: number; riskLevel: string }) {
+  const { t } = useTranslation();
   const circumference = 2 * Math.PI * 54;
   const strokeDashoffset = circumference - (score / 100) * circumference;
   const color = score >= 80 ? "#22c55e" : score >= 50 ? "#f59e0b" : "#ef4444";
@@ -83,7 +85,7 @@ function HealthGauge({ score, riskLevel }: { score: number; riskLevel: string })
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-3xl font-black tabular-nums" style={{ color }}>{score}</span>
-          <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">sante</span>
+          <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">{t("smartPulsePanel.health")}</span>
         </div>
       </div>
       <Badge
@@ -94,7 +96,7 @@ function HealthGauge({ score, riskLevel }: { score: number; riskLevel: string })
           "border-red-500/50 text-red-500"
         }`}
       >
-        {riskLevel === "faible" ? "Risque faible" : riskLevel === "moyen" ? "Risque moyen" : "Risque eleve"}
+        {riskLevel === "faible" ? t("smartPulsePanel.riskLow") : riskLevel === "moyen" ? t("smartPulsePanel.riskMedium") : t("smartPulsePanel.riskHigh")}
       </Badge>
     </div>
   );
@@ -115,6 +117,7 @@ function MiniMetric({ icon: Icon, label, value, suffix, color }: { icon: any; la
 }
 
 export function SmartPulsePanel() {
+  const { t } = useTranslation();
   const [pulse, setPulse] = useState<SmartPulseData | null>(null);
   const [alerts, setAlerts] = useState<AnomalyAlert[]>([]);
   const [loading, setLoading] = useState(true);
@@ -159,7 +162,7 @@ export function SmartPulsePanel() {
         <CardContent className="p-8 flex items-center justify-center">
           <div className="flex items-center gap-3 text-white/60">
             <Activity className="w-5 h-5 animate-pulse" />
-            <span className="text-sm">Analyse intelligente en cours...</span>
+            <span className="text-sm">{t("smartPulsePanel.analyzing")}</span>
           </div>
         </CardContent>
       </Card>
@@ -183,19 +186,19 @@ export function SmartPulsePanel() {
                   <ShieldAlert className={`w-5 h-5 ${hasCritical ? "text-red-400" : "text-emerald-400"}`} />
                 </div>
                 <div>
-                  <CardTitle className="text-white text-lg">Radar Intelligent</CardTitle>
-                  <p className="text-xs text-white/50 mt-0.5">Surveillance temps reel - Mise a jour chaque minute</p>
+                  <CardTitle className="text-white text-lg">{t("smartPulsePanel.title")}</CardTitle>
+                  <p className="text-xs text-white/50 mt-0.5">{t("smartPulsePanel.subtitle")}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 {alertSummary.critical > 0 && (
                   <Badge variant="destructive" className="animate-pulse text-xs">
-                    {alertSummary.critical} critique{alertSummary.critical > 1 ? "s" : ""}
+                    {t("smartPulsePanel.criticalCount", { count: alertSummary.critical })}
                   </Badge>
                 )}
                 {alertSummary.warning > 0 && (
                   <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-xs">
-                    {alertSummary.warning} alerte{alertSummary.warning > 1 ? "s" : ""}
+                    {t("smartPulsePanel.alertCount", { count: alertSummary.warning })}
                   </Badge>
                 )}
                 <Button variant="ghost" size="icon" onClick={handleRefresh} className="text-white/60 hover:text-white hover:bg-white/10 h-8 w-8">
@@ -213,17 +216,17 @@ export function SmartPulsePanel() {
 
               <div className="lg:col-span-5">
                 <div className="grid grid-cols-2 gap-1">
-                  <MiniMetric icon={Phone} label="Appels aujourd'hui" value={pulse.metrics.todayCalls} color="bg-blue-600" />
-                  <MiniMetric icon={Phone} label="Manques" value={pulse.metrics.todayMissed} suffix={pulse.metrics.missedRate > 0 ? ` (${pulse.metrics.missedRate}%)` : ""} color="bg-red-600" />
-                  <MiniMetric icon={CheckSquare} label="Taches en retard" value={pulse.metrics.overdueTasks} color="bg-amber-600" />
-                  <MiniMetric icon={CheckSquare} label="Terminees cette sem." value={pulse.metrics.completedTasks} color="bg-emerald-600" />
-                  <MiniMetric icon={MessageSquare} label="Non lus" value={pulse.metrics.unreadMessages} color="bg-purple-600" />
+                  <MiniMetric icon={Phone} label={t("smartPulsePanel.metric.todayCalls")} value={pulse.metrics.todayCalls} color="bg-blue-600" />
+                  <MiniMetric icon={Phone} label={t("smartPulsePanel.metric.missed")} value={pulse.metrics.todayMissed} suffix={pulse.metrics.missedRate > 0 ? ` (${pulse.metrics.missedRate}%)` : ""} color="bg-red-600" />
+                  <MiniMetric icon={CheckSquare} label={t("smartPulsePanel.metric.overdueTasks")} value={pulse.metrics.overdueTasks} color="bg-amber-600" />
+                  <MiniMetric icon={CheckSquare} label={t("smartPulsePanel.metric.completedWeek")} value={pulse.metrics.completedTasks} color="bg-emerald-600" />
+                  <MiniMetric icon={MessageSquare} label={t("smartPulsePanel.metric.unread")} value={pulse.metrics.unreadMessages} color="bg-purple-600" />
                 </div>
               </div>
 
               <div className="lg:col-span-4">
                 <div className="text-xs text-white/50 mb-2 flex items-center gap-1">
-                  <BarChart3 className="w-3 h-3" /> Distribution horaire des appels
+                  <BarChart3 className="w-3 h-3" /> {t("smartPulsePanel.hourlyDistribution")}
                 </div>
                 <div className="h-[140px]">
                   <ResponsiveContainer width="100%" height="100%">
@@ -248,7 +251,7 @@ export function SmartPulsePanel() {
                 {pulse.metrics.peakHour >= 0 && (
                   <div className="flex items-center gap-1.5 mt-1 text-xs text-white/40">
                     <Clock className="w-3 h-3" />
-                    Heure de pointe: <span className="text-white/70 font-semibold">{pulse.metrics.peakHour}h00</span>
+                    {t("smartPulsePanel.peakHour")} <span className="text-white/70 font-semibold">{pulse.metrics.peakHour}h00</span>
                   </div>
                 )}
               </div>
@@ -262,8 +265,7 @@ export function SmartPulsePanel() {
                   <TrendingDown className="w-4 h-4 text-red-400" />
                 )}
                 <span className={`text-xs font-medium ${pulse.metrics.weekGrowth > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                  {pulse.metrics.weekGrowth > 0 ? "+" : ""}{pulse.metrics.weekGrowth}% d'activite par rapport a la semaine derniere
-                  ({pulse.metrics.weekCalls} vs {pulse.metrics.prevWeekCalls} appels)
+                  {t("smartPulsePanel.weekGrowth", { sign: pulse.metrics.weekGrowth > 0 ? "+" : "", growth: pulse.metrics.weekGrowth, week: pulse.metrics.weekCalls, prev: pulse.metrics.prevWeekCalls })}
                 </span>
               </div>
             )}
@@ -277,14 +279,15 @@ export function SmartPulsePanel() {
             <div className="flex items-center justify-between">
               <CardTitle className="text-base flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-amber-500" />
-                Alertes & Anomalies
+                {t("smartPulsePanel.alertsAnomalies")}
                 <Badge variant="secondary" className="text-xs">{pulse.anomalies.length + alerts.length}</Badge>
               </CardTitle>
             </div>
           </CardHeader>
           <CardContent className="space-y-2 pt-0">
             {alerts.map((alert) => {
-              const config = SEVERITY_CONFIG[alert.severity as keyof typeof SEVERITY_CONFIG] || SEVERITY_CONFIG.info;
+              const sevKey = (SEVERITY_CONFIG[alert.severity as keyof typeof SEVERITY_CONFIG] ? alert.severity : "info") as keyof typeof SEVERITY_CONFIG;
+              const config = SEVERITY_CONFIG[sevKey];
               const SevIcon = config.icon;
               return (
                 <div key={alert.id} className={`flex items-start gap-3 p-3 rounded-xl border ${config.bgColor} ${config.borderColor} transition-all hover:shadow-md`}>
@@ -294,7 +297,7 @@ export function SmartPulsePanel() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold">{alert.title}</span>
-                      <Badge variant="outline" className={`text-[10px] ${config.textColor} border-current/30`}>{config.label}</Badge>
+                      <Badge variant="outline" className={`text-[10px] ${config.textColor} border-current/30`}>{t(`smartPulsePanel.severite.${sevKey}`)}</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">{alert.description}</p>
                     {alert.action && (
@@ -308,7 +311,8 @@ export function SmartPulsePanel() {
             })}
 
             {visibleAnomalies.map((anomaly, i) => {
-              const config = SEVERITY_CONFIG[anomaly.severity] || SEVERITY_CONFIG.info;
+              const sevKey = (SEVERITY_CONFIG[anomaly.severity] ? anomaly.severity : "info") as keyof typeof SEVERITY_CONFIG;
+              const config = SEVERITY_CONFIG[sevKey];
               const SevIcon = config.icon;
               return (
                 <div key={`anomaly-${i}`} className={`flex items-start gap-3 p-3 rounded-xl border ${config.bgColor} ${config.borderColor} transition-all hover:shadow-md`}>
@@ -318,7 +322,7 @@ export function SmartPulsePanel() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold">{anomaly.title}</span>
-                      <Badge variant="outline" className={`text-[10px] ${config.textColor} border-current/30`}>{config.label}</Badge>
+                      <Badge variant="outline" className={`text-[10px] ${config.textColor} border-current/30`}>{t(`smartPulsePanel.severite.${sevKey}`)}</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">{anomaly.description}</p>
                   </div>
@@ -331,7 +335,7 @@ export function SmartPulsePanel() {
 
             {pulse.anomalies.length > 3 && (
               <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => setShowAllAnomalies(!showAllAnomalies)}>
-                {showAllAnomalies ? "Voir moins" : `Voir les ${pulse.anomalies.length - 3} autres`}
+                {showAllAnomalies ? t("smartPulsePanel.seeLess") : t("smartPulsePanel.seeOthers", { count: pulse.anomalies.length - 3 })}
                 <ChevronRight className={`w-3 h-3 ml-1 transition-transform ${showAllAnomalies ? "rotate-90" : ""}`} />
               </Button>
             )}
@@ -344,7 +348,7 @@ export function SmartPulsePanel() {
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <Zap className="w-4 h-4 text-indigo-500" />
-              Recommandations IA
+              {t("smartPulsePanel.recommendations")}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">

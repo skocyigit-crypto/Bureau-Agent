@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useRequestAiSuggestions, type RequestAiSuggestionsBodyPage } from "@workspace/api-client-react";
+import { useTranslation } from "@/i18n";
 
 const VALID_PAGES: Record<string, RequestAiSuggestionsBodyPage> = {
   dashboard: "dashboard", calls: "calls", contacts: "contacts",
@@ -19,6 +20,7 @@ interface AiSuggestionsCardProps {
 }
 
 export function AiSuggestionsCard({ page, pageContext, title, compact = false }: AiSuggestionsCardProps) {
+  const { t } = useTranslation();
   const resolvedPage: RequestAiSuggestionsBodyPage = VALID_PAGES[page || pageContext || "dashboard"] ?? "dashboard";
   const [isExpanded, setIsExpanded] = useState(!compact);
 
@@ -40,19 +42,19 @@ export function AiSuggestionsCard({ page, pageContext, title, compact = false }:
 
   const getPriorityBadge = (priorite: string) => {
     switch (priorite) {
-      case "haute": return <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">Haute</Badge>;
-      case "moyenne": return <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-amber-500/20 text-amber-700">Moyenne</Badge>;
-      case "basse": return <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-muted text-muted-foreground">Basse</Badge>;
+      case "haute": return <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">{t("aiSuggestionsCard.priorite.haute")}</Badge>;
+      case "moyenne": return <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-amber-500/20 text-amber-700">{t("aiSuggestionsCard.priorite.moyenne")}</Badge>;
+      case "basse": return <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-muted text-muted-foreground">{t("aiSuggestionsCard.priorite.basse")}</Badge>;
       default: return null;
     }
   };
 
   const getTypeLabel = (type: string) => {
     switch (type) {
-      case "urgence": return "Urgence";
-      case "amelioration": return "Amelioration";
-      case "information": return "Information";
-      case "action": return "Action";
+      case "urgence": return t("aiSuggestionsCard.type.urgence");
+      case "amelioration": return t("aiSuggestionsCard.type.amelioration");
+      case "information": return t("aiSuggestionsCard.type.information");
+      case "action": return t("aiSuggestionsCard.type.action");
       default: return type;
     }
   };
@@ -66,8 +68,8 @@ export function AiSuggestionsCard({ page, pageContext, title, compact = false }:
               <Brain className="w-4 h-4 text-purple-600 dark:text-purple-400" />
             </div>
             <div>
-              <p className="text-sm font-medium">Intelligence IA disponible</p>
-              <p className="text-xs text-muted-foreground">Obtenez des suggestions personnalisees pour cette page</p>
+              <p className="text-sm font-medium">{t("aiSuggestionsCard.available")}</p>
+              <p className="text-xs text-muted-foreground">{t("aiSuggestionsCard.availableSub")}</p>
             </div>
           </div>
           <Button
@@ -77,7 +79,7 @@ export function AiSuggestionsCard({ page, pageContext, title, compact = false }:
             className="border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-300 dark:hover:bg-purple-950/30"
           >
             <Sparkles className="w-4 h-4 mr-1.5" />
-            Analyser
+            {t("aiSuggestionsCard.analyze")}
           </Button>
         </CardContent>
       </Card>
@@ -90,7 +92,7 @@ export function AiSuggestionsCard({ page, pageContext, title, compact = false }:
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Brain className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-            <CardTitle className="text-base">{title || "Suggestions IA"}</CardTitle>
+            <CardTitle className="text-base">{title || t("aiSuggestionsCard.title")}</CardTitle>
           </div>
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleLoad} disabled={suggestions.isPending}>
@@ -113,7 +115,7 @@ export function AiSuggestionsCard({ page, pageContext, title, compact = false }:
           {suggestions.isPending ? (
             <div className="flex items-center justify-center gap-2 py-6">
               <Loader2 className="w-5 h-5 animate-spin text-purple-500" />
-              <span className="text-sm text-muted-foreground">Analyse en cours...</span>
+              <span className="text-sm text-muted-foreground">{t("aiSuggestionsCard.analyzing")}</span>
             </div>
           ) : suggestions.data?.suggestions && suggestions.data.suggestions.length > 0 ? (
             <div className="space-y-3">
@@ -132,7 +134,7 @@ export function AiSuggestionsCard({ page, pageContext, title, compact = false }:
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">Aucune suggestion disponible pour le moment.</p>
+            <p className="text-sm text-muted-foreground text-center py-4">{t("aiSuggestionsCard.empty")}</p>
           )}
         </CardContent>
       )}

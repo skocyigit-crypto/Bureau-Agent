@@ -8193,16 +8193,46 @@
     },
     "purposeLabel": "Email purpose",
     "purpose": {
-      "suivi_appel": { "label": "Call follow-up", "desc": "After a phone call" },
-      "relance_prospect": { "label": "Prospect follow-up", "desc": "Sales follow-up" },
-      "confirmation_rdv": { "label": "Appointment confirmation", "desc": "Confirm an appointment" },
-      "remerciement": { "label": "Thank you", "desc": "After an exchange" },
-      "rappel_paiement": { "label": "Payment reminder", "desc": "Invoice or payment" },
-      "information": { "label": "Information", "desc": "Send documents" },
-      "presentation": { "label": "Presentation", "desc": "Present services" },
-      "excuses": { "label": "Apology", "desc": "For an inconvenience" },
-      "bienvenue": { "label": "Welcome", "desc": "New contact" },
-      "personnalise": { "label": "Custom", "desc": "Free instructions" }
+      "suivi_appel": {
+        "label": "Call follow-up",
+        "desc": "After a phone call"
+      },
+      "relance_prospect": {
+        "label": "Prospect follow-up",
+        "desc": "Sales follow-up"
+      },
+      "confirmation_rdv": {
+        "label": "Appointment confirmation",
+        "desc": "Confirm an appointment"
+      },
+      "remerciement": {
+        "label": "Thank you",
+        "desc": "After an exchange"
+      },
+      "rappel_paiement": {
+        "label": "Payment reminder",
+        "desc": "Invoice or payment"
+      },
+      "information": {
+        "label": "Information",
+        "desc": "Send documents"
+      },
+      "presentation": {
+        "label": "Presentation",
+        "desc": "Present services"
+      },
+      "excuses": {
+        "label": "Apology",
+        "desc": "For an inconvenience"
+      },
+      "bienvenue": {
+        "label": "Welcome",
+        "desc": "New contact"
+      },
+      "personnalise": {
+        "label": "Custom",
+        "desc": "Free instructions"
+      }
     },
     "toneLabel": "Desired tone",
     "tone": {
@@ -8302,6 +8332,287 @@
       "notifications": "Notifications",
       "projets": "Projects",
       "google-workspace": "Google Workspace"
+    }
+  },
+  "centralIntelligence": {
+    "categorie": {
+      "CRITIQUE": "Critical",
+      "A_PLANIFIER": "To plan",
+      "INFO": "Info"
+    },
+    "eisenhower": {
+      "urgent_important": "Urgent + Important",
+      "urgent": "Urgent",
+      "important": "Important",
+      "info": "Information"
+    },
+    "ton": {
+      "client": "Client",
+      "fournisseur": "Supplier",
+      "interne": "Internal"
+    },
+    "module": {
+      "comptabilite": "Accounting",
+      "secretariat": "Secretariat",
+      "logistique": "Logistics"
+    },
+    "priorite": {
+      "haute": "high",
+      "moyenne": "medium",
+      "basse": "low"
+    },
+    "serverError": "Server error",
+    "analyzing": "Executive Assistant analyzing...",
+    "scanning": "Scan: accounting, messages, calls, stock, tax deadlines",
+    "unavailable": "Executive Assistant unavailable",
+    "willResume": "Analysis will resume shortly",
+    "retry": "Retry",
+    "title": "Executive Assistant",
+    "commandoMode": "Commando Mode",
+    "etat": {
+      "critique": "Critical state",
+      "alerte": "Active alert",
+      "vigilance": "Vigilance",
+      "excellent": "Optimal situation",
+      "bon": "Under control"
+    },
+    "subtitle": "Accounting & Secretariat | Autonomous management",
+    "refresh": "Refresh",
+    "kpi": {
+      "tauxReponse": "Response rate",
+      "retards": "Overdue",
+      "msgUrgents": "Urgent msg",
+      "relances": "Follow-ups",
+      "stock": "Stock"
+    },
+    "tabs": {
+      "resolutions": "Resolutions",
+      "courrier": "Mail",
+      "appels": "Calls",
+      "gestion": "Management"
+    },
+    "emptyResolutions": "Zero problem detected. Optimal situation.",
+    "emptyMessages": "No pending message.",
+    "afterSend": "After sending: {{action}}",
+    "copied": "Copied",
+    "copy": "Copy",
+    "send": "Send",
+    "fichesRappel": "Callback sheets",
+    "script": "Script",
+    "callBack": "Call back",
+    "relancesStrategiques": "Strategic follow-ups",
+    "daysNoContact": "{{jours}}d no contact",
+    "call": "Call",
+    "emptyAppels": "No call to handle.",
+    "echeancesFiscales": "Tax deadlines",
+    "documentsToPrepare": "Documents to prepare:",
+    "prepare": "Prepare",
+    "stockAlerts": "Stock & supplies alerts",
+    "rupture48h": "Out in 48h",
+    "qtySeuil": "qty/threshold",
+    "purchaseOrder": "Purchase order:",
+    "copyPO": "Copy PO",
+    "planningOptimizations": "Planning optimizations",
+    "emptyLogistique": "Stock, deadlines and planning under control.",
+    "flashInfo": "Flash Info",
+    "done": "Done",
+    "remaining": "Remaining",
+    "priority1": "Priority number 1",
+    "validate": "Validate",
+    "process": "Process"
+  },
+  "aiAssistant": {
+    "title": "Elite AI Assistant",
+    "subtitle": "Ultra AI · Email · Telephony · Search · Actions",
+    "newConversation": "New conversation",
+    "serverError": "Server error",
+    "responseUnavailable": "Response unavailable.",
+    "genericError": "Sorry, an error occurred. Please try again.",
+    "executionError": "Execution error",
+    "autoFixDone": "Auto-fix completed: {{count}} fixes applied.",
+    "toast": {
+      "reminderSet": "Reminder set",
+      "fixesApplied": "Fixes applied",
+      "fixesAppliedDesc": "{{count}} fixes made.",
+      "actionExecuted": "Action executed",
+      "failure": "Failure",
+      "actionFailed": "Action failed.",
+      "actionUnrecognized": "Unrecognized action.",
+      "error": "Error",
+      "cannotExecute": "Unable to execute this action."
+    },
+    "mood": {
+      "positif": "All good",
+      "alerte": "Attention required",
+      "critique": "Urgent action",
+      "normal": "Normal"
+    },
+    "priorite": {
+      "haute": "high",
+      "moyenne": "medium",
+      "basse": "low"
+    },
+    "proactiveSuggestions": "Proactive suggestions ({{count}})",
+    "analyzingContext": "Contextual analysis in progress...",
+    "officeIntelligence": "Office Intelligence",
+    "intro": "Your office, your tasks, your calls, your emails — I handle it all. Ask me anything.",
+    "insights": "Insights",
+    "executableActions": "Executable actions ({{count}})",
+    "analyzingMultiAi": "Multi-AI analysis in progress...",
+    "inputPlaceholder": "Ask anything about your office...",
+    "calculations": "Calculations ({{count}})",
+    "quickQuestions": {
+      "q0": "Give me the full executive briefing of the day",
+      "q1": "What are the urgencies to handle now?",
+      "q2": "Schedule a follow-up for inactive contacts",
+      "q3": "Generate a global performance report",
+      "q4": "How many calls this week?",
+      "q5": "Which tasks are overdue?",
+      "q6": "Search the market rates for our services",
+      "q7": "Send a reminder to priority contacts"
+    },
+    "mathType": {
+      "arithmetic": "Arithmetic",
+      "percentage": "Percentage",
+      "power": "Power",
+      "root": "Root",
+      "logarithm": "Logarithm",
+      "trigonometry": "Trigonometry",
+      "statistics": "Statistics",
+      "financial": "Financial",
+      "conversion": "Conversion",
+      "geometry": "Geometry"
+    }
+  },
+  "aiRecognitionPanel": {
+    "analyzing": "Analysis in progress...",
+    "analyzingSub": "Pattern recognition and anomaly detection across all data",
+    "title": "AI Recognition",
+    "scanPrompt": "Analyze your office for smart detections",
+    "scan": "Scan",
+    "detectionsSummary": "{{count}} detection(s) - Global health score",
+    "all": "All ({{count}})",
+    "emptyCategory": "No detection in this category.",
+    "badge": {
+      "critiques": "{{count}} critical",
+      "alertes": "{{count}} alert(s)",
+      "positifs": "{{count}} positive"
+    },
+    "health": {
+      "excellent": "Excellent",
+      "bon": "Good",
+      "moyen": "Fair",
+      "critique": "Critical"
+    },
+    "severite": {
+      "critique": "Critical",
+      "alerte": "Alert",
+      "attention": "Attention",
+      "info": "Info",
+      "positif": "Positive"
+    },
+    "categorie": {
+      "appels": "Calls",
+      "contacts": "Contacts",
+      "taches": "Tasks",
+      "messages": "Messages",
+      "performance": "Performance",
+      "reconnaissance": "Recognition"
+    }
+  },
+  "aiDiscoveryPanel": {
+    "serverError": "Server error",
+    "loading": "The AI Agent is analyzing your profile and applications...",
+    "loadError": "AI discovery could not load.",
+    "retry": "Retry",
+    "title": "AI Agent - Discovery",
+    "subtitle": "Personalized analysis of your workspace",
+    "profile": "Profile",
+    "complete": "Complete",
+    "incomplete": "Incomplete",
+    "missing": "Missing: {{fields}}",
+    "allFieldsFilled": "All fields are filled",
+    "applications": "Applications",
+    "connectedCount": "{{count}} connected",
+    "activity": "Activity",
+    "analyzing": "Analysis in progress...",
+    "recommendedApps": "Applications recommended for you",
+    "recommended": "Recommended",
+    "useful": "Useful",
+    "optional": "Optional",
+    "seeLess": "See less",
+    "moreRecommendations": "+{{count}} more recommendations",
+    "suggestedActions": "Suggested actions",
+    "priorite": {
+      "haute": "high",
+      "moyenne": "medium",
+      "basse": "low"
+    }
+  },
+  "aiSpot": {
+    "error": "Error",
+    "cannotHide": "Unable to hide.",
+    "wait": "Please wait",
+    "tryLater": "Try again later.",
+    "insightsRefreshed": "Insights refreshed",
+    "suggestionsGenerated": "{{count}} suggestion(s) generated.",
+    "regenFailed": "Regeneration failed.",
+    "analyzing": "Analysis in progress...",
+    "noAlert": "No alert. Everything is under control.",
+    "refresh": "Refresh",
+    "subtitle": "Priority proactive suggestions",
+    "useful": "Useful",
+    "notUseful": "Not useful",
+    "hide": "Hide"
+  },
+  "smartPulsePanel": {
+    "health": "health",
+    "riskLow": "Low risk",
+    "riskMedium": "Medium risk",
+    "riskHigh": "High risk",
+    "analyzing": "Smart analysis in progress...",
+    "title": "Smart Radar",
+    "subtitle": "Real-time monitoring - Updated every minute",
+    "criticalCount": "{{count}} critical",
+    "alertCount": "{{count}} alert(s)",
+    "hourlyDistribution": "Hourly call distribution",
+    "peakHour": "Peak hour:",
+    "weekGrowth": "{{sign}}{{growth}}% activity compared to last week ({{week}} vs {{prev}} calls)",
+    "alertsAnomalies": "Alerts & Anomalies",
+    "seeLess": "See less",
+    "seeOthers": "See {{count}} others",
+    "recommendations": "AI Recommendations",
+    "metric": {
+      "todayCalls": "Calls today",
+      "missed": "Missed",
+      "overdueTasks": "Overdue tasks",
+      "completedWeek": "Completed this week",
+      "unread": "Unread"
+    },
+    "severite": {
+      "critique": "Critical",
+      "alerte": "Alert",
+      "attention": "Attention",
+      "info": "Info"
+    }
+  },
+  "aiSuggestionsCard": {
+    "available": "AI Intelligence available",
+    "availableSub": "Get personalized suggestions for this page",
+    "analyze": "Analyze",
+    "title": "AI Suggestions",
+    "analyzing": "Analysis in progress...",
+    "empty": "No suggestion available at the moment.",
+    "priorite": {
+      "haute": "High",
+      "moyenne": "Medium",
+      "basse": "Low"
+    },
+    "type": {
+      "urgence": "Urgency",
+      "amelioration": "Improvement",
+      "information": "Information",
+      "action": "Action"
     }
   }
 }

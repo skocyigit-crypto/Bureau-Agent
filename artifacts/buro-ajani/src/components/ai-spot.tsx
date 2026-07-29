@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 
 interface Insight {
   id: number;
@@ -34,6 +35,7 @@ function severityStyles(sev: string) {
 
 export function AiSpot() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [insights, setInsights] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(true);
   const [regenerating, setRegenerating] = useState(false);
@@ -59,7 +61,7 @@ export function AiSpot() {
       const r = await fetch(`${API}/api/ai-insights/${id}/dismiss`, { method: "POST", credentials: "include" });
       if (!r.ok) throw new Error();
     } catch {
-      toast({ title: "Erreur", description: "Impossible de masquer.", variant: "destructive" });
+      toast({ title: t("aiSpot.error"), description: t("aiSpot.cannotHide"), variant: "destructive" });
       load();
     }
   };
@@ -84,13 +86,13 @@ export function AiSpot() {
       const r = await fetch(`${API}/api/ai-insights/regenerate`, { method: "POST", credentials: "include" });
       const data = await r.json().catch(() => ({}));
       if (!r.ok) {
-        toast({ title: "Patientez", description: data?.error || "Reessayez plus tard.", variant: r.status === 429 ? "default" : "destructive" });
+        toast({ title: t("aiSpot.wait"), description: data?.error || t("aiSpot.tryLater"), variant: r.status === 429 ? "default" : "destructive" });
       } else {
-        toast({ title: "Insights actualises", description: `${data?.generated ?? 0} suggestion(s) generee(s).` });
+        toast({ title: t("aiSpot.insightsRefreshed"), description: t("aiSpot.suggestionsGenerated", { count: data?.generated ?? 0 }) });
         await load();
       }
     } catch {
-      toast({ title: "Erreur", description: "Echec de la regeneration.", variant: "destructive" });
+      toast({ title: t("aiSpot.error"), description: t("aiSpot.regenFailed"), variant: "destructive" });
     } finally {
       setRegenerating(false);
     }
@@ -101,7 +103,7 @@ export function AiSpot() {
       <Card className="border-violet-200/60 dark:border-violet-900/40 bg-gradient-to-br from-violet-50/50 to-indigo-50/30 dark:from-violet-950/20 dark:to-indigo-950/10">
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-600" />AI Spot</CardTitle>
-          <CardDescription className="text-xs">Analyse en cours...</CardDescription>
+          <CardDescription className="text-xs">{t("aiSpot.analyzing")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
           <Skeleton className="h-16 w-full" />
@@ -118,11 +120,11 @@ export function AiSpot() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-base flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-600" />AI Spot</CardTitle>
-              <CardDescription className="text-xs">Aucune alerte. Tout est sous controle.</CardDescription>
+              <CardDescription className="text-xs">{t("aiSpot.noAlert")}</CardDescription>
             </div>
             <Button variant="ghost" size="sm" onClick={regenerate} disabled={regenerating} className="gap-1.5">
               <RefreshCw className={`w-3.5 h-3.5 ${regenerating ? "animate-spin" : ""}`} />
-              <span className="text-xs">Actualiser</span>
+              <span className="text-xs">{t("aiSpot.refresh")}</span>
             </Button>
           </div>
         </CardHeader>
@@ -140,14 +142,14 @@ export function AiSpot() {
             </div>
             <div>
               <CardTitle className="text-base">AI Spot</CardTitle>
-              <CardDescription className="text-xs">Suggestions proactives prioritaires</CardDescription>
+              <CardDescription className="text-xs">{t("aiSpot.subtitle")}</CardDescription>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="text-xs">{insights.length}</Badge>
             <Button variant="ghost" size="sm" onClick={regenerate} disabled={regenerating} className="gap-1.5">
               <RefreshCw className={`w-3.5 h-3.5 ${regenerating ? "animate-spin" : ""}`} />
-              <span className="text-xs hidden sm:inline">Actualiser</span>
+              <span className="text-xs hidden sm:inline">{t("aiSpot.refresh")}</span>
             </Button>
           </div>
         </div>
@@ -175,19 +177,19 @@ export function AiSpot() {
                   variant="ghost" size="icon"
                   className={`h-7 w-7 ${insight.vote === 1 ? "text-emerald-600 bg-emerald-100 dark:bg-emerald-900/40" : "text-muted-foreground"}`}
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); vote(insight.id, 1); }}
-                  title="Utile"
+                  title={t("aiSpot.useful")}
                 ><ThumbsUp className="w-3.5 h-3.5" /></Button>
                 <Button
                   variant="ghost" size="icon"
                   className={`h-7 w-7 ${insight.vote === -1 ? "text-rose-600 bg-rose-100 dark:bg-rose-900/40" : "text-muted-foreground"}`}
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); vote(insight.id, -1); }}
-                  title="Pas utile"
+                  title={t("aiSpot.notUseful")}
                 ><ThumbsDown className="w-3.5 h-3.5" /></Button>
                 <Button
                   variant="ghost" size="icon"
                   className="h-7 w-7 text-muted-foreground hover:text-foreground"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); dismiss(insight.id); }}
-                  title="Masquer"
+                  title={t("aiSpot.hide")}
                 ><X className="w-3.5 h-3.5" /></Button>
               </div>
             </div>

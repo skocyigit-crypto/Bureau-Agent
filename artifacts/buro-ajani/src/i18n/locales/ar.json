@@ -8193,16 +8193,46 @@
     },
     "purposeLabel": "هدف البريد الإلكتروني",
     "purpose": {
-      "suivi_appel": { "label": "متابعة مكالمة", "desc": "بعد مكالمة هاتفية" },
-      "relance_prospect": { "label": "متابعة عميل محتمل", "desc": "متابعة تجارية" },
-      "confirmation_rdv": { "label": "تأكيد موعد", "desc": "تأكيد موعد" },
-      "remerciement": { "label": "شكر", "desc": "بعد تبادل" },
-      "rappel_paiement": { "label": "تذكير بالدفع", "desc": "فاتورة أو دفعة" },
-      "information": { "label": "معلومات", "desc": "إرسال مستندات" },
-      "presentation": { "label": "عرض تقديمي", "desc": "تقديم الخدمات" },
-      "excuses": { "label": "اعتذار", "desc": "عن إزعاج" },
-      "bienvenue": { "label": "ترحيب", "desc": "جهة اتصال جديدة" },
-      "personnalise": { "label": "مخصص", "desc": "تعليمات حرة" }
+      "suivi_appel": {
+        "label": "متابعة مكالمة",
+        "desc": "بعد مكالمة هاتفية"
+      },
+      "relance_prospect": {
+        "label": "متابعة عميل محتمل",
+        "desc": "متابعة تجارية"
+      },
+      "confirmation_rdv": {
+        "label": "تأكيد موعد",
+        "desc": "تأكيد موعد"
+      },
+      "remerciement": {
+        "label": "شكر",
+        "desc": "بعد تبادل"
+      },
+      "rappel_paiement": {
+        "label": "تذكير بالدفع",
+        "desc": "فاتورة أو دفعة"
+      },
+      "information": {
+        "label": "معلومات",
+        "desc": "إرسال مستندات"
+      },
+      "presentation": {
+        "label": "عرض تقديمي",
+        "desc": "تقديم الخدمات"
+      },
+      "excuses": {
+        "label": "اعتذار",
+        "desc": "عن إزعاج"
+      },
+      "bienvenue": {
+        "label": "ترحيب",
+        "desc": "جهة اتصال جديدة"
+      },
+      "personnalise": {
+        "label": "مخصص",
+        "desc": "تعليمات حرة"
+      }
     },
     "toneLabel": "النبرة المطلوبة",
     "tone": {
@@ -8302,6 +8332,287 @@
       "notifications": "الإشعارات",
       "projets": "المشاريع",
       "google-workspace": "Google Workspace"
+    }
+  },
+  "centralIntelligence": {
+    "categorie": {
+      "CRITIQUE": "حرج",
+      "A_PLANIFIER": "للتخطيط",
+      "INFO": "معلومة"
+    },
+    "eisenhower": {
+      "urgent_important": "عاجل + مهم",
+      "urgent": "عاجل",
+      "important": "مهم",
+      "info": "معلومة"
+    },
+    "ton": {
+      "client": "عميل",
+      "fournisseur": "مورّد",
+      "interne": "داخلي"
+    },
+    "module": {
+      "comptabilite": "المحاسبة",
+      "secretariat": "السكرتارية",
+      "logistique": "اللوجستيات"
+    },
+    "priorite": {
+      "haute": "عالية",
+      "moyenne": "متوسطة",
+      "basse": "منخفضة"
+    },
+    "serverError": "خطأ في الخادم",
+    "analyzing": "المساعد التنفيذي يحلّل...",
+    "scanning": "فحص: المحاسبة، الرسائل، المكالمات، المخزون، المواعيد الضريبية",
+    "unavailable": "المساعد التنفيذي غير متاح",
+    "willResume": "سيُستأنف التحليل بعد لحظات",
+    "retry": "إعادة المحاولة",
+    "title": "المساعد التنفيذي",
+    "commandoMode": "وضع الطوارئ",
+    "etat": {
+      "critique": "حالة حرجة",
+      "alerte": "تنبيه نشط",
+      "vigilance": "يقظة",
+      "excellent": "وضع مثالي",
+      "bon": "تحت السيطرة"
+    },
+    "subtitle": "المحاسبة والسكرتارية | إدارة ذاتية",
+    "refresh": "تحديث",
+    "kpi": {
+      "tauxReponse": "معدل الرد",
+      "retards": "متأخرات",
+      "msgUrgents": "رسائل عاجلة",
+      "relances": "متابعات",
+      "stock": "المخزون"
+    },
+    "tabs": {
+      "resolutions": "الحلول",
+      "courrier": "المراسلات",
+      "appels": "المكالمات",
+      "gestion": "الإدارة"
+    },
+    "emptyResolutions": "لم يُكتشف أي مشكلة. وضع مثالي.",
+    "emptyMessages": "لا توجد رسائل معلّقة.",
+    "afterSend": "بعد الإرسال: {{action}}",
+    "copied": "تم النسخ",
+    "copy": "نسخ",
+    "send": "إرسال",
+    "fichesRappel": "بطاقات إعادة الاتصال",
+    "script": "النص",
+    "callBack": "إعادة الاتصال",
+    "relancesStrategiques": "متابعات استراتيجية",
+    "daysNoContact": "{{jours}} يوم دون تواصل",
+    "call": "اتصال",
+    "emptyAppels": "لا مكالمات للمعالجة.",
+    "echeancesFiscales": "المواعيد الضريبية",
+    "documentsToPrepare": "المستندات المطلوب إعدادها:",
+    "prepare": "تحضير",
+    "stockAlerts": "تنبيهات المخزون والمستلزمات",
+    "rupture48h": "نفاد خلال 48س",
+    "qtySeuil": "الكمية/الحد",
+    "purchaseOrder": "أمر شراء:",
+    "copyPO": "نسخ أمر الشراء",
+    "planningOptimizations": "تحسينات الجدولة",
+    "emptyLogistique": "المخزون والمواعيد والجدولة تحت السيطرة.",
+    "flashInfo": "ومضة معلومات",
+    "done": "منجز",
+    "remaining": "المتبقي",
+    "priority1": "الأولوية رقم 1",
+    "validate": "تأكيد",
+    "process": "معالجة"
+  },
+  "aiAssistant": {
+    "title": "مساعد الذكاء الاصطناعي المتميّز",
+    "subtitle": "ذكاء اصطناعي فائق · بريد · هاتف · بحث · إجراءات",
+    "newConversation": "محادثة جديدة",
+    "serverError": "خطأ في الخادم",
+    "responseUnavailable": "الرد غير متاح.",
+    "genericError": "عذرًا، حدث خطأ. يرجى المحاولة مرة أخرى.",
+    "executionError": "خطأ في التنفيذ",
+    "autoFixDone": "اكتمل التصحيح التلقائي: تم تطبيق {{count}} تصحيحات.",
+    "toast": {
+      "reminderSet": "تم ضبط التذكير",
+      "fixesApplied": "تم تطبيق التصحيحات",
+      "fixesAppliedDesc": "تم إجراء {{count}} تصحيحات.",
+      "actionExecuted": "تم تنفيذ الإجراء",
+      "failure": "فشل",
+      "actionFailed": "فشل الإجراء.",
+      "actionUnrecognized": "إجراء غير معروف.",
+      "error": "خطأ",
+      "cannotExecute": "تعذّر تنفيذ هذا الإجراء."
+    },
+    "mood": {
+      "positif": "كل شيء على ما يرام",
+      "alerte": "يتطلب الانتباه",
+      "critique": "إجراء عاجل",
+      "normal": "عادي"
+    },
+    "priorite": {
+      "haute": "عالية",
+      "moyenne": "متوسطة",
+      "basse": "منخفضة"
+    },
+    "proactiveSuggestions": "اقتراحات استباقية ({{count}})",
+    "analyzingContext": "جارٍ التحليل السياقي...",
+    "officeIntelligence": "ذكاء المكتب",
+    "intro": "مكتبك ومهامك ومكالماتك وبريدك — أدير كل شيء. اسألني أي شيء.",
+    "insights": "رؤى",
+    "executableActions": "إجراءات قابلة للتنفيذ ({{count}})",
+    "analyzingMultiAi": "جارٍ تحليل متعدد الذكاء الاصطناعي...",
+    "inputPlaceholder": "اسأل أي شيء عن مكتبك...",
+    "calculations": "العمليات الحسابية ({{count}})",
+    "quickQuestions": {
+      "q0": "أعطني الموجز التنفيذي الكامل لليوم",
+      "q1": "ما هي الأمور العاجلة التي يجب معالجتها الآن؟",
+      "q2": "جدوِل متابعة لجهات الاتصال غير النشطة",
+      "q3": "أنشئ تقرير أداء شاملًا",
+      "q4": "كم عدد المكالمات هذا الأسبوع؟",
+      "q5": "ما المهام المتأخرة؟",
+      "q6": "ابحث عن أسعار السوق لخدماتنا",
+      "q7": "أرسل تذكيرًا لجهات الاتصال ذات الأولوية"
+    },
+    "mathType": {
+      "arithmetic": "حساب",
+      "percentage": "نسبة مئوية",
+      "power": "أُس",
+      "root": "جذر",
+      "logarithm": "لوغاريتم",
+      "trigonometry": "حساب مثلثات",
+      "statistics": "إحصاء",
+      "financial": "مالي",
+      "conversion": "تحويل",
+      "geometry": "هندسة"
+    }
+  },
+  "aiRecognitionPanel": {
+    "analyzing": "جارٍ التحليل...",
+    "analyzingSub": "التعرّف على الأنماط وكشف الشذوذ عبر جميع البيانات",
+    "title": "تعرّف الذكاء الاصطناعي",
+    "scanPrompt": "حلّل مكتبك للحصول على كشوفات ذكية",
+    "scan": "مسح",
+    "detectionsSummary": "{{count}} كشف - النتيجة الصحية الإجمالية",
+    "all": "الكل ({{count}})",
+    "emptyCategory": "لا يوجد كشف في هذه الفئة.",
+    "badge": {
+      "critiques": "{{count}} حرج",
+      "alertes": "{{count}} تنبيه",
+      "positifs": "{{count}} إيجابي"
+    },
+    "health": {
+      "excellent": "ممتاز",
+      "bon": "جيد",
+      "moyen": "متوسط",
+      "critique": "حرج"
+    },
+    "severite": {
+      "critique": "حرج",
+      "alerte": "تنبيه",
+      "attention": "انتباه",
+      "info": "معلومة",
+      "positif": "إيجابي"
+    },
+    "categorie": {
+      "appels": "المكالمات",
+      "contacts": "جهات الاتصال",
+      "taches": "المهام",
+      "messages": "الرسائل",
+      "performance": "الأداء",
+      "reconnaissance": "التعرّف"
+    }
+  },
+  "aiDiscoveryPanel": {
+    "serverError": "خطأ في الخادم",
+    "loading": "يقوم وكيل الذكاء الاصطناعي بتحليل ملفك وتطبيقاتك...",
+    "loadError": "تعذّر تحميل اكتشاف الذكاء الاصطناعي.",
+    "retry": "إعادة المحاولة",
+    "title": "وكيل الذكاء الاصطناعي - الاكتشاف",
+    "subtitle": "تحليل مخصّص لمساحتك",
+    "profile": "الملف الشخصي",
+    "complete": "مكتمل",
+    "incomplete": "غير مكتمل",
+    "missing": "ناقص: {{fields}}",
+    "allFieldsFilled": "جميع الحقول مكتملة",
+    "applications": "التطبيقات",
+    "connectedCount": "{{count}} متصل",
+    "activity": "النشاط",
+    "analyzing": "جارٍ التحليل...",
+    "recommendedApps": "تطبيقات موصى بها لك",
+    "recommended": "موصى به",
+    "useful": "مفيد",
+    "optional": "اختياري",
+    "seeLess": "عرض أقل",
+    "moreRecommendations": "+{{count}} توصيات أخرى",
+    "suggestedActions": "إجراءات مقترحة",
+    "priorite": {
+      "haute": "عالية",
+      "moyenne": "متوسطة",
+      "basse": "منخفضة"
+    }
+  },
+  "aiSpot": {
+    "error": "خطأ",
+    "cannotHide": "تعذّر الإخفاء.",
+    "wait": "يرجى الانتظار",
+    "tryLater": "حاول لاحقًا.",
+    "insightsRefreshed": "تم تحديث الرؤى",
+    "suggestionsGenerated": "تم إنشاء {{count}} اقتراح.",
+    "regenFailed": "فشلت إعادة التوليد.",
+    "analyzing": "جارٍ التحليل...",
+    "noAlert": "لا توجد تنبيهات. كل شيء تحت السيطرة.",
+    "refresh": "تحديث",
+    "subtitle": "اقتراحات استباقية ذات أولوية",
+    "useful": "مفيد",
+    "notUseful": "غير مفيد",
+    "hide": "إخفاء"
+  },
+  "smartPulsePanel": {
+    "health": "الصحة",
+    "riskLow": "خطر منخفض",
+    "riskMedium": "خطر متوسط",
+    "riskHigh": "خطر مرتفع",
+    "analyzing": "جارٍ التحليل الذكي...",
+    "title": "رادار ذكي",
+    "subtitle": "مراقبة فورية - تحديث كل دقيقة",
+    "criticalCount": "{{count}} حرج",
+    "alertCount": "{{count}} تنبيه",
+    "hourlyDistribution": "التوزيع الساعي للمكالمات",
+    "peakHour": "ساعة الذروة:",
+    "weekGrowth": "{{sign}}{{growth}}% نشاط مقارنة بالأسبوع الماضي ({{week}} مقابل {{prev}} مكالمة)",
+    "alertsAnomalies": "التنبيهات والحالات الشاذة",
+    "seeLess": "عرض أقل",
+    "seeOthers": "عرض {{count}} أخرى",
+    "recommendations": "توصيات الذكاء الاصطناعي",
+    "metric": {
+      "todayCalls": "مكالمات اليوم",
+      "missed": "فائتة",
+      "overdueTasks": "مهام متأخرة",
+      "completedWeek": "مكتملة هذا الأسبوع",
+      "unread": "غير مقروءة"
+    },
+    "severite": {
+      "critique": "حرج",
+      "alerte": "تنبيه",
+      "attention": "انتباه",
+      "info": "معلومة"
+    }
+  },
+  "aiSuggestionsCard": {
+    "available": "ذكاء اصطناعي متاح",
+    "availableSub": "احصل على اقتراحات مخصّصة لهذه الصفحة",
+    "analyze": "تحليل",
+    "title": "اقتراحات الذكاء الاصطناعي",
+    "analyzing": "جارٍ التحليل...",
+    "empty": "لا توجد اقتراحات متاحة حاليًا.",
+    "priorite": {
+      "haute": "عالية",
+      "moyenne": "متوسطة",
+      "basse": "منخفضة"
+    },
+    "type": {
+      "urgence": "عاجل",
+      "amelioration": "تحسين",
+      "information": "معلومة",
+      "action": "إجراء"
     }
   }
 }

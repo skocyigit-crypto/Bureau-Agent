@@ -8193,16 +8193,46 @@
     },
     "purposeLabel": "Zweck der E-Mail",
     "purpose": {
-      "suivi_appel": { "label": "Anruf-Nachfassung", "desc": "Nach einem Telefonat" },
-      "relance_prospect": { "label": "Interessenten-Nachfassung", "desc": "Vertriebliche Nachfassung" },
-      "confirmation_rdv": { "label": "Terminbestätigung", "desc": "Einen Termin bestätigen" },
-      "remerciement": { "label": "Danksagung", "desc": "Nach einem Austausch" },
-      "rappel_paiement": { "label": "Zahlungserinnerung", "desc": "Rechnung oder Zahlung" },
-      "information": { "label": "Information", "desc": "Dokumente übermitteln" },
-      "presentation": { "label": "Präsentation", "desc": "Leistungen vorstellen" },
-      "excuses": { "label": "Entschuldigung", "desc": "Für eine Unannehmlichkeit" },
-      "bienvenue": { "label": "Willkommen", "desc": "Neuer Kontakt" },
-      "personnalise": { "label": "Individuell", "desc": "Freie Anweisungen" }
+      "suivi_appel": {
+        "label": "Anruf-Nachfassung",
+        "desc": "Nach einem Telefonat"
+      },
+      "relance_prospect": {
+        "label": "Interessenten-Nachfassung",
+        "desc": "Vertriebliche Nachfassung"
+      },
+      "confirmation_rdv": {
+        "label": "Terminbestätigung",
+        "desc": "Einen Termin bestätigen"
+      },
+      "remerciement": {
+        "label": "Danksagung",
+        "desc": "Nach einem Austausch"
+      },
+      "rappel_paiement": {
+        "label": "Zahlungserinnerung",
+        "desc": "Rechnung oder Zahlung"
+      },
+      "information": {
+        "label": "Information",
+        "desc": "Dokumente übermitteln"
+      },
+      "presentation": {
+        "label": "Präsentation",
+        "desc": "Leistungen vorstellen"
+      },
+      "excuses": {
+        "label": "Entschuldigung",
+        "desc": "Für eine Unannehmlichkeit"
+      },
+      "bienvenue": {
+        "label": "Willkommen",
+        "desc": "Neuer Kontakt"
+      },
+      "personnalise": {
+        "label": "Individuell",
+        "desc": "Freie Anweisungen"
+      }
     },
     "toneLabel": "Gewünschter Ton",
     "tone": {
@@ -8302,6 +8332,287 @@
       "notifications": "Benachrichtigungen",
       "projets": "Projekte",
       "google-workspace": "Google Workspace"
+    }
+  },
+  "centralIntelligence": {
+    "categorie": {
+      "CRITIQUE": "Kritisch",
+      "A_PLANIFIER": "Zu planen",
+      "INFO": "Info"
+    },
+    "eisenhower": {
+      "urgent_important": "Dringend + Wichtig",
+      "urgent": "Dringend",
+      "important": "Wichtig",
+      "info": "Information"
+    },
+    "ton": {
+      "client": "Kunde",
+      "fournisseur": "Lieferant",
+      "interne": "Intern"
+    },
+    "module": {
+      "comptabilite": "Buchhaltung",
+      "secretariat": "Sekretariat",
+      "logistique": "Logistik"
+    },
+    "priorite": {
+      "haute": "hoch",
+      "moyenne": "mittel",
+      "basse": "niedrig"
+    },
+    "serverError": "Serverfehler",
+    "analyzing": "Führungsassistent analysiert...",
+    "scanning": "Scan: Buchhaltung, Nachrichten, Anrufe, Lager, Steuerfristen",
+    "unavailable": "Führungsassistent nicht verfügbar",
+    "willResume": "Die Analyse wird in Kürze fortgesetzt",
+    "retry": "Erneut versuchen",
+    "title": "Führungsassistent",
+    "commandoMode": "Kommando-Modus",
+    "etat": {
+      "critique": "Kritischer Zustand",
+      "alerte": "Aktiver Alarm",
+      "vigilance": "Wachsamkeit",
+      "excellent": "Optimale Lage",
+      "bon": "Unter Kontrolle"
+    },
+    "subtitle": "Buchhaltung & Sekretariat | Autonome Verwaltung",
+    "refresh": "Aktualisieren",
+    "kpi": {
+      "tauxReponse": "Antwortquote",
+      "retards": "Verzüge",
+      "msgUrgents": "Dringende Nachr.",
+      "relances": "Nachfassen",
+      "stock": "Lager"
+    },
+    "tabs": {
+      "resolutions": "Lösungen",
+      "courrier": "Post",
+      "appels": "Anrufe",
+      "gestion": "Verwaltung"
+    },
+    "emptyResolutions": "Null Probleme erkannt. Optimale Lage.",
+    "emptyMessages": "Keine ausstehende Nachricht.",
+    "afterSend": "Nach dem Senden: {{action}}",
+    "copied": "Kopiert",
+    "copy": "Kopieren",
+    "send": "Senden",
+    "fichesRappel": "Rückrufkarten",
+    "script": "Skript",
+    "callBack": "Zurückrufen",
+    "relancesStrategiques": "Strategisches Nachfassen",
+    "daysNoContact": "{{jours}} T ohne Kontakt",
+    "call": "Anrufen",
+    "emptyAppels": "Kein Anruf zu bearbeiten.",
+    "echeancesFiscales": "Steuerfristen",
+    "documentsToPrepare": "Vorzubereitende Dokumente:",
+    "prepare": "Vorbereiten",
+    "stockAlerts": "Lager- & Materialwarnungen",
+    "rupture48h": "Ausverkauf 48h",
+    "qtySeuil": "Menge/Schwelle",
+    "purchaseOrder": "Bestellschein:",
+    "copyPO": "BS kopieren",
+    "planningOptimizations": "Planungsoptimierungen",
+    "emptyLogistique": "Lager, Fristen und Planung unter Kontrolle.",
+    "flashInfo": "Flash-Info",
+    "done": "Erledigt",
+    "remaining": "Verbleibend",
+    "priority1": "Priorität Nummer 1",
+    "validate": "Bestätigen",
+    "process": "Bearbeiten"
+  },
+  "aiAssistant": {
+    "title": "Elite-KI-Assistent",
+    "subtitle": "Ultra-KI · E-Mail · Telefonie · Suche · Aktionen",
+    "newConversation": "Neue Unterhaltung",
+    "serverError": "Serverfehler",
+    "responseUnavailable": "Antwort nicht verfügbar.",
+    "genericError": "Entschuldigung, ein Fehler ist aufgetreten. Bitte erneut versuchen.",
+    "executionError": "Ausführungsfehler",
+    "autoFixDone": "Auto-Korrektur abgeschlossen: {{count}} Korrekturen angewendet.",
+    "toast": {
+      "reminderSet": "Erinnerung eingestellt",
+      "fixesApplied": "Korrekturen angewendet",
+      "fixesAppliedDesc": "{{count}} Korrekturen durchgeführt.",
+      "actionExecuted": "Aktion ausgeführt",
+      "failure": "Fehlgeschlagen",
+      "actionFailed": "Aktion fehlgeschlagen.",
+      "actionUnrecognized": "Unbekannte Aktion.",
+      "error": "Fehler",
+      "cannotExecute": "Diese Aktion kann nicht ausgeführt werden."
+    },
+    "mood": {
+      "positif": "Alles in Ordnung",
+      "alerte": "Aufmerksamkeit erforderlich",
+      "critique": "Dringende Aktion",
+      "normal": "Normal"
+    },
+    "priorite": {
+      "haute": "hoch",
+      "moyenne": "mittel",
+      "basse": "niedrig"
+    },
+    "proactiveSuggestions": "Proaktive Vorschläge ({{count}})",
+    "analyzingContext": "Kontextanalyse läuft...",
+    "officeIntelligence": "Büro-Intelligenz",
+    "intro": "Ihr Büro, Ihre Aufgaben, Ihre Anrufe, Ihre E-Mails — ich kümmere mich um alles. Fragen Sie mich alles.",
+    "insights": "Einblicke",
+    "executableActions": "Ausführbare Aktionen ({{count}})",
+    "analyzingMultiAi": "Multi-KI-Analyse läuft...",
+    "inputPlaceholder": "Fragen Sie alles über Ihr Büro...",
+    "calculations": "Berechnungen ({{count}})",
+    "quickQuestions": {
+      "q0": "Gib mir das vollständige Executive-Briefing des Tages",
+      "q1": "Welche Dringlichkeiten sind jetzt zu bearbeiten?",
+      "q2": "Plane eine Nachverfolgung für inaktive Kontakte",
+      "q3": "Erstelle einen globalen Leistungsbericht",
+      "q4": "Wie viele Anrufe diese Woche?",
+      "q5": "Welche Aufgaben sind überfällig?",
+      "q6": "Suche die Marktpreise für unsere Dienstleistungen",
+      "q7": "Sende eine Erinnerung an prioritäre Kontakte"
+    },
+    "mathType": {
+      "arithmetic": "Arithmetik",
+      "percentage": "Prozentsatz",
+      "power": "Potenz",
+      "root": "Wurzel",
+      "logarithm": "Logarithmus",
+      "trigonometry": "Trigonometrie",
+      "statistics": "Statistik",
+      "financial": "Finanziell",
+      "conversion": "Umrechnung",
+      "geometry": "Geometrie"
+    }
+  },
+  "aiRecognitionPanel": {
+    "analyzing": "Analyse läuft...",
+    "analyzingSub": "Mustererkennung und Anomalieerkennung über alle Daten",
+    "title": "KI-Erkennung",
+    "scanPrompt": "Analysieren Sie Ihr Büro für intelligente Erkennungen",
+    "scan": "Scannen",
+    "detectionsSummary": "{{count}} Erkennung(en) - Globaler Gesundheitswert",
+    "all": "Alle ({{count}})",
+    "emptyCategory": "Keine Erkennung in dieser Kategorie.",
+    "badge": {
+      "critiques": "{{count}} kritisch",
+      "alertes": "{{count}} Warnung(en)",
+      "positifs": "{{count}} positiv"
+    },
+    "health": {
+      "excellent": "Ausgezeichnet",
+      "bon": "Gut",
+      "moyen": "Mittel",
+      "critique": "Kritisch"
+    },
+    "severite": {
+      "critique": "Kritisch",
+      "alerte": "Warnung",
+      "attention": "Achtung",
+      "info": "Info",
+      "positif": "Positiv"
+    },
+    "categorie": {
+      "appels": "Anrufe",
+      "contacts": "Kontakte",
+      "taches": "Aufgaben",
+      "messages": "Nachrichten",
+      "performance": "Leistung",
+      "reconnaissance": "Erkennung"
+    }
+  },
+  "aiDiscoveryPanel": {
+    "serverError": "Serverfehler",
+    "loading": "Der KI-Agent analysiert Ihr Profil und Ihre Anwendungen...",
+    "loadError": "KI-Entdeckung konnte nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "title": "KI-Agent - Entdeckung",
+    "subtitle": "Personalisierte Analyse Ihres Arbeitsbereichs",
+    "profile": "Profil",
+    "complete": "Vollständig",
+    "incomplete": "Unvollständig",
+    "missing": "Fehlt: {{fields}}",
+    "allFieldsFilled": "Alle Felder sind ausgefüllt",
+    "applications": "Anwendungen",
+    "connectedCount": "{{count}} verbunden",
+    "activity": "Aktivität",
+    "analyzing": "Analyse läuft...",
+    "recommendedApps": "Für Sie empfohlene Anwendungen",
+    "recommended": "Empfohlen",
+    "useful": "Nützlich",
+    "optional": "Optional",
+    "seeLess": "Weniger anzeigen",
+    "moreRecommendations": "+{{count}} weitere Empfehlungen",
+    "suggestedActions": "Vorgeschlagene Aktionen",
+    "priorite": {
+      "haute": "hoch",
+      "moyenne": "mittel",
+      "basse": "niedrig"
+    }
+  },
+  "aiSpot": {
+    "error": "Fehler",
+    "cannotHide": "Ausblenden nicht möglich.",
+    "wait": "Bitte warten",
+    "tryLater": "Später erneut versuchen.",
+    "insightsRefreshed": "Einblicke aktualisiert",
+    "suggestionsGenerated": "{{count}} Vorschlag/Vorschläge generiert.",
+    "regenFailed": "Neugenerierung fehlgeschlagen.",
+    "analyzing": "Analyse läuft...",
+    "noAlert": "Keine Warnung. Alles unter Kontrolle.",
+    "refresh": "Aktualisieren",
+    "subtitle": "Vorrangige proaktive Vorschläge",
+    "useful": "Nützlich",
+    "notUseful": "Nicht nützlich",
+    "hide": "Ausblenden"
+  },
+  "smartPulsePanel": {
+    "health": "Gesundheit",
+    "riskLow": "Geringes Risiko",
+    "riskMedium": "Mittleres Risiko",
+    "riskHigh": "Hohes Risiko",
+    "analyzing": "Intelligente Analyse läuft...",
+    "title": "Intelligentes Radar",
+    "subtitle": "Echtzeitüberwachung - Jede Minute aktualisiert",
+    "criticalCount": "{{count}} kritisch",
+    "alertCount": "{{count}} Warnung(en)",
+    "hourlyDistribution": "Stündliche Anrufverteilung",
+    "peakHour": "Stoßzeit:",
+    "weekGrowth": "{{sign}}{{growth}}% Aktivität im Vergleich zur Vorwoche ({{week}} vs. {{prev}} Anrufe)",
+    "alertsAnomalies": "Warnungen & Anomalien",
+    "seeLess": "Weniger anzeigen",
+    "seeOthers": "{{count}} weitere anzeigen",
+    "recommendations": "KI-Empfehlungen",
+    "metric": {
+      "todayCalls": "Anrufe heute",
+      "missed": "Verpasst",
+      "overdueTasks": "Überfällige Aufgaben",
+      "completedWeek": "Diese Woche erledigt",
+      "unread": "Ungelesen"
+    },
+    "severite": {
+      "critique": "Kritisch",
+      "alerte": "Warnung",
+      "attention": "Achtung",
+      "info": "Info"
+    }
+  },
+  "aiSuggestionsCard": {
+    "available": "KI-Intelligenz verfügbar",
+    "availableSub": "Erhalten Sie personalisierte Vorschläge für diese Seite",
+    "analyze": "Analysieren",
+    "title": "KI-Vorschläge",
+    "analyzing": "Analyse läuft...",
+    "empty": "Derzeit kein Vorschlag verfügbar.",
+    "priorite": {
+      "haute": "Hoch",
+      "moyenne": "Mittel",
+      "basse": "Niedrig"
+    },
+    "type": {
+      "urgence": "Dringlichkeit",
+      "amelioration": "Verbesserung",
+      "information": "Information",
+      "action": "Aktion"
     }
   }
 }

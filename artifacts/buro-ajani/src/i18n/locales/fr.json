@@ -8193,16 +8193,46 @@
     },
     "purposeLabel": "Objectif de l'e-mail",
     "purpose": {
-      "suivi_appel": { "label": "Suivi d'appel", "desc": "Après un appel téléphonique" },
-      "relance_prospect": { "label": "Relance prospect", "desc": "Relance commerciale" },
-      "confirmation_rdv": { "label": "Confirmation RDV", "desc": "Confirmer un rendez-vous" },
-      "remerciement": { "label": "Remerciement", "desc": "Après un échange" },
-      "rappel_paiement": { "label": "Rappel de paiement", "desc": "Facture ou paiement" },
-      "information": { "label": "Information", "desc": "Transmettre des documents" },
-      "presentation": { "label": "Présentation", "desc": "Présenter des services" },
-      "excuses": { "label": "Excuses", "desc": "Pour un désagrément" },
-      "bienvenue": { "label": "Bienvenue", "desc": "Nouveau contact" },
-      "personnalise": { "label": "Personnalisé", "desc": "Instructions libres" }
+      "suivi_appel": {
+        "label": "Suivi d'appel",
+        "desc": "Après un appel téléphonique"
+      },
+      "relance_prospect": {
+        "label": "Relance prospect",
+        "desc": "Relance commerciale"
+      },
+      "confirmation_rdv": {
+        "label": "Confirmation RDV",
+        "desc": "Confirmer un rendez-vous"
+      },
+      "remerciement": {
+        "label": "Remerciement",
+        "desc": "Après un échange"
+      },
+      "rappel_paiement": {
+        "label": "Rappel de paiement",
+        "desc": "Facture ou paiement"
+      },
+      "information": {
+        "label": "Information",
+        "desc": "Transmettre des documents"
+      },
+      "presentation": {
+        "label": "Présentation",
+        "desc": "Présenter des services"
+      },
+      "excuses": {
+        "label": "Excuses",
+        "desc": "Pour un désagrément"
+      },
+      "bienvenue": {
+        "label": "Bienvenue",
+        "desc": "Nouveau contact"
+      },
+      "personnalise": {
+        "label": "Personnalisé",
+        "desc": "Instructions libres"
+      }
     },
     "toneLabel": "Ton souhaité",
     "tone": {
@@ -8302,6 +8332,287 @@
       "notifications": "Notifications",
       "projets": "Projets",
       "google-workspace": "Google Workspace"
+    }
+  },
+  "centralIntelligence": {
+    "categorie": {
+      "CRITIQUE": "Critique",
+      "A_PLANIFIER": "À planifier",
+      "INFO": "Info"
+    },
+    "eisenhower": {
+      "urgent_important": "Urgent + Important",
+      "urgent": "Urgent",
+      "important": "Important",
+      "info": "Information"
+    },
+    "ton": {
+      "client": "Client",
+      "fournisseur": "Fournisseur",
+      "interne": "Interne"
+    },
+    "module": {
+      "comptabilite": "Comptabilité",
+      "secretariat": "Secrétariat",
+      "logistique": "Logistique"
+    },
+    "priorite": {
+      "haute": "haute",
+      "moyenne": "moyenne",
+      "basse": "basse"
+    },
+    "serverError": "Erreur serveur",
+    "analyzing": "Assistant Exécutif en analyse...",
+    "scanning": "Scan : comptabilité, messages, appels, stock, échéances fiscales",
+    "unavailable": "Assistant Exécutif indisponible",
+    "willResume": "L'analyse reprendra dans quelques instants",
+    "retry": "Réessayer",
+    "title": "Assistant Exécutif",
+    "commandoMode": "Mode Commando",
+    "etat": {
+      "critique": "État critique",
+      "alerte": "Alerte active",
+      "vigilance": "Vigilance",
+      "excellent": "Situation optimale",
+      "bon": "Sous contrôle"
+    },
+    "subtitle": "Comptabilité & Secrétariat | Gestion autonome",
+    "refresh": "Actualiser",
+    "kpi": {
+      "tauxReponse": "Taux réponse",
+      "retards": "Retards",
+      "msgUrgents": "Msg urgents",
+      "relances": "Relances",
+      "stock": "Stock"
+    },
+    "tabs": {
+      "resolutions": "Résolutions",
+      "courrier": "Courrier",
+      "appels": "Appels",
+      "gestion": "Gestion"
+    },
+    "emptyResolutions": "Zéro problème détecté. Situation optimale.",
+    "emptyMessages": "Aucun message en attente.",
+    "afterSend": "Après envoi : {{action}}",
+    "copied": "Copié",
+    "copy": "Copier",
+    "send": "Envoyer",
+    "fichesRappel": "Fiches de rappel",
+    "script": "Script",
+    "callBack": "Rappeler",
+    "relancesStrategiques": "Relances stratégiques",
+    "daysNoContact": "{{jours}}j sans contact",
+    "call": "Appeler",
+    "emptyAppels": "Aucun appel à traiter.",
+    "echeancesFiscales": "Échéances fiscales",
+    "documentsToPrepare": "Documents à préparer :",
+    "prepare": "Préparer",
+    "stockAlerts": "Alertes stock & fournitures",
+    "rupture48h": "Rupture 48h",
+    "qtySeuil": "qté/seuil",
+    "purchaseOrder": "Bon de commande :",
+    "copyPO": "Copier BC",
+    "planningOptimizations": "Optimisations planning",
+    "emptyLogistique": "Stock, échéances et planning sous contrôle.",
+    "flashInfo": "Flash Info",
+    "done": "Fait",
+    "remaining": "Reste à faire",
+    "priority1": "Priorité numéro 1",
+    "validate": "Valider",
+    "process": "Traiter"
+  },
+  "aiAssistant": {
+    "title": "Assistant IA Elite",
+    "subtitle": "IA Ultra · Email · Téléphonie · Recherche · Actions",
+    "newConversation": "Nouvelle conversation",
+    "serverError": "Erreur serveur",
+    "responseUnavailable": "Réponse non disponible.",
+    "genericError": "Désolé, une erreur s'est produite. Veuillez réessayer.",
+    "executionError": "Erreur d'exécution",
+    "autoFixDone": "Auto-correction terminée : {{count}} corrections appliquées.",
+    "toast": {
+      "reminderSet": "Rappel programmé",
+      "fixesApplied": "Corrections appliquées",
+      "fixesAppliedDesc": "{{count}} corrections effectuées.",
+      "actionExecuted": "Action exécutée",
+      "failure": "Échec",
+      "actionFailed": "Action échouée.",
+      "actionUnrecognized": "Action non reconnue.",
+      "error": "Erreur",
+      "cannotExecute": "Impossible d'exécuter cette action."
+    },
+    "mood": {
+      "positif": "Tout va bien",
+      "alerte": "Attention requise",
+      "critique": "Action urgente",
+      "normal": "Normal"
+    },
+    "priorite": {
+      "haute": "haute",
+      "moyenne": "moyenne",
+      "basse": "basse"
+    },
+    "proactiveSuggestions": "Suggestions proactives ({{count}})",
+    "analyzingContext": "Analyse contextuelle en cours...",
+    "officeIntelligence": "Intelligence de Bureau",
+    "intro": "Votre bureau, vos tâches, vos appels, vos emails — je gère tout. Demandez-moi n'importe quoi.",
+    "insights": "Insights",
+    "executableActions": "Actions exécutables ({{count}})",
+    "analyzingMultiAi": "Analyse multi-IA en cours...",
+    "inputPlaceholder": "Demandez n'importe quoi sur votre bureau...",
+    "calculations": "Calculs ({{count}})",
+    "quickQuestions": {
+      "q0": "Donne-moi le briefing exécutif complet du jour",
+      "q1": "Quelles sont les urgences à traiter maintenant ?",
+      "q2": "Planifie un suivi pour les contacts inactifs",
+      "q3": "Génère un rapport de performance global",
+      "q4": "Combien d'appels cette semaine ?",
+      "q5": "Quelles tâches sont en retard ?",
+      "q6": "Recherche les tarifs du marché pour nos services",
+      "q7": "Envoie un rappel aux contacts prioritaires"
+    },
+    "mathType": {
+      "arithmetic": "Arithmétique",
+      "percentage": "Pourcentage",
+      "power": "Puissance",
+      "root": "Racine",
+      "logarithm": "Logarithme",
+      "trigonometry": "Trigonométrie",
+      "statistics": "Statistiques",
+      "financial": "Financier",
+      "conversion": "Conversion",
+      "geometry": "Géométrie"
+    }
+  },
+  "aiRecognitionPanel": {
+    "analyzing": "Analyse en cours...",
+    "analyzingSub": "Reconnaissance de motifs et détection d'anomalies sur toutes les données",
+    "title": "Reconnaissance IA",
+    "scanPrompt": "Analysez votre bureau pour des détections intelligentes",
+    "scan": "Scanner",
+    "detectionsSummary": "{{count}} détection(s) - Score global de santé",
+    "all": "Tout ({{count}})",
+    "emptyCategory": "Aucune détection dans cette catégorie.",
+    "badge": {
+      "critiques": "{{count}} critique(s)",
+      "alertes": "{{count}} alerte(s)",
+      "positifs": "{{count}} positif(s)"
+    },
+    "health": {
+      "excellent": "Excellent",
+      "bon": "Bon",
+      "moyen": "Moyen",
+      "critique": "Critique"
+    },
+    "severite": {
+      "critique": "Critique",
+      "alerte": "Alerte",
+      "attention": "Attention",
+      "info": "Info",
+      "positif": "Positif"
+    },
+    "categorie": {
+      "appels": "Appels",
+      "contacts": "Contacts",
+      "taches": "Tâches",
+      "messages": "Messages",
+      "performance": "Performance",
+      "reconnaissance": "Reconnaissance"
+    }
+  },
+  "aiDiscoveryPanel": {
+    "serverError": "Erreur serveur",
+    "loading": "L'Agent IA analyse votre profil et vos applications...",
+    "loadError": "La découverte IA n'a pas pu se charger.",
+    "retry": "Réessayer",
+    "title": "Agent IA - Découverte",
+    "subtitle": "Analyse personnalisée de votre espace",
+    "profile": "Profil",
+    "complete": "Complet",
+    "incomplete": "Incomplet",
+    "missing": "Manquant : {{fields}}",
+    "allFieldsFilled": "Tous les champs sont remplis",
+    "applications": "Applications",
+    "connectedCount": "{{count}} connectée(s)",
+    "activity": "Activité",
+    "analyzing": "Analyse en cours...",
+    "recommendedApps": "Applications recommandées pour vous",
+    "recommended": "Recommandé",
+    "useful": "Utile",
+    "optional": "Optionnel",
+    "seeLess": "Voir moins",
+    "moreRecommendations": "+{{count}} autres recommandations",
+    "suggestedActions": "Actions suggérées",
+    "priorite": {
+      "haute": "haute",
+      "moyenne": "moyenne",
+      "basse": "basse"
+    }
+  },
+  "aiSpot": {
+    "error": "Erreur",
+    "cannotHide": "Impossible de masquer.",
+    "wait": "Patientez",
+    "tryLater": "Réessayez plus tard.",
+    "insightsRefreshed": "Insights actualisés",
+    "suggestionsGenerated": "{{count}} suggestion(s) générée(s).",
+    "regenFailed": "Échec de la régénération.",
+    "analyzing": "Analyse en cours...",
+    "noAlert": "Aucune alerte. Tout est sous contrôle.",
+    "refresh": "Actualiser",
+    "subtitle": "Suggestions proactives prioritaires",
+    "useful": "Utile",
+    "notUseful": "Pas utile",
+    "hide": "Masquer"
+  },
+  "smartPulsePanel": {
+    "health": "santé",
+    "riskLow": "Risque faible",
+    "riskMedium": "Risque moyen",
+    "riskHigh": "Risque élevé",
+    "analyzing": "Analyse intelligente en cours...",
+    "title": "Radar Intelligent",
+    "subtitle": "Surveillance temps réel - Mise à jour chaque minute",
+    "criticalCount": "{{count}} critique(s)",
+    "alertCount": "{{count}} alerte(s)",
+    "hourlyDistribution": "Distribution horaire des appels",
+    "peakHour": "Heure de pointe :",
+    "weekGrowth": "{{sign}}{{growth}}% d'activité par rapport à la semaine dernière ({{week}} vs {{prev}} appels)",
+    "alertsAnomalies": "Alertes & Anomalies",
+    "seeLess": "Voir moins",
+    "seeOthers": "Voir les {{count}} autres",
+    "recommendations": "Recommandations IA",
+    "metric": {
+      "todayCalls": "Appels aujourd'hui",
+      "missed": "Manqués",
+      "overdueTasks": "Tâches en retard",
+      "completedWeek": "Terminées cette sem.",
+      "unread": "Non lus"
+    },
+    "severite": {
+      "critique": "Critique",
+      "alerte": "Alerte",
+      "attention": "Attention",
+      "info": "Info"
+    }
+  },
+  "aiSuggestionsCard": {
+    "available": "Intelligence IA disponible",
+    "availableSub": "Obtenez des suggestions personnalisées pour cette page",
+    "analyze": "Analyser",
+    "title": "Suggestions IA",
+    "analyzing": "Analyse en cours...",
+    "empty": "Aucune suggestion disponible pour le moment.",
+    "priorite": {
+      "haute": "Haute",
+      "moyenne": "Moyenne",
+      "basse": "Basse"
+    },
+    "type": {
+      "urgence": "Urgence",
+      "amelioration": "Amélioration",
+      "information": "Information",
+      "action": "Action"
     }
   }
 }
