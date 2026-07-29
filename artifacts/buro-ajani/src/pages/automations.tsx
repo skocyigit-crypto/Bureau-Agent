@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { useTranslation } from "@/i18n";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -39,12 +40,12 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 const TRIGGER_LABELS: Record<string, string> = {
-  schedule: "Plannifie (recurrent)",
-  missed_call: "Appel manque",
-  contact_no_activity: "Contact inactif",
-  task_overdue: "Tache en retard",
-  projet_overdue: "Projet en retard",
-  projet_created: "Nouveau projet cree",
+  schedule: "automationsPage.trigger.schedule",
+  missed_call: "automationsPage.trigger.missed_call",
+  contact_no_activity: "automationsPage.trigger.contact_no_activity",
+  task_overdue: "automationsPage.trigger.task_overdue",
+  projet_overdue: "automationsPage.trigger.projet_overdue",
+  projet_created: "automationsPage.trigger.projet_created",
 };
 
 const TRIGGER_ICONS: Record<string, any> = {
@@ -66,9 +67,9 @@ const TRIGGER_COLORS: Record<string, string> = {
 };
 
 const ACTION_LABELS: Record<string, string> = {
-  send_notification: "Envoyer une notification",
-  create_task: "Creer une tache",
-  send_sms: "Envoyer un SMS (Twilio)",
+  send_notification: "automationsPage.action.send_notification",
+  create_task: "automationsPage.action.create_task",
+  send_sms: "automationsPage.action.send_sms",
 };
 
 const ACTION_ICONS: Record<string, any> = {
@@ -85,10 +86,10 @@ const ACTION_ICONS: Record<string, any> = {
  */
 const APPROVAL_META = (v: boolean | null) =>
   v === true
-    ? { label: "Tout à valider", cls: "bg-amber-500/10 text-amber-600 border-amber-500/30", toast: "Toutes les actions passeront par la file d'approbation" }
+    ? { labelKey: "automationsPage.approval.allValidate", cls: "bg-amber-500/10 text-amber-600 border-amber-500/30", toastKey: "automationsPage.approval.allValidateToast" }
     : v === false
-      ? { label: "Tout automatique", cls: "bg-red-500/10 text-red-600 border-red-500/30", toast: "Cette règle s'exécutera sans validation" }
-      : { label: "Envois à valider", cls: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30", toast: "Les envois clients passeront par la file d'approbation" };
+      ? { labelKey: "automationsPage.approval.allAuto", cls: "bg-red-500/10 text-red-600 border-red-500/30", toastKey: "automationsPage.approval.allAutoToast" }
+      : { labelKey: "automationsPage.approval.sendValidate", cls: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30", toastKey: "automationsPage.approval.sendValidateToast" };
 
 interface RuleAction {
   type: string;
@@ -119,6 +120,7 @@ function ActionEditor({ action, index, onChange, onRemove }: {
   onChange: (updated: RuleAction) => void;
   onRemove: () => void;
 }) {
+  const { t } = useTranslation();
   const Icon = ACTION_ICONS[action.type] || Bell;
 
   function setParam(key: string, value: string) {
@@ -135,7 +137,7 @@ function ActionEditor({ action, index, onChange, onRemove }: {
           </SelectTrigger>
           <SelectContent>
             {Object.entries(ACTION_LABELS).map(([v, l]) => (
-              <SelectItem key={v} value={v}>{l}</SelectItem>
+              <SelectItem key={v} value={v}>{t(l)}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -148,27 +150,27 @@ function ActionEditor({ action, index, onChange, onRemove }: {
         <>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <Label className="text-xs">Titre</Label>
-              <Input className="h-7 text-xs mt-1" value={action.params.title ?? ""} onChange={e => setParam("title", e.target.value)} placeholder="Titre de la notification" />
+              <Label className="text-xs">{t("automationsPage.editor.title")}</Label>
+              <Input className="h-7 text-xs mt-1" value={action.params.title ?? ""} onChange={e => setParam("title", e.target.value)} placeholder={t("automationsPage.editor.notifTitlePlaceholder")} />
             </div>
             <div>
-              <Label className="text-xs">Type</Label>
+              <Label className="text-xs">{t("automationsPage.editor.type")}</Label>
               <Select value={action.params.notifType ?? "info"} onValueChange={v => setParam("notifType", v)}>
                 <SelectTrigger className="h-7 text-xs mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="info">Info</SelectItem>
-                  <SelectItem value="alerte">Alerte</SelectItem>
-                  <SelectItem value="rappel">Rappel</SelectItem>
-                  <SelectItem value="succes">Succes</SelectItem>
+                  <SelectItem value="info">{t("automationsPage.editor.typeInfo")}</SelectItem>
+                  <SelectItem value="alerte">{t("automationsPage.editor.typeAlerte")}</SelectItem>
+                  <SelectItem value="rappel">{t("automationsPage.editor.typeRappel")}</SelectItem>
+                  <SelectItem value="succes">{t("automationsPage.editor.typeSucces")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <div>
-            <Label className="text-xs">Message <span className="text-muted-foreground">({"{{phoneNumber}}"} disponible)</span></Label>
-            <Textarea className="text-xs mt-1 min-h-[60px]" value={action.params.message ?? ""} onChange={e => setParam("message", e.target.value)} placeholder="Message de la notification..." />
+            <Label className="text-xs">{t("automationsPage.editor.message")} <span className="text-muted-foreground">{t("automationsPage.editor.phoneAvailable")}</span></Label>
+            <Textarea className="text-xs mt-1 min-h-[60px]" value={action.params.message ?? ""} onChange={e => setParam("message", e.target.value)} placeholder={t("automationsPage.editor.notifMessagePlaceholder")} />
           </div>
         </>
       )}
@@ -176,23 +178,23 @@ function ActionEditor({ action, index, onChange, onRemove }: {
       {action.type === "create_task" && (
         <div className="grid grid-cols-2 gap-2">
           <div className="col-span-2">
-            <Label className="text-xs">Titre de la tache</Label>
-            <Input className="h-7 text-xs mt-1" value={action.params.title ?? ""} onChange={e => setParam("title", e.target.value)} placeholder="Rappeler {{firstName}} {{lastName}}" />
+            <Label className="text-xs">{t("automationsPage.editor.taskTitle")}</Label>
+            <Input className="h-7 text-xs mt-1" value={action.params.title ?? ""} onChange={e => setParam("title", e.target.value)} placeholder={t("automationsPage.editor.taskTitlePlaceholder")} />
           </div>
           <div>
-            <Label className="text-xs">Priorite</Label>
+            <Label className="text-xs">{t("automationsPage.editor.priority")}</Label>
             <Select value={action.params.priority ?? "moyenne"} onValueChange={v => setParam("priority", v)}>
               <SelectTrigger className="h-7 text-xs mt-1"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="basse">Basse</SelectItem>
-                <SelectItem value="moyenne">Moyenne</SelectItem>
-                <SelectItem value="haute">Haute</SelectItem>
-                <SelectItem value="urgente">Urgente</SelectItem>
+                <SelectItem value="basse">{t("automationsPage.editor.prioBasse")}</SelectItem>
+                <SelectItem value="moyenne">{t("automationsPage.editor.prioMoyenne")}</SelectItem>
+                <SelectItem value="haute">{t("automationsPage.editor.prioHaute")}</SelectItem>
+                <SelectItem value="urgente">{t("automationsPage.editor.prioUrgente")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div>
-            <Label className="text-xs">Echeance (jours)</Label>
+            <Label className="text-xs">{t("automationsPage.editor.dueDays")}</Label>
             <Input type="number" className="h-7 text-xs mt-1" value={action.params.dueDays ?? "1"} onChange={e => setParam("dueDays", e.target.value)} min="1" />
           </div>
         </div>
@@ -201,12 +203,12 @@ function ActionEditor({ action, index, onChange, onRemove }: {
       {action.type === "send_sms" && (
         <>
           <div>
-            <Label className="text-xs">Numero destinataire <span className="text-muted-foreground">(laisser vide = numero du contact)</span></Label>
-            <Input className="h-7 text-xs mt-1" value={action.params.to ?? ""} onChange={e => setParam("to", e.target.value)} placeholder="+33612345678 (laisser vide pour utiliser le destinataire par défaut)" />
+            <Label className="text-xs">{t("automationsPage.editor.smsTo")} <span className="text-muted-foreground">{t("automationsPage.editor.smsToHint")}</span></Label>
+            <Input className="h-7 text-xs mt-1" value={action.params.to ?? ""} onChange={e => setParam("to", e.target.value)} placeholder={t("automationsPage.editor.smsToPlaceholder")} />
           </div>
           <div>
-            <Label className="text-xs">Message SMS <span className="text-muted-foreground">({"{{phoneNumber}}"} disponible)</span></Label>
-            <Textarea className="text-xs mt-1 min-h-[60px]" value={action.params.message ?? ""} onChange={e => setParam("message", e.target.value)} placeholder="Bonjour, nous avons manque votre appel..." />
+            <Label className="text-xs">{t("automationsPage.editor.smsMessage")} <span className="text-muted-foreground">{t("automationsPage.editor.phoneAvailable")}</span></Label>
+            <Textarea className="text-xs mt-1 min-h-[60px]" value={action.params.message ?? ""} onChange={e => setParam("message", e.target.value)} placeholder={t("automationsPage.editor.smsMessagePlaceholder")} />
           </div>
         </>
       )}
@@ -215,6 +217,7 @@ function ActionEditor({ action, index, onChange, onRemove }: {
 }
 
 function EditRuleDialog({ rule, onSaved, onClose }: { rule: any; onSaved: () => void; onClose: () => void }) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<{ name: string; description: string; schedule: string }>({
@@ -224,7 +227,7 @@ function EditRuleDialog({ rule, onSaved, onClose }: { rule: any; onSaved: () => 
   });
 
   async function submit() {
-    if (!form.name.trim()) { toast({ title: "Nom requis", variant: "destructive" }); return; }
+    if (!form.name.trim()) { toast({ title: t("automationsPage.toast.nameRequired"), variant: "destructive" }); return; }
     setSaving(true);
     try {
       const res = await fetch(`${baseUrl}/api/automations/${rule.id}`, {
@@ -234,11 +237,11 @@ function EditRuleDialog({ rule, onSaved, onClose }: { rule: any; onSaved: () => 
         body: JSON.stringify({ name: form.name.trim(), description: form.description.trim(), schedule: form.schedule }),
       });
       if (!res.ok) throw new Error("Erreur serveur");
-      toast({ title: "Regle mise a jour" });
+      toast({ title: t("automationsPage.toast.ruleUpdated") });
       onSaved();
       onClose();
     } catch {
-      toast({ title: "Erreur", description: "Impossible de modifier la regle", variant: "destructive" });
+      toast({ title: t("automationsPage.toast.error"), description: t("automationsPage.toast.updateError"), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -249,39 +252,39 @@ function EditRuleDialog({ rule, onSaved, onClose }: { rule: any; onSaved: () => 
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Pencil className="w-5 h-5 text-primary" /> Modifier la regle
+            <Pencil className="w-5 h-5 text-primary" /> {t("automationsPage.dialog.editTitle")}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div>
-            <Label>Nom de la regle <span className="text-red-500">*</span></Label>
+            <Label>{t("automationsPage.dialog.ruleName")} <span className="text-red-500">*</span></Label>
             <Input className="mt-1" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
           </div>
           <div>
-            <Label>Description</Label>
+            <Label>{t("automationsPage.dialog.description")}</Label>
             <Input className="mt-1" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
           </div>
           <div>
-            <Label>Frequence d'execution</Label>
+            <Label>{t("automationsPage.dialog.frequency")}</Label>
             <Select value={form.schedule} onValueChange={v => setForm(f => ({ ...f, schedule: v }))}>
               <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="5min">Toutes les 5 min</SelectItem>
-                <SelectItem value="15min">Toutes les 15 min</SelectItem>
-                <SelectItem value="30min">Toutes les 30 min</SelectItem>
-                <SelectItem value="1h">Toutes les heures</SelectItem>
-                <SelectItem value="6h">Toutes les 6h</SelectItem>
-                <SelectItem value="12h">Toutes les 12h</SelectItem>
-                <SelectItem value="24h">Une fois par jour</SelectItem>
+                <SelectItem value="5min">{t("automationsPage.schedule.5min")}</SelectItem>
+                <SelectItem value="15min">{t("automationsPage.schedule.15min")}</SelectItem>
+                <SelectItem value="30min">{t("automationsPage.schedule.30min")}</SelectItem>
+                <SelectItem value="1h">{t("automationsPage.schedule.1h")}</SelectItem>
+                <SelectItem value="6h">{t("automationsPage.schedule.6h")}</SelectItem>
+                <SelectItem value="12h">{t("automationsPage.schedule.12h")}</SelectItem>
+                <SelectItem value="24h">{t("automationsPage.schedule.24h")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Annuler</Button>
+          <Button variant="outline" onClick={onClose}>{t("automationsPage.cancel")}</Button>
           <Button onClick={submit} disabled={saving} className="gap-1.5">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4" />}
-            Enregistrer
+            {t("automationsPage.dialog.save")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -290,6 +293,7 @@ function EditRuleDialog({ rule, onSaved, onClose }: { rule: any; onSaved: () => 
 }
 
 function CreateRuleDialog({ onCreated }: { onCreated: () => void }) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -308,8 +312,8 @@ function CreateRuleDialog({ onCreated }: { onCreated: () => void }) {
   }
 
   async function submit() {
-    if (!form.name.trim()) { toast({ title: "Nom requis", variant: "destructive" }); return; }
-    if (form.actions.length === 0) { toast({ title: "Au moins une action requise", variant: "destructive" }); return; }
+    if (!form.name.trim()) { toast({ title: t("automationsPage.toast.nameRequired"), variant: "destructive" }); return; }
+    if (form.actions.length === 0) { toast({ title: t("automationsPage.toast.actionRequired"), variant: "destructive" }); return; }
 
     setSaving(true);
     try {
@@ -337,12 +341,12 @@ function CreateRuleDialog({ onCreated }: { onCreated: () => void }) {
         throw new Error(err.error || "Erreur serveur");
       }
 
-      toast({ title: "Regle creee", description: `"${form.name}" est maintenant active.` });
+      toast({ title: t("automationsPage.toast.ruleCreated"), description: t("automationsPage.toast.ruleCreatedDesc", { name: form.name }) });
       setOpen(false);
       setForm(DEFAULT_FORM);
       onCreated();
     } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+      toast({ title: t("automationsPage.toast.error"), description: err.message, variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -352,25 +356,25 @@ function CreateRuleDialog({ onCreated }: { onCreated: () => void }) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" className="gap-1.5">
-          <Plus className="w-4 h-4" /> Nouvelle regle
+          <Plus className="w-4 h-4" /> {t("automationsPage.dialog.newRule")}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Zap className="w-5 h-5 text-amber-500" /> Creer une regle d'automatisation
+            <Zap className="w-5 h-5 text-amber-500" /> {t("automationsPage.dialog.createTitle")}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
-              <Label>Nom de la regle <span className="text-red-500">*</span></Label>
-              <Input className="mt-1" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex: SMS appel manque" />
+              <Label>{t("automationsPage.dialog.ruleName")} <span className="text-red-500">*</span></Label>
+              <Input className="mt-1" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={t("automationsPage.dialog.ruleNamePlaceholder")} />
             </div>
             <div className="col-span-2">
-              <Label>Description</Label>
-              <Input className="mt-1" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Description optionnelle..." />
+              <Label>{t("automationsPage.dialog.description")}</Label>
+              <Input className="mt-1" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder={t("automationsPage.dialog.descriptionPlaceholder")} />
             </div>
           </div>
 
@@ -378,20 +382,20 @@ function CreateRuleDialog({ onCreated }: { onCreated: () => void }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Declencheur</Label>
+              <Label>{t("automationsPage.dialog.trigger")}</Label>
               <Select value={form.trigger} onValueChange={v => setForm(f => ({ ...f, trigger: v }))}>
                 <SelectTrigger className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {Object.entries(TRIGGER_LABELS).map(([v, l]) => (
-                    <SelectItem key={v} value={v}>{l}</SelectItem>
+                    <SelectItem key={v} value={v}>{t(l)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label>Frequence d'execution</Label>
+              <Label>{t("automationsPage.dialog.frequency")}</Label>
               <Select value={form.schedule} onValueChange={v => setForm(f => ({ ...f, schedule: v }))}>
                 <SelectTrigger className="mt-1">
                   <SelectValue />
@@ -409,7 +413,7 @@ function CreateRuleDialog({ onCreated }: { onCreated: () => void }) {
             </div>
             {form.trigger === "contact_no_activity" && (
               <div>
-                <Label>Inactivite (jours)</Label>
+                <Label>{t("automationsPage.dialog.inactivityDays")}</Label>
                 <Input type="number" className="mt-1" value={form.inactivityDays} onChange={e => setForm(f => ({ ...f, inactivityDays: e.target.value }))} min="1" max="365" />
               </div>
             )}
@@ -419,13 +423,13 @@ function CreateRuleDialog({ onCreated }: { onCreated: () => void }) {
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-semibold">Actions ({form.actions.length})</Label>
+              <Label className="text-sm font-semibold">{t("automationsPage.dialog.actionsLabel", { count: form.actions.length })}</Label>
               <Button size="sm" variant="outline" onClick={addAction} className="gap-1 h-7 text-xs">
-                <Plus className="w-3 h-3" /> Ajouter
+                <Plus className="w-3 h-3" /> {t("automationsPage.dialog.add")}
               </Button>
             </div>
             {form.actions.length === 0 && (
-              <p className="text-xs text-muted-foreground text-center py-4">Aucune action. Ajoutez-en une ci-dessus.</p>
+              <p className="text-xs text-muted-foreground text-center py-4">{t("automationsPage.dialog.noAction")}</p>
             )}
             {form.actions.map((a, i) => (
               <ActionEditor key={i} action={a} index={i} onChange={u => updateAction(i, u)} onRemove={() => removeAction(i)} />
@@ -434,16 +438,16 @@ function CreateRuleDialog({ onCreated }: { onCreated: () => void }) {
 
           {form.trigger === "missed_call" && (
             <div className="text-xs text-muted-foreground bg-muted/50 rounded p-2">
-              <strong>Astuce :</strong> Pour send_sms, laissez le numero vide — le numero de l'appelant manque sera utilise automatiquement. Utilisez {"{{phoneNumber}}"} dans le message.
+              <strong>{t("automationsPage.dialog.tipLabel")}</strong> {t("automationsPage.dialog.missedCallTip")}
             </div>
           )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
+          <Button variant="outline" onClick={() => setOpen(false)}>{t("automationsPage.cancel")}</Button>
           <Button onClick={submit} disabled={saving} className="gap-1.5">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-            Creer la regle
+            {t("automationsPage.dialog.createRule")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -452,6 +456,7 @@ function CreateRuleDialog({ onCreated }: { onCreated: () => void }) {
 }
 
 export default function AutomationsPage() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [rules, setRules] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
@@ -472,32 +477,32 @@ export default function AutomationsPage() {
         const data = await rulesRes.json();
         setRules(data.rules);
       } else {
-        toast({ title: "Erreur", description: "Impossible de charger les regles", variant: "destructive" });
+        toast({ title: t("automationsPage.toast.error"), description: t("automationsPage.toast.loadRulesError"), variant: "destructive" });
       }
       if (logsRes.ok) {
         const data = await logsRes.json();
         setLogs(data.logs);
         setStats(data.stats);
       } else {
-        toast({ title: "Erreur", description: "Impossible de charger les journaux", variant: "destructive" });
+        toast({ title: t("automationsPage.toast.error"), description: t("automationsPage.toast.loadLogsError"), variant: "destructive" });
       }
     } catch (err) {
       console.error("[Automations] fetch failed:", err);
-      toast({ title: "Erreur", description: "Impossible de charger les automatisations", variant: "destructive" });
+      toast({ title: t("automationsPage.toast.error"), description: t("automationsPage.toast.loadError"), variant: "destructive" });
     } finally {
       setLoading(false);
     }
   }
 
   async function deleteRule(id: number, name: string) {
-    if (!(await confirmAction({ title: `Supprimer la règle « ${name} » ?`, confirmLabel: "Supprimer", destructive: true }))) return;
+    if (!(await confirmAction({ title: t("automationsPage.confirmDelete", { name }), confirmLabel: t("automationsPage.confirmDeleteLabel"), destructive: true }))) return;
     try {
       const res = await fetch(`${baseUrl}/api/automations/${id}`, { method: "DELETE", credentials: "include" });
       if (!res.ok) throw new Error("Erreur serveur");
-      toast({ title: "Regle supprimee" });
+      toast({ title: t("automationsPage.toast.ruleDeleted") });
       fetchData();
     } catch {
-      toast({ title: "Erreur", description: "Impossible de supprimer la regle", variant: "destructive" });
+      toast({ title: t("automationsPage.toast.error"), description: t("automationsPage.toast.deleteError"), variant: "destructive" });
     }
   }
 
@@ -512,7 +517,7 @@ export default function AutomationsPage() {
       if (!res.ok) throw new Error("Erreur serveur");
       fetchData();
     } catch {
-      toast({ title: "Erreur", description: "Impossible de modifier la regle", variant: "destructive" });
+      toast({ title: t("automationsPage.toast.error"), description: t("automationsPage.toast.updateError"), variant: "destructive" });
     }
   }
 
@@ -531,10 +536,10 @@ export default function AutomationsPage() {
         body: JSON.stringify({ requiresApproval: next }),
       });
       if (!res.ok) throw new Error("Erreur serveur");
-      toast({ title: APPROVAL_META(next).toast });
+      toast({ title: t(APPROVAL_META(next).toastKey) });
       fetchData();
     } catch {
-      toast({ title: "Erreur", description: "Impossible de modifier la validation", variant: "destructive" });
+      toast({ title: t("automationsPage.toast.error"), description: t("automationsPage.toast.approvalError"), variant: "destructive" });
     }
   }
 
@@ -548,29 +553,29 @@ export default function AutomationsPage() {
   };
   const handleBulkDelete = async (customRules: any[]) => {
     if (selectedIds.size === 0) return;
-    if (!(await confirmAction({ title: `Supprimer ${selectedIds.size} automatisation(s) ?`, confirmLabel: "Supprimer", destructive: true }))) return;
+    if (!(await confirmAction({ title: t("automationsPage.confirmBulkDelete", { count: selectedIds.size }), confirmLabel: t("automationsPage.confirmDeleteLabel"), destructive: true }))) return;
     const ids = Array.from(selectedIds);
     const res = await fetch(`${baseUrl}/api/automations/bulk/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
-    if (res.ok) { toast({ title: `${selectedIds.size} automatisation(s) supprimee(s)` }); setSelectedIds(new Set()); setSelectMode(false); fetchData(); }
-    else { const d = await res.json(); toast({ title: "Erreur", description: d.error, variant: "destructive" }); }
+    if (res.ok) { toast({ title: t("automationsPage.toast.bulkDeleted", { count: selectedIds.size }) }); setSelectedIds(new Set()); setSelectMode(false); fetchData(); }
+    else { const d = await res.json(); toast({ title: t("automationsPage.toast.error"), description: d.error, variant: "destructive" }); }
   };
   const handleBulkToggle = async (enabled: boolean) => {
     if (selectedIds.size === 0) return;
     const ids = Array.from(selectedIds);
     const res = await fetch(`${baseUrl}/api/automations/bulk/toggle`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids, enabled }) });
-    if (res.ok) { toast({ title: enabled ? "Regles activees" : "Regles suspendues" }); setSelectedIds(new Set()); setSelectMode(false); fetchData(); }
-    else { const d = await res.json(); toast({ title: "Erreur", description: d.error, variant: "destructive" }); }
+    if (res.ok) { toast({ title: enabled ? t("automationsPage.toast.rulesActivated") : t("automationsPage.toast.rulesSuspended") }); setSelectedIds(new Set()); setSelectMode(false); fetchData(); }
+    else { const d = await res.json(); toast({ title: t("automationsPage.toast.error"), description: d.error, variant: "destructive" }); }
   };
 
   function timeAgo(date: string | null): string {
-    if (!date) return "Jamais";
+    if (!date) return t("automationsPage.timeAgo.never");
     const diff = Date.now() - new Date(date).getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 1) return "A l'instant";
-    if (mins < 60) return `Il y a ${mins}min`;
+    if (mins < 1) return t("automationsPage.timeAgo.now");
+    if (mins < 60) return t("automationsPage.timeAgo.minutes", { n: mins });
     const hours = Math.floor(mins / 60);
-    if (hours < 24) return `Il y a ${hours}h`;
-    return `Il y a ${Math.floor(hours / 24)}j`;
+    if (hours < 24) return t("automationsPage.timeAgo.hours", { n: hours });
+    return t("automationsPage.timeAgo.days", { n: Math.floor(hours / 24) });
   }
 
   if (loading) {
@@ -593,20 +598,20 @@ export default function AutomationsPage() {
             <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white">
               <Zap className="w-6 h-6" />
             </div>
-            Automatisations
+            {t("automationsPage.title")}
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Moteur d'automatisation intelligent - surveillance et actions automatiques
+            {t("automationsPage.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button onClick={fetchData} variant="outline" size="sm">
-            <RefreshCw className="w-4 h-4 mr-2" /> Actualiser
+            <RefreshCw className="w-4 h-4 mr-2" /> {t("automationsPage.refresh")}
           </Button>
           <a href={`${baseUrl}/api/automations/export/csv`} download="automations.csv">
-            <Button variant="outline" size="sm" title="Exporter CSV"><Download className="w-4 h-4" /></Button>
+            <Button variant="outline" size="sm" title={t("automationsPage.exportCsv")}><Download className="w-4 h-4" /></Button>
           </a>
-          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+          <Button variant="outline" size="icon" title={t("automationsPage.print")} onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
           <CreateRuleDialog onCreated={fetchData} />
         </div>
       </div>
@@ -620,7 +625,7 @@ export default function AutomationsPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats?.totalToday || 0}</p>
-                <p className="text-xs text-muted-foreground">Executions aujourd'hui</p>
+                <p className="text-xs text-muted-foreground">{t("automationsPage.stats.executionsToday")}</p>
               </div>
             </div>
           </CardContent>
@@ -633,7 +638,7 @@ export default function AutomationsPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{successRate}%</p>
-                <p className="text-xs text-muted-foreground">Taux de reussite</p>
+                <p className="text-xs text-muted-foreground">{t("automationsPage.stats.successRate")}</p>
               </div>
             </div>
           </CardContent>
@@ -646,7 +651,7 @@ export default function AutomationsPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats?.itemsToday || 0}</p>
-                <p className="text-xs text-muted-foreground">Elements traites</p>
+                <p className="text-xs text-muted-foreground">{t("automationsPage.stats.itemsProcessed")}</p>
               </div>
             </div>
           </CardContent>
@@ -659,7 +664,7 @@ export default function AutomationsPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats?.errorToday || 0}</p>
-                <p className="text-xs text-muted-foreground">Erreurs</p>
+                <p className="text-xs text-muted-foreground">{t("automationsPage.stats.errors")}</p>
               </div>
             </div>
           </CardContent>
@@ -669,16 +674,16 @@ export default function AutomationsPage() {
       <Tabs defaultValue="regles" className="space-y-4">
         <TabsList>
           <TabsTrigger value="regles" className="gap-1.5">
-            <Settings2 className="w-4 h-4" /> Regles actives
+            <Settings2 className="w-4 h-4" /> {t("automationsPage.tabs.rules")}
           </TabsTrigger>
           <TabsTrigger value="journal" className="gap-1.5">
-            <BarChart3 className="w-4 h-4" /> Journal d'execution
+            <BarChart3 className="w-4 h-4" /> {t("automationsPage.tabs.journal")}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="regles" className="space-y-4">
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-            <Bot className="w-4 h-4" /> Automatisations systeme (integrees)
+            <Bot className="w-4 h-4" /> {t("automationsPage.systemSection")}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {builtInRules.map(rule => {
@@ -695,15 +700,15 @@ export default function AutomationsPage() {
                         <div className="flex items-center gap-2 mb-1">
                           <h4 className="font-semibold text-sm">{rule.name}</h4>
                           <Badge variant="outline" className="text-[10px] bg-green-500/10 text-green-600 border-green-500/30">
-                            <PlayCircle className="w-2.5 h-2.5 mr-0.5" /> Actif
+                            <PlayCircle className="w-2.5 h-2.5 mr-0.5" /> {t("automationsPage.active")}
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground line-clamp-2">{rule.description}</p>
                         <div className="flex items-center gap-3 mt-2">
                           <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> Chaque 5 minutes
+                            <Clock className="w-3 h-3" /> {t("automationsPage.every5min")}
                           </span>
-                          <Badge variant="secondary" className="text-[10px]">Systeme</Badge>
+                          <Badge variant="secondary" className="text-[10px]">{t("automationsPage.system")}</Badge>
                         </div>
                       </div>
                     </div>
@@ -715,25 +720,25 @@ export default function AutomationsPage() {
 
           <div className="flex items-center justify-between mt-6">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-              <Settings2 className="w-4 h-4" /> Regles personnalisees ({customRules.length})
+              <Settings2 className="w-4 h-4" /> {t("automationsPage.customSection", { count: customRules.length })}
             </h3>
             {customRules.length > 0 && (
               <div className="flex items-center gap-2">
                 {selectMode && selectedIds.size > 0 && (
                   <>
                     <Button size="sm" variant="outline" className="gap-1.5 text-green-600 border-green-300 h-7 text-xs" onClick={() => handleBulkToggle(true)}>
-                      <PlayCircle className="w-3 h-3" /> Activer ({selectedIds.size})
+                      <PlayCircle className="w-3 h-3" /> {t("automationsPage.bulkActivate", { count: selectedIds.size })}
                     </Button>
                     <Button size="sm" variant="outline" className="gap-1.5 text-amber-600 border-amber-300 h-7 text-xs" onClick={() => handleBulkToggle(false)}>
-                      <PauseCircle className="w-3 h-3" /> Suspendre ({selectedIds.size})
+                      <PauseCircle className="w-3 h-3" /> {t("automationsPage.bulkSuspend", { count: selectedIds.size })}
                     </Button>
                     <Button size="sm" variant="outline" className="gap-1.5 text-red-600 border-red-300 h-7 text-xs" onClick={() => handleBulkDelete(customRules)}>
-                      <Trash2 className="w-3 h-3" /> Supprimer ({selectedIds.size})
+                      <Trash2 className="w-3 h-3" /> {t("automationsPage.bulkDelete", { count: selectedIds.size })}
                     </Button>
                   </>
                 )}
                 <Button size="sm" variant={selectMode ? "default" : "outline"} className="h-7 text-xs gap-1.5" onClick={toggleSelectMode}>
-                  {selectMode ? <><X className="w-3 h-3" /> Annuler</> : <><CheckSquare className="w-3 h-3" /> Sélectionner</>}
+                  {selectMode ? <><X className="w-3 h-3" /> {t("automationsPage.cancel")}</> : <><CheckSquare className="w-3 h-3" /> {t("automationsPage.select")}</>}
                 </Button>
               </div>
             )}
@@ -743,8 +748,8 @@ export default function AutomationsPage() {
             <Card className="border-dashed">
               <CardContent className="py-12 text-center">
                 <Zap className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
-                <p className="text-sm text-muted-foreground font-medium">Aucune regle personnalisee</p>
-                <p className="text-xs text-muted-foreground mt-1 mb-4">Creez des automatisations sur mesure pour votre flux de travail</p>
+                <p className="text-sm text-muted-foreground font-medium">{t("automationsPage.emptyTitle")}</p>
+                <p className="text-xs text-muted-foreground mt-1 mb-4">{t("automationsPage.emptyDesc")}</p>
                 <CreateRuleDialog onCreated={fetchData} />
               </CardContent>
             </Card>
@@ -756,7 +761,7 @@ export default function AutomationsPage() {
                     {selectedIds.size === customRules.length && customRules.length > 0
                       ? <CheckSquare className="w-4 h-4 text-primary" />
                       : <Square className="w-4 h-4" />}
-                    {selectedIds.size === customRules.length && customRules.length > 0 ? "Tout désélectionner" : "Tout sélectionner"}
+                    {selectedIds.size === customRules.length && customRules.length > 0 ? t("automationsPage.deselectAll") : t("automationsPage.selectAll")}
                   </button>
                 </div>
               )}
@@ -777,29 +782,29 @@ export default function AutomationsPage() {
                         <div className="flex items-center gap-2 mb-1">
                           <h4 className="font-semibold text-sm truncate">{rule.name}</h4>
                           <Badge variant="outline" className={`text-[10px] shrink-0 ${rule.enabled ? "bg-green-500/10 text-green-600 border-green-500/30" : "bg-gray-500/10 text-gray-500 border-gray-500/30"}`}>
-                            {rule.enabled ? <><PlayCircle className="w-2.5 h-2.5 mr-0.5" /> Actif</> : <><PauseCircle className="w-2.5 h-2.5 mr-0.5" /> Pause</>}
+                            {rule.enabled ? <><PlayCircle className="w-2.5 h-2.5 mr-0.5" /> {t("automationsPage.active")}</> : <><PauseCircle className="w-2.5 h-2.5 mr-0.5" /> {t("automationsPage.paused")}</>}
                           </Badge>
                         </div>
                         {rule.description && <p className="text-xs text-muted-foreground truncate">{rule.description}</p>}
                         <div className="flex items-center gap-2 mt-2 text-[10px] text-muted-foreground">
-                          <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {rule.schedule || "Manuel"}</span>
-                          <span>{rule.runCount} exec.</span>
+                          <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {rule.schedule || t("automationsPage.manual")}</span>
+                          <span>{t("automationsPage.execCount", { count: rule.runCount })}</span>
                           {rule.lastRun && <span>{timeAgo(rule.lastRun)}</span>}
                         </div>
                         <div className="flex items-center gap-2 mt-2">
                           <Badge variant="outline" className="text-[10px]">
-                            {TRIGGER_LABELS[rule.trigger] || rule.trigger}
+                            {TRIGGER_LABELS[rule.trigger] ? t(TRIGGER_LABELS[rule.trigger]) : rule.trigger}
                           </Badge>
                           {Array.isArray(rule.actions) && (
-                            <span className="text-[10px] text-muted-foreground">{rule.actions.length} action(s)</span>
+                            <span className="text-[10px] text-muted-foreground">{t("automationsPage.actionCount", { count: rule.actions.length })}</span>
                           )}
                           <button
                             onClick={() => cycleApproval(rule.id, rule.requiresApproval ?? null)}
-                            title="Changer la politique de validation"
+                            title={t("automationsPage.approvalPolicyTitle")}
                           >
                             <Badge variant="outline" className={`text-[10px] cursor-pointer ${APPROVAL_META(rule.requiresApproval ?? null).cls}`}>
                               <ShieldCheck className="w-2.5 h-2.5 mr-0.5" />
-                              {APPROVAL_META(rule.requiresApproval ?? null).label}
+                              {t(APPROVAL_META(rule.requiresApproval ?? null).labelKey)}
                             </Badge>
                           </button>
                         </div>
@@ -809,14 +814,14 @@ export default function AutomationsPage() {
                       <div className="flex items-center gap-1.5 mt-3 pt-3 border-t">
                         <Button size="sm" variant="outline" className="h-7 text-xs flex-1" onClick={() => toggleRule(rule.id, rule.enabled)}>
                           {rule.enabled ? <PauseCircle className="w-3 h-3 mr-1" /> : <PlayCircle className="w-3 h-3 mr-1" />}
-                          {rule.enabled ? "Suspendre" : "Activer"}
+                          {rule.enabled ? t("automationsPage.suspend") : t("automationsPage.activate")}
                         </Button>
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" title="Modifier" onClick={() => setEditingRule(rule)}>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" title={t("automationsPage.editTitle")} onClick={() => setEditingRule(rule)}>
                           <Pencil className="w-3.5 h-3.5" />
                         </Button>
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" title="Dupliquer" onClick={async () => {
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" title={t("automationsPage.duplicateTitle")} onClick={async () => {
                           const res = await fetch(`${baseUrl}/api/automations/${rule.id}/duplicate`, { method: "POST", credentials: "include" });
-                          if (res.ok) { toast({ title: "Automation dupliquée" }); fetchData(); }
+                          if (res.ok) { toast({ title: t("automationsPage.toast.duplicated") }); fetchData(); }
                         }}>
                           <Copy className="w-3.5 h-3.5" />
                         </Button>
@@ -838,13 +843,13 @@ export default function AutomationsPage() {
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-primary" />
-                Historique des executions
+                {t("automationsPage.journalTitle")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               {logs.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground text-sm">
-                  Aucune execution enregistree
+                  {t("automationsPage.journalEmpty")}
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -857,11 +862,11 @@ export default function AutomationsPage() {
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium truncate">{log.ruleName}</span>
                           <Badge variant="outline" className={`text-[10px] shrink-0 ${log.status === "success" ? "text-green-600" : "text-red-600"}`}>
-                            {log.status === "success" ? "Reussi" : "Erreur"}
+                            {log.status === "success" ? t("automationsPage.logSuccess") : t("automationsPage.logError")}
                           </Badge>
                         </div>
                         <div className="flex items-center gap-3 text-[10px] text-muted-foreground mt-0.5">
-                          <span>{log.itemsProcessed} element(s)</span>
+                          <span>{t("automationsPage.logItems", { count: log.itemsProcessed })}</span>
                           {log.duration !== null && <span>{log.duration}ms</span>}
                           <span>{timeAgo(log.createdAt)}</span>
                         </div>

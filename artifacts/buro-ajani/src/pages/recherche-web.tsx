@@ -16,6 +16,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -72,12 +73,12 @@ interface SearchFilters {
 
 const DEFAULT_FILTERS: SearchFilters = { mode: "web", freshness: "any", lang: "fr", site: "" };
 
-const FRESHNESS_OPTIONS: { value: Freshness; label: string }[] = [
-  { value: "any", label: "Toutes dates" },
-  { value: "day", label: "24 heures" },
-  { value: "week", label: "Cette semaine" },
-  { value: "month", label: "Ce mois-ci" },
-  { value: "year", label: "Cette année" },
+const FRESHNESS_OPTIONS: { value: Freshness; labelKey: string }[] = [
+  { value: "any", labelKey: "rechercheWeb.freshness.any" },
+  { value: "day", labelKey: "rechercheWeb.freshness.day" },
+  { value: "week", labelKey: "rechercheWeb.freshness.week" },
+  { value: "month", labelKey: "rechercheWeb.freshness.month" },
+  { value: "year", labelKey: "rechercheWeb.freshness.year" },
 ];
 
 const LANG_OPTIONS: { value: SearchLang; label: string }[] = [
@@ -110,11 +111,11 @@ function saveRecent(term: string): string[] {
   return next;
 }
 
-const EXAMPLE_QUERIES = [
-  "Actualités économiques en France aujourd'hui",
-  "Taux de TVA pour une PME en 2026",
-  "Modèle de facture conforme",
-  "Météo Paris cette semaine",
+const EXAMPLE_QUERY_KEYS = [
+  "rechercheWeb.examples.economy",
+  "rechercheWeb.examples.vat",
+  "rechercheWeb.examples.invoice",
+  "rechercheWeb.examples.weather",
 ];
 
 function faviconUrl(domain: string): string | null {
@@ -139,21 +140,21 @@ function ResultFavicon({ domain }: { domain: string }) {
   );
 }
 
-const RISK_META: Record<UrlRisk, { label: string; badge: string; icon: typeof ShieldCheck; dot: string }> = {
+const RISK_META: Record<UrlRisk, { labelKey: string; badge: string; icon: typeof ShieldCheck; dot: string }> = {
   safe: {
-    label: "Sûr",
+    labelKey: "rechercheWeb.risk.safe",
     badge: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-900",
     icon: ShieldCheck,
     dot: "text-emerald-500",
   },
   suspicious: {
-    label: "Suspect",
+    labelKey: "rechercheWeb.risk.suspicious",
     badge: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-900",
     icon: ShieldAlert,
     dot: "text-amber-500",
   },
   dangerous: {
-    label: "Dangereux",
+    labelKey: "rechercheWeb.risk.dangerous",
     badge: "bg-red-100 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-900",
     icon: ShieldX,
     dot: "text-red-500",
@@ -161,6 +162,7 @@ const RISK_META: Record<UrlRisk, { label: string; badge: string; icon: typeof Sh
 };
 
 export default function RechercheWebPage() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const search = useSearch();
   const initialQuery = new URLSearchParams(search).get("q") ?? "";
@@ -250,9 +252,9 @@ export default function RechercheWebPage() {
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         if (res.status === 429) {
-          toast({ variant: "destructive", title: "Quota IA atteint", description: body.error ?? "Réessayez plus tard." });
+          toast({ variant: "destructive", title: t("rechercheWeb.quotaTitle"), description: body.error ?? t("rechercheWeb.quotaDesc") });
         } else {
-          toast({ variant: "destructive", title: "Recherche impossible", description: body.error ?? "Une erreur est survenue." });
+          toast({ variant: "destructive", title: t("rechercheWeb.searchFailed"), description: body.error ?? t("rechercheWeb.genericError") });
         }
         setData(null);
         return;
@@ -260,7 +262,7 @@ export default function RechercheWebPage() {
       const json = (await res.json()) as WebSearchResponse;
       setData(json);
     } catch {
-      toast({ variant: "destructive", title: "Recherche impossible", description: "Vérifiez votre connexion et réessayez." });
+      toast({ variant: "destructive", title: t("rechercheWeb.searchFailed"), description: t("rechercheWeb.checkConnection") });
       setData(null);
     } finally {
       setLoading(false);
@@ -390,10 +392,9 @@ export default function RechercheWebPage() {
             <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
               <Globe className="h-7 w-7 text-primary" />
             </div>
-            <h1 className="text-2xl font-semibold tracking-tight">Recherche web sécurisée</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">{t("rechercheWeb.title")}</h1>
             <p className="mt-1 max-w-md text-sm text-muted-foreground">
-              Cherchez sur le web depuis votre espace. Chaque lien est analysé par
-              l'antivirus intégré avant que vous ne cliquiez.
+              {t("rechercheWeb.subtitle")}
             </p>
           </div>
         )}
@@ -410,7 +411,7 @@ export default function RechercheWebPage() {
               onFocus={() => setShowSuggest(true)}
               onBlur={() => window.setTimeout(() => setShowSuggest(false), 120)}
               onKeyDown={onSearchKeyDown}
-              placeholder="Rechercher sur le web…"
+              placeholder={t("rechercheWeb.placeholder")}
               className="h-11 rounded-full pl-10 pr-4 text-base shadow-sm"
               autoFocus
               maxLength={300}
@@ -447,7 +448,7 @@ export default function RechercheWebPage() {
             )}
           </div>
           <Button type="submit" disabled={loading || query.trim().length < 2} className="h-11 rounded-full px-5">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Rechercher"}
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : t("rechercheWeb.searchButton")}
           </Button>
         </form>
 
@@ -461,14 +462,14 @@ export default function RechercheWebPage() {
                 onClick={() => applyFilter({ mode: "web" })}
                 className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 transition ${filters.mode === "web" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
               >
-                <Globe className="h-3.5 w-3.5" /> Web
+                <Globe className="h-3.5 w-3.5" /> {t("rechercheWeb.modeWeb")}
               </button>
               <button
                 type="button"
                 onClick={() => applyFilter({ mode: "news" })}
                 className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 transition ${filters.mode === "news" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
               >
-                <Newspaper className="h-3.5 w-3.5" /> Actualités
+                <Newspaper className="h-3.5 w-3.5" /> {t("rechercheWeb.modeNews")}
               </button>
             </div>
 
@@ -481,7 +482,7 @@ export default function RechercheWebPage() {
                 className="h-8 appearance-none rounded-full border bg-background pl-7 pr-7 text-xs text-foreground shadow-sm transition hover:bg-muted focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 {FRESHNESS_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
+                  <option key={o.value} value={o.value}>{t(o.labelKey)}</option>
                 ))}
               </select>
             </div>
@@ -514,7 +515,7 @@ export default function RechercheWebPage() {
                 onBlur={() => {
                   if (siteInput.trim() !== filters.site) applyFilter({ site: siteInput.trim() });
                 }}
-                placeholder="site : ex. lemonde.fr"
+                placeholder={t("rechercheWeb.sitePlaceholder")}
                 className="h-8 w-44 rounded-full pl-3 pr-7 text-xs shadow-sm"
               />
               {(siteInput || filters.site) && (
@@ -525,7 +526,7 @@ export default function RechercheWebPage() {
                     applyFilter({ site: "" });
                   }}
                   className="absolute right-2 text-muted-foreground hover:text-foreground"
-                  aria-label="Effacer le filtre site"
+                  aria-label={t("rechercheWeb.clearSiteFilter")}
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -539,24 +540,27 @@ export default function RechercheWebPage() {
       {!searched && !loading && (
         <div className="mx-auto max-w-xl space-y-5">
           <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Exemples de recherche</p>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("rechercheWeb.examplesTitle")}</p>
             <div className="flex flex-wrap gap-2">
-              {EXAMPLE_QUERIES.map((ex) => (
-                <button
-                  key={ex}
-                  onClick={() => doSearch(ex)}
-                  className="rounded-full border bg-background px-3 py-1.5 text-sm text-foreground/80 shadow-sm transition hover:bg-muted hover:text-foreground"
-                >
-                  {ex}
-                </button>
-              ))}
+              {EXAMPLE_QUERY_KEYS.map((exKey) => {
+                const ex = t(exKey);
+                return (
+                  <button
+                    key={exKey}
+                    onClick={() => doSearch(ex)}
+                    className="rounded-full border bg-background px-3 py-1.5 text-sm text-foreground/80 shadow-sm transition hover:bg-muted hover:text-foreground"
+                  >
+                    {ex}
+                  </button>
+                );
+              })}
             </div>
           </div>
           {recents.length > 0 && (
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Recherches récentes</p>
-                <button onClick={clearRecents} className="text-xs text-muted-foreground hover:text-foreground hover:underline">Effacer</button>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("rechercheWeb.recentTitle")}</p>
+                <button onClick={clearRecents} className="text-xs text-muted-foreground hover:text-foreground hover:underline">{t("rechercheWeb.clear")}</button>
               </div>
               <div className="flex flex-wrap gap-2">
                 {recents.map((r) => (
@@ -614,17 +618,17 @@ export default function RechercheWebPage() {
         <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
           <ShieldCheck className="h-4 w-4 text-muted-foreground" />
           <span className="text-muted-foreground">
-            {data.results.length} résultat{data.results.length > 1 ? "s" : ""} · liens analysés :
+            {t("rechercheWeb.resultCount", { count: data.results.length })}
           </span>
-          {counts.safe > 0 && <Badge variant="outline" className={RISK_META.safe.badge}>{counts.safe} sûr{counts.safe > 1 ? "s" : ""}</Badge>}
-          {counts.suspicious > 0 && <Badge variant="outline" className={RISK_META.suspicious.badge}>{counts.suspicious} suspect{counts.suspicious > 1 ? "s" : ""}</Badge>}
-          {counts.dangerous > 0 && <Badge variant="outline" className={RISK_META.dangerous.badge}>{counts.dangerous} dangereux</Badge>}
+          {counts.safe > 0 && <Badge variant="outline" className={RISK_META.safe.badge}>{t("rechercheWeb.countSafe", { count: counts.safe })}</Badge>}
+          {counts.suspicious > 0 && <Badge variant="outline" className={RISK_META.suspicious.badge}>{t("rechercheWeb.countSuspicious", { count: counts.suspicious })}</Badge>}
+          {counts.dangerous > 0 && <Badge variant="outline" className={RISK_META.dangerous.badge}>{t("rechercheWeb.countDangerous", { count: counts.dangerous })}</Badge>}
           {data.results.length > 0 && (
             <button
               onClick={() => setSafeOnly((v) => !v)}
               className={`ml-auto rounded-full border px-2.5 py-1 transition ${safeOnly ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300" : "text-muted-foreground hover:bg-muted"}`}
             >
-              {safeOnly ? "✓ Liens dangereux masqués" : "Masquer les liens dangereux"}
+              {safeOnly ? t("rechercheWeb.dangerousHidden") : t("rechercheWeb.hideDangerous")}
             </button>
           )}
         </div>
@@ -635,7 +639,7 @@ export default function RechercheWebPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-center gap-2 py-1 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            {filters.mode === "news" ? "Recherche d'actualités" : "Recherche"} et analyse de sécurité…
+            {filters.mode === "news" ? t("rechercheWeb.loadingNews") : t("rechercheWeb.loadingWeb")}
           </div>
           <Card className="border-primary/20 bg-primary/[0.03]">
             <CardContent className="space-y-2 p-4">
@@ -667,15 +671,15 @@ export default function RechercheWebPage() {
           <CardContent className="p-4">
             <div className="mb-1.5 flex flex-wrap items-center gap-2 text-xs font-medium text-primary">
               <Sparkles className="h-3.5 w-3.5" />
-              Résumé IA
+              {t("rechercheWeb.aiSummary")}
               {data.mode === "news" && (
                 <Badge variant="outline" className="gap-1 border-primary/30 text-primary">
-                  <Newspaper className="h-3 w-3" /> Actualités
+                  <Newspaper className="h-3 w-3" /> {t("rechercheWeb.modeNews")}
                 </Badge>
               )}
               {data.freshness && data.freshness !== "any" && (
                 <Badge variant="outline" className="border-primary/30 text-primary">
-                  {FRESHNESS_OPTIONS.find((o) => o.value === data.freshness)?.label}
+                  {t(FRESHNESS_OPTIONS.find((o) => o.value === data.freshness)?.labelKey ?? "")}
                 </Badge>
               )}
               {data.site && (
@@ -692,7 +696,7 @@ export default function RechercheWebPage() {
         <div className="space-y-3">
           {data.results.length === 0 && (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              Aucune source web n'a pu être récupérée pour cette recherche.
+              {t("rechercheWeb.noResults")}
             </p>
           )}
           {filteredResults.map((item, i) => {
@@ -717,7 +721,7 @@ export default function RechercheWebPage() {
                     </div>
                     <Badge variant="outline" className={`shrink-0 gap-1 ${meta.badge}`}>
                       <RiskIcon className="h-3 w-3" />
-                      {meta.label}
+                      {t(meta.labelKey)}
                     </Badge>
                   </div>
 
@@ -744,7 +748,7 @@ export default function RechercheWebPage() {
                       onClick={() => openResult(item)}
                     >
                       {item.risk === "dangerous" ? <AlertTriangle className="h-3 w-3" /> : <ExternalLink className="h-3 w-3" />}
-                      Ouvrir le lien
+                      {t("rechercheWeb.openLink")}
                     </Button>
                   </div>
                 </CardContent>
@@ -757,7 +761,7 @@ export default function RechercheWebPage() {
               onClick={() => setSafeOnly(false)}
               className="w-full rounded-lg border border-dashed py-2.5 text-center text-xs text-muted-foreground transition hover:bg-muted"
             >
-              {hiddenCount} lien{hiddenCount > 1 ? "s" : ""} dangereux masqué{hiddenCount > 1 ? "s" : ""} — tout afficher
+              {t("rechercheWeb.hiddenCount", { count: hiddenCount })}
             </button>
           )}
 
@@ -765,7 +769,7 @@ export default function RechercheWebPage() {
             <div className="pt-2">
               <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                 <Search className="h-3.5 w-3.5" />
-                Recherches associées
+                {t("rechercheWeb.relatedTitle")}
               </p>
               <div className="flex flex-wrap gap-2">
                 {data.relatedSearches.map((rs) => (
@@ -789,12 +793,12 @@ export default function RechercheWebPage() {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-red-600">
               <ShieldX className="h-5 w-5" />
-              Lien signalé comme dangereux
+              {t("rechercheWeb.dangerDialog.title")}
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2 text-sm">
                 <p>
-                  L'antivirus a détecté un risque sur{" "}
+                  {t("rechercheWeb.dangerDialog.detected")}{" "}
                   <span className="font-medium break-all">{pendingDanger?.domain || pendingDanger?.displayUrl}</span>.
                 </p>
                 {pendingDanger?.reasons?.length ? (
@@ -804,12 +808,12 @@ export default function RechercheWebPage() {
                     ))}
                   </ul>
                 ) : null}
-                <p className="font-medium text-foreground">Souhaitez-vous vraiment ouvrir ce lien ?</p>
+                <p className="font-medium text-foreground">{t("rechercheWeb.dangerDialog.confirm")}</p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700"
               onClick={() => {
@@ -817,7 +821,7 @@ export default function RechercheWebPage() {
                 setPendingDanger(null);
               }}
             >
-              Ouvrir quand même
+              {t("rechercheWeb.dangerDialog.openAnyway")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
