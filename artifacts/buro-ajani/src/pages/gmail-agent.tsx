@@ -29,6 +29,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Icon3D } from "@/components/icon-3d";
 import { trackScanResult } from "@/lib/scan-result";
+import { useTranslation } from "@/i18n";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -76,38 +77,41 @@ function parseEmailName(emailStr: string) {
 }
 
 function SmartDate({ dateStr }: { dateStr: string }) {
+  const { t } = useTranslation();
   if (!dateStr) return <span className="text-muted-foreground text-xs">-</span>;
   try {
     const d = new Date(dateStr);
     if (isToday(d)) return <span className="text-xs text-blue-600 font-medium">{format(d, "HH:mm")}</span>;
-    if (isYesterday(d)) return <span className="text-xs text-muted-foreground">Hier {format(d, "HH:mm")}</span>;
+    if (isYesterday(d)) return <span className="text-xs text-muted-foreground">{t("gmailAgent.yesterday")} {format(d, "HH:mm")}</span>;
     return <span className="text-xs text-muted-foreground">{format(d, "dd MMM", { locale: fr })}</span>;
   } catch { return <span className="text-xs text-muted-foreground">{dateStr.slice(0, 10)}</span>; }
 }
 
-const PRIORITY_CONFIG: Record<string, { color: string; label: string; icon: any }> = {
-  critique: { color: "bg-red-100 text-red-700 border-red-200", label: "Critique", icon: AlertTriangle },
-  haute: { color: "bg-orange-100 text-orange-700 border-orange-200", label: "Haute", icon: Zap },
-  normale: { color: "bg-blue-100 text-blue-700 border-blue-200", label: "Normale", icon: Info },
-  basse: { color: "bg-gray-100 text-gray-600 border-gray-200", label: "Basse", icon: Check },
+// Les libellés sont rendus via t("gmailAgent.priority.<clé>") au point d'usage.
+const PRIORITY_CONFIG: Record<string, { color: string; icon: any }> = {
+  critique: { color: "bg-red-100 text-red-700 border-red-200", icon: AlertTriangle },
+  haute: { color: "bg-orange-100 text-orange-700 border-orange-200", icon: Zap },
+  normale: { color: "bg-blue-100 text-blue-700 border-blue-200", icon: Info },
+  basse: { color: "bg-gray-100 text-gray-600 border-gray-200", icon: Check },
 };
 
-const CATEGORY_CONFIG: Record<string, { color: string; label: string; icon: any }> = {
-  commercial: { color: "bg-emerald-100 text-emerald-700", label: "Commercial", icon: TrendingUp },
-  client: { color: "bg-blue-100 text-blue-700", label: "Client", icon: MessageSquare },
-  finance: { color: "bg-amber-100 text-amber-700", label: "Finance", icon: ShoppingCart },
-  administratif: { color: "bg-purple-100 text-purple-700", label: "Admin", icon: FileText },
-  spam: { color: "bg-gray-100 text-gray-500", label: "Spam", icon: X },
-  information: { color: "bg-slate-100 text-slate-600", label: "Info", icon: Info },
-  urgence: { color: "bg-red-100 text-red-700", label: "Urgence", icon: AlertCircle },
+const CATEGORY_CONFIG: Record<string, { color: string; icon: any }> = {
+  commercial: { color: "bg-emerald-100 text-emerald-700", icon: TrendingUp },
+  client: { color: "bg-blue-100 text-blue-700", icon: MessageSquare },
+  finance: { color: "bg-amber-100 text-amber-700", icon: ShoppingCart },
+  administratif: { color: "bg-purple-100 text-purple-700", icon: FileText },
+  spam: { color: "bg-gray-100 text-gray-500", icon: X },
+  information: { color: "bg-slate-100 text-slate-600", icon: Info },
+  urgence: { color: "bg-red-100 text-red-700", icon: AlertCircle },
 };
 
+// Libellés rendus via t("gmailAgent.tone.<value>") au point d'usage.
 const TONE_OPTIONS = [
-  { value: "professionnel", label: "Professionnel" },
-  { value: "formel", label: "Formel" },
-  { value: "cordial", label: "Cordial" },
-  { value: "direct", label: "Direct" },
-  { value: "empathique", label: "Empathique" },
+  { value: "professionnel" },
+  { value: "formel" },
+  { value: "cordial" },
+  { value: "direct" },
+  { value: "empathique" },
 ];
 
 function EmailListItem({
@@ -118,6 +122,7 @@ function EmailListItem({
   triageInfo?: any;
   onClick: () => void;
 }) {
+  const { t } = useTranslation();
   const sender = parseEmailName(email.from || "");
   const pri = triageInfo ? PRIORITY_CONFIG[triageInfo.priority] : null;
 
@@ -145,15 +150,15 @@ function EmailListItem({
           {pri && (
             <div className="flex items-center gap-1 mt-1">
               <Badge variant="outline" className={`text-[10px] py-0 px-1 ${pri.color}`}>
-                {pri.label}
+                {t(`gmailAgent.priority.${triageInfo.priority}`)}
               </Badge>
               {triageInfo?.category && CATEGORY_CONFIG[triageInfo.category] && (
                 <Badge variant="outline" className={`text-[10px] py-0 px-1 ${CATEGORY_CONFIG[triageInfo.category].color}`}>
-                  {CATEGORY_CONFIG[triageInfo.category].label}
+                  {t(`gmailAgent.category.${triageInfo.category}`)}
                 </Badge>
               )}
               {triageInfo?.needsReply && (
-                <Badge variant="outline" className="text-[10px] py-0 px-1 bg-violet-100 text-violet-700">Réponse requise</Badge>
+                <Badge variant="outline" className="text-[10px] py-0 px-1 bg-violet-100 text-violet-700">{t("gmailAgent.replyRequired")}</Badge>
               )}
             </div>
           )}
@@ -169,6 +174,7 @@ function ComposeModal({ open, onClose, replyTo }: { open: boolean; onClose: () =
   const [body, setBody] = useState(replyTo?.aiBody || "");
   const [sending, setSending] = useState(false);
   const [dlpWarning, setDlpWarning] = useState<any | null>(null);
+  const { t } = useTranslation();
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -182,7 +188,7 @@ function ComposeModal({ open, onClose, replyTo }: { open: boolean; onClose: () =
   }, [replyTo]);
 
   const handleSend = async (confirmSensitive = false) => {
-    if (!to || !subject || !body) { toast({ title: "Champs requis", variant: "destructive" }); return; }
+    if (!to || !subject || !body) { toast({ title: t("gmailAgent.toast.requiredFields"), variant: "destructive" }); return; }
     setSending(true);
     try {
       if (replyTo?.threadId) {
@@ -191,7 +197,7 @@ function ComposeModal({ open, onClose, replyTo }: { open: boolean; onClose: () =
         await apiPost("/gmail/send", { to, subject, body, isHtml: false, confirmSensitive });
       }
       setDlpWarning(null);
-      toast({ title: "Email envoyé", description: `A ${to}` });
+      toast({ title: t("gmailAgent.toast.sent"), description: t("gmailAgent.toast.sentDesc", { to }) });
       qc.invalidateQueries({ queryKey: ["gmail-inbox"] });
       onClose();
     } catch (e: any) {
@@ -201,7 +207,7 @@ function ComposeModal({ open, onClose, replyTo }: { open: boolean; onClose: () =
         setDlpWarning(e.payload);
         return;
       }
-      toast({ title: "Erreur d'envoi", variant: "destructive" });
+      toast({ title: t("gmailAgent.toast.sendError"), variant: "destructive" });
     } finally { setSending(false); }
   };
 
@@ -211,49 +217,49 @@ function ComposeModal({ open, onClose, replyTo }: { open: boolean; onClose: () =
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Mail className="h-5 w-5 text-blue-500" />
-            {replyTo ? "Répondre" : "Nouveau message"}
+            {replyTo ? t("gmailAgent.compose.reply") : t("gmailAgent.compose.newMessage")}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <Label className="text-xs">À</Label>
-            <Input value={to} onChange={e => setTo(e.target.value)} placeholder="destinataire@email.com" className="mt-1" />
+            <Label className="text-xs">{t("gmailAgent.compose.to")}</Label>
+            <Input value={to} onChange={e => setTo(e.target.value)} placeholder={t("gmailAgent.compose.toPlaceholder")} className="mt-1" />
           </div>
           <div>
-            <Label className="text-xs">Objet</Label>
-            <Input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Objet du message" className="mt-1" />
+            <Label className="text-xs">{t("gmailAgent.compose.subject")}</Label>
+            <Input value={subject} onChange={e => setSubject(e.target.value)} placeholder={t("gmailAgent.compose.subjectPlaceholder")} className="mt-1" />
           </div>
           <div>
-            <Label className="text-xs">Message</Label>
-            <Textarea value={body} onChange={e => setBody(e.target.value)} placeholder="Rédigez votre message..." className="mt-1 min-h-[200px]" />
+            <Label className="text-xs">{t("gmailAgent.compose.message")}</Label>
+            <Textarea value={body} onChange={e => setBody(e.target.value)} placeholder={t("gmailAgent.compose.messagePlaceholder")} className="mt-1 min-h-[200px]" />
           </div>
           {dlpWarning && (
             <div className="rounded-md border border-amber-200 bg-amber-50/70 p-2.5 space-y-1.5">
               <p className="text-[11px] font-semibold text-amber-800 flex items-center gap-1.5">
                 <ShieldAlert className="h-3.5 w-3.5" />
-                Données sensibles détectées
+                {t("gmailAgent.compose.sensitiveData")}
               </p>
               <p className="text-xs text-amber-900 leading-snug">{dlpWarning.message}</p>
               {dlpWarning.findings?.length > 0 && (
                 <ul className="text-xs text-amber-800 list-disc pl-4 space-y-0.5">
                   {dlpWarning.findings.map((f: any, i: number) => (
-                    <li key={i}>{f.label} — {f.count} occurrence(s){f.samples?.length ? ` : ${f.samples.join(", ")}` : ""}</li>
+                    <li key={i}>{f.label} — {t("gmailAgent.compose.occurrences", { count: f.count })}{f.samples?.length ? ` : ${f.samples.join(", ")}` : ""}</li>
                   ))}
                 </ul>
               )}
             </div>
           )}
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose}>Annuler</Button>
+            <Button variant="outline" onClick={onClose}>{t("common.cancel")}</Button>
             {dlpWarning ? (
               <Button variant="destructive" onClick={() => handleSend(true)} disabled={sending}>
                 {sending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-                Envoyer quand même
+                {t("gmailAgent.compose.sendAnyway")}
               </Button>
             ) : (
               <Button onClick={() => handleSend()} disabled={sending}>
                 {sending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-                Envoyer
+                {t("gmailAgent.compose.send")}
               </Button>
             )}
           </div>
@@ -264,6 +270,7 @@ function ComposeModal({ open, onClose, replyTo }: { open: boolean; onClose: () =
 }
 
 export default function GmailAgentPage() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const qc = useQueryClient();
@@ -273,10 +280,10 @@ export default function GmailAgentPage() {
     const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
     const res = await fetch(`${BASE}/api/projets`, {
       method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-      body: JSON.stringify({ title: emailSubject ? `Suivi email : ${emailSubject}`.slice(0, 80) : "Projet depuis email", status: "planifie", priority: "moyenne", progress: 0, notes: "Créé depuis l'Agent Mail IA" }),
+      body: JSON.stringify({ title: emailSubject ? t("gmailAgent.data.projectTitlePrefix", { subject: emailSubject }).slice(0, 80) : t("gmailAgent.data.projectDefaultTitle"), status: "planifie", priority: "moyenne", progress: 0, notes: t("gmailAgent.data.projectNotes") }),
     });
-    if (res.ok) { toast({ title: "Projet créé" }); navigate("/projets"); }
-    else toast({ title: "Erreur lors de la création", variant: "destructive" });
+    if (res.ok) { toast({ title: t("gmailAgent.toast.projectCreated") }); navigate("/projets"); }
+    else toast({ title: t("gmailAgent.toast.projectCreateError"), variant: "destructive" });
   }
 
   const [selectedEmail, setSelectedEmail] = useState<any>(null);
@@ -308,28 +315,28 @@ export default function GmailAgentPage() {
       const report = await apiPost(`/gmail/message/${selectedEmail.id}/scan`, {});
       setScanReport(report);
     } catch (e: any) {
-      toast({ title: "Analyse de sécurité impossible", description: e?.message || "Réessayez.", variant: "destructive" });
+      toast({ title: t("gmailAgent.toast.scanFailed"), description: e?.message || t("gmailAgent.toast.retry"), variant: "destructive" });
     } finally {
       setScanning(false);
     }
-  }, [selectedEmail?.id, toast]);
+  }, [selectedEmail?.id, toast, t]);
 
   const handleSaveAttachment = useCallback(async (att: any) => {
     if (!selectedEmail?.id || !att?.attachmentId) return;
     setSavingAtt(att.attachmentId);
     try {
       const saved = await apiPost(`/gmail/message/${selectedEmail.id}/attachment/${att.attachmentId}/save`, {});
-      toast({ title: "Enregistré dans Documents", description: `${att.filename} — analyse antivirus en cours.` });
+      toast({ title: t("gmailAgent.toast.savedToDocs"), description: t("gmailAgent.toast.savedToDocsDesc", { filename: att.filename }) });
       // Suivi du verdict antivirus en arriere-plan (Tache #175) : on affichera
       // un toast de suivi des que l'analyse est terminee (sain / dangereux).
       const docId = saved?.document?.id ?? saved?.id;
-      if (docId) void trackScanResult(toast, docId, att.filename || "Le fichier");
+      if (docId) void trackScanResult(toast, docId, att.filename || t("gmailAgent.toast.fileFallback"));
     } catch (e: any) {
-      toast({ title: "Échec de l'enregistrement", description: e?.message || "Réessayez.", variant: "destructive" });
+      toast({ title: t("gmailAgent.toast.saveFailed"), description: e?.message || t("gmailAgent.toast.retry"), variant: "destructive" });
     } finally {
       setSavingAtt(null);
     }
-  }, [selectedEmail?.id, toast]);
+  }, [selectedEmail?.id, toast, t]);
 
   const { data: profile } = useQuery({
     queryKey: ["gmail-profile"],
@@ -407,9 +414,9 @@ export default function GmailAgentPage() {
     try {
       const data = await apiPost("/commandant/gmail-triage", { emails: emails.slice(0, 25) });
       setTriageData(data);
-      if (!silent) toast({ title: "Triage IA terminé", description: `${emails.length} emails analysés` });
+      if (!silent) toast({ title: t("gmailAgent.toast.triageDone"), description: t("gmailAgent.toast.triageDoneDesc", { count: emails.length }) });
     } catch {
-      if (!silent) toast({ title: "Erreur triage", variant: "destructive" });
+      if (!silent) toast({ title: t("gmailAgent.toast.triageError"), variant: "destructive" });
     } finally { setIsTriaging(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inboxSignature]);
@@ -441,21 +448,21 @@ export default function GmailAgentPage() {
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   async function createTaskFromEmail() {
     const email = selectedEmail;
-    if (!email) { toast({ title: "Selectionnez un email", variant: "destructive" }); return; }
+    if (!email) { toast({ title: t("gmailAgent.toast.selectEmail"), variant: "destructive" }); return; }
     if (isCreatingTask) return;
-    const t = triageMap[email.id];
+    const tri = triageMap[email.id];
 
     // Mapping triage IA -> schema tasks (cf. CreateTaskBody)
     const priorityMap: Record<string, "haute" | "moyenne" | "basse"> = {
       critique: "haute", haute: "haute", normale: "moyenne", basse: "basse",
     };
-    const priority = (t && priorityMap[t.priority]) || "moyenne";
+    const priority = (tri && priorityMap[tri.priority]) || "moyenne";
 
     let dueDate: string | null = null;
-    if (t?.replyDeadline === "maintenant" || t?.replyDeadline === "aujourd_hui") {
+    if (tri?.replyDeadline === "maintenant" || tri?.replyDeadline === "aujourd_hui") {
       const d = new Date(); d.setHours(18, 0, 0, 0);
       dueDate = d.toISOString();
-    } else if (t?.replyDeadline === "cette_semaine") {
+    } else if (tri?.replyDeadline === "cette_semaine") {
       const d = new Date(); d.setDate(d.getDate() + 7); d.setHours(18, 0, 0, 0);
       dueDate = d.toISOString();
     }
@@ -463,28 +470,28 @@ export default function GmailAgentPage() {
     const subject = (emailDetail?.subject || email.subject || "Email").slice(0, 80);
     const from = emailDetail?.from || email.from || "";
     const descLines = [
-      `Email recu de : ${from}`,
-      t?.summary ? `\nResume IA : ${t.summary}` : "",
-      t?.suggestedAction ? `\nAction suggeree : ${t.suggestedAction}` : "",
-      `\nMessage Gmail : ${email.id}`,
+      t("gmailAgent.data.taskEmailFrom", { from }),
+      tri?.summary ? "\n" + t("gmailAgent.data.taskAiSummary", { summary: tri.summary }) : "",
+      tri?.suggestedAction ? "\n" + t("gmailAgent.data.taskSuggestedAction", { action: tri.suggestedAction }) : "",
+      "\n" + t("gmailAgent.data.taskGmailMessage", { id: email.id }),
     ].filter(Boolean);
 
     setIsCreatingTask(true);
     try {
       await apiPost("/tasks", {
-        title: `Email : ${subject}`,
+        title: t("gmailAgent.data.taskTitlePrefix", { subject }),
         description: descLines.join("\n"),
         status: "en_attente",
         priority,
         dueDate,
       });
       toast({
-        title: "Tache creee",
-        description: t ? `Priorite ${priority}${dueDate ? " — echeance fixee" : ""}` : "Saisie manuelle a completer",
+        title: t("gmailAgent.toast.taskCreated"),
+        description: tri ? t("gmailAgent.toast.taskCreatedDesc", { priority, deadline: dueDate ? t("gmailAgent.toast.taskDeadlineSuffix") : "" }) : t("gmailAgent.toast.taskManual"),
       });
       qc.invalidateQueries({ queryKey: getListTasksQueryKey() });
     } catch {
-      toast({ title: "Erreur creation tache", variant: "destructive" });
+      toast({ title: t("gmailAgent.toast.taskError"), variant: "destructive" });
     } finally {
       setIsCreatingTask(false);
     }
@@ -526,9 +533,9 @@ export default function GmailAgentPage() {
         setAiDraft(data.draft);
         setAiDraftForEmailId(targetId);
       }
-      if (!silent) toast({ title: "Réponse IA générée", description: data.contactFound ? "Contact CRM identifié" : "" });
+      if (!silent) toast({ title: t("gmailAgent.toast.replyGenerated"), description: data.contactFound ? t("gmailAgent.toast.contactFound") : "" });
     } catch {
-      if (!silent) toast({ title: "Erreur génération", variant: "destructive" });
+      if (!silent) toast({ title: t("gmailAgent.toast.generationError"), variant: "destructive" });
     } finally { setIsDrafting(false); }
   }, [emailDetail, selectedEmail, tone, draftInstructions]);
 
@@ -564,10 +571,10 @@ export default function GmailAgentPage() {
   const handleArchive = async (id: string) => {
     try {
       await apiPost(`/gmail/message/${id}/archive`, {});
-      toast({ title: "Archivé" });
+      toast({ title: t("gmailAgent.toast.archived") });
       qc.invalidateQueries({ queryKey: ["gmail-inbox"] });
       if (selectedEmail?.id === id) setSelectedEmail(null);
-    } catch { toast({ title: "Erreur", variant: "destructive" }); }
+    } catch { toast({ title: t("gmailAgent.toast.error"), variant: "destructive" }); }
   };
 
   // Lookup CRM du sender du mail courant. Cherche par email exact via
@@ -606,14 +613,14 @@ export default function GmailAgentPage() {
         email: senderEmail,
         phone: "-", // requis par le schema, pas connu depuis le mail
         category: "prospect",
-        notes: `Importe automatiquement depuis Gmail le ${new Date().toLocaleDateString("fr-FR")}.`,
+        notes: t("gmailAgent.data.contactImportNote", { date: new Date().toLocaleDateString("fr-FR") }),
       });
-      toast({ title: "Contact ajoute au CRM" });
+      toast({ title: t("gmailAgent.toast.contactAdded") });
       qc.invalidateQueries({ queryKey: ["contact-lookup", senderEmail] });
       qc.invalidateQueries({ queryKey: ["contacts"] });
       qc.invalidateQueries({ queryKey: getListContactsQueryKey() });
     } catch (e: any) {
-      toast({ title: "Erreur", description: e?.message || "Impossible d'ajouter le contact.", variant: "destructive" });
+      toast({ title: t("gmailAgent.toast.error"), description: e?.message || t("gmailAgent.toast.contactAddError"), variant: "destructive" });
     } finally {
       setIsAddingContact(false);
     }
@@ -629,7 +636,7 @@ export default function GmailAgentPage() {
       .filter(e => triageMap[e.id]?.category === "spam")
       .map(e => e.id);
     if (spamIds.length === 0) return;
-    if (!window.confirm(`Archiver ${spamIds.length} email(s) classe(s) spam par l'IA ?`)) return;
+    if (!window.confirm(t("gmailAgent.toast.confirmArchiveSpam", { count: spamIds.length }))) return;
     setIsCleaningSpam(true);
     let ok = 0, fail = 0;
     // Sequentiel pour ne pas saturer Gmail (rate limit). Reste rapide en
@@ -644,7 +651,7 @@ export default function GmailAgentPage() {
     qc.invalidateQueries({ queryKey: ["gmail-inbox"] });
     if (selectedEmail && spamIds.includes(selectedEmail.id)) setSelectedEmail(null);
     toast({
-      title: fail === 0 ? `${ok} email(s) archive(s)` : `${ok} archive(s), ${fail} echec(s)`,
+      title: fail === 0 ? t("gmailAgent.toast.spamArchived", { count: ok }) : t("gmailAgent.toast.spamPartial", { ok, fail }),
       variant: fail === 0 ? "default" : "destructive",
     });
   };
@@ -652,17 +659,17 @@ export default function GmailAgentPage() {
   const handleTrash = async (id: string) => {
     try {
       await apiDelete(`/gmail/message/${id}/trash`);
-      toast({ title: "Supprimé" });
+      toast({ title: t("gmailAgent.toast.deleted") });
       qc.invalidateQueries({ queryKey: ["gmail-inbox"] });
       if (selectedEmail?.id === id) setSelectedEmail(null);
-    } catch { toast({ title: "Erreur", variant: "destructive" }); }
+    } catch { toast({ title: t("gmailAgent.toast.error"), variant: "destructive" }); }
   };
 
   const handleStar = async (id: string, starred: boolean) => {
     try {
       await apiPatch(`/gmail/message/${id}/star`, { starred: !starred });
       qc.invalidateQueries({ queryKey: ["gmail-inbox"] });
-    } catch { toast({ title: "Erreur", variant: "destructive" }); }
+    } catch { toast({ title: t("gmailAgent.toast.error"), variant: "destructive" }); }
   };
 
   const handleUseReply = () => {
@@ -693,15 +700,15 @@ export default function GmailAgentPage() {
           <CardContent className="pt-8 text-center space-y-4">
             <WifiOff className="h-12 w-12 mx-auto text-muted-foreground" />
             <h2 className="text-xl font-semibold">
-              {profile?.reconnectRequired ? "Accès Google expiré" : "Gmail non connecté"}
+              {profile?.reconnectRequired ? t("gmailAgent.auth.expiredTitle") : t("gmailAgent.auth.notConnectedTitle")}
             </h2>
             <p className="text-muted-foreground text-sm">
               {profile?.reconnectRequired
-                ? "L'autorisation d'accès à votre compte Google a expiré ou a été révoquée. Reconnectez votre compte pour retrouver vos emails."
-                : "Connectez votre compte Google dans les paramètres pour utiliser l'agent email IA."}
+                ? t("gmailAgent.auth.expiredDesc")
+                : t("gmailAgent.auth.notConnectedDesc")}
             </p>
             <Button onClick={() => window.location.href = `${baseUrl}/google-workspace`} className="w-full">
-              {profile?.reconnectRequired ? "Reconnecter Google Workspace" : "Connecter Google Workspace"}
+              {profile?.reconnectRequired ? t("gmailAgent.auth.reconnect") : t("gmailAgent.auth.connect")}
             </Button>
           </CardContent>
         </Card>
@@ -715,14 +722,14 @@ export default function GmailAgentPage() {
         <div className="flex items-center gap-3">
           <Icon3D icon={Mail} variant="blue" size="sm" />
           <div>
-            <h1 className="font-semibold text-base leading-tight">Agent Mail IA</h1>
+            <h1 className="font-semibold text-base leading-tight">{t("gmailAgent.title")}</h1>
             {profile?.email && (
               <p className="text-xs text-muted-foreground">{profile.email}</p>
             )}
           </div>
           {profile?.authenticated && (
             <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-              <Wifi className="h-3 w-3 mr-1" />Connecté
+              <Wifi className="h-3 w-3 mr-1" />{t("gmailAgent.connected")}
             </Badge>
           )}
         </div>
@@ -734,24 +741,24 @@ export default function GmailAgentPage() {
             storageKey="buro.gmail.voice"
           />
           <Button variant="outline" size="sm" onClick={() => { refetchInbox(); qc.invalidateQueries({ queryKey: ["gmail-message"] }); }}>
-            <RefreshCw className="h-4 w-4 mr-1" />Actualiser
+            <RefreshCw className="h-4 w-4 mr-1" />{t("gmailAgent.refresh")}
           </Button>
-          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="h-4 w-4" /></Button>
+          <Button variant="outline" size="icon" title={t("gmailAgent.print")} onClick={() => window.print()}><Printer className="h-4 w-4" /></Button>
           <Button
             variant="outline"
             size="sm"
             className="gap-1.5 text-emerald-700 border-emerald-300 hover:bg-emerald-50"
             disabled={!selectedEmail || isCreatingTask}
             onClick={createTaskFromEmail}
-            title="Crée une tâche CRM avec la priorité et l'échéance déduites du triage IA"
+            title={t("gmailAgent.createTaskTooltip")}
           >
-            <CheckCircle2 className="h-4 w-4" />Créer la tâche
+            <CheckCircle2 className="h-4 w-4" />{t("gmailAgent.createTask")}
           </Button>
           <Button variant="outline" size="sm" className="gap-1.5 text-indigo-600 border-indigo-300 hover:bg-indigo-50" onClick={() => navigateToProjets(selectedEmail?.subject)}>
-            <FolderKanban className="h-4 w-4" />Créer un projet
+            <FolderKanban className="h-4 w-4" />{t("gmailAgent.createProject")}
           </Button>
           <Button size="sm" onClick={() => { setComposeReplyTo(undefined); setComposeOpen(true); }}>
-            <Plus className="h-4 w-4 mr-1" />Nouveau
+            <Plus className="h-4 w-4 mr-1" />{t("gmailAgent.newEmail")}
           </Button>
         </div>
       </div>
@@ -764,7 +771,7 @@ export default function GmailAgentPage() {
               <Input
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Rechercher..."
+                placeholder={t("gmailAgent.filters.searchPlaceholder")}
                 className="h-8 text-xs"
               />
               <Button type="submit" size="sm" variant="ghost" className="h-8 w-8 p-0">
@@ -773,17 +780,17 @@ export default function GmailAgentPage() {
             </form>
             <div className="flex gap-1 flex-wrap">
               {[
-                { label: "Boîte", filter: "is:inbox" },
-                { label: "Non lus", filter: "is:unread is:inbox" },
-                { label: "Importants", filter: "is:important is:inbox" },
-                { label: "Étoilés", filter: "is:starred" },
+                { labelKey: "inbox", filter: "is:inbox" },
+                { labelKey: "unread", filter: "is:unread is:inbox" },
+                { labelKey: "important", filter: "is:important is:inbox" },
+                { labelKey: "starred", filter: "is:starred" },
               ].map(f => (
                 <button
                   key={f.filter}
                   onClick={() => setActiveFilter(f.filter)}
                   className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${activeFilter === f.filter ? "bg-blue-500 text-white border-blue-500" : "text-muted-foreground border-border hover:bg-muted"}`}
                 >
-                  {f.label}
+                  {t(`gmailAgent.filters.${f.labelKey}`)}
                 </button>
               ))}
             </div>
@@ -795,26 +802,29 @@ export default function GmailAgentPage() {
                 <button
                   onClick={() => setTriageFilter(null)}
                   className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${triageFilter === null ? "bg-violet-500 text-white border-violet-500" : "text-muted-foreground border-border hover:bg-muted"}`}
-                  title="Voir tous les emails"
+                  title={t("gmailAgent.filters.allTooltip")}
                 >
-                  Tous
+                  {t("gmailAgent.filters.all")}
                 </button>
                 {[
-                  { key: "critique" as const, label: "Critique", count: triageCounts.critique, cls: "bg-red-500 text-white border-red-500" },
-                  { key: "haute" as const, label: "Haute", count: triageCounts.haute, cls: "bg-orange-500 text-white border-orange-500" },
-                  { key: "needsReply" as const, label: "À répondre", count: triageCounts.needsReply, cls: "bg-violet-500 text-white border-violet-500" },
-                  { key: "commercial" as const, label: "Commercial", count: triageCounts.commercial, cls: "bg-emerald-500 text-white border-emerald-500" },
-                  { key: "spam" as const, label: "Spam", count: triageCounts.spam, cls: "bg-gray-500 text-white border-gray-500" },
-                ].filter(c => c.count > 0).map(c => (
+                  { key: "critique" as const, labelKey: "critique", count: triageCounts.critique, cls: "bg-red-500 text-white border-red-500" },
+                  { key: "haute" as const, labelKey: "haute", count: triageCounts.haute, cls: "bg-orange-500 text-white border-orange-500" },
+                  { key: "needsReply" as const, labelKey: "needsReply", count: triageCounts.needsReply, cls: "bg-violet-500 text-white border-violet-500" },
+                  { key: "commercial" as const, labelKey: "commercial", count: triageCounts.commercial, cls: "bg-emerald-500 text-white border-emerald-500" },
+                  { key: "spam" as const, labelKey: "spam", count: triageCounts.spam, cls: "bg-gray-500 text-white border-gray-500" },
+                ].filter(c => c.count > 0).map(c => {
+                  const label = t(`gmailAgent.filters.${c.labelKey}`);
+                  return (
                   <button
                     key={c.key}
                     onClick={() => setTriageFilter(triageFilter === c.key ? null : c.key)}
                     className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${triageFilter === c.key ? c.cls : "text-muted-foreground border-border hover:bg-muted"}`}
-                    title={`Filtrer : ${c.label} (${c.count})`}
+                    title={t("gmailAgent.filters.filterTooltip", { label, count: c.count })}
                   >
-                    {c.label} {c.count}
+                    {label} {c.count}
                   </button>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -835,15 +845,15 @@ export default function GmailAgentPage() {
                 <Inbox className="h-8 w-8 mx-auto mb-2 opacity-40" />
                 {triageFilter ? (
                   <>
-                    Aucun email dans ce filtre
+                    {t("gmailAgent.list.noEmailInFilter")}
                     <button
                       onClick={() => setTriageFilter(null)}
                       className="block mx-auto mt-2 text-xs text-violet-600 hover:underline"
                     >
-                      Réinitialiser
+                      {t("gmailAgent.list.reset")}
                     </button>
                   </>
-                ) : "Aucun email"}
+                ) : t("gmailAgent.list.noEmail")}
               </div>
             ) : (
               displayedEmails.map(email => (
@@ -872,7 +882,7 @@ export default function GmailAgentPage() {
                 ) : (
                   <Brain className="h-3.5 w-3.5 mr-1" />
                 )}
-                Triage IA — {emails.length} emails
+                {t("gmailAgent.list.triage", { count: emails.length })}
               </Button>
               {triageCounts.spam > 0 && (
                 <Button
@@ -881,14 +891,14 @@ export default function GmailAgentPage() {
                   className="w-full text-xs text-gray-700 border-gray-300 hover:bg-gray-50"
                   onClick={handleArchiveSpam}
                   disabled={isCleaningSpam}
-                  title="Archiver tous les emails classes spam par l'IA"
+                  title={t("gmailAgent.list.cleanSpamTooltip")}
                 >
                   {isCleaningSpam ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
                   ) : (
                     <X className="h-3.5 w-3.5 mr-1" />
                   )}
-                  Nettoyer le spam ({triageCounts.spam})
+                  {t("gmailAgent.list.cleanSpam", { count: triageCounts.spam })}
                 </Button>
               )}
             </div>
@@ -901,11 +911,11 @@ export default function GmailAgentPage() {
             <div className="flex-1 flex items-center justify-center bg-muted/20">
               <div className="text-center text-muted-foreground space-y-2">
                 <Mail className="h-12 w-12 mx-auto opacity-30" />
-                <p className="text-sm">Sélectionnez un email pour le lire</p>
+                <p className="text-sm">{t("gmailAgent.detail.selectToRead")}</p>
                 {emails.length > 0 && (
                   <Button variant="outline" size="sm" onClick={handleTriage} disabled={isTriaging}>
                     <Brain className="h-4 w-4 mr-2" />
-                    {isTriaging ? "Analyse en cours..." : "Analyser la boîte avec l'IA"}
+                    {isTriaging ? t("gmailAgent.detail.analyzing") : t("gmailAgent.detail.analyzeInbox")}
                   </Button>
                 )}
               </div>
@@ -918,7 +928,7 @@ export default function GmailAgentPage() {
                     <h2 className="font-semibold text-sm truncate">{selectedEmail.subject}</h2>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <span className="text-xs text-muted-foreground truncate">
-                        De: {parseEmailName(selectedEmail.from || "").name}
+                        {t("gmailAgent.detail.fromPrefix")} {parseEmailName(selectedEmail.from || "").name}
                         {" "}
                         <span className="text-muted-foreground/60">&lt;{parseEmailName(selectedEmail.from || "").email}&gt;</span>
                       </span>
@@ -932,10 +942,10 @@ export default function GmailAgentPage() {
                           variant="outline"
                           className="text-[10px] py-0 px-1.5 bg-green-50 text-green-700 border-green-200 cursor-pointer hover:bg-green-100"
                           onClick={() => navigate(`/contacts?focus=${existingContact.id}`)}
-                          title="Voir la fiche contact"
+                          title={t("gmailAgent.detail.viewContact")}
                         >
                           <Check className="h-2.5 w-2.5 mr-0.5" />
-                          Dans le CRM
+                          {t("gmailAgent.detail.inCrm")}
                         </Badge>
                       )}
                       {senderEmailValid && !existingContact && senderContactData && (
@@ -943,14 +953,14 @@ export default function GmailAgentPage() {
                           onClick={handleAddSenderToContacts}
                           disabled={isAddingContact}
                           className="text-[10px] py-0 px-1.5 rounded border bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100 disabled:opacity-50 inline-flex items-center"
-                          title="Ajouter ce contact au CRM (categorie prospect)"
+                          title={t("gmailAgent.detail.addToCrmTooltip")}
                         >
                           {isAddingContact ? (
                             <Loader2 className="h-2.5 w-2.5 mr-0.5 animate-spin" />
                           ) : (
                             <Plus className="h-2.5 w-2.5 mr-0.5" />
                           )}
-                          Ajouter au CRM
+                          {t("gmailAgent.detail.addToCrm")}
                         </button>
                       )}
                     </div>
@@ -977,14 +987,14 @@ export default function GmailAgentPage() {
                       className="h-7 text-xs ml-1"
                       onClick={handleScanEmail}
                       disabled={scanning}
-                      title="Analyser ce mail : pièces jointes, liens, authentification de l'expéditeur, phishing"
+                      title={t("gmailAgent.detail.securityTooltip")}
                     >
                       {scanning ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <ShieldCheck className="h-3.5 w-3.5 mr-1" />}
-                      Sécurité
+                      {t("gmailAgent.detail.security")}
                     </Button>
                     <Button variant="default" size="sm" className="h-7 text-xs ml-1" onClick={handleDraftReply} disabled={isDrafting}>
                       {isDrafting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />}
-                      Réponse IA
+                      {t("gmailAgent.detail.aiReply")}
                     </Button>
                   </div>
                 </div>
@@ -1007,31 +1017,31 @@ export default function GmailAgentPage() {
                           Affiche resume + action suggeree pour donner au
                           patron le contexte sans avoir a lire le mail. */}
                       {(() => {
-                        const t = triageMap[selectedEmail.id];
-                        if (!t || (!t.summary && !t.suggestedAction)) return null;
-                        const priCfg = t.priority ? PRIORITY_CONFIG[t.priority] : null;
+                        const tri = triageMap[selectedEmail.id];
+                        if (!tri || (!tri.summary && !tri.suggestedAction)) return null;
+                        const priCfg = tri.priority ? PRIORITY_CONFIG[tri.priority] : null;
                         return (
                           <div className="rounded-md border border-violet-200 bg-violet-50/60 p-2.5 space-y-1.5">
                             <div className="flex items-center gap-1.5 text-[11px] font-semibold text-violet-800">
                               <Sparkles className="h-3 w-3" />
-                              Analyse IA
+                              {t("gmailAgent.detail.aiAnalysis")}
                               {priCfg && (
                                 <Badge variant="outline" className={`text-[10px] py-0 px-1 ${priCfg.color}`}>
-                                  {priCfg.label}
+                                  {t(`gmailAgent.priority.${tri.priority}`)}
                                 </Badge>
                               )}
-                              {t.needsReply && (
+                              {tri.needsReply && (
                                 <Badge variant="outline" className="text-[10px] py-0 px-1 bg-violet-100 text-violet-700 border-violet-200">
-                                  À répondre
+                                  {t("gmailAgent.filters.needsReply")}
                                 </Badge>
                               )}
                             </div>
-                            {t.summary && (
-                              <p className="text-xs text-foreground leading-snug">{t.summary}</p>
+                            {tri.summary && (
+                              <p className="text-xs text-foreground leading-snug">{tri.summary}</p>
                             )}
-                            {t.suggestedAction && (
+                            {tri.suggestedAction && (
                               <p className="text-xs text-violet-700 leading-snug">
-                                <span className="font-medium">→ </span>{t.suggestedAction}
+                                <span className="font-medium">→ </span>{tri.suggestedAction}
                               </p>
                             )}
                           </div>
@@ -1043,10 +1053,10 @@ export default function GmailAgentPage() {
                       {scanReport && scanReport.messageId === selectedEmail.id && (() => {
                         const risk: string = scanReport.overallRisk || "safe";
                         const cfg = risk === "dangerous"
-                          ? { border: "border-red-200", bg: "bg-red-50/60", text: "text-red-800", label: "Dangereux", Icon: ShieldAlert }
+                          ? { border: "border-red-200", bg: "bg-red-50/60", text: "text-red-800", label: t("gmailAgent.scan.dangerous"), Icon: ShieldAlert }
                           : risk === "suspicious"
-                          ? { border: "border-amber-200", bg: "bg-amber-50/60", text: "text-amber-800", label: "Suspect", Icon: AlertTriangle }
-                          : { border: "border-emerald-200", bg: "bg-emerald-50/60", text: "text-emerald-800", label: "Sans danger", Icon: ShieldCheck };
+                          ? { border: "border-amber-200", bg: "bg-amber-50/60", text: "text-amber-800", label: t("gmailAgent.scan.suspicious"), Icon: AlertTriangle }
+                          : { border: "border-emerald-200", bg: "bg-emerald-50/60", text: "text-emerald-800", label: t("gmailAgent.scan.safe"), Icon: ShieldCheck };
                         const s = scanReport.stats || {};
                         const auth = scanReport.senderAuth;
                         const ai = scanReport.aiAnalysis;
@@ -1054,10 +1064,10 @@ export default function GmailAgentPage() {
                           <div className={`rounded-md border ${cfg.border} ${cfg.bg} p-2.5 space-y-2`}>
                             <div className={`flex items-center gap-1.5 text-[11px] font-semibold ${cfg.text}`}>
                               <cfg.Icon className="h-3.5 w-3.5" />
-                              Analyse de sécurité — {cfg.label}
+                              {t("gmailAgent.scan.title", { label: cfg.label })}
                               {typeof scanReport.riskScore === "number" && (
                                 <Badge variant="outline" className="text-[10px] py-0 px-1">
-                                  Risque {scanReport.riskScore}/100
+                                  {t("gmailAgent.scan.riskBadge", { score: scanReport.riskScore })}
                                 </Badge>
                               )}
                             </div>
@@ -1065,14 +1075,14 @@ export default function GmailAgentPage() {
                             <div className="flex flex-wrap gap-1.5 text-[10px]">
                               <Badge variant="outline" className="py-0 px-1">
                                 <Paperclip className="h-2.5 w-2.5 mr-0.5" />
-                                {s.attachmentsScanned || 0} pièce(s)
-                                {s.attachmentsThreatened ? ` · ${s.attachmentsThreatened} menace(s)` : ""}
+                                {t("gmailAgent.scan.attachments", { count: s.attachmentsScanned || 0 })}
+                                {s.attachmentsThreatened ? t("gmailAgent.scan.threats", { count: s.attachmentsThreatened }) : ""}
                               </Badge>
                               <Badge variant="outline" className="py-0 px-1">
                                 <Link2 className="h-2.5 w-2.5 mr-0.5" />
-                                {s.linksScanned || 0} lien(s)
-                                {s.linksDangerous ? ` · ${s.linksDangerous} dangereux` : ""}
-                                {s.linksSuspicious ? ` · ${s.linksSuspicious} suspect(s)` : ""}
+                                {t("gmailAgent.scan.links", { count: s.linksScanned || 0 })}
+                                {s.linksDangerous ? t("gmailAgent.scan.linksDangerous", { count: s.linksDangerous }) : ""}
+                                {s.linksSuspicious ? t("gmailAgent.scan.linksSuspicious", { count: s.linksSuspicious }) : ""}
                               </Badge>
                               {auth && (
                                 <Badge variant="outline" className={`py-0 px-1 ${auth.suspicious ? "text-red-700 border-red-200" : "text-emerald-700 border-emerald-200"}`}>
@@ -1084,12 +1094,12 @@ export default function GmailAgentPage() {
                             {ai && (
                               <div className="space-y-1">
                                 <p className={`text-xs leading-snug ${cfg.text}`}>
-                                  <span className="font-medium">Verdict IA ({ai.verdict}, {ai.phishingScore}/10) : </span>
+                                  <span className="font-medium">{t("gmailAgent.scan.verdict", { verdict: ai.verdict, score: ai.phishingScore })}</span>
                                   {ai.summary}
                                 </p>
                                 {ai.impersonation && (
                                   <p className="text-xs text-red-700 leading-snug">
-                                    Usurpation possible : {ai.impersonation}
+                                    {t("gmailAgent.scan.impersonation", { value: ai.impersonation })}
                                   </p>
                                 )}
                                 {ai.socialEngineering?.length > 0 && (
@@ -1115,14 +1125,14 @@ export default function GmailAgentPage() {
 
                             {scanReport.attachments?.filter((a: any) => !a.safe).map((a: any, i: number) => (
                               <p key={i} className="text-[11px] text-red-700 leading-snug">
-                                {a.filename} — {a.threats?.join(", ") || "menace détectée"}
+                                {a.filename} — {a.threats?.join(", ") || t("gmailAgent.scan.threatDetected")}
                               </p>
                             ))}
                           </div>
                         );
                       })()}
                       {emailDetail.cc && (
-                        <p className="text-xs text-muted-foreground">Cc: {emailDetail.cc}</p>
+                        <p className="text-xs text-muted-foreground">{t("gmailAgent.detail.ccPrefix")} {emailDetail.cc}</p>
                       )}
                       {emailDetail.attachments?.length > 0 && (
                         <div className="flex items-center gap-2 flex-wrap py-2 px-3 bg-muted/30 rounded-md">
@@ -1138,7 +1148,7 @@ export default function GmailAgentPage() {
                                   href={href}
                                   download={att.filename}
                                   className="inline-flex items-center gap-1 text-xs px-2 py-0.5 hover:bg-muted transition-colors"
-                                  title={`Telecharger ${att.filename}`}
+                                  title={t("gmailAgent.detail.downloadTooltip", { filename: att.filename })}
                                 >
                                   <Download className="h-3 w-3 text-muted-foreground" />
                                   {att.filename}
@@ -1149,12 +1159,12 @@ export default function GmailAgentPage() {
                                   onClick={() => handleSaveAttachment(att)}
                                   disabled={savingAtt === att.attachmentId}
                                   className="inline-flex items-center gap-1 text-xs px-2 py-0.5 border-l hover:bg-muted transition-colors disabled:opacity-50"
-                                  title="Enregistrer dans Documents (analyse antivirus)"
+                                  title={t("gmailAgent.detail.saveToDocsTooltip")}
                                 >
                                   {savingAtt === att.attachmentId
                                     ? <Loader2 className="h-3 w-3 animate-spin" />
                                     : <FolderKanban className="h-3 w-3 text-muted-foreground" />}
-                                  <span className="hidden sm:inline">Documents</span>
+                                  <span className="hidden sm:inline">{t("gmailAgent.documents")}</span>
                                 </button>
                               </span>
                             );
@@ -1175,7 +1185,7 @@ export default function GmailAgentPage() {
                                 iframe.style.height = iframe.contentDocument?.body?.scrollHeight + "px";
                               } catch {}
                             }}
-                            title="Email content"
+                            title={t("gmailAgent.emailContentTitle")}
                           />
                         </div>
                       ) : (
@@ -1200,7 +1210,7 @@ export default function GmailAgentPage() {
                   });
                   setComposeOpen(true);
                 }}>
-                  <CornerDownLeft className="h-3.5 w-3.5 mr-1" />Répondre
+                  <CornerDownLeft className="h-3.5 w-3.5 mr-1" />{t("gmailAgent.detail.reply")}
                 </Button>
               </div>
             </div>
@@ -1212,7 +1222,7 @@ export default function GmailAgentPage() {
           <div className="px-3 py-2.5 border-b">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-violet-500" />
-              <h3 className="text-sm font-semibold">Agent IA</h3>
+              <h3 className="text-sm font-semibold">{t("gmailAgent.agentIa")}</h3>
               <Badge variant="outline" className="text-[10px] ml-auto bg-violet-50 text-violet-700 border-violet-200">
                 Gemini 2.5 Pro
               </Badge>
@@ -1221,8 +1231,8 @@ export default function GmailAgentPage() {
 
           <Tabs value={aiPanelTab} onValueChange={setAiPanelTab} className="flex-1 flex flex-col overflow-hidden">
             <TabsList className="mx-2 mt-2 h-7">
-              <TabsTrigger value="triage" className="text-xs flex-1 h-6">Triage</TabsTrigger>
-              <TabsTrigger value="reply" className="text-xs flex-1 h-6">Réponse IA</TabsTrigger>
+              <TabsTrigger value="triage" className="text-xs flex-1 h-6">{t("gmailAgent.panel.triage")}</TabsTrigger>
+              <TabsTrigger value="reply" className="text-xs flex-1 h-6">{t("gmailAgent.panel.aiReply")}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="triage" className="flex-1 overflow-hidden m-0 px-0">
@@ -1231,18 +1241,18 @@ export default function GmailAgentPage() {
                   {!triageData && !isTriaging && (
                     <div className="space-y-3">
                       <p className="text-xs text-muted-foreground">
-                        L'agent analyse votre boîte mail avec les données CRM pour prioriser et identifier les actions à réaliser.
+                        {t("gmailAgent.panel.intro")}
                       </p>
                       <Button className="w-full" size="sm" onClick={handleTriage} disabled={!emails.length || isTriaging}>
                         <Brain className="h-4 w-4 mr-2" />
-                        Analyser {emails.length} emails
+                        {t("gmailAgent.panel.analyzeCount", { count: emails.length })}
                       </Button>
                       <div className="space-y-1.5 text-xs text-muted-foreground">
-                        <p className="font-medium text-foreground">L'agent peut:</p>
-                        {["Prioriser les emails urgents", "Identifier les opportunités commerciales", "Détecter les contacts CRM", "Suggérer des actions concrètes", "Résumer la boîte en 1 rapport"].map(f => (
+                        <p className="font-medium text-foreground">{t("gmailAgent.panel.canDo")}</p>
+                        {["cap1", "cap2", "cap3", "cap4", "cap5"].map(f => (
                           <div key={f} className="flex items-center gap-1.5">
                             <Check className="h-3 w-3 text-green-500" />
-                            <span>{f}</span>
+                            <span>{t(`gmailAgent.panel.${f}`)}</span>
                           </div>
                         ))}
                       </div>
@@ -1255,24 +1265,24 @@ export default function GmailAgentPage() {
                         <Brain className="h-10 w-10 text-violet-400" />
                         <Loader2 className="h-5 w-5 text-violet-600 animate-spin absolute -bottom-1 -right-1" />
                       </div>
-                      <p className="text-xs text-muted-foreground text-center">Analyse en cours avec Gemini 2.5 Pro...</p>
+                      <p className="text-xs text-muted-foreground text-center">{t("gmailAgent.panel.analyzingWith")}</p>
                     </div>
                   )}
 
                   {triageData && !isTriaging && (
                     <div className="space-y-3">
                       <div className="bg-violet-50 rounded-lg p-3 border border-violet-100">
-                        <p className="text-xs font-medium text-violet-800 mb-1">Résumé exécutif</p>
+                        <p className="text-xs font-medium text-violet-800 mb-1">{t("gmailAgent.panel.executiveSummary")}</p>
                         <p className="text-xs text-violet-700">{triageData.triage?.executiveSummary}</p>
                       </div>
 
                       {triageData.triage?.overview && (
                         <div className="grid grid-cols-2 gap-2">
                           {[
-                            { label: "Critiques", val: triageData.triage.overview.criticalCount, color: "text-red-600" },
-                            { label: "À répondre", val: triageData.triage.overview.needsReplyCount, color: "text-orange-600" },
-                            { label: "Commerciaux", val: triageData.triage.overview.commercialOpportunities, color: "text-emerald-600" },
-                            { label: "Finances", val: triageData.triage.overview.financialItems, color: "text-amber-600" },
+                            { label: t("gmailAgent.panel.criticals"), val: triageData.triage.overview.criticalCount, color: "text-red-600" },
+                            { label: t("gmailAgent.panel.needsReply"), val: triageData.triage.overview.needsReplyCount, color: "text-orange-600" },
+                            { label: t("gmailAgent.panel.commercials"), val: triageData.triage.overview.commercialOpportunities, color: "text-emerald-600" },
+                            { label: t("gmailAgent.panel.finances"), val: triageData.triage.overview.financialItems, color: "text-amber-600" },
                           ].map(item => (
                             <div key={item.label} className="bg-muted/30 rounded p-2 text-center">
                               <p className={`text-lg font-bold ${item.color}`}>{item.val || 0}</p>
@@ -1284,7 +1294,7 @@ export default function GmailAgentPage() {
 
                       {triageData.triage?.priorityActions?.length > 0 && (
                         <div>
-                          <p className="text-xs font-semibold mb-1.5">Actions prioritaires</p>
+                          <p className="text-xs font-semibold mb-1.5">{t("gmailAgent.panel.priorityActions")}</p>
                           <div className="space-y-1.5">
                             {triageData.triage.priorityActions.map((action: string, i: number) => (
                               <div key={i} className="flex items-start gap-1.5 text-xs">
@@ -1298,24 +1308,24 @@ export default function GmailAgentPage() {
 
                       {triageData.triage?.triage?.filter((t: any) => t.priority === "critique" || t.priority === "haute").length > 0 && (
                         <div>
-                          <p className="text-xs font-semibold mb-1.5">Emails prioritaires</p>
+                          <p className="text-xs font-semibold mb-1.5">{t("gmailAgent.panel.priorityEmails")}</p>
                           <div className="space-y-1.5">
                             {triageData.triage.triage
-                              .filter((t: any) => t.priority === "critique" || t.priority === "haute")
+                              .filter((tr: any) => tr.priority === "critique" || tr.priority === "haute")
                               .slice(0, 5)
-                              .map((t: any, i: number) => {
-                                const email = emails.find((e: any) => e.id === t.emailId);
-                                const pri = PRIORITY_CONFIG[t.priority];
+                              .map((tr: any, i: number) => {
+                                const email = emails.find((e: any) => e.id === tr.emailId);
+                                const pri = PRIORITY_CONFIG[tr.priority];
                                 return (
                                   <button key={i} onClick={() => { if (email) setSelectedEmail(email); }}
                                     className="w-full text-left rounded border p-2 hover:bg-muted/50 transition-colors">
                                     <div className="flex items-center gap-1 mb-0.5">
-                                      <Badge variant="outline" className={`text-[9px] py-0 px-1 ${pri?.color}`}>{pri?.label}</Badge>
-                                      {t.needsReply && <Badge variant="outline" className="text-[9px] py-0 px-1 bg-violet-100 text-violet-700">Réponse</Badge>}
+                                      <Badge variant="outline" className={`text-[9px] py-0 px-1 ${pri?.color}`}>{t(`gmailAgent.priority.${tr.priority}`)}</Badge>
+                                      {tr.needsReply && <Badge variant="outline" className="text-[9px] py-0 px-1 bg-violet-100 text-violet-700">{t("gmailAgent.replyShort")}</Badge>}
                                     </div>
-                                    <p className="text-[11px] font-medium truncate">{email?.subject || t.emailId}</p>
-                                    <p className="text-[10px] text-muted-foreground truncate">{t.summary}</p>
-                                    <p className="text-[10px] text-blue-600 mt-0.5">→ {t.suggestedAction}</p>
+                                    <p className="text-[11px] font-medium truncate">{email?.subject || tr.emailId}</p>
+                                    <p className="text-[10px] text-muted-foreground truncate">{tr.summary}</p>
+                                    <p className="text-[10px] text-blue-600 mt-0.5">→ {tr.suggestedAction}</p>
                                   </button>
                                 );
                               })}
@@ -1324,7 +1334,7 @@ export default function GmailAgentPage() {
                       )}
 
                       <Button variant="outline" size="sm" className="w-full text-xs" onClick={handleTriage} disabled={isTriaging}>
-                        <RotateCcw className="h-3.5 w-3.5 mr-1" />Relancer le triage
+                        <RotateCcw className="h-3.5 w-3.5 mr-1" />{t("gmailAgent.panel.relaunchTriage")}
                       </Button>
                     </div>
                   )}
@@ -1336,51 +1346,51 @@ export default function GmailAgentPage() {
               <ScrollArea className="h-full">
                 <div className="p-3 space-y-3">
                   {!selectedEmail ? (
-                    <p className="text-xs text-muted-foreground">Sélectionnez un email pour générer une réponse IA.</p>
+                    <p className="text-xs text-muted-foreground">{t("gmailAgent.panel.selectToReply")}</p>
                   ) : (
                     <>
                       <div className="bg-muted/30 rounded p-2">
-                        <p className="text-[10px] text-muted-foreground">Email sélectionné</p>
+                        <p className="text-[10px] text-muted-foreground">{t("gmailAgent.panel.selectedEmail")}</p>
                         <p className="text-xs font-medium truncate">{selectedEmail.subject}</p>
                         <p className="text-[11px] text-muted-foreground truncate">{parseEmailName(selectedEmail.from || "").name}</p>
                       </div>
 
                       <div>
-                        <Label className="text-xs">Ton de la réponse</Label>
+                        <Label className="text-xs">{t("gmailAgent.panel.replyTone")}</Label>
                         <Select value={tone} onValueChange={setTone}>
                           <SelectTrigger className="h-8 text-xs mt-1">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {TONE_OPTIONS.map(t => (
-                              <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>
+                            {TONE_OPTIONS.map(opt => (
+                              <SelectItem key={opt.value} value={opt.value} className="text-xs">{t(`gmailAgent.tone.${opt.value}`)}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
 
                       <div>
-                        <Label className="text-xs">Instructions supplémentaires</Label>
+                        <Label className="text-xs">{t("gmailAgent.panel.additionalInstructions")}</Label>
                         <Textarea
                           value={draftInstructions}
                           onChange={e => setDraftInstructions(e.target.value)}
-                          placeholder="Ex: Mentionner la réunion de jeudi..."
+                          placeholder={t("gmailAgent.panel.instructionsPlaceholder")}
                           className="mt-1 text-xs min-h-[60px]"
                         />
                       </div>
 
                       <Button className="w-full" size="sm" onClick={handleDraftReply} disabled={isDrafting}>
                         {isDrafting ? (
-                          <><Loader2 className="h-4 w-4 animate-spin mr-2" />Génération...</>
+                          <><Loader2 className="h-4 w-4 animate-spin mr-2" />{t("gmailAgent.panel.generating")}</>
                         ) : (
-                          <><Sparkles className="h-4 w-4 mr-2" />Générer la réponse</>
+                          <><Sparkles className="h-4 w-4 mr-2" />{t("gmailAgent.panel.generateReply")}</>
                         )}
                       </Button>
 
                       {isDrafting && (
                         <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center py-2">
                           <Brain className="h-4 w-4 text-violet-400 animate-pulse" />
-                          Analyse CRM + génération Gemini 2.5 Pro...
+                          {t("gmailAgent.panel.crmGenerating")}
                         </div>
                       )}
 
@@ -1388,7 +1398,7 @@ export default function GmailAgentPage() {
                         <div className="space-y-3">
                           <Separator />
                           <div className="flex items-center justify-between">
-                            <p className="text-xs font-semibold">Réponse générée</p>
+                            <p className="text-xs font-semibold">{t("gmailAgent.panel.replyGenerated")}</p>
                             <div className="flex gap-1">
                               {aiDraft.urgency && (
                                 <Badge variant="outline" className={`text-[9px] ${aiDraft.urgency === "haute" ? "bg-orange-100 text-orange-700" : "bg-gray-100 text-gray-600"}`}>
@@ -1399,12 +1409,12 @@ export default function GmailAgentPage() {
                           </div>
 
                           <div className="bg-blue-50 border border-blue-100 rounded p-2 space-y-1">
-                            <p className="text-[10px] text-muted-foreground">Objet</p>
+                            <p className="text-[10px] text-muted-foreground">{t("gmailAgent.panel.subject")}</p>
                             <p className="text-xs font-medium">{aiDraft.replySubject}</p>
                           </div>
 
                           <div className="bg-muted/30 rounded p-2 max-h-48 overflow-y-auto">
-                            <p className="text-[10px] text-muted-foreground mb-1">Corps du message</p>
+                            <p className="text-[10px] text-muted-foreground mb-1">{t("gmailAgent.panel.messageBody")}</p>
                             <p className="text-xs whitespace-pre-wrap">
                               {aiDraft.replyBodyPlain || aiDraft.replyBodyHtml?.replace(/<[^>]+>/g, "").trim()}
                             </p>
@@ -1413,13 +1423,13 @@ export default function GmailAgentPage() {
                           {aiDraft.detectedIntent && (
                             <div className="text-[10px] text-muted-foreground flex items-center gap-1">
                               <Eye className="h-3 w-3" />
-                              Intention: {aiDraft.detectedIntent}
+                              {t("gmailAgent.panel.intent", { value: aiDraft.detectedIntent })}
                             </div>
                           )}
 
                           {aiDraft.suggestedActions?.length > 0 && (
                             <div>
-                              <p className="text-[10px] font-medium mb-1">Actions recommandées</p>
+                              <p className="text-[10px] font-medium mb-1">{t("gmailAgent.panel.recommendedActions")}</p>
                               {aiDraft.suggestedActions.slice(0, 3).map((a: string, i: number) => (
                                 <p key={i} className="text-[10px] text-muted-foreground flex items-start gap-1">
                                   <ChevronRight className="h-3 w-3 shrink-0 mt-0.5" />{a}
@@ -1430,11 +1440,11 @@ export default function GmailAgentPage() {
 
                           <div className="flex gap-1.5">
                             <Button size="sm" className="flex-1 text-xs h-7" onClick={handleUseReply}>
-                              <Send className="h-3.5 w-3.5 mr-1" />Utiliser
+                              <Send className="h-3.5 w-3.5 mr-1" />{t("gmailAgent.panel.use")}
                             </Button>
                             <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => {
                               navigator.clipboard.writeText(aiDraft.replyBodyPlain || aiDraft.replyBodyHtml?.replace(/<[^>]+>/g, "") || "");
-                              toast({ title: "Copié" });
+                              toast({ title: t("gmailAgent.toast.copied") });
                             }}>
                               <Copy className="h-3.5 w-3.5" />
                             </Button>
@@ -1442,7 +1452,7 @@ export default function GmailAgentPage() {
 
                           {aiDraft.alternativeReplies?.length > 0 && (
                             <div>
-                              <p className="text-[10px] font-medium mb-1.5">Alternatives</p>
+                              <p className="text-[10px] font-medium mb-1.5">{t("gmailAgent.panel.alternatives")}</p>
                               <div className="space-y-1.5">
                                 {aiDraft.alternativeReplies.slice(0, 2).map((alt: any, i: number) => (
                                   <button key={i}
