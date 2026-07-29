@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 
 /**
  * Panneau de sante technique (super-admin).
@@ -48,6 +49,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 
 export default function SanteTechniquePage() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [lastRunAt, setLastRunAt] = useState<string | null>(null);
 
@@ -69,13 +71,13 @@ export default function SanteTechniquePage() {
     onSuccess: (r) => {
       setLastRunAt(r.startedAt);
       toast({
-        title: r.worst === "ok" ? "Tout est sain" : "Anomalies detectees",
-        description: `${r.ok} OK · ${r.degraded} degrade(s) · ${r.failed} en panne, sur ${r.total} verifications.`,
+        title: r.worst === "ok" ? t("santeTechnique.toast.runOkTitle") : t("santeTechnique.toast.runAnomTitle"),
+        description: t("santeTechnique.toast.runDesc", { ok: r.ok, degraded: r.degraded, failed: r.failed, total: r.total }),
         variant: r.worst === "ok" ? undefined : "destructive",
       });
       qc.invalidateQueries({ queryKey: ["health-agents", "latest"] });
     },
-    onError: (e: Error) => toast({ title: "Echec", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: t("santeTechnique.toast.runErrorTitle"), description: e.message, variant: "destructive" }),
   });
 
   const checks = data?.checks ?? [];
@@ -102,18 +104,16 @@ export default function SanteTechniquePage() {
             <Activity className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Sante technique</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">{t("santeTechnique.title")}</h1>
             <p className="text-muted-foreground text-sm mt-0.5 max-w-2xl">
-              Chaque agent controle son propre domaine : base de donnees, services externes,
-              configuration, taches planifiees, erreurs, ressources. Verification automatique
-              toutes les 15 minutes.
+              {t("santeTechnique.subtitle")}
             </p>
           </div>
         </div>
         <Button onClick={() => run.mutate()} disabled={run.isPending} className="shrink-0">
           {run.isPending
-            ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Verification…</>
-            : <><RefreshCw className="h-4 w-4 mr-2" />Verifier maintenant</>}
+            ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />{t("santeTechnique.verifying")}</>
+            : <><RefreshCw className="h-4 w-4 mr-2" />{t("santeTechnique.verifyNow")}</>}
         </Button>
       </div>
 
@@ -123,11 +123,11 @@ export default function SanteTechniquePage() {
           {(() => { const I = STATUS_META[worst].Icon; return <I className="h-6 w-6 shrink-0" />; })()}
           <div className="text-sm">
             <p className="font-semibold">
-              {worst === "ok" ? "Tous les controles sont au vert." : worst === "degrade" ? "Des points d'attention sont detectes." : "Une ou plusieurs pannes sont en cours."}
+              {worst === "ok" ? t("santeTechnique.banner.allGreen") : worst === "degrade" ? t("santeTechnique.banner.attention") : t("santeTechnique.banner.down")}
             </p>
             <p className="opacity-80">
-              {counts.ok} OK · {counts.degrade} degrade(s) · {counts.echec} en panne
-              {lastRunAt && ` · derniere verification a ${new Date(lastRunAt).toLocaleTimeString("fr-FR")}`}
+              {t("santeTechnique.summary", { ok: counts.ok, degrade: counts.degrade, echec: counts.echec })}
+              {lastRunAt && ` · ${t("santeTechnique.lastCheck", { time: new Date(lastRunAt).toLocaleTimeString("fr-FR") })}`}
             </p>
           </div>
         </div>
@@ -146,9 +146,9 @@ export default function SanteTechniquePage() {
         <Card>
           <CardContent className="py-16 text-center">
             <Activity className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-            <h3 className="font-medium text-lg">Aucune verification enregistree</h3>
+            <h3 className="font-medium text-lg">{t("santeTechnique.emptyTitle")}</h3>
             <p className="text-muted-foreground text-sm mt-1">
-              Lancez une verification, ou attendez le prochain cycle automatique.
+              {t("santeTechnique.emptyDesc")}
             </p>
           </CardContent>
         </Card>
@@ -166,7 +166,7 @@ export default function SanteTechniquePage() {
                     <div>
                       <h3 className="font-semibold flex items-center gap-2">
                         {agent.name}
-                        <Badge variant="outline" className={`text-[10px] ${meta.cls}`}>{meta.label}</Badge>
+                        <Badge variant="outline" className={`text-[10px] ${meta.cls}`}>{t(`santeTechnique.status.${agentWorst}`)}</Badge>
                       </h3>
                       <p className="text-xs text-muted-foreground mt-0.5">{agent.domain}</p>
                     </div>

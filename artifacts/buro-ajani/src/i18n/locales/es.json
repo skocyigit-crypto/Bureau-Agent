@@ -5411,5 +5411,363 @@
       "actionFailed": "Fallo en la acción",
       "error": "Error"
     }
+  },
+  "adminBackoffice": {
+    "title": "Backoffice SaaS",
+    "superAdmin": "Súper-admin",
+    "subtitle": "Gestión comercial de Ajant Bureau — separada de la aplicación cliente.",
+    "refactorTitle": "Refactor en curso",
+    "refactorP1": "Los módulos Prospectos, Presupuestos, Stock y Facturas B2B se han retirado de la aplicación cliente. Ahora solo son accesibles a través de este panel, para ti (súper-admin).",
+    "refactorP2": "Estado actual: Prospectos, Presupuestos corporativos y Facturas B2B están conectados con una vista global (todas las organizaciones) y un selector de organización. El resto llegará en tareas de seguimiento (stock de licencias, 2FA forzado, lista blanca de IP).",
+    "open": "Abrir",
+    "status": {
+      "actif": "Activo",
+      "aVenir": "Próximamente"
+    },
+    "modules": {
+      "dashboard": {
+        "label": "Panel SaaS",
+        "description": "MRR, churn, conversión de prueba en 12 meses"
+      },
+      "prospects": {
+        "label": "Prospectos",
+        "description": "Embudo comercial — leads del sitio de presentación y la prospección"
+      },
+      "devis": {
+        "label": "Presupuestos corporativos",
+        "description": "Propuestas comerciales B2B — vista global de todas las organizaciones"
+      },
+      "facturesB2b": {
+        "label": "Facturas B2B",
+        "description": "Facturas emitidas — vista global de todas las organizaciones"
+      },
+      "facturesClient": {
+        "label": "Facturas de cliente",
+        "description": "Facturas emitidas a clientes + recordatorios — vista global de todas las organizaciones"
+      },
+      "audit": {
+        "label": "Registro de auditoría global",
+        "description": "Actividad de todas las organizaciones, filtrable por organización — exportación CSV"
+      },
+      "stock": {
+        "label": "Stock de licencias",
+        "description": "Inventario de paquetes de licencias vendidos / disponibles (próximamente)"
+      }
+    }
+  },
+  "adminDashboard": {
+    "back": "Backoffice SaaS",
+    "title": "Panel SaaS",
+    "superAdmin": "Súper-admin",
+    "subtitle": "MRR, churn, conversión de prueba — vista a 12 meses de todas las organizaciones.",
+    "refresh": "Actualizar",
+    "loading": "Cargando…",
+    "noData": "No hay datos disponibles por el momento.",
+    "generatedAt": "Datos generados el {{date}}.",
+    "toast": {
+      "loadError": "No se pudo cargar el panel",
+      "unknownError": "Error desconocido"
+    },
+    "metrics": {
+      "mrr": "MRR",
+      "arrHint": "ARR estimado {{value}}",
+      "activeCustomers": "Clientes de pago",
+      "trialingHint": "{{count}} prueba(s) en curso",
+      "churn": "Churn (30 d)",
+      "churnHint": "{{count}} cancelación(es)",
+      "conversion": "Conversión prueba → pago",
+      "conversionHint": "{{converted}}/{{started}} en 90 d"
+    },
+    "charts": {
+      "mrrTitle": "Evolución del MRR (12 meses)",
+      "mrrDesc": "Suma de los precios mensuales de las suscripciones de pago activas a fin de mes.",
+      "activeTitle": "Clientes de pago activos",
+      "activeDesc": "Número de suscripciones de pago activas al final de cada mes.",
+      "churnTitle": "Churn mensual",
+      "churnDesc": "Cancelaciones del mes ÷ clientes activos al inicio del mes.",
+      "conversionTitle": "Conversión prueba → pago",
+      "conversionDesc": "Pruebas iniciadas en el mes que hoy están en un plan de pago activo."
+    },
+    "planTable": {
+      "title": "Desglose por plan",
+      "desc": "Clientes de pago activos y MRR por plan de suscripción.",
+      "plan": "Plan",
+      "clients": "Clientes",
+      "mrr": "MRR",
+      "share": "Parte del MRR"
+    }
+  },
+  "adminDevis": {
+    "title": "Presupuestos corporativos",
+    "superAdmin": "Súper-admin",
+    "subtitle": "Vista global SaaS — propuestas comerciales B2B de todas las organizaciones.",
+    "new": "Nuevo presupuesto",
+    "searchPlaceholder": "Buscar (título, referencia, cliente)...",
+    "statusPlaceholder": "Estado",
+    "allStatuses": "Todos los estados",
+    "orgPlaceholder": "Organización",
+    "allOrgs": "Todas las organizaciones",
+    "empty": "Ningún presupuesto coincide con sus filtros.",
+    "convertTitle": "Convertir en factura",
+    "invoice": "Facturar",
+    "count": "{{count}} presupuestos",
+    "prev": "Anterior",
+    "next": "Siguiente",
+    "status": {
+      "brouillon": "Borrador",
+      "envoye": "Enviado",
+      "accepte": "Aceptado",
+      "refuse": "Rechazado",
+      "expire": "Caducado"
+    },
+    "dialog": {
+      "editTitle": "Editar presupuesto",
+      "createTitle": "Nuevo presupuesto"
+    },
+    "form": {
+      "targetOrg": "Organización destino",
+      "chooseOrg": "Elegir una organización",
+      "orgHelpEdit": "La organización propietaria no puede reasignarse desde esta ficha.",
+      "orgHelpCreate": "El presupuesto se vinculará a esta organización.",
+      "title": "Título",
+      "reference": "Referencia",
+      "status": "Estado",
+      "client": "Cliente",
+      "company": "Empresa",
+      "email": "Email",
+      "validUntil": "Válido hasta",
+      "notes": "Notas",
+      "update": "Actualizar",
+      "create": "Crear"
+    },
+    "toast": {
+      "error": "Error",
+      "loadFailed": "Carga fallida.",
+      "titleRequired": "Título obligatorio",
+      "clientRequired": "Cliente obligatorio",
+      "orgRequired": "Organización destino obligatoria",
+      "updated": "Presupuesto actualizado",
+      "created": "Presupuesto creado",
+      "saveFailed": "Guardado fallido.",
+      "convertConfirmTitle": "¿Convertir «{{title}}» en factura?",
+      "convertConfirmDesc": "Se creará una factura con las líneas e importes del presupuesto (vencimiento a 30 días).",
+      "convertConfirmLabel": "Crear la factura",
+      "alreadyConverted": "Presupuesto ya convertido",
+      "factureCreated": "Factura creada",
+      "factureRef": "Referencia {{reference}}",
+      "conversionFailed": "Conversión fallida.",
+      "deleteConfirmTitle": "¿Eliminar este presupuesto?",
+      "deleteConfirmLabel": "Eliminar",
+      "deleted": "Presupuesto eliminado"
+    }
+  },
+  "adminAudit": {
+    "accessTitle": "Acceso restringido",
+    "accessMessage": "El registro de auditoría global (todas las organizaciones) está reservado al súper-administrador.",
+    "title": "Registro de auditoría global",
+    "superAdmin": "Súper-admin",
+    "subtitle": "Vista global — actividad de todas las organizaciones, filtrable por organización.",
+    "exportCsv": "Exportar CSV",
+    "searchPlaceholder": "Filtrar por email de usuario...",
+    "orgPlaceholder": "Organización",
+    "allOrgs": "Todas las organizaciones",
+    "empty": "Ningún evento coincide con sus filtros.",
+    "system": "sistema",
+    "count": "{{count}} eventos",
+    "prev": "Anterior",
+    "next": "Siguiente",
+    "stats": {
+      "today": "Eventos hoy (todas las organizaciones)",
+      "topActions": "Acciones más frecuentes",
+      "topUsers": "Usuarios más activos"
+    },
+    "toast": {
+      "error": "Error",
+      "loadError": "No se pudo cargar el registro de auditoría.",
+      "loadFailed": "Carga fallida."
+    }
+  },
+  "adminFacturesB2b": {
+    "title": "Facturas B2B",
+    "superAdmin": "Súper-admin",
+    "subtitle": "Vista global SaaS — facturas emitidas de todas las organizaciones.",
+    "new": "Nueva factura",
+    "searchPlaceholder": "Buscar (título, referencia, cliente)...",
+    "statusPlaceholder": "Estado",
+    "allStatuses": "Todos los estados",
+    "orgPlaceholder": "Organización",
+    "allOrgs": "Todas las organizaciones",
+    "empty": "Ninguna factura coincide con sus filtros.",
+    "reminders": "{{count}} recordatorio(s)",
+    "reminderTitleHas": "Enviar un recordatorio",
+    "reminderTitleNoEmail": "Falta el email del cliente",
+    "count": "{{count}} factura(s)",
+    "prev": "Anterior",
+    "next": "Siguiente",
+    "status": {
+      "brouillon": "Borrador",
+      "envoyee": "Enviada",
+      "payee": "Pagada",
+      "partiellement_payee": "Parcial",
+      "en_retard": "Vencida",
+      "annulee": "Cancelada"
+    },
+    "dialog": {
+      "editTitle": "Editar factura",
+      "createTitle": "Nueva factura"
+    },
+    "form": {
+      "targetOrg": "Organización destino",
+      "chooseOrg": "Elegir una organización",
+      "orgHelpEdit": "La organización propietaria no puede reasignarse desde esta ficha.",
+      "orgHelpCreate": "La factura se vinculará a esta organización.",
+      "title": "Título",
+      "reference": "Referencia",
+      "status": "Estado",
+      "client": "Cliente",
+      "company": "Empresa",
+      "email": "Email",
+      "dueDate": "Vencimiento",
+      "totalAmount": "Importe total",
+      "paidAmount": "Importe pagado",
+      "notes": "Notas",
+      "update": "Actualizar",
+      "create": "Crear"
+    },
+    "toast": {
+      "error": "Error",
+      "loadFailed": "Carga fallida.",
+      "titleRequired": "Título obligatorio",
+      "clientRequired": "Cliente obligatorio",
+      "orgRequired": "Organización destino obligatoria",
+      "updated": "Factura actualizada",
+      "created": "Factura creada",
+      "saveFailed": "Guardado fallido.",
+      "emailMissingTitle": "Falta el email",
+      "emailMissingDesc": "Introduzca el email del cliente antes de enviar un recordatorio.",
+      "relanceConfirmMulti": "Ya se ha enviado un recordatorio {{count}} veces. ¿Enviar un nuevo recordatorio a {{email}}?",
+      "relanceConfirmFirst": "¿Enviar un recordatorio cortés a {{email}}?",
+      "relanceConfirmTitle": "¿Enviar recordatorio de esta factura?",
+      "relanceConfirmLabel": "Enviar el recordatorio",
+      "relanceSent": "Recordatorio enviado",
+      "relanceSentDesc": "Recordatorio enviado a {{email}}.",
+      "relanceFailed": "Envío fallido.",
+      "deleteConfirmTitle": "¿Eliminar esta factura?",
+      "deleteConfirmLabel": "Eliminar",
+      "deleted": "Factura eliminada"
+    }
+  },
+  "adminFacturesClient": {
+    "title": "Facturas de cliente",
+    "superAdmin": "Súper-admin",
+    "subtitle": "Vista global SaaS — facturas emitidas a clientes de todas las organizaciones.",
+    "new": "Nueva factura",
+    "searchPlaceholder": "Buscar (título, referencia, cliente)...",
+    "statusPlaceholder": "Estado",
+    "allStatuses": "Todos los estados",
+    "orgPlaceholder": "Organización",
+    "allOrgs": "Todas las organizaciones",
+    "empty": "Ninguna factura coincide con sus filtros.",
+    "dueLabel": "vencimiento {{date}}",
+    "reminders": "{{count}} recordatorio(s)",
+    "reminderTitle": "Enviar un recordatorio",
+    "count": "{{count}} factura(s)",
+    "prev": "Anterior",
+    "next": "Siguiente",
+    "status": {
+      "brouillon": "Borrador",
+      "envoyee": "Enviada",
+      "payee": "Pagada",
+      "partiellement_payee": "Parcialmente pagada",
+      "en_retard": "Vencida",
+      "annulee": "Cancelada"
+    },
+    "dialog": {
+      "editTitle": "Editar factura",
+      "createTitle": "Nueva factura"
+    },
+    "form": {
+      "targetOrg": "Organización destino",
+      "chooseOrg": "Elegir una organización",
+      "orgHelpEdit": "La organización propietaria no puede reasignarse desde esta ficha.",
+      "orgHelpCreate": "La factura se vinculará a esta organización.",
+      "title": "Título",
+      "reference": "Referencia",
+      "status": "Estado",
+      "client": "Cliente",
+      "company": "Empresa",
+      "email": "Email",
+      "paymentMethod": "Método de pago",
+      "paymentPlaceholder": "Transferencia, tarjeta...",
+      "paidAmount": "Importe pagado",
+      "autoliq": "Inversión del sujeto pasivo IVA (construcción)",
+      "dueDate": "Vencimiento",
+      "notes": "Notas",
+      "update": "Actualizar",
+      "create": "Crear"
+    },
+    "toast": {
+      "error": "Error",
+      "loadFailed": "Carga fallida.",
+      "titleRequired": "Título obligatorio",
+      "clientRequired": "Cliente obligatorio",
+      "orgRequired": "Organización destino obligatoria",
+      "updated": "Factura actualizada",
+      "created": "Factura creada",
+      "saveFailed": "Guardado fallido.",
+      "deleteConfirmTitle": "¿Eliminar esta factura?",
+      "deleteConfirmLabel": "Eliminar",
+      "deleted": "Factura eliminada",
+      "remindConfirmTitle": "¿Enviar un recordatorio?",
+      "remindConfirmDesc": "Se enviará un email de recordatorio a {{email}} para la factura {{reference}}.",
+      "remindConfirmLabel": "Enviar el recordatorio",
+      "relanceSent": "Recordatorio enviado",
+      "relanceSentDesc": "Recordatorio n.º {{count}} enviado.",
+      "relanceImpossible": "Recordatorio imposible",
+      "relanceFailed": "Envío del recordatorio fallido."
+    }
+  },
+  "santeTechnique": {
+    "title": "Salud técnica",
+    "subtitle": "Cada agente supervisa su propio dominio: base de datos, servicios externos, configuración, tareas programadas, errores, recursos. Verificación automática cada 15 minutos.",
+    "verifying": "Verificando…",
+    "verifyNow": "Verificar ahora",
+    "status": {
+      "ok": "OK",
+      "degrade": "Degradado",
+      "echec": "Caído",
+      "inconnu": "Desconocido"
+    },
+    "banner": {
+      "allGreen": "Todos los controles están en verde.",
+      "attention": "Se detectan algunos puntos de atención.",
+      "down": "Una o varias averías están en curso."
+    },
+    "summary": "{{ok}} OK · {{degrade}} degradado(s) · {{echec}} caído(s)",
+    "lastCheck": "última verificación a las {{time}}",
+    "emptyTitle": "Ninguna verificación registrada",
+    "emptyDesc": "Inicie una verificación o espere el próximo ciclo automático.",
+    "toast": {
+      "runOkTitle": "Todo está sano",
+      "runAnomTitle": "Anomalías detectadas",
+      "runDesc": "{{ok}} OK · {{degraded}} degradado(s) · {{failed}} caído(s), de {{total}} verificaciones.",
+      "runErrorTitle": "Fallo"
+    }
+  },
+  "rapportExecutif": {
+    "title": "Informe Ejecutivo",
+    "subtitle": "Vista sintética de su actividad",
+    "createProject": "Crear un proyecto",
+    "print": "Imprimir",
+    "projectTitle": "Proyecto ejecutivo",
+    "projectNotes": "Creado desde el informe ejecutivo",
+    "toast": {
+      "created": "Proyecto creado",
+      "createError": "Error al crear"
+    }
+  },
+  "notFound": {
+    "title": "Página no encontrada",
+    "description": "Esta página no existe o ya no existe. Verifique la dirección o vuelva a la página de inicio."
   }
 }

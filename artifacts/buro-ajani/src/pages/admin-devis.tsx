@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -43,8 +44,9 @@ const EMPTY_FORM = {
 };
 
 function StatusBadge({ status }: { status: string }) {
+  const { t } = useTranslation();
   const s = STATUSES.find(x => x.key === status) || STATUSES[0];
-  return <Badge className={`${s.color} border-0 text-xs`}>{s.label}</Badge>;
+  return <Badge className={`${s.color} border-0 text-xs`}>{t(`adminDevis.status.${s.key}`)}</Badge>;
 }
 
 function fmtMoney(v: string | number | null | undefined, currency = "EUR") {
@@ -60,6 +62,7 @@ function fmtMoney(v: string | number | null | undefined, currency = "EUR") {
 
 export default function AdminDevisPage() {
   const { user } = useWorkspaceUser();
+  const { t } = useTranslation();
   if (user.role !== "super_admin") return <AccessDenied />;
   const { toast } = useToast();
   const [items, setItems] = useState<Devis[]>([]);
@@ -86,9 +89,9 @@ export default function AdminDevisPage() {
       if (orgFilter !== "all") params.set("organisationId", orgFilter);
       const res = await fetch(`${BASE}/api/devis?${params}`, { credentials: "include" });
       if (res.ok) { const d = await res.json(); setItems(d.devis || []); setTotal(d.total || 0); }
-    } catch { toast({ title: "Erreur", description: "Chargement échoué.", variant: "destructive" }); }
+    } catch { toast({ title: t("adminDevis.toast.error"), description: t("adminDevis.toast.loadFailed"), variant: "destructive" }); }
     finally { setLoading(false); }
-  }, [page, search, statusFilter, orgFilter, toast]);
+  }, [page, search, statusFilter, orgFilter, toast, t]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => { setPage(0); }, [search, statusFilter, orgFilter]);
@@ -114,9 +117,9 @@ export default function AdminDevisPage() {
   };
 
   const handleSave = async () => {
-    if (!form.title.trim()) { toast({ title: "Titre requis", variant: "destructive" }); return; }
-    if (!form.clientName.trim()) { toast({ title: "Client requis", variant: "destructive" }); return; }
-    if (!editingId && !form.organisationId) { toast({ title: "Organisation cible requise", variant: "destructive" }); return; }
+    if (!form.title.trim()) { toast({ title: t("adminDevis.toast.titleRequired"), variant: "destructive" }); return; }
+    if (!form.clientName.trim()) { toast({ title: t("adminDevis.toast.clientRequired"), variant: "destructive" }); return; }
+    if (!editingId && !form.organisationId) { toast({ title: t("adminDevis.toast.orgRequired"), variant: "destructive" }); return; }
     setSaving(true);
     try {
       const url = editingId ? `${BASE}/api/devis/${editingId}` : `${BASE}/api/devis`;
@@ -128,32 +131,32 @@ export default function AdminDevisPage() {
       if (orgIdStr) payload.organisationId = Number(orgIdStr);
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(payload) });
       if (res.ok) {
-        toast({ title: editingId ? "Devis mis à jour" : "Devis créé" });
+        toast({ title: editingId ? t("adminDevis.toast.updated") : t("adminDevis.toast.created") });
         setDialogOpen(false); load();
-      } else { const d = await res.json(); toast({ title: "Erreur", description: d.error, variant: "destructive" }); }
-    } catch { toast({ title: "Erreur", description: "Sauvegarde échouée.", variant: "destructive" }); }
+      } else { const d = await res.json(); toast({ title: t("adminDevis.toast.error"), description: d.error, variant: "destructive" }); }
+    } catch { toast({ title: t("adminDevis.toast.error"), description: t("adminDevis.toast.saveFailed"), variant: "destructive" }); }
     finally { setSaving(false); }
   };
 
   const handleConvert = async (d: Devis) => {
-    if (!(await confirmAction({ title: `Convertir « ${d.title} » en facture ?`, description: "Une facture reprenant les lignes et montants du devis sera créée (échéance 30 jours).", confirmLabel: "Créer la facture" }))) return;
+    if (!(await confirmAction({ title: t("adminDevis.toast.convertConfirmTitle", { title: d.title }), description: t("adminDevis.toast.convertConfirmDesc"), confirmLabel: t("adminDevis.toast.convertConfirmLabel") }))) return;
     setConvertingId(d.id);
     try {
       const res = await fetch(`${BASE}/api/devis/${d.id}/convert-to-facture`, { method: "POST", credentials: "include" });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: data.alreadyConverted ? "Devis déjà converti" : "Facture créée", description: `Référence ${data.facture?.reference ?? ""}` });
+        toast({ title: data.alreadyConverted ? t("adminDevis.toast.alreadyConverted") : t("adminDevis.toast.factureCreated"), description: t("adminDevis.toast.factureRef", { reference: data.facture?.reference ?? "" }) });
         load();
-      } else { toast({ title: "Erreur", description: data.error, variant: "destructive" }); }
-    } catch { toast({ title: "Erreur", description: "Conversion échouée.", variant: "destructive" }); }
+      } else { toast({ title: t("adminDevis.toast.error"), description: data.error, variant: "destructive" }); }
+    } catch { toast({ title: t("adminDevis.toast.error"), description: t("adminDevis.toast.conversionFailed"), variant: "destructive" }); }
     finally { setConvertingId(null); }
   };
 
   const handleDelete = async (id: number) => {
-    if (!(await confirmAction({ title: "Supprimer ce devis ?", confirmLabel: "Supprimer", destructive: true }))) return;
+    if (!(await confirmAction({ title: t("adminDevis.toast.deleteConfirmTitle"), confirmLabel: t("adminDevis.toast.deleteConfirmLabel"), destructive: true }))) return;
     const res = await fetch(`${BASE}/api/devis/${id}`, { method: "DELETE", credentials: "include" });
-    if (res.ok) { toast({ title: "Devis supprimé" }); load(); }
-    else toast({ title: "Erreur", variant: "destructive" });
+    if (res.ok) { toast({ title: t("adminDevis.toast.deleted") }); load(); }
+    else toast({ title: t("adminDevis.toast.error"), variant: "destructive" });
   };
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -163,32 +166,32 @@ export default function AdminDevisPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
-            <FileText className="w-6 h-6 text-primary" /> Devis kurumsal
+            <FileText className="w-6 h-6 text-primary" /> {t("adminDevis.title")}
             <Badge variant="outline" className="text-red-700 border-red-300 bg-red-50 dark:bg-red-950/30">
-              <Shield className="w-3 h-3 mr-1" /> Super-admin
+              <Shield className="w-3 h-3 mr-1" /> {t("adminDevis.superAdmin")}
             </Badge>
           </h1>
-          <p className="text-muted-foreground text-sm">Vue globale SaaS — propositions commerciales B2B toutes organisations confondues.</p>
+          <p className="text-muted-foreground text-sm">{t("adminDevis.subtitle")}</p>
         </div>
-        <Button onClick={openCreate} className="gap-2"><Plus className="w-4 h-4" /> Nouveau devis</Button>
+        <Button onClick={openCreate} className="gap-2"><Plus className="w-4 h-4" /> {t("adminDevis.new")}</Button>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Rechercher (titre, référence, client)..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder={t("adminDevis.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="Statut" /></SelectTrigger>
+          <SelectTrigger className="w-44"><SelectValue placeholder={t("adminDevis.statusPlaceholder")} /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Tous statuts</SelectItem>
-            {STATUSES.map(s => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}
+            <SelectItem value="all">{t("adminDevis.allStatuses")}</SelectItem>
+            {STATUSES.map(s => <SelectItem key={s.key} value={s.key}>{t(`adminDevis.status.${s.key}`)}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={orgFilter} onValueChange={setOrgFilter}>
-          <SelectTrigger className="w-56" data-testid="devis-org-filter"><SelectValue placeholder="Organisation" /></SelectTrigger>
+          <SelectTrigger className="w-56" data-testid="devis-org-filter"><SelectValue placeholder={t("adminDevis.orgPlaceholder")} /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Toutes les organisations</SelectItem>
+            <SelectItem value="all">{t("adminDevis.allOrgs")}</SelectItem>
             {orgs.map(o => <SelectItem key={o.id} value={String(o.id)}>{o.name}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -201,7 +204,7 @@ export default function AdminDevisPage() {
         <Card>
           <div className="divide-y">
             {items.length === 0 ? (
-              <p className="text-center text-muted-foreground py-12" data-testid="no-results-devis">Aucun devis ne correspond à vos filtres.</p>
+              <p className="text-center text-muted-foreground py-12" data-testid="no-results-devis">{t("adminDevis.empty")}</p>
             ) : items.map(d => (
               <div key={d.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20">
                 <div className="flex-1 min-w-0">
@@ -217,8 +220,8 @@ export default function AdminDevisPage() {
                 </Badge>
                 <StatusBadge status={d.status} />
                 <span className="text-sm font-bold text-emerald-600 hidden md:block w-24 text-right">{fmtMoney(d.totalAmount, d.currency)}</span>
-                <Button variant="ghost" size="sm" className="h-7 text-xs text-blue-600" onClick={() => handleConvert(d)} disabled={convertingId === d.id} title="Convertir en facture">
-                  {convertingId === d.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <><ArrowRight className="w-3 h-3 mr-1" />Facturer</>}
+                <Button variant="ghost" size="sm" className="h-7 text-xs text-blue-600" onClick={() => handleConvert(d)} disabled={convertingId === d.id} title={t("adminDevis.convertTitle")}>
+                  {convertingId === d.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <><ArrowRight className="w-3 h-3 mr-1" />{t("adminDevis.invoice")}</>}
                 </Button>
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(d)}><Edit className="w-3 h-3" /></Button>
                 <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => handleDelete(d.id)}><Trash2 className="w-3 h-3" /></Button>
@@ -227,10 +230,10 @@ export default function AdminDevisPage() {
           </div>
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3 border-t">
-              <p className="text-sm text-muted-foreground">{total} devis</p>
+              <p className="text-sm text-muted-foreground">{t("adminDevis.count", { count: total })}</p>
               <div className="flex gap-1">
-                <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Précédent</Button>
-                <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Suivant</Button>
+                <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>{t("adminDevis.prev")}</Button>
+                <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>{t("adminDevis.next")}</Button>
               </div>
             </div>
           )}
@@ -240,51 +243,51 @@ export default function AdminDevisPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingId ? "Modifier le devis" : "Nouveau devis"}</DialogTitle>
+            <DialogTitle>{editingId ? t("adminDevis.dialog.editTitle") : t("adminDevis.dialog.createTitle")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <Label className="text-xs">Organisation cible {editingId ? "" : "*"}</Label>
+              <Label className="text-xs">{t("adminDevis.form.targetOrg")} {editingId ? "" : "*"}</Label>
               <Select
                 value={form.organisationId}
                 onValueChange={v => setForm(f => ({ ...f, organisationId: v }))}
                 disabled={editingId !== null}
               >
-                <SelectTrigger data-testid="devis-form-org"><SelectValue placeholder="Choisir une organisation" /></SelectTrigger>
+                <SelectTrigger data-testid="devis-form-org"><SelectValue placeholder={t("adminDevis.form.chooseOrg")} /></SelectTrigger>
                 <SelectContent>
                   {orgs.map(o => <SelectItem key={o.id} value={String(o.id)}>{o.name}</SelectItem>)}
                 </SelectContent>
               </Select>
               <p className="text-[11px] text-muted-foreground mt-1">
                 {editingId
-                  ? "L'organisation propriétaire ne peut pas être réassignée depuis cette fiche."
-                  : "Le devis sera rattaché à cette organisation."}
+                  ? t("adminDevis.form.orgHelpEdit")
+                  : t("adminDevis.form.orgHelpCreate")}
               </p>
             </div>
-            <div><Label className="text-xs">Titre *</Label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
+            <div><Label className="text-xs">{t("adminDevis.form.title")} *</Label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">Référence</Label><Input value={form.reference} onChange={e => setForm(f => ({ ...f, reference: e.target.value }))} placeholder="DEV-..." /></div>
-              <div><Label className="text-xs">Statut</Label>
+              <div><Label className="text-xs">{t("adminDevis.form.reference")}</Label><Input value={form.reference} onChange={e => setForm(f => ({ ...f, reference: e.target.value }))} placeholder="DEV-..." /></div>
+              <div><Label className="text-xs">{t("adminDevis.form.status")}</Label>
                 <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{STATUSES.map(s => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}</SelectContent>
+                  <SelectContent>{STATUSES.map(s => <SelectItem key={s.key} value={s.key}>{t(`adminDevis.status.${s.key}`)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">Client *</Label><Input value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} /></div>
-              <div><Label className="text-xs">Société</Label><Input value={form.clientCompany} onChange={e => setForm(f => ({ ...f, clientCompany: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("adminDevis.form.client")} *</Label><Input value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("adminDevis.form.company")}</Label><Input value={form.clientCompany} onChange={e => setForm(f => ({ ...f, clientCompany: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">Email</Label><Input type="email" value={form.clientEmail} onChange={e => setForm(f => ({ ...f, clientEmail: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("adminDevis.form.email")}</Label><Input type="email" value={form.clientEmail} onChange={e => setForm(f => ({ ...f, clientEmail: e.target.value }))} /></div>
             </div>
             <LineItemsEditor items={form.items} onChange={(items) => setForm(f => ({ ...f, items }))} currency={form.currency} />
-            <div><Label className="text-xs">Valable jusqu'au</Label><Input type="date" value={form.validUntil} onChange={e => setForm(f => ({ ...f, validUntil: e.target.value }))} /></div>
-            <div><Label className="text-xs">Notes</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} /></div>
+            <div><Label className="text-xs">{t("adminDevis.form.validUntil")}</Label><Input type="date" value={form.validUntil} onChange={e => setForm(f => ({ ...f, validUntil: e.target.value }))} /></div>
+            <div><Label className="text-xs">{t("adminDevis.form.notes")}</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Annuler</Button>
-            <Button onClick={handleSave} disabled={saving}>{saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}{editingId ? "Mettre à jour" : "Créer"}</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.cancel")}</Button>
+            <Button onClick={handleSave} disabled={saving}>{saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}{editingId ? t("adminDevis.form.update") : t("adminDevis.form.create")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

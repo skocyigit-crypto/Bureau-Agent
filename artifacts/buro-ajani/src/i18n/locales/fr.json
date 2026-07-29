@@ -5411,5 +5411,363 @@
       "actionFailed": "Echec de l'action",
       "error": "Erreur"
     }
+  },
+  "adminBackoffice": {
+    "title": "Backoffice SaaS",
+    "superAdmin": "Super-admin",
+    "subtitle": "Gestion commerciale d'Ajant Bureau — séparée de l'application client.",
+    "refactorTitle": "Refactor en cours",
+    "refactorP1": "Les modules Prospects, Devis, Stock et Factures B2B ont été retirés de l'application client. Ils sont désormais accessibles uniquement via ce panneau, à toi (super-admin).",
+    "refactorP2": "Statut actuel : Prospects, Devis kurumsal et Factures B2B sont branchés avec une vue globale (toutes organisations) et un sélecteur d'organisation. Le reste arrivera dans les tâches de suivi (stock de licences, 2FA forcée, IP whitelist).",
+    "open": "Ouvrir",
+    "status": {
+      "actif": "Actif",
+      "aVenir": "À venir"
+    },
+    "modules": {
+      "dashboard": {
+        "label": "Tableau de bord SaaS",
+        "description": "MRR, churn, conversion d'essai sur 12 mois"
+      },
+      "prospects": {
+        "label": "Prospects",
+        "description": "Pipeline commercial — leads issus du site vitrine et du démarchage"
+      },
+      "devis": {
+        "label": "Devis kurumsal",
+        "description": "Propositions commerciales B2B — vue globale toutes organisations"
+      },
+      "facturesB2b": {
+        "label": "Factures B2B",
+        "description": "Factures émises — vue globale toutes organisations"
+      },
+      "facturesClient": {
+        "label": "Factures client",
+        "description": "Factures émises aux clients + relances — vue globale toutes organisations"
+      },
+      "audit": {
+        "label": "Journal d'audit global",
+        "description": "Activité de toutes les organisations, filtrable par organisation — export CSV"
+      },
+      "stock": {
+        "label": "Stock de licences",
+        "description": "Inventaire des packs de licences vendus / disponibles (à venir)"
+      }
+    }
+  },
+  "adminDashboard": {
+    "back": "Backoffice SaaS",
+    "title": "Tableau de bord SaaS",
+    "superAdmin": "Super-admin",
+    "subtitle": "MRR, churn, conversion d'essai — vue à 12 mois sur l'ensemble des organisations.",
+    "refresh": "Actualiser",
+    "loading": "Chargement…",
+    "noData": "Aucune donnée disponible pour le moment.",
+    "generatedAt": "Données générées le {{date}}.",
+    "toast": {
+      "loadError": "Impossible de charger le tableau de bord",
+      "unknownError": "Erreur inconnue"
+    },
+    "metrics": {
+      "mrr": "MRR",
+      "arrHint": "ARR estimé {{value}}",
+      "activeCustomers": "Clients payants",
+      "trialingHint": "{{count}} essai(s) en cours",
+      "churn": "Churn (30 j)",
+      "churnHint": "{{count}} annulation(s)",
+      "conversion": "Conversion essai → payant",
+      "conversionHint": "{{converted}}/{{started}} sur 90 j"
+    },
+    "charts": {
+      "mrrTitle": "Évolution du MRR (12 mois)",
+      "mrrDesc": "Somme des prix mensuels des abonnements payants actifs en fin de mois.",
+      "activeTitle": "Clients payants actifs",
+      "activeDesc": "Nombre d'abonnements payants actifs à la fin de chaque mois.",
+      "churnTitle": "Churn mensuel",
+      "churnDesc": "Annulations du mois ÷ clients actifs au début du mois.",
+      "conversionTitle": "Conversion essai → payant",
+      "conversionDesc": "Essais démarrés dans le mois qui sont aujourd'hui en plan payant actif."
+    },
+    "planTable": {
+      "title": "Répartition par plan",
+      "desc": "Clients payants actifs et MRR par plan d'abonnement.",
+      "plan": "Plan",
+      "clients": "Clients",
+      "mrr": "MRR",
+      "share": "Part du MRR"
+    }
+  },
+  "adminDevis": {
+    "title": "Devis kurumsal",
+    "superAdmin": "Super-admin",
+    "subtitle": "Vue globale SaaS — propositions commerciales B2B toutes organisations confondues.",
+    "new": "Nouveau devis",
+    "searchPlaceholder": "Rechercher (titre, référence, client)...",
+    "statusPlaceholder": "Statut",
+    "allStatuses": "Tous statuts",
+    "orgPlaceholder": "Organisation",
+    "allOrgs": "Toutes les organisations",
+    "empty": "Aucun devis ne correspond à vos filtres.",
+    "convertTitle": "Convertir en facture",
+    "invoice": "Facturer",
+    "count": "{{count}} devis",
+    "prev": "Précédent",
+    "next": "Suivant",
+    "status": {
+      "brouillon": "Brouillon",
+      "envoye": "Envoyé",
+      "accepte": "Accepté",
+      "refuse": "Refusé",
+      "expire": "Expiré"
+    },
+    "dialog": {
+      "editTitle": "Modifier le devis",
+      "createTitle": "Nouveau devis"
+    },
+    "form": {
+      "targetOrg": "Organisation cible",
+      "chooseOrg": "Choisir une organisation",
+      "orgHelpEdit": "L'organisation propriétaire ne peut pas être réassignée depuis cette fiche.",
+      "orgHelpCreate": "Le devis sera rattaché à cette organisation.",
+      "title": "Titre",
+      "reference": "Référence",
+      "status": "Statut",
+      "client": "Client",
+      "company": "Société",
+      "email": "Email",
+      "validUntil": "Valable jusqu'au",
+      "notes": "Notes",
+      "update": "Mettre à jour",
+      "create": "Créer"
+    },
+    "toast": {
+      "error": "Erreur",
+      "loadFailed": "Chargement échoué.",
+      "titleRequired": "Titre requis",
+      "clientRequired": "Client requis",
+      "orgRequired": "Organisation cible requise",
+      "updated": "Devis mis à jour",
+      "created": "Devis créé",
+      "saveFailed": "Sauvegarde échouée.",
+      "convertConfirmTitle": "Convertir « {{title}} » en facture ?",
+      "convertConfirmDesc": "Une facture reprenant les lignes et montants du devis sera créée (échéance 30 jours).",
+      "convertConfirmLabel": "Créer la facture",
+      "alreadyConverted": "Devis déjà converti",
+      "factureCreated": "Facture créée",
+      "factureRef": "Référence {{reference}}",
+      "conversionFailed": "Conversion échouée.",
+      "deleteConfirmTitle": "Supprimer ce devis ?",
+      "deleteConfirmLabel": "Supprimer",
+      "deleted": "Devis supprimé"
+    }
+  },
+  "adminAudit": {
+    "accessTitle": "Accès réservé",
+    "accessMessage": "Le journal d'audit global (toutes organisations) est réservé au super-administrateur.",
+    "title": "Journal d'audit global",
+    "superAdmin": "Super-admin",
+    "subtitle": "Vue globale — activité de toutes les organisations, filtrable par organisation.",
+    "exportCsv": "Exporter CSV",
+    "searchPlaceholder": "Filtrer par email utilisateur...",
+    "orgPlaceholder": "Organisation",
+    "allOrgs": "Toutes les organisations",
+    "empty": "Aucun événement ne correspond à vos filtres.",
+    "system": "système",
+    "count": "{{count}} événements",
+    "prev": "Précédent",
+    "next": "Suivant",
+    "stats": {
+      "today": "Événements aujourd'hui (toutes organisations)",
+      "topActions": "Actions les plus fréquentes",
+      "topUsers": "Utilisateurs les plus actifs"
+    },
+    "toast": {
+      "error": "Erreur",
+      "loadError": "Impossible de charger le journal d'audit.",
+      "loadFailed": "Chargement échoué."
+    }
+  },
+  "adminFacturesB2b": {
+    "title": "Factures B2B",
+    "superAdmin": "Super-admin",
+    "subtitle": "Vue globale SaaS — factures émises toutes organisations confondues.",
+    "new": "Nouvelle facture",
+    "searchPlaceholder": "Rechercher (titre, référence, client)...",
+    "statusPlaceholder": "Statut",
+    "allStatuses": "Tous statuts",
+    "orgPlaceholder": "Organisation",
+    "allOrgs": "Toutes les organisations",
+    "empty": "Aucune facture ne correspond à vos filtres.",
+    "reminders": "{{count}} relance(s)",
+    "reminderTitleHas": "Envoyer une relance",
+    "reminderTitleNoEmail": "Email client manquant",
+    "count": "{{count}} facture(s)",
+    "prev": "Précédent",
+    "next": "Suivant",
+    "status": {
+      "brouillon": "Brouillon",
+      "envoyee": "Envoyée",
+      "payee": "Payée",
+      "partiellement_payee": "Partielle",
+      "en_retard": "En retard",
+      "annulee": "Annulée"
+    },
+    "dialog": {
+      "editTitle": "Modifier la facture",
+      "createTitle": "Nouvelle facture"
+    },
+    "form": {
+      "targetOrg": "Organisation cible",
+      "chooseOrg": "Choisir une organisation",
+      "orgHelpEdit": "L'organisation propriétaire ne peut pas être réassignée depuis cette fiche.",
+      "orgHelpCreate": "La facture sera rattachée à cette organisation.",
+      "title": "Titre",
+      "reference": "Référence",
+      "status": "Statut",
+      "client": "Client",
+      "company": "Société",
+      "email": "Email",
+      "dueDate": "Échéance",
+      "totalAmount": "Montant total",
+      "paidAmount": "Montant payé",
+      "notes": "Notes",
+      "update": "Mettre à jour",
+      "create": "Créer"
+    },
+    "toast": {
+      "error": "Erreur",
+      "loadFailed": "Chargement échoué.",
+      "titleRequired": "Titre requis",
+      "clientRequired": "Client requis",
+      "orgRequired": "Organisation cible requise",
+      "updated": "Facture mise à jour",
+      "created": "Facture créée",
+      "saveFailed": "Sauvegarde échouée.",
+      "emailMissingTitle": "Email manquant",
+      "emailMissingDesc": "Renseignez l'email du client avant d'envoyer une relance.",
+      "relanceConfirmMulti": "Une relance a déjà été envoyée {{count}} fois. Envoyer une nouvelle relance à {{email}} ?",
+      "relanceConfirmFirst": "Envoyer un rappel poli à {{email}} ?",
+      "relanceConfirmTitle": "Relancer cette facture ?",
+      "relanceConfirmLabel": "Envoyer la relance",
+      "relanceSent": "Relance envoyée",
+      "relanceSentDesc": "Rappel envoyé à {{email}}.",
+      "relanceFailed": "Envoi échoué.",
+      "deleteConfirmTitle": "Supprimer cette facture ?",
+      "deleteConfirmLabel": "Supprimer",
+      "deleted": "Facture supprimée"
+    }
+  },
+  "adminFacturesClient": {
+    "title": "Factures client",
+    "superAdmin": "Super-admin",
+    "subtitle": "Vue globale SaaS — factures émises aux clients, toutes organisations confondues.",
+    "new": "Nouvelle facture",
+    "searchPlaceholder": "Rechercher (titre, référence, client)...",
+    "statusPlaceholder": "Statut",
+    "allStatuses": "Tous statuts",
+    "orgPlaceholder": "Organisation",
+    "allOrgs": "Toutes les organisations",
+    "empty": "Aucune facture ne correspond à vos filtres.",
+    "dueLabel": "échéance {{date}}",
+    "reminders": "{{count}} relance(s)",
+    "reminderTitle": "Envoyer une relance",
+    "count": "{{count}} facture(s)",
+    "prev": "Précédent",
+    "next": "Suivant",
+    "status": {
+      "brouillon": "Brouillon",
+      "envoyee": "Envoyée",
+      "payee": "Payée",
+      "partiellement_payee": "Partiellement payée",
+      "en_retard": "En retard",
+      "annulee": "Annulée"
+    },
+    "dialog": {
+      "editTitle": "Modifier la facture",
+      "createTitle": "Nouvelle facture"
+    },
+    "form": {
+      "targetOrg": "Organisation cible",
+      "chooseOrg": "Choisir une organisation",
+      "orgHelpEdit": "L'organisation propriétaire ne peut pas être réassignée depuis cette fiche.",
+      "orgHelpCreate": "La facture sera rattachée à cette organisation.",
+      "title": "Titre",
+      "reference": "Référence",
+      "status": "Statut",
+      "client": "Client",
+      "company": "Société",
+      "email": "Email",
+      "paymentMethod": "Mode de paiement",
+      "paymentPlaceholder": "Virement, CB...",
+      "paidAmount": "Montant payé",
+      "autoliq": "Autoliquidation TVA (BTP)",
+      "dueDate": "Échéance",
+      "notes": "Notes",
+      "update": "Mettre à jour",
+      "create": "Créer"
+    },
+    "toast": {
+      "error": "Erreur",
+      "loadFailed": "Chargement échoué.",
+      "titleRequired": "Titre requis",
+      "clientRequired": "Client requis",
+      "orgRequired": "Organisation cible requise",
+      "updated": "Facture mise à jour",
+      "created": "Facture créée",
+      "saveFailed": "Sauvegarde échouée.",
+      "deleteConfirmTitle": "Supprimer cette facture ?",
+      "deleteConfirmLabel": "Supprimer",
+      "deleted": "Facture supprimée",
+      "remindConfirmTitle": "Envoyer une relance ?",
+      "remindConfirmDesc": "Un email de relance sera envoyé à {{email}} pour la facture {{reference}}.",
+      "remindConfirmLabel": "Envoyer la relance",
+      "relanceSent": "Relance envoyée",
+      "relanceSentDesc": "Rappel n°{{count}} envoyé.",
+      "relanceImpossible": "Relance impossible",
+      "relanceFailed": "Envoi de la relance échoué."
+    }
+  },
+  "santeTechnique": {
+    "title": "Santé technique",
+    "subtitle": "Chaque agent contrôle son propre domaine : base de données, services externes, configuration, tâches planifiées, erreurs, ressources. Vérification automatique toutes les 15 minutes.",
+    "verifying": "Vérification…",
+    "verifyNow": "Vérifier maintenant",
+    "status": {
+      "ok": "OK",
+      "degrade": "Dégradé",
+      "echec": "En panne",
+      "inconnu": "Inconnu"
+    },
+    "banner": {
+      "allGreen": "Tous les contrôles sont au vert.",
+      "attention": "Des points d'attention sont détectés.",
+      "down": "Une ou plusieurs pannes sont en cours."
+    },
+    "summary": "{{ok}} OK · {{degrade}} dégradé(s) · {{echec}} en panne",
+    "lastCheck": "dernière vérification à {{time}}",
+    "emptyTitle": "Aucune vérification enregistrée",
+    "emptyDesc": "Lancez une vérification, ou attendez le prochain cycle automatique.",
+    "toast": {
+      "runOkTitle": "Tout est sain",
+      "runAnomTitle": "Anomalies détectées",
+      "runDesc": "{{ok}} OK · {{degraded}} dégradé(s) · {{failed}} en panne, sur {{total}} vérifications.",
+      "runErrorTitle": "Échec"
+    }
+  },
+  "rapportExecutif": {
+    "title": "Rapport Exécutif",
+    "subtitle": "Vue synthétique de votre activité",
+    "createProject": "Créer un projet",
+    "print": "Imprimer",
+    "projectTitle": "Projet exécutif",
+    "projectNotes": "Créé depuis le rapport exécutif",
+    "toast": {
+      "created": "Projet créé",
+      "createError": "Erreur lors de la création"
+    }
+  },
+  "notFound": {
+    "title": "Page introuvable",
+    "description": "Cette page n'existe pas ou plus. Vérifiez l'adresse ou retournez à l'accueil."
   }
 }

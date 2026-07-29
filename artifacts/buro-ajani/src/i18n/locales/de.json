@@ -5411,5 +5411,363 @@
       "actionFailed": "Aktion fehlgeschlagen",
       "error": "Fehler"
     }
+  },
+  "adminBackoffice": {
+    "title": "SaaS-Backoffice",
+    "superAdmin": "Super-Admin",
+    "subtitle": "Kaufmännische Verwaltung von Ajant Bureau — getrennt von der Kundenanwendung.",
+    "refactorTitle": "Refactoring läuft",
+    "refactorP1": "Die Module Interessenten, Angebote, Bestand und B2B-Rechnungen wurden aus der Kundenanwendung entfernt. Sie sind jetzt nur noch über dieses Panel für dich (Super-Admin) zugänglich.",
+    "refactorP2": "Aktueller Status: Interessenten, Firmenangebote und B2B-Rechnungen sind mit einer globalen Ansicht (alle Organisationen) und einer Organisationsauswahl angebunden. Der Rest folgt in Folgeaufgaben (Lizenzbestand, erzwungene 2FA, IP-Whitelist).",
+    "open": "Öffnen",
+    "status": {
+      "actif": "Aktiv",
+      "aVenir": "Demnächst"
+    },
+    "modules": {
+      "dashboard": {
+        "label": "SaaS-Dashboard",
+        "description": "MRR, Churn, Testkonvertierung über 12 Monate"
+      },
+      "prospects": {
+        "label": "Interessenten",
+        "description": "Vertriebs-Pipeline — Leads von der Präsentationsseite und Akquise"
+      },
+      "devis": {
+        "label": "Firmenangebote",
+        "description": "B2B-Verkaufsangebote — globale Ansicht aller Organisationen"
+      },
+      "facturesB2b": {
+        "label": "B2B-Rechnungen",
+        "description": "Ausgestellte Rechnungen — globale Ansicht aller Organisationen"
+      },
+      "facturesClient": {
+        "label": "Kundenrechnungen",
+        "description": "An Kunden ausgestellte Rechnungen + Mahnungen — globale Ansicht aller Organisationen"
+      },
+      "audit": {
+        "label": "Globales Audit-Protokoll",
+        "description": "Aktivität aller Organisationen, nach Organisation filterbar — CSV-Export"
+      },
+      "stock": {
+        "label": "Lizenzbestand",
+        "description": "Inventar verkaufter / verfügbarer Lizenzpakete (demnächst)"
+      }
+    }
+  },
+  "adminDashboard": {
+    "back": "SaaS-Backoffice",
+    "title": "SaaS-Dashboard",
+    "superAdmin": "Super-Admin",
+    "subtitle": "MRR, Churn, Testkonvertierung — 12-Monats-Ansicht über alle Organisationen.",
+    "refresh": "Aktualisieren",
+    "loading": "Wird geladen…",
+    "noData": "Derzeit keine Daten verfügbar.",
+    "generatedAt": "Daten erzeugt am {{date}}.",
+    "toast": {
+      "loadError": "Dashboard konnte nicht geladen werden",
+      "unknownError": "Unbekannter Fehler"
+    },
+    "metrics": {
+      "mrr": "MRR",
+      "arrHint": "Geschätzter ARR {{value}}",
+      "activeCustomers": "Zahlende Kunden",
+      "trialingHint": "{{count}} Test(s) laufend",
+      "churn": "Churn (30 T)",
+      "churnHint": "{{count}} Kündigung(en)",
+      "conversion": "Test → Bezahlt Konversion",
+      "conversionHint": "{{converted}}/{{started}} über 90 T"
+    },
+    "charts": {
+      "mrrTitle": "MRR-Entwicklung (12 Monate)",
+      "mrrDesc": "Summe der monatlichen Preise aktiver bezahlter Abonnements am Monatsende.",
+      "activeTitle": "Aktive zahlende Kunden",
+      "activeDesc": "Anzahl aktiver bezahlter Abonnements am Ende jedes Monats.",
+      "churnTitle": "Monatlicher Churn",
+      "churnDesc": "Kündigungen des Monats ÷ aktive Kunden zu Monatsbeginn.",
+      "conversionTitle": "Test → Bezahlt Konversion",
+      "conversionDesc": "Im Monat gestartete Tests, die heute in einem aktiven bezahlten Plan sind."
+    },
+    "planTable": {
+      "title": "Aufschlüsselung nach Plan",
+      "desc": "Aktive zahlende Kunden und MRR nach Abonnementplan.",
+      "plan": "Plan",
+      "clients": "Kunden",
+      "mrr": "MRR",
+      "share": "MRR-Anteil"
+    }
+  },
+  "adminDevis": {
+    "title": "Firmenangebote",
+    "superAdmin": "Super-Admin",
+    "subtitle": "Globale SaaS-Ansicht — B2B-Verkaufsangebote über alle Organisationen.",
+    "new": "Neues Angebot",
+    "searchPlaceholder": "Suchen (Titel, Referenz, Kunde)...",
+    "statusPlaceholder": "Status",
+    "allStatuses": "Alle Status",
+    "orgPlaceholder": "Organisation",
+    "allOrgs": "Alle Organisationen",
+    "empty": "Kein Angebot entspricht Ihren Filtern.",
+    "convertTitle": "In Rechnung umwandeln",
+    "invoice": "Abrechnen",
+    "count": "{{count}} Angebote",
+    "prev": "Zurück",
+    "next": "Weiter",
+    "status": {
+      "brouillon": "Entwurf",
+      "envoye": "Gesendet",
+      "accepte": "Angenommen",
+      "refuse": "Abgelehnt",
+      "expire": "Abgelaufen"
+    },
+    "dialog": {
+      "editTitle": "Angebot bearbeiten",
+      "createTitle": "Neues Angebot"
+    },
+    "form": {
+      "targetOrg": "Zielorganisation",
+      "chooseOrg": "Eine Organisation wählen",
+      "orgHelpEdit": "Die Eigentümerorganisation kann aus diesem Datensatz nicht neu zugewiesen werden.",
+      "orgHelpCreate": "Das Angebot wird dieser Organisation zugeordnet.",
+      "title": "Titel",
+      "reference": "Referenz",
+      "status": "Status",
+      "client": "Kunde",
+      "company": "Firma",
+      "email": "E-Mail",
+      "validUntil": "Gültig bis",
+      "notes": "Notizen",
+      "update": "Aktualisieren",
+      "create": "Erstellen"
+    },
+    "toast": {
+      "error": "Fehler",
+      "loadFailed": "Laden fehlgeschlagen.",
+      "titleRequired": "Titel erforderlich",
+      "clientRequired": "Kunde erforderlich",
+      "orgRequired": "Zielorganisation erforderlich",
+      "updated": "Angebot aktualisiert",
+      "created": "Angebot erstellt",
+      "saveFailed": "Speichern fehlgeschlagen.",
+      "convertConfirmTitle": "„{{title}}“ in eine Rechnung umwandeln?",
+      "convertConfirmDesc": "Es wird eine Rechnung mit den Positionen und Beträgen des Angebots erstellt (Fälligkeit 30 Tage).",
+      "convertConfirmLabel": "Rechnung erstellen",
+      "alreadyConverted": "Angebot bereits umgewandelt",
+      "factureCreated": "Rechnung erstellt",
+      "factureRef": "Referenz {{reference}}",
+      "conversionFailed": "Umwandlung fehlgeschlagen.",
+      "deleteConfirmTitle": "Dieses Angebot löschen?",
+      "deleteConfirmLabel": "Löschen",
+      "deleted": "Angebot gelöscht"
+    }
+  },
+  "adminAudit": {
+    "accessTitle": "Zugriff eingeschränkt",
+    "accessMessage": "Das globale Audit-Protokoll (alle Organisationen) ist dem Super-Administrator vorbehalten.",
+    "title": "Globales Audit-Protokoll",
+    "superAdmin": "Super-Admin",
+    "subtitle": "Globale Ansicht — Aktivität aller Organisationen, nach Organisation filterbar.",
+    "exportCsv": "CSV exportieren",
+    "searchPlaceholder": "Nach Benutzer-E-Mail filtern...",
+    "orgPlaceholder": "Organisation",
+    "allOrgs": "Alle Organisationen",
+    "empty": "Kein Ereignis entspricht Ihren Filtern.",
+    "system": "System",
+    "count": "{{count}} Ereignisse",
+    "prev": "Zurück",
+    "next": "Weiter",
+    "stats": {
+      "today": "Ereignisse heute (alle Organisationen)",
+      "topActions": "Häufigste Aktionen",
+      "topUsers": "Aktivste Benutzer"
+    },
+    "toast": {
+      "error": "Fehler",
+      "loadError": "Audit-Protokoll konnte nicht geladen werden.",
+      "loadFailed": "Laden fehlgeschlagen."
+    }
+  },
+  "adminFacturesB2b": {
+    "title": "B2B-Rechnungen",
+    "superAdmin": "Super-Admin",
+    "subtitle": "Globale SaaS-Ansicht — ausgestellte Rechnungen über alle Organisationen.",
+    "new": "Neue Rechnung",
+    "searchPlaceholder": "Suchen (Titel, Referenz, Kunde)...",
+    "statusPlaceholder": "Status",
+    "allStatuses": "Alle Status",
+    "orgPlaceholder": "Organisation",
+    "allOrgs": "Alle Organisationen",
+    "empty": "Keine Rechnung entspricht Ihren Filtern.",
+    "reminders": "{{count}} Mahnung(en)",
+    "reminderTitleHas": "Mahnung senden",
+    "reminderTitleNoEmail": "Kunden-E-Mail fehlt",
+    "count": "{{count}} Rechnung(en)",
+    "prev": "Zurück",
+    "next": "Weiter",
+    "status": {
+      "brouillon": "Entwurf",
+      "envoyee": "Gesendet",
+      "payee": "Bezahlt",
+      "partiellement_payee": "Teilweise",
+      "en_retard": "Überfällig",
+      "annulee": "Storniert"
+    },
+    "dialog": {
+      "editTitle": "Rechnung bearbeiten",
+      "createTitle": "Neue Rechnung"
+    },
+    "form": {
+      "targetOrg": "Zielorganisation",
+      "chooseOrg": "Eine Organisation wählen",
+      "orgHelpEdit": "Die Eigentümerorganisation kann aus diesem Datensatz nicht neu zugewiesen werden.",
+      "orgHelpCreate": "Die Rechnung wird dieser Organisation zugeordnet.",
+      "title": "Titel",
+      "reference": "Referenz",
+      "status": "Status",
+      "client": "Kunde",
+      "company": "Firma",
+      "email": "E-Mail",
+      "dueDate": "Fälligkeit",
+      "totalAmount": "Gesamtbetrag",
+      "paidAmount": "Bezahlter Betrag",
+      "notes": "Notizen",
+      "update": "Aktualisieren",
+      "create": "Erstellen"
+    },
+    "toast": {
+      "error": "Fehler",
+      "loadFailed": "Laden fehlgeschlagen.",
+      "titleRequired": "Titel erforderlich",
+      "clientRequired": "Kunde erforderlich",
+      "orgRequired": "Zielorganisation erforderlich",
+      "updated": "Rechnung aktualisiert",
+      "created": "Rechnung erstellt",
+      "saveFailed": "Speichern fehlgeschlagen.",
+      "emailMissingTitle": "E-Mail fehlt",
+      "emailMissingDesc": "Geben Sie die E-Mail des Kunden ein, bevor Sie eine Mahnung senden.",
+      "relanceConfirmMulti": "Es wurde bereits {{count}} Mal gemahnt. Eine neue Mahnung an {{email}} senden?",
+      "relanceConfirmFirst": "Eine höfliche Mahnung an {{email}} senden?",
+      "relanceConfirmTitle": "Für diese Rechnung mahnen?",
+      "relanceConfirmLabel": "Mahnung senden",
+      "relanceSent": "Mahnung gesendet",
+      "relanceSentDesc": "Mahnung an {{email}} gesendet.",
+      "relanceFailed": "Senden fehlgeschlagen.",
+      "deleteConfirmTitle": "Diese Rechnung löschen?",
+      "deleteConfirmLabel": "Löschen",
+      "deleted": "Rechnung gelöscht"
+    }
+  },
+  "adminFacturesClient": {
+    "title": "Kundenrechnungen",
+    "superAdmin": "Super-Admin",
+    "subtitle": "Globale SaaS-Ansicht — an Kunden ausgestellte Rechnungen über alle Organisationen.",
+    "new": "Neue Rechnung",
+    "searchPlaceholder": "Suchen (Titel, Referenz, Kunde)...",
+    "statusPlaceholder": "Status",
+    "allStatuses": "Alle Status",
+    "orgPlaceholder": "Organisation",
+    "allOrgs": "Alle Organisationen",
+    "empty": "Keine Rechnung entspricht Ihren Filtern.",
+    "dueLabel": "Fälligkeit {{date}}",
+    "reminders": "{{count}} Mahnung(en)",
+    "reminderTitle": "Mahnung senden",
+    "count": "{{count}} Rechnung(en)",
+    "prev": "Zurück",
+    "next": "Weiter",
+    "status": {
+      "brouillon": "Entwurf",
+      "envoyee": "Gesendet",
+      "payee": "Bezahlt",
+      "partiellement_payee": "Teilweise bezahlt",
+      "en_retard": "Überfällig",
+      "annulee": "Storniert"
+    },
+    "dialog": {
+      "editTitle": "Rechnung bearbeiten",
+      "createTitle": "Neue Rechnung"
+    },
+    "form": {
+      "targetOrg": "Zielorganisation",
+      "chooseOrg": "Eine Organisation wählen",
+      "orgHelpEdit": "Die Eigentümerorganisation kann aus diesem Datensatz nicht neu zugewiesen werden.",
+      "orgHelpCreate": "Die Rechnung wird dieser Organisation zugeordnet.",
+      "title": "Titel",
+      "reference": "Referenz",
+      "status": "Status",
+      "client": "Kunde",
+      "company": "Firma",
+      "email": "E-Mail",
+      "paymentMethod": "Zahlungsart",
+      "paymentPlaceholder": "Überweisung, Karte...",
+      "paidAmount": "Bezahlter Betrag",
+      "autoliq": "Umkehrung der Steuerschuld MwSt (Bau)",
+      "dueDate": "Fälligkeit",
+      "notes": "Notizen",
+      "update": "Aktualisieren",
+      "create": "Erstellen"
+    },
+    "toast": {
+      "error": "Fehler",
+      "loadFailed": "Laden fehlgeschlagen.",
+      "titleRequired": "Titel erforderlich",
+      "clientRequired": "Kunde erforderlich",
+      "orgRequired": "Zielorganisation erforderlich",
+      "updated": "Rechnung aktualisiert",
+      "created": "Rechnung erstellt",
+      "saveFailed": "Speichern fehlgeschlagen.",
+      "deleteConfirmTitle": "Diese Rechnung löschen?",
+      "deleteConfirmLabel": "Löschen",
+      "deleted": "Rechnung gelöscht",
+      "remindConfirmTitle": "Eine Mahnung senden?",
+      "remindConfirmDesc": "Für die Rechnung {{reference}} wird eine Mahnungs-E-Mail an {{email}} gesendet.",
+      "remindConfirmLabel": "Mahnung senden",
+      "relanceSent": "Mahnung gesendet",
+      "relanceSentDesc": "Mahnung Nr. {{count}} gesendet.",
+      "relanceImpossible": "Mahnung nicht möglich",
+      "relanceFailed": "Mahnungsversand fehlgeschlagen."
+    }
+  },
+  "santeTechnique": {
+    "title": "Technische Gesundheit",
+    "subtitle": "Jeder Agent überwacht seinen eigenen Bereich: Datenbank, externe Dienste, Konfiguration, geplante Aufgaben, Fehler, Ressourcen. Automatische Prüfung alle 15 Minuten.",
+    "verifying": "Prüfung…",
+    "verifyNow": "Jetzt prüfen",
+    "status": {
+      "ok": "OK",
+      "degrade": "Beeinträchtigt",
+      "echec": "Ausgefallen",
+      "inconnu": "Unbekannt"
+    },
+    "banner": {
+      "allGreen": "Alle Prüfungen sind grün.",
+      "attention": "Einige Aufmerksamkeitspunkte wurden erkannt.",
+      "down": "Ein oder mehrere Ausfälle laufen."
+    },
+    "summary": "{{ok}} OK · {{degrade}} beeinträchtigt · {{echec}} ausgefallen",
+    "lastCheck": "letzte Prüfung um {{time}}",
+    "emptyTitle": "Keine Prüfung aufgezeichnet",
+    "emptyDesc": "Starten Sie eine Prüfung oder warten Sie auf den nächsten automatischen Zyklus.",
+    "toast": {
+      "runOkTitle": "Alles gesund",
+      "runAnomTitle": "Anomalien erkannt",
+      "runDesc": "{{ok}} OK · {{degraded}} beeinträchtigt · {{failed}} ausgefallen, von {{total}} Prüfungen.",
+      "runErrorTitle": "Fehlgeschlagen"
+    }
+  },
+  "rapportExecutif": {
+    "title": "Executive-Bericht",
+    "subtitle": "Zusammenfassende Ansicht Ihrer Aktivität",
+    "createProject": "Projekt erstellen",
+    "print": "Drucken",
+    "projectTitle": "Executive-Projekt",
+    "projectNotes": "Aus dem Executive-Bericht erstellt",
+    "toast": {
+      "created": "Projekt erstellt",
+      "createError": "Fehler beim Erstellen"
+    }
+  },
+  "notFound": {
+    "title": "Seite nicht gefunden",
+    "description": "Diese Seite existiert nicht oder nicht mehr. Überprüfen Sie die Adresse oder kehren Sie zur Startseite zurück."
   }
 }

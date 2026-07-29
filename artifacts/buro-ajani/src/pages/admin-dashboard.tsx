@@ -32,6 +32,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AccessDenied } from "@/components/access-denied";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -85,6 +86,7 @@ function formatMonthLabel(iso: string): string {
 
 export default function AdminDashboardPage() {
   const { user } = useWorkspaceUser();
+  const { t } = useTranslation();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [data, setData] = useState<DashboardPayload | null>(null);
@@ -103,8 +105,8 @@ export default function AdminDashboardPage() {
       setData(payload);
     } catch (err: any) {
       toast({
-        title: "Impossible de charger le tableau de bord",
-        description: err?.message || "Erreur inconnue",
+        title: t("adminDashboard.toast.loadError"),
+        description: err?.message || t("adminDashboard.toast.unknownError"),
         variant: "destructive",
       });
     } finally {
@@ -136,21 +138,20 @@ export default function AdminDashboardPage() {
             className="mb-2 -ml-2"
             onClick={() => navigate("/admin")}
           >
-            <ArrowLeft className="w-4 h-4 mr-1" /> Backoffice SaaS
+            <ArrowLeft className="w-4 h-4 mr-1" /> {t("adminDashboard.back")}
           </Button>
           <div className="flex items-center gap-2">
             <Shield className="w-5 h-5 text-red-600" />
-            <h1 className="text-2xl font-semibold">Tableau de bord SaaS</h1>
+            <h1 className="text-2xl font-semibold">{t("adminDashboard.title")}</h1>
             <Badge
               variant="outline"
               className="text-red-700 border-red-300 bg-red-50 dark:bg-red-950/30"
             >
-              Super-admin
+              {t("adminDashboard.superAdmin")}
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            MRR, churn, conversion d'essai — vue à 12 mois sur l'ensemble des
-            organisations.
+            {t("adminDashboard.subtitle")}
           </p>
         </div>
         <Button
@@ -164,18 +165,18 @@ export default function AdminDashboardPage() {
           ) : (
             <RefreshCw className="w-4 h-4 mr-2" />
           )}
-          Actualiser
+          {t("adminDashboard.refresh")}
         </Button>
       </div>
 
       {loading && !data ? (
         <div className="flex items-center justify-center py-20 text-muted-foreground">
-          <Loader2 className="w-5 h-5 mr-2 animate-spin" /> Chargement…
+          <Loader2 className="w-5 h-5 mr-2 animate-spin" /> {t("adminDashboard.loading")}
         </div>
       ) : !m ? (
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            Aucune donnée disponible pour le moment.
+            {t("adminDashboard.noData")}
           </CardContent>
         </Card>
       ) : (
@@ -183,28 +184,28 @@ export default function AdminDashboardPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <MetricCard
               icon={<Euro className="w-5 h-5 text-emerald-600" />}
-              label="MRR"
+              label={t("adminDashboard.metrics.mrr")}
               value={formatEur(m.mrr)}
-              hint={`ARR estimé ${formatEur(m.arr)}`}
+              hint={t("adminDashboard.metrics.arrHint", { value: formatEur(m.arr) })}
               trend={mrrDelta}
             />
             <MetricCard
               icon={<Users className="w-5 h-5 text-blue-600" />}
-              label="Clients payants"
+              label={t("adminDashboard.metrics.activeCustomers")}
               value={String(m.activeCustomers)}
-              hint={`${m.trialingCustomers} essai${m.trialingCustomers > 1 ? "s" : ""} en cours`}
+              hint={t("adminDashboard.metrics.trialingHint", { count: m.trialingCustomers })}
             />
             <MetricCard
               icon={<TrendingDown className="w-5 h-5 text-red-600" />}
-              label="Churn (30 j)"
+              label={t("adminDashboard.metrics.churn")}
               value={formatPct(m.churnRate)}
-              hint={`${m.churnedLast30} annulation${m.churnedLast30 > 1 ? "s" : ""}`}
+              hint={t("adminDashboard.metrics.churnHint", { count: m.churnedLast30 })}
             />
             <MetricCard
               icon={<Sparkles className="w-5 h-5 text-violet-600" />}
-              label="Conversion essai → payant"
+              label={t("adminDashboard.metrics.conversion")}
               value={formatPct(m.conversionRate)}
-              hint={`${m.trialsConverted90}/${m.trialsStarted90} sur 90 j`}
+              hint={t("adminDashboard.metrics.conversionHint", { converted: m.trialsConverted90, started: m.trialsStarted90 })}
             />
           </div>
 
@@ -212,12 +213,10 @@ export default function AdminDashboardPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-emerald-600" /> Évolution
-                  du MRR (12 mois)
+                  <TrendingUp className="w-4 h-4 text-emerald-600" /> {t("adminDashboard.charts.mrrTitle")}
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Somme des prix mensuels des abonnements payants actifs en fin
-                  de mois.
+                  {t("adminDashboard.charts.mrrDesc")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="h-72">
@@ -258,11 +257,10 @@ export default function AdminDashboardPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-blue-600" /> Clients payants
-                  actifs
+                  <Activity className="w-4 h-4 text-blue-600" /> {t("adminDashboard.charts.activeTitle")}
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Nombre d'abonnements payants actifs à la fin de chaque mois.
+                  {t("adminDashboard.charts.activeDesc")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="h-72">
@@ -289,10 +287,10 @@ export default function AdminDashboardPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
-                  <TrendingDown className="w-4 h-4 text-red-600" /> Churn mensuel
+                  <TrendingDown className="w-4 h-4 text-red-600" /> {t("adminDashboard.charts.churnTitle")}
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Annulations du mois ÷ clients actifs au début du mois.
+                  {t("adminDashboard.charts.churnDesc")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="h-72">
@@ -327,12 +325,10 @@ export default function AdminDashboardPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-violet-600" /> Conversion
-                  essai → payant
+                  <Sparkles className="w-4 h-4 text-violet-600" /> {t("adminDashboard.charts.conversionTitle")}
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Essais démarrés dans le mois qui sont aujourd'hui en plan
-                  payant actif.
+                  {t("adminDashboard.charts.conversionDesc")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="h-72">
@@ -369,9 +365,9 @@ export default function AdminDashboardPage() {
           {data && data.planBreakdown.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Répartition par plan</CardTitle>
+                <CardTitle className="text-base">{t("adminDashboard.planTable.title")}</CardTitle>
                 <CardDescription className="text-xs">
-                  Clients payants actifs et MRR par plan d'abonnement.
+                  {t("adminDashboard.planTable.desc")}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -379,10 +375,10 @@ export default function AdminDashboardPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-left text-muted-foreground border-b">
-                        <th className="py-2 pr-4 font-medium">Plan</th>
-                        <th className="py-2 pr-4 font-medium">Clients</th>
-                        <th className="py-2 pr-4 font-medium">MRR</th>
-                        <th className="py-2 pr-4 font-medium">Part du MRR</th>
+                        <th className="py-2 pr-4 font-medium">{t("adminDashboard.planTable.plan")}</th>
+                        <th className="py-2 pr-4 font-medium">{t("adminDashboard.planTable.clients")}</th>
+                        <th className="py-2 pr-4 font-medium">{t("adminDashboard.planTable.mrr")}</th>
+                        <th className="py-2 pr-4 font-medium">{t("adminDashboard.planTable.share")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -406,8 +402,7 @@ export default function AdminDashboardPage() {
 
           {data && (
             <p className="text-xs text-muted-foreground text-right">
-              Données générées le{" "}
-              {new Date(data.generatedAt).toLocaleString("fr-FR")}.
+              {t("adminDashboard.generatedAt", { date: new Date(data.generatedAt).toLocaleString("fr-FR") })}
             </p>
           )}
         </>

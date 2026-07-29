@@ -5411,5 +5411,363 @@
       "actionFailed": "فشل الإجراء",
       "error": "خطأ"
     }
+  },
+  "adminBackoffice": {
+    "title": "الواجهة الخلفية SaaS",
+    "superAdmin": "مشرف عام",
+    "subtitle": "الإدارة التجارية لـ Ajant Bureau — منفصلة عن تطبيق العميل.",
+    "refactorTitle": "إعادة الهيكلة جارية",
+    "refactorP1": "تمت إزالة وحدات العملاء المحتملين والعروض والمخزون وفواتير B2B من تطبيق العميل. أصبحت الآن متاحة فقط عبر هذه اللوحة، لك (المشرف العام).",
+    "refactorP2": "الحالة الحالية: العملاء المحتملون وعروض الأسعار للشركات وفواتير B2B متصلة بعرض شامل (جميع المؤسسات) ومحدد للمؤسسة. سيأتي الباقي في مهام المتابعة (مخزون التراخيص، فرض المصادقة الثنائية 2FA، القائمة البيضاء لعناوين IP).",
+    "open": "فتح",
+    "status": {
+      "actif": "نشط",
+      "aVenir": "قريباً"
+    },
+    "modules": {
+      "dashboard": {
+        "label": "لوحة معلومات SaaS",
+        "description": "MRR والاستنزاف وتحويل التجربة على مدى 12 شهراً"
+      },
+      "prospects": {
+        "label": "العملاء المحتملون",
+        "description": "خط المبيعات — العملاء المحتملون من موقع العرض والتواصل"
+      },
+      "devis": {
+        "label": "عروض الأسعار للشركات",
+        "description": "عروض تجارية B2B — عرض شامل لجميع المؤسسات"
+      },
+      "facturesB2b": {
+        "label": "فواتير B2B",
+        "description": "الفواتير الصادرة — عرض شامل لجميع المؤسسات"
+      },
+      "facturesClient": {
+        "label": "فواتير العملاء",
+        "description": "الفواتير الصادرة للعملاء + التذكيرات — عرض شامل لجميع المؤسسات"
+      },
+      "audit": {
+        "label": "سجل التدقيق الشامل",
+        "description": "نشاط جميع المؤسسات، قابل للتصفية حسب المؤسسة — تصدير CSV"
+      },
+      "stock": {
+        "label": "مخزون التراخيص",
+        "description": "جرد حزم التراخيص المباعة / المتاحة (قريباً)"
+      }
+    }
+  },
+  "adminDashboard": {
+    "back": "الواجهة الخلفية SaaS",
+    "title": "لوحة معلومات SaaS",
+    "superAdmin": "مشرف عام",
+    "subtitle": "MRR والاستنزاف وتحويل التجربة — عرض 12 شهراً لجميع المؤسسات.",
+    "refresh": "تحديث",
+    "loading": "جارٍ التحميل…",
+    "noData": "لا توجد بيانات متاحة حالياً.",
+    "generatedAt": "تم إنشاء البيانات في {{date}}.",
+    "toast": {
+      "loadError": "تعذّر تحميل لوحة المعلومات",
+      "unknownError": "خطأ غير معروف"
+    },
+    "metrics": {
+      "mrr": "MRR",
+      "arrHint": "ARR المقدّر {{value}}",
+      "activeCustomers": "العملاء الدافعون",
+      "trialingHint": "{{count}} تجربة جارية",
+      "churn": "الاستنزاف (30 يوماً)",
+      "churnHint": "{{count}} إلغاء",
+      "conversion": "تحويل التجربة → مدفوع",
+      "conversionHint": "{{converted}}/{{started}} خلال 90 يوماً"
+    },
+    "charts": {
+      "mrrTitle": "تطوّر MRR (12 شهراً)",
+      "mrrDesc": "مجموع الأسعار الشهرية للاشتراكات المدفوعة النشطة في نهاية الشهر.",
+      "activeTitle": "العملاء الدافعون النشطون",
+      "activeDesc": "عدد الاشتراكات المدفوعة النشطة في نهاية كل شهر.",
+      "churnTitle": "الاستنزاف الشهري",
+      "churnDesc": "إلغاءات الشهر ÷ العملاء النشطون في بداية الشهر.",
+      "conversionTitle": "تحويل التجربة → مدفوع",
+      "conversionDesc": "التجارب التي بدأت في الشهر والموجودة اليوم في خطة مدفوعة نشطة."
+    },
+    "planTable": {
+      "title": "التوزيع حسب الخطة",
+      "desc": "العملاء الدافعون النشطون وMRR حسب خطة الاشتراك.",
+      "plan": "الخطة",
+      "clients": "العملاء",
+      "mrr": "MRR",
+      "share": "حصة MRR"
+    }
+  },
+  "adminDevis": {
+    "title": "عروض الأسعار للشركات",
+    "superAdmin": "مشرف عام",
+    "subtitle": "عرض SaaS الشامل — عروض تجارية B2B لجميع المؤسسات.",
+    "new": "عرض سعر جديد",
+    "searchPlaceholder": "بحث (العنوان، المرجع، العميل)...",
+    "statusPlaceholder": "الحالة",
+    "allStatuses": "كل الحالات",
+    "orgPlaceholder": "المؤسسة",
+    "allOrgs": "كل المؤسسات",
+    "empty": "لا يوجد عرض سعر يطابق عوامل التصفية.",
+    "convertTitle": "تحويل إلى فاتورة",
+    "invoice": "فوترة",
+    "count": "{{count}} عرض سعر",
+    "prev": "السابق",
+    "next": "التالي",
+    "status": {
+      "brouillon": "مسودة",
+      "envoye": "مُرسل",
+      "accepte": "مقبول",
+      "refuse": "مرفوض",
+      "expire": "منتهي الصلاحية"
+    },
+    "dialog": {
+      "editTitle": "تعديل عرض السعر",
+      "createTitle": "عرض سعر جديد"
+    },
+    "form": {
+      "targetOrg": "المؤسسة المستهدفة",
+      "chooseOrg": "اختر مؤسسة",
+      "orgHelpEdit": "لا يمكن إعادة تعيين المؤسسة المالكة من هذه البطاقة.",
+      "orgHelpCreate": "سيتم ربط عرض السعر بهذه المؤسسة.",
+      "title": "العنوان",
+      "reference": "المرجع",
+      "status": "الحالة",
+      "client": "العميل",
+      "company": "الشركة",
+      "email": "البريد الإلكتروني",
+      "validUntil": "صالح حتى",
+      "notes": "ملاحظات",
+      "update": "تحديث",
+      "create": "إنشاء"
+    },
+    "toast": {
+      "error": "خطأ",
+      "loadFailed": "فشل التحميل.",
+      "titleRequired": "العنوان مطلوب",
+      "clientRequired": "العميل مطلوب",
+      "orgRequired": "المؤسسة المستهدفة مطلوبة",
+      "updated": "تم تحديث عرض السعر",
+      "created": "تم إنشاء عرض السعر",
+      "saveFailed": "فشل الحفظ.",
+      "convertConfirmTitle": "تحويل «{{title}}» إلى فاتورة؟",
+      "convertConfirmDesc": "سيتم إنشاء فاتورة تتضمن بنود ومبالغ عرض السعر (استحقاق 30 يوماً).",
+      "convertConfirmLabel": "إنشاء الفاتورة",
+      "alreadyConverted": "تم تحويل عرض السعر بالفعل",
+      "factureCreated": "تم إنشاء الفاتورة",
+      "factureRef": "المرجع {{reference}}",
+      "conversionFailed": "فشل التحويل.",
+      "deleteConfirmTitle": "حذف عرض السعر هذا؟",
+      "deleteConfirmLabel": "حذف",
+      "deleted": "تم حذف عرض السعر"
+    }
+  },
+  "adminAudit": {
+    "accessTitle": "الوصول محظور",
+    "accessMessage": "سجل التدقيق الشامل (جميع المؤسسات) مخصص للمشرف العام.",
+    "title": "سجل التدقيق الشامل",
+    "superAdmin": "مشرف عام",
+    "subtitle": "عرض شامل — نشاط جميع المؤسسات، قابل للتصفية حسب المؤسسة.",
+    "exportCsv": "تصدير CSV",
+    "searchPlaceholder": "التصفية حسب البريد الإلكتروني للمستخدم...",
+    "orgPlaceholder": "المؤسسة",
+    "allOrgs": "كل المؤسسات",
+    "empty": "لا يوجد حدث يطابق عوامل التصفية.",
+    "system": "النظام",
+    "count": "{{count}} حدث",
+    "prev": "السابق",
+    "next": "التالي",
+    "stats": {
+      "today": "أحداث اليوم (جميع المؤسسات)",
+      "topActions": "أكثر الإجراءات تكراراً",
+      "topUsers": "أكثر المستخدمين نشاطاً"
+    },
+    "toast": {
+      "error": "خطأ",
+      "loadError": "تعذّر تحميل سجل التدقيق.",
+      "loadFailed": "فشل التحميل."
+    }
+  },
+  "adminFacturesB2b": {
+    "title": "فواتير B2B",
+    "superAdmin": "مشرف عام",
+    "subtitle": "عرض SaaS الشامل — الفواتير الصادرة لجميع المؤسسات.",
+    "new": "فاتورة جديدة",
+    "searchPlaceholder": "بحث (العنوان، المرجع، العميل)...",
+    "statusPlaceholder": "الحالة",
+    "allStatuses": "كل الحالات",
+    "orgPlaceholder": "المؤسسة",
+    "allOrgs": "كل المؤسسات",
+    "empty": "لا توجد فاتورة تطابق عوامل التصفية.",
+    "reminders": "{{count}} تذكير",
+    "reminderTitleHas": "إرسال تذكير",
+    "reminderTitleNoEmail": "البريد الإلكتروني للعميل مفقود",
+    "count": "{{count}} فاتورة",
+    "prev": "السابق",
+    "next": "التالي",
+    "status": {
+      "brouillon": "مسودة",
+      "envoyee": "مُرسلة",
+      "payee": "مدفوعة",
+      "partiellement_payee": "جزئية",
+      "en_retard": "متأخرة",
+      "annulee": "ملغاة"
+    },
+    "dialog": {
+      "editTitle": "تعديل الفاتورة",
+      "createTitle": "فاتورة جديدة"
+    },
+    "form": {
+      "targetOrg": "المؤسسة المستهدفة",
+      "chooseOrg": "اختر مؤسسة",
+      "orgHelpEdit": "لا يمكن إعادة تعيين المؤسسة المالكة من هذه البطاقة.",
+      "orgHelpCreate": "سيتم ربط الفاتورة بهذه المؤسسة.",
+      "title": "العنوان",
+      "reference": "المرجع",
+      "status": "الحالة",
+      "client": "العميل",
+      "company": "الشركة",
+      "email": "البريد الإلكتروني",
+      "dueDate": "تاريخ الاستحقاق",
+      "totalAmount": "المبلغ الإجمالي",
+      "paidAmount": "المبلغ المدفوع",
+      "notes": "ملاحظات",
+      "update": "تحديث",
+      "create": "إنشاء"
+    },
+    "toast": {
+      "error": "خطأ",
+      "loadFailed": "فشل التحميل.",
+      "titleRequired": "العنوان مطلوب",
+      "clientRequired": "العميل مطلوب",
+      "orgRequired": "المؤسسة المستهدفة مطلوبة",
+      "updated": "تم تحديث الفاتورة",
+      "created": "تم إنشاء الفاتورة",
+      "saveFailed": "فشل الحفظ.",
+      "emailMissingTitle": "البريد الإلكتروني مفقود",
+      "emailMissingDesc": "أدخل البريد الإلكتروني للعميل قبل إرسال تذكير.",
+      "relanceConfirmMulti": "تم إرسال تذكير بالفعل {{count}} مرات. إرسال تذكير جديد إلى {{email}}؟",
+      "relanceConfirmFirst": "إرسال تذكير مهذب إلى {{email}}؟",
+      "relanceConfirmTitle": "إرسال تذكير لهذه الفاتورة؟",
+      "relanceConfirmLabel": "إرسال التذكير",
+      "relanceSent": "تم إرسال التذكير",
+      "relanceSentDesc": "تم إرسال تذكير إلى {{email}}.",
+      "relanceFailed": "فشل الإرسال.",
+      "deleteConfirmTitle": "حذف هذه الفاتورة؟",
+      "deleteConfirmLabel": "حذف",
+      "deleted": "تم حذف الفاتورة"
+    }
+  },
+  "adminFacturesClient": {
+    "title": "فواتير العملاء",
+    "superAdmin": "مشرف عام",
+    "subtitle": "عرض SaaS الشامل — الفواتير الصادرة للعملاء لجميع المؤسسات.",
+    "new": "فاتورة جديدة",
+    "searchPlaceholder": "بحث (العنوان، المرجع، العميل)...",
+    "statusPlaceholder": "الحالة",
+    "allStatuses": "كل الحالات",
+    "orgPlaceholder": "المؤسسة",
+    "allOrgs": "كل المؤسسات",
+    "empty": "لا توجد فاتورة تطابق عوامل التصفية.",
+    "dueLabel": "الاستحقاق {{date}}",
+    "reminders": "{{count}} تذكير",
+    "reminderTitle": "إرسال تذكير",
+    "count": "{{count}} فاتورة",
+    "prev": "السابق",
+    "next": "التالي",
+    "status": {
+      "brouillon": "مسودة",
+      "envoyee": "مُرسلة",
+      "payee": "مدفوعة",
+      "partiellement_payee": "مدفوعة جزئياً",
+      "en_retard": "متأخرة",
+      "annulee": "ملغاة"
+    },
+    "dialog": {
+      "editTitle": "تعديل الفاتورة",
+      "createTitle": "فاتورة جديدة"
+    },
+    "form": {
+      "targetOrg": "المؤسسة المستهدفة",
+      "chooseOrg": "اختر مؤسسة",
+      "orgHelpEdit": "لا يمكن إعادة تعيين المؤسسة المالكة من هذه البطاقة.",
+      "orgHelpCreate": "سيتم ربط الفاتورة بهذه المؤسسة.",
+      "title": "العنوان",
+      "reference": "المرجع",
+      "status": "الحالة",
+      "client": "العميل",
+      "company": "الشركة",
+      "email": "البريد الإلكتروني",
+      "paymentMethod": "طريقة الدفع",
+      "paymentPlaceholder": "تحويل، بطاقة...",
+      "paidAmount": "المبلغ المدفوع",
+      "autoliq": "الاحتساب العكسي لضريبة TVA (البناء)",
+      "dueDate": "تاريخ الاستحقاق",
+      "notes": "ملاحظات",
+      "update": "تحديث",
+      "create": "إنشاء"
+    },
+    "toast": {
+      "error": "خطأ",
+      "loadFailed": "فشل التحميل.",
+      "titleRequired": "العنوان مطلوب",
+      "clientRequired": "العميل مطلوب",
+      "orgRequired": "المؤسسة المستهدفة مطلوبة",
+      "updated": "تم تحديث الفاتورة",
+      "created": "تم إنشاء الفاتورة",
+      "saveFailed": "فشل الحفظ.",
+      "deleteConfirmTitle": "حذف هذه الفاتورة؟",
+      "deleteConfirmLabel": "حذف",
+      "deleted": "تم حذف الفاتورة",
+      "remindConfirmTitle": "إرسال تذكير؟",
+      "remindConfirmDesc": "سيتم إرسال بريد تذكير إلى {{email}} للفاتورة {{reference}}.",
+      "remindConfirmLabel": "إرسال التذكير",
+      "relanceSent": "تم إرسال التذكير",
+      "relanceSentDesc": "تم إرسال التذكير رقم {{count}}.",
+      "relanceImpossible": "التذكير غير ممكن",
+      "relanceFailed": "فشل إرسال التذكير."
+    }
+  },
+  "santeTechnique": {
+    "title": "الصحة التقنية",
+    "subtitle": "يراقب كل وكيل مجاله الخاص: قاعدة البيانات، الخدمات الخارجية، الإعدادات، المهام المجدولة، الأخطاء، الموارد. فحص تلقائي كل 15 دقيقة.",
+    "verifying": "جارٍ الفحص…",
+    "verifyNow": "افحص الآن",
+    "status": {
+      "ok": "سليم",
+      "degrade": "متدهور",
+      "echec": "معطّل",
+      "inconnu": "غير معروف"
+    },
+    "banner": {
+      "allGreen": "جميع الفحوصات خضراء.",
+      "attention": "تم رصد بعض نقاط الانتباه.",
+      "down": "يوجد عطل واحد أو أكثر قيد الحدوث."
+    },
+    "summary": "{{ok}} سليم · {{degrade}} متدهور · {{echec}} معطّل",
+    "lastCheck": "آخر فحص في {{time}}",
+    "emptyTitle": "لا يوجد فحص مسجّل",
+    "emptyDesc": "ابدأ فحصاً، أو انتظر الدورة التلقائية التالية.",
+    "toast": {
+      "runOkTitle": "كل شيء سليم",
+      "runAnomTitle": "تم رصد حالات شاذة",
+      "runDesc": "{{ok}} سليم · {{degraded}} متدهور · {{failed}} معطّل، من أصل {{total}} فحصاً.",
+      "runErrorTitle": "فشل"
+    }
+  },
+  "rapportExecutif": {
+    "title": "التقرير التنفيذي",
+    "subtitle": "عرض موجز لنشاطك",
+    "createProject": "إنشاء مشروع",
+    "print": "طباعة",
+    "projectTitle": "مشروع تنفيذي",
+    "projectNotes": "أُنشئ من التقرير التنفيذي",
+    "toast": {
+      "created": "تم إنشاء المشروع",
+      "createError": "خطأ أثناء الإنشاء"
+    }
+  },
+  "notFound": {
+    "title": "الصفحة غير موجودة",
+    "description": "هذه الصفحة غير موجودة أو لم تعد موجودة. تحقق من العنوان أو عُد إلى الصفحة الرئيسية."
   }
 }

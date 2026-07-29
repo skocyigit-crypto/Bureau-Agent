@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AccessDenied } from "@/components/access-denied";
+import { useTranslation } from "@/i18n";
 
 /**
  * Backoffice SaaS — racine du panneau /admin.
@@ -19,6 +20,7 @@ import { AccessDenied } from "@/components/access-denied";
  */
 export default function AdminBackofficePage() {
   const { user } = useWorkspaceUser();
+  const { t } = useTranslation();
   const [, navigate] = useLocation();
 
   // Garde cote client. Verrou definitif cote serveur (requireSuperAdmin sur
@@ -26,61 +28,62 @@ export default function AdminBackofficePage() {
   // tape l'URL sans le bon role.
   if (user.role !== "super_admin") return <AccessDenied />;
 
+  const statusActif = t("adminBackoffice.status.actif");
   const modules = [
     {
-      label: "Tableau de bord SaaS",
-      description: "MRR, churn, conversion d'essai sur 12 mois",
+      label: t("adminBackoffice.modules.dashboard.label"),
+      description: t("adminBackoffice.modules.dashboard.description"),
       icon: LayoutDashboard,
       href: "/admin/dashboard",
-      status: "Actif",
+      status: statusActif,
       enabled: true,
     },
     {
-      label: "Prospects",
-      description: "Pipeline commercial — leads issus du site vitrine et du démarchage",
+      label: t("adminBackoffice.modules.prospects.label"),
+      description: t("adminBackoffice.modules.prospects.description"),
       icon: Target,
       href: "/admin/prospects",
-      status: "Actif",
+      status: statusActif,
       enabled: true,
     },
     {
-      label: "Devis kurumsal",
-      description: "Propositions commerciales B2B — vue globale toutes organisations",
+      label: t("adminBackoffice.modules.devis.label"),
+      description: t("adminBackoffice.modules.devis.description"),
       icon: FileText,
       href: "/admin/devis",
-      status: "Actif",
+      status: statusActif,
       enabled: true,
     },
     {
-      label: "Factures B2B",
-      description: "Factures émises — vue globale toutes organisations",
+      label: t("adminBackoffice.modules.facturesB2b.label"),
+      description: t("adminBackoffice.modules.facturesB2b.description"),
       icon: Receipt,
       href: "/admin/factures-b2b",
-      status: "Actif",
+      status: statusActif,
       enabled: true,
     },
     {
-      label: "Factures client",
-      description: "Factures émises aux clients + relances — vue globale toutes organisations",
+      label: t("adminBackoffice.modules.facturesClient.label"),
+      description: t("adminBackoffice.modules.facturesClient.description"),
       icon: Receipt,
       href: "/admin/factures-client",
-      status: "Actif",
+      status: statusActif,
       enabled: true,
     },
     {
-      label: "Journal d'audit global",
-      description: "Activite de toutes les organisations, filtrable par organisation — export CSV",
+      label: t("adminBackoffice.modules.audit.label"),
+      description: t("adminBackoffice.modules.audit.description"),
       icon: ClipboardList,
       href: "/admin/audit",
-      status: "Actif",
+      status: statusActif,
       enabled: true,
     },
     {
-      label: "Stock de licences",
-      description: "Inventaire des packs de licences vendus / disponibles (à venir)",
+      label: t("adminBackoffice.modules.stock.label"),
+      description: t("adminBackoffice.modules.stock.description"),
       icon: Package,
       href: "/admin",
-      status: "À venir",
+      status: t("adminBackoffice.status.aVenir"),
       enabled: false,
     },
   ];
@@ -91,13 +94,13 @@ export default function AdminBackofficePage() {
         <div>
           <div className="flex items-center gap-2">
             <Shield className="w-5 h-5 text-red-600" />
-            <h1 className="text-2xl font-semibold">Backoffice SaaS</h1>
+            <h1 className="text-2xl font-semibold">{t("adminBackoffice.title")}</h1>
             <Badge variant="outline" className="text-red-700 border-red-300 bg-red-50 dark:bg-red-950/30">
-              Super-admin
+              {t("adminBackoffice.superAdmin")}
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Gestion commerciale d'Ajant Bureau — séparée de l'application client.
+            {t("adminBackoffice.subtitle")}
           </p>
         </div>
       </div>
@@ -106,20 +109,12 @@ export default function AdminBackofficePage() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Shield className="w-4 h-4" />
-            Refactor en cours
+            {t("adminBackoffice.refactorTitle")}
           </CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground space-y-2">
-          <p>
-            Les modules <strong>Prospects</strong>, <strong>Devis</strong>, <strong>Stock</strong> et
-            <strong> Factures B2B</strong> ont été retirés de l'application client. Ils sont désormais
-            accessibles uniquement via ce panneau, à toi (super-admin).
-          </p>
-          <p>
-            <strong>Statut actuel:</strong> Prospects, Devis kurumsal et Factures B2B sont branchés
-            avec une vue globale (toutes organisations) et un sélecteur d'organisation. Le reste
-            arrivera dans les tâches de suivi (stock de licences, 2FA forcée, IP whitelist).
-          </p>
+          <p>{t("adminBackoffice.refactorP1")}</p>
+          <p>{t("adminBackoffice.refactorP2")}</p>
         </CardContent>
       </Card>
 
@@ -151,7 +146,7 @@ export default function AdminBackofficePage() {
                       navigate(m.href);
                     }}
                   >
-                    Ouvrir <ArrowRight className="w-3 h-3 ml-1" />
+                    {t("adminBackoffice.open")} <ArrowRight className="w-3 h-3 ml-1" />
                   </Button>
                 </CardContent>
               )}

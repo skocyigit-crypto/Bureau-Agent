@@ -5411,5 +5411,363 @@
       "actionFailed": "Action failed",
       "error": "Error"
     }
+  },
+  "adminBackoffice": {
+    "title": "SaaS Backoffice",
+    "superAdmin": "Super-admin",
+    "subtitle": "Commercial management of Ajant Bureau — separate from the client application.",
+    "refactorTitle": "Refactor in progress",
+    "refactorP1": "The Prospects, Quotes, Stock and B2B Invoices modules have been removed from the client application. They are now accessible only via this panel, to you (super-admin).",
+    "refactorP2": "Current status: Prospects, Corporate quotes and B2B Invoices are wired with a global view (all organisations) and an organisation selector. The rest will come in follow-up tasks (license stock, enforced 2FA, IP whitelist).",
+    "open": "Open",
+    "status": {
+      "actif": "Active",
+      "aVenir": "Coming soon"
+    },
+    "modules": {
+      "dashboard": {
+        "label": "SaaS Dashboard",
+        "description": "MRR, churn, trial conversion over 12 months"
+      },
+      "prospects": {
+        "label": "Prospects",
+        "description": "Sales pipeline — leads from the showcase site and outreach"
+      },
+      "devis": {
+        "label": "Corporate quotes",
+        "description": "B2B sales proposals — global view of all organisations"
+      },
+      "facturesB2b": {
+        "label": "B2B Invoices",
+        "description": "Issued invoices — global view of all organisations"
+      },
+      "facturesClient": {
+        "label": "Client invoices",
+        "description": "Invoices issued to clients + reminders — global view of all organisations"
+      },
+      "audit": {
+        "label": "Global audit log",
+        "description": "Activity of all organisations, filterable by organisation — CSV export"
+      },
+      "stock": {
+        "label": "License stock",
+        "description": "Inventory of license packs sold / available (coming soon)"
+      }
+    }
+  },
+  "adminDashboard": {
+    "back": "SaaS Backoffice",
+    "title": "SaaS Dashboard",
+    "superAdmin": "Super-admin",
+    "subtitle": "MRR, churn, trial conversion — 12-month view across all organisations.",
+    "refresh": "Refresh",
+    "loading": "Loading…",
+    "noData": "No data available at the moment.",
+    "generatedAt": "Data generated on {{date}}.",
+    "toast": {
+      "loadError": "Unable to load the dashboard",
+      "unknownError": "Unknown error"
+    },
+    "metrics": {
+      "mrr": "MRR",
+      "arrHint": "Estimated ARR {{value}}",
+      "activeCustomers": "Paying customers",
+      "trialingHint": "{{count}} trial(s) in progress",
+      "churn": "Churn (30 d)",
+      "churnHint": "{{count}} cancellation(s)",
+      "conversion": "Trial → paid conversion",
+      "conversionHint": "{{converted}}/{{started}} over 90 d"
+    },
+    "charts": {
+      "mrrTitle": "MRR trend (12 months)",
+      "mrrDesc": "Sum of monthly prices of active paid subscriptions at month end.",
+      "activeTitle": "Active paying customers",
+      "activeDesc": "Number of active paid subscriptions at the end of each month.",
+      "churnTitle": "Monthly churn",
+      "churnDesc": "Cancellations in the month ÷ active customers at the start of the month.",
+      "conversionTitle": "Trial → paid conversion",
+      "conversionDesc": "Trials started in the month that are on an active paid plan today."
+    },
+    "planTable": {
+      "title": "Breakdown by plan",
+      "desc": "Active paying customers and MRR by subscription plan.",
+      "plan": "Plan",
+      "clients": "Customers",
+      "mrr": "MRR",
+      "share": "Share of MRR"
+    }
+  },
+  "adminDevis": {
+    "title": "Corporate quotes",
+    "superAdmin": "Super-admin",
+    "subtitle": "Global SaaS view — B2B sales proposals across all organisations.",
+    "new": "New quote",
+    "searchPlaceholder": "Search (title, reference, client)...",
+    "statusPlaceholder": "Status",
+    "allStatuses": "All statuses",
+    "orgPlaceholder": "Organisation",
+    "allOrgs": "All organisations",
+    "empty": "No quote matches your filters.",
+    "convertTitle": "Convert to invoice",
+    "invoice": "Invoice",
+    "count": "{{count}} quotes",
+    "prev": "Previous",
+    "next": "Next",
+    "status": {
+      "brouillon": "Draft",
+      "envoye": "Sent",
+      "accepte": "Accepted",
+      "refuse": "Rejected",
+      "expire": "Expired"
+    },
+    "dialog": {
+      "editTitle": "Edit quote",
+      "createTitle": "New quote"
+    },
+    "form": {
+      "targetOrg": "Target organisation",
+      "chooseOrg": "Choose an organisation",
+      "orgHelpEdit": "The owning organisation cannot be reassigned from this record.",
+      "orgHelpCreate": "The quote will be attached to this organisation.",
+      "title": "Title",
+      "reference": "Reference",
+      "status": "Status",
+      "client": "Client",
+      "company": "Company",
+      "email": "Email",
+      "validUntil": "Valid until",
+      "notes": "Notes",
+      "update": "Update",
+      "create": "Create"
+    },
+    "toast": {
+      "error": "Error",
+      "loadFailed": "Loading failed.",
+      "titleRequired": "Title required",
+      "clientRequired": "Client required",
+      "orgRequired": "Target organisation required",
+      "updated": "Quote updated",
+      "created": "Quote created",
+      "saveFailed": "Save failed.",
+      "convertConfirmTitle": "Convert “{{title}}” to an invoice?",
+      "convertConfirmDesc": "An invoice with the quote's line items and amounts will be created (30-day due date).",
+      "convertConfirmLabel": "Create the invoice",
+      "alreadyConverted": "Quote already converted",
+      "factureCreated": "Invoice created",
+      "factureRef": "Reference {{reference}}",
+      "conversionFailed": "Conversion failed.",
+      "deleteConfirmTitle": "Delete this quote?",
+      "deleteConfirmLabel": "Delete",
+      "deleted": "Quote deleted"
+    }
+  },
+  "adminAudit": {
+    "accessTitle": "Restricted access",
+    "accessMessage": "The global audit log (all organisations) is reserved for the super-administrator.",
+    "title": "Global audit log",
+    "superAdmin": "Super-admin",
+    "subtitle": "Global view — activity of all organisations, filterable by organisation.",
+    "exportCsv": "Export CSV",
+    "searchPlaceholder": "Filter by user email...",
+    "orgPlaceholder": "Organisation",
+    "allOrgs": "All organisations",
+    "empty": "No event matches your filters.",
+    "system": "system",
+    "count": "{{count}} events",
+    "prev": "Previous",
+    "next": "Next",
+    "stats": {
+      "today": "Events today (all organisations)",
+      "topActions": "Most frequent actions",
+      "topUsers": "Most active users"
+    },
+    "toast": {
+      "error": "Error",
+      "loadError": "Unable to load the audit log.",
+      "loadFailed": "Loading failed."
+    }
+  },
+  "adminFacturesB2b": {
+    "title": "B2B Invoices",
+    "superAdmin": "Super-admin",
+    "subtitle": "Global SaaS view — issued invoices across all organisations.",
+    "new": "New invoice",
+    "searchPlaceholder": "Search (title, reference, client)...",
+    "statusPlaceholder": "Status",
+    "allStatuses": "All statuses",
+    "orgPlaceholder": "Organisation",
+    "allOrgs": "All organisations",
+    "empty": "No invoice matches your filters.",
+    "reminders": "{{count}} reminder(s)",
+    "reminderTitleHas": "Send a reminder",
+    "reminderTitleNoEmail": "Client email missing",
+    "count": "{{count}} invoice(s)",
+    "prev": "Previous",
+    "next": "Next",
+    "status": {
+      "brouillon": "Draft",
+      "envoyee": "Sent",
+      "payee": "Paid",
+      "partiellement_payee": "Partial",
+      "en_retard": "Overdue",
+      "annulee": "Cancelled"
+    },
+    "dialog": {
+      "editTitle": "Edit invoice",
+      "createTitle": "New invoice"
+    },
+    "form": {
+      "targetOrg": "Target organisation",
+      "chooseOrg": "Choose an organisation",
+      "orgHelpEdit": "The owning organisation cannot be reassigned from this record.",
+      "orgHelpCreate": "The invoice will be attached to this organisation.",
+      "title": "Title",
+      "reference": "Reference",
+      "status": "Status",
+      "client": "Client",
+      "company": "Company",
+      "email": "Email",
+      "dueDate": "Due date",
+      "totalAmount": "Total amount",
+      "paidAmount": "Paid amount",
+      "notes": "Notes",
+      "update": "Update",
+      "create": "Create"
+    },
+    "toast": {
+      "error": "Error",
+      "loadFailed": "Loading failed.",
+      "titleRequired": "Title required",
+      "clientRequired": "Client required",
+      "orgRequired": "Target organisation required",
+      "updated": "Invoice updated",
+      "created": "Invoice created",
+      "saveFailed": "Save failed.",
+      "emailMissingTitle": "Email missing",
+      "emailMissingDesc": "Enter the client's email before sending a reminder.",
+      "relanceConfirmMulti": "A reminder has already been sent {{count}} times. Send a new reminder to {{email}}?",
+      "relanceConfirmFirst": "Send a polite reminder to {{email}}?",
+      "relanceConfirmTitle": "Send a reminder for this invoice?",
+      "relanceConfirmLabel": "Send the reminder",
+      "relanceSent": "Reminder sent",
+      "relanceSentDesc": "Reminder sent to {{email}}.",
+      "relanceFailed": "Sending failed.",
+      "deleteConfirmTitle": "Delete this invoice?",
+      "deleteConfirmLabel": "Delete",
+      "deleted": "Invoice deleted"
+    }
+  },
+  "adminFacturesClient": {
+    "title": "Client invoices",
+    "superAdmin": "Super-admin",
+    "subtitle": "Global SaaS view — invoices issued to clients across all organisations.",
+    "new": "New invoice",
+    "searchPlaceholder": "Search (title, reference, client)...",
+    "statusPlaceholder": "Status",
+    "allStatuses": "All statuses",
+    "orgPlaceholder": "Organisation",
+    "allOrgs": "All organisations",
+    "empty": "No invoice matches your filters.",
+    "dueLabel": "due {{date}}",
+    "reminders": "{{count}} reminder(s)",
+    "reminderTitle": "Send a reminder",
+    "count": "{{count}} invoice(s)",
+    "prev": "Previous",
+    "next": "Next",
+    "status": {
+      "brouillon": "Draft",
+      "envoyee": "Sent",
+      "payee": "Paid",
+      "partiellement_payee": "Partially paid",
+      "en_retard": "Overdue",
+      "annulee": "Cancelled"
+    },
+    "dialog": {
+      "editTitle": "Edit invoice",
+      "createTitle": "New invoice"
+    },
+    "form": {
+      "targetOrg": "Target organisation",
+      "chooseOrg": "Choose an organisation",
+      "orgHelpEdit": "The owning organisation cannot be reassigned from this record.",
+      "orgHelpCreate": "The invoice will be attached to this organisation.",
+      "title": "Title",
+      "reference": "Reference",
+      "status": "Status",
+      "client": "Client",
+      "company": "Company",
+      "email": "Email",
+      "paymentMethod": "Payment method",
+      "paymentPlaceholder": "Transfer, card...",
+      "paidAmount": "Paid amount",
+      "autoliq": "VAT reverse charge (construction)",
+      "dueDate": "Due date",
+      "notes": "Notes",
+      "update": "Update",
+      "create": "Create"
+    },
+    "toast": {
+      "error": "Error",
+      "loadFailed": "Loading failed.",
+      "titleRequired": "Title required",
+      "clientRequired": "Client required",
+      "orgRequired": "Target organisation required",
+      "updated": "Invoice updated",
+      "created": "Invoice created",
+      "saveFailed": "Save failed.",
+      "deleteConfirmTitle": "Delete this invoice?",
+      "deleteConfirmLabel": "Delete",
+      "deleted": "Invoice deleted",
+      "remindConfirmTitle": "Send a reminder?",
+      "remindConfirmDesc": "A reminder email will be sent to {{email}} for invoice {{reference}}.",
+      "remindConfirmLabel": "Send the reminder",
+      "relanceSent": "Reminder sent",
+      "relanceSentDesc": "Reminder #{{count}} sent.",
+      "relanceImpossible": "Reminder not possible",
+      "relanceFailed": "Reminder sending failed."
+    }
+  },
+  "santeTechnique": {
+    "title": "Technical health",
+    "subtitle": "Each agent monitors its own domain: database, external services, configuration, scheduled tasks, errors, resources. Automatic check every 15 minutes.",
+    "verifying": "Checking…",
+    "verifyNow": "Check now",
+    "status": {
+      "ok": "OK",
+      "degrade": "Degraded",
+      "echec": "Down",
+      "inconnu": "Unknown"
+    },
+    "banner": {
+      "allGreen": "All checks are green.",
+      "attention": "Some points of attention are detected.",
+      "down": "One or more outages are in progress."
+    },
+    "summary": "{{ok}} OK · {{degrade}} degraded · {{echec}} down",
+    "lastCheck": "last check at {{time}}",
+    "emptyTitle": "No check recorded",
+    "emptyDesc": "Run a check, or wait for the next automatic cycle.",
+    "toast": {
+      "runOkTitle": "Everything is healthy",
+      "runAnomTitle": "Anomalies detected",
+      "runDesc": "{{ok}} OK · {{degraded}} degraded · {{failed}} down, out of {{total}} checks.",
+      "runErrorTitle": "Failed"
+    }
+  },
+  "rapportExecutif": {
+    "title": "Executive Report",
+    "subtitle": "Summary view of your activity",
+    "createProject": "Create a project",
+    "print": "Print",
+    "projectTitle": "Executive project",
+    "projectNotes": "Created from the executive report",
+    "toast": {
+      "created": "Project created",
+      "createError": "Error while creating"
+    }
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "This page does not exist or no longer exists. Check the address or return to the home page."
   }
 }

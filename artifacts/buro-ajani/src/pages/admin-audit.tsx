@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -37,7 +38,8 @@ interface AuditStats {
 
 export default function AdminAuditPage() {
   const { user } = useWorkspaceUser();
-  if (user.role !== "super_admin") return <AccessDenied title="Acces reserve" message="Le journal d'audit global (toutes organisations) est reserve au super-administrateur." />;
+  const { t } = useTranslation();
+  if (user.role !== "super_admin") return <AccessDenied title={t("adminAudit.accessTitle")} message={t("adminAudit.accessMessage")} />;
 
   const { toast } = useToast();
   const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -62,10 +64,10 @@ export default function AdminAuditPage() {
         setLogs(d.logs || []);
         setTotal(d.total || 0);
       } else {
-        toast({ title: "Erreur", description: "Impossible de charger le journal d'audit.", variant: "destructive" });
+        toast({ title: t("adminAudit.toast.error"), description: t("adminAudit.toast.loadError"), variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Chargement echoue.", variant: "destructive" });
+      toast({ title: t("adminAudit.toast.error"), description: t("adminAudit.toast.loadFailed"), variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -99,24 +101,24 @@ export default function AdminAuditPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
-            <ClipboardList className="w-6 h-6 text-primary" /> Journal d'audit global
+            <ClipboardList className="w-6 h-6 text-primary" /> {t("adminAudit.title")}
             <Badge variant="outline" className="text-red-700 border-red-300 bg-red-50 dark:bg-red-950/30">
-              <Shield className="w-3 h-3 mr-1" /> Super-admin
+              <Shield className="w-3 h-3 mr-1" /> {t("adminAudit.superAdmin")}
             </Badge>
           </h1>
-          <p className="text-muted-foreground text-sm">Vue globale — activite de toutes les organisations, filtrable par organisation.</p>
+          <p className="text-muted-foreground text-sm">{t("adminAudit.subtitle")}</p>
         </div>
-        <Button variant="outline" onClick={exportCsv} className="gap-2"><Download className="w-4 h-4" /> Exporter CSV</Button>
+        <Button variant="outline" onClick={exportCsv} className="gap-2"><Download className="w-4 h-4" /> {t("adminAudit.exportCsv")}</Button>
       </div>
 
       {stats && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Card className="p-4">
-            <p className="text-xs text-muted-foreground">Evenements aujourd'hui (toutes organisations)</p>
+            <p className="text-xs text-muted-foreground">{t("adminAudit.stats.today")}</p>
             <p className="text-2xl font-bold mt-1">{stats.todayTotal}</p>
           </Card>
           <Card className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Actions les plus frequentes</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("adminAudit.stats.topActions")}</p>
             <div className="flex flex-wrap gap-1">
               {stats.actionBreakdown.slice(0, 4).map(a => (
                 <Badge key={a.action} variant="outline" className="text-[10px]">{a.action} · {a.count}</Badge>
@@ -124,7 +126,7 @@ export default function AdminAuditPage() {
             </div>
           </Card>
           <Card className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Utilisateurs les plus actifs</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("adminAudit.stats.topUsers")}</p>
             <div className="flex flex-wrap gap-1">
               {stats.activeUsers.slice(0, 3).map(u => (
                 <Badge key={u.userEmail ?? "?"} variant="outline" className="text-[10px]">{u.userEmail || "?"} · {u.count}</Badge>
@@ -137,12 +139,12 @@ export default function AdminAuditPage() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Filtrer par email utilisateur..." value={userEmail} onChange={e => setUserEmail(e.target.value)} className="pl-9" />
+          <Input placeholder={t("adminAudit.searchPlaceholder")} value={userEmail} onChange={e => setUserEmail(e.target.value)} className="pl-9" />
         </div>
         <Select value={orgFilter} onValueChange={setOrgFilter}>
-          <SelectTrigger className="w-56"><SelectValue placeholder="Organisation" /></SelectTrigger>
+          <SelectTrigger className="w-56"><SelectValue placeholder={t("adminAudit.orgPlaceholder")} /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Toutes les organisations</SelectItem>
+            <SelectItem value="all">{t("adminAudit.allOrgs")}</SelectItem>
             {orgs.map(o => <SelectItem key={o.id} value={String(o.id)}>{o.name}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -155,7 +157,7 @@ export default function AdminAuditPage() {
         <Card>
           <div className="divide-y">
             {logs.length === 0 ? (
-              <p className="text-center text-muted-foreground py-12">Aucun evenement ne correspond a vos filtres.</p>
+              <p className="text-center text-muted-foreground py-12">{t("adminAudit.empty")}</p>
             ) : logs.map(l => (
               <div key={l.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/20 text-sm">
                 <span className="text-xs text-muted-foreground w-36 shrink-0">
@@ -165,7 +167,7 @@ export default function AdminAuditPage() {
                   {l.organisationId != null ? (orgNameById.get(l.organisationId) || `Org #${l.organisationId}`) : "—"}
                 </Badge>
                 <span className="flex-1 min-w-0 truncate">
-                  <span className="font-medium">{l.userEmail || "systeme"}</span>
+                  <span className="font-medium">{l.userEmail || t("adminAudit.system")}</span>
                   {" — "}
                   <span className="text-muted-foreground">{l.action} · {l.resource}{l.resourceId ? ` #${l.resourceId}` : ""}</span>
                 </span>
@@ -175,10 +177,10 @@ export default function AdminAuditPage() {
           </div>
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3 border-t">
-              <p className="text-sm text-muted-foreground">{total} evenements</p>
+              <p className="text-sm text-muted-foreground">{t("adminAudit.count", { count: total })}</p>
               <div className="flex gap-1">
-                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Precedent</Button>
-                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Suivant</Button>
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t("adminAudit.prev")}</Button>
+                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{t("adminAudit.next")}</Button>
               </div>
             </div>
           )}

@@ -5411,5 +5411,363 @@
       "actionFailed": "Eylem başarısız",
       "error": "Hata"
     }
+  },
+  "adminBackoffice": {
+    "title": "SaaS Backoffice",
+    "superAdmin": "Süper-admin",
+    "subtitle": "Ajant Bureau ticari yönetimi — müşteri uygulamasından ayrı.",
+    "refactorTitle": "Refactor devam ediyor",
+    "refactorP1": "Potansiyeller, Teklifler, Stok ve B2B Faturalar modülleri müşteri uygulamasından kaldırıldı. Artık yalnızca bu panel üzerinden, size (süper-admin) erişilebilir.",
+    "refactorP2": "Mevcut durum: Potansiyeller, Kurumsal teklifler ve B2B Faturalar global görünüm (tüm organizasyonlar) ve organizasyon seçici ile bağlandı. Geri kalanı takip görevlerinde gelecek (lisans stoğu, zorunlu 2FA, IP beyaz listesi).",
+    "open": "Aç",
+    "status": {
+      "actif": "Aktif",
+      "aVenir": "Yakında"
+    },
+    "modules": {
+      "dashboard": {
+        "label": "SaaS Panosu",
+        "description": "12 aylık MRR, churn, deneme dönüşümü"
+      },
+      "prospects": {
+        "label": "Potansiyeller",
+        "description": "Satış hattı — tanıtım sitesi ve saha çalışmasından gelen fırsatlar"
+      },
+      "devis": {
+        "label": "Kurumsal teklifler",
+        "description": "B2B ticari teklifler — tüm organizasyonların global görünümü"
+      },
+      "facturesB2b": {
+        "label": "B2B Faturalar",
+        "description": "Düzenlenen faturalar — tüm organizasyonların global görünümü"
+      },
+      "facturesClient": {
+        "label": "Müşteri faturaları",
+        "description": "Müşterilere düzenlenen faturalar + hatırlatmalar — tüm organizasyonların global görünümü"
+      },
+      "audit": {
+        "label": "Global denetim günlüğü",
+        "description": "Tüm organizasyonların etkinliği, organizasyona göre filtrelenebilir — CSV dışa aktarma"
+      },
+      "stock": {
+        "label": "Lisans stoğu",
+        "description": "Satılan / mevcut lisans paketlerinin envanteri (yakında)"
+      }
+    }
+  },
+  "adminDashboard": {
+    "back": "SaaS Backoffice",
+    "title": "SaaS Panosu",
+    "superAdmin": "Süper-admin",
+    "subtitle": "MRR, churn, deneme dönüşümü — tüm organizasyonlarda 12 aylık görünüm.",
+    "refresh": "Yenile",
+    "loading": "Yükleniyor…",
+    "noData": "Şu anda kullanılabilir veri yok.",
+    "generatedAt": "Veriler {{date}} tarihinde oluşturuldu.",
+    "toast": {
+      "loadError": "Pano yüklenemedi",
+      "unknownError": "Bilinmeyen hata"
+    },
+    "metrics": {
+      "mrr": "MRR",
+      "arrHint": "Tahmini ARR {{value}}",
+      "activeCustomers": "Ödeme yapan müşteriler",
+      "trialingHint": "{{count}} deneme sürüyor",
+      "churn": "Churn (30 g)",
+      "churnHint": "{{count}} iptal",
+      "conversion": "Deneme → ücretli dönüşüm",
+      "conversionHint": "90 günde {{converted}}/{{started}}"
+    },
+    "charts": {
+      "mrrTitle": "MRR eğilimi (12 ay)",
+      "mrrDesc": "Ay sonunda aktif ücretli aboneliklerin aylık fiyatlarının toplamı.",
+      "activeTitle": "Aktif ödeme yapan müşteriler",
+      "activeDesc": "Her ayın sonunda aktif ücretli abonelik sayısı.",
+      "churnTitle": "Aylık churn",
+      "churnDesc": "Aydaki iptaller ÷ ay başındaki aktif müşteriler.",
+      "conversionTitle": "Deneme → ücretli dönüşüm",
+      "conversionDesc": "Ay içinde başlayan ve bugün aktif ücretli planda olan denemeler."
+    },
+    "planTable": {
+      "title": "Plana göre dağılım",
+      "desc": "Abonelik planına göre aktif ödeme yapan müşteriler ve MRR.",
+      "plan": "Plan",
+      "clients": "Müşteriler",
+      "mrr": "MRR",
+      "share": "MRR payı"
+    }
+  },
+  "adminDevis": {
+    "title": "Kurumsal teklifler",
+    "superAdmin": "Süper-admin",
+    "subtitle": "Global SaaS görünümü — tüm organizasyonlarda B2B ticari teklifler.",
+    "new": "Yeni teklif",
+    "searchPlaceholder": "Ara (başlık, referans, müşteri)...",
+    "statusPlaceholder": "Durum",
+    "allStatuses": "Tüm durumlar",
+    "orgPlaceholder": "Organizasyon",
+    "allOrgs": "Tüm organizasyonlar",
+    "empty": "Filtrelerinize uyan teklif yok.",
+    "convertTitle": "Faturaya dönüştür",
+    "invoice": "Faturala",
+    "count": "{{count}} teklif",
+    "prev": "Önceki",
+    "next": "Sonraki",
+    "status": {
+      "brouillon": "Taslak",
+      "envoye": "Gönderildi",
+      "accepte": "Kabul edildi",
+      "refuse": "Reddedildi",
+      "expire": "Süresi doldu"
+    },
+    "dialog": {
+      "editTitle": "Teklifi düzenle",
+      "createTitle": "Yeni teklif"
+    },
+    "form": {
+      "targetOrg": "Hedef organizasyon",
+      "chooseOrg": "Bir organizasyon seçin",
+      "orgHelpEdit": "Sahip organizasyon bu kayıttan yeniden atanamaz.",
+      "orgHelpCreate": "Teklif bu organizasyona bağlanacak.",
+      "title": "Başlık",
+      "reference": "Referans",
+      "status": "Durum",
+      "client": "Müşteri",
+      "company": "Şirket",
+      "email": "E-posta",
+      "validUntil": "Geçerlilik tarihi",
+      "notes": "Notlar",
+      "update": "Güncelle",
+      "create": "Oluştur"
+    },
+    "toast": {
+      "error": "Hata",
+      "loadFailed": "Yükleme başarısız.",
+      "titleRequired": "Başlık gerekli",
+      "clientRequired": "Müşteri gerekli",
+      "orgRequired": "Hedef organizasyon gerekli",
+      "updated": "Teklif güncellendi",
+      "created": "Teklif oluşturuldu",
+      "saveFailed": "Kaydetme başarısız.",
+      "convertConfirmTitle": "“{{title}}” faturaya dönüştürülsün mü?",
+      "convertConfirmDesc": "Teklifin satırlarını ve tutarlarını içeren bir fatura oluşturulacak (30 gün vade).",
+      "convertConfirmLabel": "Faturayı oluştur",
+      "alreadyConverted": "Teklif zaten dönüştürüldü",
+      "factureCreated": "Fatura oluşturuldu",
+      "factureRef": "Referans {{reference}}",
+      "conversionFailed": "Dönüştürme başarısız.",
+      "deleteConfirmTitle": "Bu teklif silinsin mi?",
+      "deleteConfirmLabel": "Sil",
+      "deleted": "Teklif silindi"
+    }
+  },
+  "adminAudit": {
+    "accessTitle": "Erişim kısıtlı",
+    "accessMessage": "Global denetim günlüğü (tüm organizasyonlar) süper-yöneticiye ayrılmıştır.",
+    "title": "Global denetim günlüğü",
+    "superAdmin": "Süper-admin",
+    "subtitle": "Global görünüm — tüm organizasyonların etkinliği, organizasyona göre filtrelenebilir.",
+    "exportCsv": "CSV dışa aktar",
+    "searchPlaceholder": "Kullanıcı e-postasına göre filtrele...",
+    "orgPlaceholder": "Organizasyon",
+    "allOrgs": "Tüm organizasyonlar",
+    "empty": "Filtrelerinize uyan olay yok.",
+    "system": "sistem",
+    "count": "{{count}} olay",
+    "prev": "Önceki",
+    "next": "Sonraki",
+    "stats": {
+      "today": "Bugünkü olaylar (tüm organizasyonlar)",
+      "topActions": "En sık eylemler",
+      "topUsers": "En aktif kullanıcılar"
+    },
+    "toast": {
+      "error": "Hata",
+      "loadError": "Denetim günlüğü yüklenemedi.",
+      "loadFailed": "Yükleme başarısız."
+    }
+  },
+  "adminFacturesB2b": {
+    "title": "B2B Faturalar",
+    "superAdmin": "Süper-admin",
+    "subtitle": "Global SaaS görünümü — tüm organizasyonlarda düzenlenen faturalar.",
+    "new": "Yeni fatura",
+    "searchPlaceholder": "Ara (başlık, referans, müşteri)...",
+    "statusPlaceholder": "Durum",
+    "allStatuses": "Tüm durumlar",
+    "orgPlaceholder": "Organizasyon",
+    "allOrgs": "Tüm organizasyonlar",
+    "empty": "Filtrelerinize uyan fatura yok.",
+    "reminders": "{{count}} hatırlatma",
+    "reminderTitleHas": "Hatırlatma gönder",
+    "reminderTitleNoEmail": "Müşteri e-postası eksik",
+    "count": "{{count}} fatura",
+    "prev": "Önceki",
+    "next": "Sonraki",
+    "status": {
+      "brouillon": "Taslak",
+      "envoyee": "Gönderildi",
+      "payee": "Ödendi",
+      "partiellement_payee": "Kısmi",
+      "en_retard": "Gecikmiş",
+      "annulee": "İptal edildi"
+    },
+    "dialog": {
+      "editTitle": "Faturayı düzenle",
+      "createTitle": "Yeni fatura"
+    },
+    "form": {
+      "targetOrg": "Hedef organizasyon",
+      "chooseOrg": "Bir organizasyon seçin",
+      "orgHelpEdit": "Sahip organizasyon bu kayıttan yeniden atanamaz.",
+      "orgHelpCreate": "Fatura bu organizasyona bağlanacak.",
+      "title": "Başlık",
+      "reference": "Referans",
+      "status": "Durum",
+      "client": "Müşteri",
+      "company": "Şirket",
+      "email": "E-posta",
+      "dueDate": "Vade",
+      "totalAmount": "Toplam tutar",
+      "paidAmount": "Ödenen tutar",
+      "notes": "Notlar",
+      "update": "Güncelle",
+      "create": "Oluştur"
+    },
+    "toast": {
+      "error": "Hata",
+      "loadFailed": "Yükleme başarısız.",
+      "titleRequired": "Başlık gerekli",
+      "clientRequired": "Müşteri gerekli",
+      "orgRequired": "Hedef organizasyon gerekli",
+      "updated": "Fatura güncellendi",
+      "created": "Fatura oluşturuldu",
+      "saveFailed": "Kaydetme başarısız.",
+      "emailMissingTitle": "E-posta eksik",
+      "emailMissingDesc": "Hatırlatma göndermeden önce müşterinin e-postasını girin.",
+      "relanceConfirmMulti": "Zaten {{count}} kez hatırlatma gönderildi. {{email}} adresine yeni bir hatırlatma gönderilsin mi?",
+      "relanceConfirmFirst": "{{email}} adresine kibar bir hatırlatma gönderilsin mi?",
+      "relanceConfirmTitle": "Bu fatura için hatırlatma gönderilsin mi?",
+      "relanceConfirmLabel": "Hatırlatmayı gönder",
+      "relanceSent": "Hatırlatma gönderildi",
+      "relanceSentDesc": "Hatırlatma {{email}} adresine gönderildi.",
+      "relanceFailed": "Gönderim başarısız.",
+      "deleteConfirmTitle": "Bu fatura silinsin mi?",
+      "deleteConfirmLabel": "Sil",
+      "deleted": "Fatura silindi"
+    }
+  },
+  "adminFacturesClient": {
+    "title": "Müşteri faturaları",
+    "superAdmin": "Süper-admin",
+    "subtitle": "Global SaaS görünümü — tüm organizasyonlarda müşterilere düzenlenen faturalar.",
+    "new": "Yeni fatura",
+    "searchPlaceholder": "Ara (başlık, referans, müşteri)...",
+    "statusPlaceholder": "Durum",
+    "allStatuses": "Tüm durumlar",
+    "orgPlaceholder": "Organizasyon",
+    "allOrgs": "Tüm organizasyonlar",
+    "empty": "Filtrelerinize uyan fatura yok.",
+    "dueLabel": "vade {{date}}",
+    "reminders": "{{count}} hatırlatma",
+    "reminderTitle": "Hatırlatma gönder",
+    "count": "{{count}} fatura",
+    "prev": "Önceki",
+    "next": "Sonraki",
+    "status": {
+      "brouillon": "Taslak",
+      "envoyee": "Gönderildi",
+      "payee": "Ödendi",
+      "partiellement_payee": "Kısmen ödendi",
+      "en_retard": "Gecikmiş",
+      "annulee": "İptal edildi"
+    },
+    "dialog": {
+      "editTitle": "Faturayı düzenle",
+      "createTitle": "Yeni fatura"
+    },
+    "form": {
+      "targetOrg": "Hedef organizasyon",
+      "chooseOrg": "Bir organizasyon seçin",
+      "orgHelpEdit": "Sahip organizasyon bu kayıttan yeniden atanamaz.",
+      "orgHelpCreate": "Fatura bu organizasyona bağlanacak.",
+      "title": "Başlık",
+      "reference": "Referans",
+      "status": "Durum",
+      "client": "Müşteri",
+      "company": "Şirket",
+      "email": "E-posta",
+      "paymentMethod": "Ödeme yöntemi",
+      "paymentPlaceholder": "Havale, kart...",
+      "paidAmount": "Ödenen tutar",
+      "autoliq": "KDV tevkifatı (inşaat)",
+      "dueDate": "Vade",
+      "notes": "Notlar",
+      "update": "Güncelle",
+      "create": "Oluştur"
+    },
+    "toast": {
+      "error": "Hata",
+      "loadFailed": "Yükleme başarısız.",
+      "titleRequired": "Başlık gerekli",
+      "clientRequired": "Müşteri gerekli",
+      "orgRequired": "Hedef organizasyon gerekli",
+      "updated": "Fatura güncellendi",
+      "created": "Fatura oluşturuldu",
+      "saveFailed": "Kaydetme başarısız.",
+      "deleteConfirmTitle": "Bu fatura silinsin mi?",
+      "deleteConfirmLabel": "Sil",
+      "deleted": "Fatura silindi",
+      "remindConfirmTitle": "Hatırlatma gönderilsin mi?",
+      "remindConfirmDesc": "{{reference}} numaralı fatura için {{email}} adresine bir hatırlatma e-postası gönderilecek.",
+      "remindConfirmLabel": "Hatırlatmayı gönder",
+      "relanceSent": "Hatırlatma gönderildi",
+      "relanceSentDesc": "{{count}}. hatırlatma gönderildi.",
+      "relanceImpossible": "Hatırlatma mümkün değil",
+      "relanceFailed": "Hatırlatma gönderimi başarısız."
+    }
+  },
+  "santeTechnique": {
+    "title": "Teknik sağlık",
+    "subtitle": "Her ajan kendi alanını denetler: veritabanı, dış hizmetler, yapılandırma, zamanlanmış görevler, hatalar, kaynaklar. Her 15 dakikada bir otomatik kontrol.",
+    "verifying": "Kontrol ediliyor…",
+    "verifyNow": "Şimdi kontrol et",
+    "status": {
+      "ok": "OK",
+      "degrade": "Bozulmuş",
+      "echec": "Arızalı",
+      "inconnu": "Bilinmiyor"
+    },
+    "banner": {
+      "allGreen": "Tüm kontroller yeşil.",
+      "attention": "Bazı dikkat noktaları tespit edildi.",
+      "down": "Bir veya daha fazla arıza sürüyor."
+    },
+    "summary": "{{ok}} OK · {{degrade}} bozulmuş · {{echec}} arızalı",
+    "lastCheck": "son kontrol {{time}}",
+    "emptyTitle": "Kayıtlı kontrol yok",
+    "emptyDesc": "Bir kontrol başlatın veya bir sonraki otomatik döngüyü bekleyin.",
+    "toast": {
+      "runOkTitle": "Her şey sağlıklı",
+      "runAnomTitle": "Anomaliler tespit edildi",
+      "runDesc": "{{total}} kontrolden {{ok}} OK · {{degraded}} bozulmuş · {{failed}} arızalı.",
+      "runErrorTitle": "Başarısız"
+    }
+  },
+  "rapportExecutif": {
+    "title": "Yönetici Raporu",
+    "subtitle": "Etkinliğinizin özet görünümü",
+    "createProject": "Proje oluştur",
+    "print": "Yazdır",
+    "projectTitle": "Yönetici projesi",
+    "projectNotes": "Yönetici raporundan oluşturuldu",
+    "toast": {
+      "created": "Proje oluşturuldu",
+      "createError": "Oluşturma sırasında hata"
+    }
+  },
+  "notFound": {
+    "title": "Sayfa bulunamadı",
+    "description": "Bu sayfa mevcut değil veya artık yok. Adresi kontrol edin ya da ana sayfaya dönün."
   }
 }
