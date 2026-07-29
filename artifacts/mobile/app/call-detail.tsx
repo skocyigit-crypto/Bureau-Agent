@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 interface CallDetail {
   id: number;
@@ -36,11 +37,11 @@ interface CallDetail {
   updatedAt?: string;
 }
 
-const STATUS_CFG: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  repondu:    { label: "Répondu",    color: "#22c55e", icon: "phone" },
-  manque:     { label: "Manqué",     color: "#ef4444", icon: "phone-missed" },
-  messagerie: { label: "Messagerie", color: "#f59e0b", icon: "voicemail" },
-  en_cours:   { label: "En cours",   color: "#3b82f6", icon: "phone-call" },
+const STATUS_CFG: Record<string, { color: string; icon: keyof typeof Feather.glyphMap }> = {
+  repondu:    { color: "#22c55e", icon: "phone" },
+  manque:     { color: "#ef4444", icon: "phone-missed" },
+  messagerie: { color: "#f59e0b", icon: "voicemail" },
+  en_cours:   { color: "#3b82f6", icon: "phone-call" },
 };
 
 function fmtDuration(sec?: number | null): string {
@@ -60,9 +61,11 @@ function fmtDatetime(d: string): string {
 export default function CallDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
+  const statusLabel = (s: string) => (STATUS_CFG[s] ? t(`callDetailScreen.status.${s}`) : s);
 
   const [call, setCall] = useState<CallDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -119,7 +122,7 @@ export default function CallDetailScreen() {
       });
       if (res.ok) {
         const d = await res.json();
-        setAiResult(d.briefing ?? d.summary ?? d.result ?? "Analyse IA générée.");
+        setAiResult(d.briefing ?? d.summary ?? d.result ?? t("callDetailScreen.aiAnalysisGenerated"));
       }
     } finally { setAiLoading(null); }
   }
@@ -136,7 +139,7 @@ export default function CallDetailScreen() {
       });
       if (res.ok) {
         const d = await res.json();
-        setAiResult(d.coaching ?? d.tips ?? d.result ?? "Coaching IA généré.");
+        setAiResult(d.coaching ?? d.tips ?? d.result ?? t("callDetailScreen.aiCoachingGenerated"));
       }
     } finally { setAiLoading(null); }
   }
@@ -148,7 +151,7 @@ export default function CallDetailScreen() {
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
-          <Text style={styles.headerTitle}>Détail appel</Text>
+          <Text style={styles.headerTitle}>{t("callDetailScreen.title")}</Text>
         </View>
         <View style={styles.loadingBox}><ActivityIndicator size="large" color="#166534" /></View>
       </View>
@@ -162,11 +165,11 @@ export default function CallDetailScreen() {
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
-          <Text style={styles.headerTitle}>Appel introuvable</Text>
+          <Text style={styles.headerTitle}>{t("callDetailScreen.notFound")}</Text>
         </View>
         <View style={styles.loadingBox}>
           <Feather name="phone-off" size={48} color={colors.mutedForeground} />
-          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Appel introuvable</Text>
+          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("callDetailScreen.notFound")}</Text>
         </View>
       </View>
     );
@@ -201,11 +204,11 @@ export default function CallDetailScreen() {
         <View style={styles.statusBar}>
           <View style={[styles.statusPill, { backgroundColor: st.color + "30" }]}>
             <Feather name={st.icon} size={12} color={st.color} />
-            <Text style={[styles.statusText, { color: st.color }]}>{st.label}</Text>
+            <Text style={[styles.statusText, { color: st.color }]}>{statusLabel(call.status)}</Text>
           </View>
           <View style={[styles.statusPill, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
             <Feather name={isOutbound ? "phone-outgoing" : "phone-incoming"} size={12} color="#fff" />
-            <Text style={[styles.statusText, { color: "#fff" }]}>{isOutbound ? "Sortant" : "Entrant"}</Text>
+            <Text style={[styles.statusText, { color: "#fff" }]}>{isOutbound ? t("callDetailScreen.outbound") : t("callDetailScreen.inbound")}</Text>
           </View>
           <View style={[styles.statusPill, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
             <Feather name="clock" size={12} color="#fff" />
@@ -220,20 +223,20 @@ export default function CallDetailScreen() {
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.infoRow}>
             <Feather name="calendar" size={14} color={colors.mutedForeground} />
-            <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>Date</Text>
+            <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>{t("callDetailScreen.date")}</Text>
             <Text style={[styles.infoValue, { color: colors.foreground }]}>{fmtDatetime(call.createdAt)}</Text>
           </View>
           {call.contactName && (
             <View style={styles.infoRow}>
               <Feather name="user" size={14} color={colors.mutedForeground} />
-              <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>Contact</Text>
+              <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>{t("callDetailScreen.contact")}</Text>
               <Text style={[styles.infoValue, { color: colors.foreground }]}>{call.contactName}</Text>
             </View>
           )}
           {call.provider && (
             <View style={styles.infoRow}>
               <Feather name="globe" size={14} color={colors.mutedForeground} />
-              <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>Fournisseur</Text>
+              <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>{t("callDetailScreen.provider")}</Text>
               <Text style={[styles.infoValue, { color: colors.foreground }]}>{call.provider}</Text>
             </View>
           )}
@@ -243,23 +246,23 @@ export default function CallDetailScreen() {
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.cardHeader}>
             <Feather name="edit-3" size={14} color="#0369a1" />
-            <Text style={[styles.cardTitle, { color: colors.foreground }]}>Notes</Text>
+            <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("callDetailScreen.notes")}</Text>
             <View style={{ flex: 1 }} />
             {!editingNotes ? (
               <Pressable onPress={() => setEditingNotes(true)} style={styles.editBtn}>
                 <Feather name="edit-2" size={14} color="#0369a1" />
-                <Text style={styles.editBtnText}>Modifier</Text>
+                <Text style={styles.editBtnText}>{t("common.edit")}</Text>
               </Pressable>
             ) : (
               <View style={{ flexDirection: "row", gap: 8 }}>
                 <Pressable onPress={() => { setEditingNotes(false); setNotes(call.notes ?? ""); }}>
-                  <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: colors.mutedForeground }}>Annuler</Text>
+                  <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: colors.mutedForeground }}>{t("common.cancel")}</Text>
                 </Pressable>
                 <Pressable onPress={saveNotes} disabled={savingNotes} style={[styles.editBtn, { backgroundColor: "#0369a1" }]}>
                   {savingNotes ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#fff" }}>Enregistrer</Text>
+                    <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#fff" }}>{t("common.save")}</Text>
                   )}
                 </Pressable>
               </View>
@@ -271,13 +274,13 @@ export default function CallDetailScreen() {
               multiline
               value={notes}
               onChangeText={setNotes}
-              placeholder="Saisir des notes sur cet appel..."
+              placeholder={t("callDetailScreen.notesPlaceholder")}
               placeholderTextColor={colors.mutedForeground}
               autoFocus
             />
           ) : (
             <Text style={[styles.notesText, { color: notes ? colors.foreground : colors.mutedForeground }]}>
-              {notes || "Aucune note. Appuyez sur Modifier pour en ajouter."}
+              {notes || t("callDetailScreen.noNotes")}
             </Text>
           )}
         </View>
@@ -286,7 +289,7 @@ export default function CallDetailScreen() {
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.cardHeader}>
             <Feather name="cpu" size={14} color="#7c3aed" />
-            <Text style={[styles.cardTitle, { color: colors.foreground }]}>Outils IA</Text>
+            <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("callDetailScreen.aiTools")}</Text>
           </View>
 
           {/* AI Call Assistant (full-screen) */}
@@ -297,7 +300,7 @@ export default function CallDetailScreen() {
             style={[styles.aiBtn, { backgroundColor: "#166534", flexDirection: "row", alignItems: "center", paddingVertical: 12 }]}
           >
             <Feather name="zap" size={14} color="#fff" />
-            <Text style={styles.aiBtnText}>Assistant IA Appel complet</Text>
+            <Text style={styles.aiBtnText}>{t("callDetailScreen.fullAiAssistant")}</Text>
             <Feather name="arrow-right" size={13} color="rgba(255,255,255,0.7)" style={{ marginLeft: "auto" }} />
           </Pressable>
 
@@ -312,7 +315,7 @@ export default function CallDetailScreen() {
               ) : (
                 <>
                   <Feather name="file-text" size={13} color="#fff" />
-                  <Text style={styles.aiBtnText}>Synthèse IA</Text>
+                  <Text style={styles.aiBtnText}>{t("callDetailScreen.aiSummary")}</Text>
                 </>
               )}
             </Pressable>
@@ -326,7 +329,7 @@ export default function CallDetailScreen() {
               ) : (
                 <>
                   <Feather name="star" size={13} color="#fff" />
-                  <Text style={styles.aiBtnText}>Coaching IA</Text>
+                  <Text style={styles.aiBtnText}>{t("callDetailScreen.aiCoaching")}</Text>
                 </>
               )}
             </Pressable>
@@ -343,7 +346,7 @@ export default function CallDetailScreen() {
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.cardHeader}>
               <Feather name="cpu" size={14} color="#7c3aed" />
-              <Text style={[styles.cardTitle, { color: colors.foreground }]}>Synthèse IA enregistrée</Text>
+              <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("callDetailScreen.savedAiSummary")}</Text>
             </View>
             <Text style={[styles.notesText, { color: colors.foreground }]}>{call.aiSummary}</Text>
           </View>
@@ -354,7 +357,7 @@ export default function CallDetailScreen() {
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.cardHeader}>
               <Feather name="message-square" size={14} color="#0891b2" />
-              <Text style={[styles.cardTitle, { color: colors.foreground }]}>Transcription</Text>
+              <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("callDetailScreen.transcript")}</Text>
             </View>
             <Text style={[styles.notesText, { color: colors.foreground }]}>{call.transcript}</Text>
           </View>
@@ -367,7 +370,7 @@ export default function CallDetailScreen() {
             style={[styles.quickAction, { backgroundColor: "#22c55e", flex: 1 }]}
           >
             <Feather name="phone" size={16} color="#fff" />
-            <Text style={styles.quickActionText}>Rappeler</Text>
+            <Text style={styles.quickActionText}>{t("callDetailScreen.callBack")}</Text>
           </Pressable>
           {call.contactId && (
             <Pressable
@@ -375,7 +378,7 @@ export default function CallDetailScreen() {
               style={[styles.quickAction, { backgroundColor: "#0369a1", flex: 1 }]}
             >
               <Feather name="user" size={16} color="#fff" />
-              <Text style={styles.quickActionText}>Voir contact</Text>
+              <Text style={styles.quickActionText}>{t("callDetailScreen.viewContact")}</Text>
             </Pressable>
           )}
         </View>

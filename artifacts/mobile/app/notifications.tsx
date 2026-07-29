@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState } from "@/components/EmptyState";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 interface NotifItem {
   id: string;
@@ -44,6 +45,7 @@ const POLL_INTERVAL = 30_000;
 
 export default function NotificationsScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
@@ -83,7 +85,7 @@ export default function NotificationsScreen() {
           items.push({
             id: `notif_${n.id}`,
             type: n.type ?? "system",
-            title: n.title ?? "Notification",
+            title: n.title ?? t("notificationsScreen.defaultTitle"),
             body: n.body ?? n.message ?? "",
             time: n.createdAt ?? new Date().toISOString(),
             read: n.read ?? false,
@@ -100,8 +102,8 @@ export default function NotificationsScreen() {
           items.push({
             id: `call_${c.id}`,
             type: "missed_call",
-            title: "Appel manque",
-            body: c.contactName || c.phoneNumber || "Numero inconnu",
+            title: t("notificationsScreen.missedCall"),
+            body: c.contactName || c.phoneNumber || t("notificationsScreen.unknownNumber"),
             time: c.createdAt,
             read: false,
             route: "/(tabs)/calls",
@@ -119,7 +121,7 @@ export default function NotificationsScreen() {
             items.push({
               id: `task_${t.id}`,
               type: "overdue_task",
-              title: "Tache en retard",
+              title: t("notificationsScreen.overdueTask"),
               body: t.title,
               time: t.dueDate,
               read: false,
@@ -137,8 +139,8 @@ export default function NotificationsScreen() {
           items.push({
             id: `msg_${m.id}`,
             type: "message",
-            title: "Nouveau message",
-            body: m.subject || m.content?.slice(0, 60) || "Message",
+            title: t("notificationsScreen.newMessage"),
+            body: m.subject || m.content?.slice(0, 60) || t("notificationsScreen.messageDefault"),
             time: m.createdAt,
             read: false,
             route: "/messages",
@@ -189,17 +191,17 @@ export default function NotificationsScreen() {
     const d = new Date(dateStr);
     const now = new Date();
     const diff = now.getTime() - d.getTime();
-    if (diff < 60000) return "A l'instant";
+    if (diff < 60000) return t("notificationsScreen.justNow");
     if (diff < 3600000) return `${Math.floor(diff / 60000)} min`;
     if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
-    if (diff < 172800000) return "Hier";
+    if (diff < 172800000) return t("notificationsScreen.yesterday");
     return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
   }
 
   function formatLastUpdated() {
     if (!lastUpdated) return "";
     const diff = Date.now() - lastUpdated.getTime();
-    if (diff < 60000) return "a l'instant";
+    if (diff < 60000) return t("notificationsScreen.justNowLower");
     return `${Math.floor(diff / 60000)} min`;
   }
 
@@ -221,7 +223,7 @@ export default function NotificationsScreen() {
     const d = new Date(item.time);
     const now = new Date();
     const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
-    const key = diffDays === 0 ? "Aujourd'hui" : diffDays === 1 ? "Hier" : d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+    const key = diffDays === 0 ? t("notificationsScreen.today") : diffDays === 1 ? t("notificationsScreen.yesterday") : d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
     if (!acc[key]) acc[key] = [];
     acc[key].push(item);
     return acc;
@@ -238,20 +240,20 @@ export default function NotificationsScreen() {
           </Pressable>
           <View style={{ flex: 1 }}>
             <View style={styles.titleRow}>
-              <Text style={styles.headerTitle}>Notifications</Text>
+              <Text style={styles.headerTitle}>{t("notificationsScreen.title")}</Text>
               <View style={styles.liveIndicator}>
                 <Animated.View style={[styles.liveDot, { opacity: pulseAnim }]} />
-                <Text style={styles.liveText}>Live</Text>
+                <Text style={styles.liveText}>{t("notificationsScreen.live")}</Text>
               </View>
             </View>
             {lastUpdated && (
-              <Text style={styles.headerSub}>Mis a jour {formatLastUpdated()}</Text>
+              <Text style={styles.headerSub}>{t("notificationsScreen.updated", { time: formatLastUpdated() })}</Text>
             )}
           </View>
           {unreadCount > 0 && (
             <Pressable onPress={markAllRead} style={[styles.markAllBtn, { backgroundColor: "rgba(255,255,255,0.12)" }]}>
               <Feather name="check-circle" size={14} color="#fff" />
-              <Text style={styles.markAllText}>Tout lire</Text>
+              <Text style={styles.markAllText}>{t("notificationsScreen.markAllRead")}</Text>
             </Pressable>
           )}
         </View>
@@ -263,7 +265,7 @@ export default function NotificationsScreen() {
               style={[styles.tab, filter === f && { borderBottomColor: "#fff", borderBottomWidth: 2 }]}
             >
               <Text style={[styles.tabText, { color: filter === f ? "#fff" : "rgba(255,255,255,0.5)" }]}>
-                {f === "all" ? "Toutes" : `Non lues`}
+                {f === "all" ? t("notificationsScreen.tabAll") : t("notificationsScreen.tabUnread")}
               </Text>
               {f === "unread" && unreadCount > 0 && (
                 <View style={styles.tabBadge}>
@@ -288,8 +290,8 @@ export default function NotificationsScreen() {
           ListEmptyComponent={
             <EmptyState
               icon="bell-off"
-              title="Aucune notification"
-              subtitle={filter === "unread" ? "Toutes les notifications sont lues" : "Rien a signaler pour le moment"}
+              title={t("notificationsScreen.emptyTitle")}
+              subtitle={filter === "unread" ? t("notificationsScreen.emptyUnread") : t("notificationsScreen.emptyAll")}
             />
           }
           renderItem={({ item: [dateLabel, items] }) => (

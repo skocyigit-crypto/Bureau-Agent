@@ -28,6 +28,7 @@ import { FormModal } from "@/components/FormModal";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useCalendarEvents } from "@/contexts/CalendarEventsContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 interface CalendarEvent {
   id: number | string;
@@ -60,32 +61,7 @@ const TYPE_COLORS: Record<string, string> = {
   autre: "#64748b",
 };
 
-const TYPE_LABELS: Record<string, string> = {
-  rendez_vous: "Rendez-vous",
-  reunion: "Reunion",
-  tache: "Tache",
-  personnel: "Personnel",
-  appel: "Appel",
-  autre: "Autre",
-};
-
-const DOW_LABELS = ["L", "M", "M", "J", "V", "S", "D"];
-
-const FORM_FIELDS = [
-  { key: "title", label: "Titre", required: true },
-  {
-    key: "type", label: "Type", type: "select" as const, options: [
-      { value: "rendez_vous", label: "Rendez-vous" },
-      { value: "reunion", label: "Reunion" },
-      { value: "appel", label: "Appel" },
-      { value: "personnel", label: "Personnel" },
-    ],
-  },
-  { key: "description", label: "Description", type: "multiline" as const },
-  { key: "location", label: "Lieu" },
-  { key: "contactName", label: "Contact" },
-  { key: "contactPhone", label: "Tel. contact", type: "phone" as const },
-];
+const DOW_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
 function findClosureForDate(dateStr: string, closures: OrgClosure[]): OrgClosure | null {
   for (const c of closures) {
@@ -122,6 +98,24 @@ function buildGrid(year: number, month: number, events: CalendarEvent[], closure
 
 export default function CalendarScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
+  const DOW_LABELS = DOW_KEYS.map((k) => t(`calendarScreen.dow.${k}`));
+  const typeLabel = (type: string) => (TYPE_COLORS[type] ? t(`calendarScreen.types.${type}`) : type);
+  const FORM_FIELDS = [
+    { key: "title", label: t("calendarScreen.form.title"), required: true },
+    {
+      key: "type", label: t("calendarScreen.form.type"), type: "select" as const, options: [
+        { value: "rendez_vous", label: t("calendarScreen.types.rendez_vous") },
+        { value: "reunion", label: t("calendarScreen.types.reunion") },
+        { value: "appel", label: t("calendarScreen.types.appel") },
+        { value: "personnel", label: t("calendarScreen.types.personnel") },
+      ],
+    },
+    { key: "description", label: t("calendarScreen.form.description"), type: "multiline" as const },
+    { key: "location", label: t("calendarScreen.form.location") },
+    { key: "contactName", label: t("calendarScreen.form.contact") },
+    { key: "contactPhone", label: t("calendarScreen.form.contactPhone"), type: "phone" as const },
+  ];
   const insets = useSafeAreaInsets();
   const { fetchAuth, user } = useAuth();
   const { refresh: refreshSharedCalendar, clearBadge } = useCalendarEvents();
@@ -261,10 +255,10 @@ export default function CalendarScreen() {
         await fetchClosures();
       } else {
         const err = await res.json().catch(() => ({}));
-        Alert.alert("Erreur", err.error ?? "Impossible d'enregistrer la fermeture.");
+        Alert.alert(t("calendarScreen.errorTitle"), err.error ?? t("calendarScreen.saveClosureError"));
       }
     } catch {
-      Alert.alert("Erreur", "Erreur de connexion au serveur.");
+      Alert.alert(t("calendarScreen.errorTitle"), t("calendarScreen.connectionError"));
     } finally {
       setClosureLoading(false);
     }
@@ -279,10 +273,10 @@ export default function CalendarScreen() {
         await fetchClosures();
       } else {
         const err = await res.json().catch(() => ({}));
-        Alert.alert("Erreur", err.error ?? "Impossible de supprimer la fermeture.");
+        Alert.alert(t("calendarScreen.errorTitle"), err.error ?? t("calendarScreen.deleteClosureError"));
       }
     } catch {
-      Alert.alert("Erreur", "Erreur de connexion au serveur.");
+      Alert.alert(t("calendarScreen.errorTitle"), t("calendarScreen.connectionError"));
     } finally {
       setClosureLoading(false);
     }
@@ -291,7 +285,7 @@ export default function CalendarScreen() {
   async function handleEditClosure(id: number, startDate: string) {
     const endDate = closureEditEndDate || startDate;
     if (endDate < startDate) {
-      Alert.alert("Date invalide", "La date de fin doit être ≥ à la date de début.");
+      Alert.alert(t("calendarScreen.invalidDateTitle"), t("calendarScreen.invalidDateMessage"));
       return;
     }
     setClosureLoading(true);
@@ -310,10 +304,10 @@ export default function CalendarScreen() {
         await fetchClosures();
       } else {
         const data = await res.json().catch(() => ({}));
-        Alert.alert("Erreur", data.error ?? "Impossible de modifier la fermeture.");
+        Alert.alert(t("calendarScreen.errorTitle"), data.error ?? t("calendarScreen.editClosureError"));
       }
     } catch {
-      Alert.alert("Erreur", "Erreur de connexion au serveur.");
+      Alert.alert(t("calendarScreen.errorTitle"), t("calendarScreen.connectionError"));
     } finally {
       setClosureLoading(false);
     }
@@ -488,7 +482,7 @@ export default function CalendarScreen() {
   const monthLabel = currentDate.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 
   function formatEventTime(ev: CalendarEvent) {
-    if (ev.allDay) return "Journee";
+    if (ev.allDay) return t("calendarScreen.allDay");
     const start = new Date(ev.startDate).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
     const end = new Date(ev.endDate).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
     return `${start} – ${end}`;
@@ -556,9 +550,9 @@ export default function CalendarScreen() {
           <Pressable onPress={() => router.back()} hitSlop={12}>
             <Feather name="arrow-left" size={22} color="#ffffff" />
           </Pressable>
-          <Text style={styles.headerTitle}>Calendrier</Text>
+          <Text style={styles.headerTitle}>{t("calendarScreen.title")}</Text>
           <Pressable onPress={goToday} hitSlop={12}>
-            <Text style={styles.todayBtn}>Auj.</Text>
+            <Text style={styles.todayBtn}>{t("calendarScreen.today")}</Text>
           </Pressable>
         </View>
 
@@ -643,7 +637,7 @@ export default function CalendarScreen() {
                               <Text style={styles.closedBadge} numberOfLines={1}>
                                 {closure.label
                                   ? closure.label.slice(0, 6) + (closure.label.length > 6 ? "…" : "")
-                                  : "Fermé"}
+                                  : t("calendarScreen.closed")}
                               </Text>
                               <Feather name="unlock" size={7} color="#fca5a5" />
                             </Pressable>
@@ -651,7 +645,7 @@ export default function CalendarScreen() {
                             <Text style={styles.closedBadge} numberOfLines={1}>
                               {closure.label
                                 ? closure.label.slice(0, 6) + (closure.label.length > 6 ? "…" : "")
-                                : "Fermé"}
+                                : t("calendarScreen.closed")}
                             </Text>
                           )
                         ) : cell.eventColors.length > 0 ? (
@@ -711,15 +705,17 @@ export default function CalendarScreen() {
                 };
                 const closureLabel = closure
                   ? (closure.dateEnd > closure.dateStart
-                      ? `Fermé du ${formatClosureDate(closure.dateStart)} au ${formatClosureDate(closure.dateEnd)}${closure.label ? ` — ${closure.label}` : ""}`
-                      : (closure.label ? `Fermé — ${closure.label}` : "Fermé"))
-                  : "Jour fermé — hors jours d'ouverture";
+                      ? (closure.label
+                          ? t("calendarScreen.closedRangeLabel", { start: formatClosureDate(closure.dateStart), end: formatClosureDate(closure.dateEnd), label: closure.label })
+                          : t("calendarScreen.closedRange", { start: formatClosureDate(closure.dateStart), end: formatClosureDate(closure.dateEnd) }))
+                      : (closure.label ? t("calendarScreen.closedLabel", { label: closure.label }) : t("calendarScreen.closed")))
+                  : t("calendarScreen.closedDayOutOfHours");
                 return (
                   <View style={[styles.hoursTimeline, { borderColor: closure ? "#ef4444" : colors.border }]}>
                     <View style={styles.hoursTimelineHeader}>
                       <Text style={[styles.hoursTimelineLabel, { color: isOpen ? colors.primary : closure ? "#ef4444" : colors.mutedForeground, flex: 1 }]}>
                         {isOpen
-                          ? `Ouvert ${orgProfile.workingHoursStart ?? ""} – ${orgProfile.workingHoursEnd ?? ""}`
+                          ? t("calendarScreen.openHours", { start: orgProfile.workingHoursStart ?? "", end: orgProfile.workingHoursEnd ?? "" })
                           : closureLabel}
                       </Text>
                       <View style={styles.hoursTimelineRight}>
@@ -740,7 +736,7 @@ export default function CalendarScreen() {
                               color={closure ? "#ef4444" : colors.mutedForeground}
                             />
                             <Text style={[styles.closureToggleBtnText, { color: closure ? "#ef4444" : colors.mutedForeground }]}>
-                              {closure ? "Lever" : "Fermer"}
+                              {closure ? t("calendarScreen.reopen") : t("common.close")}
                             </Text>
                           </Pressable>
                         )}
@@ -777,8 +773,8 @@ export default function CalendarScreen() {
           ListEmptyComponent={
             <EmptyState
               icon="calendar"
-              title="Aucun evenement"
-              subtitle={selectedDateStr ? "Rien ce jour, appuyez sur + pour ajouter" : "Aucun evenement ce mois-ci"}
+              title={t("calendarScreen.emptyTitle")}
+              subtitle={selectedDateStr ? t("calendarScreen.emptySubtitleDay") : t("calendarScreen.emptySubtitleMonth")}
             />
           }
           renderItem={({ item: ev }) => {
@@ -796,7 +792,7 @@ export default function CalendarScreen() {
               >
                 <View style={styles.eventTimeBlock}>
                   <Text style={[styles.eventTimeText, { color: evColor }]}>
-                    {ev.allDay ? "Journee" : new Date(ev.startDate).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                    {ev.allDay ? t("calendarScreen.allDay") : new Date(ev.startDate).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                   </Text>
                   {!ev.allDay && (
                     <Text style={[styles.eventEndTime, { color: colors.mutedForeground }]}>
@@ -822,7 +818,7 @@ export default function CalendarScreen() {
                   </View>
                 </View>
                 <View style={[styles.typeBadge, { backgroundColor: evColor + "18" }]}>
-                  <Text style={[styles.typeBadgeText, { color: evColor }]}>{TYPE_LABELS[ev.type] ?? ev.type}</Text>
+                  <Text style={[styles.typeBadgeText, { color: evColor }]}>{typeLabel(ev.type)}</Text>
                 </View>
               </Pressable>
             );
@@ -836,9 +832,9 @@ export default function CalendarScreen() {
           if (selectedDateStr && isDateClosed(selectedDateStr)) {
             const closure = isDateClosed(selectedDateStr)!;
             const msg = closure.label
-              ? `Ce jour est marqué comme fermé (${closure.label}). Vous ne pouvez pas créer d'événement ici.`
-              : "Ce jour est une fermeture exceptionnelle. Vous ne pouvez pas créer d'événement ici.";
-            Alert.alert("Jour fermé", msg, [{ text: "OK" }]);
+              ? t("calendarScreen.closedDayWithLabel", { label: closure.label })
+              : t("calendarScreen.closedDayException");
+            Alert.alert(t("calendarScreen.closedDayTitle"), msg, [{ text: t("calendarScreen.ok") }]);
             return;
           }
           setEditId(null);
@@ -851,13 +847,13 @@ export default function CalendarScreen() {
         visible={showForm}
         onClose={() => { setShowForm(false); setEditId(null); }}
         onSubmit={handleSubmit}
-        title={editId ? "Modifier l'evenement" : "Nouvel evenement"}
+        title={editId ? t("calendarScreen.editEvent") : t("calendarScreen.newEvent")}
         fields={FORM_FIELDS}
         values={formValues}
         onChange={(k, v) => setFormValues((p) => ({ ...p, [k]: v }))}
         loading={formLoading}
         icon="calendar"
-        submitLabel={editId ? "Enregistrer" : "Creer"}
+        submitLabel={editId ? t("common.save") : t("calendarScreen.create")}
       />
 
       {selected ? (
@@ -870,21 +866,21 @@ export default function CalendarScreen() {
           subtitle={selected.description}
           icon="calendar"
           iconColor={selected.color || TYPE_COLORS[selected.type] || "#64748b"}
-          badge={{ label: TYPE_LABELS[selected.type] ?? selected.type, color: selected.color || TYPE_COLORS[selected.type] || "#64748b" }}
+          badge={{ label: typeLabel(selected.type), color: selected.color || TYPE_COLORS[selected.type] || "#64748b" }}
           fields={[
-            { label: "Horaire", value: formatEventTime(selected), icon: "clock" },
-            ...(selected.location ? [{ label: "Lieu", value: selected.location, icon: "map-pin" as const }] : []),
-            ...(selected.contactName ? [{ label: "Contact", value: selected.contactName, icon: "user" as const }] : []),
-            ...(selected.contactPhone ? [{ label: "Telephone", value: selected.contactPhone, icon: "phone" as const, action: "call" as const }] : []),
-            ...(selected.status ? [{ label: "Statut", value: selected.status, icon: "info" as const }] : []),
+            { label: t("calendarScreen.fieldSchedule"), value: formatEventTime(selected), icon: "clock" },
+            ...(selected.location ? [{ label: t("calendarScreen.fieldLocation"), value: selected.location, icon: "map-pin" as const }] : []),
+            ...(selected.contactName ? [{ label: t("calendarScreen.fieldContact"), value: selected.contactName, icon: "user" as const }] : []),
+            ...(selected.contactPhone ? [{ label: t("calendarScreen.fieldPhone"), value: selected.contactPhone, icon: "phone" as const, action: "call" as const }] : []),
+            ...(selected.status ? [{ label: t("calendarScreen.fieldStatus"), value: selected.status, icon: "info" as const }] : []),
           ]}
           extraActions={typeof selected.id === "number" ? [{
-            label: "Créer un projet",
+            label: t("calendarScreen.createProject"),
             icon: "folder",
             color: "#6366f1",
             onPress: async () => {
               try {
-                const res = await fetchAuth(`${API_BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: selected.title, status: "planifie", priority: "moyenne", progress: 0, notes: `Créé depuis l'événement calendrier mobile` }) });
+                const res = await fetchAuth(`${API_BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: selected.title, status: "planifie", priority: "moyenne", progress: 0, notes: t("calendarScreen.projectNote") }) });
                 if (res.ok) { setSelected(null); router.push("/projets" as any); }
               } catch {}
             },
@@ -989,7 +985,7 @@ export default function CalendarScreen() {
                     onPress={() => setShowDatePicker(null)}
                     style={[styles.pickerCancelBtn, { borderTopColor: colors.border }]}
                   >
-                    <Text style={[styles.pickerCancelText, { color: colors.mutedForeground }]}>Annuler</Text>
+                    <Text style={[styles.pickerCancelText, { color: colors.mutedForeground }]}>{t("common.cancel")}</Text>
                   </Pressable>
                 </>
               );
@@ -1006,7 +1002,7 @@ export default function CalendarScreen() {
                 <Feather name={closureEditMode ? "arrow-left" : "x"} size={22} color={colors.foreground} />
               </Pressable>
               <Text style={[styles.sheetTitle, { color: colors.foreground }]}>
-                {closureEditMode ? "Modifier la fermeture" : closureSheetClosure ? "Fermeture existante" : "Marquer comme fermé"}
+                {closureEditMode ? t("calendarScreen.editClosureTitle") : closureSheetClosure ? t("calendarScreen.existingClosure") : t("calendarScreen.markClosed")}
               </Text>
               <View style={{ width: 22 }} />
             </View>
@@ -1028,13 +1024,13 @@ export default function CalendarScreen() {
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                       <Feather name="calendar" size={15} color={badgeColor} />
                       <Text style={[styles.sheetDateText, { color: badgeColor }]}>
-                        {isRange ? `Du ${startLabel}` : startLabel.charAt(0).toUpperCase() + startLabel.slice(1)}
+                        {isRange ? t("calendarScreen.rangeFrom", { date: startLabel }) : startLabel.charAt(0).toUpperCase() + startLabel.slice(1)}
                       </Text>
                     </View>
                     {isRange ? (
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingLeft: 23 }}>
                         <Feather name="arrow-right" size={13} color={badgeColor} />
-                        <Text style={[styles.sheetDateText, { color: badgeColor }]}>au {endLabel}</Text>
+                        <Text style={[styles.sheetDateText, { color: badgeColor }]}>{t("calendarScreen.rangeTo", { date: endLabel })}</Text>
                       </View>
                     ) : null}
                   </View>
@@ -1045,7 +1041,7 @@ export default function CalendarScreen() {
                 closureEditMode ? (
                   <View style={{ gap: 16 }}>
                     <View>
-                      <Text style={[styles.sheetFieldLabel, { color: colors.mutedForeground }]}>Date de fin</Text>
+                      <Text style={[styles.sheetFieldLabel, { color: colors.mutedForeground }]}>{t("calendarScreen.endDate")}</Text>
                       <TouchableOpacity
                         onPress={() => {
                           const [y, m] = (closureEditEndDate || closureSheetClosure!.dateEnd).split("-").map(Number);
@@ -1062,14 +1058,14 @@ export default function CalendarScreen() {
                         <Feather name="chevron-down" size={14} color={colors.mutedForeground} />
                       </TouchableOpacity>
                       <Text style={[styles.sheetHint, { color: colors.mutedForeground, marginTop: 4 }]}>
-                        Modifiez la date du dernier jour de fermeture.
+                        {t("calendarScreen.endDateHint")}
                       </Text>
                     </View>
                     <View>
-                      <Text style={[styles.sheetFieldLabel, { color: colors.mutedForeground }]}>Motif (optionnel)</Text>
+                      <Text style={[styles.sheetFieldLabel, { color: colors.mutedForeground }]}>{t("calendarScreen.reason")}</Text>
                       <TextInput
                         style={[styles.sheetInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
-                        placeholder="ex : Congés, Formation, Jour férié…"
+                        placeholder={t("calendarScreen.reasonPlaceholder")}
                         placeholderTextColor={colors.mutedForeground}
                         value={closureEditLabel}
                         onChangeText={setClosureEditLabel}
@@ -1084,12 +1080,12 @@ export default function CalendarScreen() {
                       <Feather name="lock" size={16} color="#ef4444" />
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.sheetInfoTitle, { color: "#ef4444" }]}>
-                          {closureSheetClosure.dateEnd > closureSheetClosure.dateStart ? "Fermeture multi-jours" : "Jour marqué fermé"}
+                          {closureSheetClosure.dateEnd > closureSheetClosure.dateStart ? t("calendarScreen.multiDayClosure") : t("calendarScreen.singleDayClosure")}
                         </Text>
                         {closureSheetClosure.label ? (
                           <Text style={[styles.sheetInfoSubtitle, { color: colors.mutedForeground }]}>{closureSheetClosure.label}</Text>
                         ) : (
-                          <Text style={[styles.sheetInfoSubtitle, { color: colors.mutedForeground }]}>Fermeture exceptionnelle</Text>
+                          <Text style={[styles.sheetInfoSubtitle, { color: colors.mutedForeground }]}>{t("calendarScreen.exceptionalClosure")}</Text>
                         )}
                       </View>
                     </View>
@@ -1101,17 +1097,17 @@ export default function CalendarScreen() {
                       ]}
                     >
                       <Feather name="edit-2" size={15} color="#fff" />
-                      <Text style={styles.sheetSubmitText}>Modifier la fermeture</Text>
+                      <Text style={styles.sheetSubmitText}>{t("calendarScreen.editClosureBtn")}</Text>
                     </Pressable>
                     <Text style={[styles.sheetHint, { color: colors.mutedForeground, marginTop: 12 }]}>
-                      Vous pouvez aussi supprimer cette fermeture pour rouvrir le jour aux rendez-vous.
+                      {t("calendarScreen.deleteClosureHint")}
                     </Text>
                   </View>
                 )
               ) : (
                 <View style={{ gap: 16 }}>
                   <View>
-                    <Text style={[styles.sheetFieldLabel, { color: colors.mutedForeground }]}>Date de fin (optionnelle)</Text>
+                    <Text style={[styles.sheetFieldLabel, { color: colors.mutedForeground }]}>{t("calendarScreen.endDateOptional")}</Text>
                     <TouchableOpacity
                       onPress={() => {
                         const base = closureEndDate ?? closureSheetDate ?? new Date().toISOString().slice(0, 10);
@@ -1129,14 +1125,14 @@ export default function CalendarScreen() {
                       <Feather name="chevron-down" size={14} color={colors.mutedForeground} />
                     </TouchableOpacity>
                     <Text style={[styles.sheetHint, { color: colors.mutedForeground, marginTop: 4 }]}>
-                      Sélectionnez le dernier jour de fermeture (identique au premier pour une seule journée).
+                      {t("calendarScreen.endDateOptionalHint")}
                     </Text>
                   </View>
                   <View>
-                    <Text style={[styles.sheetFieldLabel, { color: colors.mutedForeground }]}>Motif (optionnel)</Text>
+                    <Text style={[styles.sheetFieldLabel, { color: colors.mutedForeground }]}>{t("calendarScreen.reason")}</Text>
                     <TextInput
                       style={[styles.sheetInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
-                      placeholder="ex : Congés, Formation, Jour férié…"
+                      placeholder={t("calendarScreen.reasonPlaceholder")}
                       placeholderTextColor={colors.mutedForeground}
                       value={closureLabel}
                       onChangeText={setClosureLabel}
@@ -1145,7 +1141,7 @@ export default function CalendarScreen() {
                     />
                   </View>
                   <Text style={[styles.sheetHint, { color: colors.mutedForeground }]}>
-                    Tous les jours de la plage seront bloqués pour les rendez-vous de l'organisation.
+                    {t("calendarScreen.rangeBlockedHint")}
                   </Text>
                 </View>
               )}
@@ -1156,7 +1152,7 @@ export default function CalendarScreen() {
                 onPress={() => { if (closureEditMode) { cancelEditMode(); } else { setShowClosureSheet(false); } }}
                 style={[styles.sheetCancelBtn, { borderColor: colors.border }]}
               >
-                <Text style={[styles.sheetCancelText, { color: colors.foreground }]}>{closureEditMode ? "Retour" : "Annuler"}</Text>
+                <Text style={[styles.sheetCancelText, { color: colors.foreground }]}>{closureEditMode ? t("common.back") : t("common.cancel")}</Text>
               </Pressable>
               {closureSheetClosure ? (
                 closureEditMode ? (
@@ -1170,7 +1166,7 @@ export default function CalendarScreen() {
                     ) : (
                       <>
                         <Feather name="check" size={16} color="#fff" />
-                        <Text style={styles.sheetSubmitText}>Enregistrer</Text>
+                        <Text style={styles.sheetSubmitText}>{t("common.save")}</Text>
                       </>
                     )}
                   </Pressable>
@@ -1178,11 +1174,11 @@ export default function CalendarScreen() {
                   <Pressable
                     onPress={() => {
                       Alert.alert(
-                        "Lever la fermeture",
-                        "Confirmer la suppression de cette fermeture ?",
+                        t("calendarScreen.removeClosure"),
+                        t("calendarScreen.removeClosureConfirm"),
                         [
-                          { text: "Annuler", style: "cancel" },
-                          { text: "Supprimer", style: "destructive", onPress: () => handleRemoveClosure(closureSheetClosure!.id) },
+                          { text: t("common.cancel"), style: "cancel" },
+                          { text: t("common.delete"), style: "destructive", onPress: () => handleRemoveClosure(closureSheetClosure!.id) },
                         ]
                       );
                     }}
@@ -1194,7 +1190,7 @@ export default function CalendarScreen() {
                     ) : (
                       <>
                         <Feather name="unlock" size={16} color="#fff" />
-                        <Text style={styles.sheetDestructText}>Lever la fermeture</Text>
+                        <Text style={styles.sheetDestructText}>{t("calendarScreen.removeClosure")}</Text>
                       </>
                     )}
                   </Pressable>
@@ -1210,7 +1206,7 @@ export default function CalendarScreen() {
                   ) : (
                     <>
                       <Feather name="lock" size={16} color="#fff" />
-                      <Text style={styles.sheetSubmitText}>Confirmer la fermeture</Text>
+                      <Text style={styles.sheetSubmitText}>{t("calendarScreen.confirmClosure")}</Text>
                     </>
                   )}
                 </Pressable>

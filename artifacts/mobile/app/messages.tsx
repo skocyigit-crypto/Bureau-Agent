@@ -43,11 +43,12 @@ import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useUnreadBadges } from "@/contexts/UnreadBadgesContext";
 import { useColors } from "@/hooks/useColors";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
+import { useTranslation, type TFunction } from "@/lib/i18n";
 
-const TYPE_MAP: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  messagerie_vocale: { label: "Messagerie vocale", color: "#8b5cf6", icon: "mic" },
-  note: { label: "Note", color: "#f59e0b", icon: "file-text" },
-  rappel: { label: "Rappel", color: "#3b82f6", icon: "bell" },
+const TYPE_MAP: Record<string, { color: string; icon: keyof typeof Feather.glyphMap }> = {
+  messagerie_vocale: { color: "#8b5cf6", icon: "mic" },
+  note: { color: "#f59e0b", icon: "file-text" },
+  rappel: { color: "#3b82f6", icon: "bell" },
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -62,40 +63,40 @@ type ContactOption = { id: number; name: string; phone?: string | null };
 // content/priority/isRead en update). À la création on propose, comme sur le
 // web, soit de choisir un contact existant (-> contactId + pré-remplissage du
 // téléphone), soit de saisir un nouveau nom + téléphone (Tâche #262).
-function buildFormFields(isEdit: boolean, contactOptions: ContactOption[]) {
+function buildFormFields(t: TFunction, isEdit: boolean, contactOptions: ContactOption[]) {
   return [
     ...(isEdit
       ? []
       : [
           {
             key: "contactId",
-            label: "Contact existant",
+            label: t("messagesScreen.form.existingContact"),
             type: "contact" as const,
             contactOptions,
             linkedPhoneKey: "phoneNumber",
             linkedNameKey: "contactName",
-            placeholder: "Rechercher un contact...",
+            placeholder: t("messagesScreen.form.searchContact"),
           },
         ]),
-    { key: "contactName", label: "Nom du contact" },
-    { key: "phoneNumber", label: "Telephone", type: "phone" as const, required: true },
+    { key: "contactName", label: t("messagesScreen.form.contactName") },
+    { key: "phoneNumber", label: t("messagesScreen.form.phone"), type: "phone" as const, required: true },
     {
-      key: "type", label: "Type", type: "select" as const, options: [
-        { value: "messagerie_vocale", label: "Messagerie vocale" },
-        { value: "note", label: "Note" },
-        { value: "rappel", label: "Rappel" },
+      key: "type", label: t("messagesScreen.form.type"), type: "select" as const, options: [
+        { value: "messagerie_vocale", label: t("messagesScreen.types.messagerie_vocale") },
+        { value: "note", label: t("messagesScreen.types.note") },
+        { value: "rappel", label: t("messagesScreen.types.rappel") },
       ],
     },
     {
-      key: "priority", label: "Priorite", type: "select" as const, options: [
-        { value: "basse", label: "Basse" },
-        { value: "moyenne", label: "Moyenne" },
-        { value: "haute", label: "Haute" },
+      key: "priority", label: t("messagesScreen.form.priority"), type: "select" as const, options: [
+        { value: "basse", label: t("messagesScreen.priority.basse") },
+        { value: "moyenne", label: t("messagesScreen.priority.moyenne") },
+        { value: "haute", label: t("messagesScreen.priority.haute") },
       ],
     },
     {
       key: "content",
-      label: "Contenu",
+      label: t("messagesScreen.form.content"),
       type: "multiline" as const,
       required: true,
       inlineSuggest: "message_content" as const,
@@ -106,8 +107,12 @@ function buildFormFields(isEdit: boolean, contactOptions: ContactOption[]) {
 
 export default function MessagesScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
+  const typeLabel = (ty: string) => (TYPE_MAP[ty] ? t(`messagesScreen.types.${ty}`) : ty);
+  const priorityLabel = (p: string) =>
+    p === "haute" || p === "moyenne" || p === "basse" ? t(`messagesScreen.priority.${p}`) : p;
   const { clearKey } = useUnreadBadges();
   // Tâche #83 : `open=<id>` est posé par le tap sur la notification
   // "Nouveau message" (cf. `_layout.tsx`). On ouvre directement le détail
@@ -302,17 +307,17 @@ export default function MessagesScreen() {
       handleDelete(id);
       return;
     }
-    Alert.alert("Supprimer", "Supprimer ce message ?", [
-      { text: "Annuler", style: "cancel", onPress: () => swipeRefs.current[id]?.close() },
-      { text: "Supprimer", style: "destructive", onPress: () => handleDelete(id) },
+    Alert.alert(t("common.delete"), t("messagesScreen.deleteConfirm"), [
+      { text: t("common.cancel"), style: "cancel", onPress: () => swipeRefs.current[id]?.close() },
+      { text: t("common.delete"), style: "destructive", onPress: () => handleDelete(id) },
     ]);
   }
 
   const filters = [
-    { key: "all", label: "Tous" },
-    { key: "messagerie_vocale", label: "Vocal" },
-    { key: "note", label: "Notes" },
-    { key: "rappel", label: "Rappels" },
+    { key: "all", label: t("messagesScreen.filters.all") },
+    { key: "messagerie_vocale", label: t("messagesScreen.filters.voice") },
+    { key: "note", label: t("messagesScreen.filters.notes") },
+    { key: "rappel", label: t("messagesScreen.filters.reminders") },
   ];
 
   const unreadCount = messages.filter((m) => !m.isRead).length;
@@ -324,7 +329,7 @@ export default function MessagesScreen() {
         style={[styles.swipeAction, { backgroundColor: "#ef4444" }]}
       >
         <Feather name="trash-2" size={20} color="#fff" />
-        <Text style={styles.swipeActionText}>Suppr.</Text>
+        <Text style={styles.swipeActionText}>{t("messagesScreen.delShort")}</Text>
       </Pressable>
     );
   }
@@ -339,7 +344,7 @@ export default function MessagesScreen() {
         style={[styles.swipeAction, { backgroundColor: "#22c55e" }]}
       >
         <Feather name="check" size={20} color="#fff" />
-        <Text style={styles.swipeActionText}>Lu</Text>
+        <Text style={styles.swipeActionText}>{t("messagesScreen.read")}</Text>
       </Pressable>
     );
   }
@@ -352,7 +357,7 @@ export default function MessagesScreen() {
             <Feather name="arrow-left" size={22} color="#ffffff" />
           </Pressable>
           <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Messages</Text>
+            <Text style={styles.headerTitle}>{t("messagesScreen.title")}</Text>
             {unreadCount > 0 && (
               <View style={[styles.unreadBadge, { backgroundColor: colors.primary }]}>
                 <Text style={styles.unreadBadgeText}>{unreadCount}</Text>
@@ -361,7 +366,7 @@ export default function MessagesScreen() {
           </View>
           {unreadCount > 0 ? (
             <Pressable onPress={markAllRead} hitSlop={12}>
-              <Text style={styles.markAllBtn}>Tout lire</Text>
+              <Text style={styles.markAllBtn}>{t("messagesScreen.markAllRead")}</Text>
             </Pressable>
           ) : (
             <View style={{ width: 50 }} />
@@ -372,7 +377,7 @@ export default function MessagesScreen() {
           <Feather name="search" size={16} color="rgba(255,255,255,0.5)" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Rechercher..."
+            placeholder={t("messagesScreen.searchPlaceholder")}
             placeholderTextColor="rgba(255,255,255,0.4)"
             value={search}
             onChangeText={setSearch}
@@ -395,7 +400,7 @@ export default function MessagesScreen() {
         {isFromCache && (
           <View style={styles.cacheRow}>
             <Feather name="wifi-off" size={11} color="rgba(255,255,255,0.5)" />
-            <Text style={styles.cacheText}>Cache hors ligne</Text>
+            <Text style={styles.cacheText}>{t("messagesScreen.offlineCache")}</Text>
           </View>
         )}
       </View>
@@ -410,9 +415,9 @@ export default function MessagesScreen() {
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={[styles.listContent, { paddingBottom: isWeb ? 118 : 100 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
-          ListEmptyComponent={<EmptyState icon="message-square" title="Aucun message" subtitle="Les messages apparaitront ici" />}
+          ListEmptyComponent={<EmptyState icon="message-square" title={t("messagesScreen.emptyTitle")} subtitle={t("messagesScreen.emptySubtitle")} />}
           renderItem={({ item }) => {
-            const type = TYPE_MAP[item.type] ?? { label: item.type, color: "#64748b", icon: "message-square" as const };
+            const type = TYPE_MAP[item.type] ?? { color: "#64748b", icon: "message-square" as const };
             return (
               <Swipeable
                 ref={(ref) => { swipeRefs.current[item.id] = ref; }}
@@ -446,19 +451,19 @@ export default function MessagesScreen() {
                   <View style={styles.msgBody}>
                     <View style={styles.msgTop}>
                       <Text style={[styles.msgName, { color: colors.foreground, fontFamily: item.isRead ? "Inter_500Medium" : "Inter_700Bold" }]} numberOfLines={1}>
-                        {item.contactName || item.phoneNumber || "Inconnu"}
+                        {item.contactName || item.phoneNumber || t("messagesScreen.unknown")}
                       </Text>
                       <Text style={[styles.msgTime, { color: colors.mutedForeground }]}>{formatTime(item.createdAt)}</Text>
                     </View>
                     <Text style={[styles.msgContent, { color: colors.mutedForeground }]} numberOfLines={2}>{item.content}</Text>
                     <View style={styles.msgBottom}>
                       <View style={[styles.typePill, { backgroundColor: type.color + "18" }]}>
-                        <Text style={[styles.typePillText, { color: type.color }]}>{type.label}</Text>
+                        <Text style={[styles.typePillText, { color: type.color }]}>{typeLabel(item.type)}</Text>
                       </View>
                       {item.priority && (
                         <View style={[styles.priorityPill, { backgroundColor: (PRIORITY_COLORS[item.priority] ?? "#64748b") + "18" }]}>
                           <Text style={[styles.priorityText, { color: PRIORITY_COLORS[item.priority] ?? "#64748b" }]}>
-                            {item.priority.charAt(0).toUpperCase() + item.priority.slice(1)}
+                            {priorityLabel(item.priority)}
                           </Text>
                         </View>
                       )}
@@ -477,13 +482,13 @@ export default function MessagesScreen() {
         visible={showForm}
         onClose={() => { setShowForm(false); setEditId(null); }}
         onSubmit={handleSubmit}
-        title={editId ? "Modifier le message" : "Nouveau message"}
-        fields={buildFormFields(editId !== null, contactOptions)}
+        title={editId ? t("messagesScreen.editMessage") : t("messagesScreen.newMessage")}
+        fields={buildFormFields(t, editId !== null, contactOptions)}
         values={formValues}
         onChange={(k, v) => setFormValues((p) => ({ ...p, [k]: v }))}
         loading={formLoading}
         icon="send"
-        submitLabel={editId ? "Enregistrer" : "Creer"}
+        submitLabel={editId ? t("common.save") : t("messagesScreen.create")}
       />
 
       {selected ? (
@@ -492,25 +497,25 @@ export default function MessagesScreen() {
           onClose={() => setSelected(null)}
           onEdit={() => openEdit(selected)}
           onDelete={() => handleDelete(selected.id)}
-          title={selected.contactName || "Message"}
+          title={selected.contactName || t("messagesScreen.messageTitle")}
           subtitle={selected.phoneNumber}
           icon={(TYPE_MAP[selected.type]?.icon ?? "message-square") as keyof typeof Feather.glyphMap}
           iconColor={TYPE_MAP[selected.type]?.color}
-          badge={{ label: TYPE_MAP[selected.type]?.label ?? selected.type, color: TYPE_MAP[selected.type]?.color ?? "#64748b" }}
+          badge={{ label: typeLabel(selected.type), color: TYPE_MAP[selected.type]?.color ?? "#64748b" }}
           fields={[
-            { label: "Contenu", value: selected.content || "-", icon: "file-text" },
-            { label: "Priorite", value: selected.priority === "haute" ? "Haute" : selected.priority === "moyenne" ? "Moyenne" : "Basse", icon: "flag", color: PRIORITY_COLORS[selected.priority] },
-            { label: "Date", value: new Date(selected.createdAt).toLocaleString("fr-FR"), icon: "clock" },
-            { label: "Lu", value: selected.isRead ? "Oui" : "Non", icon: selected.isRead ? "check" : "circle" },
-            ...(selected.phoneNumber ? [{ label: "Telephone", value: selected.phoneNumber, icon: "phone" as const, action: "call" as const }] : []),
+            { label: t("messagesScreen.form.content"), value: selected.content || "-", icon: "file-text" },
+            { label: t("messagesScreen.form.priority"), value: priorityLabel(selected.priority), icon: "flag", color: PRIORITY_COLORS[selected.priority] },
+            { label: t("messagesScreen.dateField"), value: new Date(selected.createdAt).toLocaleString("fr-FR"), icon: "clock" },
+            { label: t("messagesScreen.readField"), value: selected.isRead ? t("common.yes") : t("common.no"), icon: selected.isRead ? "check" : "circle" },
+            ...(selected.phoneNumber ? [{ label: t("messagesScreen.form.phone"), value: selected.phoneNumber, icon: "phone" as const, action: "call" as const }] : []),
           ]}
           extraActions={[{
-            label: "Créer un projet",
+            label: t("messagesScreen.createProject"),
             icon: "folder",
             color: "#6366f1",
             onPress: async () => {
               try {
-                const res = await fetchAuth(`${API_BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: `Suivi message - ${selected.contactName || selected.phoneNumber}`, status: "planifie", priority: selected.priority || "moyenne", progress: 0, notes: `Créé depuis le message mobile` }) });
+                const res = await fetchAuth(`${API_BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: t("messagesScreen.projectTitle", { name: selected.contactName || selected.phoneNumber }), status: "planifie", priority: selected.priority || "moyenne", progress: 0, notes: t("messagesScreen.projectNote") }) });
                 if (res.ok) { setSelected(null); router.push("/projets" as any); }
               } catch {}
             },

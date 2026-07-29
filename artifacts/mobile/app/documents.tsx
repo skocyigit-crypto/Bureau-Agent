@@ -29,6 +29,7 @@ import {
 import { EmptyState } from "@/components/EmptyState";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 import { streamSse } from "@/lib/sse-stream";
 import { bulkScanCancelEndpoint, canRequestCancel, showAllScanCancel } from "@/lib/bulk-scan";
 
@@ -49,29 +50,29 @@ function formatCumulativeSaved(savedMs: number): string {
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
-  general:        { label: "Général",         color: "#6366f1" },
-  contrat:        { label: "Contrat",          color: "#0891b2" },
-  facture:        { label: "Facture",          color: "#22c55e" },
-  rapport:        { label: "Rapport",          color: "#f59e0b" },
-  cv:             { label: "CV",               color: "#ec4899" },
-  correspondance: { label: "Correspondance",   color: "#8b5cf6" },
-  technique:      { label: "Technique",        color: "#14b8a6" },
-  juridique:      { label: "Juridique",        color: "#ef4444" },
-  comptabilite:   { label: "Comptabilité",     color: "#f97316" },
+const CATEGORY_COLORS: Record<string, string> = {
+  general:        "#6366f1",
+  contrat:        "#0891b2",
+  facture:        "#22c55e",
+  rapport:        "#f59e0b",
+  cv:             "#ec4899",
+  correspondance: "#8b5cf6",
+  technique:      "#14b8a6",
+  juridique:      "#ef4444",
+  comptabilite:   "#f97316",
 };
 
-const ENTITY_CFG: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  contact:  { label: "Contacts",    color: "#3b82f6", icon: "user" },
-  prospect: { label: "Prospects",   color: "#8b5cf6", icon: "user-plus" },
-  project:  { label: "Projets",     color: "#f59e0b", icon: "folder" },
-  task:     { label: "Tâches",      color: "#22c55e", icon: "check-square" },
-  invoice:  { label: "Factures",    color: "#22c55e", icon: "file-text" },
-  devis:    { label: "Devis",       color: "#0891b2", icon: "clipboard" },
-  message:  { label: "Messages",    color: "#6366f1", icon: "message-square" },
-  stock:    { label: "Stock",       color: "#f97316", icon: "package" },
-  event:    { label: "Événements",  color: "#ec4899", icon: "calendar" },
-  general:  { label: "Général",     color: "#64748b", icon: "folder" },
+const ENTITY_CFG: Record<string, { color: string; icon: keyof typeof Feather.glyphMap }> = {
+  contact:  { color: "#3b82f6", icon: "user" },
+  prospect: { color: "#8b5cf6", icon: "user-plus" },
+  project:  { color: "#f59e0b", icon: "folder" },
+  task:     { color: "#22c55e", icon: "check-square" },
+  invoice:  { color: "#22c55e", icon: "file-text" },
+  devis:    { color: "#0891b2", icon: "clipboard" },
+  message:  { color: "#6366f1", icon: "message-square" },
+  stock:    { color: "#f97316", icon: "package" },
+  event:    { color: "#ec4899", icon: "calendar" },
+  general:  { color: "#64748b", icon: "folder" },
 };
 
 function getMimeIcon(mimeType: string): { icon: keyof typeof Feather.glyphMap; color: string } {
@@ -100,9 +101,11 @@ function DocCard({ doc, colors, onDelete, onDownload, onRead, onRescan, scanning
   scanning: boolean;
   highlighted?: boolean;
 }) {
+  const { t } = useTranslation();
   const { icon, color } = getMimeIcon(doc.mimeType);
-  const catCfg = CATEGORY_LABELS[doc.category] ?? { label: doc.category, color: "#6366f1" };
-  const entityCfg = doc.entityType ? (ENTITY_CFG[doc.entityType] ?? ENTITY_CFG.general) : null;
+  const catCfg = { label: CATEGORY_COLORS[doc.category] ? t(`documentsScreen.categories.${doc.category}`) : doc.category, color: CATEGORY_COLORS[doc.category] ?? "#6366f1" };
+  const entityType = doc.entityType && ENTITY_CFG[doc.entityType] ? doc.entityType : (doc.entityType ? "general" : null);
+  const entityCfg = entityType ? { ...ENTITY_CFG[entityType], label: t(`documentsScreen.entities.${entityType}`) } : null;
   const date = new Date(doc.createdAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
   const isReadable = doc.hasText || doc.mimeType.startsWith("image/") || doc.mimeType === "text/plain" || doc.mimeType === "application/json";
 
@@ -127,31 +130,31 @@ function DocCard({ doc, colors, onDelete, onDownload, onRead, onRescan, scanning
             {doc.aiProcessed && (
               <View style={[st.aiBadge, { backgroundColor: "#8b5cf618" }]}>
                 <Feather name="zap" size={8} color="#8b5cf6" />
-                <Text style={[st.aiText, { color: "#8b5cf6" }]}>IA</Text>
+                <Text style={[st.aiText, { color: "#8b5cf6" }]}>{t("documentsScreen.ai")}</Text>
               </View>
             )}
             {isReadable && (
               <View style={[st.aiBadge, { backgroundColor: "#22c55e18" }]}>
                 <Feather name="eye" size={8} color="#22c55e" />
-                <Text style={[st.aiText, { color: "#22c55e" }]}>Lisible</Text>
+                <Text style={[st.aiText, { color: "#22c55e" }]}>{t("documentsScreen.readable")}</Text>
               </View>
             )}
             {doc.scanVerdict === "safe" && (
               <View style={[st.aiBadge, { backgroundColor: "#10b98118" }]}>
                 <Feather name="shield" size={8} color="#10b981" />
-                <Text style={[st.aiText, { color: "#10b981" }]}>{doc.scanEngine ? `Vérifié (${doc.scanEngine})` : "Vérifié"}</Text>
+                <Text style={[st.aiText, { color: "#10b981" }]}>{doc.scanEngine ? t("documentsScreen.verifiedEngine", { engine: doc.scanEngine }) : t("documentsScreen.verified")}</Text>
               </View>
             )}
             {doc.scanVerdict === "dangerous" && (
               <View style={[st.aiBadge, { backgroundColor: "#ef444418" }]}>
                 <Feather name="alert-triangle" size={8} color="#ef4444" />
-                <Text style={[st.aiText, { color: "#ef4444" }]}>Menace</Text>
+                <Text style={[st.aiText, { color: "#ef4444" }]}>{t("documentsScreen.threat")}</Text>
               </View>
             )}
             {!doc.scanVerdict && (
               <View style={[st.aiBadge, { backgroundColor: "#64748b18" }]}>
                 <Feather name="shield-off" size={8} color="#64748b" />
-                <Text style={[st.aiText, { color: "#64748b" }]}>Non analysé</Text>
+                <Text style={[st.aiText, { color: "#64748b" }]}>{t("documentsScreen.notScanned")}</Text>
               </View>
             )}
           </View>
@@ -189,26 +192,26 @@ function DocCard({ doc, colors, onDelete, onDownload, onRead, onRescan, scanning
           <Pressable onPress={() => onRead(doc.id)}
             style={[st.actionBtn, { backgroundColor: "#0f766e18", borderColor: "#0f766e30" }]}>
             <Feather name="book-open" size={12} color="#0f766e" />
-            <Text style={[st.actionBtnText, { color: "#0f766e" }]}>Lire</Text>
+            <Text style={[st.actionBtnText, { color: "#0f766e" }]}>{t("documentsScreen.readAction")}</Text>
           </Pressable>
           <Pressable onPress={() => onDownload(doc.id, doc.fileName)}
             style={[st.actionBtn, { backgroundColor: "#3b82f618", borderColor: "#3b82f630" }]}>
             <Feather name="download" size={12} color="#3b82f6" />
-            <Text style={[st.actionBtnText, { color: "#3b82f6" }]}>Télécharger</Text>
+            <Text style={[st.actionBtnText, { color: "#3b82f6" }]}>{t("documentsScreen.download")}</Text>
           </Pressable>
           <Pressable onPress={() => onRescan(doc.id)} disabled={scanning}
             style={[st.actionBtn, { backgroundColor: "#10b98118", borderColor: "#10b98130" }]}>
             {scanning
               ? <ActivityIndicator size="small" color="#10b981" />
               : <Feather name="shield" size={12} color="#10b981" />}
-            <Text style={[st.actionBtnText, { color: "#10b981" }]}>{scanning ? "..." : (doc.scanVerdict ? "Rescanner" : "Analyser")}</Text>
+            <Text style={[st.actionBtnText, { color: "#10b981" }]}>{scanning ? "..." : (doc.scanVerdict ? t("documentsScreen.rescan") : t("documentsScreen.scan"))}</Text>
           </Pressable>
           <Pressable
             onPress={() => {
               if (Platform.OS === "web") { onDelete(doc.id); return; }
-              Alert.alert("Supprimer", `Supprimer "${doc.fileName}" ?`, [
-                { text: "Annuler", style: "cancel" },
-                { text: "Supprimer", style: "destructive", onPress: () => onDelete(doc.id) },
+              Alert.alert(t("common.delete"), t("documentsScreen.deleteConfirm", { name: doc.fileName }), [
+                { text: t("common.cancel"), style: "cancel" },
+                { text: t("common.delete"), style: "destructive", onPress: () => onDelete(doc.id) },
               ]);
             }}
             style={[st.actionBtn, { backgroundColor: "#ef444418", borderColor: "#ef444430" }]}>
@@ -223,6 +226,7 @@ function DocCard({ doc, colors, onDelete, onDownload, onRead, onRescan, scanning
 // ── MAIN ──────────────────────────────────────────────────────────────────────
 export default function DocumentsScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { fetchAuth, authHeaders } = useAuth();
   const isWeb = Platform.OS === "web";
@@ -338,7 +342,7 @@ export default function DocumentsScreen() {
     try {
       if (Platform.OS === "web") window.open(url, "_blank");
       else await Linking.openURL(url);
-    } catch { Alert.alert("Erreur", "Impossible d'ouvrir le fichier."); }
+    } catch { Alert.alert(t("documentsScreen.errorTitle"), t("documentsScreen.openError")); }
   }
 
   function handleRead(id: number) {
@@ -365,10 +369,10 @@ export default function DocumentsScreen() {
           } : d),
         } : null);
       } else {
-        Alert.alert("Analyse antivirus", "L'analyse a échoué. Réessayez.");
+        Alert.alert(t("documentsScreen.antivirusScan"), t("documentsScreen.scanFailed"));
       }
     } catch {
-      Alert.alert("Analyse antivirus", "Erreur de connexion.");
+      Alert.alert(t("documentsScreen.antivirusScan"), t("documentsScreen.connectionError"));
     } finally {
       setScanningIds(prev => prev.filter(x => x !== id));
     }
@@ -407,14 +411,14 @@ export default function DocumentsScreen() {
             finished = true;
             for (const item of data.results ?? []) applyResult(item);
             const parts: string[] = [];
-            if (data.safe) parts.push(`${data.safe} sain(s)`);
-            if (data.dangerous) parts.push(`${data.dangerous} menace(s)`);
-            if (data.reused) parts.push(`${data.reused} réutilisé(s)`);
-            if (data.failed) parts.push(`${data.failed} échec(s)`);
-            Alert.alert(`${data.scanned} document(s) analysé(s)`, parts.join(" · ") || "Analyse terminée.");
+            if (data.safe) parts.push(t("documentsScreen.safeCount", { n: data.safe }));
+            if (data.dangerous) parts.push(t("documentsScreen.threatCount", { n: data.dangerous }));
+            if (data.reused) parts.push(t("documentsScreen.reusedCount", { n: data.reused }));
+            if (data.failed) parts.push(t("documentsScreen.failedCount", { n: data.failed }));
+            Alert.alert(t("documentsScreen.docsScanned", { n: data.scanned }), parts.join(" · ") || t("documentsScreen.scanDone"));
           } else if (event === "error") {
             finished = true;
-            Alert.alert("Analyse antivirus", data?.error || "L'analyse groupée a échoué. Réessayez.");
+            Alert.alert(t("documentsScreen.antivirusScan"), data?.error || t("documentsScreen.bulkScanFailed"));
           }
         },
       });
@@ -427,11 +431,11 @@ export default function DocumentsScreen() {
           for (const item of r.results ?? []) applyResult(item);
           if (r.status === "completed" || r.status === "cancelled") {
             const parts: string[] = [];
-            if (r.safe) parts.push(`${r.safe} sain(s)`);
-            if (r.dangerous) parts.push(`${r.dangerous} menace(s)`);
-            if (r.reused) parts.push(`${r.reused} réutilisé(s)`);
-            if (r.failed) parts.push(`${r.failed} échec(s)`);
-            Alert.alert(`${(r.safe ?? 0) + (r.dangerous ?? 0)} document(s) analysé(s)`, parts.join(" · ") || "Analyse terminée.");
+            if (r.safe) parts.push(t("documentsScreen.safeCount", { n: r.safe }));
+            if (r.dangerous) parts.push(t("documentsScreen.threatCount", { n: r.dangerous }));
+            if (r.reused) parts.push(t("documentsScreen.reusedCount", { n: r.reused }));
+            if (r.failed) parts.push(t("documentsScreen.failedCount", { n: r.failed }));
+            Alert.alert(t("documentsScreen.docsScanned", { n: (r.safe ?? 0) + (r.dangerous ?? 0) }), parts.join(" · ") || t("documentsScreen.scanDone"));
           }
         }
       }
@@ -442,7 +446,7 @@ export default function DocumentsScreen() {
         // calculés et on revient à l'état inactif.
         load();
       } else {
-        Alert.alert("Analyse antivirus", "Erreur de connexion.");
+        Alert.alert(t("documentsScreen.antivirusScan"), t("documentsScreen.connectionError"));
       }
     } finally {
       bulkScanCtrlRef.current = null;
@@ -474,20 +478,20 @@ export default function DocumentsScreen() {
           setBulkScanKind(null);
           setBulkScanProgress(null);
           if (announceOnFinish && job.status === "completed") {
-            const reusedNote = (job.reused ?? 0) > 0 ? ` ${job.reused} déjà vérifié(s) (réutilisé).` : "";
+            const reusedNote = (job.reused ?? 0) > 0 ? t("documentsScreen.reusedNote", { n: job.reused }) : "";
             Alert.alert(
-              "Analyse terminée",
+              t("documentsScreen.scanCompleteTitle"),
               job.dangerous > 0
-                ? `${job.scanned} document(s) analysé(s). ${job.dangerous} menace(s) détectée(s).${reusedNote}`
-                : `${job.scanned} document(s) analysé(s). Aucune menace détectée.${reusedNote}`,
+                ? t("documentsScreen.scanCompleteThreats", { n: job.scanned, threats: job.dangerous, note: reusedNote })
+                : t("documentsScreen.scanCompleteSafe", { n: job.scanned, note: reusedNote }),
             );
           } else if (announceOnFinish && job.status === "cancelled") {
             Alert.alert(
-              "Analyse interrompue",
-              job.scanned > 0 ? `${job.scanned} document(s) déjà analysé(s) conservé(s).` : "Aucun document analysé.",
+              t("documentsScreen.scanInterruptedTitle"),
+              job.scanned > 0 ? t("documentsScreen.scanInterruptedKept", { n: job.scanned }) : t("documentsScreen.noDocScanned"),
             );
           } else if (announceOnFinish && job.status === "failed") {
-            Alert.alert("Analyse antivirus", "L'analyse en lot a échoué. Réessayez.");
+            Alert.alert(t("documentsScreen.antivirusScan"), t("documentsScreen.bulkScanFailedLot"));
           }
           load();
         }
@@ -530,7 +534,7 @@ export default function DocumentsScreen() {
         body: JSON.stringify({}),
       });
       if (!res.ok) {
-        Alert.alert("Analyse antivirus", "L'analyse en lot a échoué. Réessayez.");
+        Alert.alert(t("documentsScreen.antivirusScan"), t("documentsScreen.bulkScanFailedLot"));
         return;
       }
       const { job } = await res.json();
@@ -540,24 +544,24 @@ export default function DocumentsScreen() {
       setBulkScanProgress({ completed: job.scanned ?? 0, total: job.total || total, reused: job.reused ?? 0 });
       pollBulkScan(true);
     } catch {
-      Alert.alert("Analyse antivirus", "Erreur de connexion.");
+      Alert.alert(t("documentsScreen.antivirusScan"), t("documentsScreen.connectionError"));
     }
   }
 
   // Security-status filter items
   const scanTotal = data?.byScan ? data.byScan.safe + data.byScan.dangerous + data.byScan.unscanned : undefined;
   const scanTabs: { key: string; label: string; icon: keyof typeof Feather.glyphMap; color: string; count?: number }[] = [
-    { key: "all",       label: "Toute sécurité", icon: "shield",         color: "#0f766e", count: scanTotal },
-    { key: "safe",      label: "Vérifié",        icon: "shield",         color: "#10b981", count: data?.byScan?.safe },
-    { key: "dangerous", label: "Menace",         icon: "alert-triangle", color: "#ef4444", count: data?.byScan?.dangerous },
-    { key: "none",      label: "Non analysé",    icon: "help-circle",    color: "#64748b", count: data?.byScan?.unscanned },
+    { key: "all",       label: t("documentsScreen.scanAllSecurity"), icon: "shield",         color: "#0f766e", count: scanTotal },
+    { key: "safe",      label: t("documentsScreen.verified"),        icon: "shield",         color: "#10b981", count: data?.byScan?.safe },
+    { key: "dangerous", label: t("documentsScreen.threat"),          icon: "alert-triangle", color: "#ef4444", count: data?.byScan?.dangerous },
+    { key: "none",      label: t("documentsScreen.notScanned"),      icon: "help-circle",    color: "#64748b", count: data?.byScan?.unscanned },
   ];
 
   // Source filter bar items
   const sourceTabs = [
-    { key: "all", label: "Tous", icon: "folder" as const, color: "#0f766e", count: data?.documents.length ?? 0 },
+    { key: "all", label: t("documentsScreen.allSources"), icon: "folder" as const, color: "#0f766e", count: data?.documents.length ?? 0 },
     ...Object.entries(ENTITY_CFG).map(([key, cfg]) => ({
-      key, label: cfg.label, icon: cfg.icon, color: cfg.color,
+      key, label: t(`documentsScreen.entities.${key}`), icon: cfg.icon, color: cfg.color,
       count: data?.bySource.find(s => s.entity_type === key)?.count ?? 0,
     })).filter(s => s.count > 0),
   ];
@@ -578,7 +582,7 @@ export default function DocumentsScreen() {
           <Pressable onPress={() => router.back()} hitSlop={12}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
-          <Text style={st.headerTitle}>Documents</Text>
+          <Text style={st.headerTitle}>{t("documentsScreen.title")}</Text>
           <Pressable onPress={onRefresh} hitSlop={10}>
             <Feather name="refresh-cw" size={18} color="rgba(255,255,255,0.8)" />
           </Pressable>
@@ -588,10 +592,10 @@ export default function DocumentsScreen() {
         {!loading && data && (
           <View style={st.statsStrip}>
             {[
-              { icon: "folder" as const,     label: "Total",     value: totalDocs,    color: "#fff"     },
-              { icon: "book-open" as const,  label: "Lisibles",  value: readableDocs, color: "#86efac"  },
-              { icon: "zap" as const,        label: "Analysés",  value: aiDocs,       color: "#c4b5fd"  },
-              { icon: "layers" as const,     label: "Sources",   value: data.bySource.length, color: "#fde68a" },
+              { icon: "folder" as const,     label: t("documentsScreen.statTotal"),     value: totalDocs,    color: "#fff"     },
+              { icon: "book-open" as const,  label: t("documentsScreen.statReadable"),  value: readableDocs, color: "#86efac"  },
+              { icon: "zap" as const,        label: t("documentsScreen.statScanned"),   value: aiDocs,       color: "#c4b5fd"  },
+              { icon: "layers" as const,     label: t("documentsScreen.statSources"),   value: data.bySource.length, color: "#fde68a" },
             ].map((s, i, arr) => (
               <React.Fragment key={s.label}>
                 <View style={st.statItem}>
@@ -609,7 +613,7 @@ export default function DocumentsScreen() {
           <Feather name="search" size={14} color="rgba(255,255,255,0.5)" />
           <TextInput
             style={st.searchInput}
-            placeholder="Rechercher dans tous les documents..."
+            placeholder={t("documentsScreen.searchPlaceholder")}
             placeholderTextColor="rgba(255,255,255,0.4)"
             value={search}
             onChangeText={setSearch}
@@ -674,8 +678,8 @@ export default function DocumentsScreen() {
               )}
               <Text style={st.scanAllText}>
                 {bulkScanning
-                  ? (bulkScanProgress ? `Analyse ${bulkScanProgress.completed}/${bulkScanProgress.total}${bulkScanProgress.reused > 0 ? ` · ${bulkScanProgress.reused} réutilisé(s)` : ""}…` : "Analyse…")
-                  : `Tout analyser (${data?.byScan?.unscanned})`}
+                  ? (bulkScanProgress ? t("documentsScreen.scanProgress", { completed: bulkScanProgress.completed, total: bulkScanProgress.total, reused: bulkScanProgress.reused > 0 ? t("documentsScreen.reusedSuffix", { n: bulkScanProgress.reused }) : "" }) : t("documentsScreen.scanning"))
+                  : t("documentsScreen.scanAll", { n: data?.byScan?.unscanned ?? 0 })}
               </Text>
             </Pressable>
             {showAllScanCancel({ bulkScanning, bulkScanKind }) && (
@@ -685,7 +689,7 @@ export default function DocumentsScreen() {
                 hitSlop={8}
                 style={st.scanAllCancelBtn}>
                 <Feather name="x" size={13} color="#ef4444" />
-                <Text style={st.bulkCancelText}>{bulkScanCancelling ? "Arrêt…" : "Annuler"}</Text>
+                <Text style={st.bulkCancelText}>{bulkScanCancelling ? t("documentsScreen.stopping") : t("common.cancel")}</Text>
               </Pressable>
             )}
           </View>
@@ -704,9 +708,9 @@ export default function DocumentsScreen() {
           <Text style={[st.bulkBannerText, { color: colors.text }]}>
             {bulkScanning
               ? (bulkScanProgress
-                  ? `Analyse en cours… ${bulkScanProgress.completed}/${bulkScanProgress.total}${bulkScanProgress.reused > 0 ? ` · ${bulkScanProgress.reused} réutilisé(s)` : ""}`
-                  : "Analyse en cours…")
-              : `Analyser la sécurité de ${unscannedIds.length} document(s) non analysé(s)`}
+                  ? t("documentsScreen.scanInProgress", { completed: bulkScanProgress.completed, total: bulkScanProgress.total, reused: bulkScanProgress.reused > 0 ? t("documentsScreen.reusedSuffix", { n: bulkScanProgress.reused }) : "" })
+                  : t("documentsScreen.scanInProgressShort"))
+              : t("documentsScreen.scanSecurityOf", { n: unscannedIds.length })}
           </Text>
           {bulkScanning && (
             <Pressable
@@ -715,7 +719,7 @@ export default function DocumentsScreen() {
               hitSlop={8}
               style={st.bulkCancelBtn}>
               <Feather name="x" size={13} color="#ef4444" />
-              <Text style={st.bulkCancelText}>{bulkScanCancelling ? "Arrêt…" : "Annuler"}</Text>
+              <Text style={st.bulkCancelText}>{bulkScanCancelling ? t("documentsScreen.stopping") : t("common.cancel")}</Text>
             </Pressable>
           )}
         </Pressable>
@@ -726,8 +730,8 @@ export default function DocumentsScreen() {
         <View style={[st.reuseBanner, { backgroundColor: colors.card, borderColor: "#0ea5e940" }]}>
           <Feather name="zap" size={15} color="#0ea5e9" />
           <Text style={[st.reuseBannerText, { color: colors.text }]}>
-            Vous avez gagné ~<Text style={st.reuseBannerStrong}>{formatCumulativeSaved(reuseSavings.reusedScanSavedMs)}</Text>{" "}
-            grâce à {reuseSavings.reusedScanCount} analyse{reuseSavings.reusedScanCount > 1 ? "s" : ""} réutilisée{reuseSavings.reusedScanCount > 1 ? "s" : ""}.
+            {t("documentsScreen.reuseSavedPrefix")}<Text style={st.reuseBannerStrong}>{formatCumulativeSaved(reuseSavings.reusedScanSavedMs)}</Text>
+            {t("documentsScreen.reuseSavedSuffix", { n: reuseSavings.reusedScanCount })}
           </Text>
         </View>
       )}
@@ -758,8 +762,8 @@ export default function DocumentsScreen() {
           ListEmptyComponent={
             <EmptyState
               icon="folder"
-              title="Aucun document"
-              subtitle={search ? "Aucun document ne correspond à votre recherche." : "Aucun document uploadé pour le moment."}
+              title={t("documentsScreen.emptyTitle")}
+              subtitle={search ? t("documentsScreen.emptySearch") : t("documentsScreen.emptyNone")}
             />
           }
           renderItem={({ item }) => (
