@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { confirmAction } from "@/hooks/use-confirm";
 import { useWorkspaceUser } from "@/components/workspace-user";
+import { useTranslation } from "@/i18n";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -104,6 +105,7 @@ function summaryText(raw: string | undefined): string {
 }
 
 export default function EquipeIaPage() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const qc = useQueryClient();
   const { isAtLeast } = useWorkspaceUser();
@@ -140,11 +142,11 @@ export default function EquipeIaPage() {
       }),
     onSuccess: (_r, v) => {
       const a = agents.find(x => x.id === v.agentId);
-      toast({ title: `${a?.persona ?? "Agent"} a terminé`, description: "Le rapport a été mis à jour." });
+      toast({ title: t("equipeIa.toast.agentDone", { name: a?.persona ?? t("equipeIa.agentFallback") }), description: t("equipeIa.toast.reportUpdated") });
       qc.invalidateQueries({ queryKey: ["ai-agents-latest"] });
     },
     onError: (e: Error) =>
-      toast({ title: "Échec de l'exécution", description: e.message, variant: "destructive" }),
+      toast({ title: t("equipeIa.toast.runFailed"), description: e.message, variant: "destructive" }),
     onSettled: () => setRunningId(null),
   });
 
@@ -152,44 +154,44 @@ export default function EquipeIaPage() {
     mutationFn: () => api<{ status: string; totalAgents: number }>("/ai/agents/run", { method: "POST" }),
     onSuccess: (r) => {
       toast({
-        title: "Analyse de l'équipe lancée",
-        description: `${r.totalAgents ?? 10} agents travaillent en arrière-plan. Les rapports se mettront à jour automatiquement.`,
+        title: t("equipeIa.toast.teamLaunched"),
+        description: t("equipeIa.toast.teamLaunchedDesc", { count: r.totalAgents ?? 10 }),
       });
       setTimeout(() => qc.invalidateQueries({ queryKey: ["ai-agents-latest"] }), 8000);
     },
     onError: (e: Error) =>
-      toast({ title: "Échec", description: e.message, variant: "destructive" }),
+      toast({ title: t("equipeIa.toast.failed"), description: e.message, variant: "destructive" }),
   });
 
   const queueRunNow = useMutation({
     mutationFn: () => api<{ inserted: number }>("/agent-queue/run-now", { method: "POST" }),
     onSuccess: (r) => {
       toast({
-        title: "Analyse terminée",
-        description: r.inserted > 0 ? `${r.inserted} nouvelle(s) proposition(s).` : "Aucune nouvelle action à proposer.",
+        title: t("equipeIa.toast.analysisDone"),
+        description: r.inserted > 0 ? t("equipeIa.toast.newProposals", { count: r.inserted }) : t("equipeIa.toast.noNewActions"),
       });
       qc.invalidateQueries({ queryKey: ["agent-queue"] });
     },
-    onError: (e: Error) => toast({ title: "Échec de l'analyse", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: t("equipeIa.toast.analysisFailed"), description: e.message, variant: "destructive" }),
   });
 
   const approve = useMutation({
     mutationFn: (id: number) => api<{ ok: boolean; error?: string }>(`/agent-queue/${id}/approve`, { method: "POST" }),
     onSuccess: (r) => {
-      if (r.ok) toast({ title: "Action exécutée", description: "La proposition a été approuvée et exécutée." });
-      else toast({ title: "Exécution échouée", description: r.error || "Action impossible.", variant: "destructive" });
+      if (r.ok) toast({ title: t("equipeIa.toast.actionExecuted"), description: t("equipeIa.toast.actionExecutedDesc") });
+      else toast({ title: t("equipeIa.toast.executionFailed"), description: r.error || t("equipeIa.toast.actionImpossible"), variant: "destructive" });
       qc.invalidateQueries({ queryKey: ["agent-queue"] });
     },
-    onError: (e: Error) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: t("equipeIa.toast.error"), description: e.message, variant: "destructive" }),
   });
 
   const reject = useMutation({
     mutationFn: (id: number) => api<{ ok: boolean }>(`/agent-queue/${id}/reject`, { method: "POST" }),
     onSuccess: () => {
-      toast({ title: "Proposition rejetée" });
+      toast({ title: t("equipeIa.toast.proposalRejected") });
       qc.invalidateQueries({ queryKey: ["agent-queue"] });
     },
-    onError: (e: Error) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: t("equipeIa.toast.error"), description: e.message, variant: "destructive" }),
   });
 
   const handleRun = (agentId: string) => {
@@ -200,9 +202,9 @@ export default function EquipeIaPage() {
 
   const handleApprove = async (p: Proposal) => {
     const ok = await confirmAction({
-      title: "Approuver cette action ?",
-      description: `${p.summary}\n\nL'action sera exécutée immédiatement.`,
-      confirmLabel: "Approuver et exécuter",
+      title: t("equipeIa.approveConfirm.title"),
+      description: `${p.summary}\n\n${t("equipeIa.approveConfirm.descSuffix")}`,
+      confirmLabel: t("equipeIa.approveConfirm.confirmLabel"),
     });
     if (ok) approve.mutate(p.id);
   };
@@ -218,18 +220,17 @@ export default function EquipeIaPage() {
             <Users2 className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Équipe IA</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">{t("equipeIa.title")}</h1>
             <p className="text-muted-foreground text-sm mt-0.5 max-w-2xl">
-              Votre équipe d'agents intelligents. Donnez un objectif à chacun, lancez-le quand vous
-              voulez, et validez toutes leurs propositions au même endroit — rien ne s'exécute sans vous.
+              {t("equipeIa.description")}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <Badge variant="outline" className="gap-1.5 border-indigo-200 text-indigo-700 dark:border-indigo-900 dark:text-indigo-300">
                 <Brain className="h-3.5 w-3.5" />
-                Conseil IA · Gemini + GPT + Claude
+                {t("equipeIa.councilBadge")}
               </Badge>
               <span className="text-xs text-muted-foreground">
-                Chaque agent consulte plusieurs IA de pointe puis apprend de vos décisions.
+                {t("equipeIa.councilNote")}
               </span>
             </div>
           </div>
@@ -241,22 +242,22 @@ export default function EquipeIaPage() {
             className="shrink-0 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700"
           >
             {runAll.isPending
-              ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Lancement…</>
-              : <><Sparkles className="h-4 w-4 mr-2" />Faire travailler toute l'équipe</>}
+              ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{t("equipeIa.launching")}</>
+              : <><Sparkles className="h-4 w-4 mr-2" />{t("equipeIa.runAll")}</>}
           </Button>
         )}
       </div>
 
       {/* Résumé */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <StatCard icon={Users2} label="Agents" value={agents.length || "—"} tint="text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40" />
-        <StatCard icon={Inbox} label="En attente d'approbation" value={pending.length} tint="text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40" />
-        <StatCard icon={CheckCircle2} label="Rapports disponibles" value={latest ? Object.keys(latest).filter(k => k !== "super_agent").length : 0} tint="text-violet-600 bg-violet-50 dark:bg-violet-950/40" />
+        <StatCard icon={Users2} label={t("equipeIa.stats.agents")} value={agents.length || "—"} tint="text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40" />
+        <StatCard icon={Inbox} label={t("equipeIa.stats.pendingApproval")} value={pending.length} tint="text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40" />
+        <StatCard icon={CheckCircle2} label={t("equipeIa.stats.reportsAvailable")} value={latest ? Object.keys(latest).filter(k => k !== "super_agent").length : 0} tint="text-violet-600 bg-violet-50 dark:bg-violet-950/40" />
       </div>
 
       {/* Grille des agents */}
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Vos agents</h2>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{t("equipeIa.yourAgents")}</h2>
         {cfgLoading ? (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {[0, 1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-60 w-full rounded-xl" />)}
@@ -283,7 +284,7 @@ export default function EquipeIaPage() {
                         </div>
                       </div>
                       {report ? <ScoreRing score={report.score} /> : (
-                        <Badge variant="outline" className="text-[10px] shrink-0">Jamais lancé</Badge>
+                        <Badge variant="outline" className="text-[10px] shrink-0">{t("equipeIa.neverRun")}</Badge>
                       )}
                     </div>
 
@@ -303,7 +304,7 @@ export default function EquipeIaPage() {
                             <span className="flex items-center gap-1 text-blue-600"><Lightbulb className="w-3 h-3" />{report.suggestionsCount}</span>
                           )}
                           {report.errorsFound === 0 && report.warningsFound === 0 && (
-                            <span className="flex items-center gap-1 text-emerald-600"><CheckCircle2 className="w-3 h-3" />RAS</span>
+                            <span className="flex items-center gap-1 text-emerald-600"><CheckCircle2 className="w-3 h-3" />{t("equipeIa.ras")}</span>
                           )}
                           <span className="text-muted-foreground ml-auto">{report.reportDate}</span>
                         </div>
@@ -312,12 +313,12 @@ export default function EquipeIaPage() {
 
                     <div className="mt-auto space-y-2 pt-1">
                       <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-                        <Target className="w-3.5 h-3.5" /> Objectif pour cette exécution (optionnel)
+                        <Target className="w-3.5 h-3.5" /> {t("equipeIa.goalLabel")}
                       </div>
                       <Textarea
                         value={goals[agent.id] || ""}
                         onChange={(e) => setGoals(g => ({ ...g, [agent.id]: e.target.value }))}
-                        placeholder={`Ex : ${exampleGoal(agent.id)}`}
+                        placeholder={t("equipeIa.goalPlaceholder", { example: t(`equipeIa.exampleGoals.${EXAMPLE_GOAL_IDS.includes(agent.id) ? agent.id : "default"}`) })}
                         rows={2}
                         maxLength={500}
                         disabled={!canRun || isRunning}
@@ -330,8 +331,8 @@ export default function EquipeIaPage() {
                         onClick={() => handleRun(agent.id)}
                       >
                         {isRunning
-                          ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />En cours…</>
-                          : <><Play className="w-3.5 h-3.5 mr-1.5" />Lancer maintenant</>}
+                          ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />{t("equipeIa.running")}</>
+                          : <><Play className="w-3.5 h-3.5 mr-1.5" />{t("equipeIa.runNow")}</>}
                       </Button>
                     </div>
                   </CardContent>
@@ -342,7 +343,7 @@ export default function EquipeIaPage() {
         )}
         {!canRun && (
           <p className="text-xs text-muted-foreground">
-            Seuls les administrateurs peuvent lancer les agents. Vous pouvez consulter leurs rapports.
+            {t("equipeIa.adminOnly")}
           </p>
         )}
       </section>
@@ -351,7 +352,7 @@ export default function EquipeIaPage() {
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-            <Inbox className="w-4 h-4" /> À approuver
+            <Inbox className="w-4 h-4" /> {t("equipeIa.toApprove")}
             {pending.length > 0 && (
               <span className="rounded-full bg-emerald-500 text-white text-[11px] px-1.5 py-0.5">{pending.length}</span>
             )}
@@ -359,8 +360,8 @@ export default function EquipeIaPage() {
           {canRun && (
             <Button variant="outline" size="sm" onClick={() => queueRunNow.mutate()} disabled={queueRunNow.isPending}>
               {queueRunNow.isPending
-                ? <><RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />Analyse…</>
-                : <><Sparkles className="h-3.5 w-3.5 mr-1.5" />Chercher des actions</>}
+                ? <><RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />{t("equipeIa.analyzing")}</>
+                : <><Sparkles className="h-3.5 w-3.5 mr-1.5" />{t("equipeIa.findActions")}</>}
             </Button>
           )}
         </div>
@@ -373,9 +374,9 @@ export default function EquipeIaPage() {
               <div className="rounded-full bg-emerald-50 dark:bg-emerald-950/40 w-14 h-14 flex items-center justify-center mx-auto mb-3">
                 <CheckCircle2 className="h-7 w-7 text-emerald-500" />
               </div>
-              <h3 className="font-medium">Tout est à jour</h3>
+              <h3 className="font-medium">{t("equipeIa.allUpToDate")}</h3>
               <p className="text-muted-foreground text-sm mt-1 max-w-md mx-auto">
-                Aucune action en attente. Vos agents vous proposeront de nouvelles actions dès qu'ils détecteront quelque chose d'utile.
+                {t("equipeIa.noPending")}
               </p>
             </CardContent>
           </Card>
@@ -393,25 +394,25 @@ export default function EquipeIaPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="font-medium leading-tight">{p.title}</h3>
-                          <Badge variant="secondary" className="text-xs">{meta.label}</Badge>
+                          <Badge variant="secondary" className="text-xs">{t(`equipeIa.categories.${meta.key}`)}</Badge>
                           {p.priority && (
                             <span className={`text-xs px-1.5 py-0.5 rounded ${PRIORITY_CLASS[p.priority] ?? PRIORITY_CLASS.moyenne}`}>
-                              {PRIORITY_LABEL[p.priority] ?? p.priority}
+                              {PRIORITY_LABEL[p.priority] ? t(`equipeIa.priority.${p.priority}`) : p.priority}
                             </span>
                           )}
                           {typeof p.confidence === "number" && p.confidence > 0 && (
-                            <span className="text-xs text-muted-foreground">Confiance {p.confidence}%</span>
+                            <span className="text-xs text-muted-foreground">{t("equipeIa.confidence", { n: p.confidence })}</span>
                           )}
                         </div>
                         <p className="text-sm text-muted-foreground mt-1.5 whitespace-pre-wrap">{p.summary}</p>
-                        {p.reason && <p className="text-xs text-muted-foreground/80 mt-2 italic">Pourquoi : {p.reason}</p>}
+                        {p.reason && <p className="text-xs text-muted-foreground/80 mt-2 italic">{t("equipeIa.reason", { reason: p.reason })}</p>}
                         {canRun && (
                           <div className="flex items-center gap-2 mt-4">
                             <Button size="sm" onClick={() => handleApprove(p)} disabled={busy} className="bg-emerald-600 hover:bg-emerald-700">
-                              <Check className="h-4 w-4 mr-1.5" />Approuver
+                              <Check className="h-4 w-4 mr-1.5" />{t("common.approve")}
                             </Button>
                             <Button size="sm" variant="outline" onClick={() => reject.mutate(p.id)} disabled={busy}>
-                              <X className="h-4 w-4 mr-1.5" />Rejeter
+                              <X className="h-4 w-4 mr-1.5" />{t("common.reject")}
                             </Button>
                             {busy && <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />}
                           </div>
@@ -460,7 +461,8 @@ const TOOL_FALLBACK_CATEGORY: Record<string, string> = {
 
 function categoryMeta(p: Proposal) {
   const key = CATEGORY_META[p.category] ? p.category : (TOOL_FALLBACK_CATEGORY[p.toolName] ?? "autre");
-  return CATEGORY_META[key] ?? CATEGORY_META.autre;
+  const resolved = CATEGORY_META[key] ? key : "autre";
+  return { ...(CATEGORY_META[resolved] ?? CATEGORY_META.autre), key: resolved };
 }
 
 const PRIORITY_LABEL: Record<string, string> = { haute: "Haute", moyenne: "Moyenne", basse: "Basse" };
@@ -470,18 +472,7 @@ const PRIORITY_CLASS: Record<string, string> = {
   basse: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
 };
 
-function exampleGoal(agentId: string): string {
-  switch (agentId) {
-    case "agent_appels": return "rappeler les appels manqués d'aujourd'hui";
-    case "agent_contacts": return "relancer les clients inactifs depuis 30 jours";
-    case "agent_taches": return "prioriser les tâches en retard de cette semaine";
-    case "agent_messages": return "repérer les messages sans réponse";
-    case "agent_pointage": return "vérifier les anomalies de pointage";
-    case "agent_facturation": return "lister les factures impayées à relancer";
-    case "agent_stock": return "alerter sur les stocks bientôt épuisés";
-    case "agent_rh": return "contrôler la conformité des comptes employés";
-    case "agent_securite": return "auditer les accès sensibles récents";
-    case "agent_performance": return "comparer les KPIs à la semaine dernière";
-    default: return "concentre-toi sur le plus urgent";
-  }
-}
+const EXAMPLE_GOAL_IDS = [
+  "agent_appels", "agent_contacts", "agent_taches", "agent_messages", "agent_pointage",
+  "agent_facturation", "agent_stock", "agent_rh", "agent_securite", "agent_performance",
+];

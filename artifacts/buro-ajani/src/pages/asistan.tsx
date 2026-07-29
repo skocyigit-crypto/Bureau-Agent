@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 
 const API = (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
 
@@ -29,6 +30,7 @@ interface PendingAction {
 }
 
 function ToolStep({ name, args, result }: { name: string; args?: any; result?: any }) {
+  const { t } = useTranslation();
   const done = result !== undefined;
   const failed = done && result && typeof result === "object" && "error" in result;
   const Icon = !done ? Loader2 : failed ? AlertCircle : CheckCircle2;
@@ -48,7 +50,7 @@ function ToolStep({ name, args, result }: { name: string; args?: any; result?: a
         )}
         {done && (
           <div className="text-[10px] text-muted-foreground mt-1 line-clamp-2">
-            {failed ? `Erreur: ${result.error}` : (typeof result === "string" ? result : JSON.stringify(result).slice(0, 240))}
+            {failed ? t("asistan.toolError", { error: result.error }) : (typeof result === "string" ? result : JSON.stringify(result).slice(0, 240))}
           </div>
         )}
       </div>
@@ -93,6 +95,7 @@ function readVoicePref(): { on: boolean; lang: SpeechLang } {
 }
 
 export default function AsistanPage() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -150,7 +153,7 @@ export default function AsistanPage() {
   };
 
   const deleteConversation = async (id: number) => {
-    if (!(await confirmAction({ title: "Supprimer cette conversation ?", confirmLabel: "Supprimer", destructive: true }))) return;
+    if (!(await confirmAction({ title: t("asistan.deleteConfirm"), confirmLabel: t("common.delete"), destructive: true }))) return;
     try {
       await fetch(`${API}/api/assistant/conversations/${id}`, { method: "DELETE", credentials: "include" });
       if (activeId === id) newConversation();
@@ -160,8 +163,8 @@ export default function AsistanPage() {
 
   const consumeStream = async (res: Response, convIdRef: { current: number | null }) => {
     if (!res.ok || !res.body) {
-      const err = await res.json().catch(() => ({ error: "Erreur reseau" }));
-      toast({ title: "Echec", description: err.error ?? "Echec de la requete", variant: "destructive" });
+      const err = await res.json().catch(() => ({ error: t("asistan.toast.networkError") }));
+      toast({ title: t("asistan.toast.failed"), description: err.error ?? t("asistan.toast.requestFailed"), variant: "destructive" });
       return;
     }
     const reader = res.body.getReader();
@@ -217,7 +220,7 @@ export default function AsistanPage() {
           setLiveText(null);
           loadConversations();
         } else if (event === "error") {
-          toast({ title: "Erreur", description: data.error ?? "Erreur de l'assistant", variant: "destructive" });
+          toast({ title: t("asistan.toast.error"), description: data.error ?? t("asistan.toast.assistantError"), variant: "destructive" });
         }
       }
     }
@@ -248,7 +251,7 @@ export default function AsistanPage() {
       });
       await consumeStream(res, convRef);
     } catch (err: any) {
-      toast({ title: "Connexion perdue", description: err?.message ?? "", variant: "destructive" });
+      toast({ title: t("asistan.toast.connectionLost"), description: err?.message ?? "", variant: "destructive" });
     } finally {
       setStreaming(false);
     }
@@ -268,7 +271,7 @@ export default function AsistanPage() {
       });
       await consumeStream(res, { current: activeId });
     } catch (err: any) {
-      toast({ title: "Connexion perdue", description: err?.message ?? "", variant: "destructive" });
+      toast({ title: t("asistan.toast.connectionLost"), description: err?.message ?? "", variant: "destructive" });
     } finally {
       setStreaming(false);
     }
@@ -279,12 +282,12 @@ export default function AsistanPage() {
       {/* Sidebar */}
       <div className="w-64 shrink-0 hidden md:flex flex-col gap-2">
         <Button onClick={newConversation} className="w-full justify-start" variant="default" data-testid="button-new-conversation">
-          <Plus className="h-4 w-4 mr-2" /> Nouvelle conversation
+          <Plus className="h-4 w-4 mr-2" /> {t("asistan.newConversation")}
         </Button>
         <ScrollArea className="flex-1 rounded-md border bg-card/50">
           <div className="p-2 space-y-1">
             {conversations.length === 0 && (
-              <div className="text-xs text-muted-foreground p-3 text-center">Aucune conversation pour l'instant.</div>
+              <div className="text-xs text-muted-foreground p-3 text-center">{t("asistan.noConversations")}</div>
             )}
             {conversations.map(c => (
               <div key={c.id} className={`group flex items-center gap-1.5 rounded-md px-2 py-1.5 cursor-pointer hover:bg-accent ${activeId === c.id ? "bg-accent" : ""}`} onClick={() => loadConversation(c.id)} data-testid={`conv-${c.id}`}>
@@ -316,8 +319,8 @@ export default function AsistanPage() {
             />
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="font-semibold text-sm">Assistant Universel</h2>
-            <p className="text-xs text-muted-foreground truncate">Donne-lui une mission. Il peut creer, lister, envoyer des e-mails/SMS, planifier, generer des images.</p>
+            <h2 className="font-semibold text-sm">{t("asistan.title")}</h2>
+            <p className="text-xs text-muted-foreground truncate">{t("asistan.subtitle")}</p>
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <div className="flex rounded-md border overflow-hidden text-[11px] font-medium">
@@ -337,7 +340,7 @@ export default function AsistanPage() {
               size="icon"
               className="h-8 w-8"
               onClick={() => setVoiceOn((v) => !v)}
-              title={voiceOn ? "Couper la voix" : "Activer la voix"}
+              title={voiceOn ? t("asistan.muteVoice") : t("asistan.enableVoice")}
               data-testid="toggle-voice"
             >
               {voiceOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
@@ -351,7 +354,7 @@ export default function AsistanPage() {
                 if (avatarSpeaking) avatarRef.current?.stop();
                 else if (spokenText.trim()) avatarRef.current?.speak(spokenText, voiceLang);
               }}
-              title={avatarSpeaking ? "Arrêter" : "Réécouter la dernière réponse"}
+              title={avatarSpeaking ? t("asistan.stop") : t("asistan.replay")}
               data-testid="replay-voice"
             >
               {avatarSpeaking ? <Square className="h-3.5 w-3.5" /> : <RotateCcw className="h-4 w-4" />}
@@ -360,7 +363,7 @@ export default function AsistanPage() {
         </div>
         {voiceOn && voiceUnavailable && (
           <div className="px-4 py-1.5 text-[11px] text-amber-600 bg-amber-50 border-b border-amber-100">
-            Aucune voix {voiceLang === "fr" ? "française" : "turque"} installée sur cet appareil — l'avatar reste muet (rien n'est envoyé en ligne).
+            {t("asistan.voiceUnavailable", { lang: voiceLang === "fr" ? t("asistan.langFrench") : t("asistan.langTurkish") })}
           </div>
         )}
 
@@ -368,13 +371,13 @@ export default function AsistanPage() {
           <div className="p-4 space-y-3 max-w-3xl mx-auto">
             {messages.length === 0 && liveSteps.length === 0 && !liveText && (
               <div className="text-center py-12 space-y-3">
-                <div className="text-sm text-muted-foreground">Que puis-je faire pour vous ?</div>
+                <div className="text-sm text-muted-foreground">{t("asistan.whatCanIDo")}</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-w-xl mx-auto text-xs">
                   {[
-                    "Resume mon activite de la semaine",
-                    "Cree une tache 'Rappeler M. Dupont' demain 10h",
-                    "Liste mes 5 derniers prospects",
-                    "Envoie un SMS a +33612345678 : 'Notre rendez-vous est confirme.'",
+                    t("asistan.examples.e1"),
+                    t("asistan.examples.e2"),
+                    t("asistan.examples.e3"),
+                    t("asistan.examples.e4"),
                   ].map(s => (
                     <button key={s} onClick={() => setInput(s)} className="text-left p-2 rounded-md border bg-muted/30 hover:bg-muted transition">{s}</button>
                   ))}
@@ -400,11 +403,11 @@ export default function AsistanPage() {
                 <div className="flex items-start gap-2">
                   <ShieldAlert className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
                   <div className="flex-1 min-w-0 text-sm">
-                    <div className="font-medium text-amber-900 dark:text-amber-100">Confirmation requise</div>
+                    <div className="font-medium text-amber-900 dark:text-amber-100">{t("asistan.confirmRequired")}</div>
                     <div className="text-amber-800 dark:text-amber-200 mt-0.5">{pending.summary}</div>
                     {pending.toolArgs && (
                       <details className="mt-1.5">
-                        <summary className="text-[11px] text-amber-700 dark:text-amber-300 cursor-pointer">Voir les details</summary>
+                        <summary className="text-[11px] text-amber-700 dark:text-amber-300 cursor-pointer">{t("asistan.viewDetails")}</summary>
                         <pre className="text-[11px] mt-1 p-2 rounded bg-white/60 dark:bg-black/30 overflow-x-auto">{JSON.stringify(pending.toolArgs, null, 2)}</pre>
                       </details>
                     )}
@@ -412,10 +415,10 @@ export default function AsistanPage() {
                 </div>
                 <div className="flex gap-2 justify-end">
                   <Button size="sm" variant="ghost" onClick={() => resolvePending("reject")} disabled={streaming} data-testid="pending-reject">
-                    <X className="h-4 w-4 mr-1" /> Annuler
+                    <X className="h-4 w-4 mr-1" /> {t("common.cancel")}
                   </Button>
                   <Button size="sm" onClick={() => resolvePending("approve")} disabled={streaming} data-testid="pending-approve">
-                    <Check className="h-4 w-4 mr-1" /> Confirmer et executer
+                    <Check className="h-4 w-4 mr-1" /> {t("asistan.confirmExecute")}
                   </Button>
                 </div>
               </div>
@@ -429,7 +432,7 @@ export default function AsistanPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-              placeholder={streaming ? "L'assistant travaille..." : "Demandez n'importe quoi (Entree pour envoyer, Maj+Entree pour saut de ligne)"}
+              placeholder={streaming ? t("asistan.inputWorking") : t("asistan.inputPlaceholder")}
               disabled={streaming}
               rows={2}
               className="resize-none"

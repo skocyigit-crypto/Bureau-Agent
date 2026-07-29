@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -59,16 +60,8 @@ const KIND_META: Record<
   progress_update: { label: "Avancement chantier", icon: TrendingUp, tint: "text-emerald-600" },
 };
 
-const STATUS_MESSAGE: Record<Exclude<ActionStatus, "ready">, string> = {
-  needs_chantier: "Chantier non précisé — dictez le nom du chantier concerné.",
-  chantier_not_found: "Chantier introuvable dans vos projets.",
-  chantier_ambiguous: "Plusieurs chantiers correspondent — soyez plus précis.",
-  article_not_found: "Article de stock introuvable.",
-  task_not_found: "Aucune tâche ouverte ne correspond sur ce chantier.",
-  invalid: "Information incomplète (quantité, titre ou avancement manquant).",
-};
-
 export default function VoiceSiteOpsPage() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [text, setText] = useState("");
   const [listening, setListening] = useState(false);
@@ -129,8 +122,8 @@ export default function VoiceSiteOpsPage() {
     recognition.onerror = (e: any) => {
       if (e?.error === "not-allowed" || e?.error === "service-not-allowed") {
         toast({
-          title: "Micro indisponible",
-          description: "Autorisez l'accès au microphone pour dicter la note.",
+          title: t("voiceSiteOps.toast.micUnavailable"),
+          description: t("voiceSiteOps.toast.micUnavailableDesc"),
           variant: "destructive",
         });
       }
@@ -166,7 +159,7 @@ export default function VoiceSiteOpsPage() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Analyse impossible.");
+        throw new Error(err.error || t("voiceSiteOps.toast.analyzeFailed"));
       }
       const data: ParseResponse = await res.json();
       setParsed(data);
@@ -179,12 +172,12 @@ export default function VoiceSiteOpsPage() {
       setSelected(readyIdx);
       if (data.actions.length === 0) {
         toast({
-          title: "Aucune action détectée",
-          description: "Reformulez la note (matériel, tâche ou avancement).",
+          title: t("voiceSiteOps.toast.noActionDetected"),
+          description: t("voiceSiteOps.toast.noActionDetectedDesc"),
         });
       }
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      toast({ title: t("voiceSiteOps.toast.error"), description: e.message, variant: "destructive" });
     } finally {
       setParsing(false);
     }
@@ -228,18 +221,18 @@ export default function VoiceSiteOpsPage() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Confirmation impossible.");
+        throw new Error(err.error || t("voiceSiteOps.toast.confirmFailed"));
       }
       const data: { applied: number; results: ConfirmResult[] } = await res.json();
       setResults(data.results);
       setParsed(null);
       setSelected(new Set());
       toast({
-        title: "Opérations enregistrées",
-        description: `${data.applied} action(s) appliquée(s) sur le chantier.`,
+        title: t("voiceSiteOps.toast.opsSaved"),
+        description: t("voiceSiteOps.toast.opsSavedDesc", { count: data.applied }),
       });
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      toast({ title: t("voiceSiteOps.toast.error"), description: e.message, variant: "destructive" });
     } finally {
       setConfirming(false);
     }
@@ -259,27 +252,25 @@ export default function VoiceSiteOpsPage() {
           <HardHat className="h-6 w-6" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Saisie vocale chantier</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("voiceSiteOps.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            Dictez une note de chantier — l'IA prépare les sorties de stock, les
-            tâches et l'avancement. Rien n'est enregistré sans votre confirmation.
+            {t("voiceSiteOps.subtitle")}
           </p>
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Note du chef de chantier</CardTitle>
+          <CardTitle className="text-base">{t("voiceSiteOps.noteTitle")}</CardTitle>
           <CardDescription>
-            Exemple : « Sur le chantier Rivoli, sortie de 20 sacs de ciment, le
-            coffrage du 2e étage est terminé, avancement à 60 %. »
+            {t("voiceSiteOps.noteExample")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <Textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Dictez ou saisissez votre note de chantier…"
+            placeholder={t("voiceSiteOps.notePlaceholder")}
             rows={5}
             className="resize-none"
             data-testid="input-site-note"
@@ -294,11 +285,11 @@ export default function VoiceSiteOpsPage() {
               >
                 {listening ? (
                   <>
-                    <MicOff className="mr-2 h-4 w-4" /> Arrêter
+                    <MicOff className="mr-2 h-4 w-4" /> {t("voiceSiteOps.stopDictation")}
                   </>
                 ) : (
                   <>
-                    <Mic className="mr-2 h-4 w-4" /> Dicter
+                    <Mic className="mr-2 h-4 w-4" /> {t("voiceSiteOps.dictate")}
                   </>
                 )}
               </Button>
@@ -311,22 +302,22 @@ export default function VoiceSiteOpsPage() {
             >
               {parsing ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analyse…
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("voiceSiteOps.analyzing")}
                 </>
               ) : (
                 <>
-                  <Send className="mr-2 h-4 w-4" /> Analyser la note
+                  <Send className="mr-2 h-4 w-4" /> {t("voiceSiteOps.analyzeNote")}
                 </>
               )}
             </Button>
             {(text || parsed || results) && (
               <Button type="button" variant="ghost" onClick={reset} data-testid="button-reset">
-                <RotateCcw className="mr-2 h-4 w-4" /> Réinitialiser
+                <RotateCcw className="mr-2 h-4 w-4" /> {t("voiceSiteOps.reset")}
               </Button>
             )}
             {listening && (
               <span className="flex items-center gap-1.5 text-sm text-red-500">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" /> Écoute…
+                <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" /> {t("voiceSiteOps.listening")}
               </span>
             )}
           </div>
@@ -346,10 +337,10 @@ export default function VoiceSiteOpsPage() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">
-                  Actions proposées ({readyActions.length})
+                  {t("voiceSiteOps.proposedActions", { count: readyActions.length })}
                 </CardTitle>
                 <CardDescription>
-                  Décochez ce que vous ne voulez pas appliquer, puis confirmez.
+                  {t("voiceSiteOps.uncheckHint")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -376,7 +367,7 @@ export default function VoiceSiteOpsPage() {
                       <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${meta.tint}`} />
                       <div className="min-w-0 flex-1 space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="secondary">{meta.label}</Badge>
+                          <Badge variant="secondary">{t(`voiceSiteOps.kinds.${action.kind}`)}</Badge>
                           {action.projetTitle && (
                             <span className="flex items-center gap-1 text-xs text-muted-foreground">
                               <Building2 className="h-3 w-3" /> {action.projetTitle}
@@ -389,8 +380,8 @@ export default function VoiceSiteOpsPage() {
                             <p
                               className={`text-xs ${overdraw ? "text-red-500" : "text-muted-foreground"}`}
                             >
-                              Stock actuel : {action.quantityAvailable}
-                              {overdraw && " — quantité supérieure au stock (sera mise à 0)"}
+                              {t("voiceSiteOps.currentStock", { count: action.quantityAvailable })}
+                              {overdraw && t("voiceSiteOps.overdraw")}
                             </p>
                           )}
                       </div>
@@ -406,11 +397,11 @@ export default function VoiceSiteOpsPage() {
                 >
                   {confirming ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enregistrement…
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("voiceSiteOps.saving")}
                     </>
                   ) : (
                     <>
-                      <CheckCircle2 className="mr-2 h-4 w-4" /> Confirmer{" "}
+                      <CheckCircle2 className="mr-2 h-4 w-4" /> {t("voiceSiteOps.confirm")}{" "}
                       {selected.size > 0 && `(${selected.size})`}
                     </>
                   )}
@@ -424,15 +415,14 @@ export default function VoiceSiteOpsPage() {
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <AlertTriangle className="h-4 w-4 text-amber-500" />
-                  Actions à compléter ({blockedActions.length})
+                  {t("voiceSiteOps.actionsToComplete", { count: blockedActions.length })}
                 </CardTitle>
                 <CardDescription>
-                  Ces éléments n'ont pas pu être résolus automatiquement.
+                  {t("voiceSiteOps.unresolvedHint")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
                 {blockedActions.map((action, i) => {
-                  const meta = KIND_META[action.kind];
                   return (
                     <div
                       key={i}
@@ -440,12 +430,12 @@ export default function VoiceSiteOpsPage() {
                       data-testid={`blocked-action-${i}`}
                     >
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline">{meta.label}</Badge>
+                        <Badge variant="outline">{t(`voiceSiteOps.kinds.${action.kind}`)}</Badge>
                       </div>
                       <p className="mt-1">{action.summary}</p>
                       {action.status !== "ready" && (
                         <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">
-                          {STATUS_MESSAGE[action.status]}
+                          {t(`voiceSiteOps.statusMessage.${action.status}`)}
                         </p>
                       )}
                     </div>
@@ -458,7 +448,7 @@ export default function VoiceSiteOpsPage() {
           {readyActions.length === 0 && blockedActions.length === 0 && (
             <Card>
               <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                Aucune action détectée dans cette note.
+                {t("voiceSiteOps.noActionInNote")}
               </CardContent>
             </Card>
           )}
@@ -469,7 +459,7 @@ export default function VoiceSiteOpsPage() {
         <Card className="border-emerald-200 dark:border-emerald-900/50">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" /> Résultat
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" /> {t("voiceSiteOps.result")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">

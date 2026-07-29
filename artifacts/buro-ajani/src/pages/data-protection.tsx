@@ -17,6 +17,7 @@ import { Icon3D } from "@/components/icon-3d";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { useWorkspaceUser } from "@/components/workspace-user";
+import { useTranslation } from "@/i18n";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const apiFetch = (path: string, opts?: RequestInit) =>
@@ -51,6 +52,7 @@ const DATA_ICONS: Record<string, any> = {
 };
 
 export default function DataProtectionPage() {
+  const { t } = useTranslation();
   const { user } = useWorkspaceUser();
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -72,15 +74,15 @@ export default function DataProtectionPage() {
       }).then(r => r.json()),
     onSuccess: (res) => {
       if (res.success) {
-        toast({ title: "Demande envoyée", description: res.message });
+        toast({ title: t("dataProtection.toast.requestSent"), description: res.message });
         setRequestType("");
         setRequestDetails("");
         qc.invalidateQueries({ queryKey: ["data-protection-summary"] });
       } else {
-        toast({ title: "Erreur", description: res.error, variant: "destructive" });
+        toast({ title: t("dataProtection.toast.error"), description: res.error, variant: "destructive" });
       }
     },
-    onError: () => toast({ title: "Erreur réseau", variant: "destructive" }),
+    onError: () => toast({ title: t("dataProtection.toast.networkError"), variant: "destructive" }),
   });
 
   const acceptMutation = useMutation({
@@ -92,19 +94,19 @@ export default function DataProtectionPage() {
       }).then(r => r.json()),
     onSuccess: (res) => {
       if (res.success) {
-        toast({ title: "Document accepté", description: res.message });
+        toast({ title: t("dataProtection.toast.docAccepted"), description: res.message });
         qc.invalidateQueries({ queryKey: ["data-protection-summary"] });
       } else {
-        toast({ title: "Erreur", description: res.error, variant: "destructive" });
+        toast({ title: t("dataProtection.toast.error"), description: res.error, variant: "destructive" });
       }
     },
-    onError: () => toast({ title: "Erreur réseau", variant: "destructive" }),
+    onError: () => toast({ title: t("dataProtection.toast.networkError"), variant: "destructive" }),
   });
 
   const handleExport = async () => {
     try {
       const res = await apiFetch("/data-protection/export", { method: "POST" });
-      if (!res.ok) { toast({ title: "Erreur export", variant: "destructive" }); return; }
+      if (!res.ok) { toast({ title: t("dataProtection.toast.exportError"), variant: "destructive" }); return; }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -112,9 +114,9 @@ export default function DataProtectionPage() {
       a.download = `agent-de-bureau-export-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      toast({ title: "Export téléchargé", description: "Vos données ont été exportées avec succès (Art. 20 RGPD)." });
+      toast({ title: t("dataProtection.toast.exportDownloaded"), description: t("dataProtection.toast.exportDownloadedDesc") });
     } catch {
-      toast({ title: "Erreur lors de l'export", variant: "destructive" });
+      toast({ title: t("dataProtection.toast.exportFailed"), variant: "destructive" });
     }
   };
 
@@ -135,15 +137,15 @@ export default function DataProtectionPage() {
         <div className="flex items-center gap-3">
           <Icon3D icon={Shield} variant="navy" size="lg" />
           <div>
-            <h1 className="text-2xl font-bold">Protection des données personnelles</h1>
-            <p className="text-muted-foreground text-sm">Conformité RGPD — Gérez vos droits et vos données</p>
+            <h1 className="text-2xl font-bold">{t("dataProtection.title")}</h1>
+            <p className="text-muted-foreground text-sm">{t("dataProtection.subtitle")}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {compliance?.isCompliant ? (
-            <Badge className="bg-emerald-500 text-white gap-1"><CheckCircle2 className="h-3 w-3" /> Conforme RGPD</Badge>
+            <Badge className="bg-emerald-500 text-white gap-1"><CheckCircle2 className="h-3 w-3" /> {t("dataProtection.compliant")}</Badge>
           ) : (
-            <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" /> Non-conformité détectée</Badge>
+            <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" /> {t("dataProtection.nonCompliant")}</Badge>
           )}
         </div>
       </div>
@@ -153,9 +155,9 @@ export default function DataProtectionPage() {
           <CardContent className="p-4 flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
             <div>
-              <p className="font-semibold text-amber-800 dark:text-amber-300 text-sm">Documents légaux en attente</p>
+              <p className="font-semibold text-amber-800 dark:text-amber-300 text-sm">{t("dataProtection.legalPending")}</p>
               <p className="text-amber-700 dark:text-amber-400 text-xs mt-0.5">
-                {compliance?.missingMandatory?.length} document(s) obligatoire(s) non accepté(s). Rendez-vous dans l'onglet "Documents légaux".
+                {t("dataProtection.legalPendingDesc", { count: compliance?.missingMandatory?.length ?? 0 })}
               </p>
             </div>
           </CardContent>
@@ -165,39 +167,39 @@ export default function DataProtectionPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card><CardContent className="p-4">
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">Conformité légale</p>
+            <p className="text-xs text-muted-foreground">{t("dataProtection.stats.legalCompliance")}</p>
             <Progress value={compliance?.percent || 0} className="h-2" />
             <p className="text-lg font-bold">{compliance?.percent || 0}%</p>
           </div>
         </CardContent></Card>
         <Card><CardContent className="p-4">
-          <p className="text-xs text-muted-foreground">Documents acceptés</p>
+          <p className="text-xs text-muted-foreground">{t("dataProtection.stats.documentsAccepted")}</p>
           <p className="text-2xl font-bold mt-1">{compliance?.acceptedCount || 0}<span className="text-sm text-muted-foreground">/{compliance?.totalCount || 0}</span></p>
         </CardContent></Card>
         <Card><CardContent className="p-4">
-          <p className="text-xs text-muted-foreground">Catégories de données</p>
+          <p className="text-xs text-muted-foreground">{t("dataProtection.stats.dataCategories")}</p>
           <p className="text-2xl font-bold mt-1">{data?.dataInventory?.length || 0}</p>
         </CardContent></Card>
         <Card><CardContent className="p-4">
-          <p className="text-xs text-muted-foreground">Demandes en cours</p>
+          <p className="text-xs text-muted-foreground">{t("dataProtection.stats.pendingRequests")}</p>
           <p className="text-2xl font-bold mt-1">{data?.myRequests?.filter((r: any) => r.status === "pending")?.length || 0}</p>
         </CardContent></Card>
       </div>
 
       <Tabs defaultValue="rights">
         <TabsList>
-          <TabsTrigger value="rights">Mes droits</TabsTrigger>
-          <TabsTrigger value="inventory">Données collectées</TabsTrigger>
-          <TabsTrigger value="documents">Documents légaux</TabsTrigger>
-          <TabsTrigger value="requests">Mes demandes</TabsTrigger>
-          <TabsTrigger value="contact">Contact DPO</TabsTrigger>
+          <TabsTrigger value="rights">{t("dataProtection.tabs.rights")}</TabsTrigger>
+          <TabsTrigger value="inventory">{t("dataProtection.tabs.inventory")}</TabsTrigger>
+          <TabsTrigger value="documents">{t("dataProtection.tabs.documents")}</TabsTrigger>
+          <TabsTrigger value="requests">{t("dataProtection.tabs.requests")}</TabsTrigger>
+          <TabsTrigger value="contact">{t("dataProtection.tabs.contact")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="rights" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2"><Shield className="h-4 w-4" /> Vos droits en tant que personne concernée</CardTitle>
-              <CardDescription>Conformément au Règlement Général sur la Protection des Données (UE 2016/679), vous disposez des droits suivants :</CardDescription>
+              <CardTitle className="text-base flex items-center gap-2"><Shield className="h-4 w-4" /> {t("dataProtection.rightsTitle")}</CardTitle>
+              <CardDescription>{t("dataProtection.rightsDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {data?.requestTypes && Object.entries(data.requestTypes).map(([key, rt]: [string, any]) => {
@@ -212,7 +214,7 @@ export default function DataProtectionPage() {
                       <p className="text-xs text-muted-foreground mt-0.5">{rt.description}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <Badge variant="outline" className="text-[10px]">{rt.article}</Badge>
-                        <span className="text-[10px] text-muted-foreground">Délai de réponse : {rt.responseTime}</span>
+                        <span className="text-[10px] text-muted-foreground">{t("dataProtection.responseTime", { time: rt.responseTime })}</span>
                       </div>
                     </div>
                   </div>
@@ -223,28 +225,28 @@ export default function DataProtectionPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Exercer un droit</CardTitle>
-              <CardDescription>Soumettez une demande — nous y répondrons dans un délai maximum de 30 jours.</CardDescription>
+              <CardTitle className="text-base">{t("dataProtection.exerciseRight")}</CardTitle>
+              <CardDescription>{t("dataProtection.exerciseDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3">
                 <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">Export immédiat de vos données (Art. 20)</p>
-                    <p className="text-xs text-emerald-700 dark:text-emerald-400">Téléchargez toutes vos données en format JSON</p>
+                    <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">{t("dataProtection.exportTitle")}</p>
+                    <p className="text-xs text-emerald-700 dark:text-emerald-400">{t("dataProtection.exportDesc")}</p>
                   </div>
                   <Button size="sm" variant="outline" onClick={handleExport} className="gap-2 shrink-0">
-                    <FileDown className="h-4 w-4" /> Exporter
+                    <FileDown className="h-4 w-4" /> {t("dataProtection.export")}
                   </Button>
                 </div>
 
                 <Separator />
 
                 <div className="space-y-3">
-                  <Label>Type de demande</Label>
+                  <Label>{t("dataProtection.requestType")}</Label>
                   <Select value={requestType} onValueChange={setRequestType}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Sélectionnez un droit à exercer..." />
+                      <SelectValue placeholder={t("dataProtection.requestTypePlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
                       {data?.requestTypes && Object.entries(data.requestTypes).map(([key, rt]: [string, any]) => (
@@ -253,9 +255,9 @@ export default function DataProtectionPage() {
                     </SelectContent>
                   </Select>
 
-                  <Label>Détails de votre demande (optionnel)</Label>
+                  <Label>{t("dataProtection.requestDetails")}</Label>
                   <Textarea
-                    placeholder="Précisez votre demande si nécessaire..."
+                    placeholder={t("dataProtection.requestDetailsPlaceholder")}
                     value={requestDetails}
                     onChange={e => setRequestDetails(e.target.value)}
                     rows={3}
@@ -267,7 +269,7 @@ export default function DataProtectionPage() {
                     className="gap-2"
                   >
                     <Send className="h-4 w-4" />
-                    {submitMutation.isPending ? "Envoi en cours..." : "Soumettre la demande"}
+                    {submitMutation.isPending ? t("dataProtection.submitting") : t("dataProtection.submit")}
                   </Button>
                 </div>
               </div>
@@ -278,8 +280,8 @@ export default function DataProtectionPage() {
         <TabsContent value="inventory" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2"><Database className="h-4 w-4" /> Inventaire des données personnelles</CardTitle>
-              <CardDescription>Toutes les catégories de données personnelles que nous traitons vous concernant</CardDescription>
+              <CardTitle className="text-base flex items-center gap-2"><Database className="h-4 w-4" /> {t("dataProtection.inventoryTitle")}</CardTitle>
+              <CardDescription>{t("dataProtection.inventoryDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               <div className="divide-y">
@@ -294,17 +296,17 @@ export default function DataProtectionPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2 flex-wrap">
                             <p className="font-medium text-sm">{item.category}</p>
-                            <Badge variant="secondary" className="text-[10px] shrink-0">{item.count.toLocaleString()} enregistrements</Badge>
+                            <Badge variant="secondary" className="text-[10px] shrink-0">{t("dataProtection.records", { count: item.count.toLocaleString() })}</Badge>
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
                           <div className="flex items-center gap-3 mt-2 flex-wrap">
                             <div className="flex items-center gap-1">
                               <Clock className="h-3 w-3 text-muted-foreground" />
-                              <span className="text-[10px] text-muted-foreground">Conservation : {item.retention}</span>
+                              <span className="text-[10px] text-muted-foreground">{t("dataProtection.retention", { value: item.retention })}</span>
                             </div>
                             <div className="flex items-center gap-1">
                               <Info className="h-3 w-3 text-muted-foreground" />
-                              <span className="text-[10px] text-muted-foreground">Base légale : {item.legalBasis}</span>
+                              <span className="text-[10px] text-muted-foreground">{t("dataProtection.legalBasis", { value: item.legalBasis })}</span>
                             </div>
                           </div>
                         </div>
@@ -320,9 +322,9 @@ export default function DataProtectionPage() {
             <CardContent className="p-4 flex items-start gap-3">
               <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
               <div>
-                <p className="font-semibold text-blue-800 dark:text-blue-300 text-sm">Sous-traitants et transferts</p>
+                <p className="font-semibold text-blue-800 dark:text-blue-300 text-sm">{t("dataProtection.subprocessorsTitle")}</p>
                 <p className="text-blue-700 dark:text-blue-400 text-xs mt-1">
-                  Vos données sont hébergées en Europe (UE). Nos sous-traitants principaux : hébergement cloud (UE), service email Resend (USA — clauses contractuelles types UE applicables), Google Workspace (si connecté — données traitées conformément au DPA Google). Aucun transfert vers des pays tiers sans garanties adéquates.
+                  {t("dataProtection.subprocessorsDesc")}
                 </p>
               </div>
             </CardContent>
@@ -344,13 +346,13 @@ export default function DataProtectionPage() {
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-semibold text-sm">{doc.title}</p>
-                          {doc.mandatory && <Badge variant="destructive" className="text-[10px]">Obligatoire</Badge>}
+                          {doc.mandatory && <Badge variant="destructive" className="text-[10px]">{t("dataProtection.mandatory")}</Badge>}
                           <Badge variant="outline" className="text-[10px]">v{doc.version}</Badge>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">{doc.description}</p>
                         {doc.accepted && doc.acceptedAt && (
                           <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1">
-                            Accepté le {new Date(doc.acceptedAt).toLocaleDateString("fr-FR")} par {doc.acceptedBy}
+                            {t("dataProtection.acceptedBy", { date: new Date(doc.acceptedAt).toLocaleDateString("fr-FR"), name: doc.acceptedBy })}
                           </p>
                         )}
                       </div>
@@ -363,7 +365,7 @@ export default function DataProtectionPage() {
                         disabled={acceptMutation.isPending}
                         onClick={() => acceptMutation.mutate(doc.code)}
                       >
-                        Accepter
+                        {t("dataProtection.accept")}
                       </Button>
                     )}
                   </div>
@@ -378,8 +380,8 @@ export default function DataProtectionPage() {
             <Card>
               <CardContent className="p-8 text-center text-muted-foreground">
                 <Shield className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                <p>Aucune demande enregistrée</p>
-                <p className="text-xs mt-1">Utilisez l'onglet "Mes droits" pour soumettre une demande</p>
+                <p>{t("dataProtection.noRequests")}</p>
+                <p className="text-xs mt-1">{t("dataProtection.noRequestsHint")}</p>
               </CardContent>
             </Card>
           ) : (
@@ -391,7 +393,7 @@ export default function DataProtectionPage() {
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <Badge variant={req.status === "completed" ? "default" : req.status === "pending" ? "secondary" : "outline"}>
-                            {req.status === "completed" ? "Traité" : req.status === "pending" ? "En attente" : req.status}
+                            {req.status === "completed" ? t("dataProtection.statusCompleted") : req.status === "pending" ? t("dataProtection.statusPending") : req.status}
                           </Badge>
                           <span className="text-sm font-medium">{data?.requestTypes?.[req.requestType]?.label || req.requestType}</span>
                         </div>
@@ -410,28 +412,28 @@ export default function DataProtectionPage() {
         <TabsContent value="contact" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" /> Délégué à la Protection des Données (DPO)</CardTitle>
+              <CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" /> {t("dataProtection.dpoTitle")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-3">
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/40">
                   <div className="p-2 rounded-lg bg-primary/10"><Users className="h-4 w-4 text-primary" /></div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Fonction</p>
+                    <p className="text-xs text-muted-foreground">{t("dataProtection.dpoFunction")}</p>
                     <p className="font-medium text-sm">{dpo?.name}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/40">
                   <div className="p-2 rounded-lg bg-primary/10"><Send className="h-4 w-4 text-primary" /></div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Email DPO</p>
+                    <p className="text-xs text-muted-foreground">{t("dataProtection.dpoEmail")}</p>
                     <a href={`mailto:${dpo?.email}`} className="font-medium text-sm text-primary hover:underline">{dpo?.email}</a>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/40">
                   <div className="p-2 rounded-lg bg-primary/10"><Globe className="h-4 w-4 text-primary" /></div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Adresse</p>
+                    <p className="text-xs text-muted-foreground">{t("dataProtection.dpoAddress")}</p>
                     <p className="font-medium text-sm">{dpo?.address}</p>
                   </div>
                 </div>
@@ -440,17 +442,17 @@ export default function DataProtectionPage() {
               <Separator />
 
               <div>
-                <p className="text-sm font-semibold mb-2">Autorité de contrôle</p>
+                <p className="text-sm font-semibold mb-2">{t("dataProtection.authorityTitle")}</p>
                 <div className="flex items-center gap-3 p-3 rounded-lg border">
                   <Shield className="h-5 w-5 text-blue-500 shrink-0" />
                   <div className="flex-1">
                     <p className="font-medium text-sm">{dpo?.supervisoryAuthority?.name}</p>
-                    <p className="text-xs text-muted-foreground">Commission Nationale de l'Informatique et des Libertés</p>
+                    <p className="text-xs text-muted-foreground">{t("dataProtection.cnilFull")}</p>
                     <p className="text-xs text-muted-foreground">{dpo?.supervisoryAuthority?.phone}</p>
                   </div>
                   <a href={dpo?.supervisoryAuthority?.url} target="_blank" rel="noopener noreferrer">
                     <Button variant="ghost" size="sm" className="gap-1">
-                      <ExternalLink className="h-3 w-3" /> Contacter la CNIL
+                      <ExternalLink className="h-3 w-3" /> {t("dataProtection.contactCnil")}
                     </Button>
                   </a>
                 </div>
@@ -461,7 +463,7 @@ export default function DataProtectionPage() {
                   <div className="flex items-start gap-2">
                     <Info className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
                     <p className="text-xs text-blue-700 dark:text-blue-400">
-                      Si vous estimez que vos droits n'ont pas été respectés après nous avoir contactés, vous avez le droit de déposer une réclamation auprès de la CNIL (pour les résidents français) ou de l'autorité de protection des données compétente de votre pays.
+                      {t("dataProtection.complaintNote")}
                     </p>
                   </div>
                 </CardContent>

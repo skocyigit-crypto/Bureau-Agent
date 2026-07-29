@@ -26,6 +26,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useWorkspaceUser } from "@/components/workspace-user";
+import { useTranslation } from "@/i18n";
 
 // ---------------------------------------------------------------------------
 // Types (backend ile aynalı, codegen yok zira /location ozel zod uses)
@@ -80,6 +81,7 @@ const API = (path: string) =>
 // ---------------------------------------------------------------------------
 
 export default function EquipeLocalisationPage() {
+  const { t } = useTranslation();
   const { user } = useWorkspaceUser();
   const isAdmin = user?.role === "administrateur" || user?.role === "super_admin";
 
@@ -89,10 +91,10 @@ export default function EquipeLocalisationPage() {
         <div className="p-8">
           <Card>
             <CardHeader>
-              <CardTitle>Accès restreint</CardTitle>
+              <CardTitle>{t("equipeLocalisation.restrictedTitle")}</CardTitle>
             </CardHeader>
             <CardContent>
-              Cette page est reservee aux administrateurs.
+              {t("equipeLocalisation.restrictedBody")}
             </CardContent>
           </Card>
         </div>
@@ -104,15 +106,15 @@ export default function EquipeLocalisationPage() {
     <Layout>
       <div className="p-4 space-y-4">
         <div>
-          <h1 className="text-2xl font-bold">Localisation de l&apos;equipe</h1>
+          <h1 className="text-2xl font-bold">{t("equipeLocalisation.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            Suivi en temps reel des employes par zone (geofence). Historique conserve 30 jours.
+            {t("equipeLocalisation.subtitle")}
           </p>
         </div>
         <Tabs defaultValue="live">
           <TabsList>
-            <TabsTrigger value="live">Carte &amp; equipe en direct</TabsTrigger>
-            <TabsTrigger value="history">Historique 30 jours</TabsTrigger>
+            <TabsTrigger value="live">{t("equipeLocalisation.tabLive")}</TabsTrigger>
+            <TabsTrigger value="history">{t("equipeLocalisation.tabHistory")}</TabsTrigger>
           </TabsList>
           <TabsContent value="live" className="mt-4">
             <LiveSection />
@@ -131,6 +133,7 @@ export default function EquipeLocalisationPage() {
 // ---------------------------------------------------------------------------
 
 function LiveSection() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { toast } = useToast();
 
@@ -168,14 +171,14 @@ function LiveSection() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error((await res.json())?.error || "Echec creation");
+      if (!res.ok) throw new Error((await res.json())?.error || t("equipeLocalisation.toast.createFailed"));
       return res.json();
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["geofences"] });
-      toast({ title: "Zone creee" });
+      toast({ title: t("equipeLocalisation.toast.zoneCreated") });
     },
-    onError: (err: Error) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: t("equipeLocalisation.toast.error"), description: err.message, variant: "destructive" }),
   });
 
   const deleteMut = useMutation({
@@ -184,11 +187,11 @@ function LiveSection() {
         method: "DELETE",
         credentials: "include",
       });
-      if (!res.ok) throw new Error("Echec suppression");
+      if (!res.ok) throw new Error(t("equipeLocalisation.toast.deleteFailed"));
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["geofences"] });
-      toast({ title: "Zone supprimee" });
+      toast({ title: t("equipeLocalisation.toast.zoneDeleted") });
     },
   });
 
@@ -217,12 +220,12 @@ function LiveSection() {
       {/* Sol: bolgeler */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Zones ({geofences.length})</CardTitle>
+          <CardTitle className="text-base">{t("equipeLocalisation.zones", { count: geofences.length })}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {geofences.length === 0 && (
             <p className="text-sm text-muted-foreground">
-              Cliquez sur la carte pour creer votre premiere zone.
+              {t("equipeLocalisation.noZones")}
             </p>
           )}
           {geofences.map((g) => (
@@ -230,17 +233,17 @@ function LiveSection() {
               <div className="flex-1 min-w-0">
                 <div className="font-medium truncate">{g.name}</div>
                 <div className="text-xs text-muted-foreground">
-                  R={g.radiusM}m {g.isActive ? "" : "(inactive)"}
+                  {t("equipeLocalisation.radius", { r: g.radiusM })} {g.isActive ? "" : t("equipeLocalisation.inactive")}
                 </div>
               </div>
               <Button
                 size="sm"
                 variant="ghost"
                 onClick={() => {
-                  if (confirm(`Supprimer la zone "${g.name}" ?`)) deleteMut.mutate(g.id);
+                  if (confirm(t("equipeLocalisation.deleteZoneConfirm", { name: g.name }))) deleteMut.mutate(g.id);
                 }}
               >
-                Suppr
+                {t("equipeLocalisation.delete")}
               </Button>
             </div>
           ))}
@@ -254,9 +257,9 @@ function LiveSection() {
             geofences={geofences}
             team={team}
             onCreateAt={(lat, lng) => {
-              const name = prompt("Nom de la zone (ex: Bureau Paris) :");
+              const name = prompt(t("equipeLocalisation.promptZoneName"));
               if (!name) return;
-              const r = prompt("Rayon en metres (defaut 100) :", "100");
+              const r = prompt(t("equipeLocalisation.promptRadius"), "100");
               const radiusM = Math.max(5, Math.min(5000, parseInt(r || "100", 10) || 100));
               createMut.mutate({ name, lat, lng, radiusM });
             }}
@@ -267,23 +270,23 @@ function LiveSection() {
       {/* Sag: canli ekip */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Equipe en direct ({team.length})</CardTitle>
+          <CardTitle className="text-base">{t("equipeLocalisation.liveTeam", { count: team.length })}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {team.length === 0 && (
-            <p className="text-sm text-muted-foreground">Aucun employe actif (24h).</p>
+            <p className="text-sm text-muted-foreground">{t("equipeLocalisation.noActiveEmployee")}</p>
           )}
           {team.map((u) => {
             const here = u.geofences.map((g) => g.name).join(", ");
-            const ago = u.lastAt ? formatAgo(u.lastAt) : "—";
+            const ago = u.lastAt ? formatAgo(u.lastAt, t) : "—";
             return (
               <div key={u.userId} className="border rounded p-2 text-sm">
                 <div className="font-medium">
                   {u.prenom} {u.nom}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {here || "Hors zone"} · {ago}
-                  {u.isMoving ? " · en mouvement" : ""}
+                  {here || t("equipeLocalisation.outOfZone")} · {ago}
+                  {u.isMoving ? t("equipeLocalisation.moving") : ""}
                 </div>
               </div>
             );
@@ -378,6 +381,7 @@ function MapView({
 // ---------------------------------------------------------------------------
 
 function HistorySection() {
+  const { t } = useTranslation();
   const [userId, setUserId] = useState<string>("");
   const [days, setDays] = useState<string>("7");
 
@@ -419,18 +423,18 @@ function HistorySection() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Historique des entrees / sorties</CardTitle>
+        <CardTitle className="text-base">{t("equipeLocalisation.historyTitle")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
-            <Label>Employe</Label>
+            <Label>{t("equipeLocalisation.employee")}</Label>
             <select
               className="w-full border rounded p-2 mt-1"
               value={userId}
               onChange={(e) => setUserId(e.target.value)}
             >
-              <option value="">— Choisir —</option>
+              <option value="">{t("equipeLocalisation.chooseEmployee")}</option>
               {states.map((u) => (
                 <option key={u.userId} value={String(u.userId)}>
                   {u.userPrenom} {u.userNom}
@@ -439,7 +443,7 @@ function HistorySection() {
             </select>
           </div>
           <div>
-            <Label>Periode (jours, max 30)</Label>
+            <Label>{t("equipeLocalisation.period")}</Label>
             <Input
               type="number"
               min={1}
@@ -451,20 +455,20 @@ function HistorySection() {
         </div>
         {!userId && (
           <p className="text-sm text-muted-foreground">
-            Selectionnez un employe pour afficher son historique.
+            {t("equipeLocalisation.selectEmployee")}
           </p>
         )}
-        {userId && historyQ.isLoading && <p className="text-sm">Chargement...</p>}
+        {userId && historyQ.isLoading && <p className="text-sm">{t("equipeLocalisation.loading")}</p>}
         {userId && events.length === 0 && !historyQ.isLoading && (
-          <p className="text-sm text-muted-foreground">Aucun evenement sur cette periode.</p>
+          <p className="text-sm text-muted-foreground">{t("equipeLocalisation.noEvents")}</p>
         )}
         {events.length > 0 && (
           <div className="border rounded divide-y">
             {events.map((e) => (
               <div key={e.id} className="p-2 text-sm flex items-center justify-between">
                 <div>
-                  <span className="font-medium capitalize">{e.event}</span>
-                  {e.geofenceId ? <> — {geofenceNameById.get(e.geofenceId) ?? `zone #${e.geofenceId}`}</> : null}
+                  <span className="font-medium capitalize">{t(`equipeLocalisation.events.${e.event}`)}</span>
+                  {e.geofenceId ? <> — {geofenceNameById.get(e.geofenceId) ?? t("equipeLocalisation.zoneNum", { id: e.geofenceId })}</> : null}
                 </div>
                 <div className="text-xs text-muted-foreground">
                   {new Date(e.at).toLocaleString("fr-FR")}
@@ -482,13 +486,13 @@ function HistorySection() {
 // utils
 // ---------------------------------------------------------------------------
 
-function formatAgo(iso: string): string {
+function formatAgo(iso: string, t: (key: string, vars?: Record<string, string | number>) => string): string {
   const diff = Math.max(0, Date.now() - new Date(iso).getTime());
   const m = Math.floor(diff / 60_000);
-  if (m < 1) return "a l'instant";
-  if (m < 60) return `il y a ${m} min`;
+  if (m < 1) return t("equipeLocalisation.ago.now");
+  if (m < 60) return t("equipeLocalisation.ago.min", { n: m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `il y a ${h} h`;
+  if (h < 24) return t("equipeLocalisation.ago.hour", { n: h });
   const d = Math.floor(h / 24);
-  return `il y a ${d} j`;
+  return t("equipeLocalisation.ago.day", { n: d });
 }
