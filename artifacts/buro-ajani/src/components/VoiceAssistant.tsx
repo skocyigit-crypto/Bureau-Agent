@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Mic, MicOff, X, Volume2, MessageCircle, HelpCircle, Radio, Check, XCircle, Globe, Send, Sparkles, Zap, MessagesSquare, Brain, LayoutGrid } from "lucide-react";
+import { useTranslation } from "@/i18n";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -85,66 +86,19 @@ function detectLang(text: string): Lang | null {
   return "en";
 }
 
+// UI_T ne conserve plus QUE les chaines PARLEES par la TTS (ou envoyees comme
+// contenu de reponse a l'utilisateur dans la langue de la parole). Elles sont
+// FONCTIONNELLES: leur langue doit correspondre a la langue STT/TTS courante
+// (fr/tr/en), pas a la langue d'affichage globale de l'app. Tout le texte
+// d'interface (labels, boutons, etats, placeholders) est passe au systeme i18n
+// 6 langues via t("voiceAssistant.xxx").
 const UI_T = {
-  title: { fr: "Assistant Vocal IA", tr: "Sesli Asistan IA", en: "AI Voice Assistant" },
-  state_idle: { fr: "Inactif", tr: "Pasif", en: "Idle" },
-  state_wake: { fr: '"Hey Bureau" actif', tr: '"Hey Buro" aktif', en: '"Hey Office" active' },
-  state_listening: { fr: "Je vous ecoute...", tr: "Sizi dinliyorum...", en: "I'm listening..." },
-  state_processing: { fr: "Traitement IA...", tr: "IA isleniyor...", en: "AI processing..." },
-  state_speaking: { fr: "Reponse...", tr: "Yanit...", en: "Replying..." },
   greet_listening: { fr: "Je vous ecoute", tr: "Sizi dinliyorum", en: "I'm listening" },
-  commands_available: { fr: "Commandes disponibles:", tr: "Kullanilabilir komutlar:", en: "Available commands:" },
-  natural_hint: {
-    fr: "L'IA comprend aussi les phrases naturelles en francais.",
-    tr: "Yapay zeka dogal Turkce cumleleri de anlar.",
-    en: "The AI also understands natural English sentences.",
-  },
-  confirm_required: { fr: "Confirmation requise", tr: "Onay gerekli", en: "Confirmation required" },
-  confirm_btn: { fr: "Confirmer", tr: "Onayla", en: "Confirm" },
-  cancel_btn: { fr: "Annuler", tr: "Iptal", en: "Cancel" },
-  action_cancelled: { fr: "Action annulee.", tr: "Eylem iptal edildi.", en: "Action cancelled." },
   action_done: { fr: "Action effectuee.", tr: "Eylem tamamlandi.", en: "Action completed." },
   action_failed: { fr: "Impossible d'executer l'action.", tr: "Eylem gerceklestirilemedi.", en: "Couldn't execute the action." },
   err_server: { fr: "Erreur de communication avec le serveur.", tr: "Sunucu ile iletisim hatasi.", en: "Server communication error." },
   err_network: { fr: "Erreur de connexion. Verifiez votre reseau.", tr: "Baglanti hatasi. Aginizi kontrol edin.", en: "Connection error. Check your network." },
   err_confirm_network: { fr: "Erreur reseau lors de la confirmation.", tr: "Onay sirasinda ag hatasi.", en: "Network error during confirmation." },
-  err_mic: { fr: "Erreur micro: ", tr: "Mikrofon hatasi: ", en: "Mic error: " },
-  err_mic_start: { fr: "Impossible d'activer le micro.", tr: "Mikrofon etkinlestirilemedi.", en: "Couldn't enable the microphone." },
-  wake_toggle_off: { fr: 'Desactiver "Hey Bureau"', tr: '"Hey Buro" kapat', en: 'Disable "Hey Office"' },
-  wake_toggle_on: { fr: 'Activer "Hey Bureau"', tr: '"Hey Buro" ac', en: 'Enable "Hey Office"' },
-  wake_label: { fr: "Hey Bureau", tr: "Hey Buro", en: "Hey Office" },
-  lang_label: { fr: "Langue", tr: "Dil", en: "Language" },
-  input_placeholder: {
-    fr: "Tapez votre commande ou parlez...",
-    tr: "Komutu yazin veya konusun...",
-    en: "Type your command or speak...",
-  },
-  send_btn: { fr: "Envoyer", tr: "Gonder", en: "Send" },
-  suggestions_label: { fr: "Suggestions", tr: "Oneriler", en: "Suggestions" },
-  empty_hint: {
-    fr: "Demandez-moi quelque chose, ou choisissez une suggestion ci-dessous.",
-    tr: "Bana bir sey sorun veya asagidaki onerilerden birini secin.",
-    en: "Ask me something, or pick a suggestion below.",
-  },
-  empty_chat: {
-    fr: "Discutons. Posez-moi n'importe quelle question liee a votre activite.",
-    tr: "Sohbet edelim. Isinizle ilgili her seyi sorabilirsiniz.",
-    en: "Let's chat. Ask me anything about your business.",
-  },
-  mode_command: { fr: "Commande", tr: "Komut", en: "Command" },
-  mode_chat: { fr: "Sohbet", tr: "Sohbet", en: "Chat" },
-  chat_placeholder: {
-    fr: "Posez votre question...",
-    tr: "Sorunuzu yazin...",
-    en: "Ask your question...",
-  },
-  deep_on: { fr: "Reflexion profonde activee", tr: "Derin dusunce aktif", en: "Deep thinking on" },
-  deep_off: { fr: "Activer reflexion profonde (Pro)", tr: "Derin dusunceyi ac (Pro)", en: "Enable deep thinking (Pro)" },
-  deep_badge: { fr: "Pro", tr: "Pro", en: "Pro" },
-  library_open: { fr: "Bibliotheque d'actions", tr: "Aksiyon kutuphanesi", en: "Action library" },
-  library_close: { fr: "Fermer", tr: "Kapat", en: "Close" },
-  clear_chat: { fr: "Effacer la conversation", tr: "Konusmayi temizle", en: "Clear conversation" },
-  retry_last: { fr: "Reessayer", tr: "Yeniden dene", en: "Retry" },
 } as const;
 
 // ───────────────────────── Bibliotheque d'actions rapides ────────────────────
@@ -456,6 +410,15 @@ interface VoiceAssistantProps {
 }
 
 export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
+  // Texte d'interface: systeme i18n global 6 langues. La langue d'affichage suit
+  // la preference globale de l'app (fr/tr/en/es/de/ar). Independant de `lang`
+  // ci-dessous, qui reste FONCTIONNEL (locale STT/TTS + langue des commandes
+  // backend, limitee a fr/tr/en).
+  const { t } = useTranslation();
+  // Ref miroir de t pour les callbacks STT (closures a deps figees) afin d'eviter
+  // un t "perime" apres changement de langue globale.
+  const tRef = useRef(t);
+  useEffect(() => { tRef.current = t; }, [t]);
   const [lang, setLang] = useState<Lang>(loadStoredLang);
   const [state, setState] = useState<VoiceState>("idle");
   const [transcript, setTranscript] = useState("");
@@ -738,7 +701,7 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
       clearSilence();
       isFlushing = true; // bloque tout flush tardif
       if (e.error !== "no-speech" && e.error !== "aborted") {
-        setError(tr("err_mic", langRef.current) + e.error);
+        setError(tRef.current("voiceAssistant.err_mic") + e.error);
       }
       setState("idle");
       if (wakeActiveRef.current) startWakeWordListener();
@@ -766,7 +729,7 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
       setResponse("");
       setError("");
     } catch {
-      setError(tr("err_mic_start", langRef.current));
+      setError(tRef.current("voiceAssistant.err_mic_start"));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [SpeechRecognition, processCommand, stopAllListeners]);
@@ -953,7 +916,7 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
       credentials: "include",
       body: JSON.stringify({ token: pending.token }),
     }).catch(() => {});
-    const msg = tr("action_cancelled", langRef.current);
+    const msg = tRef.current("voiceAssistant.action_cancelled");
     setHistory(prev => [...prev, { type: "assistant", text: msg }]);
     setResponse(msg);
     setPending(null);
@@ -969,11 +932,11 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
   if (!supported) return null;
 
   const stateLabels: Record<VoiceState, string> = {
-    idle: tr("state_idle", lang),
-    listening_wake: tr("state_wake", lang),
-    listening_command: tr("state_listening", lang),
-    processing: tr("state_processing", lang),
-    speaking: tr("state_speaking", lang),
+    idle: t("voiceAssistant.state_idle"),
+    listening_wake: t("voiceAssistant.state_wake"),
+    listening_command: t("voiceAssistant.state_listening"),
+    processing: t("voiceAssistant.state_processing"),
+    speaking: t("voiceAssistant.state_speaking"),
   };
 
   return (
@@ -1017,7 +980,7 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
             <button
               onClick={onOpenLive}
               className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-gradient-to-br from-cyan-400 via-violet-500 to-fuchsia-500 shadow-lg shadow-violet-500/40 flex items-center justify-center text-white text-[10px] font-bold border-2 border-slate-900 hover:scale-110 transition"
-              title="Mode Live (conversation continue avec Gemini)"
+              title={t("voiceAssistant.live_mode_title")}
             >
               ✦
             </button>
@@ -1028,20 +991,20 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
           <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-slate-800/80 via-slate-900/60 to-slate-800/80 border-b border-white/10">
             <div className="flex items-center gap-2">
               <div className={`w-2.5 h-2.5 rounded-full ${state === "listening_command" ? "bg-red-500 animate-pulse" : state === "processing" ? "bg-blue-400 animate-pulse" : state === "speaking" ? "bg-green-400" : state === "listening_wake" ? "bg-amber-400 animate-pulse" : "bg-slate-500"}`} />
-              <span className="text-sm font-semibold text-white">{tr("title", lang)}</span>
+              <span className="text-sm font-semibold text-white">{t("voiceAssistant.title")}</span>
             </div>
             <div className="flex gap-1.5">
               <button
                 onClick={() => { setShowLibrary(v => !v); if (!showLibrary) setShowHelp(false); }}
                 className={`p-1.5 rounded-lg transition-colors ${showLibrary ? "bg-amber-500/20 text-amber-300" : "hover:bg-slate-700 text-slate-400 hover:text-white"}`}
-                title={tr("library_open", lang)}
+                title={t("voiceAssistant.library_open")}
               >
                 <LayoutGrid className="w-4 h-4" />
               </button>
               <button
                 onClick={toggleWakeMode}
                 className={`p-1.5 rounded-lg transition-colors ${wakeOn ? "bg-amber-500/20 text-amber-300" : "hover:bg-slate-700 text-slate-400 hover:text-white"}`}
-                title={wakeOn ? "Wake-word ON" : "Wake-word OFF"}
+                title={wakeOn ? t("voiceAssistant.wake_on_title") : t("voiceAssistant.wake_off_title")}
               >
                 <Radio className="w-4 h-4" />
               </button>
@@ -1063,7 +1026,7 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
                   mode === "command" ? "bg-amber-500 text-slate-900 shadow" : "text-slate-400 hover:text-white"
                 }`}
               >
-                <Zap className="w-3 h-3" /> {tr("mode_command", lang)}
+                <Zap className="w-3 h-3" /> {t("voiceAssistant.mode_command")}
               </button>
               <button
                 onClick={() => setMode("chat")}
@@ -1071,7 +1034,7 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
                   mode === "chat" ? "bg-blue-500 text-white shadow" : "text-slate-400 hover:text-white"
                 }`}
               >
-                <MessagesSquare className="w-3 h-3" /> {tr("mode_chat", lang)}
+                <MessagesSquare className="w-3 h-3" /> {t("voiceAssistant.mode_chat")}
               </button>
             </div>
           </div>
@@ -1088,13 +1051,13 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
                     ? "bg-purple-500/20 text-purple-200 border border-purple-400/40 shadow-[0_0_12px_-2px_rgba(168,85,247,0.5)]"
                     : "bg-slate-800/60 text-slate-400 border border-white/5 hover:text-white"
                 }`}
-                title={deep ? tr("deep_on", lang) : tr("deep_off", lang)}
+                title={deep ? t("voiceAssistant.deep_on") : t("voiceAssistant.deep_off")}
               >
                 <Brain className={`w-3.5 h-3.5 ${deep ? "animate-pulse" : ""}`} />
-                <span>{deep ? tr("deep_on", lang) : tr("deep_off", lang)}</span>
+                <span>{deep ? t("voiceAssistant.deep_on") : t("voiceAssistant.deep_off")}</span>
                 {deep && (
                   <span className="ml-1 px-1.5 py-0.5 rounded-full bg-purple-500 text-white text-[9px] font-bold">
-                    {tr("deep_badge", lang)}
+                    {t("voiceAssistant.deep_badge")}
                   </span>
                 )}
               </button>
@@ -1102,7 +1065,7 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
                 <button
                   onClick={() => { setHistory([]); setResponse(""); setTranscript(""); }}
                   className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-500 hover:text-white transition-colors"
-                  title={tr("clear_chat", lang)}
+                  title={t("voiceAssistant.clear_chat")}
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -1114,7 +1077,7 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
           <div className="flex items-center justify-between px-4 py-2 bg-slate-900/40 border-b border-white/5">
             <div className="flex items-center gap-1.5 text-slate-400 text-xs">
               <Globe className="w-3.5 h-3.5" />
-              <span>{tr("lang_label", lang)}</span>
+              <span>{t("voiceAssistant.lang_label")}</span>
             </div>
             <div className="flex gap-1 rounded-full bg-slate-800/60 p-0.5 border border-white/5">
               {SUPPORTED_LANGS.map(l => (
@@ -1136,7 +1099,7 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
 
           {showLibrary ? (
             <div className="p-3 max-h-96 overflow-y-auto space-y-3">
-              <p className="text-xs text-slate-400 mb-1">{tr("library_open", lang)}</p>
+              <p className="text-xs text-slate-400 mb-1">{t("voiceAssistant.library_open")}</p>
               {LIBRARY[lang].map((cat, ci) => (
                 <div key={ci}>
                   <p className="text-[10px] uppercase tracking-wider text-amber-400/80 font-bold mb-1.5 px-1">{cat.title}</p>
@@ -1158,14 +1121,14 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
             </div>
           ) : showHelp ? (
             <div className="p-3 max-h-64 overflow-y-auto">
-              <p className="text-xs text-slate-400 mb-2">{tr("commands_available", lang)}</p>
+              <p className="text-xs text-slate-400 mb-2">{t("voiceAssistant.commands_available")}</p>
               {commands.map((c, i) => (
                 <div key={i} className="flex justify-between items-start py-1.5 border-b border-slate-800 last:border-0">
                   <span className="text-xs text-amber-400 font-medium">"{c.phrase}"</span>
                   <span className="text-xs text-slate-500 ml-2 text-right">{c.description}</span>
                 </div>
               ))}
-              <p className="text-xs text-blue-400 mt-3 italic">{tr("natural_hint", lang)}</p>
+              <p className="text-xs text-blue-400 mt-3 italic">{t("voiceAssistant.natural_hint")}</p>
             </div>
           ) : (
             <div className="p-4">
@@ -1201,7 +1164,7 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
 
               {pending && (
                 <div className="bg-amber-500/10 border border-amber-500/40 rounded-lg p-3 mb-3">
-                  <p className="text-xs font-semibold text-amber-300 mb-1.5">{tr("confirm_required", lang)}</p>
+                  <p className="text-xs font-semibold text-amber-300 mb-1.5">{t("voiceAssistant.confirm_required")}</p>
                   <p className="text-sm text-white mb-2">{pending.summary}</p>
                   <div className="space-y-1 mb-3">
                     {pending.fields.map((f, i) => (
@@ -1218,7 +1181,7 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
                       className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-medium transition-colors"
                     >
                       <Check className="w-3.5 h-3.5" />
-                      {confirming ? "..." : tr("confirm_btn", lang)}
+                      {confirming ? "..." : t("voiceAssistant.confirm_btn")}
                     </button>
                     <button
                       onClick={cancelPending}
@@ -1226,7 +1189,7 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
                       className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-slate-200 text-xs font-medium transition-colors"
                     >
                       <XCircle className="w-3.5 h-3.5" />
-                      {tr("cancel_btn", lang)}
+                      {t("voiceAssistant.cancel_btn")}
                     </button>
                   </div>
                 </div>
@@ -1239,7 +1202,7 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
               {/* Empty-state hint (premiere ouverture, pas d'historique). */}
               {history.length === 0 && !pending && state === "idle" && (
                 <p className="text-xs text-slate-400 text-center italic mb-3 px-2">
-                  {tr(mode === "chat" ? "empty_chat" : "empty_hint", lang)}
+                  {t(mode === "chat" ? "voiceAssistant.empty_chat" : "voiceAssistant.empty_hint")}
                 </p>
               )}
 
@@ -1249,7 +1212,7 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
                 <div className="mb-3">
                   <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-500 mb-1.5">
                     <Sparkles className="w-3 h-3" />
-                    <span>{tr("suggestions_label", lang)}</span>
+                    <span>{t("voiceAssistant.suggestions_label")}</span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {suggestionsFor(lastIntent, lang).map((s, i) => (
@@ -1281,7 +1244,7 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
                   type="text"
                   value={textInput}
                   onChange={(e) => setTextInput(e.target.value)}
-                  placeholder={tr(mode === "chat" ? "chat_placeholder" : "input_placeholder", lang)}
+                  placeholder={t(mode === "chat" ? "voiceAssistant.chat_placeholder" : "voiceAssistant.input_placeholder")}
                   className="flex-1 px-3 py-2 text-xs rounded-lg bg-slate-800/80 border border-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/50"
                   disabled={state === "processing"}
                 />
@@ -1289,7 +1252,7 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
                   type="submit"
                   disabled={!textInput.trim() || state === "processing"}
                   className="px-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-900 disabled:opacity-40 transition-colors"
-                  title={tr("send_btn", lang)}
+                  title={t("voiceAssistant.send_btn")}
                 >
                   <Send className="w-4 h-4" />
                 </button>
@@ -1303,10 +1266,10 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
                       ? "bg-amber-500/20 text-amber-400 border border-amber-500/50"
                       : "bg-slate-700 hover:bg-slate-600 text-slate-400"
                   }`}
-                  title={wakeActiveRef.current ? tr("wake_toggle_off", lang) : tr("wake_toggle_on", lang)}
+                  title={wakeActiveRef.current ? t("voiceAssistant.wake_toggle_off") : t("voiceAssistant.wake_toggle_on")}
                 >
                   <Radio className="w-3.5 h-3.5" />
-                  {tr("wake_label", lang)}
+                  {t("voiceAssistant.wake_label")}
                 </button>
 
                 <button
