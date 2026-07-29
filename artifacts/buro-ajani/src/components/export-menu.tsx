@@ -4,17 +4,20 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 
+// Les libelles lisibles vivent dans i18n (exportMenu.entities.<key>).
 const ENTITIES = [
-  { key: "contacts", label: "Contacts", icon: "👥" },
-  { key: "appels", label: "Appels", icon: "📞" },
-  { key: "taches", label: "Taches", icon: "✅" },
-  { key: "messages", label: "Messages", icon: "💬" },
+  { key: "contacts", icon: "👥" },
+  { key: "appels", icon: "📞" },
+  { key: "taches", icon: "✅" },
+  { key: "messages", icon: "💬" },
 ];
 
 export function ExportMenu() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [exporting, setExporting] = useState<string | null>(null);
 
@@ -31,7 +34,7 @@ export function ExportMenu() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      toast({ title: "Erreur d'export", description: "Impossible d'exporter les donnees.", variant: "destructive" });
+      toast({ title: t("exportMenu.errorTitle"), description: t("exportMenu.errorDesc"), variant: "destructive" });
     } finally {
       setExporting(null);
     }
@@ -47,11 +50,11 @@ export function ExportMenu() {
             </Button>
           </DropdownMenuTrigger>
         </TooltipTrigger>
-        <TooltipContent>Exporter les donnees</TooltipContent>
+        <TooltipContent>{t("exportMenu.exportData")}</TooltipContent>
       </Tooltip>
       <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuLabel className="flex items-center gap-2">
-          <FileSpreadsheet className="w-4 h-4" /> Export CSV
+          <FileSpreadsheet className="w-4 h-4" /> {t("exportMenu.csvLabel")}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {ENTITIES.map(e => (
@@ -61,7 +64,7 @@ export function ExportMenu() {
             disabled={exporting === e.key}
             className="cursor-pointer"
           >
-            <span className="mr-2">{e.icon}</span> {e.label}
+            <span className="mr-2">{e.icon}</span> {t(`exportMenu.entities.${e.key}`)}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

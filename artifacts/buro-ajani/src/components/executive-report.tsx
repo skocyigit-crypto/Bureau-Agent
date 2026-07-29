@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "@/i18n";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,7 @@ interface Reminder {
 }
 
 export default function ExecutiveReport() {
+  const { t } = useTranslation();
   const [data, setData] = useState<ExecutiveData | null>(null);
   const [timeline, setTimeline] = useState<TimelinePoint[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -103,7 +105,7 @@ export default function ExecutiveReport() {
     );
   }
 
-  if (!data) return <div className="text-center p-8 text-muted-foreground">Erreur de chargement</div>;
+  if (!data) return <div className="text-center p-8 text-muted-foreground">{t("executiveReport.loadError")}</div>;
 
   const totalReminders = reminderCounts.overdue + reminderCounts.upcoming + reminderCounts.urgentProspects + reminderCounts.missedCalls;
 
@@ -113,20 +115,20 @@ export default function ExecutiveReport() {
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Brain className="h-6 w-6 text-violet-500" />
-            Rapport Executif Intelligent
+            {t("executiveReport.title")}
           </h2>
           <p className="text-sm text-muted-foreground">
-            Periode: {new Date(data.period.start).toLocaleDateString("fr-FR")} - {new Date(data.period.end).toLocaleDateString("fr-FR")}
+            {t("executiveReport.period", { start: new Date(data.period.start).toLocaleDateString("fr-FR"), end: new Date(data.period.end).toLocaleDateString("fr-FR") })}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Select value={period} onValueChange={setPeriod}>
             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="7">7 derniers jours</SelectItem>
-              <SelectItem value="14">14 derniers jours</SelectItem>
-              <SelectItem value="30">30 derniers jours</SelectItem>
-              <SelectItem value="90">90 derniers jours</SelectItem>
+              <SelectItem value="7">{t("executiveReport.last7")}</SelectItem>
+              <SelectItem value="14">{t("executiveReport.last14")}</SelectItem>
+              <SelectItem value="30">{t("executiveReport.last30")}</SelectItem>
+              <SelectItem value="90">{t("executiveReport.last90")}</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="outline" size="icon" onClick={fetchAll}><RefreshCw className="h-4 w-4" /></Button>
@@ -138,7 +140,7 @@ export default function ExecutiveReport() {
         <Card className="col-span-1 border-2 border-primary/20 relative overflow-hidden">
           <div className={`absolute top-0 left-0 right-0 h-1 ${getScoreBg(data.score)}`} />
           <CardContent className="p-4 text-center">
-            <div className="text-xs text-muted-foreground font-medium mb-1">Score Global</div>
+            <div className="text-xs text-muted-foreground font-medium mb-1">{t("executiveReport.globalScore")}</div>
             <div className={`text-4xl font-bold ${getScoreColor(data.score)}`}>{data.score}</div>
             <div className="text-xs text-muted-foreground">/100</div>
             <Progress value={data.score} className="mt-2 h-1.5" />
@@ -146,10 +148,10 @@ export default function ExecutiveReport() {
         </Card>
 
         {[
-          { label: "Appels", value: data.calls.total, icon: Phone, trend: data.trends.callTrend, sub: `${data.calls.responseRate}% reponse`, color: "text-blue-600" },
-          { label: "Taches", value: data.tasks.total, icon: CheckSquare, trend: data.trends.taskTrend, sub: `${data.tasks.completionRate}% completees`, color: "text-green-600" },
-          { label: "Prospects", value: data.prospects.total, icon: Target, trend: data.trends.prospectTrend, sub: `${data.prospects.winRate}% gagnes`, color: "text-purple-600" },
-          { label: "Messages", value: data.messages.total, icon: MessageSquare, sub: `${data.messages.unread} non lus`, color: "text-orange-600" },
+          { label: t("executiveReport.kpiCalls"), value: data.calls.total, icon: Phone, trend: data.trends.callTrend, sub: t("executiveReport.callsResponse", { rate: data.calls.responseRate }), color: "text-blue-600" },
+          { label: t("executiveReport.kpiTasks"), value: data.tasks.total, icon: CheckSquare, trend: data.trends.taskTrend, sub: t("executiveReport.tasksCompleted", { rate: data.tasks.completionRate }), color: "text-green-600" },
+          { label: t("executiveReport.kpiProspects"), value: data.prospects.total, icon: Target, trend: data.trends.prospectTrend, sub: t("executiveReport.prospectsWon", { rate: data.prospects.winRate }), color: "text-purple-600" },
+          { label: t("executiveReport.kpiMessages"), value: data.messages.total, icon: MessageSquare, sub: t("executiveReport.messagesUnread", { count: data.messages.unread }), color: "text-orange-600" },
         ].map((kpi) => (
           <Card key={kpi.label} className="relative overflow-hidden">
             <CardContent className="p-4">
@@ -175,7 +177,7 @@ export default function ExecutiveReport() {
       {data.insights.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2"><Zap className="h-4 w-4 text-amber-500" />Insights IA</CardTitle>
+            <CardTitle className="text-sm flex items-center gap-2"><Zap className="h-4 w-4 text-amber-500" />{t("executiveReport.insightsAi")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -199,7 +201,7 @@ export default function ExecutiveReport() {
       <div className="grid grid-cols-3 gap-4">
         <Card className="col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2"><Activity className="h-4 w-4 text-blue-500" />Activite Quotidienne</CardTitle>
+            <CardTitle className="text-sm flex items-center gap-2"><Activity className="h-4 w-4 text-blue-500" />{t("executiveReport.dailyActivity")}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={240}>
@@ -208,10 +210,10 @@ export default function ExecutiveReport() {
                 <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 10 }} />
                 <YAxis tick={{ fontSize: 10 }} />
                 <RechartsTooltip labelFormatter={(l) => new Date(l).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })} />
-                <Area type="monotone" dataKey="calls" name="Appels" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.2} />
-                <Area type="monotone" dataKey="tasks" name="Taches" stackId="1" stroke="#22c55e" fill="#22c55e" fillOpacity={0.2} />
-                <Area type="monotone" dataKey="prospects" name="Prospects" stackId="1" stroke="#a855f7" fill="#a855f7" fillOpacity={0.2} />
-                <Area type="monotone" dataKey="messages" name="Messages" stackId="1" stroke="#f97316" fill="#f97316" fillOpacity={0.2} />
+                <Area type="monotone" dataKey="calls" name={t("executiveReport.kpiCalls")} stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.2} />
+                <Area type="monotone" dataKey="tasks" name={t("executiveReport.kpiTasks")} stackId="1" stroke="#22c55e" fill="#22c55e" fillOpacity={0.2} />
+                <Area type="monotone" dataKey="prospects" name={t("executiveReport.kpiProspects")} stackId="1" stroke="#a855f7" fill="#a855f7" fillOpacity={0.2} />
+                <Area type="monotone" dataKey="messages" name={t("executiveReport.kpiMessages")} stackId="1" stroke="#f97316" fill="#f97316" fillOpacity={0.2} />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
@@ -219,18 +221,18 @@ export default function ExecutiveReport() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2"><Target className="h-4 w-4 text-purple-500" />Pipeline CRM</CardTitle>
+            <CardTitle className="text-sm flex items-center gap-2"><Target className="h-4 w-4 text-purple-500" />{t("executiveReport.pipelineCrm")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="text-center">
               <div className="text-3xl font-bold text-purple-600">{Number(data.prospects.wonValue).toLocaleString("fr-FR")}</div>
-              <div className="text-xs text-muted-foreground">EUR gagnes</div>
+              <div className="text-xs text-muted-foreground">{t("executiveReport.eurWon")}</div>
             </div>
             <div className="space-y-2">
               {[
-                { label: "Gagnes", value: data.prospects.won, color: "bg-green-500" },
-                { label: "Perdus", value: data.prospects.lost, color: "bg-red-500" },
-                { label: "En cours", value: data.prospects.total - data.prospects.won - data.prospects.lost, color: "bg-blue-500" },
+                { label: t("executiveReport.won"), value: data.prospects.won, color: "bg-green-500" },
+                { label: t("executiveReport.lost"), value: data.prospects.lost, color: "bg-red-500" },
+                { label: t("executiveReport.inProgress"), value: data.prospects.total - data.prospects.won - data.prospects.lost, color: "bg-blue-500" },
               ].map((item) => (
                 <div key={item.label} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-1.5">
@@ -243,11 +245,11 @@ export default function ExecutiveReport() {
             </div>
             <div className="border-t pt-2">
               <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Taux de conversion</span>
+                <span className="text-muted-foreground">{t("executiveReport.conversionRate")}</span>
                 <span className="font-bold text-purple-600">{data.prospects.winRate}%</span>
               </div>
               <div className="flex justify-between text-xs mt-1">
-                <span className="text-muted-foreground">Valeur totale pipeline</span>
+                <span className="text-muted-foreground">{t("executiveReport.totalPipelineValue")}</span>
                 <span className="font-medium">{Number(data.prospects.totalValue).toLocaleString("fr-FR")} EUR</span>
               </div>
             </div>
@@ -258,31 +260,31 @@ export default function ExecutiveReport() {
       <div className="grid grid-cols-2 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2"><Phone className="h-4 w-4 text-blue-500" />Performance Appels</CardTitle>
+            <CardTitle className="text-sm flex items-center gap-2"><Phone className="h-4 w-4 text-blue-500" />{t("executiveReport.callsPerformance")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-3 gap-3 text-center">
               <div>
                 <div className="text-xl font-bold text-green-600">{data.calls.answered}</div>
-                <div className="text-[10px] text-muted-foreground">Repondus</div>
+                <div className="text-[10px] text-muted-foreground">{t("executiveReport.answered")}</div>
               </div>
               <div>
                 <div className="text-xl font-bold text-red-600">{data.calls.missed}</div>
-                <div className="text-[10px] text-muted-foreground">Manques</div>
+                <div className="text-[10px] text-muted-foreground">{t("executiveReport.missed")}</div>
               </div>
               <div>
                 <div className="text-xl font-bold text-blue-600">{Math.floor(data.calls.avgDuration / 60)}m{data.calls.avgDuration % 60}s</div>
-                <div className="text-[10px] text-muted-foreground">Duree moy.</div>
+                <div className="text-[10px] text-muted-foreground">{t("executiveReport.avgDuration")}</div>
               </div>
             </div>
             <div>
               <div className="flex justify-between text-xs mb-1">
-                <span>Taux de reponse</span>
+                <span>{t("executiveReport.responseRate")}</span>
                 <span className="font-bold">{data.calls.responseRate}%</span>
               </div>
               <Progress value={data.calls.responseRate} className="h-2" />
               <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
-                <span>Periode precedente: {data.calls.prevResponseRate}%</span>
+                <span>{t("executiveReport.prevPeriod", { rate: data.calls.prevResponseRate })}</span>
                 <span className={data.calls.responseRate >= data.calls.prevResponseRate ? "text-green-600" : "text-red-600"}>
                   {data.calls.responseRate >= data.calls.prevResponseRate ? "+" : ""}{data.calls.responseRate - data.calls.prevResponseRate}%
                 </span>
@@ -293,30 +295,30 @@ export default function ExecutiveReport() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2"><CheckSquare className="h-4 w-4 text-green-500" />Productivite Taches</CardTitle>
+            <CardTitle className="text-sm flex items-center gap-2"><CheckSquare className="h-4 w-4 text-green-500" />{t("executiveReport.tasksProductivity")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-4 gap-2 text-center">
               <div>
                 <div className="text-lg font-bold">{data.tasks.total}</div>
-                <div className="text-[10px] text-muted-foreground">Total</div>
+                <div className="text-[10px] text-muted-foreground">{t("executiveReport.total")}</div>
               </div>
               <div>
                 <div className="text-lg font-bold text-green-600">{data.tasks.completed}</div>
-                <div className="text-[10px] text-muted-foreground">Faites</div>
+                <div className="text-[10px] text-muted-foreground">{t("executiveReport.done")}</div>
               </div>
               <div>
                 <div className="text-lg font-bold text-blue-600">{data.tasks.inProgress}</div>
-                <div className="text-[10px] text-muted-foreground">En cours</div>
+                <div className="text-[10px] text-muted-foreground">{t("executiveReport.inProgress")}</div>
               </div>
               <div>
                 <div className="text-lg font-bold text-red-600">{data.tasks.overdue}</div>
-                <div className="text-[10px] text-muted-foreground">En retard</div>
+                <div className="text-[10px] text-muted-foreground">{t("executiveReport.overdue")}</div>
               </div>
             </div>
             <div>
               <div className="flex justify-between text-xs mb-1">
-                <span>Taux de completion</span>
+                <span>{t("executiveReport.completionRate")}</span>
                 <span className="font-bold">{data.tasks.completionRate}%</span>
               </div>
               <Progress value={data.tasks.completionRate} className="h-2" />
@@ -324,7 +326,7 @@ export default function ExecutiveReport() {
             {data.tasks.highPriority > 0 && (
               <div className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 p-2 rounded">
                 <AlertTriangle className="h-3 w-3" />
-                {data.tasks.highPriority} taches haute priorite
+                {t("executiveReport.highPriorityTasks", { count: data.tasks.highPriority })}
               </div>
             )}
           </CardContent>
@@ -334,31 +336,31 @@ export default function ExecutiveReport() {
       {data.projets && data.projets.total > 0 && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2"><FolderKanban className="h-4 w-4 text-indigo-500" />Projets</CardTitle>
+            <CardTitle className="text-sm flex items-center gap-2"><FolderKanban className="h-4 w-4 text-indigo-500" />{t("executiveReport.projects")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-4 gap-3 text-center">
               <div>
                 <div className="text-xl font-bold">{data.projets.total}</div>
-                <div className="text-[10px] text-muted-foreground">Total</div>
+                <div className="text-[10px] text-muted-foreground">{t("executiveReport.total")}</div>
               </div>
               <div>
                 <div className="text-xl font-bold text-amber-600">{data.projets.active}</div>
-                <div className="text-[10px] text-muted-foreground">Actifs</div>
+                <div className="text-[10px] text-muted-foreground">{t("executiveReport.active")}</div>
               </div>
               <div>
                 <div className="text-xl font-bold text-emerald-600">{data.projets.termine}</div>
-                <div className="text-[10px] text-muted-foreground">Terminés</div>
+                <div className="text-[10px] text-muted-foreground">{t("executiveReport.finished")}</div>
               </div>
               <div>
                 <div className={`text-xl font-bold ${data.projets.overdue > 0 ? "text-red-600" : "text-slate-600"}`}>{data.projets.overdue}</div>
-                <div className="text-[10px] text-muted-foreground">En retard</div>
+                <div className="text-[10px] text-muted-foreground">{t("executiveReport.overdue")}</div>
               </div>
             </div>
             {data.projets.avgProgress > 0 && (
               <div className="mt-3">
                 <div className="flex justify-between text-xs mb-1">
-                  <span>Avancement moyen</span>
+                  <span>{t("executiveReport.avgProgress")}</span>
                   <span className="font-bold text-indigo-600">{data.projets.avgProgress}%</span>
                 </div>
                 <Progress value={data.projets.avgProgress} className="h-2" />
@@ -374,7 +376,7 @@ export default function ExecutiveReport() {
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Clock className="h-4 w-4 text-amber-500" />
-                Rappels & Alertes
+                {t("executiveReport.remindersAlerts")}
                 <Badge variant="secondary" className="text-[10px]">{totalReminders}</Badge>
               </CardTitle>
             </div>
@@ -382,10 +384,10 @@ export default function ExecutiveReport() {
           <CardContent>
             <div className="grid grid-cols-4 gap-2 mb-3">
               {[
-                { label: "En retard", count: reminderCounts.overdue, icon: AlertCircle, color: "text-red-600 bg-red-50" },
-                { label: "A venir", count: reminderCounts.upcoming, icon: Calendar, color: "text-blue-600 bg-blue-50" },
-                { label: "Prospects urgents", count: reminderCounts.urgentProspects, icon: Target, color: "text-purple-600 bg-purple-50" },
-                { label: "Appels manques", count: reminderCounts.missedCalls, icon: Phone, color: "text-orange-600 bg-orange-50" },
+                { label: t("executiveReport.overdue"), count: reminderCounts.overdue, icon: AlertCircle, color: "text-red-600 bg-red-50" },
+                { label: t("executiveReport.reminderUpcoming"), count: reminderCounts.upcoming, icon: Calendar, color: "text-blue-600 bg-blue-50" },
+                { label: t("executiveReport.reminderUrgentProspects"), count: reminderCounts.urgentProspects, icon: Target, color: "text-purple-600 bg-purple-50" },
+                { label: t("executiveReport.reminderMissedCalls"), count: reminderCounts.missedCalls, icon: Phone, color: "text-orange-600 bg-orange-50" },
               ].map((c) => (
                 <div key={c.label} className={`flex items-center gap-2 p-2 rounded-lg ${c.color}`}>
                   <c.icon className="h-4 w-4" />
@@ -420,24 +422,24 @@ export default function ExecutiveReport() {
             <div>
               <Users className="h-4 w-4 mx-auto mb-1 text-blue-600" />
               <div className="font-bold">{data.contacts.total}</div>
-              <div className="text-muted-foreground">Contacts totaux</div>
-              <div className="text-green-600 text-[10px]">+{data.contacts.newThisPeriod} nouveaux</div>
+              <div className="text-muted-foreground">{t("executiveReport.totalContacts")}</div>
+              <div className="text-green-600 text-[10px]">{t("executiveReport.newContacts", { count: data.contacts.newThisPeriod })}</div>
             </div>
             <div>
               <Calendar className="h-4 w-4 mx-auto mb-1 text-purple-600" />
               <div className="font-bold">{data.events.total}</div>
-              <div className="text-muted-foreground">Evenements</div>
-              <div className="text-blue-600 text-[10px]">{data.events.upcoming} a venir</div>
+              <div className="text-muted-foreground">{t("executiveReport.events")}</div>
+              <div className="text-blue-600 text-[10px]">{t("executiveReport.upcomingEvents", { count: data.events.upcoming })}</div>
             </div>
             <div>
               <DollarSign className="h-4 w-4 mx-auto mb-1 text-green-600" />
               <div className="font-bold">{Number(data.prospects.totalValue).toLocaleString("fr-FR")}</div>
-              <div className="text-muted-foreground">Pipeline total (EUR)</div>
+              <div className="text-muted-foreground">{t("executiveReport.totalPipelineEur")}</div>
             </div>
             <div>
               <Shield className="h-4 w-4 mx-auto mb-1 text-amber-600" />
               <div className="font-bold">{Math.floor(data.calls.totalDuration / 3600)}h{Math.floor((data.calls.totalDuration % 3600) / 60)}m</div>
-              <div className="text-muted-foreground">Temps appels total</div>
+              <div className="text-muted-foreground">{t("executiveReport.totalCallTime")}</div>
             </div>
           </div>
         </CardContent>

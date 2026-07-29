@@ -5,18 +5,22 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Download, FileText, Table, Users, Phone, MessageSquare, Target, CheckSquare, Loader2, FileJson } from "lucide-react";
+import { useTranslation } from "@/i18n";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
+// Les libelles lisibles vivent dans i18n (dataExportPanel.entities.<key>)
+// et sont rendus via t() a l'affichage.
 const entities = [
-  { key: "contacts", label: "Contacts", icon: Users, color: "text-emerald-600 bg-emerald-100" },
-  { key: "tasks", label: "Taches", icon: CheckSquare, color: "text-green-600 bg-green-100" },
-  { key: "calls", label: "Appels", icon: Phone, color: "text-blue-600 bg-blue-100" },
-  { key: "messages", label: "Messages", icon: MessageSquare, color: "text-orange-600 bg-orange-100" },
-  { key: "prospects", label: "Prospects", icon: Target, color: "text-purple-600 bg-purple-100" },
+  { key: "contacts", icon: Users, color: "text-emerald-600 bg-emerald-100" },
+  { key: "tasks", icon: CheckSquare, color: "text-green-600 bg-green-100" },
+  { key: "calls", icon: Phone, color: "text-blue-600 bg-blue-100" },
+  { key: "messages", icon: MessageSquare, color: "text-orange-600 bg-orange-100" },
+  { key: "prospects", icon: Target, color: "text-purple-600 bg-purple-100" },
 ];
 
 export function DataExportPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -24,7 +28,7 @@ export function DataExportPanel({ open, onOpenChange }: { open: boolean; onOpenC
     setLoading(`${entity}_${format}`);
     try {
       const r = await fetch(`${API}/api/export/${entity}?format=${format}`, { credentials: "include" });
-      if (!r.ok) throw new Error("Erreur export");
+      if (!r.ok) throw new Error(t("dataExportPanel.exportError"));
 
       const blob = await r.blob();
       const url = window.URL.createObjectURL(blob);
@@ -34,9 +38,9 @@ export function DataExportPanel({ open, onOpenChange }: { open: boolean; onOpenC
       a.click();
       window.URL.revokeObjectURL(url);
 
-      toast({ title: "Export reussi", description: `${entity} exporte en ${format.toUpperCase()}` });
+      toast({ title: t("dataExportPanel.successTitle"), description: t("dataExportPanel.successDesc", { entity: t(`dataExportPanel.entities.${entity}`), format: format.toUpperCase() }) });
     } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+      toast({ title: t("dataExportPanel.errorTitle"), description: err.message, variant: "destructive" });
     }
     setLoading(null);
   };
@@ -47,7 +51,7 @@ export function DataExportPanel({ open, onOpenChange }: { open: boolean; onOpenC
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Download className="h-5 w-5 text-blue-500" />
-            Exporter les donnees
+            {t("dataExportPanel.title")}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-2">
@@ -58,7 +62,7 @@ export function DataExportPanel({ open, onOpenChange }: { open: boolean; onOpenC
                   <div className={`p-1.5 rounded-lg ${entity.color}`}>
                     <entity.icon className="h-4 w-4" />
                   </div>
-                  <span className="text-sm font-medium">{entity.label}</span>
+                  <span className="text-sm font-medium">{t(`dataExportPanel.entities.${entity.key}`)}</span>
                 </div>
                 <div className="flex gap-1">
                   <Button
@@ -83,7 +87,7 @@ export function DataExportPanel({ open, onOpenChange }: { open: boolean; onOpenC
           ))}
         </div>
         <p className="text-[10px] text-muted-foreground text-center mt-2">
-          Les exports respectent les filtres de votre organisation. Donnees conformes RGPD.
+          {t("dataExportPanel.footer")}
         </p>
       </DialogContent>
     </Dialog>

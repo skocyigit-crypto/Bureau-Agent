@@ -18,6 +18,7 @@ import {
   Mic, MicOff, X, Sparkles, Loader2, AlertCircle, Check, Settings2, Wrench,
   Video, VideoOff, Monitor, MonitorOff, Globe, Send,
 } from "lucide-react";
+import { useTranslation } from "@/i18n";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -109,20 +110,14 @@ interface CodeBlock {
   output?: string;
 }
 
-// Etiquettes lisibles pour les outils (FR par defaut).
-const TOOL_LABELS: Record<string, string> = {
-  create_task: "Cree une tache",
-  list_tasks: "Liste les taches",
-  create_contact: "Cree un contact",
-  search_contacts: "Recherche dans les contacts",
-  create_calendar_event: "Cree un evenement",
-  list_calendar_events: "Liste les evenements",
-  send_email: "Envoie un e-mail",
-  send_sms: "Envoie un SMS",
-  list_recent_calls: "Liste les appels recents",
-  generate_image: "Genere une image",
-};
-const labelForTool = (name: string): string => TOOL_LABELS[name] ?? name;
+// Noms d'outils connus: les libelles lisibles vivent dans les catalogues
+// i18n (voiceLive.tools.<name>) et sont rendus via t() au moment de
+// l'affichage. Un nom inconnu retombe sur le nom brut.
+const KNOWN_TOOLS = [
+  "create_task", "list_tasks", "create_contact", "search_contacts",
+  "create_calendar_event", "list_calendar_events", "send_email", "send_sms",
+  "list_recent_calls", "generate_image",
+] as const;
 
 // Decode base64 (browser-safe, supports large strings).
 function base64ToInt16(b64: string): Int16Array {
@@ -150,6 +145,9 @@ interface VoiceLiveProps {
 }
 
 export function VoiceLive({ open, onClose }: VoiceLiveProps) {
+  const { t } = useTranslation();
+  const labelForTool = (name: string): string =>
+    (KNOWN_TOOLS as readonly string[]).includes(name) ? t(`voiceLive.tools.${name}`) : name;
   const [state, setState] = useState<LiveState>("idle");
   const [error, setError] = useState<string>("");
   // Conversation tour-par-tour (affichage chat-style).
@@ -456,7 +454,7 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
         setState("listening");
         break;
       case "error":
-        setError(frame.message || "Erreur Gemini Live");
+        setError(frame.message || t("voiceLive.errorGeminiLive"));
         setState("error");
         break;
       case "grounding":
@@ -543,7 +541,7 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
         break;
       }
     }
-  }, [playAudioChunk, appendToTurn]);
+  }, [playAudioChunk, appendToTurn, t]);
 
   // Confirme ou refuse le PREMIER tool en attente (FIFO). Envoye au
   // backend qui appelle alors `sendToolResponse` cote Gemini.
@@ -659,7 +657,7 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
         }
       };
       ws.onerror = () => {
-        setError("Connexion perdue avec le serveur Gemini Live");
+        setError(t("voiceLive.errorConnectionLost"));
         setState("error");
         teardown();
       };
@@ -680,7 +678,7 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
             reconnectingRef.current = false;
             resumeHandleRef.current = null;
             try { localStorage.removeItem(RESUME_STORAGE_KEY); } catch { /* noop */ }
-            setError("Reconnexion impossible apres plusieurs tentatives. Reouvrez l'assistant.");
+            setError(t("voiceLive.errorReconnectFailed"));
             setState("error");
             teardown();
             return;
@@ -706,7 +704,7 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
         }
         if (ev.code !== 1000) {
           if (!error) {
-            setError(ev.reason || "Connexion fermee inopinement");
+            setError(ev.reason || t("voiceLive.errorClosedUnexpectedly"));
           }
           setState((s) => (s === "error" ? s : "error"));
           teardown();
@@ -760,11 +758,11 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
       animationFrameRef.current = requestAnimationFrame(tick);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      setError(`Impossible d'activer le micro: ${msg}`);
+      setError(t("voiceLive.micError", { msg }));
       setState("error");
       teardown();
     }
-  }, [handleServerFrame, teardown, voice, error]);
+  }, [handleServerFrame, teardown, voice, error, t]);
 
   // Capture une frame depuis l'element video cache, la redimensionne via
   // un canvas off-DOM, et l'envoie en base64 JPEG au serveur. Appele a
@@ -850,9 +848,9 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
       startVideoFramePump("video");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      setError(`Camera indisponible: ${msg}`);
+      setError(t("voiceLive.cameraError", { msg }));
     }
-  }, [startVideoFramePump]);
+  }, [startVideoFramePump, t]);
 
   // Active / desactive le partage d'ecran. Si l'utilisateur ferme via
   // le bouton natif du navigateur, on detecte via track.onended.
@@ -908,10 +906,10 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (!/permission|denied|abort/i.test(msg)) {
-        setError(`Partage d'ecran indisponible: ${msg}`);
+        setError(t("voiceLive.screenError", { msg }));
       }
     }
-  }, [startVideoFramePump]);
+  }, [startVideoFramePump, t]);
 
   // Envoie un message texte (alternative au micro). Provoque une reponse
   // complete (turnComplete: true cote serveur).
@@ -992,11 +990,11 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
 
   const orbScale = 1 + level * 0.6;
   const stateLabel: Record<LiveState, string> = {
-    idle: "Pret",
-    connecting: "Connexion...",
-    listening: "Je vous ecoute",
-    speaking: "Je reponds...",
-    error: "Erreur",
+    idle: t("voiceLive.stateIdle"),
+    connecting: t("voiceLive.stateConnecting"),
+    listening: t("voiceLive.stateListening"),
+    speaking: t("voiceLive.stateSpeaking"),
+    error: t("voiceLive.stateError"),
   };
 
   return (
@@ -1005,7 +1003,7 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
       <button
         onClick={onClose}
         className="absolute top-6 right-6 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition z-10"
-        aria-label="Fermer"
+        aria-label={t("common.close")}
       >
         <X className="w-6 h-6" />
       </button>
@@ -1021,14 +1019,14 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
         <button
           onClick={() => setShowSettings((s) => !s)}
           className="p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition flex items-center gap-2"
-          aria-label="Parametres"
+          aria-label={t("voiceLive.settings")}
         >
           <Settings2 className="w-5 h-5" />
           <span className="text-xs hidden sm:inline">{voice}</span>
         </button>
         {showSettings && (
           <div className="absolute right-0 mt-2 w-56 rounded-xl bg-slate-900/95 backdrop-blur border border-white/10 shadow-2xl overflow-hidden">
-            <div className="px-3 py-2 text-xs text-white/60 border-b border-white/10">Voix</div>
+            <div className="px-3 py-2 text-xs text-white/60 border-b border-white/10">{t("voiceLive.voiceLabel")}</div>
             {availableVoices.map((v) => (
               <button
                 key={v}
@@ -1047,7 +1045,7 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
       <aside className="absolute left-0 top-0 bottom-0 hidden md:flex w-80 flex-col p-6 pt-20 pointer-events-none">
         <div className="flex-1 overflow-y-auto pr-2 space-y-3 pointer-events-auto scrollbar-thin">
           {turns.length === 0 && (
-            <p className="text-white/40 text-xs italic">La transcription s'affichera ici en temps reel.</p>
+            <p className="text-white/40 text-xs italic">{t("voiceLive.transcriptPlaceholder")}</p>
           )}
           {turns.map((t, i) => (
             <div
@@ -1098,7 +1096,7 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
             >
               <div className="flex items-center gap-1.5 mb-1 text-indigo-300 not-italic font-sans text-[10px] uppercase tracking-wide">
                 <Wrench className="w-3 h-3" />
-                Code {b.language ?? ""}
+                {t("voiceLive.codeLabel")} {b.language ?? ""}
               </div>
               {b.code && (
                 <pre className="whitespace-pre-wrap break-words text-[10.5px] leading-snug max-h-32 overflow-y-auto">
@@ -1111,7 +1109,7 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
                     b.outcome && b.outcome !== "OUTCOME_OK" ? "text-red-200" : "text-emerald-200"
                   }`}
                 >
-                  {b.output || "(vide)"}
+                  {b.output || t("voiceLive.emptyOutput")}
                 </pre>
               )}
             </div>
@@ -1192,7 +1190,7 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
         {groundingSources.length > 0 && (
           <div className="max-w-2xl w-full flex flex-wrap items-center gap-2 mb-1 justify-center">
             <Globe className="w-3.5 h-3.5 text-cyan-300/80" />
-            <span className="text-[10px] uppercase tracking-wider text-cyan-300/80">Sources</span>
+            <span className="text-[10px] uppercase tracking-wider text-cyan-300/80">{t("voiceLive.sourcesLabel")}</span>
             {groundingSources.slice(-6).map((s, i) => (
               <a
                 key={`${s.uri}-${i}`}
@@ -1210,8 +1208,9 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
         {/* Avertissement goAway */}
         {goAwaySoonMs !== null && (
           <div className="text-[11px] text-amber-200/80">
-            Le serveur va se reconnecter
-            {goAwaySoonMs > 0 ? ` dans ${Math.ceil(goAwaySoonMs / 1000)}s` : " maintenant"}...
+            {goAwaySoonMs > 0
+              ? t("voiceLive.reconnectIn", { seconds: Math.ceil(goAwaySoonMs / 1000) })
+              : t("voiceLive.reconnectNow")}
           </div>
         )}
         {/* Controles principaux */}
@@ -1219,24 +1218,24 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
           <button
             onClick={() => setMuted((m) => !m)}
             className={`p-4 rounded-full transition ${muted ? "bg-red-500/30 text-red-100 hover:bg-red-500/40" : "bg-white/10 text-white hover:bg-white/20"}`}
-            aria-label={muted ? "Reactiver le micro" : "Couper le micro"}
-            title={muted ? "Reactiver le micro" : "Couper le micro"}
+            aria-label={muted ? t("voiceLive.micUnmute") : t("voiceLive.micMute")}
+            title={muted ? t("voiceLive.micUnmute") : t("voiceLive.micMute")}
           >
             {muted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
           </button>
           <button
             onClick={() => void toggleCamera()}
             className={`p-4 rounded-full transition ${cameraOn ? "bg-emerald-500/30 text-emerald-100 hover:bg-emerald-500/40" : "bg-white/10 text-white hover:bg-white/20"}`}
-            aria-label={cameraOn ? "Couper la camera" : "Activer la camera"}
-            title={cameraOn ? "Couper la camera" : "Montrer la camera a Bureau"}
+            aria-label={cameraOn ? t("voiceLive.cameraOff") : t("voiceLive.cameraOn")}
+            title={cameraOn ? t("voiceLive.cameraOff") : t("voiceLive.cameraShowTitle")}
           >
             {cameraOn ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
           </button>
           <button
             onClick={() => void toggleScreen()}
             className={`p-4 rounded-full transition ${screenOn ? "bg-emerald-500/30 text-emerald-100 hover:bg-emerald-500/40" : "bg-white/10 text-white hover:bg-white/20"}`}
-            aria-label={screenOn ? "Arreter le partage" : "Partager mon ecran"}
-            title={screenOn ? "Arreter le partage d'ecran" : "Partager mon ecran avec Bureau"}
+            aria-label={screenOn ? t("voiceLive.screenStop") : t("voiceLive.screenShare")}
+            title={screenOn ? t("voiceLive.screenStopTitle") : t("voiceLive.screenShareTitle")}
           >
             {screenOn ? <Monitor className="w-6 h-6" /> : <MonitorOff className="w-6 h-6" />}
           </button>
@@ -1248,7 +1247,7 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
             value={textInput}
             onChange={(e) => setTextInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendText(); } }}
-            placeholder="Tapez votre message (alternative au micro)..."
+            placeholder={t("voiceLive.textPlaceholder")}
             disabled={state !== "listening" && state !== "speaking"}
             className="flex-1 px-4 py-2.5 rounded-full bg-white/10 border border-white/15 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/50 disabled:opacity-50"
           />
@@ -1256,14 +1255,14 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
             onClick={sendText}
             disabled={!textInput.trim()}
             className="p-2.5 rounded-full bg-violet-500/80 hover:bg-violet-500 text-white disabled:opacity-30 transition"
-            aria-label="Envoyer"
+            aria-label={t("voiceLive.send")}
           >
             <Send className="w-5 h-5" />
           </button>
         </div>
         <p className="text-white/40 text-[11px]">
-          Parlez naturellement, partagez votre camera ou ecran, ou tapez votre message.
-          {tokensUsed > 0 && <span className="ml-2 text-white/30">~{tokensUsed} jetons</span>}
+          {t("voiceLive.hint")}
+          {tokensUsed > 0 && <span className="ml-2 text-white/30">{t("voiceLive.tokens", { count: tokensUsed })}</span>}
         </p>
       </div>
 
@@ -1280,7 +1279,7 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
           className="w-full h-full object-cover"
         />
         <div className="absolute bottom-1 left-2 text-[10px] text-white/80 bg-black/40 px-1.5 rounded">
-          {screenOn ? "Ecran partage" : "Camera"} — Bureau voit
+          {screenOn ? t("voiceLive.previewScreen") : t("voiceLive.previewCamera")} — {t("voiceLive.previewSees")}
         </div>
       </div>
       {/* Canvas off-DOM utilise pour extraire les frames JPEG. Garde
@@ -1301,10 +1300,10 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
               </div>
               <div>
                 <h3 className="text-white font-semibold">
-                  Confirmation requise
+                  {t("voiceLive.confirmTitle")}
                   {pendingQueue.length > 1 && (
                     <span className="ml-2 text-xs text-white/50">
-                      (1 / {pendingQueue.length})
+                      {t("voiceLive.confirmProgress", { total: pendingQueue.length })}
                     </span>
                   )}
                 </h3>
@@ -1321,13 +1320,13 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
                 onClick={() => respondToConfirmation("reject")}
                 className="px-4 py-2 rounded-lg bg-white/10 text-white/80 hover:bg-white/20 text-sm"
               >
-                Annuler
+                {t("common.cancel")}
               </button>
               <button
                 onClick={() => respondToConfirmation("approve")}
                 className="px-4 py-2 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white text-sm font-medium hover:opacity-90"
               >
-                Confirmer
+                {t("common.confirm")}
               </button>
             </div>
           </div>
