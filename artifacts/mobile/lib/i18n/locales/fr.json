@@ -360,7 +360,15 @@
   "calendarScreen": {
     "title": "Calendrier",
     "today": "Auj.",
-    "dow": { "mon": "L", "tue": "M", "wed": "M", "thu": "J", "fri": "V", "sat": "S", "sun": "D" },
+    "dow": {
+      "mon": "L",
+      "tue": "M",
+      "wed": "M",
+      "thu": "J",
+      "fri": "V",
+      "sat": "S",
+      "sun": "D"
+    },
     "types": {
       "rendez_vous": "Rendez-vous",
       "reunion": "Réunion",
@@ -1345,61 +1353,181 @@
       "standard": {
         "title": "Appel standard professionnel",
         "steps": [
-          { "phase": "Ouverture", "text": "Bonjour, je suis [Votre nom] d'Ajant Bureau{{nameClause}}. Comment puis-je vous aider aujourd'hui ?", "tips": "Parlez clairement et avec le sourire." },
-          { "phase": "Écoute active", "text": "Je vous écoute attentivement. Pouvez-vous me donner plus de détails sur votre demande ?", "tips": "Prenez des notes. Reformulez pour confirmer la compréhension." },
-          { "phase": "Réponse/Solution", "text": "Parfaitement, voici ce que je peux vous proposer : [votre solution]. Est-ce que cela correspond à vos besoins ?", "tips": "Soyez concis et direct." },
-          { "phase": "Confirmation", "text": "Pour résumer, nous avons convenu de [résumé]. Je vous envoie une confirmation par email. Avez-vous d'autres questions ?", "tips": "Récapitulez les actions prises." },
-          { "phase": "Clôture", "text": "Merci pour votre appel. N'hésitez pas à nous recontacter. Bonne journée !", "tips": "Laissez une impression positive." }
+          {
+            "phase": "Ouverture",
+            "text": "Bonjour, je suis [Votre nom] d'Ajant Bureau{{nameClause}}. Comment puis-je vous aider aujourd'hui ?",
+            "tips": "Parlez clairement et avec le sourire."
+          },
+          {
+            "phase": "Écoute active",
+            "text": "Je vous écoute attentivement. Pouvez-vous me donner plus de détails sur votre demande ?",
+            "tips": "Prenez des notes. Reformulez pour confirmer la compréhension."
+          },
+          {
+            "phase": "Réponse/Solution",
+            "text": "Parfaitement, voici ce que je peux vous proposer : [votre solution]. Est-ce que cela correspond à vos besoins ?",
+            "tips": "Soyez concis et direct."
+          },
+          {
+            "phase": "Confirmation",
+            "text": "Pour résumer, nous avons convenu de [résumé]. Je vous envoie une confirmation par email. Avez-vous d'autres questions ?",
+            "tips": "Récapitulez les actions prises."
+          },
+          {
+            "phase": "Clôture",
+            "text": "Merci pour votre appel. N'hésitez pas à nous recontacter. Bonne journée !",
+            "tips": "Laissez une impression positive."
+          }
         ]
       },
       "plainte": {
         "title": "Gestion de réclamation client",
         "steps": [
-          { "phase": "Accueil empathique", "text": "Je comprends tout à fait votre mécontentement et je vous présente mes sincères excuses pour les désagréments causés.", "tips": "Ne vous défendez pas immédiatement. Validez d'abord le ressenti." },
-          { "phase": "Recueil des faits", "text": "Afin de traiter au mieux votre demande, pouvez-vous me préciser la date et la nature exacte du problème rencontré ?", "tips": "Écoutez sans interrompre. Posez des questions ouvertes." },
-          { "phase": "Prise en charge", "text": "Je prends personnellement en charge votre réclamation. Voici les actions que je vais engager immédiatement : [actions concrètes].", "tips": "Donnez un délai précis. Engagez-vous sur ce que vous pouvez tenir." },
-          { "phase": "Proposition de résolution", "text": "Pour réparer ce préjudice, je vous propose [solution/compensation]. Cette solution vous convient-elle ?", "tips": "Proposez une solution avant qu'ils la demandent." },
-          { "phase": "Suivi et clôture", "text": "Je vous confirme par email dans l'heure. Je vous recontacte personnellement d'ici [délai] pour m'assurer de votre satisfaction.", "tips": "Tenez vos engagements absolument." }
+          {
+            "phase": "Accueil empathique",
+            "text": "Je comprends tout à fait votre mécontentement et je vous présente mes sincères excuses pour les désagréments causés.",
+            "tips": "Ne vous défendez pas immédiatement. Validez d'abord le ressenti."
+          },
+          {
+            "phase": "Recueil des faits",
+            "text": "Afin de traiter au mieux votre demande, pouvez-vous me préciser la date et la nature exacte du problème rencontré ?",
+            "tips": "Écoutez sans interrompre. Posez des questions ouvertes."
+          },
+          {
+            "phase": "Prise en charge",
+            "text": "Je prends personnellement en charge votre réclamation. Voici les actions que je vais engager immédiatement : [actions concrètes].",
+            "tips": "Donnez un délai précis. Engagez-vous sur ce que vous pouvez tenir."
+          },
+          {
+            "phase": "Proposition de résolution",
+            "text": "Pour réparer ce préjudice, je vous propose [solution/compensation]. Cette solution vous convient-elle ?",
+            "tips": "Proposez une solution avant qu'ils la demandent."
+          },
+          {
+            "phase": "Suivi et clôture",
+            "text": "Je vous confirme par email dans l'heure. Je vous recontacte personnellement d'ici [délai] pour m'assurer de votre satisfaction.",
+            "tips": "Tenez vos engagements absolument."
+          }
         ]
       },
       "devis": {
         "title": "Proposition commerciale et devis",
         "steps": [
-          { "phase": "Découverte des besoins", "text": "Pour vous proposer la solution la plus adaptée, j'ai quelques questions. Quel est votre principal défi en ce moment ?", "tips": "Écoutez plus que vous ne parlez. 70/30." },
-          { "phase": "Qualification", "text": "Quel est votre calendrier pour ce projet ? Avez-vous déjà évalué d'autres solutions ?", "tips": "Identifiez le budget, l'autorité décisionnelle et l'urgence." },
-          { "phase": "Présentation de valeur", "text": "En fonction de vos besoins, notre solution [produit/service] vous permettrait de [bénéfice 1], [bénéfice 2] et [bénéfice 3].", "tips": "Parlez bénéfices, pas fonctionnalités." },
-          { "phase": "Gestion des objections", "text": "Je comprends cette préoccupation. Beaucoup de nos clients la partageaient au départ. Voici comment nous la résolvons : [réponse].", "tips": "Reformulez l'objection positivement avant de répondre." },
-          { "phase": "Closing", "text": "Pour aller plus loin, je vous prépare une proposition personnalisée. Quel est le meilleur moment cette semaine pour vous la présenter ?", "tips": "Proposez toujours une prochaine étape concrète." }
+          {
+            "phase": "Découverte des besoins",
+            "text": "Pour vous proposer la solution la plus adaptée, j'ai quelques questions. Quel est votre principal défi en ce moment ?",
+            "tips": "Écoutez plus que vous ne parlez. 70/30."
+          },
+          {
+            "phase": "Qualification",
+            "text": "Quel est votre calendrier pour ce projet ? Avez-vous déjà évalué d'autres solutions ?",
+            "tips": "Identifiez le budget, l'autorité décisionnelle et l'urgence."
+          },
+          {
+            "phase": "Présentation de valeur",
+            "text": "En fonction de vos besoins, notre solution [produit/service] vous permettrait de [bénéfice 1], [bénéfice 2] et [bénéfice 3].",
+            "tips": "Parlez bénéfices, pas fonctionnalités."
+          },
+          {
+            "phase": "Gestion des objections",
+            "text": "Je comprends cette préoccupation. Beaucoup de nos clients la partageaient au départ. Voici comment nous la résolvons : [réponse].",
+            "tips": "Reformulez l'objection positivement avant de répondre."
+          },
+          {
+            "phase": "Closing",
+            "text": "Pour aller plus loin, je vous prépare une proposition personnalisée. Quel est le meilleur moment cette semaine pour vous la présenter ?",
+            "tips": "Proposez toujours une prochaine étape concrète."
+          }
         ]
       },
       "relance": {
         "title": "Relance commerciale / suivi",
         "steps": [
-          { "phase": "Rappel contextuel", "text": "Bonjour{{nameClause}}, je vous rappelle suite à notre échange du [date]. Avez-vous eu l'occasion d'étudier ma proposition ?", "tips": "Soyez naturel, pas insistant." },
-          { "phase": "Recueil des freins", "text": "Quels points vous semblent encore flous ou nécessitent des clarifications de ma part ?", "tips": "Questionnez plutôt que de forcer." },
-          { "phase": "Réponse aux freins", "text": "C'est tout à fait normal. Voici comment nous pouvons adresser ce point précisément : [réponse adaptée].", "tips": "Chaque frein est une opportunité d'adapter l'offre." },
-          { "phase": "Création d'urgence douce", "text": "Je dois vous informer que cette offre est valable jusqu'au [date]. Au-delà, les conditions tarifaires pourraient changer.", "tips": "L'urgence doit être réelle pour rester crédible." },
-          { "phase": "Prochaine étape", "text": "Que diriez-vous d'un rendez-vous de 30 minutes pour finaliser les détails ? Je suis disponible [proposer 2 créneaux].", "tips": "Proposez toujours deux options, jamais une question ouverte." }
+          {
+            "phase": "Rappel contextuel",
+            "text": "Bonjour{{nameClause}}, je vous rappelle suite à notre échange du [date]. Avez-vous eu l'occasion d'étudier ma proposition ?",
+            "tips": "Soyez naturel, pas insistant."
+          },
+          {
+            "phase": "Recueil des freins",
+            "text": "Quels points vous semblent encore flous ou nécessitent des clarifications de ma part ?",
+            "tips": "Questionnez plutôt que de forcer."
+          },
+          {
+            "phase": "Réponse aux freins",
+            "text": "C'est tout à fait normal. Voici comment nous pouvons adresser ce point précisément : [réponse adaptée].",
+            "tips": "Chaque frein est une opportunité d'adapter l'offre."
+          },
+          {
+            "phase": "Création d'urgence douce",
+            "text": "Je dois vous informer que cette offre est valable jusqu'au [date]. Au-delà, les conditions tarifaires pourraient changer.",
+            "tips": "L'urgence doit être réelle pour rester crédible."
+          },
+          {
+            "phase": "Prochaine étape",
+            "text": "Que diriez-vous d'un rendez-vous de 30 minutes pour finaliser les détails ? Je suis disponible [proposer 2 créneaux].",
+            "tips": "Proposez toujours deux options, jamais une question ouverte."
+          }
         ]
       },
       "support": {
         "title": "Support technique / assistance",
         "steps": [
-          { "phase": "Identification du problème", "text": "Bonjour, service support Ajant Bureau. Pouvez-vous me décrire précisément le problème que vous rencontrez ?", "tips": "Posez des questions fermées pour diagnostiquer rapidement." },
-          { "phase": "Reproduction", "text": "Depuis quand rencontrez-vous ce problème ? Sur quel appareil ou navigateur ? Avez-vous remarqué un message d'erreur particulier ?", "tips": "Collectez le maximum d'informations avant d'agir." },
-          { "phase": "Résolution guidée", "text": "Voici la procédure à suivre étape par étape : [étapes]. Êtes-vous prêt à essayer ? Je reste avec vous.", "tips": "Guidez pas à pas. Attendez confirmation à chaque étape." },
-          { "phase": "Validation", "text": "Avez-vous pu résoudre le problème ? L'application fonctionne-t-elle correctement maintenant ?", "tips": "Ne clôturez jamais sans confirmation." },
-          { "phase": "Prévention", "text": "Pour éviter que cela ne se reproduise, voici ce que je vous recommande : [conseil]. Je vous envoie un récapitulatif par email.", "tips": "Transformez l'incident en opportunité d'apprentissage." }
+          {
+            "phase": "Identification du problème",
+            "text": "Bonjour, service support Ajant Bureau. Pouvez-vous me décrire précisément le problème que vous rencontrez ?",
+            "tips": "Posez des questions fermées pour diagnostiquer rapidement."
+          },
+          {
+            "phase": "Reproduction",
+            "text": "Depuis quand rencontrez-vous ce problème ? Sur quel appareil ou navigateur ? Avez-vous remarqué un message d'erreur particulier ?",
+            "tips": "Collectez le maximum d'informations avant d'agir."
+          },
+          {
+            "phase": "Résolution guidée",
+            "text": "Voici la procédure à suivre étape par étape : [étapes]. Êtes-vous prêt à essayer ? Je reste avec vous.",
+            "tips": "Guidez pas à pas. Attendez confirmation à chaque étape."
+          },
+          {
+            "phase": "Validation",
+            "text": "Avez-vous pu résoudre le problème ? L'application fonctionne-t-elle correctement maintenant ?",
+            "tips": "Ne clôturez jamais sans confirmation."
+          },
+          {
+            "phase": "Prévention",
+            "text": "Pour éviter que cela ne se reproduise, voici ce que je vous recommande : [conseil]. Je vous envoie un récapitulatif par email.",
+            "tips": "Transformez l'incident en opportunité d'apprentissage."
+          }
         ]
       },
       "nouveau": {
         "title": "Accueil nouveau client",
         "steps": [
-          { "phase": "Accueil chaleureux", "text": "Bonjour et bienvenue chez Ajant Bureau ! Je suis [nom], votre responsable de compte. Je suis ravi(e) de vous compter parmi nous.", "tips": "La première impression dure. Soyez enthousiaste et sincère." },
-          { "phase": "Présentation rapide", "text": "En quelques mots, je vais vous présenter comment nous allons travailler ensemble et les prochaines étapes.", "tips": "Rassurez immédiatement sur ce qui va se passer." },
-          { "phase": "Recueil des attentes", "text": "Pour personnaliser au mieux notre accompagnement, qu'est-ce qui vous a décidé à nous rejoindre ? Quels sont vos objectifs principaux ?", "tips": "Notez mot pour mot les attentes exprimées." },
-          { "phase": "Onboarding", "text": "Voici ce que je vous propose pour démarrer : [plan d'onboarding]. La prochaine étape sera [action] que je m'engage à faire avant [date].", "tips": "Engagez-vous sur des actions concrètes et datées." },
-          { "phase": "Relation durable", "text": "Je serai votre interlocuteur(trice) privilégié(e). N'hésitez pas à me contacter directement. Mon objectif est votre succès.", "tips": "Positionnez-vous comme partenaire, pas prestataire." }
+          {
+            "phase": "Accueil chaleureux",
+            "text": "Bonjour et bienvenue chez Ajant Bureau ! Je suis [nom], votre responsable de compte. Je suis ravi(e) de vous compter parmi nous.",
+            "tips": "La première impression dure. Soyez enthousiaste et sincère."
+          },
+          {
+            "phase": "Présentation rapide",
+            "text": "En quelques mots, je vais vous présenter comment nous allons travailler ensemble et les prochaines étapes.",
+            "tips": "Rassurez immédiatement sur ce qui va se passer."
+          },
+          {
+            "phase": "Recueil des attentes",
+            "text": "Pour personnaliser au mieux notre accompagnement, qu'est-ce qui vous a décidé à nous rejoindre ? Quels sont vos objectifs principaux ?",
+            "tips": "Notez mot pour mot les attentes exprimées."
+          },
+          {
+            "phase": "Onboarding",
+            "text": "Voici ce que je vous propose pour démarrer : [plan d'onboarding]. La prochaine étape sera [action] que je m'engage à faire avant [date].",
+            "tips": "Engagez-vous sur des actions concrètes et datées."
+          },
+          {
+            "phase": "Relation durable",
+            "text": "Je serai votre interlocuteur(trice) privilégié(e). N'hésitez pas à me contacter directement. Mon objectif est votre succès.",
+            "tips": "Positionnez-vous comme partenaire, pas prestataire."
+          }
         ]
       }
     }
@@ -2201,6 +2329,334 @@
       "haute": "Haute",
       "moyenne": "Moyenne",
       "basse": "Basse"
+    }
+  },
+  "adminReportsScreen": {
+    "headerTitle": "Mon Espace",
+    "tabTeam": "Mon Équipe",
+    "tabReports": "Rapports Admin",
+    "statTotal": "Total",
+    "statActifs": "Actifs",
+    "statAdmins": "Admins",
+    "statEnAttente": "En attente",
+    "statResolus": "Résolus",
+    "emptyTeamTitle": "Aucun membre",
+    "emptyTeamSubtitle": "Ajoutez des utilisateurs à votre équipe",
+    "emptyReportsTitle": "Aucun rapport",
+    "emptyReportsSubtitle": "Envoyez un rapport à l'administration",
+    "adminResponse": "Réponse de l'admin",
+    "actionEnCours": "En cours",
+    "actionResoudre": "Résoudre",
+    "formReportTitle": "Nouveau rapport",
+    "formReportSubmit": "Envoyer",
+    "formUserTitle": "Ajouter un membre",
+    "fieldSubject": "Sujet",
+    "fieldCategory": "Catégorie",
+    "fieldPriority": "Priorité",
+    "fieldMessage": "Message",
+    "fieldPrenom": "Prénom",
+    "fieldNom": "Nom",
+    "fieldEmail": "Email",
+    "fieldRole": "Rôle",
+    "fieldDepartement": "Département",
+    "roleOptionAgent": "Agent",
+    "roleOptionLectureSeule": "Lecture seule",
+    "cat": {
+      "general": "Général",
+      "technique": "Technique",
+      "facturation": "Facturation",
+      "fonctionnalite": "Fonctionnalité",
+      "bug": "Bug",
+      "question": "Question"
+    },
+    "priority": {
+      "basse": "Basse",
+      "normal": "Normal",
+      "haute": "Haute",
+      "urgente": "Urgente"
+    },
+    "status": {
+      "nouveau": "Nouveau",
+      "en_cours": "En cours",
+      "resolu": "Résolu",
+      "ferme": "Fermé"
+    },
+    "role": {
+      "super_admin": "Super Admin",
+      "administrateur": "Admin",
+      "agent": "Agent",
+      "lecture_seule": "Lecture"
+    }
+  },
+  "reportsScreen": {
+    "headerTitle": "Rapports & Tickets",
+    "statTotal": "Total",
+    "searchPlaceholder": "Rechercher un rapport...",
+    "filterAll": "Tout",
+    "emptyTitle": "Aucun rapport",
+    "emptySubtitle": "Soumettez un ticket ou une demande d'assistance.",
+    "resolvedOn": "Résolu le {{date}}",
+    "formTitle": "Nouveau rapport",
+    "formSubmit": "Envoyer le rapport",
+    "fieldSubject": "Sujet",
+    "fieldMessage": "Message détaillé",
+    "fieldMessageShort": "Message",
+    "fieldCategory": "Catégorie",
+    "fieldPriority": "Priorité",
+    "detailStatut": "Statut",
+    "detailResolution": "Résolution",
+    "detailCreatedOn": "Créé le",
+    "detailResolvedOn": "Résolu le",
+    "status": {
+      "nouveau": "Nouveau",
+      "en_cours": "En cours",
+      "resolu": "Résolu",
+      "ferme": "Fermé",
+      "rejete": "Rejeté"
+    },
+    "priority": {
+      "basse": "Basse",
+      "normale": "Normale",
+      "haute": "Haute",
+      "critique": "Critique"
+    },
+    "category": {
+      "bug": "Bug",
+      "amelioration": "Amélioration",
+      "question": "Question",
+      "facturation": "Facturation",
+      "acces": "Accès",
+      "autre": "Autre"
+    },
+    "catOption": {
+      "bug": "Bug / Problème technique",
+      "amelioration": "Demande d'amélioration",
+      "question": "Question",
+      "facturation": "Facturation",
+      "acces": "Accès / Permissions",
+      "autre": "Autre"
+    }
+  },
+  "horairesScreen": {
+    "headerTitle": "Horaires d'ouverture",
+    "readOnlyBanner": "Consultation uniquement — seuls les administrateurs peuvent modifier ces réglages.",
+    "daysTitle": "Jours d'ouverture",
+    "daysDesc": "Jours où votre entreprise prend des rendez-vous.",
+    "hoursTitle": "Heures d'ouverture",
+    "hoursDesc": "Appuyez pour choisir l'heure via le sélecteur.",
+    "openLabel": "Ouverture",
+    "closeLabel": "Fermeture",
+    "tzTitle": "Fuseau horaire",
+    "tzDesc": "Référence pour le calcul des créneaux.",
+    "durationTitle": "Durée par défaut",
+    "durationDesc": "Durée standard d'un rendez-vous.",
+    "infoText": "Ces réglages s'appliquent immédiatement au calcul des créneaux libres et aux disponibilités annoncées par l'assistant téléphonique.",
+    "timeStartTitle": "Heure d'ouverture",
+    "timeEndTitle": "Heure de fermeture",
+    "drumHour": "Heure",
+    "drumMinute": "Minute",
+    "errorTitle": "Erreur",
+    "loadError": "Impossible de charger les horaires.",
+    "netErrorTitle": "Erreur réseau",
+    "netError": "Vérifiez votre connexion.",
+    "invalidDaysTitle": "Jours invalides",
+    "invalidDays": "Sélectionnez au moins un jour d'ouverture.",
+    "savedTitle": "Enregistré",
+    "saved": "Les horaires d'ouverture ont été mis à jour.",
+    "updateError": "Échec de la mise à jour.",
+    "durationMinutes": "{{count}} minutes",
+    "days": {
+      "mon": {
+        "label": "Lundi",
+        "short": "Lun"
+      },
+      "tue": {
+        "label": "Mardi",
+        "short": "Mar"
+      },
+      "wed": {
+        "label": "Mercredi",
+        "short": "Mer"
+      },
+      "thu": {
+        "label": "Jeudi",
+        "short": "Jeu"
+      },
+      "fri": {
+        "label": "Vendredi",
+        "short": "Ven"
+      },
+      "sat": {
+        "label": "Samedi",
+        "short": "Sam"
+      },
+      "sun": {
+        "label": "Dimanche",
+        "short": "Dim"
+      }
+    },
+    "tz": {
+      "Europe_Paris": "Europe/Paris (France)",
+      "Europe_Brussels": "Europe/Bruxelles (Belgique)",
+      "Europe_Zurich": "Europe/Zurich (Suisse)",
+      "Europe_Luxembourg": "Europe/Luxembourg",
+      "Europe_London": "Europe/Londres (Royaume-Uni)",
+      "Europe_Madrid": "Europe/Madrid (Espagne)",
+      "Europe_Lisbon": "Europe/Lisbonne (Portugal)",
+      "Europe_Berlin": "Europe/Berlin (Allemagne)",
+      "Europe_Rome": "Europe/Rome (Italie)",
+      "Europe_Istanbul": "Europe/Istanbul (Turquie)",
+      "Africa_Casablanca": "Afrique/Casablanca (Maroc)",
+      "Africa_Algiers": "Afrique/Alger (Algérie)",
+      "Africa_Tunis": "Afrique/Tunis (Tunisie)",
+      "America_Montreal": "Amérique/Montréal (Québec)",
+      "UTC": "UTC (temps universel)"
+    },
+    "duration": {
+      "15": "15 minutes",
+      "30": "30 minutes",
+      "45": "45 minutes",
+      "60": "1 heure",
+      "90": "1 h 30",
+      "120": "2 heures"
+    }
+  },
+  "organisationsScreen": {
+    "headerTitle": "Organisations",
+    "headerSub": "{{orgs}} clients · {{users}} utilisateurs au total",
+    "searchPlaceholder": "Rechercher une organisation...",
+    "alertFilter": "{{count}} org proche/au-delà de la limite",
+    "statClients": "Clients",
+    "statActifs": "Actifs",
+    "statUtilisateurs": "Utilisateurs",
+    "statPayants": "Payants",
+    "emptyTitle": "Aucune organisation",
+    "emptySubtitle": "Créez votre première organisation",
+    "limitExceeded": "Limite dépassée",
+    "nearLimit": "Proche de la limite",
+    "pctUsers": "{{pct}}% utilisateurs",
+    "expired": "Expiré",
+    "trialExpiredSuffix": " · Expiré",
+    "detailMontant": "Montant",
+    "detailCle": "Clé",
+    "detailEssai": "Essai",
+    "detailTel": "Tél.",
+    "pricePerMonth": "{{price}} EUR/mois",
+    "usageUsers": "Utilisateurs",
+    "usageContacts": "Contacts",
+    "usageCalls": "Appels/mois",
+    "actionResendLicense": "Renvoyer licence",
+    "actionResetPwd": "Reset MDP",
+    "actionDeactivate": "Désactiver",
+    "actionActivate": "Activer",
+    "formTitle": "Nouvelle organisation",
+    "formSubmit": "Créer et envoyer",
+    "fieldName": "Nom de l'organisation",
+    "fieldEmail": "Email de contact",
+    "fieldPhone": "Téléphone",
+    "fieldAddress": "Adresse",
+    "fieldPlan": "Plan",
+    "fieldAdminPrenom": "Prénom admin",
+    "fieldAdminNom": "Nom admin",
+    "fieldAdminEmail": "Email admin",
+    "plan": {
+      "essai": "Essai",
+      "starter": "Starter",
+      "professionnel": "Pro",
+      "entreprise": "Entreprise"
+    },
+    "planOption": {
+      "essai": "Essai Gratuit",
+      "starter": "Starter (29 EUR/mois)",
+      "professionnel": "Professionnel (79 EUR/mois)",
+      "entreprise": "Entreprise (199 EUR/mois)"
+    }
+  },
+  "abonnementScreen": {
+    "headerTitle": "Mon Abonnement",
+    "planInfoTitle": "Informations du plan",
+    "rowPlan": "Plan",
+    "rowStatut": "Statut",
+    "rowBillingCycle": "Cycle de facturation",
+    "rowMontant": "Montant",
+    "rowStart": "Début",
+    "rowRenewal": "Renouvellement",
+    "billingMensuel": "Mensuel",
+    "billingAnnuel": "Annuel",
+    "licencesTitle": "Licences utilisateurs",
+    "licenceUsed": "Utilisés",
+    "licenceMax": "Max autorisés",
+    "licenceAvailable": "Disponibles",
+    "usageTitle": "Utilisation",
+    "usageContacts": "Contacts",
+    "usageCalls": "Appels",
+    "usageTasks": "Tâches",
+    "usageMessages": "Messages",
+    "usageDocuments": "Documents",
+    "usageAiTokens": "Tokens IA",
+    "featuresTitle": "Fonctionnalités incluses",
+    "invoicesTitle": "Factures récentes",
+    "invoiceFallback": "Facture #{{id}}",
+    "invoicePaid": "Payée",
+    "invoicePending": "En attente",
+    "upgradeBtn": "Demander un upgrade",
+    "upgradeFormTitle": "Demande d'évolution de plan",
+    "upgradeFormSub": "Décrivez vos besoins et notre équipe vous contactera sous 24h.",
+    "upgradePlaceholder": "Ex: J'ai besoin de 20 utilisateurs et de l'API avancée...",
+    "send": "Envoyer",
+    "upgradeSentTitle": "Demande envoyée",
+    "upgradeSent": "Votre demande d'upgrade a été envoyée. Notre équipe vous contactera sous 24h.",
+    "plan": {
+      "starter": "Starter",
+      "pro": "Pro",
+      "business": "Business",
+      "enterprise": "Enterprise",
+      "super_admin": "Super Admin",
+      "gratuit": "Gratuit",
+      "trial": "Essai"
+    },
+    "status": {
+      "actif": "Actif",
+      "expiree": "Expirée",
+      "suspendu": "Suspendu",
+      "essai": "Essai"
+    }
+  },
+  "dailyDigestScreen": {
+    "headerTitle": "Mon Bilan du Jour",
+    "loadingText": "Analyse de votre journée en cours...",
+    "loadingHint": "L'IA compile vos activités",
+    "errorUnknown": "Erreur inconnue",
+    "loadError": "Impossible de charger le bilan. Vérifiez votre connexion.",
+    "scoreLabel": "Score de productivité",
+    "greeting": "Bonsoir, {{prenom}} !",
+    "resumeFallback": "Voici un aperçu de votre journée.",
+    "sectionActivity": "ACTIVITÉ DU JOUR",
+    "statCalls": "Appels",
+    "statTasks": "Tâches",
+    "statNotes": "Notes",
+    "statEvents": "Événements",
+    "missedCount": "{{count}} manqué",
+    "overdueCount": "{{count}} en retard",
+    "detailTitle": "Détail de l'activité",
+    "detailAnswered": "Appels répondus",
+    "detailMissed": "Appels manqués",
+    "detailTasksCreated": "Tâches créées",
+    "detailTasksDone": "Tâches terminées",
+    "detailTasksOverdue": "Tâches en retard",
+    "detailMessages": "Messages",
+    "detailActions": "Actions totales",
+    "pointsForts": "Points forts",
+    "sectionRecommendations": "RECOMMANDATIONS IA",
+    "tasksDone": "Tâches accomplies",
+    "upcomingWeek": "À venir cette semaine",
+    "nextAppointments": "Prochains rendez-vous",
+    "tomorrow": "Pour demain",
+    "generatedAt": "Bilan généré le {{time}}",
+    "humeur": {
+      "positif": "Excellente journée !",
+      "neutre": "Journée correcte",
+      "attention": "Points à améliorer"
     }
   }
 }

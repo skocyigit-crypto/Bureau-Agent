@@ -18,6 +18,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { FormModal } from "@/components/FormModal";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 interface Organisation {
   id: number;
@@ -45,28 +46,12 @@ interface Organisation {
   callCount: number;
 }
 
-const PLAN_MAP: Record<string, { label: string; color: string }> = {
-  essai:          { label: "Essai",      color: "#64748b" },
-  starter:        { label: "Starter",    color: "#3b82f6" },
-  professionnel:  { label: "Pro",        color: "#8b5cf6" },
-  entreprise:     { label: "Entreprise", color: "#f59e0b" },
+const PLAN_MAP: Record<string, { labelKey: string; color: string }> = {
+  essai:          { labelKey: "organisationsScreen.plan.essai",         color: "#64748b" },
+  starter:        { labelKey: "organisationsScreen.plan.starter",       color: "#3b82f6" },
+  professionnel:  { labelKey: "organisationsScreen.plan.professionnel", color: "#8b5cf6" },
+  entreprise:     { labelKey: "organisationsScreen.plan.entreprise",    color: "#f59e0b" },
 };
-
-const FORM_FIELDS = [
-  { key: "name",        label: "Nom de l'organisation", required: true },
-  { key: "email",       label: "Email de contact" },
-  { key: "phone",       label: "Telephone" },
-  { key: "address",     label: "Adresse" },
-  { key: "plan",        label: "Plan", type: "select" as const, options: [
-    { value: "essai",         label: "Essai Gratuit" },
-    { value: "starter",       label: "Starter (29 EUR/mois)" },
-    { value: "professionnel", label: "Professionnel (79 EUR/mois)" },
-    { value: "entreprise",    label: "Entreprise (199 EUR/mois)" },
-  ]},
-  { key: "adminPrenom", label: "Prenom admin", required: true },
-  { key: "adminNom",    label: "Nom admin",    required: true },
-  { key: "adminEmail",  label: "Email admin",  required: true },
-];
 
 function usagePct(current: number, max: number) {
   if (!max || max <= 0) return 0;
@@ -111,8 +96,25 @@ function UsageBar({ label, current, max, icon, colors }: UsageBarProps) {
 export default function OrganisationsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
+
+  const FORM_FIELDS = [
+    { key: "name",        label: t("organisationsScreen.fieldName"), required: true },
+    { key: "email",       label: t("organisationsScreen.fieldEmail") },
+    { key: "phone",       label: t("organisationsScreen.fieldPhone") },
+    { key: "address",     label: t("organisationsScreen.fieldAddress") },
+    { key: "plan",        label: t("organisationsScreen.fieldPlan"), type: "select" as const, options: [
+      { value: "essai",         label: t("organisationsScreen.planOption.essai") },
+      { value: "starter",       label: t("organisationsScreen.planOption.starter") },
+      { value: "professionnel", label: t("organisationsScreen.planOption.professionnel") },
+      { value: "entreprise",    label: t("organisationsScreen.planOption.entreprise") },
+    ]},
+    { key: "adminPrenom", label: t("organisationsScreen.fieldAdminPrenom"), required: true },
+    { key: "adminNom",    label: t("organisationsScreen.fieldAdminNom"),    required: true },
+    { key: "adminEmail",  label: t("organisationsScreen.fieldAdminEmail"),  required: true },
+  ];
 
   const [orgs, setOrgs] = useState<Organisation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -199,8 +201,8 @@ export default function OrganisationsScreen() {
             <Feather name="arrow-left" size={22} color="#fff" />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>Organisations</Text>
-            <Text style={styles.headerSub}>{orgs.length} client{orgs.length !== 1 ? "s" : ""} · {totalUsers} utilisateur{totalUsers !== 1 ? "s" : ""} total</Text>
+            <Text style={styles.headerTitle}>{t("organisationsScreen.headerTitle")}</Text>
+            <Text style={styles.headerSub}>{t("organisationsScreen.headerSub", { orgs: orgs.length, users: totalUsers })}</Text>
           </View>
           <Pressable onPress={() => setShowForm(true)} hitSlop={12} style={[styles.addBtn]}>
             <Feather name="plus" size={20} color="#fff" />
@@ -212,7 +214,7 @@ export default function OrganisationsScreen() {
           <Feather name="search" size={14} color="rgba(255,255,255,0.5)" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Rechercher une organisation..."
+            placeholder={t("organisationsScreen.searchPlaceholder")}
             placeholderTextColor="rgba(255,255,255,0.4)"
             value={search}
             onChangeText={setSearch}
@@ -228,7 +230,7 @@ export default function OrganisationsScreen() {
           >
             <Feather name="alert-triangle" size={12} color={filterAlert ? "#ef4444" : "#fbbf24"} />
             <Text style={[styles.alertFilterText, { color: filterAlert ? "#ef4444" : "#fbbf24" }]}>
-              {alertOrgs.length} org proche/au-delà de la limite
+              {t("organisationsScreen.alertFilter", { count: alertOrgs.length })}
             </Text>
             {filterAlert && <Feather name="x" size={11} color="#ef4444" />}
           </Pressable>
@@ -246,12 +248,12 @@ export default function OrganisationsScreen() {
           ListHeaderComponent={
             <View style={styles.statsRow}>
               {[
-                { icon: "home" as const,        val: orgs.length,   label: "Clients",   color: "#7c3aed" },
-                { icon: "check-circle" as const, val: orgs.filter(o => o.actif).length, label: "Actifs", color: "#22c55e" },
-                { icon: "users" as const,        val: totalUsers,    label: "Utilisateurs", color: "#3b82f6" },
-                { icon: "credit-card" as const,  val: payingOrgs,    label: "Payants",   color: "#f59e0b" },
+                { key: "clients", icon: "home" as const,        val: orgs.length,   label: t("organisationsScreen.statClients"),   color: "#7c3aed" },
+                { key: "actifs", icon: "check-circle" as const, val: orgs.filter(o => o.actif).length, label: t("organisationsScreen.statActifs"), color: "#22c55e" },
+                { key: "utilisateurs", icon: "users" as const,        val: totalUsers,    label: t("organisationsScreen.statUtilisateurs"), color: "#3b82f6" },
+                { key: "payants", icon: "credit-card" as const,  val: payingOrgs,    label: t("organisationsScreen.statPayants"),   color: "#f59e0b" },
               ].map(s => (
-                <View key={s.label} style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View key={s.key} style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <Feather name={s.icon} size={14} color={s.color} />
                   <Text style={[styles.statVal, { color: colors.foreground }]}>{s.val}</Text>
                   <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{s.label}</Text>
@@ -259,7 +261,7 @@ export default function OrganisationsScreen() {
               ))}
             </View>
           }
-          ListEmptyComponent={<EmptyState icon="home" title="Aucune organisation" subtitle="Créez votre première organisation" />}
+          ListEmptyComponent={<EmptyState icon="home" title={t("organisationsScreen.emptyTitle")} subtitle={t("organisationsScreen.emptySubtitle")} />}
           renderItem={({ item }) => {
             const plan = PLAN_MAP[item.subscription?.plan ?? "essai"] ?? PLAN_MAP.essai;
             const maxUsers = item.subscription?.maxUsers ?? item.maxUsers ?? 3;
@@ -282,7 +284,7 @@ export default function OrganisationsScreen() {
                     <View style={[styles.alertBar, { backgroundColor: isOver ? "#ef444415" : "#f59e0b15" }]}>
                       <Feather name="alert-triangle" size={11} color={isOver ? "#ef4444" : "#f59e0b"} />
                       <Text style={[styles.alertBarText, { color: isOver ? "#ef4444" : "#f59e0b" }]}>
-                        {isOver ? "Limite dépassée" : "Proche de la limite"} · {userPct}% utilisateurs
+                        {isOver ? t("organisationsScreen.limitExceeded") : t("organisationsScreen.nearLimit")} · {t("organisationsScreen.pctUsers", { pct: userPct })}
                       </Text>
                     </View>
                   )}
@@ -301,11 +303,11 @@ export default function OrganisationsScreen() {
                       )}
                       <View style={styles.badgeRow}>
                         <View style={[styles.planBadge, { backgroundColor: plan.color + "18" }]}>
-                          <Text style={[styles.planBadgeText, { color: plan.color }]}>{plan.label}</Text>
+                          <Text style={[styles.planBadgeText, { color: plan.color }]}>{t(plan.labelKey)}</Text>
                         </View>
                         {item.subscription?.isTrialExpired && (
                           <View style={[styles.planBadge, { backgroundColor: "#ef444415" }]}>
-                            <Text style={[styles.planBadgeText, { color: "#ef4444" }]}>Expiré</Text>
+                            <Text style={[styles.planBadgeText, { color: "#ef4444" }]}>{t("organisationsScreen.expired")}</Text>
                           </View>
                         )}
                         <Text style={[styles.dateText, { color: colors.mutedForeground }]}>
@@ -327,9 +329,9 @@ export default function OrganisationsScreen() {
 
                   {/* Usage bars — always visible below header */}
                   <View style={[styles.usageBars, { borderTopColor: colors.border }]}>
-                    <UsageBar label="Utilisateurs" current={item.userCount} max={maxUsers} icon="users" colors={colors} />
-                    <UsageBar label="Contacts"     current={item.contactCount} max={maxContacts} icon="user" colors={colors} />
-                    <UsageBar label="Appels/mois"  current={item.callCount} max={maxCalls} icon="phone" colors={colors} />
+                    <UsageBar label={t("organisationsScreen.usageUsers")} current={item.userCount} max={maxUsers} icon="users" colors={colors} />
+                    <UsageBar label={t("organisationsScreen.usageContacts")}     current={item.contactCount} max={maxContacts} icon="user" colors={colors} />
+                    <UsageBar label={t("organisationsScreen.usageCalls")}  current={item.callCount} max={maxCalls} icon="phone" colors={colors} />
                   </View>
 
                   {/* Expanded details */}
@@ -339,9 +341,9 @@ export default function OrganisationsScreen() {
                       {item.subscription?.price !== undefined && (
                         <View style={styles.detailRow}>
                           <Feather name="credit-card" size={13} color={colors.mutedForeground} />
-                          <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>Montant</Text>
+                          <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>{t("organisationsScreen.detailMontant")}</Text>
                           <Text style={[styles.detailValue, { color: colors.foreground }]}>
-                            {Number(item.subscription.price).toFixed(2)} EUR/mois
+                            {t("organisationsScreen.pricePerMonth", { price: Number(item.subscription.price).toFixed(2) })}
                           </Text>
                         </View>
                       )}
@@ -350,7 +352,7 @@ export default function OrganisationsScreen() {
                       {item.subscription?.licenseKey && (
                         <View style={styles.detailRow}>
                           <Feather name="key" size={13} color={colors.mutedForeground} />
-                          <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>Clé</Text>
+                          <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>{t("organisationsScreen.detailCle")}</Text>
                           <Text style={[styles.detailValue, { color: colors.foreground, fontSize: 11 }]} numberOfLines={1}>
                             {item.subscription.licenseKey}
                           </Text>
@@ -361,10 +363,10 @@ export default function OrganisationsScreen() {
                       {item.subscription?.trialEndsAt && (
                         <View style={styles.detailRow}>
                           <Feather name="clock" size={13} color={colors.mutedForeground} />
-                          <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>Essai</Text>
+                          <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>{t("organisationsScreen.detailEssai")}</Text>
                           <Text style={[styles.detailValue, { color: item.subscription.isTrialExpired ? "#ef4444" : colors.foreground }]}>
                             {new Date(item.subscription.trialEndsAt).toLocaleDateString("fr-FR")}
-                            {item.subscription.isTrialExpired ? " · Expiré" : ""}
+                            {item.subscription.isTrialExpired ? t("organisationsScreen.trialExpiredSuffix") : ""}
                           </Text>
                         </View>
                       )}
@@ -372,7 +374,7 @@ export default function OrganisationsScreen() {
                       {item.phone && (
                         <View style={styles.detailRow}>
                           <Feather name="phone" size={13} color={colors.mutedForeground} />
-                          <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>Tél.</Text>
+                          <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>{t("organisationsScreen.detailTel")}</Text>
                           <Text style={[styles.detailValue, { color: colors.foreground }]}>{item.phone}</Text>
                         </View>
                       )}
@@ -386,7 +388,7 @@ export default function OrganisationsScreen() {
                         >
                           {sendingEmail === item.id
                             ? <ActivityIndicator size="small" color="#f59e0b" />
-                            : <><Feather name="send" size={13} color="#f59e0b" /><Text style={[styles.actionBtnText, { color: "#f59e0b" }]}>Renvoyer licence</Text></>
+                            : <><Feather name="send" size={13} color="#f59e0b" /><Text style={[styles.actionBtnText, { color: "#f59e0b" }]}>{t("organisationsScreen.actionResendLicense")}</Text></>
                           }
                         </Pressable>
                         <Pressable
@@ -395,7 +397,7 @@ export default function OrganisationsScreen() {
                           style={[styles.actionBtn, { backgroundColor: "#3b82f618" }]}
                         >
                           <Feather name="key" size={13} color="#3b82f6" />
-                          <Text style={[styles.actionBtnText, { color: "#3b82f6" }]}>Reset MDP</Text>
+                          <Text style={[styles.actionBtnText, { color: "#3b82f6" }]}>{t("organisationsScreen.actionResetPwd")}</Text>
                         </Pressable>
                         <Pressable
                           onPress={() => toggleActive(item)}
@@ -403,7 +405,7 @@ export default function OrganisationsScreen() {
                         >
                           <Feather name={item.actif ? "x-circle" : "check-circle"} size={13} color={item.actif ? "#ef4444" : "#22c55e"} />
                           <Text style={[styles.actionBtnText, { color: item.actif ? "#ef4444" : "#22c55e" }]}>
-                            {item.actif ? "Désactiver" : "Activer"}
+                            {item.actif ? t("organisationsScreen.actionDeactivate") : t("organisationsScreen.actionActivate")}
                           </Text>
                         </Pressable>
                       </View>
@@ -420,13 +422,13 @@ export default function OrganisationsScreen() {
         visible={showForm}
         onClose={() => setShowForm(false)}
         onSubmit={handleCreate}
-        title="Nouvelle organisation"
+        title={t("organisationsScreen.formTitle")}
         fields={FORM_FIELDS}
         values={formValues}
         onChange={(k, v) => setFormValues(p => ({ ...p, [k]: v }))}
         loading={formLoading}
         icon="home"
-        submitLabel="Créer et envoyer"
+        submitLabel={t("organisationsScreen.formSubmit")}
       />
     </View>
   );

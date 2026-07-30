@@ -18,6 +18,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { FormModal } from "@/components/FormModal";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 interface AdminReport {
   id: number;
@@ -41,51 +42,33 @@ interface Stats {
   repondu: number;
 }
 
-const CATEGORY_MAP: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  general: { label: "General", color: "#64748b", icon: "file-text" },
-  technique: { label: "Technique", color: "#3b82f6", icon: "tool" },
-  facturation: { label: "Facturation", color: "#f59e0b", icon: "credit-card" },
-  fonctionnalite: { label: "Fonctionnalite", color: "#8b5cf6", icon: "star" },
-  bug: { label: "Bug", color: "#ef4444", icon: "alert-circle" },
-  question: { label: "Question", color: "#22c55e", icon: "help-circle" },
+const CATEGORY_MAP: Record<string, { labelKey: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
+  general: { labelKey: "adminReportsScreen.cat.general", color: "#64748b", icon: "file-text" },
+  technique: { labelKey: "adminReportsScreen.cat.technique", color: "#3b82f6", icon: "tool" },
+  facturation: { labelKey: "adminReportsScreen.cat.facturation", color: "#f59e0b", icon: "credit-card" },
+  fonctionnalite: { labelKey: "adminReportsScreen.cat.fonctionnalite", color: "#8b5cf6", icon: "star" },
+  bug: { labelKey: "adminReportsScreen.cat.bug", color: "#ef4444", icon: "alert-circle" },
+  question: { labelKey: "adminReportsScreen.cat.question", color: "#22c55e", icon: "help-circle" },
 };
 
-const PRIORITY_MAP: Record<string, { label: string; color: string }> = {
-  basse: { label: "Basse", color: "#64748b" },
-  normal: { label: "Normal", color: "#3b82f6" },
-  haute: { label: "Haute", color: "#f59e0b" },
-  urgente: { label: "Urgente", color: "#ef4444" },
+const PRIORITY_MAP: Record<string, { labelKey: string; color: string }> = {
+  basse: { labelKey: "adminReportsScreen.priority.basse", color: "#64748b" },
+  normal: { labelKey: "adminReportsScreen.priority.normal", color: "#3b82f6" },
+  haute: { labelKey: "adminReportsScreen.priority.haute", color: "#f59e0b" },
+  urgente: { labelKey: "adminReportsScreen.priority.urgente", color: "#ef4444" },
 };
 
-const STATUS_MAP: Record<string, { label: string; color: string }> = {
-  nouveau: { label: "Nouveau", color: "#3b82f6" },
-  en_cours: { label: "En cours", color: "#f59e0b" },
-  resolu: { label: "Resolu", color: "#22c55e" },
-  ferme: { label: "Ferme", color: "#64748b" },
+const STATUS_MAP: Record<string, { labelKey: string; color: string }> = {
+  nouveau: { labelKey: "adminReportsScreen.status.nouveau", color: "#3b82f6" },
+  en_cours: { labelKey: "adminReportsScreen.status.en_cours", color: "#f59e0b" },
+  resolu: { labelKey: "adminReportsScreen.status.resolu", color: "#22c55e" },
+  ferme: { labelKey: "adminReportsScreen.status.ferme", color: "#64748b" },
 };
-
-const FORM_FIELDS = [
-  { key: "subject", label: "Sujet", required: true },
-  { key: "category", label: "Categorie", type: "select" as const, options: [
-    { value: "general", label: "General" },
-    { value: "technique", label: "Technique" },
-    { value: "facturation", label: "Facturation" },
-    { value: "fonctionnalite", label: "Fonctionnalite" },
-    { value: "bug", label: "Bug" },
-    { value: "question", label: "Question" },
-  ]},
-  { key: "priority", label: "Priorite", type: "select" as const, options: [
-    { value: "basse", label: "Basse" },
-    { value: "normal", label: "Normal" },
-    { value: "haute", label: "Haute" },
-    { value: "urgente", label: "Urgente" },
-  ]},
-  { key: "message", label: "Message", required: true, type: "multiline" as const },
-];
 
 export default function AdminReportsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { fetchAuth, user } = useAuth();
   const isWeb = Platform.OS === "web";
   const isSuperAdmin = user?.role === "super_admin";
@@ -106,15 +89,34 @@ export default function AdminReportsScreen() {
   const [userFormValues, setUserFormValues] = useState<Record<string, string>>({ role: "agent" });
   const [userFormLoading, setUserFormLoading] = useState(false);
 
-  const USER_FORM_FIELDS = [
-    { key: "prenom", label: "Prenom", required: true },
-    { key: "nom", label: "Nom", required: true },
-    { key: "email", label: "Email", required: true },
-    { key: "role", label: "Role", type: "select" as const, options: [
-      { value: "agent", label: "Agent" },
-      { value: "lecture_seule", label: "Lecture seule" },
+  const FORM_FIELDS = [
+    { key: "subject", label: t("adminReportsScreen.fieldSubject"), required: true },
+    { key: "category", label: t("adminReportsScreen.fieldCategory"), type: "select" as const, options: [
+      { value: "general", label: t("adminReportsScreen.cat.general") },
+      { value: "technique", label: t("adminReportsScreen.cat.technique") },
+      { value: "facturation", label: t("adminReportsScreen.cat.facturation") },
+      { value: "fonctionnalite", label: t("adminReportsScreen.cat.fonctionnalite") },
+      { value: "bug", label: t("adminReportsScreen.cat.bug") },
+      { value: "question", label: t("adminReportsScreen.cat.question") },
     ]},
-    { key: "departement", label: "Departement" },
+    { key: "priority", label: t("adminReportsScreen.fieldPriority"), type: "select" as const, options: [
+      { value: "basse", label: t("adminReportsScreen.priority.basse") },
+      { value: "normal", label: t("adminReportsScreen.priority.normal") },
+      { value: "haute", label: t("adminReportsScreen.priority.haute") },
+      { value: "urgente", label: t("adminReportsScreen.priority.urgente") },
+    ]},
+    { key: "message", label: t("adminReportsScreen.fieldMessage"), required: true, type: "multiline" as const },
+  ];
+
+  const USER_FORM_FIELDS = [
+    { key: "prenom", label: t("adminReportsScreen.fieldPrenom"), required: true },
+    { key: "nom", label: t("adminReportsScreen.fieldNom"), required: true },
+    { key: "email", label: t("adminReportsScreen.fieldEmail"), required: true },
+    { key: "role", label: t("adminReportsScreen.fieldRole"), type: "select" as const, options: [
+      { value: "agent", label: t("adminReportsScreen.roleOptionAgent") },
+      { value: "lecture_seule", label: t("adminReportsScreen.roleOptionLectureSeule") },
+    ]},
+    { key: "departement", label: t("adminReportsScreen.fieldDepartement") },
   ];
 
   const fetchReports = useCallback(async () => {
@@ -214,10 +216,10 @@ export default function AdminReportsScreen() {
   }
 
   const ROLE_MAP: Record<string, { label: string; color: string }> = {
-    super_admin: { label: "Super Admin", color: "#ef4444" },
-    administrateur: { label: "Admin", color: "#8b5cf6" },
-    agent: { label: "Agent", color: "#3b82f6" },
-    lecture_seule: { label: "Lecture", color: "#64748b" },
+    super_admin: { label: t("adminReportsScreen.role.super_admin"), color: "#ef4444" },
+    administrateur: { label: t("adminReportsScreen.role.administrateur"), color: "#8b5cf6" },
+    agent: { label: t("adminReportsScreen.role.agent"), color: "#3b82f6" },
+    lecture_seule: { label: t("adminReportsScreen.role.lecture_seule"), color: "#64748b" },
   };
 
   return (
@@ -227,7 +229,7 @@ export default function AdminReportsScreen() {
           <Pressable onPress={() => router.back()} hitSlop={12}>
             <Feather name="arrow-left" size={22} color="#ffffff" />
           </Pressable>
-          <Text style={styles.headerTitle}>Mon Espace</Text>
+          <Text style={styles.headerTitle}>{t("adminReportsScreen.headerTitle")}</Text>
           <Pressable onPress={() => tab === "rapports" ? setShowForm(true) : setShowUserForm(true)} hitSlop={12}>
             <Feather name="plus" size={22} color="#ffffff" />
           </Pressable>
@@ -235,11 +237,11 @@ export default function AdminReportsScreen() {
         <View style={styles.tabRow}>
           <Pressable onPress={() => setTab("equipe")} style={[styles.tabBtn, tab === "equipe" && { backgroundColor: colors.primary }]}>
             <Feather name="users" size={14} color={tab === "equipe" ? colors.primaryForeground : "rgba(255,255,255,0.7)"} />
-            <Text style={[styles.tabText, { color: tab === "equipe" ? colors.primaryForeground : "rgba(255,255,255,0.7)" }]}>Mon Equipe</Text>
+            <Text style={[styles.tabText, { color: tab === "equipe" ? colors.primaryForeground : "rgba(255,255,255,0.7)" }]}>{t("adminReportsScreen.tabTeam")}</Text>
           </Pressable>
           <Pressable onPress={() => setTab("rapports")} style={[styles.tabBtn, tab === "rapports" && { backgroundColor: colors.primary }]}>
             <Feather name="send" size={14} color={tab === "rapports" ? colors.primaryForeground : "rgba(255,255,255,0.7)"} />
-            <Text style={[styles.tabText, { color: tab === "rapports" ? colors.primaryForeground : "rgba(255,255,255,0.7)" }]}>Rapports Admin</Text>
+            <Text style={[styles.tabText, { color: tab === "rapports" ? colors.primaryForeground : "rgba(255,255,255,0.7)" }]}>{t("adminReportsScreen.tabReports")}</Text>
           </Pressable>
         </View>
       </View>
@@ -260,21 +262,21 @@ export default function AdminReportsScreen() {
                 <View style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <Feather name="users" size={16} color="#3b82f6" />
                   <Text style={[styles.statVal, { color: colors.foreground }]}>{teamUsers.length}</Text>
-                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Total</Text>
+                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{t("adminReportsScreen.statTotal")}</Text>
                 </View>
                 <View style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <Feather name="user-check" size={16} color="#22c55e" />
                   <Text style={[styles.statVal, { color: colors.foreground }]}>{teamUsers.filter((u: any) => u.actif !== false).length}</Text>
-                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Actifs</Text>
+                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{t("adminReportsScreen.statActifs")}</Text>
                 </View>
                 <View style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <Feather name="shield" size={16} color="#8b5cf6" />
                   <Text style={[styles.statVal, { color: colors.foreground }]}>{teamUsers.filter((u: any) => u.role === "administrateur" || u.role === "super_admin").length}</Text>
-                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Admins</Text>
+                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{t("adminReportsScreen.statAdmins")}</Text>
                 </View>
               </View>
             }
-            ListEmptyComponent={<EmptyState icon="users" title="Aucun membre" subtitle="Ajoutez des utilisateurs a votre equipe" />}
+            ListEmptyComponent={<EmptyState icon="users" title={t("adminReportsScreen.emptyTeamTitle")} subtitle={t("adminReportsScreen.emptyTeamSubtitle")} />}
             renderItem={({ item }) => {
               const role = ROLE_MAP[item.role] || { label: item.role, color: "#64748b" };
               return (
@@ -322,21 +324,21 @@ export default function AdminReportsScreen() {
                 <View style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <Feather name="file-text" size={16} color="#3b82f6" />
                   <Text style={[styles.statVal, { color: colors.foreground }]}>{stats.total}</Text>
-                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Total</Text>
+                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{t("adminReportsScreen.statTotal")}</Text>
                 </View>
                 <View style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <Feather name="clock" size={16} color="#f59e0b" />
                   <Text style={[styles.statVal, { color: colors.foreground }]}>{stats.nouveau + stats.en_cours}</Text>
-                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>En attente</Text>
+                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{t("adminReportsScreen.statEnAttente")}</Text>
                 </View>
                 <View style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <Feather name="check-circle" size={16} color="#22c55e" />
                   <Text style={[styles.statVal, { color: colors.foreground }]}>{stats.resolu}</Text>
-                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Resolus</Text>
+                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{t("adminReportsScreen.statResolus")}</Text>
                 </View>
               </View>
             }
-            ListEmptyComponent={<EmptyState icon="send" title="Aucun rapport" subtitle="Envoyez un rapport a l'administration" />}
+            ListEmptyComponent={<EmptyState icon="send" title={t("adminReportsScreen.emptyReportsTitle")} subtitle={t("adminReportsScreen.emptyReportsSubtitle")} />}
             renderItem={({ item }) => {
               const cat = CATEGORY_MAP[item.category] || CATEGORY_MAP.general;
               const priority = PRIORITY_MAP[item.priority] || PRIORITY_MAP.normal;
@@ -357,15 +359,15 @@ export default function AdminReportsScreen() {
                         )}
                       </View>
                       <View style={[styles.statusBadge, { backgroundColor: status.color + "18" }]}>
-                        <Text style={[styles.statusBadgeText, { color: status.color }]}>{status.label}</Text>
+                        <Text style={[styles.statusBadgeText, { color: status.color }]}>{t(status.labelKey)}</Text>
                       </View>
                     </View>
 
                     <View style={styles.reportMeta}>
                       <View style={[styles.priBadge, { backgroundColor: priority.color + "15" }]}>
-                        <Text style={[styles.priBadgeText, { color: priority.color }]}>{priority.label}</Text>
+                        <Text style={[styles.priBadgeText, { color: priority.color }]}>{t(priority.labelKey)}</Text>
                       </View>
-                      <Text style={[styles.catLabel, { color: colors.mutedForeground }]}>{cat.label}</Text>
+                      <Text style={[styles.catLabel, { color: colors.mutedForeground }]}>{t(cat.labelKey)}</Text>
                       <Text style={[styles.timeLabel, { color: colors.mutedForeground }]}>
                         {new Date(item.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                       </Text>
@@ -378,7 +380,7 @@ export default function AdminReportsScreen() {
                           <View style={[styles.responseBubble, { backgroundColor: "#22c55e10", borderColor: "#22c55e30" }]}>
                             <View style={styles.responseHeader}>
                               <Feather name="message-circle" size={14} color="#22c55e" />
-                              <Text style={[styles.responseLabel, { color: "#22c55e" }]}>Reponse de l'admin</Text>
+                              <Text style={[styles.responseLabel, { color: "#22c55e" }]}>{t("adminReportsScreen.adminResponse")}</Text>
                             </View>
                             <Text style={[styles.responseText, { color: colors.foreground }]}>{item.adminResponse}</Text>
                             {item.respondedAt && (
@@ -393,12 +395,12 @@ export default function AdminReportsScreen() {
                             {item.status === "nouveau" && (
                               <Pressable onPress={() => updateReportStatus(item.id, "en_cours")} style={[styles.actionBtn, { backgroundColor: "#f59e0b18" }]}>
                                 <Feather name="clock" size={14} color="#f59e0b" />
-                                <Text style={[styles.actionBtnText, { color: "#f59e0b" }]}>En cours</Text>
+                                <Text style={[styles.actionBtnText, { color: "#f59e0b" }]}>{t("adminReportsScreen.actionEnCours")}</Text>
                               </Pressable>
                             )}
                             <Pressable onPress={() => updateReportStatus(item.id, "resolu")} style={[styles.actionBtn, { backgroundColor: "#22c55e18" }]}>
                               <Feather name="check" size={14} color="#22c55e" />
-                              <Text style={[styles.actionBtnText, { color: "#22c55e" }]}>Resoudre</Text>
+                              <Text style={[styles.actionBtnText, { color: "#22c55e" }]}>{t("adminReportsScreen.actionResoudre")}</Text>
                             </Pressable>
                           </View>
                         )}
@@ -416,26 +418,26 @@ export default function AdminReportsScreen() {
         visible={showForm}
         onClose={() => setShowForm(false)}
         onSubmit={handleSubmitReport}
-        title="Nouveau rapport"
+        title={t("adminReportsScreen.formReportTitle")}
         fields={FORM_FIELDS}
         values={formValues}
         onChange={(k, v) => setFormValues(p => ({ ...p, [k]: v }))}
         loading={formLoading}
         icon="send"
-        submitLabel="Envoyer"
+        submitLabel={t("adminReportsScreen.formReportSubmit")}
       />
 
       <FormModal
         visible={showUserForm}
         onClose={() => setShowUserForm(false)}
         onSubmit={handleAddUser}
-        title="Ajouter un membre"
+        title={t("adminReportsScreen.formUserTitle")}
         fields={USER_FORM_FIELDS}
         values={userFormValues}
         onChange={(k, v) => setUserFormValues(p => ({ ...p, [k]: v }))}
         loading={userFormLoading}
         icon="user-plus"
-        submitLabel="Ajouter"
+        submitLabel={t("common.add")}
       />
     </View>
   );

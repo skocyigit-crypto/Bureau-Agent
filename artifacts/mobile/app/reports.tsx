@@ -21,6 +21,7 @@ import { FormModal } from "@/components/FormModal";
 import { FAB } from "@/components/FAB";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 interface AdminReport {
   id: number;
@@ -43,54 +44,35 @@ interface ReportStats {
   ferme: number;
 }
 
-const STATUS_MAP: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  nouveau:   { label: "Nouveau",   color: "#3b82f6", icon: "circle" },
-  en_cours:  { label: "En cours",  color: "#f59e0b", icon: "clock" },
-  resolu:    { label: "Résolu",    color: "#22c55e", icon: "check-circle" },
-  ferme:     { label: "Fermé",     color: "#94a3b8", icon: "x-circle" },
-  rejete:    { label: "Rejeté",    color: "#ef4444", icon: "slash" },
+const STATUS_MAP: Record<string, { labelKey: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
+  nouveau:   { labelKey: "reportsScreen.status.nouveau",  color: "#3b82f6", icon: "circle" },
+  en_cours:  { labelKey: "reportsScreen.status.en_cours", color: "#f59e0b", icon: "clock" },
+  resolu:    { labelKey: "reportsScreen.status.resolu",   color: "#22c55e", icon: "check-circle" },
+  ferme:     { labelKey: "reportsScreen.status.ferme",    color: "#94a3b8", icon: "x-circle" },
+  rejete:    { labelKey: "reportsScreen.status.rejete",   color: "#ef4444", icon: "slash" },
 };
 
-const PRIORITY_MAP: Record<string, { label: string; color: string }> = {
-  basse:    { label: "Basse",    color: "#22c55e" },
-  normale:  { label: "Normale",  color: "#64748b" },
-  haute:    { label: "Haute",    color: "#f59e0b" },
-  critique: { label: "Critique", color: "#ef4444" },
+const PRIORITY_MAP: Record<string, { labelKey: string; color: string }> = {
+  basse:    { labelKey: "reportsScreen.priority.basse",    color: "#22c55e" },
+  normale:  { labelKey: "reportsScreen.priority.normale",  color: "#64748b" },
+  haute:    { labelKey: "reportsScreen.priority.haute",    color: "#f59e0b" },
+  critique: { labelKey: "reportsScreen.priority.critique", color: "#ef4444" },
 };
 
-const CATEGORY_MAP: Record<string, { label: string; icon: keyof typeof Feather.glyphMap }> = {
-  bug:          { label: "Bug",            icon: "alert-triangle" },
-  amelioration: { label: "Amélioration",   icon: "trending-up" },
-  question:     { label: "Question",       icon: "help-circle" },
-  facturation:  { label: "Facturation",    icon: "credit-card" },
-  acces:        { label: "Accès",          icon: "lock" },
-  autre:        { label: "Autre",          icon: "file-text" },
+const CATEGORY_MAP: Record<string, { labelKey: string; icon: keyof typeof Feather.glyphMap }> = {
+  bug:          { labelKey: "reportsScreen.category.bug",          icon: "alert-triangle" },
+  amelioration: { labelKey: "reportsScreen.category.amelioration", icon: "trending-up" },
+  question:     { labelKey: "reportsScreen.category.question",     icon: "help-circle" },
+  facturation:  { labelKey: "reportsScreen.category.facturation",  icon: "credit-card" },
+  acces:        { labelKey: "reportsScreen.category.acces",        icon: "lock" },
+  autre:        { labelKey: "reportsScreen.category.autre",        icon: "file-text" },
 };
-
-const FORM_FIELDS = [
-  { key: "subject", label: "Sujet", required: true },
-  { key: "message", label: "Message détaillé", required: true, type: "multiline" as const },
-  { key: "category", label: "Catégorie", type: "select" as const, options: [
-    { value: "bug",          label: "Bug / Problème technique" },
-    { value: "amelioration", label: "Demande d'amélioration" },
-    { value: "question",     label: "Question" },
-    { value: "facturation",  label: "Facturation" },
-    { value: "acces",        label: "Accès / Permissions" },
-    { value: "autre",        label: "Autre" },
-  ]},
-  { key: "priority", label: "Priorité", type: "select" as const, options: [
-    { value: "basse",    label: "Basse" },
-    { value: "normale",  label: "Normale" },
-    { value: "haute",    label: "Haute" },
-    { value: "critique", label: "Critique" },
-  ]},
-];
 
 const STATUS_FILTERS = [
-  { key: "all",      label: "Tout" },
-  { key: "nouveau",  label: "Nouveau" },
-  { key: "en_cours", label: "En cours" },
-  { key: "resolu",   label: "Résolu" },
+  { key: "all",      labelKey: "reportsScreen.filterAll" },
+  { key: "nouveau",  labelKey: "reportsScreen.status.nouveau" },
+  { key: "en_cours", labelKey: "reportsScreen.status.en_cours" },
+  { key: "resolu",   labelKey: "reportsScreen.status.resolu" },
 ];
 
 function fmtDate(d: string | undefined) {
@@ -101,8 +83,28 @@ function fmtDate(d: string | undefined) {
 export default function ReportsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
+
+  const FORM_FIELDS = [
+    { key: "subject", label: t("reportsScreen.fieldSubject"), required: true },
+    { key: "message", label: t("reportsScreen.fieldMessage"), required: true, type: "multiline" as const },
+    { key: "category", label: t("reportsScreen.fieldCategory"), type: "select" as const, options: [
+      { value: "bug",          label: t("reportsScreen.catOption.bug") },
+      { value: "amelioration", label: t("reportsScreen.catOption.amelioration") },
+      { value: "question",     label: t("reportsScreen.catOption.question") },
+      { value: "facturation",  label: t("reportsScreen.catOption.facturation") },
+      { value: "acces",        label: t("reportsScreen.catOption.acces") },
+      { value: "autre",        label: t("reportsScreen.catOption.autre") },
+    ]},
+    { key: "priority", label: t("reportsScreen.fieldPriority"), type: "select" as const, options: [
+      { value: "basse",    label: t("reportsScreen.priority.basse") },
+      { value: "normale",  label: t("reportsScreen.priority.normale") },
+      { value: "haute",    label: t("reportsScreen.priority.haute") },
+      { value: "critique", label: t("reportsScreen.priority.critique") },
+    ]},
+  ];
 
   const [reports, setReports] = useState<AdminReport[]>([]);
   const [stats, setStats] = useState<ReportStats | null>(null);
@@ -165,7 +167,7 @@ export default function ReportsScreen() {
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
-          <Text style={styles.headerTitle}>Rapports & Tickets</Text>
+          <Text style={styles.headerTitle}>{t("reportsScreen.headerTitle")}</Text>
           <Pressable onPress={onRefresh} style={styles.backBtn}>
             <Feather name="refresh-cw" size={16} color="#fff" />
           </Pressable>
@@ -175,12 +177,12 @@ export default function ReportsScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={{ flexDirection: "row", gap: 8 }}>
               {[
-                { label: "Total",    value: stats.total,    color: "#fff" },
-                { label: "Nouveau",  value: stats.nouveau,  color: "#93c5fd" },
-                { label: "En cours", value: stats.en_cours, color: "#fde68a" },
-                { label: "Résolu",   value: stats.resolu,   color: "#86efac" },
+                { key: "total",    label: t("reportsScreen.statTotal"),   value: stats.total,    color: "#fff" },
+                { key: "nouveau",  label: t("reportsScreen.status.nouveau"),  value: stats.nouveau,  color: "#93c5fd" },
+                { key: "en_cours", label: t("reportsScreen.status.en_cours"), value: stats.en_cours, color: "#fde68a" },
+                { key: "resolu",   label: t("reportsScreen.status.resolu"),   value: stats.resolu,   color: "#86efac" },
               ].map(s => (
-                <View key={s.label} style={[styles.statChip, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
+                <View key={s.key} style={[styles.statChip, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
                   <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>
                   <Text style={styles.statLbl}>{s.label}</Text>
                 </View>
@@ -193,7 +195,7 @@ export default function ReportsScreen() {
           <Feather name="search" size={14} color="rgba(255,255,255,0.6)" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Rechercher un rapport..."
+            placeholder={t("reportsScreen.searchPlaceholder")}
             placeholderTextColor="rgba(255,255,255,0.5)"
             value={search}
             onChangeText={setSearch}
@@ -209,7 +211,7 @@ export default function ReportsScreen() {
                 onPress={() => setFilterStatus(f.key)}
                 style={[styles.filterChip, { backgroundColor: filterStatus === f.key ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.1)" }]}
               >
-                <Text style={styles.filterText}>{f.label}</Text>
+                <Text style={styles.filterText}>{t(f.labelKey)}</Text>
               </Pressable>
             ))}
           </View>
@@ -227,8 +229,8 @@ export default function ReportsScreen() {
           ListEmptyComponent={
             <EmptyState
               icon="file-text"
-              title="Aucun rapport"
-              subtitle="Soumettez un ticket ou une demande d'assistance."
+              title={t("reportsScreen.emptyTitle")}
+              subtitle={t("reportsScreen.emptySubtitle")}
             />
           }
           renderItem={({ item }) => {
@@ -249,15 +251,15 @@ export default function ReportsScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.cardSubject, { color: colors.foreground }]} numberOfLines={1}>{item.subject}</Text>
-                    <Text style={[styles.cardCategory, { color: colors.mutedForeground }]}>{cat.label}</Text>
+                    <Text style={[styles.cardCategory, { color: colors.mutedForeground }]}>{t(cat.labelKey)}</Text>
                   </View>
                   <View style={{ alignItems: "flex-end", gap: 4 }}>
                     <View style={[styles.statusPill, { backgroundColor: st.color + "20" }]}>
                       <Feather name={st.icon} size={9} color={st.color} />
-                      <Text style={[styles.statusText, { color: st.color }]}>{st.label}</Text>
+                      <Text style={[styles.statusText, { color: st.color }]}>{t(st.labelKey)}</Text>
                     </View>
                     <View style={[styles.statusPill, { backgroundColor: pr.color + "20" }]}>
-                      <Text style={[styles.statusText, { color: pr.color }]}>{pr.label}</Text>
+                      <Text style={[styles.statusText, { color: pr.color }]}>{t(pr.labelKey)}</Text>
                     </View>
                   </View>
                 </View>
@@ -268,7 +270,7 @@ export default function ReportsScreen() {
                   {item.resolvedAt && (
                     <>
                       <Feather name="check" size={10} color="#22c55e" />
-                      <Text style={[styles.cardDate, { color: "#22c55e" }]}>Résolu le {fmtDate(item.resolvedAt)}</Text>
+                      <Text style={[styles.cardDate, { color: "#22c55e" }]}>{t("reportsScreen.resolvedOn", { date: fmtDate(item.resolvedAt) })}</Text>
                     </>
                   )}
                 </View>
@@ -282,7 +284,7 @@ export default function ReportsScreen() {
 
       <FormModal
         visible={showForm}
-        title="Nouveau rapport"
+        title={t("reportsScreen.formTitle")}
         icon="file-text"
         fields={FORM_FIELDS}
         values={formValues}
@@ -290,26 +292,26 @@ export default function ReportsScreen() {
         onClose={() => { setShowForm(false); setFormValues({ category: "bug", priority: "normale" }); }}
         onSubmit={handleCreate}
         loading={formLoading}
-        submitLabel="Envoyer le rapport"
+        submitLabel={t("reportsScreen.formSubmit")}
       />
 
       {selected && (
         <DetailModal
           visible
           title={selected.subject}
-          subtitle={CATEGORY_MAP[selected.category]?.label ?? selected.category}
+          subtitle={CATEGORY_MAP[selected.category] ? t(CATEGORY_MAP[selected.category].labelKey) : selected.category}
           icon={CATEGORY_MAP[selected.category]?.icon ?? "file-text"}
           iconColor="#7c3aed"
-          badge={{ label: STATUS_MAP[selected.status]?.label ?? selected.status, color: STATUS_MAP[selected.status]?.color ?? "#64748b" }}
+          badge={{ label: STATUS_MAP[selected.status] ? t(STATUS_MAP[selected.status].labelKey) : selected.status, color: STATUS_MAP[selected.status]?.color ?? "#64748b" }}
           onClose={() => setSelected(null)}
           fields={[
-            { label: "Statut",     value: STATUS_MAP[selected.status]?.label ?? selected.status },
-            { label: "Priorité",   value: PRIORITY_MAP[selected.priority]?.label ?? selected.priority },
-            { label: "Catégorie",  value: CATEGORY_MAP[selected.category]?.label ?? selected.category },
-            { label: "Message",    value: selected.message },
-            ...(selected.resolution ? [{ label: "Résolution", value: selected.resolution }] : []),
-            { label: "Créé le",    value: fmtDate(selected.createdAt) },
-            ...(selected.resolvedAt ? [{ label: "Résolu le", value: fmtDate(selected.resolvedAt) }] : []),
+            { label: t("reportsScreen.detailStatut"),     value: STATUS_MAP[selected.status] ? t(STATUS_MAP[selected.status].labelKey) : selected.status },
+            { label: t("reportsScreen.fieldPriority"),    value: PRIORITY_MAP[selected.priority] ? t(PRIORITY_MAP[selected.priority].labelKey) : selected.priority },
+            { label: t("reportsScreen.fieldCategory"),    value: CATEGORY_MAP[selected.category] ? t(CATEGORY_MAP[selected.category].labelKey) : selected.category },
+            { label: t("reportsScreen.fieldMessageShort"), value: selected.message },
+            ...(selected.resolution ? [{ label: t("reportsScreen.detailResolution"), value: selected.resolution }] : []),
+            { label: t("reportsScreen.detailCreatedOn"),  value: fmtDate(selected.createdAt) },
+            ...(selected.resolvedAt ? [{ label: t("reportsScreen.detailResolvedOn"), value: fmtDate(selected.resolvedAt) }] : []),
           ]}
         />
       )}

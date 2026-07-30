@@ -18,42 +18,43 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 const WEEKDAYS = [
-  { value: 1, label: "Lundi", short: "Lun" },
-  { value: 2, label: "Mardi", short: "Mar" },
-  { value: 3, label: "Mercredi", short: "Mer" },
-  { value: 4, label: "Jeudi", short: "Jeu" },
-  { value: 5, label: "Vendredi", short: "Ven" },
-  { value: 6, label: "Samedi", short: "Sam" },
-  { value: 7, label: "Dimanche", short: "Dim" },
+  { value: 1, labelKey: "horairesScreen.days.mon.label", shortKey: "horairesScreen.days.mon.short" },
+  { value: 2, labelKey: "horairesScreen.days.tue.label", shortKey: "horairesScreen.days.tue.short" },
+  { value: 3, labelKey: "horairesScreen.days.wed.label", shortKey: "horairesScreen.days.wed.short" },
+  { value: 4, labelKey: "horairesScreen.days.thu.label", shortKey: "horairesScreen.days.thu.short" },
+  { value: 5, labelKey: "horairesScreen.days.fri.label", shortKey: "horairesScreen.days.fri.short" },
+  { value: 6, labelKey: "horairesScreen.days.sat.label", shortKey: "horairesScreen.days.sat.short" },
+  { value: 7, labelKey: "horairesScreen.days.sun.label", shortKey: "horairesScreen.days.sun.short" },
 ] as const;
 
 const TIMEZONE_OPTIONS = [
-  { value: "Europe/Paris", label: "Europe/Paris (France)" },
-  { value: "Europe/Brussels", label: "Europe/Bruxelles (Belgique)" },
-  { value: "Europe/Zurich", label: "Europe/Zurich (Suisse)" },
-  { value: "Europe/Luxembourg", label: "Europe/Luxembourg" },
-  { value: "Europe/London", label: "Europe/Londres (Royaume-Uni)" },
-  { value: "Europe/Madrid", label: "Europe/Madrid (Espagne)" },
-  { value: "Europe/Lisbon", label: "Europe/Lisbonne (Portugal)" },
-  { value: "Europe/Berlin", label: "Europe/Berlin (Allemagne)" },
-  { value: "Europe/Rome", label: "Europe/Rome (Italie)" },
-  { value: "Europe/Istanbul", label: "Europe/Istanbul (Turquie)" },
-  { value: "Africa/Casablanca", label: "Afrique/Casablanca (Maroc)" },
-  { value: "Africa/Algiers", label: "Afrique/Alger (Algerie)" },
-  { value: "Africa/Tunis", label: "Afrique/Tunis (Tunisie)" },
-  { value: "America/Montreal", label: "Amerique/Montreal (Quebec)" },
-  { value: "UTC", label: "UTC (temps universel)" },
+  { value: "Europe/Paris", labelKey: "horairesScreen.tz.Europe_Paris" },
+  { value: "Europe/Brussels", labelKey: "horairesScreen.tz.Europe_Brussels" },
+  { value: "Europe/Zurich", labelKey: "horairesScreen.tz.Europe_Zurich" },
+  { value: "Europe/Luxembourg", labelKey: "horairesScreen.tz.Europe_Luxembourg" },
+  { value: "Europe/London", labelKey: "horairesScreen.tz.Europe_London" },
+  { value: "Europe/Madrid", labelKey: "horairesScreen.tz.Europe_Madrid" },
+  { value: "Europe/Lisbon", labelKey: "horairesScreen.tz.Europe_Lisbon" },
+  { value: "Europe/Berlin", labelKey: "horairesScreen.tz.Europe_Berlin" },
+  { value: "Europe/Rome", labelKey: "horairesScreen.tz.Europe_Rome" },
+  { value: "Europe/Istanbul", labelKey: "horairesScreen.tz.Europe_Istanbul" },
+  { value: "Africa/Casablanca", labelKey: "horairesScreen.tz.Africa_Casablanca" },
+  { value: "Africa/Algiers", labelKey: "horairesScreen.tz.Africa_Algiers" },
+  { value: "Africa/Tunis", labelKey: "horairesScreen.tz.Africa_Tunis" },
+  { value: "America/Montreal", labelKey: "horairesScreen.tz.America_Montreal" },
+  { value: "UTC", labelKey: "horairesScreen.tz.UTC" },
 ] as const;
 
 const DURATION_OPTIONS = [
-  { value: 15, label: "15 minutes" },
-  { value: 30, label: "30 minutes" },
-  { value: 45, label: "45 minutes" },
-  { value: 60, label: "1 heure" },
-  { value: 90, label: "1 h 30" },
-  { value: 120, label: "2 heures" },
+  { value: 15, labelKey: "horairesScreen.duration.15" },
+  { value: 30, labelKey: "horairesScreen.duration.30" },
+  { value: 45, labelKey: "horairesScreen.duration.45" },
+  { value: 60, labelKey: "horairesScreen.duration.60" },
+  { value: 90, labelKey: "horairesScreen.duration.90" },
+  { value: 120, labelKey: "horairesScreen.duration.120" },
 ] as const;
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -77,7 +78,7 @@ function parseWorkingDays(value: string | null | undefined): number[] {
 interface PickerModalProps {
   visible: boolean;
   title: string;
-  options: ReadonlyArray<{ value: string | number; label: string }>;
+  options: ReadonlyArray<{ value: string | number; labelKey: string }>;
   selected: string | number;
   onSelect: (value: string | number) => void;
   onClose: () => void;
@@ -85,6 +86,7 @@ interface PickerModalProps {
 
 function PickerModal({ visible, title, options, selected, onSelect, onClose }: PickerModalProps) {
   const colors = useColors();
+  const { t } = useTranslation();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
@@ -99,7 +101,7 @@ function PickerModal({ visible, title, options, selected, onSelect, onClose }: P
             </Pressable>
           </View>
           <FlatList
-            data={options as { value: string | number; label: string }[]}
+            data={options as { value: string | number; labelKey: string }[]}
             keyExtractor={(item) => String(item.value)}
             style={{ maxHeight: 340 }}
             renderItem={({ item }) => {
@@ -124,7 +126,7 @@ function PickerModal({ visible, title, options, selected, onSelect, onClose }: P
                       { color: isSelected ? colors.primary : colors.foreground },
                     ]}
                   >
-                    {item.label}
+                    {t(item.labelKey)}
                   </Text>
                   {isSelected && (
                     <Feather name="check" size={16} color={colors.primary} />
@@ -153,6 +155,7 @@ const DRUM_LIST_HEIGHT = DRUM_ITEM_HEIGHT * DRUM_VISIBLE;
 
 function TimePickerModal({ visible, title, value, onConfirm, onClose }: TimePickerModalProps) {
   const colors = useColors();
+  const { t } = useTranslation();
   const [hour, setHour] = useState(0);
   const [minute, setMinute] = useState(0);
   const hourListRef = useRef<FlatList>(null);
@@ -211,9 +214,9 @@ function TimePickerModal({ visible, title, value, onConfirm, onClose }: TimePick
           </View>
 
           <View style={drumStyles.columns}>
-            <Text style={[drumStyles.colLabel, { color: colors.mutedForeground }]}>Heure</Text>
+            <Text style={[drumStyles.colLabel, { color: colors.mutedForeground }]}>{t("horairesScreen.drumHour")}</Text>
             <View style={{ width: 16 }} />
-            <Text style={[drumStyles.colLabel, { color: colors.mutedForeground }]}>Minute</Text>
+            <Text style={[drumStyles.colLabel, { color: colors.mutedForeground }]}>{t("horairesScreen.drumMinute")}</Text>
           </View>
 
           <View style={drumStyles.columns}>
@@ -332,7 +335,7 @@ function TimePickerModal({ visible, title, value, onConfirm, onClose }: TimePick
             onPress={handleConfirm}
           >
             <Text style={[drumStyles.confirmText, { color: colors.primaryForeground }]}>
-              Confirmer
+              {t("common.confirm")}
             </Text>
           </Pressable>
         </View>
@@ -344,6 +347,7 @@ function TimePickerModal({ visible, title, value, onConfirm, onClose }: TimePick
 export default function HorairesOuvertureScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { fetchAuth, user } = useAuth();
   const isWeb = Platform.OS === "web";
   const isAdmin =
@@ -377,14 +381,14 @@ export default function HorairesOuvertureScreen() {
           appointmentDurationMinutes: data.appointmentDurationMinutes || 30,
         });
       } else {
-        Alert.alert("Erreur", "Impossible de charger les horaires.");
+        Alert.alert(t("horairesScreen.errorTitle"), t("horairesScreen.loadError"));
       }
     } catch {
-      Alert.alert("Erreur reseau", "Verifiez votre connexion.");
+      Alert.alert(t("horairesScreen.netErrorTitle"), t("horairesScreen.netError"));
     } finally {
       setLoading(false);
     }
-  }, [fetchAuth]);
+  }, [fetchAuth, t]);
 
   useEffect(() => {
     load();
@@ -393,7 +397,7 @@ export default function HorairesOuvertureScreen() {
   async function save() {
     if (!isAdmin) return;
     if (form.workingDays.length === 0) {
-      Alert.alert("Jours invalides", "Selectionnez au moins un jour d'ouverture.");
+      Alert.alert(t("horairesScreen.invalidDaysTitle"), t("horairesScreen.invalidDays"));
       return;
     }
     setSaving(true);
@@ -411,13 +415,13 @@ export default function HorairesOuvertureScreen() {
       });
       if (res.ok) {
         if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert("Enregistre", "Les horaires d'ouverture ont ete mis a jour.");
+        Alert.alert(t("horairesScreen.savedTitle"), t("horairesScreen.saved"));
       } else {
         const data = await res.json().catch(() => ({}));
-        Alert.alert("Erreur", data.error || "Echec de la mise a jour.");
+        Alert.alert(t("horairesScreen.errorTitle"), data.error || t("horairesScreen.updateError"));
       }
     } catch {
-      Alert.alert("Erreur reseau", "Verifiez votre connexion.");
+      Alert.alert(t("horairesScreen.netErrorTitle"), t("horairesScreen.netError"));
     } finally {
       setSaving(false);
     }
@@ -434,12 +438,14 @@ export default function HorairesOuvertureScreen() {
     }));
   }
 
-  const selectedTzLabel =
-    TIMEZONE_OPTIONS.find((t) => t.value === form.appointmentTimezone)?.label ??
-    form.appointmentTimezone;
-  const selectedDurationLabel =
-    DURATION_OPTIONS.find((d) => d.value === form.appointmentDurationMinutes)?.label ??
-    `${form.appointmentDurationMinutes} minutes`;
+  const selectedTzOption = TIMEZONE_OPTIONS.find((tz) => tz.value === form.appointmentTimezone);
+  const selectedTzLabel = selectedTzOption
+    ? t(selectedTzOption.labelKey)
+    : form.appointmentTimezone;
+  const selectedDurationOption = DURATION_OPTIONS.find((d) => d.value === form.appointmentDurationMinutes);
+  const selectedDurationLabel = selectedDurationOption
+    ? t(selectedDurationOption.labelKey)
+    : t("horairesScreen.durationMinutes", { count: form.appointmentDurationMinutes });
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -455,7 +461,7 @@ export default function HorairesOuvertureScreen() {
         <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={12}>
           <Feather name="arrow-left" size={22} color="#ffffff" />
         </Pressable>
-        <Text style={styles.headerTitle}>Horaires d'ouverture</Text>
+        <Text style={styles.headerTitle}>{t("horairesScreen.headerTitle")}</Text>
         {isAdmin ? (
           <Pressable
             onPress={save}
@@ -466,7 +472,7 @@ export default function HorairesOuvertureScreen() {
             {saving ? (
               <ActivityIndicator size="small" color="#ffffff" />
             ) : (
-              <Text style={styles.saveButtonText}>Enregistrer</Text>
+              <Text style={styles.saveButtonText}>{t("common.save")}</Text>
             )}
           </Pressable>
         ) : (
@@ -478,7 +484,7 @@ export default function HorairesOuvertureScreen() {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>
-            Chargement…
+            {t("common.loading")}
           </Text>
         </View>
       ) : (
@@ -498,7 +504,7 @@ export default function HorairesOuvertureScreen() {
             >
               <Feather name="lock" size={14} color={colors.mutedForeground} />
               <Text style={[styles.readOnlyText, { color: colors.mutedForeground }]}>
-                Consultation uniquement — seuls les administrateurs peuvent modifier ces reglages.
+                {t("horairesScreen.readOnlyBanner")}
               </Text>
             </View>
           )}
@@ -510,10 +516,10 @@ export default function HorairesOuvertureScreen() {
               </View>
               <View style={styles.cardHeaderText}>
                 <Text style={[styles.cardTitle, { color: colors.foreground }]}>
-                  Jours d'ouverture
+                  {t("horairesScreen.daysTitle")}
                 </Text>
                 <Text style={[styles.cardDesc, { color: colors.mutedForeground }]}>
-                  Jours ou votre entreprise prend des rendez-vous.
+                  {t("horairesScreen.daysDesc")}
                 </Text>
               </View>
             </View>
@@ -541,7 +547,7 @@ export default function HorairesOuvertureScreen() {
                         { color: active ? colors.primaryForeground : colors.foreground },
                       ]}
                     >
-                      {day.short}
+                      {t(day.shortKey)}
                     </Text>
                   </Pressable>
                 );
@@ -556,10 +562,10 @@ export default function HorairesOuvertureScreen() {
               </View>
               <View style={styles.cardHeaderText}>
                 <Text style={[styles.cardTitle, { color: colors.foreground }]}>
-                  Heures d'ouverture
+                  {t("horairesScreen.hoursTitle")}
                 </Text>
                 <Text style={[styles.cardDesc, { color: colors.mutedForeground }]}>
-                  Appuyez pour choisir l'heure via le selecteur.
+                  {t("horairesScreen.hoursDesc")}
                 </Text>
               </View>
             </View>
@@ -567,7 +573,7 @@ export default function HorairesOuvertureScreen() {
             <View style={styles.timeRow}>
               <View style={styles.timeField}>
                 <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
-                  Ouverture
+                  {t("horairesScreen.openLabel")}
                 </Text>
                 <Pressable
                   onPress={() => isAdmin && setTimePickerField("start")}
@@ -592,7 +598,7 @@ export default function HorairesOuvertureScreen() {
 
               <View style={styles.timeField}>
                 <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
-                  Fermeture
+                  {t("horairesScreen.closeLabel")}
                 </Text>
                 <Pressable
                   onPress={() => isAdmin && setTimePickerField("end")}
@@ -622,10 +628,10 @@ export default function HorairesOuvertureScreen() {
               </View>
               <View style={styles.cardHeaderText}>
                 <Text style={[styles.cardTitle, { color: colors.foreground }]}>
-                  Fuseau horaire
+                  {t("horairesScreen.tzTitle")}
                 </Text>
                 <Text style={[styles.cardDesc, { color: colors.mutedForeground }]}>
-                  Reference pour le calcul des creneaux.
+                  {t("horairesScreen.tzDesc")}
                 </Text>
               </View>
             </View>
@@ -656,10 +662,10 @@ export default function HorairesOuvertureScreen() {
               </View>
               <View style={styles.cardHeaderText}>
                 <Text style={[styles.cardTitle, { color: colors.foreground }]}>
-                  Duree par defaut
+                  {t("horairesScreen.durationTitle")}
                 </Text>
                 <Text style={[styles.cardDesc, { color: colors.mutedForeground }]}>
-                  Duree standard d'un rendez-vous.
+                  {t("horairesScreen.durationDesc")}
                 </Text>
               </View>
             </View>
@@ -691,8 +697,7 @@ export default function HorairesOuvertureScreen() {
           >
             <Feather name="info" size={14} color={colors.mutedForeground} />
             <Text style={[styles.infoText, { color: colors.mutedForeground }]}>
-              Ces reglages s'appliquent immediatement au calcul des creneaux libres et aux
-              disponibilites annoncees par l'assistant telephonique.
+              {t("horairesScreen.infoText")}
             </Text>
           </View>
         </ScrollView>
@@ -700,7 +705,7 @@ export default function HorairesOuvertureScreen() {
 
       <PickerModal
         visible={tzModalVisible}
-        title="Fuseau horaire"
+        title={t("horairesScreen.tzTitle")}
         options={TIMEZONE_OPTIONS}
         selected={form.appointmentTimezone}
         onSelect={(v) => setForm((f) => ({ ...f, appointmentTimezone: String(v) }))}
@@ -709,7 +714,7 @@ export default function HorairesOuvertureScreen() {
 
       <PickerModal
         visible={durationModalVisible}
-        title="Duree par defaut"
+        title={t("horairesScreen.durationTitle")}
         options={DURATION_OPTIONS}
         selected={form.appointmentDurationMinutes}
         onSelect={(v) => setForm((f) => ({ ...f, appointmentDurationMinutes: Number(v) }))}
@@ -718,7 +723,7 @@ export default function HorairesOuvertureScreen() {
 
       <TimePickerModal
         visible={timePickerField === "start"}
-        title="Heure d'ouverture"
+        title={t("horairesScreen.timeStartTitle")}
         value={form.workingHoursStart}
         onConfirm={(v) => setForm((f) => ({ ...f, workingHoursStart: v }))}
         onClose={() => setTimePickerField(null)}
@@ -726,7 +731,7 @@ export default function HorairesOuvertureScreen() {
 
       <TimePickerModal
         visible={timePickerField === "end"}
-        title="Heure de fermeture"
+        title={t("horairesScreen.timeEndTitle")}
         value={form.workingHoursEnd}
         onConfirm={(v) => setForm((f) => ({ ...f, workingHoursEnd: v }))}
         onClose={() => setTimePickerField(null)}

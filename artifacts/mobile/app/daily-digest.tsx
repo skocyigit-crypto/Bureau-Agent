@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 // ── Tipler ────────────────────────────────────────────────────────────────────
 
@@ -73,9 +74,9 @@ const SUGGESTION_COLORS = {
 };
 
 const HUMEUR_COLORS = {
-  positif: { gradient: ["#065f46", "#0f766e"] as const, label: "Excellente journee !" },
-  neutre: { gradient: ["#1e3a5f", "#1e40af"] as const, label: "Journee correcte" },
-  attention: { gradient: ["#7c2d12", "#9a3412"] as const, label: "Points a ameliorer" },
+  positif: { gradient: ["#065f46", "#0f766e"] as const, labelKey: "dailyDigestScreen.humeur.positif" },
+  neutre: { gradient: ["#1e3a5f", "#1e40af"] as const, labelKey: "dailyDigestScreen.humeur.neutre" },
+  attention: { gradient: ["#7c2d12", "#9a3412"] as const, labelKey: "dailyDigestScreen.humeur.attention" },
 };
 
 const PRIORITY_DOTS = {
@@ -107,6 +108,7 @@ function StatCard({ icon, label, value, color, sublabel }: {
 }
 
 function ScoreRing({ score }: { score: number }) {
+  const { t } = useTranslation();
   const color = score >= 75 ? "#22c55e" : score >= 50 ? "#f59e0b" : "#ef4444";
   return (
     <View style={styles.scoreRing}>
@@ -114,7 +116,7 @@ function ScoreRing({ score }: { score: number }) {
         <Text style={[styles.scoreNumber, { color }]}>{score}</Text>
         <Text style={[styles.scoreUnit, { color }]}>/100</Text>
       </View>
-      <Text style={[styles.scoreLabel, { color }]}>Score de productivite</Text>
+      <Text style={[styles.scoreLabel, { color }]}>{t("dailyDigestScreen.scoreLabel")}</Text>
     </View>
   );
 }
@@ -141,6 +143,7 @@ function SuggestionCard({ item }: { item: { type: string; texte: string; priorit
 export default function DailyDigestScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
 
@@ -161,12 +164,12 @@ export default function DailyDigestScreen() {
       setDigest(data);
       Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: Platform.OS !== "web" }).start();
     } catch {
-      setError("Impossible de charger le bilan. Verifiez votre connexion.");
+      setError(t("dailyDigestScreen.loadError"));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [fetchAuth, fadeAnim]);
+  }, [fetchAuth, fadeAnim, t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -189,17 +192,17 @@ export default function DailyDigestScreen() {
             <Pressable onPress={() => router.back()} hitSlop={12}>
               <Feather name="arrow-left" size={22} color="#ffffff" />
             </Pressable>
-            <Text style={styles.headerTitle}>Mon Bilan du Jour</Text>
+            <Text style={styles.headerTitle}>{t("dailyDigestScreen.headerTitle")}</Text>
             <View style={{ width: 22 }} />
           </View>
         </View>
         <View style={styles.loadingCenter}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>
-            Analyse de votre journee en cours...
+            {t("dailyDigestScreen.loadingText")}
           </Text>
           <Text style={[styles.loadingHint, { color: colors.mutedForeground }]}>
-            L'IA compile vos activites
+            {t("dailyDigestScreen.loadingHint")}
           </Text>
         </View>
       </View>
@@ -216,15 +219,15 @@ export default function DailyDigestScreen() {
             <Pressable onPress={() => router.back()} hitSlop={12}>
               <Feather name="arrow-left" size={22} color="#ffffff" />
             </Pressable>
-            <Text style={styles.headerTitle}>Mon Bilan du Jour</Text>
+            <Text style={styles.headerTitle}>{t("dailyDigestScreen.headerTitle")}</Text>
             <View style={{ width: 22 }} />
           </View>
         </View>
         <View style={styles.loadingCenter}>
           <Feather name="alert-circle" size={40} color={colors.destructive} />
-          <Text style={[styles.loadingText, { color: colors.foreground }]}>{error ?? "Erreur inconnue"}</Text>
+          <Text style={[styles.loadingText, { color: colors.foreground }]}>{error ?? t("dailyDigestScreen.errorUnknown")}</Text>
           <Pressable style={[styles.retryBtn, { backgroundColor: colors.primary }]} onPress={() => load()}>
-            <Text style={[styles.retryText, { color: colors.secondary }]}>Reessayer</Text>
+            <Text style={[styles.retryText, { color: colors.secondary }]}>{t("common.retry")}</Text>
           </Pressable>
         </View>
       </View>
@@ -243,7 +246,7 @@ export default function DailyDigestScreen() {
           <Pressable onPress={() => router.back()} hitSlop={12}>
             <Feather name="arrow-left" size={22} color="#ffffff" />
           </Pressable>
-          <Text style={styles.headerTitle}>Mon Bilan du Jour</Text>
+          <Text style={styles.headerTitle}>{t("dailyDigestScreen.headerTitle")}</Text>
           <Pressable onPress={onRefresh} hitSlop={12}>
             <Feather name="refresh-cw" size={18} color="rgba(255,255,255,0.8)" />
           </Pressable>
@@ -267,44 +270,44 @@ export default function DailyDigestScreen() {
           >
             <View style={styles.heroTop}>
               <View>
-                <Text style={styles.heroGreeting}>Bonsoir, {prenom} !</Text>
-                <Text style={styles.heroMood}>{humeurConfig.label}</Text>
+                <Text style={styles.heroGreeting}>{t("dailyDigestScreen.greeting", { prenom })}</Text>
+                <Text style={styles.heroMood}>{t(humeurConfig.labelKey)}</Text>
               </View>
               {ai ? <ScoreRing score={ai.score} /> : null}
             </View>
             {ai?.resume ? (
               <Text style={styles.heroResume}>{ai.resume}</Text>
             ) : (
-              <Text style={styles.heroResume}>Voici un apercu de votre journee.</Text>
+              <Text style={styles.heroResume}>{t("dailyDigestScreen.resumeFallback")}</Text>
             )}
           </LinearGradient>
 
           {/* Stats */}
-          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>ACTIVITE DU JOUR</Text>
+          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{t("dailyDigestScreen.sectionActivity")}</Text>
           <View style={styles.statsGrid}>
             <StatCard
               icon="phone-call"
-              label="Appels"
+              label={t("dailyDigestScreen.statCalls")}
               value={stats.calls.total}
               color="#22c55e"
-              sublabel={stats.calls.missed > 0 ? `${stats.calls.missed} manque` : undefined}
+              sublabel={stats.calls.missed > 0 ? t("dailyDigestScreen.missedCount", { count: stats.calls.missed }) : undefined}
             />
             <StatCard
               icon="check-square"
-              label="Taches"
+              label={t("dailyDigestScreen.statTasks")}
               value={stats.tasks.completed}
               color="#3b82f6"
-              sublabel={stats.tasks.overdue > 0 ? `${stats.tasks.overdue} en retard` : undefined}
+              sublabel={stats.tasks.overdue > 0 ? t("dailyDigestScreen.overdueCount", { count: stats.tasks.overdue }) : undefined}
             />
             <StatCard
               icon="edit-2"
-              label="Notes"
+              label={t("dailyDigestScreen.statNotes")}
               value={stats.notes}
               color="#f59e0b"
             />
             <StatCard
               icon="calendar"
-              label="Evenements"
+              label={t("dailyDigestScreen.statEvents")}
               value={stats.events.today}
               color="#8b5cf6"
             />
@@ -314,17 +317,17 @@ export default function DailyDigestScreen() {
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.cardHeader}>
               <Feather name="activity" size={16} color={colors.primary} />
-              <Text style={[styles.cardTitle, { color: colors.foreground }]}>Detail de l'activite</Text>
+              <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("dailyDigestScreen.detailTitle")}</Text>
             </View>
-            <DetailRow icon="phone" label="Appels repondus" value={`${stats.calls.answered}`} color="#22c55e" colors={colors} />
-            <DetailRow icon="phone-missed" label="Appels manques" value={`${stats.calls.missed}`} color={stats.calls.missed > 0 ? "#ef4444" : colors.mutedForeground} colors={colors} />
-            <DetailRow icon="plus-square" label="Taches creees" value={`${stats.tasks.created}`} color={colors.mutedForeground} colors={colors} />
-            <DetailRow icon="check-circle" label="Taches terminees" value={`${stats.tasks.completed}`} color="#22c55e" colors={colors} />
+            <DetailRow icon="phone" label={t("dailyDigestScreen.detailAnswered")} value={`${stats.calls.answered}`} color="#22c55e" colors={colors} />
+            <DetailRow icon="phone-missed" label={t("dailyDigestScreen.detailMissed")} value={`${stats.calls.missed}`} color={stats.calls.missed > 0 ? "#ef4444" : colors.mutedForeground} colors={colors} />
+            <DetailRow icon="plus-square" label={t("dailyDigestScreen.detailTasksCreated")} value={`${stats.tasks.created}`} color={colors.mutedForeground} colors={colors} />
+            <DetailRow icon="check-circle" label={t("dailyDigestScreen.detailTasksDone")} value={`${stats.tasks.completed}`} color="#22c55e" colors={colors} />
             {stats.tasks.overdue > 0 && (
-              <DetailRow icon="alert-triangle" label="Taches en retard" value={`${stats.tasks.overdue}`} color="#ef4444" colors={colors} />
+              <DetailRow icon="alert-triangle" label={t("dailyDigestScreen.detailTasksOverdue")} value={`${stats.tasks.overdue}`} color="#ef4444" colors={colors} />
             )}
-            <DetailRow icon="message-square" label="Messages" value={`${stats.messages}`} color={colors.mutedForeground} colors={colors} />
-            <DetailRow icon="zap" label="Actions totales" value={`${stats.actions}`} color={colors.mutedForeground} colors={colors} last />
+            <DetailRow icon="message-square" label={t("dailyDigestScreen.detailMessages")} value={`${stats.messages}`} color={colors.mutedForeground} colors={colors} />
+            <DetailRow icon="zap" label={t("dailyDigestScreen.detailActions")} value={`${stats.actions}`} color={colors.mutedForeground} colors={colors} last />
           </View>
 
           {/* Points forts */}
@@ -332,7 +335,7 @@ export default function DailyDigestScreen() {
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.cardHeader}>
                 <Feather name="star" size={16} color="#f59e0b" />
-                <Text style={[styles.cardTitle, { color: colors.foreground }]}>Points forts</Text>
+                <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("dailyDigestScreen.pointsForts")}</Text>
               </View>
               <View style={styles.pointsContainer}>
                 {ai.points_forts.map((p, i) => (
@@ -348,7 +351,7 @@ export default function DailyDigestScreen() {
           {/* AI Öneriler */}
           {ai?.suggestions && ai.suggestions.length > 0 && (
             <>
-              <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>RECOMMANDATIONS IA</Text>
+              <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{t("dailyDigestScreen.sectionRecommendations")}</Text>
               {ai.suggestions.map((s, i) => (
                 <SuggestionCard key={i} item={s} />
               ))}
@@ -360,13 +363,13 @@ export default function DailyDigestScreen() {
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.cardHeader}>
                 <Feather name="check-circle" size={16} color="#22c55e" />
-                <Text style={[styles.cardTitle, { color: colors.foreground }]}>Taches accomplies</Text>
+                <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("dailyDigestScreen.tasksDone")}</Text>
               </View>
               <View style={styles.listContainer}>
-                {stats.tasks.recentCompleted.map((t, i) => (
+                {stats.tasks.recentCompleted.map((task, i) => (
                   <View key={i} style={[styles.listRow, { borderBottomColor: colors.border, borderBottomWidth: i < stats.tasks.recentCompleted.length - 1 ? StyleSheet.hairlineWidth : 0 }]}>
                     <Feather name="check" size={13} color="#22c55e" style={styles.listIcon} />
-                    <Text style={[styles.listText, { color: colors.foreground }]}>{t.title}</Text>
+                    <Text style={[styles.listText, { color: colors.foreground }]}>{task.title}</Text>
                   </View>
                 ))}
               </View>
@@ -378,16 +381,16 @@ export default function DailyDigestScreen() {
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.cardHeader}>
                 <Feather name="calendar" size={16} color="#8b5cf6" />
-                <Text style={[styles.cardTitle, { color: colors.foreground }]}>A venir cette semaine</Text>
+                <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("dailyDigestScreen.upcomingWeek")}</Text>
               </View>
               <View style={styles.listContainer}>
-                {stats.tasks.upcoming.map((t, i) => (
+                {stats.tasks.upcoming.map((task, i) => (
                   <View key={i} style={[styles.listRow, { borderBottomColor: colors.border, borderBottomWidth: i < stats.tasks.upcoming.length - 1 ? StyleSheet.hairlineWidth : 0 }]}>
-                    <View style={[styles.priorityDot, { backgroundColor: PRIORITY_DOTS[t.priority as keyof typeof PRIORITY_DOTS] ?? "#94a3b8" }]} />
-                    <Text style={[styles.listText, { color: colors.foreground, flex: 1 }]}>{t.title}</Text>
-                    {t.dueDate ? (
+                    <View style={[styles.priorityDot, { backgroundColor: PRIORITY_DOTS[task.priority as keyof typeof PRIORITY_DOTS] ?? "#94a3b8" }]} />
+                    <Text style={[styles.listText, { color: colors.foreground, flex: 1 }]}>{task.title}</Text>
+                    {task.dueDate ? (
                       <Text style={[styles.dueText, { color: colors.mutedForeground }]}>
-                        {new Date(t.dueDate).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+                        {new Date(task.dueDate).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
                       </Text>
                     ) : null}
                   </View>
@@ -401,7 +404,7 @@ export default function DailyDigestScreen() {
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.cardHeader}>
                 <Feather name="clock" size={16} color="#ec4899" />
-                <Text style={[styles.cardTitle, { color: colors.foreground }]}>Prochains rendez-vous</Text>
+                <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("dailyDigestScreen.nextAppointments")}</Text>
               </View>
               <View style={styles.listContainer}>
                 {stats.events.upcoming.map((e, i) => (
@@ -426,7 +429,7 @@ export default function DailyDigestScreen() {
               >
                 <View style={styles.cardHeader}>
                   <Feather name="sunrise" size={16} color={colors.primary} />
-                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>Pour demain</Text>
+                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("dailyDigestScreen.tomorrow")}</Text>
                 </View>
                 <Text style={[styles.demainMessage, { color: colors.foreground }]}>{ai.demain.message}</Text>
                 {ai.demain.priorites.map((p, i) => (
@@ -441,7 +444,7 @@ export default function DailyDigestScreen() {
 
           {/* Oluşturulma zamanı */}
           <Text style={[styles.generatedAt, { color: colors.mutedForeground }]}>
-            Bilan genere le {new Date(digest.generatedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+            {t("dailyDigestScreen.generatedAt", { time: new Date(digest.generatedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) })}
           </Text>
 
         </Animated.View>

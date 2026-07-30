@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 interface SubscriptionData {
   organisation: {
@@ -57,14 +58,14 @@ interface SubscriptionData {
   }>;
 }
 
-const PLAN_COLORS: Record<string, { color: string; bg: string; label: string; icon: keyof typeof Feather.glyphMap }> = {
-  starter:      { color: "#64748b", bg: "#f1f5f9", label: "Starter",       icon: "box" },
-  pro:          { color: "#3b82f6", bg: "#eff6ff", label: "Pro",            icon: "trending-up" },
-  business:     { color: "#8b5cf6", bg: "#f5f3ff", label: "Business",      icon: "briefcase" },
-  enterprise:   { color: "#f59e0b", bg: "#fffbeb", label: "Enterprise",    icon: "star" },
-  super_admin:  { color: "#ef4444", bg: "#fef2f2", label: "Super Admin",   icon: "shield" },
-  gratuit:      { color: "#22c55e", bg: "#f0fdf4", label: "Gratuit",       icon: "gift" },
-  trial:        { color: "#0891b2", bg: "#f0f9ff", label: "Essai",         icon: "clock" },
+const PLAN_COLORS: Record<string, { color: string; bg: string; labelKey: string; icon: keyof typeof Feather.glyphMap }> = {
+  starter:      { color: "#64748b", bg: "#f1f5f9", labelKey: "abonnementScreen.plan.starter",     icon: "box" },
+  pro:          { color: "#3b82f6", bg: "#eff6ff", labelKey: "abonnementScreen.plan.pro",         icon: "trending-up" },
+  business:     { color: "#8b5cf6", bg: "#f5f3ff", labelKey: "abonnementScreen.plan.business",    icon: "briefcase" },
+  enterprise:   { color: "#f59e0b", bg: "#fffbeb", labelKey: "abonnementScreen.plan.enterprise",  icon: "star" },
+  super_admin:  { color: "#ef4444", bg: "#fef2f2", labelKey: "abonnementScreen.plan.super_admin", icon: "shield" },
+  gratuit:      { color: "#22c55e", bg: "#f0fdf4", labelKey: "abonnementScreen.plan.gratuit",     icon: "gift" },
+  trial:        { color: "#0891b2", bg: "#f0f9ff", labelKey: "abonnementScreen.plan.trial",       icon: "clock" },
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -72,6 +73,13 @@ const STATUS_COLORS: Record<string, string> = {
   expirée: "#ef4444", expired: "#ef4444",
   suspendu: "#f59e0b", suspended: "#f59e0b",
   essai: "#0891b2", trial: "#0891b2",
+};
+
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  actif: "abonnementScreen.status.actif", active: "abonnementScreen.status.actif",
+  expirée: "abonnementScreen.status.expiree", expired: "abonnementScreen.status.expiree",
+  suspendu: "abonnementScreen.status.suspendu", suspended: "abonnementScreen.status.suspendu",
+  essai: "abonnementScreen.status.essai", trial: "abonnementScreen.status.essai",
 };
 
 function fmtDate(d: string | undefined) {
@@ -116,6 +124,7 @@ const usageStyles = StyleSheet.create({
 export default function AbonnementScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
 
@@ -162,7 +171,7 @@ export default function AbonnementScreen() {
       if (res.ok) {
         setShowUpgrade(false);
         setUpgradeMsg("");
-        Alert.alert("Demande envoyée", "Votre demande d'upgrade a été envoyée. Notre équipe vous contactera sous 24h.");
+        Alert.alert(t("abonnementScreen.upgradeSentTitle"), t("abonnementScreen.upgradeSent"));
       }
     } finally { setUpgradeLoading(false); }
   }
@@ -171,6 +180,7 @@ export default function AbonnementScreen() {
   const planCfg = PLAN_COLORS[plan] ?? PLAN_COLORS.starter;
   const subStatus = data?.subscription?.status ?? "actif";
   const statusColor = STATUS_COLORS[subStatus] ?? "#64748b";
+  const statusLabel = STATUS_LABEL_KEYS[subStatus] ? t(STATUS_LABEL_KEYS[subStatus]) : subStatus;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -179,7 +189,7 @@ export default function AbonnementScreen() {
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
-          <Text style={styles.headerTitle}>Mon Abonnement</Text>
+          <Text style={styles.headerTitle}>{t("abonnementScreen.headerTitle")}</Text>
           <Pressable onPress={onRefresh} style={styles.backBtn}>
             <Feather name="refresh-cw" size={16} color="#fff" />
           </Pressable>
@@ -193,11 +203,11 @@ export default function AbonnementScreen() {
               <Text style={styles.planName}>{data.organisation.name}</Text>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                 <View style={[styles.planBadge, { backgroundColor: "rgba(255,255,255,0.25)" }]}>
-                  <Text style={styles.planBadgeText}>{planCfg.label}</Text>
+                  <Text style={styles.planBadgeText}>{t(planCfg.labelKey)}</Text>
                 </View>
                 <View style={[styles.statusDot, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
                   <View style={[styles.statusDotInner, { backgroundColor: "#fff" }]} />
-                  <Text style={styles.statusDotText}>{subStatus}</Text>
+                  <Text style={styles.statusDotText}>{statusLabel}</Text>
                 </View>
               </View>
             </View>
@@ -217,16 +227,16 @@ export default function AbonnementScreen() {
           {/* Subscription details */}
           {data?.subscription && (
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.cardTitle, { color: colors.foreground }]}>Informations du plan</Text>
+              <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("abonnementScreen.planInfoTitle")}</Text>
               {[
-                { label: "Plan", value: planCfg.label },
-                { label: "Statut", value: subStatus, color: statusColor },
-                { label: "Cycle de facturation", value: data.subscription.billingCycle === "mensuel" ? "Mensuel" : data.subscription.billingCycle === "annuel" ? "Annuel" : data.subscription.billingCycle ?? "—" },
-                { label: "Montant", value: data.subscription.amount ? fmtEur(data.subscription.amount) : "—" },
-                { label: "Début", value: fmtDate(data.subscription.startDate) },
-                { label: "Renouvellement", value: fmtDate(data.subscription.endDate) },
+                { key: "plan", label: t("abonnementScreen.rowPlan"), value: t(planCfg.labelKey) },
+                { key: "statut", label: t("abonnementScreen.rowStatut"), value: statusLabel, color: statusColor },
+                { key: "billing", label: t("abonnementScreen.rowBillingCycle"), value: data.subscription.billingCycle === "mensuel" ? t("abonnementScreen.billingMensuel") : data.subscription.billingCycle === "annuel" ? t("abonnementScreen.billingAnnuel") : data.subscription.billingCycle ?? "—" },
+                { key: "montant", label: t("abonnementScreen.rowMontant"), value: data.subscription.amount ? fmtEur(data.subscription.amount) : "—" },
+                { key: "start", label: t("abonnementScreen.rowStart"), value: fmtDate(data.subscription.startDate) },
+                { key: "renewal", label: t("abonnementScreen.rowRenewal"), value: fmtDate(data.subscription.endDate) },
               ].map(r => (
-                <View key={r.label} style={[styles.detailRow, { borderColor: colors.border }]}>
+                <View key={r.key} style={[styles.detailRow, { borderColor: colors.border }]}>
                   <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>{r.label}</Text>
                   <Text style={[styles.detailValue, { color: r.color ?? colors.foreground }]}>{r.value}</Text>
                 </View>
@@ -237,21 +247,21 @@ export default function AbonnementScreen() {
           {/* Users */}
           {data?.organisation && (
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.cardTitle, { color: colors.foreground }]}>Licences utilisateurs</Text>
+              <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("abonnementScreen.licencesTitle")}</Text>
               <View style={styles.licenceRow}>
                 <View style={styles.licenceItem}>
                   <Text style={[styles.licenceNum, { color: planCfg.color }]}>{data.organisation.currentUsers}</Text>
-                  <Text style={[styles.licenceLbl, { color: colors.mutedForeground }]}>Utilisés</Text>
+                  <Text style={[styles.licenceLbl, { color: colors.mutedForeground }]}>{t("abonnementScreen.licenceUsed")}</Text>
                 </View>
                 <View style={[styles.licenceDivider, { backgroundColor: colors.border }]} />
                 <View style={styles.licenceItem}>
                   <Text style={[styles.licenceNum, { color: colors.foreground }]}>{data.organisation.maxUsers}</Text>
-                  <Text style={[styles.licenceLbl, { color: colors.mutedForeground }]}>Max autorisés</Text>
+                  <Text style={[styles.licenceLbl, { color: colors.mutedForeground }]}>{t("abonnementScreen.licenceMax")}</Text>
                 </View>
                 <View style={[styles.licenceDivider, { backgroundColor: colors.border }]} />
                 <View style={styles.licenceItem}>
                   <Text style={[styles.licenceNum, { color: "#22c55e" }]}>{Math.max(0, data.organisation.maxUsers - data.organisation.currentUsers)}</Text>
-                  <Text style={[styles.licenceLbl, { color: colors.mutedForeground }]}>Disponibles</Text>
+                  <Text style={[styles.licenceLbl, { color: colors.mutedForeground }]}>{t("abonnementScreen.licenceAvailable")}</Text>
                 </View>
               </View>
               <View style={[styles.licenceBar, { backgroundColor: colors.muted }]}>
@@ -266,14 +276,14 @@ export default function AbonnementScreen() {
           {/* Usage */}
           {data?.usage && (
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.cardTitle, { color: colors.foreground }]}>Utilisation</Text>
-              <UsageBar label="Contacts" used={data.usage.contacts} color={planCfg.color} />
-              <UsageBar label="Appels" used={data.usage.calls} color={planCfg.color} />
-              <UsageBar label="Tâches" used={data.usage.tasks} color={planCfg.color} />
-              <UsageBar label="Messages" used={data.usage.messages} color={planCfg.color} />
-              <UsageBar label="Documents" used={data.usage.documents} color={planCfg.color} />
+              <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("abonnementScreen.usageTitle")}</Text>
+              <UsageBar label={t("abonnementScreen.usageContacts")} used={data.usage.contacts} color={planCfg.color} />
+              <UsageBar label={t("abonnementScreen.usageCalls")} used={data.usage.calls} color={planCfg.color} />
+              <UsageBar label={t("abonnementScreen.usageTasks")} used={data.usage.tasks} color={planCfg.color} />
+              <UsageBar label={t("abonnementScreen.usageMessages")} used={data.usage.messages} color={planCfg.color} />
+              <UsageBar label={t("abonnementScreen.usageDocuments")} used={data.usage.documents} color={planCfg.color} />
               {data.usage.aiTokensLimit && (
-                <UsageBar label="Tokens IA" used={data.usage.aiTokensUsed ?? 0} total={data.usage.aiTokensLimit} color="#8b5cf6" />
+                <UsageBar label={t("abonnementScreen.usageAiTokens")} used={data.usage.aiTokensUsed ?? 0} total={data.usage.aiTokensLimit} color="#8b5cf6" />
               )}
             </View>
           )}
@@ -281,7 +291,7 @@ export default function AbonnementScreen() {
           {/* Features */}
           {data?.features && data.features.length > 0 && (
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.cardTitle, { color: colors.foreground }]}>Fonctionnalités incluses</Text>
+              <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("abonnementScreen.featuresTitle")}</Text>
               {data.features.map((f, i) => (
                 <View key={i} style={styles.featureRow}>
                   <Feather name="check" size={14} color={planCfg.color} />
@@ -294,18 +304,18 @@ export default function AbonnementScreen() {
           {/* Invoices */}
           {invoices.length > 0 && (
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.cardTitle, { color: colors.foreground }]}>Factures récentes</Text>
+              <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("abonnementScreen.invoicesTitle")}</Text>
               {invoices.slice(0, 5).map((inv, i) => (
                 <View key={i} style={[styles.invoiceRow, { borderColor: colors.border }]}>
                   <View>
-                    <Text style={[styles.invoiceRef, { color: colors.foreground }]}>{inv.reference || `Facture #${inv.id}`}</Text>
+                    <Text style={[styles.invoiceRef, { color: colors.foreground }]}>{inv.reference || t("abonnementScreen.invoiceFallback", { id: inv.id })}</Text>
                     <Text style={[styles.invoiceDate, { color: colors.mutedForeground }]}>{fmtDate(inv.date)}</Text>
                   </View>
                   <View style={{ alignItems: "flex-end" }}>
                     <Text style={[styles.invoiceAmount, { color: colors.foreground }]}>{fmtEur(inv.amount)}</Text>
                     <View style={[styles.invoiceStatus, { backgroundColor: inv.status === "payee" ? "#22c55e18" : "#f59e0b18" }]}>
                       <Text style={{ fontSize: 10, fontFamily: "Inter_600SemiBold", color: inv.status === "payee" ? "#22c55e" : "#f59e0b" }}>
-                        {inv.status === "payee" ? "Payée" : "En attente"}
+                        {inv.status === "payee" ? t("abonnementScreen.invoicePaid") : t("abonnementScreen.invoicePending")}
                       </Text>
                     </View>
                   </View>
@@ -321,19 +331,19 @@ export default function AbonnementScreen() {
               style={[styles.upgradeBtn, { backgroundColor: planCfg.color }]}
             >
               <Feather name="arrow-up-circle" size={18} color="#fff" />
-              <Text style={styles.upgradeBtnText}>Demander un upgrade</Text>
+              <Text style={styles.upgradeBtnText}>{t("abonnementScreen.upgradeBtn")}</Text>
             </Pressable>
           ) : (
             <View style={[styles.upgradeForm, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.upgradeFormTitle, { color: colors.foreground }]}>Demande d'évolution de plan</Text>
+              <Text style={[styles.upgradeFormTitle, { color: colors.foreground }]}>{t("abonnementScreen.upgradeFormTitle")}</Text>
               <Text style={[styles.upgradeFormSub, { color: colors.mutedForeground }]}>
-                Décrivez vos besoins et notre équipe vous contactera sous 24h.
+                {t("abonnementScreen.upgradeFormSub")}
               </Text>
               <TextInput
                 style={[styles.upgradeTextarea, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
                 value={upgradeMsg}
                 onChangeText={setUpgradeMsg}
-                placeholder="Ex: J'ai besoin de 20 utilisateurs et de l'API avancée..."
+                placeholder={t("abonnementScreen.upgradePlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 multiline
                 numberOfLines={4}
@@ -341,7 +351,7 @@ export default function AbonnementScreen() {
               />
               <View style={{ flexDirection: "row", gap: 8 }}>
                 <Pressable onPress={() => setShowUpgrade(false)} style={[styles.cancelBtn, { borderColor: colors.border }]}>
-                  <Text style={[styles.cancelBtnText, { color: colors.mutedForeground }]}>Annuler</Text>
+                  <Text style={[styles.cancelBtnText, { color: colors.mutedForeground }]}>{t("common.cancel")}</Text>
                 </Pressable>
                 <Pressable
                   onPress={handleUpgradeRequest}
@@ -349,7 +359,7 @@ export default function AbonnementScreen() {
                   style={[styles.sendBtn, { backgroundColor: planCfg.color, opacity: upgradeLoading || !upgradeMsg.trim() ? 0.6 : 1 }]}
                 >
                   {upgradeLoading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="send" size={14} color="#fff" />}
-                  <Text style={styles.sendBtnText}>Envoyer</Text>
+                  <Text style={styles.sendBtnText}>{t("abonnementScreen.send")}</Text>
                 </Pressable>
               </View>
             </View>
