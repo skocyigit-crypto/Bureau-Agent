@@ -27,6 +27,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 // ── Tipler ────────────────────────────────────────────────────────────────────
 
@@ -125,30 +126,30 @@ interface HistoryReport {
 const AUTO_REFRESH_MS = 15 * 60 * 1000;
 
 const RISK_CONFIG = {
-  kirmizi: { bg: ["#7c2d12", "#9a3412"] as [string, string], label: "RISQUE CRITIQUE", icon: "alert-octagon" as const, color: "#ef4444" },
-  sari: { bg: ["#78350f", "#92400e"] as [string, string], label: "RISQUE MODERE", icon: "alert-triangle" as const, color: "#f59e0b" },
-  yesil: { bg: ["#065f46", "#0f766e"] as [string, string], label: "EQUIPE EN BONNE SANTE", icon: "check-circle" as const, color: "#22c55e" },
+  kirmizi: { bg: ["#7c2d12", "#9a3412"] as [string, string], labelKey: "workforceAgentScreen.riskKirmizi", icon: "alert-octagon" as const, color: "#ef4444" },
+  sari: { bg: ["#78350f", "#92400e"] as [string, string], labelKey: "workforceAgentScreen.riskSari", icon: "alert-triangle" as const, color: "#f59e0b" },
+  yesil: { bg: ["#065f46", "#0f766e"] as [string, string], labelKey: "workforceAgentScreen.riskYesil", icon: "check-circle" as const, color: "#22c55e" },
 };
 
 const DURUM_CONFIG = {
-  kritik: { color: "#ef4444", bg: "#fef2f2", border: "#fca5a5", label: "Critique", icon: "alert-circle" as const },
-  dikkat: { color: "#f59e0b", bg: "#fefce8", border: "#fde047", label: "Attention", icon: "alert-triangle" as const },
-  normal: { color: "#3b82f6", bg: "#eff6ff", border: "#93c5fd", label: "Normal", icon: "check" as const },
-  mukemmel: { color: "#22c55e", bg: "#f0fdf4", border: "#86efac", label: "Excellent", icon: "star" as const },
+  kritik: { color: "#ef4444", bg: "#fef2f2", border: "#fca5a5", labelKey: "workforceAgentScreen.durumKritik", icon: "alert-circle" as const },
+  dikkat: { color: "#f59e0b", bg: "#fefce8", border: "#fde047", labelKey: "workforceAgentScreen.durumDikkat", icon: "alert-triangle" as const },
+  normal: { color: "#3b82f6", bg: "#eff6ff", border: "#93c5fd", labelKey: "workforceAgentScreen.durumNormal", icon: "check" as const },
+  mukemmel: { color: "#22c55e", bg: "#f0fdf4", border: "#86efac", labelKey: "workforceAgentScreen.durumMukemmel", icon: "star" as const },
 };
 
 const ETKI_COLORS = { yuksek: "#ef4444", orta: "#f59e0b", dusuk: "#22c55e" };
 const TREND_CONFIG = {
-  yukselis: { icon: "trending-up" as const, color: "#22c55e", label: "En hausse" },
-  stabil: { icon: "minus" as const, color: "#f59e0b", label: "Stable" },
-  dusus: { icon: "trending-down" as const, color: "#ef4444", label: "En baisse" },
+  yukselis: { icon: "trending-up" as const, color: "#22c55e", labelKey: "workforceAgentScreen.trendYukselis" },
+  stabil: { icon: "minus" as const, color: "#f59e0b", labelKey: "workforceAgentScreen.trendStabil" },
+  dusus: { icon: "trending-down" as const, color: "#ef4444", labelKey: "workforceAgentScreen.trendDusus" },
 };
 
 const PHASES_ORDERED = [
-  { key: "SCOUT", label: "Reconnaissance", icon: "search" as const, color: "#8b5cf6" },
-  { key: "DIAGNOSE", label: "Diagnostic", icon: "activity" as const, color: "#3b82f6" },
-  { key: "PRESCRIBE", label: "Plan d'action", icon: "zap" as const, color: "#f59e0b" },
-  { key: "FORECAST", label: "Prevision", icon: "eye" as const, color: "#22c55e" },
+  { key: "SCOUT", labelKey: "workforceAgentScreen.phaseScout", icon: "search" as const, color: "#8b5cf6" },
+  { key: "DIAGNOSE", labelKey: "workforceAgentScreen.phaseDiagnose", icon: "activity" as const, color: "#3b82f6" },
+  { key: "PRESCRIBE", labelKey: "workforceAgentScreen.phasePrescribe", icon: "zap" as const, color: "#f59e0b" },
+  { key: "FORECAST", labelKey: "workforceAgentScreen.phaseForecast", icon: "eye" as const, color: "#22c55e" },
 ];
 
 // ── Bileşenler ────────────────────────────────────────────────────────────────
@@ -159,6 +160,7 @@ function PhaseStatusRow({ phase, completed, durationMs, colors }: {
   durationMs?: number;
   colors: ReturnType<typeof useColors>;
 }) {
+  const { t } = useTranslation();
   return (
     <View style={[styles.phaseRow, { borderBottomColor: colors.border }]}>
       <View style={[styles.phaseIcon, { backgroundColor: completed ? phase.color + "22" : colors.muted + "30" }]}>
@@ -167,7 +169,7 @@ function PhaseStatusRow({ phase, completed, durationMs, colors }: {
           : <View style={[styles.phaseDot, { backgroundColor: colors.mutedForeground + "40" }]} />
         }
       </View>
-      <Text style={[styles.phaseLabel, { color: completed ? colors.foreground : colors.mutedForeground }]}>{phase.label}</Text>
+      <Text style={[styles.phaseLabel, { color: completed ? colors.foreground : colors.mutedForeground }]}>{t(phase.labelKey)}</Text>
       {completed && durationMs && (
         <Text style={[styles.phaseDuration, { color: colors.mutedForeground }]}>{(durationMs / 1000).toFixed(1)}s</Text>
       )}
@@ -210,6 +212,7 @@ export default function WorkforceAgentScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth, user } = useAuth();
+  const { t } = useTranslation();
   const isWeb = Platform.OS === "web";
   const isAdmin = user?.role === "administrateur" || user?.role === "super_admin";
 
@@ -258,7 +261,7 @@ export default function WorkforceAgentScreen() {
       const [agentRes] = await Promise.all([
         fetchAuth(`${API_BASE}/api/workforce-agent`),
       ]);
-      if (agentRes.status === 403) { setError("Acces reserve aux administrateurs."); return; }
+      if (agentRes.status === 403) { setError(t("workforceAgentScreen.accessDenied")); return; }
       if (!agentRes.ok) throw new Error("Erreur serveur");
       const json: AgentResponse = await agentRes.json();
       setData(json);
@@ -266,12 +269,12 @@ export default function WorkforceAgentScreen() {
       fadeAnim.setValue(0);
       Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: Platform.OS !== "web" }).start();
     } catch {
-      setError("Analyse impossible. Verifiez la connexion.");
+      setError(t("workforceAgentScreen.analysisFailed"));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [fetchAuth, isAdmin, fadeAnim, loadHistory]);
+  }, [fetchAuth, isAdmin, fadeAnim, loadHistory, t]);
 
   const scheduleAuto = useCallback(() => {
     if (refreshTimer.current) clearTimeout(refreshTimer.current);
@@ -307,10 +310,10 @@ export default function WorkforceAgentScreen() {
           <Feather name="arrow-left" size={22} color="#ffffff" />
         </Pressable>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Agent IA Equipe</Text>
+          <Text style={styles.headerTitle}>{t("workforceAgentScreen.title")}</Text>
           <View style={styles.agentBadge}>
             <View style={styles.agentDot} />
-            <Text style={styles.agentBadgeText}>ACTIF</Text>
+            <Text style={styles.agentBadgeText}>{t("workforceAgentScreen.active")}</Text>
           </View>
         </View>
         <Pressable onPress={onRefresh} hitSlop={12}>
@@ -320,7 +323,7 @@ export default function WorkforceAgentScreen() {
       <View style={styles.headerMeta}>
         <View style={styles.autoRefreshRow}>
           <Feather name="zap" size={10} color="#f59e0b" />
-          <Text style={styles.autoRefreshText}>Prochaine analyse: {countdownStr}</Text>
+          <Text style={styles.autoRefreshText}>{t("workforceAgentScreen.nextAnalysis", { time: countdownStr })}</Text>
         </View>
       </View>
     </View>
@@ -332,7 +335,7 @@ export default function WorkforceAgentScreen() {
       {topBar}
       <View style={styles.center}>
         <Feather name="lock" size={48} color={colors.mutedForeground} />
-        <Text style={[styles.centerTitle, { color: colors.foreground }]}>Acces reserve aux administrateurs</Text>
+        <Text style={[styles.centerTitle, { color: colors.foreground }]}>{t("workforceAgentScreen.accessDenied")}</Text>
       </View>
     </View>
   );
@@ -348,15 +351,15 @@ export default function WorkforceAgentScreen() {
               <Feather name="cpu" size={32} color="#ffffff" />
             </LinearGradient>
           </Animated.View>
-          <Text style={[styles.centerTitle, { color: colors.foreground }]}>Agent IA en cours d'analyse...</Text>
-          <Text style={[styles.centerSub, { color: colors.mutedForeground }]}>4 phases de raisonnement Gemini</Text>
+          <Text style={[styles.centerTitle, { color: colors.foreground }]}>{t("workforceAgentScreen.analyzing")}</Text>
+          <Text style={[styles.centerSub, { color: colors.mutedForeground }]}>{t("workforceAgentScreen.reasoningPhases")}</Text>
           <View style={styles.phaseList}>
             {PHASES_ORDERED.map((p, i) => (
               <View key={p.key} style={styles.loadingPhaseRow}>
                 <Animated.View style={[styles.loadingPhaseIcon, { backgroundColor: p.color + "22", opacity: pulseAnim }]}>
                   <Feather name={p.icon} size={13} color={p.color} />
                 </Animated.View>
-                <Text style={[styles.loadingPhaseLabel, { color: colors.mutedForeground }]}>{p.label}</Text>
+                <Text style={[styles.loadingPhaseLabel, { color: colors.mutedForeground }]}>{t(p.labelKey)}</Text>
               </View>
             ))}
           </View>
@@ -371,9 +374,9 @@ export default function WorkforceAgentScreen() {
       {topBar}
       <View style={styles.center}>
         <Feather name="alert-circle" size={40} color={colors.destructive} />
-        <Text style={[styles.centerTitle, { color: colors.foreground }]}>{error ?? "Erreur inconnue"}</Text>
+        <Text style={[styles.centerTitle, { color: colors.foreground }]}>{error ?? t("workforceAgentScreen.unknownError")}</Text>
         <Pressable style={[styles.retryBtn, { backgroundColor: colors.primary }]} onPress={() => load()}>
-          <Text style={[styles.retryText, { color: colors.secondary }]}>Relancer l'agent</Text>
+          <Text style={[styles.retryText, { color: colors.secondary }]}>{t("workforceAgentScreen.relaunch")}</Text>
         </Pressable>
       </View>
     </View>
@@ -395,9 +398,9 @@ export default function WorkforceAgentScreen() {
       {/* Tab bar */}
       <View style={[styles.tabBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {([
-          { key: "rapport", label: "Rapport IA", icon: "cpu" as const },
-          { key: "equipe", label: "Equipe", icon: "users" as const },
-          { key: "historique", label: "Historique", icon: "clock" as const },
+          { key: "rapport", label: t("workforceAgentScreen.tabRapport"), icon: "cpu" as const },
+          { key: "equipe", label: t("workforceAgentScreen.tabEquipe"), icon: "users" as const },
+          { key: "historique", label: t("workforceAgentScreen.tabHistorique"), icon: "clock" as const },
         ] as const).map((tab) => (
           <Pressable key={tab.key} style={[styles.tab, activeTab === tab.key && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]} onPress={() => setActiveTab(tab.key)}>
             <Feather name={tab.icon} size={14} color={activeTab === tab.key ? colors.primary : colors.mutedForeground} />
@@ -422,15 +425,15 @@ export default function WorkforceAgentScreen() {
                   <View style={styles.heroLeft}>
                     <View style={styles.heroRiskBadge}>
                       <Feather name={riskCfg.icon} size={12} color={riskCfg.color} />
-                      <Text style={[styles.heroRiskText, { color: riskCfg.color }]}>{riskCfg.label}</Text>
+                      <Text style={[styles.heroRiskText, { color: riskCfg.color }]}>{t(riskCfg.labelKey)}</Text>
                     </View>
-                    <Text style={styles.heroTitle}>Rapport Agent IA</Text>
+                    <Text style={styles.heroTitle}>{t("workforceAgentScreen.reportTitle")}</Text>
                     <Text style={styles.heroDate}>{date}</Text>
                   </View>
                   <View style={styles.heroScoreWrap}>
                     <Text style={styles.heroScoreNum}>{teamScore}</Text>
                     <Text style={styles.heroScoreUnit}>/100</Text>
-                    <Text style={styles.heroScoreLabel}>score equipe</Text>
+                    <Text style={styles.heroScoreLabel}>{t("workforceAgentScreen.teamScoreLabel")}</Text>
                   </View>
                 </View>
                 {phases.scout?.ekip_enerjisi && (
@@ -438,7 +441,7 @@ export default function WorkforceAgentScreen() {
                 )}
                 <View style={styles.heroFooter}>
                   <Feather name="cpu" size={11} color="rgba(255,255,255,0.6)" />
-                  <Text style={styles.heroFooterText}>{employeeCount} collaborateurs · {(totalAgentTime / 1000).toFixed(1)}s d'analyse · 4 phases Gemini</Text>
+                  <Text style={styles.heroFooterText}>{t("workforceAgentScreen.heroFooter", { count: employeeCount, time: (totalAgentTime / 1000).toFixed(1) })}</Text>
                 </View>
               </LinearGradient>
 
@@ -446,8 +449,8 @@ export default function WorkforceAgentScreen() {
               <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={styles.cardHeader}>
                   <Feather name="terminal" size={15} color="#8b5cf6" />
-                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>Journal de l'agent IA</Text>
-                  <Text style={[styles.cardSub, { color: colors.mutedForeground }]}>{(totalAgentTime / 1000).toFixed(1)}s total</Text>
+                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("workforceAgentScreen.agentLog")}</Text>
+                  <Text style={[styles.cardSub, { color: colors.mutedForeground }]}>{t("workforceAgentScreen.totalTime", { time: (totalAgentTime / 1000).toFixed(1) })}</Text>
                 </View>
                 {PHASES_ORDERED.map((phase) => {
                   const log = agentLog.find((l) => l.phase === phase.key);
@@ -460,7 +463,7 @@ export default function WorkforceAgentScreen() {
                 <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.cardHeader}>
                     <Feather name="search" size={15} color="#8b5cf6" />
-                    <Text style={[styles.cardTitle, { color: colors.foreground }]}>Phase 1 — Signaux detectes</Text>
+                    <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("workforceAgentScreen.phase1")}</Text>
                   </View>
                   {phases.scout.kritik_sinyaller?.map((s, i) => (
                     <View key={i} style={[styles.signalRow, { borderBottomColor: colors.border }]}>
@@ -484,12 +487,12 @@ export default function WorkforceAgentScreen() {
                     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                       <View style={styles.cardHeader}>
                         <Feather name="activity" size={15} color="#3b82f6" />
-                        <Text style={[styles.cardTitle, { color: colors.foreground }]}>Phase 2 — Dynamique equipe</Text>
+                        <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("workforceAgentScreen.phase2")}</Text>
                       </View>
                       <Text style={[styles.cardBodyText, { color: colors.foreground }]}>{phases.diagnose.ekip_dinamikleri}</Text>
                       {phases.diagnose.darbogazlar?.length > 0 && (
                         <View style={[styles.bottleneckWrap, { borderTopColor: colors.border }]}>
-                          <Text style={[styles.bottleneckTitle, { color: colors.mutedForeground }]}>GOULOTS D'ETRANGLEMENT</Text>
+                          <Text style={[styles.bottleneckTitle, { color: colors.mutedForeground }]}>{t("workforceAgentScreen.bottlenecks")}</Text>
                           {phases.diagnose.darbogazlar.map((d, i) => (
                             <View key={i} style={styles.bottleneckRow}>
                               <Feather name="arrow-right" size={12} color="#ef4444" />
@@ -506,23 +509,23 @@ export default function WorkforceAgentScreen() {
                     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                       <View style={styles.cardHeader}>
                         <Feather name="users" size={15} color="#3b82f6" />
-                        <Text style={[styles.cardTitle, { color: colors.foreground }]}>Diagnostic individuel</Text>
+                        <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("workforceAgentScreen.individualDiagnosis")}</Text>
                       </View>
-                      {phases.diagnose.bireysel_teshis.map((t, i) => {
-                        const cfg = DURUM_CONFIG[t.durum] ?? DURUM_CONFIG.normal;
+                      {phases.diagnose.bireysel_teshis.map((d, i) => {
+                        const cfg = DURUM_CONFIG[d.durum] ?? DURUM_CONFIG.normal;
                         return (
                           <View key={i} style={[styles.diagRow, { borderBottomColor: colors.border, borderBottomWidth: i < phases.diagnose!.bireysel_teshis.length - 1 ? StyleSheet.hairlineWidth : 0 }]}>
                             <View style={[styles.diagStatus, { backgroundColor: cfg.bg, borderColor: cfg.border }]}>
                               <Feather name={cfg.icon} size={11} color={cfg.color} />
-                              <Text style={[styles.diagStatusText, { color: cfg.color }]}>{cfg.label}</Text>
+                              <Text style={[styles.diagStatusText, { color: cfg.color }]}>{t(cfg.labelKey)}</Text>
                             </View>
-                            <Text style={[styles.diagName, { color: colors.foreground }]}>{t.nom}</Text>
-                            <Text style={[styles.diagDetail, { color: "#22c55e" }]}>{t.guc}</Text>
-                            {t.durum !== "mukemmel" && t.durum !== "normal" && (
-                              <Text style={[styles.diagDetail, { color: "#ef4444" }]}>{t.zayiflik}</Text>
+                            <Text style={[styles.diagName, { color: colors.foreground }]}>{d.nom}</Text>
+                            <Text style={[styles.diagDetail, { color: "#22c55e" }]}>{d.guc}</Text>
+                            {d.durum !== "mukemmel" && d.durum !== "normal" && (
+                              <Text style={[styles.diagDetail, { color: "#ef4444" }]}>{d.zayiflik}</Text>
                             )}
-                            {t.kok_neden && t.durum !== "mukemmel" && (
-                              <Text style={[styles.diagKok, { color: colors.mutedForeground }]}>Cause: {t.kok_neden}</Text>
+                            {d.kok_neden && d.durum !== "mukemmel" && (
+                              <Text style={[styles.diagKok, { color: colors.mutedForeground }]}>{t("workforceAgentScreen.cause", { cause: d.kok_neden })}</Text>
                             )}
                           </View>
                         );
@@ -537,12 +540,12 @@ export default function WorkforceAgentScreen() {
                 <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.cardHeader}>
                     <Feather name="zap" size={15} color="#f59e0b" />
-                    <Text style={[styles.cardTitle, { color: colors.foreground }]}>Phase 3 — Plan d'action</Text>
+                    <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("workforceAgentScreen.phase3")}</Text>
                   </View>
                   {phases.prescribe.acil_aksiyonlar?.map((a, i) => (
                     <View key={i} style={[styles.actionRow, { borderBottomColor: colors.border, borderBottomWidth: i < (phases.prescribe!.acil_aksiyonlar?.length ?? 0) - 1 ? StyleSheet.hairlineWidth : 0 }]}>
                       <View style={[styles.actionEtki, { backgroundColor: ETKI_COLORS[a.etki] + "20", borderColor: ETKI_COLORS[a.etki] + "60" }]}>
-                        <Text style={[styles.actionEtkiText, { color: ETKI_COLORS[a.etki] }]}>{a.etki === "yuksek" ? "URGENT" : a.etki === "orta" ? "MOYEN" : "FAIBLE"}</Text>
+                        <Text style={[styles.actionEtkiText, { color: ETKI_COLORS[a.etki] }]}>{a.etki === "yuksek" ? t("workforceAgentScreen.impactHigh") : a.etki === "orta" ? t("workforceAgentScreen.impactMedium") : t("workforceAgentScreen.impactLow")}</Text>
                       </View>
                       <View style={styles.actionContent}>
                         <Text style={[styles.actionText, { color: colors.foreground }]}>{a.aksiyon}</Text>
@@ -555,7 +558,7 @@ export default function WorkforceAgentScreen() {
                   ))}
                   {phases.prescribe.bireysel_gorusme?.length > 0 && (
                     <View style={[styles.meetingSection, { borderTopColor: colors.border }]}>
-                      <Text style={[styles.meetingTitle, { color: colors.mutedForeground }]}>ENTRETIENS INDIVIDUELS RECOMMANDES</Text>
+                      <Text style={[styles.meetingTitle, { color: colors.mutedForeground }]}>{t("workforceAgentScreen.recommendedMeetings")}</Text>
                       {phases.prescribe.bireysel_gorusme.map((g, i) => (
                         <View key={i} style={styles.meetingRow}>
                           <Feather name="user" size={12} color="#8b5cf6" />
@@ -573,7 +576,7 @@ export default function WorkforceAgentScreen() {
                   <LinearGradient colors={["rgba(99,102,241,0.1)", "rgba(99,102,241,0.02)"]} style={styles.forecastGradient}>
                     <View style={styles.cardHeader}>
                       <Feather name="eye" size={15} color="#6366f1" />
-                      <Text style={[styles.cardTitle, { color: colors.foreground }]}>Phase 4 — Prevision & Apprentissage</Text>
+                      <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("workforceAgentScreen.phase4")}</Text>
                     </View>
                     <View style={styles.forecastTrendRow}>
                       {(() => {
@@ -581,8 +584,8 @@ export default function WorkforceAgentScreen() {
                         return (
                           <>
                             <Feather name={tc.icon} size={18} color={tc.color} />
-                            <Text style={[styles.forecastTrendLabel, { color: tc.color }]}>{tc.label}</Text>
-                            <Text style={[styles.forecastConfidence, { color: colors.mutedForeground }]}>Confiance: {phases.forecast!.oneri_skoru}%</Text>
+                            <Text style={[styles.forecastTrendLabel, { color: tc.color }]}>{t(tc.labelKey)}</Text>
+                            <Text style={[styles.forecastConfidence, { color: colors.mutedForeground }]}>{t("workforceAgentScreen.confidence", { score: phases.forecast!.oneri_skoru })}</Text>
                           </>
                         );
                       })()}
@@ -611,7 +614,7 @@ export default function WorkforceAgentScreen() {
               <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={styles.cardHeader}>
                   <Feather name="users" size={15} color={colors.primary} />
-                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>Tous les collaborateurs ({employeeCount})</Text>
+                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("workforceAgentScreen.allCollaborators", { count: employeeCount })}</Text>
                 </View>
                 {[...employees].sort((a, b) => b.score - a.score).map((emp, i) => (
                   <EmployeeRow key={emp.id} emp={emp} colors={colors} />
@@ -619,19 +622,19 @@ export default function WorkforceAgentScreen() {
               </View>
 
               {/* Diagnoses rapides */}
-              {phases.diagnose?.bireysel_teshis?.map((t, i) => {
-                const cfg = DURUM_CONFIG[t.durum] ?? DURUM_CONFIG.normal;
+              {phases.diagnose?.bireysel_teshis?.map((d, i) => {
+                const cfg = DURUM_CONFIG[d.durum] ?? DURUM_CONFIG.normal;
                 return (
                   <View key={i} style={[styles.diagCard, { backgroundColor: cfg.bg, borderColor: cfg.border }]}>
                     <View style={styles.diagCardHeader}>
                       <Feather name={cfg.icon} size={14} color={cfg.color} />
-                      <Text style={[styles.diagCardName, { color: cfg.color }]}>{t.nom}</Text>
+                      <Text style={[styles.diagCardName, { color: cfg.color }]}>{d.nom}</Text>
                       <View style={[styles.diagCardBadge, { backgroundColor: cfg.color + "20" }]}>
-                        <Text style={[styles.diagCardBadgeText, { color: cfg.color }]}>{cfg.label}</Text>
+                        <Text style={[styles.diagCardBadgeText, { color: cfg.color }]}>{t(cfg.labelKey)}</Text>
                       </View>
                     </View>
-                    <Text style={[styles.diagCardGuc, { color: cfg.color }]}>{t.guc}</Text>
-                    {t.durum !== "mukemmel" && <Text style={[styles.diagCardZayif, { color: colors.mutedForeground }]}>{t.zayiflik}</Text>}
+                    <Text style={[styles.diagCardGuc, { color: cfg.color }]}>{d.guc}</Text>
+                    {d.durum !== "mukemmel" && <Text style={[styles.diagCardZayif, { color: colors.mutedForeground }]}>{d.zayiflik}</Text>}
                   </View>
                 );
               })}
@@ -644,8 +647,8 @@ export default function WorkforceAgentScreen() {
               {history.length === 0 ? (
                 <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <Feather name="clock" size={32} color={colors.mutedForeground} />
-                  <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucun historique disponible.</Text>
-                  <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>Ce rapport sera sauvegarde apres chaque analyse.</Text>
+                  <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("workforceAgentScreen.noHistory")}</Text>
+                  <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>{t("workforceAgentScreen.noHistorySub")}</Text>
                 </View>
               ) : (
                 history.map((r, i) => {
@@ -667,15 +670,15 @@ export default function WorkforceAgentScreen() {
                       <View style={styles.histStats}>
                         <View style={styles.histStat}>
                           <Feather name="alert-circle" size={11} color="#ef4444" />
-                          <Text style={[styles.histStatText, { color: colors.mutedForeground }]}>{r.errorsFound} critique(s)</Text>
+                          <Text style={[styles.histStatText, { color: colors.mutedForeground }]}>{t("workforceAgentScreen.criticalCount", { count: r.errorsFound })}</Text>
                         </View>
                         <View style={styles.histStat}>
                           <Feather name="alert-triangle" size={11} color="#f59e0b" />
-                          <Text style={[styles.histStatText, { color: colors.mutedForeground }]}>{r.warningsFound} attention</Text>
+                          <Text style={[styles.histStatText, { color: colors.mutedForeground }]}>{t("workforceAgentScreen.attentionCount", { count: r.warningsFound })}</Text>
                         </View>
                         <View style={styles.histStat}>
                           <Feather name="zap" size={11} color="#22c55e" />
-                          <Text style={[styles.histStatText, { color: colors.mutedForeground }]}>{r.suggestionsCount} actions</Text>
+                          <Text style={[styles.histStatText, { color: colors.mutedForeground }]}>{t("workforceAgentScreen.actionsCount", { count: r.suggestionsCount })}</Text>
                         </View>
                       </View>
                     </View>
@@ -689,7 +692,7 @@ export default function WorkforceAgentScreen() {
           <View style={styles.footerRow}>
             <Feather name="cpu" size={11} color={colors.mutedForeground} />
             <Text style={[styles.footerText, { color: colors.mutedForeground }]}>
-              Gemini AI · {new Date(data.generatedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} · Auto-analyse {countdownStr}
+              {t("workforceAgentScreen.footer", { time: new Date(data.generatedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }), countdown: countdownStr })}
             </Text>
           </View>
 

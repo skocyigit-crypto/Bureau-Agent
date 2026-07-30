@@ -25,6 +25,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 // ───────────────────────── i18n / langues ────────────────────────────────────
 type Lang = "fr" | "tr" | "en";
@@ -310,6 +311,7 @@ export default function VoiceAssistantScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth, user } = useAuth();
+  const { t } = useTranslation();
   const isWeb = Platform.OS === "web";
 
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
@@ -689,10 +691,10 @@ export default function VoiceAssistantScreen() {
   }
 
   function submitText() {
-    const t = textInput.trim();
-    if (!t || voiceState === "processing") return;
+    const txt = textInput.trim();
+    if (!txt || voiceState === "processing") return;
     setTextInput("");
-    processCommand(t);
+    processCommand(txt);
   }
 
   function clearChat() {
@@ -958,7 +960,7 @@ export default function VoiceAssistantScreen() {
         </ScrollView>
       ) : panel === "commands" ? (
         <ScrollView style={styles.commandsPanel} contentContainerStyle={styles.commandsPanelContent}>
-          <Text style={[styles.commandsPanelTitle, { color: colors.foreground }]}>Commands</Text>
+          <Text style={[styles.commandsPanelTitle, { color: colors.foreground }]}>{t("voiceAssistantScreen.commands")}</Text>
           {commands.slice(0, 30).map((c, i) => (
             <Pressable
               key={i}

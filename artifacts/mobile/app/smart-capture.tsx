@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 const ACCENT = "#0d9488";
 
@@ -67,30 +68,30 @@ interface Capture {
   fileSize?: number;
 }
 
-const DOC_TYPE_MAP: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  facture:         { label: "Facture",            color: "#ef4444", icon: "file-text" },
-  devis:           { label: "Devis",              color: "#f59e0b", icon: "file" },
-  bon_commande:    { label: "Bon de commande",    color: "#8b5cf6", icon: "shopping-cart" },
-  bon_livraison:   { label: "Bon de livraison",   color: "#7c3aed", icon: "package" },
-  contrat:         { label: "Contrat",            color: "#b45309", icon: "file-text" },
-  courrier:        { label: "Courrier",           color: "#64748b", icon: "mail" },
-  carte_visite:    { label: "Carte de visite",    color: "#0d9488", icon: "credit-card" },
-  releve_bancaire: { label: "Relevé bancaire",    color: "#15803d", icon: "dollar-sign" },
-  note_frais:      { label: "Note de frais",      color: "#65a30d", icon: "dollar-sign" },
-  cv:              { label: "CV / Résumé",         color: "#16a34a", icon: "user" },
-  rapport:         { label: "Rapport",            color: "#0891b2", icon: "bar-chart-2" },
-  formulaire:      { label: "Formulaire",         color: "#db2777", icon: "list" },
-  piece_identite:  { label: "Pièce d'identité",   color: "#ef4444", icon: "shield" },
-  attestation:     { label: "Attestation",        color: "#ca8a04", icon: "award" },
-  planning:        { label: "Planning",           color: "#0284c7", icon: "calendar" },
-  inventaire:      { label: "Inventaire",         color: "#0d9488", icon: "list" },
-  inconnu:         { label: "Type inconnu",       color: "#94a3b8", icon: "file" },
+const DOC_TYPE_MAP: Record<string, { labelKey: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
+  facture:         { labelKey: "smartCaptureScreen.docFacture",            color: "#ef4444", icon: "file-text" },
+  devis:           { labelKey: "smartCaptureScreen.docDevis",              color: "#f59e0b", icon: "file" },
+  bon_commande:    { labelKey: "smartCaptureScreen.docBonCommande",    color: "#8b5cf6", icon: "shopping-cart" },
+  bon_livraison:   { labelKey: "smartCaptureScreen.docBonLivraison",   color: "#7c3aed", icon: "package" },
+  contrat:         { labelKey: "smartCaptureScreen.docContrat",            color: "#b45309", icon: "file-text" },
+  courrier:        { labelKey: "smartCaptureScreen.docCourrier",           color: "#64748b", icon: "mail" },
+  carte_visite:    { labelKey: "smartCaptureScreen.docCarteVisite",    color: "#0d9488", icon: "credit-card" },
+  releve_bancaire: { labelKey: "smartCaptureScreen.docReleveBancaire",    color: "#15803d", icon: "dollar-sign" },
+  note_frais:      { labelKey: "smartCaptureScreen.docNoteFrais",      color: "#65a30d", icon: "dollar-sign" },
+  cv:              { labelKey: "smartCaptureScreen.docCv",         color: "#16a34a", icon: "user" },
+  rapport:         { labelKey: "smartCaptureScreen.docRapport",            color: "#0891b2", icon: "bar-chart-2" },
+  formulaire:      { labelKey: "smartCaptureScreen.docFormulaire",         color: "#db2777", icon: "list" },
+  piece_identite:  { labelKey: "smartCaptureScreen.docPieceIdentite",   color: "#ef4444", icon: "shield" },
+  attestation:     { labelKey: "smartCaptureScreen.docAttestation",        color: "#ca8a04", icon: "award" },
+  planning:        { labelKey: "smartCaptureScreen.docPlanning",           color: "#0284c7", icon: "calendar" },
+  inventaire:      { labelKey: "smartCaptureScreen.docInventaire",         color: "#0d9488", icon: "list" },
+  inconnu:         { labelKey: "smartCaptureScreen.docInconnu",       color: "#94a3b8", icon: "file" },
 };
 
-const PRIORITY_MAP: Record<string, { color: string; label: string }> = {
-  haute:   { color: "#ef4444", label: "Haute" },
-  moyenne: { color: "#f59e0b", label: "Moyenne" },
-  basse:   { color: "#22c55e", label: "Basse" },
+const PRIORITY_MAP: Record<string, { color: string; labelKey: string }> = {
+  haute:   { color: "#ef4444", labelKey: "smartCaptureScreen.prioHaute" },
+  moyenne: { color: "#f59e0b", labelKey: "smartCaptureScreen.prioMoyenne" },
+  basse:   { color: "#22c55e", labelKey: "smartCaptureScreen.prioBasse" },
 };
 
 const MODULE_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
@@ -101,11 +102,11 @@ const MODULE_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
 
 // Champs mis en avant en tete de la fiche de triage (montant a payer, echeance,
 // fournisseur). On cherche plusieurs alias car l'IA ne nomme pas toujours pareil.
-const KEY_FIELD_ALIASES: { label: string; icon: keyof typeof Feather.glyphMap; keys: string[] }[] = [
-  { label: "Montant TTC", icon: "dollar-sign", keys: ["montantTTC", "montant_ttc", "montantTotal", "montant"] },
-  { label: "Échéance",     icon: "calendar",    keys: ["echeance", "dateEcheance", "date_echeance", "dueDate", "validite"] },
-  { label: "Émetteur",     icon: "briefcase",   keys: ["fournisseur", "expediteur", "societe", "client", "emetteur"] },
-  { label: "Référence",    icon: "hash",        keys: ["numero", "reference", "ref"] },
+const KEY_FIELD_ALIASES: { labelKey: string; icon: keyof typeof Feather.glyphMap; keys: string[] }[] = [
+  { labelKey: "smartCaptureScreen.fieldMontantTTC", icon: "dollar-sign", keys: ["montantTTC", "montant_ttc", "montantTotal", "montant"] },
+  { labelKey: "smartCaptureScreen.fieldEcheance",     icon: "calendar",    keys: ["echeance", "dateEcheance", "date_echeance", "dueDate", "validite"] },
+  { labelKey: "smartCaptureScreen.fieldEmetteur",     icon: "briefcase",   keys: ["fournisseur", "expediteur", "societe", "client", "emetteur"] },
+  { labelKey: "smartCaptureScreen.fieldReference",    icon: "hash",        keys: ["numero", "reference", "ref"] },
 ];
 
 function pickField(fields: Record<string, any>, keys: string[]): string | null {
@@ -120,6 +121,7 @@ export default function SmartCaptureScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
+  const { t } = useTranslation();
   const isWeb = Platform.OS === "web";
 
   const [capture, setCapture] = useState<Capture | null>(null);
@@ -155,7 +157,7 @@ export default function SmartCaptureScreen() {
     try {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert("Autorisation requise", "Activez l'accès à la caméra pour photographier un document.");
+        Alert.alert(t("smartCaptureScreen.permRequired"), t("smartCaptureScreen.permCameraMsg"));
         return;
       }
       const shot = await ImagePicker.launchCameraAsync({
@@ -170,7 +172,7 @@ export default function SmartCaptureScreen() {
         setActionResults([]);
       }
     } catch {
-      Alert.alert("Erreur caméra", "Impossible d'ouvrir la caméra.");
+      Alert.alert(t("smartCaptureScreen.cameraError"), t("smartCaptureScreen.cameraErrorMsg"));
     }
   }
 
@@ -178,7 +180,7 @@ export default function SmartCaptureScreen() {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert("Autorisation requise", "Activez l'accès à la galerie pour choisir une image.");
+        Alert.alert(t("smartCaptureScreen.permRequired"), t("smartCaptureScreen.permGalleryMsg"));
         return;
       }
       const picked = await ImagePicker.launchImageLibraryAsync({
@@ -192,7 +194,7 @@ export default function SmartCaptureScreen() {
         setActionResults([]);
       }
     } catch {
-      Alert.alert("Erreur galerie", "Impossible d'ouvrir la galerie.");
+      Alert.alert(t("smartCaptureScreen.galleryError"), t("smartCaptureScreen.galleryErrorMsg"));
     }
   }
 
@@ -202,7 +204,7 @@ export default function SmartCaptureScreen() {
     // s'appuie sur la taille reelle du fichier quand le picker la fournit;
     // sinon on laisse passer et le serveur tranchera.
     if (capture.fileSize && capture.fileSize > 25 * 1024 * 1024) {
-      Alert.alert("Image trop lourde", "Cette photo est trop volumineuse. Reprenez-la d'un peu plus loin ou réessayez.");
+      Alert.alert(t("smartCaptureScreen.imageTooLarge"), t("smartCaptureScreen.imageTooLargeMsg"));
       return;
     }
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -231,7 +233,7 @@ export default function SmartCaptureScreen() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        Alert.alert("Analyse impossible", err.error ?? "Impossible d'analyser cette image.");
+        Alert.alert(t("smartCaptureScreen.analysisImpossible"), err.error ?? t("smartCaptureScreen.analysisImpossibleMsg"));
         return;
       }
       const d: AnalysisResult = await res.json();
@@ -252,7 +254,7 @@ export default function SmartCaptureScreen() {
       setEditing(false);
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
-      Alert.alert("Erreur réseau", "Impossible de contacter le serveur.");
+      Alert.alert(t("smartCaptureScreen.networkError"), t("smartCaptureScreen.networkErrorMsg"));
     } finally {
       setAnalysing(false);
     }
@@ -294,11 +296,11 @@ export default function SmartCaptureScreen() {
           extractedFields: { ...result.extractedFields, ...ov },
         }),
       });
-      const d = await res.json().catch(() => ({ success: false, message: "Erreur" }));
+      const d = await res.json().catch(() => ({ success: false, message: t("smartCaptureScreen.errorGeneric") }));
       setActionResults(prev => [...prev, { ...d, action: act.action, module: act.module }]);
       if (d.success && Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
-      setActionResults(prev => [...prev, { success: false, action: act.action, module: act.module, message: "Erreur réseau" }]);
+      setActionResults(prev => [...prev, { success: false, action: act.action, module: act.module, message: t("smartCaptureScreen.networkError") }]);
     } finally {
       setActionLoading(null);
     }
@@ -326,7 +328,7 @@ export default function SmartCaptureScreen() {
       setActionResults(prev => [...prev, ...results]);
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
-      Alert.alert("Erreur réseau", "Impossible de valider les actions.");
+      Alert.alert(t("smartCaptureScreen.networkError"), t("smartCaptureScreen.validateActionsFailed"));
     } finally {
       setBatchLoading(false);
     }
@@ -368,8 +370,8 @@ export default function SmartCaptureScreen() {
           <Feather name="arrow-left" size={20} color="#fff" />
         </Pressable>
         <View>
-          <Text style={styles.headerTitle}>Capture Intelligente</Text>
-          <Text style={styles.headerSub}>Photographiez un courrier ou une facture</Text>
+          <Text style={styles.headerTitle}>{t("smartCaptureScreen.title")}</Text>
+          <Text style={styles.headerSub}>{t("smartCaptureScreen.subtitle")}</Text>
         </View>
       </View>
 
@@ -380,17 +382,17 @@ export default function SmartCaptureScreen() {
             <View style={[styles.captureIcon, { backgroundColor: ACCENT + "18" }]}>
               <Feather name="camera" size={30} color={ACCENT} />
             </View>
-            <Text style={[styles.captureTitle, { color: colors.foreground }]}>Capturez un document</Text>
+            <Text style={[styles.captureTitle, { color: colors.foreground }]}>{t("smartCaptureScreen.captureTitle")}</Text>
             <Text style={[styles.captureSub, { color: colors.mutedForeground }]}>
-              L'IA lit la facture ou le courrier, le relie au bon contact et vous propose les prochaines actions.
+              {t("smartCaptureScreen.captureSub")}
             </Text>
             <Pressable onPress={takePhoto} style={styles.primaryBtn}>
               <Feather name="camera" size={18} color="#fff" />
-              <Text style={styles.primaryBtnText}>Prendre une photo</Text>
+              <Text style={styles.primaryBtnText}>{t("smartCaptureScreen.takePhoto")}</Text>
             </Pressable>
             <Pressable onPress={pickFromGallery} style={[styles.secondaryBtn, { borderColor: colors.border }]}>
               <Feather name="image" size={16} color={colors.mutedForeground} />
-              <Text style={[styles.secondaryBtnText, { color: colors.mutedForeground }]}>Choisir dans la galerie</Text>
+              <Text style={[styles.secondaryBtnText, { color: colors.mutedForeground }]}>{t("smartCaptureScreen.pickGallery")}</Text>
             </Pressable>
           </View>
         ) : (
@@ -405,14 +407,14 @@ export default function SmartCaptureScreen() {
         {capture && !result && (
           <Pressable onPress={analyse} disabled={analysing} style={[styles.primaryBtn, { marginTop: 12, opacity: analysing ? 0.7 : 1 }]}>
             {analysing ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="cpu" size={18} color="#fff" />}
-            <Text style={styles.primaryBtnText}>{analysing ? "Analyse en cours…" : "Analyser avec l'IA"}</Text>
+            <Text style={styles.primaryBtnText}>{analysing ? t("smartCaptureScreen.analysing") : t("smartCaptureScreen.analyseWithAI")}</Text>
           </Pressable>
         )}
 
         {analysing && (
           <View style={[styles.analysingCard, { backgroundColor: ACCENT + "10", borderColor: ACCENT }]}>
             <ActivityIndicator size="small" color={ACCENT} />
-            <Text style={[styles.analysingText, { color: ACCENT }]}>Lecture du document, extraction et triage…</Text>
+            <Text style={[styles.analysingText, { color: ACCENT }]}>{t("smartCaptureScreen.readingDoc")}</Text>
           </View>
         )}
 
@@ -425,14 +427,14 @@ export default function SmartCaptureScreen() {
                   <Feather name={docCfg.icon} size={20} color={docCfg.color} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.resultTitle, { color: colors.foreground }]} numberOfLines={2}>{result.title || docCfg.label}</Text>
+                  <Text style={[styles.resultTitle, { color: colors.foreground }]} numberOfLines={2}>{result.title || t(docCfg.labelKey)}</Text>
                   <View style={{ flexDirection: "row", gap: 6, marginTop: 3 }}>
                     <View style={[styles.badge, { backgroundColor: docCfg.color + "18" }]}>
-                      <Text style={[styles.badgeText, { color: docCfg.color }]}>{docCfg.label}</Text>
+                      <Text style={[styles.badgeText, { color: docCfg.color }]}>{t(docCfg.labelKey)}</Text>
                     </View>
                     <View style={[styles.badge, { backgroundColor: result.confidence >= 0.8 ? "#22c55e18" : "#f59e0b18" }]}>
                       <Text style={[styles.badgeText, { color: result.confidence >= 0.8 ? "#22c55e" : "#f59e0b" }]}>
-                        {Math.round(result.confidence * 100)}% confiance
+                        {t("smartCaptureScreen.confidence", { percent: Math.round(result.confidence * 100) })}
                       </Text>
                     </View>
                   </View>
@@ -446,7 +448,7 @@ export default function SmartCaptureScreen() {
                     <View key={i} style={[styles.keyChip, { backgroundColor: colors.background, borderColor: edited ? ACCENT + "55" : colors.border }]}>
                       <Feather name={f.icon} size={12} color={ACCENT} />
                       <View style={{ flex: 1 }}>
-                        <Text style={[styles.keyLabel, { color: colors.mutedForeground }]}>{f.label}</Text>
+                        <Text style={[styles.keyLabel, { color: colors.mutedForeground }]}>{t(f.labelKey)}</Text>
                         <Text style={[styles.keyValue, { color: colors.foreground }]} numberOfLines={1}>{f.value}</Text>
                       </View>
                     </View>
@@ -455,7 +457,7 @@ export default function SmartCaptureScreen() {
                     <View style={[styles.keyChip, { backgroundColor: colors.background, borderColor: colors.border }]}>
                       <Feather name="user-check" size={12} color={ACCENT} />
                       <View style={{ flex: 1 }}>
-                        <Text style={[styles.keyLabel, { color: colors.mutedForeground }]}>Contact lié</Text>
+                        <Text style={[styles.keyLabel, { color: colors.mutedForeground }]}>{t("smartCaptureScreen.linkedContact")}</Text>
                         <Text style={[styles.keyValue, { color: colors.foreground }]} numberOfLines={1}>{selectedContact.name}</Text>
                       </View>
                     </View>
@@ -466,32 +468,32 @@ export default function SmartCaptureScreen() {
               {/* Panneau d'edition des champs cles avant validation */}
               {editing && (
                 <View style={[styles.editPanel, { borderColor: ACCENT + "40", backgroundColor: ACCENT + "08" }]}>
-                  <Text style={[styles.editFieldLabel, { color: colors.mutedForeground }]}>Montant TTC</Text>
+                  <Text style={[styles.editFieldLabel, { color: colors.mutedForeground }]}>{t("smartCaptureScreen.fieldMontantTTC")}</Text>
                   <TextInput
                     value={editMontant}
                     onChangeText={setEditMontant}
                     keyboardType="decimal-pad"
-                    placeholder="ex : 1250.00"
+                    placeholder={t("smartCaptureScreen.montantPlaceholder")}
                     placeholderTextColor={colors.mutedForeground}
                     style={[styles.editInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
                   />
-                  <Text style={[styles.editFieldLabel, { color: colors.mutedForeground }]}>Échéance</Text>
+                  <Text style={[styles.editFieldLabel, { color: colors.mutedForeground }]}>{t("smartCaptureScreen.fieldEcheance")}</Text>
                   <TextInput
                     value={editEcheance}
                     onChangeText={setEditEcheance}
                     autoCapitalize="none"
-                    placeholder="AAAA-MM-JJ"
+                    placeholder={t("smartCaptureScreen.echeancePlaceholder")}
                     placeholderTextColor={colors.mutedForeground}
                     style={[styles.editInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
                   />
-                  <Text style={[styles.editFieldLabel, { color: colors.mutedForeground }]}>Contact lié</Text>
+                  <Text style={[styles.editFieldLabel, { color: colors.mutedForeground }]}>{t("smartCaptureScreen.linkedContact")}</Text>
                   {detectedContacts.length > 0 ? (
                     <View style={styles.contactChipRow}>
                       <Pressable
                         onPress={() => setEditContactId(null)}
                         style={[styles.contactChip, { borderColor: editContactId === null ? ACCENT : colors.border, backgroundColor: editContactId === null ? ACCENT + "18" : colors.card }]}
                       >
-                        <Text style={[styles.contactChipText, { color: editContactId === null ? ACCENT : colors.mutedForeground }]}>Aucun</Text>
+                        <Text style={[styles.contactChipText, { color: editContactId === null ? ACCENT : colors.mutedForeground }]}>{t("smartCaptureScreen.none")}</Text>
                       </Pressable>
                       {detectedContacts.map((c, i) => {
                         const sel = editContactId === c.id;
@@ -502,13 +504,13 @@ export default function SmartCaptureScreen() {
                             style={[styles.contactChip, { borderColor: sel ? ACCENT : colors.border, backgroundColor: sel ? ACCENT + "18" : colors.card }]}
                           >
                             <Feather name="user" size={11} color={sel ? ACCENT : colors.mutedForeground} />
-                            <Text style={[styles.contactChipText, { color: sel ? ACCENT : colors.foreground }]} numberOfLines={1}>{c.name || "Contact"}</Text>
+                            <Text style={[styles.contactChipText, { color: sel ? ACCENT : colors.foreground }]} numberOfLines={1}>{c.name || t("smartCaptureScreen.contactFallback")}</Text>
                           </Pressable>
                         );
                       })}
                     </View>
                   ) : (
-                    <Text style={[styles.editHint, { color: colors.mutedForeground }]}>Aucun contact détecté à lier.</Text>
+                    <Text style={[styles.editHint, { color: colors.mutedForeground }]}>{t("smartCaptureScreen.noContactDetected")}</Text>
                   )}
                 </View>
               )}
@@ -519,7 +521,7 @@ export default function SmartCaptureScreen() {
               >
                 <Feather name={editing ? "check" : "edit-2"} size={13} color={editing ? ACCENT : colors.mutedForeground} />
                 <Text style={[styles.editToggleText, { color: editing ? ACCENT : colors.mutedForeground }]}>
-                  {editing ? "Terminer la modification" : edited ? "Informations modifiées · ajuster" : "Modifier les informations"}
+                  {editing ? t("smartCaptureScreen.finishEditing") : edited ? t("smartCaptureScreen.infoModified") : t("smartCaptureScreen.editInfo")}
                 </Text>
               </Pressable>
             </View>
@@ -527,14 +529,14 @@ export default function SmartCaptureScreen() {
             {/* Related contacts */}
             {result.relatedEntities.length > 0 && (
               <View style={[styles.resultCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Contacts liés détectés</Text>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("smartCaptureScreen.detectedContacts")}</Text>
                 {result.relatedEntities.slice(0, 5).map((e, i) => (
                   <View key={i} style={[styles.relRow, { borderColor: colors.border }]}>
                     <View style={[styles.relIcon, { backgroundColor: ACCENT + "18" }]}>
                       <Feather name={MODULE_ICONS[e.type] ?? "user"} size={13} color={ACCENT} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.relName, { color: colors.foreground }]} numberOfLines={1}>{e.name || "Contact"}</Text>
+                      <Text style={[styles.relName, { color: colors.foreground }]} numberOfLines={1}>{e.name || t("smartCaptureScreen.contactFallback")}</Text>
                       <Text style={[styles.relReason, { color: colors.mutedForeground }]} numberOfLines={1}>{e.matchReason}</Text>
                     </View>
                   </View>
@@ -546,11 +548,11 @@ export default function SmartCaptureScreen() {
             {result.suggestedActions.length > 0 && (
               <View style={[styles.resultCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={styles.actionsHead}>
-                  <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 0 }]}>Actions proposées</Text>
+                  <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 0 }]}>{t("smartCaptureScreen.suggestedActions")}</Text>
                   {pendingCount > 1 && (
                     <Pressable onPress={runAll} disabled={batchLoading} style={[styles.allBtn, { opacity: batchLoading ? 0.6 : 1 }]}>
                       {batchLoading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="check-circle" size={13} color="#fff" />}
-                      <Text style={styles.allBtnText}>Tout valider</Text>
+                      <Text style={styles.allBtnText}>{t("smartCaptureScreen.validateAll")}</Text>
                     </Pressable>
                   )}
                 </View>
@@ -566,7 +568,7 @@ export default function SmartCaptureScreen() {
                           <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                             <Text style={[styles.actionLabel, { color: colors.foreground }]}>{act.label}</Text>
                             <View style={[styles.prioBadge, { backgroundColor: prio.color + "18" }]}>
-                              <Text style={[styles.prioBadgeText, { color: prio.color }]}>{prio.label}</Text>
+                              <Text style={[styles.prioBadgeText, { color: prio.color }]}>{t(prio.labelKey)}</Text>
                             </View>
                           </View>
                           {!!act.description && <Text style={[styles.actionDesc, { color: colors.mutedForeground }]}>{act.description}</Text>}
@@ -584,7 +586,7 @@ export default function SmartCaptureScreen() {
                           style={[styles.execBtn, { opacity: actionLoading || batchLoading ? 0.5 : 1 }]}
                         >
                           {actionLoading === loadingKey ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="zap" size={13} color="#fff" />}
-                          <Text style={styles.execBtnText}>Valider</Text>
+                          <Text style={styles.execBtnText}>{t("smartCaptureScreen.validate")}</Text>
                         </Pressable>
                       )}
                     </View>
@@ -607,7 +609,7 @@ export default function SmartCaptureScreen() {
 
             <Pressable onPress={reset} style={[styles.reanalyseBtn, { borderColor: colors.border }]}>
               <Feather name="camera" size={14} color={colors.mutedForeground} />
-              <Text style={[styles.reanalyseBtnText, { color: colors.mutedForeground }]}>Capturer un autre document</Text>
+              <Text style={[styles.reanalyseBtnText, { color: colors.mutedForeground }]}>{t("smartCaptureScreen.captureAnother")}</Text>
             </Pressable>
           </>
         )}
@@ -617,7 +619,7 @@ export default function SmartCaptureScreen() {
           <View style={[styles.hintCard, { backgroundColor: ACCENT + "0d", borderColor: ACCENT + "30" }]}>
             <Feather name="info" size={14} color={ACCENT} />
             <Text style={[styles.hintText, { color: colors.foreground }]}>
-              Astuce : cadrez bien le document, à plat et bien éclairé. Vous validez chaque action avant qu'elle ne soit créée.
+              {t("smartCaptureScreen.hint")}
             </Text>
           </View>
         )}

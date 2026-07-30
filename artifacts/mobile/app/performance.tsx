@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Periode = "semaine" | "mois" | "trimestre";
@@ -71,8 +72,8 @@ function riskColor(r: string): string {
   return r === "low" ? "#22c55e" : r === "medium" ? "#f59e0b" : "#ef4444";
 }
 
-function riskLabel(r: string): string {
-  return r === "low" ? "Faible" : r === "medium" ? "Modéré" : "Élevé";
+function riskLabelKey(r: string): string {
+  return r === "low" ? "performanceScreen.riskLow" : r === "medium" ? "performanceScreen.riskMedium" : "performanceScreen.riskHigh";
 }
 
 function scoreColor(s: number): string {
@@ -136,6 +137,7 @@ function MetricRow({ icon, label, value, color, sub }: { icon: keyof typeof Feat
 // ── CLASSEMENT TAB ─────────────────────────────────────────────────────────────
 function ClassementTab({ data, onSelectEmployee }: { data: QualityData; onSelectEmployee: (e: Employee) => void }) {
   const colors = useColors();
+  const { t } = useTranslation();
   const { employees, teamScore, teamQuality, teamEfficiency } = data;
 
   const green = employees.filter(e => e.risk === "low").length;
@@ -146,29 +148,29 @@ function ClassementTab({ data, onSelectEmployee }: { data: QualityData; onSelect
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
       {/* Team overview strip */}
       <View style={[pr.teamCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[pr.sectionLabel, { color: colors.mutedForeground }]}>VUE D'ENSEMBLE ÉQUIPE</Text>
+        <Text style={[pr.sectionLabel, { color: colors.mutedForeground }]}>{t("performanceScreen.overviewTeam")}</Text>
         <View style={pr.teamRow}>
-          <ScoreBadge score={teamScore} size={64} label="global" />
+          <ScoreBadge score={teamScore} size={64} label={t("performanceScreen.badgeGlobal")} />
           <View style={{ flex: 1, gap: 6 }}>
             <View style={pr.teamMetaRow}>
               <View style={[pr.teamMetaItem, { backgroundColor: "#22c55e10" }]}>
                 <Feather name="star" size={11} color="#22c55e" />
                 <Text style={[pr.teamMetaVal, { color: "#22c55e" }]}>{teamQuality}</Text>
-                <Text style={[pr.teamMetaLabel, { color: colors.mutedForeground }]}>Qualité</Text>
+                <Text style={[pr.teamMetaLabel, { color: colors.mutedForeground }]}>{t("performanceScreen.quality")}</Text>
               </View>
               <View style={[pr.teamMetaItem, { backgroundColor: "#3b82f610" }]}>
                 <Feather name="zap" size={11} color="#3b82f6" />
                 <Text style={[pr.teamMetaVal, { color: "#3b82f6" }]}>{teamEfficiency}</Text>
-                <Text style={[pr.teamMetaLabel, { color: colors.mutedForeground }]}>Efficacité</Text>
+                <Text style={[pr.teamMetaLabel, { color: colors.mutedForeground }]}>{t("performanceScreen.efficiency")}</Text>
               </View>
             </View>
             <View style={pr.riskStrip}>
               <View style={[pr.riskDot, { backgroundColor: "#22c55e" }]} />
-              <Text style={[pr.riskText, { color: colors.mutedForeground }]}>{green} performants</Text>
+              <Text style={[pr.riskText, { color: colors.mutedForeground }]}>{t("performanceScreen.performers", { count: green })}</Text>
               <View style={[pr.riskDot, { backgroundColor: "#f59e0b" }]} />
-              <Text style={[pr.riskText, { color: colors.mutedForeground }]}>{orange} à surveiller</Text>
+              <Text style={[pr.riskText, { color: colors.mutedForeground }]}>{t("performanceScreen.toWatch", { count: orange })}</Text>
               <View style={[pr.riskDot, { backgroundColor: "#ef4444" }]} />
-              <Text style={[pr.riskText, { color: colors.mutedForeground }]}>{red} en risque</Text>
+              <Text style={[pr.riskText, { color: colors.mutedForeground }]}>{t("performanceScreen.atRisk", { count: red })}</Text>
             </View>
           </View>
         </View>
@@ -180,7 +182,7 @@ function ClassementTab({ data, onSelectEmployee }: { data: QualityData; onSelect
         )}
       </View>
 
-      <Text style={[pr.sectionLabel, { color: colors.mutedForeground }]}>CLASSEMENT INDIVIDUEL ({employees.length})</Text>
+      <Text style={[pr.sectionLabel, { color: colors.mutedForeground }]}>{t("performanceScreen.individualRanking", { count: employees.length })}</Text>
 
       {employees.map((emp, idx) => {
         const rc = roleColor(emp.role);
@@ -208,12 +210,12 @@ function ClassementTab({ data, onSelectEmployee }: { data: QualityData; onSelect
               <Text style={[pr.empRole, { color: colors.mutedForeground }]}>{emp.role}{emp.department ? ` · ${emp.department}` : ""}</Text>
               <View style={{ marginTop: 6, gap: 3 }}>
                 <View style={pr.scoreBarRow}>
-                  <Text style={[pr.scoreBarLabel, { color: colors.mutedForeground }]}>Qualité</Text>
+                  <Text style={[pr.scoreBarLabel, { color: colors.mutedForeground }]}>{t("performanceScreen.quality")}</Text>
                   <ProgressBar value={emp.qualityScore} color="#22c55e" height={5} />
                   <Text style={[pr.scoreBarVal, { color: "#22c55e" }]}>{emp.qualityScore}</Text>
                 </View>
                 <View style={pr.scoreBarRow}>
-                  <Text style={[pr.scoreBarLabel, { color: colors.mutedForeground }]}>Efficacité</Text>
+                  <Text style={[pr.scoreBarLabel, { color: colors.mutedForeground }]}>{t("performanceScreen.efficiency")}</Text>
                   <ProgressBar value={emp.efficiencyScore} color="#3b82f6" height={5} />
                   <Text style={[pr.scoreBarVal, { color: "#3b82f6" }]}>{emp.efficiencyScore}</Text>
                 </View>
@@ -224,7 +226,7 @@ function ClassementTab({ data, onSelectEmployee }: { data: QualityData; onSelect
               <ScoreBadge score={emp.overallScore} size={44} />
               <View style={[pr.riskPill, { backgroundColor: riskColor(emp.risk) + "15" }]}>
                 <View style={[pr.riskDot, { backgroundColor: riskColor(emp.risk) }]} />
-                <Text style={[pr.riskPillText, { color: riskColor(emp.risk) }]}>{riskLabel(emp.risk)}</Text>
+                <Text style={[pr.riskPillText, { color: riskColor(emp.risk) }]}>{t(riskLabelKey(emp.risk))}</Text>
               </View>
             </View>
           </Pressable>
@@ -237,6 +239,7 @@ function ClassementTab({ data, onSelectEmployee }: { data: QualityData; onSelect
 // ── INDIVIDUEL TAB ────────────────────────────────────────────────────────────
 function IndividuelTab({ data, selected, onSelect }: { data: QualityData; selected: Employee | null; onSelect: (e: Employee) => void }) {
   const colors = useColors();
+  const { t } = useTranslation();
   const emp = selected ?? data.employees[0];
   if (!emp) return null;
 
@@ -274,7 +277,7 @@ function IndividuelTab({ data, selected, onSelect }: { data: QualityData; select
             <View style={[pr.gradeBadgeLg, { backgroundColor: gradeColor(emp.grade) + "18" }]}>
               <Text style={[pr.gradeLgText, { color: gradeColor(emp.grade) }]}>{emp.grade}</Text>
             </View>
-            <Text style={[{ fontSize: 9, fontFamily: "Inter_400Regular", color: colors.mutedForeground }]}>Grade</Text>
+            <Text style={[{ fontSize: 9, fontFamily: "Inter_400Regular", color: colors.mutedForeground }]}>{t("performanceScreen.grade")}</Text>
           </View>
         </View>
 
@@ -282,34 +285,34 @@ function IndividuelTab({ data, selected, onSelect }: { data: QualityData; select
         <View style={pr.scoreTriple}>
           <View style={[pr.scoreTripleItem, { backgroundColor: scoreColor(emp.overallScore) + "10" }]}>
             <Text style={[pr.scoreTripleVal, { color: scoreColor(emp.overallScore) }]}>{emp.overallScore}</Text>
-            <Text style={[pr.scoreTripleLbl, { color: colors.mutedForeground }]}>Global</Text>
+            <Text style={[pr.scoreTripleLbl, { color: colors.mutedForeground }]}>{t("performanceScreen.global")}</Text>
           </View>
           <View style={[pr.scoreTripleItem, { backgroundColor: "#22c55e10" }]}>
             <Text style={[pr.scoreTripleVal, { color: "#22c55e" }]}>{emp.qualityScore}</Text>
-            <Text style={[pr.scoreTripleLbl, { color: colors.mutedForeground }]}>Qualité</Text>
+            <Text style={[pr.scoreTripleLbl, { color: colors.mutedForeground }]}>{t("performanceScreen.quality")}</Text>
           </View>
           <View style={[pr.scoreTripleItem, { backgroundColor: "#3b82f610" }]}>
             <Text style={[pr.scoreTripleVal, { color: "#3b82f6" }]}>{emp.efficiencyScore}</Text>
-            <Text style={[pr.scoreTripleLbl, { color: colors.mutedForeground }]}>Efficacité</Text>
+            <Text style={[pr.scoreTripleLbl, { color: colors.mutedForeground }]}>{t("performanceScreen.efficiency")}</Text>
           </View>
         </View>
 
         {emp.risk === "high" && (
           <View style={[pr.alertBanner, { backgroundColor: "#ef444410", borderColor: "#ef444430" }]}>
             <Feather name="alert-circle" size={12} color="#ef4444" />
-            <Text style={[pr.alertText, { color: "#ef4444" }]}>Profil à risque — intervention recommandée</Text>
+            <Text style={[pr.alertText, { color: "#ef4444" }]}>{t("performanceScreen.riskProfile")}</Text>
           </View>
         )}
       </View>
 
       {/* Sub-scores breakdown */}
       <View style={[pr.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[pr.cardTitle, { color: colors.foreground }]}>Détail des scores composants</Text>
+        <Text style={[pr.cardTitle, { color: colors.foreground }]}>{t("performanceScreen.scoreBreakdown")}</Text>
         {[
-          { label: "Taux de complétion tâches", value: m.completionRate, color: "#22c55e", icon: "check-circle" as const },
-          { label: "Score ponctualité", value: m.punctualityScore, color: "#6366f1", icon: "clock" as const },
-          { label: "Score engagement", value: m.engagementScore, color: "#f59e0b", icon: "activity" as const },
-          { label: "Score d'activité", value: m.activityScore, color: "#3b82f6", icon: "zap" as const },
+          { label: t("performanceScreen.completionRateTasks"), value: m.completionRate, color: "#22c55e", icon: "check-circle" as const },
+          { label: t("performanceScreen.punctualityScore"), value: m.punctualityScore, color: "#6366f1", icon: "clock" as const },
+          { label: t("performanceScreen.engagementScore"), value: m.engagementScore, color: "#f59e0b", icon: "activity" as const },
+          { label: t("performanceScreen.activityScore"), value: m.activityScore, color: "#3b82f6", icon: "zap" as const },
         ].map(s => (
           <View key={s.label} style={{ gap: 4, marginTop: 8 }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -324,13 +327,13 @@ function IndividuelTab({ data, selected, onSelect }: { data: QualityData; select
 
       {/* Tasks breakdown */}
       <View style={[pr.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[pr.cardTitle, { color: colors.foreground }]}>Gestion des tâches</Text>
+        <Text style={[pr.cardTitle, { color: colors.foreground }]}>{t("performanceScreen.taskManagement")}</Text>
         <View style={pr.metricsGrid}>
           {[
-            { icon: "list" as const, label: "Assignées", value: m.tasksAssigned, color: "#64748b" },
-            { icon: "check-circle" as const, label: "Terminées", value: m.tasksCompleted, color: "#22c55e" },
-            { icon: "alert-circle" as const, label: "En retard", value: m.tasksOverdue, color: "#ef4444" },
-            { icon: "star" as const, label: "Haute prio", value: m.tasksPrioriteHaute, color: "#f59e0b" },
+            { icon: "list" as const, label: t("performanceScreen.assigned"), value: m.tasksAssigned, color: "#64748b" },
+            { icon: "check-circle" as const, label: t("performanceScreen.completed"), value: m.tasksCompleted, color: "#22c55e" },
+            { icon: "alert-circle" as const, label: t("performanceScreen.overdue"), value: m.tasksOverdue, color: "#ef4444" },
+            { icon: "star" as const, label: t("performanceScreen.highPriority"), value: m.tasksPrioriteHaute, color: "#f59e0b" },
           ].map(item => (
             <View key={item.label} style={[pr.miniStatCard, { backgroundColor: item.color + "08", borderColor: item.color + "20" }]}>
               <Feather name={item.icon} size={14} color={item.color} />
@@ -342,7 +345,7 @@ function IndividuelTab({ data, selected, onSelect }: { data: QualityData; select
         {m.tasksAssigned > 0 && (
           <View style={{ marginTop: 8, gap: 3 }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-              <Text style={[{ fontSize: 11, fontFamily: "Inter_400Regular", color: colors.mutedForeground }]}>Taux de complétion</Text>
+              <Text style={[{ fontSize: 11, fontFamily: "Inter_400Regular", color: colors.mutedForeground }]}>{t("performanceScreen.completionRate")}</Text>
               <Text style={[{ fontSize: 11, fontFamily: "Inter_700Bold", color: scoreColor(m.completionRate) }]}>{m.completionRate}%</Text>
             </View>
             <ProgressBar value={m.completionRate} color={scoreColor(m.completionRate)} height={8} />
@@ -352,22 +355,22 @@ function IndividuelTab({ data, selected, onSelect }: { data: QualityData; select
 
       {/* Présence et activité */}
       <View style={[pr.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[pr.cardTitle, { color: colors.foreground }]}>Présence et activité</Text>
-        <MetricRow icon="clock" label="Heures travaillées" value={`${m.heuresTravaillees}h`} color="#6366f1" />
-        <MetricRow icon="log-in" label="Sessions de présence" value={m.sessionCount} color="#3b82f6" />
-        <MetricRow icon="sunrise" label="Heure d'arrivée moy." value={hourStr(m.avgCheckinHour)} color="#f59e0b"
-          sub={m.avgCheckinHour !== null ? m.avgCheckinHour <= 9.25 ? "✓ Ponctuel" : "⚠ Arrivée tardive" : "Aucun pointage"} />
-        <MetricRow icon="coffee" label="Pauses totales" value={`${m.pausesMinutes}min`} color="#94a3b8" />
-        <MetricRow icon="refresh-cw" label="Connexions" value={m.connexions} color="#22c55e" />
-        <MetricRow icon="bar-chart-2" label="Actions totales" value={m.actionsTotal} color="#8b5cf6" />
+        <Text style={[pr.cardTitle, { color: colors.foreground }]}>{t("performanceScreen.presenceActivity")}</Text>
+        <MetricRow icon="clock" label={t("performanceScreen.hoursWorked")} value={`${m.heuresTravaillees}h`} color="#6366f1" />
+        <MetricRow icon="log-in" label={t("performanceScreen.presenceSessions")} value={m.sessionCount} color="#3b82f6" />
+        <MetricRow icon="sunrise" label={t("performanceScreen.avgArrival")} value={hourStr(m.avgCheckinHour)} color="#f59e0b"
+          sub={m.avgCheckinHour !== null ? m.avgCheckinHour <= 9.25 ? t("performanceScreen.punctual") : t("performanceScreen.lateArrival") : t("performanceScreen.noCheckin")} />
+        <MetricRow icon="coffee" label={t("performanceScreen.totalBreaks")} value={`${m.pausesMinutes}min`} color="#94a3b8" />
+        <MetricRow icon="refresh-cw" label={t("performanceScreen.connections")} value={m.connexions} color="#22c55e" />
+        <MetricRow icon="bar-chart-2" label={t("performanceScreen.totalActions")} value={m.actionsTotal} color="#8b5cf6" />
       </View>
 
       {/* Communication */}
       <View style={[pr.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[pr.cardTitle, { color: colors.foreground }]}>Communication & CRM</Text>
-        <MetricRow icon="phone" label="Appels traités" value={m.appelsTraites} color="#f59e0b" />
-        <MetricRow icon="message-square" label="Messages envoyés" value={m.messagesEnvoyes} color="#6366f1" />
-        <MetricRow icon="user-plus" label="Contacts créés" value={m.contactsCrees} color="#22c55e" />
+        <Text style={[pr.cardTitle, { color: colors.foreground }]}>{t("performanceScreen.communicationCrm")}</Text>
+        <MetricRow icon="phone" label={t("performanceScreen.callsHandled")} value={m.appelsTraites} color="#f59e0b" />
+        <MetricRow icon="message-square" label={t("performanceScreen.messagesSent")} value={m.messagesEnvoyes} color="#6366f1" />
+        <MetricRow icon="user-plus" label={t("performanceScreen.contactsCreated")} value={m.contactsCrees} color="#22c55e" />
       </View>
 
       {/* AI tip for this employee */}
@@ -377,11 +380,11 @@ function IndividuelTab({ data, selected, onSelect }: { data: QualityData; select
             <View style={[pr.aiIconBox, { backgroundColor: "#6366f118" }]}>
               <Feather name="zap" size={14} color="#6366f1" />
             </View>
-            <Text style={[pr.cardTitle, { color: colors.foreground }]}>Analyse IA personnalisée</Text>
+            <Text style={[pr.cardTitle, { color: colors.foreground }]}>{t("performanceScreen.personalAiAnalysis")}</Text>
           </View>
           {aiEmp.strengths?.length > 0 && (
             <View style={{ marginBottom: 8 }}>
-              <Text style={[pr.aiSubtitle, { color: "#22c55e" }]}>Points forts</Text>
+              <Text style={[pr.aiSubtitle, { color: "#22c55e" }]}>{t("performanceScreen.strengths")}</Text>
               {aiEmp.strengths.map((s, i) => (
                 <View key={i} style={pr.aiListRow}>
                   <Feather name="check" size={11} color="#22c55e" />
@@ -392,7 +395,7 @@ function IndividuelTab({ data, selected, onSelect }: { data: QualityData; select
           )}
           {aiEmp.weaknesses?.length > 0 && (
             <View style={{ marginBottom: 8 }}>
-              <Text style={[pr.aiSubtitle, { color: "#f59e0b" }]}>Axes d'amélioration</Text>
+              <Text style={[pr.aiSubtitle, { color: "#f59e0b" }]}>{t("performanceScreen.improvementAreas")}</Text>
               {aiEmp.weaknesses.map((w, i) => (
                 <View key={i} style={pr.aiListRow}>
                   <Feather name="arrow-up-right" size={11} color="#f59e0b" />
@@ -422,6 +425,7 @@ function IndividuelTab({ data, selected, onSelect }: { data: QualityData; select
 // ── IA ANALYSE TAB ────────────────────────────────────────────────────────────
 function IAAnalyseTab({ analysis, employees }: { analysis: AiAnalysis; employees: Employee[] }) {
   const colors = useColors();
+  const { t } = useTranslation();
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
@@ -431,7 +435,7 @@ function IAAnalyseTab({ analysis, employees }: { analysis: AiAnalysis; employees
           <View style={[pr.aiIconBox, { backgroundColor: healthColor(analysis.teamHealth) + "18" }]}>
             <Feather name="heart" size={14} color={healthColor(analysis.teamHealth)} />
           </View>
-          <Text style={[pr.cardTitle, { color: colors.foreground }]}>Santé globale de l'équipe</Text>
+          <Text style={[pr.cardTitle, { color: colors.foreground }]}>{t("performanceScreen.teamHealth")}</Text>
           {analysis.teamHealth && (
             <View style={[pr.healthPill, { backgroundColor: healthColor(analysis.teamHealth) + "18" }]}>
               <Text style={[pr.healthText, { color: healthColor(analysis.teamHealth) }]}>{analysis.teamHealth}</Text>
@@ -454,7 +458,7 @@ function IAAnalyseTab({ analysis, employees }: { analysis: AiAnalysis; employees
         <View style={[pr.sectionCard, { backgroundColor: "#22c55e08", borderColor: "#22c55e30" }]}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
             <Feather name="award" size={16} color="#22c55e" />
-            <Text style={[pr.cardTitle, { color: colors.foreground }]}>Top Performers</Text>
+            <Text style={[pr.cardTitle, { color: colors.foreground }]}>{t("performanceScreen.topPerformers")}</Text>
           </View>
           {analysis.topPerformers.map((p, i) => {
             const emp = employees.find(e => e.name === p.name);
@@ -494,7 +498,7 @@ function IAAnalyseTab({ analysis, employees }: { analysis: AiAnalysis; employees
         <View style={[pr.sectionCard, { backgroundColor: "#f59e0b08", borderColor: "#f59e0b30" }]}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
             <Feather name="alert-triangle" size={16} color="#f59e0b" />
-            <Text style={[pr.cardTitle, { color: colors.foreground }]}>Nécessite attention</Text>
+            <Text style={[pr.cardTitle, { color: colors.foreground }]}>{t("performanceScreen.needsAttention")}</Text>
           </View>
           {analysis.needsAttention.map((n, i) => {
             const emp = employees.find(e => e.name === n.name);
@@ -507,7 +511,7 @@ function IAAnalyseTab({ analysis, employees }: { analysis: AiAnalysis; employees
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[pr.performerName, { color: colors.foreground }]}>{n.name}</Text>
-                    {n.score > 0 && <Text style={[pr.performerScore, { color: "#ef4444" }]}>Score: {n.score}/100</Text>}
+                    {n.score > 0 && <Text style={[pr.performerScore, { color: "#ef4444" }]}>{t("performanceScreen.scoreValue", { score: n.score })}</Text>}
                   </View>
                 </View>
                 {n.issues?.map((issue, j) => (
@@ -524,7 +528,7 @@ function IAAnalyseTab({ analysis, employees }: { analysis: AiAnalysis; employees
                 )}
                 {n.actionPlan && n.actionPlan.length > 0 && (
                   <View style={{ marginTop: 6 }}>
-                    <Text style={[pr.aiSubtitle, { color: "#3b82f6", marginBottom: 3 }]}>Plan d'action</Text>
+                    <Text style={[pr.aiSubtitle, { color: "#3b82f6", marginBottom: 3 }]}>{t("performanceScreen.actionPlan")}</Text>
                     {n.actionPlan.map((a, j) => (
                       <View key={j} style={pr.aiListRow}>
                         <Feather name="arrow-right" size={11} color="#3b82f6" />
@@ -544,7 +548,7 @@ function IAAnalyseTab({ analysis, employees }: { analysis: AiAnalysis; employees
         <View style={[pr.sectionCard, { backgroundColor: "#6366f108", borderColor: "#6366f130" }]}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
             <Feather name="target" size={16} color="#6366f1" />
-            <Text style={[pr.cardTitle, { color: colors.foreground }]}>Recommandations stratégiques</Text>
+            <Text style={[pr.cardTitle, { color: colors.foreground }]}>{t("performanceScreen.strategicRecommendations")}</Text>
           </View>
           {analysis.teamRecommendations.map((r, i) => (
             <View key={i} style={[pr.aiListRow, { marginTop: 4 }]}>
@@ -561,7 +565,7 @@ function IAAnalyseTab({ analysis, employees }: { analysis: AiAnalysis; employees
         <View style={[pr.sectionCard, { backgroundColor: "#ef444408", borderColor: "#ef444430" }]}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <Feather name="alert-octagon" size={16} color="#ef4444" />
-            <Text style={[pr.cardTitle, { color: "#ef4444" }]}>Alerte qualité</Text>
+            <Text style={[pr.cardTitle, { color: "#ef4444" }]}>{t("performanceScreen.qualityAlert")}</Text>
           </View>
           <Text style={[pr.insightText, { color: colors.foreground, marginTop: 6 }]}>{analysis.qualityAlert}</Text>
         </View>
@@ -571,22 +575,23 @@ function IAAnalyseTab({ analysis, employees }: { analysis: AiAnalysis; employees
 }
 
 // ── MAIN SCREEN ───────────────────────────────────────────────────────────────
-const TABS: { key: Tab; label: string; icon: keyof typeof Feather.glyphMap; color: string }[] = [
-  { key: "classement", label: "Classement",  icon: "bar-chart-2",  color: "#0f4c81" },
-  { key: "individuel", label: "Individuel",  icon: "user",         color: "#7c3aed" },
-  { key: "ia",         label: "IA Analyse",  icon: "zap",          color: "#ea580c" },
+const TABS: { key: Tab; labelKey: string; icon: keyof typeof Feather.glyphMap; color: string }[] = [
+  { key: "classement", labelKey: "performanceScreen.tabClassement",  icon: "bar-chart-2",  color: "#0f4c81" },
+  { key: "individuel", labelKey: "performanceScreen.tabIndividuel",  icon: "user",         color: "#7c3aed" },
+  { key: "ia",         labelKey: "performanceScreen.tabIA",          icon: "zap",          color: "#ea580c" },
 ];
 
-const PERIODES: { val: Periode; label: string }[] = [
-  { val: "semaine",   label: "7 jours"  },
-  { val: "mois",      label: "30 jours" },
-  { val: "trimestre", label: "90 jours" },
+const PERIODES: { val: Periode; labelKey: string }[] = [
+  { val: "semaine",   labelKey: "performanceScreen.period7"  },
+  { val: "mois",      labelKey: "performanceScreen.period30" },
+  { val: "trimestre", labelKey: "performanceScreen.period90" },
 ];
 
 export default function PerformanceScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
+  const { t } = useTranslation();
   const isWeb = Platform.OS === "web";
 
   const [tab, setTab] = useState<Tab>("classement");
@@ -617,7 +622,7 @@ export default function PerformanceScreen() {
     setTab("individuel");
   }
 
-  const activeTab = TABS.find(t => t.key === tab)!;
+  const activeTab = TABS.find(tb => tb.key === tab)!;
 
   return (
     <View style={[pr.container, { backgroundColor: colors.background }]}>
@@ -628,9 +633,9 @@ export default function PerformanceScreen() {
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={pr.headerTitle}>Qualité & Efficacité</Text>
+            <Text style={pr.headerTitle}>{t("performanceScreen.title")}</Text>
             <Text style={pr.headerSub}>
-              {data ? `${data.employees.length} employés · Score équipe: ${data.teamScore}/100` : "Analyse de performance IA"}
+              {data ? t("performanceScreen.headerSub", { count: data.employees.length, score: data.teamScore }) : t("performanceScreen.headerSubDefault")}
             </Text>
           </View>
           <Pressable onPress={onRefresh} hitSlop={10}>
@@ -643,7 +648,7 @@ export default function PerformanceScreen() {
           {PERIODES.map(p => (
             <Pressable key={p.val} onPress={() => setPeriode(p.val)}
               style={[pr.periodChip, { backgroundColor: periode === p.val ? "#fff" : "rgba(255,255,255,0.15)" }]}>
-              <Text style={[pr.periodText, { color: periode === p.val ? "#0f4c81" : "rgba(255,255,255,0.85)" }]}>{p.label}</Text>
+              <Text style={[pr.periodText, { color: periode === p.val ? "#0f4c81" : "rgba(255,255,255,0.85)" }]}>{t(p.labelKey)}</Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -652,10 +657,10 @@ export default function PerformanceScreen() {
         {data && !loading && (
           <View style={pr.teamStrip}>
             {[
-              { label: "Global", value: data.teamScore,      color: "#fff"     },
-              { label: "Qualité", value: data.teamQuality,   color: "#86efac"  },
-              { label: "Efficacité", value: data.teamEfficiency, color: "#93c5fd" },
-              { label: "Équipe", value: data.employees.length, color: "#fde68a", isCount: true },
+              { label: t("performanceScreen.global"), value: data.teamScore,      color: "#fff"     },
+              { label: t("performanceScreen.quality"), value: data.teamQuality,   color: "#86efac"  },
+              { label: t("performanceScreen.efficiency"), value: data.teamEfficiency, color: "#93c5fd" },
+              { label: t("performanceScreen.team"), value: data.employees.length, color: "#fde68a", isCount: true },
             ].map((item, i, arr) => (
               <React.Fragment key={item.label}>
                 <View style={pr.stripItem}>
@@ -670,11 +675,11 @@ export default function PerformanceScreen() {
 
         {/* Tab bar */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }} contentContainerStyle={{ gap: 8 }}>
-          {TABS.map(t => (
-            <Pressable key={t.key} onPress={() => setTab(t.key)}
-              style={[pr.tabChip, { backgroundColor: tab === t.key ? "#fff" : "rgba(255,255,255,0.15)" }]}>
-              <Feather name={t.icon} size={12} color={tab === t.key ? t.color : "rgba(255,255,255,0.8)"} />
-              <Text style={[pr.tabChipText, { color: tab === t.key ? t.color : "rgba(255,255,255,0.8)" }]}>{t.label}</Text>
+          {TABS.map(tb => (
+            <Pressable key={tb.key} onPress={() => setTab(tb.key)}
+              style={[pr.tabChip, { backgroundColor: tab === tb.key ? "#fff" : "rgba(255,255,255,0.15)" }]}>
+              <Feather name={tb.icon} size={12} color={tab === tb.key ? tb.color : "rgba(255,255,255,0.8)"} />
+              <Text style={[pr.tabChipText, { color: tab === tb.key ? tb.color : "rgba(255,255,255,0.8)" }]}>{t(tb.labelKey)}</Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -684,13 +689,13 @@ export default function PerformanceScreen() {
       {loading ? (
         <View style={pr.center}>
           <ActivityIndicator size="large" color="#0f4c81" />
-          <Text style={[{ fontSize: 13, fontFamily: "Inter_400Regular", color: colors.mutedForeground, marginTop: 10 }]}>Analyse en cours...</Text>
+          <Text style={[{ fontSize: 13, fontFamily: "Inter_400Regular", color: colors.mutedForeground, marginTop: 10 }]}>{t("performanceScreen.analyzing")}</Text>
         </View>
       ) : !data || data.employees.length === 0 ? (
         <View style={pr.center}>
           <Feather name="users" size={48} color={colors.mutedForeground} />
-          <Text style={[{ fontSize: 16, fontFamily: "Inter_600SemiBold", color: colors.foreground, marginTop: 12 }]}>Aucun employé trouvé</Text>
-          <Text style={[{ fontSize: 13, fontFamily: "Inter_400Regular", color: colors.mutedForeground, marginTop: 4, textAlign: "center" }]}>Ajoutez des membres d'équipe pour voir leur analyse</Text>
+          <Text style={[{ fontSize: 16, fontFamily: "Inter_600SemiBold", color: colors.foreground, marginTop: 12 }]}>{t("performanceScreen.noEmployees")}</Text>
+          <Text style={[{ fontSize: 13, fontFamily: "Inter_400Regular", color: colors.mutedForeground, marginTop: 4, textAlign: "center" }]}>{t("performanceScreen.noEmployeesHint")}</Text>
         </View>
       ) : (
         <ScrollView

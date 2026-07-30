@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 type TabType = "scan" | "register" | "profiles" | "logs";
 
@@ -92,6 +93,7 @@ function ScanLine({ active, color }: { active: boolean; color: string }) {
 }
 
 function ConfidenceBar({ confidence, color }: { confidence: number; color: string }) {
+  const { t } = useTranslation();
   const widthAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -103,13 +105,13 @@ function ConfidenceBar({ confidence, color }: { confidence: number; color: strin
     }).start();
   }, [confidence]);
 
-  const level = confidence >= 80 ? "Excellente" : confidence >= 60 ? "Bonne" : confidence >= 40 ? "Faible" : "Tres faible";
+  const level = confidence >= 80 ? t("faceRecognitionScreen.confExcellent") : confidence >= 60 ? t("faceRecognitionScreen.confGood") : confidence >= 40 ? t("faceRecognitionScreen.confLow") : t("faceRecognitionScreen.confVeryLow");
 
   return (
     <View style={confStyles.wrapper}>
       <View style={confStyles.labelRow}>
-        <Text style={confStyles.label}>Confiance IA</Text>
-        <Text style={[confStyles.value, { color }]}>{confidence}% — {level}</Text>
+        <Text style={confStyles.label}>{t("faceRecognitionScreen.aiConfidence")}</Text>
+        <Text style={[confStyles.value, { color }]}>{t("faceRecognitionScreen.confValue", { confidence, level })}</Text>
       </View>
       <View style={[confStyles.track]}>
         <Animated.View
@@ -139,6 +141,7 @@ export default function FaceRecognitionScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
+  const { t } = useTranslation();
   const isWeb = Platform.OS === "web";
 
   const [activeTab, setActiveTab] = useState<TabType>("scan");
@@ -216,13 +219,13 @@ export default function FaceRecognitionScreen() {
         deviceInfo: `${Platform.OS} - Ajant Bureau`,
       });
       if (d.success) { setResult(d); animateResult(); loadStats(); }
-      else Alert.alert("Erreur", d.error || "Reconnaissance echouee");
-    } catch (err: any) { Alert.alert("Erreur", err.message); }
+      else Alert.alert(t("faceRecognitionScreen.error"), d.error || t("faceRecognitionScreen.recognitionFailed"));
+    } catch (err: any) { Alert.alert(t("faceRecognitionScreen.error"), err.message); }
     setScanning(false);
-  }, [apiPost, loadStats]);
+  }, [apiPost, loadStats, t]);
 
   const handleRegister = useCallback(async () => {
-    if (!regName.trim()) { Alert.alert("Erreur", "Veuillez entrer un nom"); return; }
+    if (!regName.trim()) { Alert.alert(t("faceRecognitionScreen.error"), t("faceRecognitionScreen.enterName")); return; }
     setRegistering(true);
     try {
       let photoBase64 = "";
@@ -234,13 +237,13 @@ export default function FaceRecognitionScreen() {
       }
       const d = await apiPost("/register", { name: regName.trim(), role: regRole, contactId: selectedContact?.id || null, photoBase64 });
       if (d.success) {
-        Alert.alert("Succes", `${regName} a ete enregistre avec succes`);
+        Alert.alert(t("faceRecognitionScreen.success"), t("faceRecognitionScreen.registeredSuccess", { name: regName }));
         setRegName(""); setRegRole("visiteur"); setSelectedContact(null); setContactSearch("");
         loadProfiles(); loadStats();
-      } else Alert.alert("Erreur", d.error || "Enregistrement echoue");
-    } catch (err: any) { Alert.alert("Erreur", err.message); }
+      } else Alert.alert(t("faceRecognitionScreen.error"), d.error || t("faceRecognitionScreen.registrationFailed"));
+    } catch (err: any) { Alert.alert(t("faceRecognitionScreen.error"), err.message); }
     setRegistering(false);
-  }, [regName, regRole, selectedContact, apiPost, loadProfiles, loadStats]);
+  }, [regName, regRole, selectedContact, apiPost, loadProfiles, loadStats, t]);
 
   const searchContacts = useCallback(async (query: string) => {
     setContactSearch(query);
@@ -257,11 +260,11 @@ export default function FaceRecognitionScreen() {
       } catch {}
     };
     if (Platform.OS === "web") { doDelete(); }
-    else Alert.alert("Supprimer", `Supprimer le profil de ${name} ?`, [
-      { text: "Annuler", style: "cancel" },
-      { text: "Supprimer", style: "destructive", onPress: doDelete },
+    else Alert.alert(t("faceRecognitionScreen.deleteTitle"), t("faceRecognitionScreen.deleteConfirm", { name }), [
+      { text: t("common.cancel"), style: "cancel" },
+      { text: t("common.delete"), style: "destructive", onPress: doDelete },
     ]);
-  }, [fetchAuth, loadProfiles, loadStats]);
+  }, [fetchAuth, loadProfiles, loadStats, t]);
 
   const securityColors: Record<string, string> = { normal: "#22c55e", attention: "#f59e0b", alerte: "#ef4444" };
   const getSecColor = (level?: string) => securityColors[level || "normal"] || securityColors.normal;
@@ -271,12 +274,12 @@ export default function FaceRecognitionScreen() {
       return (
         <View style={[styles.cameraPlaceholder, { backgroundColor: colors.secondary }]}>
           <Feather name="camera" size={56} color={colors.mutedForeground} />
-          <Text style={[styles.cameraPlaceholderText, { color: colors.mutedForeground }]}>Camera non disponible sur le web</Text>
-          <Text style={[styles.cameraSubtext, { color: colors.mutedForeground }]}>La reconnaissance fonctionne via analyse IA du contexte</Text>
+          <Text style={[styles.cameraPlaceholderText, { color: colors.mutedForeground }]}>{t("faceRecognitionScreen.cameraWebUnavailable")}</Text>
+          <Text style={[styles.cameraSubtext, { color: colors.mutedForeground }]}>{t("faceRecognitionScreen.cameraWebSub")}</Text>
           {scanning && (
             <View style={[styles.webScanOverlay, { borderColor: colors.primary }]}>
               <ActivityIndicator color={colors.primary} />
-              <Text style={[styles.webScanText, { color: colors.primary }]}>Analyse IA en cours...</Text>
+              <Text style={[styles.webScanText, { color: colors.primary }]}>{t("faceRecognitionScreen.aiAnalyzing")}</Text>
             </View>
           )}
         </View>
@@ -287,15 +290,15 @@ export default function FaceRecognitionScreen() {
       return (
         <View style={[styles.permissionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Feather name="camera-off" size={48} color={colors.mutedForeground} />
-          <Text style={[styles.permissionTitle, { color: colors.foreground }]}>Acces a la camera requis</Text>
-          <Text style={[styles.permissionText, { color: colors.mutedForeground }]}>La reconnaissance faciale necessite l'acces a votre camera</Text>
+          <Text style={[styles.permissionTitle, { color: colors.foreground }]}>{t("faceRecognitionScreen.cameraAccessRequired")}</Text>
+          <Text style={[styles.permissionText, { color: colors.mutedForeground }]}>{t("faceRecognitionScreen.cameraAccessText")}</Text>
           {permission.canAskAgain ? (
             <Pressable onPress={requestPermission} style={[styles.permButton, { backgroundColor: colors.primary }]}>
-              <Text style={[styles.permButtonText, { color: colors.primaryForeground }]}>Autoriser la camera</Text>
+              <Text style={[styles.permButtonText, { color: colors.primaryForeground }]}>{t("faceRecognitionScreen.allowCamera")}</Text>
             </Pressable>
           ) : (
             <Pressable onPress={() => { try { Linking.openSettings(); } catch {} }} style={[styles.permButton, { backgroundColor: colors.destructive }]}>
-              <Text style={[styles.permButtonText, { color: "#fff" }]}>Ouvrir les parametres</Text>
+              <Text style={[styles.permButtonText, { color: "#fff" }]}>{t("faceRecognitionScreen.openSettings")}</Text>
             </Pressable>
           )}
         </View>
@@ -316,7 +319,7 @@ export default function FaceRecognitionScreen() {
             )}
             {showGuide && (
               <Text style={[styles.guideText, { color: scanning ? colors.primary : "rgba(255,255,255,0.85)" }]}>
-                {scanning ? "Analyse en cours..." : "Placez le visage dans le cadre"}
+                {scanning ? t("faceRecognitionScreen.analyzing") : t("faceRecognitionScreen.placeFace")}
               </Text>
             )}
           </View>
@@ -331,15 +334,15 @@ export default function FaceRecognitionScreen() {
         <View style={styles.statsRow}>
           <View style={[styles.statCard, { backgroundColor: colors.primary + "15" }]}>
             <Text style={[styles.statNum, { color: colors.primary }]}>{stats.totalProfiles}</Text>
-            <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Profils</Text>
+            <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{t("faceRecognitionScreen.statProfiles")}</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: "#22c55e15" }]}>
             <Text style={[styles.statNum, { color: "#22c55e" }]}>{stats.todayRecognitions}</Text>
-            <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Aujourd'hui</Text>
+            <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{t("faceRecognitionScreen.statToday")}</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: "#8b5cf615" }]}>
             <Text style={[styles.statNum, { color: "#8b5cf6" }]}>{stats.totalRecognitions}</Text>
-            <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Total</Text>
+            <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{t("faceRecognitionScreen.statTotal")}</Text>
           </View>
         </View>
       )}
@@ -357,12 +360,12 @@ export default function FaceRecognitionScreen() {
         {scanning ? (
           <>
             <ActivityIndicator color={colors.primaryForeground} />
-            <Text style={[styles.scanButtonText, { color: colors.primaryForeground }]}>Analyse IA en cours...</Text>
+            <Text style={[styles.scanButtonText, { color: colors.primaryForeground }]}>{t("faceRecognitionScreen.aiAnalyzing")}</Text>
           </>
         ) : (
           <>
             <Feather name="aperture" size={22} color={colors.primaryForeground} />
-            <Text style={[styles.scanButtonText, { color: colors.primaryForeground }]}>Scanner le visage</Text>
+            <Text style={[styles.scanButtonText, { color: colors.primaryForeground }]}>{t("faceRecognitionScreen.scanFace")}</Text>
           </>
         )}
       </Pressable>
@@ -390,7 +393,7 @@ export default function FaceRecognitionScreen() {
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={[styles.resultTitle, { color: colors.foreground }]}>
-                {result.recognized ? result.profile?.name || "Identifie" : "Non reconnu"}
+                {result.recognized ? result.profile?.name || t("faceRecognitionScreen.identified") : t("faceRecognitionScreen.notRecognized")}
               </Text>
               {result.recognized && result.profile && (
                 <View style={[styles.roleBadge, { backgroundColor: colors.primary + "15", alignSelf: "flex-start", marginTop: 3 }]}>
@@ -423,29 +426,29 @@ export default function FaceRecognitionScreen() {
             {result.mood && (
               <View style={styles.detailRow}>
                 <Feather name="smile" size={14} color={colors.mutedForeground} />
-                <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>Humeur:</Text>
+                <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>{t("faceRecognitionScreen.mood")}</Text>
                 <Text style={[styles.detailValue, { color: colors.foreground }]}>{result.mood}</Text>
               </View>
             )}
             {result.suggestedAction && (
               <View style={styles.detailRow}>
                 <Feather name="zap" size={14} color="#f59e0b" />
-                <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>Action:</Text>
+                <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>{t("faceRecognitionScreen.action")}</Text>
                 <Text style={[styles.detailValue, { color: colors.foreground }]}>{result.suggestedAction}</Text>
               </View>
             )}
             {result.reason && (
               <View style={styles.detailRow}>
                 <Feather name="info" size={14} color={colors.mutedForeground} />
-                <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>Raison:</Text>
+                <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>{t("faceRecognitionScreen.reason")}</Text>
                 <Text style={[styles.detailValue, { color: colors.foreground }]}>{result.reason}</Text>
               </View>
             )}
             {result.recognized && result.profile && (
               <View style={styles.detailRow}>
                 <Feather name="eye" size={14} color={colors.primary} />
-                <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>Visites:</Text>
-                <Text style={[styles.detailValue, { color: colors.foreground }]}>{result.profile.recognitionCount} fois</Text>
+                <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>{t("faceRecognitionScreen.visits")}</Text>
+                <Text style={[styles.detailValue, { color: colors.foreground }]}>{t("faceRecognitionScreen.visitCount", { count: result.profile.recognitionCount })}</Text>
               </View>
             )}
           </View>
@@ -455,7 +458,7 @@ export default function FaceRecognitionScreen() {
             style={[styles.rescanBtn, { borderColor: colors.border }]}
           >
             <Feather name="refresh-cw" size={14} color={colors.primary} />
-            <Text style={[styles.rescanText, { color: colors.primary }]}>Scanner a nouveau</Text>
+            <Text style={[styles.rescanText, { color: colors.primary }]}>{t("faceRecognitionScreen.scanAgain")}</Text>
           </Pressable>
         </Animated.View>
       )}
@@ -469,19 +472,19 @@ export default function FaceRecognitionScreen() {
       <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.formTitleRow}>
           <Feather name="user-plus" size={16} color={colors.primary} />
-          <Text style={[styles.formTitle, { color: colors.foreground }]}>Enregistrer un nouveau visage</Text>
+          <Text style={[styles.formTitle, { color: colors.foreground }]}>{t("faceRecognitionScreen.registerNewFace")}</Text>
         </View>
 
-        <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Nom complet *</Text>
+        <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>{t("faceRecognitionScreen.fullName")}</Text>
         <TextInput
           value={regName}
           onChangeText={setRegName}
-          placeholder="Ex: Jean Dupont"
+          placeholder={t("faceRecognitionScreen.namePlaceholder")}
           placeholderTextColor={colors.mutedForeground}
           style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
         />
 
-        <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Role</Text>
+        <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>{t("faceRecognitionScreen.role")}</Text>
         <View style={styles.roleRow}>
           {["visiteur", "employe", "client", "fournisseur", "vip"].map((role) => (
             <Pressable
@@ -490,17 +493,17 @@ export default function FaceRecognitionScreen() {
               style={[styles.roleChip, { backgroundColor: regRole === role ? colors.primary : colors.background, borderColor: regRole === role ? colors.primary : colors.border }]}
             >
               <Text style={[styles.roleChipText, { color: regRole === role ? colors.primaryForeground : colors.foreground }]}>
-                {role.charAt(0).toUpperCase() + role.slice(1)}
+                {t(`faceRecognitionScreen.role_${role}`)}
               </Text>
             </Pressable>
           ))}
         </View>
 
-        <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Lier a un contact (optionnel)</Text>
+        <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>{t("faceRecognitionScreen.linkContact")}</Text>
         <TextInput
           value={contactSearch}
           onChangeText={searchContacts}
-          placeholder="Rechercher un contact..."
+          placeholder={t("faceRecognitionScreen.searchContact")}
           placeholderTextColor={colors.mutedForeground}
           style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
         />
@@ -545,7 +548,7 @@ export default function FaceRecognitionScreen() {
           ) : (
             <>
               <Feather name="user-plus" size={18} color={colors.primaryForeground} />
-              <Text style={[styles.registerButtonText, { color: colors.primaryForeground }]}>Enregistrer</Text>
+              <Text style={[styles.registerButtonText, { color: colors.primaryForeground }]}>{t("faceRecognitionScreen.register")}</Text>
             </>
           )}
         </Pressable>
@@ -564,7 +567,7 @@ export default function FaceRecognitionScreen() {
           <View style={[styles.profilesHeader, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Feather name="users" size={14} color={colors.mutedForeground} />
             <Text style={[styles.profilesHeaderText, { color: colors.mutedForeground }]}>
-              {profiles.length} profil{profiles.length !== 1 ? "s" : ""} enregistre{profiles.length !== 1 ? "s" : ""}
+              {t("faceRecognitionScreen.profilesCount", { count: profiles.length })}
             </Text>
           </View>
         ) : null
@@ -575,9 +578,9 @@ export default function FaceRecognitionScreen() {
         ) : (
           <View style={styles.emptyState}>
             <Feather name="users" size={48} color={colors.mutedForeground} />
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucun profil enregistre</Text>
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("faceRecognitionScreen.noProfiles")}</Text>
             <Text style={[styles.emptySubtext, { color: colors.mutedForeground }]}>
-              Utilisez l'onglet Enregistrement pour ajouter des visages
+              {t("faceRecognitionScreen.noProfilesSub")}
             </Text>
           </View>
         )
@@ -596,12 +599,12 @@ export default function FaceRecognitionScreen() {
                 <Text style={[styles.roleBadgeText, { color: colors.primary }]}>{item.role}</Text>
               </View>
               <Text style={[styles.profileMeta, { color: colors.mutedForeground }]}>
-                {item.recognitionCount} scan{item.recognitionCount !== 1 ? "s" : ""}
+                {t("faceRecognitionScreen.scanCount", { count: item.recognitionCount })}
               </Text>
             </View>
             {item.lastSeenAt && (
               <Text style={[styles.profileDate, { color: colors.mutedForeground }]}>
-                Derniere vue: {new Date(item.lastSeenAt).toLocaleDateString("fr-FR")}
+                {t("faceRecognitionScreen.lastSeen", { date: new Date(item.lastSeenAt).toLocaleDateString("fr-FR") })}
               </Text>
             )}
           </View>
@@ -625,7 +628,7 @@ export default function FaceRecognitionScreen() {
         ) : (
           <View style={styles.emptyState}>
             <Feather name="list" size={48} color={colors.mutedForeground} />
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucun historique</Text>
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("faceRecognitionScreen.noHistory")}</Text>
           </View>
         )
       }
@@ -640,9 +643,9 @@ export default function FaceRecognitionScreen() {
               <Feather name={isReg ? "user-plus" : highConf ? "check-circle" : "alert-circle"} size={16} color={iconColor} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.logName, { color: colors.foreground }]}>{item.recognizedName || "Inconnu"}</Text>
+              <Text style={[styles.logName, { color: colors.foreground }]}>{item.recognizedName || t("faceRecognitionScreen.unknown")}</Text>
               <Text style={[styles.logMeta, { color: colors.mutedForeground }]}>
-                {isReg ? "Enregistrement" : `Scan · Confiance ${item.confidence}%`}
+                {isReg ? t("faceRecognitionScreen.registration") : t("faceRecognitionScreen.scanConfidence", { confidence: item.confidence })}
                 {" · "}
                 {new Date(item.createdAt).toLocaleString("fr-FR", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" })}
               </Text>
@@ -659,10 +662,10 @@ export default function FaceRecognitionScreen() {
   );
 
   const tabs: { key: TabType; icon: keyof typeof Feather.glyphMap; label: string }[] = [
-    { key: "scan", icon: "aperture", label: "Scanner" },
-    { key: "register", icon: "user-plus", label: "Enregistrer" },
-    { key: "profiles", icon: "users", label: "Profils" },
-    { key: "logs", icon: "list", label: "Historique" },
+    { key: "scan", icon: "aperture", label: t("faceRecognitionScreen.tabScan") },
+    { key: "register", icon: "user-plus", label: t("faceRecognitionScreen.tabRegister") },
+    { key: "profiles", icon: "users", label: t("faceRecognitionScreen.tabProfiles") },
+    { key: "logs", icon: "list", label: t("faceRecognitionScreen.tabLogs") },
   ];
 
   return (
@@ -673,25 +676,25 @@ export default function FaceRecognitionScreen() {
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>Reconnaissance faciale</Text>
-            <Text style={styles.headerSub}>Identification IA en temps reel</Text>
+            <Text style={styles.headerTitle}>{t("faceRecognitionScreen.title")}</Text>
+            <Text style={styles.headerSub}>{t("faceRecognitionScreen.subtitle")}</Text>
           </View>
           <View style={[styles.aiBadge, { backgroundColor: "#8b5cf620" }]}>
             <Feather name="cpu" size={14} color="#8b5cf6" />
-            <Text style={{ color: "#8b5cf6", fontSize: 10, fontFamily: "Inter_600SemiBold" }}>IA</Text>
+            <Text style={{ color: "#8b5cf6", fontSize: 10, fontFamily: "Inter_600SemiBold" }}>{t("faceRecognitionScreen.aiBadge")}</Text>
           </View>
         </View>
       </View>
 
       <View style={[styles.tabBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        {tabs.map((t) => (
+        {tabs.map((tb) => (
           <Pressable
-            key={t.key}
-            onPress={() => setActiveTab(t.key)}
-            style={[styles.tab, activeTab === t.key && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+            key={tb.key}
+            onPress={() => setActiveTab(tb.key)}
+            style={[styles.tab, activeTab === tb.key && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
           >
-            <Feather name={t.icon} size={16} color={activeTab === t.key ? colors.primary : colors.mutedForeground} />
-            <Text style={[styles.tabLabel, { color: activeTab === t.key ? colors.primary : colors.mutedForeground }]}>{t.label}</Text>
+            <Feather name={tb.icon} size={16} color={activeTab === tb.key ? colors.primary : colors.mutedForeground} />
+            <Text style={[styles.tabLabel, { color: activeTab === tb.key ? colors.primary : colors.mutedForeground }]}>{tb.label}</Text>
           </Pressable>
         ))}
       </View>
