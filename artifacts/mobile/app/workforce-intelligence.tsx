@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation, type TFunction } from "@/lib/i18n";
 
 // ── Tipler ────────────────────────────────────────────────────────────────────
 
@@ -95,11 +96,11 @@ const ALERTE_ICONS = {
   inactivite: "moon" as const,
 };
 
-const ROLE_LABELS: Record<string, string> = {
-  super_admin: "Super Admin",
-  administrateur: "Admin",
-  agent: "Agent",
-  lecture_seule: "Lecture",
+const ROLE_LABEL_KEYS: Record<string, string> = {
+  super_admin: "workforceIntelligenceScreen.roles.super_admin",
+  administrateur: "workforceIntelligenceScreen.roles.administrateur",
+  agent: "workforceIntelligenceScreen.roles.agent",
+  lecture_seule: "workforceIntelligenceScreen.roles.lecture_seule",
 };
 
 // Auto-refresh interval — 10 dakika (millisaniye)
@@ -123,6 +124,7 @@ function StatusDot({ active }: { active: boolean }) {
 }
 
 function EmployeeCard({ emp, colors }: { emp: Employee; colors: ReturnType<typeof useColors> }) {
+  const { t } = useTranslation();
   const isActiveToday = emp.callsToday + emp.tasksCompletedToday + emp.notesToday > 0;
   const scoreColor = SCORE_COLOR(emp.score);
   const scoreBg = SCORE_BG(emp.score);
@@ -140,7 +142,7 @@ function EmployeeCard({ emp, colors }: { emp: Employee; colors: ReturnType<typeo
         <View style={styles.empInfo}>
           <Text style={[styles.empName, { color: colors.foreground }]}>{emp.prenom} {emp.nom}</Text>
           <Text style={[styles.empRole, { color: colors.mutedForeground }]}>
-            {ROLE_LABELS[emp.role] ?? emp.role}{emp.departement ? ` · ${emp.departement}` : ""}
+            {(ROLE_LABEL_KEYS[emp.role] ? t(ROLE_LABEL_KEYS[emp.role]) : emp.role)}{emp.departement ? ` · ${emp.departement}` : ""}
           </Text>
         </View>
         {/* Score */}
@@ -152,11 +154,11 @@ function EmployeeCard({ emp, colors }: { emp: Employee; colors: ReturnType<typeo
 
       {/* Mini stats */}
       <View style={[styles.empStats, { borderTopColor: colors.border }]}>
-        <MiniStat icon="phone-call" value={emp.calls7d} label="appels" color="#22c55e" colors={colors} />
-        <MiniStat icon="phone-missed" value={emp.callsMissed7d} label="manques" color={emp.callsMissed7d > 0 ? "#ef4444" : colors.mutedForeground} colors={colors} />
-        <MiniStat icon="check-square" value={emp.tasksCompleted7d} label="terminees" color="#3b82f6" colors={colors} />
-        <MiniStat icon="alert-triangle" value={emp.tasksOverdue} label="retard" color={emp.tasksOverdue > 0 ? "#ef4444" : colors.mutedForeground} colors={colors} />
-        <MiniStat icon="edit-2" value={emp.notes7d} label="notes" color="#8b5cf6" colors={colors} />
+        <MiniStat icon="phone-call" value={emp.calls7d} label={t("workforceIntelligenceScreen.mini.calls")} color="#22c55e" colors={colors} />
+        <MiniStat icon="phone-missed" value={emp.callsMissed7d} label={t("workforceIntelligenceScreen.mini.missed")} color={emp.callsMissed7d > 0 ? "#ef4444" : colors.mutedForeground} colors={colors} />
+        <MiniStat icon="check-square" value={emp.tasksCompleted7d} label={t("workforceIntelligenceScreen.mini.completed")} color="#3b82f6" colors={colors} />
+        <MiniStat icon="alert-triangle" value={emp.tasksOverdue} label={t("workforceIntelligenceScreen.mini.overdue")} color={emp.tasksOverdue > 0 ? "#ef4444" : colors.mutedForeground} colors={colors} />
+        <MiniStat icon="edit-2" value={emp.notes7d} label={t("workforceIntelligenceScreen.mini.notes")} color="#8b5cf6" colors={colors} />
       </View>
 
       {/* Dernier accès */}
@@ -164,12 +166,12 @@ function EmployeeCard({ emp, colors }: { emp: Employee; colors: ReturnType<typeo
         <Feather name="clock" size={10} color={colors.mutedForeground} />
         <Text style={[styles.empLastSeen, { color: colors.mutedForeground }]}>
           {emp.dernierAcces
-            ? `Vu ${new Date(emp.dernierAcces).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`
-            : "Jamais connecte"}
+            ? t("workforceIntelligenceScreen.seenAt", { date: new Date(emp.dernierAcces).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) })
+            : t("workforceIntelligenceScreen.neverConnected")}
         </Text>
         {isActiveToday && (
           <View style={styles.activeTodayBadge}>
-            <Text style={styles.activeTodayText}>Actif aujourd'hui</Text>
+            <Text style={styles.activeTodayText}>{t("workforceIntelligenceScreen.activeTodayBadge")}</Text>
           </View>
         )}
       </View>
@@ -196,6 +198,7 @@ function MiniStat({ icon, value, label, color, colors }: {
 // ── Ekran ─────────────────────────────────────────────────────────────────────
 
 export default function WorkforceIntelligenceScreen() {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth, user } = useAuth();
@@ -224,7 +227,7 @@ export default function WorkforceIntelligenceScreen() {
     try {
       const res = await fetchAuth(`${API_BASE}/api/workforce-intelligence`);
       if (res.status === 403) {
-        setError("Acces reserve aux administrateurs.");
+        setError(t("workforceIntelligenceScreen.adminOnly"));
         return;
       }
       if (!res.ok) throw new Error("Erreur serveur");
@@ -233,13 +236,13 @@ export default function WorkforceIntelligenceScreen() {
       fadeAnim.setValue(0);
       Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: Platform.OS !== "web" }).start();
     } catch {
-      setError("Impossible de charger les donnees. Verifiez votre connexion.");
+      setError(t("workforceIntelligenceScreen.loadError"));
     } finally {
       setLoading(false);
       setAiLoading(false);
       setRefreshing(false);
     }
-  }, [fetchAuth, isAdmin, fadeAnim]);
+  }, [fetchAuth, isAdmin, fadeAnim, t]);
 
   // Auto-refresh kurulumu
   const scheduleAutoRefresh = useCallback(() => {
@@ -286,14 +289,14 @@ export default function WorkforceIntelligenceScreen() {
             <Pressable onPress={() => router.back()} hitSlop={12}>
               <Feather name="arrow-left" size={22} color="#ffffff" />
             </Pressable>
-            <Text style={styles.headerTitle}>Intelligence Equipe</Text>
+            <Text style={styles.headerTitle}>{t("workforceIntelligenceScreen.headerTitle")}</Text>
             <View style={{ width: 22 }} />
           </View>
         </View>
         <View style={styles.center}>
           <Feather name="lock" size={48} color={colors.mutedForeground} />
-          <Text style={[styles.errorTitle, { color: colors.foreground }]}>Acces reserve</Text>
-          <Text style={[styles.errorSub, { color: colors.mutedForeground }]}>Cette section est accessible uniquement aux administrateurs.</Text>
+          <Text style={[styles.errorTitle, { color: colors.foreground }]}>{t("workforceIntelligenceScreen.accessTitle")}</Text>
+          <Text style={[styles.errorSub, { color: colors.mutedForeground }]}>{t("workforceIntelligenceScreen.accessDesc")}</Text>
         </View>
       </View>
     );
@@ -309,14 +312,14 @@ export default function WorkforceIntelligenceScreen() {
             <Pressable onPress={() => router.back()} hitSlop={12}>
               <Feather name="arrow-left" size={22} color="#ffffff" />
             </Pressable>
-            <Text style={styles.headerTitle}>Intelligence Equipe</Text>
+            <Text style={styles.headerTitle}>{t("workforceIntelligenceScreen.headerTitle")}</Text>
             <View style={{ width: 22 }} />
           </View>
         </View>
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Analyse IA en cours...</Text>
-          <Text style={[styles.loadingSub, { color: colors.mutedForeground }]}>Gemini evalue les performances de l'equipe</Text>
+          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>{t("workforceIntelligenceScreen.loadingTitle")}</Text>
+          <Text style={[styles.loadingSub, { color: colors.mutedForeground }]}>{t("workforceIntelligenceScreen.loadingSub")}</Text>
         </View>
       </View>
     );
@@ -332,15 +335,15 @@ export default function WorkforceIntelligenceScreen() {
             <Pressable onPress={() => router.back()} hitSlop={12}>
               <Feather name="arrow-left" size={22} color="#ffffff" />
             </Pressable>
-            <Text style={styles.headerTitle}>Intelligence Equipe</Text>
+            <Text style={styles.headerTitle}>{t("workforceIntelligenceScreen.headerTitle")}</Text>
             <View style={{ width: 22 }} />
           </View>
         </View>
         <View style={styles.center}>
           <Feather name="alert-circle" size={40} color={colors.destructive} />
-          <Text style={[styles.errorTitle, { color: colors.foreground }]}>{error ?? "Erreur inconnue"}</Text>
+          <Text style={[styles.errorTitle, { color: colors.foreground }]}>{error ?? t("workforceIntelligenceScreen.unknownError")}</Text>
           <Pressable style={[styles.retryBtn, { backgroundColor: colors.primary }]} onPress={() => load()}>
-            <Text style={[styles.retryText, { color: colors.secondary }]}>Reessayer</Text>
+            <Text style={[styles.retryText, { color: colors.secondary }]}>{t("common.retry")}</Text>
           </Pressable>
         </View>
       </View>
@@ -363,7 +366,7 @@ export default function WorkforceIntelligenceScreen() {
           <Pressable onPress={() => router.back()} hitSlop={12}>
             <Feather name="arrow-left" size={22} color="#ffffff" />
           </Pressable>
-          <Text style={styles.headerTitle}>Intelligence Equipe</Text>
+          <Text style={styles.headerTitle}>{t("workforceIntelligenceScreen.headerTitle")}</Text>
           <Pressable onPress={onRefresh} hitSlop={12}>
             {aiLoading
               ? <ActivityIndicator size="small" color="rgba(255,255,255,0.8)" />
@@ -375,7 +378,7 @@ export default function WorkforceIntelligenceScreen() {
           <Text style={styles.headerDate}>{date}</Text>
           <View style={styles.autoRefreshBadge}>
             <Feather name="zap" size={10} color="#f59e0b" />
-            <Text style={styles.autoRefreshText}>IA dans {countdownStr}</Text>
+            <Text style={styles.autoRefreshText}>{t("workforceIntelligenceScreen.autoRefresh", { time: countdownStr })}</Text>
           </View>
         </View>
       </View>
@@ -396,8 +399,8 @@ export default function WorkforceIntelligenceScreen() {
           >
             <View style={styles.heroTop}>
               <View style={styles.heroLeft}>
-                <Text style={styles.heroTitle}>Bonjour, {managerName}</Text>
-                <Text style={styles.heroSub}>Votre equipe — {teamSize} collaborateur{teamSize > 1 ? "s" : ""}</Text>
+                <Text style={styles.heroTitle}>{t("workforceIntelligenceScreen.greeting", { name: managerName })}</Text>
+                <Text style={styles.heroSub}>{t(teamSize > 1 ? "workforceIntelligenceScreen.teamSubMany" : "workforceIntelligenceScreen.teamSubOne", { count: teamSize })}</Text>
               </View>
               <ScoreRing score={ai?.sante_equipe ?? teamAvgScore} size={64} />
             </View>
@@ -407,18 +410,18 @@ export default function WorkforceIntelligenceScreen() {
               <View style={styles.heroStatItem}>
                 <Feather name={tendanceIcon.name} size={14} color={tendanceIcon.color} />
                 <Text style={[styles.heroStatText, { color: tendanceIcon.color }]}>
-                  {tendance === "hausse" ? "En hausse" : tendance === "baisse" ? "En baisse" : "Stable"}
+                  {tendance === "hausse" ? t("workforceIntelligenceScreen.trendUp") : tendance === "baisse" ? t("workforceIntelligenceScreen.trendDown") : t("workforceIntelligenceScreen.trendStable")}
                 </Text>
               </View>
               <View style={styles.heroStatDivider} />
               <View style={styles.heroStatItem}>
                 <Feather name="users" size={14} color="#ffffff" />
-                <Text style={styles.heroStatText}>{activeToday}/{teamSize} actifs aujourd'hui</Text>
+                <Text style={styles.heroStatText}>{t("workforceIntelligenceScreen.activeToday", { active: activeToday, total: teamSize })}</Text>
               </View>
               <View style={styles.heroStatDivider} />
               <View style={styles.heroStatItem}>
                 <Feather name="bar-chart-2" size={14} color="#ffffff" />
-                <Text style={styles.heroStatText}>Moy. {teamAvgScore}/100</Text>
+                <Text style={styles.heroStatText}>{t("workforceIntelligenceScreen.avgScore", { score: teamAvgScore })}</Text>
               </View>
             </View>
 
@@ -430,7 +433,7 @@ export default function WorkforceIntelligenceScreen() {
           {/* Alertes IA */}
           {ai?.alertes && ai.alertes.length > 0 && (
             <>
-              <SectionTitle label="ALERTES IA" icon="alert-triangle" color="#ef4444" colors={colors} />
+              <SectionTitle label={t("workforceIntelligenceScreen.sections.alerts")} icon="alert-triangle" color="#ef4444" colors={colors} />
               {ai.alertes.map((a, i) => {
                 const urgenceConfig = URGENCE_COLORS[a.urgence as keyof typeof URGENCE_COLORS] ?? URGENCE_COLORS.basse;
                 const alerteIcon = ALERTE_ICONS[a.type as keyof typeof ALERTE_ICONS] ?? "alert-circle";
@@ -453,7 +456,7 @@ export default function WorkforceIntelligenceScreen() {
           {/* Top performers */}
           {ai?.top_performeurs && ai.top_performeurs.length > 0 && (
             <>
-              <SectionTitle label="TOP PERFORMEURS" icon="award" color="#f59e0b" colors={colors} />
+              <SectionTitle label={t("workforceIntelligenceScreen.sections.top")} icon="award" color="#f59e0b" colors={colors} />
               <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 {ai.top_performeurs.map((p, i) => (
                   <View key={i} style={[styles.perfRow, { borderBottomColor: colors.border, borderBottomWidth: i < ai.top_performeurs.length - 1 ? StyleSheet.hairlineWidth : 0 }]}>
@@ -476,7 +479,7 @@ export default function WorkforceIntelligenceScreen() {
           {/* En difficulté */}
           {ai?.en_difficulte && ai.en_difficulte.length > 0 && (
             <>
-              <SectionTitle label="NECESSITE ATTENTION" icon="user-x" color="#ef4444" colors={colors} />
+              <SectionTitle label={t("workforceIntelligenceScreen.sections.attention")} icon="user-x" color="#ef4444" colors={colors} />
               {ai.en_difficulte.map((e, i) => (
                 <View key={i} style={[styles.diffCard, { backgroundColor: colors.card, borderColor: "#fca5a5" }]}>
                   <View style={styles.diffHeader}>
@@ -503,7 +506,7 @@ export default function WorkforceIntelligenceScreen() {
           {/* Recommandations */}
           {ai?.recommandations && ai.recommandations.length > 0 && (
             <>
-              <SectionTitle label="RECOMMANDATIONS MANAGER" icon="compass" color="#8b5cf6" colors={colors} />
+              <SectionTitle label={t("workforceIntelligenceScreen.sections.recommendations")} icon="compass" color="#8b5cf6" colors={colors} />
               <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 {ai.recommandations.map((r, i) => {
                   const pColor = r.priorite === "haute" ? "#ef4444" : r.priorite === "moyenne" ? "#f59e0b" : "#22c55e";
@@ -522,7 +525,7 @@ export default function WorkforceIntelligenceScreen() {
           )}
 
           {/* Tous les collaborateurs */}
-          <SectionTitle label={`TOUS LES COLLABORATEURS (${teamSize})`} icon="users" color={colors.primary} colors={colors} />
+          <SectionTitle label={t("workforceIntelligenceScreen.sections.all", { count: teamSize })} icon="users" color={colors.primary} colors={colors} />
           {sortedEmployees.map((emp) => (
             <EmployeeCard key={emp.id} emp={emp} colors={colors} />
           ))}
@@ -533,7 +536,7 @@ export default function WorkforceIntelligenceScreen() {
               <LinearGradient colors={["rgba(99,102,241,0.08)", "rgba(99,102,241,0.02)"]} style={styles.previsionsGradient}>
                 <View style={styles.previsionsHeader}>
                   <Feather name="eye" size={15} color="#6366f1" />
-                  <Text style={[styles.previsionsTitle, { color: colors.foreground }]}>Previsions semaine prochaine</Text>
+                  <Text style={[styles.previsionsTitle, { color: colors.foreground }]}>{t("workforceIntelligenceScreen.previsionsTitle")}</Text>
                 </View>
                 <Text style={[styles.previsionsText, { color: colors.foreground }]}>{ai.previsions}</Text>
               </LinearGradient>
@@ -544,7 +547,7 @@ export default function WorkforceIntelligenceScreen() {
           <View style={styles.footerRow}>
             <Feather name="zap" size={11} color={colors.mutedForeground} />
             <Text style={[styles.footerText, { color: colors.mutedForeground }]}>
-              Analyse Gemini AI · {new Date(data.generatedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} · Prochaine mise a jour dans {countdownStr}
+              {t("workforceIntelligenceScreen.footer", { time: new Date(data.generatedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }), countdown: countdownStr })}
             </Text>
           </View>
 

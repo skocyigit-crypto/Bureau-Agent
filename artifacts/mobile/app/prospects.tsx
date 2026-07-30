@@ -25,6 +25,7 @@ import { FormModal } from "@/components/FormModal";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation, type TFunction } from "@/lib/i18n";
 
 interface Prospect {
   id: number;
@@ -45,14 +46,14 @@ interface Prospect {
   createdAt: string;
 }
 
-const STAGES: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  nouveau:       { label: "Nouveau",       color: "#64748b", icon: "star" },
-  contact:       { label: "Contact",       color: "#3b82f6", icon: "phone" },
-  qualification: { label: "Qualification", color: "#8b5cf6", icon: "filter" },
-  proposition:   { label: "Proposition",  color: "#f59e0b", icon: "file-text" },
-  negociation:   { label: "Négociation",  color: "#f97316", icon: "refresh-cw" },
-  gagne:         { label: "Gagné",        color: "#22c55e", icon: "check-circle" },
-  perdu:         { label: "Perdu",        color: "#ef4444", icon: "x-circle" },
+const STAGES: Record<string, { labelKey: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
+  nouveau:       { labelKey: "prospectsScreen.stages.nouveau",       color: "#64748b", icon: "star" },
+  contact:       { labelKey: "prospectsScreen.stages.contact",       color: "#3b82f6", icon: "phone" },
+  qualification: { labelKey: "prospectsScreen.stages.qualification", color: "#8b5cf6", icon: "filter" },
+  proposition:   { labelKey: "prospectsScreen.stages.proposition",  color: "#f59e0b", icon: "file-text" },
+  negociation:   { labelKey: "prospectsScreen.stages.negociation",  color: "#f97316", icon: "refresh-cw" },
+  gagne:         { labelKey: "prospectsScreen.stages.gagne",        color: "#22c55e", icon: "check-circle" },
+  perdu:         { labelKey: "prospectsScreen.stages.perdu",        color: "#ef4444", icon: "x-circle" },
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -61,37 +62,44 @@ const PRIORITY_COLORS: Record<string, string> = {
   basse:   "#64748b",
 };
 
-const FORM_FIELDS = [
-  { key: "title", label: "Titre de l'opportunité", required: true },
-  { key: "contactName", label: "Contact" },
-  { key: "company", label: "Entreprise" },
-  { key: "email", label: "Email", type: "email" as const },
-  { key: "phone", label: "Téléphone" },
-  {
-    key: "stage", label: "Étape", type: "select" as const, options: [
-      { value: "nouveau", label: "Nouveau" },
-      { value: "contact", label: "Contact" },
-      { value: "qualification", label: "Qualification" },
-      { value: "proposition", label: "Proposition" },
-      { value: "negociation", label: "Négociation" },
-      { value: "gagne", label: "Gagné" },
-      { value: "perdu", label: "Perdu" },
-    ],
-  },
-  {
-    key: "priority", label: "Priorité", type: "select" as const, options: [
-      { value: "basse", label: "Basse" },
-      { value: "moyenne", label: "Moyenne" },
-      { value: "haute", label: "Haute" },
-    ],
-  },
-  { key: "value", label: "Valeur estimée (€)" },
-  { key: "probability", label: "Probabilité (%)" },
-  { key: "source", label: "Source" },
-  { key: "assignedTo", label: "Responsable" },
-  { key: "expectedCloseDate", label: "Date de clôture prévue" },
-  { key: "notes", label: "Notes", type: "multiline" as const },
-];
+function stageLabel(stageKey: string, t: TFunction) {
+  const s = STAGES[stageKey];
+  return s ? t(s.labelKey) : stageKey;
+}
+
+function buildFormFields(t: TFunction) {
+  return [
+    { key: "title", label: t("prospectsScreen.fields.title"), required: true },
+    { key: "contactName", label: t("prospectsScreen.fields.contactName") },
+    { key: "company", label: t("prospectsScreen.fields.company") },
+    { key: "email", label: t("prospectsScreen.fields.email"), type: "email" as const },
+    { key: "phone", label: t("prospectsScreen.fields.phone") },
+    {
+      key: "stage", label: t("prospectsScreen.fields.stage"), type: "select" as const, options: [
+        { value: "nouveau", label: t("prospectsScreen.stages.nouveau") },
+        { value: "contact", label: t("prospectsScreen.stages.contact") },
+        { value: "qualification", label: t("prospectsScreen.stages.qualification") },
+        { value: "proposition", label: t("prospectsScreen.stages.proposition") },
+        { value: "negociation", label: t("prospectsScreen.stages.negociation") },
+        { value: "gagne", label: t("prospectsScreen.stages.gagne") },
+        { value: "perdu", label: t("prospectsScreen.stages.perdu") },
+      ],
+    },
+    {
+      key: "priority", label: t("prospectsScreen.fields.priority"), type: "select" as const, options: [
+        { value: "basse", label: t("prospectsScreen.priorities.basse") },
+        { value: "moyenne", label: t("prospectsScreen.priorities.moyenne") },
+        { value: "haute", label: t("prospectsScreen.priorities.haute") },
+      ],
+    },
+    { key: "value", label: t("prospectsScreen.fields.value") },
+    { key: "probability", label: t("prospectsScreen.fields.probability") },
+    { key: "source", label: t("prospectsScreen.fields.source") },
+    { key: "assignedTo", label: t("prospectsScreen.fields.assignedTo") },
+    { key: "expectedCloseDate", label: t("prospectsScreen.fields.expectedCloseDate") },
+    { key: "notes", label: t("prospectsScreen.fields.notes"), type: "multiline" as const },
+  ];
+}
 
 function fmtEur(v: string | null | undefined) {
   if (!v || isNaN(Number(v))) return null;
@@ -99,11 +107,12 @@ function fmtEur(v: string | null | undefined) {
 }
 
 function RightAction({ progress }: { progress: Animated.AnimatedInterpolation<number> }) {
+  const { t } = useTranslation();
   const scale = progress.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1], extrapolate: "clamp" });
   return (
     <Animated.View style={[styles.swipeAction, styles.swipeRight, { transform: [{ scale }] }]}>
       <Feather name="trash-2" size={22} color="#fff" />
-      <Text style={styles.swipeActionText}>Supprimer</Text>
+      <Text style={styles.swipeActionText}>{t("common.delete")}</Text>
     </Animated.View>
   );
 }
@@ -116,8 +125,12 @@ interface SwipeableProspectProps {
 }
 
 function SwipeableProspect({ item, colors, onDelete, onOpen }: SwipeableProspectProps) {
+  const { t } = useTranslation();
   const swipeRef = useRef<Swipeable>(null);
-  const stage = STAGES[item.stage] ?? { label: item.stage, color: "#64748b", icon: "circle" as const };
+  const stageDef = STAGES[item.stage];
+  const stageLabelText = stageDef ? t(stageDef.labelKey) : item.stage;
+  const stageColor = stageDef?.color ?? "#64748b";
+  const stageIcon = stageDef?.icon ?? ("circle" as const);
   const prioColor = PRIORITY_COLORS[item.priority] ?? colors.mutedForeground;
   const isWon = item.stage === "gagne";
   const isLost = item.stage === "perdu";
@@ -129,9 +142,9 @@ function SwipeableProspect({ item, colors, onDelete, onOpen }: SwipeableProspect
       if (Platform.OS === "web") {
         onDelete(item.id);
       } else {
-        Alert.alert("Supprimer", `Supprimer "${item.title}" ?`, [
-          { text: "Annuler", style: "cancel" },
-          { text: "Supprimer", style: "destructive", onPress: () => onDelete(item.id) },
+        Alert.alert(t("common.delete"), t("prospectsScreen.deleteConfirm", { title: item.title }), [
+          { text: t("common.cancel"), style: "cancel" },
+          { text: t("common.delete"), style: "destructive", onPress: () => onDelete(item.id) },
         ]);
       }
     }
@@ -165,9 +178,9 @@ function SwipeableProspect({ item, colors, onDelete, onOpen }: SwipeableProspect
               {item.title}
             </Text>
           </View>
-          <View style={[styles.stagePill, { backgroundColor: stage.color + "18" }]}>
-            <Feather name={stage.icon} size={10} color={stage.color} />
-            <Text style={[styles.stageText, { color: stage.color }]}>{stage.label}</Text>
+          <View style={[styles.stagePill, { backgroundColor: stageColor + "18" }]}>
+            <Feather name={stageIcon} size={10} color={stageColor} />
+            <Text style={[styles.stageText, { color: stageColor }]}>{stageLabelText}</Text>
           </View>
         </View>
 
@@ -214,6 +227,7 @@ export default function ProspectsScreen() {
   // conditionnel sinon React detecte une rupture d'ordre des hooks et
   // crashe au prochain rendu. Le garde-fou agit donc apres l'init.
   const { user: authUser, fetchAuth } = useAuth();
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
@@ -298,7 +312,7 @@ export default function ProspectsScreen() {
         fetchProspects();
       }
     } catch {
-      if (Platform.OS !== "web") Alert.alert("Erreur", "Impossible de sauvegarder.");
+      if (Platform.OS !== "web") Alert.alert(t("prospectsScreen.errorTitle"), t("prospectsScreen.saveError"));
     } finally { setFormLoading(false); }
   }
 
@@ -330,11 +344,11 @@ export default function ProspectsScreen() {
   }
 
   const filters = [
-    { key: "all", label: "Tous" },
-    { key: "nouveau", label: "Nouveaux" },
-    { key: "en_cours", label: "En cours" },
-    { key: "gagne", label: "Gagnés" },
-    { key: "perdu", label: "Perdus" },
+    { key: "all", label: t("prospectsScreen.filters.all") },
+    { key: "nouveau", label: t("prospectsScreen.filters.nouveau") },
+    { key: "en_cours", label: t("prospectsScreen.filters.en_cours") },
+    { key: "gagne", label: t("prospectsScreen.filters.gagne") },
+    { key: "perdu", label: t("prospectsScreen.filters.perdu") },
   ];
 
   const localStats = {
@@ -345,18 +359,18 @@ export default function ProspectsScreen() {
   };
 
   const detailFields = selected ? [
-    { label: "Étape", value: STAGES[selected.stage]?.label ?? selected.stage },
-    { label: "Priorité", value: selected.priority },
-    { label: "Contact", value: selected.contactName ?? "—" },
-    { label: "Entreprise", value: selected.company ?? "—" },
-    { label: "Email", value: selected.email ?? "—", icon: "mail" as const, action: selected.email ? "email" as const : undefined },
-    { label: "Téléphone", value: selected.phone ?? "—", icon: "phone" as const, action: selected.phone ? "call" as const : undefined },
-    { label: "Valeur", value: fmtEur(selected.value) ?? "—" },
-    { label: "Probabilité", value: `${selected.probability}%` },
-    { label: "Responsable", value: selected.assignedTo ?? "—" },
-    { label: "Source", value: selected.source ?? "—" },
-    { label: "Clôture prévue", value: selected.expectedCloseDate ? new Date(selected.expectedCloseDate).toLocaleDateString("fr-FR") : "—" },
-    { label: "Notes", value: selected.notes ?? "—" },
+    { label: t("prospectsScreen.fields.stage"), value: stageLabel(selected.stage, t) },
+    { label: t("prospectsScreen.fields.priority"), value: selected.priority },
+    { label: t("prospectsScreen.fields.contactName"), value: selected.contactName ?? "—" },
+    { label: t("prospectsScreen.fields.company"), value: selected.company ?? "—" },
+    { label: t("prospectsScreen.fields.email"), value: selected.email ?? "—", icon: "mail" as const, action: selected.email ? "email" as const : undefined },
+    { label: t("prospectsScreen.fields.phone"), value: selected.phone ?? "—", icon: "phone" as const, action: selected.phone ? "call" as const : undefined },
+    { label: t("prospectsScreen.detail.value"), value: fmtEur(selected.value) ?? "—" },
+    { label: t("prospectsScreen.detail.probability"), value: `${selected.probability}%` },
+    { label: t("prospectsScreen.fields.assignedTo"), value: selected.assignedTo ?? "—" },
+    { label: t("prospectsScreen.fields.source"), value: selected.source ?? "—" },
+    { label: t("prospectsScreen.detail.expectedCloseDate"), value: selected.expectedCloseDate ? new Date(selected.expectedCloseDate).toLocaleDateString("fr-FR") : "—" },
+    { label: t("prospectsScreen.fields.notes"), value: selected.notes ?? "—" },
   ] : [];
 
   // Garde-fou super-admin (Tâche #52). Place APRES tous les hooks pour
@@ -368,16 +382,16 @@ export default function ProspectsScreen() {
       <View style={[styles.container, { backgroundColor: colors.background, justifyContent: "center", alignItems: "center", padding: 24 }]}>
         <Feather name="lock" size={48} color={colors.mutedForeground} />
         <Text style={{ color: colors.foreground, fontSize: 18, fontWeight: "600", marginTop: 16, textAlign: "center" }}>
-          Acces reserve
+          {t("prospectsScreen.accessTitle")}
         </Text>
         <Text style={{ color: colors.mutedForeground, fontSize: 14, marginTop: 8, textAlign: "center" }}>
-          Ce module est reserve au backoffice SaaS (super-admin uniquement).
+          {t("prospectsScreen.accessDesc")}
         </Text>
         <Pressable
           onPress={() => router.replace("/(tabs)")}
           style={{ marginTop: 24, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: colors.primary, borderRadius: 8 }}
         >
-          <Text style={{ color: "#fff", fontWeight: "600" }}>Retour</Text>
+          <Text style={{ color: "#fff", fontWeight: "600" }}>{t("common.back")}</Text>
         </Pressable>
       </View>
     );
@@ -390,11 +404,11 @@ export default function ProspectsScreen() {
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
-          <Text style={styles.headerTitle}>Prospects</Text>
+          <Text style={styles.headerTitle}>{t("prospectsScreen.title")}</Text>
           {isFromCache && (
             <View style={[styles.cacheBadge, { backgroundColor: "rgba(255,255,255,0.12)" }]}>
               <Feather name="wifi-off" size={10} color="rgba(255,255,255,0.6)" />
-              <Text style={styles.cacheText}>Cache</Text>
+              <Text style={styles.cacheText}>{t("prospectsScreen.cache")}</Text>
             </View>
           )}
         </View>
@@ -403,7 +417,7 @@ export default function ProspectsScreen() {
           <Feather name="search" size={16} color="rgba(255,255,255,0.5)" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Rechercher..."
+            placeholder={t("prospectsScreen.searchPlaceholder")}
             placeholderTextColor="rgba(255,255,255,0.4)"
             value={search}
             onChangeText={setSearch}
@@ -441,17 +455,17 @@ export default function ProspectsScreen() {
               <View style={[styles.statsBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={styles.statItem}>
                   <Text style={[styles.statNum, { color: colors.foreground }]}>{localStats.total}</Text>
-                  <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>Total</Text>
+                  <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>{t("prospectsScreen.stats.total")}</Text>
                 </View>
                 <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
                 <View style={styles.statItem}>
                   <Text style={[styles.statNum, { color: "#22c55e" }]}>{localStats.gagnes}</Text>
-                  <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>Gagnés</Text>
+                  <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>{t("prospectsScreen.stats.gagnes")}</Text>
                 </View>
                 <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
                 <View style={styles.statItem}>
                   <Text style={[styles.statNum, { color: "#ef4444" }]}>{localStats.perdus}</Text>
-                  <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>Perdus</Text>
+                  <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>{t("prospectsScreen.stats.perdus")}</Text>
                 </View>
                 <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
                 <View style={styles.statItem}>
@@ -460,7 +474,7 @@ export default function ProspectsScreen() {
                       ? new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(localStats.pipelineValue)
                       : "—"}
                   </Text>
-                  <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>Pipeline</Text>
+                  <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>{t("prospectsScreen.stats.pipeline")}</Text>
                 </View>
               </View>
             ) : null
@@ -468,8 +482,8 @@ export default function ProspectsScreen() {
           ListEmptyComponent={
             <EmptyState
               icon="trending-up"
-              title="Aucun prospect"
-              subtitle={search ? "Aucun prospect ne correspond à votre recherche." : "Ajoutez votre premier prospect."}
+              title={t("prospectsScreen.empty.title")}
+              subtitle={search ? t("prospectsScreen.empty.search") : t("prospectsScreen.empty.add")}
             />
           }
           renderItem={({ item }) => (
@@ -487,14 +501,14 @@ export default function ProspectsScreen() {
 
       <FormModal
         visible={showForm}
-        title={editId ? "Modifier le prospect" : "Nouveau prospect"}
-        fields={FORM_FIELDS}
+        title={editId ? t("prospectsScreen.formTitleEdit") : t("prospectsScreen.formTitleNew")}
+        fields={buildFormFields(t)}
         values={formValues}
         onChange={(key, val) => setFormValues(prev => ({ ...prev, [key]: val }))}
         onSubmit={handleSubmit}
         onClose={() => { setShowForm(false); setEditId(null); }}
         loading={formLoading}
-        submitLabel={editId ? "Enregistrer" : "Créer"}
+        submitLabel={editId ? t("common.save") : t("prospectsScreen.submitCreate")}
       />
 
       <DetailModal
@@ -502,12 +516,12 @@ export default function ProspectsScreen() {
         icon="trending-up"
         iconColor={selected ? (STAGES[selected.stage]?.color ?? "#6366f1") : "#6366f1"}
         title={selected?.title ?? ""}
-        subtitle={selected ? `${STAGES[selected.stage]?.label ?? selected.stage} · ${selected.probability}%` : ""}
+        subtitle={selected ? `${stageLabel(selected.stage, t)} · ${selected.probability}%` : ""}
         fields={detailFields}
         onClose={() => setSelected(null)}
         extraActions={selected ? [
           {
-            label: "Créer un projet",
+            label: t("prospectsScreen.createProject"),
             icon: "folder",
             color: "#6366f1",
             onPress: async () => {
@@ -538,9 +552,9 @@ export default function ProspectsScreen() {
           if (Platform.OS === "web") {
             handleDelete(selected.id);
           } else {
-            Alert.alert("Supprimer", `Supprimer "${selected.title}" ?`, [
-              { text: "Annuler", style: "cancel" },
-              { text: "Supprimer", style: "destructive", onPress: () => handleDelete(selected.id) },
+            Alert.alert(t("common.delete"), t("prospectsScreen.deleteConfirm", { title: selected.title }), [
+              { text: t("common.cancel"), style: "cancel" },
+              { text: t("common.delete"), style: "destructive", onPress: () => handleDelete(selected.id) },
             ]);
           }
         } : undefined}

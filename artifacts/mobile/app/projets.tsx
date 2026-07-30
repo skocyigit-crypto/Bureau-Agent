@@ -37,13 +37,14 @@ import { FAB } from "@/components/FAB";
 import { FormModal } from "@/components/FormModal";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation, type TFunction } from "@/lib/i18n";
 
-const STATUS_MAP: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  planifie: { label: "Planifie", color: "#64748b", icon: "calendar" },
-  en_cours: { label: "En cours", color: "#3b82f6", icon: "play-circle" },
-  en_pause: { label: "En pause", color: "#f59e0b", icon: "pause-circle" },
-  termine: { label: "Termine", color: "#22c55e", icon: "check-circle" },
-  annule: { label: "Annule", color: "#ef4444", icon: "x-circle" },
+const STATUS_MAP: Record<string, { labelKey: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
+  planifie: { labelKey: "projetsScreen.status.planifie", color: "#64748b", icon: "calendar" },
+  en_cours: { labelKey: "projetsScreen.status.en_cours", color: "#3b82f6", icon: "play-circle" },
+  en_pause: { labelKey: "projetsScreen.status.en_pause", color: "#f59e0b", icon: "pause-circle" },
+  termine: { labelKey: "projetsScreen.status.termine", color: "#22c55e", icon: "check-circle" },
+  annule: { labelKey: "projetsScreen.status.annule", color: "#ef4444", icon: "x-circle" },
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -53,44 +54,57 @@ const PRIORITY_COLORS: Record<string, string> = {
   basse: "#22c55e",
 };
 
-const PRIORITY_LABELS: Record<string, string> = {
-  critique: "Critique",
-  haute: "Haute",
-  moyenne: "Moyenne",
-  basse: "Basse",
+const PRIORITY_LABEL_KEYS: Record<string, string> = {
+  critique: "projetsScreen.priorities.critique",
+  haute: "projetsScreen.priorities.haute",
+  moyenne: "projetsScreen.priorities.moyenne",
+  basse: "projetsScreen.priorities.basse",
 };
 
-const FORM_FIELDS = [
-  { key: "title", label: "Titre du projet", required: true },
-  { key: "clientName", label: "Nom du client" },
-  { key: "clientCompany", label: "Entreprise" },
-  {
-    key: "priority", label: "Priorite", type: "select" as const, options: [
-      { value: "basse", label: "Basse" },
-      { value: "moyenne", label: "Moyenne" },
-      { value: "haute", label: "Haute" },
-      { value: "critique", label: "Critique" },
-    ],
-  },
-  {
-    key: "status", label: "Statut", type: "select" as const, options: [
-      { value: "planifie", label: "Planifie" },
-      { value: "en_cours", label: "En cours" },
-      { value: "en_pause", label: "En pause" },
-      { value: "termine", label: "Termine" },
-      { value: "annule", label: "Annule" },
-    ],
-  },
-  { key: "assignedTo", label: "Responsable" },
-  { key: "notes", label: "Notes", type: "multiline" as const },
-];
+function statusLabel(statusKey: string, t: TFunction) {
+  const s = STATUS_MAP[statusKey];
+  return s ? t(s.labelKey) : statusKey;
+}
+
+function priorityLabel(prioKey: string, t: TFunction) {
+  const k = PRIORITY_LABEL_KEYS[prioKey];
+  return k ? t(k) : prioKey;
+}
+
+function buildFormFields(t: TFunction) {
+  return [
+    { key: "title", label: t("projetsScreen.fields.title"), required: true },
+    { key: "clientName", label: t("projetsScreen.fields.clientName") },
+    { key: "clientCompany", label: t("projetsScreen.fields.clientCompany") },
+    {
+      key: "priority", label: t("projetsScreen.fields.priority"), type: "select" as const, options: [
+        { value: "basse", label: t("projetsScreen.priorities.basse") },
+        { value: "moyenne", label: t("projetsScreen.priorities.moyenne") },
+        { value: "haute", label: t("projetsScreen.priorities.haute") },
+        { value: "critique", label: t("projetsScreen.priorities.critique") },
+      ],
+    },
+    {
+      key: "status", label: t("projetsScreen.fields.status"), type: "select" as const, options: [
+        { value: "planifie", label: t("projetsScreen.status.planifie") },
+        { value: "en_cours", label: t("projetsScreen.status.en_cours") },
+        { value: "en_pause", label: t("projetsScreen.status.en_pause") },
+        { value: "termine", label: t("projetsScreen.status.termine") },
+        { value: "annule", label: t("projetsScreen.status.annule") },
+      ],
+    },
+    { key: "assignedTo", label: t("projetsScreen.fields.assignedTo") },
+    { key: "notes", label: t("projetsScreen.fields.notes"), type: "multiline" as const },
+  ];
+}
 
 function RightAction({ progress }: { progress: Animated.AnimatedInterpolation<number> }) {
+  const { t } = useTranslation();
   const scale = progress.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1], extrapolate: "clamp" });
   return (
     <Animated.View style={[styles.swipeAction, styles.swipeRight, { transform: [{ scale }] }]}>
       <Feather name="trash-2" size={22} color="#fff" />
-      <Text style={styles.swipeActionText}>Supprimer</Text>
+      <Text style={styles.swipeActionText}>{t("common.delete")}</Text>
     </Animated.View>
   );
 }
@@ -112,8 +126,12 @@ interface SwipeableProjetProps {
 }
 
 function SwipeableProjet({ item, colors, onDelete, onOpen }: SwipeableProjetProps) {
+  const { t } = useTranslation();
   const swipeRef = useRef<Swipeable>(null);
-  const status = STATUS_MAP[item.status] ?? { label: item.status, color: "#64748b", icon: "circle" as const };
+  const statusDef = STATUS_MAP[item.status];
+  const statusLabelText = statusDef ? t(statusDef.labelKey) : item.status;
+  const statusColor = statusDef?.color ?? "#64748b";
+  const statusIcon = statusDef?.icon ?? ("circle" as const);
   const prioColor = PRIORITY_COLORS[item.priority] ?? colors.mutedForeground;
 
   const isOverdue = item.endDate && new Date(item.endDate) < new Date() && item.status !== "termine" && item.status !== "annule";
@@ -126,9 +144,9 @@ function SwipeableProjet({ item, colors, onDelete, onOpen }: SwipeableProjetProp
       if (Platform.OS === "web") {
         onDelete(item.id);
       } else {
-        Alert.alert("Supprimer", `Supprimer "${item.title}" ?`, [
-          { text: "Annuler", style: "cancel" },
-          { text: "Supprimer", style: "destructive", onPress: () => onDelete(item.id) },
+        Alert.alert(t("common.delete"), t("projetsScreen.deleteConfirm", { title: item.title }), [
+          { text: t("common.cancel"), style: "cancel" },
+          { text: t("common.delete"), style: "destructive", onPress: () => onDelete(item.id) },
         ]);
       }
     }
@@ -158,9 +176,9 @@ function SwipeableProjet({ item, colors, onDelete, onOpen }: SwipeableProjetProp
               {item.title}
             </Text>
           </View>
-          <View style={[styles.statusPill, { backgroundColor: status.color + "18" }]}>
-            <Feather name={status.icon} size={11} color={status.color} />
-            <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
+          <View style={[styles.statusPill, { backgroundColor: statusColor + "18" }]}>
+            <Feather name={statusIcon} size={11} color={statusColor} />
+            <Text style={[styles.statusText, { color: statusColor }]}>{statusLabelText}</Text>
           </View>
         </View>
 
@@ -171,7 +189,7 @@ function SwipeableProjet({ item, colors, onDelete, onOpen }: SwipeableProjetProp
         ) : null}
 
         <View style={styles.projetProgressRow}>
-          <ProgressBar value={item.progress} color={status.color} />
+          <ProgressBar value={item.progress} color={statusColor} />
           <Text style={[styles.projetProgressPct, { color: colors.mutedForeground }]}>{item.progress}%</Text>
         </View>
 
@@ -180,7 +198,7 @@ function SwipeableProjet({ item, colors, onDelete, onOpen }: SwipeableProjetProp
             <View style={[styles.dueBadge, { backgroundColor: isOverdue ? "#ef444415" : "#3b82f615" }]}>
               <Feather name={isOverdue ? "alert-circle" : "clock"} size={10} color={isOverdue ? "#ef4444" : "#3b82f6"} />
               <Text style={[styles.dueBadgeText, { color: isOverdue ? "#ef4444" : "#3b82f6" }]}>
-                {isOverdue ? `${Math.abs(daysLeft)}j retard` : `${daysLeft}j restant`}
+                {isOverdue ? t("projetsScreen.daysLate", { n: Math.abs(daysLeft) }) : t("projetsScreen.daysLeft", { n: daysLeft })}
               </Text>
             </View>
           ) : null}
@@ -209,9 +227,9 @@ function SwipeableProjet({ item, colors, onDelete, onOpen }: SwipeableProjetProp
         </View>
         {item.tags && item.tags.length > 0 ? (
           <View style={styles.tagsRow}>
-            {item.tags.slice(0, 3).map(t => (
-              <View key={t} style={styles.tagPill}>
-                <Text style={styles.tagText}>{t}</Text>
+            {item.tags.slice(0, 3).map(tag => (
+              <View key={tag} style={styles.tagPill}>
+                <Text style={styles.tagText}>{tag}</Text>
               </View>
             ))}
             {item.tags.length > 3 ? (
@@ -227,6 +245,7 @@ function SwipeableProjet({ item, colors, onDelete, onOpen }: SwipeableProjetProp
 }
 
 export default function ProjetsScreen() {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
@@ -337,7 +356,7 @@ export default function ProjetsScreen() {
       setFormValues({ priority: "moyenne", status: "planifie" });
       fetchProjets();
     } catch {
-      if (Platform.OS !== "web") Alert.alert("Erreur", "Impossible de sauvegarder le projet.");
+      if (Platform.OS !== "web") Alert.alert(t("projetsScreen.errorTitle"), t("projetsScreen.saveError"));
     } finally { setFormLoading(false); }
   }
 
@@ -370,36 +389,40 @@ export default function ProjetsScreen() {
   };
 
   const filters = [
-    { key: "all", label: "Tous" },
-    { key: "en_cours", label: "En cours" },
-    { key: "planifie", label: "Planifies" },
-    { key: "termine", label: "Termines" },
+    { key: "all", label: t("projetsScreen.filters.all") },
+    { key: "en_cours", label: t("projetsScreen.filters.en_cours") },
+    { key: "planifie", label: t("projetsScreen.filters.planifie") },
+    { key: "termine", label: t("projetsScreen.filters.termine") },
   ];
 
-  const hintText = isWeb ? "" : "Glisser → Supprimer";
+  const hintText = isWeb ? "" : t("projetsScreen.swipeHint");
 
   const detailFields = selected ? [
-    { label: "Statut", value: STATUS_MAP[selected.status]?.label ?? selected.status },
-    { label: "Priorite", value: PRIORITY_LABELS[selected.priority] ?? selected.priority },
-    { label: "Client", value: selected.clientName ?? "—" },
-    { label: "Entreprise", value: selected.clientCompany ?? "—" },
-    { label: "Progression", value: `${selected.progress}%` },
-    { label: "Responsable", value: selected.assignedTo ?? "—" },
-    { label: "Budget", value: selected.budget && Number(selected.budget) > 0 ? `${new Intl.NumberFormat("fr-FR").format(Number(selected.budget))} €` : "—" },
-    { label: "Depenses", value: selected.spent && Number(selected.spent) > 0 ? `${new Intl.NumberFormat("fr-FR").format(Number(selected.spent))} €` : "—" },
-    { label: "Debut", value: selected.startDate ? new Date(selected.startDate).toLocaleDateString("fr-FR") : "—" },
-    { label: "Echeance", value: selected.endDate ? new Date(selected.endDate).toLocaleDateString("fr-FR") : "—" },
+    { label: t("projetsScreen.detail.status"), value: statusLabel(selected.status, t) },
+    { label: t("projetsScreen.detail.priority"), value: priorityLabel(selected.priority, t) },
+    { label: t("projetsScreen.detail.client"), value: selected.clientName ?? "—" },
+    { label: t("projetsScreen.detail.company"), value: selected.clientCompany ?? "—" },
+    { label: t("projetsScreen.detail.progress"), value: `${selected.progress}%` },
+    { label: t("projetsScreen.detail.assignedTo"), value: selected.assignedTo ?? "—" },
+    { label: t("projetsScreen.detail.budget"), value: selected.budget && Number(selected.budget) > 0 ? `${new Intl.NumberFormat("fr-FR").format(Number(selected.budget))} €` : "—" },
+    { label: t("projetsScreen.detail.spent"), value: selected.spent && Number(selected.spent) > 0 ? `${new Intl.NumberFormat("fr-FR").format(Number(selected.spent))} €` : "—" },
+    { label: t("projetsScreen.detail.start"), value: selected.startDate ? new Date(selected.startDate).toLocaleDateString("fr-FR") : "—" },
+    { label: t("projetsScreen.detail.deadline"), value: selected.endDate ? new Date(selected.endDate).toLocaleDateString("fr-FR") : "—" },
     ...(selected.milestones && selected.milestones.length > 0 ? [{
-      label: "Jalons",
-      value: `${selected.milestones.filter(m => m.completed).length}/${selected.milestones.length} completes — ${selected.milestones.map(m => `${m.completed ? "✓" : "○"} ${m.title}`).join(", ")}`,
+      label: t("projetsScreen.detail.milestones"),
+      value: t("projetsScreen.detail.milestonesValue", {
+        done: selected.milestones.filter(m => m.completed).length,
+        total: selected.milestones.length,
+        list: selected.milestones.map(m => `${m.completed ? "✓" : "○"} ${m.title}`).join(", "),
+      }),
       icon: "check-square" as const,
     }] : []),
     ...(selected.tags && selected.tags.length > 0 ? [{
-      label: "Tags",
+      label: t("projetsScreen.detail.tags"),
       value: selected.tags.join(", "),
       icon: "tag" as const,
     }] : []),
-    { label: "Notes", value: selected.notes ?? "—" },
+    { label: t("projetsScreen.detail.notes"), value: selected.notes ?? "—" },
   ] : [];
 
   return (
@@ -409,11 +432,11 @@ export default function ProjetsScreen() {
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
-          <Text style={styles.headerTitle}>Projets</Text>
+          <Text style={styles.headerTitle}>{t("projetsScreen.title")}</Text>
           {isFromCache && (
             <View style={[styles.cacheBadge, { backgroundColor: "rgba(255,255,255,0.12)" }]}>
               <Feather name="wifi-off" size={10} color="rgba(255,255,255,0.6)" />
-              <Text style={styles.cacheText}>Cache</Text>
+              <Text style={styles.cacheText}>{t("projetsScreen.cache")}</Text>
             </View>
           )}
         </View>
@@ -421,7 +444,7 @@ export default function ProjetsScreen() {
           <Feather name="search" size={16} color="rgba(255,255,255,0.5)" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Rechercher un projet..."
+            placeholder={t("projetsScreen.searchPlaceholder")}
             placeholderTextColor="rgba(255,255,255,0.4)"
             value={search}
             onChangeText={setSearch}
@@ -459,22 +482,22 @@ export default function ProjetsScreen() {
                 <View style={[styles.statsBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.statItem}>
                     <Text style={[styles.statNum, { color: colors.foreground }]}>{localStats.total}</Text>
-                    <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>Total</Text>
+                    <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>{t("projetsScreen.stats.total")}</Text>
                   </View>
                   <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
                   <View style={styles.statItem}>
                     <Text style={[styles.statNum, { color: "#3b82f6" }]}>{localStats.actifs}</Text>
-                    <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>En cours</Text>
+                    <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>{t("projetsScreen.stats.actifs")}</Text>
                   </View>
                   <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
                   <View style={styles.statItem}>
                     <Text style={[styles.statNum, { color: localStats.enRetard > 0 ? "#ef4444" : colors.foreground }]}>{localStats.enRetard}</Text>
-                    <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>En retard</Text>
+                    <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>{t("projetsScreen.stats.enRetard")}</Text>
                   </View>
                   <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
                   <View style={styles.statItem}>
                     <Text style={[styles.statNum, { color: "#22c55e" }]}>{localStats.termines}</Text>
-                    <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>Termines</Text>
+                    <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>{t("projetsScreen.stats.termines")}</Text>
                   </View>
                 </View>
                 {!isWeb && <Text style={[styles.swipeHint, { color: colors.mutedForeground }]}>{hintText}</Text>}
@@ -484,8 +507,8 @@ export default function ProjetsScreen() {
           ListEmptyComponent={
             <EmptyState
               icon="folder"
-              title="Aucun projet"
-              subtitle={search ? "Aucun projet ne correspond a votre recherche." : "Commencez par creer votre premier projet."}
+              title={t("projetsScreen.empty.title")}
+              subtitle={search ? t("projetsScreen.empty.search") : t("projetsScreen.empty.add")}
             />
           }
           renderItem={({ item }) => (
@@ -503,14 +526,14 @@ export default function ProjetsScreen() {
 
       <FormModal
         visible={showForm}
-        title={editId ? "Modifier le projet" : "Nouveau projet"}
-        fields={FORM_FIELDS}
+        title={editId ? t("projetsScreen.formTitleEdit") : t("projetsScreen.formTitleNew")}
+        fields={buildFormFields(t)}
         values={formValues}
         onChange={(key, val) => setFormValues(prev => ({ ...prev, [key]: val }))}
         onSubmit={handleSubmit}
         onClose={() => { setShowForm(false); setEditId(null); }}
         loading={formLoading}
-        submitLabel={editId ? "Enregistrer" : "Creer"}
+        submitLabel={editId ? t("common.save") : t("projetsScreen.submitCreate")}
       />
 
       <DetailModal
@@ -518,7 +541,7 @@ export default function ProjetsScreen() {
         icon="folder"
         iconColor="#6366f1"
         title={selected?.title ?? ""}
-        subtitle={selected ? `${STATUS_MAP[selected.status]?.label ?? selected.status} · ${selected.progress}%` : ""}
+        subtitle={selected ? `${statusLabel(selected.status, t)} · ${selected.progress}%` : ""}
         fields={detailFields}
         refreshing={detailRefreshing}
         onClose={closeDetail}
@@ -527,9 +550,9 @@ export default function ProjetsScreen() {
           if (Platform.OS === "web") {
             handleDelete(selected.id);
           } else {
-            Alert.alert("Supprimer", `Supprimer "${selected.title}" ?`, [
-              { text: "Annuler", style: "cancel" },
-              { text: "Supprimer", style: "destructive", onPress: () => handleDelete(selected.id) },
+            Alert.alert(t("common.delete"), t("projetsScreen.deleteConfirm", { title: selected.title }), [
+              { text: t("common.cancel"), style: "cancel" },
+              { text: t("common.delete"), style: "destructive", onPress: () => handleDelete(selected.id) },
             ]);
           }
         } : undefined}

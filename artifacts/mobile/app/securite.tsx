@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation, type TFunction } from "@/lib/i18n";
 
 const SECURITY_API = `${API_BASE}/api/security`;
 
@@ -59,17 +60,17 @@ interface SecurityScore {
   computedAt: string;
 }
 
-const RATING_META: Record<SecurityScore["rating"], { label: string; color: string }> = {
-  excellent: { label: "Excellent", color: "#22c55e" },
-  bon:       { label: "Bon",       color: "#3b82f6" },
-  moyen:     { label: "Moyen",     color: "#f59e0b" },
-  faible:    { label: "Faible",    color: "#ef4444" },
+const RATING_META: Record<SecurityScore["rating"], { labelKey: string; color: string }> = {
+  excellent: { labelKey: "securiteScreen.ratings.excellent", color: "#22c55e" },
+  bon:       { labelKey: "securiteScreen.ratings.bon",       color: "#3b82f6" },
+  moyen:     { labelKey: "securiteScreen.ratings.moyen",     color: "#f59e0b" },
+  faible:    { labelKey: "securiteScreen.ratings.faible",    color: "#ef4444" },
 };
 
-const SEVERITY_META: Record<"high" | "medium" | "low", { label: string; color: string }> = {
-  high:   { label: "Priorité",  color: "#ef4444" },
-  medium: { label: "Conseillé", color: "#f59e0b" },
-  low:    { label: "Optionnel", color: "#64748b" },
+const SEVERITY_META: Record<"high" | "medium" | "low", { labelKey: string; color: string }> = {
+  high:   { labelKey: "securiteScreen.severities.high",   color: "#ef4444" },
+  medium: { labelKey: "securiteScreen.severities.medium", color: "#f59e0b" },
+  low:    { labelKey: "securiteScreen.severities.low",    color: "#64748b" },
 };
 
 interface PiiFinding {
@@ -97,10 +98,10 @@ interface ListEntry {
   createdAt: string;
 }
 
-const RISK_META: Record<Risk, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  safe: { label: "Sûr", color: "#22c55e", icon: "check-circle" },
-  suspicious: { label: "Suspect", color: "#f59e0b", icon: "alert-triangle" },
-  dangerous: { label: "Dangereux", color: "#ef4444", icon: "x-circle" },
+const RISK_META: Record<Risk, { labelKey: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
+  safe: { labelKey: "securiteScreen.risks.safe", color: "#22c55e", icon: "check-circle" },
+  suspicious: { labelKey: "securiteScreen.risks.suspicious", color: "#f59e0b", icon: "alert-triangle" },
+  dangerous: { labelKey: "securiteScreen.risks.dangerous", color: "#ef4444", icon: "x-circle" },
 };
 
 const KIND_ICON: Record<string, keyof typeof Feather.glyphMap> = {
@@ -108,6 +109,7 @@ const KIND_ICON: Record<string, keyof typeof Feather.glyphMap> = {
 };
 
 export default function SecuriteScreen() {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
@@ -161,24 +163,24 @@ export default function SecuriteScreen() {
         fetchEntries();
       } else {
         const err = await res.json().catch(() => ({}));
-        Alert.alert("Erreur", err.error ?? "Ajout impossible.");
+        Alert.alert(t("securiteScreen.errorTitle"), err.error ?? t("securiteScreen.addFailed"));
       }
     } catch {
-      Alert.alert("Erreur réseau", "Vérifiez votre connexion.");
+      Alert.alert(t("securiteScreen.networkError"), t("securiteScreen.checkConnection"));
     } finally {
       setSavingEntry(false);
     }
-  }, [entryType, listKind, listValue, fetchAuth, fetchEntries]);
+  }, [entryType, listKind, listValue, fetchAuth, fetchEntries, t]);
 
   const removeEntry = useCallback(async (id: number) => {
     try {
       const res = await fetchAuth(`${SECURITY_API}/lists/${id}`, { method: "DELETE" });
       if (res.ok) setEntries((prev) => prev.filter((e) => e.id !== id));
-      else Alert.alert("Erreur", "Suppression impossible.");
+      else Alert.alert(t("securiteScreen.errorTitle"), t("securiteScreen.deleteFailed"));
     } catch {
-      Alert.alert("Erreur réseau", "Vérifiez votre connexion.");
+      Alert.alert(t("securiteScreen.networkError"), t("securiteScreen.checkConnection"));
     }
-  }, [fetchAuth]);
+  }, [fetchAuth, t]);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -215,15 +217,15 @@ export default function SecuriteScreen() {
       });
       if (!res.ok) {
         setWeeklyEmail(!next);
-        Alert.alert("Erreur", "Modification impossible.");
+        Alert.alert(t("securiteScreen.errorTitle"), t("securiteScreen.updateFailed"));
       }
     } catch {
       setWeeklyEmail(!next);
-      Alert.alert("Erreur réseau", "Vérifiez votre connexion.");
+      Alert.alert(t("securiteScreen.networkError"), t("securiteScreen.checkConnection"));
     } finally {
       setWeeklyEmailSaving(false);
     }
-  }, [fetchAuth]);
+  }, [fetchAuth, t]);
 
   const fetchAlerts = useCallback(async () => {
     try {
@@ -252,14 +254,14 @@ export default function SecuriteScreen() {
         setPiiResult(await res.json());
         fetchStatus();
       } else {
-        Alert.alert("Erreur", "Analyse impossible.");
+        Alert.alert(t("securiteScreen.errorTitle"), t("securiteScreen.analyzeFailed"));
       }
     } catch {
-      Alert.alert("Erreur réseau", "Vérifiez votre connexion.");
+      Alert.alert(t("securiteScreen.networkError"), t("securiteScreen.checkConnection"));
     } finally {
       setPiiScanning(false);
     }
-  }, [piiText, fetchAuth, fetchStatus]);
+  }, [piiText, fetchAuth, fetchStatus, t]);
 
   const scan = useCallback(async () => {
     const trimmed = url.trim();
@@ -277,14 +279,14 @@ export default function SecuriteScreen() {
         fetchStatus();
         fetchAlerts();
       } else {
-        Alert.alert("Erreur", "Analyse impossible.");
+        Alert.alert(t("securiteScreen.errorTitle"), t("securiteScreen.analyzeFailed"));
       }
     } catch {
-      Alert.alert("Erreur réseau", "Vérifiez votre connexion.");
+      Alert.alert(t("securiteScreen.networkError"), t("securiteScreen.checkConnection"));
     } finally {
       setScanning(false);
     }
-  }, [url, fetchAuth, fetchStatus, fetchAlerts]);
+  }, [url, fetchAuth, fetchStatus, fetchAlerts, t]);
 
   const openSafely = useCallback(async (force = false) => {
     if (!result) return;
@@ -296,22 +298,22 @@ export default function SecuriteScreen() {
           showTitle: true,
         });
       } catch {
-        Alert.alert("Erreur", "Impossible d'ouvrir le navigateur sécurisé.");
+        Alert.alert(t("securiteScreen.errorTitle"), t("securiteScreen.browserFailed"));
       }
     };
     if (result.risk !== "safe" && !force) {
       Alert.alert(
-        result.risk === "dangerous" ? "Lien dangereux" : "Lien suspect",
-        "Ce lien présente un risque. Voulez-vous vraiment l'ouvrir ?",
+        result.risk === "dangerous" ? t("securiteScreen.dangerousLink") : t("securiteScreen.suspiciousLink"),
+        t("securiteScreen.riskWarning"),
         [
-          { text: "Annuler", style: "cancel" },
-          { text: "Ouvrir quand même", style: "destructive", onPress: proceed },
+          { text: t("common.cancel"), style: "cancel" },
+          { text: t("securiteScreen.openAnywayBtn"), style: "destructive", onPress: proceed },
         ],
       );
       return;
     }
     proceed();
-  }, [result]);
+  }, [result, t]);
 
   const rm = result ? RISK_META[result.risk] : null;
 
@@ -322,9 +324,9 @@ export default function SecuriteScreen() {
           <Feather name="chevron-left" size={26} color={colors.foreground} />
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Centre de sécurité</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t("securiteScreen.headerTitle")}</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            Vérifiez liens, appels et messages
+            {t("securiteScreen.headerSubtitle")}
           </Text>
         </View>
         <View style={[styles.shieldBadge, { backgroundColor: colors.success + "22" }]}>
@@ -338,7 +340,7 @@ export default function SecuriteScreen() {
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.cardHead}>
               <Feather name="activity" size={18} color={colors.info} />
-              <Text style={[styles.cardTitle, { color: colors.foreground }]}>Score de sécurité</Text>
+              <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("securiteScreen.scoreTitle")}</Text>
             </View>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 16, marginTop: 4 }}>
               <View style={{ alignItems: "center", justifyContent: "center", width: 84, height: 84, borderRadius: 42, borderWidth: 6, borderColor: RATING_META[score.rating].color }}>
@@ -347,7 +349,7 @@ export default function SecuriteScreen() {
               </View>
               <View style={{ flex: 1, gap: 6 }}>
                 <View style={{ alignSelf: "flex-start", backgroundColor: RATING_META[score.rating].color + "22", paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12 }}>
-                  <Text style={{ fontSize: 12, fontFamily: "Inter_700Bold", color: RATING_META[score.rating].color }}>{RATING_META[score.rating].label}</Text>
+                  <Text style={{ fontSize: 12, fontFamily: "Inter_700Bold", color: RATING_META[score.rating].color }}>{t(RATING_META[score.rating].labelKey)}</Text>
                 </View>
                 {score.strengths.slice(0, 3).map((s, i) => (
                   <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -360,11 +362,11 @@ export default function SecuriteScreen() {
 
             {score.recommendations.length > 0 ? (
               <View style={{ gap: 8, marginTop: 12 }}>
-                <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: colors.mutedForeground }}>Recommandations</Text>
+                <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: colors.mutedForeground }}>{t("securiteScreen.recommendations")}</Text>
                 {score.recommendations.map((r) => (
                   <View key={r.id} style={{ flexDirection: "row", gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10 }}>
                     <View style={{ alignSelf: "flex-start", backgroundColor: SEVERITY_META[r.severity].color + "22", paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8 }}>
-                      <Text style={{ fontSize: 9, fontFamily: "Inter_700Bold", color: SEVERITY_META[r.severity].color }}>{SEVERITY_META[r.severity].label}</Text>
+                      <Text style={{ fontSize: 9, fontFamily: "Inter_700Bold", color: SEVERITY_META[r.severity].color }}>{t(SEVERITY_META[r.severity].labelKey)}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: colors.foreground }}>{r.title}</Text>
@@ -376,7 +378,7 @@ export default function SecuriteScreen() {
             ) : (
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 12 }}>
                 <Feather name="check-circle" size={14} color={colors.success} />
-                <Text style={{ fontSize: 13, color: colors.success }}>Tout est en ordre, aucune action requise.</Text>
+                <Text style={{ fontSize: 13, color: colors.success }}>{t("securiteScreen.allGood")}</Text>
               </View>
             )}
 
@@ -396,12 +398,12 @@ export default function SecuriteScreen() {
         {/* Statut */}
         {status && (
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.cardTitle, { color: colors.foreground }]}>Votre protection</Text>
+            <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("securiteScreen.protectionTitle")}</Text>
             <View style={styles.statsRow}>
-              <Stat value={status.summary.total} label="Analyses" color={colors.info} colors={colors} />
-              <Stat value={status.summary.dangerous} label="Bloquées" color={colors.destructive} colors={colors} />
-              <Stat value={status.summary.suspicious} label="Suspects" color={colors.warning} colors={colors} />
-              <Stat value={status.summary.last24h} label="24h" color={colors.mutedForeground} colors={colors} />
+              <Stat value={status.summary.total} label={t("securiteScreen.stat.analyses")} color={colors.info} colors={colors} />
+              <Stat value={status.summary.dangerous} label={t("securiteScreen.stat.blocked")} color={colors.destructive} colors={colors} />
+              <Stat value={status.summary.suspicious} label={t("securiteScreen.stat.suspicious")} color={colors.warning} colors={colors} />
+              <Stat value={status.summary.last24h} label={t("securiteScreen.stat.last24h")} color={colors.mutedForeground} colors={colors} />
             </View>
             <View style={{ gap: 6, marginTop: 6 }}>
               {Object.entries(status.layers).map(([key, layer]) => (
@@ -415,7 +417,7 @@ export default function SecuriteScreen() {
                     {layer.label}
                   </Text>
                   <Text style={{ fontSize: 11, color: layer.active ? colors.success : colors.mutedForeground }}>
-                    {layer.active ? "Actif" : "Inactif"}
+                    {layer.active ? t("securiteScreen.layerActive") : t("securiteScreen.layerInactive")}
                   </Text>
                 </View>
               ))}
@@ -427,15 +429,15 @@ export default function SecuriteScreen() {
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.cardHead}>
             <Feather name="link" size={18} color={colors.info} />
-            <Text style={[styles.cardTitle, { color: colors.foreground }]}>Scanner un lien</Text>
+            <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("securiteScreen.scanTitle")}</Text>
           </View>
           <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-            Vérifiez un lien suspect avant de l'ouvrir.
+            {t("securiteScreen.scanHint")}
           </Text>
           <TextInput
             value={url}
             onChangeText={setUrl}
-            placeholder="https://exemple.com/lien"
+            placeholder={t("securiteScreen.urlPlaceholder")}
             placeholderTextColor={colors.mutedForeground}
             autoCapitalize="none"
             autoCorrect={false}
@@ -450,14 +452,14 @@ export default function SecuriteScreen() {
           >
             {scanning
               ? <ActivityIndicator color={colors.primaryForeground} />
-              : <Text style={[styles.btnText, { color: colors.primaryForeground }]}>Analyser</Text>}
+              : <Text style={[styles.btnText, { color: colors.primaryForeground }]}>{t("securiteScreen.analyze")}</Text>}
           </Pressable>
 
           {result && rm && (
             <View style={[styles.resultBox, { borderColor: rm.color }]}>
               <View style={styles.cardHead}>
                 <Feather name={rm.icon} size={18} color={rm.color} />
-                <Text style={{ fontWeight: "700", color: rm.color }}>{rm.label}</Text>
+                <Text style={{ fontWeight: "700", color: rm.color }}>{t(rm.labelKey)}</Text>
                 <Text style={{ color: colors.mutedForeground, flex: 1, textAlign: "right" }} numberOfLines={1}>
                   {result.domain}
                 </Text>
@@ -467,7 +469,7 @@ export default function SecuriteScreen() {
                   <Text key={i} style={{ fontSize: 12, color: colors.mutedForeground }}>• {r}</Text>
                 ))
               ) : (
-                <Text style={{ fontSize: 12, color: colors.mutedForeground }}>Aucun signal de risque détecté.</Text>
+                <Text style={{ fontSize: 12, color: colors.mutedForeground }}>{t("securiteScreen.noRiskSignal")}</Text>
               )}
               <Pressable
                 onPress={() => openSafely()}
@@ -475,7 +477,7 @@ export default function SecuriteScreen() {
               >
                 <Feather name="external-link" size={14} color={result.risk === "safe" ? colors.success : colors.destructive} />
                 <Text style={{ color: result.risk === "safe" ? colors.success : colors.destructive, fontWeight: "600" }}>
-                  {result.risk === "safe" ? "Ouvrir en navigation sécurisée" : "Ouvrir malgré le risque"}
+                  {result.risk === "safe" ? t("securiteScreen.openSafe") : t("securiteScreen.openAnyway")}
                 </Text>
               </Pressable>
             </View>
@@ -486,16 +488,15 @@ export default function SecuriteScreen() {
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.cardHead}>
             <Feather name="shield" size={18} color={colors.warning} />
-            <Text style={[styles.cardTitle, { color: colors.foreground }]}>Vérifier un texte (RGPD)</Text>
+            <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("securiteScreen.gdprTitle")}</Text>
           </View>
           <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-            Collez un texte pour repérer IBAN, n° de sécurité sociale, carte bancaire, SIRET et coordonnées
-            avant de le partager.
+            {t("securiteScreen.gdprHint")}
           </Text>
           <TextInput
             value={piiText}
             onChangeText={setPiiText}
-            placeholder="Collez ici le texte à vérifier…"
+            placeholder={t("securiteScreen.gdprPlaceholder")}
             placeholderTextColor={colors.mutedForeground}
             multiline
             numberOfLines={4}
@@ -508,7 +509,7 @@ export default function SecuriteScreen() {
           >
             {piiScanning
               ? <ActivityIndicator color={colors.primaryForeground} />
-              : <Text style={[styles.btnText, { color: colors.primaryForeground }]}>Analyser le texte</Text>}
+              : <Text style={[styles.btnText, { color: colors.primaryForeground }]}>{t("securiteScreen.analyzeText")}</Text>}
           </Pressable>
 
           {piiResult && (
@@ -516,7 +517,7 @@ export default function SecuriteScreen() {
               <View style={[styles.resultBox, { borderColor: colors.warning }]}>
                 <View style={styles.cardHead}>
                   <Feather name="alert-triangle" size={16} color={colors.warning} />
-                  <Text style={{ fontWeight: "700", color: colors.warning }}>Données personnelles détectées</Text>
+                  <Text style={{ fontWeight: "700", color: colors.warning }}>{t("securiteScreen.piiDetected")}</Text>
                 </View>
                 {piiResult.findings.map((f) => (
                   <Text key={f.kind} style={{ fontSize: 12, color: colors.mutedForeground }}>
@@ -528,7 +529,7 @@ export default function SecuriteScreen() {
               <View style={[styles.resultBox, { borderColor: colors.success }]}>
                 <View style={styles.cardHead}>
                   <Feather name="check-circle" size={16} color={colors.success} />
-                  <Text style={{ fontSize: 13, color: colors.foreground }}>Aucune donnée personnelle sensible détectée.</Text>
+                  <Text style={{ fontSize: 13, color: colors.foreground }}>{t("securiteScreen.noPii")}</Text>
                 </View>
               </View>
             )
@@ -539,7 +540,7 @@ export default function SecuriteScreen() {
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: alerts.length > 0 ? colors.destructive : colors.border }]}>
           <View style={styles.cardHead}>
             <Feather name="bell" size={18} color={colors.destructive} />
-            <Text style={[styles.cardTitle, { color: colors.foreground }]}>Alertes de sécurité</Text>
+            <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("securiteScreen.alertsTitle")}</Text>
             {alerts.length > 0 && (
               <View style={{ marginLeft: "auto", backgroundColor: colors.destructive, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 1 }}>
                 <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700" }}>{alerts.length}</Text>
@@ -547,7 +548,7 @@ export default function SecuriteScreen() {
             )}
           </View>
           {alerts.length === 0 ? (
-            <Text style={[styles.hint, { color: colors.mutedForeground }]}>Aucune alerte. Aucune menace dangereuse détectée.</Text>
+            <Text style={[styles.hint, { color: colors.mutedForeground }]}>{t("securiteScreen.noAlerts")}</Text>
           ) : (
             alerts.map((a) => (
               <View key={a.id} style={[styles.scanRow, { borderColor: colors.border }]}>
@@ -565,10 +566,10 @@ export default function SecuriteScreen() {
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.cardHead}>
             <Feather name="activity" size={18} color={colors.warning} />
-            <Text style={[styles.cardTitle, { color: colors.foreground }]}>Activité récente</Text>
+            <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("securiteScreen.recentTitle")}</Text>
           </View>
           {(status?.recentScans ?? []).length === 0 ? (
-            <Text style={[styles.hint, { color: colors.mutedForeground }]}>Aucune analyse récente. Tout est calme.</Text>
+            <Text style={[styles.hint, { color: colors.mutedForeground }]}>{t("securiteScreen.noRecent")}</Text>
           ) : (
             (status?.recentScans ?? []).map((s) => {
               const rmeta = RISK_META[s.verdict];
@@ -593,10 +594,10 @@ export default function SecuriteScreen() {
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.cardHead}>
             <Feather name="list" size={18} color="#0d9488" />
-            <Text style={[styles.cardTitle, { color: colors.foreground }]}>Mes listes</Text>
+            <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("securiteScreen.listsTitle")}</Text>
           </View>
           <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-            Bloquez ou autorisez vous-même sites web et numéros. Vos règles priment sur l'analyse automatique.
+            {t("securiteScreen.listsHint")}
           </Text>
 
           {/* Sélecteurs type + sens */}
@@ -606,28 +607,28 @@ export default function SecuriteScreen() {
               style={[styles.toggle, { borderColor: colors.border, backgroundColor: entryType === "domain" ? "#0d9488" : colors.background }]}
             >
               <Feather name="globe" size={12} color={entryType === "domain" ? "#fff" : colors.mutedForeground} />
-              <Text style={{ fontSize: 11, fontWeight: "600", color: entryType === "domain" ? "#fff" : colors.mutedForeground }}>Site</Text>
+              <Text style={{ fontSize: 11, fontWeight: "600", color: entryType === "domain" ? "#fff" : colors.mutedForeground }}>{t("securiteScreen.site")}</Text>
             </Pressable>
             <Pressable
               onPress={() => setEntryType("phone")}
               style={[styles.toggle, { borderColor: colors.border, backgroundColor: entryType === "phone" ? "#0d9488" : colors.background }]}
             >
               <Feather name="phone" size={12} color={entryType === "phone" ? "#fff" : colors.mutedForeground} />
-              <Text style={{ fontSize: 11, fontWeight: "600", color: entryType === "phone" ? "#fff" : colors.mutedForeground }}>Téléphone</Text>
+              <Text style={{ fontSize: 11, fontWeight: "600", color: entryType === "phone" ? "#fff" : colors.mutedForeground }}>{t("securiteScreen.phone")}</Text>
             </Pressable>
             <Pressable
               onPress={() => setListKind("block")}
               style={[styles.toggle, { borderColor: colors.border, backgroundColor: listKind === "block" ? colors.destructive : colors.background }]}
             >
               <Feather name="slash" size={12} color={listKind === "block" ? "#fff" : colors.mutedForeground} />
-              <Text style={{ fontSize: 11, fontWeight: "600", color: listKind === "block" ? "#fff" : colors.mutedForeground }}>Bloquer</Text>
+              <Text style={{ fontSize: 11, fontWeight: "600", color: listKind === "block" ? "#fff" : colors.mutedForeground }}>{t("securiteScreen.block")}</Text>
             </Pressable>
             <Pressable
               onPress={() => setListKind("allow")}
               style={[styles.toggle, { borderColor: colors.border, backgroundColor: listKind === "allow" ? colors.success : colors.background }]}
             >
               <Feather name="check" size={12} color={listKind === "allow" ? "#fff" : colors.mutedForeground} />
-              <Text style={{ fontSize: 11, fontWeight: "600", color: listKind === "allow" ? "#fff" : colors.mutedForeground }}>Autoriser</Text>
+              <Text style={{ fontSize: 11, fontWeight: "600", color: listKind === "allow" ? "#fff" : colors.mutedForeground }}>{t("securiteScreen.allow")}</Text>
             </Pressable>
           </View>
 
@@ -635,7 +636,7 @@ export default function SecuriteScreen() {
             <TextInput
               value={listValue}
               onChangeText={setListValue}
-              placeholder={entryType === "domain" ? "exemple.com" : "+33 6 12 34 56 78"}
+              placeholder={entryType === "domain" ? t("securiteScreen.domainPlaceholder") : t("securiteScreen.phonePlaceholder")}
               placeholderTextColor={colors.mutedForeground}
               autoCapitalize="none"
               autoCorrect={false}
@@ -654,7 +655,7 @@ export default function SecuriteScreen() {
           </View>
 
           {entries.length === 0 ? (
-            <Text style={[styles.hint, { color: colors.mutedForeground }]}>Aucune règle pour l'instant.</Text>
+            <Text style={[styles.hint, { color: colors.mutedForeground }]}>{t("securiteScreen.noRules")}</Text>
           ) : (
             entries.map((e) => (
               <View key={e.id} style={[styles.scanRow, { borderColor: colors.border }]}>
@@ -677,18 +678,18 @@ export default function SecuriteScreen() {
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.cardHead}>
             <Feather name="mail" size={18} color={colors.success} />
-            <Text style={[styles.cardTitle, { color: colors.foreground }]}>Synthèse hebdomadaire</Text>
+            <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("securiteScreen.weeklyTitle")}</Text>
           </View>
           <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-            Recevez chaque semaine par email votre score de sécurité, les menaces bloquées et nos recommandations.
+            {t("securiteScreen.weeklyHint")}
           </Text>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 4 }}>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 14, fontFamily: "Inter_600SemiBold", color: colors.foreground }}>
-                Activer la synthèse
+                {t("securiteScreen.weeklyEnable")}
               </Text>
               <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 2 }}>
-                Envoyée à l'email de votre organisation.
+                {t("securiteScreen.weeklyDesc")}
               </Text>
             </View>
             <Switch
@@ -704,15 +705,15 @@ export default function SecuriteScreen() {
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.info + "55" }]}>
           <View style={styles.cardHead}>
             <Feather name="zap" size={18} color={colors.info} />
-            <Text style={[styles.cardTitle, { color: colors.foreground }]}>Protection étendue</Text>
+            <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("securiteScreen.partnersTitle")}</Text>
           </View>
           <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-            NextDNS bloque phishing et publicités sur tout l'appareil.
+            {t("securiteScreen.partnersHint")}
           </Text>
           <TextInput
             value={nextdnsId}
             onChangeText={setNextdnsId}
-            placeholder="ID de profil NextDNS"
+            placeholder={t("securiteScreen.nextdnsPlaceholder")}
             placeholderTextColor={colors.mutedForeground}
             autoCapitalize="none"
             autoCorrect={false}
@@ -723,19 +724,19 @@ export default function SecuriteScreen() {
               const link = nextdnsId.trim()
                 ? `https://my.nextdns.io/${encodeURIComponent(nextdnsId.trim())}/setup`
                 : "https://my.nextdns.io/signup";
-              Linking.openURL(link).catch(() => Alert.alert("Erreur", "Lien indisponible."));
+              Linking.openURL(link).catch(() => Alert.alert(t("securiteScreen.errorTitle"), t("securiteScreen.linkUnavailable")));
             }}
             style={[styles.btnOutline, { borderColor: colors.info }]}
           >
             <Feather name="external-link" size={14} color={colors.info} />
             <Text style={{ color: colors.info, fontWeight: "600" }}>
-              {nextdnsId.trim() ? "Guide d'installation" : "Créer un compte NextDNS"}
+              {nextdnsId.trim() ? t("securiteScreen.nextdnsGuide") : t("securiteScreen.nextdnsCreate")}
             </Text>
           </Pressable>
           <View style={[styles.scanRow, { borderColor: colors.border, marginTop: 4 }]}>
             <Feather name="shield" size={14} color={colors.mutedForeground} />
-            <Text style={{ flex: 1, fontSize: 12, color: colors.foreground }}>Bitdefender (antivirus pro)</Text>
-            <Text style={{ fontSize: 10, color: colors.mutedForeground }}>Bientôt</Text>
+            <Text style={{ flex: 1, fontSize: 12, color: colors.foreground }}>{t("securiteScreen.bitdefender")}</Text>
+            <Text style={{ fontSize: 10, color: colors.mutedForeground }}>{t("securiteScreen.soon")}</Text>
           </View>
         </View>
       </ScrollView>

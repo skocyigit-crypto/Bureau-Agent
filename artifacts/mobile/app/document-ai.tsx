@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 type DocType =
   | "bon_commande" | "bon_livraison" | "contrat" | "cv" | "carte_visite"
@@ -53,27 +54,27 @@ interface ActionResult {
   createdId?: number;
 }
 
-const DOC_TYPE_MAP: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  bon_commande:    { label: "Bon de commande",    color: "#8b5cf6", icon: "shopping-cart" },
-  bon_livraison:   { label: "Bon de livraison",   color: "#7c3aed", icon: "package" },
-  contrat:         { label: "Contrat",             color: "#b45309", icon: "file-text" },
-  cv:              { label: "CV / Résumé",          color: "#16a34a", icon: "user" },
-  carte_visite:    { label: "Carte de visite",     color: "#0d9488", icon: "credit-card" },
-  courrier:        { label: "Courrier",             color: "#64748b", icon: "mail" },
-  releve_bancaire: { label: "Relevé bancaire",     color: "#15803d", icon: "dollar-sign" },
-  rapport:         { label: "Rapport",              color: "#0891b2", icon: "bar-chart-2" },
-  formulaire:      { label: "Formulaire",           color: "#db2777", icon: "list" },
-  piece_identite:  { label: "Pièce d'identité",   color: "#ef4444", icon: "shield" },
-  attestation:     { label: "Attestation",          color: "#ca8a04", icon: "award" },
-  note_frais:      { label: "Note de frais",       color: "#65a30d", icon: "dollar-sign" },
-  planning:        { label: "Planning",             color: "#0284c7", icon: "calendar" },
-  inconnu:         { label: "Type inconnu",         color: "#94a3b8", icon: "file" },
+const DOC_TYPE_MAP: Record<string, { labelKey: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
+  bon_commande:    { labelKey: "documentAiScreen.docTypes.bon_commande",    color: "#8b5cf6", icon: "shopping-cart" },
+  bon_livraison:   { labelKey: "documentAiScreen.docTypes.bon_livraison",   color: "#7c3aed", icon: "package" },
+  contrat:         { labelKey: "documentAiScreen.docTypes.contrat",         color: "#b45309", icon: "file-text" },
+  cv:              { labelKey: "documentAiScreen.docTypes.cv",              color: "#16a34a", icon: "user" },
+  carte_visite:    { labelKey: "documentAiScreen.docTypes.carte_visite",    color: "#0d9488", icon: "credit-card" },
+  courrier:        { labelKey: "documentAiScreen.docTypes.courrier",        color: "#64748b", icon: "mail" },
+  releve_bancaire: { labelKey: "documentAiScreen.docTypes.releve_bancaire", color: "#15803d", icon: "dollar-sign" },
+  rapport:         { labelKey: "documentAiScreen.docTypes.rapport",         color: "#0891b2", icon: "bar-chart-2" },
+  formulaire:      { labelKey: "documentAiScreen.docTypes.formulaire",      color: "#db2777", icon: "list" },
+  piece_identite:  { labelKey: "documentAiScreen.docTypes.piece_identite",  color: "#ef4444", icon: "shield" },
+  attestation:     { labelKey: "documentAiScreen.docTypes.attestation",     color: "#ca8a04", icon: "award" },
+  note_frais:      { labelKey: "documentAiScreen.docTypes.note_frais",      color: "#65a30d", icon: "dollar-sign" },
+  planning:        { labelKey: "documentAiScreen.docTypes.planning",        color: "#0284c7", icon: "calendar" },
+  inconnu:         { labelKey: "documentAiScreen.docTypes.inconnu",         color: "#94a3b8", icon: "file" },
 };
 
-const PRIORITY_MAP: Record<string, { color: string; label: string }> = {
-  haute:   { color: "#ef4444", label: "Haute" },
-  moyenne: { color: "#f59e0b", label: "Moyenne" },
-  basse:   { color: "#22c55e", label: "Basse" },
+const PRIORITY_MAP: Record<string, { color: string; labelKey: string }> = {
+  haute:   { color: "#ef4444", labelKey: "documentAiScreen.priorities.haute" },
+  moyenne: { color: "#f59e0b", labelKey: "documentAiScreen.priorities.moyenne" },
+  basse:   { color: "#22c55e", labelKey: "documentAiScreen.priorities.basse" },
 };
 
 const MODULE_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
@@ -84,6 +85,7 @@ const MODULE_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
 const SUPPORTED_EXTENSIONS = [".pdf", ".png", ".jpg", ".jpeg", ".webp", ".txt", ".csv", ".docx", ".xlsx", ".pptx"];
 
 export default function DocumentAIScreen() {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
@@ -111,7 +113,7 @@ export default function DocumentAIScreen() {
         const asset = picked.assets[0];
         const ext = asset.name.toLowerCase().match(/\.[^.]+$/)?.[0] ?? "";
         if (!SUPPORTED_EXTENSIONS.includes(ext)) {
-          Alert.alert("Format non supporté", `Types acceptés : ${SUPPORTED_EXTENSIONS.join(", ")}`);
+          Alert.alert(t("documentAiScreen.unsupportedTitle"), t("documentAiScreen.unsupportedMsg", { types: SUPPORTED_EXTENSIONS.join(", ") }));
           return;
         }
         setFile({ name: asset.name, uri: asset.uri, mimeType: asset.mimeType ?? "application/octet-stream", size: asset.size ?? 0 });
@@ -129,7 +131,7 @@ export default function DocumentAIScreen() {
       let fileContent: string;
       if (Platform.OS === "web") {
         // On web, we can't read the file the same way
-        Alert.alert("Fonctionnalité mobile", "L'analyse de document est optimisée pour mobile.");
+        Alert.alert(t("documentAiScreen.webOnlyTitle"), t("documentAiScreen.webOnlyMsg"));
         return;
       }
       const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: "base64" as any });
@@ -147,13 +149,13 @@ export default function DocumentAIScreen() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        Alert.alert("Erreur d'analyse", err.error ?? "Impossible d'analyser ce document.");
+        Alert.alert(t("documentAiScreen.analyzeErrorTitle"), err.error ?? t("documentAiScreen.analyzeErrorMsg"));
         return;
       }
       const d = await res.json();
       setResult(d);
     } catch (e: any) {
-      Alert.alert("Erreur réseau", "Impossible de contacter le serveur.");
+      Alert.alert(t("documentAiScreen.networkErrorTitle"), t("documentAiScreen.networkErrorMsg"));
     } finally { setAnalysing(false); }
   }
 
@@ -180,8 +182,8 @@ export default function DocumentAIScreen() {
           <Feather name="arrow-left" size={20} color="#fff" />
         </Pressable>
         <View>
-          <Text style={styles.headerTitle}>Document IA</Text>
-          <Text style={styles.headerSub}>Analyse intelligente de documents</Text>
+          <Text style={styles.headerTitle}>{t("documentAiScreen.title")}</Text>
+          <Text style={styles.headerSub}>{t("documentAiScreen.subtitle")}</Text>
         </View>
       </View>
 
@@ -213,9 +215,9 @@ export default function DocumentAIScreen() {
               <View style={[styles.dropIcon, { backgroundColor: "#8b5cf618" }]}>
                 <Feather name="upload" size={28} color="#8b5cf6" />
               </View>
-              <Text style={[styles.dropTitle, { color: colors.foreground }]}>Choisir un document</Text>
+              <Text style={[styles.dropTitle, { color: colors.foreground }]}>{t("documentAiScreen.chooseDoc")}</Text>
               <Text style={[styles.dropSub, { color: colors.mutedForeground }]}>
-                PDF, image, Word, Excel, CSV, PowerPoint — jusqu'à 25 Mo
+                {t("documentAiScreen.dropSub")}
               </Text>
             </View>
           )}
@@ -233,7 +235,7 @@ export default function DocumentAIScreen() {
               <Feather name="cpu" size={18} color="#fff" />
             )}
             <Text style={styles.analyseBtnText}>
-              {analysing ? "Analyse en cours…" : "Analyser avec l'IA"}
+              {analysing ? t("documentAiScreen.analyzing") : t("documentAiScreen.analyzeCta")}
             </Text>
           </Pressable>
         )}
@@ -242,9 +244,9 @@ export default function DocumentAIScreen() {
           <View style={[styles.analysingCard, { backgroundColor: "#f5f3ff", borderColor: "#8b5cf6" }]}>
             <ActivityIndicator size="small" color="#8b5cf6" />
             <View style={{ flex: 1 }}>
-              <Text style={[styles.analysingTitle, { color: "#7c3aed" }]}>Intelligence IA en cours…</Text>
+              <Text style={[styles.analysingTitle, { color: "#7c3aed" }]}>{t("documentAiScreen.analyzingTitle")}</Text>
               <Text style={[styles.analysingSub, { color: "#6d28d9" }]}>
-                Extraction du contenu, classification et détection d'entités
+                {t("documentAiScreen.analyzingSub")}
               </Text>
             </View>
           </View>
@@ -260,14 +262,14 @@ export default function DocumentAIScreen() {
                   <Feather name={docCfg.icon} size={20} color={docCfg.color} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.resultTypeName, { color: colors.foreground }]}>{result.title || docCfg.label}</Text>
+                  <Text style={[styles.resultTypeName, { color: colors.foreground }]}>{result.title || t(docCfg.labelKey)}</Text>
                   <View style={{ flexDirection: "row", gap: 6, marginTop: 3 }}>
                     <View style={[styles.typeBadge, { backgroundColor: docCfg.color + "18" }]}>
-                      <Text style={[styles.typeBadgeText, { color: docCfg.color }]}>{docCfg.label}</Text>
+                      <Text style={[styles.typeBadgeText, { color: docCfg.color }]}>{t(docCfg.labelKey)}</Text>
                     </View>
                     <View style={[styles.confBadge, { backgroundColor: result.confidence >= 0.8 ? "#22c55e18" : "#f59e0b18" }]}>
                       <Text style={[styles.confBadgeText, { color: result.confidence >= 0.8 ? "#22c55e" : "#f59e0b" }]}>
-                        {Math.round(result.confidence * 100)}% confiance
+                        {t("documentAiScreen.confidence", { pct: Math.round(result.confidence * 100) })}
                       </Text>
                     </View>
                   </View>
@@ -278,7 +280,7 @@ export default function DocumentAIScreen() {
                 <View style={[styles.destinationRow, { backgroundColor: "#eff6ff", borderColor: "#bfdbfe" }]}>
                   <Feather name={MODULE_ICONS[result.destination] ?? "arrow-right"} size={13} color="#3b82f6" />
                   <Text style={[styles.destinationText, { color: "#3b82f6" }]}>
-                    Recommandé : module <Text style={{ fontFamily: "Inter_700Bold" }}>{result.destination}</Text> — {result.destinationReason}
+                    {t("documentAiScreen.recommended")} <Text style={{ fontFamily: "Inter_700Bold" }}>{result.destination}</Text> — {result.destinationReason}
                   </Text>
                 </View>
               )}
@@ -287,7 +289,7 @@ export default function DocumentAIScreen() {
             {/* Extracted fields */}
             {Object.keys(result.extractedFields).length > 0 && (
               <View style={[styles.resultCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Champs extraits</Text>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("documentAiScreen.extractedFields")}</Text>
                 {Object.entries(result.extractedFields).slice(0, 12).map(([k, v]) => (
                   <View key={k} style={[styles.fieldRow, { borderColor: colors.border }]}>
                     <Text style={[styles.fieldKey, { color: colors.mutedForeground }]}>{k.replace(/_/g, " ")}</Text>
@@ -302,7 +304,7 @@ export default function DocumentAIScreen() {
             {/* Suggested actions */}
             {result.suggestedActions.length > 0 && (
               <View style={[styles.resultCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Actions suggérées</Text>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("documentAiScreen.suggestedActions")}</Text>
                 {result.suggestedActions.map((act, i) => {
                   const prio = PRIORITY_MAP[act.priority];
                   const done = actionResults.find(r => r.action === act.action);
@@ -314,7 +316,7 @@ export default function DocumentAIScreen() {
                           <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                             <Text style={[styles.actionLabel, { color: colors.foreground }]}>{act.label}</Text>
                             <View style={[styles.prioBadge, { backgroundColor: prio.color + "18" }]}>
-                              <Text style={[styles.prioBadgeText, { color: prio.color }]}>{prio.label}</Text>
+                              <Text style={[styles.prioBadgeText, { color: prio.color }]}>{t(prio.labelKey)}</Text>
                             </View>
                           </View>
                           <Text style={[styles.actionDesc, { color: colors.mutedForeground }]}>{act.description}</Text>
@@ -335,7 +337,7 @@ export default function DocumentAIScreen() {
                             ? <ActivityIndicator size="small" color="#fff" />
                             : <Feather name="zap" size={13} color="#fff" />
                           }
-                          <Text style={styles.execBtnText}>Exécuter</Text>
+                          <Text style={styles.execBtnText}>{t("documentAiScreen.execute")}</Text>
                         </Pressable>
                       )}
                     </View>
@@ -359,7 +361,7 @@ export default function DocumentAIScreen() {
             {/* Re-analyse */}
             <Pressable onPress={() => { setResult(null); setActionResults([]); }} style={[styles.reanalyseBtn, { borderColor: colors.border }]}>
               <Feather name="refresh-cw" size={14} color={colors.mutedForeground} />
-              <Text style={[styles.reanalyseBtnText, { color: colors.mutedForeground }]}>Analyser un autre document</Text>
+              <Text style={[styles.reanalyseBtnText, { color: colors.mutedForeground }]}>{t("documentAiScreen.analyzeAnother")}</Text>
             </Pressable>
           </>
         )}
@@ -367,11 +369,11 @@ export default function DocumentAIScreen() {
         {/* Supported formats info */}
         {!file && !result && (
           <View style={[styles.formatsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.formatsTitle, { color: colors.foreground }]}>Types de documents analysés</Text>
-            {Object.values(DOC_TYPE_MAP).filter(d => d.label !== "Type inconnu").map((d, i) => (
-              <View key={i} style={styles.formatRow}>
+            <Text style={[styles.formatsTitle, { color: colors.foreground }]}>{t("documentAiScreen.analyzedTypes")}</Text>
+            {Object.entries(DOC_TYPE_MAP).filter(([key]) => key !== "inconnu").map(([key, d]) => (
+              <View key={key} style={styles.formatRow}>
                 <Feather name={d.icon} size={13} color={d.color} />
-                <Text style={[styles.formatText, { color: colors.foreground }]}>{d.label}</Text>
+                <Text style={[styles.formatText, { color: colors.foreground }]}>{t(d.labelKey)}</Text>
               </View>
             ))}
           </View>

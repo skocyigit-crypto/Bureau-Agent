@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FormModal } from "@/components/FormModal";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 interface PickedFile {
   name: string;
@@ -94,6 +95,7 @@ function mimeIcon(mime: string): keyof typeof Feather.glyphMap {
 type Step = "pick" | "meta" | "done";
 
 export default function DocumentImportScreen() {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth, authHeaders } = useAuth();
@@ -119,17 +121,17 @@ export default function DocumentImportScreen() {
       const errs: string[] = [];
       for (const asset of result.assets) {
         if (asset.size && asset.size > MAX_SIZE) {
-          errs.push(`${asset.name} dépasse 25 Mo (${fmtSize(asset.size ?? 0)})`);
+          errs.push(t("documentImportScreen.tooLargeItem", { name: asset.name, size: fmtSize(asset.size ?? 0) }));
           continue;
         }
         valid.push({ name: asset.name, mimeType: asset.mimeType ?? "application/octet-stream", size: asset.size ?? 0, uri: asset.uri });
       }
-      if (errs.length > 0) Alert.alert("Fichiers trop volumineux", errs.join("\n"));
+      if (errs.length > 0) Alert.alert(t("documentImportScreen.tooLargeTitle"), errs.join("\n"));
       if (valid.length > 0) {
         setPickedFiles(prev => [...prev, ...valid]);
       }
     } catch (e) {
-      Alert.alert("Erreur", "Impossible de sélectionner le fichier.");
+      Alert.alert(t("documentImportScreen.errorTitle"), t("documentImportScreen.pickError"));
     }
   }
 
@@ -150,7 +152,7 @@ export default function DocumentImportScreen() {
       category: metaValues.category || "general",
       entityType: metaValues.entityType || "",
       tags: metaValues.tags
-        ? metaValues.tags.split(",").map(t => t.trim()).filter(Boolean).join(",")
+        ? metaValues.tags.split(",").map(s => s.trim()).filter(Boolean).join(",")
         : "",
       description: metaValues.description || "",
     };
@@ -207,12 +209,12 @@ export default function DocumentImportScreen() {
           // Le serveur renvoie `fileName`; l'écran d'aperçu lit `filename`.
           uploaded.push({ ...doc, filename: doc.fileName ?? doc.filename ?? file.name });
         } else {
-          let msg = "Erreur";
+          let msg = t("documentImportScreen.errorTitle");
           try { msg = JSON.parse(bodyText)?.error ?? msg; } catch { /* corps non JSON */ }
-          errs.push(`${file.name} : ${msg}`);
+          errs.push(t("documentImportScreen.uploadErrorItem", { name: file.name, msg }));
         }
       } catch {
-        errs.push(`${file.name} : Erreur d'envoi`);
+        errs.push(t("documentImportScreen.uploadErrorItem", { name: file.name, msg: t("documentImportScreen.sendError") }));
       }
     }
 
@@ -229,7 +231,7 @@ export default function DocumentImportScreen() {
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
-          <Text style={styles.headerTitle}>Importer des documents</Text>
+          <Text style={styles.headerTitle}>{t("documentImportScreen.title")}</Text>
         </View>
         <View style={styles.stepRow}>
           {(["pick", "meta", "done"] as Step[]).map((s, i) => (
@@ -242,7 +244,7 @@ export default function DocumentImportScreen() {
           ))}
         </View>
         <Text style={styles.stepLabel}>
-          {step === "pick" ? "Sélection des fichiers" : step === "meta" ? "Métadonnées" : "Résultats"}
+          {step === "pick" ? t("documentImportScreen.steps.pick") : step === "meta" ? t("documentImportScreen.steps.meta") : t("documentImportScreen.steps.done")}
         </Text>
       </View>
 
@@ -255,15 +257,15 @@ export default function DocumentImportScreen() {
               style={[styles.dropZone, { backgroundColor: colors.card, borderColor: "#0f766e" }]}
             >
               <Feather name="upload-cloud" size={40} color="#0f766e" />
-              <Text style={[styles.dropTitle, { color: colors.foreground }]}>Appuyez pour sélectionner</Text>
-              <Text style={[styles.dropSub, { color: colors.mutedForeground }]}>PDF · Images · Word · Excel · CSV</Text>
-              <Text style={[styles.dropSub, { color: colors.mutedForeground }]}>Max 25 Mo par fichier</Text>
+              <Text style={[styles.dropTitle, { color: colors.foreground }]}>{t("documentImportScreen.dropTitle")}</Text>
+              <Text style={[styles.dropSub, { color: colors.mutedForeground }]}>{t("documentImportScreen.dropFormats")}</Text>
+              <Text style={[styles.dropSub, { color: colors.mutedForeground }]}>{t("documentImportScreen.dropMax")}</Text>
             </Pressable>
 
             {pickedFiles.length > 0 && (
               <View style={{ gap: 8 }}>
                 <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-                  {pickedFiles.length} fichier{pickedFiles.length > 1 ? "s" : ""} sélectionné{pickedFiles.length > 1 ? "s" : ""}
+                  {t(pickedFiles.length > 1 ? "documentImportScreen.selectedMany" : "documentImportScreen.selectedOne", { count: pickedFiles.length })}
                 </Text>
                 {pickedFiles.map((f, i) => (
                   <View key={i} style={[styles.fileCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -286,14 +288,14 @@ export default function DocumentImportScreen() {
                     style={[styles.primaryBtn, { backgroundColor: "#0f766e" }]}
                   >
                     <Feather name="settings" size={16} color="#fff" />
-                    <Text style={styles.primaryBtnText}>Configurer & Importer</Text>
+                    <Text style={styles.primaryBtnText}>{t("documentImportScreen.configureImport")}</Text>
                   </Pressable>
                   <Pressable
                     onPress={uploadAll}
                     style={[styles.secondaryBtn, { borderColor: "#0f766e" }]}
                   >
                     <Feather name="upload" size={16} color="#0f766e" />
-                    <Text style={[styles.secondaryBtnText, { color: "#0f766e" }]}>Import rapide (catég. par défaut)</Text>
+                    <Text style={[styles.secondaryBtnText, { color: "#0f766e" }]}>{t("documentImportScreen.quickImport")}</Text>
                   </Pressable>
                 </View>
               </View>
@@ -301,9 +303,9 @@ export default function DocumentImportScreen() {
 
             {/* Format info */}
             <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.infoTitle, { color: colors.foreground }]}>Formats acceptés</Text>
+              <Text style={[styles.infoTitle, { color: colors.foreground }]}>{t("documentImportScreen.acceptedFormats")}</Text>
               {[
-                { icon: "file-text" as const,  label: "PDF", desc: "Contrats, factures, rapports" },
+                { icon: "file-text" as const,  label: "PDF", desc: t("documentImportScreen.formatPdfDesc") },
                 { icon: "image" as const,       label: "Images", desc: "JPG, PNG, WebP" },
                 { icon: "file" as const,        label: "Word", desc: "DOC, DOCX" },
                 { icon: "grid" as const,        label: "Excel / CSV", desc: "XLS, XLSX, CSV" },
@@ -323,7 +325,7 @@ export default function DocumentImportScreen() {
           <>
             <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.infoTitle, { color: colors.foreground }]}>
-                {pickedFiles.length} fichier{pickedFiles.length > 1 ? "s" : ""} à importer
+                {t(pickedFiles.length > 1 ? "documentImportScreen.toImportMany" : "documentImportScreen.toImportOne", { count: pickedFiles.length })}
               </Text>
               {pickedFiles.map((f, i) => (
                 <Text key={i} style={[styles.fileMeta, { color: colors.mutedForeground }]}>· {f.name}</Text>
@@ -331,7 +333,7 @@ export default function DocumentImportScreen() {
             </View>
 
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.sectionLabel, { color: colors.foreground, marginBottom: 12 }]}>Catégorie</Text>
+              <Text style={[styles.sectionLabel, { color: colors.foreground, marginBottom: 12 }]}>{t("documentImportScreen.category")}</Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
                 {CATEGORY_OPTIONS.map(c => (
                   <Pressable
@@ -343,7 +345,7 @@ export default function DocumentImportScreen() {
                     ]}
                   >
                     <Text style={[styles.catChipText, { color: metaValues.category === c.value ? "#fff" : colors.mutedForeground }]}>
-                      {c.label}
+                      {t(`documentImportScreen.categories.${c.value}`)}
                     </Text>
                   </Pressable>
                 ))}
@@ -351,18 +353,18 @@ export default function DocumentImportScreen() {
             </View>
 
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.sectionLabel, { color: colors.foreground, marginBottom: 8 }]}>Tags (optionnel)</Text>
+              <Text style={[styles.sectionLabel, { color: colors.foreground, marginBottom: 8 }]}>{t("documentImportScreen.tagsLabel")}</Text>
               <TextInput
                 style={[styles.tagInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
-                placeholder="contrat, 2024, client-dupont..."
+                placeholder={t("documentImportScreen.tagsPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 value={metaValues.tags ?? ""}
                 onChangeText={v => setMetaValues(prev => ({ ...prev, tags: v }))}
               />
-              <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 12, marginBottom: 8 }]}>Description (optionnel)</Text>
+              <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 12, marginBottom: 8 }]}>{t("documentImportScreen.descLabel")}</Text>
               <TextInput
                 style={[styles.tagInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background, minHeight: 60, textAlignVertical: "top" }]}
-                placeholder="Description du document..."
+                placeholder={t("documentImportScreen.descPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 multiline
                 value={metaValues.description ?? ""}
@@ -377,11 +379,11 @@ export default function DocumentImportScreen() {
                 style={[styles.primaryBtn, { backgroundColor: "#0f766e" }]}
               >
                 {uploading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="upload" size={16} color="#fff" />}
-                <Text style={styles.primaryBtnText}>{uploading ? "Import en cours..." : `Importer ${pickedFiles.length} fichier${pickedFiles.length > 1 ? "s" : ""}`}</Text>
+                <Text style={styles.primaryBtnText}>{uploading ? t("documentImportScreen.importing") : t(pickedFiles.length > 1 ? "documentImportScreen.importCountMany" : "documentImportScreen.importCountOne", { count: pickedFiles.length })}</Text>
               </Pressable>
               <Pressable onPress={() => setStep("pick")} style={[styles.secondaryBtn, { borderColor: colors.border }]}>
                 <Feather name="arrow-left" size={16} color={colors.mutedForeground} />
-                <Text style={[styles.secondaryBtnText, { color: colors.mutedForeground }]}>Retour</Text>
+                <Text style={[styles.secondaryBtnText, { color: colors.mutedForeground }]}>{t("common.back")}</Text>
               </Pressable>
             </View>
           </>
@@ -399,18 +401,18 @@ export default function DocumentImportScreen() {
                 />
               </View>
               <Text style={[styles.doneTitle, { color: colors.foreground }]}>
-                {uploadedDocs.length > 0 ? `${uploadedDocs.length} document${uploadedDocs.length > 1 ? "s" : ""} importé${uploadedDocs.length > 1 ? "s" : ""}` : "Aucun document importé"}
+                {uploadedDocs.length > 0 ? t(uploadedDocs.length > 1 ? "documentImportScreen.importedTitleMany" : "documentImportScreen.importedTitleOne", { count: uploadedDocs.length }) : t("documentImportScreen.noneImported")}
               </Text>
               {errors.length > 0 && (
                 <Text style={{ fontSize: 13, fontFamily: "Inter_400Regular", color: "#ef4444", textAlign: "center" }}>
-                  {errors.length} erreur{errors.length > 1 ? "s" : ""}
+                  {t(errors.length > 1 ? "documentImportScreen.errorsCountMany" : "documentImportScreen.errorsCountOne", { count: errors.length })}
                 </Text>
               )}
             </View>
 
             {uploadedDocs.length > 0 && (
               <View style={{ gap: 6 }}>
-                <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Documents importés</Text>
+                <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{t("documentImportScreen.importedDocs")}</Text>
                 {uploadedDocs.map((d, i) => (
                   <View key={i} style={[styles.fileCard, { backgroundColor: colors.card, borderColor: "#0f766e40" }]}>
                     <View style={[styles.fileIcon, { backgroundColor: "#0f766e15" }]}>
@@ -418,7 +420,7 @@ export default function DocumentImportScreen() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.fileName, { color: colors.foreground }]} numberOfLines={1}>{d.filename}</Text>
-                      <Text style={[styles.fileMeta, { color: "#0f766e" }]}>{d.category} · {fmtSize(d.fileSize)}</Text>
+                      <Text style={[styles.fileMeta, { color: "#0f766e" }]}>{t(`documentImportScreen.categories.${d.category}`)} · {fmtSize(d.fileSize)}</Text>
                     </View>
                     <Feather name="check-circle" size={16} color="#22c55e" />
                   </View>
@@ -428,7 +430,7 @@ export default function DocumentImportScreen() {
 
             {errors.length > 0 && (
               <View style={{ gap: 6 }}>
-                <Text style={[styles.sectionLabel, { color: "#ef4444" }]}>Erreurs</Text>
+                <Text style={[styles.sectionLabel, { color: "#ef4444" }]}>{t("documentImportScreen.errorsLabel")}</Text>
                 {errors.map((e, i) => (
                   <View key={i} style={[styles.fileCard, { backgroundColor: "#fef2f2", borderColor: "#fecaca" }]}>
                     <Feather name="alert-circle" size={16} color="#ef4444" />
@@ -444,14 +446,14 @@ export default function DocumentImportScreen() {
                 style={[styles.primaryBtn, { backgroundColor: "#0f766e" }]}
               >
                 <Feather name="folder" size={16} color="#fff" />
-                <Text style={styles.primaryBtnText}>Voir les documents</Text>
+                <Text style={styles.primaryBtnText}>{t("documentImportScreen.viewDocuments")}</Text>
               </Pressable>
               <Pressable
                 onPress={() => { setStep("pick"); setPickedFiles([]); setUploadedDocs([]); setErrors([]); setMetaValues({ category: "general" }); }}
                 style={[styles.secondaryBtn, { borderColor: colors.border }]}
               >
                 <Feather name="plus" size={16} color={colors.mutedForeground} />
-                <Text style={[styles.secondaryBtnText, { color: colors.mutedForeground }]}>Importer d'autres documents</Text>
+                <Text style={[styles.secondaryBtnText, { color: colors.mutedForeground }]}>{t("documentImportScreen.importMore")}</Text>
               </Pressable>
             </View>
           </>
