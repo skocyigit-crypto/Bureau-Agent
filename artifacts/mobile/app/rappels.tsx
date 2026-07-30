@@ -18,6 +18,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useUnreadBadges } from "@/contexts/UnreadBadgesContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 interface NotificationDTO {
   id: number;
@@ -48,6 +49,7 @@ interface RappelItem {
 
 export default function RappelsScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
   const { clearKey } = useUnreadBadges();
@@ -66,7 +68,7 @@ export default function RappelsScreen() {
         const data = (await res.json()) as NotificationsResponse;
         const list: RappelItem[] = (data.notifications ?? []).map((n: NotificationDTO) => ({
           id: n.id,
-          title: n.title ?? "Rappel",
+          title: n.title ?? t("rappelsScreen.rappelFallback"),
           message: n.message ?? "",
           priority: n.priority ?? "normale",
           read: !!n.read,
@@ -136,9 +138,9 @@ export default function RappelsScreen() {
   function formatTime(dateStr: string) {
     const d = new Date(dateStr);
     const diff = Date.now() - d.getTime();
-    if (diff < 60000) return "A l'instant";
-    if (diff < 3600000) return `${Math.floor(diff / 60000)} min`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
+    if (diff < 60000) return t("rappelsScreen.justNow");
+    if (diff < 3600000) return t("rappelsScreen.minAgo", { count: Math.floor(diff / 60000) });
+    if (diff < 86400000) return t("rappelsScreen.hourAgo", { count: Math.floor(diff / 3600000) });
     return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   }
 
@@ -156,11 +158,11 @@ export default function RappelsScreen() {
           <Feather name="arrow-left" size={20} color="#fff" />
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Rappels</Text>
+          <Text style={styles.headerTitle}>{t("rappelsScreen.title")}</Text>
           <Text style={styles.headerSub}>
             {items.length === 0
-              ? "Dernieres 24 heures"
-              : `${items.length} rappel${items.length > 1 ? "s" : ""} - ${unreadCount} non lu${unreadCount > 1 ? "s" : ""}`}
+              ? t("rappelsScreen.last24h")
+              : t("rappelsScreen.headerSummary", { count: items.length, unread: unreadCount })}
           </Text>
         </View>
         {unreadCount > 0 ? (
@@ -169,7 +171,7 @@ export default function RappelsScreen() {
             style={[styles.markAllBtn, { backgroundColor: "rgba(255,255,255,0.12)" }]}
           >
             <Feather name="check-circle" size={14} color="#fff" />
-            <Text style={styles.markAllText}>Tout lire</Text>
+            <Text style={styles.markAllText}>{t("rappelsScreen.markAllRead")}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -189,8 +191,8 @@ export default function RappelsScreen() {
           ListEmptyComponent={
             <EmptyState
               icon="bell-off"
-              title="Aucun rappel"
-              subtitle="Aucun rappel calendrier dans les dernieres 24 heures."
+              title={t("rappelsScreen.emptyTitle")}
+              subtitle={t("rappelsScreen.emptySubtitle")}
             />
           }
           renderItem={({ item }) => {

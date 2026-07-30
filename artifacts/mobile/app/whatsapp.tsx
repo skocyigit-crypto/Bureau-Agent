@@ -18,6 +18,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
+import { useTranslation } from "@/lib/i18n";
 
 interface Conversation {
   id: number;
@@ -35,10 +36,10 @@ interface Conversation {
 
 type StatusFilter = "open" | "closed" | "all";
 
-const DRAFT_PILL: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  ready: { label: "Brouillon IA prêt", color: "#22c55e", icon: "edit-3" },
-  generating: { label: "IA rédige…", color: "#f59e0b", icon: "loader" },
-  failed: { label: "Brouillon échoué", color: "#ef4444", icon: "alert-triangle" },
+const DRAFT_PILL: Record<string, { labelKey: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
+  ready: { labelKey: "whatsappScreen.draftReady", color: "#22c55e", icon: "edit-3" },
+  generating: { labelKey: "whatsappScreen.draftGenerating", color: "#f59e0b", icon: "loader" },
+  failed: { labelKey: "whatsappScreen.draftFailed", color: "#ef4444", icon: "alert-triangle" },
 };
 
 function initials(name: string | null | undefined, phone: string): string {
@@ -51,6 +52,7 @@ function initials(name: string | null | undefined, phone: string): string {
 
 export default function WhatsappInboxScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
@@ -111,9 +113,9 @@ export default function WhatsappInboxScreen() {
   }
 
   const filters: { key: StatusFilter; label: string }[] = [
-    { key: "open", label: "Ouverts" },
-    { key: "closed", label: "Fermés" },
-    { key: "all", label: "Tous" },
+    { key: "open", label: t("whatsappScreen.filterOpen") },
+    { key: "closed", label: t("whatsappScreen.filterClosed") },
+    { key: "all", label: t("whatsappScreen.filterAll") },
   ];
 
   const unreadTotal = conversations.reduce((acc, c) => acc + (c.unreadCount > 0 ? 1 : 0), 0);
@@ -127,7 +129,7 @@ export default function WhatsappInboxScreen() {
           </Pressable>
           <View style={styles.headerCenter}>
             <Feather name="message-circle" size={18} color="#ffffff" />
-            <Text style={styles.headerTitle}>WhatsApp clients</Text>
+            <Text style={styles.headerTitle}>{t("whatsappScreen.headerTitle")}</Text>
             {unreadTotal > 0 && (
               <View style={[styles.unreadBadge, { backgroundColor: colors.primary }]}>
                 <Text style={styles.unreadBadgeText}>{unreadTotal}</Text>
@@ -141,7 +143,7 @@ export default function WhatsappInboxScreen() {
           <Feather name="search" size={16} color="rgba(255,255,255,0.5)" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Rechercher un client…"
+            placeholder={t("whatsappScreen.searchPlaceholder")}
             placeholderTextColor="rgba(255,255,255,0.4)"
             value={search}
             onChangeText={setSearch}
@@ -168,7 +170,7 @@ export default function WhatsappInboxScreen() {
         {isFromCache && (
           <View style={styles.cacheRow}>
             <Feather name="wifi-off" size={11} color="rgba(255,255,255,0.5)" />
-            <Text style={styles.cacheText}>Cache hors ligne</Text>
+            <Text style={styles.cacheText}>{t("whatsappScreen.offlineCache")}</Text>
           </View>
         )}
       </View>
@@ -184,7 +186,7 @@ export default function WhatsappInboxScreen() {
           contentContainerStyle={[styles.listContent, { paddingBottom: isWeb ? 118 : 100 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
           ListEmptyComponent={
-            <EmptyState icon="message-circle" title="Aucune conversation" subtitle="Les messages WhatsApp de vos clients apparaîtront ici" />
+            <EmptyState icon="message-circle" title={t("whatsappScreen.emptyTitle")} subtitle={t("whatsappScreen.emptySubtitle")} />
           }
           renderItem={({ item }) => {
             const unread = item.unreadCount > 0;
@@ -217,20 +219,20 @@ export default function WhatsappInboxScreen() {
                     <Text style={[styles.convTime, { color: colors.mutedForeground }]}>{formatTime(item.lastMessageAt)}</Text>
                   </View>
                   <Text style={[styles.convPreview, { color: colors.mutedForeground }]} numberOfLines={2}>
-                    {item.lastDirection === "outbound" ? "Vous : " : ""}
-                    {item.lastMessagePreview || "(média)"}
+                    {item.lastDirection === "outbound" ? t("whatsappScreen.youPrefix") : ""}
+                    {item.lastMessagePreview || t("whatsappScreen.media")}
                   </Text>
                   <View style={styles.convBottom}>
                     {pill ? (
                       <View style={[styles.pill, { backgroundColor: pill.color + "18" }]}>
                         <Feather name={pill.icon} size={11} color={pill.color} />
-                        <Text style={[styles.pillText, { color: pill.color }]}>{pill.label}</Text>
+                        <Text style={[styles.pillText, { color: pill.color }]}>{t(pill.labelKey)}</Text>
                       </View>
                     ) : null}
                     {item.status === "closed" ? (
                       <View style={[styles.pill, { backgroundColor: colors.mutedForeground + "18" }]}>
                         <Feather name="check-circle" size={11} color={colors.mutedForeground} />
-                        <Text style={[styles.pillText, { color: colors.mutedForeground }]}>Fermé</Text>
+                        <Text style={[styles.pillText, { color: colors.mutedForeground }]}>{t("whatsappScreen.closed")}</Text>
                       </View>
                     ) : null}
                     {unread ? (

@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 interface Conversation {
   id: number;
@@ -41,6 +42,7 @@ interface Message {
 
 export default function WhatsappThreadScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
@@ -115,7 +117,7 @@ export default function WhatsappThreadScreen() {
         // on bascule localement en échec récupérable et on stoppe la boucle.
         setConv((prev) =>
           prev && prev.draftStatus === "generating"
-            ? { ...prev, draftStatus: "failed", draftError: "Le brouillon IA a expiré. Réessayez." }
+            ? { ...prev, draftStatus: "failed", draftError: t("whatsappThreadScreen.draftExpired") }
             : prev,
         );
         setDrafting(false);
@@ -147,7 +149,7 @@ export default function WhatsappThreadScreen() {
         // Échec immédiat (quota, erreur serveur…) : on sort de "generating"
         // pour ne pas lancer une boucle de polling qui ne se terminerait jamais.
         setConv((prev) =>
-          prev ? { ...prev, draftStatus: "failed", draftError: err.error || "Impossible de lancer la génération du brouillon." } : prev,
+          prev ? { ...prev, draftStatus: "failed", draftError: err.error || t("whatsappThreadScreen.draftLaunchError") } : prev,
         );
         setDrafting(false);
         return;
@@ -156,7 +158,7 @@ export default function WhatsappThreadScreen() {
       fetchDetail();
     } catch {
       setConv((prev) =>
-        prev ? { ...prev, draftStatus: "failed", draftError: "Erreur réseau lors de la génération du brouillon." } : prev,
+        prev ? { ...prev, draftStatus: "failed", draftError: t("whatsappThreadScreen.draftNetworkError") } : prev,
       );
       setDrafting(false);
     }
@@ -182,16 +184,16 @@ export default function WhatsappThreadScreen() {
         const err = await res.json().catch(() => ({}));
         if (Platform.OS === "web") {
           // eslint-disable-next-line no-alert
-          window.alert(err.error || "Échec de l'envoi du message.");
+          window.alert(err.error || t("whatsappThreadScreen.sendFailed"));
         } else {
-          Alert.alert("Envoi impossible", err.error || "Échec de l'envoi du message.");
+          Alert.alert(t("whatsappThreadScreen.sendImpossibleTitle"), err.error || t("whatsappThreadScreen.sendFailed"));
         }
       }
     } catch {
       if (Platform.OS === "web") {
-        window.alert("Erreur réseau lors de l'envoi.");
+        window.alert(t("whatsappThreadScreen.sendNetworkError"));
       } else {
-        Alert.alert("Erreur", "Erreur réseau lors de l'envoi.");
+        Alert.alert(t("whatsappThreadScreen.errorTitle"), t("whatsappThreadScreen.sendNetworkError"));
       }
     } finally {
       setSending(false);
@@ -217,7 +219,7 @@ export default function WhatsappThreadScreen() {
     return new Date(dateStr).toLocaleString("fr-FR", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" });
   }
 
-  const title = conv?.customerName || conv?.customerPhone || "Conversation";
+  const title = conv?.customerName || conv?.customerPhone || t("whatsappThreadScreen.convFallback");
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -261,7 +263,7 @@ export default function WhatsappThreadScreen() {
             ListEmptyComponent={
               <View style={styles.emptyThread}>
                 <Feather name="message-circle" size={36} color={colors.mutedForeground} />
-                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucun message pour l'instant</Text>
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("whatsappThreadScreen.emptyThread")}</Text>
               </View>
             }
             renderItem={({ item }) => {
@@ -283,7 +285,7 @@ export default function WhatsappThreadScreen() {
                       <View style={styles.mediaRow}>
                         <Feather name="paperclip" size={12} color={outbound ? "#0b2e13" : colors.mutedForeground} />
                         <Text style={[styles.mediaText, { color: outbound ? "#0b2e13" : colors.mutedForeground }]}>
-                          {item.mediaUrls.length} pièce(s) jointe(s)
+                          {t("whatsappThreadScreen.attachments", { count: item.mediaUrls.length })}
                         </Text>
                       </View>
                     ) : null}
@@ -316,7 +318,7 @@ export default function WhatsappThreadScreen() {
                   <Feather name="cpu" size={14} color={colors.primary} />
                 )}
                 <Text style={[styles.draftBtnText, { color: colors.primary }]}>
-                  {drafting ? "IA rédige…" : "Brouillon IA"}
+                  {drafting ? t("whatsappThreadScreen.draftGenerating") : t("whatsappThreadScreen.draftButton")}
                 </Text>
               </Pressable>
               <Text style={[styles.charCount, { color: colors.mutedForeground }]}>{composer.length}</Text>
@@ -324,7 +326,7 @@ export default function WhatsappThreadScreen() {
             <View style={styles.composerRow}>
               <TextInput
                 style={[styles.composerInput, { backgroundColor: colors.background, color: colors.foreground, borderColor: colors.border }]}
-                placeholder="Relire, modifier, puis envoyer…"
+                placeholder={t("whatsappThreadScreen.composerPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 value={composer}
                 onChangeText={(t) => {
@@ -350,7 +352,7 @@ export default function WhatsappThreadScreen() {
               </Pressable>
             </View>
             <Text style={[styles.safetyNote, { color: colors.mutedForeground }]}>
-              Rien n'est envoyé sans votre validation.
+              {t("whatsappThreadScreen.safetyNote")}
             </Text>
           </View>
         </KeyboardAvoidingView>

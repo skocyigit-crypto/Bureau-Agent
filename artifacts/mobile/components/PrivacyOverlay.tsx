@@ -24,12 +24,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 const nativeDriver = Platform.OS !== "web";
 
 // ── Arka plan örtüsü (uygulama switcher'ında içeriği gizler) ─────────────────
 
 function BackgroundShield() {
+  const { t } = useTranslation();
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       {Platform.OS !== "web" ? (
@@ -42,7 +44,7 @@ function BackgroundShield() {
           <Feather name="phone-call" size={36} color="#f59e0b" />
         </View>
         <Text style={styles.shieldTitle}>Ajant Bureau</Text>
-        <Text style={styles.shieldSubtitle}>Contenu protege</Text>
+        <Text style={styles.shieldSubtitle}>{t("privacyOverlay.contentProtected")}</Text>
       </View>
     </View>
   );
@@ -155,6 +157,7 @@ function LockScreen() {
     biometricType,
     settings,
   } = usePrivacy();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
   const [pinError, setPinError] = useState(false);
@@ -196,7 +199,7 @@ function LockScreen() {
         </View>
         <Text style={styles.lockTitle}>Ajant Bureau</Text>
         <Text style={styles.lockSubtitle}>
-          {showPIN ? "Entrez votre code PIN" : "Verifiez votre identite"}
+          {showPIN ? t("privacyOverlay.enterPin") : t("privacyOverlay.verifyIdentity")}
         </Text>
       </View>
 
@@ -210,7 +213,7 @@ function LockScreen() {
           />
           {attempts > 0 && (
             <Text style={styles.errorText}>
-              Code incorrect ({attempts} tentative{attempts > 1 ? "s" : ""})
+              {t("privacyOverlay.wrongCode", { count: attempts })}
             </Text>
           )}
           {/* Biyometrik butonu (eğer etkinse) */}
@@ -218,7 +221,7 @@ function LockScreen() {
             <Pressable style={styles.bioBtn} onPress={tryBiometric}>
               <Feather name="cpu" size={16} color="#f59e0b" />
               <Text style={styles.bioBtnText}>
-                Utiliser {biometricType || "la biometrie"}
+                {t("privacyOverlay.useBiometric", { type: biometricType || t("privacyOverlay.biometricFallback") })}
               </Text>
             </Pressable>
           )}
@@ -238,15 +241,15 @@ function LockScreen() {
                   />
                 </View>
                 <Text style={styles.bioBigText}>
-                  {biometricType === "Face ID" ? "Face ID ile ac" : "Parmak izi ile ac"}
+                  {biometricType === "Face ID" ? t("privacyOverlay.openWithFaceId") : t("privacyOverlay.openWithFingerprint")}
                 </Text>
-                <Text style={styles.bioBigHint}>Dokunun veya yuzunuzu goruntuye alin</Text>
+                <Text style={styles.bioBigHint}>{t("privacyOverlay.biometricHint")}</Text>
               </>
             )}
           </Pressable>
           {settings.hasPIN && (
             <Pressable style={styles.altBtn} onPress={() => setShowPIN(true)}>
-              <Text style={styles.altBtnText}>Code PIN kullan</Text>
+              <Text style={styles.altBtnText}>{t("privacyOverlay.usePinCode")}</Text>
             </Pressable>
           )}
         </View>

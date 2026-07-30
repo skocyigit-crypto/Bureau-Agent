@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState } from "@/components/EmptyState";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 interface Integration {
   id: string;
@@ -48,6 +49,7 @@ const CATEGORY_COLORS: Record<string, { color: string; icon: keyof typeof Feathe
 
 export default function IntegrationsScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
@@ -132,14 +134,14 @@ export default function IntegrationsScreen() {
           <Pressable onPress={() => router.back()} hitSlop={12}>
             <Feather name="arrow-left" size={22} color="#ffffff" />
           </Pressable>
-          <Text style={styles.headerTitle}>Integrations</Text>
+          <Text style={styles.headerTitle}>{t("integrationsScreen.title")}</Text>
           <View style={{ width: 22 }} />
         </View>
         <View style={[styles.searchContainer, { backgroundColor: "rgba(255,255,255,0.1)" }]}>
           <Feather name="search" size={16} color="rgba(255,255,255,0.5)" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Rechercher une integration..."
+            placeholder={t("integrationsScreen.searchPlaceholder")}
             placeholderTextColor="rgba(255,255,255,0.4)"
             value={search}
             onChangeText={setSearch}
@@ -164,17 +166,17 @@ export default function IntegrationsScreen() {
                 <View style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <Feather name="link" size={16} color="#22c55e" />
                   <Text style={[styles.statVal, { color: colors.foreground }]}>{connected}</Text>
-                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Connectees</Text>
+                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{t("integrationsScreen.statConnected")}</Text>
                 </View>
                 <View style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <Feather name="grid" size={16} color="#3b82f6" />
                   <Text style={[styles.statVal, { color: colors.foreground }]}>{integrations.length}</Text>
-                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Disponibles</Text>
+                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{t("integrationsScreen.statAvailable")}</Text>
                 </View>
                 <View style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <Feather name="layers" size={16} color="#8b5cf6" />
                   <Text style={[styles.statVal, { color: colors.foreground }]}>{categories.filter(c => c.id !== "all").length}</Text>
-                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Categories</Text>
+                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{t("integrationsScreen.statCategories")}</Text>
                 </View>
               </View>
               <View style={catStyles.container}>
@@ -193,7 +195,7 @@ export default function IntegrationsScreen() {
               </View>
             </>
           }
-          ListEmptyComponent={<EmptyState icon="grid" title="Aucune integration" subtitle="Aucune integration trouvee" />}
+          ListEmptyComponent={<EmptyState icon="grid" title={t("integrationsScreen.emptyTitle")} subtitle={t("integrationsScreen.emptySubtitle")} />}
           renderItem={({ item }) => {
             const catColor = CATEGORY_COLORS[item.category]?.color || "#64748b";
             const iconName = getIntegrationIcon(item);
@@ -213,7 +215,7 @@ export default function IntegrationsScreen() {
                     </View>
                     {item.lastSync && (
                       <Text style={[styles.syncText, { color: colors.mutedForeground }]}>
-                        Sync: {new Date(item.lastSync).toLocaleDateString("fr-FR")}
+                        {t("integrationsScreen.syncPrefix")}{new Date(item.lastSync).toLocaleDateString("fr-FR")}
                       </Text>
                     )}
                   </View>
@@ -227,7 +229,7 @@ export default function IntegrationsScreen() {
                   <Text style={[styles.statusText, {
                     color: isConnected ? "#22c55e" : isPending ? "#f59e0b" : colors.mutedForeground,
                   }]}>
-                    {isConnected ? "Connecte" : isPending ? "En attente" : "Disponible"}
+                    {isConnected ? t("integrationsScreen.statusConnected") : isPending ? t("integrationsScreen.statusPending") : t("integrationsScreen.statusAvailable")}
                   </Text>
                 </View>
               </View>

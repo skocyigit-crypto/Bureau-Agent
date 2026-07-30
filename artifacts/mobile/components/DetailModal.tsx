@@ -15,6 +15,7 @@ import {
 } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 interface DetailField {
   label: string;
@@ -61,6 +62,7 @@ export function DetailModal({
   refreshing,
 }: DetailModalProps) {
   const colors = useColors();
+  const { t } = useTranslation();
 
   function handleAction(action: string | undefined, value: string) {
     if (Platform.OS !== "web") {
@@ -76,9 +78,9 @@ export function DetailModal({
       onDelete?.();
       return;
     }
-    Alert.alert("Supprimer", "Voulez-vous vraiment supprimer cet element ?", [
-      { text: "Annuler", style: "cancel" },
-      { text: "Supprimer", style: "destructive", onPress: () => onDelete?.() },
+    Alert.alert(t("common.delete"), t("detailModal.deleteConfirm"), [
+      { text: t("common.cancel"), style: "cancel" },
+      { text: t("common.delete"), style: "destructive", onPress: () => onDelete?.() },
     ]);
   }
 
@@ -90,7 +92,7 @@ export function DetailModal({
             <Pressable onPress={onClose} hitSlop={12}>
               <Feather name="x" size={22} color={colors.foreground} />
             </Pressable>
-            <Text style={[styles.headerTitle, { color: colors.foreground }]}>Details</Text>
+            <Text style={[styles.headerTitle, { color: colors.foreground }]}>{t("detailModal.header")}</Text>
             <View style={styles.headerRight}>
               {refreshing ? <ActivityIndicator size="small" color={colors.primary} /> : null}
             </View>
@@ -176,7 +178,7 @@ export function DetailModal({
                 style={[styles.editBtn, { backgroundColor: colors.primary }]}
               >
                 <Feather name="edit-2" size={16} color={colors.primaryForeground} />
-                <Text style={[styles.editText, { color: colors.primaryForeground }]}>Modifier</Text>
+                <Text style={[styles.editText, { color: colors.primaryForeground }]}>{t("common.edit")}</Text>
               </Pressable>
             ) : null}
           </View>

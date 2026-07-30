@@ -14,6 +14,7 @@ import {
 } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 import {
   useInlineSuggest,
   type InlineSuggestFieldType,
@@ -76,10 +77,12 @@ export function FormModal({
   values,
   onChange,
   loading = false,
-  submitLabel = "Enregistrer",
+  submitLabel,
   icon = "save",
 }: FormModalProps) {
   const colors = useColors();
+  const { t } = useTranslation();
+  const resolvedSubmitLabel = submitLabel ?? t("common.save");
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
@@ -117,7 +120,7 @@ export function FormModal({
               onPress={onClose}
               style={[styles.cancelBtn, { borderColor: colors.border }]}
             >
-              <Text style={[styles.cancelText, { color: colors.foreground }]}>Annuler</Text>
+              <Text style={[styles.cancelText, { color: colors.foreground }]}>{t("common.cancel")}</Text>
             </Pressable>
             <Pressable
               onPress={onSubmit}
@@ -136,7 +139,7 @@ export function FormModal({
                 <>
                   <Feather name={icon} size={16} color={colors.primaryForeground} />
                   <Text style={[styles.submitText, { color: colors.primaryForeground }]}>
-                    {submitLabel}
+                    {resolvedSubmitLabel}
                   </Text>
                 </>
               )}
@@ -156,6 +159,7 @@ interface FormFieldProps {
 
 function FormField({ field, values, onChange }: FormFieldProps) {
   const colors = useColors();
+  const { t } = useTranslation();
   const value = values[field.key] || "";
   const [contactQuery, setContactQuery] = useState("");
   const contactOptions = field.contactOptions ?? [];
@@ -275,7 +279,7 @@ function FormField({ field, values, onChange }: FormFieldProps) {
               <Feather name="search" size={15} color={colors.mutedForeground} />
               <TextInput
                 style={[styles.contactSearchInput, { color: colors.foreground }]}
-                placeholder={field.placeholder || "Rechercher un contact..."}
+                placeholder={field.placeholder || t("formModal.searchContact")}
                 placeholderTextColor={colors.mutedForeground}
                 value={contactQuery}
                 onChangeText={setContactQuery}
@@ -284,11 +288,11 @@ function FormField({ field, values, onChange }: FormFieldProps) {
             </View>
             {contactOptions.length === 0 ? (
               <Text style={[styles.contactHint, { color: colors.mutedForeground }]}>
-                Aucun contact enregistré — saisissez un nouveau nom ci-dessous.
+                {t("formModal.noContactsSaved")}
               </Text>
             ) : filteredContacts.length === 0 ? (
               <Text style={[styles.contactHint, { color: colors.mutedForeground }]}>
-                Aucun contact trouvé.
+                {t("formModal.noContactFound")}
               </Text>
             ) : (
               <View style={styles.contactList}>
@@ -403,7 +407,7 @@ function FormField({ field, values, onChange }: FormFieldProps) {
                 hitSlop={6}
               >
                 <Text style={[styles.suggestionBtnText, { color: colors.primary }]}>
-                  Ajouter
+                  {t("common.add")}
                 </Text>
               </Pressable>
               <Pressable onPress={dismissSuggestion} hitSlop={8} style={styles.suggestionDismiss}>

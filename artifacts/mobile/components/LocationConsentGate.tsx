@@ -12,6 +12,7 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocationTracking } from "@/contexts/LocationContext";
+import { useTranslation } from "@/lib/i18n";
 import React, { useEffect, useState } from "react";
 import {
   Linking,
@@ -61,44 +62,23 @@ export function LocationConsentGate({ children }: { children: React.ReactNode })
 }
 
 function KvkkScreen({ onAccept }: { onAccept: () => Promise<void> }) {
+  const { t } = useTranslation();
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>Suivi de presence — Information KVKK / RGPD</Text>
-      <Text style={styles.paragraph}>
-        Pour fonctionner, l&apos;application Ajant Bureau collecte en
-        permanence votre position approximative pendant que vous etes
-        connecte(e), y compris en arriere-plan.
-      </Text>
-      <Text style={styles.sectionHeading}>Ce qui est collecte</Text>
-      <Text style={styles.bullet}>
-        - Latitude / longitude transmises au serveur de votre employeur.
-      </Text>
-      <Text style={styles.bullet}>
-        - Date/heure et niveau de batterie (optionnel) au moment de la mesure.
-      </Text>
-      <Text style={styles.sectionHeading}>Ce qui est visible par votre employeur</Text>
-      <Text style={styles.bullet}>
-        - Uniquement la zone (geofence) ou vous vous trouvez et l&apos;heure
-          du dernier passage. La position GPS exacte n&apos;est PAS affichee.
-      </Text>
-      <Text style={styles.sectionHeading}>Duree de conservation</Text>
-      <Text style={styles.bullet}>
-        - Les evenements d&apos;entree/sortie sont conserves 30 jours, puis
-          automatiquement supprimes.
-      </Text>
-      <Text style={styles.sectionHeading}>Vos droits</Text>
-      <Text style={styles.bullet}>
-        - Vous pouvez a tout moment demander a votre employeur l&apos;acces, la
-          rectification ou la suppression de vos donnees, conformement au RGPD
-          (UE) et a la loi KVKK n. 6698 (Turquie).
-      </Text>
-      <Text style={[styles.paragraph, styles.warning]}>
-        Le suivi est une condition d&apos;utilisation de l&apos;application
-        professionnelle. Refuser le suivi vous empechera d&apos;acceder aux
-        ecrans de l&apos;application.
-      </Text>
+      <Text style={styles.title}>{t("locationConsentGate.kvkkTitle")}</Text>
+      <Text style={styles.paragraph}>{t("locationConsentGate.kvkkIntro")}</Text>
+      <Text style={styles.sectionHeading}>{t("locationConsentGate.sectionCollected")}</Text>
+      <Text style={styles.bullet}>{t("locationConsentGate.bulletCollected1")}</Text>
+      <Text style={styles.bullet}>{t("locationConsentGate.bulletCollected2")}</Text>
+      <Text style={styles.sectionHeading}>{t("locationConsentGate.sectionVisible")}</Text>
+      <Text style={styles.bullet}>{t("locationConsentGate.bulletVisible")}</Text>
+      <Text style={styles.sectionHeading}>{t("locationConsentGate.sectionRetention")}</Text>
+      <Text style={styles.bullet}>{t("locationConsentGate.bulletRetention")}</Text>
+      <Text style={styles.sectionHeading}>{t("locationConsentGate.sectionRights")}</Text>
+      <Text style={styles.bullet}>{t("locationConsentGate.bulletRights")}</Text>
+      <Text style={[styles.paragraph, styles.warning]}>{t("locationConsentGate.warning")}</Text>
       <TouchableOpacity style={styles.primaryButton} onPress={onAccept}>
-        <Text style={styles.primaryButtonText}>J&apos;ai lu et j&apos;accepte</Text>
+        <Text style={styles.primaryButtonText}>{t("locationConsentGate.acceptBtn")}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -113,6 +93,7 @@ function PermissionScreen({
   requesting: boolean;
   onRequest: () => void;
 }) {
+  const { t } = useTranslation();
   // İlk açılışta kullanıcının diyalog hiç görmemiş olması mümkün -> otomatik
   // tek seferlik request tetikle.
   useEffect(() => {
@@ -122,27 +103,19 @@ function PermissionScreen({
 
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>Autorisation de localisation requise</Text>
-      <Text style={styles.paragraph}>
-        L&apos;application a besoin d&apos;acceder a votre position en
-        permanence (y compris en arriere-plan) pour signaler votre presence
-        a votre employeur.
-      </Text>
+      <Text style={styles.title}>{t("locationConsentGate.permTitle")}</Text>
+      <Text style={styles.paragraph}>{t("locationConsentGate.permIntro")}</Text>
       {permission === "denied" ? (
         <>
-          <Text style={[styles.paragraph, styles.warning]}>
-            L&apos;autorisation a ete refusee. Ouvrez les Reglages systeme,
-            choisissez Ajant Bureau, puis Localisation -&gt;
-            &quot;Toujours&quot;.
-          </Text>
+          <Text style={[styles.paragraph, styles.warning]}>{t("locationConsentGate.deniedWarning")}</Text>
           <TouchableOpacity
             style={styles.primaryButton}
             onPress={() => Linking.openSettings().catch(() => {})}
           >
-            <Text style={styles.primaryButtonText}>Ouvrir les Reglages</Text>
+            <Text style={styles.primaryButtonText}>{t("locationConsentGate.openSettings")}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.secondaryButton} onPress={onRequest}>
-            <Text style={styles.secondaryButtonText}>Reessayer</Text>
+            <Text style={styles.secondaryButtonText}>{t("locationConsentGate.retry")}</Text>
           </TouchableOpacity>
         </>
       ) : (
@@ -152,7 +125,7 @@ function PermissionScreen({
           onPress={onRequest}
         >
           <Text style={styles.primaryButtonText}>
-            {requesting ? "Demande en cours..." : "Autoriser la localisation"}
+            {requesting ? t("locationConsentGate.requesting") : t("locationConsentGate.allowLocation")}
           </Text>
         </TouchableOpacity>
       )}
