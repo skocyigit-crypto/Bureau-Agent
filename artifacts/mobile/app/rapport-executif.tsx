@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState } from "@/components/EmptyState";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation, type TFunction } from "@/lib/i18n";
 
 interface ExecutiveSummary {
   period: { days: number; start: string; end: string };
@@ -43,11 +44,7 @@ interface ExecutiveSummary {
   trends: { callTrend: number; taskTrend: number; prospectTrend: number; responseTrend: number };
 }
 
-const PERIOD_OPTIONS = [
-  { val: 7,  label: "7 jours"  },
-  { val: 30, label: "30 jours" },
-  { val: 90, label: "90 jours" },
-];
+const PERIOD_OPTIONS = [7, 30, 90];
 
 const SEVERITY_CFG: Record<string, { color: string; bg: string; icon: keyof typeof Feather.glyphMap }> = {
   positif:  { color: "#22c55e", bg: "#22c55e18", icon: "trending-up"   },
@@ -62,11 +59,11 @@ function scoreColor(score: number): string {
   return "#ef4444";
 }
 
-function scoreLabel(score: number): string {
-  if (score >= 80) return "Excellent";
-  if (score >= 60) return "Bon";
-  if (score >= 40) return "À améliorer";
-  return "Critique";
+function scoreLabel(score: number, t: TFunction): string {
+  if (score >= 80) return t("rapportExecutifScreen.scoreExcellent");
+  if (score >= 60) return t("rapportExecutifScreen.scoreGood");
+  if (score >= 40) return t("rapportExecutifScreen.scoreImprove");
+  return t("rapportExecutifScreen.scoreCritical");
 }
 
 function fmtDuration(sec: number): string {
@@ -126,6 +123,7 @@ function SectionTitle({ title, icon, color, colors }: {
 }
 
 export default function RapportExecutifScreen() {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
@@ -155,7 +153,7 @@ export default function RapportExecutifScreen() {
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
-          <Text style={styles.headerTitle}>Rapport Exécutif</Text>
+          <Text style={styles.headerTitle}>{t("rapportExecutifScreen.title")}</Text>
           <Pressable onPress={onRefresh} style={styles.backBtn}>
             <Feather name="refresh-cw" size={18} color="rgba(255,255,255,0.8)" />
           </Pressable>
@@ -164,11 +162,11 @@ export default function RapportExecutifScreen() {
         <View style={styles.periodRow}>
           {PERIOD_OPTIONS.map(p => (
             <Pressable
-              key={p.val}
-              onPress={() => setDays(p.val)}
-              style={[styles.periodChip, { backgroundColor: days === p.val ? "#fff" : "rgba(255,255,255,0.15)" }]}
+              key={p}
+              onPress={() => setDays(p)}
+              style={[styles.periodChip, { backgroundColor: days === p ? "#fff" : "rgba(255,255,255,0.15)" }]}
             >
-              <Text style={[styles.periodText, { color: days === p.val ? "#1e293b" : "rgba(255,255,255,0.85)" }]}>{p.label}</Text>
+              <Text style={[styles.periodText, { color: days === p ? "#1e293b" : "rgba(255,255,255,0.85)" }]}>{t("rapportExecutifScreen.periodDays", { count: p })}</Text>
             </Pressable>
           ))}
         </View>
@@ -180,8 +178,8 @@ export default function RapportExecutifScreen() {
               <Text style={[styles.scoreMax, { color: "rgba(255,255,255,0.5)" }]}>/100</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.scoreLabel, { color: sc }]}>{scoreLabel(data.score)}</Text>
-              <Text style={styles.scoreSub}>Score de performance global</Text>
+              <Text style={[styles.scoreLabel, { color: sc }]}>{scoreLabel(data.score, t)}</Text>
+              <Text style={styles.scoreSub}>{t("rapportExecutifScreen.scoreSubtitle")}</Text>
             </View>
           </View>
         )}
@@ -190,7 +188,7 @@ export default function RapportExecutifScreen() {
       {loading ? (
         <View style={styles.center}><ActivityIndicator size="large" color="#1e293b" /></View>
       ) : !data ? (
-        <EmptyState icon="bar-chart" title="Aucune donnée" subtitle="Impossible de charger le rapport." />
+        <EmptyState icon="bar-chart" title={t("rapportExecutifScreen.noData")} subtitle={t("rapportExecutifScreen.noDataSub")} />
       ) : (
         <ScrollView
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1e293b" />}
@@ -199,7 +197,7 @@ export default function RapportExecutifScreen() {
           {/* Insights */}
           {data.insights.length > 0 && (
             <View style={styles.section}>
-              <SectionTitle title="Points clés" icon="zap" color="#f59e0b" colors={colors} />
+              <SectionTitle title={t("rapportExecutifScreen.secKeyPoints")} icon="zap" color="#f59e0b" colors={colors} />
               <View style={styles.insightsList}>
                 {data.insights.map((ins, i) => {
                   const sev = SEVERITY_CFG[ins.severity] ?? SEVERITY_CFG.info;
@@ -219,55 +217,55 @@ export default function RapportExecutifScreen() {
 
           {/* Calls */}
           <View style={styles.section}>
-            <SectionTitle title="Appels" icon="phone" color="#22c55e" colors={colors} />
+            <SectionTitle title={t("rapportExecutifScreen.secCalls")} icon="phone" color="#22c55e" colors={colors} />
             <View style={styles.kpiGrid}>
-              <KpiCard icon="phone" iconColor="#22c55e" label="Total appels" value={data.calls.total} trend={data.calls.trend} colors={colors} />
-              <KpiCard icon="check-circle" iconColor="#3b82f6" label="Taux de réponse" value={`${data.calls.responseRate}%`} trend={data.trends.responseTrend} colors={colors} />
-              <KpiCard icon="phone-missed" iconColor="#ef4444" label="Appels manqués" value={data.calls.missed} colors={colors} />
-              <KpiCard icon="clock" iconColor="#f59e0b" label="Durée moy." value={fmtDuration(data.calls.avgDuration)} colors={colors} />
+              <KpiCard icon="phone" iconColor="#22c55e" label={t("rapportExecutifScreen.kpiTotalCalls")} value={data.calls.total} trend={data.calls.trend} colors={colors} />
+              <KpiCard icon="check-circle" iconColor="#3b82f6" label={t("rapportExecutifScreen.kpiResponseRate")} value={`${data.calls.responseRate}%`} trend={data.trends.responseTrend} colors={colors} />
+              <KpiCard icon="phone-missed" iconColor="#ef4444" label={t("rapportExecutifScreen.kpiMissedCalls")} value={data.calls.missed} colors={colors} />
+              <KpiCard icon="clock" iconColor="#f59e0b" label={t("rapportExecutifScreen.kpiAvgDuration")} value={fmtDuration(data.calls.avgDuration)} colors={colors} />
             </View>
           </View>
 
           {/* Tasks */}
           <View style={styles.section}>
-            <SectionTitle title="Tâches" icon="check-square" color="#3b82f6" colors={colors} />
+            <SectionTitle title={t("rapportExecutifScreen.secTasks")} icon="check-square" color="#3b82f6" colors={colors} />
             <View style={styles.kpiGrid}>
-              <KpiCard icon="check-square" iconColor="#3b82f6" label="Total tâches" value={data.tasks.total} colors={colors} />
-              <KpiCard icon="check-circle" iconColor="#22c55e" label="Taux complétion" value={`${data.tasks.completionRate}%`} trend={data.trends.taskTrend} colors={colors} />
-              <KpiCard icon="alert-triangle" iconColor="#ef4444" label="En retard" value={data.tasks.overdue} colors={colors} />
-              <KpiCard icon="zap" iconColor="#f59e0b" label="Haute priorité" value={data.tasks.highPriority} colors={colors} />
+              <KpiCard icon="check-square" iconColor="#3b82f6" label={t("rapportExecutifScreen.kpiTotalTasks")} value={data.tasks.total} colors={colors} />
+              <KpiCard icon="check-circle" iconColor="#22c55e" label={t("rapportExecutifScreen.kpiCompletionRate")} value={`${data.tasks.completionRate}%`} trend={data.trends.taskTrend} colors={colors} />
+              <KpiCard icon="alert-triangle" iconColor="#ef4444" label={t("rapportExecutifScreen.kpiOverdue")} value={data.tasks.overdue} colors={colors} />
+              <KpiCard icon="zap" iconColor="#f59e0b" label={t("rapportExecutifScreen.kpiHighPriority")} value={data.tasks.highPriority} colors={colors} />
             </View>
           </View>
 
           {/* Prospects */}
           <View style={styles.section}>
-            <SectionTitle title="Prospects" icon="target" color="#8b5cf6" colors={colors} />
+            <SectionTitle title={t("rapportExecutifScreen.secProspects")} icon="target" color="#8b5cf6" colors={colors} />
             <View style={styles.kpiGrid}>
-              <KpiCard icon="users" iconColor="#8b5cf6" label="Total prospects" value={data.prospects.total} colors={colors} />
-              <KpiCard icon="trending-up" iconColor="#22c55e" label="Taux de gain" value={`${data.prospects.winRate}%`} trend={data.trends.prospectTrend} colors={colors} />
-              <KpiCard icon="dollar-sign" iconColor="#f59e0b" label="Valeur gagnée" value={`${Number(data.prospects.wonValue).toLocaleString("fr-FR")} €`} colors={colors} />
-              <KpiCard icon="x-circle" iconColor="#ef4444" label="Perdus" value={data.prospects.lost} colors={colors} />
+              <KpiCard icon="users" iconColor="#8b5cf6" label={t("rapportExecutifScreen.kpiTotalProspects")} value={data.prospects.total} colors={colors} />
+              <KpiCard icon="trending-up" iconColor="#22c55e" label={t("rapportExecutifScreen.kpiWinRate")} value={`${data.prospects.winRate}%`} trend={data.trends.prospectTrend} colors={colors} />
+              <KpiCard icon="dollar-sign" iconColor="#f59e0b" label={t("rapportExecutifScreen.kpiWonValue")} value={`${Number(data.prospects.wonValue).toLocaleString("fr-FR")} €`} colors={colors} />
+              <KpiCard icon="x-circle" iconColor="#ef4444" label={t("rapportExecutifScreen.kpiLost")} value={data.prospects.lost} colors={colors} />
             </View>
           </View>
 
           {/* Projets */}
           <View style={styles.section}>
-            <SectionTitle title="Projets" icon="folder" color="#0ea5e9" colors={colors} />
+            <SectionTitle title={t("rapportExecutifScreen.secProjects")} icon="folder" color="#0ea5e9" colors={colors} />
             <View style={styles.kpiGrid}>
-              <KpiCard icon="folder" iconColor="#0ea5e9" label="Total projets" value={data.projets.total} colors={colors} />
-              <KpiCard icon="activity" iconColor="#22c55e" label="Actifs" value={data.projets.active} sub={`Avancement moy. ${data.projets.avgProgress}%`} colors={colors} />
-              <KpiCard icon="check-circle" iconColor="#3b82f6" label="Terminés" value={data.projets.termine} colors={colors} />
-              <KpiCard icon="alert-triangle" iconColor="#ef4444" label="En retard" value={data.projets.overdue} colors={colors} />
+              <KpiCard icon="folder" iconColor="#0ea5e9" label={t("rapportExecutifScreen.kpiTotalProjects")} value={data.projets.total} colors={colors} />
+              <KpiCard icon="activity" iconColor="#22c55e" label={t("rapportExecutifScreen.kpiActive")} value={data.projets.active} sub={t("rapportExecutifScreen.kpiAvgProgress", { value: data.projets.avgProgress })} colors={colors} />
+              <KpiCard icon="check-circle" iconColor="#3b82f6" label={t("rapportExecutifScreen.kpiFinished")} value={data.projets.termine} colors={colors} />
+              <KpiCard icon="alert-triangle" iconColor="#ef4444" label={t("rapportExecutifScreen.kpiOverdue")} value={data.projets.overdue} colors={colors} />
             </View>
           </View>
 
           {/* Contacts & Messages */}
           <View style={styles.section}>
-            <SectionTitle title="Contacts & Messages" icon="users" color="#6366f1" colors={colors} />
+            <SectionTitle title={t("rapportExecutifScreen.secContactsMessages")} icon="users" color="#6366f1" colors={colors} />
             <View style={styles.kpiGrid}>
-              <KpiCard icon="users" iconColor="#6366f1" label="Total contacts" value={data.contacts.total} sub={`+${data.contacts.newThisPeriod} nouveaux`} colors={colors} />
-              <KpiCard icon="message-square" iconColor="#3b82f6" label="Messages" value={data.messages.total} sub={`${data.messages.unread} non lus`} colors={colors} />
-              <KpiCard icon="calendar" iconColor="#f59e0b" label="Événements" value={data.events.total} sub={`${data.events.upcoming} à venir`} colors={colors} />
+              <KpiCard icon="users" iconColor="#6366f1" label={t("rapportExecutifScreen.kpiTotalContacts")} value={data.contacts.total} sub={t("rapportExecutifScreen.kpiNewContacts", { count: data.contacts.newThisPeriod })} colors={colors} />
+              <KpiCard icon="message-square" iconColor="#3b82f6" label={t("rapportExecutifScreen.kpiMessages")} value={data.messages.total} sub={t("rapportExecutifScreen.kpiUnread", { count: data.messages.unread })} colors={colors} />
+              <KpiCard icon="calendar" iconColor="#f59e0b" label={t("rapportExecutifScreen.kpiEvents")} value={data.events.total} sub={t("rapportExecutifScreen.kpiUpcoming", { count: data.events.upcoming })} colors={colors} />
             </View>
           </View>
         </ScrollView>

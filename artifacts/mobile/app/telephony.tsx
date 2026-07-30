@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState } from "@/components/EmptyState";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 interface Provider {
   id: number;
@@ -40,13 +41,14 @@ interface Stats {
 
 type FraudAction = "off" | "voicemail" | "reject";
 
-const FRAUD_OPTIONS: { value: FraudAction; label: string }[] = [
-  { value: "off", label: "Desactivee" },
-  { value: "voicemail", label: "Messagerie" },
-  { value: "reject", label: "Rejeter" },
+const FRAUD_OPTIONS: { value: FraudAction; labelKey: string }[] = [
+  { value: "off", labelKey: "fraudOff" },
+  { value: "voicemail", labelKey: "fraudVoicemail" },
+  { value: "reject", labelKey: "fraudReject" },
 ];
 
 export default function TelephonyScreen() {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
@@ -91,9 +93,9 @@ export default function TelephonyScreen() {
       });
       if (!res.ok) {
         setFraudAction(prev);
-        setResult({ success: false, message: res.status === 404 ? "Configurez d'abord Twilio." : "Enregistrement impossible." });
+        setResult({ success: false, message: res.status === 404 ? t("telephonyScreen.configureTwilioFirst") : t("telephonyScreen.saveFailed") });
       } else {
-        setResult({ success: true, message: "Protection mise a jour." });
+        setResult({ success: true, message: t("telephonyScreen.protectionUpdated") });
       }
     } catch (e: any) {
       setFraudAction(prev);
@@ -122,7 +124,7 @@ export default function TelephonyScreen() {
       const data = await res.json();
       setResult({
         success: data.success,
-        message: data.success ? `Appel lance via ${data.provider}` : `Echec: ${data.error}`,
+        message: data.success ? t("telephonyScreen.callStarted", { provider: data.provider }) : t("telephonyScreen.failedError", { error: data.error }),
       });
       if (data.success) {
         if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -148,7 +150,7 @@ export default function TelephonyScreen() {
       const data = await res.json();
       setResult({
         success: data.success,
-        message: data.success ? `SMS envoye via ${data.provider}` : `Echec: ${data.error}`,
+        message: data.success ? t("telephonyScreen.smsSent", { provider: data.provider }) : t("telephonyScreen.failedError", { error: data.error }),
       });
       if (data.success) {
         if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -187,25 +189,25 @@ export default function TelephonyScreen() {
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>Telephonie</Text>
+            <Text style={styles.headerTitle}>{t("telephonyScreen.title")}</Text>
             <Text style={styles.headerSub}>
-              {hasProvider ? `${activeProviders.length} fournisseur${activeProviders.length > 1 ? "s" : ""} actif${activeProviders.length > 1 ? "s" : ""}` : "Aucun fournisseur"}
+              {hasProvider ? (activeProviders.length > 1 ? t("telephonyScreen.providersActiveOther", { count: activeProviders.length }) : t("telephonyScreen.providersActiveOne", { count: activeProviders.length })) : t("telephonyScreen.noProvider")}
             </Text>
           </View>
         </View>
         <View style={[styles.tabRow, { marginTop: 12 }]}>
           {([
-            { key: "call" as const, label: "Appeler", icon: "phone-call" as const },
-            { key: "sms" as const, label: "SMS", icon: "message-square" as const },
-            { key: "providers" as const, label: "Config", icon: "settings" as const },
-          ]).map(t => (
+            { key: "call" as const, label: t("telephonyScreen.tabCall"), icon: "phone-call" as const },
+            { key: "sms" as const, label: t("telephonyScreen.tabSms"), icon: "message-square" as const },
+            { key: "providers" as const, label: t("telephonyScreen.tabConfig"), icon: "settings" as const },
+          ]).map(tabItem => (
             <Pressable
-              key={t.key}
-              onPress={() => { setTab(t.key); setResult(null); }}
-              style={[styles.tabBtn, { backgroundColor: tab === t.key ? colors.primary : "rgba(255,255,255,0.1)" }]}
+              key={tabItem.key}
+              onPress={() => { setTab(tabItem.key); setResult(null); }}
+              style={[styles.tabBtn, { backgroundColor: tab === tabItem.key ? colors.primary : "rgba(255,255,255,0.1)" }]}
             >
-              <Feather name={t.icon} size={14} color={tab === t.key ? "#fff" : "rgba(255,255,255,0.7)"} />
-              <Text style={[styles.tabText, { color: tab === t.key ? "#fff" : "rgba(255,255,255,0.7)" }]}>{t.label}</Text>
+              <Feather name={tabItem.icon} size={14} color={tab === tabItem.key ? "#fff" : "rgba(255,255,255,0.7)"} />
+              <Text style={[styles.tabText, { color: tab === tabItem.key ? "#fff" : "rgba(255,255,255,0.7)" }]}>{tabItem.label}</Text>
             </Pressable>
           ))}
         </View>
@@ -231,10 +233,10 @@ export default function TelephonyScreen() {
                   <View style={[styles.cardIcon, { backgroundColor: "#22c55e18" }]}>
                     <Feather name="phone-call" size={20} color="#22c55e" />
                   </View>
-                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>Passer un appel</Text>
+                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("telephonyScreen.makeCall")}</Text>
                 </View>
 
-                <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Numero de destination</Text>
+                <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>{t("telephonyScreen.destNumber")}</Text>
                 <TextInput
                   style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
                   value={callTo}
@@ -255,7 +257,7 @@ export default function TelephonyScreen() {
                     ) : (
                       <>
                         <Feather name="phone-call" size={16} color="#fff" />
-                        <Text style={styles.actionBtnText}>Appeler via {activeProviders[0]?.label || "fournisseur"}</Text>
+                        <Text style={styles.actionBtnText}>{t("telephonyScreen.callViaProvider", { provider: activeProviders[0]?.label || t("telephonyScreen.providerFallback") })}</Text>
                       </>
                     )}
                   </Pressable>
@@ -267,10 +269,10 @@ export default function TelephonyScreen() {
                       style={({ pressed }) => [styles.actionBtn, { backgroundColor: "#3b82f6", opacity: !callTo.trim() ? 0.5 : pressed ? 0.8 : 1 }]}
                     >
                       <Feather name="phone" size={16} color="#fff" />
-                      <Text style={styles.actionBtnText}>Appeler (telephone natif)</Text>
+                      <Text style={styles.actionBtnText}>{t("telephonyScreen.callNative")}</Text>
                     </Pressable>
                     <Text style={[styles.hintText, { color: colors.mutedForeground }]}>
-                      Configurez un fournisseur (Twilio, Vonage, etc.) pour les appels via l'application
+                      {t("telephonyScreen.callHint")}
                     </Text>
                   </View>
                 )}
@@ -283,10 +285,10 @@ export default function TelephonyScreen() {
                   <View style={[styles.cardIcon, { backgroundColor: "#3b82f618" }]}>
                     <Feather name="message-square" size={20} color="#3b82f6" />
                   </View>
-                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>Envoyer un SMS</Text>
+                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("telephonyScreen.sendSms")}</Text>
                 </View>
 
-                <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Numero de destination</Text>
+                <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>{t("telephonyScreen.destNumber")}</Text>
                 <TextInput
                   style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
                   value={smsTo}
@@ -296,12 +298,12 @@ export default function TelephonyScreen() {
                   keyboardType="phone-pad"
                 />
 
-                <Text style={[styles.inputLabel, { color: colors.mutedForeground, marginTop: 12 }]}>Message</Text>
+                <Text style={[styles.inputLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("telephonyScreen.message")}</Text>
                 <TextInput
                   style={[styles.input, styles.textArea, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
                   value={smsBody}
                   onChangeText={setSmsBody}
-                  placeholder="Votre message..."
+                  placeholder={t("telephonyScreen.messagePlaceholder")}
                   placeholderTextColor={colors.mutedForeground}
                   multiline
                   numberOfLines={3}
@@ -318,7 +320,7 @@ export default function TelephonyScreen() {
                     ) : (
                       <>
                         <Feather name="send" size={16} color="#fff" />
-                        <Text style={styles.actionBtnText}>Envoyer</Text>
+                        <Text style={styles.actionBtnText}>{t("telephonyScreen.send")}</Text>
                       </>
                     )}
                   </Pressable>
@@ -330,10 +332,10 @@ export default function TelephonyScreen() {
                       style={({ pressed }) => [styles.actionBtn, { backgroundColor: "#3b82f6", opacity: !smsTo.trim() ? 0.5 : pressed ? 0.8 : 1 }]}
                     >
                       <Feather name="message-square" size={16} color="#fff" />
-                      <Text style={styles.actionBtnText}>SMS (application native)</Text>
+                      <Text style={styles.actionBtnText}>{t("telephonyScreen.smsNative")}</Text>
                     </Pressable>
                     <Text style={[styles.hintText, { color: colors.mutedForeground }]}>
-                      Configurez un fournisseur pour envoyer des SMS depuis l'application
+                      {t("telephonyScreen.smsHint")}
                     </Text>
                   </View>
                 )}
@@ -347,17 +349,17 @@ export default function TelephonyScreen() {
                     <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                       <Feather name="phone" size={16} color="#22c55e" />
                       <Text style={[styles.statValue, { color: colors.foreground }]}>{stats.calls.successful}</Text>
-                      <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Appels</Text>
+                      <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{t("telephonyScreen.statCalls")}</Text>
                     </View>
                     <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                       <Feather name="message-square" size={16} color="#3b82f6" />
                       <Text style={[styles.statValue, { color: colors.foreground }]}>{stats.sms.successful}</Text>
-                      <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>SMS</Text>
+                      <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{t("telephonyScreen.statSms")}</Text>
                     </View>
                     <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                       <Feather name="settings" size={16} color={colors.primary} />
                       <Text style={[styles.statValue, { color: colors.foreground }]}>{stats.providers.active}</Text>
-                      <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Actifs</Text>
+                      <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{t("telephonyScreen.statActive")}</Text>
                     </View>
                   </View>
                 )}
@@ -365,13 +367,13 @@ export default function TelephonyScreen() {
                 <View style={[styles.providerCard, { backgroundColor: colors.card, borderColor: colors.border, flexDirection: "column", alignItems: "stretch" }]}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 }}>
                     <Feather name="shield" size={16} color="#f59e0b" />
-                    <Text style={[styles.providerName, { color: colors.foreground }]}>Protection appels frauduleux</Text>
+                    <Text style={[styles.providerName, { color: colors.foreground }]}>{t("telephonyScreen.fraudTitle")}</Text>
                   </View>
                   <Text style={[styles.providerSub, { color: colors.mutedForeground, marginBottom: 10 }]}>
-                    Filtre les appels a risque (liste de blocage + reputation). Vos numeros de confiance ne sont jamais filtres.
+                    {t("telephonyScreen.fraudSub")}
                   </Text>
                   {!fraudConfigured && (
-                    <Text style={{ color: "#f59e0b", fontSize: 12, marginBottom: 8 }}>Configurez un fournisseur Twilio pour activer ce reglage.</Text>
+                    <Text style={{ color: "#f59e0b", fontSize: 12, marginBottom: 8 }}>{t("telephonyScreen.configureTwilioSetting")}</Text>
                   )}
                   <View style={{ flexDirection: "row", gap: 8 }}>
                     {FRAUD_OPTIONS.map(opt => {
@@ -393,7 +395,7 @@ export default function TelephonyScreen() {
                           }}
                         >
                           <Text style={{ fontSize: 12, fontWeight: active ? "700" : "500", color: active ? colors.primary : colors.mutedForeground }}>
-                            {opt.label}
+                            {t("telephonyScreen." + opt.labelKey)}
                           </Text>
                         </Pressable>
                       );
@@ -404,9 +406,9 @@ export default function TelephonyScreen() {
                 {providers.length === 0 ? (
                   <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     <Feather name="phone-off" size={32} color={colors.mutedForeground} />
-                    <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Aucun fournisseur</Text>
+                    <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("telephonyScreen.noProvider")}</Text>
                     <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
-                      Configurez Twilio, Vonage, Telnyx, Plivo, Sinch ou Bandwidth depuis le panneau web
+                      {t("telephonyScreen.emptyProvidersSub")}
                     </Text>
                   </View>
                 ) : (
@@ -420,17 +422,17 @@ export default function TelephonyScreen() {
                           <Text style={[styles.providerName, { color: colors.foreground }]}>{p.label}</Text>
                           {p.isDefault && (
                             <View style={[styles.badge, { backgroundColor: "#f59e0b20" }]}>
-                              <Text style={[styles.badgeText, { color: "#f59e0b" }]}>Defaut</Text>
+                              <Text style={[styles.badgeText, { color: "#f59e0b" }]}>{t("telephonyScreen.badgeDefault")}</Text>
                             </View>
                           )}
                           <View style={[styles.badge, { backgroundColor: p.isActive ? "#22c55e20" : "#ef444420" }]}>
                             <Text style={[styles.badgeText, { color: p.isActive ? "#22c55e" : "#ef4444" }]}>
-                              {p.isActive ? "Actif" : "Inactif"}
+                              {p.isActive ? t("telephonyScreen.badgeActive") : t("telephonyScreen.badgeInactive")}
                             </Text>
                           </View>
                         </View>
                         <Text style={[styles.providerSub, { color: colors.mutedForeground }]}>
-                          {p.provider} · {p.phoneNumbers.join(", ") || "Pas de numero"}
+                          {p.provider} · {p.phoneNumbers.join(", ") || t("telephonyScreen.noNumber")}
                         </Text>
                         <View style={styles.capRow}>
                           {p.capabilities.slice(0, 4).map(c => (
@@ -448,7 +450,7 @@ export default function TelephonyScreen() {
                 <View style={[styles.infoBox, { backgroundColor: colors.secondary }]}>
                   <Feather name="info" size={16} color="rgba(255,255,255,0.7)" />
                   <Text style={styles.infoText}>
-                    La configuration des fournisseurs se fait depuis le panneau web (Telephonie). Fournisseurs supportes: Twilio, Vonage, Telnyx, Plivo, Sinch, Bandwidth.
+                    {t("telephonyScreen.infoText")}
                   </Text>
                 </View>
               </View>

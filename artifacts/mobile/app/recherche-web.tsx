@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 type UrlRisk = "safe" | "suspicious" | "dangerous";
 type SearchMode = "web" | "news";
@@ -47,12 +48,12 @@ interface WebSearchResponse {
   site?: string;
 }
 
-const FRESHNESS_OPTIONS: { value: Freshness; label: string }[] = [
-  { value: "any", label: "Toutes dates" },
-  { value: "day", label: "24 h" },
-  { value: "week", label: "Semaine" },
-  { value: "month", label: "Mois" },
-  { value: "year", label: "Année" },
+const FRESHNESS_OPTIONS: { value: Freshness; labelKey: string }[] = [
+  { value: "any", labelKey: "freshAny" },
+  { value: "day", labelKey: "freshDay" },
+  { value: "week", labelKey: "freshWeek" },
+  { value: "month", labelKey: "freshMonth" },
+  { value: "year", labelKey: "freshYear" },
 ];
 
 const LANG_OPTIONS: { value: SearchLang; label: string }[] = [
@@ -61,22 +62,19 @@ const LANG_OPTIONS: { value: SearchLang; label: string }[] = [
   { value: "tr", label: "TR" },
 ];
 
-const EXAMPLE_QUERIES = [
-  "Actualités économiques en France",
-  "Taux de TVA pour une PME en 2026",
-  "Modèle de facture conforme",
-];
+const EXAMPLE_QUERY_KEYS = ["ex1", "ex2", "ex3"];
 
 const RISK_META: Record<
   UrlRisk,
-  { label: string; color: string; icon: keyof typeof Feather.glyphMap }
+  { labelKey: string; color: string; icon: keyof typeof Feather.glyphMap }
 > = {
-  safe: { label: "Sûr", color: "#10b981", icon: "shield" },
-  suspicious: { label: "Suspect", color: "#f59e0b", icon: "alert-triangle" },
-  dangerous: { label: "Dangereux", color: "#ef4444", icon: "shield-off" },
+  safe: { labelKey: "riskSafe", color: "#10b981", icon: "shield" },
+  suspicious: { labelKey: "riskSuspicious", color: "#f59e0b", icon: "alert-triangle" },
+  dangerous: { labelKey: "riskDangerous", color: "#ef4444", icon: "shield-off" },
 };
 
 export default function RechercheWebScreen() {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
@@ -122,16 +120,16 @@ export default function RechercheWebScreen() {
           }),
         });
         const json = (await res.json()) as WebSearchResponse & { error?: string };
-        if (!res.ok) throw new Error(json.error || "La recherche a échoué.");
+        if (!res.ok) throw new Error(json.error || t("rechercheWebScreen.searchFailed"));
         setData(json);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Recherche impossible.");
+        setError(err instanceof Error ? err.message : t("rechercheWebScreen.searchImpossible"));
         setData(null);
       } finally {
         setLoading(false);
       }
     },
-    [query, mode, freshness, lang, site, fetchAuth],
+    [query, mode, freshness, lang, site, fetchAuth, t],
   );
 
   // Change un filtre ; relance si une recherche est déjà affichée.
@@ -151,12 +149,12 @@ export default function RechercheWebScreen() {
   const openResult = (item: WebSearchResultItem) => {
     if (item.risk === "dangerous") {
       Alert.alert(
-        "Lien signalé comme dangereux",
-        `L'antivirus a détecté un risque sur ${item.domain || item.displayUrl}.\n\nSouhaitez-vous vraiment ouvrir ce lien ?`,
+        t("rechercheWebScreen.dangerLinkTitle"),
+        t("rechercheWebScreen.dangerLinkMsg", { target: item.domain || item.displayUrl }),
         [
-          { text: "Annuler", style: "cancel" },
+          { text: t("common.cancel"), style: "cancel" },
           {
-            text: "Ouvrir quand même",
+            text: t("rechercheWebScreen.openAnyway"),
             style: "destructive",
             onPress: () => void Linking.openURL(item.url),
           },
@@ -182,14 +180,14 @@ export default function RechercheWebScreen() {
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
-          <Text style={styles.headerTitle}>Recherche web</Text>
+          <Text style={styles.headerTitle}>{t("rechercheWebScreen.title")}</Text>
         </View>
         <View style={[styles.searchBox, { backgroundColor: "#fff" }]}>
           <Feather name="search" size={16} color="#6b7280" />
           <TextInput
             ref={inputRef}
             style={styles.searchInput}
-            placeholder="Rechercher sur le web…"
+            placeholder={t("rechercheWebScreen.searchPlaceholder")}
             placeholderTextColor="#9ca3af"
             value={query}
             onChangeText={setQuery}
@@ -212,13 +210,13 @@ export default function RechercheWebScreen() {
         >
           <Chip
             active={mode === "web"}
-            label="Web"
+            label={t("rechercheWebScreen.chipWeb")}
             icon="globe"
             onPress={() => changeMode("web")}
           />
           <Chip
             active={mode === "news"}
-            label="Actualités"
+            label={t("rechercheWebScreen.chipNews")}
             icon="rss"
             onPress={() => changeMode("news")}
           />
@@ -227,7 +225,7 @@ export default function RechercheWebScreen() {
             <Chip
               key={o.value}
               active={freshness === o.value}
-              label={o.label}
+              label={t("rechercheWebScreen." + o.labelKey)}
               onPress={() => changeFreshness(o.value)}
             />
           ))}
@@ -258,7 +256,7 @@ export default function RechercheWebScreen() {
             <Feather name="filter" size={14} color={colors.mutedForeground} />
             <TextInput
               style={[styles.siteInput, { color: colors.foreground }]}
-              placeholder="Limiter à un site (ex. lemonde.fr)"
+              placeholder={t("rechercheWebScreen.sitePlaceholder")}
               placeholderTextColor={colors.mutedForeground}
               value={site}
               onChangeText={setSite}
@@ -285,14 +283,16 @@ export default function RechercheWebScreen() {
               <View style={[styles.emptyIcon, { backgroundColor: "#f1f5f9" }]}>
                 <Feather name="globe" size={34} color="#94a3b8" />
               </View>
-              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Recherche web sécurisée</Text>
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("rechercheWebScreen.emptyTitle")}</Text>
               <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
-                Chaque lien est analysé par l'antivirus intégré avant que vous ne cliquiez.
+                {t("rechercheWebScreen.emptySub")}
               </Text>
               <View style={styles.examplesWrap}>
-                {EXAMPLE_QUERIES.map((ex) => (
+                {EXAMPLE_QUERY_KEYS.map((exKey) => {
+                  const ex = t("rechercheWebScreen." + exKey);
+                  return (
                   <Pressable
-                    key={ex}
+                    key={exKey}
                     onPress={() => void runSearch({ term: ex })}
                     style={[styles.exampleChip, { backgroundColor: colors.card, borderColor: colors.border }]}
                   >
@@ -301,7 +301,8 @@ export default function RechercheWebScreen() {
                       {ex}
                     </Text>
                   </Pressable>
-                ))}
+                  );
+                })}
               </View>
             </View>
           )}
@@ -310,7 +311,7 @@ export default function RechercheWebScreen() {
             <View style={styles.loadingRow}>
               <ActivityIndicator size="small" color={colors.primary} />
               <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>
-                {mode === "news" ? "Recherche d'actualités" : "Recherche"} et analyse de sécurité…
+                {mode === "news" ? t("rechercheWebScreen.loadingNews") : t("rechercheWebScreen.loadingWeb")}
               </Text>
             </View>
           )}
@@ -327,10 +328,10 @@ export default function RechercheWebScreen() {
             <View style={[styles.answerCard, { backgroundColor: colors.primary + "0d", borderColor: colors.primary + "33" }]}>
               <View style={styles.answerHeader}>
                 <Feather name="zap" size={14} color={colors.primary} />
-                <Text style={[styles.answerHeaderText, { color: colors.primary }]}>Résumé IA</Text>
+                <Text style={[styles.answerHeaderText, { color: colors.primary }]}>{t("rechercheWebScreen.summaryAi")}</Text>
                 {data.mode === "news" && (
                   <View style={[styles.miniBadge, { borderColor: colors.primary + "55" }]}>
-                    <Text style={[styles.miniBadgeText, { color: colors.primary }]}>Actualités</Text>
+                    <Text style={[styles.miniBadgeText, { color: colors.primary }]}>{t("rechercheWebScreen.badgeNews")}</Text>
                   </View>
                 )}
                 {data.site ? (
@@ -348,7 +349,7 @@ export default function RechercheWebScreen() {
             <View style={styles.securityRow}>
               <Feather name="shield" size={13} color={colors.mutedForeground} />
               <Text style={[styles.securityText, { color: colors.mutedForeground }]}>
-                {data.results.length} résultat{data.results.length > 1 ? "s" : ""} analysé{data.results.length > 1 ? "s" : ""}
+                {data.results.length > 1 ? t("rechercheWebScreen.resultsAnalyzedOther", { count: data.results.length }) : t("rechercheWebScreen.resultsAnalyzedOne", { count: data.results.length })}
               </Text>
               {dangerousCount > 0 && (
                 <Pressable
@@ -356,7 +357,7 @@ export default function RechercheWebScreen() {
                   style={[styles.safeToggle, { borderColor: safeOnly ? "#10b981" : colors.border, backgroundColor: safeOnly ? "#10b98115" : "transparent" }]}
                 >
                   <Text style={[styles.safeToggleText, { color: safeOnly ? "#10b981" : colors.mutedForeground }]}>
-                    {safeOnly ? "✓ Dangereux masqués" : "Masquer dangereux"}
+                    {safeOnly ? t("rechercheWebScreen.hideDangerousOn") : t("rechercheWebScreen.hideDangerous")}
                   </Text>
                 </Pressable>
               )}
@@ -366,7 +367,7 @@ export default function RechercheWebScreen() {
           {/* Résultats */}
           {!loading && data && data.results.length === 0 && (
             <Text style={[styles.noResults, { color: colors.mutedForeground }]}>
-              Aucune source web n'a pu être récupérée pour cette recherche.
+              {t("rechercheWebScreen.noResults")}
             </Text>
           )}
 
@@ -399,7 +400,7 @@ export default function RechercheWebScreen() {
                     </View>
                     <View style={[styles.riskBadge, { backgroundColor: meta.color + "18" }]}>
                       <Feather name={meta.icon} size={10} color={meta.color} />
-                      <Text style={[styles.riskBadgeText, { color: meta.color }]}>{meta.label}</Text>
+                      <Text style={[styles.riskBadgeText, { color: meta.color }]}>{t("rechercheWebScreen." + meta.labelKey)}</Text>
                     </View>
                   </View>
                   <Text style={[styles.resultTitle, { color: colors.primary }]} numberOfLines={2}>
@@ -429,7 +430,7 @@ export default function RechercheWebScreen() {
               style={[styles.showHidden, { borderColor: colors.border }]}
             >
               <Text style={[styles.showHiddenText, { color: colors.mutedForeground }]}>
-                {hiddenCount} lien{hiddenCount > 1 ? "s" : ""} dangereux masqué{hiddenCount > 1 ? "s" : ""} — tout afficher
+                {hiddenCount > 1 ? t("rechercheWebScreen.hiddenLinksOther", { count: hiddenCount }) : t("rechercheWebScreen.hiddenLinksOne", { count: hiddenCount })}
               </Text>
             </Pressable>
           )}
@@ -437,7 +438,7 @@ export default function RechercheWebScreen() {
           {/* Recherches associées */}
           {!loading && data && data.relatedSearches.length > 0 && (
             <View style={styles.relatedWrap}>
-              <Text style={[styles.relatedTitle, { color: colors.mutedForeground }]}>RECHERCHES ASSOCIÉES</Text>
+              <Text style={[styles.relatedTitle, { color: colors.mutedForeground }]}>{t("rechercheWebScreen.relatedTitle")}</Text>
               <View style={styles.relatedChips}>
                 {data.relatedSearches.map((rs) => (
                   <Pressable

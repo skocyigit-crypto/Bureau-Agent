@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 interface ContactRow {
   firstName: string;
@@ -33,9 +34,6 @@ interface ImportResult {
 }
 
 const EMPTY_ROW = (): ContactRow => ({ firstName: "", lastName: "", phone: "", email: "", company: "" });
-const PASTE_PLACEHOLDER = `Prénom, Nom, Téléphone, Email, Société
-Jean, Dupont, 0612345678, jean@example.com, ACME
-Marie, Martin, 0698765432, marie@corp.fr, Corp SA`;
 
 function parseTextRows(text: string): ContactRow[] {
   const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
@@ -59,6 +57,7 @@ function parseTextRows(text: string): ContactRow[] {
 type Mode = "manual" | "paste";
 
 export default function ContactsImportScreen() {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
@@ -82,7 +81,7 @@ export default function ContactsImportScreen() {
   function handleParsePaste() {
     const parsed = parseTextRows(pasteText);
     if (parsed.length === 0) {
-      Alert.alert("Aucun contact", "Impossible de lire les données. Vérifiez le format (Prénom, Nom, Téléphone, Email, Société — une ligne par contact).");
+      Alert.alert(t("contactsImportScreen.noContactTitle"), t("contactsImportScreen.pasteParseError"));
       return;
     }
     setParsedRows(parsed);
@@ -92,7 +91,7 @@ export default function ContactsImportScreen() {
   function handlePreviewManual() {
     const valid = rows.filter(r => r.firstName.trim() || r.lastName.trim());
     if (valid.length === 0) {
-      Alert.alert("Aucun contact", "Ajoutez au moins un contact avec un prénom ou un nom.");
+      Alert.alert(t("contactsImportScreen.noContactTitle"), t("contactsImportScreen.manualEmptyError"));
       return;
     }
     setParsedRows(valid);
@@ -112,10 +111,10 @@ export default function ContactsImportScreen() {
         setResult(d);
         setStep("done");
       } else {
-        Alert.alert("Erreur", "L'import a échoué. Réessayez.");
+        Alert.alert(t("contactsImportScreen.errorTitle"), t("contactsImportScreen.importFailed"));
       }
     } catch {
-      Alert.alert("Erreur réseau", "Impossible de contacter le serveur.");
+      Alert.alert(t("contactsImportScreen.networkErrorTitle"), t("contactsImportScreen.networkErrorMsg"));
     } finally { setLoading(false); }
   }
 
@@ -134,7 +133,7 @@ export default function ContactsImportScreen() {
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
-          <Text style={styles.headerTitle}>Importer des contacts</Text>
+          <Text style={styles.headerTitle}>{t("contactsImportScreen.title")}</Text>
         </View>
         {step === "edit" && (
           <View style={styles.modeRow}>
@@ -145,7 +144,7 @@ export default function ContactsImportScreen() {
                 style={[styles.modeChip, { backgroundColor: mode === m ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.1)" }]}
               >
                 <Feather name={m === "manual" ? "edit-3" : "clipboard"} size={13} color="#fff" />
-                <Text style={styles.modeChipText}>{m === "manual" ? "Saisie manuelle" : "Coller / CSV"}</Text>
+                <Text style={styles.modeChipText}>{m === "manual" ? t("contactsImportScreen.modeManual") : t("contactsImportScreen.modePaste")}</Text>
               </Pressable>
             ))}
           </View>
@@ -160,21 +159,21 @@ export default function ContactsImportScreen() {
               <Feather name={result.imported > 0 ? "check-circle" : "alert-circle"} size={48} color={result.imported > 0 ? "#22c55e" : "#ef4444"} />
             </View>
             <Text style={[styles.doneTitle, { color: colors.foreground }]}>
-              Import terminé
+              {t("contactsImportScreen.importDone")}
             </Text>
             <View style={styles.doneStats}>
               <View style={[styles.doneStat, { backgroundColor: "#22c55e18" }]}>
                 <Text style={[styles.doneStatNum, { color: "#22c55e" }]}>{result.imported}</Text>
-                <Text style={[styles.doneStatLbl, { color: "#22c55e" }]}>Importés</Text>
+                <Text style={[styles.doneStatLbl, { color: "#22c55e" }]}>{t("contactsImportScreen.imported")}</Text>
               </View>
               <View style={[styles.doneStat, { backgroundColor: "#ef444418" }]}>
                 <Text style={[styles.doneStatNum, { color: "#ef4444" }]}>{result.skipped}</Text>
-                <Text style={[styles.doneStatLbl, { color: "#ef4444" }]}>Ignorés</Text>
+                <Text style={[styles.doneStatLbl, { color: "#ef4444" }]}>{t("contactsImportScreen.skipped")}</Text>
               </View>
             </View>
             {result.errors.length > 0 && (
               <View style={[styles.errorsBox, { backgroundColor: "#fef2f2", borderColor: "#fecaca" }]}>
-                <Text style={[styles.errorsTitle, { color: "#ef4444" }]}>Erreurs :</Text>
+                <Text style={[styles.errorsTitle, { color: "#ef4444" }]}>{t("contactsImportScreen.errorsLabel")}</Text>
                 {result.errors.slice(0, 5).map((e, i) => (
                   <Text key={i} style={[styles.errorLine, { color: "#ef4444" }]}>• {e}</Text>
                 ))}
@@ -183,11 +182,11 @@ export default function ContactsImportScreen() {
             <View style={styles.doneActions}>
               <Pressable onPress={() => router.push("/(tabs)/contacts" as any)} style={[styles.primaryBtn, { backgroundColor: "#0369a1" }]}>
                 <Feather name="users" size={15} color="#fff" />
-                <Text style={styles.primaryBtnText}>Voir les contacts</Text>
+                <Text style={styles.primaryBtnText}>{t("contactsImportScreen.viewContacts")}</Text>
               </Pressable>
               <Pressable onPress={resetForm} style={[styles.secondaryBtn, { borderColor: colors.border }]}>
                 <Feather name="plus" size={15} color={colors.foreground} />
-                <Text style={[styles.secondaryBtnText, { color: colors.foreground }]}>Nouvel import</Text>
+                <Text style={[styles.secondaryBtnText, { color: colors.foreground }]}>{t("contactsImportScreen.newImport")}</Text>
               </Pressable>
             </View>
           </View>
@@ -199,7 +198,7 @@ export default function ContactsImportScreen() {
             <View style={[styles.previewHeader, { backgroundColor: "#eff6ff", borderColor: "#bfdbfe" }]}>
               <Feather name="eye" size={16} color="#0369a1" />
               <Text style={[styles.previewHeaderText, { color: "#0369a1" }]}>
-                Aperçu — {parsedRows.length} contact{parsedRows.length !== 1 ? "s" : ""} à importer
+                {parsedRows.length === 1 ? t("contactsImportScreen.previewOne", { count: parsedRows.length }) : t("contactsImportScreen.previewOther", { count: parsedRows.length })}
               </Text>
             </View>
             {parsedRows.map((row, i) => (
@@ -211,7 +210,7 @@ export default function ContactsImportScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.previewName, { color: colors.foreground }]}>
-                    {[row.firstName, row.lastName].filter(Boolean).join(" ") || "(Sans nom)"}
+                    {[row.firstName, row.lastName].filter(Boolean).join(" ") || t("contactsImportScreen.noName")}
                   </Text>
                   {row.company ? <Text style={[styles.previewSub, { color: colors.mutedForeground }]}>{row.company}</Text> : null}
                   <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 2 }}>
@@ -228,11 +227,11 @@ export default function ContactsImportScreen() {
             <View style={styles.previewActions}>
               <Pressable onPress={() => setStep("edit")} style={[styles.secondaryBtn, { borderColor: colors.border }]}>
                 <Feather name="arrow-left" size={15} color={colors.foreground} />
-                <Text style={[styles.secondaryBtnText, { color: colors.foreground }]}>Modifier</Text>
+                <Text style={[styles.secondaryBtnText, { color: colors.foreground }]}>{t("common.edit")}</Text>
               </Pressable>
               <Pressable onPress={handleImport} disabled={loading} style={[styles.primaryBtn, { backgroundColor: "#0369a1", flex: 2, opacity: loading ? 0.7 : 1 }]}>
                 {loading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="upload" size={15} color="#fff" />}
-                <Text style={styles.primaryBtnText}>{loading ? "Import en cours…" : "Lancer l'import"}</Text>
+                <Text style={styles.primaryBtnText}>{loading ? t("contactsImportScreen.importInProgress") : t("contactsImportScreen.launchImport")}</Text>
               </Pressable>
             </View>
           </ScrollView>
@@ -244,15 +243,15 @@ export default function ContactsImportScreen() {
             <View style={[styles.infoBox, { backgroundColor: "#eff6ff", borderColor: "#bfdbfe" }]}>
               <Feather name="info" size={14} color="#0369a1" />
               <Text style={[styles.infoText, { color: "#0369a1" }]}>
-                Collez vos contacts en format CSV ou texte brut : une ligne par contact, champs séparés par des virgules.
+                {t("contactsImportScreen.pasteInfo")}
               </Text>
             </View>
-            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Données à importer</Text>
+            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("contactsImportScreen.dataToImport")}</Text>
             <TextInput
               style={[styles.pasteArea, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
               value={pasteText}
               onChangeText={setPasteText}
-              placeholder={PASTE_PLACEHOLDER}
+              placeholder={t("contactsImportScreen.pastePlaceholder")}
               placeholderTextColor={colors.mutedForeground}
               multiline
               numberOfLines={10}
@@ -261,7 +260,7 @@ export default function ContactsImportScreen() {
               autoCorrect={false}
             />
             <Text style={[styles.fieldHint, { color: colors.mutedForeground }]}>
-              Format : Prénom, Nom, Téléphone, Email, Société (l'entête est optionnel)
+              {t("contactsImportScreen.formatHint")}
             </Text>
             <Pressable
               onPress={handleParsePaste}
@@ -269,7 +268,7 @@ export default function ContactsImportScreen() {
               style={[styles.primaryBtn, { backgroundColor: "#0369a1", opacity: !pasteText.trim() ? 0.6 : 1, marginTop: 16 }]}
             >
               <Feather name="eye" size={15} color="#fff" />
-              <Text style={styles.primaryBtnText}>Prévisualiser</Text>
+              <Text style={styles.primaryBtnText}>{t("contactsImportScreen.preview")}</Text>
             </Pressable>
           </ScrollView>
         )}
@@ -283,7 +282,7 @@ export default function ContactsImportScreen() {
                   <View style={[styles.manualNum, { backgroundColor: "#0369a1" }]}>
                     <Text style={styles.manualNumText}>{i + 1}</Text>
                   </View>
-                  <Text style={[styles.manualCardTitle, { color: colors.foreground }]}>Contact {i + 1}</Text>
+                  <Text style={[styles.manualCardTitle, { color: colors.foreground }]}>{t("contactsImportScreen.contactN", { n: i + 1 })}</Text>
                   {rows.length > 1 && (
                     <Pressable onPress={() => removeRow(i)} style={styles.removeBtn}>
                       <Feather name="x" size={16} color="#ef4444" />
@@ -292,11 +291,11 @@ export default function ContactsImportScreen() {
                 </View>
                 <View style={styles.manualFields}>
                   {[
-                    { key: "firstName" as const, label: "Prénom", placeholder: "Jean" },
-                    { key: "lastName" as const, label: "Nom", placeholder: "Dupont" },
-                    { key: "phone" as const, label: "Téléphone", placeholder: "0612345678" },
-                    { key: "email" as const, label: "Email", placeholder: "jean@example.com" },
-                    { key: "company" as const, label: "Société", placeholder: "ACME Corp" },
+                    { key: "firstName" as const, label: t("contactsImportScreen.fieldFirstName"), placeholder: "Jean" },
+                    { key: "lastName" as const, label: t("contactsImportScreen.fieldLastName"), placeholder: "Dupont" },
+                    { key: "phone" as const, label: t("contactsImportScreen.fieldPhone"), placeholder: "0612345678" },
+                    { key: "email" as const, label: t("contactsImportScreen.fieldEmail"), placeholder: "jean@example.com" },
+                    { key: "company" as const, label: t("contactsImportScreen.fieldCompany"), placeholder: "ACME Corp" },
                   ].map(f => (
                     <View key={f.key} style={[styles.manualField, { borderColor: colors.border }]}>
                       <Text style={[styles.manualFieldLabel, { color: colors.mutedForeground }]}>{f.label}</Text>
@@ -318,7 +317,7 @@ export default function ContactsImportScreen() {
 
             <Pressable onPress={addRow} style={[styles.addRowBtn, { borderColor: "#0369a1" }]}>
               <Feather name="plus" size={16} color="#0369a1" />
-              <Text style={[styles.addRowText, { color: "#0369a1" }]}>Ajouter un contact</Text>
+              <Text style={[styles.addRowText, { color: "#0369a1" }]}>{t("contactsImportScreen.addContact")}</Text>
             </Pressable>
 
             <Pressable
@@ -326,7 +325,7 @@ export default function ContactsImportScreen() {
               style={[styles.primaryBtn, { backgroundColor: "#0369a1", marginTop: 16 }]}
             >
               <Feather name="eye" size={15} color="#fff" />
-              <Text style={styles.primaryBtnText}>Prévisualiser ({rows.filter(r => r.firstName.trim() || r.lastName.trim()).length} contact{rows.filter(r => r.firstName.trim() || r.lastName.trim()).length !== 1 ? "s" : ""})</Text>
+              <Text style={styles.primaryBtnText}>{(() => { const c = rows.filter(r => r.firstName.trim() || r.lastName.trim()).length; return c === 1 ? t("contactsImportScreen.previewBtnOne", { count: c }) : t("contactsImportScreen.previewBtnOther", { count: c }); })()}</Text>
             </Pressable>
           </ScrollView>
         )}

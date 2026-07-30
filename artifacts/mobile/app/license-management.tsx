@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 interface ApiResponse {
   organisation: {
@@ -112,10 +113,10 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: "#94a3b8",
 };
 
-const INVOICE_STATUS: Record<string, { label: string; color: string }> = {
-  en_attente: { label: "En attente", color: "#f59e0b" },
-  payee:      { label: "Payée",      color: "#22c55e" },
-  annulee:    { label: "Annulée",    color: "#94a3b8" },
+const INVOICE_STATUS: Record<string, { labelKey: string; color: string }> = {
+  en_attente: { labelKey: "statusPending", color: "#f59e0b" },
+  payee:      { labelKey: "statusPaid",    color: "#22c55e" },
+  annulee:    { labelKey: "statusCancelled", color: "#94a3b8" },
 };
 
 const ALERT_COLORS: Record<string, string> = {
@@ -143,6 +144,7 @@ function SectionTitle({ title, icon, color }: { title: string; icon: keyof typeo
 }
 
 export default function LicenseManagementScreen() {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
@@ -175,8 +177,8 @@ export default function LicenseManagementScreen() {
         body: JSON.stringify({}),
       });
       const d = await res.json();
-      if (res.ok) { Alert.alert("Facture générée", "La facture a été créée."); load(); }
-      else Alert.alert("Erreur", d.error ?? "Échec de génération");
+      if (res.ok) { Alert.alert(t("licenseManagementScreen.invoiceGeneratedTitle"), t("licenseManagementScreen.invoiceGeneratedMsg")); load(); }
+      else Alert.alert(t("licenseManagementScreen.errorTitle"), d.error ?? t("licenseManagementScreen.generateFailed"));
     } finally { setActionLoading(null); }
   }
 
@@ -190,7 +192,7 @@ export default function LicenseManagementScreen() {
       });
       if (res.ok) {
         const d = await res.json();
-        Alert.alert("Rappels envoyés", d.message ?? `${d.sent ?? 0} rappel(s) envoyé(s)`);
+        Alert.alert(t("licenseManagementScreen.remindersSentTitle"), d.message ?? t("licenseManagementScreen.remindersSentCount", { count: d.sent ?? 0 }));
       }
     } finally { setActionLoading(null); }
   }
@@ -209,7 +211,7 @@ export default function LicenseManagementScreen() {
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
-          <Text style={styles.headerTitle}>Licences & Facturation</Text>
+          <Text style={styles.headerTitle}>{t("licenseManagementScreen.title")}</Text>
           <Pressable onPress={onRefresh} style={styles.backBtn}>
             <Feather name="refresh-cw" size={16} color="#fff" />
           </Pressable>
@@ -218,9 +220,9 @@ export default function LicenseManagementScreen() {
         {data && (
           <View style={styles.kpiRow}>
             {[
-              { label: "Dû",        value: fmtEur(totalOwed),        color: totalOwed > 0 ? "#fca5a5" : "#86efac" },
-              { label: "Encaissé",  value: fmtEur(totalPaid),        color: "#86efac" },
-              { label: "En attente", value: String(pendingCount),     color: pendingCount > 0 ? "#fde68a" : "#fff" },
+              { label: t("licenseManagementScreen.kpiOwed"),       value: fmtEur(totalOwed),        color: totalOwed > 0 ? "#fca5a5" : "#86efac" },
+              { label: t("licenseManagementScreen.kpiCollected"),  value: fmtEur(totalPaid),        color: "#86efac" },
+              { label: t("licenseManagementScreen.kpiPending"),    value: String(pendingCount),     color: pendingCount > 0 ? "#fde68a" : "#fff" },
             ].map(k => (
               <View key={k.label} style={[styles.kpiChip, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
                 <Text style={[styles.kpiVal, { color: k.color }]}>{k.value}</Text>
@@ -236,7 +238,7 @@ export default function LicenseManagementScreen() {
       ) : !data ? (
         <View style={styles.loadingBox}>
           <Feather name="lock" size={48} color={colors.mutedForeground} />
-          <Text style={[styles.errorText, { color: colors.mutedForeground }]}>Accès réservé aux administrateurs</Text>
+          <Text style={[styles.errorText, { color: colors.mutedForeground }]}>{t("licenseManagementScreen.adminOnly")}</Text>
         </View>
       ) : (
         <ScrollView
@@ -259,7 +261,7 @@ export default function LicenseManagementScreen() {
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={[styles.planBanner, { backgroundColor: planCfg.bg }]}>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.planLabel, { color: planCfg.color }]}>PLAN ACTIF</Text>
+                <Text style={[styles.planLabel, { color: planCfg.color }]}>{t("licenseManagementScreen.planActive")}</Text>
                 <Text style={[styles.planName, { color: planCfg.color }]}>{plan.charAt(0).toUpperCase() + plan.slice(1)}</Text>
               </View>
               <View style={{ alignItems: "flex-end", gap: 4 }}>
@@ -268,7 +270,7 @@ export default function LicenseManagementScreen() {
                 </View>
                 {data.subscription?.trialDaysLeft != null && (
                   <Text style={{ fontSize: 10, fontFamily: "Inter_400Regular", color: planCfg.color }}>
-                    {data.subscription.trialDaysLeft > 0 ? `Essai: ${data.subscription.trialDaysLeft}j restants` : "Essai expiré"}
+                    {data.subscription.trialDaysLeft > 0 ? t("licenseManagementScreen.trialDaysLeft", { days: data.subscription.trialDaysLeft }) : t("licenseManagementScreen.trialExpired")}
                   </Text>
                 )}
               </View>
@@ -278,15 +280,15 @@ export default function LicenseManagementScreen() {
 
             <View style={{ gap: 8 }}>
               {[
-                { label: "Organisation", value: data.organisation.name },
-                { label: "SIRET",        value: data.organisation.siret ?? "—" },
-                { label: "Prix",         value: data.subscription ? fmtEur(data.subscription.price) + "/mois" : "—" },
-                { label: "Clé licence",  value: data.subscription?.licenseKey ? `****${data.subscription.licenseKey.slice(-4)}` : "—" },
-                { label: "Période début", value: fmtDate(data.subscription?.currentPeriodStart) },
-                { label: "Période fin",   value: fmtDate(data.subscription?.currentPeriodEnd) },
+                { label: t("licenseManagementScreen.fieldOrganisation"), value: data.organisation.name },
+                { label: t("licenseManagementScreen.fieldSiret"),        value: data.organisation.siret ?? "—" },
+                { label: t("licenseManagementScreen.fieldPrice"),         value: data.subscription ? t("licenseManagementScreen.priceValue", { price: fmtEur(data.subscription.price) }) : "—" },
+                { label: t("licenseManagementScreen.fieldLicenseKey"),  value: data.subscription?.licenseKey ? `****${data.subscription.licenseKey.slice(-4)}` : "—" },
+                { label: t("licenseManagementScreen.fieldPeriodStart"), value: fmtDate(data.subscription?.currentPeriodStart) },
+                { label: t("licenseManagementScreen.fieldPeriodEnd"),   value: fmtDate(data.subscription?.currentPeriodEnd) },
                 ...(data.subscription ? [
-                  { label: "IA",           value: data.subscription.aiEnabled ? "Activée" : "Désactivée" },
-                  { label: "Stock",        value: data.subscription.stockEnabled ? "Activé" : "Désactivé" },
+                  { label: t("licenseManagementScreen.fieldAi"),           value: data.subscription.aiEnabled ? t("licenseManagementScreen.enabledF") : t("licenseManagementScreen.disabledF") },
+                  { label: t("licenseManagementScreen.fieldStock"),        value: data.subscription.stockEnabled ? t("licenseManagementScreen.enabledM") : t("licenseManagementScreen.disabledM") },
                 ] : []),
               ].map(row => (
                 <View key={row.label} style={styles.infoRow}>
@@ -300,12 +302,12 @@ export default function LicenseManagementScreen() {
           {/* Limites */}
           {data.subscription && (
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <SectionTitle title="Limites du plan" icon="sliders" color="#6366f1" />
+              <SectionTitle title={t("licenseManagementScreen.planLimits")} icon="sliders" color="#6366f1" />
               <View style={{ gap: 8 }}>
                 {[
-                  { label: "Utilisateurs max", value: data.subscription.maxUsers ?? "—" },
-                  { label: "Contacts max",     value: data.subscription.maxContacts ?? "—" },
-                  { label: "Appels/mois max",  value: data.subscription.maxCallsPerMonth ?? "—" },
+                  { label: t("licenseManagementScreen.maxUsers"), value: data.subscription.maxUsers ?? "—" },
+                  { label: t("licenseManagementScreen.maxContacts"),     value: data.subscription.maxContacts ?? "—" },
+                  { label: t("licenseManagementScreen.maxCalls"),  value: data.subscription.maxCallsPerMonth ?? "—" },
                 ].map(row => (
                   <View key={row.label} style={styles.infoRow}>
                     <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>{row.label}</Text>
@@ -318,7 +320,7 @@ export default function LicenseManagementScreen() {
 
           {/* Actions */}
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <SectionTitle title="Actions rapides" icon="zap" color="#166834" />
+            <SectionTitle title={t("licenseManagementScreen.quickActions")} icon="zap" color="#166834" />
             <View style={{ gap: 10 }}>
               <Pressable
                 onPress={generateInvoice}
@@ -330,7 +332,7 @@ export default function LicenseManagementScreen() {
                 ) : (
                   <>
                     <Feather name="file-plus" size={15} color="#fff" />
-                    <Text style={styles.actionBtnText}>Générer une facture</Text>
+                    <Text style={styles.actionBtnText}>{t("licenseManagementScreen.generateInvoice")}</Text>
                   </>
                 )}
               </Pressable>
@@ -344,7 +346,7 @@ export default function LicenseManagementScreen() {
                 ) : (
                   <>
                     <Feather name="bell" size={15} color="#fff" />
-                    <Text style={styles.actionBtnText}>Envoyer rappels automatiques</Text>
+                    <Text style={styles.actionBtnText}>{t("licenseManagementScreen.sendAutoReminders")}</Text>
                   </>
                 )}
               </Pressable>
@@ -354,10 +356,11 @@ export default function LicenseManagementScreen() {
           {/* Abonnement invoices */}
           {data.billing.invoices.length > 0 && (
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <SectionTitle title="Factures abonnement" icon="file-text" color="#0369a1" />
+              <SectionTitle title={t("licenseManagementScreen.subscriptionInvoices")} icon="file-text" color="#0369a1" />
               <View style={{ gap: 8 }}>
                 {data.billing.invoices.slice(0, 6).map(inv => {
-                  const st = INVOICE_STATUS[inv.status] ?? { label: inv.status, color: "#64748b" };
+                  const cfg = INVOICE_STATUS[inv.status];
+                  const st = cfg ? { label: t("licenseManagementScreen." + cfg.labelKey), color: cfg.color } : { label: inv.status, color: "#64748b" };
                   return (
                     <View key={inv.id} style={[styles.invoiceRow, { borderColor: colors.border }]}>
                       <View style={{ flex: 1 }}>
@@ -377,34 +380,35 @@ export default function LicenseManagementScreen() {
           {/* Client invoices */}
           {data.clientBilling.recentInvoices.length > 0 && (
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <SectionTitle title="Factures clients" icon="credit-card" color="#7c3aed" />
+              <SectionTitle title={t("licenseManagementScreen.clientInvoices")} icon="credit-card" color="#7c3aed" />
               <View style={{ gap: 4, marginBottom: 10, flexDirection: "row" }}>
                 <View style={[styles.kpiSmall, { backgroundColor: "#fef2f2" }]}>
                   <Text style={[styles.kpiSmallVal, { color: "#ef4444" }]}>{data.clientBilling.overdueCount}</Text>
-                  <Text style={styles.kpiSmallLbl}>En retard</Text>
+                  <Text style={styles.kpiSmallLbl}>{t("licenseManagementScreen.overdue")}</Text>
                 </View>
                 <View style={[styles.kpiSmall, { backgroundColor: "#fffbeb" }]}>
                   <Text style={[styles.kpiSmallVal, { color: "#f59e0b" }]}>{data.clientBilling.pendingCount}</Text>
-                  <Text style={styles.kpiSmallLbl}>En attente</Text>
+                  <Text style={styles.kpiSmallLbl}>{t("licenseManagementScreen.kpiPending")}</Text>
                 </View>
                 <View style={[styles.kpiSmall, { backgroundColor: "#f0fdf4" }]}>
                   <Text style={[styles.kpiSmallVal, { color: "#22c55e" }]}>{fmtEur(data.clientBilling.totalClientPaid)}</Text>
-                  <Text style={styles.kpiSmallLbl}>Encaissé</Text>
+                  <Text style={styles.kpiSmallLbl}>{t("licenseManagementScreen.kpiCollected")}</Text>
                 </View>
               </View>
               <View style={{ gap: 8 }}>
                 {data.clientBilling.recentInvoices.slice(0, 6).map(inv => {
                   const isOverdue = inv.status !== "payee" && inv.dueDate && new Date(inv.dueDate) < new Date();
+                  const cfg = INVOICE_STATUS[inv.status];
                   const st = isOverdue
-                    ? { label: "En retard", color: "#ef4444" }
-                    : INVOICE_STATUS[inv.status] ?? { label: inv.status, color: "#64748b" };
+                    ? { label: t("licenseManagementScreen.overdue"), color: "#ef4444" }
+                    : cfg ? { label: t("licenseManagementScreen." + cfg.labelKey), color: cfg.color } : { label: inv.status, color: "#64748b" };
                   return (
                     <View key={inv.id} style={[styles.invoiceRow, { borderColor: isOverdue ? "#fecaca" : colors.border }]}>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.invoiceRef, { color: colors.mutedForeground }]}>{inv.reference} · {inv.clientName}</Text>
                         <Text style={[styles.invoiceAmount, { color: colors.foreground }]}>{fmtEur(inv.totalAmount)}</Text>
                         {inv.dueDate && (
-                          <Text style={[styles.invoiceDue, { color: colors.mutedForeground }]}>Échéance : {fmtDate(inv.dueDate)}</Text>
+                          <Text style={[styles.invoiceDue, { color: colors.mutedForeground }]}>{t("licenseManagementScreen.dueDate", { date: fmtDate(inv.dueDate) })}</Text>
                         )}
                       </View>
                       <View style={[styles.miniPill, { backgroundColor: st.color + "20" }]}>
@@ -420,7 +424,7 @@ export default function LicenseManagementScreen() {
           {/* Payments */}
           {data.payments.length > 0 && (
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <SectionTitle title="Paiements reçus" icon="check-circle" color="#22c55e" />
+              <SectionTitle title={t("licenseManagementScreen.paymentsReceived")} icon="check-circle" color="#22c55e" />
               <View style={{ gap: 8 }}>
                 {data.payments.slice(0, 6).map(p => (
                   <View key={p.id} style={[styles.paymentRow, { borderColor: colors.border }]}>
@@ -442,14 +446,14 @@ export default function LicenseManagementScreen() {
 
           {/* Organisation details */}
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <SectionTitle title="Coordonnées bancaires" icon="briefcase" color="#64748b" />
+            <SectionTitle title={t("licenseManagementScreen.bankDetails")} icon="briefcase" color="#64748b" />
             <View style={{ gap: 8 }}>
               {[
-                { label: "IBAN",  value: data.organisation.bankIban ?? "Non configuré" },
-                { label: "BIC",   value: data.organisation.bankBic ?? "—" },
-                { label: "TVA",   value: data.organisation.tvaNumber ?? "—" },
-                { label: "Fact. auto", value: data.organisation.autoInvoiceEnabled ? "Activée" : "Désactivée" },
-                { label: "Email fact.", value: data.organisation.autoEmailInvoice ? "Activé" : "Désactivé" },
+                { label: t("licenseManagementScreen.iban"),  value: data.organisation.bankIban ?? t("licenseManagementScreen.notConfigured") },
+                { label: t("licenseManagementScreen.bic"),   value: data.organisation.bankBic ?? "—" },
+                { label: t("licenseManagementScreen.tva"),   value: data.organisation.tvaNumber ?? "—" },
+                { label: t("licenseManagementScreen.autoInvoice"), value: data.organisation.autoInvoiceEnabled ? t("licenseManagementScreen.enabledF") : t("licenseManagementScreen.disabledF") },
+                { label: t("licenseManagementScreen.autoInvoiceEmail"), value: data.organisation.autoEmailInvoice ? t("licenseManagementScreen.enabledM") : t("licenseManagementScreen.disabledM") },
               ].map(row => (
                 <View key={row.label} style={styles.infoRow}>
                   <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>{row.label}</Text>

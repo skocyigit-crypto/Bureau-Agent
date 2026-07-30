@@ -21,6 +21,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { trackScanResult } from "@/lib/scan-result";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 interface GWApp {
   id: string;
@@ -92,6 +93,7 @@ function fmtDate(s: string) {
 type Tab = "apps" | "emails" | "events" | "files";
 
 export default function GoogleWorkspaceScreen() {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
@@ -124,14 +126,14 @@ export default function GoogleWorkspaceScreen() {
       }
       let docId: number | string | undefined;
       try { const d = await res.json(); docId = d?.document?.id; } catch {}
-      Alert.alert("Importé dans Documents", `${file.name} — analyse antivirus en cours.`);
+      Alert.alert(t("googleWorkspaceScreen.importSuccessTitle"), t("googleWorkspaceScreen.importSuccessMsg", { name: file.name }));
       if (docId != null) void trackScanResult(fetchAuth, docId, file.name);
     } catch (e: any) {
-      Alert.alert("Échec de l'import", e?.message || "Réessayez.");
+      Alert.alert(t("googleWorkspaceScreen.importFailTitle"), e?.message || t("googleWorkspaceScreen.importFailFallback"));
     } finally {
       setImportingFile(null);
     }
-  }, [fetchAuth]);
+  }, [fetchAuth, t]);
 
   const loadHub = useCallback(async () => {
     try {
@@ -148,17 +150,17 @@ export default function GoogleWorkspaceScreen() {
     return null;
   }, [fetchAuth]);
 
-  const loadTabData = useCallback(async (t: Tab, authenticated: boolean) => {
+  const loadTabData = useCallback(async (tabKey: Tab, authenticated: boolean) => {
     if (!authenticated) return;
     setTabLoading(true);
     try {
-      if (t === "emails") {
+      if (tabKey === "emails") {
         const r = await fetchAuth(`${API_BASE}/api/google-workspace/recent-emails`);
         if (r.ok) setEmails((await r.json()).emails ?? []);
-      } else if (t === "events") {
+      } else if (tabKey === "events") {
         const r = await fetchAuth(`${API_BASE}/api/google-workspace/upcoming-events`);
         if (r.ok) setEvents((await r.json()).events ?? []);
-      } else if (t === "files") {
+      } else if (tabKey === "files") {
         const r = await fetchAuth(`${API_BASE}/api/google-workspace/recent-files`);
         if (r.ok) setFiles((await r.json()).files ?? []);
       }
@@ -187,10 +189,10 @@ export default function GoogleWorkspaceScreen() {
   );
 
   const TABS: { key: Tab; label: string; icon: keyof typeof Feather.glyphMap }[] = [
-    { key: "apps", label: "Applications", icon: "grid" },
-    { key: "emails", label: "Emails", icon: "mail" },
-    { key: "events", label: "Agenda", icon: "calendar" },
-    { key: "files", label: "Drive", icon: "hard-drive" },
+    { key: "apps", label: t("googleWorkspaceScreen.tabApps"), icon: "grid" },
+    { key: "emails", label: t("googleWorkspaceScreen.tabEmails"), icon: "mail" },
+    { key: "events", label: t("googleWorkspaceScreen.tabEvents"), icon: "calendar" },
+    { key: "files", label: t("googleWorkspaceScreen.tabFiles"), icon: "hard-drive" },
   ];
 
   return (
@@ -210,14 +212,14 @@ export default function GoogleWorkspaceScreen() {
         {/* Tabs */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 4 }}>
           <View style={styles.tabRow}>
-            {TABS.map(t => (
+            {TABS.map(tabItem => (
               <Pressable
-                key={t.key}
-                onPress={() => setTab(t.key)}
-                style={[styles.tabChip, { backgroundColor: tab === t.key ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.1)" }]}
+                key={tabItem.key}
+                onPress={() => setTab(tabItem.key)}
+                style={[styles.tabChip, { backgroundColor: tab === tabItem.key ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.1)" }]}
               >
-                <Feather name={t.icon} size={13} color="#fff" />
-                <Text style={styles.tabChipText}>{t.label}</Text>
+                <Feather name={tabItem.icon} size={13} color="#fff" />
+                <Text style={styles.tabChipText}>{tabItem.label}</Text>
               </Pressable>
             ))}
           </View>
@@ -233,13 +235,13 @@ export default function GoogleWorkspaceScreen() {
           <View style={[styles.notConnectedIcon, { backgroundColor: "#dbeafe" }]}>
             <Feather name="globe" size={32} color="#4285f4" />
           </View>
-          <Text style={[styles.notConnectedTitle, { color: colors.foreground }]}>Google Workspace non connecté</Text>
+          <Text style={[styles.notConnectedTitle, { color: colors.foreground }]}>{t("googleWorkspaceScreen.notConnectedTitle")}</Text>
           <Text style={[styles.notConnectedSub, { color: colors.mutedForeground }]}>
-            Connectez votre compte Google pour accéder à Gmail, Google Drive, Agenda et plus encore.
+            {t("googleWorkspaceScreen.notConnectedSub")}
           </Text>
           <Pressable onPress={() => router.push("/integrations" as any)} style={styles.connectBtn}>
             <Feather name="link" size={16} color="#fff" />
-            <Text style={styles.connectBtnText}>Connecter Google</Text>
+            <Text style={styles.connectBtnText}>{t("googleWorkspaceScreen.connectGoogle")}</Text>
           </Pressable>
         </View>
       ) : (
@@ -250,9 +252,9 @@ export default function GoogleWorkspaceScreen() {
           {/* Stats */}
           <View style={styles.statsRow}>
             {[
-              { label: "Apps", value: hub.apps.length, color: "#4285f4" },
-              { label: "Connectées", value: hub.apps.filter(a => a.connected).length, color: "#22c55e" },
-              { label: "Disponibles", value: hub.apps.filter(a => !a.connected).length, color: "#f59e0b" },
+              { label: t("googleWorkspaceScreen.statApps"), value: hub.apps.length, color: "#4285f4" },
+              { label: t("googleWorkspaceScreen.statConnected"), value: hub.apps.filter(a => a.connected).length, color: "#22c55e" },
+              { label: t("googleWorkspaceScreen.statAvailable"), value: hub.apps.filter(a => !a.connected).length, color: "#f59e0b" },
             ].map(s => (
               <View key={s.label} style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Text style={[styles.statNum, { color: s.color }]}>{s.value}</Text>
@@ -276,7 +278,7 @@ export default function GoogleWorkspaceScreen() {
                       }]}
                     >
                       <Text style={[styles.categoryChipText, { color: activeCategory === c ? "#fff" : colors.foreground }]}>
-                        {c === "all" ? "Tout" : c}
+                        {c === "all" ? t("googleWorkspaceScreen.categoryAll") : c}
                       </Text>
                     </Pressable>
                   ))}
@@ -297,11 +299,11 @@ export default function GoogleWorkspaceScreen() {
                     {app.connected ? (
                       <View style={styles.connectedBadge}>
                         <Feather name="check" size={10} color="#22c55e" />
-                        <Text style={styles.connectedText}>Connecté</Text>
+                        <Text style={styles.connectedText}>{t("googleWorkspaceScreen.connected")}</Text>
                       </View>
                     ) : (
                       <View style={styles.disconnectedBadge}>
-                        <Text style={styles.disconnectedText}>Disponible</Text>
+                        <Text style={styles.disconnectedText}>{t("googleWorkspaceScreen.available")}</Text>
                       </View>
                     )}
                   </Pressable>
@@ -313,7 +315,7 @@ export default function GoogleWorkspaceScreen() {
           {/* EMAILS TAB */}
           {tab === "emails" && (
             tabLoading ? <ActivityIndicator color="#4285f4" style={{ marginTop: 24 }} /> :
-            emails.length === 0 ? <EmptyState icon="mail" title="Aucun email" subtitle="Vos emails récents apparaîtront ici." /> :
+            emails.length === 0 ? <EmptyState icon="mail" title={t("googleWorkspaceScreen.noEmails")} subtitle={t("googleWorkspaceScreen.noEmailsSub")} /> :
             emails.map(e => (
               <Pressable
                 key={e.id}
@@ -337,7 +339,7 @@ export default function GoogleWorkspaceScreen() {
           {/* EVENTS TAB */}
           {tab === "events" && (
             tabLoading ? <ActivityIndicator color="#4285f4" style={{ marginTop: 24 }} /> :
-            events.length === 0 ? <EmptyState icon="calendar" title="Aucun événement" subtitle="Vos prochains événements apparaîtront ici." /> :
+            events.length === 0 ? <EmptyState icon="calendar" title={t("googleWorkspaceScreen.noEvents")} subtitle={t("googleWorkspaceScreen.noEventsSub")} /> :
             events.map(e => (
               <View key={e.id} style={[styles.eventCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={[styles.eventDate, { backgroundColor: "#eff6ff" }]}>
@@ -354,7 +356,7 @@ export default function GoogleWorkspaceScreen() {
                   {e.attendees > 0 && (
                     <View style={styles.eventAttendees}>
                       <Feather name="users" size={10} color={colors.mutedForeground} />
-                      <Text style={[styles.eventAttendeesText, { color: colors.mutedForeground }]}>{e.attendees} participant{e.attendees > 1 ? "s" : ""}</Text>
+                      <Text style={[styles.eventAttendeesText, { color: colors.mutedForeground }]}>{e.attendees > 1 ? t("googleWorkspaceScreen.attendeesOther", { count: e.attendees }) : t("googleWorkspaceScreen.attendeesOne", { count: e.attendees })}</Text>
                     </View>
                   )}
                 </View>
@@ -365,7 +367,7 @@ export default function GoogleWorkspaceScreen() {
           {/* FILES TAB */}
           {tab === "files" && (
             tabLoading ? <ActivityIndicator color="#4285f4" style={{ marginTop: 24 }} /> :
-            files.length === 0 ? <EmptyState icon="hard-drive" title="Aucun fichier" subtitle="Vos fichiers Google Drive récents apparaîtront ici." /> :
+            files.length === 0 ? <EmptyState icon="hard-drive" title={t("googleWorkspaceScreen.noFiles")} subtitle={t("googleWorkspaceScreen.noFilesSub")} /> :
             files.map(f => {
               const isFolder = f.mimeType === "application/vnd.google-apps.folder";
               return (
@@ -379,7 +381,7 @@ export default function GoogleWorkspaceScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.fileName, { color: colors.foreground }]} numberOfLines={1}>{f.name}</Text>
-                    <Text style={[styles.fileDate, { color: colors.mutedForeground }]}>Modifié {fmtDate(f.modifiedTime)}</Text>
+                    <Text style={[styles.fileDate, { color: colors.mutedForeground }]}>{t("googleWorkspaceScreen.modifiedDate", { date: fmtDate(f.modifiedTime) })}</Text>
                   </View>
                   {!isFolder && (
                     <Pressable
@@ -390,7 +392,7 @@ export default function GoogleWorkspaceScreen() {
                       {importingFile === f.id
                         ? <ActivityIndicator size="small" color="#6366f1" />
                         : <Feather name="folder-plus" size={14} color="#6366f1" />}
-                      <Text style={styles.importBtnText}>Documents</Text>
+                      <Text style={styles.importBtnText}>{t("googleWorkspaceScreen.documentsLabel")}</Text>
                     </Pressable>
                   )}
                   {f.webViewLink && <Feather name="external-link" size={14} color={colors.mutedForeground} />}
