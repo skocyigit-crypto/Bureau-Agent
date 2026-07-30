@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
+import { useTranslation, type TFunction } from "@/lib/i18n";
 import { useColors } from "@/hooks/useColors";
 import { streamSse } from "@/lib/sse-stream";
 
@@ -84,14 +85,21 @@ interface Anomaly {
 
 type MainTab = "agents" | "autopilot" | "anomalies";
 
-function timeAgo(dateStr: string): string {
+function timeAgo(dateStr: string, t?: TFunction): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const min = Math.floor(diff / 60000);
-  if (min < 1) return "À l'instant";
-  if (min < 60) return `Il y a ${min}min`;
+  if (!t) {
+    if (min < 1) return "À l'instant";
+    if (min < 60) return `Il y a ${min}min`;
+    const h = Math.floor(min / 60);
+    if (h < 24) return `Il y a ${h}h`;
+    return `Il y a ${Math.floor(h / 24)}j`;
+  }
+  if (min < 1) return t("aiAgentsScreen.timeNow");
+  if (min < 60) return t("aiAgentsScreen.timeMin", { count: min });
   const h = Math.floor(min / 60);
-  if (h < 24) return `Il y a ${h}h`;
-  return `Il y a ${Math.floor(h / 24)}j`;
+  if (h < 24) return t("aiAgentsScreen.timeHour", { count: h });
+  return t("aiAgentsScreen.timeDay", { count: Math.floor(h / 24) });
 }
 
 function ScoreBar({ score, color }: { score: number; color: string }) {
@@ -107,16 +115,17 @@ function ScoreBar({ score, color }: { score: number; color: string }) {
 }
 
 function SeverityBadge({ severity }: { severity: string }) {
-  const cfg: Record<string, { color: string; label: string }> = {
-    critique: { color: "#ef4444", label: "Critique" },
-    haute:    { color: "#f97316", label: "Haute" },
-    moyenne:  { color: "#f59e0b", label: "Moyenne" },
-    basse:    { color: "#22c55e", label: "Basse" },
+  const { t } = useTranslation();
+  const cfg: Record<string, { color: string; labelKey: string }> = {
+    critique: { color: "#ef4444", labelKey: "sevCritique" },
+    haute:    { color: "#f97316", labelKey: "sevHaute" },
+    moyenne:  { color: "#f59e0b", labelKey: "sevMoyenne" },
+    basse:    { color: "#22c55e", labelKey: "sevBasse" },
   };
   const c = cfg[severity] ?? cfg.basse;
   return (
     <View style={[styles.severityBadge, { backgroundColor: c.color + "18" }]}>
-      <Text style={[styles.severityBadgeText, { color: c.color }]}>{c.label}</Text>
+      <Text style={[styles.severityBadgeText, { color: c.color }]}>{t(`aiAgentsScreen.${c.labelKey}`)}</Text>
     </View>
   );
 }
@@ -132,6 +141,7 @@ interface AgentsTabProps {
 
 function AgentsTab({ runningAll, timeline, onCancel, superStatus, externalRefreshTick }: AgentsTabProps) {
   const colors = useColors();
+  const { t } = useTranslation();
   const { fetchAuth } = useAuth();
   const [agents, setAgents] = useState<AgentConfig[]>([]);
   const [latestReports, setLatestReports] = useState<Record<string, AgentReport>>({});
@@ -225,18 +235,18 @@ function AgentsTab({ runningAll, timeline, onCancel, superStatus, externalRefres
                 <Text style={[styles.scoreText, { color: getScoreColor(avgScore) }]}>{avgScore}</Text>
                 <Text style={[styles.scoreTextSub, { color: colors.mutedForeground }]}>/100</Text>
               </View>
-              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Score moyen</Text>
+              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{t("aiAgentsScreen.avgScore")}</Text>
             </View>
             <View style={styles.statCol}>
               {[
-                { icon: "alert-circle" as const,   color: "#ef4444", value: totalErrors,      label: "Erreurs" },
-                { icon: "alert-triangle" as const,  color: "#f59e0b", value: totalWarnings,    label: "Alertes" },
-                { icon: "info" as const,            color: "#3b82f6", value: totalSuggestions, label: "Suggestions" },
+                { icon: "alert-circle" as const,   color: "#ef4444", value: totalErrors,      labelKey: "statErrors" },
+                { icon: "alert-triangle" as const,  color: "#f59e0b", value: totalWarnings,    labelKey: "statAlerts" },
+                { icon: "info" as const,            color: "#3b82f6", value: totalSuggestions, labelKey: "statSuggestions" },
               ].map((s, i) => (
                 <View key={i} style={[styles.miniStat, { backgroundColor: s.color + "18" }]}>
                   <Feather name={s.icon} size={13} color={s.color} />
                   <Text style={[styles.miniStatVal, { color: s.color }]}>{s.value}</Text>
-                  <Text style={[styles.miniStatLabel, { color: colors.mutedForeground }]}>{s.label}</Text>
+                  <Text style={[styles.miniStatLabel, { color: colors.mutedForeground }]}>{t(`aiAgentsScreen.${s.labelKey}`)}</Text>
                 </View>
               ))}
             </View>
@@ -245,21 +255,21 @@ function AgentsTab({ runningAll, timeline, onCancel, superStatus, externalRefres
           {/* Auto-fix */}
           <Pressable onPress={runAutoFix} disabled={autoFixLoading} style={[styles.autoFixBtn, { backgroundColor: "#0369a118" }]}>
             {autoFixLoading ? <ActivityIndicator size="small" color="#0369a1" /> : <Feather name="tool" size={14} color="#0369a1" />}
-            <Text style={[styles.autoFixBtnText, { color: "#0369a1" }]}>{autoFixLoading ? "Correction auto en cours..." : "Correction automatique IA"}</Text>
+            <Text style={[styles.autoFixBtnText, { color: "#0369a1" }]}>{autoFixLoading ? t("aiAgentsScreen.autoFixRunning") : t("aiAgentsScreen.autoFix")}</Text>
             <Feather name="chevron-right" size={14} color="#0369a1" />
           </Pressable>
 
           {autoFixResult && (
             <View style={[styles.card, { backgroundColor: "#0369a110", borderColor: "#0369a130" }]}>
-              <Text style={[styles.cardTitle, { color: colors.foreground, marginBottom: 6 }]}>🔧 Résultats de la correction</Text>
+              <Text style={[styles.cardTitle, { color: colors.foreground, marginBottom: 6 }]}>{t("aiAgentsScreen.autoFixResults")}</Text>
               {autoFixResult.fixes?.map((f: any, i: number) => (
                 <View key={i} style={styles.fixRow}>
                   <Feather name="check" size={12} color="#22c55e" />
-                  <Text style={[styles.fixText, { color: colors.foreground }]}>{f.description} ({f.count} éléments)</Text>
+                  <Text style={[styles.fixText, { color: colors.foreground }]}>{t("aiAgentsScreen.fixElements", { desc: f.description, count: f.count })}</Text>
                 </View>
               ))}
               {autoFixResult.fixes?.length === 0 && (
-                <Text style={[styles.fixText, { color: colors.mutedForeground }]}>Aucune correction nécessaire — tout est en ordre.</Text>
+                <Text style={[styles.fixText, { color: colors.mutedForeground }]}>{t("aiAgentsScreen.noFixNeeded")}</Text>
               )}
             </View>
           )}
@@ -271,48 +281,48 @@ function AgentsTab({ runningAll, timeline, onCancel, superStatus, externalRefres
                   ? <ActivityIndicator size="small" color={colors.primary} />
                   : <Feather name="check-circle" size={16} color="#22c55e" />}
                 <Text style={[styles.cardTitle, { color: colors.foreground, flex: 1 }]}>
-                  {runningAll ? "Analyse IA en direct" : "Dernière exécution"}
+                  {runningAll ? t("aiAgentsScreen.liveAnalysis") : t("aiAgentsScreen.lastRun")}
                 </Text>
                 {runningAll && (
                   <Pressable onPress={onCancel} style={[styles.cancelBtn, { backgroundColor: "#ef444418" }]} hitSlop={6}>
                     <Feather name="x" size={12} color="#ef4444" />
-                    <Text style={styles.cancelBtnText}>Annuler</Text>
+                    <Text style={styles.cancelBtnText}>{t("common.cancel")}</Text>
                   </Pressable>
                 )}
               </View>
-              {timeline.map((t, i) => {
-                const tColor = t.status === "done" ? "#22c55e"
-                  : t.status === "running" ? colors.primary
-                  : t.status === "error" ? "#ef4444"
-                  : t.status === "aborted" ? "#94a3b8"
+              {timeline.map((entry, i) => {
+                const tColor = entry.status === "done" ? "#22c55e"
+                  : entry.status === "running" ? colors.primary
+                  : entry.status === "error" ? "#ef4444"
+                  : entry.status === "aborted" ? "#94a3b8"
                   : colors.mutedForeground;
-                const tIcon: keyof typeof Feather.glyphMap = t.status === "done" ? "check"
-                  : t.status === "error" ? "alert-circle"
-                  : t.status === "aborted" ? "slash"
-                  : t.status === "running" ? "loader"
+                const tIcon: keyof typeof Feather.glyphMap = entry.status === "done" ? "check"
+                  : entry.status === "error" ? "alert-circle"
+                  : entry.status === "aborted" ? "slash"
+                  : entry.status === "running" ? "loader"
                   : "circle";
                 return (
-                  <View key={`${t.agentId}-${i}`} style={styles.timelineRow}>
+                  <View key={`${entry.agentId}-${i}`} style={styles.timelineRow}>
                     <View style={[styles.timelineDot, { backgroundColor: tColor + "22", borderColor: tColor }]}>
-                      {t.status === "running"
+                      {entry.status === "running"
                         ? <ActivityIndicator size="small" color={tColor} />
                         : <Feather name={tIcon} size={11} color={tColor} />}
                     </View>
-                    <Text style={[styles.timelineName, { color: colors.foreground }]} numberOfLines={1}>{t.agentName}</Text>
-                    {t.status === "done" && typeof t.score === "number" && (
-                      <Text style={[styles.timelineScore, { color: tColor }]}>{t.score}</Text>
+                    <Text style={[styles.timelineName, { color: colors.foreground }]} numberOfLines={1}>{entry.agentName}</Text>
+                    {entry.status === "done" && typeof entry.score === "number" && (
+                      <Text style={[styles.timelineScore, { color: tColor }]}>{entry.score}</Text>
                     )}
-                    {t.status === "running" && (
-                      <Text style={[styles.timelineMeta, { color: tColor }]}>en cours…</Text>
+                    {entry.status === "running" && (
+                      <Text style={[styles.timelineMeta, { color: tColor }]}>{t("aiAgentsScreen.statusRunning")}</Text>
                     )}
-                    {t.status === "error" && (
-                      <Text style={[styles.timelineMeta, { color: tColor }]} numberOfLines={1}>{t.error || "erreur"}</Text>
+                    {entry.status === "error" && (
+                      <Text style={[styles.timelineMeta, { color: tColor }]} numberOfLines={1}>{entry.error || t("aiAgentsScreen.statusError")}</Text>
                     )}
-                    {t.status === "aborted" && (
-                      <Text style={[styles.timelineMeta, { color: tColor }]}>annulé</Text>
+                    {entry.status === "aborted" && (
+                      <Text style={[styles.timelineMeta, { color: tColor }]}>{t("aiAgentsScreen.statusAborted")}</Text>
                     )}
-                    {t.status === "pending" && (
-                      <Text style={[styles.timelineMeta, { color: colors.mutedForeground }]}>en attente</Text>
+                    {entry.status === "pending" && (
+                      <Text style={[styles.timelineMeta, { color: colors.mutedForeground }]}>{t("aiAgentsScreen.statusPending")}</Text>
                     )}
                   </View>
                 );
@@ -326,7 +336,7 @@ function AgentsTab({ runningAll, timeline, onCancel, superStatus, externalRefres
                   </View>
                   <Text style={[styles.timelineName, { color: colors.foreground }]}>Super Agent IA</Text>
                   <Text style={[styles.timelineMeta, { color: superStatus === "running" ? "#8b5cf6" : superStatus === "error" ? "#ef4444" : "#22c55e" }]}>
-                    {superStatus === "running" ? "synthèse…" : superStatus === "done" ? "terminé" : "erreur"}
+                    {superStatus === "running" ? t("aiAgentsScreen.superSynthesis") : superStatus === "done" ? t("aiAgentsScreen.superDone") : t("aiAgentsScreen.statusError")}
                   </Text>
                 </View>
               )}
@@ -342,14 +352,14 @@ function AgentsTab({ runningAll, timeline, onCancel, superStatus, externalRefres
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.cardTitle, { color: colors.foreground }]}>Super Agent IA</Text>
-                  <Text style={[styles.cardSubtitle, { color: colors.mutedForeground }]}>Synthèse stratégique</Text>
+                  <Text style={[styles.cardSubtitle, { color: colors.mutedForeground }]}>{t("aiAgentsScreen.strategicSynthesis")}</Text>
                 </View>
                 <View style={[styles.scoreBadge, { backgroundColor: getScoreColor(superReport.score) + "18" }]}>
                   <Text style={[styles.scoreBadgeText, { color: getScoreColor(superReport.score) }]}>{superReport.score}</Text>
                 </View>
               </View>
               {superReport.summary && <Text style={[styles.summaryText, { color: colors.foreground }]}>{superReport.summary}</Text>}
-              <Text style={[styles.timestamp, { color: colors.mutedForeground }]}>{timeAgo(superReport.createdAt)}</Text>
+              <Text style={[styles.timestamp, { color: colors.mutedForeground }]}>{timeAgo(superReport.createdAt, t)}</Text>
             </View>
           )}
 
@@ -394,7 +404,7 @@ function AgentsTab({ runningAll, timeline, onCancel, superStatus, externalRefres
                       <View style={styles.closedMeta}>
                         {errCount > 0 && <View style={styles.closedBadge}><Feather name="alert-circle" size={10} color="#ef4444" /><Text style={[styles.closedBadgeText, { color: "#ef4444" }]}>{errCount}</Text></View>}
                         {warnCount > 0 && <View style={styles.closedBadge}><Feather name="alert-triangle" size={10} color="#f59e0b" /><Text style={[styles.closedBadgeText, { color: "#f59e0b" }]}>{warnCount}</Text></View>}
-                        <Text style={[styles.closedTime, { color: colors.mutedForeground }]}>{timeAgo(report.createdAt)}</Text>
+                        <Text style={[styles.closedTime, { color: colors.mutedForeground }]}>{timeAgo(report.createdAt, t)}</Text>
                       </View>
                     </View>
                   )}
@@ -406,36 +416,36 @@ function AgentsTab({ runningAll, timeline, onCancel, superStatus, externalRefres
                     {report.summary && <Text style={[styles.reportSummary, { color: colors.foreground }]}>{report.summary}</Text>}
                     {report.errors?.length > 0 && (
                       <View style={styles.findingSection}>
-                        <Text style={[styles.findingTitle, { color: "#ef4444" }]}>Erreurs ({report.errors.length})</Text>
+                        <Text style={[styles.findingTitle, { color: "#ef4444" }]}>{t("aiAgentsScreen.findingErrors", { count: report.errors.length })}</Text>
                         {report.errors.map((err: any, i: number) => renderFinding(err, i, "#ef444410", colors.foreground))}
                       </View>
                     )}
                     {report.warnings?.length > 0 && (
                       <View style={styles.findingSection}>
-                        <Text style={[styles.findingTitle, { color: "#f59e0b" }]}>Alertes ({report.warnings.length})</Text>
+                        <Text style={[styles.findingTitle, { color: "#f59e0b" }]}>{t("aiAgentsScreen.findingAlerts", { count: report.warnings.length })}</Text>
                         {report.warnings.map((w: any, i: number) => renderFinding(w, i, "#f59e0b10", colors.foreground))}
                       </View>
                     )}
                     {report.suggestions?.length > 0 && (
                       <View style={styles.findingSection}>
-                        <Text style={[styles.findingTitle, { color: "#3b82f6" }]}>Suggestions ({report.suggestions.length})</Text>
+                        <Text style={[styles.findingTitle, { color: "#3b82f6" }]}>{t("aiAgentsScreen.findingSuggestions", { count: report.suggestions.length })}</Text>
                         {report.suggestions.map((s: any, i: number) => renderFinding(s, i, "#3b82f610", colors.foreground))}
                       </View>
                     )}
                     {(!report.errors?.length && !report.warnings?.length && !report.suggestions?.length) && (
                       <View style={[styles.emptyReport, { backgroundColor: "#22c55e10" }]}>
                         <Feather name="check-circle" size={16} color="#22c55e" />
-                        <Text style={[styles.noFindings, { color: "#22c55e" }]}>Tout est en ordre</Text>
+                        <Text style={[styles.noFindings, { color: "#22c55e" }]}>{t("aiAgentsScreen.allInOrder")}</Text>
                       </View>
                     )}
-                    <Text style={[styles.timestamp, { color: colors.mutedForeground }]}>{timeAgo(report.createdAt)} · {new Date(report.createdAt).toLocaleString("fr-FR")}</Text>
+                    <Text style={[styles.timestamp, { color: colors.mutedForeground }]}>{timeAgo(report.createdAt, t)} · {new Date(report.createdAt).toLocaleString("fr-FR")}</Text>
                   </View>
                 )}
                 {isExpanded && !report && (
                   <View style={[styles.expandedContent, { borderTopColor: colors.border }]}>
                     <View style={[styles.emptyReport, { backgroundColor: colors.muted }]}>
                       <Feather name="play-circle" size={16} color={colors.mutedForeground} />
-                      <Text style={[styles.noFindings, { color: colors.mutedForeground }]}>Aucun rapport. Lancez une analyse.</Text>
+                      <Text style={[styles.noFindings, { color: colors.mutedForeground }]}>{t("aiAgentsScreen.noReport")}</Text>
                     </View>
                   </View>
                 )}
@@ -445,7 +455,7 @@ function AgentsTab({ runningAll, timeline, onCancel, superStatus, externalRefres
 
           {lastRunAt && (
             <Text style={[styles.timestamp, { color: colors.mutedForeground, textAlign: "center", marginBottom: 8 }]}>
-              Dernière analyse : {new Date(lastRunAt).toLocaleString("fr-FR")}
+              {t("aiAgentsScreen.lastAnalyzedAt", { date: new Date(lastRunAt).toLocaleString("fr-FR") })}
             </Text>
           )}
         </>
@@ -457,6 +467,7 @@ function AgentsTab({ runningAll, timeline, onCancel, superStatus, externalRefres
 // ─── AUTOPILOT TAB ───────────────────────────────────────────────────────────
 function AutopilotTab() {
   const colors = useColors();
+  const { t } = useTranslation();
   const { fetchAuth } = useAuth();
   const [status, setStatus] = useState<AutopilotStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -511,11 +522,11 @@ function AutopilotTab() {
           <View style={{ flex: 1 }}>
             <Text style={[styles.cardTitle, { color: colors.foreground }]}>Oto-Pilot IA</Text>
             <Text style={[styles.cardSubtitle, { color: status?.active ? "#22c55e" : colors.mutedForeground }]}>
-              {status?.active ? "Actif — cycles toutes les 30 min" : "Inactif"}
+              {status?.active ? t("aiAgentsScreen.autopilotActive") : t("aiAgentsScreen.autopilotInactive")}
             </Text>
             {status?.lastRun && (
               <Text style={[styles.timestamp, { color: colors.mutedForeground }]}>
-                Dernier cycle : {timeAgo(status.lastRun)}
+                {t("aiAgentsScreen.lastCycle", { time: timeAgo(status.lastRun, t) })}
               </Text>
             )}
           </View>
@@ -524,7 +535,7 @@ function AutopilotTab() {
               ? <ActivityIndicator size="small" color="#fff" />
               : <Feather name={status?.active ? "pause" : "play"} size={16} color="#fff" />
             }
-            <Text style={styles.toggleBtnText}>{status?.active ? "Arrêter" : "Activer"}</Text>
+            <Text style={styles.toggleBtnText}>{status?.active ? t("aiAgentsScreen.stop") : t("aiAgentsScreen.activate")}</Text>
           </Pressable>
         </View>
       </View>
@@ -533,15 +544,15 @@ function AutopilotTab() {
       {status && (
         <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
           {[
-            { label: "Cycles",         value: status.cyclesRun ?? 0,           color: "#6366f1", icon: "refresh-cw" as const },
-            { label: "Tâches créées",  value: status.tasksCreated ?? 0,        color: "#22c55e", icon: "check-square" as const },
-            { label: "Tâches màj",     value: status.tasksUpdated ?? 0,        color: "#3b82f6", icon: "edit" as const },
-            { label: "Notifications",  value: status.notificationsSent ?? 0,   color: "#f59e0b", icon: "bell" as const },
+            { labelKey: "statCycles",        value: status.cyclesRun ?? 0,           color: "#6366f1", icon: "refresh-cw" as const },
+            { labelKey: "statTasksCreated",  value: status.tasksCreated ?? 0,        color: "#22c55e", icon: "check-square" as const },
+            { labelKey: "statTasksUpdated",  value: status.tasksUpdated ?? 0,        color: "#3b82f6", icon: "edit" as const },
+            { labelKey: "statNotifications", value: status.notificationsSent ?? 0,   color: "#f59e0b", icon: "bell" as const },
           ].map(s => (
-            <View key={s.label} style={[styles.miniStatCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View key={s.labelKey} style={[styles.miniStatCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Feather name={s.icon} size={14} color={s.color} />
               <Text style={[styles.miniStatCardVal, { color: colors.foreground }]}>{s.value}</Text>
-              <Text style={[styles.miniStatCardLabel, { color: colors.mutedForeground }]}>{s.label}</Text>
+              <Text style={[styles.miniStatCardLabel, { color: colors.mutedForeground }]}>{t(`aiAgentsScreen.${s.labelKey}`)}</Text>
             </View>
           ))}
         </View>
@@ -550,13 +561,13 @@ function AutopilotTab() {
       {/* Run once */}
       <Pressable onPress={runOnce} disabled={running} style={[styles.generateBtn, { backgroundColor: "#6366f1", opacity: running ? 0.6 : 1 }]}>
         {running ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="play" size={16} color="#fff" />}
-        <Text style={styles.generateBtnText}>{running ? "Cycle en cours..." : "Lancer un cycle maintenant"}</Text>
+        <Text style={styles.generateBtnText}>{running ? t("aiAgentsScreen.cycleRunning") : t("aiAgentsScreen.runCycleNow")}</Text>
       </Pressable>
 
       {/* Recent logs */}
       {status?.recentLogs && status.recentLogs.length > 0 && (
         <View style={{ marginTop: 8 }}>
-          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Journaux récents ({status.recentLogs.length})</Text>
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{t("aiAgentsScreen.recentLogs", { count: status.recentLogs.length })}</Text>
           {status.recentLogs.slice(-20).reverse().map((log, i) => {
             const levelColor = LOG_LEVEL_COLORS[log.level] ?? "#64748b";
             return (
@@ -566,7 +577,7 @@ function AutopilotTab() {
                   <Text style={[styles.logMsg, { color: colors.foreground }]}>{log.message}</Text>
                   {log.module && <Text style={[styles.logMeta, { color: colors.mutedForeground }]}>{log.module}</Text>}
                 </View>
-                <Text style={[styles.logTime, { color: colors.mutedForeground }]}>{timeAgo(log.timestamp)}</Text>
+                <Text style={[styles.logTime, { color: colors.mutedForeground }]}>{timeAgo(log.timestamp, t)}</Text>
               </View>
             );
           })}
@@ -579,6 +590,7 @@ function AutopilotTab() {
 // ─── ANOMALIES TAB ───────────────────────────────────────────────────────────
 function AnomaliesTab() {
   const colors = useColors();
+  const { t } = useTranslation();
   const { fetchAuth } = useAuth();
   const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
   const [loading, setLoading] = useState(true);
@@ -625,11 +637,12 @@ function AnomaliesTab() {
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
             <Feather name="alert-triangle" size={20} color={critiques > 0 ? "#ef4444" : "#f59e0b"} />
             <View style={{ flex: 1 }}>
-              <Text style={[styles.cardTitle, { color: colors.foreground }]}>{anomalies.length} anomalie{anomalies.length > 1 ? "s" : ""} détectée{anomalies.length > 1 ? "s" : ""}</Text>
+              <Text style={[styles.cardTitle, { color: colors.foreground }]}>{anomalies.length > 1 ? t("aiAgentsScreen.anomalyDetectedMany", { count: anomalies.length }) : t("aiAgentsScreen.anomalyDetectedOne", { count: anomalies.length })}</Text>
               <Text style={[styles.cardSubtitle, { color: colors.mutedForeground }]}>
-                {critiques > 0 ? `${critiques} critique${critiques > 1 ? "s" : ""}` : ""}
-                {critiques > 0 && hautes > 0 ? " · " : ""}
-                {hautes > 0 ? `${hautes} haute${hautes > 1 ? "s" : ""}` : ""}
+                {[
+                  critiques > 0 ? t(critiques > 1 ? "aiAgentsScreen.critiquesMany" : "aiAgentsScreen.critiquesOne", { count: critiques }) : null,
+                  hautes > 0 ? t(hautes > 1 ? "aiAgentsScreen.hautesMany" : "aiAgentsScreen.hautesOne", { count: hautes }) : null,
+                ].filter(Boolean).join(" · ")}
               </Text>
             </View>
           </View>
@@ -639,8 +652,8 @@ function AnomaliesTab() {
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
             <Feather name="check-circle" size={20} color="#22c55e" />
             <View>
-              <Text style={[styles.cardTitle, { color: colors.foreground }]}>Aucune anomalie détectée</Text>
-              <Text style={[styles.cardSubtitle, { color: colors.mutedForeground }]}>Tout fonctionne normalement</Text>
+              <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("aiAgentsScreen.noAnomaly")}</Text>
+              <Text style={[styles.cardSubtitle, { color: colors.mutedForeground }]}>{t("aiAgentsScreen.allNormal")}</Text>
             </View>
           </View>
         </View>
@@ -681,7 +694,7 @@ function AnomaliesTab() {
 
       <Pressable onPress={() => { setLoading(true); load(); }} style={[styles.generateBtn, { backgroundColor: "#ef4444", marginTop: 8, marginBottom: 24 }]}>
         <Feather name="refresh-cw" size={16} color="#fff" />
-        <Text style={styles.generateBtnText}>Relancer la détection</Text>
+        <Text style={styles.generateBtnText}>{t("aiAgentsScreen.rerunDetection")}</Text>
       </Pressable>
     </ScrollView>
   );
@@ -690,6 +703,7 @@ function AnomaliesTab() {
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function AiAgentsScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { fetchAuth, authHeaders } = useAuth();
   const isWeb = Platform.OS === "web";
@@ -774,10 +788,10 @@ export default function AiAgentsScreen() {
   const reports = Object.values(latestReports).filter(r => !r.isSuperReport);
   const lastRunAt = reports.length > 0 ? [...reports].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]?.createdAt : null;
 
-  const MAIN_TABS: { key: MainTab; label: string; icon: keyof typeof Feather.glyphMap; color: string }[] = [
-    { key: "agents",    label: "Agents",     icon: "cpu",            color: "#6366f1" },
-    { key: "autopilot", label: "Oto-Pilot",  icon: "zap",            color: "#22c55e" },
-    { key: "anomalies", label: "Anomalies",  icon: "alert-triangle", color: "#ef4444" },
+  const MAIN_TABS: { key: MainTab; labelKey: string; icon: keyof typeof Feather.glyphMap; color: string }[] = [
+    { key: "agents",    labelKey: "tabAgents",    icon: "cpu",            color: "#6366f1" },
+    { key: "autopilot", labelKey: "tabAutopilot", icon: "zap",            color: "#22c55e" },
+    { key: "anomalies", labelKey: "tabAnomalies", icon: "alert-triangle", color: "#ef4444" },
   ];
 
   return (
@@ -788,28 +802,28 @@ export default function AiAgentsScreen() {
             <Feather name="arrow-left" size={22} color="#ffffff" />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>Agents IA</Text>
-            {lastRunAt && <Text style={styles.headerSub}>{timeAgo(lastRunAt)}</Text>}
+            <Text style={styles.headerTitle}>{t("aiAgentsScreen.headerTitle")}</Text>
+            {lastRunAt && <Text style={styles.headerSub}>{timeAgo(lastRunAt, t)}</Text>}
           </View>
           {runningAll ? (
             <Pressable onPress={cancelRunAll} style={[styles.runAllBtn, { backgroundColor: "rgba(239,68,68,0.35)" }]} hitSlop={8}>
               <Feather name="x" size={16} color="#ffffff" />
-              <Text style={styles.runAllText}>Annuler</Text>
+              <Text style={styles.runAllText}>{t("common.cancel")}</Text>
             </Pressable>
           ) : (
             <Pressable onPress={() => { setTab("agents"); runAllAgents(); }} style={[styles.runAllBtn, { backgroundColor: "rgba(255,255,255,0.2)" }]} hitSlop={8}>
               <Feather name="play" size={16} color="#ffffff" />
-              <Text style={styles.runAllText}>Tout lancer</Text>
+              <Text style={styles.runAllText}>{t("aiAgentsScreen.runAll")}</Text>
             </Pressable>
           )}
         </View>
 
         {/* Tab bar */}
         <View style={styles.mainTabRow}>
-          {MAIN_TABS.map(t => (
-            <Pressable key={t.key} onPress={() => setTab(t.key)} style={[styles.mainTabBtn, { backgroundColor: tab === t.key ? t.color : "rgba(255,255,255,0.1)" }]}>
-              <Feather name={t.icon} size={13} color={tab === t.key ? "#fff" : "rgba(255,255,255,0.7)"} />
-              <Text style={[styles.mainTabBtnText, { color: tab === t.key ? "#fff" : "rgba(255,255,255,0.7)" }]}>{t.label}</Text>
+          {MAIN_TABS.map(tb => (
+            <Pressable key={tb.key} onPress={() => setTab(tb.key)} style={[styles.mainTabBtn, { backgroundColor: tab === tb.key ? tb.color : "rgba(255,255,255,0.1)" }]}>
+              <Feather name={tb.icon} size={13} color={tab === tb.key ? "#fff" : "rgba(255,255,255,0.7)"} />
+              <Text style={[styles.mainTabBtnText, { color: tab === tb.key ? "#fff" : "rgba(255,255,255,0.7)" }]}>{t(`aiAgentsScreen.${tb.labelKey}`)}</Text>
             </Pressable>
           ))}
         </View>

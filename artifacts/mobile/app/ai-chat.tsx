@@ -19,6 +19,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
+import { useTranslation } from "@/lib/i18n";
 import { useColors } from "@/hooks/useColors";
 import { TalkingAvatar, type TalkingAvatarHandle } from "@/components/TalkingAvatar";
 
@@ -75,7 +76,7 @@ function normalizeEntities(raw: any): RetrievedEntity[] {
     out.push({
       id: e.id,
       type: e.type as ServerEntityType,
-      label: typeof e.label === "string" && e.label ? e.label : `${ENTITY_META[e.type as ServerEntityType].label} #${e.id}`,
+      label: typeof e.label === "string" && e.label ? e.label : "",
       url: typeof e.url === "string" ? e.url : "",
     });
   }
@@ -123,21 +124,23 @@ const CONVERSATION_ID_KEY = "commandant_conversation_id";
 const VOICE_PREF_KEY = "buro.aichat.voice";
 
 const QUICK_ACTIONS = [
-  { icon: "bar-chart-2" as const, label: "Briefing du jour", prompt: "Donne-moi le briefing complet de la journee: appels, taches, rendez-vous, factures en retard." },
-  { icon: "users" as const, label: "Analyse clients", prompt: "Analyse mes contacts et prospects: qui sont les plus importants, quels suivis faire?" },
-  { icon: "trending-up" as const, label: "Performance", prompt: "Analyse mes performances de la semaine: appels, taches terminees, chiffre d'affaires." },
-  { icon: "folder" as const, label: "Etat projets", prompt: "Fais un bilan de mes projets: combien sont actifs, lesquels sont en retard, et quel est l'avancement global?" },
-  { icon: "alert-circle" as const, label: "Risques", prompt: "Quels sont les risques actuels: factures en retard, taches urgentes, projets en danger?" },
-  { icon: "zap" as const, label: "Suggestions", prompt: "Quelles actions me recommandes-tu pour ameliorer ma productivite aujourd'hui?" },
-  { icon: "search" as const, label: "Recherche", prompt: "Recherche dans mes donnees: " },
+  { icon: "bar-chart-2" as const, labelKey: "qaBriefing", prompt: "Donne-moi le briefing complet de la journee: appels, taches, rendez-vous, factures en retard." },
+  { icon: "users" as const, labelKey: "qaClients", prompt: "Analyse mes contacts et prospects: qui sont les plus importants, quels suivis faire?" },
+  { icon: "trending-up" as const, labelKey: "qaPerformance", prompt: "Analyse mes performances de la semaine: appels, taches terminees, chiffre d'affaires." },
+  { icon: "folder" as const, labelKey: "qaProjects", prompt: "Fais un bilan de mes projets: combien sont actifs, lesquels sont en retard, et quel est l'avancement global?" },
+  { icon: "alert-circle" as const, labelKey: "qaRisks", prompt: "Quels sont les risques actuels: factures en retard, taches urgentes, projets en danger?" },
+  { icon: "zap" as const, labelKey: "qaSuggestions", prompt: "Quelles actions me recommandes-tu pour ameliorer ma productivite aujourd'hui?" },
+  { icon: "search" as const, labelKey: "qaSearch", prompt: "Recherche dans mes donnees: " },
 ];
 
+// Follow-up suggestion chips. Each entry is an i18n key under aiChatScreen;
+// the visible label AND the message sent on tap are both rendered via t(key).
 const FOLLOW_UP_SETS: Array<string[]> = [
-  ["Donne plus de details", "Quelles actions recommandes-tu?", "Resume en 3 points"],
-  ["Et pour cette semaine?", "Quels sont les risques?", "Montre moi les chiffres"],
-  ["Quels sont les contacts importants?", "Analyse les taches urgentes", "Compare avec le mois dernier"],
-  ["Explique davantage", "Que faire maintenant?", "Quelles sont les priorites?"],
-  ["Donne des exemples concrets", "Comment ameliorer ca?", "Quel est le plan d'action?"],
+  ["fu00", "fu01", "fu02"],
+  ["fu10", "fu11", "fu12"],
+  ["fu20", "fu21", "fu22"],
+  ["fu30", "fu31", "fu32"],
+  ["fu40", "fu41", "fu42"],
 ];
 
 function getFollowUps(content: string): string[] {
@@ -201,6 +204,7 @@ function renderInline(text: string, textColor: string): React.ReactNode[] {
 
 export default function AIChatScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { fetchAuth, user } = useAuth();
   const isWeb = Platform.OS === "web";
@@ -232,9 +236,9 @@ export default function AIChatScreen() {
   const welcomeMessage = useCallback((): Message => ({
     id: "welcome",
     role: "assistant",
-    content: `Bonjour ${user?.prenom || ""}! Je suis votre Commandant IA. Je peux vous aider avec:\n\n- Briefing quotidien et analyses\n- Recherche dans vos donnees\n- Conseils strategiques CRM\n- Suivi des performances\n\nComment puis-je vous aider?`,
+    content: t("aiChatScreen.welcome", { name: user?.prenom || "" }),
     timestamp: new Date().toISOString(),
-  }), [user?.prenom]);
+  }), [user?.prenom, t]);
 
   // Load persisted voice preference (on/off + language) once on mount.
   useEffect(() => {
@@ -337,7 +341,7 @@ export default function AIChatScreen() {
       const lastUser = [...clean].reverse().find((s) => s.r === "u");
       if (!lastUser) return false;
       setImportedDemo(clean);
-      setInput(`[Suite de la demo du site] ${lastUser.t}`);
+      setInput(t("aiChatScreen.demoPrefix", { text: lastUser.t }));
       return true;
     };
 
@@ -432,7 +436,7 @@ export default function AIChatScreen() {
         body: JSON.stringify(demoContext ? { message: text.trim(), demoContext } : { message: text.trim() }),
       });
 
-      let reply = "Desole, je n'ai pas pu traiter votre demande. Veuillez reessayer.";
+      let reply = t("aiChatScreen.replyError");
       let entities: RetrievedEntity[] = [];
       let serverId: number | undefined;
       let serverTs: string | undefined;
@@ -459,13 +463,13 @@ export default function AIChatScreen() {
       if (demoContext) setImportedDemo(null);
       if (voiceOn) setSpokenText(reply);
     } catch {
-      const errorMsg: Message = { id: `e-${Date.now()}`, role: "assistant", content: "Une erreur est survenue. Verifiez votre connexion et reessayez.", timestamp: new Date().toISOString() };
+      const errorMsg: Message = { id: `e-${Date.now()}`, role: "assistant", content: t("aiChatScreen.connectionError"), timestamp: new Date().toISOString() };
       setMessages([...updated, errorMsg]);
     } finally {
       setIsTyping(false);
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 200);
     }
-  }, [fetchAuth, isTyping, messages, ensureConversationId, voiceOn, importedDemo]);
+  }, [fetchAuth, isTyping, messages, ensureConversationId, voiceOn, importedDemo, t]);
 
   async function clearHistory() {
     // Start a brand-new server-side conversation so the assistant forgets prior context.
@@ -485,7 +489,7 @@ export default function AIChatScreen() {
         }
       }
     } catch {}
-    setMessages([{ ...welcomeMessage(), content: "Conversation reinitialise. Comment puis-je vous aider?" }]);
+    setMessages([{ ...welcomeMessage(), content: t("aiChatScreen.welcomeReset") }]);
   }
 
   async function copyMessage(content: string, id: string) {
@@ -547,8 +551,8 @@ export default function AIChatScreen() {
       const today = new Date();
       const yesterday = new Date(today);
       yesterday.setDate(today.getDate() - 1);
-      if (d.toDateString() === today.toDateString()) return "Aujourd'hui";
-      if (d.toDateString() === yesterday.toDateString()) return "Hier";
+      if (d.toDateString() === today.toDateString()) return t("aiChatScreen.today");
+      if (d.toDateString() === yesterday.toDateString()) return t("aiChatScreen.yesterday");
       return d.toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
     })();
 
@@ -596,6 +600,7 @@ export default function AIChatScreen() {
           <View style={styles.entityChipsRow}>
             {item.entities.map((e, i) => {
               const meta = ENTITY_META[e.type];
+              const entityLabel = e.label || `${t(`aiChatScreen.entityType_${e.type}`)} #${e.id}`;
               return (
                 <Pressable
                   key={`${e.type}-${e.id}-${i}`}
@@ -606,7 +611,7 @@ export default function AIChatScreen() {
                   style={[styles.entityChip, { backgroundColor: meta.bg, borderColor: meta.color + "40" }]}
                 >
                   <Feather name={meta.icon} size={11} color={meta.color} />
-                  <Text style={[styles.entityChipText, { color: meta.color }]} numberOfLines={1}>{e.label}</Text>
+                  <Text style={[styles.entityChipText, { color: meta.color }]} numberOfLines={1}>{entityLabel}</Text>
                   <Feather name="external-link" size={9} color={meta.color} style={{ opacity: 0.6 }} />
                 </Pressable>
               );
@@ -615,19 +620,22 @@ export default function AIChatScreen() {
         )}
         {isLastAi && followUps.length > 0 && (
           <View style={styles.followUpsRow}>
-            {followUps.map((fu, i) => (
+            {followUps.map((fuKey, i) => {
+              const fuText = t(`aiChatScreen.${fuKey}`);
+              return (
               <Pressable
                 key={i}
                 onPress={() => {
                   if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  sendMessage(fu);
+                  sendMessage(fuText);
                 }}
                 style={[styles.followUpChip, { backgroundColor: colors.primary + "12", borderColor: colors.primary + "30" }]}
               >
                 <Feather name="corner-down-right" size={11} color={colors.primary} />
-                <Text style={[styles.followUpText, { color: colors.primary }]}>{fu}</Text>
+                <Text style={[styles.followUpText, { color: colors.primary }]}>{fuText}</Text>
               </Pressable>
-            ))}
+              );
+            })}
           </View>
         )}
       </>
@@ -646,7 +654,7 @@ export default function AIChatScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.secondary, paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={styles.headerRow}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Retour">
+          <Pressable onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel={t("common.back")}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
           <View style={styles.headerCenter}>
@@ -663,10 +671,10 @@ export default function AIChatScreen() {
               />
             </View>
             <View>
-              <Text style={styles.headerTitle}>Assistant IA</Text>
+              <Text style={styles.headerTitle}>{t("aiChatScreen.headerTitle")}</Text>
               <View style={styles.statusRow}>
                 <View style={[styles.statusDot, { backgroundColor: isTyping ? "#f59e0b" : "#22c55e" }]} />
-                <Text style={styles.headerSub}>{isTyping ? "En train d'ecrire..." : "Gemini 2.5 Pro · En ligne"}</Text>
+                <Text style={styles.headerSub}>{isTyping ? t("aiChatScreen.statusTyping") : t("aiChatScreen.statusOnline")}</Text>
               </View>
             </View>
           </View>
@@ -701,18 +709,18 @@ export default function AIChatScreen() {
               style={[styles.clearBtn, (!voiceOn || (!avatarSpeaking && !spokenText.trim())) && { opacity: 0.4 }]}
               hitSlop={12}
               accessibilityRole="button"
-              accessibilityLabel={avatarSpeaking ? "Arreter la lecture vocale" : "Relire la reponse a voix haute"}
+              accessibilityLabel={avatarSpeaking ? t("aiChatScreen.speakStop") : t("aiChatScreen.speakReplay")}
             >
               <Feather name={avatarSpeaking ? "square" : "rotate-ccw"} size={15} color="rgba(255,255,255,0.85)" />
             </Pressable>
-            <Pressable onPress={clearHistory} style={styles.clearBtn} hitSlop={12} accessibilityRole="button" accessibilityLabel="Effacer la conversation">
+            <Pressable onPress={clearHistory} style={styles.clearBtn} hitSlop={12} accessibilityRole="button" accessibilityLabel={t("aiChatScreen.clearConversation")}>
               <Feather name="trash-2" size={16} color="rgba(255,255,255,0.6)" />
             </Pressable>
           </View>
         </View>
         {voiceOn && voiceUnavailable && (
           <Text style={styles.voiceHint}>
-            Aucune voix {voiceLang === "fr" ? "française" : "turque"} sur cet appareil — l'avatar reste muet.
+            {t("aiChatScreen.voiceHint", { lang: voiceLang === "fr" ? t("aiChatScreen.voiceLangFr") : t("aiChatScreen.voiceLangTr") })}
           </Text>
         )}
       </View>
@@ -738,7 +746,9 @@ export default function AIChatScreen() {
                     <View style={styles.demoHeaderLeft}>
                       <Feather name="zap" size={13} color="#b45309" />
                       <Text style={styles.demoHeaderText}>
-                        Conversation importee du site ({importedDemo.length} message{importedDemo.length > 1 ? "s" : ""})
+                        {importedDemo.length > 1
+                          ? t("aiChatScreen.demoImportedMany", { count: importedDemo.length })
+                          : t("aiChatScreen.demoImportedOne", { count: importedDemo.length })}
                       </Text>
                     </View>
                     <Feather name={demoOpen ? "chevron-down" : "chevron-right"} size={16} color="#b45309" />
@@ -753,7 +763,7 @@ export default function AIChatScreen() {
                         </View>
                       ))}
                       <Text style={styles.demoFootnote}>
-                        Le Commandant tiendra compte de cet echange dans sa premiere reponse.
+                        {t("aiChatScreen.demoFootnote")}
                       </Text>
                     </View>
                   )}
@@ -761,11 +771,11 @@ export default function AIChatScreen() {
               )}
               {messages.length <= 1 ? (
                 <View style={styles.quickActionsContainer}>
-                  <Text style={[styles.quickActionsTitle, { color: colors.mutedForeground }]}>Actions rapides</Text>
+                  <Text style={[styles.quickActionsTitle, { color: colors.mutedForeground }]}>{t("aiChatScreen.quickActionsTitle")}</Text>
                   <View style={styles.quickActionsGrid}>
                     {QUICK_ACTIONS.map((a) => (
                       <Pressable
-                        key={a.label}
+                        key={a.labelKey}
                         onPress={() => {
                           if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                           sendMessage(a.prompt);
@@ -779,7 +789,7 @@ export default function AIChatScreen() {
                         <View style={[styles.quickActionIcon, { backgroundColor: colors.primary + "15" }]}>
                           <Feather name={a.icon} size={16} color={colors.primary} />
                         </View>
-                        <Text style={[styles.quickActionLabel, { color: colors.foreground }]}>{a.label}</Text>
+                        <Text style={[styles.quickActionLabel, { color: colors.foreground }]}>{t(`aiChatScreen.${a.labelKey}`)}</Text>
                       </Pressable>
                     ))}
                   </View>
@@ -813,7 +823,7 @@ export default function AIChatScreen() {
           {voiceListening && (
             <View style={[styles.voiceBanner, { backgroundColor: "#ef444418" }]}>
               <Feather name="mic" size={12} color="#ef4444" />
-              <Text style={{ fontSize: 12, fontFamily: "Inter_500Medium", color: "#ef4444" }}>Ecoute en cours...</Text>
+              <Text style={{ fontSize: 12, fontFamily: "Inter_500Medium", color: "#ef4444" }}>{t("aiChatScreen.listening")}</Text>
             </View>
           )}
           <View style={styles.inputRow}>
@@ -823,14 +833,14 @@ export default function AIChatScreen() {
                 style={[styles.voiceBtn, { backgroundColor: voiceListening ? "#ef444420" : colors.background, borderColor: voiceListening ? "#ef4444" : colors.border }]}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel={voiceListening ? "Arreter la dictee vocale" : "Dicter le message"}
+                accessibilityLabel={voiceListening ? t("aiChatScreen.dictStop") : t("aiChatScreen.dictStart")}
               >
                 <Feather name="mic" size={18} color={voiceListening ? "#ef4444" : colors.mutedForeground} />
               </Pressable>
             )}
             <TextInput
               style={[styles.input, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]}
-              placeholder="Ecrivez votre message..."
+              placeholder={t("aiChatScreen.inputPlaceholder")}
               placeholderTextColor={colors.mutedForeground}
               value={input}
               onChangeText={setInput}
@@ -847,7 +857,7 @@ export default function AIChatScreen() {
               disabled={!input.trim() || isTyping}
               style={[styles.sendBtn, { backgroundColor: input.trim() && !isTyping ? colors.primary : colors.muted }]}
               accessibilityRole="button"
-              accessibilityLabel="Envoyer le message"
+              accessibilityLabel={t("aiChatScreen.sendMessage")}
             >
               {isTyping ? (
                 <ActivityIndicator size="small" color="#fff" />
@@ -859,10 +869,10 @@ export default function AIChatScreen() {
           {messages.length > 1 && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.followUpBar} contentContainerStyle={{ gap: 6, paddingBottom: 4 }}>
               {[
-                { icon: "bar-chart-2" as const, label: "Briefing", prompt: "Donne-moi le briefing complet de la journee" },
-                { icon: "phone-missed" as const, label: "Appels manques", prompt: "Montre moi les appels manques" },
-                { icon: "alert-circle" as const, label: "Urgences", prompt: "Quelles sont mes taches urgentes?" },
-                { icon: "trending-up" as const, label: "Performance", prompt: "Analyse mes performances cette semaine" },
+                { icon: "bar-chart-2" as const, labelKey: "sugBriefing", prompt: "Donne-moi le briefing complet de la journee" },
+                { icon: "phone-missed" as const, labelKey: "sugMissed", prompt: "Montre moi les appels manques" },
+                { icon: "alert-circle" as const, labelKey: "sugUrgent", prompt: "Quelles sont mes taches urgentes?" },
+                { icon: "trending-up" as const, labelKey: "sugPerformance", prompt: "Analyse mes performances cette semaine" },
               ].map((s, i) => (
                 <Pressable
                   key={i}
@@ -870,7 +880,7 @@ export default function AIChatScreen() {
                   style={[styles.inputSuggestion, { backgroundColor: colors.background, borderColor: colors.border }]}
                 >
                   <Feather name={s.icon} size={11} color={colors.mutedForeground} />
-                  <Text style={[styles.inputSuggestionText, { color: colors.mutedForeground }]}>{s.label}</Text>
+                  <Text style={[styles.inputSuggestionText, { color: colors.mutedForeground }]}>{t(`aiChatScreen.${s.labelKey}`)}</Text>
                 </Pressable>
               ))}
             </ScrollView>

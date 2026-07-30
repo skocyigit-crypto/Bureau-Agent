@@ -20,6 +20,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/components/EmptyState";
+import { useTranslation } from "@/lib/i18n";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { trackScanResult } from "@/lib/scan-result";
 import { useColors } from "@/hooks/useColors";
@@ -132,21 +133,22 @@ interface EmailScanReport {
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const PRIORITY_COLORS: Record<string, { bg: string; text: string; label: string }> = {
-  critique: { bg: "#fef2f2", text: "#ef4444", label: "Critique" },
-  haute:    { bg: "#fff7ed", text: "#f97316", label: "Haute"    },
-  normale:  { bg: "#eff6ff", text: "#3b82f6", label: "Normale"  },
-  basse:    { bg: "#f9fafb", text: "#6b7280", label: "Basse"    },
+const PRIORITY_COLORS: Record<string, { bg: string; text: string; labelKey: string }> = {
+  critique: { bg: "#fef2f2", text: "#ef4444", labelKey: "prioCritique" },
+  haute:    { bg: "#fff7ed", text: "#f97316", labelKey: "prioHaute"    },
+  normale:  { bg: "#eff6ff", text: "#3b82f6", labelKey: "prioNormale"  },
+  basse:    { bg: "#f9fafb", text: "#6b7280", labelKey: "prioBasse"    },
 };
 
+// label/labelFr are i18n keys under gmailAgentScreen, resolved via t() at usage.
 const RISK_CFG = {
-  safe:       { color: "#22c55e", bg: "#f0fdf4", border: "#86efac", icon: "shield" as const,     label: "Sûr",      labelFr: "Aucune menace détectée"       },
-  suspicious: { color: "#f59e0b", bg: "#fffbeb", border: "#fcd34d", icon: "alert-triangle" as const, label: "Suspect",  labelFr: "Éléments suspects détectés"   },
-  dangerous:  { color: "#ef4444", bg: "#fef2f2", border: "#fca5a5", icon: "alert-octagon" as const, label: "Dangereux",labelFr: "Menaces actives détectées !"   },
+  safe:       { color: "#22c55e", bg: "#f0fdf4", border: "#86efac", icon: "shield" as const,     labelKey: "riskSafe",      descKey: "riskSafeDesc"       },
+  suspicious: { color: "#f59e0b", bg: "#fffbeb", border: "#fcd34d", icon: "alert-triangle" as const, labelKey: "riskSuspicious",  descKey: "riskSuspiciousDesc"   },
+  dangerous:  { color: "#ef4444", bg: "#fef2f2", border: "#fca5a5", icon: "alert-octagon" as const, labelKey: "riskDangerous", descKey: "riskDangerousDesc"   },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function fmtDate(d: string) {
+function fmtDate(d: string, yesterdayLabel = "Hier") {
   if (!d) return "";
   const date = new Date(d);
   const now = new Date();
@@ -154,7 +156,7 @@ function fmtDate(d: string) {
   if (diff < 86400000 && date.getDate() === now.getDate())
     return date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
-  if (date.getDate() === yesterday.getDate()) return "Hier";
+  if (date.getDate() === yesterday.getDate()) return yesterdayLabel;
   return date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
 function parseEmailName(str: string) {
@@ -179,6 +181,7 @@ function AvatarInitials({ name, size = 36, color = "#dc2626" }: { name: string; 
 // ── Security panel ────────────────────────────────────────────────────────────
 function SecurityPanel({ scan, scanning }: { scan: EmailScanReport | null; scanning: boolean }) {
   const colors = useColors();
+  const { t } = useTranslation();
   const [showLinks, setShowLinks] = useState(false);
   const [showAttachments, setShowAttachments] = useState(false);
 
@@ -188,8 +191,8 @@ function SecurityPanel({ scan, scanning }: { scan: EmailScanReport | null; scann
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <ActivityIndicator size="small" color="#6366f1" />
           <View>
-            <Text style={[sp.title, { color: "#1e293b" }]}>Analyse de sécurité en cours...</Text>
-            <Text style={[sp.sub, { color: "#64748b" }]}>Scan des pièces jointes + liens + IA phishing</Text>
+            <Text style={[sp.title, { color: "#1e293b" }]}>{t("gmailAgentScreen.scanningTitle")}</Text>
+            <Text style={[sp.sub, { color: "#64748b" }]}>{t("gmailAgentScreen.scanningSub")}</Text>
           </View>
         </View>
       </View>
@@ -210,14 +213,14 @@ function SecurityPanel({ scan, scanning }: { scan: EmailScanReport | null; scann
         </View>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Text style={[sp.title, { color: cfg.color }]}>{cfg.label}</Text>
+            <Text style={[sp.title, { color: cfg.color }]}>{t(`gmailAgentScreen.${cfg.labelKey}`)}</Text>
             <View style={[sp.scorePill, { backgroundColor: cfg.color + "20" }]}>
               <Text style={[{ fontSize: 10, fontFamily: "Inter_700Bold", color: cfg.color }]}>
-                Risque {scan.riskScore}/100
+                {t("gmailAgentScreen.riskScore", { score: scan.riskScore })}
               </Text>
             </View>
           </View>
-          <Text style={[sp.sub, { color: cfg.color + "cc" }]}>{cfg.labelFr}</Text>
+          <Text style={[sp.sub, { color: cfg.color + "cc" }]}>{t(`gmailAgentScreen.${cfg.descKey}`)}</Text>
         </View>
       </View>
 
@@ -226,15 +229,23 @@ function SecurityPanel({ scan, scanning }: { scan: EmailScanReport | null; scann
         <View style={sp.stat}>
           <Feather name="paperclip" size={12} color={stats.attachmentsThreatened > 0 ? "#ef4444" : "#22c55e"} />
           <Text style={[sp.statText, { color: stats.attachmentsThreatened > 0 ? "#ef4444" : "#22c55e" }]}>
-            {stats.attachmentsScanned} pièce{stats.attachmentsScanned !== 1 ? "s" : ""} jointe{stats.attachmentsScanned !== 1 ? "s" : ""}
+            {stats.attachmentsScanned !== 1
+              ? t("gmailAgentScreen.attachmentsMany", { count: stats.attachmentsScanned })
+              : t("gmailAgentScreen.attachmentsOne", { count: stats.attachmentsScanned })}
             {stats.attachmentsThreatened > 0 ? ` (${stats.attachmentsThreatened} ⚠)` : " ✓"}
           </Text>
         </View>
         <View style={sp.stat}>
           <Feather name="link" size={12} color={stats.linksDangerous > 0 ? "#ef4444" : stats.linksSuspicious > 0 ? "#f59e0b" : "#22c55e"} />
           <Text style={[sp.statText, { color: stats.linksDangerous > 0 ? "#ef4444" : stats.linksSuspicious > 0 ? "#f59e0b" : "#22c55e" }]}>
-            {stats.linksScanned} lien{stats.linksScanned !== 1 ? "s" : ""}
-            {stats.linksDangerous > 0 ? ` (${stats.linksDangerous} dangereux)` : stats.linksSuspicious > 0 ? ` (${stats.linksSuspicious} suspects)` : " ✓"}
+            {stats.linksScanned !== 1
+              ? t("gmailAgentScreen.linksMany", { count: stats.linksScanned })
+              : t("gmailAgentScreen.linksOne", { count: stats.linksScanned })}
+            {stats.linksDangerous > 0
+              ? t("gmailAgentScreen.linksDangerousSuffix", { count: stats.linksDangerous })
+              : stats.linksSuspicious > 0
+                ? t("gmailAgentScreen.linksSuspiciousSuffix", { count: stats.linksSuspicious })
+                : " ✓"}
           </Text>
         </View>
       </View>
@@ -244,14 +255,14 @@ function SecurityPanel({ scan, scanning }: { scan: EmailScanReport | null; scann
         <View style={[sp.aiBlock, { backgroundColor: aiAnalysis.verdict === "phishing" ? "#fef2f2" : aiAnalysis.verdict === "suspect" ? "#fffbeb" : "#f0fdf4" }]}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
             <Feather name="cpu" size={12} color="#6366f1" />
-            <Text style={[sp.aiTitle, { color: "#6366f1" }]}>Analyse IA — Score phishing {aiAnalysis.phishingScore}/10</Text>
+            <Text style={[sp.aiTitle, { color: "#6366f1" }]}>{t("gmailAgentScreen.aiPhishingTitle", { score: aiAnalysis.phishingScore })}</Text>
           </View>
           <Text style={[sp.aiSummary, { color: "#374151" }]}>{aiAnalysis.summary}</Text>
           {aiAnalysis.impersonation && (
             <View style={[sp.tagRow, { marginTop: 6 }]}>
               <View style={[sp.tag, { backgroundColor: "#fef2f2" }]}>
                 <Feather name="user-x" size={9} color="#ef4444" />
-                <Text style={[sp.tagText, { color: "#ef4444" }]}>Usurpation : {aiAnalysis.impersonation}</Text>
+                <Text style={[sp.tagText, { color: "#ef4444" }]}>{t("gmailAgentScreen.impersonation", { name: aiAnalysis.impersonation })}</Text>
               </View>
             </View>
           )}
@@ -274,7 +285,7 @@ function SecurityPanel({ scan, scanning }: { scan: EmailScanReport | null; scann
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
             <Feather name={scan.senderAuth.suspicious ? "user-x" : "user-check"} size={12} color={scan.senderAuth.suspicious ? "#ef4444" : "#22c55e"} />
             <Text style={[sp.aiTitle, { color: scan.senderAuth.suspicious ? "#ef4444" : "#16a34a" }]}>
-              Authentification de l'expéditeur
+              {t("gmailAgentScreen.senderAuthTitle")}
             </Text>
           </View>
           <View style={[sp.tagRow]}>
@@ -300,7 +311,7 @@ function SecurityPanel({ scan, scanning }: { scan: EmailScanReport | null; scann
       {scan.attachments.length > 0 && (
         <Pressable onPress={() => setShowAttachments(e => !e)} style={sp.expandRow}>
           <Feather name="paperclip" size={12} color="#64748b" />
-          <Text style={[sp.expandText, { color: "#64748b" }]}>Pièces jointes scannées ({scan.attachments.length})</Text>
+          <Text style={[sp.expandText, { color: "#64748b" }]}>{t("gmailAgentScreen.attachmentsScanned", { count: scan.attachments.length })}</Text>
           <Feather name={showAttachments ? "chevron-up" : "chevron-down"} size={12} color="#64748b" />
         </Pressable>
       )}
@@ -316,8 +327,8 @@ function SecurityPanel({ scan, scanning }: { scan: EmailScanReport | null; scann
                 <Text style={[sp.engineText, { color: "#64748b" }]} numberOfLines={1}>{att.engine}</Text>
               </View>
             ) : null}
-            {att.threats.map((t, ti) => (
-              <Text key={ti} style={[sp.threat, { color: "#ef4444" }]}>⚠ {t}</Text>
+            {att.threats.map((thr, ti) => (
+              <Text key={ti} style={[sp.threat, { color: "#ef4444" }]}>⚠ {thr}</Text>
             ))}
           </View>
         </View>
@@ -327,7 +338,7 @@ function SecurityPanel({ scan, scanning }: { scan: EmailScanReport | null; scann
       {scan.links.length > 0 && (
         <Pressable onPress={() => setShowLinks(e => !e)} style={sp.expandRow}>
           <Feather name="link" size={12} color="#64748b" />
-          <Text style={[sp.expandText, { color: "#64748b" }]}>Liens analysés ({scan.links.length})</Text>
+          <Text style={[sp.expandText, { color: "#64748b" }]}>{t("gmailAgentScreen.linksAnalyzed", { count: scan.links.length })}</Text>
           <Feather name={showLinks ? "chevron-up" : "chevron-down"} size={12} color="#64748b" />
         </Pressable>
       )}
@@ -344,14 +355,14 @@ function SecurityPanel({ scan, scanning }: { scan: EmailScanReport | null; scann
               ))}
             </View>
             <View style={[sp.riskBadge, { backgroundColor: lc.color + "20" }]}>
-              <Text style={[{ fontSize: 9, fontFamily: "Inter_700Bold", color: lc.color }]}>{lc.label}</Text>
+              <Text style={[{ fontSize: 9, fontFamily: "Inter_700Bold", color: lc.color }]}>{t(`gmailAgentScreen.${lc.labelKey}`)}</Text>
             </View>
           </View>
         );
       })}
 
       <Text style={[sp.footer, { color: "#94a3b8" }]}>
-        Analysé le {new Date(scan.scannedAt).toLocaleString("fr-FR")}
+        {t("gmailAgentScreen.analysedOn", { date: new Date(scan.scannedAt).toLocaleString("fr-FR") })}
       </Text>
     </View>
   );
@@ -388,6 +399,7 @@ const sp = StyleSheet.create({
 // ── Main Screen ───────────────────────────────────────────────────────────────
 export default function GmailAgentScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
@@ -513,9 +525,9 @@ export default function GmailAgentScreen() {
       } finally { setActionLoading(null); }
     };
     if (Platform.OS === "web") { doTrash(); return; }
-    Alert.alert("Supprimer", "Déplacer cet email dans la corbeille ?", [
-      { text: "Annuler", style: "cancel" },
-      { text: "Corbeille", style: "destructive", onPress: doTrash },
+    Alert.alert(t("gmailAgentScreen.deleteTitle"), t("gmailAgentScreen.deleteMessage"), [
+      { text: t("common.cancel"), style: "cancel" },
+      { text: t("gmailAgentScreen.trash"), style: "destructive", onPress: doTrash },
     ]);
   }
 
@@ -549,10 +561,10 @@ export default function GmailAgentScreen() {
       }
       let docId: number | string | undefined;
       try { const d = await res.json(); docId = d?.document?.id; } catch {}
-      Alert.alert("Enregistré dans Documents", `${att.filename} — analyse antivirus en cours.`);
+      Alert.alert(t("gmailAgentScreen.savedTitle"), t("gmailAgentScreen.savedMessage", { filename: att.filename }));
       if (docId != null) void trackScanResult(fetchAuth, docId, att.filename);
     } catch (e: any) {
-      Alert.alert("Échec de l'enregistrement", e?.message || "Réessayez.");
+      Alert.alert(t("gmailAgentScreen.saveErrorTitle"), e?.message || t("gmailAgentScreen.saveErrorRetry"));
     } finally {
       setSavingAtt(null);
     }
@@ -563,7 +575,7 @@ export default function GmailAgentScreen() {
     setCompose({
       to: email,
       subject: msg.subject.startsWith("Re:") ? msg.subject : `Re: ${msg.subject}`,
-      body: `\n\n---\nDe: ${msg.from}\nDate: ${fmtDate(msg.date)}\n\n${msg.snippet}`,
+      body: t("gmailAgentScreen.replyQuote", { from: msg.from, date: fmtDate(msg.date, t("gmailAgentScreen.yesterday")), snippet: msg.snippet }),
       replyToId: msg.id,
     });
     setSelected(null);
@@ -614,13 +626,13 @@ export default function GmailAgentScreen() {
           <View style={[styles.notConnectedIcon, { backgroundColor: "#fee2e2" }]}>
             <Feather name="mail" size={40} color="#ef4444" />
           </View>
-          <Text style={[styles.notConnectedTitle, { color: colors.foreground }]}>Gmail non connecté</Text>
+          <Text style={[styles.notConnectedTitle, { color: colors.foreground }]}>{t("gmailAgentScreen.notConnectedTitle")}</Text>
           <Text style={[styles.notConnectedSub, { color: colors.mutedForeground }]}>
-            Connectez votre compte Gmail dans les paramètres Google Workspace pour accéder à votre boîte mail depuis l'app.
+            {t("gmailAgentScreen.notConnectedSub")}
           </Text>
           <Pressable onPress={() => router.push("/integrations" as any)} style={styles.connectBtn}>
             <Feather name="settings" size={16} color="#fff" />
-            <Text style={styles.connectBtnText}>Gérer les intégrations</Text>
+            <Text style={styles.connectBtnText}>{t("gmailAgentScreen.manageIntegrations")}</Text>
           </Pressable>
         </View>
       </View>
@@ -654,15 +666,15 @@ export default function GmailAgentScreen() {
 
         {profile && (
           <View style={styles.statsRow}>
-            <View style={styles.statChip}><Feather name="mail" size={12} color="rgba(255,255,255,0.7)" /><Text style={styles.statText}>{messages.length} messages</Text></View>
-            <View style={styles.statChip}><Feather name="bell" size={12} color="rgba(255,255,255,0.7)" /><Text style={styles.statText}>{unread} non lus</Text></View>
-            <View style={styles.statChip}><Feather name="star" size={12} color="rgba(255,255,255,0.7)" /><Text style={styles.statText}>{starredCount} étoilés</Text></View>
+            <View style={styles.statChip}><Feather name="mail" size={12} color="rgba(255,255,255,0.7)" /><Text style={styles.statText}>{t("gmailAgentScreen.statMessages", { count: messages.length })}</Text></View>
+            <View style={styles.statChip}><Feather name="bell" size={12} color="rgba(255,255,255,0.7)" /><Text style={styles.statText}>{t("gmailAgentScreen.statUnread", { count: unread })}</Text></View>
+            <View style={styles.statChip}><Feather name="star" size={12} color="rgba(255,255,255,0.7)" /><Text style={styles.statText}>{t("gmailAgentScreen.statStarred", { count: starredCount })}</Text></View>
           </View>
         )}
 
         <View style={[styles.searchBox, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
           <Feather name="search" size={14} color="rgba(255,255,255,0.6)" />
-          <TextInput style={styles.searchInput} placeholder="Rechercher..." placeholderTextColor="rgba(255,255,255,0.5)" value={search} onChangeText={setSearch} />
+          <TextInput style={styles.searchInput} placeholder={t("gmailAgentScreen.searchPlaceholder")} placeholderTextColor="rgba(255,255,255,0.5)" value={search} onChangeText={setSearch} />
           {search ? <Feather name="x" size={14} color="rgba(255,255,255,0.6)" onPress={() => setSearch("")} /> : null}
         </View>
       </View>
@@ -682,7 +694,7 @@ export default function GmailAgentScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#dc2626" />}
           contentContainerStyle={[styles.listContent, { paddingBottom: isWeb ? 118 : 100 }]}
           ListEmptyComponent={
-            <EmptyState icon="mail" title="Aucun email" subtitle={search ? "Aucun résultat." : "Boîte vide."} />
+            <EmptyState icon="mail" title={t("gmailAgentScreen.emptyTitle")} subtitle={search ? t("gmailAgentScreen.emptyNoResults") : t("gmailAgentScreen.emptyInbox")} />
           }
           renderItem={({ item }) => {
             const { name } = parseEmailName(item.from);
@@ -713,17 +725,17 @@ export default function GmailAgentScreen() {
                       )}
                       {item.starred && <Feather name="star" size={11} color="#f59e0b" />}
                       {item.hasAttachment && <Feather name="paperclip" size={11} color={colors.mutedForeground} />}
-                      <Text style={[styles.msgDate, { color: colors.mutedForeground }]}>{fmtDate(item.date)}</Text>
+                      <Text style={[styles.msgDate, { color: colors.mutedForeground }]}>{fmtDate(item.date, t("gmailAgentScreen.yesterday"))}</Text>
                     </View>
                   </View>
                   <Text style={[styles.msgSubject, { color: colors.foreground, fontFamily: item.read ? "Inter_500Medium" : "Inter_700Bold" }]} numberOfLines={1}>
-                    {item.subject || "(Sans objet)"}
+                    {item.subject || t("gmailAgentScreen.noSubject")}
                   </Text>
                   <View style={styles.msgRowBottom}>
                     <Text style={[styles.msgSnippet, { color: colors.mutedForeground }]} numberOfLines={1}>{item.snippet}</Text>
                     {prio && (
                       <View style={[styles.prioPill, { backgroundColor: prio.bg }]}>
-                        <Text style={[styles.prioText, { color: prio.text }]}>{prio.label}</Text>
+                        <Text style={[styles.prioText, { color: prio.text }]}>{t(`gmailAgentScreen.${prio.labelKey}`)}</Text>
                       </View>
                     )}
                   </View>
@@ -744,7 +756,7 @@ export default function GmailAgentScreen() {
                 <Pressable onPress={() => { setSelected(null); setScanReport(null); }} style={styles.backBtn}>
                   <Feather name="x" size={20} color="#fff" />
                 </Pressable>
-                <Text style={[styles.headerTitle, { flex: 1 }]} numberOfLines={1}>{selected.subject || "(Sans objet)"}</Text>
+                <Text style={[styles.headerTitle, { flex: 1 }]} numberOfLines={1}>{selected.subject || t("gmailAgentScreen.noSubject")}</Text>
                 {/* Scan status indicator */}
                 {scanning ? (
                   <ActivityIndicator size="small" color="#fff" style={{ marginRight: 4 }} />
@@ -773,11 +785,11 @@ export default function GmailAgentScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.senderName, { color: colors.foreground }]}>{parseEmailName(selected.from).name}</Text>
                     <Text style={[styles.senderEmail, { color: colors.mutedForeground }]}>{parseEmailName(selected.from).email}</Text>
-                    <Text style={[styles.senderDate, { color: colors.mutedForeground }]}>{fmtDate(selected.date)}</Text>
+                    <Text style={[styles.senderDate, { color: colors.mutedForeground }]}>{fmtDate(selected.date, t("gmailAgentScreen.yesterday"))}</Text>
                   </View>
                 </View>
                 {selected.to && (
-                  <Text style={[styles.senderTo, { color: colors.mutedForeground }]}>À : {selected.to}</Text>
+                  <Text style={[styles.senderTo, { color: colors.mutedForeground }]}>{t("gmailAgentScreen.toPrefix", { to: selected.to })}</Text>
                 )}
               </View>
 
@@ -789,7 +801,7 @@ export default function GmailAgentScreen() {
                 <Pressable onPress={rescan} style={[styles.rescanBtn, { borderColor: "#6366f140" }]}>
                   <Feather name="shield" size={12} color="#6366f1" />
                   <Text style={[styles.rescanText, { color: "#6366f1" }]}>
-                    {scanReport ? "Rescanner" : "Scanner cet email"}
+                    {scanReport ? t("gmailAgentScreen.rescan") : t("gmailAgentScreen.scanThisEmail")}
                   </Text>
                 </Pressable>
               )}
@@ -799,18 +811,18 @@ export default function GmailAgentScreen() {
                 <View style={[styles.aiCard, { borderColor: "#6366f1" }]}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
                     <Feather name="cpu" size={13} color="#6366f1" />
-                    <Text style={[styles.aiCardTitle, { color: "#6366f1" }]}>Résumé IA</Text>
+                    <Text style={[styles.aiCardTitle, { color: "#6366f1" }]}>{t("gmailAgentScreen.aiSummary")}</Text>
                     {selected.aiPriority && (
                       <View style={[styles.prioPill, { backgroundColor: PRIORITY_COLORS[selected.aiPriority]?.bg ?? "#f9fafb", marginLeft: "auto" }]}>
                         <Text style={[styles.prioText, { color: PRIORITY_COLORS[selected.aiPriority]?.text ?? "#6b7280" }]}>
-                          {PRIORITY_COLORS[selected.aiPriority]?.label}
+                          {PRIORITY_COLORS[selected.aiPriority] ? t(`gmailAgentScreen.${PRIORITY_COLORS[selected.aiPriority].labelKey}`) : ""}
                         </Text>
                       </View>
                     )}
                   </View>
                   <Text style={[styles.aiCardBody, { color: "#374151" }]}>{selected.aiSummary}</Text>
                   {selected.aiAction && (
-                    <Text style={[styles.aiCardAction, { color: "#6366f1" }]}>Action suggérée : {selected.aiAction}</Text>
+                    <Text style={[styles.aiCardAction, { color: "#6366f1" }]}>{t("gmailAgentScreen.suggestedAction", { action: selected.aiAction })}</Text>
                   )}
                 </View>
               )}
@@ -819,7 +831,7 @@ export default function GmailAgentScreen() {
               {selected.attachments && selected.attachments.length > 0 && (
                 <View style={[styles.attachList, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <Text style={[styles.attachTitle, { color: colors.foreground }]}>
-                    <Feather name="paperclip" size={12} /> Pièces jointes ({selected.attachments.length})
+                    <Feather name="paperclip" size={12} /> {t("gmailAgentScreen.attachmentsTitle", { count: selected.attachments.length })}
                   </Text>
                   {selected.attachments.map((att, i) => {
                     const scanned = scanReport?.attachments.find(a => a.filename === att.filename);
@@ -845,7 +857,7 @@ export default function GmailAgentScreen() {
                           {savingAtt === att.attachmentId
                             ? <ActivityIndicator size="small" color="#6366f1" />
                             : <Feather name="folder-plus" size={14} color="#6366f1" />}
-                          <Text style={styles.saveAttBtnText}>Documents</Text>
+                          <Text style={styles.saveAttBtnText}>{t("gmailAgentScreen.documentsBtn")}</Text>
                         </Pressable>
                       </View>
                     );
@@ -868,15 +880,15 @@ export default function GmailAgentScreen() {
               <View style={styles.detailActions}>
                 <Pressable onPress={() => openReply(selected)} style={[styles.actionBtn, { backgroundColor: "#dc2626" }]}>
                   <Feather name="corner-down-left" size={15} color="#fff" />
-                  <Text style={styles.actionBtnText}>Répondre</Text>
+                  <Text style={styles.actionBtnText}>{t("gmailAgentScreen.reply")}</Text>
                 </Pressable>
                 <Pressable onPress={() => handleArchive(selected)} style={[styles.actionBtn, { backgroundColor: "#6366f1" }]} disabled={!!actionLoading}>
                   {actionLoading === "archive-" + selected.id ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="archive" size={15} color="#fff" />}
-                  <Text style={styles.actionBtnText}>Archiver</Text>
+                  <Text style={styles.actionBtnText}>{t("gmailAgentScreen.archive")}</Text>
                 </Pressable>
                 <Pressable onPress={() => handleTrash(selected)} style={[styles.actionBtn, { backgroundColor: "#ef4444" }]} disabled={!!actionLoading}>
                   {actionLoading === "trash-" + selected.id ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="trash-2" size={15} color="#fff" />}
-                  <Text style={styles.actionBtnText}>Corbeille</Text>
+                  <Text style={styles.actionBtnText}>{t("gmailAgentScreen.trash")}</Text>
                 </Pressable>
               </View>
             </ScrollView>
@@ -891,7 +903,7 @@ export default function GmailAgentScreen() {
             <View style={[styles.detailHeader, { backgroundColor: "#dc2626", paddingTop: isWeb ? 20 : insets.top + 8 }]}>
               <View style={styles.detailHeaderTop}>
                 <Pressable onPress={() => setShowCompose(false)} style={styles.backBtn}><Feather name="x" size={20} color="#fff" /></Pressable>
-                <Text style={styles.headerTitle}>{compose.replyToId ? "Répondre" : "Nouveau message"}</Text>
+                <Text style={styles.headerTitle}>{compose.replyToId ? t("gmailAgentScreen.reply") : t("gmailAgentScreen.newMessage")}</Text>
                 <Pressable onPress={handleSend} disabled={sendLoading || !compose.to || !compose.subject || !compose.body}
                   style={[styles.sendActionBtn, { opacity: sendLoading || !compose.to || !compose.subject || !compose.body ? 0.5 : 1 }]}>
                   {sendLoading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="send" size={18} color="#fff" />}
@@ -900,15 +912,15 @@ export default function GmailAgentScreen() {
             </View>
             <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} keyboardShouldPersistTaps="handled">
               <View style={[styles.composeField, { borderColor: colors.border }]}>
-                <Text style={[styles.composeLabel, { color: colors.mutedForeground }]}>À</Text>
+                <Text style={[styles.composeLabel, { color: colors.mutedForeground }]}>{t("gmailAgentScreen.fieldTo")}</Text>
                 <TextInput style={[styles.composeInput, { color: colors.foreground }]} value={compose.to} onChangeText={v => setCompose(p => ({ ...p, to: v }))} placeholder="email@example.com" placeholderTextColor={colors.mutedForeground} keyboardType="email-address" autoCapitalize="none" />
               </View>
               <View style={[styles.composeField, { borderColor: colors.border }]}>
-                <Text style={[styles.composeLabel, { color: colors.mutedForeground }]}>Objet</Text>
-                <TextInput style={[styles.composeInput, { color: colors.foreground }]} value={compose.subject} onChangeText={v => setCompose(p => ({ ...p, subject: v }))} placeholder="Objet du message" placeholderTextColor={colors.mutedForeground} />
+                <Text style={[styles.composeLabel, { color: colors.mutedForeground }]}>{t("gmailAgentScreen.fieldSubject")}</Text>
+                <TextInput style={[styles.composeInput, { color: colors.foreground }]} value={compose.subject} onChangeText={v => setCompose(p => ({ ...p, subject: v }))} placeholder={t("gmailAgentScreen.subjectPlaceholder")} placeholderTextColor={colors.mutedForeground} />
               </View>
               <View style={[styles.composeBodyField, { borderColor: colors.border, backgroundColor: colors.card }]}>
-                <TextInput style={[styles.composeBodyInput, { color: colors.foreground }]} value={compose.body} onChangeText={v => setCompose(p => ({ ...p, body: v }))} placeholder="Écrivez votre message..." placeholderTextColor={colors.mutedForeground} multiline numberOfLines={12} textAlignVertical="top" />
+                <TextInput style={[styles.composeBodyInput, { color: colors.foreground }]} value={compose.body} onChangeText={v => setCompose(p => ({ ...p, body: v }))} placeholder={t("gmailAgentScreen.bodyPlaceholder")} placeholderTextColor={colors.mutedForeground} multiline numberOfLines={12} textAlignVertical="top" />
               </View>
             </ScrollView>
           </View>

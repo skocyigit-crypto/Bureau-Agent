@@ -16,8 +16,27 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
+import { useTranslation, type TFunction } from "@/lib/i18n";
 import { useColors } from "@/hooks/useColors";
 import { AvatarDock } from "@/components/AvatarDock";
+
+// Maps a raw server enum (entity type / priority level) to an i18n key under
+// commandantIaScreen. Falls back to the raw value when unknown.
+const TYPE_LABEL_KEY: Record<string, string> = {
+  contact: "type_contact", tache: "type_tache", evenement: "type_evenement",
+  message: "type_message", projet: "type_projet", facture: "type_facture",
+};
+const PRIORITY_LABEL_KEY: Record<string, string> = {
+  critique: "sevCritique", haute: "sevHaute", moyenne: "sevMoyenne", basse: "sevBasse",
+};
+function typeLabel(type: string, t: TFunction): string {
+  const k = TYPE_LABEL_KEY[type];
+  return k ? t(`commandantIaScreen.${k}`) : type;
+}
+function priorityLabel(level: string, t: TFunction): string {
+  const k = PRIORITY_LABEL_KEY[level];
+  return k ? t(`commandantIaScreen.${k}`) : level;
+}
 
 type Tab = "briefing" | "search" | "email" | "taches" | "reunions" | "equipe" | "finance";
 
@@ -70,16 +89,17 @@ function StatCard({ label, value, color, icon }: { label: string; value: string 
 }
 
 function UrgencyBadge({ level }: { level: string }) {
-  const cfg: Record<string, { color: string; label: string }> = {
-    critique: { color: "#ef4444", label: "Critique" },
-    haute:    { color: "#f97316", label: "Haute" },
-    moyenne:  { color: "#f59e0b", label: "Moyenne" },
-    basse:    { color: "#22c55e", label: "Basse" },
+  const { t } = useTranslation();
+  const cfg: Record<string, { color: string; labelKey: string }> = {
+    critique: { color: "#ef4444", labelKey: "sevCritique" },
+    haute:    { color: "#f97316", labelKey: "sevHaute" },
+    moyenne:  { color: "#f59e0b", labelKey: "sevMoyenne" },
+    basse:    { color: "#22c55e", labelKey: "sevBasse" },
   };
   const c = cfg[level] ?? cfg.basse;
   return (
     <View style={[styles.urgencyBadge, { backgroundColor: c.color + "18" }]}>
-      <Text style={[styles.urgencyBadgeText, { color: c.color }]}>{c.label}</Text>
+      <Text style={[styles.urgencyBadgeText, { color: c.color }]}>{t(`commandantIaScreen.${c.labelKey}`)}</Text>
     </View>
   );
 }
@@ -109,12 +129,13 @@ function urgentItemRoute(item: { type: string; id?: number }): string | null {
 
 function BriefingSection({ data, loading, onRefresh }: { data: BriefingData | null; loading: boolean; onRefresh: () => void }) {
   const colors = useColors();
+  const { t } = useTranslation();
 
   if (loading) {
     return (
       <View style={styles.loadingBox}>
         <ActivityIndicator size="large" color="#f59e0b" />
-        <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Chargement du briefing IA...</Text>
+        <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>{t("commandantIaScreen.loadingBriefing")}</Text>
       </View>
     );
   }
@@ -122,10 +143,10 @@ function BriefingSection({ data, loading, onRefresh }: { data: BriefingData | nu
     return (
       <View style={styles.emptyBox}>
         <Feather name="coffee" size={40} color="#f59e0b" />
-        <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Prêt pour votre briefing</Text>
+        <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("commandantIaScreen.readyBriefing")}</Text>
         <Pressable style={[styles.refreshBtn, { backgroundColor: "#f59e0b" }]} onPress={onRefresh}>
           <Feather name="refresh-cw" size={16} color="#fff" />
-          <Text style={styles.refreshBtnText}>Charger le briefing</Text>
+          <Text style={styles.refreshBtnText}>{t("commandantIaScreen.loadBriefing")}</Text>
         </Pressable>
       </View>
     );
@@ -163,16 +184,16 @@ function BriefingSection({ data, loading, onRefresh }: { data: BriefingData | nu
 
       {Object.keys(s).some(k => (s as any)[k] != null) && (
         <View>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Tableau de bord</Text>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("commandantIaScreen.dashboard")}</Text>
           <View style={styles.statsGrid}>
-            {s.appelsAujourdhui != null && <StatCard label="Appels auj." value={s.appelsAujourdhui} color="#3b82f6" icon="phone" />}
-            {s.tachesEnRetard != null && <StatCard label="Tâches retard" value={s.tachesEnRetard} color="#ef4444" icon="check-square" />}
-            {s.rendezVousAujourdhui != null && <StatCard label="RDV auj." value={s.rendezVousAujourdhui} color="#8b5cf6" icon="calendar" />}
-            {s.projetsActifs != null && <StatCard label="Projets actifs" value={s.projetsActifs} color="#6366f1" icon="folder" />}
-            {s.projetsEnRetard != null && s.projetsEnRetard > 0 && <StatCard label="Projets retard" value={s.projetsEnRetard} color="#f97316" icon="alert-triangle" />}
-            {s.facturesImpayees != null && <StatCard label="Factures dues" value={s.facturesImpayees} color="#ef4444" icon="file-text" />}
+            {s.appelsAujourdhui != null && <StatCard label={t("commandantIaScreen.statCallsToday")} value={s.appelsAujourdhui} color="#3b82f6" icon="phone" />}
+            {s.tachesEnRetard != null && <StatCard label={t("commandantIaScreen.statTasksOverdue")} value={s.tachesEnRetard} color="#ef4444" icon="check-square" />}
+            {s.rendezVousAujourdhui != null && <StatCard label={t("commandantIaScreen.statRdvToday")} value={s.rendezVousAujourdhui} color="#8b5cf6" icon="calendar" />}
+            {s.projetsActifs != null && <StatCard label={t("commandantIaScreen.statActiveProjects")} value={s.projetsActifs} color="#6366f1" icon="folder" />}
+            {s.projetsEnRetard != null && s.projetsEnRetard > 0 && <StatCard label={t("commandantIaScreen.statLateProjects")} value={s.projetsEnRetard} color="#f97316" icon="alert-triangle" />}
+            {s.facturesImpayees != null && <StatCard label={t("commandantIaScreen.statInvoicesDue")} value={s.facturesImpayees} color="#ef4444" icon="file-text" />}
             {s.montantImpaye != null && s.montantImpaye > 0 && (
-              <StatCard label="Impayé" value={new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(s.montantImpaye)} color="#dc2626" icon="dollar-sign" />
+              <StatCard label={t("commandantIaScreen.statUnpaid")} value={new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(s.montantImpaye)} color="#dc2626" icon="dollar-sign" />
             )}
           </View>
         </View>
@@ -180,7 +201,7 @@ function BriefingSection({ data, loading, onRefresh }: { data: BriefingData | nu
 
       {data.urgentItems && data.urgentItems.length > 0 && (
         <View>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Points urgents</Text>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("commandantIaScreen.urgentPoints")}</Text>
           {data.urgentItems.slice(0, 5).map((item, i) => {
             const route = urgentItemRoute(item);
             return (
@@ -202,7 +223,7 @@ function BriefingSection({ data, loading, onRefresh }: { data: BriefingData | nu
                 </View>
                 <View style={[styles.urgentBadge, { backgroundColor: (TYPE_COLORS[item.type] ?? "#64748b") + "18" }]}>
                   <Feather name={TYPE_ICONS[item.type] ?? "circle"} size={10} color={TYPE_COLORS[item.type] ?? "#64748b"} />
-                  <Text style={[styles.urgentBadgeText, { color: TYPE_COLORS[item.type] ?? "#64748b" }]}>{item.type}</Text>
+                  <Text style={[styles.urgentBadgeText, { color: TYPE_COLORS[item.type] ?? "#64748b" }]}>{typeLabel(item.type, t)}</Text>
                 </View>
                 {route && <Feather name="chevron-right" size={16} color={colors.mutedForeground} />}
               </Pressable>
@@ -213,7 +234,7 @@ function BriefingSection({ data, loading, onRefresh }: { data: BriefingData | nu
 
       {data.suggestions && data.suggestions.length > 0 && (
         <View>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Suggestions IA</Text>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("commandantIaScreen.aiSuggestions")}</Text>
           {data.suggestions.slice(0, 4).map((s, i) => (
             <View key={i} style={[styles.suggestionItem, { backgroundColor: "#6366f118", borderColor: "#6366f130" }]}>
               <Feather name="star" size={12} color="#6366f1" />
@@ -225,7 +246,7 @@ function BriefingSection({ data, loading, onRefresh }: { data: BriefingData | nu
 
       {data.reminders && data.reminders.length > 0 && (
         <View style={{ marginBottom: 20 }}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Rappels</Text>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("commandantIaScreen.reminders")}</Text>
           {data.reminders.slice(0, 5).map((r, i) => (
             <View key={i} style={[styles.reminderItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Feather name="bell" size={13} color="#f59e0b" />
@@ -235,7 +256,7 @@ function BriefingSection({ data, loading, onRefresh }: { data: BriefingData | nu
               </View>
               {r.priority && (
                 <View style={[styles.urgentBadge, { backgroundColor: r.priority === "haute" ? "#ef444418" : "#f59e0b18" }]}>
-                  <Text style={[styles.urgentBadgeText, { color: r.priority === "haute" ? "#ef4444" : "#f59e0b" }]}>{r.priority}</Text>
+                  <Text style={[styles.urgentBadgeText, { color: r.priority === "haute" ? "#ef4444" : "#f59e0b" }]}>{priorityLabel(r.priority, t)}</Text>
                 </View>
               )}
             </View>
@@ -249,6 +270,7 @@ function BriefingSection({ data, loading, onRefresh }: { data: BriefingData | nu
 // ─── SEARCH ──────────────────────────────────────────────────────────────────
 function SearchSection() {
   const colors = useColors();
+  const { t } = useTranslation();
   const { fetchAuth } = useAuth();
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
@@ -289,7 +311,7 @@ function SearchSection() {
         <Feather name="search" size={16} color={colors.mutedForeground} />
         <TextInput
           style={[styles.searchInput, { color: colors.foreground }]}
-          placeholder="Recherche intelligente — contacts, tâches, projets..."
+          placeholder={t("commandantIaScreen.searchPlaceholder")}
           placeholderTextColor={colors.mutedForeground}
           value={query}
           onChangeText={setQuery}
@@ -307,14 +329,14 @@ function SearchSection() {
           <Text style={[styles.aiSummaryText, { color: colors.foreground }]}>{aiSummary}</Text>
         </View>
       ) : null}
-      {total > 0 && <Text style={[styles.resultCount, { color: colors.mutedForeground }]}>{total} résultat{total !== 1 ? "s" : ""}</Text>}
+      {total > 0 && <Text style={[styles.resultCount, { color: colors.mutedForeground }]}>{total !== 1 ? t("commandantIaScreen.resultCountMany", { count: total }) : t("commandantIaScreen.resultCountOne", { count: total })}</Text>}
       <FlatList
         data={results}
         keyExtractor={(item, i) => `${item.type}-${item.id}-${i}`}
         ListEmptyComponent={!searching && query.length >= 2 ? (
           <View style={styles.emptyBox}>
             <Feather name="search" size={32} color={colors.mutedForeground} />
-            <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>Aucun résultat</Text>
+            <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>{t("message.noResults")}</Text>
           </View>
         ) : null}
         renderItem={({ item }) => (
@@ -327,7 +349,7 @@ function SearchSection() {
               {item.subtitle && <Text style={[styles.resultSub, { color: colors.mutedForeground }]}>{item.subtitle}</Text>}
             </View>
             <View style={[styles.urgentBadge, { backgroundColor: (TYPE_COLORS[item.type] ?? "#64748b") + "18" }]}>
-              <Text style={[styles.urgentBadgeText, { color: TYPE_COLORS[item.type] ?? "#64748b" }]}>{item.type}</Text>
+              <Text style={[styles.urgentBadgeText, { color: TYPE_COLORS[item.type] ?? "#64748b" }]}>{typeLabel(item.type, t)}</Text>
             </View>
           </View>
         )}
@@ -339,6 +361,7 @@ function SearchSection() {
 // ─── EMAIL ───────────────────────────────────────────────────────────────────
 function EmailSection() {
   const colors = useColors();
+  const { t } = useTranslation();
   const { fetchAuth } = useAuth();
   const [context, setContext] = useState("");
   const [recipient, setRecipient] = useState("");
@@ -364,21 +387,21 @@ function EmailSection() {
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
-      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Rédaction email IA</Text>
-      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Contexte *</Text>
-      <TextInput style={[styles.multilineInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder="Contexte, objet, ton souhaité..." placeholderTextColor={colors.mutedForeground} value={context} onChangeText={setContext} multiline numberOfLines={4} textAlignVertical="top" />
-      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Destinataire (optionnel)</Text>
-      <TextInput style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder="Nom du destinataire" placeholderTextColor={colors.mutedForeground} value={recipient} onChangeText={setRecipient} />
-      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Objectif (optionnel)</Text>
-      <TextInput style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder="Relance, proposition, remerciement..." placeholderTextColor={colors.mutedForeground} value={purpose} onChangeText={setPurpose} />
+      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("commandantIaScreen.emailTitle")}</Text>
+      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("commandantIaScreen.fieldContext")}</Text>
+      <TextInput style={[styles.multilineInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder={t("commandantIaScreen.contextPlaceholder")} placeholderTextColor={colors.mutedForeground} value={context} onChangeText={setContext} multiline numberOfLines={4} textAlignVertical="top" />
+      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("commandantIaScreen.fieldRecipient")}</Text>
+      <TextInput style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder={t("commandantIaScreen.recipientPlaceholder")} placeholderTextColor={colors.mutedForeground} value={recipient} onChangeText={setRecipient} />
+      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("commandantIaScreen.fieldPurpose")}</Text>
+      <TextInput style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder={t("commandantIaScreen.purposePlaceholder")} placeholderTextColor={colors.mutedForeground} value={purpose} onChangeText={setPurpose} />
       <Pressable style={[styles.generateBtn, { backgroundColor: "#3b82f6", opacity: loading || !context.trim() ? 0.6 : 1 }]} onPress={generate} disabled={loading || !context.trim()}>
         {loading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="send" size={16} color="#fff" />}
-        <Text style={styles.generateBtnText}>{loading ? "Génération..." : "Générer l'email"}</Text>
+        <Text style={styles.generateBtnText}>{loading ? t("commandantIaScreen.generating") : t("commandantIaScreen.generateEmail")}</Text>
       </Pressable>
       {result ? (
         <View style={[styles.resultBox, { backgroundColor: colors.card, borderColor: "#3b82f630" }]}>
           <View style={styles.resultBoxHeader}>
-            <Text style={[styles.resultBoxTitle, { color: colors.foreground }]}>Email généré</Text>
+            <Text style={[styles.resultBoxTitle, { color: colors.foreground }]}>{t("commandantIaScreen.emailGenerated")}</Text>
             <Pressable onPress={() => setResult("")}><Feather name="x" size={14} color={colors.mutedForeground} /></Pressable>
           </View>
           <Text style={[styles.resultBoxText, { color: colors.foreground }]}>{result}</Text>
@@ -391,6 +414,7 @@ function EmailSection() {
 // ─── TÂCHES & RAPPELS ────────────────────────────────────────────────────────
 function TachesSection() {
   const colors = useColors();
+  const { t } = useTranslation();
   const { fetchAuth } = useAuth();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
@@ -414,17 +438,17 @@ function TachesSection() {
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading) return <View style={styles.loadingBox}><ActivityIndicator size="large" color="#22c55e" /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Analyse IA des retards...</Text></View>;
+  if (loading) return <View style={styles.loadingBox}><ActivityIndicator size="large" color="#22c55e" /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>{t("commandantIaScreen.loadingOverdue")}</Text></View>;
 
   return (
     <ScrollView showsVerticalScrollIndicator={false}>
       {/* Header counts */}
       {data && (
         <View style={styles.statsGrid}>
-          <StatCard label="Tâches retard" value={data.overdue?.tasks ?? 0} color="#ef4444" icon="check-square" />
-          <StatCard label="Factures dues" value={data.overdue?.invoices ?? 0} color="#f59e0b" icon="file-text" />
-          <StatCard label="Évènements 48h" value={data.overdue?.events ?? 0} color="#8b5cf6" icon="calendar" />
-          {data.emailsSent > 0 && <StatCard label="Emails envoyés" value={data.emailsSent} color="#22c55e" icon="send" />}
+          <StatCard label={t("commandantIaScreen.statTasksOverdue")} value={data.overdue?.tasks ?? 0} color="#ef4444" icon="check-square" />
+          <StatCard label={t("commandantIaScreen.statInvoicesDue")} value={data.overdue?.invoices ?? 0} color="#f59e0b" icon="file-text" />
+          <StatCard label={t("commandantIaScreen.statEvents48h")} value={data.overdue?.events ?? 0} color="#8b5cf6" icon="calendar" />
+          {data.emailsSent > 0 && <StatCard label={t("commandantIaScreen.statEmailsSent")} value={data.emailsSent} color="#22c55e" icon="send" />}
         </View>
       )}
 
@@ -433,7 +457,7 @@ function TachesSection() {
         <View style={[styles.resultBox, { backgroundColor: "#22c55e10", borderColor: "#22c55e30" }]}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 }}>
             <Feather name="cpu" size={13} color="#22c55e" />
-            <Text style={[styles.resultBoxTitle, { color: colors.foreground }]}>Résumé IA</Text>
+            <Text style={[styles.resultBoxTitle, { color: colors.foreground }]}>{t("commandantIaScreen.aiSummary")}</Text>
           </View>
           <Text style={[styles.resultBoxText, { color: colors.foreground }]}>{data.aiAnalysis.dailySummary}</Text>
         </View>
@@ -442,7 +466,7 @@ function TachesSection() {
       {/* Critical alerts */}
       {data?.aiAnalysis?.criticalAlerts?.length > 0 && (
         <View>
-          <Text style={[styles.sectionTitle, { color: "#ef4444" }]}>⚠ Alertes critiques</Text>
+          <Text style={[styles.sectionTitle, { color: "#ef4444" }]}>{t("commandantIaScreen.criticalAlerts")}</Text>
           {data.aiAnalysis.criticalAlerts.map((a: string, i: number) => (
             <View key={i} style={[styles.urgentItem, { backgroundColor: "#ef444410", borderColor: "#ef444430" }]}>
               <Feather name="alert-circle" size={14} color="#ef4444" />
@@ -455,7 +479,7 @@ function TachesSection() {
       {/* Task reminders */}
       {data?.aiAnalysis?.taskReminders?.length > 0 && (
         <View>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Tâches en retard</Text>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("commandantIaScreen.overdueTasks")}</Text>
           {data.aiAnalysis.taskReminders.map((r: any, i: number) => (
             <View key={i} style={[styles.urgentItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Feather name="check-square" size={14} color="#ef4444" />
@@ -472,7 +496,7 @@ function TachesSection() {
       {/* Invoice reminders */}
       {data?.aiAnalysis?.invoiceReminders?.length > 0 && (
         <View>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Factures impayées</Text>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("commandantIaScreen.unpaidInvoices")}</Text>
           {data.aiAnalysis.invoiceReminders.map((r: any, i: number) => (
             <View key={i} style={[styles.urgentItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Feather name="file-text" size={14} color="#f59e0b" />
@@ -488,7 +512,7 @@ function TachesSection() {
       {/* Event reminders */}
       {data?.aiAnalysis?.eventReminders?.length > 0 && (
         <View style={{ marginBottom: 12 }}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Évènements proches</Text>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("commandantIaScreen.upcomingEvents")}</Text>
           {data.aiAnalysis.eventReminders.map((r: any, i: number) => (
             <View key={i} style={[styles.urgentItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Feather name="calendar" size={14} color="#8b5cf6" />
@@ -505,11 +529,11 @@ function TachesSection() {
       <View style={{ gap: 8, marginBottom: 20 }}>
         <Pressable onPress={() => load()} style={[styles.generateBtn, { backgroundColor: "#22c55e" }]} disabled={loading}>
           {loading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="refresh-cw" size={16} color="#fff" />}
-          <Text style={styles.generateBtnText}>Actualiser l'analyse</Text>
+          <Text style={styles.generateBtnText}>{t("commandantIaScreen.refreshAnalysis")}</Text>
         </Pressable>
         <Pressable onPress={() => load(true)} style={[styles.generateBtn, { backgroundColor: "#f59e0b", opacity: sendingEmails ? 0.6 : 1 }]} disabled={sendingEmails}>
           {sendingEmails ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="send" size={16} color="#fff" />}
-          <Text style={styles.generateBtnText}>{sendingEmails ? "Envoi en cours..." : "Envoyer rappels par email"}</Text>
+          <Text style={styles.generateBtnText}>{sendingEmails ? t("commandantIaScreen.sendingEmails") : t("commandantIaScreen.sendEmailReminders")}</Text>
         </Pressable>
       </View>
     </ScrollView>
@@ -519,6 +543,7 @@ function TachesSection() {
 // ─── RÉUNIONS ────────────────────────────────────────────────────────────────
 function ReunionsSection() {
   const colors = useColors();
+  const { t } = useTranslation();
   const { fetchAuth } = useAuth();
   const [title, setTitle] = useState("");
   const [participants, setParticipants] = useState("");
@@ -529,11 +554,11 @@ function ReunionsSection() {
   const [result, setResult] = useState<any>(null);
 
   const MEETING_TYPES = [
-    { value: "reunion", label: "Réunion" },
-    { value: "appel", label: "Appel" },
-    { value: "negociation", label: "Négociation" },
-    { value: "formation", label: "Formation" },
-    { value: "retrospective", label: "Rétrospective" },
+    { value: "reunion", labelKey: "mtReunion" },
+    { value: "appel", labelKey: "mtAppel" },
+    { value: "negociation", labelKey: "mtNegociation" },
+    { value: "formation", labelKey: "mtFormation" },
+    { value: "retrospective", labelKey: "mtRetrospective" },
   ];
 
   async function compile() {
@@ -560,33 +585,33 @@ function ReunionsSection() {
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
-      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Compilateur de réunion IA</Text>
+      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("commandantIaScreen.meetingCompilerTitle")}</Text>
 
       {/* Form */}
-      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Titre de la réunion</Text>
-      <TextInput style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder="Ex: Point hebdomadaire équipe" placeholderTextColor={colors.mutedForeground} value={title} onChangeText={setTitle} />
+      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("commandantIaScreen.fieldMeetingTitle")}</Text>
+      <TextInput style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder={t("commandantIaScreen.meetingTitlePlaceholder")} placeholderTextColor={colors.mutedForeground} value={title} onChangeText={setTitle} />
 
-      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Type</Text>
+      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("commandantIaScreen.fieldType")}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={{ gap: 8, paddingBottom: 2 }}>
-        {MEETING_TYPES.map(t => (
-          <Pressable key={t.value} onPress={() => setMeetingType(t.value)} style={[styles.typeChip, { backgroundColor: meetingType === t.value ? "#8b5cf6" : colors.card, borderColor: meetingType === t.value ? "#8b5cf6" : colors.border }]}>
-            <Text style={[styles.typeChipText, { color: meetingType === t.value ? "#fff" : colors.mutedForeground }]}>{t.label}</Text>
+        {MEETING_TYPES.map(mt => (
+          <Pressable key={mt.value} onPress={() => setMeetingType(mt.value)} style={[styles.typeChip, { backgroundColor: meetingType === mt.value ? "#8b5cf6" : colors.card, borderColor: meetingType === mt.value ? "#8b5cf6" : colors.border }]}>
+            <Text style={[styles.typeChipText, { color: meetingType === mt.value ? "#fff" : colors.mutedForeground }]}>{t(`commandantIaScreen.${mt.labelKey}`)}</Text>
           </Pressable>
         ))}
       </ScrollView>
 
-      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Participants (séparés par virgule)</Text>
-      <TextInput style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder="Marie Dupont, Jean Martin..." placeholderTextColor={colors.mutedForeground} value={participants} onChangeText={setParticipants} />
+      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("commandantIaScreen.fieldParticipants")}</Text>
+      <TextInput style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder={t("commandantIaScreen.participantsPlaceholder")} placeholderTextColor={colors.mutedForeground} value={participants} onChangeText={setParticipants} />
 
-      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Durée (minutes)</Text>
+      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("commandantIaScreen.fieldDuration")}</Text>
       <TextInput style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder="60" placeholderTextColor={colors.mutedForeground} value={duration} onChangeText={setDuration} keyboardType="numeric" />
 
-      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Notes / compte-rendu *</Text>
-      <TextInput style={[styles.multilineInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border, minHeight: 100 }]} placeholder="Collez ici les notes brutes de la réunion, points discutés, décisions..." placeholderTextColor={colors.mutedForeground} value={notes} onChangeText={setNotes} multiline textAlignVertical="top" />
+      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("commandantIaScreen.fieldNotes")}</Text>
+      <TextInput style={[styles.multilineInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border, minHeight: 100 }]} placeholder={t("commandantIaScreen.notesPlaceholder")} placeholderTextColor={colors.mutedForeground} value={notes} onChangeText={setNotes} multiline textAlignVertical="top" />
 
       <Pressable onPress={compile} style={[styles.generateBtn, { backgroundColor: "#8b5cf6", opacity: loading || !notes.trim() ? 0.6 : 1 }]} disabled={loading || !notes.trim()}>
         {loading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="cpu" size={16} color="#fff" />}
-        <Text style={styles.generateBtnText}>{loading ? "Compilation en cours..." : "Compiler la réunion"}</Text>
+        <Text style={styles.generateBtnText}>{loading ? t("commandantIaScreen.compiling") : t("commandantIaScreen.compileMeeting")}</Text>
       </Pressable>
 
       {/* Result */}
@@ -594,17 +619,17 @@ function ReunionsSection() {
         <View style={{ gap: 10, marginTop: 4, marginBottom: 24 }}>
           {result.aiReport?.summary && (
             <View style={[styles.resultBox, { backgroundColor: "#8b5cf610", borderColor: "#8b5cf630" }]}>
-              <Text style={[styles.resultBoxTitle, { color: colors.foreground }]}>📋 Résumé</Text>
+              <Text style={[styles.resultBoxTitle, { color: colors.foreground }]}>{t("commandantIaScreen.resumeTitle")}</Text>
               <Text style={[styles.resultBoxText, { color: colors.foreground }]}>{result.aiReport.summary}</Text>
               {result.aiReport.meetingEfficiency && (
-                <Text style={[styles.resultSub, { color: colors.mutedForeground, marginTop: 6 }]}>Efficacité: {result.aiReport.meetingEfficiency}</Text>
+                <Text style={[styles.resultSub, { color: colors.mutedForeground, marginTop: 6 }]}>{t("commandantIaScreen.efficiency", { value: result.aiReport.meetingEfficiency })}</Text>
               )}
             </View>
           )}
 
           {result.aiReport?.keyDecisions?.length > 0 && (
             <View style={[styles.resultBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.resultBoxTitle, { color: colors.foreground }]}>✅ Décisions</Text>
+              <Text style={[styles.resultBoxTitle, { color: colors.foreground }]}>{t("commandantIaScreen.decisions")}</Text>
               {result.aiReport.keyDecisions.map((d: string, i: number) => (
                 <View key={i} style={{ flexDirection: "row", gap: 8, marginTop: 6 }}>
                   <Text style={{ color: "#22c55e" }}>•</Text>
@@ -616,16 +641,16 @@ function ReunionsSection() {
 
           {result.createdTasks?.length > 0 && (
             <View style={[styles.resultBox, { backgroundColor: "#22c55e10", borderColor: "#22c55e30" }]}>
-              <Text style={[styles.resultBoxTitle, { color: colors.foreground }]}>🗂 {result.createdTasks.length} tâche{result.createdTasks.length > 1 ? "s" : ""} créée{result.createdTasks.length > 1 ? "s" : ""}</Text>
-              {result.createdTasks.slice(0, 5).map((t: any, i: number) => (
-                <Text key={i} style={[styles.resultBoxText, { color: colors.foreground, marginTop: 4 }]}>• {t.title}</Text>
+              <Text style={[styles.resultBoxTitle, { color: colors.foreground }]}>{result.createdTasks.length > 1 ? t("commandantIaScreen.tasksCreatedMany", { count: result.createdTasks.length }) : t("commandantIaScreen.tasksCreatedOne", { count: result.createdTasks.length })}</Text>
+              {result.createdTasks.slice(0, 5).map((task: any, i: number) => (
+                <Text key={i} style={[styles.resultBoxText, { color: colors.foreground, marginTop: 4 }]}>• {task.title}</Text>
               ))}
             </View>
           )}
 
           {result.aiReport?.risks?.length > 0 && (
             <View style={[styles.resultBox, { backgroundColor: "#ef444410", borderColor: "#ef444430" }]}>
-              <Text style={[styles.resultBoxTitle, { color: "#ef4444" }]}>⚠ Risques identifiés</Text>
+              <Text style={[styles.resultBoxTitle, { color: "#ef4444" }]}>{t("commandantIaScreen.risksIdentified")}</Text>
               {result.aiReport.risks.map((r: string, i: number) => (
                 <Text key={i} style={[styles.resultBoxText, { color: colors.foreground, marginTop: 4 }]}>• {r}</Text>
               ))}
@@ -634,7 +659,7 @@ function ReunionsSection() {
 
           {result.aiReport?.nextSteps?.length > 0 && (
             <View style={[styles.resultBox, { backgroundColor: "#3b82f610", borderColor: "#3b82f630" }]}>
-              <Text style={[styles.resultBoxTitle, { color: colors.foreground }]}>→ Prochaines étapes</Text>
+              <Text style={[styles.resultBoxTitle, { color: colors.foreground }]}>{t("commandantIaScreen.nextSteps")}</Text>
               {result.aiReport.nextSteps.map((s: string, i: number) => (
                 <Text key={i} style={[styles.resultBoxText, { color: colors.foreground, marginTop: 4 }]}>• {s}</Text>
               ))}
@@ -643,7 +668,7 @@ function ReunionsSection() {
 
           <Pressable onPress={() => setResult(null)} style={[styles.generateBtn, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}>
             <Feather name="refresh-cw" size={14} color={colors.mutedForeground} />
-            <Text style={[styles.generateBtnText, { color: colors.mutedForeground }]}>Nouvelle réunion</Text>
+            <Text style={[styles.generateBtnText, { color: colors.mutedForeground }]}>{t("commandantIaScreen.newMeeting")}</Text>
           </Pressable>
         </View>
       )}
@@ -654,6 +679,7 @@ function ReunionsSection() {
 // ─── ÉQUIPE ──────────────────────────────────────────────────────────────────
 function EquipeSection() {
   const colors = useColors();
+  const { t } = useTranslation();
   const { fetchAuth } = useAuth();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
@@ -671,14 +697,14 @@ function EquipeSection() {
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading) return <View style={styles.loadingBox}><ActivityIndicator size="large" color="#ec4899" /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Analyse des performances...</Text></View>;
+  if (loading) return <View style={styles.loadingBox}><ActivityIndicator size="large" color="#ec4899" /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>{t("commandantIaScreen.loadingPerformance")}</Text></View>;
   if (!data) return (
     <View style={styles.emptyBox}>
       <Feather name="users" size={40} color="#ec4899" />
-      <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Statistiques équipe</Text>
+      <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("commandantIaScreen.teamStats")}</Text>
       <Pressable style={[styles.refreshBtn, { backgroundColor: "#ec4899" }]} onPress={load}>
         <Feather name="refresh-cw" size={16} color="#fff" />
-        <Text style={styles.refreshBtnText}>Charger</Text>
+        <Text style={styles.refreshBtnText}>{t("commandantIaScreen.load")}</Text>
       </Pressable>
     </View>
   );
@@ -692,10 +718,10 @@ function EquipeSection() {
             <View style={[styles.resultBox, { backgroundColor: "#ec489910", borderColor: "#ec489930" }]}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 }}>
                 <Feather name="cpu" size={13} color="#ec4899" />
-                <Text style={[styles.resultBoxTitle, { color: colors.foreground }]}>Analyse IA équipe</Text>
+                <Text style={[styles.resultBoxTitle, { color: colors.foreground }]}>{t("commandantIaScreen.teamAiAnalysis")}</Text>
                 {data.analysis.globalScore != null && (
                   <View style={[styles.urgencyBadge, { backgroundColor: "#ec489918", marginLeft: "auto" }]}>
-                    <Text style={[styles.urgencyBadgeText, { color: "#ec4899" }]}>Score: {data.analysis.globalScore}/100</Text>
+                    <Text style={[styles.urgencyBadgeText, { color: "#ec4899" }]}>{t("commandantIaScreen.score100", { score: data.analysis.globalScore })}</Text>
                   </View>
                 )}
               </View>
@@ -704,7 +730,7 @@ function EquipeSection() {
           )}
           {data.analysis.topPerformers?.length > 0 && (
             <View style={[styles.resultBox, { backgroundColor: "#22c55e10", borderColor: "#22c55e30" }]}>
-              <Text style={[styles.resultBoxTitle, { color: "#22c55e" }]}>🏆 Top performers</Text>
+              <Text style={[styles.resultBoxTitle, { color: "#22c55e" }]}>{t("commandantIaScreen.topPerformers")}</Text>
               {data.analysis.topPerformers.map((p: any, i: number) => (
                 <Text key={i} style={[styles.resultBoxText, { color: colors.foreground, marginTop: 4 }]}>• {p.name} — {p.reason}</Text>
               ))}
@@ -712,7 +738,7 @@ function EquipeSection() {
           )}
           {data.analysis.needsAttention?.length > 0 && (
             <View style={[styles.resultBox, { backgroundColor: "#f59e0b10", borderColor: "#f59e0b30" }]}>
-              <Text style={[styles.resultBoxTitle, { color: "#f59e0b" }]}>⚠ À surveiller</Text>
+              <Text style={[styles.resultBoxTitle, { color: "#f59e0b" }]}>{t("commandantIaScreen.needsAttention")}</Text>
               {data.analysis.needsAttention.map((p: any, i: number) => (
                 <View key={i} style={{ marginTop: 6 }}>
                   <Text style={[styles.resultBoxText, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}>{p.name}</Text>
@@ -726,7 +752,7 @@ function EquipeSection() {
       )}
 
       {/* Employee cards */}
-      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Membres de l'équipe ({data.employees?.length ?? 0})</Text>
+      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("commandantIaScreen.teamMembers", { count: data.employees?.length ?? 0 })}</Text>
       {(data.employees ?? []).map((emp: any, i: number) => {
         const score = emp.stats?.productivityScore ?? 0;
         const scoreColor = score >= 70 ? "#22c55e" : score >= 40 ? "#f59e0b" : "#ef4444";
@@ -743,20 +769,20 @@ function EquipeSection() {
                 <Text style={[styles.urgentDesc, { color: colors.mutedForeground }]}>{emp.role}{emp.department ? ` · ${emp.department}` : ""}</Text>
               </View>
               <View style={[styles.urgencyBadge, { backgroundColor: scoreColor + "18" }]}>
-                <Text style={[styles.urgencyBadgeText, { color: scoreColor }]}>{score} pts</Text>
+                <Text style={[styles.urgencyBadgeText, { color: scoreColor }]}>{t("commandantIaScreen.points", { score })}</Text>
               </View>
             </View>
             <View style={[styles.empStatsRow]}>
               {[
-                { icon: "check-square" as const, val: emp.stats?.tasksCompleted ?? 0, label: "Terminées", color: "#22c55e" },
-                { icon: "alert-circle" as const, val: emp.stats?.tasksOverdue ?? 0,   label: "Retard",     color: "#ef4444" },
-                { icon: "phone" as const,         val: emp.stats?.callsMade ?? 0,      label: "Appels",     color: "#3b82f6" },
-                { icon: "calendar" as const,      val: emp.stats?.eventsAttended ?? 0, label: "Évènements", color: "#8b5cf6" },
+                { icon: "check-square" as const, val: emp.stats?.tasksCompleted ?? 0, labelKey: "empCompleted", color: "#22c55e" },
+                { icon: "alert-circle" as const, val: emp.stats?.tasksOverdue ?? 0,   labelKey: "empOverdue",   color: "#ef4444" },
+                { icon: "phone" as const,         val: emp.stats?.callsMade ?? 0,      labelKey: "empCalls",     color: "#3b82f6" },
+                { icon: "calendar" as const,      val: emp.stats?.eventsAttended ?? 0, labelKey: "empEvents",    color: "#8b5cf6" },
               ].map(s => (
-                <View key={s.label} style={styles.empStat}>
+                <View key={s.labelKey} style={styles.empStat}>
                   <Feather name={s.icon} size={12} color={s.color} />
                   <Text style={[styles.empStatVal, { color: colors.foreground }]}>{s.val}</Text>
-                  <Text style={[styles.empStatLabel, { color: colors.mutedForeground }]}>{s.label}</Text>
+                  <Text style={[styles.empStatLabel, { color: colors.mutedForeground }]}>{t(`commandantIaScreen.${s.labelKey}`)}</Text>
                 </View>
               ))}
             </View>
@@ -766,7 +792,7 @@ function EquipeSection() {
 
       <Pressable onPress={load} style={[styles.generateBtn, { backgroundColor: "#ec4899", marginTop: 8, marginBottom: 24 }]}>
         <Feather name="refresh-cw" size={16} color="#fff" />
-        <Text style={styles.generateBtnText}>Actualiser</Text>
+        <Text style={styles.generateBtnText}>{t("commandantIaScreen.refresh")}</Text>
       </Pressable>
     </ScrollView>
   );
@@ -775,6 +801,7 @@ function EquipeSection() {
 // ─── FINANCE ─────────────────────────────────────────────────────────────────
 function FinanceSection() {
   const colors = useColors();
+  const { t } = useTranslation();
   const { fetchAuth } = useAuth();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -796,10 +823,10 @@ function FinanceSection() {
   if (!data) return (
     <View style={styles.emptyBox}>
       <Feather name="dollar-sign" size={40} color="#22c55e" />
-      <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Aperçu financier</Text>
+      <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("commandantIaScreen.financeOverview")}</Text>
       <Pressable style={[styles.refreshBtn, { backgroundColor: "#22c55e" }]} onPress={load}>
         <Feather name="refresh-cw" size={16} color="#fff" />
-        <Text style={styles.refreshBtnText}>Actualiser</Text>
+        <Text style={styles.refreshBtnText}>{t("commandantIaScreen.refresh")}</Text>
       </Pressable>
     </View>
   );
@@ -807,38 +834,39 @@ function FinanceSection() {
   return (
     <ScrollView showsVerticalScrollIndicator={false}>
       <View style={styles.statsGrid}>
-        {data.totalRevenue != null && <StatCard label="Revenus" value={new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(data.totalRevenue)} color="#22c55e" icon="trending-up" />}
-        {data.totalPending != null && <StatCard label="En attente" value={new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(data.totalPending)} color="#f59e0b" icon="clock" />}
-        {data.totalOverdue != null && <StatCard label="En retard" value={new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(data.totalOverdue)} color="#ef4444" icon="alert-triangle" />}
-        {data.overdueCount != null && <StatCard label="Factures retard" value={data.overdueCount} color="#dc2626" icon="file-text" />}
+        {data.totalRevenue != null && <StatCard label={t("commandantIaScreen.statRevenue")} value={new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(data.totalRevenue)} color="#22c55e" icon="trending-up" />}
+        {data.totalPending != null && <StatCard label={t("commandantIaScreen.statPending")} value={new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(data.totalPending)} color="#f59e0b" icon="clock" />}
+        {data.totalOverdue != null && <StatCard label={t("commandantIaScreen.statOverdue")} value={new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(data.totalOverdue)} color="#ef4444" icon="alert-triangle" />}
+        {data.overdueCount != null && <StatCard label={t("commandantIaScreen.statOverdueInvoices")} value={data.overdueCount} color="#dc2626" icon="file-text" />}
       </View>
       {data.aiInsights && (
         <View style={[styles.resultBox, { backgroundColor: "#22c55e10", borderColor: "#22c55e30" }]}>
-          <Text style={[styles.resultBoxTitle, { color: colors.foreground, marginBottom: 8 }]}>Analyse IA</Text>
+          <Text style={[styles.resultBoxTitle, { color: colors.foreground, marginBottom: 8 }]}>{t("commandantIaScreen.aiAnalysis")}</Text>
           <Text style={[styles.resultBoxText, { color: colors.foreground }]}>{data.aiInsights}</Text>
         </View>
       )}
       <Pressable onPress={load} style={[styles.generateBtn, { backgroundColor: "#22c55e", marginTop: 4, marginBottom: 24 }]}>
         <Feather name="refresh-cw" size={16} color="#fff" />
-        <Text style={styles.generateBtnText}>Actualiser</Text>
+        <Text style={styles.generateBtnText}>{t("commandantIaScreen.refresh")}</Text>
       </Pressable>
     </ScrollView>
   );
 }
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
-const TABS: { key: Tab; label: string; icon: keyof typeof Feather.glyphMap; color: string }[] = [
-  { key: "briefing",  label: "Briefing",  icon: "coffee",      color: "#f59e0b" },
-  { key: "taches",    label: "Tâches",    icon: "check-square",color: "#22c55e" },
-  { key: "reunions",  label: "Réunions",  icon: "users",       color: "#8b5cf6" },
-  { key: "equipe",    label: "Équipe",    icon: "user-check",  color: "#ec4899" },
-  { key: "email",     label: "Email",     icon: "mail",        color: "#3b82f6" },
-  { key: "search",    label: "Recherche", icon: "search",      color: "#6366f1" },
-  { key: "finance",   label: "Finance",   icon: "dollar-sign", color: "#16a34a" },
+const TABS: { key: Tab; labelKey: string; icon: keyof typeof Feather.glyphMap; color: string }[] = [
+  { key: "briefing",  labelKey: "tabBriefing", icon: "coffee",      color: "#f59e0b" },
+  { key: "taches",    labelKey: "tabTaches",   icon: "check-square",color: "#22c55e" },
+  { key: "reunions",  labelKey: "tabReunions", icon: "users",       color: "#8b5cf6" },
+  { key: "equipe",    labelKey: "tabEquipe",   icon: "user-check",  color: "#ec4899" },
+  { key: "email",     labelKey: "tabEmail",    icon: "mail",        color: "#3b82f6" },
+  { key: "search",    labelKey: "tabSearch",   icon: "search",      color: "#6366f1" },
+  { key: "finance",   labelKey: "tabFinance",  icon: "dollar-sign", color: "#16a34a" },
 ];
 
 export default function CommandantIAScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
@@ -862,7 +890,7 @@ export default function CommandantIAScreen() {
   useEffect(() => { loadBriefing(); }, [loadBriefing]);
   function onRefresh() { setRefreshing(true); loadBriefing(); }
 
-  const activeColor = TABS.find(t => t.key === tab)?.color ?? "#f59e0b";
+  const activeColor = TABS.find(tt => tt.key === tab)?.color ?? "#f59e0b";
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -882,10 +910,10 @@ export default function CommandantIAScreen() {
           </View>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabBar} contentContainerStyle={{ gap: 8 }}>
-          {TABS.map(t => (
-            <Pressable key={t.key} onPress={() => setTab(t.key)} style={[styles.tabChip, { backgroundColor: tab === t.key ? t.color : "rgba(255,255,255,0.1)" }]}>
-              <Feather name={t.icon} size={13} color={tab === t.key ? "#fff" : "rgba(255,255,255,0.7)"} />
-              <Text style={[styles.tabChipText, { color: tab === t.key ? "#fff" : "rgba(255,255,255,0.7)" }]}>{t.label}</Text>
+          {TABS.map(tb => (
+            <Pressable key={tb.key} onPress={() => setTab(tb.key)} style={[styles.tabChip, { backgroundColor: tab === tb.key ? tb.color : "rgba(255,255,255,0.1)" }]}>
+              <Feather name={tb.icon} size={13} color={tab === tb.key ? "#fff" : "rgba(255,255,255,0.7)"} />
+              <Text style={[styles.tabChipText, { color: tab === tb.key ? "#fff" : "rgba(255,255,255,0.7)" }]}>{t(`commandantIaScreen.${tb.labelKey}`)}</Text>
             </Pressable>
           ))}
         </ScrollView>

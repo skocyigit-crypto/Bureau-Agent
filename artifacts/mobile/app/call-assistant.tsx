@@ -15,19 +15,35 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
+import { useTranslation, type TFunction } from "@/lib/i18n";
 import { useColors } from "@/hooks/useColors";
 import { AvatarDock } from "@/components/AvatarDock";
 
 type Tab = "preparer" | "script" | "compiler" | "sante";
 
-const TABS: { key: Tab; label: string; icon: keyof typeof Feather.glyphMap; color: string }[] = [
-  { key: "preparer", label: "Préparer",  icon: "zap",          color: "#3b82f6" },
-  { key: "script",   label: "Script",    icon: "list",         color: "#8b5cf6" },
-  { key: "compiler", label: "Compiler",  icon: "file-text",    color: "#22c55e" },
-  { key: "sante",    label: "Santé CRM", icon: "heart",        color: "#ec4899" },
+const TABS: { key: Tab; labelKey: string; icon: keyof typeof Feather.glyphMap; color: string }[] = [
+  { key: "preparer", labelKey: "tabPreparer", icon: "zap",          color: "#3b82f6" },
+  { key: "script",   labelKey: "tabScript",   icon: "list",         color: "#8b5cf6" },
+  { key: "compiler", labelKey: "tabCompiler", icon: "file-text",    color: "#22c55e" },
+  { key: "sante",    labelKey: "tabSante",    icon: "heart",        color: "#ec4899" },
 ];
 
+// Raw server enums (sentiment / priority / urgency / health status) mapped to
+// i18n keys under callAssistantScreen; falls back to the raw value if unknown.
+const SENTIMENT_LABEL_KEY: Record<string, string> = {
+  positif: "sentPositif", neutre: "sentNeutre", negatif: "sentNegatif",
+  urgente: "sentUrgente", haute: "sentHaute", moyenne: "sentMoyenne", basse: "sentBasse",
+};
+const URGENCY_LABEL_KEY: Record<string, string> = {
+  normal: "urgNormal", eleve: "urgEleve", critique: "urgCritique",
+};
+function enumLabel(map: Record<string, string>, value: string, t: TFunction): string {
+  const k = map[value];
+  return k ? t(`callAssistantScreen.${k}`) : value;
+}
+
 function SentimentBadge({ s }: { s: string }) {
+  const { t } = useTranslation();
   const cfg: Record<string, { color: string; icon: keyof typeof Feather.glyphMap }> = {
     positif:  { color: "#22c55e", icon: "smile" },
     neutre:   { color: "#64748b", icon: "meh" },
@@ -41,14 +57,39 @@ function SentimentBadge({ s }: { s: string }) {
   return (
     <View style={[st.badge, { backgroundColor: c.color + "18" }]}>
       <Feather name={c.icon} size={11} color={c.color} />
-      <Text style={[st.badgeText, { color: c.color }]}>{s}</Text>
+      <Text style={[st.badgeText, { color: c.color }]}>{enumLabel(SENTIMENT_LABEL_KEY, s, t)}</Text>
     </View>
   );
+}
+
+// Builds the localized call-script templates. Returns the same shape as before,
+// with title/phase/text/tips resolved via t(). The two greeting steps that
+// include the caller's name receive it through {{nameClause}} interpolation.
+function buildScriptTemplates(t: TFunction, name: string): Record<string, { title: string; steps: { phase: string; text: string; tips?: string }[] }> {
+  const build = (scen: string, textVars: Record<number, Record<string, string | number>> = {}) => ({
+    title: t(`callAssistantScreen.scripts.${scen}.title`),
+    steps: [0, 1, 2, 3, 4].map((i) => ({
+      phase: t(`callAssistantScreen.scripts.${scen}.steps.${i}.phase`),
+      text: t(`callAssistantScreen.scripts.${scen}.steps.${i}.text`, textVars[i]),
+      tips: t(`callAssistantScreen.scripts.${scen}.steps.${i}.tips`),
+    })),
+  });
+  const standardClause = name ? t("callAssistantScreen.standardNameClause", { name }) : "";
+  const relanceClause = name ? ` ${name}` : "";
+  return {
+    standard: build("standard", { 0: { nameClause: standardClause } }),
+    plainte: build("plainte"),
+    devis: build("devis"),
+    relance: build("relance", { 0: { nameClause: relanceClause } }),
+    support: build("support"),
+    nouveau: build("nouveau"),
+  };
 }
 
 // ─── PRÉPARER ────────────────────────────────────────────────────────────────
 function PreparerTab({ phone, name, direction, callId }: { phone: string; name: string; direction: string; callId?: string }) {
   const colors = useColors();
+  const { t } = useTranslation();
   const { fetchAuth } = useAuth();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
@@ -92,11 +133,11 @@ function PreparerTab({ phone, name, direction, callId }: { phone: string; name: 
             {data.contact.company && <Text style={[st.contactSub, { color: colors.mutedForeground }]}>{data.contact.company}</Text>}
           </View>
           <View style={{ gap: 4 }}>
-            <Text style={[st.metaBit, { color: colors.mutedForeground }]}>{data.context?.recentCallsCount ?? 0} appels</Text>
+            <Text style={[st.metaBit, { color: colors.mutedForeground }]}>{t("callAssistantScreen.callsCount", { count: data.context?.recentCallsCount ?? 0 })}</Text>
             {data.context?.overdueInvoicesCount > 0 && (
               <View style={[st.badge, { backgroundColor: "#ef444418" }]}>
                 <Feather name="alert-triangle" size={10} color="#ef4444" />
-                <Text style={[st.badgeText, { color: "#ef4444" }]}>{data.context.overdueInvoicesCount} facture{data.context.overdueInvoicesCount > 1 ? "s" : ""} impayée{data.context.overdueInvoicesCount > 1 ? "s" : ""}</Text>
+                <Text style={[st.badgeText, { color: "#ef4444" }]}>{data.context.overdueInvoicesCount > 1 ? t("callAssistantScreen.unpaidInvoicesMany", { count: data.context.overdueInvoicesCount }) : t("callAssistantScreen.unpaidInvoicesOne", { count: data.context.overdueInvoicesCount })}</Text>
               </View>
             )}
           </View>
@@ -108,7 +149,7 @@ function PreparerTab({ phone, name, direction, callId }: { phone: string; name: 
         <View style={[st.card, { backgroundColor: "#3b82f608", borderColor: "#3b82f630" }]}>
           <View style={st.cardHead}>
             <Feather name="message-circle" size={14} color="#3b82f6" />
-            <Text style={[st.cardTitle, { color: colors.foreground }]}>Phrase d'accueil suggérée</Text>
+            <Text style={[st.cardTitle, { color: colors.foreground }]}>{t("callAssistantScreen.suggestedGreeting")}</Text>
           </View>
           <View style={[st.quoteBox, { backgroundColor: "#3b82f610" }]}>
             <Text style={[st.quoteText, { color: colors.foreground }]}>"{ai.greeting}"</Text>
@@ -121,13 +162,13 @@ function PreparerTab({ phone, name, direction, callId }: { phone: string; name: 
         <View style={[st.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={st.cardHead}>
             <Feather name="target" size={14} color="#8b5cf6" />
-            <Text style={[st.cardTitle, { color: colors.foreground }]}>Analyse contextuelle</Text>
+            <Text style={[st.cardTitle, { color: colors.foreground }]}>{t("callAssistantScreen.contextualAnalysis")}</Text>
           </View>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
             {ai.detectedIntent && (
               <View style={[st.intentChip, { backgroundColor: "#8b5cf618" }]}>
                 <Feather name="radio" size={10} color="#8b5cf6" />
-                <Text style={[st.intentChipText, { color: "#8b5cf6" }]}>Intent: {ai.detectedIntent}</Text>
+                <Text style={[st.intentChipText, { color: "#8b5cf6" }]}>{t("callAssistantScreen.intent", { value: ai.detectedIntent })}</Text>
               </View>
             )}
             {ai.sentiment && <SentimentBadge s={ai.sentiment} />}
@@ -144,7 +185,7 @@ function PreparerTab({ phone, name, direction, callId }: { phone: string; name: 
         <View style={[st.card, { backgroundColor: "#ef444408", borderColor: "#ef444430" }]}>
           <View style={st.cardHead}>
             <Feather name="alert-triangle" size={14} color="#ef4444" />
-            <Text style={[st.cardTitle, { color: "#ef4444" }]}>Alertes à connaître</Text>
+            <Text style={[st.cardTitle, { color: "#ef4444" }]}>{t("callAssistantScreen.warningsToKnow")}</Text>
           </View>
           {ai.warningFlags.map((w: string, i: number) => (
             <View key={i} style={[st.flagRow, { backgroundColor: "#ef444410" }]}>
@@ -160,7 +201,7 @@ function PreparerTab({ phone, name, direction, callId }: { phone: string; name: 
         <View style={[st.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={st.cardHead}>
             <Feather name="list" size={14} color="#22c55e" />
-            <Text style={[st.cardTitle, { color: colors.foreground }]}>Points à aborder</Text>
+            <Text style={[st.cardTitle, { color: colors.foreground }]}>{t("callAssistantScreen.talkingPoints")}</Text>
           </View>
           {ai.talkingPoints.map((p: string, i: number) => (
             <View key={i} style={st.bulletRow}>
@@ -176,7 +217,7 @@ function PreparerTab({ phone, name, direction, callId }: { phone: string; name: 
         <View style={[st.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={st.cardHead}>
             <Feather name="check-square" size={14} color="#f59e0b" />
-            <Text style={[st.cardTitle, { color: colors.foreground }]}>Actions recommandées après l'appel</Text>
+            <Text style={[st.cardTitle, { color: colors.foreground }]}>{t("callAssistantScreen.recommendedActions")}</Text>
           </View>
           {ai.recommendedActions.map((a: string, i: number) => (
             <View key={i} style={st.bulletRow}>
@@ -192,10 +233,10 @@ function PreparerTab({ phone, name, direction, callId }: { phone: string; name: 
         <View style={[st.card, { backgroundColor: "#6366f108", borderColor: "#6366f130" }]}>
           <View style={st.cardHead}>
             <Feather name="cpu" size={14} color="#6366f1" />
-            <Text style={[st.cardTitle, { color: colors.foreground }]}>Agents IA consultés</Text>
+            <Text style={[st.cardTitle, { color: colors.foreground }]}>{t("callAssistantScreen.agentsConsulted")}</Text>
             {data?.collaboration?.agentsConsulted?.length > 0 && (
               <View style={[st.badge, { backgroundColor: "#6366f118", marginLeft: "auto" }]}>
-                <Text style={[st.badgeText, { color: "#6366f1" }]}>{data.collaboration.agentsConsulted.length} agents</Text>
+                <Text style={[st.badgeText, { color: "#6366f1" }]}>{t("callAssistantScreen.agentsCount", { count: data.collaboration.agentsConsulted.length })}</Text>
               </View>
             )}
           </View>
@@ -205,10 +246,10 @@ function PreparerTab({ phone, name, direction, callId }: { phone: string; name: 
 
       {/* Notes + refresh */}
       <View style={[st.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[st.fieldLabel, { color: colors.mutedForeground }]}>Notes contextuelles (optionnel)</Text>
+        <Text style={[st.fieldLabel, { color: colors.mutedForeground }]}>{t("callAssistantScreen.contextNotes")}</Text>
         <TextInput
           style={[st.input, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]}
-          placeholder="Raison de l'appel, contexte supplémentaire..."
+          placeholder={t("callAssistantScreen.contextNotesPlaceholder")}
           placeholderTextColor={colors.mutedForeground}
           value={callNotes}
           onChangeText={setCallNotes}
@@ -218,14 +259,14 @@ function PreparerTab({ phone, name, direction, callId }: { phone: string; name: 
         />
         <Pressable onPress={prepare} disabled={loading} style={[st.btn, { backgroundColor: "#3b82f6", opacity: loading ? 0.7 : 1 }]}>
           {loading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="refresh-cw" size={14} color="#fff" />}
-          <Text style={st.btnText}>{loading ? "Analyse IA en cours..." : "Relancer l'analyse"}</Text>
+          <Text style={st.btnText}>{loading ? t("callAssistantScreen.analyzing") : t("callAssistantScreen.rerunAnalysis")}</Text>
         </Pressable>
       </View>
 
       {loading && !data && (
         <View style={st.loadingBox}>
           <ActivityIndicator size="large" color="#3b82f6" />
-          <Text style={[st.loadingText, { color: colors.mutedForeground }]}>Préparation IA de l'appel...</Text>
+          <Text style={[st.loadingText, { color: colors.mutedForeground }]}>{t("callAssistantScreen.preparingCall")}</Text>
         </View>
       )}
     </ScrollView>
@@ -235,6 +276,7 @@ function PreparerTab({ phone, name, direction, callId }: { phone: string; name: 
 // ─── SCRIPT ──────────────────────────────────────────────────────────────────
 function ScriptTab({ phone, name, direction }: { phone: string; name: string; direction: string }) {
   const colors = useColors();
+  const { t } = useTranslation();
   const { fetchAuth } = useAuth();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
@@ -242,76 +284,15 @@ function ScriptTab({ phone, name, direction }: { phone: string; name: string; di
   const [expandedIdx, setExpandedIdx] = useState<number | null>(0);
 
   const SCENARIOS = [
-    { key: "standard",     label: "Standard",      icon: "phone" as const,        color: "#3b82f6" },
-    { key: "plainte",      label: "Réclamation",   icon: "alert-circle" as const, color: "#ef4444" },
-    { key: "devis",        label: "Devis/Vente",   icon: "dollar-sign" as const,  color: "#22c55e" },
-    { key: "relance",      label: "Relance",       icon: "bell" as const,         color: "#f59e0b" },
-    { key: "support",      label: "Support",       icon: "life-buoy" as const,    color: "#8b5cf6" },
-    { key: "nouveau",      label: "Nouveau client",icon: "user-plus" as const,    color: "#ec4899" },
+    { key: "standard",     labelKey: "scenStandard", icon: "phone" as const,        color: "#3b82f6" },
+    { key: "plainte",      labelKey: "scenPlainte",  icon: "alert-circle" as const, color: "#ef4444" },
+    { key: "devis",        labelKey: "scenDevis",    icon: "dollar-sign" as const,  color: "#22c55e" },
+    { key: "relance",      labelKey: "scenRelance",  icon: "bell" as const,         color: "#f59e0b" },
+    { key: "support",      labelKey: "scenSupport",  icon: "life-buoy" as const,    color: "#8b5cf6" },
+    { key: "nouveau",      labelKey: "scenNouveau",  icon: "user-plus" as const,    color: "#ec4899" },
   ];
 
-  const SCRIPT_TEMPLATES: Record<string, { title: string; steps: { phase: string; text: string; tips?: string }[] }> = {
-    standard: {
-      title: "Appel standard professionnel",
-      steps: [
-        { phase: "Ouverture", text: `Bonjour, je suis [Votre nom] d'Ajant Bureau${name ? `, je m'adresse bien à ${name}` : ""}. Comment puis-je vous aider aujourd'hui ?`, tips: "Parlez clairement et avec le sourire." },
-        { phase: "Écoute active", text: "Je vous écoute attentivement. Pouvez-vous me donner plus de détails sur votre demande ?", tips: "Prenez des notes. Reformulez pour confirmer la compréhension." },
-        { phase: "Réponse/Solution", text: "Parfaitement, voici ce que je peux vous proposer : [votre solution]. Est-ce que cela correspond à vos besoins ?", tips: "Soyez concis et direct." },
-        { phase: "Confirmation", text: "Pour résumer, nous avons convenu de [résumé]. Je vous envoie une confirmation par email. Avez-vous d'autres questions ?", tips: "Récapitulez les actions prises." },
-        { phase: "Clôture", text: "Merci pour votre appel. N'hésitez pas à nous recontacter. Bonne journée !", tips: "Laissez une impression positive." },
-      ],
-    },
-    plainte: {
-      title: "Gestion de réclamation client",
-      steps: [
-        { phase: "Accueil empathique", text: "Je comprends tout à fait votre mécontentement et je vous présente mes sincères excuses pour les désagréments causés.", tips: "Ne vous défendez pas immédiatement. Validez d'abord le ressenti." },
-        { phase: "Recueil des faits", text: "Afin de traiter au mieux votre demande, pouvez-vous me préciser la date et la nature exacte du problème rencontré ?", tips: "Écoutez sans interrompre. Posez des questions ouvertes." },
-        { phase: "Prise en charge", text: "Je prends personnellement en charge votre réclamation. Voici les actions que je vais engager immédiatement : [actions concrètes].", tips: "Donnez un délai précis. Engagez-vous sur ce que vous pouvez tenir." },
-        { phase: "Proposition de résolution", text: "Pour réparer ce préjudice, je vous propose [solution/compensation]. Cette solution vous convient-elle ?", tips: "Proposez une solution avant qu'ils la demandent." },
-        { phase: "Suivi et clôture", text: "Je vous confirme par email dans l'heure. Je vous recontacte personnellement d'ici [délai] pour m'assurer de votre satisfaction.", tips: "Tenez vos engagements absolument." },
-      ],
-    },
-    devis: {
-      title: "Proposition commerciale et devis",
-      steps: [
-        { phase: "Découverte des besoins", text: "Pour vous proposer la solution la plus adaptée, j'ai quelques questions. Quel est votre principal défi en ce moment ?", tips: "Écoutez plus que vous ne parlez. 70/30." },
-        { phase: "Qualification", text: "Quel est votre calendrier pour ce projet ? Avez-vous déjà évalué d'autres solutions ?", tips: "Identifiez le budget, l'autorité décisionnelle et l'urgence." },
-        { phase: "Présentation de valeur", text: "En fonction de vos besoins, notre solution [produit/service] vous permettrait de [bénéfice 1], [bénéfice 2] et [bénéfice 3].", tips: "Parlez bénéfices, pas fonctionnalités." },
-        { phase: "Gestion des objections", text: "Je comprends cette préoccupation. Beaucoup de nos clients la partageaient au départ. Voici comment nous la résolvons : [réponse].", tips: "Reformulez l'objection positivement avant de répondre." },
-        { phase: "Closing", text: "Pour aller plus loin, je vous prépare une proposition personnalisée. Quel est le meilleur moment cette semaine pour vous la présenter ?", tips: "Proposez toujours une prochaine étape concrète." },
-      ],
-    },
-    relance: {
-      title: "Relance commerciale / suivi",
-      steps: [
-        { phase: "Rappel contextuel", text: `Bonjour${name ? ` ${name}` : ""}, je vous rappelle suite à notre échange du [date]. Avez-vous eu l'occasion d'étudier ma proposition ?`, tips: "Soyez naturel, pas insistant." },
-        { phase: "Recueil des freins", text: "Quels points vous semblent encore flous ou nécessitent des clarifications de ma part ?", tips: "Questionnez plutôt que de forcer." },
-        { phase: "Réponse aux freins", text: "C'est tout à fait normal. Voici comment nous pouvons adresser ce point précisément : [réponse adaptée].", tips: "Chaque frein est une opportunité d'adapter l'offre." },
-        { phase: "Création d'urgence douce", text: "Je dois vous informer que cette offre est valable jusqu'au [date]. Au-delà, les conditions tarifaires pourraient changer.", tips: "L'urgence doit être réelle pour rester crédible." },
-        { phase: "Prochaine étape", text: "Que diriez-vous d'un rendez-vous de 30 minutes pour finaliser les détails ? Je suis disponible [proposer 2 créneaux].", tips: "Proposez toujours deux options, jamais une question ouverte." },
-      ],
-    },
-    support: {
-      title: "Support technique / assistance",
-      steps: [
-        { phase: "Identification du problème", text: "Bonjour, service support Ajant Bureau. Pouvez-vous me décrire précisément le problème que vous rencontrez ?", tips: "Posez des questions fermées pour diagnostiquer rapidement." },
-        { phase: "Reproduction", text: "Depuis quand rencontrez-vous ce problème ? Sur quel appareil ou navigateur ? Avez-vous remarqué un message d'erreur particulier ?", tips: "Collectez le maximum d'informations avant d'agir." },
-        { phase: "Résolution guidée", text: "Voici la procédure à suivre étape par étape : [étapes]. Êtes-vous prêt à essayer ? Je reste avec vous.", tips: "Guidez pas à pas. Attendez confirmation à chaque étape." },
-        { phase: "Validation", text: "Avez-vous pu résoudre le problème ? L'application fonctionne-t-elle correctement maintenant ?", tips: "Ne clôturez jamais sans confirmation." },
-        { phase: "Prévention", text: "Pour éviter que cela ne se reproduise, voici ce que je vous recommande : [conseil]. Je vous envoie un récapitulatif par email.", tips: "Transformez l'incident en opportunité d'apprentissage." },
-      ],
-    },
-    nouveau: {
-      title: "Accueil nouveau client",
-      steps: [
-        { phase: "Accueil chaleureux", text: "Bonjour et bienvenue chez Ajant Bureau ! Je suis [nom], votre responsable de compte. Je suis ravi(e) de vous compter parmi nous.", tips: "La première impression dure. Soyez enthousiaste et sincère." },
-        { phase: "Présentation rapide", text: "En quelques mots, je vais vous présenter comment nous allons travailler ensemble et les prochaines étapes.", tips: "Rassurez immédiatement sur ce qui va se passer." },
-        { phase: "Recueil des attentes", text: "Pour personnaliser au mieux notre accompagnement, qu'est-ce qui vous a décidé à nous rejoindre ? Quels sont vos objectifs principaux ?", tips: "Notez mot pour mot les attentes exprimées." },
-        { phase: "Onboarding", text: "Voici ce que je vous propose pour démarrer : [plan d'onboarding]. La prochaine étape sera [action] que je m'engage à faire avant [date].", tips: "Engagez-vous sur des actions concrètes et datées." },
-        { phase: "Relation durable", text: "Je serai votre interlocuteur(trice) privilégié(e). N'hésitez pas à me contacter directement. Mon objectif est votre succès.", tips: "Positionnez-vous comme partenaire, pas prestataire." },
-      ],
-    },
-  };
+  const SCRIPT_TEMPLATES = buildScriptTemplates(t, name);
 
   async function generateAI() {
     setLoading(true);
@@ -336,12 +317,12 @@ function ScriptTab({ phone, name, direction }: { phone: string; name: string; di
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
       {/* Scenario selector */}
       <View style={[st.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[st.fieldLabel, { color: colors.mutedForeground }]}>Type d'appel</Text>
+        <Text style={[st.fieldLabel, { color: colors.mutedForeground }]}>{t("callAssistantScreen.callType")}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 2 }}>
           {SCENARIOS.map(s => (
             <Pressable key={s.key} onPress={() => { setScenario(s.key); setExpandedIdx(0); }} style={[st.scenarioChip, { backgroundColor: scenario === s.key ? s.color : colors.background, borderColor: scenario === s.key ? s.color : colors.border }]}>
               <Feather name={s.icon} size={11} color={scenario === s.key ? "#fff" : colors.mutedForeground} />
-              <Text style={[st.scenarioChipText, { color: scenario === s.key ? "#fff" : colors.mutedForeground }]}>{s.label}</Text>
+              <Text style={[st.scenarioChipText, { color: scenario === s.key ? "#fff" : colors.mutedForeground }]}>{t(`callAssistantScreen.${s.labelKey}`)}</Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -387,7 +368,7 @@ function ScriptTab({ phone, name, direction }: { phone: string; name: string; di
         <View style={[st.card, { backgroundColor: "#8b5cf608", borderColor: "#8b5cf630" }]}>
           <View style={st.cardHead}>
             <Feather name="cpu" size={14} color="#8b5cf6" />
-            <Text style={[st.cardTitle, { color: colors.foreground }]}>Réponses IA personnalisées</Text>
+            <Text style={[st.cardTitle, { color: colors.foreground }]}>{t("callAssistantScreen.aiResponses")}</Text>
           </View>
           {data.aiResponse.suggestedResponses.map((r: string, i: number) => (
             <View key={i} style={[st.quoteBox, { backgroundColor: "#8b5cf610", marginTop: 6 }]}>
@@ -399,7 +380,7 @@ function ScriptTab({ phone, name, direction }: { phone: string; name: string; di
 
       <Pressable onPress={generateAI} disabled={loading} style={[st.btn, { backgroundColor: "#8b5cf6", opacity: loading ? 0.7 : 1 }]}>
         {loading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="cpu" size={14} color="#fff" />}
-        <Text style={st.btnText}>{loading ? "Génération IA..." : "Générer réponses IA personnalisées"}</Text>
+        <Text style={st.btnText}>{loading ? t("callAssistantScreen.generatingAI") : t("callAssistantScreen.generateAiResponses")}</Text>
       </Pressable>
     </ScrollView>
   );
@@ -408,6 +389,7 @@ function ScriptTab({ phone, name, direction }: { phone: string; name: string; di
 // ─── COMPILER ────────────────────────────────────────────────────────────────
 function CompilerTab({ phone, name, callId, contactId }: { phone: string; name: string; callId?: string; contactId?: string }) {
   const colors = useColors();
+  const { t } = useTranslation();
   const { fetchAuth } = useAuth();
   const [loading, setLoading] = useState(false);
   const [autoLoading, setAutoLoading] = useState(false);
@@ -442,7 +424,7 @@ function CompilerTab({ phone, name, callId, contactId }: { phone: string; name: 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           interactionType: "appel",
-          content: notes || `Appel avec ${name || phone}`,
+          content: notes || t("callAssistantScreen.callWith", { who: name || phone }),
           contactId: contactId ? parseInt(contactId) : undefined,
           contactName: name,
         }),
@@ -460,11 +442,11 @@ function CompilerTab({ phone, name, callId, contactId }: { phone: string; name: 
       <View style={[st.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={st.cardHead}>
           <Feather name="edit-3" size={14} color="#22c55e" />
-          <Text style={[st.cardTitle, { color: colors.foreground }]}>Notes de l'appel</Text>
+          <Text style={[st.cardTitle, { color: colors.foreground }]}>{t("callAssistantScreen.callNotes")}</Text>
         </View>
         <TextInput
           style={[st.inputLg, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]}
-          placeholder="Résumez ce qui a été dit, les décisions prises, les engagements pris..."
+          placeholder={t("callAssistantScreen.callNotesPlaceholder")}
           placeholderTextColor={colors.mutedForeground}
           value={notes}
           onChangeText={setNotes}
@@ -474,18 +456,18 @@ function CompilerTab({ phone, name, callId, contactId }: { phone: string; name: 
         />
         <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }}>
           <View style={{ flex: 1 }}>
-            <Text style={[st.fieldLabel, { color: colors.mutedForeground }]}>Durée (secondes)</Text>
-            <TextInput style={[st.inputSm, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]} placeholder="Ex: 180" placeholderTextColor={colors.mutedForeground} value={duration} onChangeText={setDuration} keyboardType="numeric" />
+            <Text style={[st.fieldLabel, { color: colors.mutedForeground }]}>{t("callAssistantScreen.durationSeconds")}</Text>
+            <TextInput style={[st.inputSm, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]} placeholder={t("callAssistantScreen.durationPlaceholder")} placeholderTextColor={colors.mutedForeground} value={duration} onChangeText={setDuration} keyboardType="numeric" />
           </View>
         </View>
         <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
           <Pressable onPress={compile} disabled={loading || !notes.trim()} style={[st.btn, { flex: 1, backgroundColor: "#22c55e", opacity: loading || !notes.trim() ? 0.6 : 1 }]}>
             {loading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="file-text" size={14} color="#fff" />}
-            <Text style={st.btnText}>{loading ? "Compilation..." : "Compiler l'appel"}</Text>
+            <Text style={st.btnText}>{loading ? t("callAssistantScreen.compiling") : t("callAssistantScreen.compileCall")}</Text>
           </Pressable>
           <Pressable onPress={autoCreate} disabled={autoLoading || !notes.trim()} style={[st.btn, { flex: 1, backgroundColor: "#3b82f6", opacity: autoLoading || !notes.trim() ? 0.6 : 1 }]}>
             {autoLoading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="zap" size={14} color="#fff" />}
-            <Text style={st.btnText}>{autoLoading ? "Création..." : "Créer tâches auto"}</Text>
+            <Text style={st.btnText}>{autoLoading ? t("callAssistantScreen.creating") : t("callAssistantScreen.autoCreateTasks")}</Text>
           </Pressable>
         </View>
       </View>
@@ -496,10 +478,10 @@ function CompilerTab({ phone, name, callId, contactId }: { phone: string; name: 
           <View style={[st.card, { backgroundColor: "#22c55e08", borderColor: "#22c55e30" }]}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
               <Feather name="check-circle" size={14} color="#22c55e" />
-              <Text style={[st.cardTitle, { color: colors.foreground }]}>Résumé de l'appel</Text>
+              <Text style={[st.cardTitle, { color: colors.foreground }]}>{t("callAssistantScreen.callSummary")}</Text>
               {comp.urgencyLevel && (
                 <View style={[st.badge, { backgroundColor: (URGENCY_COLORS[comp.urgencyLevel] ?? "#64748b") + "18", marginLeft: "auto" }]}>
-                  <Text style={[st.badgeText, { color: URGENCY_COLORS[comp.urgencyLevel] ?? "#64748b" }]}>{comp.urgencyLevel}</Text>
+                  <Text style={[st.badgeText, { color: URGENCY_COLORS[comp.urgencyLevel] ?? "#64748b" }]}>{enumLabel(URGENCY_LABEL_KEY, comp.urgencyLevel, t)}</Text>
                 </View>
               )}
             </View>
@@ -514,7 +496,7 @@ function CompilerTab({ phone, name, callId, contactId }: { phone: string; name: 
               {comp.followUpNeeded && (
                 <View style={[st.badge, { backgroundColor: "#f59e0b18" }]}>
                   <Feather name="bell" size={10} color="#f59e0b" />
-                  <Text style={[st.badgeText, { color: "#f59e0b" }]}>Suivi requis{comp.followUpDate ? ` — ${comp.followUpDate}` : ""}</Text>
+                  <Text style={[st.badgeText, { color: "#f59e0b" }]}>{comp.followUpDate ? t("callAssistantScreen.followUpNeededDate", { date: comp.followUpDate }) : t("callAssistantScreen.followUpNeeded")}</Text>
                 </View>
               )}
             </View>
@@ -522,7 +504,7 @@ function CompilerTab({ phone, name, callId, contactId }: { phone: string; name: 
 
           {comp.keyDecisions?.length > 0 && (
             <View style={[st.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[st.cardTitle, { color: colors.foreground, marginBottom: 6 }]}>✅ Décisions prises</Text>
+              <Text style={[st.cardTitle, { color: colors.foreground, marginBottom: 6 }]}>{t("callAssistantScreen.decisionsMade")}</Text>
               {comp.keyDecisions.map((d: string, i: number) => (
                 <View key={i} style={st.bulletRow}>
                   <View style={[st.bullet, { backgroundColor: "#22c55e" }]} />
@@ -534,9 +516,9 @@ function CompilerTab({ phone, name, callId, contactId }: { phone: string; name: 
 
           {comp.topics?.length > 0 && (
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-              {comp.topics.map((t: string, i: number) => (
+              {comp.topics.map((topic: string, i: number) => (
                 <View key={i} style={[st.topicChip, { backgroundColor: "#3b82f618", borderColor: "#3b82f630" }]}>
-                  <Text style={[st.topicChipText, { color: "#3b82f6" }]}>{t}</Text>
+                  <Text style={[st.topicChipText, { color: "#3b82f6" }]}>{topic}</Text>
                 </View>
               ))}
             </View>
@@ -545,10 +527,10 @@ function CompilerTab({ phone, name, callId, contactId }: { phone: string; name: 
           {(result?.createdTasks?.length > 0 || result?.createdEvents?.length > 0) && (
             <View style={[st.card, { backgroundColor: "#3b82f608", borderColor: "#3b82f630" }]}>
               <Text style={[st.cardTitle, { color: colors.foreground, marginBottom: 6 }]}>
-                🗂 Créé automatiquement : {result.createdTasks?.length ?? 0} tâche{(result.createdTasks?.length ?? 0) > 1 ? "s" : ""}, {result.createdEvents?.length ?? 0} RDV
+                {t("callAssistantScreen.autoCreated", { tasks: result.createdTasks?.length ?? 0, events: result.createdEvents?.length ?? 0 })}
               </Text>
-              {result.createdTasks?.map((t: any, i: number) => (
-                <Text key={i} style={[st.bodyText, { color: colors.foreground }]}>• {t.title}</Text>
+              {result.createdTasks?.map((task: any, i: number) => (
+                <Text key={i} style={[st.bodyText, { color: colors.foreground }]}>• {task.title}</Text>
               ))}
               {result.createdEvents?.map((e: any, i: number) => (
                 <Text key={i} style={[st.bodyText, { color: "#8b5cf6" }]}>📅 {e.title}</Text>
@@ -563,13 +545,13 @@ function CompilerTab({ phone, name, callId, contactId }: { phone: string; name: 
         <View style={[st.card, { backgroundColor: "#3b82f608", borderColor: "#3b82f630" }]}>
           <View style={st.cardHead}>
             <Feather name="zap" size={14} color="#3b82f6" />
-            <Text style={[st.cardTitle, { color: colors.foreground }]}>Actions créées automatiquement</Text>
+            <Text style={[st.cardTitle, { color: colors.foreground }]}>{t("callAssistantScreen.autoCreatedActions")}</Text>
           </View>
           {autoResult.summary && <Text style={[st.bodyText, { color: colors.mutedForeground, marginBottom: 8 }]}>{autoResult.summary}</Text>}
-          {autoResult.createdTasks?.map((t: any, i: number) => (
+          {autoResult.createdTasks?.map((task: any, i: number) => (
             <View key={i} style={[st.bulletRow, { marginTop: 4 }]}>
               <Feather name="check-square" size={11} color="#22c55e" />
-              <Text style={[st.bulletText, { color: colors.foreground }]}>{t.title}</Text>
+              <Text style={[st.bulletText, { color: colors.foreground }]}>{task.title}</Text>
             </View>
           ))}
           {autoResult.createdEvents?.map((e: any, i: number) => (
@@ -587,6 +569,7 @@ function CompilerTab({ phone, name, callId, contactId }: { phone: string; name: 
 // ─── SANTÉ CRM ────────────────────────────────────────────────────────────────
 function SanteTab({ contactId, contactName }: { contactId?: string; contactName?: string }) {
   const colors = useColors();
+  const { t } = useTranslation();
   const { fetchAuth } = useAuth();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
@@ -615,33 +598,33 @@ function SanteTab({ contactId, contactName }: { contactId?: string; contactName?
     return (
       <View style={{ gap: 12 }}>
         <View style={[st.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[st.bodyText, { color: colors.mutedForeground, marginBottom: 8 }]}>Saisissez l'ID du contact pour analyser sa santé CRM.</Text>
-          <TextInput style={[st.inputSm, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]} placeholder="ID du contact" placeholderTextColor={colors.mutedForeground} value={manualId} onChangeText={setManualId} keyboardType="numeric" />
+          <Text style={[st.bodyText, { color: colors.mutedForeground, marginBottom: 8 }]}>{t("callAssistantScreen.enterContactId")}</Text>
+          <TextInput style={[st.inputSm, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]} placeholder={t("callAssistantScreen.contactIdPlaceholder")} placeholderTextColor={colors.mutedForeground} value={manualId} onChangeText={setManualId} keyboardType="numeric" />
           <Pressable onPress={() => load()} disabled={loading || !manualId} style={[st.btn, { backgroundColor: "#ec4899", marginTop: 8, opacity: !manualId ? 0.6 : 1 }]}>
             {loading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="heart" size={14} color="#fff" />}
-            <Text style={st.btnText}>Analyser</Text>
+            <Text style={st.btnText}>{t("callAssistantScreen.analyze")}</Text>
           </Pressable>
         </View>
       </View>
     );
   }
 
-  if (loading) return <View style={st.loadingBox}><ActivityIndicator size="large" color="#ec4899" /><Text style={[st.loadingText, { color: colors.mutedForeground }]}>Calcul santé CRM...</Text></View>;
+  if (loading) return <View style={st.loadingBox}><ActivityIndicator size="large" color="#ec4899" /><Text style={[st.loadingText, { color: colors.mutedForeground }]}>{t("callAssistantScreen.computingHealth")}</Text></View>;
 
   if (!data) return (
     <View style={st.emptyBox}>
       <Feather name="heart" size={40} color="#ec4899" />
-      <Text style={[st.emptyText, { color: colors.foreground }]}>{contactName ?? "Contact"}</Text>
+      <Text style={[st.emptyText, { color: colors.foreground }]}>{contactName ?? t("callAssistantScreen.contactFallback")}</Text>
       <Pressable onPress={() => load()} style={[st.btn, { backgroundColor: "#ec4899" }]}>
         <Feather name="refresh-cw" size={14} color="#fff" />
-        <Text style={st.btnText}>Charger la santé CRM</Text>
+        <Text style={st.btnText}>{t("callAssistantScreen.loadHealth")}</Text>
       </Pressable>
     </View>
   );
 
   const score = data.healthScore ?? 50;
   const healthColor = getHealthColor(score);
-  const STATUS_LABELS: Record<string, string> = { excellent: "Excellent", bon: "Bon", attention: "Attention", critique: "Critique" };
+  const STATUS_LABEL_KEY: Record<string, string> = { excellent: "statusExcellent", bon: "statusBon", attention: "statusAttention", critique: "statusCritique" };
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
@@ -656,7 +639,7 @@ function SanteTab({ contactId, contactName }: { contactId?: string; contactName?
             <Text style={[st.cardTitle, { color: colors.foreground }]}>{data.contact?.name ?? contactName}</Text>
             {data.contact?.company && <Text style={[st.contactSub, { color: colors.mutedForeground }]}>{data.contact.company}</Text>}
             <View style={[st.badge, { backgroundColor: healthColor + "18", marginTop: 6, alignSelf: "flex-start" }]}>
-              <Text style={[st.badgeText, { color: healthColor }]}>{STATUS_LABELS[data.status] ?? data.status}</Text>
+              <Text style={[st.badgeText, { color: healthColor }]}>{STATUS_LABEL_KEY[data.status] ? t(`callAssistantScreen.${STATUS_LABEL_KEY[data.status]}`) : data.status}</Text>
             </View>
           </View>
         </View>
@@ -666,17 +649,17 @@ function SanteTab({ contactId, contactName }: { contactId?: string; contactName?
       {data.metrics && (
         <View style={st.metricsGrid}>
           {[
-            { icon: "phone" as const,       color: "#3b82f6", label: "Appels",         val: `${data.metrics.calls?.total ?? 0} total / ${data.metrics.calls?.recent ?? 0} ce mois` },
-            { icon: "phone-missed" as const, color: "#ef4444", label: "Manqués",        val: `${data.metrics.calls?.missed ?? 0}` },
-            { icon: "check-square" as const, color: "#22c55e", label: "Tâches faites",  val: `${data.metrics.tasks?.completed ?? 0}` },
-            { icon: "alert-circle" as const, color: "#f59e0b", label: "Tâches retard",  val: `${data.metrics.tasks?.overdue ?? 0}` },
-            { icon: "message-circle" as const, color: "#8b5cf6", label: "Messages",    val: `${data.metrics.messages?.unread ?? 0} non lus` },
-            { icon: "file-text" as const,    color: "#ef4444", label: "Fact. impayées", val: `${data.metrics.invoices?.overdue ?? 0}` },
+            { icon: "phone" as const,       color: "#3b82f6", labelKey: "metricCalls",       val: t("callAssistantScreen.metricCallsVal", { total: data.metrics.calls?.total ?? 0, month: data.metrics.calls?.recent ?? 0 }) },
+            { icon: "phone-missed" as const, color: "#ef4444", labelKey: "metricMissed",      val: `${data.metrics.calls?.missed ?? 0}` },
+            { icon: "check-square" as const, color: "#22c55e", labelKey: "metricTasksDone",   val: `${data.metrics.tasks?.completed ?? 0}` },
+            { icon: "alert-circle" as const, color: "#f59e0b", labelKey: "metricTasksLate",   val: `${data.metrics.tasks?.overdue ?? 0}` },
+            { icon: "message-circle" as const, color: "#8b5cf6", labelKey: "metricMessages",  val: t("callAssistantScreen.metricMessagesVal", { count: data.metrics.messages?.unread ?? 0 }) },
+            { icon: "file-text" as const,    color: "#ef4444", labelKey: "metricUnpaid",      val: `${data.metrics.invoices?.overdue ?? 0}` },
           ].map(m => (
-            <View key={m.label} style={[st.metricCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View key={m.labelKey} style={[st.metricCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Feather name={m.icon} size={14} color={m.color} />
               <Text style={[st.metricVal, { color: colors.foreground }]}>{m.val}</Text>
-              <Text style={[st.metricLabel, { color: colors.mutedForeground }]}>{m.label}</Text>
+              <Text style={[st.metricLabel, { color: colors.mutedForeground }]}>{t(`callAssistantScreen.${m.labelKey}`)}</Text>
             </View>
           ))}
         </View>
@@ -687,7 +670,7 @@ function SanteTab({ contactId, contactName }: { contactId?: string; contactName?
         <View style={[st.card, { backgroundColor: "#ef444408", borderColor: "#ef444430" }]}>
           <View style={st.cardHead}>
             <Feather name="alert-triangle" size={14} color="#ef4444" />
-            <Text style={[st.cardTitle, { color: "#ef4444" }]}>Risques identifiés</Text>
+            <Text style={[st.cardTitle, { color: "#ef4444" }]}>{t("callAssistantScreen.risksIdentified")}</Text>
           </View>
           {data.risks.map((r: string, i: number) => (
             <View key={i} style={[st.flagRow, { backgroundColor: "#ef444410" }]}>
@@ -703,7 +686,7 @@ function SanteTab({ contactId, contactName }: { contactId?: string; contactName?
         <View style={[st.card, { backgroundColor: "#22c55e08", borderColor: "#22c55e30" }]}>
           <View style={st.cardHead}>
             <Feather name="trending-up" size={14} color="#22c55e" />
-            <Text style={[st.cardTitle, { color: "#22c55e" }]}>Opportunités</Text>
+            <Text style={[st.cardTitle, { color: "#22c55e" }]}>{t("callAssistantScreen.opportunities")}</Text>
           </View>
           {data.opportunities.map((o: string, i: number) => (
             <View key={i} style={[st.flagRow, { backgroundColor: "#22c55e10" }]}>
@@ -717,7 +700,7 @@ function SanteTab({ contactId, contactName }: { contactId?: string; contactName?
       {/* Contributing factors */}
       {data.factors?.length > 0 && (
         <View style={[st.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[st.cardTitle, { color: colors.foreground, marginBottom: 8 }]}>Facteurs du score</Text>
+          <Text style={[st.cardTitle, { color: colors.foreground, marginBottom: 8 }]}>{t("callAssistantScreen.scoreFactors")}</Text>
           {data.factors.map((f: any, i: number) => (
             <View key={i} style={st.factorRow}>
               <Text style={[st.factorImpact, { color: f.impact >= 0 ? "#22c55e" : "#ef4444" }]}>
@@ -731,7 +714,7 @@ function SanteTab({ contactId, contactName }: { contactId?: string; contactName?
 
       <Pressable onPress={() => load()} style={[st.btn, { backgroundColor: "#ec4899", marginBottom: 16 }]}>
         <Feather name="refresh-cw" size={14} color="#fff" />
-        <Text style={st.btnText}>Actualiser</Text>
+        <Text style={st.btnText}>{t("callAssistantScreen.refresh")}</Text>
       </Pressable>
     </ScrollView>
   );
@@ -740,6 +723,7 @@ function SanteTab({ contactId, contactName }: { contactId?: string; contactName?
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function CallAssistantScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const { phone = "", name = "", direction = "entrant", callId, contactId } = useLocalSearchParams<{
@@ -747,9 +731,9 @@ export default function CallAssistantScreen() {
   }>();
 
   const [tab, setTab] = useState<Tab>("preparer");
-  const activeColor = TABS.find(t => t.key === tab)?.color ?? "#3b82f6";
+  const activeColor = TABS.find(tb => tb.key === tab)?.color ?? "#3b82f6";
 
-  const displayName = name || phone || "Appel entrant";
+  const displayName = name || phone || t("callAssistantScreen.incomingCall");
   const isOutbound = direction === "sortant" || direction === "outbound";
 
   return (
@@ -764,7 +748,7 @@ export default function CallAssistantScreen() {
             <Text style={st.headerTitle} numberOfLines={1}>{displayName}</Text>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
               <Feather name={isOutbound ? "phone-outgoing" : "phone-incoming"} size={11} color="rgba(255,255,255,0.7)" />
-              <Text style={st.headerSub}>{isOutbound ? "Sortant" : "Entrant"}{phone && name ? ` · ${phone}` : ""}</Text>
+              <Text style={st.headerSub}>{isOutbound ? t("callAssistantScreen.outbound") : t("callAssistantScreen.inbound")}{phone && name ? ` · ${phone}` : ""}</Text>
             </View>
           </View>
           {phone && (
@@ -776,10 +760,10 @@ export default function CallAssistantScreen() {
 
         {/* Tab row */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }} contentContainerStyle={{ gap: 8 }}>
-          {TABS.map(t => (
-            <Pressable key={t.key} onPress={() => setTab(t.key)} style={[st.tabChip, { backgroundColor: tab === t.key ? t.color : "rgba(255,255,255,0.12)" }]}>
-              <Feather name={t.icon} size={12} color={tab === t.key ? "#fff" : "rgba(255,255,255,0.7)"} />
-              <Text style={[st.tabChipText, { color: tab === t.key ? "#fff" : "rgba(255,255,255,0.7)" }]}>{t.label}</Text>
+          {TABS.map(tb => (
+            <Pressable key={tb.key} onPress={() => setTab(tb.key)} style={[st.tabChip, { backgroundColor: tab === tb.key ? tb.color : "rgba(255,255,255,0.12)" }]}>
+              <Feather name={tb.icon} size={12} color={tab === tb.key ? "#fff" : "rgba(255,255,255,0.7)"} />
+              <Text style={[st.tabChipText, { color: tab === tb.key ? "#fff" : "rgba(255,255,255,0.7)" }]}>{t(`callAssistantScreen.${tb.labelKey}`)}</Text>
             </Pressable>
           ))}
         </ScrollView>
