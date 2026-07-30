@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 interface KbStatus {
   totalDocuments: number;
@@ -42,13 +43,10 @@ interface KbAnswer {
   grounded: boolean;
 }
 
-const EXAMPLE_QUESTIONS = [
-  "Quelle est notre politique de congés ?",
-  "Quel est le délai de remboursement client ?",
-  "Quelles sont nos conditions de paiement ?",
-];
+const EXAMPLE_QUESTION_KEYS = ["example1", "example2", "example3"] as const;
 
 export default function KnowledgeBaseScreen() {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth, user } = useAuth();
@@ -89,14 +87,14 @@ export default function KnowledgeBaseScreen() {
         error?: string;
         status?: KbStatus;
       };
-      if (!res.ok) throw new Error(data.error || "Échec de l'indexation");
+      if (!res.ok) throw new Error(data.error || t("knowledgeBaseScreen.errorIndexFailed"));
       if (data.status) setStatus(data.status);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Indexation impossible");
+      setError(err instanceof Error ? err.message : t("knowledgeBaseScreen.errorIndexImpossible"));
     } finally {
       setReindexing(false);
     }
-  }, [fetchAuth]);
+  }, [fetchAuth, t]);
 
   const handleAsk = useCallback(
     async (q?: string) => {
@@ -113,15 +111,15 @@ export default function KnowledgeBaseScreen() {
           body: JSON.stringify({ question: text }),
         });
         const data = (await res.json()) as KbAnswer & { error?: string };
-        if (!res.ok) throw new Error(data.error || "Échec de la recherche");
+        if (!res.ok) throw new Error(data.error || t("knowledgeBaseScreen.errorSearchFailed"));
         setResult(data);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Recherche impossible");
+        setError(err instanceof Error ? err.message : t("knowledgeBaseScreen.errorSearchImpossible"));
       } finally {
         setAsking(false);
       }
     },
-    [question, fetchAuth],
+    [question, fetchAuth, t],
   );
 
   const hasIndex = (status?.totalChunks ?? 0) > 0;
@@ -133,10 +131,10 @@ export default function KnowledgeBaseScreen() {
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
-          <Text style={styles.headerTitle}>Base de connaissances</Text>
+          <Text style={styles.headerTitle}>{t("knowledgeBaseScreen.title")}</Text>
         </View>
         <Text style={styles.headerSub}>
-          Posez une question, obtenez une réponse fondée sur vos documents.
+          {t("knowledgeBaseScreen.subtitle")}
         </Text>
       </View>
 
@@ -153,9 +151,9 @@ export default function KnowledgeBaseScreen() {
           {/* Statut */}
           <View style={[styles.statusCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.statusRow}>
-              <StatItem icon="file-text" label="Indexables" value={status?.indexableDocuments ?? 0} colors={colors} />
-              <StatItem icon="cpu" label="Indexés" value={status?.indexedDocuments ?? 0} colors={colors} />
-              <StatItem icon="book-open" label="Extraits" value={status?.totalChunks ?? 0} colors={colors} />
+              <StatItem icon="file-text" label={t("knowledgeBaseScreen.statIndexable")} value={status?.indexableDocuments ?? 0} colors={colors} />
+              <StatItem icon="cpu" label={t("knowledgeBaseScreen.statIndexed")} value={status?.indexedDocuments ?? 0} colors={colors} />
+              <StatItem icon="book-open" label={t("knowledgeBaseScreen.statChunks")} value={status?.totalChunks ?? 0} colors={colors} />
             </View>
             <View style={styles.statusFooter}>
               {status && (
@@ -166,7 +164,7 @@ export default function KnowledgeBaseScreen() {
                     color={colors.primary}
                   />
                   <Text style={[styles.modeBadgeText, { color: colors.primary }]}>
-                    {status.searchMode === "semantic" ? "Recherche sémantique" : "Recherche par mots-clés"}
+                    {status.searchMode === "semantic" ? t("knowledgeBaseScreen.searchSemantic") : t("knowledgeBaseScreen.searchLexical")}
                   </Text>
                 </View>
               )}
@@ -187,7 +185,7 @@ export default function KnowledgeBaseScreen() {
                     <Feather name="refresh-cw" size={13} color={colors.foreground} />
                   )}
                   <Text style={[styles.reindexText, { color: colors.foreground }]}>
-                    {reindexing ? "Indexation…" : "Indexer"}
+                    {reindexing ? t("knowledgeBaseScreen.indexing") : t("knowledgeBaseScreen.index")}
                   </Text>
                 </Pressable>
               )}
@@ -198,7 +196,7 @@ export default function KnowledgeBaseScreen() {
           <View style={[styles.askCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <TextInput
               style={[styles.askInput, { color: colors.foreground, borderColor: colors.border }]}
-              placeholder="Ex. : Quelle est notre politique de congés ?"
+              placeholder={t("knowledgeBaseScreen.placeholder")}
               placeholderTextColor={colors.mutedForeground}
               value={question}
               onChangeText={setQuestion}
@@ -221,29 +219,32 @@ export default function KnowledgeBaseScreen() {
                 <Feather name="send" size={15} color={colors.primaryForeground} />
               )}
               <Text style={[styles.askBtnText, { color: colors.primaryForeground }]}>
-                {asking ? "Recherche…" : "Demander"}
+                {asking ? t("knowledgeBaseScreen.searching") : t("knowledgeBaseScreen.ask")}
               </Text>
             </Pressable>
 
             {hasIndex && !result && !asking && (
               <View style={styles.examplesWrap}>
-                {EXAMPLE_QUESTIONS.map((ex) => (
-                  <Pressable
-                    key={ex}
-                    onPress={() => void handleAsk(ex)}
-                    style={[styles.exampleChip, { backgroundColor: colors.background, borderColor: colors.border }]}
-                  >
-                    <Text style={[styles.exampleText, { color: colors.mutedForeground }]} numberOfLines={1}>
-                      {ex}
-                    </Text>
-                  </Pressable>
-                ))}
+                {EXAMPLE_QUESTION_KEYS.map((exKey) => {
+                  const ex = t(`knowledgeBaseScreen.${exKey}`);
+                  return (
+                    <Pressable
+                      key={exKey}
+                      onPress={() => void handleAsk(ex)}
+                      style={[styles.exampleChip, { backgroundColor: colors.background, borderColor: colors.border }]}
+                    >
+                      <Text style={[styles.exampleText, { color: colors.mutedForeground }]} numberOfLines={1}>
+                        {ex}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
             )}
 
             {!hasIndex && status && (
               <Text style={[styles.hintText, { color: colors.mutedForeground }]}>
-                Aucun document indexé pour le moment. {isAdmin ? "Lancez l'indexation ci-dessus." : "Demandez à un administrateur de lancer l'indexation."}
+                {isAdmin ? t("knowledgeBaseScreen.noIndexAdmin") : t("knowledgeBaseScreen.noIndexUser")}
               </Text>
             )}
           </View>
@@ -260,10 +261,10 @@ export default function KnowledgeBaseScreen() {
             <View style={[styles.answerCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.answerHeader}>
                 <Feather name="message-circle" size={15} color={colors.primary} />
-                <Text style={[styles.answerHeaderText, { color: colors.foreground }]}>Réponse</Text>
+                <Text style={[styles.answerHeaderText, { color: colors.foreground }]}>{t("knowledgeBaseScreen.answer")}</Text>
                 <View style={[styles.groundedBadge, { backgroundColor: (result.grounded ? colors.primary : colors.mutedForeground) + "18" }]}>
                   <Text style={[styles.groundedText, { color: result.grounded ? colors.primary : colors.mutedForeground }]}>
-                    {result.grounded ? `${result.sources.length} source(s)` : "Hors périmètre"}
+                    {result.grounded ? t("knowledgeBaseScreen.sourcesCount", { count: result.sources.length }) : t("knowledgeBaseScreen.outOfScope")}
                   </Text>
                 </View>
               </View>
@@ -272,7 +273,7 @@ export default function KnowledgeBaseScreen() {
 
               {result.sources.length > 0 && (
                 <View style={styles.sourcesWrap}>
-                  <Text style={[styles.sourcesTitle, { color: colors.mutedForeground }]}>SOURCES</Text>
+                  <Text style={[styles.sourcesTitle, { color: colors.mutedForeground }]}>{t("knowledgeBaseScreen.sources")}</Text>
                   {result.sources.map((s) => (
                     <View
                       key={s.ref}

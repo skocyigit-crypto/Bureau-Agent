@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation, type TFunction } from "@/lib/i18n";
 
 interface SearchResults {
   contacts: any[];
@@ -31,18 +32,18 @@ interface SearchResults {
 
 type ResultCategory = {
   key: keyof Omit<SearchResults, "totalResults">;
-  label: string;
+  labelKey: string;
   icon: keyof typeof Feather.glyphMap;
   color: string;
   route: string;
-  getTitle: (item: any) => string;
+  getTitle: (item: any, t: TFunction) => string;
   getSub: (item: any) => string;
 };
 
 const CATEGORIES: ResultCategory[] = [
   {
     key: "contacts",
-    label: "Contacts",
+    labelKey: "rechercheScreen.catContacts",
     icon: "user",
     color: "#0369a1",
     route: "/contacts",
@@ -51,7 +52,7 @@ const CATEGORIES: ResultCategory[] = [
   },
   {
     key: "prospects",
-    label: "Prospects",
+    labelKey: "rechercheScreen.catProspects",
     icon: "trending-up",
     color: "#f59e0b",
     route: "/prospects",
@@ -60,34 +61,34 @@ const CATEGORIES: ResultCategory[] = [
   },
   {
     key: "devis",
-    label: "Devis",
+    labelKey: "rechercheScreen.catDevis",
     icon: "file-text",
     color: "#3b82f6",
     route: "/devis",
-    getTitle: (d) => d.reference || d.title || `Devis #${d.id}`,
+    getTitle: (d, t) => d.reference || d.title || t("rechercheScreen.devisFallback", { id: d.id }),
     getSub: (d) => d.clientName || "",
   },
   {
     key: "factures",
-    label: "Factures",
+    labelKey: "rechercheScreen.catFactures",
     icon: "dollar-sign",
     color: "#22c55e",
     route: "/factures",
-    getTitle: (f) => f.reference || f.title || `Facture #${f.id}`,
+    getTitle: (f, t) => f.reference || f.title || t("rechercheScreen.factureFallback", { id: f.id }),
     getSub: (f) => f.clientName || "",
   },
   {
     key: "tasks",
-    label: "Tâches",
+    labelKey: "rechercheScreen.catTasks",
     icon: "check-square",
     color: "#1e3a5f",
     route: "/tasks",
-    getTitle: (t) => t.title || "",
-    getSub: (t) => t.status || t.priority || "",
+    getTitle: (item) => item.title || "",
+    getSub: (item) => item.status || item.priority || "",
   },
   {
     key: "projets",
-    label: "Projets",
+    labelKey: "rechercheScreen.catProjets",
     icon: "folder",
     color: "#6366f1",
     route: "/projets",
@@ -96,25 +97,25 @@ const CATEGORIES: ResultCategory[] = [
   },
   {
     key: "calls",
-    label: "Appels",
+    labelKey: "rechercheScreen.catCalls",
     icon: "phone",
     color: "#166534",
     route: "/calls",
-    getTitle: (c) => c.contactName || c.phoneNumber || "Appel",
+    getTitle: (c, t) => c.contactName || c.phoneNumber || t("rechercheScreen.callFallback"),
     getSub: (c) => c.direction || c.status || "",
   },
   {
     key: "messages",
-    label: "Messages",
+    labelKey: "rechercheScreen.catMessages",
     icon: "message-square",
     color: "#8b5cf6",
     route: "/messages",
-    getTitle: (m) => (m.content || "").slice(0, 60) || "Message",
+    getTitle: (m, t) => (m.content || "").slice(0, 60) || t("rechercheScreen.messageFallback"),
     getSub: (m) => m.contactName || m.fromName || "",
   },
   {
     key: "stock",
-    label: "Stock",
+    labelKey: "rechercheScreen.catStock",
     icon: "package",
     color: "#7c3aed",
     route: "/stock",
@@ -128,6 +129,7 @@ type FlatResultItem =
   | { kind: "result"; catKey: string; item: any; cat: ResultCategory };
 
 function ResultRow({ item, colors }: { item: FlatResultItem & { kind: "result" }; colors: ReturnType<typeof import("@/hooks/useColors").useColors> }) {
+  const { t } = useTranslation();
   const { cat } = item;
   return (
     <Pressable
@@ -143,7 +145,7 @@ function ResultRow({ item, colors }: { item: FlatResultItem & { kind: "result" }
       </View>
       <View style={{ flex: 1 }}>
         <Text style={[styles.resultTitle, { color: colors.foreground }]} numberOfLines={1}>
-          {cat.getTitle(item.item)}
+          {cat.getTitle(item.item, t)}
         </Text>
         {cat.getSub(item.item) !== "" && (
           <Text style={[styles.resultSub, { color: colors.mutedForeground }]} numberOfLines={1}>
@@ -157,6 +159,7 @@ function ResultRow({ item, colors }: { item: FlatResultItem & { kind: "result" }
 }
 
 export default function RechercheScreen() {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
@@ -196,7 +199,7 @@ export default function RechercheScreen() {
     for (const cat of CATEGORIES) {
       const items = results[cat.key] ?? [];
       if (items.length === 0) continue;
-      flatData.push({ kind: "header", catKey: cat.key, label: cat.label, count: items.length, icon: cat.icon, color: cat.color });
+      flatData.push({ kind: "header", catKey: cat.key, label: t(cat.labelKey), count: items.length, icon: cat.icon, color: cat.color });
       items.forEach(item => flatData.push({ kind: "result", catKey: cat.key, item, cat }));
     }
   }
@@ -210,14 +213,14 @@ export default function RechercheScreen() {
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
-          <Text style={styles.headerTitle}>Recherche Globale</Text>
+          <Text style={styles.headerTitle}>{t("rechercheScreen.title")}</Text>
         </View>
         <View style={[styles.searchBox, { backgroundColor: "#fff" }]}>
           <Feather name="search" size={16} color="#6b7280" />
           <TextInput
             ref={inputRef}
             style={styles.searchInput}
-            placeholder="Contacts, devis, tâches, prospects…"
+            placeholder={t("rechercheScreen.searchPlaceholder")}
             placeholderTextColor="#9ca3af"
             value={query}
             onChangeText={setQuery}
@@ -235,7 +238,7 @@ export default function RechercheScreen() {
       {loading && (
         <View style={styles.loadingRow}>
           <ActivityIndicator size="small" color="#1e293b" />
-          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Recherche en cours…</Text>
+          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>{t("rechercheScreen.searching")}</Text>
         </View>
       )}
 
@@ -244,9 +247,9 @@ export default function RechercheScreen() {
           <View style={[styles.emptyIcon, { backgroundColor: "#f1f5f9" }]}>
             <Feather name="search" size={36} color="#94a3b8" />
           </View>
-          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Recherchez dans toute l'app</Text>
+          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("rechercheScreen.emptyTitle")}</Text>
           <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
-            Contacts, prospects, devis, factures, tâches, projets, messages et stock.
+            {t("rechercheScreen.emptySub")}
           </Text>
           <View style={styles.categoryGrid}>
             {CATEGORIES.map(cat => (
@@ -258,7 +261,7 @@ export default function RechercheScreen() {
                 <View style={[styles.catIcon, { backgroundColor: cat.color + "18" }]}>
                   <Feather name={cat.icon} size={16} color={cat.color} />
                 </View>
-                <Text style={[styles.catLabel, { color: colors.foreground }]}>{cat.label}</Text>
+                <Text style={[styles.catLabel, { color: colors.foreground }]}>{t(cat.labelKey)}</Text>
               </Pressable>
             ))}
           </View>
@@ -266,9 +269,9 @@ export default function RechercheScreen() {
       ) : results && totalResults === 0 ? (
         <View style={styles.emptyState}>
           <Feather name="search" size={36} color="#94a3b8" />
-          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Aucun résultat</Text>
+          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("rechercheScreen.noResults")}</Text>
           <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
-            Aucun résultat pour « {query} »
+            {t("rechercheScreen.noResultsFor", { query })}
           </Text>
         </View>
       ) : results ? (
@@ -279,7 +282,7 @@ export default function RechercheScreen() {
           ListHeaderComponent={
             <View style={styles.resultsHeader}>
               <Text style={[styles.resultsCount, { color: colors.mutedForeground }]}>
-                {totalResults} résultat{totalResults !== 1 ? "s" : ""} pour « {query} »
+                {t(totalResults !== 1 ? "rechercheScreen.resultsCountMany" : "rechercheScreen.resultsCountOne", { count: totalResults, query })}
               </Text>
             </View>
           }

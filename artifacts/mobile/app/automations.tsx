@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState } from "@/components/EmptyState";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 interface AutomationRule {
   id: number;
@@ -53,6 +54,7 @@ const TYPE_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
 };
 
 export default function AutomationsScreen() {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
@@ -118,15 +120,15 @@ export default function AutomationsScreen() {
           <Pressable onPress={() => router.back()} hitSlop={12}>
             <Feather name="arrow-left" size={22} color="#ffffff" />
           </Pressable>
-          <Text style={styles.headerTitle}>Automations</Text>
+          <Text style={styles.headerTitle}>{t("automationsScreen.title")}</Text>
           <View style={{ width: 22 }} />
         </View>
         <View style={styles.tabRow}>
           <Pressable onPress={() => setTab("rules")} style={[styles.tabBtn, tab === "rules" && { backgroundColor: colors.primary }]}>
-            <Text style={[styles.tabText, { color: tab === "rules" ? colors.primaryForeground : "rgba(255,255,255,0.7)" }]}>Regles</Text>
+            <Text style={[styles.tabText, { color: tab === "rules" ? colors.primaryForeground : "rgba(255,255,255,0.7)" }]}>{t("automationsScreen.tabRules")}</Text>
           </Pressable>
           <Pressable onPress={() => setTab("logs")} style={[styles.tabBtn, tab === "logs" && { backgroundColor: colors.primary }]}>
-            <Text style={[styles.tabText, { color: tab === "logs" ? colors.primaryForeground : "rgba(255,255,255,0.7)" }]}>Historique</Text>
+            <Text style={[styles.tabText, { color: tab === "logs" ? colors.primaryForeground : "rgba(255,255,255,0.7)" }]}>{t("automationsScreen.tabLogs")}</Text>
           </Pressable>
         </View>
       </View>
@@ -145,23 +147,23 @@ export default function AutomationsScreen() {
             <View style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Feather name="zap" size={18} color="#f59e0b" />
               <Text style={[styles.statVal, { color: colors.foreground }]}>{executionsToday}</Text>
-              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Aujourd'hui</Text>
+              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{t("automationsScreen.statToday")}</Text>
             </View>
             <View style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Feather name="check-circle" size={18} color="#22c55e" />
               <Text style={[styles.statVal, { color: colors.foreground }]}>{successRate}%</Text>
-              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Reussite</Text>
+              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{t("automationsScreen.statSuccess")}</Text>
             </View>
             <View style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Feather name="toggle-right" size={18} color="#3b82f6" />
               <Text style={[styles.statVal, { color: colors.foreground }]}>{rules.filter(r => r.enabled).length}</Text>
-              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Actives</Text>
+              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{t("automationsScreen.statActive")}</Text>
             </View>
           </View>
 
           {tab === "rules" ? (
             rules.length === 0 ? (
-              <EmptyState icon="zap" title="Aucune regle" subtitle="Les regles d'automatisation apparaitront ici" />
+              <EmptyState icon="zap" title={t("automationsScreen.emptyRulesTitle")} subtitle={t("automationsScreen.emptyRulesSub")} />
             ) : (
               rules.map(rule => (
                 <View key={String(rule.id)} style={[styles.ruleCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -177,7 +179,7 @@ export default function AutomationsScreen() {
                     </View>
                     {rule.builtIn ? (
                       <View style={[styles.systemBadge, { backgroundColor: "#3b82f618" }]}>
-                        <Text style={[styles.systemBadgeText, { color: "#3b82f6" }]}>Systeme</Text>
+                        <Text style={[styles.systemBadgeText, { color: "#3b82f6" }]}>{t("automationsScreen.systemBadge")}</Text>
                       </View>
                     ) : (
                       <Switch
@@ -191,12 +193,12 @@ export default function AutomationsScreen() {
                   <View style={styles.ruleFooter}>
                     {rule.lastRun && (
                       <Text style={[styles.ruleLastRun, { color: colors.mutedForeground }]}>
-                        Derniere: {new Date(rule.lastRun).toLocaleString("fr-FR")}
+                        {t("automationsScreen.lastRun", { date: new Date(rule.lastRun).toLocaleString("fr-FR") })}
                       </Text>
                     )}
                     {(rule.runCount ?? 0) > 0 && (
                       <Text style={[styles.ruleLastRun, { color: colors.mutedForeground }]}>
-                        {rule.runCount} execution(s)
+                        {t("automationsScreen.execCount", { count: rule.runCount ?? 0 })}
                       </Text>
                     )}
                   </View>
@@ -205,7 +207,7 @@ export default function AutomationsScreen() {
             )
           ) : (
             logs.length === 0 ? (
-              <EmptyState icon="list" title="Aucun historique" subtitle="Les executions apparaitront ici" />
+              <EmptyState icon="list" title={t("automationsScreen.emptyLogsTitle")} subtitle={t("automationsScreen.emptyLogsSub")} />
             ) : (
               logs.map(log => (
                 <View key={log.id} style={[styles.logCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -218,11 +220,11 @@ export default function AutomationsScreen() {
                   </View>
                   <View style={styles.logMeta}>
                     <Text style={[styles.logMetaText, { color: colors.mutedForeground }]}>
-                      {log.itemsProcessed} element(s){log.duration ? ` • ${log.duration}ms` : ""}
+                      {t("automationsScreen.itemsProcessed", { count: log.itemsProcessed })}{log.duration ? ` • ${log.duration}ms` : ""}
                     </Text>
                     <View style={[styles.statusBadge, { backgroundColor: (log.status === "success" ? "#22c55e" : "#ef4444") + "18" }]}>
                       <Text style={[styles.statusBadgeText, { color: log.status === "success" ? "#22c55e" : "#ef4444" }]}>
-                        {log.status === "success" ? "Reussi" : "Erreur"}
+                        {log.status === "success" ? t("automationsScreen.statusSuccess") : t("automationsScreen.statusError")}
                       </Text>
                     </View>
                   </View>

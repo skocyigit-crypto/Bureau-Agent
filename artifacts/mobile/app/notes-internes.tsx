@@ -23,6 +23,7 @@ import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { useColors } from "@/hooks/useColors";
 import { useInlineSuggest } from "@/hooks/useInlineSuggest";
+import { useTranslation, type TFunction } from "@/lib/i18n";
 
 interface Note {
   id: number;
@@ -64,13 +65,13 @@ const DARK_CARD_COLORS: Record<string, string> = {
   orange:  "#1c0f00",
 };
 
-function fmtDate(d: string) {
+function fmtDate(d: string, t: TFunction) {
   const now = new Date();
   const dt = new Date(d);
   const diff = Math.floor((now.getTime() - dt.getTime()) / 1000);
-  if (diff < 60) return "À l'instant";
-  if (diff < 3600) return `${Math.floor(diff / 60)} min`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} h`;
+  if (diff < 60) return t("notesInternesScreen.timeNow");
+  if (diff < 3600) return t("notesInternesScreen.timeMin", { n: Math.floor(diff / 60) });
+  if (diff < 86400) return t("notesInternesScreen.timeHour", { n: Math.floor(diff / 3600) });
   return dt.toLocaleDateString("fr-FR");
 }
 
@@ -84,6 +85,7 @@ interface NoteCardProps {
 }
 
 function NoteCard({ note, colors, isDark, onPress, onPin, onDelete }: NoteCardProps) {
+  const { t } = useTranslation();
   const cardBg = isDark ? DARK_CARD_COLORS[note.color] ?? "#1e293b" : COLOR_MAP[note.color] ?? "#ffffff";
   const accent = COLOR_ACCENTS[note.color] ?? "#e2e8f0";
   return (
@@ -102,7 +104,7 @@ function NoteCard({ note, colors, isDark, onPress, onPin, onDelete }: NoteCardPr
           <Text style={[styles.noteTitle, { color: colors.foreground, flex: 1 }]} numberOfLines={1}>{note.title}</Text>
         ) : (
           <Text style={[styles.noteTitle, { color: colors.mutedForeground, flex: 1, fontFamily: "Inter_400Regular" }]} numberOfLines={1}>
-            {note.content.split("\n")[0] || "Note sans titre"}
+            {note.content.split("\n")[0] || t("notesInternesScreen.untitledNote")}
           </Text>
         )}
         <View style={styles.noteCardActions}>
@@ -119,14 +121,14 @@ function NoteCard({ note, colors, isDark, onPress, onPin, onDelete }: NoteCardPr
       </Text>
       {note.tags && note.tags.length > 0 && (
         <View style={styles.tagsRow}>
-          {note.tags.slice(0, 3).map(t => (
-            <View key={t} style={[styles.tagPill, { backgroundColor: accent }]}>
-              <Text style={[styles.tagText, { color: colors.foreground }]}>{t}</Text>
+          {note.tags.slice(0, 3).map(tag => (
+            <View key={tag} style={[styles.tagPill, { backgroundColor: accent }]}>
+              <Text style={[styles.tagText, { color: colors.foreground }]}>{tag}</Text>
             </View>
           ))}
         </View>
       )}
-      <Text style={[styles.noteDate, { color: colors.mutedForeground }]}>{fmtDate(note.updatedAt)}</Text>
+      <Text style={[styles.noteDate, { color: colors.mutedForeground }]}>{fmtDate(note.updatedAt, t)}</Text>
     </Pressable>
   );
 }
@@ -141,6 +143,7 @@ interface NoteEditorProps {
 }
 
 function NoteEditor({ note, onSave, onClose, saving, colors, isDark }: NoteEditorProps) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState(note?.title ?? "");
   const [content, setContent] = useState(note?.content ?? "");
   const [color, setColor] = useState(note?.color ?? "default");
@@ -173,7 +176,7 @@ function NoteEditor({ note, onSave, onClose, saving, colors, isDark }: NoteEdito
               <Feather name="x" size={18} color={colors.foreground} />
             </Pressable>
             <Text style={[styles.editorTitle, { color: colors.foreground }]}>
-              {note ? "Modifier la note" : "Nouvelle note"}
+              {note ? t("notesInternesScreen.editNote") : t("notesInternesScreen.newNote")}
             </Text>
             <Pressable
               onPress={() => onSave({ title, content, color, tags })}
@@ -189,7 +192,7 @@ function NoteEditor({ note, onSave, onClose, saving, colors, isDark }: NoteEdito
 
           <TextInput
             style={[styles.editorTitleInput, { color: colors.foreground, borderBottomColor: COLOR_ACCENTS[color] }]}
-            placeholder="Titre (optionnel)"
+            placeholder={t("notesInternesScreen.titlePlaceholder")}
             placeholderTextColor={colors.mutedForeground}
             value={title}
             onChangeText={setTitle}
@@ -197,7 +200,7 @@ function NoteEditor({ note, onSave, onClose, saving, colors, isDark }: NoteEdito
 
           <TextInput
             style={[styles.editorContentInput, { color: colors.foreground }]}
-            placeholder="Écrivez votre note ici..."
+            placeholder={t("notesInternesScreen.contentPlaceholder")}
             placeholderTextColor={colors.mutedForeground}
             value={content}
             onChangeText={setContent}
@@ -221,7 +224,7 @@ function NoteEditor({ note, onSave, onClose, saving, colors, isDark }: NoteEdito
                 hitSlop={6}
               >
                 <Text style={[styles.suggestionBtnText, { color: colors.primary }]}>
-                  Ajouter
+                  {t("notesInternesScreen.add")}
                 </Text>
               </Pressable>
               <Pressable onPress={dismissSuggestion} hitSlop={8} style={styles.suggestionDismiss}>
@@ -232,7 +235,7 @@ function NoteEditor({ note, onSave, onClose, saving, colors, isDark }: NoteEdito
 
           <TextInput
             style={[styles.editorTagsInput, { color: colors.foreground, borderTopColor: COLOR_ACCENTS[color] }]}
-            placeholder="Tags (séparés par des virgules)"
+            placeholder={t("notesInternesScreen.tagsPlaceholder")}
             placeholderTextColor={colors.mutedForeground}
             value={tags}
             onChangeText={setTags}
@@ -260,6 +263,7 @@ function NoteEditor({ note, onSave, onClose, saving, colors, isDark }: NoteEdito
 }
 
 export default function NotesInternesScreen() {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
@@ -345,9 +349,9 @@ export default function NotesInternesScreen() {
     if (Platform.OS === "web") {
       doDelete(note);
     } else {
-      Alert.alert("Supprimer", `Supprimer cette note ?`, [
-        { text: "Annuler", style: "cancel" },
-        { text: "Supprimer", style: "destructive", onPress: () => doDelete(note) },
+      Alert.alert(t("common.delete"), t("notesInternesScreen.deleteConfirm"), [
+        { text: t("common.cancel"), style: "cancel" },
+        { text: t("common.delete"), style: "destructive", onPress: () => doDelete(note) },
       ]);
     }
   }
@@ -380,11 +384,11 @@ export default function NotesInternesScreen() {
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
-          <Text style={styles.headerTitle}>Notes internes</Text>
+          <Text style={styles.headerTitle}>{t("notesInternesScreen.title")}</Text>
           {isFromCache && (
             <View style={[styles.cacheBadge, { backgroundColor: "rgba(255,255,255,0.12)" }]}>
               <Feather name="wifi-off" size={10} color="rgba(255,255,255,0.6)" />
-              <Text style={styles.cacheText}>Cache</Text>
+              <Text style={styles.cacheText}>{t("notesInternesScreen.cache")}</Text>
             </View>
           )}
         </View>
@@ -392,7 +396,7 @@ export default function NotesInternesScreen() {
           <Feather name="search" size={16} color="rgba(255,255,255,0.5)" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Rechercher une note..."
+            placeholder={t("notesInternesScreen.searchPlaceholder")}
             placeholderTextColor="rgba(255,255,255,0.4)"
             value={search}
             onChangeText={setSearch}
@@ -417,8 +421,8 @@ export default function NotesInternesScreen() {
             notes.length > 0 ? (
               <View style={styles.statsRow}>
                 <Text style={[styles.statsText, { color: colors.mutedForeground }]}>
-                  {notes.length} note{notes.length !== 1 ? "s" : ""}
-                  {pinned.length > 0 ? ` · ${pinned.length} épinglée${pinned.length !== 1 ? "s" : ""}` : ""}
+                  {t(notes.length !== 1 ? "notesInternesScreen.noteCountMany" : "notesInternesScreen.noteCountOne", { count: notes.length })}
+                  {pinned.length > 0 ? t(pinned.length !== 1 ? "notesInternesScreen.pinnedMany" : "notesInternesScreen.pinnedOne", { count: pinned.length }) : ""}
                 </Text>
               </View>
             ) : null
@@ -426,8 +430,8 @@ export default function NotesInternesScreen() {
           ListEmptyComponent={
             <EmptyState
               icon="file-text"
-              title="Aucune note"
-              subtitle={search ? "Aucune note ne correspond à votre recherche." : "Appuyez sur + pour créer votre première note."}
+              title={t("notesInternesScreen.emptyTitle")}
+              subtitle={search ? t("notesInternesScreen.emptySearch") : t("notesInternesScreen.emptyCreate")}
             />
           }
           renderItem={({ item }) => (

@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -66,11 +67,20 @@ const PRIORITY_COLORS: Record<string, string> = {
   basse: "#22c55e",
 };
 
+const PRIORITY_LABEL_KEYS: Record<string, string> = {
+  haute: "meetingsScreen.prioHaute",
+  moyenne: "meetingsScreen.prioMoyenne",
+  basse: "meetingsScreen.prioBasse",
+};
+
 function PriorityBadge({ value }: { value: string }) {
+  const { t } = useTranslation();
   const color = PRIORITY_COLORS[value] || "#94a3b8";
+  const labelKey = PRIORITY_LABEL_KEYS[value];
+  const label = labelKey ? t(labelKey) : value.toUpperCase();
   return (
     <View style={[styles.badge, { backgroundColor: color + "20", borderColor: color + "50" }]}>
-      <Text style={[styles.badgeText, { color }]}>{value.toUpperCase()}</Text>
+      <Text style={[styles.badgeText, { color }]}>{label}</Text>
     </View>
   );
 }
@@ -79,6 +89,7 @@ function PriorityBadge({ value }: { value: string }) {
 // Main screen
 // ---------------------------------------------------------------------------
 export default function MeetingsScreen() {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
@@ -112,7 +123,7 @@ export default function MeetingsScreen() {
       if (Platform.OS !== "web") {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== "granted") {
-          setLocError("Permission de localisation refusee. Activez-la dans les parametres.");
+          setLocError(t("meetingsScreen.locPermissionDenied"));
           setLocLoading(false);
           return;
         }
@@ -150,18 +161,18 @@ export default function MeetingsScreen() {
         }
       }
     } catch (err: any) {
-      setLocError("Impossible d'obtenir la position : " + (err.message || "Erreur inconnue"));
+      setLocError(t("meetingsScreen.locError", { error: err.message || t("meetingsScreen.unknownError") }));
     } finally {
       setLocLoading(false);
     }
-  }, [fetchAuth]);
+  }, [fetchAuth, t]);
 
   // -----------------------------------------------------------------------
   // Compile meeting
   // -----------------------------------------------------------------------
   const compileMeeting = useCallback(async () => {
     if (notes.trim().length < 10) {
-      Alert.alert("Notes insuffisantes", "Saisissez au moins 10 caracteres de notes.");
+      Alert.alert(t("meetingsScreen.notesInsufficientTitle"), t("meetingsScreen.notesInsufficientMsg"));
       return;
     }
 
@@ -183,7 +194,7 @@ export default function MeetingsScreen() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        Alert.alert("Erreur", err.error || "Echec de la compilation.");
+        Alert.alert(t("meetingsScreen.errorTitle"), err.error || t("meetingsScreen.compileFailed"));
         return;
       }
 
@@ -191,11 +202,11 @@ export default function MeetingsScreen() {
       setResult(data);
       animateIn();
     } catch (err: any) {
-      Alert.alert("Erreur", err.message || "Erreur reseau.");
+      Alert.alert(t("meetingsScreen.errorTitle"), err.message || t("meetingsScreen.networkError"));
     } finally {
       setCompiling(false);
     }
-  }, [notes, position, fetchAuth, animateIn]);
+  }, [notes, position, fetchAuth, animateIn, t]);
 
   const reset = useCallback(() => {
     setResult(null);
@@ -219,7 +230,7 @@ export default function MeetingsScreen() {
             <View style={[styles.headerIcon, { backgroundColor: "#8b5cf6" + "20" }]}>
               <Feather name="users" size={18} color="#8b5cf6" />
             </View>
-            <Text style={[styles.headerTitle, { color: colors.foreground }]}>Réunion IA</Text>
+            <Text style={[styles.headerTitle, { color: colors.foreground }]}>{t("meetingsScreen.title")}</Text>
           </View>
           {result && (
             <Pressable onPress={reset} style={styles.resetBtn}>
@@ -240,11 +251,11 @@ export default function MeetingsScreen() {
               <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={styles.cardHeader}>
                   <Feather name="file-text" size={16} color="#8b5cf6" />
-                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>Notes de réunion</Text>
+                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("meetingsScreen.notesTitle")}</Text>
                 </View>
                 <TextInput
                   style={[styles.notesInput, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]}
-                  placeholder="Saisissez vos notes... Qui était présent, ce qui a été discuté, les décisions, les prochaines étapes..."
+                  placeholder={t("meetingsScreen.notesPlaceholder")}
                   placeholderTextColor={colors.mutedForeground}
                   multiline
                   numberOfLines={8}
@@ -254,7 +265,7 @@ export default function MeetingsScreen() {
                   scrollEnabled={false}
                 />
                 <Text style={[styles.charCount, { color: colors.mutedForeground }]}>
-                  {notes.length} / 8000 caractères
+                  {t("meetingsScreen.charCount", { count: notes.length })}
                 </Text>
               </View>
 
@@ -262,7 +273,7 @@ export default function MeetingsScreen() {
               <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={styles.cardHeader}>
                   <Feather name="map-pin" size={16} color="#22c55e" />
-                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>Chantier (optionnel)</Text>
+                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("meetingsScreen.siteOptional")}</Text>
                 </View>
 
                 {chantierDetecte ? (
@@ -294,7 +305,7 @@ export default function MeetingsScreen() {
                         <Feather name="navigation" size={16} color="#22c55e" />
                       )}
                       <Text style={[styles.locBtnText, { color: "#22c55e" }]}>
-                        {locLoading ? "Localisation en cours..." : "Détecter mon chantier"}
+                        {locLoading ? t("meetingsScreen.locating") : t("meetingsScreen.detectSite")}
                       </Text>
                     </Pressable>
                     {locError && (
@@ -302,8 +313,7 @@ export default function MeetingsScreen() {
                     )}
                     {position && !chantierDetecte && (
                       <Text style={[styles.locNote, { color: colors.mutedForeground }]}>
-                        📍 Position obtenue ({position.lat.toFixed(4)}, {position.lng.toFixed(4)}).
-                        Aucun chantier trouvé à moins de 50 km — assignez des coordonnées GPS à vos projets.
+                        {t("meetingsScreen.locNote", { lat: position.lat.toFixed(4), lng: position.lng.toFixed(4) })}
                       </Text>
                     )}
                   </>
@@ -319,12 +329,12 @@ export default function MeetingsScreen() {
                 {compiling ? (
                   <>
                     <ActivityIndicator size="small" color="#fff" />
-                    <Text style={styles.compileBtnText}>Compilation IA en cours...</Text>
+                    <Text style={styles.compileBtnText}>{t("meetingsScreen.compiling")}</Text>
                   </>
                 ) : (
                   <>
                     <Feather name="cpu" size={18} color="#fff" />
-                    <Text style={styles.compileBtnText}>Compiler la réunion</Text>
+                    <Text style={styles.compileBtnText}>{t("meetingsScreen.compile")}</Text>
                   </>
                 )}
               </Pressable>
@@ -339,7 +349,7 @@ export default function MeetingsScreen() {
                 <View style={[styles.card, { backgroundColor: "#22c55e" + "08", borderColor: "#22c55e" + "30" }]}>
                   <View style={styles.cardHeader}>
                     <Feather name="map-pin" size={16} color="#22c55e" />
-                    <Text style={[styles.cardTitle, { color: colors.foreground }]}>Chantier identifié</Text>
+                    <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("meetingsScreen.siteIdentified")}</Text>
                     <View style={[styles.badge, { backgroundColor: "#22c55e" + "20", borderColor: "#22c55e" + "40", marginLeft: "auto" }]}>
                       <Text style={[styles.badgeText, { color: "#22c55e" }]}>{result.chantierLePlusProche.distanceKm} km</Text>
                     </View>
@@ -359,11 +369,11 @@ export default function MeetingsScreen() {
               <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={styles.cardHeader}>
                   <Feather name="align-left" size={16} color="#8b5cf6" />
-                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>Résumé</Text>
+                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("meetingsScreen.summary")}</Text>
                 </View>
                 <Text style={[styles.resumeText, { color: colors.foreground }]}>{result.resume}</Text>
                 <Text style={[styles.compiledAt, { color: colors.mutedForeground }]}>
-                  Compilé le {new Date(result.compiledAt).toLocaleString("fr-FR")}
+                  {t("meetingsScreen.compiledAt", { date: new Date(result.compiledAt).toLocaleString("fr-FR") })}
                 </Text>
               </View>
 
@@ -372,7 +382,7 @@ export default function MeetingsScreen() {
                 <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.cardHeader}>
                     <Feather name="list" size={16} color="#3b82f6" />
-                    <Text style={[styles.cardTitle, { color: colors.foreground }]}>Points clés</Text>
+                    <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("meetingsScreen.keyPoints")}</Text>
                     <View style={[styles.countBadge, { backgroundColor: "#3b82f6" + "20" }]}>
                       <Text style={[styles.countBadgeText, { color: "#3b82f6" }]}>{result.pointsCles.length}</Text>
                     </View>
@@ -391,7 +401,7 @@ export default function MeetingsScreen() {
                 <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.cardHeader}>
                     <Feather name="check-square" size={16} color="#f59e0b" />
-                    <Text style={[styles.cardTitle, { color: colors.foreground }]}>Décisions actées</Text>
+                    <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("meetingsScreen.decisions")}</Text>
                     <View style={[styles.countBadge, { backgroundColor: "#f59e0b" + "20" }]}>
                       <Text style={[styles.countBadgeText, { color: "#f59e0b" }]}>{result.decisionsActees.length}</Text>
                     </View>
@@ -410,23 +420,23 @@ export default function MeetingsScreen() {
                 <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.cardHeader}>
                     <Feather name="zap" size={16} color="#22c55e" />
-                    <Text style={[styles.cardTitle, { color: colors.foreground }]}>Tâches créées</Text>
+                    <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("meetingsScreen.tasksCreated")}</Text>
                     <View style={[styles.countBadge, { backgroundColor: "#22c55e" + "20" }]}>
                       <Text style={[styles.countBadgeText, { color: "#22c55e" }]}>{result.tasksCreees.length}</Text>
                     </View>
                   </View>
-                  {result.tasksCreees.map((t, i) => (
+                  {result.tasksCreees.map((task, i) => (
                     <View key={i} style={[styles.taskRow, { borderColor: colors.border }]}>
                       <View style={[styles.taskCheckIcon, { backgroundColor: "#22c55e" + "20" }]}>
                         <Feather name="check" size={12} color="#22c55e" />
                       </View>
                       <View style={styles.taskInfo}>
-                        <Text style={[styles.taskTitle, { color: colors.foreground }]}>{t.titre}</Text>
+                        <Text style={[styles.taskTitle, { color: colors.foreground }]}>{task.titre}</Text>
                         <Text style={[styles.taskMeta, { color: colors.mutedForeground }]}>
-                          Échéance : {t.echeance}
+                          {t("meetingsScreen.deadline", { date: task.echeance })}
                         </Text>
                       </View>
-                      <PriorityBadge value={t.priorite} />
+                      <PriorityBadge value={task.priorite} />
                     </View>
                   ))}
                 </View>
@@ -436,14 +446,14 @@ export default function MeetingsScreen() {
               <View style={styles.actionRow}>
                 <Pressable style={[styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={reset}>
                   <Feather name="plus" size={16} color={colors.foreground} />
-                  <Text style={[styles.actionBtnText, { color: colors.foreground }]}>Nouvelle réunion</Text>
+                  <Text style={[styles.actionBtnText, { color: colors.foreground }]}>{t("meetingsScreen.newMeeting")}</Text>
                 </Pressable>
                 <Pressable
                   style={[styles.actionBtn, { backgroundColor: "#8b5cf6", borderColor: "#8b5cf6" }]}
                   onPress={() => router.push("/(tabs)/tasks" as any)}
                 >
                   <Feather name="check-square" size={16} color="#fff" />
-                  <Text style={[styles.actionBtnText, { color: "#fff" }]}>Voir les tâches</Text>
+                  <Text style={[styles.actionBtnText, { color: "#fff" }]}>{t("meetingsScreen.viewTasks")}</Text>
                 </Pressable>
               </View>
             </Animated.View>

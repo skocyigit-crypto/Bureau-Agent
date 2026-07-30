@@ -19,6 +19,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { FormModal } from "@/components/FormModal";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation, type TFunction } from "@/lib/i18n";
 
 interface User {
   id: number;
@@ -32,27 +33,30 @@ interface User {
   mfaActif?: boolean;
 }
 
-const ROLE_MAP: Record<string, { label: string; color: string }> = {
-  super_admin: { label: "Super Admin", color: "#ef4444" },
-  administrateur: { label: "Administrateur", color: "#8b5cf6" },
-  agent: { label: "Agent", color: "#3b82f6" },
-  lecture_seule: { label: "Lecture seule", color: "#64748b" },
+const ROLE_META: Record<string, { labelKey: string; color: string }> = {
+  super_admin: { labelKey: "usersScreen.roleSuperAdmin", color: "#ef4444" },
+  administrateur: { labelKey: "usersScreen.roleAdmin", color: "#8b5cf6" },
+  agent: { labelKey: "usersScreen.roleAgent", color: "#3b82f6" },
+  lecture_seule: { labelKey: "usersScreen.roleReadOnly", color: "#64748b" },
 };
 
-const FORM_FIELDS = [
-  { key: "prenom", label: "Prenom", required: true },
-  { key: "nom", label: "Nom", required: true },
-  { key: "email", label: "Email", required: true },
-  { key: "role", label: "Role", type: "select" as const, options: [
-    { value: "administrateur", label: "Administrateur" },
-    { value: "agent", label: "Agent" },
-    { value: "lecture_seule", label: "Lecture seule" },
-  ]},
-  { key: "departement", label: "Departement" },
-  { key: "password", label: "Mot de passe (vide = genere auto)" },
-];
+function buildFormFields(t: TFunction) {
+  return [
+    { key: "prenom", label: t("usersScreen.fieldFirstName"), required: true },
+    { key: "nom", label: t("usersScreen.fieldLastName"), required: true },
+    { key: "email", label: t("usersScreen.fieldEmail"), required: true },
+    { key: "role", label: t("usersScreen.fieldRole"), type: "select" as const, options: [
+      { value: "administrateur", label: t("usersScreen.roleAdmin") },
+      { value: "agent", label: t("usersScreen.roleAgent") },
+      { value: "lecture_seule", label: t("usersScreen.roleReadOnly") },
+    ]},
+    { key: "departement", label: t("usersScreen.fieldDepartment") },
+    { key: "password", label: t("usersScreen.fieldPassword") },
+  ];
+}
 
 export default function UsersScreen() {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth, user: currentUser } = useAuth();
@@ -171,13 +175,13 @@ export default function UsersScreen() {
         .then(() => fetchUsers())
         .catch((err) => {
           console.warn("[Users] delete failed:", err);
-          Alert.alert("Erreur", "Impossible de supprimer l'utilisateur.");
+          Alert.alert(t("usersScreen.deleteErrorTitle"), t("usersScreen.deleteErrorMsg"));
         });
     }
     if (Platform.OS === "web") { doDelete(); return; }
-    Alert.alert("Supprimer", "Supprimer cet utilisateur ?", [
-      { text: "Annuler", style: "cancel" },
-      { text: "Supprimer", style: "destructive", onPress: doDelete },
+    Alert.alert(t("common.delete"), t("usersScreen.deleteConfirm"), [
+      { text: t("common.cancel"), style: "cancel" },
+      { text: t("common.delete"), style: "destructive", onPress: doDelete },
     ]);
   }
 
@@ -208,7 +212,7 @@ export default function UsersScreen() {
           <Pressable onPress={() => router.back()} hitSlop={12}>
             <Feather name="arrow-left" size={22} color="#ffffff" />
           </Pressable>
-          <Text style={styles.headerTitle}>Utilisateurs</Text>
+          <Text style={styles.headerTitle}>{t("usersScreen.title")}</Text>
           <Pressable onPress={openNew} hitSlop={12}>
             <Feather name="user-plus" size={22} color="#ffffff" />
           </Pressable>
@@ -217,7 +221,7 @@ export default function UsersScreen() {
           <Feather name="search" size={16} color="rgba(255,255,255,0.5)" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Rechercher un utilisateur..."
+            placeholder={t("usersScreen.searchPlaceholder")}
             placeholderTextColor="rgba(255,255,255,0.4)"
             value={search}
             onChangeText={setSearch}
@@ -236,9 +240,10 @@ export default function UsersScreen() {
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={[styles.listContent, { paddingBottom: isWeb ? 118 : 40 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
-          ListEmptyComponent={<EmptyState icon="users" title="Aucun utilisateur" subtitle="Ajoutez des membres a votre equipe" />}
+          ListEmptyComponent={<EmptyState icon="users" title={t("usersScreen.emptyTitle")} subtitle={t("usersScreen.emptySubtitle")} />}
           renderItem={({ item }) => {
-            const role = ROLE_MAP[item.role] || { label: item.role, color: "#64748b" };
+            const meta = ROLE_META[item.role];
+            const role = { label: meta ? t(meta.labelKey) : item.role, color: meta?.color || "#64748b" };
             return (
               <View style={[styles.userCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={styles.userHeader}>
@@ -273,7 +278,7 @@ export default function UsersScreen() {
                 <View style={[styles.userActions, { borderTopColor: colors.border }]}>
                   <Pressable onPress={() => openEdit(item)} style={styles.userActionBtn}>
                     <Feather name="edit-2" size={14} color={colors.primary} />
-                    <Text style={[styles.userActionText, { color: colors.primary }]}>Modifier</Text>
+                    <Text style={[styles.userActionText, { color: colors.primary }]}>{t("common.edit")}</Text>
                   </Pressable>
                   <Pressable onPress={() => sendCredentials(item.id)} disabled={sendingCreds === item.id} style={styles.userActionBtn}>
                     {sendingCreds === item.id ? (
@@ -281,14 +286,14 @@ export default function UsersScreen() {
                     ) : (
                       <>
                         <Feather name="send" size={14} color="#f59e0b" />
-                        <Text style={[styles.userActionText, { color: "#f59e0b" }]}>Mot de passe</Text>
+                        <Text style={[styles.userActionText, { color: "#f59e0b" }]}>{t("usersScreen.passwordAction")}</Text>
                       </>
                     )}
                   </Pressable>
                   <Pressable onPress={() => toggleActive(item)} style={styles.userActionBtn}>
                     <Feather name={item.actif ? "user-x" : "user-check"} size={14} color={item.actif ? "#ef4444" : "#22c55e"} />
                     <Text style={[styles.userActionText, { color: item.actif ? "#ef4444" : "#22c55e" }]}>
-                      {item.actif ? "Desactiver" : "Activer"}
+                      {item.actif ? t("usersScreen.deactivate") : t("usersScreen.activate")}
                     </Text>
                   </Pressable>
                   {currentUser?.role === "super_admin" && item.id !== currentUser.id && (
@@ -307,13 +312,13 @@ export default function UsersScreen() {
         visible={showForm}
         onClose={() => { setShowForm(false); setEditId(null); }}
         onSubmit={handleSubmit}
-        title={editId ? "Modifier l'utilisateur" : "Nouvel utilisateur"}
-        fields={FORM_FIELDS}
+        title={editId ? t("usersScreen.editTitle") : t("usersScreen.newTitle")}
+        fields={buildFormFields(t)}
         values={formValues}
         onChange={(k, v) => setFormValues((p) => ({ ...p, [k]: v }))}
         loading={formLoading}
         icon="user-plus"
-        submitLabel={editId ? "Enregistrer" : "Creer"}
+        submitLabel={editId ? t("common.save") : t("usersScreen.create")}
       />
     </View>
   );

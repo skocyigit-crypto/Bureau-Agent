@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation, type TFunction } from "@/lib/i18n";
 
 const LEARNING_API = `${API_BASE}/api/ai-learning`;
 
@@ -41,40 +42,44 @@ interface Correction {
   decidedAt: string | null;
 }
 
-const SUGGESTION_LABELS: Record<string, string> = {
-  overdue_task: "Tâches en retard",
-  missed_call_followup: "Rappels d'appels manqués",
-  calendar_conflict: "Conflits d'agenda",
+const SUGGESTION_LABEL_KEYS: Record<string, string> = {
+  overdue_task: "iaApprentissageScreen.suggestionOverdueTask",
+  missed_call_followup: "iaApprentissageScreen.suggestionMissedCall",
+  calendar_conflict: "iaApprentissageScreen.suggestionCalendarConflict",
 };
-const CATEGORY_LABELS: Record<string, string> = {
-  calls: "Appels", tasks: "Tâches", finance: "Finance", contacts: "Contacts",
-  projets: "Projets", prospects: "Prospects", general: "Général",
+const CATEGORY_LABEL_KEYS: Record<string, string> = {
+  calls: "iaApprentissageScreen.catCalls", tasks: "iaApprentissageScreen.catTasks",
+  finance: "iaApprentissageScreen.catFinance", contacts: "iaApprentissageScreen.catContacts",
+  projets: "iaApprentissageScreen.catProjets", prospects: "iaApprentissageScreen.catProspects",
+  general: "iaApprentissageScreen.catGeneral",
 };
-const PROPOSAL_CATEGORY_LABELS: Record<string, string> = {
-  tache: "Tâche", email: "E-mail", sms: "SMS", rappel: "Rappel",
-  relance: "Relance", contact: "Contact", autre: "Divers",
+const PROPOSAL_CATEGORY_LABEL_KEYS: Record<string, string> = {
+  tache: "iaApprentissageScreen.propTache", email: "iaApprentissageScreen.propEmail",
+  sms: "iaApprentissageScreen.propSms", rappel: "iaApprentissageScreen.propRappel",
+  relance: "iaApprentissageScreen.propRelance", contact: "iaApprentissageScreen.propContact",
+  autre: "iaApprentissageScreen.propAutre",
 };
 
-function prefLabel(p: Preference): string {
-  if (p.kind === "suggestion_type") return SUGGESTION_LABELS[p.key] ?? p.key;
-  return CATEGORY_LABELS[p.key] ?? p.key;
+function prefLabel(p: Preference, t: TFunction): string {
+  if (p.kind === "suggestion_type") { const k = SUGGESTION_LABEL_KEYS[p.key]; return k ? t(k) : p.key; }
+  const k = CATEGORY_LABEL_KEYS[p.key]; return k ? t(k) : p.key;
 }
 
 // "il y a 2 h", "il y a 5 min", "à l'instant"… à partir d'une date ISO.
-function relativeTime(iso: string | null): string | null {
+function relativeTime(iso: string | null, t: TFunction): string | null {
   if (!iso) return null;
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return null;
   const sec = Math.max(0, Math.floor((Date.now() - then) / 1000));
-  if (sec < 60) return "à l'instant";
+  if (sec < 60) return t("iaApprentissageScreen.timeNow");
   const min = Math.floor(sec / 60);
-  if (min < 60) return `il y a ${min} min`;
+  if (min < 60) return t("iaApprentissageScreen.timeMin", { min });
   const h = Math.floor(min / 60);
-  if (h < 24) return `il y a ${h} h`;
+  if (h < 24) return t("iaApprentissageScreen.timeHour", { h });
   const j = Math.floor(h / 24);
-  if (j < 30) return `il y a ${j} j`;
+  if (j < 30) return t("iaApprentissageScreen.timeDay", { j });
   const mois = Math.floor(j / 30);
-  return `il y a ${mois} mois`;
+  return t("iaApprentissageScreen.timeMonth", { mois });
 }
 
 interface UserFact {
@@ -97,9 +102,9 @@ interface LearnableUser {
   factCount: number;
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  super_admin: "Dirigeant", administrateur: "Administrateur",
-  agent: "Agent", lecture_seule: "Lecture seule",
+const ROLE_LABEL_KEYS: Record<string, string> = {
+  super_admin: "iaApprentissageScreen.roleDirigeant", administrateur: "iaApprentissageScreen.roleAdmin",
+  agent: "iaApprentissageScreen.roleAgent", lecture_seule: "iaApprentissageScreen.roleReadOnly",
 };
 const MANAGER_ROLES = new Set(["super_admin", "administrateur"]);
 
@@ -116,6 +121,7 @@ function groupUserFacts(facts: UserFact[]) {
 }
 
 export default function IaApprentissageScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const { fetchAuth, user } = useAuth();
@@ -277,7 +283,7 @@ export default function IaApprentissageScreen() {
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Feather name="arrow-left" size={24} color={colors.foreground} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>Ce que l'IA a appris</Text>
+        <Text style={[styles.headerTitle, { color: colors.foreground }]}>{t("iaApprentissageScreen.title")}</Text>
         <Pressable onPress={recompute} disabled={recomputing} hitSlop={12}>
           {recomputing ? <ActivityIndicator size="small" color={colors.primary} /> : <Feather name="refresh-cw" size={20} color={colors.primary} />}
         </Pressable>
@@ -288,7 +294,7 @@ export default function IaApprentissageScreen() {
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.primary} />}
       >
         <Text style={[styles.intro, { color: colors.mutedForeground }]}>
-          À partir de vos retours (👍/👎) et de vos habitudes, l'assistant adapte ses réponses.
+          {t("iaApprentissageScreen.intro")}
         </Text>
 
         {loading ? (
@@ -296,9 +302,9 @@ export default function IaApprentissageScreen() {
         ) : isEmpty ? (
           <View style={styles.empty}>
             <Feather name="inbox" size={48} color={colors.mutedForeground} />
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>L'IA n'a encore rien appris</Text>
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("iaApprentissageScreen.emptyTitle")}</Text>
             <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
-              Notez les suggestions (👍/👎) et votez sur les analyses : l'IA mémorisera vos préférences.
+              {t("iaApprentissageScreen.emptySub")}
             </Text>
           </View>
         ) : (
@@ -306,20 +312,20 @@ export default function IaApprentissageScreen() {
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.cardHead}>
                 <Feather name="thumbs-up" size={16} color="#22c55e" />
-                <Text style={[styles.cardTitle, { color: colors.foreground }]}>Préférences apprises</Text>
+                <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("iaApprentissageScreen.prefTitle")}</Text>
               </View>
               <Text style={[styles.rowSub, { color: colors.mutedForeground, marginBottom: 12 }]}>
-                Ce que vous appréciez ou souhaitez éviter.
+                {t("iaApprentissageScreen.prefDesc")}
               </Text>
               {liked.length === 0 && disliked.length === 0 ? (
                 <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
-                  Pas encore assez de retours pour dégager une préférence.
+                  {t("iaApprentissageScreen.prefEmpty")}
                 </Text>
               ) : null}
               {liked.map((p) => (
                 <View key={`up-${p.kind}-${p.key}`} style={styles.row}>
                   <Feather name="trending-up" size={16} color="#22c55e" />
-                  <Text style={[styles.rowLabel, { color: colors.foreground }]}>{prefLabel(p)}</Text>
+                  <Text style={[styles.rowLabel, { color: colors.foreground }]}>{prefLabel(p, t)}</Text>
                   <View style={[styles.badge, { backgroundColor: "#22c55e22" }]}>
                     <Text style={{ color: "#16a34a", fontSize: 12, fontWeight: "700" }}>{p.upCount} 👍</Text>
                   </View>
@@ -328,7 +334,7 @@ export default function IaApprentissageScreen() {
               {disliked.map((p) => (
                 <View key={`down-${p.kind}-${p.key}`} style={styles.row}>
                   <Feather name="trending-down" size={16} color="#ef4444" />
-                  <Text style={[styles.rowLabel, { color: colors.foreground }]}>{prefLabel(p)}</Text>
+                  <Text style={[styles.rowLabel, { color: colors.foreground }]}>{prefLabel(p, t)}</Text>
                   <View style={[styles.badge, { backgroundColor: "#ef444422" }]}>
                     <Text style={{ color: "#dc2626", fontSize: 12, fontWeight: "700" }}>{p.downCount} 👎</Text>
                   </View>
@@ -339,14 +345,14 @@ export default function IaApprentissageScreen() {
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.cardHead}>
                 <Feather name="zap" size={16} color="#f59e0b" />
-                <Text style={[styles.cardTitle, { color: colors.foreground }]}>Habitudes détectées</Text>
+                <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("iaApprentissageScreen.habitsTitle")}</Text>
               </View>
               <Text style={[styles.rowSub, { color: colors.mutedForeground, marginBottom: 12 }]}>
-                Motifs récurrents repérés dans votre activité.
+                {t("iaApprentissageScreen.habitsDesc")}
               </Text>
               {callers.length > 0 ? (
                 <View style={styles.group}>
-                  <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>Interlocuteurs fréquents</Text>
+                  <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>{t("iaApprentissageScreen.frequentCallers")}</Text>
                   <View style={styles.tagRow}>
                     {callers.slice(0, 6).map((c) => (
                       <View key={c.value} style={[styles.tag, { borderColor: colors.border }]}>
@@ -358,7 +364,7 @@ export default function IaApprentissageScreen() {
               ) : null}
               {hours.length > 0 ? (
                 <View style={styles.group}>
-                  <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>Heures d'appels chargées</Text>
+                  <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>{t("iaApprentissageScreen.busyCallHours")}</Text>
                   <View style={styles.tagRow}>
                     {hours.map((h) => (
                       <View key={h.value} style={[styles.tag, { borderColor: colors.border }]}>
@@ -370,11 +376,11 @@ export default function IaApprentissageScreen() {
               ) : null}
               {themes.length > 0 ? (
                 <View style={styles.group}>
-                  <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>Thèmes de tâches récurrents</Text>
+                  <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>{t("iaApprentissageScreen.recurringTaskThemes")}</Text>
                   <View style={styles.tagRow}>
-                    {themes.map((t) => (
-                      <View key={t.value} style={[styles.tag, { borderColor: colors.border }]}>
-                        <Text style={{ color: colors.foreground, fontSize: 12 }}>{t.label} · {t.occurrences}×</Text>
+                    {themes.map((th) => (
+                      <View key={th.value} style={[styles.tag, { borderColor: colors.border }]}>
+                        <Text style={{ color: colors.foreground, fontSize: 12 }}>{th.label} · {th.occurrences}×</Text>
                       </View>
                     ))}
                   </View>
@@ -382,7 +388,7 @@ export default function IaApprentissageScreen() {
               ) : null}
               {callers.length === 0 && hours.length === 0 && themes.length === 0 ? (
                 <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
-                  Aucune habitude récurrente détectée pour l'instant.
+                  {t("iaApprentissageScreen.habitsEmpty")}
                 </Text>
               ) : null}
             </View>
@@ -391,17 +397,16 @@ export default function IaApprentissageScreen() {
               <View style={[styles.card, { backgroundColor: colors.card, borderColor: "#f59e0b66" }]}>
                 <View style={styles.cardHead}>
                   <Feather name="bell-off" size={16} color="#d97706" />
-                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>Suggestions mises en sourdine</Text>
+                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("iaApprentissageScreen.mutedTitle")}</Text>
                 </View>
                 <Text style={[styles.rowSub, { color: colors.mutedForeground, marginBottom: 12 }]}>
-                  Après plusieurs 👎, l'assistant a cessé de proposer ces types. Les alertes urgentes
-                  restent toujours affichées.
-                  {isManager ? " Touchez « Réafficher » pour les réactiver." : " Un dirigeant peut les réactiver."}
+                  {t("iaApprentissageScreen.mutedDesc")}
+                  {isManager ? t("iaApprentissageScreen.mutedManagerHint") : t("iaApprentissageScreen.mutedUserHint")}
                 </Text>
                 {muted.map((p) => (
                   <View key={`muted-${p.kind}-${p.key}`} style={styles.row}>
                     <Feather name="bell-off" size={16} color="#d97706" />
-                    <Text style={[styles.rowLabel, { color: colors.foreground }]} numberOfLines={1}>{prefLabel(p)}</Text>
+                    <Text style={[styles.rowLabel, { color: colors.foreground }]} numberOfLines={1}>{prefLabel(p, t)}</Text>
                     <View style={[styles.badge, { backgroundColor: "#ef444422" }]}>
                       <Text style={{ color: "#dc2626", fontSize: 12, fontWeight: "700" }}>{p.downCount} 👎</Text>
                     </View>
@@ -417,7 +422,7 @@ export default function IaApprentissageScreen() {
                         ) : (
                           <>
                             <Feather name="bell" size={13} color={colors.primary} />
-                            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "700" }}>Réafficher</Text>
+                            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "700" }}>{t("iaApprentissageScreen.reactivate")}</Text>
                           </>
                         )}
                       </Pressable>
@@ -431,10 +436,10 @@ export default function IaApprentissageScreen() {
               <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={styles.cardHead}>
                   <Feather name="x-circle" size={16} color="#dc2626" />
-                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>Corrections récentes</Text>
+                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("iaApprentissageScreen.correctionsTitle")}</Text>
                 </View>
                 <Text style={[styles.rowSub, { color: colors.mutedForeground, marginBottom: 12 }]}>
-                  Propositions que vous avez refusées. L'IA en tient compte pour ne plus les reproduire.
+                  {t("iaApprentissageScreen.correctionsDesc")}
                 </Text>
                 {corrections.map((c, i) => (
                   <View key={`corr-${i}`} style={styles.correctionRow}>
@@ -445,14 +450,14 @@ export default function IaApprentissageScreen() {
                       </View>
                       {c.note ? (
                         <Text style={[styles.rowSub, { color: colors.mutedForeground, marginTop: 4 }]} numberOfLines={2}>
-                          « {c.note} »
+                          {t("iaApprentissageScreen.noteQuote", { note: c.note })}
                         </Text>
                       ) : null}
                     </View>
                     <View style={{ alignItems: "flex-end", gap: 4 }}>
                       <View style={[styles.tag, { borderColor: colors.border }]}>
                         <Text style={{ color: colors.foreground, fontSize: 11 }}>
-                          {PROPOSAL_CATEGORY_LABELS[c.category] ?? c.category}
+                          {PROPOSAL_CATEGORY_LABEL_KEYS[c.category] ? t(PROPOSAL_CATEGORY_LABEL_KEYS[c.category]) : c.category}
                         </Text>
                       </View>
                       {c.decidedAt ? (
@@ -474,7 +479,7 @@ export default function IaApprentissageScreen() {
             <View style={styles.sectionHead}>
               <Feather name="user" size={18} color="#8b5cf6" />
               <Text style={[styles.sectionTitle, { color: colors.foreground, flex: 1 }]}>
-                {viewingSelf ? "Votre profil personnel" : "Profil de l'employé"}
+                {viewingSelf ? t("iaApprentissageScreen.yourProfile") : t("iaApprentissageScreen.employeeProfile")}
               </Text>
               <Pressable onPress={recomputeUser} disabled={userRecomputing || userLoading} hitSlop={12}>
                 {userRecomputing ? <ActivityIndicator size="small" color={colors.primary} /> : <Feather name="refresh-cw" size={18} color={colors.primary} />}
@@ -482,22 +487,22 @@ export default function IaApprentissageScreen() {
             </View>
             <Text style={[styles.lastAnalysis, { color: colors.mutedForeground }]}>
               {userRecomputing
-                ? "Analyse en cours…"
-                : relativeTime(userProfile?.computedAt ?? null)
-                  ? `Dernière analyse : ${relativeTime(userProfile?.computedAt ?? null)}`
-                  : "Jamais analysé"}
+                ? t("iaApprentissageScreen.analyzing")
+                : relativeTime(userProfile?.computedAt ?? null, t)
+                  ? t("iaApprentissageScreen.lastAnalysis", { time: relativeTime(userProfile?.computedAt ?? null, t) ?? "" })
+                  : t("iaApprentissageScreen.neverAnalyzed")}
             </Text>
             <Text style={[styles.intro, { color: colors.mutedForeground }]}>
               {isManager
-                ? "Ce que l'IA a appris de chaque employé : horaires, domaines, thèmes, interlocuteurs et style d'écriture."
-                : "Ce que l'IA a appris de votre activité pour personnaliser ses suggestions et le ton de ses réponses."}
+                ? t("iaApprentissageScreen.profileIntroManager")
+                : t("iaApprentissageScreen.profileIntroUser")}
             </Text>
 
             {isManager && team.length > 0 ? (
               <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={styles.cardHead}>
                   <Feather name="users" size={16} color={colors.mutedForeground} />
-                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>Choisir un employé</Text>
+                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("iaApprentissageScreen.chooseEmployee")}</Text>
                 </View>
                 <View style={styles.tagRow}>
                   {team.map((m) => {
@@ -515,7 +520,7 @@ export default function IaApprentissageScreen() {
                           {m.prenom} {m.nom}
                         </Text>
                         <Text style={{ color: active ? colors.primaryForeground : colors.mutedForeground, fontSize: 11 }}>
-                          {ROLE_LABELS[m.role] ?? m.role}{m.factCount > 0 ? ` · ${m.factCount}` : ""}
+                          {(ROLE_LABEL_KEYS[m.role] ? t(ROLE_LABEL_KEYS[m.role]) : m.role)}{m.factCount > 0 ? ` · ${m.factCount}` : ""}
                         </Text>
                       </Pressable>
                     );
@@ -530,10 +535,10 @@ export default function IaApprentissageScreen() {
               <View style={styles.empty}>
                 <Feather name="inbox" size={40} color={colors.mutedForeground} />
                 <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-                  {viewingSelf ? "Rien appris sur vous pour l'instant" : "Rien appris sur cet employé pour l'instant"}
+                  {viewingSelf ? t("iaApprentissageScreen.userEmptySelf") : t("iaApprentissageScreen.userEmptyOther")}
                 </Text>
                 <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
-                  L'IA apprend automatiquement à partir de l'activité (appels, tâches, messages). Le profil se remplira au fil de l'usage.
+                  {t("iaApprentissageScreen.userEmptySub")}
                 </Text>
               </View>
             ) : (
@@ -542,10 +547,10 @@ export default function IaApprentissageScreen() {
                   <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     <View style={styles.cardHead}>
                       <Feather name="edit-3" size={16} color="#8b5cf6" />
-                      <Text style={[styles.cardTitle, { color: colors.foreground }]}>Style d'écriture</Text>
+                      <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("iaApprentissageScreen.writingStyleTitle")}</Text>
                     </View>
                     <Text style={[styles.rowSub, { color: colors.mutedForeground, marginBottom: 8 }]}>
-                      L'IA reproduit ce registre dans les rédactions proposées.
+                      {t("iaApprentissageScreen.writingStyleDesc")}
                     </Text>
                     <Text style={[styles.rowSub, { color: colors.foreground }]}>{ug.writingStyle.label}</Text>
                   </View>
@@ -554,14 +559,14 @@ export default function IaApprentissageScreen() {
                 <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.cardHead}>
                     <Feather name="clock" size={16} color="#f59e0b" />
-                    <Text style={[styles.cardTitle, { color: colors.foreground }]}>Heures &amp; domaines</Text>
+                    <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("iaApprentissageScreen.hoursDomainsTitle")}</Text>
                   </View>
                   <Text style={[styles.rowSub, { color: colors.mutedForeground, marginBottom: 12 }]}>
-                    Quand et sur quoi cette personne travaille.
+                    {t("iaApprentissageScreen.hoursDomainsDesc")}
                   </Text>
                   {ug.hours.length > 0 ? (
                     <View style={styles.group}>
-                      <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>Heures d'activité</Text>
+                      <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>{t("iaApprentissageScreen.activityHours")}</Text>
                       <View style={styles.tagRow}>
                         {ug.hours.map((h) => (
                           <View key={h.value} style={[styles.tag, { borderColor: colors.border }]}>
@@ -573,7 +578,7 @@ export default function IaApprentissageScreen() {
                   ) : null}
                   {ug.focus.length > 0 ? (
                     <View style={styles.group}>
-                      <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>Domaines de travail</Text>
+                      <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>{t("iaApprentissageScreen.workDomains")}</Text>
                       <View style={styles.tagRow}>
                         {ug.focus.map((f) => (
                           <View key={f.value} style={[styles.tag, { borderColor: colors.border }]}>
@@ -584,25 +589,25 @@ export default function IaApprentissageScreen() {
                     </View>
                   ) : null}
                   {ug.hours.length === 0 && ug.focus.length === 0 ? (
-                    <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>Pas encore de données.</Text>
+                    <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>{t("iaApprentissageScreen.noDataYet")}</Text>
                   ) : null}
                 </View>
 
                 <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.cardHead}>
                     <Feather name="zap" size={16} color="#f59e0b" />
-                    <Text style={[styles.cardTitle, { color: colors.foreground }]}>Thèmes &amp; contacts</Text>
+                    <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("iaApprentissageScreen.themesContactsTitle")}</Text>
                   </View>
                   <Text style={[styles.rowSub, { color: colors.mutedForeground, marginBottom: 12 }]}>
-                    Sujets récurrents et interlocuteurs habituels.
+                    {t("iaApprentissageScreen.themesContactsDesc")}
                   </Text>
                   {ug.themes.length > 0 ? (
                     <View style={styles.group}>
-                      <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>Thèmes de tâches</Text>
+                      <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>{t("iaApprentissageScreen.taskThemes")}</Text>
                       <View style={styles.tagRow}>
-                        {ug.themes.map((t) => (
-                          <View key={t.value} style={[styles.tag, { borderColor: colors.border }]}>
-                            <Text style={{ color: colors.foreground, fontSize: 12 }}>{t.label} · {t.occurrences}×</Text>
+                        {ug.themes.map((th) => (
+                          <View key={th.value} style={[styles.tag, { borderColor: colors.border }]}>
+                            <Text style={{ color: colors.foreground, fontSize: 12 }}>{th.label} · {th.occurrences}×</Text>
                           </View>
                         ))}
                       </View>
@@ -610,7 +615,7 @@ export default function IaApprentissageScreen() {
                   ) : null}
                   {ug.contacts.length > 0 ? (
                     <View style={styles.group}>
-                      <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>Interlocuteurs récurrents</Text>
+                      <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>{t("iaApprentissageScreen.recurringContacts")}</Text>
                       <View style={styles.tagRow}>
                         {ug.contacts.map((c) => (
                           <View key={c.value} style={[styles.tag, { borderColor: colors.border }]}>
@@ -621,7 +626,7 @@ export default function IaApprentissageScreen() {
                     </View>
                   ) : null}
                   {ug.themes.length === 0 && ug.contacts.length === 0 ? (
-                    <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>Pas encore de données.</Text>
+                    <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>{t("iaApprentissageScreen.noDataYet")}</Text>
                   ) : null}
                 </View>
               </>

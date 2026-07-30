@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation } from "@/lib/i18n";
 
 const PROACTIVE_API = `${API_BASE}/api/proactive`;
 
@@ -33,40 +34,41 @@ interface Suggestion {
   createdAt: string;
 }
 
-const SEVERITY_META: Record<Severity, { label: string; color: string }> = {
-  urgent: { label: "Urgent", color: "#ef4444" },
-  warning: { label: "À traiter", color: "#f59e0b" },
-  info: { label: "Info", color: "#3b82f6" },
+const SEVERITY_META: Record<Severity, { labelKey: string; color: string }> = {
+  urgent: { labelKey: "assistantProactifScreen.sevUrgent", color: "#ef4444" },
+  warning: { labelKey: "assistantProactifScreen.sevWarning", color: "#f59e0b" },
+  info: { labelKey: "assistantProactifScreen.sevInfo", color: "#3b82f6" },
 };
 
-const TYPE_META: Record<string, { label: string; icon: keyof typeof Feather.glyphMap }> = {
-  overdue_task: { label: "Tâche en retard", icon: "clock" },
-  missed_call_followup: { label: "Appel à rappeler", icon: "phone-missed" },
-  calendar_conflict: { label: "Conflit d'agenda", icon: "calendar" },
-  negative_call_followup: { label: "Appel tendu à rappeler", icon: "phone-off" },
-  urgent_message: { label: "Message prioritaire", icon: "message-square" },
-  meeting_prep: { label: "Préparer une réunion", icon: "calendar" },
-  inactive_contact: { label: "Contact à relancer", icon: "user-plus" },
-  message_sla_breach: { label: "Message sans réponse", icon: "message-square" },
-  quiet_customer: { label: "Client silencieux", icon: "user-x" },
+const TYPE_META: Record<string, { labelKey: string; icon: keyof typeof Feather.glyphMap }> = {
+  overdue_task: { labelKey: "assistantProactifScreen.typeOverdueTask", icon: "clock" },
+  missed_call_followup: { labelKey: "assistantProactifScreen.typeMissedCall", icon: "phone-missed" },
+  calendar_conflict: { labelKey: "assistantProactifScreen.typeCalendarConflict", icon: "calendar" },
+  negative_call_followup: { labelKey: "assistantProactifScreen.typeNegativeCall", icon: "phone-off" },
+  urgent_message: { labelKey: "assistantProactifScreen.typeUrgentMessage", icon: "message-square" },
+  meeting_prep: { labelKey: "assistantProactifScreen.typeMeetingPrep", icon: "calendar" },
+  inactive_contact: { labelKey: "assistantProactifScreen.typeInactiveContact", icon: "user-plus" },
+  message_sla_breach: { labelKey: "assistantProactifScreen.typeMessageSla", icon: "message-square" },
+  quiet_customer: { labelKey: "assistantProactifScreen.typeQuietCustomer", icon: "user-x" },
 };
 
-const ACTION_NAV: Record<string, { label: string; route: string }> = {
-  open_task: { label: "Ouvrir la tâche", route: "/tasks" },
-  callback: { label: "Voir l'appel", route: "/calls" },
-  open_calendar: { label: "Ouvrir l'agenda", route: "/calendar" },
-  open_messages: { label: "Ouvrir les messages", route: "/messages" },
-  open_contact: { label: "Ouvrir le contact", route: "/contacts" },
+const ACTION_NAV: Record<string, { labelKey: string; route: string }> = {
+  open_task: { labelKey: "assistantProactifScreen.actionOpenTask", route: "/tasks" },
+  callback: { labelKey: "assistantProactifScreen.actionCallback", route: "/calls" },
+  open_calendar: { labelKey: "assistantProactifScreen.actionOpenCalendar", route: "/calendar" },
+  open_messages: { labelKey: "assistantProactifScreen.actionOpenMessages", route: "/messages" },
+  open_contact: { labelKey: "assistantProactifScreen.actionOpenContact", route: "/contacts" },
 };
 
-const FILTERS: Array<{ key: Status; label: string }> = [
-  { key: "pending", label: "En attente" },
-  { key: "accepted", label: "Acceptées" },
-  { key: "dismissed", label: "Ignorées" },
-  { key: "done", label: "Résolues" },
+const FILTERS: Array<{ key: Status; labelKey: string }> = [
+  { key: "pending", labelKey: "assistantProactifScreen.filterPending" },
+  { key: "accepted", labelKey: "assistantProactifScreen.filterAccepted" },
+  { key: "dismissed", labelKey: "assistantProactifScreen.filterDismissed" },
+  { key: "done", labelKey: "assistantProactifScreen.filterDone" },
 ];
 
 export default function AssistantProactifScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const { fetchAuth } = useAuth();
@@ -159,7 +161,7 @@ export default function AssistantProactifScreen() {
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Feather name="arrow-left" size={24} color={colors.foreground} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>Assistant proactif</Text>
+        <Text style={[styles.headerTitle, { color: colors.foreground }]}>{t("assistantProactifScreen.title")}</Text>
         <Pressable onPress={runNow} disabled={running} hitSlop={12}>
           {running ? <ActivityIndicator size="small" color={colors.primary} /> : <Feather name="refresh-cw" size={20} color={colors.primary} />}
         </Pressable>
@@ -171,9 +173,9 @@ export default function AssistantProactifScreen() {
       >
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.cardTitle, { color: colors.foreground }]}>Surveillance automatique</Text>
+            <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("assistantProactifScreen.autoMonitoring")}</Text>
             <Text style={[styles.cardSub, { color: colors.mutedForeground }]}>
-              L'agent surveille tâches, appels et agenda en continu.
+              {t("assistantProactifScreen.autoMonitoringDesc")}
             </Text>
           </View>
           <Switch value={enabled} onValueChange={toggleEnabled} />
@@ -192,7 +194,7 @@ export default function AssistantProactifScreen() {
                 ]}
               >
                 <Text style={{ color: active ? "#fff" : colors.mutedForeground, fontSize: 13, fontWeight: "600" }}>
-                  {f.label}
+                  {t(f.labelKey)}
                 </Text>
               </Pressable>
             );
@@ -205,19 +207,22 @@ export default function AssistantProactifScreen() {
           <View style={styles.empty}>
             <Feather name="inbox" size={48} color={colors.mutedForeground} />
             <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-              {filter === "pending" ? "Tout est sous contrôle" : "Aucune suggestion"}
+              {filter === "pending" ? t("assistantProactifScreen.emptyPendingTitle") : t("assistantProactifScreen.emptyOtherTitle")}
             </Text>
             <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
               {filter === "pending"
-                ? "Aucune action proactive requise pour l'instant."
-                : "Rien dans cette catégorie."}
+                ? t("assistantProactifScreen.emptyPendingSub")
+                : t("assistantProactifScreen.emptyOtherSub")}
             </Text>
           </View>
         ) : (
           suggestions.map((s) => {
-            const sev = SEVERITY_META[s.severity] ?? SEVERITY_META.info;
-            const meta = TYPE_META[s.type] ?? { label: s.type, icon: "alert-triangle" as const };
-            const nav = s.actionType ? ACTION_NAV[s.actionType] : undefined;
+            const sevMeta = SEVERITY_META[s.severity] ?? SEVERITY_META.info;
+            const sev = { label: t(sevMeta.labelKey), color: sevMeta.color };
+            const typeMeta = TYPE_META[s.type];
+            const meta = { label: typeMeta ? t(typeMeta.labelKey) : s.type, icon: typeMeta?.icon ?? ("alert-triangle" as const) };
+            const navMeta = s.actionType ? ACTION_NAV[s.actionType] : undefined;
+            const nav = navMeta ? { label: t(navMeta.labelKey), route: navMeta.route } : undefined;
             return (
               <View
                 key={s.id}

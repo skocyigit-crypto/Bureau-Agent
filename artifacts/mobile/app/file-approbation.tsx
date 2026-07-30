@@ -28,6 +28,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTranslation, type TFunction } from "@/lib/i18n";
 import { notifyApprovalsChanged } from "@/lib/approvals-signal";
 
 const QUEUE_API = `${API_BASE}/api/agent-queue`;
@@ -51,13 +52,13 @@ const PRIORITY_COLOR: Record<string, string> = {
   basse: "#3b82f6",
 };
 
-const CATEGORY_META: Record<string, { label: string; icon: keyof typeof Feather.glyphMap }> = {
-  email: { label: "E-mail", icon: "mail" },
-  sms: { label: "SMS", icon: "message-square" },
-  tache: { label: "Tâche", icon: "check-square" },
-  relance: { label: "Relance", icon: "repeat" },
-  rappel: { label: "Rappel", icon: "bell" },
-  contact: { label: "Contact", icon: "user-plus" },
+const CATEGORY_META: Record<string, { labelKey: string; icon: keyof typeof Feather.glyphMap }> = {
+  email: { labelKey: "fileApprobationScreen.catEmail", icon: "mail" },
+  sms: { labelKey: "fileApprobationScreen.catSms", icon: "message-square" },
+  tache: { labelKey: "fileApprobationScreen.catTache", icon: "check-square" },
+  relance: { labelKey: "fileApprobationScreen.catRelance", icon: "repeat" },
+  rappel: { labelKey: "fileApprobationScreen.catRappel", icon: "bell" },
+  contact: { labelKey: "fileApprobationScreen.catContact", icon: "user-plus" },
 };
 
 /**
@@ -66,29 +67,29 @@ const CATEGORY_META: Record<string, { label: string; icon: keyof typeof Feather.
  * Seuls les champs texte courts sont modifiables ici; le corps long l'est
  * aussi, mais les identifiants restent en lecture seule.
  */
-const TOOL_FIELDS: Record<string, Array<{ key: string; label: string; editable: boolean; multiline?: boolean }>> = {
+const TOOL_FIELDS: Record<string, Array<{ key: string; labelKey: string; editable: boolean; multiline?: boolean }>> = {
   send_email: [
-    { key: "to", label: "À", editable: true },
-    { key: "subject", label: "Sujet", editable: true },
-    { key: "body", label: "Message", editable: true, multiline: true },
+    { key: "to", labelKey: "fileApprobationScreen.fieldTo", editable: true },
+    { key: "subject", labelKey: "fileApprobationScreen.fieldSubject", editable: true },
+    { key: "body", labelKey: "fileApprobationScreen.fieldMessage", editable: true, multiline: true },
   ],
   send_sms: [
-    { key: "to", label: "Numéro", editable: true },
-    { key: "message", label: "Message", editable: true, multiline: true },
+    { key: "to", labelKey: "fileApprobationScreen.fieldNumber", editable: true },
+    { key: "message", labelKey: "fileApprobationScreen.fieldMessage", editable: true, multiline: true },
   ],
   create_task: [
-    { key: "title", label: "Titre", editable: true },
-    { key: "description", label: "Description", editable: true, multiline: true },
-    { key: "dueDate", label: "Échéance", editable: false },
+    { key: "title", labelKey: "fileApprobationScreen.fieldTitle", editable: true },
+    { key: "description", labelKey: "fileApprobationScreen.fieldDescription", editable: true, multiline: true },
+    { key: "dueDate", labelKey: "fileApprobationScreen.fieldDueDate", editable: false },
   ],
   create_calendar_event: [
-    { key: "title", label: "Titre", editable: true },
-    { key: "startDate", label: "Début", editable: false },
-    { key: "endDate", label: "Fin", editable: false },
+    { key: "title", labelKey: "fileApprobationScreen.fieldTitle", editable: true },
+    { key: "startDate", labelKey: "fileApprobationScreen.fieldStart", editable: false },
+    { key: "endDate", labelKey: "fileApprobationScreen.fieldEnd", editable: false },
   ],
   cancel_calendar_event: [
-    { key: "id", label: "Rendez-vous n°", editable: false },
-    { key: "motif", label: "Motif", editable: true },
+    { key: "id", labelKey: "fileApprobationScreen.fieldAppointmentId", editable: false },
+    { key: "motif", labelKey: "fileApprobationScreen.fieldMotif", editable: true },
   ],
 };
 
@@ -97,15 +98,16 @@ const DANGEROUS_TOOLS = new Set(["cancel_calendar_event", "reschedule_calendar_e
 
 interface PreviewField { key: string; label: string; editable: boolean; multiline?: boolean }
 
-function fieldsFor(p: Proposal): PreviewField[] {
+function fieldsFor(p: Proposal, t: TFunction): PreviewField[] {
   const known = TOOL_FIELDS[p.toolName];
-  if (known) return known;
+  if (known) return known.map((f) => ({ key: f.key, label: t(f.labelKey), editable: f.editable, multiline: f.multiline }));
   // Outil non listé: tout afficher en lecture seule plutôt que de ne rien
   // montrer — une proposition illisible ne peut pas être jugée.
   return Object.keys(p.args ?? {}).map((key) => ({ key, label: key, editable: false }));
 }
 
 export default function FileApprobationScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const { fetchAuth } = useAuth();
@@ -153,7 +155,7 @@ export default function FileApprobationScreen() {
         });
         if (!patch.ok) {
           const err = await patch.json().catch(() => ({}));
-          Alert.alert("Modification refusée", err.error || "Les valeurs saisies sont invalides.");
+          Alert.alert(t("fileApprobationScreen.editRejectedTitle"), err.error || t("fileApprobationScreen.editRejectedMsg"));
           return;
         }
       }
@@ -166,38 +168,38 @@ export default function FileApprobationScreen() {
         // pendant une minute apres qu'on vient de la trancher.
         notifyApprovalsChanged();
       } else {
-        Alert.alert("Échec de l'exécution", data.error || "L'action n'a pas pu être exécutée.");
+        Alert.alert(t("fileApprobationScreen.execFailedTitle"), data.error || t("fileApprobationScreen.execFailedMsg"));
       }
     } catch {
-      Alert.alert("Erreur", "Impossible de contacter le serveur.");
+      Alert.alert(t("fileApprobationScreen.errorTitle"), t("fileApprobationScreen.serverErrorMsg"));
     } finally {
       setBusyId(null);
     }
-  }, [edits, fetchAuth]);
+  }, [edits, fetchAuth, t]);
 
   const confirmApprove = useCallback((p: Proposal) => {
     // La confirmation reprend les valeurs FINALES (modifications comprises):
     // le dernier écran avant exécution doit montrer ce qui partira vraiment.
-    const recap = fieldsFor(p)
+    const recap = fieldsFor(p, t)
       .map((f) => { const v = valueOf(p, f.key); return v ? `${f.label} : ${v}` : null; })
       .filter(Boolean)
       .join("\n");
     const warning = DANGEROUS_TOOLS.has(p.toolName)
-      ? "Cette action est irréversible et peut être visible par le client.\n\n"
+      ? t("fileApprobationScreen.dangerWarning") + "\n\n"
       : "";
     Alert.alert(
-      p.toolName === "send_email" ? "Envoyer cet e-mail ?" : "Approuver cette action ?",
+      p.toolName === "send_email" ? t("fileApprobationScreen.confirmEmailTitle") : t("fileApprobationScreen.confirmActionTitle"),
       `${warning}${recap || p.summary}`,
       [
-        { text: "Annuler", style: "cancel" },
+        { text: t("common.cancel"), style: "cancel" },
         {
-          text: p.toolName === "send_email" ? "Envoyer" : "Approuver",
+          text: p.toolName === "send_email" ? t("fileApprobationScreen.send") : t("fileApprobationScreen.approve"),
           style: DANGEROUS_TOOLS.has(p.toolName) ? "destructive" : "default",
           onPress: () => { void doApprove(p); },
         },
       ],
     );
-  }, [doApprove, valueOf]);
+  }, [doApprove, valueOf, t]);
 
   const reject = useCallback(async (p: Proposal) => {
     setBusyId(p.id);
@@ -208,11 +210,11 @@ export default function FileApprobationScreen() {
         notifyApprovalsChanged();
       }
     } catch {
-      Alert.alert("Erreur", "Impossible de rejeter la proposition.");
+      Alert.alert(t("fileApprobationScreen.errorTitle"), t("fileApprobationScreen.rejectErrorMsg"));
     } finally {
       setBusyId(null);
     }
-  }, [fetchAuth]);
+  }, [fetchAuth, t]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
@@ -220,7 +222,7 @@ export default function FileApprobationScreen() {
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Feather name="arrow-left" size={24} color={colors.foreground} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>File d&apos;approbation</Text>
+        <Text style={[styles.headerTitle, { color: colors.foreground }]}>{t("fileApprobationScreen.title")}</Text>
         <Pressable onPress={() => load(tab)} hitSlop={12}>
           <Feather name="refresh-cw" size={20} color={colors.primary} />
         </Pressable>
@@ -231,13 +233,13 @@ export default function FileApprobationScreen() {
         refreshControl={<RefreshControl refreshing={loading} onRefresh={() => load(tab)} tintColor={colors.primary} />}
       >
         <Text style={[styles.intro, { color: colors.mutedForeground }]}>
-          Votre secrétaire numérique prépare les actions. Rien n&apos;est exécuté sans votre accord.
+          {t("fileApprobationScreen.intro")}
         </Text>
 
         <View style={styles.filterRow}>
           {([
-            { key: "en_attente" as const, label: "En attente" },
-            { key: "all" as const, label: "Historique" },
+            { key: "en_attente" as const, label: t("fileApprobationScreen.filterPending") },
+            { key: "all" as const, label: t("fileApprobationScreen.filterHistory") },
           ]).map((f) => {
             const active = tab === f.key;
             return (
@@ -260,17 +262,18 @@ export default function FileApprobationScreen() {
           <View style={styles.empty}>
             <Feather name="check-circle" size={48} color={colors.mutedForeground} />
             <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-              {tab === "en_attente" ? "Tout est à jour" : "Aucun historique"}
+              {tab === "en_attente" ? t("fileApprobationScreen.emptyPendingTitle") : t("fileApprobationScreen.emptyHistoryTitle")}
             </Text>
             <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
               {tab === "en_attente"
-                ? "Aucune action en attente de votre validation."
-                : "Aucune proposition traitée pour le moment."}
+                ? t("fileApprobationScreen.emptyPendingSub")
+                : t("fileApprobationScreen.emptyHistorySub")}
             </Text>
           </View>
         ) : (
           proposals.map((p) => {
-            const meta = CATEGORY_META[p.category] ?? { label: p.category, icon: "zap" as const };
+            const metaEntry = CATEGORY_META[p.category];
+            const meta = { label: metaEntry ? t(metaEntry.labelKey) : p.category, icon: metaEntry?.icon ?? ("zap" as const) };
             const color = PRIORITY_COLOR[p.priority] ?? PRIORITY_COLOR.moyenne;
             const pending = p.status === "en_attente";
             const busy = busyId === p.id;
@@ -285,7 +288,7 @@ export default function FileApprobationScreen() {
                     <Text style={[styles.cardTitle, { color: colors.foreground }]}>{p.title}</Text>
                     <Text style={[styles.cardSub, { color: colors.mutedForeground }]}>{p.summary}</Text>
                     {p.reason ? (
-                      <Text style={[styles.reason, { color: colors.mutedForeground }]}>Pourquoi : {p.reason}</Text>
+                      <Text style={[styles.reason, { color: colors.mutedForeground }]}>{t("fileApprobationScreen.reason", { reason: p.reason })}</Text>
                     ) : null}
                   </View>
                   <View style={[styles.badge, { backgroundColor: color + "22" }]}>
@@ -297,10 +300,10 @@ export default function FileApprobationScreen() {
                   <View style={[styles.preview, { borderColor: colors.border }]}>
                     {DANGEROUS_TOOLS.has(p.toolName) ? (
                       <Text style={styles.danger}>
-                        Action irréversible — vérifiez avant d&apos;approuver.
+                        {t("fileApprobationScreen.dangerInline")}
                       </Text>
                     ) : null}
-                    {fieldsFor(p).map((f) => {
+                    {fieldsFor(p, t).map((f) => {
                       const v = valueOf(p, f.key);
                       if (!f.editable) {
                         if (!v) return null;
@@ -353,7 +356,7 @@ export default function FileApprobationScreen() {
                       ) : (
                         <>
                           <Feather name="check" size={16} color="#fff" />
-                          <Text style={styles.approveText}>Approuver</Text>
+                          <Text style={styles.approveText}>{t("fileApprobationScreen.approve")}</Text>
                         </>
                       )}
                     </Pressable>
@@ -363,11 +366,11 @@ export default function FileApprobationScreen() {
                       style={[styles.rejectBtn, { borderColor: colors.border, opacity: busy ? 0.5 : 1 }]}
                     >
                       <Feather name="x" size={16} color={colors.mutedForeground} />
-                      <Text style={{ color: colors.mutedForeground, fontSize: 14, fontWeight: "600" }}>Rejeter</Text>
+                      <Text style={{ color: colors.mutedForeground, fontSize: 14, fontWeight: "600" }}>{t("fileApprobationScreen.reject")}</Text>
                     </Pressable>
                   </View>
                 ) : (
-                  <Text style={[styles.statusLine, { color: colors.mutedForeground }]}>Statut : {p.status}</Text>
+                  <Text style={[styles.statusLine, { color: colors.mutedForeground }]}>{t("fileApprobationScreen.statusLine", { status: p.status })}</Text>
                 )}
               </View>
             );
