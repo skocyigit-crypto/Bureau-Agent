@@ -1,14 +1,14 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  useRequestAiInlineSuggest,
-  recordAiInlineSuggestEvent,
-  useGetMyPreferences,
-  useUpdateMyPreferences,
-  getGetMyPreferencesQueryKey,
-  type UserPreferences,
-  type InlineSuggestFieldFlags,
-} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+getGetMyPreferencesQueryKey,
+recordAiInlineSuggestEvent,
+useGetMyPreferences,
+useRequestAiInlineSuggest,
+useUpdateMyPreferences,
+type InlineSuggestFieldFlags,
+type UserPreferences,
+} from "@workspace/api-client-react";
+import { useCallback,useEffect,useMemo,useRef,useState } from "react";
 
 interface FetchLikeError {
   status?: number;

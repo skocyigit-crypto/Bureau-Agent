@@ -1,39 +1,67 @@
-import { useState, useEffect, useMemo } from "react";
-import { confirmAction } from "@/hooks/use-confirm";
-import { useLocation } from "wouter";
-import {
-  Clock, LogIn, LogOut, Coffee, MapPin, Building2, Wifi, Map, CalendarDays,
-  Timer, Users, BarChart3, Loader2, Play, Pause, Square, Plus, ChevronLeft,
-  ChevronRight, ChevronsLeft, ChevronsRight, MoreHorizontal, Trash2, Eye,
-  RefreshCw, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Sparkles,
-  Download, CheckCircle2, AlertCircle, CloudDownload, Printer, Copy, FolderKanban
-} from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Icon3D } from "@/components/icon-3d";
 import receptionImg from "@/assets/images/reception-desk.webp";
+import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
+import { Icon3D } from "@/components/icon-3d";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog,DialogContent,DialogDescription,DialogFooter,DialogHeader,DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu,DropdownMenuContent,DropdownMenuItem,DropdownMenuSeparator,DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Textarea } from "@/components/ui/textarea";
+import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/hooks/use-toast";
-import {
-  useListCheckins, useCreateCheckin, useUpdateCheckin, useDeleteCheckin,
-  useGetCheckinStats, useGetCurrentCheckins,
-  getListCheckinsQueryKey, getGetCheckinStatsQueryKey, getGetCurrentCheckinsQueryKey
-} from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
+import { Table,TableBody,TableCell,TableHead,TableHeader,TableRow } from "@/components/ui/table";
+import { Tabs,TabsContent,TabsList,TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { useWorkspaceUser } from "@/components/workspace-user";
+import { confirmAction } from "@/hooks/use-confirm";
+import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+getGetCheckinStatsQueryKey,getGetCurrentCheckinsQueryKey,
+getListCheckinsQueryKey,
+useCreateCheckin,
+useDeleteCheckin,
+useGetCheckinStats,useGetCurrentCheckins,
+useListCheckins,
+useUpdateCheckin
+} from "@workspace/api-client-react";
+import {
+AlertCircle,
+ArrowDown,
+ArrowUp,
+ArrowUpDown,
+Building2,
+CalendarDays,
+CheckCircle2,
+ChevronLeft,
+ChevronRight,ChevronsLeft,ChevronsRight,
+Clock,
+CloudDownload,
+Coffee,
+Copy,
+Download,
+Eye,
+FolderKanban,
+Loader2,
+LogIn,LogOut,
+Map,
+MapPin,
+MoreHorizontal,
+Pause,
+Play,
+Printer,
+RefreshCw,
+Timer,
+Trash2,
+TrendingUp,
+Users,
+Wifi
+} from "lucide-react";
+import { useEffect,useMemo,useState } from "react";
+import { useLocation } from "wouter";
 
 const PAGE_SIZE = 15;
 

@@ -1,30 +1,22 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { streamSse } from "@/lib/ai-stream-client";
-import { X } from "lucide-react";
-import {
-  Brain, Crown, Phone, Users, ClipboardList, Mail, Clock, Shield, TrendingUp,
-  Play, Loader2, AlertCircle, AlertTriangle, Lightbulb, CheckCircle2, RefreshCw,
-  ChevronDown, ChevronUp, Zap, Target, ArrowRight, Power, PowerOff,
-  Activity, BarChart3, FileText, Rocket, Eye, Wrench, MessageSquare, Cpu,
-  HeartPulse, Radar, Sparkles, CircleDot, Receipt, Package, UserCog, Printer
-} from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Icon3D } from "@/components/icon-3d";
 import aiTechImg from "@/assets/images/ai-technology.webp";
+import { Icon3D } from "@/components/icon-3d";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { useToast } from "@/hooks/use-toast";
-import {
-  useGetLatestAiAgentReports, useGetAiAgentReports,
-  useRunSingleAiAgent
-} from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { Tabs,TabsContent,TabsList,TabsTrigger } from "@/components/ui/tabs";
 import { useWorkspaceUser } from "@/components/workspace-user";
+import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import { streamSse } from "@/lib/ai-stream-client";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+useGetAiAgentReports,
+useGetLatestAiAgentReports} from "@workspace/api-client-react";
+import { Activity,AlertCircle,AlertTriangle,ArrowRight,BarChart3,Brain,CheckCircle2,ChevronDown,ChevronUp,CircleDot,ClipboardList,Clock,Cpu,Crown,Eye,FileText,HeartPulse,Lightbulb,Loader2,Mail,MessageSquare,Package,Phone,Play,Power,PowerOff,Printer,Radar,Receipt,RefreshCw,Rocket,Shield,Sparkles,Target,TrendingUp,UserCog,Users,Wrench,X,Zap } from "lucide-react";
+import { useCallback,useEffect,useRef,useState } from "react";
 
 type TFn = (key: string, vars?: Record<string, string | number>) => string;
 
@@ -432,10 +424,9 @@ export default function AiAgentsPage() {
 
   const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-  const runSingle = useRunSingleAiAgent();
 
   const { data: latestReports, isLoading: loadingLatest, isError: errorLatest } = useGetLatestAiAgentReports();
-  const { data: allReports, isLoading: loadingHistory } = useGetAiAgentReports();
+  const { data: allReports } = useGetAiAgentReports();
 
   const invalidateAgentQueries = () => {
     queryClient.invalidateQueries({

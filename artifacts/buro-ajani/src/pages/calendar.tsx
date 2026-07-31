@@ -1,24 +1,45 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Icon3D } from "@/components/icon-3d";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardHeader,CardTitle } from "@/components/ui/card";
+import { Dialog,DialogContent,DialogDescription,DialogHeader,DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Icon3D } from "@/components/icon-3d";
-import {
-  Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, MapPin, Download,
-  Users, CheckSquare, Trash2, Phone, Mail, Building, User, FileText,
-  AlertCircle, Star, Search, X, ChevronDown, Edit2, Eye, Printer, Copy, FolderKanban, ExternalLink,
-  Lock, Ban, DoorClosed, DoorOpen,
-} from "lucide-react";
 import { useWorkspaceUser } from "@/components/workspace-user";
+import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import {
+AlertCircle,
+Ban,
+Building,
+Calendar as CalendarIcon,
+CheckSquare,
+ChevronLeft,ChevronRight,
+Clock,
+Copy,
+DoorClosed,DoorOpen,
+Download,
+Edit2,
+ExternalLink,
+FileText,
+FolderKanban,
+Lock,
+Mail,
+MapPin,
+Phone,
+Plus,
+Printer,
+Search,
+Star,
+Trash2,
+User,
+Users
+} from "lucide-react";
+import { useEffect,useMemo,useRef,useState } from "react";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation,useQuery,useQueryClient } from "@tanstack/react-query";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 // Cles stables (traduites au moment du rendu, jamais au niveau module).
@@ -280,7 +301,6 @@ function EventFormDialog({
     ? selectedDate.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
     : "";
 
-  const typeInfo = EVENT_TYPES.find(t => t.value === form.type);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

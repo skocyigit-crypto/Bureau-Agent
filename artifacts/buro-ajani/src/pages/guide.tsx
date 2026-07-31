@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
-import { BookOpen, Search, X } from "lucide-react";
-import { MarkdownView, slugify } from "@/components/markdown-view";
+import { MarkdownView,slugify } from "@/components/markdown-view";
 import { Input } from "@/components/ui/input";
+import { BookOpen,Search,X } from "lucide-react";
+import { useMemo,useState } from "react";
 
 /**
  * Guide d'utilisation multilingue, embarque dans l'application. Accessible

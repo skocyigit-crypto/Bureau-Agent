@@ -1,38 +1,37 @@
-import { useEffect, useState } from "react";
-import { useLocation } from "wouter";
-import {
-  Shield,
-  TrendingUp,
-  TrendingDown,
-  Users,
-  Sparkles,
-  RefreshCw,
-  ArrowLeft,
-  Loader2,
-  Euro,
-  Activity,
-} from "lucide-react";
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  Legend,
-} from "recharts";
-import { useWorkspaceUser } from "@/components/workspace-user";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { AccessDenied } from "@/components/access-denied";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AccessDenied } from "@/components/access-denied";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
+import { useWorkspaceUser } from "@/components/workspace-user";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import {
+Activity,
+ArrowLeft,
+Euro,
+Loader2,
+RefreshCw,
+Shield,
+Sparkles,
+TrendingDown,
+TrendingUp,
+Users,
+} from "lucide-react";
+import { useEffect,useState } from "react";
+import {
+Area,
+AreaChart,
+Bar,
+BarChart,
+CartesianGrid,
+Line,
+LineChart,
+Tooltip as RechartsTooltip,
+ResponsiveContainer,
+XAxis,
+YAxis
+} from "recharts";
+import { useLocation } from "wouter";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 

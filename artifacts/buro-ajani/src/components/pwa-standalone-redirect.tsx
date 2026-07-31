@@ -20,9 +20,9 @@
  * sur cette page la premiere fois.
  */
 
+import { useToast } from "@/hooks/use-toast";
 import { useEffect } from "react";
 import { useLocation } from "wouter";
-import { useToast } from "@/hooks/use-toast";
 
 const FLAG_KEY = "pwa-standalone-first-launch-handled-v1";
 

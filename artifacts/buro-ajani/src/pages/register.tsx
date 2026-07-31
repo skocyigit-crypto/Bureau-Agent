@@ -1,12 +1,12 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { Alert,AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Phone, Lock, Mail, AlertTriangle, Eye, EyeOff, Shield, Building, User, ArrowLeft, Check, Sparkles, Monitor, Smartphone } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useTranslation } from "@/i18n";
-import { LanguageSwitcher } from "@/components/language-switcher";
+import { AlertTriangle,ArrowLeft,Building,Check,Eye,EyeOff,Lock,Mail,Monitor,Phone,Shield,Smartphone,Sparkles,User } from "lucide-react";
+import { useState } from "react";
 
 interface RegisterPageProps {
   onLogin: (user: any) => void;

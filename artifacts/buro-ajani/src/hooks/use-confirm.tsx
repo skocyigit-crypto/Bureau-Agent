@@ -1,15 +1,15 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useTranslation } from "@/i18n";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+AlertDialog,
+AlertDialogAction,
+AlertDialogCancel,
+AlertDialogContent,
+AlertDialogDescription,
+AlertDialogFooter,
+AlertDialogHeader,
+AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useTranslation } from "@/i18n";
+import { useEffect,useRef,useState,type ReactNode } from "react";
 
 export interface ConfirmOptions {
   title: string;

@@ -1,14 +1,31 @@
-import { useState } from "react";
-import {
-  Phone, Users, CheckSquare, MessageSquare, Brain, X, Maximize2,
-  Minimize2, Wifi, Battery, Signal, ChevronLeft, Home,
-  PhoneCall, Clock, Bell, AlertCircle, CheckCircle2, Search,
-  Plug, ShieldCheck
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/i18n";
+import { cn } from "@/lib/utils";
+import {
+AlertCircle,
+Battery,
+Bell,
+Brain,
+CheckCircle2,
+CheckSquare,
+ChevronLeft,
+Clock,
+Home,
+Maximize2,
+MessageSquare,
+Minimize2,
+Phone,
+PhoneCall,
+Plug,
+Search,
+ShieldCheck,
+Signal,
+Users,
+Wifi,
+X
+} from "lucide-react";
+import { useState } from "react";
 
 type MobileScreen = "accueil" | "appels" | "contacts" | "taches" | "messages" | "agents-ia" | "stats";
 
@@ -154,7 +171,7 @@ function ScreenAccueil({ onNavigate }: { onNavigate: (s: MobileScreen) => void }
   );
 }
 
-function ScreenAppels({ onNavigate }: { onNavigate: (s: MobileScreen) => void }) {
+function ScreenAppels({ }: { onNavigate: (s: MobileScreen) => void }) {
   const { t } = useTranslation();
   const appels = [
     { nom: "Marie Dupont", heure: "14:32", statut: "repondu", duree: "5:42", direction: "entrant" },

@@ -1,27 +1,24 @@
-import { useState, useEffect, useCallback } from "react";
-import { confirmAction } from "@/hooks/use-confirm";
-import { useWorkspaceUser } from "@/components/workspace-user";
-import { useLocation } from "wouter";
 import { AccessDenied } from "@/components/access-denied";
-import { TrendingUp, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, Filter, Target, Trophy, XCircle, DollarSign, RefreshCw, Kanban, LayoutList, ArrowUpDown, Download, UserPlus, Printer, Layers, Copy, FolderKanban, Briefcase } from "lucide-react";
 import { EmptyOnboardingHint } from "@/components/empty-onboarding-hint";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Icon3D } from "@/components/icon-3d";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { GhostTextarea } from "@/components/ghost-textarea";
+import { Icon3D } from "@/components/icon-3d";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog,DialogContent,DialogFooter,DialogHeader,DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu,DropdownMenuContent,DropdownMenuItem,DropdownMenuLabel,DropdownMenuSeparator,DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useWorkspaceUser } from "@/components/workspace-user";
+import { confirmAction } from "@/hooks/use-confirm";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
 import { useTranslation } from "@/i18n";
+import { ArrowUpDown,Briefcase,ChevronLeft,ChevronRight,Copy,Download,Edit,FolderKanban,Kanban,Layers,LayoutList,Loader2,MoreHorizontal,Plus,Printer,RefreshCw,Search,Trash2,TrendingUp,UserPlus } from "lucide-react";
+import { useCallback,useEffect,useState } from "react";
+import { useLocation } from "wouter";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 const PAGE_SIZE = 20;
@@ -149,19 +146,6 @@ export default function ProspectsPage() {
   }, []);
 
   const openCreate = () => { setEditingId(null); setForm({ ...EMPTY_FORM }); setDialogOpen(true); };
-  const openEdit = (p: Prospect) => {
-    setEditingId(p.id);
-    setForm({
-      title: p.title, contactName: p.contactName || "", company: p.company || "", email: p.email || "",
-      phone: p.phone || "", stage: p.stage, priority: p.priority, value: p.value || "",
-      currency: p.currency || "EUR", probability: String(p.probability || 50),
-      source: p.source || "", assignedTo: p.assignedTo || "",
-      expectedCloseDate: p.expectedCloseDate ? p.expectedCloseDate.substring(0, 10) : "",
-      notes: p.notes || "",
-      organisationId: p.organisationId != null ? String(p.organisationId) : "",
-    });
-    setDialogOpen(true);
-  };
 
   const handleSave = async () => {
     if (!form.title.trim()) { toast({ title: t("prospects.toast.titleRequired"), variant: "destructive" }); return; }
@@ -236,10 +220,6 @@ export default function ProspectsPage() {
     }
   };
 
-  const handleStageChange = async (id: number, stage: string) => {
-    const res = await fetch(`${BASE}/api/prospects/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ stage }) });
-    if (res.ok) { load(); toast({ title: t("prospects.toast.stageUpdated") }); }
-  };
 
   const toggleSelect = (id: number) => setSelectedIds(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
   const toggleAll = () => setSelectedIds(selectedIds.length === prospects.length ? [] : prospects.map(p => p.id));

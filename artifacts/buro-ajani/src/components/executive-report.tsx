@@ -1,18 +1,34 @@
-import { useState, useEffect } from "react";
-import { useTranslation } from "@/i18n";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardHeader,CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip, BarChart, Bar, Cell, LineChart, Line, PieChart, Pie, Legend } from "recharts";
+import { useTranslation } from "@/i18n";
 import {
-  TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Clock, Phone, Users, CheckSquare,
-  MessageSquare, Target, Calendar, BarChart3, FileText, Download, Printer,
-  ArrowUpRight, ArrowDownRight, AlertCircle, Star, Zap, Activity, Shield,
-  DollarSign, Eye, RefreshCw, Brain, FolderKanban,
+Activity,
+AlertCircle,
+AlertTriangle,
+ArrowDownRight,
+ArrowUpRight,
+Brain,
+Calendar,
+CheckCircle,
+CheckSquare,
+Clock,
+DollarSign,Eye,
+FolderKanban,
+MessageSquare,
+Phone,
+Printer,
+RefreshCw,
+Shield,
+Target,
+Users,
+Zap
 } from "lucide-react";
+import { useEffect,useState } from "react";
+import { Area,AreaChart,CartesianGrid,Tooltip as RechartsTooltip,ResponsiveContainer,XAxis,YAxis } from "recharts";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 

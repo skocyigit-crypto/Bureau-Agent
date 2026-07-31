@@ -1,8 +1,8 @@
-import { useMemo } from "react";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { useTranslation } from "@/i18n";
+import { Plus,Trash2 } from "lucide-react";
+import { useMemo } from "react";
 
 /**
  * Éditeur de lignes de devis/facture, avec aperçu des totaux en direct.

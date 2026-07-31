@@ -1,13 +1,13 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { confirmAction } from "@/hooks/use-confirm";
-import { TalkingAvatar, type SpeechLang, type TalkingAvatarHandle } from "@workspace/ai-avatar";
-import { Sparkles, Send, Plus, Trash2, Wrench, CheckCircle2, AlertCircle, Loader2, MessageSquare, ShieldAlert, Check, X, Volume2, VolumeX, RotateCcw, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
+import { confirmAction } from "@/hooks/use-confirm";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import { TalkingAvatar,type SpeechLang,type TalkingAvatarHandle } from "@workspace/ai-avatar";
+import { AlertCircle,Check,CheckCircle2,Loader2,MessageSquare,Plus,RotateCcw,Send,ShieldAlert,Sparkles,Square,Trash2,Volume2,VolumeX,Wrench,X } from "lucide-react";
+import { useCallback,useEffect,useRef,useState } from "react";
 
 const API = (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
 

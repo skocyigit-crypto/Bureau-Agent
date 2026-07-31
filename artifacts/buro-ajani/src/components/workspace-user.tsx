@@ -1,21 +1,28 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
-import {
-  Shield, ShieldCheck, User, UserCog, Eye, LogOut, ChevronDown, Clock,
-  Building2, Mail, Globe, Fingerprint, KeyRound, CheckCircle2, AlertTriangle,
-  Lock, Settings, Activity
-} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription
+Dialog,DialogContent,
+DialogDescription,
+DialogHeader,DialogTitle
 } from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
+import {
+DropdownMenu,DropdownMenuContent,DropdownMenuItem,
+DropdownMenuSeparator,DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
 import { useTranslation } from "@/i18n";
+import {
+Activity,
+Building2,
+CheckCircle2,
+ChevronDown,Clock,
+Fingerprint,KeyRound,
+Lock,
+LogOut,
+Mail,
+Settings,
+Shield,ShieldCheck,User,UserCog
+} from "lucide-react";
+import { createContext,useCallback,useContext,useState,type ReactNode } from "react";
 
 export type UserRole = "super_admin" | "administrateur" | "agent" | "lecture_seule";
 

@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
-import { Rocket, Check, ChevronRight, ChevronLeft, Download, Smartphone, Globe, Zap, ExternalLink, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card,CardContent } from "@/components/ui/card";
 import { useTranslation } from "@/i18n";
+import { Check,ChevronLeft,ChevronRight,Download,ExternalLink,Globe,Loader2,Rocket,Smartphone,X,Zap } from "lucide-react";
+import { useCallback,useEffect,useState } from "react";
 
 interface IntegrationItem {
   id: string;

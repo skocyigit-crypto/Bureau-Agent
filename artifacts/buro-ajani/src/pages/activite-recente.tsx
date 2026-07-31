@@ -1,25 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
-import { Activity, Phone, TrendingUp, User, MessageSquare, CheckSquare, RefreshCw, Clock, Printer, FolderKanban } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Link } from "wouter";
 import { useTranslation } from "@/i18n";
+import { Activity,CheckSquare,Clock,FolderKanban,MessageSquare,Phone,Printer,RefreshCw,TrendingUp,User } from "lucide-react";
+import { useCallback,useEffect,useState } from "react";
+import { Link } from "wouter";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
-function fmtDate(d: string) {
-  const now = new Date();
-  const dt = new Date(d);
-  const diff = Math.floor((now.getTime() - dt.getTime()) / 1000);
-  if (diff < 60) return "À l'instant";
-  if (diff < 3600) return `Il y a ${Math.floor(diff / 60)} min`;
-  if (diff < 86400) return `Il y a ${Math.floor(diff / 3600)} h`;
-  if (diff < 604800) return `Il y a ${Math.floor(diff / 86400)} j`;
-  return dt.toLocaleDateString("fr-FR");
-}
 
 function fmt(v: any) {
   return new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(v));

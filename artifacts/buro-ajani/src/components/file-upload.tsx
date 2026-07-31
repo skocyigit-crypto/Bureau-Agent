@@ -1,16 +1,25 @@
-import { useState, useRef, useCallback, useEffect } from "react";
-import { useToast } from "@/hooks/use-toast";
-import { useTranslation } from "@/i18n";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 import {
-  Upload, FileUp, FileText, FileSpreadsheet, Image as ImageIcon,
-  File, Loader2, Trash2, CheckCircle2, XCircle, Eye, Download,
-  Brain, Sparkles, X,
+Brain,
+Download,
+File,
+FileSpreadsheet,
+FileText,
+FileUp,
+Image as ImageIcon,
+Loader2,
+Sparkles,
+Trash2,
+Upload,
+X
 } from "lucide-react";
+import { useCallback,useEffect,useRef,useState } from "react";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 

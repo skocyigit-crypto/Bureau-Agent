@@ -1,19 +1,42 @@
-import { useState, useEffect } from "react";
-import {
-  Brain, AlertTriangle, CheckCircle2, Clock, Phone, MessageSquare,
-  Package, Users, ArrowRight, ChevronDown, ChevronUp, Loader2,
-  Flame, CalendarClock, Info, Copy, RefreshCw,
-  Zap, Target, FileText, TrendingUp,
-  CircleAlert, Siren, BarChart3, Send, Calculator,
-  Briefcase, Calendar, ListChecks, BookOpen
-} from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardHeader,CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Link } from "wouter";
+import { Tabs,TabsContent,TabsList,TabsTrigger } from "@/components/ui/tabs";
 import { useTranslation } from "@/i18n";
+import {
+AlertTriangle,
+ArrowRight,
+BarChart3,
+BookOpen,
+Brain,
+Briefcase,
+Calculator,
+Calendar,
+CalendarClock,
+CheckCircle2,
+ChevronDown,ChevronUp,
+CircleAlert,
+Clock,
+Copy,
+FileText,
+Flame,
+Info,
+ListChecks,
+Loader2,
+MessageSquare,
+Package,
+Phone,
+RefreshCw,
+Send,
+Siren,
+Target,
+TrendingUp,
+Users,
+Zap
+} from "lucide-react";
+import { useEffect,useState } from "react";
+import { Link } from "wouter";
 
 const VALID_ROUTES = [
   "/", "/appels", "/contacts", "/taches", "/messages", "/calendrier",

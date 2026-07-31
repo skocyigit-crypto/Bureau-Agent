@@ -1,16 +1,32 @@
-import { useState, useEffect, useCallback } from "react";
-import { confirmAction } from "@/hooks/use-confirm";
-import {
-  Save, Cloud, Server, HardDrive, Shield, Clock,
-  RefreshCw, CheckCircle2, XCircle, FolderOpen, Lock,
-  Loader2, Download, History, ExternalLink, Eye, RotateCcw,
-  Settings, PenTool, Zap, Calendar
-} from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
+import { confirmAction } from "@/hooks/use-confirm";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import {
+Calendar,
+CheckCircle2,
+Clock,
+Cloud,
+Download,
+ExternalLink,Eye,
+FolderOpen,
+HardDrive,
+History,
+Loader2,
+Lock,
+PenTool,
+RefreshCw,
+RotateCcw,
+Save,
+Server,
+Settings,
+Shield,
+XCircle,
+Zap
+} from "lucide-react";
+import { useCallback,useEffect,useState } from "react";
 
 const WORKSPACE_API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/workspace";
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api";
@@ -19,12 +35,12 @@ export function TabSauvegardes() {
   const { toast } = useToast();
   const { t } = useTranslation();
 
-  const [backups, setBackups] = useState<any[]>([]);
+  const [, setBackups] = useState<any[]>([]);
   const [backupStats, setBackupStats] = useState<any>(null);
   const [backupConfigs, setBackupConfigs] = useState<any[]>([]);
   const [loadingBackups, setLoadingBackups] = useState(false);
   const [backupRunning, setBackupRunning] = useState(false);
-  const [nextBackupMs, setNextBackupMs] = useState(0);
+  const [, setNextBackupMs] = useState(0);
 
   const [driveBackupRunning, setDriveBackupRunning] = useState(false);
   const [driveBackupStatus, setDriveBackupStatus] = useState<any>(null);

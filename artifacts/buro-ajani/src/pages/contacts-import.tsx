@@ -1,12 +1,11 @@
-import { useState, useRef, useCallback } from "react";
-import { Upload, FileText, CheckCircle, AlertCircle, ArrowLeft, Download, RefreshCw, X } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card,CardContent,CardHeader,CardTitle } from "@/components/ui/card";
+import { Table,TableBody,TableCell,TableHead,TableHeader,TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Link } from "wouter";
 import { useTranslation } from "@/i18n";
+import { AlertCircle,ArrowLeft,CheckCircle,Download,FileText,RefreshCw,Upload,X } from "lucide-react";
+import { useCallback,useRef,useState } from "react";
+import { Link } from "wouter";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 

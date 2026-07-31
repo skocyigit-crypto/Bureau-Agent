@@ -1,19 +1,32 @@
-import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import {
-  Activity, AlertTriangle, ShieldAlert, Flame,
-  FileWarning, TrendingUp, TrendingDown, Heart, Zap, Eye,
-  ChevronRight, RefreshCw, Shield, Phone, CheckSquare,
-  MessageSquare, BarChart3, Clock
-} from "lucide-react";
-import {
-  ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
-  Tooltip as RechartsTooltip, CartesianGrid
-} from "recharts";
+import { Card,CardContent,CardHeader,CardTitle } from "@/components/ui/card";
 import { useTranslation } from "@/i18n";
+import {
+Activity,AlertTriangle,
+BarChart3,
+CheckSquare,
+ChevronRight,
+Clock,
+Eye,
+Flame,
+MessageSquare,
+Phone,
+RefreshCw,
+ShieldAlert,
+TrendingDown,
+TrendingUp,
+Zap
+} from "lucide-react";
+import { useCallback,useEffect,useState } from "react";
+import {
+Area,
+AreaChart,
+CartesianGrid,
+Tooltip as RechartsTooltip,
+ResponsiveContainer,
+XAxis,YAxis
+} from "recharts";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 

@@ -1,12 +1,12 @@
-import { useEffect, useState, useCallback } from "react";
-import { Link } from "wouter";
-import { Sparkles, X, ThumbsUp, ThumbsDown, RefreshCw, AlertTriangle, Info, AlertCircle, ArrowRight } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import { AlertCircle,AlertTriangle,ArrowRight,Info,RefreshCw,Sparkles,ThumbsDown,ThumbsUp,X } from "lucide-react";
+import { useCallback,useEffect,useState } from "react";
+import { Link } from "wouter";
 
 interface Insight {
   id: number;

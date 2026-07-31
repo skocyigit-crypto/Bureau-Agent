@@ -1,21 +1,24 @@
-import { useState, useEffect } from "react";
-import { Bot, Zap, DollarSign, Phone, RotateCcw, Save, Info, TrendingUp, Activity } from "lucide-react";
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,
-  ResponsiveContainer, Legend, LineChart, Line,
-} from "recharts";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Icon3D } from "@/components/icon-3d";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip,TooltipContent,TooltipProvider,TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
-import { Icon3D } from "@/components/icon-3d";
 import { useTranslation } from "@/i18n";
+import { Activity,Bot,DollarSign,Info,Phone,RotateCcw,Save,TrendingUp,Zap } from "lucide-react";
+import { useEffect,useState } from "react";
+import {
+Bar,
+BarChart,
+CartesianGrid,Tooltip as ReTooltip,
+ResponsiveContainer,
+XAxis,YAxis
+} from "recharts";
 
 const DEFAULT_COST_USD = 50;
 const DEFAULT_CALLS = 5000;

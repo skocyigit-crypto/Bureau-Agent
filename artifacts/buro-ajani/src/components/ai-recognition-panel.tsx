@@ -1,17 +1,34 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { Link } from "wouter";
-import {
-  Brain, Shield, ShieldAlert, ShieldCheck, AlertTriangle, AlertCircle, Info,
-  CheckCircle2, PhoneMissed, UserMinus, UserX, Clock, Star, TrendingDown,
-  Timer, Flag, Mail, MailWarning, FileWarning, Repeat, ChevronRight,
-  Loader2, RefreshCw, ChevronDown, ChevronUp, Activity, Zap, Eye
-} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Card, CardContent } from "@/components/ui/card";
-import { useRequestAiRecognition, type AiRecognitionResult } from "@workspace/api-client-react";
+import { Card,CardContent } from "@/components/ui/card";
 import { useTranslation } from "@/i18n";
+import { useRequestAiRecognition,type AiRecognitionResult } from "@workspace/api-client-react";
+import {
+Activity,
+AlertCircle,
+AlertTriangle,
+Brain,
+CheckCircle2,
+ChevronDown,
+ChevronRight,
+ChevronUp,
+Clock,
+Eye,
+FileWarning,
+Flag,
+Loader2,
+Mail,MailWarning,
+PhoneMissed,
+RefreshCw,
+Repeat,
+Shield,ShieldAlert,ShieldCheck,
+Star,
+Timer,
+TrendingDown,
+UserMinus,UserX
+} from "lucide-react";
+import { createContext,useContext,useEffect,useState,type ReactNode } from "react";
+import { Link } from "wouter";
 
 type RecognitionContextValue = {
   data: AiRecognitionResult | undefined;

@@ -1,19 +1,19 @@
-import { useState, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Mail, Send, Brain, Loader2, X, ChevronRight, ChevronLeft, Eye, Edit3, Sparkles, RefreshCw, User, Building, AlertTriangle, CheckCircle2, FileText, Copy, ArrowRight } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { Card, CardContent } from "@/components/ui/card";
-import { useListContacts, useDraftAiEmail } from "@workspace/api-client-react";
-import { useToast } from "@/hooks/use-toast";
 import { GhostTextarea } from "@/components/ghost-textarea";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent } from "@/components/ui/card";
+import { Dialog,DialogContent,DialogHeader,DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import { useDraftAiEmail,useListContacts } from "@workspace/api-client-react";
+import { AnimatePresence,motion } from "framer-motion";
+import { AlertTriangle,ArrowRight,Brain,Building,CheckCircle2,ChevronLeft,Copy,Edit3,Eye,Loader2,Mail,RefreshCw,Sparkles,User } from "lucide-react";
+import { useCallback,useState } from "react";
 
 type ComposerStep = "configure" | "generating" | "preview" | "approved";
 

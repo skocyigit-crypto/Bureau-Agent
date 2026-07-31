@@ -1,15 +1,22 @@
-import { useState, useEffect } from "react";
-import { useRoute, useLocation } from "wouter";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Loader2, CheckCircle2, XCircle, ShieldCheck, Eye, Lock, AlertTriangle, Phone
-} from "lucide-react";
 import { useTranslation } from "@/i18n";
+import {
+AlertTriangle,
+CheckCircle2,
+Eye,
+Loader2,
+Lock,
+Phone,
+ShieldCheck,
+XCircle
+} from "lucide-react";
+import { useEffect,useState } from "react";
+import { useLocation,useRoute } from "wouter";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "") + "/";
 

@@ -1,36 +1,36 @@
-import { useState, useEffect, useMemo, useRef } from "react";
-import {
-  useListWhatsappConversations,
-  useGetWhatsappConversation,
-  useSendWhatsappMessage,
-  useGenerateWhatsappDraft,
-  useUpdateWhatsappConversation,
-} from "@workspace/api-client-react";
+import { QueryErrorAlert } from "@/components/safe-component";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs,TabsList,TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
+import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+useGenerateWhatsappDraft,
+useGetWhatsappConversation,
+useListWhatsappConversations,
+useSendWhatsappMessage,
+useUpdateWhatsappConversation,
+} from "@workspace/api-client-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
-  MessageCircle,
-  Search,
-  Send,
-  Sparkles,
-  Loader2,
-  CheckCheck,
-  Archive,
-  ArchiveRestore,
-  AlertTriangle,
+AlertTriangle,
+Archive,
+ArchiveRestore,
+CheckCheck,
+Loader2,
+MessageCircle,
+Search,
+Send,
+Sparkles,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
-import { QueryErrorAlert } from "@/components/safe-component";
-import { cn } from "@/lib/utils";
-import { useTranslation } from "@/i18n";
+import { useEffect,useMemo,useRef,useState } from "react";
 
 // Clés de cache sémantiques (préfixe commun) pour que l'invalidation temps réel
 // SSE — QUERY_MAP `whatsapp -> [["whatsapp-conversations"]]` dans

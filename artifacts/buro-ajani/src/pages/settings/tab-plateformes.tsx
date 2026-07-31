@@ -1,26 +1,79 @@
-import { useState, useEffect, useCallback } from "react";
-import {
-  Globe, Shield, CheckCircle2, XCircle, ExternalLink, Calendar, Mail, FolderOpen, FileText, Table2,
-  Presentation, RefreshCw, Clock, Lock, ShieldAlert, ShieldCheck, ShieldBan,
-  FileWarning, Download, Upload, Bug, Eye, UserCog, AlertTriangle, KeyRound,
-  Fingerprint, ScanSearch, FileX, Ban, Video, MessageCircle, MapPin, StickyNote,
-  ListChecks, Users, Image, BarChart3, Megaphone, Search, Cloud, Settings,
-  BookOpen, Bookmark, Languages, ShieldQuestion, Radio, Store, ClipboardList,
-  Building2, Headphones, Database, Layout, Kanban, Newspaper, Workflow,
-  AppWindow, HardDriveDownload, Layers, Loader2, Unplug, Plug, Zap, History,
-  Link2, Bell, Smartphone, Copy, Check, ChevronDown
-} from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { useToast } from "@/hooks/use-toast";
+import { Switch } from "@/components/ui/switch";
 import { useWorkspaceUser } from "@/components/workspace-user";
+import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import {
+AlertTriangle,
+AppWindow,
+Ban,
+BarChart3,
+Bell,
+BookOpen,Bookmark,
+Bug,
+Building2,
+Calendar,
+Check,
+CheckCircle2,
+ChevronDown,
+ClipboardList,
+Clock,
+Cloud,
+Copy,
+Download,
+ExternalLink,
+Eye,
+FileText,
+FileWarning,
+FileX,
+Fingerprint,
+FolderOpen,
+Globe,
+Headphones,
+History,
+Image,
+Kanban,
+KeyRound,
+Languages,
+Layout,
+Link2,
+ListChecks,
+Loader2,
+Lock,
+Mail,
+MapPin,
+Megaphone,
+MessageCircle,
+Plug,
+Presentation,
+Radio,
+RefreshCw,
+Search,
+Settings,
+Shield,
+ShieldAlert,
+ShieldBan,
+ShieldCheck,
+ShieldQuestion,
+Smartphone,
+StickyNote,
+Store,
+Table2,
+Unplug,
+Upload,
+UserCog,
+Users,
+Video,
+Workflow,
+XCircle,
+Zap
+} from "lucide-react";
+import { useCallback,useEffect,useState } from "react";
 
 interface GoogleService {
   id: string;
@@ -202,7 +255,7 @@ export function TabPlateformes() {
 
   const [platformsData, setPlatformsData] = useState<PlatformData[]>([]);
   const [syncLogs, setSyncLogs] = useState<SyncLog[]>([]);
-  const [loadingPlatforms, setLoadingPlatforms] = useState(true);
+  const [, setLoadingPlatforms] = useState(true);
   const [connectingService, setConnectingService] = useState<string | null>(null);
   const [syncingPlatform, setSyncingPlatform] = useState<string | null>(null);
   const [connectingAll, setConnectingAll] = useState<string | null>(null);

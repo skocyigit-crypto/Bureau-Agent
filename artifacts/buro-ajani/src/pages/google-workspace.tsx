@@ -1,26 +1,49 @@
-import { useState, useCallback } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { format, formatDistanceToNow, isToday, isTomorrow } from "date-fns";
-import { fr } from "date-fns/locale";
-import {
-  Mail, Calendar, HardDrive, FileText, Table, Presentation, Users, CheckSquare,
-  StickyNote, Video, Image, PlayCircle, MessageCircle, ClipboardList,
-  Search, ExternalLink, RefreshCw, Shield, Zap, Grid3X3, ChevronRight,
-  Clock, Star, Eye, Folder, Link2, AlertCircle, Check, Loader2, Globe, Printer,
-  FolderKanban
-} from "lucide-react";
+import { Icon3D } from "@/components/icon-3d";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardHeader,CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs,TabsContent,TabsList,TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
 import { trackScanResult } from "@/lib/scan-result";
-import { Icon3D } from "@/components/icon-3d";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
+import { useQuery,useQueryClient } from "@tanstack/react-query";
+import { format,formatDistanceToNow,isToday,isTomorrow } from "date-fns";
+import { fr } from "date-fns/locale";
+import {
+AlertCircle,
+Calendar,
+Check,
+CheckSquare,
+ClipboardList,
+Clock,
+ExternalLink,
+FileText,
+Folder,
+FolderKanban,
+Globe,
+Grid3X3,
+HardDrive,
+Image,
+Link2,
+Loader2,
+Mail,
+MessageCircle,
+PlayCircle,
+Presentation,
+Printer,
+RefreshCw,
+Search,
+Shield,
+StickyNote,
+Table,
+Users,
+Video,
+Zap
+} from "lucide-react";
+import { useCallback,useState } from "react";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 async function apiFetch(path: string) {

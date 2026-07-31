@@ -1,27 +1,49 @@
-import { useState, useEffect, useCallback } from "react";
+import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
+import { GhostTextarea } from "@/components/ghost-textarea";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent } from "@/components/ui/card";
+import { Dialog,DialogContent,DialogFooter,DialogHeader,DialogTitle,DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { confirmAction } from "@/hooks/use-confirm";
 import { useToast } from "@/hooks/use-toast";
-import {
-  FolderKanban, Plus, Search, RefreshCw, Trash2, Pencil, Filter,
-  CheckCircle2, Clock, PauseCircle, XCircle, PlayCircle, ChevronLeft,
-  ChevronRight, Calendar, Euro, Users, Target, AlertTriangle, TrendingUp,
-  BarChart3, Loader2, Download, Printer, X, ChevronDown, ChevronUp,
-  CheckSquare, Square, Copy, Tag, ListChecks,
-} from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { GhostTextarea } from "@/components/ghost-textarea";
-import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import { useTranslation } from "@/i18n";
+import {
+AlertTriangle,
+BarChart3,
+Calendar,
+CheckCircle2,
+CheckSquare,
+ChevronLeft,
+ChevronRight,
+Clock,
+Copy,
+Download,
+Euro,
+Filter,
+FolderKanban,
+ListChecks,
+Loader2,
+PauseCircle,
+Pencil,
+PlayCircle,
+Plus,
+Printer,
+RefreshCw,
+Search,
+Square,
+Tag,
+Trash2,
+Users,
+X,
+XCircle
+} from "lucide-react";
+import { useCallback,useEffect,useState } from "react";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 

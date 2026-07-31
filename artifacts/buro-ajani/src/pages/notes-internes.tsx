@@ -1,15 +1,14 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { confirmAction } from "@/hooks/use-confirm";
-import { StickyNote, Plus, Trash2, Pin, PinOff, Search, RefreshCw, Edit, X, Check, Download, Copy, Printer, CheckSquare, Square, Palette, FolderKanban } from "lucide-react";
-import { useLocation } from "wouter";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { GhostTextarea } from "@/components/ghost-textarea";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu,DropdownMenuContent,DropdownMenuItem,DropdownMenuLabel,DropdownMenuSeparator,DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { confirmAction } from "@/hooks/use-confirm";
 import { useToast } from "@/hooks/use-toast";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "@/i18n";
+import { Check,CheckSquare,Copy,Download,Edit,FolderKanban,Palette,Pin,PinOff,Plus,Printer,RefreshCw,Search,Square,StickyNote,Trash2,X } from "lucide-react";
+import { useCallback,useEffect,useRef,useState } from "react";
+import { useLocation } from "wouter";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 

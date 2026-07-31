@@ -1,25 +1,54 @@
-import { useState, useEffect } from "react";
-import { confirmAction } from "@/hooks/use-confirm";
-import { useToast } from "@/hooks/use-toast";
-import {
-  Zap, PlayCircle, PauseCircle, Clock, CheckCircle, AlertTriangle, Activity,
-  BarChart3, RefreshCw, Settings2, Bot, CalendarClock, Mail, Phone, Users,
-  FileText, TrendingUp, Loader2, Plus, Trash2, Bell, MessageSquare, ClipboardList, Copy, Pencil, Download, Printer,
-  CheckSquare, Square, X, FolderKanban, ShieldCheck,
-} from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card,CardContent,CardHeader,CardTitle } from "@/components/ui/card";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
+Dialog,DialogContent,
+DialogFooter,
+DialogHeader,DialogTitle,
+DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Tabs,TabsContent,TabsList,TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { confirmAction } from "@/hooks/use-confirm";
+import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import {
+Activity,
+AlertTriangle,
+BarChart3,
+Bell,
+Bot,CalendarClock,
+CheckCircle,
+CheckSquare,
+ClipboardList,
+Clock,
+Copy,
+Download,
+FileText,
+FolderKanban,
+Loader2,
+Mail,
+MessageSquare,
+PauseCircle,
+Pencil,
+Phone,
+PlayCircle,
+Plus,
+Printer,
+RefreshCw,Settings2,
+ShieldCheck,
+Square,
+Trash2,
+TrendingUp,
+Users,
+X,
+Zap,
+} from "lucide-react";
+import { useEffect,useState } from "react";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -114,7 +143,7 @@ const DEFAULT_FORM: RuleForm = {
   actions: [{ type: "send_notification", params: { title: "", message: "", notifType: "info" } }],
 };
 
-function ActionEditor({ action, index, onChange, onRemove }: {
+function ActionEditor({ action, onChange, onRemove }: {
   action: RuleAction;
   index: number;
   onChange: (updated: RuleAction) => void;
@@ -551,7 +580,7 @@ export default function AutomationsPage() {
     if (selectedIds.size === ids.length && ids.length > 0) setSelectedIds(new Set());
     else setSelectedIds(new Set(ids));
   };
-  const handleBulkDelete = async (customRules: any[]) => {
+  const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
     if (!(await confirmAction({ title: t("automationsPage.confirmBulkDelete", { count: selectedIds.size }), confirmLabel: t("automationsPage.confirmDeleteLabel"), destructive: true }))) return;
     const ids = Array.from(selectedIds);
@@ -732,7 +761,7 @@ export default function AutomationsPage() {
                     <Button size="sm" variant="outline" className="gap-1.5 text-amber-600 border-amber-300 h-7 text-xs" onClick={() => handleBulkToggle(false)}>
                       <PauseCircle className="w-3 h-3" /> {t("automationsPage.bulkSuspend", { count: selectedIds.size })}
                     </Button>
-                    <Button size="sm" variant="outline" className="gap-1.5 text-red-600 border-red-300 h-7 text-xs" onClick={() => handleBulkDelete(customRules)}>
+                    <Button size="sm" variant="outline" className="gap-1.5 text-red-600 border-red-300 h-7 text-xs" onClick={() => handleBulkDelete()}>
                       <Trash2 className="w-3 h-3" /> {t("automationsPage.bulkDelete", { count: selectedIds.size })}
                     </Button>
                   </>

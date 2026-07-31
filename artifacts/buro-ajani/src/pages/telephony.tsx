@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
 import { confirmAction } from "@/hooks/use-confirm";
-import { Phone, Plus, Settings, Trash2, Star, Check, MessageSquare, PhoneCall, PhoneOff, Send, RefreshCw, ExternalLink, Shield, Zap, Users, Clock, FileText, CalendarClock, Printer, FolderKanban, Bot, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation } from "wouter";
 import { useTranslation } from "@/i18n";
+import { Bot,CalendarClock,Check,Copy,ExternalLink,FolderKanban,MessageSquare,Phone,PhoneCall,PhoneOff,Plus,Printer,RefreshCw,Send,Settings,Shield,Star,Trash2,Users,Zap } from "lucide-react";
+import { useCallback,useEffect,useState } from "react";
+import { useLocation } from "wouter";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -57,7 +57,7 @@ interface SmsLog {
 export default function TelephonyPage() {
   const { toast } = useToast();
   const { t } = useTranslation();
-  const [, navigate] = useLocation();
+  const [] = useLocation();
   async function navigateToProjets() {
     const res = await fetch(`${API}/api/projets`, {
       method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
@@ -76,7 +76,7 @@ export default function TelephonyPage() {
   const [scheduleTime, setScheduleTime] = useState("");
   const [scheduleNote, setScheduleNote] = useState("");
   const [scheduledCalls, setScheduledCalls] = useState<{ id: number; toNumber: string; scheduledAt: string; note: string; status: string }[]>([]);
-  const [callNotes, setCallNotes] = useState("");
+  const [] = useState("");
   const [availableProviders, setAvailableProviders] = useState<ProviderInfo[]>([]);
   const [configuredProviders, setConfiguredProviders] = useState<ConfiguredProvider[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);

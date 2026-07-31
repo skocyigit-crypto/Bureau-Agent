@@ -1,20 +1,28 @@
-import { useState, useRef, useCallback } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Upload, FileUp, FileText, FileSpreadsheet, Loader2,
-  CheckCircle2, XCircle, AlertTriangle, Brain, ArrowRight,
-  ArrowLeft, Users, ListChecks, Download, Sparkles, Info,
-  ChevronDown, ChevronUp, RotateCcw,
+AlertTriangle,
+ArrowLeft,
+ArrowRight,
+Brain,
+CheckCircle2,
+ChevronDown,ChevronUp,
+Download,
+FileUp,
+Info,
+Loader2,
+RotateCcw,
+Upload,
+XCircle
 } from "lucide-react";
+import { useCallback,useRef,useState } from "react";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -55,10 +63,6 @@ type Step = "upload" | "processing" | "review" | "importing" | "done";
 
 const MODULE_KEYS = new Set(["contacts", "taches", "aucun"]);
 
-const MODULE_ICONS: Record<string, typeof Users> = {
-  contacts: Users,
-  taches: ListChecks,
-};
 
 const FIELD_KEYS = new Set([
   "firstName", "lastName", "email", "phone", "mobile", "company", "category",

@@ -1,10 +1,10 @@
-import { useState } from "react";
-import { Brain, Sparkles, AlertTriangle, Lightbulb, Info, Zap, Loader2, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useRequestAiSuggestions, type RequestAiSuggestionsBodyPage } from "@workspace/api-client-react";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
 import { useTranslation } from "@/i18n";
+import { useRequestAiSuggestions,type RequestAiSuggestionsBodyPage } from "@workspace/api-client-react";
+import { AlertTriangle,Brain,ChevronDown,ChevronUp,Info,Lightbulb,Loader2,RefreshCw,Sparkles,Zap } from "lucide-react";
+import { useState } from "react";
 
 const VALID_PAGES: Record<string, RequestAiSuggestionsBodyPage> = {
   dashboard: "dashboard", calls: "calls", contacts: "contacts",

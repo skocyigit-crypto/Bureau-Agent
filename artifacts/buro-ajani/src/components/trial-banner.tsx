@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
-import { X, AlertTriangle, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link } from "wouter";
 import { useTranslation } from "@/i18n";
+import { AlertTriangle,X,Zap } from "lucide-react";
+import { useEffect,useState } from "react";
+import { Link } from "wouter";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 

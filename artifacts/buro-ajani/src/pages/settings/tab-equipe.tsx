@@ -1,14 +1,14 @@
-import { useState, useEffect, useCallback } from "react";
-import { Users, UserPlus, Mail, Loader2, Trash2, RefreshCw, Crown, Shield, Eye, User, Clock, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
 import { useWorkspaceUser } from "@/components/workspace-user";
+import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import { Clock,Crown,Eye,Loader2,Mail,RefreshCw,Shield,Trash2,User,UserPlus,Users } from "lucide-react";
+import { useCallback,useEffect,useState } from "react";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -19,12 +19,6 @@ const ROLE_CONFIG: Record<string, { label: string; icon: typeof User; className:
   lecture_seule: { label: "Lecture seule", icon: Eye, className: "bg-amber-100 text-amber-700 border-0" },
 };
 
-const INV_STATUS: Record<string, { label: string; className: string }> = {
-  pending: { label: "En attente", className: "bg-amber-100 text-amber-700 border-0" },
-  accepted: { label: "Acceptée", className: "bg-emerald-100 text-emerald-700 border-0" },
-  expired: { label: "Expirée", className: "bg-red-100 text-red-700 border-0" },
-  cancelled: { label: "Annulée", className: "bg-slate-100 text-slate-600 border-0" },
-};
 
 interface TeamMember {
   id: number;

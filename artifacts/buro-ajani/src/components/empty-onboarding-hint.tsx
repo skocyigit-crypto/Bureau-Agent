@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Sparkles, type LucideIcon } from "lucide-react";
+import { Sparkles,type LucideIcon } from "lucide-react";
 import { Button } from "./ui/button";
 
 type EmptyOnboardingHintProps = {

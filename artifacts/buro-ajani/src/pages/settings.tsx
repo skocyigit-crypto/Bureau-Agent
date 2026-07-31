@@ -1,30 +1,41 @@
-import { useState, useEffect } from "react";
-import {
-  Settings, Shield, Bell, Save, Monitor, Package,
-  PhoneIncoming, Layers, Rocket, BrainCircuit, Building2, Users, Printer, Sparkles, Webhook, Mail
-} from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs,TabsContent,TabsList,TabsTrigger } from "@/components/ui/tabs";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import {
+Bell,
+BrainCircuit,Building2,
+Layers,
+Mail,
+Monitor,Package,
+PhoneIncoming,
+Printer,
+Rocket,
+Save,
+Settings,Shield,
+Sparkles,
+Users,
+Webhook
+} from "lucide-react";
+import { useEffect,useState } from "react";
 
 import { TabAbonnement } from "./settings/tab-abonnement";
-import { TabEquipe } from "./settings/tab-equipe";
-import { TabPlateformes } from "./settings/tab-plateformes";
-import { TabAppels } from "./settings/tab-appels";
-import { TabSauvegardes } from "./settings/tab-sauvegardes";
-import { TabInstallation } from "./settings/tab-installation";
-import { TabNotifications } from "./settings/tab-notifications";
-import { TabSecurite } from "./settings/tab-securite";
-import { TabMisesAJour } from "./settings/tab-mises-a-jour";
-import { TabIntelligenceArtificielle } from "./settings/tab-intelligence-artificielle";
-import { TabProfilOrg } from "./settings/tab-profil-org";
-import { TabPreferencesIa } from "./settings/tab-preferences-ia";
 import { TabApiWebhooks } from "./settings/tab-api-webhooks";
-import { TabEmailExpediteur } from "./settings/tab-email-expediteur";
+import { TabAppels } from "./settings/tab-appels";
 import { TabClesIa } from "./settings/tab-cles-ia";
+import { TabEmailExpediteur } from "./settings/tab-email-expediteur";
+import { TabEquipe } from "./settings/tab-equipe";
+import { TabInstallation } from "./settings/tab-installation";
+import { TabIntelligenceArtificielle } from "./settings/tab-intelligence-artificielle";
+import { TabMisesAJour } from "./settings/tab-mises-a-jour";
+import { TabNotifications } from "./settings/tab-notifications";
+import { TabPlateformes } from "./settings/tab-plateformes";
+import { TabPreferencesIa } from "./settings/tab-preferences-ia";
+import { TabProfilOrg } from "./settings/tab-profil-org";
+import { TabSauvegardes } from "./settings/tab-sauvegardes";
+import { TabSecurite } from "./settings/tab-securite";
 
 export default function SettingsPage() {
   const { user } = useWorkspaceUser();
@@ -62,7 +73,6 @@ export default function SettingsPage() {
     }
   }, [toast, isAdmin, t]);
 
-  const adminTabCount = isSuperAdmin ? 12 : isAdmin ? 11 : 3;
 
   return (
     <div className="space-y-6">

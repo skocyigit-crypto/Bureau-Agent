@@ -1,23 +1,44 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import {
-  Shield, ShieldCheck, ShieldAlert, ShieldBan, Lock, Clock,
-  KeyRound, Fingerprint, ScanSearch, Ban, Server, UserCog,
-  TriangleAlert, CircleAlert, FileText, RefreshCw, AlertTriangle, Loader2,
-  Zap, Bug, Crosshair, Activity, Eye, Globe, Bomb, Network,
-  TrendingUp, Radio
-} from "lucide-react";
 import securityServerImg from "@/assets/images/security-server.webp";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useVisibleInterval } from "@/hooks/use-visible-interval";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { useVisibleInterval } from "@/hooks/use-visible-interval";
 import { useTranslation } from "@/i18n";
+import {
+Activity,
+AlertTriangle,
+Ban,
+Bomb,
+Bug,
+CircleAlert,
+Clock,
+Crosshair,
+Eye,
+FileText,
+Fingerprint,
+Globe,
+KeyRound,
+Loader2,
+Lock,
+Network,
+Radio,
+RefreshCw,
+ScanSearch,
+Shield,
+ShieldAlert,ShieldBan,
+ShieldCheck,
+TrendingUp,
+TriangleAlert,
+UserCog,
+Zap
+} from "lucide-react";
+import { useCallback,useEffect,useState } from "react";
 
 const SECURITY_API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/security";
 const AUTH_API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/auth";

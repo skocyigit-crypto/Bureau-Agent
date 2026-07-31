@@ -1,34 +1,62 @@
-import { useState, useEffect, useCallback } from "react";
-import { confirmAction } from "@/hooks/use-confirm";
-import {
-  Users, UserPlus, Crown, ShieldCheck, Eye, Trash2, MoreHorizontal,
-  Mail, Clock, CheckCircle2, XCircle, AlertTriangle, Search,
-  Lock, Unlock, Edit, UserCog, Phone,
-  Loader2, ShieldAlert, RefreshCw, Send, LockKeyhole, MailPlus, RotateCcw, Ban, Download, Printer,
-  CheckSquare, Square, X
-} from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Icon3D } from "@/components/icon-3d";
 import officeTeamImg from "@/assets/images/office-team.webp";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
+import { Icon3D } from "@/components/icon-3d";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
+Dialog,DialogContent,
+DialogDescription,DialogFooter,
+DialogHeader,DialogTitle
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
+DropdownMenu,DropdownMenuContent,DropdownMenuItem,DropdownMenuSeparator,DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow
-} from "@/components/ui/table";
-import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
+import {
+Table,TableBody,TableCell,TableHead,TableHeader,TableRow
+} from "@/components/ui/table";
 import { useWorkspaceUser } from "@/components/workspace-user";
-import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
+import { confirmAction } from "@/hooks/use-confirm";
+import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import {
+AlertTriangle,
+Ban,
+CheckCircle2,
+CheckSquare,
+Clock,
+Crown,
+Download,
+Edit,
+Eye,
+Loader2,
+Lock,
+LockKeyhole,
+Mail,
+MailPlus,
+MoreHorizontal,
+Phone,
+Printer,
+RefreshCw,
+RotateCcw,
+Search,
+Send,
+ShieldAlert,
+ShieldCheck,
+Square,
+Trash2,
+Unlock,
+UserCog,
+UserPlus,
+Users,
+X,
+XCircle
+} from "lucide-react";
+import { useCallback,useEffect,useState } from "react";
 
 type UserRole = "super_admin" | "administrateur" | "agent" | "lecture_seule";
 
@@ -79,7 +107,7 @@ export default function UsersPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<string>("agent");
   const [invitations, setInvitations] = useState<any[]>([]);
-  const [loadingInvites, setLoadingInvites] = useState(false);
+  const [, setLoadingInvites] = useState(false);
   const [showEditUser, setShowEditUser] = useState(false);
   const [editUserForm, setEditUserForm] = useState({ prenom: "", nom: "", departement: "", telephone: "" });
   const [selectMode, setSelectMode] = useState(false);
@@ -190,7 +218,6 @@ export default function UsersPage() {
   };
 
   const pendingInvitations = invitations.filter(i => i.status === "pending" && !i.expired);
-  const expiredOrUsedInvitations = invitations.filter(i => i.status !== "pending" || i.expired);
 
   if (!canManageUsers) {
     return (

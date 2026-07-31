@@ -1,13 +1,12 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { Alert,AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Icon3D } from "@/components/icon-3d";
-import { Phone, Lock, Mail, AlertTriangle, Eye, EyeOff, Shield, ArrowLeft, CheckCircle2 } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useTranslation } from "@/i18n";
-import { LanguageSwitcher } from "@/components/language-switcher";
+import { AlertTriangle,ArrowLeft,CheckCircle2,Eye,EyeOff,Lock,Mail,Phone,Shield } from "lucide-react";
+import { useEffect,useState } from "react";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 

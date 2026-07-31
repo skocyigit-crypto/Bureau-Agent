@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
-import { useLocation } from "wouter";
-import { Phone, Users, CheckSquare, MessageSquare, BarChart, LayoutDashboard, Settings, FileText, Package, Calendar, Shield, Zap, BarChart3, Brain, Clock, Target, FolderKanban, Search, UserCog, KeyRound } from "lucide-react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog,DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useTranslation } from "@/i18n";
+import { BarChart,BarChart3,Brain,Calendar,CheckSquare,Clock,FileText,FolderKanban,KeyRound,LayoutDashboard,MessageSquare,Phone,Search,Settings,Shield,UserCog,Users,Zap } from "lucide-react";
+import { useCallback,useEffect,useState } from "react";
+import { useLocation } from "wouter";
 
 type CommandItem = {
   id: string;
@@ -88,7 +88,7 @@ export function CommandPalette() {
           {categories.map(cat => (
             <div key={cat}>
               <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">{t(`commandPalette.category.${cat}`)}</div>
-              {filtered.filter(c => c.category === cat).map((cmd, idx) => {
+              {filtered.filter(c => c.category === cat).map((cmd) => {
                 const globalIdx = filtered.indexOf(cmd);
                 const Icon = cmd.icon;
                 return (

@@ -1,23 +1,23 @@
-import { Sparkles, Info, Languages } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Icon3D } from "@/components/icon-3d";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+Select,
+SelectContent,
+SelectItem,
+SelectTrigger,
+SelectValue,
 } from "@/components/ui/select";
-import { Icon3D } from "@/components/icon-3d";
-import { useTranslation } from "@/i18n";
+import { Switch } from "@/components/ui/switch";
 import {
-  useInlineSuggestEnabled,
-  useInlineSuggestLanguage,
-  INLINE_SUGGEST_LANGUAGES,
-  useInlineSuggestFields,
-  type InlineSuggestConfigurableField,
+INLINE_SUGGEST_LANGUAGES,
+useInlineSuggestEnabled,
+useInlineSuggestFields,
+useInlineSuggestLanguage,
+type InlineSuggestConfigurableField,
 } from "@/hooks/use-inline-suggest";
+import { useTranslation } from "@/i18n";
+import { Info,Languages,Sparkles } from "lucide-react";
 
 const FIELD_OPTIONS: ReadonlyArray<{
   field: InlineSuggestConfigurableField;

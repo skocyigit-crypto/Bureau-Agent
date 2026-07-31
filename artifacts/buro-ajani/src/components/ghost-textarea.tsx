@@ -1,16 +1,16 @@
-import * as React from "react";
-import { Sparkles } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
-import { useTranslation } from "@/i18n";
 import {
-  useInlineSuggest,
-  useInlineSuggestEnabled,
-  measureSuggestionSurvival,
-  inlineSuggestLanguageLabel,
-  INLINE_SUGGEST_EDIT_THRESHOLD,
-  type InlineSuggestFieldType,
+INLINE_SUGGEST_EDIT_THRESHOLD,
+inlineSuggestLanguageLabel,
+measureSuggestionSurvival,
+useInlineSuggest,
+useInlineSuggestEnabled,
+type InlineSuggestFieldType,
 } from "@/hooks/use-inline-suggest";
+import { useTranslation } from "@/i18n";
+import { cn } from "@/lib/utils";
+import { Sparkles } from "lucide-react";
+import * as React from "react";
 
 interface GhostTextareaProps
   extends Omit<React.ComponentProps<"textarea">, "value" | "onChange"> {

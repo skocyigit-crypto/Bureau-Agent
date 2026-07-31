@@ -1,32 +1,65 @@
-import { useState, useEffect, useCallback } from "react";
-import { useTranslation } from "@/i18n";
-import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
+import { Dialog,DialogContent,DialogDescription,DialogFooter,DialogHeader,DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { Tabs,TabsContent,TabsList,TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { useWorkspaceUser } from "@/components/workspace-user";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Shield, CreditCard, Send, AlertTriangle, CheckCircle, Clock, FileText,
-  Building2, Key, Zap, RefreshCw, Mail, BanknoteIcon, Receipt, AlertCircle as AlertCircleIcon,
-  Eye, Calendar, TrendingUp, Lock, Loader2, Plus, Trash2, CheckCircle2,
-  DollarSign, Users, Phone, Bell, History, Settings2, Download, BarChart3, Printer,
-  KeyRound, Crown, ArrowUpRight, BookUser, Brain, Package, Check, Activity,
-  ChevronLeft, ChevronRight, Search, X,
-} from "lucide-react";
+import { useTranslation } from "@/i18n";
+import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { useWorkspaceUser } from "@/components/workspace-user";
+import {
+Activity,
+AlertCircle as AlertCircleIcon,
+AlertTriangle,
+ArrowUpRight,
+BanknoteIcon,
+BarChart3,
+Bell,
+BookUser,Brain,
+Building2,
+Calendar,
+Check,
+CheckCircle,
+CheckCircle2,
+ChevronLeft,ChevronRight,
+Clock,
+CreditCard,
+Crown,
+DollarSign,
+Download,
+Eye,
+FileText,
+History,
+Key,
+KeyRound,
+Loader2,
+Package,
+Phone,
+Plus,
+Printer,
+Receipt,
+RefreshCw,
+Search,
+Send,
+Settings2,
+Shield,
+Trash2,
+Users,
+X,
+Zap
+} from "lucide-react";
+import { useCallback,useEffect,useState } from "react";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -898,7 +931,7 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
   );
 }
 
-function PaymentsTab({ data, onRefresh }: { data: any; onRefresh: () => void }) {
+function PaymentsTab({ data }: { data: any; onRefresh: () => void }) {
   const { t } = useTranslation();
   const payments = data.payments || [];
   return (

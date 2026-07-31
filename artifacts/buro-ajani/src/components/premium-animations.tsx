@@ -1,6 +1,6 @@
-import { motion, AnimatePresence, type Variants } from "framer-motion";
-import { type ReactNode, createContext, useContext } from "react";
 import { triggerHaptic } from "@/hooks/use-device-environment";
+import { AnimatePresence,type Variants,motion } from "framer-motion";
+import { type ReactNode,createContext,useContext } from "react";
 
 const MotionContext = createContext({ reducedMotion: false });
 
@@ -170,7 +170,7 @@ export function HapticButton({
   );
 }
 
-export function CountUp({ value, duration = 1.2, className }: { value: number; duration?: number; className?: string }) {
+export function CountUp({ value, className }: { value: number; duration?: number; className?: string }) {
   const { reducedMotion } = useMotion();
   return (
     <motion.span

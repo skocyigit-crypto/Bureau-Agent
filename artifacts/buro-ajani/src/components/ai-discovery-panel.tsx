@@ -1,15 +1,22 @@
-import { useState, useEffect } from "react";
-import {
-  Brain, User, Plug, Lightbulb, CheckCircle2, AlertCircle, ArrowRight,
-  ChevronDown, ChevronUp, Shield, Zap, MessageSquare, X, Loader2,
-  Smartphone, Mail, Calendar, HardDrive
-} from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardHeader,CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import { useTranslation } from "@/i18n";
+import {
+AlertCircle,ArrowRight,
+Brain,
+ChevronDown,ChevronUp,
+Lightbulb,
+Loader2,
+MessageSquare,
+Plug,
+Shield,
+User,
+X,
+Zap
+} from "lucide-react";
+import { useEffect,useState } from "react";
 
 interface DiscoveryData {
   salutation: string;

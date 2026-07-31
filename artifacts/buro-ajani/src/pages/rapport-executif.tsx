@@ -1,9 +1,9 @@
 import ExecutiveReport from "@/components/executive-report";
 import { Button } from "@/components/ui/button";
-import { Printer, FolderKanban } from "lucide-react";
-import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import { FolderKanban,Printer } from "lucide-react";
+import { useLocation } from "wouter";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 

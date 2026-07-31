@@ -1,31 +1,49 @@
-import { useState, useEffect, useMemo } from "react";
-import { useLocation } from "wouter";
-import {
-  Wifi, WifiOff, Battery, BatteryCharging, BatteryLow, Mic, MicOff, Maximize, Minimize,
-  Bell, Clipboard, MapPin, Monitor, Share2, Printer, Moon, Sun, Zap,
-  Signal, SignalLow, Cpu, MemoryStick, Eye, EyeOff, Keyboard, Globe, Smartphone,
-  Camera, Bluetooth, Fingerprint, Sparkles, ChevronUp, ChevronDown, Copy, Check,
-  Volume2, AlertTriangle, Clock, RefreshCw, Radio, BrainCircuit, Activity
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { Tooltip,TooltipContent,TooltipProvider,TooltipTrigger } from "@/components/ui/tooltip";
+import {
+useBatteryStatus,
+useDeviceCapabilities,
+useFullscreen,
+useGeolocation,
+useNetworkStatus,
+usePageVisibility,
+usePerformanceMonitor,
+useSmartClipboard,
+useSmartShare,
+useSpeechRecognition,
+useTabSync,
+useWakeLock,
+} from "@/hooks/use-smart-browser";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
 import {
-  useNetworkStatus,
-  usePageVisibility,
-  useBatteryStatus,
-  useSpeechRecognition,
-  useFullscreen,
-  useSmartClipboard,
-  usePerformanceMonitor,
-  useDeviceCapabilities,
-  useSmartShare,
-  useGeolocation,
-  useWakeLock,
-  useTabSync,
-} from "@/hooks/use-smart-browser";
+Activity,
+Battery,BatteryCharging,BatteryLow,
+Bell,
+Bluetooth,
+BrainCircuit,
+Camera,
+Check,
+Clipboard,
+Clock,
+Eye,EyeOff,
+Fingerprint,
+Keyboard,
+MapPin,
+Maximize,
+Mic,MicOff,
+Minimize,
+Monitor,
+Printer,
+RefreshCw,
+Share2,
+Smartphone,
+Sparkles,
+Volume2,
+Wifi,WifiOff
+} from "lucide-react";
+import { useEffect,useState } from "react";
+import { useLocation } from "wouter";
 
 function SmartStatusBar() {
   const { t } = useTranslation();
@@ -216,7 +234,7 @@ function SmartQuickActions() {
   const { canShare, share } = useSmartShare();
   const { isLocked, requestWakeLock, releaseWakeLock } = useWakeLock();
   const { toast } = useToast();
-  const [location] = useLocation();
+  const [] = useLocation();
 
   // NOTE: l'autorisation de notification (Notification.requestPermission) est
   // volontairement DESACTIVEE cote web — par decision produit, ce prompt
@@ -286,7 +304,7 @@ function ClipboardDetector() {
   const { t } = useTranslation();
   const { detected, readClipboard } = useSmartClipboard();
   const [, navigate] = useLocation();
-  const { toast } = useToast();
+  useToast();
   const [show, setShow] = useState(false);
   const [lastDetected, setLastDetected] = useState<string>("");
 

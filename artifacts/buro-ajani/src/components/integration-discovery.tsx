@@ -1,18 +1,24 @@
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useLocation } from "wouter";
-import {
-  X, Zap, CheckCircle2, AlertCircle, Clock, ChevronRight,
-  Wifi, RefreshCw, ExternalLink
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription
-} from "@/components/ui/sheet";
-import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import {
+Sheet,SheetContent,
+SheetDescription,
+SheetHeader,SheetTitle
+} from "@/components/ui/sheet";
 import { useTranslation } from "@/i18n";
+import { useQuery } from "@tanstack/react-query";
+import {
+AlertCircle,
+CheckCircle2,
+ChevronRight,
+RefreshCw,
+Wifi,
+X,Zap
+} from "lucide-react";
+import { useEffect,useState } from "react";
+import { useLocation } from "wouter";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const apiFetch = (path: string) => fetch(`${BASE}/api${path}`, { credentials: "include" }).then(r => r.json());
@@ -45,14 +51,6 @@ interface DiscoverySummary {
 
 // Cles i18n stables (rendu via t() au point d'usage) plutot que des libelles
 // francais en dur au niveau module.
-const CATEGORY_LABEL_KEYS: Record<string, string> = {
-  telephonie: "integrationDiscovery.categories.telephonie",
-  google: "integrationDiscovery.categories.google",
-  ia: "integrationDiscovery.categories.ia",
-  email: "integrationDiscovery.categories.email",
-  productivite: "integrationDiscovery.categories.productivite",
-  autre: "integrationDiscovery.categories.autre",
-};
 
 const STATUS_CONFIG = {
   connecte: {
@@ -136,12 +134,10 @@ export function IntegrationDiscovery() {
   const handleAction = (service: Service) => {
     setOpen(false);
     const path = service.actionPath;
-    const baseStripped = BASE || "";
     const fullPath = path.startsWith("/") ? path : `/${path}`;
     navigate(fullPath);
   };
 
-  const categories = [...new Set(services.map(s => s.category))];
   const availableServices = services.filter(s => s.status === "disponible");
   const connectedServices = services.filter(s => s.status === "connecte");
   const notConfiguredServices = services.filter(s => s.status === "non_configure");
@@ -363,7 +359,7 @@ export function DiscoveryTriggerButton() {
   );
 }
 
-function IntegrationDiscoverySheet({ onClose, data }: { onClose: () => void; data: any }) {
+function IntegrationDiscoverySheet({  }: { onClose: () => void; data: any }) {
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = ""; };

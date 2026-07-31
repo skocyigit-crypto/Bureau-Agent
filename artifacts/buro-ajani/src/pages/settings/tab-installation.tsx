@@ -1,15 +1,27 @@
-import { useState } from "react";
-import {
-  Globe, CheckCircle2, Monitor, Laptop, Smartphone,
-  CloudDownload, Share2, Package, Cpu, HardDrive, RefreshCcw,
-  Download, Upload, Play, CheckCheck
-} from "lucide-react";
-import { PhoneSimulator, PhoneSimulatorDialog } from "@/components/phone-simulator";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { PhoneSimulator,PhoneSimulatorDialog } from "@/components/phone-simulator";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import {
+CheckCheck,
+CheckCircle2,
+CloudDownload,
+Cpu,
+Download,
+Globe,
+HardDrive,
+Laptop,
+Monitor,
+Package,
+Play,
+RefreshCcw,
+Share2,
+Smartphone,
+Upload
+} from "lucide-react";
+import { useState } from "react";
 
 export function TabInstallation() {
   const { toast } = useToast();

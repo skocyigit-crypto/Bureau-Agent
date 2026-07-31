@@ -1,19 +1,37 @@
-import { useState, useEffect, useCallback } from "react";
-import { useLocation } from "wouter";
-import {
-  Sparkles, RefreshCw, Loader2, CheckCircle2, X, ThumbsUp, ThumbsDown,
-  Clock, PhoneMissed, CalendarClock, ArrowRight, AlertTriangle, Inbox, ShieldAlert,
-  PhoneOff, MessageSquare, UserPlus, Mail, Send, Receipt, MessageCircle,
-} from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import {
+AlertTriangle,
+ArrowRight,
+CalendarClock,
+CheckCircle2,
+Clock,
+Inbox,
+Loader2,
+Mail,
+MessageCircle,
+MessageSquare,
+PhoneMissed,
+PhoneOff,
+Receipt,
+RefreshCw,
+Send,
+ShieldAlert,
+Sparkles,
+ThumbsDown,
+ThumbsUp,
+UserPlus,
+X,
+} from "lucide-react";
+import { useCallback,useEffect,useState } from "react";
+import { useLocation } from "wouter";
 
 const PROACTIVE_API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/proactive";
 

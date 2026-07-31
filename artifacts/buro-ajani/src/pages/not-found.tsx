@@ -1,6 +1,6 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { AlertCircle } from "lucide-react";
+import { Card,CardContent } from "@/components/ui/card";
 import { useTranslation } from "@/i18n";
+import { AlertCircle } from "lucide-react";
 
 export default function NotFound() {
   const { t } = useTranslation();

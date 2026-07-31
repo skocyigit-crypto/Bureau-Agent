@@ -1,16 +1,15 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format, formatDistanceToNow } from "date-fns";
-import { fr } from "date-fns/locale";
-import { Bell, Check, CheckCheck, Trash2, Filter, Phone, Users, CheckSquare, MessageSquare, AlertTriangle, Info, Calendar, ExternalLink, Printer, Receipt, Package, FolderKanban } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card,CardContent } from "@/components/ui/card";
+import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import { useMutation,useQuery,useQueryClient } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
+import { fr } from "date-fns/locale";
+import { AlertTriangle,Bell,Calendar,Check,CheckCheck,CheckSquare,ExternalLink,FolderKanban,Info,MessageSquare,Package,Phone,Printer,Receipt,Trash2,Users } from "lucide-react";
+import { useState } from "react";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 async function apiFetch(path: string, opts?: RequestInit) {

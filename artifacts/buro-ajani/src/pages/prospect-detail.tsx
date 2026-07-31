@@ -1,30 +1,52 @@
-import { useRoute, useLocation, Link } from "wouter";
-import { confirmAction } from "@/hooks/use-confirm";
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useWorkspaceUser } from "@/components/workspace-user";
 import { AccessDenied } from "@/components/access-denied";
+import { DocumentsPanel } from "@/components/file-upload";
+import { GhostTextarea } from "@/components/ghost-textarea";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
+import { Dialog,DialogContent,DialogFooter,DialogHeader,DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs,TabsContent,TabsList,TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { useWorkspaceUser } from "@/components/workspace-user";
+import { confirmAction } from "@/hooks/use-confirm";
+import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
-  ArrowLeft, Edit, Phone, Mail, Building, Calendar, Tag, X, Save, Printer,
-  TrendingUp, DollarSign, Target, FileText, Trash2, Copy, UserPlus,
-  FolderKanban, Loader2, User, Briefcase, ExternalLink, PhoneCall, PhoneMissed,
-  Voicemail, CheckSquare, Clock, AlertCircle, History,
+AlertCircle,
+ArrowLeft,
+Briefcase,
+Building,Calendar,
+CheckSquare,Clock,
+Copy,
+DollarSign,
+Edit,
+ExternalLink,
+FileText,
+FolderKanban,
+History,
+Loader2,
+Mail,
+Phone,
+PhoneCall,PhoneMissed,
+Printer,
+Save,
+Tag,
+Target,
+Trash2,
+TrendingUp,
+User,
+UserPlus,
+Voicemail,
+X,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { GhostTextarea } from "@/components/ghost-textarea";
-import { DocumentsPanel } from "@/components/file-upload";
-import { useToast } from "@/hooks/use-toast";
-import { useTranslation } from "@/i18n";
+import { useCallback,useEffect,useRef,useState } from "react";
+import { Link,useLocation,useRoute } from "wouter";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 

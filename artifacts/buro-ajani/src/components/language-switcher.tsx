@@ -1,12 +1,12 @@
-import { Globe, Check } from "lucide-react";
-import { LANGUAGES, useTranslation, type LangCode } from "@/i18n";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import {
+DropdownMenu,
+DropdownMenuContent,
+DropdownMenuItem,
+DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { LANGUAGES,useTranslation,type LangCode } from "@/i18n";
+import { Check,Globe } from "lucide-react";
 
 /**
  * Selecteur de langue global de l'application (distinct de celui du Guide, qui

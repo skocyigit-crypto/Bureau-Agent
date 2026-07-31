@@ -1,35 +1,35 @@
-import { useState, useMemo, useEffect } from "react";
-import { confirmAction } from "@/hooks/use-confirm";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { useListCalls, useCreateCall, useUpdateCall, useDeleteCall, getListCallsQueryKey, useListContacts } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
-import { Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Search, Filter, MoreHorizontal, Check, Clock, Voicemail, Plus, ArrowUpDown, ArrowUp, ArrowDown, Download, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CalendarIcon, Printer, Edit, Copy, FolderKanban } from "lucide-react";
-import { EmptyOnboardingHint } from "@/components/empty-onboarding-hint";
-import { Icon3D } from "@/components/icon-3d";
 import callCenterImg from "@/assets/images/call-center.webp";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Link, useLocation } from "wouter";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { useToast } from "@/hooks/use-toast";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import { AiValidationFeedback } from "@/components/ai-validation-feedback";
-import { useAiValidation } from "@/hooks/use-ai-validation";
+import { EmptyOnboardingHint } from "@/components/empty-onboarding-hint";
+import { Icon3D } from "@/components/icon-3d";
 import { QueryErrorAlert } from "@/components/safe-component";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog,DialogContent,DialogDescription,DialogFooter,DialogHeader,DialogTitle,DialogTrigger } from "@/components/ui/dialog";
+import { DropdownMenu,DropdownMenuContent,DropdownMenuItem,DropdownMenuLabel,DropdownMenuSeparator,DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Form,FormControl,FormField,FormItem,FormLabel,FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table,TableBody,TableCell,TableHead,TableHeader,TableRow } from "@/components/ui/table";
+import { useAiValidation } from "@/hooks/use-ai-validation";
+import { confirmAction } from "@/hooks/use-confirm";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
+import { getListCallsQueryKey,useCreateCall,useListCalls,useListContacts,useUpdateCall } from "@workspace/api-client-react";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { ArrowDown,ArrowUp,ArrowUpDown,CalendarIcon,Check,ChevronLeft,ChevronRight,ChevronsLeft,ChevronsRight,Clock,Copy,Download,FolderKanban,MoreHorizontal,Phone,PhoneIncoming,PhoneMissed,PhoneOutgoing,Plus,Printer,Search,Trash2,Voicemail } from "lucide-react";
+import { useEffect,useState } from "react";
+import { useForm } from "react-hook-form";
+import { Link,useLocation } from "wouter";
+import * as z from "zod";
 
 const PAGE_SIZE = 15;
 
@@ -101,7 +101,6 @@ export default function Calls() {
 
   const updateCall = useUpdateCall();
   const createCall = useCreateCall();
-  const deleteCall = useDeleteCall();
   const aiValidation = useAiValidation("call");
 
   const form = useForm<z.infer<typeof formSchema>>({

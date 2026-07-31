@@ -1,19 +1,19 @@
-import { useState, useEffect } from "react";
-import { Puzzle, Search, CheckCircle2, Settings2, Zap, RefreshCw, BarChart3, MessageSquare, Users, FolderOpen, Mail, CreditCard, Link2, Shield, Loader2, Sparkles, Brain, Radar, ChevronDown, ChevronUp, Target, TrendingUp, Globe, Cpu, Printer, FolderKanban } from "lucide-react";
-import { useLocation } from "wouter";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Icon3D } from "@/components/icon-3d";
 import officeTeamImg from "@/assets/images/office-team.webp";
+import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
+import { Icon3D } from "@/components/icon-3d";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent } from "@/components/ui/card";
+import { Dialog,DialogContent,DialogDescription,DialogFooter,DialogHeader,DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
-import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
-import { useGetIntegrationsCatalog, useConnectIntegration, useTestIntegration, type SoftwareIntegration } from "@workspace/api-client-react";
+import { useConnectIntegration,useGetIntegrationsCatalog,useTestIntegration,type SoftwareIntegration } from "@workspace/api-client-react";
+import { BarChart3,Brain,CheckCircle2,ChevronDown,ChevronUp,Cpu,CreditCard,FolderKanban,FolderOpen,Globe,Link2,Loader2,Mail,MessageSquare,Printer,Puzzle,Radar,RefreshCw,Search,Settings2,Shield,Sparkles,Target,TrendingUp,Users,Zap } from "lucide-react";
+import { useEffect,useState } from "react";
+import { useLocation } from "wouter";
 
 const CATEGORY_META: Record<string, { icon: React.ElementType; color: string }> = {
   crm: { icon: Users, color: "text-blue-600 bg-blue-100" },

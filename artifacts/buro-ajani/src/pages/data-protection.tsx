@@ -1,23 +1,38 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  Shield, Download, FileText, Users, Phone, CheckSquare, Clock,
-  AlertTriangle, CheckCircle2, XCircle, ExternalLink, Send, Eye,
-  Trash2, Edit, Lock, Database, Globe, ChevronRight, Info, FileDown
-} from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
 import { Icon3D } from "@/components/icon-3d";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Tabs,TabsContent,TabsList,TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { useWorkspaceUser } from "@/components/workspace-user";
+import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import { useMutation,useQuery,useQueryClient } from "@tanstack/react-query";
+import {
+AlertTriangle,CheckCircle2,
+CheckSquare,Clock,
+Database,
+Download,
+Edit,
+ExternalLink,
+Eye,
+FileDown,
+FileText,
+Globe,
+Info,
+Lock,
+Phone,
+Send,
+Shield,
+Trash2,
+Users,
+XCircle
+} from "lucide-react";
+import { useState } from "react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const apiFetch = (path: string, opts?: RequestInit) =>

@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { AvatarDock } from "@workspace/ai-avatar";
-import { GripVertical, Minus, Plus } from "lucide-react";
 import { useTranslation } from "@/i18n";
+import { AvatarDock } from "@workspace/ai-avatar";
+import { GripVertical,Minus,Plus } from "lucide-react";
+import { useCallback,useEffect,useRef,useState } from "react";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Avatar flottant déplaçable ("Canvas" vivant).
@@ -47,7 +47,6 @@ function loadPos(): Pos | null {
 
 function defaultPos(minimized: boolean): Pos {
   if (typeof window === "undefined") return { x: 24, y: 120 };
-  const w = minimized ? PILL : PANEL_W;
   const h = minimized ? PILL : PANEL_H;
   // Coin bas-gauche par défaut (le bouton assistant occupe le bas-droit).
   return {

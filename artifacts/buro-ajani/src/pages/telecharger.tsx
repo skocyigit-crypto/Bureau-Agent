@@ -1,14 +1,31 @@
-import { useState, useEffect, useCallback } from "react";
-import {
-  Smartphone, Monitor, Laptop, Globe, Download, CloudDownload,
-  CheckCircle2, QrCode, Play, ExternalLink, Clock,
-  Tablet, Wifi, Bell, Shield, Zap, Share, PlusSquare, MoreVertical, Info, Printer
-} from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import {
+Bell,
+CheckCircle2,
+Clock,
+CloudDownload,
+Download,
+ExternalLink,
+Globe,
+Info,
+Laptop,
+Monitor,
+MoreVertical,
+Play,
+PlusSquare,
+Printer,
+QrCode,
+Share,
+Shield,
+Smartphone,
+Tablet,Wifi,
+Zap
+} from "lucide-react";
+import { useCallback,useEffect,useState } from "react";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -495,7 +512,7 @@ function PwaInstructions({ isSafari, isChrome }: { isSafari: boolean; isChrome: 
   );
 }
 
-function QrCodeDisplay({ url }: { url: string }) {
+function QrCodeDisplay({ }: { url: string }) {
   return (
     <div className="w-full h-full flex items-center justify-center">
       <svg viewBox="0 0 37 37" className="w-full h-full">

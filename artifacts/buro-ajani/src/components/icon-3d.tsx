@@ -1,5 +1,5 @@
-import { type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { type LucideIcon } from "lucide-react";
 
 type Icon3DVariant = "blue" | "emerald" | "amber" | "purple" | "rose" | "indigo" | "cyan" | "orange" | "slate" | "navy" | "teal" | "red";
 type Icon3DSize = "xs" | "sm" | "md" | "lg" | "xl";
@@ -166,4 +166,4 @@ export function SidebarIcon3D({ icon, href }: { icon: LucideIcon; href: string }
   return <Icon3D icon={icon} variant={mapping.variant} size="xs" />;
 }
 
-export { type Icon3DVariant, type Icon3DSize };
+export { type Icon3DSize,type Icon3DVariant };

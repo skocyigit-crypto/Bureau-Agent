@@ -1,20 +1,20 @@
-import { useState } from "react";
-import { FileText, Calendar, TrendingUp, TrendingDown, Minus, Phone, CheckSquare, MessageSquare, Users, Loader2, RefreshCw, Trash2, ChevronRight, Award, AlertTriangle, Clock, ArrowUp, ArrowDown, BarChart3, Sparkles, Download, Eye, Printer, FolderKanban } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Icon3D } from "@/components/icon-3d";
 import analyticsWorkImg from "@/assets/images/analytics-work.webp";
-import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
-import { useGenerateDailyReport, useListDailyReports, useGetActivitySummary, useDeleteDailyReport, getListDailyReportsQueryKey, getGetActivitySummaryQueryKey } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import ExecutiveReport from "@/components/executive-report";
+import { Icon3D } from "@/components/icon-3d";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardHeader,CardTitle } from "@/components/ui/card";
+import { Dialog,DialogContent,DialogDescription,DialogHeader,DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import { Tabs,TabsContent,TabsList,TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import { useQueryClient } from "@tanstack/react-query";
+import { getGetActivitySummaryQueryKey,getListDailyReportsQueryKey,useDeleteDailyReport,useGenerateDailyReport,useGetActivitySummary,useListDailyReports } from "@workspace/api-client-react";
+import { AlertTriangle,ArrowDown,ArrowUp,Award,BarChart3,CheckSquare,ChevronRight,Clock,Eye,FileText,FolderKanban,Loader2,MessageSquare,Minus,Phone,Printer,Sparkles,Trash2,TrendingUp,Users } from "lucide-react";
+import { useState } from "react";
 
 type Metrics = {
   calls?: { total?: number; answered?: number; missed?: number; avgDuration?: number; inbound?: number; outbound?: number; answerRate?: number; sentiment?: { tres_positif?: number; positif?: number; negatif?: number; tres_negatif?: number; neutre?: number } };
@@ -143,7 +143,7 @@ export default function Reports() {
   const [activeTab, setActiveTab] = useState("generer");
 
   const { data: reportsData, isLoading: loadingReports } = useListDailyReports({ limit: 30, offset: 0 });
-  const { data: activityData, isLoading: loadingActivity } = useGetActivitySummary();
+  const { data: activityData } = useGetActivitySummary();
   const generateReport = useGenerateDailyReport();
   const deleteReport = useDeleteDailyReport();
 

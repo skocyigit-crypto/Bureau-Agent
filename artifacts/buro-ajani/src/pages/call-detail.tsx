@@ -1,20 +1,19 @@
-import { useRoute, useLocation } from "wouter";
-import { useGetCall, getGetCallQueryKey, useUpdateCall, useGetContact, getGetContactQueryKey, useAskAiAssistant } from "@workspace/api-client-react";
+import { GhostTextarea } from "@/components/ghost-textarea";
+import { QueryErrorAlert } from "@/components/safe-component";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardFooter,CardHeader,CardTitle } from "@/components/ui/card";
+import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 import { useQueryClient } from "@tanstack/react-query";
+import { getGetCallQueryKey,getGetContactQueryKey,useAskAiAssistant,useGetCall,useGetContact,useUpdateCall } from "@workspace/api-client-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Phone, Clock, Calendar, ArrowLeft, Building, User, Edit, PhoneIncoming, PhoneOutgoing, PhoneMissed, Voicemail, Check, Brain, Sparkles, Loader2, Send, Lightbulb, Printer } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Link } from "wouter";
-import { GhostTextarea } from "@/components/ghost-textarea";
-import { useState, useEffect } from "react";
-import { useToast } from "@/hooks/use-toast";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { QueryErrorAlert } from "@/components/safe-component";
-import { useTranslation } from "@/i18n";
+import { ArrowLeft,Brain,Building,Calendar,Check,Clock,Lightbulb,Loader2,Phone,PhoneIncoming,PhoneMissed,PhoneOutgoing,Printer,Send,Sparkles,User,Voicemail } from "lucide-react";
+import { useEffect,useState } from "react";
+import { Link,useLocation,useRoute } from "wouter";
 
 function AiCallInsights({ call, contactName }: { call: any; contactName?: string | null }) {
   const { t } = useTranslation();
@@ -192,16 +191,6 @@ export default function CallDetail() {
     return `${mins}m ${secs}s`;
   };
 
-  const getSentimentColor = (sentiment?: string | null) => {
-    switch (sentiment) {
-      case 'tres_positif': return 'bg-emerald-600';
-      case 'positif': return 'bg-emerald-500';
-      case 'negatif': return 'bg-destructive';
-      case 'tres_negatif': return 'bg-red-700';
-      case 'neutre': return 'bg-muted-foreground';
-      default: return 'bg-transparent border border-border';
-    }
-  };
 
   const getTagStyle = (tag: string) => {
     if (tag.startsWith('urgence:critique')) return 'bg-red-700/10 text-red-700 border-red-700/30';

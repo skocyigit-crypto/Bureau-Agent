@@ -1,27 +1,53 @@
-import { useState, useCallback, useEffect } from "react";
-import { useGetCallAnalytics, useGetCallDistribution, useGetHourlyPerformance, useGetWeeklyReport, useGetTaskStats, useGetAiInlineSuggestMetrics } from "@workspace/api-client-react";
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, Legend, AreaChart, Area, LineChart, Line,
-  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
-} from "recharts";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Icon3D } from "@/components/icon-3d";
 import analyticsWorkImg from "@/assets/images/analytics-work.webp";
-import { Progress } from "@/components/ui/progress";
+import { Icon3D } from "@/components/icon-3d";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import {
-  Phone, PhoneIncoming, PhoneMissed, Voicemail, TrendingUp, TrendingDown,
-  BarChart3, Clock, Target, AlertTriangle, CheckCircle2, Sparkles, Loader2,
-  ArrowUpRight, ArrowDownRight, Activity, Zap, Shield, Brain, Printer, Download,
-  FolderKanban
-} from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs,TabsContent,TabsList,TabsTrigger } from "@/components/ui/tabs";
 import { useTranslation } from "@/i18n";
+import { useGetAiInlineSuggestMetrics,useGetCallAnalytics,useGetCallDistribution,useGetHourlyPerformance,useGetTaskStats,useGetWeeklyReport } from "@workspace/api-client-react";
+import {
+Activity,
+AlertTriangle,
+ArrowDownRight,
+ArrowUpRight,
+BarChart3,
+Brain,
+CheckCircle2,
+Clock,
+FolderKanban,
+Loader2,
+Phone,PhoneIncoming,PhoneMissed,
+Printer,
+Shield,
+Sparkles,
+Target,
+Voicemail,
+Zap
+} from "lucide-react";
+import { useCallback,useEffect,useState } from "react";
+import {
+Area,
+AreaChart,
+Bar,
+BarChart,
+CartesianGrid,
+Cell,Legend,
+Pie,
+PieChart,
+PolarAngleAxis,
+PolarGrid,
+PolarRadiusAxis,
+Radar,
+RadarChart,
+Tooltip as RechartsTooltip,
+ResponsiveContainer,
+XAxis,YAxis
+} from "recharts";
 
 const BASE = import.meta.env.BASE_URL ?? "/";
 

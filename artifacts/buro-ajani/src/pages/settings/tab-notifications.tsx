@@ -1,22 +1,22 @@
-import { useState, useEffect, useMemo } from "react";
-import { Bell, Save, MessageCircle, Moon, BellOff } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import {
-  useGetMyPreferences,
-  useUpdateMyPreferences,
-  getGetMyPreferencesQueryKey,
-  type WhatsAppNotificationFlags,
-  type QuietHoursPrefs,
-  type BadgeMuteFlags,
-} from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "@/i18n";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+getGetMyPreferencesQueryKey,
+useGetMyPreferences,
+useUpdateMyPreferences,
+type BadgeMuteFlags,
+type QuietHoursPrefs,
+type WhatsAppNotificationFlags,
+} from "@workspace/api-client-react";
+import { Bell,BellOff,MessageCircle,Moon,Save } from "lucide-react";
+import { useEffect,useMemo,useState } from "react";
 
 const STORAGE_KEY = "agent-bureau-notif-prefs";
 

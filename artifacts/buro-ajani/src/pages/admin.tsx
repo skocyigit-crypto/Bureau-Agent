@@ -1,11 +1,11 @@
-import { useLocation } from "wouter";
-import { Shield, Target, FileText, Receipt, Package, LayoutDashboard, ArrowRight, ClipboardList } from "lucide-react";
-import { useWorkspaceUser } from "@/components/workspace-user";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { AccessDenied } from "@/components/access-denied";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AccessDenied } from "@/components/access-denied";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
+import { useWorkspaceUser } from "@/components/workspace-user";
 import { useTranslation } from "@/i18n";
+import { ArrowRight,ClipboardList,FileText,LayoutDashboard,Package,Receipt,Shield,Target } from "lucide-react";
+import { useLocation } from "wouter";
 
 /**
  * Backoffice SaaS — racine du panneau /admin.

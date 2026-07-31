@@ -1,13 +1,13 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { useLocation } from "wouter";
-import { Brain, Send, X, Sparkles, Loader2, AlertTriangle, Lightbulb, Info, Zap, ChevronDown, ChevronUp, MessageCircle, Calculator, ChevronRight, Hash, Percent, TrendingUp, Ruler, Pi, BarChart2, DollarSign, ArrowRightLeft, Wand2, Navigation, Bell, RotateCcw, Activity, Target, Shield, Flame, ThumbsUp, Plus, UserPlus, CheckCircle2, ArrowUpCircle, MailCheck, BellRing, Package, ListChecks, ClipboardCheck, Mail, Calendar, FolderPlus, Search, FileText, Download, UserCheck, Edit, Globe, Briefcase, PhoneForwarded, RefreshCw, Database, Receipt, CreditCard, HeartPulse, Wallet, Users, Coffee, ShieldAlert, LineChart, Megaphone, ClipboardList, Swords, Link2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useRequestAiSuggestions } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import { useRequestAiSuggestions } from "@workspace/api-client-react";
+import { Activity,AlertTriangle,ArrowRightLeft,ArrowUpCircle,BarChart2,Bell,BellRing,Brain,Briefcase,Calculator,Calendar,CheckCircle2,ChevronDown,ChevronRight,ChevronUp,ClipboardCheck,ClipboardList,Coffee,DollarSign,Download,Edit,FileText,Flame,Globe,Hash,HeartPulse,Info,Lightbulb,Link2,ListChecks,Loader2,Mail,MailCheck,Navigation,Percent,PhoneForwarded,Pi,Plus,RotateCcw,Search,Send,ShieldAlert,Sparkles,Swords,Target,ThumbsUp,UserPlus,Wand2,X,Zap } from "lucide-react";
+import { useCallback,useEffect,useRef,useState } from "react";
+import { useLocation } from "wouter";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -547,11 +547,6 @@ function MathResultsPanel({ results }: { results: MathResult[] }) {
     }
   };
 
-  const getMathTypeLabel = (type: string) => {
-    const key = `aiAssistant.mathType.${type}`;
-    const label = t(key);
-    return label === key ? type : label;
-  };
 
   return (
     <div className="mt-2 border-t border-border/50 pt-2">

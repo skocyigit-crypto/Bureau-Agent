@@ -1,21 +1,21 @@
-import { useState, useEffect, useCallback } from "react";
-import {
-  BookOpen,
-  Loader2,
-  RefreshCw,
-  Sparkles,
-  FileText,
-  Brain,
-  KeyRound,
-  AlertTriangle,
-} from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import { useWorkspaceUser } from "@/components/workspace-user";
+import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import {
+AlertTriangle,
+BookOpen,
+Brain,
+FileText,
+KeyRound,
+Loader2,
+RefreshCw,
+Sparkles,
+} from "lucide-react";
+import { useCallback,useEffect,useState } from "react";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 

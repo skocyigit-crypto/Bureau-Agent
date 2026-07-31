@@ -1,16 +1,22 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "wouter";
-import {
-  ScanSearch, Sparkles, RefreshCw, AlertCircle, CheckCircle2, Lightbulb,
-  AlertTriangle, Archive, Eye, Inbox, ArrowRight,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import { useMutation,useQuery,useQueryClient } from "@tanstack/react-query";
+import {
+AlertCircle,
+AlertTriangle,Archive,
+ArrowRight,
+CheckCircle2,
+Eye,Inbox,
+Lightbulb,
+RefreshCw,
+ScanSearch,Sparkles,
+} from "lucide-react";
+import { useState } from "react";
+import { Link } from "wouter";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 

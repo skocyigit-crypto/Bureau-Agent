@@ -1,14 +1,13 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardHeader,CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { Phone, Users, CheckSquare, MessageSquare, Target, Calendar, FileText, TrendingUp, Clock, Activity, RefreshCw, Filter, Bell, Zap, ArrowRight, FolderKanban, Receipt } from "lucide-react";
-import { Link } from "wouter";
-import { format, formatDistanceToNow } from "date-fns";
-import { fr } from "date-fns/locale";
+import { Tooltip,TooltipContent,TooltipProvider,TooltipTrigger } from "@/components/ui/tooltip";
 import { useTranslation } from "@/i18n";
+import { formatDistanceToNow } from "date-fns";
+import { fr } from "date-fns/locale";
+import { Activity,Calendar,CheckSquare,FolderKanban,MessageSquare,Phone,Receipt,RefreshCw,TrendingUp,Users } from "lucide-react";
+import { useCallback,useEffect,useRef,useState } from "react";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -150,7 +149,7 @@ export function LiveActivityFeed({ compact = false }: { compact?: boolean }) {
         ) : (
           <ScrollArea className={compact ? "h-64" : "h-80"}>
             <div className="space-y-1">
-              {displayedActivities.map((activity, index) => {
+              {displayedActivities.map((activity) => {
                 const config = typeConfig[activity.type] || typeConfig.contact;
                 const Icon = config.icon;
                 return (

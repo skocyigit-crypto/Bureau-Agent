@@ -1,13 +1,13 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { motion, AnimatePresence, type Variants } from "framer-motion";
-import { Phone, PhoneOff, Voicemail, Clock, User, Building, Star, PhoneIncoming, MessageSquare, Calendar, AlertTriangle, Brain, Loader2, X, Volume2, Mic, MicOff, Pause, Play, CheckSquare, Sparkles, CalendarPlus, Smile, Zap, Target, MessageCircle, Shield, Send, Lightbulb, ArrowRight, FileText, Bot, Headphones } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useCreateCall, useListContacts, getListCallsQueryKey, getListTasksQueryKey } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import { useQueryClient } from "@tanstack/react-query";
+import { getListCallsQueryKey,getListTasksQueryKey,useCreateCall,useListContacts } from "@workspace/api-client-react";
+import { AnimatePresence,motion,type Variants } from "framer-motion";
+import { AlertTriangle,ArrowRight,Bot,Brain,Building,Calendar,CalendarPlus,CheckSquare,FileText,Headphones,Lightbulb,Loader2,MessageCircle,MessageSquare,Mic,MicOff,Pause,Phone,PhoneIncoming,PhoneOff,Play,Send,Shield,Smile,Sparkles,Star,Target,User,Voicemail,X,Zap } from "lucide-react";
+import { useCallback,useEffect,useRef,useState } from "react";
 
 type CallPhase = "ringing" | "active" | "ended" | "missed" | "ai_active" | "ai_ended";
 

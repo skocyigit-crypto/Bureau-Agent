@@ -1,37 +1,56 @@
-import { useMemo, useState } from "react";
+import { Alert,AlertDescription,AlertTitle } from "@/components/ui/alert";
 import {
-  Webhook, KeyRound, Plus, Trash2, RotateCw, Eye, Copy, Check,
-  ListChecks, Loader2, ShieldAlert, Power, PowerOff, AlertTriangle,
-} from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
-import {
-  useListWebhooks, useCreateWebhook, useUpdateWebhook, useDeleteWebhook,
-  useRotateWebhookSecret, useListWebhookDeliveries, useRetryWebhookDelivery,
-  useListApiKeys, useCreateApiKey, useRevealApiKey, useRevokeApiKey,
-  getListWebhooksQueryKey, getListApiKeysQueryKey, getListWebhookDeliveriesQueryKey,
-  type WebhookEndpoint, type ApiKeySummary,
-} from "@workspace/api-client-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+AlertDialog,AlertDialogAction,AlertDialogCancel,AlertDialogContent,
+AlertDialogDescription,AlertDialogFooter,AlertDialogHeader,AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+Dialog,DialogContent,DialogDescription,DialogFooter,DialogHeader,DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+Table,TableBody,TableCell,TableHead,TableHeader,TableRow,
 } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+getListApiKeysQueryKey,getListWebhookDeliveriesQueryKey,
+getListWebhooksQueryKey,
+useCreateApiKey,
+useCreateWebhook,
+useDeleteWebhook,
+useListApiKeys,
+useListWebhookDeliveries,
+useListWebhooks,
+useRetryWebhookDelivery,
+useRevealApiKey,useRevokeApiKey,
+useRotateWebhookSecret,
+useUpdateWebhook,
+type ApiKeySummary,
+type WebhookEndpoint,
+} from "@workspace/api-client-react";
+import {
+AlertTriangle,
+Check,
+Copy,
+Eye,
+KeyRound,
+ListChecks,Loader2,
+Plus,
+PowerOff,
+RotateCw,
+ShieldAlert,
+Trash2,
+Webhook
+} from "lucide-react";
+import { useMemo,useState } from "react";
 
 // Catalogue d'événements proposés. Les noms suivent le format `type.action`
 // émis par le broadcaster serveur (cf. webhook-service.eventName). La valeur

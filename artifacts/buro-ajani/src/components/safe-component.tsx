@@ -1,9 +1,9 @@
-import { Component, type ReactNode, useState, useEffect, useCallback } from "react";
-import { AlertTriangle, RefreshCw, WifiOff, ServerCrash, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { useQueryClient } from "@tanstack/react-query";
+import { Card,CardContent } from "@/components/ui/card";
 import { useTranslation } from "@/i18n";
+import { useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle,RefreshCw,ServerCrash,ShieldAlert,WifiOff } from "lucide-react";
+import { Component,type ReactNode,useCallback,useEffect,useState } from "react";
 
 interface SafeProps {
   children: ReactNode;
@@ -28,7 +28,7 @@ export class SafeComponent extends Component<SafeProps, SafeState> {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, info: React.ErrorInfo) {
+  componentDidCatch(error: Error, _info: React.ErrorInfo) {
     console.warn("[SafeComponent]", this.props.fallbackTitle || "Unknown", error.message);
     this.props.onError?.(error);
   }

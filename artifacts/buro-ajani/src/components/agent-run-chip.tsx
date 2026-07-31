@@ -1,9 +1,9 @@
-import { Link } from "wouter";
-import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Tooltip,TooltipContent,TooltipTrigger } from "@/components/ui/tooltip";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { useAgentRunStatus } from "@/hooks/use-agent-run-status";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTranslation } from "@/i18n";
+import { CheckCircle2,Loader2,XCircle } from "lucide-react";
+import { Link } from "wouter";
 
 // Tâche #42 : pastille globale dans l'en-tête. Visible partout dès qu'une
 // analyse multi-agents tourne pour l'organisation, avec la progression (ex.

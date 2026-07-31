@@ -1,32 +1,67 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useTranslation } from "@/i18n";
-import { confirmAction } from "@/hooks/use-confirm";
-import { Link } from "wouter";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs,TabsContent,TabsList,TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { confirmAction } from "@/hooks/use-confirm";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Brain, Phone, Mail, Calendar, CheckSquare, DollarSign, HardDrive, Camera,
-  Users, Zap, Send, RefreshCw, Loader2, AlertTriangle, Star, Clock, FileText,
-  MapPin, BarChart3, Shield, Bell, TrendingUp, ArrowRight, Sparkles,
-  MessageSquare, Target, Play, Eye, Coffee, Navigation, ExternalLink,
-  Search, Wand2, Copy, Mic, Bot, Printer, FolderKanban,
-  MessageCircle, Plus, Trash2, Edit2, Check, X, ChevronDown, ChevronRight,
-} from "lucide-react";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { useTranslation } from "@/i18n";
 import { streamSse } from "@/lib/ai-stream-client";
 import { AvatarDock } from "@workspace/ai-avatar";
-import { decodeHandoffParam, consumeHandoff, lastUserPrompt } from "@workspace/demo-handoff";
+import { consumeHandoff,decodeHandoffParam,lastUserPrompt } from "@workspace/demo-handoff";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import {
+AlertTriangle,
+ArrowRight,
+BarChart3,
+Bell,
+Bot,
+Brain,
+Calendar,
+Camera,
+Check,
+CheckSquare,
+ChevronDown,ChevronRight,
+Clock,
+Coffee,
+DollarSign,
+Edit2,
+ExternalLink,
+Eye,
+FileText,
+FolderKanban,
+HardDrive,
+Loader2,
+Mail,
+MapPin,
+MessageCircle,
+MessageSquare,
+Navigation,
+Phone,
+Plus,
+Printer,
+RefreshCw,
+Search,
+Send,
+Sparkles,
+Star,
+Target,
+Trash2,
+TrendingUp,
+Users,
+Wand2,
+X,
+Zap
+} from "lucide-react";
+import { useCallback,useEffect,useRef,useState } from "react";
+import { Link } from "wouter";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -267,7 +302,7 @@ function BriefingTab() {
             {!searching && searchResults.aiSummary && <p className="text-xs text-muted-foreground mb-3 p-2 bg-blue-50 rounded">{searchResults.aiSummary}</p>}
             <ScrollArea className="max-h-48">
               <div className="space-y-1">
-                {(searchResults.results && typeof searchResults.results === "object" ? Object.entries(searchResults.results) : []).flatMap(([category, items]: [string, any]) =>
+                {(searchResults.results && typeof searchResults.results === "object" ? Object.entries(searchResults.results) : []).flatMap(([, items]: [string, any]) =>
                   (Array.isArray(items) ? items : []).map((item: any) => {
                     const Icon = typeIcons[item.type] || FileText;
                     const colorClass = typeColors[item.type] || "text-gray-600 bg-gray-50";
@@ -702,7 +737,7 @@ function MeetingsTab() {
 
 function TasksTab() {
   const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [interactionContent, setInteractionContent] = useState("");
   const [interactionType, setInteractionType] = useState("note");
   const [createResult, setCreateResult] = useState<any>(null);

@@ -1,5 +1,5 @@
-import { AlertCircle, AlertTriangle, Lightbulb, CheckCircle2, Loader2, Brain } from "lucide-react";
 import { useTranslation } from "@/i18n";
+import { AlertCircle,AlertTriangle,Brain,CheckCircle2,Lightbulb,Loader2 } from "lucide-react";
 
 interface ValidationResult {
   isValid: boolean;

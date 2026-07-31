@@ -1,8 +1,8 @@
-import { Lock, ArrowLeft } from "lucide-react";
-import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card,CardContent } from "@/components/ui/card";
 import { useTranslation } from "@/i18n";
+import { ArrowLeft,Lock } from "lucide-react";
+import { Link } from "wouter";
 
 /**
  * Vue "Acces refuse" — affichee pour un utilisateur authentifie qui tente

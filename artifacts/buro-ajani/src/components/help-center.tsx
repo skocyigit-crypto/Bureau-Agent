@@ -1,43 +1,43 @@
-import { useState, useMemo, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useLocation } from "wouter";
-import {
-  HelpCircle,
-  Search,
-  X,
-  Phone,
-  Users,
-  CheckSquare,
-  MessageSquare,
-  FileText,
-  CreditCard,
-  Settings as SettingsIcon,
-  Sparkles,
-  Calendar,
-  BarChart3,
-  Mail,
-  FolderOpen,
-  Shield,
-  Plug,
-  Briefcase,
-  Smartphone,
-  Bell,
-  ChevronRight,
-  ArrowLeft,
-  Mail as MailIcon,
-} from "lucide-react";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "./ui/sheet";
-import { Input } from "./ui/input";
-import { Button } from "./ui/button";
-import { ScrollArea } from "./ui/scroll-area";
-import { Badge } from "./ui/badge";
 import { useTranslation } from "@/i18n";
+import { AnimatePresence,motion } from "framer-motion";
+import {
+ArrowLeft,
+BarChart3,
+Bell,
+Briefcase,
+Calendar,
+CheckSquare,
+ChevronRight,
+CreditCard,
+FileText,
+FolderOpen,
+HelpCircle,
+Mail,
+Mail as MailIcon,
+MessageSquare,
+Phone,
+Plug,
+Search,
+Settings as SettingsIcon,
+Shield,
+Smartphone,
+Sparkles,
+Users,
+X,
+} from "lucide-react";
+import { useEffect,useMemo,useState } from "react";
+import { useLocation } from "wouter";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { ScrollArea } from "./ui/scroll-area";
+import {
+Sheet,
+SheetContent,
+SheetDescription,
+SheetHeader,
+SheetTitle,
+} from "./ui/sheet";
 
 // Les champs textuels (title/steps/tip/category) sont internationalises via t()
 // au moment du rendu; le tableau ne conserve que des cles stables et le nombre
@@ -249,7 +249,6 @@ const TOPICS: HelpTopic[] = [
   },
 ];
 
-const CATEGORIES = Array.from(new Set(TOPICS.map((t) => t.category)));
 
 function normalize(s: string): string {
   return s

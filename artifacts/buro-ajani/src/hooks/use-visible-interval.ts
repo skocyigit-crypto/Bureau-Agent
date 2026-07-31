@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect,useRef } from "react";
 
 /**
  * setInterval qui ne tourne QUE lorsque l'onglet est visible.

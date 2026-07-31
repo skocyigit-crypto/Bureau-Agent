@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Mic, MicOff, X, Volume2, MessageCircle, HelpCircle, Radio, Check, XCircle, Globe, Send, Sparkles, Zap, MessagesSquare, Brain, LayoutGrid } from "lucide-react";
 import { useTranslation } from "@/i18n";
+import { Brain,Check,Globe,HelpCircle,LayoutGrid,MessageCircle,MessagesSquare,Mic,MicOff,Radio,Send,Sparkles,Volume2,X,XCircle,Zap } from "lucide-react";
+import { useCallback,useEffect,useRef,useState } from "react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -422,7 +422,7 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
   const [lang, setLang] = useState<Lang>(loadStoredLang);
   const [state, setState] = useState<VoiceState>("idle");
   const [transcript, setTranscript] = useState("");
-  const [response, setResponse] = useState("");
+  const [, setResponse] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState("");
   const [showHelp, setShowHelp] = useState(false);

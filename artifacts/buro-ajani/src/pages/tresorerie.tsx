@@ -1,27 +1,27 @@
-import { useState, useEffect, useCallback } from "react";
-import {
-  Wallet,
-  Loader2,
-  AlertTriangle,
-  ShieldCheck,
-  TrendingDown,
-  TrendingUp,
-  Save,
-  RefreshCw,
-  CalendarClock,
-  Info,
-} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import {
+AlertTriangle,
+CalendarClock,
+Info,
+Loader2,
+RefreshCw,
+Save,
+ShieldCheck,
+TrendingDown,
+TrendingUp,
+Wallet,
+} from "lucide-react";
+import { useCallback,useEffect,useState } from "react";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -88,7 +88,7 @@ export default function TresoreriePage() {
   const [cash, setCash] = useState("");
   const [fixedCosts, setFixedCosts] = useState("");
   const [autoliq, setAutoliq] = useState(false);
-  const [configured, setConfigured] = useState(false);
+  const [, setConfigured] = useState(false);
   const [risk, setRisk] = useState<TreasuryRisk | null>(null);
 
   const loadSettings = useCallback(async () => {

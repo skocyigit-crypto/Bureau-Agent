@@ -1,29 +1,50 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { FileUpload } from "@/components/file-upload";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog,DialogContent,DialogFooter,DialogHeader,DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { useWorkspaceUser } from "@/components/workspace-user";
 import { confirmAction } from "@/hooks/use-confirm";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { FileUpload } from "@/components/file-upload";
 import {
-  FileText, FileSpreadsheet, Image as ImageIcon, File, Download,
-  Trash2, Brain, Sparkles, Search, Filter, BarChart3, HardDrive,
-  Upload, Loader2, Eye, Printer, Edit, FolderKanban, ShieldCheck, ShieldAlert,
-  Shield, ShieldQuestion, X, RotateCcw, ChevronLeft, ChevronRight,
+BarChart3,
+Brain,
+ChevronLeft,ChevronRight,
+Download,
+Edit,
+Eye,
+File,
+FileSpreadsheet,
+FileText,
+Filter,
+FolderKanban,
+HardDrive,
+Image as ImageIcon,
+Loader2,
+Printer,
+RotateCcw,
+Search,
+Shield,
+ShieldAlert,
+ShieldCheck,
+ShieldQuestion,
+Sparkles,
+Trash2,
+Upload,
+X,
 } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { useWorkspaceUser } from "@/components/workspace-user";
+import { useCallback,useEffect,useMemo,useRef,useState } from "react";
 
-import { useLocation } from "wouter";
+import { useTranslation,type TFunction } from "@/i18n";
 import { streamSse } from "@/lib/ai-stream-client";
-import { useTranslation, type TFunction } from "@/i18n";
+import { useLocation } from "wouter";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -158,7 +179,7 @@ export default function DocumentsPage() {
   const [documents, setDocuments] = useState<Doc[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [total, setTotal] = useState(0);
+  const [, setTotal] = useState(0);
   const [search, setSearch] = useState("");
   const [docPage, setDocPage] = useState(0);
   const [filterEntity, setFilterEntity] = useState<string>("all");

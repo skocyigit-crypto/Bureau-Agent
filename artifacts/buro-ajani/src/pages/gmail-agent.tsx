@@ -1,35 +1,64 @@
-import { useState, useCallback, useRef, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getListTasksQueryKey, getListContactsQueryKey } from "@workspace/api-client-react";
-import { format, isToday, isYesterday } from "date-fns";
+import { Icon3D } from "@/components/icon-3d";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card,CardContent } from "@/components/ui/card";
+import { Dialog,DialogContent,DialogHeader,DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs,TabsContent,TabsList,TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
+import { trackScanResult } from "@/lib/scan-result";
+import { useQuery,useQueryClient } from "@tanstack/react-query";
+import { AvatarDock } from "@workspace/ai-avatar";
+import { getListContactsQueryKey,getListTasksQueryKey } from "@workspace/api-client-react";
+import { format,isToday,isYesterday } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
-  Mail, Send, Reply, Archive, Trash2, Star, StarOff, RefreshCw, Search,
-  Brain, Sparkles, Loader2, ChevronRight, X, AlertTriangle,
-  CheckCircle2, Zap, Eye, Copy, Inbox,
-  Paperclip, Plus, RotateCcw, Download,
-  AlertCircle, TrendingUp, ShoppingCart, FileText, Info, MessageSquare,
-  CornerDownLeft, Check, Wifi, WifiOff, Printer, FolderKanban,
-  ShieldCheck, ShieldAlert, Link2
+AlertCircle,
+AlertTriangle,
+Archive,
+Brain,
+Check,
+CheckCircle2,
+ChevronRight,
+Copy,
+CornerDownLeft,
+Download,
+Eye,
+FileText,
+FolderKanban,
+Inbox,
+Info,
+Link2,
+Loader2,
+Mail,
+MessageSquare,
+Paperclip,Plus,
+Printer,
+RefreshCw,
+Reply,
+RotateCcw,
+Search,
+Send,
+ShieldAlert,
+ShieldCheck,
+ShoppingCart,
+Sparkles,
+Star,StarOff,
+Trash2,
+TrendingUp,
+Wifi,WifiOff,
+X,
+Zap
 } from "lucide-react";
+import { useCallback,useEffect,useRef,useState } from "react";
 import { useLocation } from "wouter";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { AvatarDock } from "@workspace/ai-avatar";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import { Icon3D } from "@/components/icon-3d";
-import { trackScanResult } from "@/lib/scan-result";
-import { useTranslation } from "@/i18n";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 

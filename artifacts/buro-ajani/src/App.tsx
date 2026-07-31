@@ -1,19 +1,19 @@
-import { lazy, Suspense, useState, useEffect, useCallback } from "react";
-import { Switch, Route, Router as WouterRouter, useLocation, useRoute } from "wouter";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AlertTriangle } from "lucide-react";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/error-boundary";
-import { NetworkStatusBanner, SessionExpiredOverlay } from "@/components/safe-component";
+import { MotionProvider } from "@/components/premium-animations";
 import { PwaInstallButton } from "@/components/pwa-install";
 import { PwaStandaloneRedirect } from "@/components/pwa-standalone-redirect";
-import { motion, AnimatePresence } from "framer-motion";
-import { MotionProvider } from "@/components/premium-animations";
-import { useDeviceEnvironment, DeviceEnvironmentProvider } from "@/hooks/use-device-environment";
+import { NetworkStatusBanner,SessionExpiredOverlay } from "@/components/safe-component";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { DeviceEnvironmentProvider,useDeviceEnvironment } from "@/hooks/use-device-environment";
+import { QueryClient,QueryClientProvider } from "@tanstack/react-query";
+import { AnimatePresence,motion } from "framer-motion";
+import { AlertTriangle } from "lucide-react";
+import { lazy,Suspense,useCallback,useEffect,useState } from "react";
+import { Route,Switch,useLocation,useRoute,Router as WouterRouter } from "wouter";
 
 
-import { primeLicenseStatus, useLicenseCheck } from "@/hooks/use-license-check";
+import { primeLicenseStatus,useLicenseCheck } from "@/hooks/use-license-check";
 
 // Keep the public shell small, then prefetch the authenticated view in
 // parallel with /auth/me below.
