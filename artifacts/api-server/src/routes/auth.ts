@@ -11,7 +11,8 @@ import { emailT, resolveEmailLang, type EmailLang } from "../i18n/email-i18n";
 import { logger } from "../lib/logger";
 import { escapeHtml } from "../lib/html-escape";
 import { mintApiToken } from "../lib/api-token";
-import { clearTokenInvalidationCache } from "../middleware/auth";
+import { clearTokenInvalidationCache, requireAuth } from "../middleware/auth";
+import { requireTenant } from "../middleware/tenant";
 import { checkLicense } from "../middleware/license-check";
 import {
   isSuperAdmin,
@@ -535,6 +536,9 @@ router.post("/auth/change-password", changePasswordLimiter, async (req: Request,
   }
 });
 
+// User administration is always tenant-scoped, including for super-admin sessions.
+router.use("/auth/users", requireAuth, requireTenant);
+
 router.get("/auth/users", async (req: Request, res: Response): Promise<void> => {
   const userId = req.session?.userId;
   const userRole = req.session?.userRole;
@@ -876,7 +880,7 @@ router.post("/auth/users/:id/send-credentials", adminEmailLimiter, async (req: R
 
   try {
     const conditions = [eq(usersTable.id, id)];
-    if (organisationId && userRole !== "super_admin") {
+    if (organisationId) {
       conditions.push(eq(usersTable.organisationId, organisationId));
     }
 

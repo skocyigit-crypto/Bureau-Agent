@@ -63,8 +63,6 @@ export function isAdminOrSuperAdmin(req: Request): boolean {
 // ── Guard: reject attempts to assign/escalate to super_admin ─────────────────
 export function assertRoleAllowed(req: Request, res: Response, targetRole: string | undefined): boolean {
   if (!targetRole) return true;
-  if (isSuperAdmin(req)) return true; // super_admin can do anything
-
   if (!TENANT_ASSIGNABLE_ROLES.has(targetRole)) {
     logTenantViolation(req, "role_escalation_attempt",
       `Admin tried to assign protected role: ${targetRole}`);
@@ -100,16 +98,6 @@ export async function assertOrgOwnsUser(
   res: Response,
   targetUserId: number,
 ): Promise<{ ok: true; user: typeof usersTable.$inferSelect } | { ok: false }> {
-  if (isSuperAdmin(req)) {
-    // super_admin bypasses org isolation but we still need the user record
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, targetUserId));
-    if (!user) {
-      res.status(404).json({ error: "Utilisateur non trouvé." });
-      return { ok: false };
-    }
-    return { ok: true, user };
-  }
-
   const { organisationId } = getSession(req);
   if (!organisationId) {
     res.status(403).json({ error: "Aucune organisation associée à cette session." });
