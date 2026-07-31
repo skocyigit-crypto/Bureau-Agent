@@ -23,6 +23,9 @@ const Layout = lazy(() =>
 const WorkspaceUserProvider = lazy(() =>
   import("@/components/workspace-user").then((module) => ({ default: module.WorkspaceUserProvider })),
 );
+const RoleGate = lazy(() =>
+  import("@/components/role-gate").then((module) => ({ default: module.RoleGate })),
+);
 const UpdateBanner = lazy(() =>
   import("@/components/update-banner").then((module) => ({ default: module.UpdateBanner })),
 );
@@ -216,6 +219,32 @@ function withLicenseGate(Component: React.ComponentType) {
   licenseGateCache.set(Component, Gated);
   return Gated;
 }
+const roleGateCache = new Map<React.ComponentType, Map<string, React.ComponentType<any>>>();
+
+function withRoleGate(
+  Component: React.ComponentType,
+  allowedRoles: readonly ("super_admin" | "administrateur" | "agent" | "lecture_seule")[],
+  options: { license?: boolean } = {},
+) {
+  const cacheKey = `${allowedRoles.join(",")}:${options.license === false ? "no-license" : "license"}`;
+  const componentCache = roleGateCache.get(Component) ?? new Map<string, React.ComponentType<any>>();
+  const cached = componentCache.get(cacheKey);
+  if (cached) return cached;
+
+  const Gated = function RoleGatedComponent(props: any) {
+    const page = options.license === false
+      ? <Component {...props} />
+      : <LicenseGate><Component {...props} /></LicenseGate>;
+    return <RoleGate allowedRoles={allowedRoles}>{page}</RoleGate>;
+  };
+
+  componentCache.set(cacheKey, Gated);
+  roleGateCache.set(Component, componentCache);
+  return Gated;
+}
+
+const ADMIN_ROLES = ["super_admin", "administrateur"] as const;
+const SUPER_ADMIN_ROLES = ["super_admin"] as const;
 
 function AnimatedRouteContent({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -254,13 +283,13 @@ function AppRoutes() {
         <Route path="/rapports" component={withLicenseGate(Reports)} />
         <Route path="/logiciels" component={withLicenseGate(Software)} />
         <Route path="/analyse" component={withLicenseGate(Analytics)} />
-        <Route path="/utilisateurs" component={withLicenseGate(UsersPage)} />
+        <Route path="/utilisateurs" component={withRoleGate(UsersPage, ADMIN_ROLES)} />
         <Route path="/pointage" component={withLicenseGate(CheckinsPage)} />
         <Route path="/agents-ia" component={withLicenseGate(AiAgentsPage)} />
         <Route path="/calendrier" component={withLicenseGate(CalendarPage)} />
         <Route path="/audit" component={() => { const [, nav] = useLocation(); useEffect(() => nav("/auto-audit"), []); return null; }} />
-        <Route path="/automatisations" component={withLicenseGate(AutomationsPage)} />
-        <Route path="/performance" component={withLicenseGate(PerformancePage)} />
+        <Route path="/automatisations" component={withRoleGate(AutomationsPage, ADMIN_ROLES)} />
+        <Route path="/performance" component={withRoleGate(PerformancePage, ADMIN_ROLES)} />
         <Route path="/google-workspace" component={withLicenseGate(GoogleWorkspacePage)} />
         <Route path="/gmail-agent" component={withLicenseGate(GmailAgentPage)} />
         <Route path="/document-ia" component={withLicenseGate(DocumentAiPage)} />
@@ -268,11 +297,11 @@ function AppRoutes() {
         <Route path="/base-connaissances" component={withLicenseGate(KnowledgeBasePage)} />
         <Route path="/import" component={withLicenseGate(DocumentImportPage)} />
         <Route path="/abonnement" component={() => { const [, nav] = useLocation(); useEffect(() => nav(`/gestion-licence${window.location.search}`), []); return null; }} />
-        <Route path="/organisations" component={OrganisationsPage} />
+        <Route path="/organisations" component={withRoleGate(OrganisationsPage, SUPER_ADMIN_ROLES, { license: false })} />
         <Route path="/parametres" component={SettingsPage} />
         <Route path="/guide" component={GuidePage} />
-        <Route path="/sante-technique" component={SanteTechniquePage} />
-        <Route path="/rapport-executif" component={withLicenseGate(ExecutiveReportPage)} />
+        <Route path="/sante-technique" component={withRoleGate(SanteTechniquePage, SUPER_ADMIN_ROLES, { license: false })} />
+        <Route path="/rapport-executif" component={withRoleGate(ExecutiveReportPage, ADMIN_ROLES)} />
         <Route path="/gestion-licence" component={LicenseManagementPage} />
         <Route path="/commandant-ia" component={withLicenseGate(CommandantIAPage)} />
         <Route path="/asistan" component={withLicenseGate(AsistanPage)} />
@@ -280,19 +309,19 @@ function AppRoutes() {
         <Route path="/telecharger" component={TelechargerPage} />
         <Route path="/notifications" component={NotificationsPage} />
         <Route path="/onboarding" component={() => <OnboardingPage />} />
-        <Route path="/prospects" component={withLicenseGate(ProspectsPage)} />
-        <Route path="/prospects/:id" component={withLicenseGate(ProspectDetail)} />
+        <Route path="/prospects" component={withRoleGate(ProspectsPage, SUPER_ADMIN_ROLES)} />
+        <Route path="/prospects/:id" component={withRoleGate(ProspectDetail, SUPER_ADMIN_ROLES)} />
         {/* Backoffice SaaS — gate cote composant (super-admin only). Tâche #52. */}
-        <Route path="/admin" component={AdminBackofficePage} />
-        <Route path="/admin/dashboard" component={AdminDashboardPage} />
+        <Route path="/admin" component={withRoleGate(AdminBackofficePage, SUPER_ADMIN_ROLES, { license: false })} />
+        <Route path="/admin/dashboard" component={withRoleGate(AdminDashboardPage, SUPER_ADMIN_ROLES, { license: false })} />
         {/* Pas de licence-gate sur /admin/* : la garde est par role super-admin (cf. /admin/devis et /admin/factures-b2b). */}
-        <Route path="/admin/prospects" component={ProspectsPage} />
-        <Route path="/admin/devis" component={AdminDevisPage} />
-        <Route path="/admin/factures-b2b" component={AdminFacturesB2BPage} />
-        <Route path="/admin/factures-client" component={AdminFacturesClientPage} />
-        <Route path="/admin/audit" component={AdminAuditPage} />
+        <Route path="/admin/prospects" component={withRoleGate(ProspectsPage, SUPER_ADMIN_ROLES, { license: false })} />
+        <Route path="/admin/devis" component={withRoleGate(AdminDevisPage, SUPER_ADMIN_ROLES, { license: false })} />
+        <Route path="/admin/factures-b2b" component={withRoleGate(AdminFacturesB2BPage, SUPER_ADMIN_ROLES, { license: false })} />
+        <Route path="/admin/factures-client" component={withRoleGate(AdminFacturesClientPage, SUPER_ADMIN_ROLES, { license: false })} />
+        <Route path="/admin/audit" component={withRoleGate(AdminAuditPage, SUPER_ADMIN_ROLES, { license: false })} />
         <Route path="/notes-internes" component={withLicenseGate(NotesInternesPage)} />
-        <Route path="/protection-donnees" component={withLicenseGate(DataProtectionPage)} />
+        <Route path="/protection-donnees" component={withRoleGate(DataProtectionPage, ADMIN_ROLES)} />
         <Route path="/activite-recente" component={withLicenseGate(ActiviteRecentePage)} />
         <Route path="/projets" component={withLicenseGate(ProjetsPage)} />
         <Route path="/saisie-chantier" component={withLicenseGate(VoiceSiteOpsPage)} />
@@ -300,10 +329,10 @@ function AppRoutes() {
         <Route path="/assistant-proactif" component={withLicenseGate(AssistantProactifPage)} />
         <Route path="/ia-apprentissage" component={withLicenseGate(IaApprentissagePage)} />
         <Route path="/recherche-web" component={withLicenseGate(RechercheWebPage)} />
-        <Route path="/equipe/localisation" component={withLicenseGate(EquipeLocalisationPage)} />
+        <Route path="/equipe/localisation" component={withRoleGate(EquipeLocalisationPage, ADMIN_ROLES)} />
         <Route path="/file-approbation" component={withLicenseGate(FileApprobationPage)} />
         <Route path="/equipe-ia" component={withLicenseGate(EquipeIaPage)} />
-        <Route path="/auto-audit" component={withLicenseGate(AuditDenetimPage)} />
+        <Route path="/auto-audit" component={withRoleGate(AuditDenetimPage, ADMIN_ROLES)} />
         <Route component={NotFound} />
       </Switch>
         </AnimatedRouteContent>
