@@ -19,26 +19,38 @@ Sparkles,
 Users,
 Webhook
 } from "lucide-react";
-import { useEffect,useMemo,useState } from "react";
+import { lazy,Suspense,useEffect,useMemo,useState } from "react";
 
 import { getAvailableSettingsTabs } from "./settings/settings-access";
 
-import { TabAbonnement } from "./settings/tab-abonnement";
-import { TabApiWebhooks } from "./settings/tab-api-webhooks";
-import { TabAppels } from "./settings/tab-appels";
-import { TabClesIa } from "./settings/tab-cles-ia";
-import { TabEmailExpediteur } from "./settings/tab-email-expediteur";
-import { TabEquipe } from "./settings/tab-equipe";
-import { TabInstallation } from "./settings/tab-installation";
-import { TabIntelligenceArtificielle } from "./settings/tab-intelligence-artificielle";
-import { TabMisesAJour } from "./settings/tab-mises-a-jour";
-import { TabNotifications } from "./settings/tab-notifications";
-import { TabPlateformes } from "./settings/tab-plateformes";
-import { TabPreferencesIa } from "./settings/tab-preferences-ia";
-import { TabProfilOrg } from "./settings/tab-profil-org";
-import { TabSauvegardes } from "./settings/tab-sauvegardes";
-import { TabSecurite } from "./settings/tab-securite";
+const TabAbonnement = lazy(() => import("./settings/tab-abonnement").then(m => ({ default: m.TabAbonnement })));
+const TabApiWebhooks = lazy(() => import("./settings/tab-api-webhooks").then(m => ({ default: m.TabApiWebhooks })));
+const TabAppels = lazy(() => import("./settings/tab-appels").then(m => ({ default: m.TabAppels })));
+const TabClesIa = lazy(() => import("./settings/tab-cles-ia").then(m => ({ default: m.TabClesIa })));
+const TabEmailExpediteur = lazy(() => import("./settings/tab-email-expediteur").then(m => ({ default: m.TabEmailExpediteur })));
+const TabEquipe = lazy(() => import("./settings/tab-equipe").then(m => ({ default: m.TabEquipe })));
+const TabInstallation = lazy(() => import("./settings/tab-installation").then(m => ({ default: m.TabInstallation })));
+const TabIntelligenceArtificielle = lazy(() => import("./settings/tab-intelligence-artificielle").then(m => ({ default: m.TabIntelligenceArtificielle })));
+const TabMisesAJour = lazy(() => import("./settings/tab-mises-a-jour").then(m => ({ default: m.TabMisesAJour })));
+const TabNotifications = lazy(() => import("./settings/tab-notifications").then(m => ({ default: m.TabNotifications })));
+const TabPlateformes = lazy(() => import("./settings/tab-plateformes").then(m => ({ default: m.TabPlateformes })));
+const TabPreferencesIa = lazy(() => import("./settings/tab-preferences-ia").then(m => ({ default: m.TabPreferencesIa })));
+const TabProfilOrg = lazy(() => import("./settings/tab-profil-org").then(m => ({ default: m.TabProfilOrg })));
+const TabSauvegardes = lazy(() => import("./settings/tab-sauvegardes").then(m => ({ default: m.TabSauvegardes })));
+const TabSecurite = lazy(() => import("./settings/tab-securite").then(m => ({ default: m.TabSecurite })));
 
+function SettingsTabLoader() {
+  return (
+    <div className="flex min-h-48 items-center justify-center" role="status" aria-label="Chargement">
+      <div className="h-7 w-7 animate-spin rounded-full border-2 border-primary/25 border-t-primary" />
+    </div>
+  );
+}
+
+function LazySettingsTab({ active, children }: { active: boolean; children: React.ReactNode }) {
+  if (!active) return null;
+  return <Suspense fallback={<SettingsTabLoader />}>{children}</Suspense>;
+}
 export default function SettingsPage() {
   const { user } = useWorkspaceUser();
   const { toast } = useToast();
@@ -182,74 +194,74 @@ export default function SettingsPage() {
         </TabsList>
 
         <TabsContent value="profil" className="space-y-6 mt-6">
-          <TabProfilOrg />
+          <LazySettingsTab active={activeTab === "profil"}><TabProfilOrg /></LazySettingsTab>
         </TabsContent>
 
         <TabsContent value="abonnement" className="space-y-6 mt-6">
-          <TabAbonnement />
+          <LazySettingsTab active={activeTab === "abonnement"}><TabAbonnement /></LazySettingsTab>
         </TabsContent>
 
         <TabsContent value="equipe" className="space-y-6 mt-6">
-          <TabEquipe />
+          <LazySettingsTab active={activeTab === "equipe"}><TabEquipe /></LazySettingsTab>
         </TabsContent>
 
         <TabsContent value="google" className="space-y-6 mt-6">
-          <TabPlateformes />
+          <LazySettingsTab active={activeTab === "google"}><TabPlateformes /></LazySettingsTab>
         </TabsContent>
 
         <TabsContent value="appels" className="space-y-6 mt-6">
-          <TabAppels />
+          <LazySettingsTab active={activeTab === "appels"}><TabAppels /></LazySettingsTab>
         </TabsContent>
 
         <TabsContent value="sauvegardes" className="space-y-6 mt-6">
-          <TabSauvegardes />
+          <LazySettingsTab active={activeTab === "sauvegardes"}><TabSauvegardes /></LazySettingsTab>
         </TabsContent>
 
         <TabsContent value="preferences-ia" className="space-y-6 mt-6">
-          <TabPreferencesIa />
+          <LazySettingsTab active={activeTab === "preferences-ia"}><TabPreferencesIa /></LazySettingsTab>
         </TabsContent>
 
         <TabsContent value="installation" className="space-y-6 mt-6">
-          <TabInstallation />
+          <LazySettingsTab active={activeTab === "installation"}><TabInstallation /></LazySettingsTab>
         </TabsContent>
 
         <TabsContent value="notifications" className="space-y-6 mt-6">
-          <TabNotifications />
+          <LazySettingsTab active={activeTab === "notifications"}><TabNotifications /></LazySettingsTab>
         </TabsContent>
 
         {isAdmin && (
           <TabsContent value="securite" className="space-y-6 mt-6">
-            <TabSecurite />
+            <LazySettingsTab active={activeTab === "securite"}><TabSecurite /></LazySettingsTab>
           </TabsContent>
         )}
 
         {isAdmin && (
           <TabsContent value="intelligence-artificielle" className="space-y-6 mt-6">
-            <TabIntelligenceArtificielle />
+            <LazySettingsTab active={activeTab === "intelligence-artificielle"}><TabIntelligenceArtificielle /></LazySettingsTab>
           </TabsContent>
         )}
 
         {isAdmin && (
           <TabsContent value="api-webhooks" className="space-y-6 mt-6">
-            <TabApiWebhooks />
+            <LazySettingsTab active={activeTab === "api-webhooks"}><TabApiWebhooks /></LazySettingsTab>
           </TabsContent>
         )}
 
         {isAdmin && (
           <TabsContent value="email-expediteur" className="space-y-6 mt-6">
-            <TabEmailExpediteur />
+            <LazySettingsTab active={activeTab === "email-expediteur"}><TabEmailExpediteur /></LazySettingsTab>
           </TabsContent>
         )}
 
         {isAdmin && (
           <TabsContent value="cles-ia" className="space-y-6 mt-6">
-            <TabClesIa />
+            <LazySettingsTab active={activeTab === "cles-ia"}><TabClesIa /></LazySettingsTab>
           </TabsContent>
         )}
 
         {isSuperAdmin && (
           <TabsContent value="mises-a-jour" className="space-y-6 mt-6">
-            <TabMisesAJour />
+            <LazySettingsTab active={activeTab === "mises-a-jour"}><TabMisesAJour /></LazySettingsTab>
           </TabsContent>
         )}
       </Tabs>
