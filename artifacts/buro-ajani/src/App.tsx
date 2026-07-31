@@ -6,22 +6,35 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { NetworkStatusBanner, SessionExpiredOverlay } from "@/components/safe-component";
-import { WorkspaceUserProvider } from "@/components/workspace-user";
 import { PwaInstallButton } from "@/components/pwa-install";
 import { PwaStandaloneRedirect } from "@/components/pwa-standalone-redirect";
-import { UpdateBanner } from "@/components/update-banner";
 import { motion, AnimatePresence } from "framer-motion";
 import { MotionProvider } from "@/components/premium-animations";
 import { useDeviceEnvironment, DeviceEnvironmentProvider } from "@/hooks/use-device-environment";
 
-import { Layout } from "@/components/layout";
-import { useLicenseCheck } from "@/hooks/use-license-check";
-import { CommandPalette } from "@/components/command-palette";
-import { SmartBrowserOverlays, SmartBrowserShortcuts } from "@/components/smart-browser-panel";
-import { QuickActionHub } from "@/components/quick-action-hub";
 
-// Route-level code splitting. Keep the application shell synchronous, but do
-// not make login/public visitors download every authenticated feature page.
+import { primeLicenseStatus, useLicenseCheck } from "@/hooks/use-license-check";
+
+// Keep the public shell small, then prefetch the authenticated view in
+// parallel with /auth/me below.
+const Layout = lazy(() =>
+  import("@/components/layout").then((module) => ({ default: module.Layout })),
+);
+const WorkspaceUserProvider = lazy(() =>
+  import("@/components/workspace-user").then((module) => ({ default: module.WorkspaceUserProvider })),
+);
+const UpdateBanner = lazy(() =>
+  import("@/components/update-banner").then((module) => ({ default: module.UpdateBanner })),
+);
+const CommandPalette = lazy(() =>
+  import("@/components/command-palette").then((module) => ({ default: module.CommandPalette })),
+);
+const SmartBrowserOverlays = lazy(() =>
+  import("@/components/smart-browser-panel").then((module) => ({ default: module.SmartBrowserOverlays })),
+);
+const SmartBrowserShortcuts = lazy(() =>
+  import("@/components/smart-browser-panel").then((module) => ({ default: module.SmartBrowserShortcuts })),
+);
 const VoiceAssistant = lazy(() =>
   import("@/components/VoiceAssistant").then((module) => ({ default: module.VoiceAssistant })),
 );
@@ -342,7 +355,7 @@ function InvitationOrApp({
       <AppRoutes />
       <Suspense fallback={null}>
         <VoiceAssistant onOpenLive={() => setLiveOpen(true)} />
-        <VoiceLive open={liveOpen} onClose={() => setLiveOpen(false)} />
+        {liveOpen && <VoiceLive open onClose={() => setLiveOpen(false)} />}
       </Suspense>
     </WorkspaceUserProvider>
   );
@@ -362,6 +375,7 @@ function AppContent() {
 
       if (res.ok) {
         const user = await res.json();
+        primeLicenseStatus(user.licenseAccess);
         setCurrentUser(user);
         setAuthState("authenticated");
         setSessionExpired(false);
@@ -380,6 +394,14 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
+    // Replace the auth -> layout -> dashboard waterfall with parallel downloads.
+    void Promise.all([
+      import("@/components/layout"),
+      import("@/pages/dashboard"),
+      import("@/components/command-palette"),
+      import("@/components/smart-browser-panel"),
+      import("@/components/update-banner"),
+    ]);
     checkSession();
   }, [checkSession]);
 

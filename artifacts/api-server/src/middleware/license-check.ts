@@ -75,6 +75,7 @@ export function licenseCheck(req: Request, res: Response, next: NextFunction): v
 const LICENSE_TTL_MS = 30_000;
 type LicenseState = { org: typeof organisationsTable.$inferSelect | null; sub: typeof subscriptionsTable.$inferSelect | null };
 const licenseCache = new Map<number, { state: LicenseState; at: number }>();
+const pendingLicenseLoads = new Map<number, Promise<LicenseState>>();
 
 /** A appeler quand un abonnement ou une organisation change (suspension, reactivation). */
 export function invalidateLicenseCache(orgId?: number): void {
@@ -86,15 +87,27 @@ async function loadLicenseState(orgId: number): Promise<LicenseState> {
   const hit = licenseCache.get(orgId);
   if (hit && Date.now() - hit.at < LICENSE_TTL_MS) return hit.state;
 
-  const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, orgId));
-  const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, orgId));
-  const state: LicenseState = { org: org ?? null, sub: sub ?? null };
+  // Dashboard requests arrive together on first paint. Share one cache miss
+  // instead of issuing duplicate organisation/subscription queries.
+  const pending = pendingLicenseLoads.get(orgId);
+  if (pending) return pending;
 
-  // Borne de securite: en multi-tenant, un cache non borne grossit avec le
-  // nombre d'organisations vues par l'instance.
-  if (licenseCache.size > 500) licenseCache.clear();
-  licenseCache.set(orgId, { state, at: Date.now() });
-  return state;
+  const load = (async (): Promise<LicenseState> => {
+    const [[org], [sub]] = await Promise.all([
+      db.select().from(organisationsTable).where(eq(organisationsTable.id, orgId)),
+      db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, orgId)),
+    ]);
+    const state: LicenseState = { org: org ?? null, sub: sub ?? null };
+
+    // Borne de securite: en multi-tenant, un cache non borne grossit avec le
+    // nombre d'organisations vues par l'instance.
+    if (licenseCache.size > 500) licenseCache.clear();
+    licenseCache.set(orgId, { state, at: Date.now() });
+    return state;
+  })().finally(() => pendingLicenseLoads.delete(orgId));
+
+  pendingLicenseLoads.set(orgId, load);
+  return load;
 }
 
 export async function checkLicense(orgId: number, method: string, path: string): Promise<{ allowed: boolean; reason?: string; message?: string }> {

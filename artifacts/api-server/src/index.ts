@@ -98,12 +98,13 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 async function startServer(): Promise<void> {
-  const dbOk = await checkDbHealth();
-  if (!dbOk) {
-    logger.warn("Database not reachable at startup — continuing anyway");
-  } else {
-    logger.info("Database connection verified");
-  }
+  // Bind HTTP immediately while the database connector warms in parallel.
+  const dbHealthPromise = checkDbHealth().then((dbOk) => {
+    if (!dbOk) logger.warn("Database not reachable at startup — continuing anyway");
+    else logger.info("Database connection verified");
+  }).catch((err: unknown) => {
+    logger.warn({ err }, "Database startup check failed — continuing anyway");
+  });
 
   server = app.listen(port, (err) => {
     if (err) {
@@ -112,6 +113,8 @@ async function startServer(): Promise<void> {
     }
 
     logger.info({ port }, "Server listening");
+
+    void dbHealthPromise;
 
     void installGeminiModelFallback();
     // Tâche #189 — un repli de modele IA alerte l'admin (suggestion proactive

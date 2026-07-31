@@ -144,10 +144,10 @@ rm -f "${BUILD_CFG}"
 # ---------------------------------------------------------------------------
 # 6. Deploy the api Cloud Run service.
 # ---------------------------------------------------------------------------
-# IMPORTANT — taches planifiees: le service tourne avec min-instances=0 pour ne
-# pas payer une instance qui dort (~60-70 EUR/mois). Les setInterval s'arretent
-# donc avec l'instance. C'est Cloud Scheduler qui declenche le travail, via un
-# job HTTP a creer UNE FOIS (non gere par ce script):
+# IMPORTANT - performance: l'API conserve une instance chaude afin d'eviter
+# un cold start au premier utilisateur. Les setInterval continuent aussi avec
+# l'instance. Cloud Scheduler reste le filet de securite, via un job HTTP a
+# creer UNE FOIS (non gere par ce script):
 #
 #   gcloud scheduler jobs create http agent-de-bureau-cron \
 #     --location=europe-west1 --schedule="*/10 * * * *" --time-zone="Europe/Paris" \
@@ -161,10 +161,10 @@ rm -f "${BUILD_CFG}"
 # --no-cpu-throttling n'est PAS un reglage de confort:
 # toutes les taches planifiees (relances de paiement, digest quotidien, agents
 # IA, sauvegardes, agents de sante) reposent sur setInterval dans le processus.
-# Avec min-instances=0 l'instance s'arrete faute de trafic et le temps ne
-# s'ecoule plus: ces taches ne tournaient donc QUE si quelqu'un utilisait
-# l'application au meme moment. Et avec le throttling CPU par defaut, le peu
-# qui s'executait en arriere-plan n'obtenait presque pas de CPU (latences
+# Avec une instance minimum, le processus reste disponible et le temps
+# s'ecoule normalement; ces taches ne dependent plus du trafic utilisateur.
+# Avec le throttling CPU par defaut, le travail en arriere-plan n'obtenait
+# presque pas de CPU (latences
 # mesurees a 11 s sur un simple SELECT 1). Les repasser a 0/throttled remettrait
 # silencieusement les automatisations en panne.
 echo "-- Deploying ${API_SERVICE} --"
@@ -186,7 +186,7 @@ gcloud run deploy "${API_SERVICE}" \
   --add-cloudsql-instances="${SQL_CONNECTION_NAME}" \
   --update-env-vars="NODE_ENV=production,ADMIN_EMAIL=${ADMIN_EMAIL}" \
   --update-secrets="${SECRET_REFS}" \
-  --min-instances=0 --max-instances=3 --memory=1Gi --cpu=1 --no-cpu-throttling \
+  --min=1 --max-instances=3 --memory=1Gi --cpu=1 --no-cpu-throttling --cpu-boost \
   --port=8080
 
 API_URL="$(gcloud run services describe "${API_SERVICE}" --region="${REGION}" --project "${PROJECT}" --format='value(status.url)')"
@@ -241,7 +241,7 @@ gcloud run deploy "${WEB_SERVICE}" \
   --platform=managed \
   --allow-unauthenticated \
   --update-env-vars="API_UPSTREAM=${API_HOST}:443" \
-  --min-instances=0 --max-instances=3 --memory=256Mi --cpu=1 \
+  --min=1 --max-instances=3 --memory=256Mi --cpu=1 --cpu-boost \
   --port=8080
 
 WEB_URL="$(gcloud run services describe "${WEB_SERVICE}" --region="${REGION}" --project "${PROJECT}" --format='value(status.url)')"

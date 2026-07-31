@@ -12,6 +12,7 @@ import { logger } from "../lib/logger";
 import { escapeHtml } from "../lib/html-escape";
 import { mintApiToken } from "../lib/api-token";
 import { clearTokenInvalidationCache } from "../middleware/auth";
+import { checkLicense } from "../middleware/license-check";
 import {
   isSuperAdmin,
   assertRoleAllowed,
@@ -385,7 +386,21 @@ router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
   }
 
   try {
-    const [user] = await db.select({
+    // Resolve the user and commercial access in parallel. The application
+    // shell no longer needs a second blocking request after /auth/me.
+    const accessPromise = req.session?.userRole === "super_admin"
+      ? Promise.resolve({ allowed: true, reason: "super_admin" })
+      : !req.session?.organisationId
+        ? Promise.resolve({ allowed: false, reason: "no_org" })
+        : checkLicense(req.session.organisationId, "POST", "/api/check-access-probe").catch((err: unknown) => {
+            req.log.warn({ err }, "License check unavailable during auth/me");
+            // The API middleware remains authoritative. Do not block the
+            // client shell because of a transient lookup failure.
+            return { allowed: true, reason: "" };
+          });
+
+    const [[user], licenseAccess] = await Promise.all([
+      db.select({
       id: usersTable.id,
       email: usersTable.email,
       nom: usersTable.nom,
@@ -400,7 +415,9 @@ router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
       actif: usersTable.actif,
       dernierAcces: usersTable.dernierAcces,
       createdAt: usersTable.createdAt,
-    }).from(usersTable).where(eq(usersTable.id, userId));
+      }).from(usersTable).where(eq(usersTable.id, userId)),
+      accessPromise,
+    ]);
 
     if (!user || !user.actif) {
       req.session.destroy(() => {});
@@ -408,7 +425,7 @@ router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    res.json(user);
+    res.json({ ...user, licenseAccess });
   } catch (err: any) {
     req.log.error({ err }, "Erreur auth/me");
     res.status(500).json({ error: "Erreur lors de la verification de session." });

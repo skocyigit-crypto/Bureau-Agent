@@ -8,10 +8,34 @@ interface LicenseStatus {
   loading: boolean;
 }
 
+const CACHE_TTL_MS = 30_000;
+let cachedStatus: { value: LicenseStatus; at: number } | null = null;
+
+export function primeLicenseStatus(value: { allowed?: boolean; reason?: string } | undefined): void {
+  if (!value || typeof value.allowed !== "boolean") return;
+  cachedStatus = {
+    value: { allowed: value.allowed, reason: value.reason || "", loading: false },
+    at: Date.now(),
+  };
+}
+
+function getCachedStatus(): LicenseStatus | null {
+  if (!cachedStatus || Date.now() - cachedStatus.at >= CACHE_TTL_MS) return null;
+  return cachedStatus.value;
+}
+
 export function useLicenseCheck(): LicenseStatus {
-  const [status, setStatus] = useState<LicenseStatus>({ allowed: true, reason: "", loading: true });
+  const [status, setStatus] = useState<LicenseStatus>(
+    // Server middleware is authoritative; never block the shell on this advisory check.
+    () => getCachedStatus() ?? { allowed: true, reason: "", loading: false },
+  );
 
   const check = useCallback(async () => {
+    const cached = getCachedStatus();
+    if (cached) {
+      setStatus(cached);
+      return;
+    }
     try {
       // Delai maximal indispensable: tant que cet appel n'a pas repondu,
       // App.tsx n'affiche qu'un spinner. Sans limite, une base lente ou
@@ -24,7 +48,9 @@ export function useLicenseCheck(): LicenseStatus {
       });
       if (res.ok) {
         const data = await res.json();
-        setStatus({ allowed: data.allowed, reason: data.reason || "", loading: false });
+        const next = { allowed: data.allowed, reason: data.reason || "", loading: false };
+        cachedStatus = { value: next, at: Date.now() };
+        setStatus(next);
       } else {
         setStatus({ allowed: true, reason: "", loading: false });
       }
