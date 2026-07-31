@@ -19,7 +19,7 @@ Sparkles,
 Users,
 Webhook
 } from "lucide-react";
-import { useEffect,useState } from "react";
+import { useEffect,useMemo,useState } from "react";
 
 import { TabAbonnement } from "./settings/tab-abonnement";
 import { TabApiWebhooks } from "./settings/tab-api-webhooks";
@@ -44,6 +44,16 @@ export default function SettingsPage() {
   const isAdmin = user?.role === "super_admin" || user?.role === "administrateur";
   const isSuperAdmin = user?.role === "super_admin";
   const [activeTab, setActiveTab] = useState(isAdmin ? "profil" : "appels");
+  const availableTabs = useMemo(() => [
+    ...(isAdmin ? ["profil", "abonnement", "equipe", "google"] : []),
+    "appels",
+    ...(isAdmin ? ["sauvegardes"] : []),
+    "preferences-ia",
+    "installation",
+    "notifications",
+    ...(isAdmin ? ["securite", "intelligence-artificielle", "api-webhooks", "email-expediteur", "cles-ia"] : []),
+    ...(isSuperAdmin ? ["mises-a-jour"] : []),
+  ], [isAdmin, isSuperAdmin]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -66,12 +76,17 @@ export default function SettingsPage() {
       window.history.replaceState({}, "", window.location.pathname);
     }
     const tabParam = params.get("tab");
-    const VALID_TABS = ["profil", "abonnement", "equipe", "google", "appels", "sauvegardes", "installation", "notifications", "securite", "mises-a-jour", "intelligence-artificielle", "preferences-ia", ...(isAdmin ? ["api-webhooks", "email-expediteur", "cles-ia"] : [])];
-    if (tabParam && VALID_TABS.includes(tabParam)) {
+    if (tabParam && availableTabs.includes(tabParam)) {
       setActiveTab(tabParam);
       window.history.replaceState({}, "", window.location.pathname);
     }
-  }, [toast, isAdmin, t]);
+  }, [toast, availableTabs, t]);
+
+  useEffect(() => {
+    if (!availableTabs.includes(activeTab)) {
+      setActiveTab(isAdmin ? "profil" : "appels");
+    }
+  }, [activeTab, availableTabs, isAdmin]);
 
 
   return (

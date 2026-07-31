@@ -244,6 +244,7 @@ function AppRoutes() {
         <Route path="/appels" component={withLicenseGate(Calls)} />
         <Route path="/appels/:id" component={withLicenseGate(CallDetail)} />
         <Route path="/contacts" component={withLicenseGate(Contacts)} />
+        <Route path="/contacts/import" component={withLicenseGate(ContactsImportPage)} />
         <Route path="/contacts/:id" component={withLicenseGate(ContactDetail)} />
         <Route path="/taches" component={withLicenseGate(Tasks)} />
         <Route path="/tresorerie" component={withLicenseGate(TresoreriePage)} />
@@ -292,7 +293,6 @@ function AppRoutes() {
         <Route path="/admin/audit" component={AdminAuditPage} />
         <Route path="/notes-internes" component={withLicenseGate(NotesInternesPage)} />
         <Route path="/protection-donnees" component={withLicenseGate(DataProtectionPage)} />
-        <Route path="/contacts/import" component={withLicenseGate(ContactsImportPage)} />
         <Route path="/activite-recente" component={withLicenseGate(ActiviteRecentePage)} />
         <Route path="/projets" component={withLicenseGate(ProjetsPage)} />
         <Route path="/saisie-chantier" component={withLicenseGate(VoiceSiteOpsPage)} />
