@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "hello": "tsx ./src/hello.ts",
+    "optimize:buro-images": "tsx ./src/optimize-buro-images.ts",
     "backfill-message-contact-names": "tsx ./src/backfill-message-contact-names.ts",
     "broadcast-presentation": "tsx ./src/broadcast-presentation-email.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"

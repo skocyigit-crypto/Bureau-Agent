@@ -18,7 +18,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
           cache: pip
           cache-dependency-path: apps/api-py/pyproject.toml
 
@@ -51,15 +51,10 @@ jobs:
         run: pnpm --filter @workspace/api-spec routes:check
 
       - name: Build
-        # Excludes two packages whose build scripts are Replit-only and
-        # were never meant to run outside it (both still fully typechecked
-        # above, just not built as deployable artifacts here):
-        #  - @workspace/mobile: packages a static Expo Go deployment, needs
-        #    REPLIT_INTERNAL_APP_DOMAIN/REPLIT_DEV_DOMAIN/EXPO_PUBLIC_DOMAIN.
-        #  - @workspace/mockup-sandbox: the Replit canvas mockup tool
-        #    (MIGRATION.md explicitly excludes it from any migration), needs
-        #    a PORT env var supplied by Replit's runtime.
-        run: pnpm -r --filter "!@workspace/mobile" --filter "!@workspace/mockup-sandbox" --if-present run build
+        # Mobile falls back to the production domain when no preview domain
+        # is provided; mockup-sandbox uses local PORT/BASE_PATH defaults.
+        # Keep both in CI so their cross-platform production builds cannot regress.
+        run: pnpm -r --if-present run build
 
   test:
     name: Test

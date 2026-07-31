@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Users, Search, Filter, MoreHorizontal, Phone, Mail, Building, Plus, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Download, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, LayoutGrid, LayoutList, Upload, Printer, Edit, Tag, Copy, FolderKanban } from "lucide-react";
 import { EmptyOnboardingHint } from "@/components/empty-onboarding-hint";
 import { Icon3D } from "@/components/icon-3d";
-import receptionImg from "@/assets/images/reception-desk.png";
+import receptionImg from "@/assets/images/reception-desk.webp";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";

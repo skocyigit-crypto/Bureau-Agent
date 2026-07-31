@@ -7,7 +7,7 @@ import { fr } from "date-fns/locale";
 import { CheckSquare, Search, Filter, MoreHorizontal, Plus, Calendar, Clock, AlertCircle, Edit, Users, LayoutList, Columns3, ArrowUpDown, ArrowUp, ArrowDown, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertTriangle, GripVertical, Repeat, Download, Copy, Printer, CheckCheck, UserCheck, FolderKanban } from "lucide-react";
 import { EmptyOnboardingHint } from "@/components/empty-onboarding-hint";
 import { Icon3D } from "@/components/icon-3d";
-import taskManagementImg from "@/assets/images/task-management.png";
+import taskManagementImg from "@/assets/images/task-management.webp";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";

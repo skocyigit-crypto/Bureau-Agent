@@ -86,6 +86,22 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    // Current application shell is ~620 kB before gzip after route, locale,
+    // voice and vendor splitting. Keep a tight ceiling so future growth warns.
+    chunkSizeWarningLimit: 650,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (/[/\\](react|react-dom|scheduler|wouter|@tanstack)[/\\]/.test(id)) return "vendor-react";
+          if (id.includes("framer-motion")) return "vendor-motion";
+          if (id.includes("lucide-react")) return "vendor-icons";
+          if (id.includes("@radix-ui")) return "vendor-ui";
+          if (id.includes("date-fns")) return "vendor-dates";
+          return undefined;
+        },
+      },
+    },
   },
   server: {
     port,

@@ -1,0 +1,36 @@
+{
+  // -------------------------------------------------------------------------
+  // VS Code bellek/CPU optimizasyonu — SADECE bu proje icin (workspace ayari).
+  // Global ayarlariniz (AppData/Roaming/Code/User/settings.json) DEGISMEDI.
+  //
+  // Ne yapar: uretilen/derleme klasorlerini dosya-izleyici + aramadan haric
+  //   tutar. Bu klasorler elle duzenlenmez; izlemek gereksiz RAM/CPU/handle
+  //   tuketir. IntelliSense/TypeScript bundan ETKILENMEZ (TS tsconfig kullanir).
+  //
+  // GERI ALMAK: bu dosyayi silin.  ETKILI OLMASI: Pencereyi Yeniden Yukle
+  //   (Ctrl+Shift+P -> "Developer: Reload Window").
+  // -------------------------------------------------------------------------
+
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/.git/objects/**": true,
+    "**/dist/**": true,
+    "**/build/**": true,
+    "**/.expo/**": true,
+    "**/.vite/**": true,
+    "**/coverage/**": true,
+    "**/static-build/**": true,
+    "**/android/app/build/**": true,
+    "**/ios/build/**": true
+  },
+
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/.expo": true,
+    "**/.vite": true,
+    "**/coverage": true,
+    "**/static-build": true
+  }
+}

@@ -16,11 +16,14 @@ function findWorkspaceRoot(startDir) {
     }
     dir = path.dirname(dir);
   }
-  throw new Error("Could not find workspace root (no pnpm-workspace.yaml found)");
+  throw new Error(
+    "Could not find workspace root (no pnpm-workspace.yaml found)",
+  );
 }
 
 const workspaceRoot = findWorkspaceRoot(projectRoot);
 const basePath = (process.env.BASE_PATH || "/").replace(/\/+$/, "");
+const defaultDeploymentDomain = "agentdebureau.fr";
 
 function exitWithError(message) {
   console.error(message);
@@ -67,10 +70,11 @@ function getDeploymentDomain() {
     return stripProtocol(process.env.EXPO_PUBLIC_DOMAIN);
   }
 
-  console.error(
-    "ERROR: No deployment domain found. Set REPLIT_INTERNAL_APP_DOMAIN, REPLIT_DEV_DOMAIN, or EXPO_PUBLIC_DOMAIN",
+  console.warn(
+    `No deployment domain provided; using ${defaultDeploymentDomain}. ` +
+      "Set REPLIT_INTERNAL_APP_DOMAIN, REPLIT_DEV_DOMAIN, or EXPO_PUBLIC_DOMAIN to override it.",
   );
-  process.exit(1);
+  return defaultDeploymentDomain;
 }
 
 function prepareDirectories(timestamp) {
@@ -146,23 +150,28 @@ async function startMetro(expoPublicDomain, expoPublicReplId) {
     console.log(`Setting EXPO_PUBLIC_REPL_ID=${expoPublicReplId}`);
   }
 
-  metroProcess = spawn(
-    "pnpm",
-    [
-      "exec",
-      "expo",
-      "start",
-      "--no-dev",
-      "--minify",
-      "--localhost",
-    ],
-    {
-      stdio: ["ignore", "pipe", "pipe"],
-      detached: false,
-      cwd: projectRoot,
-      env,
-    },
-  );
+  const pnpmCli = process.env.npm_execpath;
+  const command = pnpmCli ? process.execPath : "pnpm";
+  const commandArgs = [
+    ...(pnpmCli ? [pnpmCli] : []),
+    "exec",
+    "expo",
+    "start",
+    "--no-dev",
+    "--minify",
+    "--localhost",
+  ];
+
+  metroProcess = spawn(command, commandArgs, {
+    stdio: ["ignore", "pipe", "pipe"],
+    detached: false,
+    cwd: projectRoot,
+    env,
+  });
+
+  metroProcess.once("error", (error) => {
+    exitWithError(`Failed to start Metro: ${error.message}`);
+  });
 
   if (metroProcess.stdout) {
     metroProcess.stdout.on("data", (data) => {
@@ -228,7 +237,12 @@ async function downloadFile(url, outputPath) {
 }
 
 async function downloadBundle(platform, timestamp) {
-  const entryPath = path.resolve(projectRoot, "node_modules", "expo-router", "entry");
+  const entryPath = path.resolve(
+    projectRoot,
+    "node_modules",
+    "expo-router",
+    "entry",
+  );
   const bundlePath = path.relative(workspaceRoot, entryPath);
   const url = new URL(`http://localhost:8081/${bundlePath}.bundle`);
   url.searchParams.set("platform", platform);
@@ -308,11 +322,27 @@ function extractAssets(timestamp) {
   const staticBuild = path.join(projectRoot, "static-build");
   const bundles = {
     ios: fs.readFileSync(
-      path.join(staticBuild, timestamp, "_expo", "static", "js", "ios", "bundle.js"),
+      path.join(
+        staticBuild,
+        timestamp,
+        "_expo",
+        "static",
+        "js",
+        "ios",
+        "bundle.js",
+      ),
       "utf-8",
     ),
     android: fs.readFileSync(
-      path.join(staticBuild, timestamp, "_expo", "static", "js", "android", "bundle.js"),
+      path.join(
+        staticBuild,
+        timestamp,
+        "_expo",
+        "static",
+        "js",
+        "android",
+        "bundle.js",
+      ),
       "utf-8",
     ),
   };

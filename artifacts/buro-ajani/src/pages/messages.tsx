@@ -7,7 +7,7 @@ import { fr } from "date-fns/locale";
 import { MessageSquare, Voicemail, FileText, Bell, Search, Filter, MoreHorizontal, MailOpen, Mail, Plus, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CheckCheck, Send, Download, Edit, Printer, Copy, FolderKanban } from "lucide-react";
 import { EmptyOnboardingHint } from "@/components/empty-onboarding-hint";
 import { Icon3D } from "@/components/icon-3d";
-import messagingImg from "@/assets/images/messaging-center.png";
+import messagingImg from "@/assets/images/messaging-center.webp";
 import { EmailComposer } from "@/components/email-composer";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";

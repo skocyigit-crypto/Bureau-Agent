@@ -10,8 +10,6 @@ import { WorkspaceUserProvider } from "@/components/workspace-user";
 import { PwaInstallButton } from "@/components/pwa-install";
 import { PwaStandaloneRedirect } from "@/components/pwa-standalone-redirect";
 import { UpdateBanner } from "@/components/update-banner";
-import { VoiceAssistant } from "@/components/VoiceAssistant";
-import { VoiceLive } from "@/components/VoiceLive";
 import { motion, AnimatePresence } from "framer-motion";
 import { MotionProvider } from "@/components/premium-animations";
 import { useDeviceEnvironment, DeviceEnvironmentProvider } from "@/hooks/use-device-environment";
@@ -24,6 +22,12 @@ import { QuickActionHub } from "@/components/quick-action-hub";
 
 // Route-level code splitting. Keep the application shell synchronous, but do
 // not make login/public visitors download every authenticated feature page.
+const VoiceAssistant = lazy(() =>
+  import("@/components/VoiceAssistant").then((module) => ({ default: module.VoiceAssistant })),
+);
+const VoiceLive = lazy(() =>
+  import("@/components/VoiceLive").then((module) => ({ default: module.VoiceLive })),
+);
 const NotFound = lazy(() => import("@/pages/not-found"));
 const LoginPage = lazy(() => import("@/pages/login"));
 const RegisterPage = lazy(() => import("@/pages/register"));
@@ -336,8 +340,10 @@ function InvitationOrApp({
       <SmartBrowserOverlays />
       <SmartBrowserShortcuts />
       <AppRoutes />
-      <VoiceAssistant onOpenLive={() => setLiveOpen(true)} />
-      <VoiceLive open={liveOpen} onClose={() => setLiveOpen(false)} />
+      <Suspense fallback={null}>
+        <VoiceAssistant onOpenLive={() => setLiveOpen(true)} />
+        <VoiceLive open={liveOpen} onClose={() => setLiveOpen(false)} />
+      </Suspense>
     </WorkspaceUserProvider>
   );
 }

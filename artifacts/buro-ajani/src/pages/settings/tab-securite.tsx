@@ -6,7 +6,7 @@ import {
   Zap, Bug, Crosshair, Activity, Eye, Globe, Bomb, Network,
   TrendingUp, Radio
 } from "lucide-react";
-import securityServerImg from "@/assets/images/security-server.png";
+import securityServerImg from "@/assets/images/security-server.webp";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

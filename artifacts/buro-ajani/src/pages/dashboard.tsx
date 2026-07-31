@@ -14,7 +14,7 @@ import { AiSpot } from "@/components/ai-spot";
 import { EmailComposer } from "@/components/email-composer";
 import { LiveActivityFeed } from "@/components/live-activity-feed";
 import { SafeComponent, QueryErrorAlert } from "@/components/safe-component";
-import officeTeamImg from "@/assets/images/office-team.png";
+import officeTeamImg from "@/assets/images/office-team.webp";
 import { useGetDashboardSummary, useGetRecentActivity, useGetTopContacts, useGetWeeklyReport, useGetHourlyPerformance, useGetTaskStats } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
 import { Progress } from "@/components/ui/progress";

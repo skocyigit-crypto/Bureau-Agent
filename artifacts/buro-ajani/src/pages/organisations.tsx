@@ -26,7 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Icon3D } from "@/components/icon-3d";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { AccessDenied } from "@/components/access-denied";
-import orgBanner from "@/assets/images/security-server.png";
+import orgBanner from "@/assets/images/security-server.webp";
 
 const BASE = import.meta.env.BASE_URL || "/";
 
