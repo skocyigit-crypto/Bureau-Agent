@@ -2,13 +2,21 @@ import type { Request, Response, NextFunction } from "express";
 import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import { logTenantViolation } from "./tenant-guard";
+import { TenantIdentityCache, type TenantIdentity } from "./tenant-identity-cache";
+
+const tenantIdentityCache = new TenantIdentityCache();
+
+export function invalidateTenantIdentityCache(userId: number): void {
+  tenantIdentityCache.invalidate(userId);
+}
 
 /**
- * Rebind the request to the user's current tenant on every protected request.
+ * Rebind the request to the user's recently verified tenant.
  * Session and bearer claims are authentication hints, not an authorization
  * source: an administrator may move or deactivate a user while an old session
  * is still alive. Trusting that stale organisationId would keep access to the
- * former customer's data.
+ * former customer's data. The bounded 5-second cache collapses parallel
+ * dashboard requests; user mutations explicitly invalidate it immediately.
  */
 export async function requireTenant(req: Request, res: Response, next: NextFunction): Promise<void> {
   const userId = req.session?.userId;
@@ -18,14 +26,17 @@ export async function requireTenant(req: Request, res: Response, next: NextFunct
   }
 
   try {
-    const [user] = await db
-      .select({
-        organisationId: usersTable.organisationId,
-        role: usersTable.role,
-        actif: usersTable.actif,
-      })
-      .from(usersTable)
-      .where(eq(usersTable.id, userId));
+    const user = await tenantIdentityCache.get(userId, async (): Promise<TenantIdentity | null> => {
+      const [current] = await db
+        .select({
+          organisationId: usersTable.organisationId,
+          role: usersTable.role,
+          actif: usersTable.actif,
+        })
+        .from(usersTable)
+        .where(eq(usersTable.id, userId));
+      return current ?? null;
+    });
 
     if (!user?.actif || !user.organisationId) {
       if (req.session?.organisationId) {

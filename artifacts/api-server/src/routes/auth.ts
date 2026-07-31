@@ -12,7 +12,7 @@ import { logger } from "../lib/logger";
 import { escapeHtml } from "../lib/html-escape";
 import { mintApiToken } from "../lib/api-token";
 import { clearTokenInvalidationCache, requireAuth } from "../middleware/auth";
-import { requireTenant } from "../middleware/tenant";
+import { invalidateTenantIdentityCache, requireTenant } from "../middleware/tenant";
 import { checkLicense } from "../middleware/license-check";
 import {
   isSuperAdmin,
@@ -784,6 +784,7 @@ router.patch("/auth/users/:id", async (req: Request, res: Response): Promise<voi
     });
 
     if (!updated) { res.status(404).json({ error: "Utilisateur non trouve." }); return; }
+    invalidateTenantIdentityCache(id);
 
     // Si on a reset le password, purger le cache LRU d'invalidation
     // ET les sessions cookie de la cible. Best-effort: une erreur ici ne
@@ -830,6 +831,7 @@ router.delete("/auth/users/:id", async (req: Request, res: Response): Promise<vo
   try {
     const [deleted] = await db.delete(usersTable).where(eq(usersTable.id, id)).returning();
     if (!deleted) { res.status(404).json({ error: "Utilisateur non trouve." }); return; }
+    invalidateTenantIdentityCache(id);
 
     logAudit(req.session?.userId, req.session?.userEmail, "delete_user", "user", String(id), { targetEmail: targetUser.email, targetRole: targetUser.role }, req.ip, req.get("user-agent"), req.session?.organisationId);
     res.status(204).send();
@@ -1073,6 +1075,7 @@ router.post("/auth/users/bulk/deactivate", async (req: Request, res: Response): 
     const conditions = [inArray(usersTable.id, safeIds), ne(usersTable.role, "super_admin")];
     if (organisationId) conditions.push(eq(usersTable.organisationId, organisationId));
     await db.update(usersTable).set({ actif: false }).where(and(...conditions));
+    safeIds.forEach(invalidateTenantIdentityCache);
     res.json({ success: true, updated: safeIds.length });
   } catch (err: any) {
     logger.error({ err }, "Bulk deactivate users error");
@@ -1093,6 +1096,7 @@ router.post("/auth/users/bulk/delete", async (req: Request, res: Response): Prom
     const conditions = [inArray(usersTable.id, safeIds), ne(usersTable.role, "super_admin")];
     if (organisationId) conditions.push(eq(usersTable.organisationId, organisationId));
     const result = await db.delete(usersTable).where(and(...conditions));
+    safeIds.forEach(invalidateTenantIdentityCache);
     res.json({ deleted: result.rowCount ?? safeIds.length });
   } catch (err: any) {
     logger.error({ err }, "Bulk delete users error");
