@@ -1,19 +1,4 @@
-/**
- * Tests d'isolation backoffice vs client (Tâche #62).
- *
- * Verifie que les routes commerciales SaaS (`/api/prospects`,
- * `/api/devis`, `/api/factures-client`) sont strictement reservees
- * au super_admin:
- *
- *   - super_admin (200/201) — voit aussi les enregistrements de
- *     PLUSIEURS organisations (vue globale SaaS).
- *   - administrateur (403) — meme pour son propre tenant.
- *   - agent (403) — idem.
- *
- * Sans cette suite, une regression future qui retirerait
- * `requireSuperAdmin` du montage rouvrirait silencieusement l'acces
- * a tous les comptes clients via l'API mobile (Bearer token).
- */
+/** Dynamic regression: no authenticated role may enumerate global tenant customer content. */
 process.env.NODE_ENV = process.env.NODE_ENV ?? "test";
 process.env.PORT = process.env.PORT ?? "0";
 process.env.SESSION_SECRET =
@@ -324,115 +309,29 @@ const RESOURCES: Resource[] = [
   },
 ];
 
-describe("Backoffice SaaS — isolation super_admin vs comptes clients", () => {
+describe("Customer content is unavailable from the platform scope", () => {
   for (const r of RESOURCES) {
-    describe(`${r.label}`, () => {
-      it("super_admin (GET liste) voit les enregistrements de PLUSIEURS organisations", async () => {
-        const res = await request(app)
-          .get(r.base)
-          .set("Authorization", `Bearer ${seeded.superAdmin.token}`)
-          .set("Origin", "http://localhost");
-        expect(res.status).toBe(200);
-        const rows: Array<{ id: number; organisationId: number | null }> =
-          res.body[r.listKey];
-        expect(Array.isArray(rows)).toBe(true);
-        const ids = new Set(rows.map((row) => row.id));
-        const { idA, idB } = r.ids();
-        expect(ids.has(idA)).toBe(true);
-        expect(ids.has(idB)).toBe(true);
-        const orgs = new Set(rows.map((row) => row.organisationId));
-        expect(orgs.size).toBeGreaterThanOrEqual(2);
-      });
-
-      for (const role of ["admin", "agent"] as const) {
-        it(`${role} → 403 sur GET liste`, async () => {
-          const token = seeded[role].token;
-          const res = await request(app)
-            .get(r.base)
-            .set("Authorization", `Bearer ${token}`)
-            .set("Origin", "http://localhost");
-          expect(res.status).toBe(403);
-        });
-
-        it(`${role} → 403 sur GET /:id`, async () => {
+    describe(r.label, () => {
+      for (const role of ["superAdmin", "admin", "agent"] as const) {
+        it(`${role} cannot list, read, create, update or delete customer records`, async () => {
           const token = seeded[role].token;
           const { idA } = r.ids();
-          const res = await request(app)
-            .get(`${r.base}/${idA}`)
-            .set("Authorization", `Bearer ${token}`)
-            .set("Origin", "http://localhost");
-          expect(res.status).toBe(403);
-        });
-
-        it(`${role} → 403 sur POST`, async () => {
-          const token = seeded[role].token;
-          const res = await request(app)
-            .post(r.base)
-            .set("Authorization", `Bearer ${token}`)
-            .set("Origin", "http://localhost")
-            .send(r.postBody(seeded.orgA));
-          expect(res.status).toBe(403);
-        });
-
-        it(`${role} → 403 sur PATCH /:id`, async () => {
-          const token = seeded[role].token;
-          const { idA } = r.ids();
-          const res = await request(app)
-            .patch(`${r.base}/${idA}`)
-            .set("Authorization", `Bearer ${token}`)
-            .set("Origin", "http://localhost")
-            .send(r.patchBody);
-          expect(res.status).toBe(403);
-        });
-
-        it(`${role} → 403 sur DELETE /:id`, async () => {
-          const token = seeded[role].token;
-          const { idA } = r.ids();
-          const res = await request(app)
-            .delete(`${r.base}/${idA}`)
-            .set("Authorization", `Bearer ${token}`)
-            .set("Origin", "http://localhost");
-          expect(res.status).toBe(403);
+          const calls = [
+            request(app).get(r.base),
+            request(app).get(`${r.base}/${idA}`),
+            request(app).post(r.base).send(r.postBody(seeded.orgA)),
+            request(app).patch(`${r.base}/${idA}`).send(r.patchBody),
+            request(app).delete(`${r.base}/${idA}`),
+          ];
+          for (const call of calls) {
+            const response = await call
+              .set("Authorization", `Bearer ${token}`)
+              .set("Origin", "http://localhost");
+            expect(response.status).toBe(403);
+            if (role === "superAdmin") expect(response.body.code).toBe("tenant_content_forbidden");
+          }
         });
       }
-
-      it("super_admin (POST) cree un enregistrement (201)", async () => {
-        const res = await request(app)
-          .post(r.base)
-          .set("Authorization", `Bearer ${seeded.superAdmin.token}`)
-          .set("Origin", "http://localhost")
-          .send(r.postBody(seeded.orgB));
-        expect(res.status).toBe(201);
-        expect(res.body?.id).toBeTypeOf("number");
-      });
-
-      it("super_admin (PATCH) met a jour un enregistrement (200)", async () => {
-        const { idA } = r.ids();
-        const res = await request(app)
-          .patch(`${r.base}/${idA}`)
-          .set("Authorization", `Bearer ${seeded.superAdmin.token}`)
-          .set("Origin", "http://localhost")
-          .send(r.patchBody);
-        expect(res.status).toBe(200);
-      });
-
-      it("super_admin (DELETE) supprime un enregistrement (200)", async () => {
-        // On cree une ligne jetable plutot que d'utiliser une seed, pour
-        // ne pas casser les autres iterations qui patchent par id.
-        const created = await request(app)
-          .post(r.base)
-          .set("Authorization", `Bearer ${seeded.superAdmin.token}`)
-          .set("Origin", "http://localhost")
-          .send(r.postBody(seeded.orgB));
-        expect(created.status).toBe(201);
-        const id = created.body.id as number;
-        const res = await request(app)
-          .delete(`${r.base}/${id}`)
-          .set("Authorization", `Bearer ${seeded.superAdmin.token}`)
-          .set("Origin", "http://localhost");
-        expect(res.status).toBe(200);
-      });
     });
   }
 });
-

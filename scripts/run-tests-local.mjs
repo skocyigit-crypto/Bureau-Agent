@@ -77,6 +77,9 @@ try {
   run("pnpm", [
     "--dir", "lib/db", "exec", "node", "./scripts/ensure-audit-append-only.mjs",
   ], { env });
+  run("pnpm", [
+    "--dir", "lib/db", "exec", "node", "./scripts/ensure-user-quota.mjs",
+  ], { env });
 
   run("pnpm", ["test"], { env });
 } finally {
