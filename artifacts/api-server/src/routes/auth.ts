@@ -26,6 +26,7 @@ import {
   logTenantViolation,
   checkSensitiveRateLimit,
 } from "../middleware/tenant-guard";
+import { isUserQuotaDbError } from "../services/ensure-user-quota";
 
 const router: IRouter = Router();
 
@@ -694,6 +695,10 @@ router.post("/auth/users", adminEmailLimiter, async (req: Request, res: Response
       emailNote: emailResult.success ? "Identifiants envoyes par email." : "Utilisateur cree. Envoi email echoue.",
     });
   } catch (err: any) {
+    if (isUserQuotaDbError(err)) {
+      res.status(403).json({ error: "Quota d'utilisateurs atteint.", code: "USER_QUOTA_EXCEEDED" });
+      return;
+    }
     req.log.error({ err }, "Erreur creation utilisateur");
     res.status(500).json({ error: "Erreur lors de la creation de l'utilisateur." });
   }
@@ -1046,6 +1051,10 @@ router.post("/auth/users/create-and-send", adminEmailLimiter, async (req: Reques
         : `Utilisateur cree, mais l'envoi email a echoue: ${emailResult.error || "aucun service disponible"}. Verifiez la configuration Resend ou Gmail.`,
     });
   } catch (err: any) {
+    if (isUserQuotaDbError(err)) {
+      res.status(403).json({ error: "Quota d'utilisateurs atteint.", code: "USER_QUOTA_EXCEEDED" });
+      return;
+    }
     req.log.error({ err }, "Erreur creation et envoi utilisateur");
     res.status(500).json({ error: "Erreur lors de la creation de l'utilisateur." });
   }

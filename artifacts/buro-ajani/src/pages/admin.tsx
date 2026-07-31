@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { useTranslation } from "@/i18n";
-import { ArrowRight,ClipboardList,FileText,LayoutDashboard,Package,Receipt,Shield,Target } from "lucide-react";
+import { ArrowRight,ClipboardList,LayoutDashboard,Package,Receipt,Shield } from "lucide-react";
 import { useLocation } from "wouter";
 
 /**
@@ -39,34 +39,10 @@ export default function AdminBackofficePage() {
       enabled: true,
     },
     {
-      label: t("adminBackoffice.modules.prospects.label"),
-      description: t("adminBackoffice.modules.prospects.description"),
-      icon: Target,
-      href: "/admin/prospects",
-      status: statusActif,
-      enabled: true,
-    },
-    {
-      label: t("adminBackoffice.modules.devis.label"),
-      description: t("adminBackoffice.modules.devis.description"),
-      icon: FileText,
-      href: "/admin/devis",
-      status: statusActif,
-      enabled: true,
-    },
-    {
       label: t("adminBackoffice.modules.facturesB2b.label"),
       description: t("adminBackoffice.modules.facturesB2b.description"),
       icon: Receipt,
       href: "/admin/factures-b2b",
-      status: statusActif,
-      enabled: true,
-    },
-    {
-      label: t("adminBackoffice.modules.facturesClient.label"),
-      description: t("adminBackoffice.modules.facturesClient.description"),
-      icon: Receipt,
-      href: "/admin/factures-client",
       status: statusActif,
       enabled: true,
     },

@@ -22,19 +22,19 @@ router.get("/admin-reports", async (req, res): Promise<void> => {
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 20));
     const offset = (page - 1) * limit;
 
-    const conditions: any[] = [];
-
-    const validStatuses = ["nouveau", "en_cours", "resolu", "ferme", "rejete"];
     if (userRole === "super_admin") {
-      if (req.query.status && req.query.status !== "all" && validStatuses.includes(req.query.status as string)) {
-        conditions.push(eq(adminReportsTable.status, req.query.status as string));
-      }
-      if (req.query.organisationId) {
-        conditions.push(eq(adminReportsTable.organisationId, parseInt(req.query.organisationId as string)));
-      }
-    } else {
-      if (!organisationId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
-      conditions.push(eq(adminReportsTable.organisationId, organisationId));
+      const summary = await db.select({ status: adminReportsTable.status, count: count() })
+        .from(adminReportsTable).groupBy(adminReportsTable.status);
+      res.json({ reports: [], total: summary.reduce((n, row) => n + Number(row.count), 0), summary, aggregateOnly: true, page, limit });
+      return;
+    }
+
+    const conditions: any[] = [];
+    const validStatuses = ["nouveau", "en_cours", "resolu", "ferme", "rejete"];
+    if (!organisationId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
+    conditions.push(eq(adminReportsTable.organisationId, organisationId));
+    if (req.query.status && req.query.status !== "all" && validStatuses.includes(req.query.status as string)) {
+      conditions.push(eq(adminReportsTable.status, req.query.status as string));
     }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
@@ -111,39 +111,13 @@ router.post("/admin-reports", async (req, res): Promise<void> => {
 });
 
 router.patch("/admin-reports/:id", async (req, res): Promise<void> => {
-  const session = req.session;
-  const userId = session?.userId;
-  const userRole = session?.userRole;
-  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
-  if (userRole !== "super_admin") {
-    res.status(403).json({ error: "Acces reserve au super admin." }); return;
+  if (req.session?.userRole !== "super_admin") {
+    res.status(403).json({ error: "Acces reserve au super admin." });
+    return;
   }
-
-  const id = parseInt(String(req.params.id));
-  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
-
-  const { status, adminResponse } = req.body || {};
-  const updates: any = {};
-  if (status) updates.status = status;
-  if (adminResponse !== undefined) {
-    updates.adminResponse = adminResponse;
-    updates.respondedAt = new Date();
-  }
-  if (Object.keys(updates).length === 0) {
-    res.status(400).json({ error: "Aucune modification." }); return;
-  }
-
-  try {
-    const [updated] = await db.update(adminReportsTable)
-      .set(updates)
-      .where(eq(adminReportsTable.id, id))
-      .returning();
-    if (!updated) { res.status(404).json({ error: "Rapport non trouve." }); return; }
-    res.json({ report: updated });
-  } catch (err: any) {
-    req.log.error({ err }, "Erreur admin-reports");
-    res.status(500).json({ error: "Erreur serveur." });
-  }
+  // Support report bodies contain tenant user identity and message content.
+  // The platform administrator intentionally receives aggregate counts only.
+  res.status(403).json({ error: "Contenu client protege", code: "tenant_content_forbidden" });
 });
 
 router.patch("/admin-reports/:id/read", async (req, res): Promise<void> => {
@@ -194,6 +168,7 @@ router.get("/admin-reports/stats", async (req, res): Promise<void> => {
       if (!organisationId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
       conditions.push(eq(adminReportsTable.organisationId, organisationId));
     }
+
     const where = conditions.length > 0 ? and(...conditions) : undefined;
 
     const stats = await db.select({

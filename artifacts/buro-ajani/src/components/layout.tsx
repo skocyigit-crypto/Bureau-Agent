@@ -25,7 +25,7 @@ import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 import { useTranslation } from "@/i18n";
 import { getGetMyPreferencesQueryKey,useGetMyPreferences,type BadgeMuteFlags } from "@workspace/api-client-react";
 import { motion } from "framer-motion";
-import { Activity,BarChart,BarChart3,Bell,BookOpen,Bot,Brain,Building2,Calendar,CheckSquare,ClipboardCheck,ClipboardList,Clock,CreditCard,Crown,Download,FileText,Globe,GraduationCap,HardHat,Inbox,KeyRound,LayoutDashboard,Mail,MapPin,MessageCircle,MessageSquare,Monitor,Phone,PhoneCall,PhoneIncoming,Plug,Plus,Puzzle,Radar,ReceiptText,Rocket,ScanSearch,Search,Settings,Shield,ShieldCheck,Smartphone,Sparkles,StickyNote,Tablet,Target,Trophy,UserCog,Users,Wallet,Wifi,WifiOff,Zap } from "lucide-react";
+import { Activity,BarChart,BarChart3,Bell,BookOpen,Bot,Brain,Building2,Calendar,CheckSquare,ClipboardCheck,ClipboardList,Clock,CreditCard,Crown,Download,FileText,Globe,GraduationCap,HardHat,Inbox,KeyRound,LayoutDashboard,Mail,MapPin,MessageCircle,MessageSquare,Monitor,Phone,PhoneCall,PhoneIncoming,Plug,Plus,Puzzle,Radar,ReceiptText,Rocket,ScanSearch,Search,Settings,Shield,ShieldCheck,Smartphone,Sparkles,StickyNote,Tablet,Trophy,UserCog,Users,Wallet,Wifi,WifiOff,Zap } from "lucide-react";
 import { createContext,useContext,useEffect,useMemo,useRef,useState } from "react";
 import { Link,useLocation } from "wouter";
 
@@ -393,7 +393,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
             items: [
               { name: t("sidebar.items.saasBackoffice"), href: "/admin", icon: Building2 },
               { name: t("sidebar.items.organisations"), href: "/organisations", icon: KeyRound },
-              { name: t("sidebar.items.prospects"), href: "/prospects", icon: Target, badge: mutedBadges.prospect ? 0 : badges.prospect },
               { name: t("sidebar.items.globalAuditLog"), href: "/admin/audit", icon: ClipboardList },
               { name: t("sidebar.items.techHealth"), href: "/sante-technique", icon: Activity },
             ],

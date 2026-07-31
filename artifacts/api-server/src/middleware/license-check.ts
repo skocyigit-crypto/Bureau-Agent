@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
-import { eq } from "drizzle-orm";
-import { db, organisationsTable, subscriptionsTable } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
+import { db, organisationsTable, subscriptionsTable, invoicesTable } from "@workspace/db";
 import { evaluatePastDueAccess } from "../services/payment-access-policy";
 
 const EXEMPT_PATHS = [
@@ -74,7 +74,11 @@ export function licenseCheck(req: Request, res: Response, next: NextFunction): v
  * et `invalidateLicenseCache` permet de le rendre immediat.
  */
 const LICENSE_TTL_MS = 30_000;
-type LicenseState = { org: typeof organisationsTable.$inferSelect | null; sub: typeof subscriptionsTable.$inferSelect | null };
+type LicenseState = {
+  org: typeof organisationsTable.$inferSelect | null;
+  sub: typeof subscriptionsTable.$inferSelect | null;
+  oldestUnpaidAt: Date | null;
+};
 const licenseCache = new Map<number, { state: LicenseState; at: number }>();
 const pendingLicenseLoads = new Map<number, Promise<LicenseState>>();
 
@@ -94,11 +98,18 @@ async function loadLicenseState(orgId: number): Promise<LicenseState> {
   if (pending) return pending;
 
   const load = (async (): Promise<LicenseState> => {
-    const [[org], [sub]] = await Promise.all([
+    const [[org], [sub], [unpaid]] = await Promise.all([
       db.select().from(organisationsTable).where(eq(organisationsTable.id, orgId)),
       db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, orgId)),
+      db.select({ oldest: sql<Date | null>`min(${invoicesTable.periodEnd})` })
+        .from(invoicesTable)
+        .where(sql`${invoicesTable.organisationId} = ${orgId} AND ${invoicesTable.status} IN ('en_attente', 'retard', 'partiel')`),
     ]);
-    const state: LicenseState = { org: org ?? null, sub: sub ?? null };
+    const state: LicenseState = {
+      org: org ?? null,
+      sub: sub ?? null,
+      oldestUnpaidAt: unpaid?.oldest ? new Date(unpaid.oldest) : null,
+    };
 
     // Borne de securite: en multi-tenant, un cache non borne grossit avec le
     // nombre d'organisations vues par l'instance.
@@ -112,7 +123,7 @@ async function loadLicenseState(orgId: number): Promise<LicenseState> {
 }
 
 export async function checkLicense(orgId: number, method: string, path: string): Promise<{ allowed: boolean; reason?: string; message?: string }> {
-  const { org, sub } = await loadLicenseState(orgId);
+  const { org, sub, oldestUnpaidAt } = await loadLicenseState(orgId);
   if (!org || !org.actif) {
     return { allowed: false, reason: "org_inactive", message: "Votre organisation est inactive. Contactez l'administrateur." };
   }
@@ -137,6 +148,11 @@ export async function checkLicense(orgId: number, method: string, path: string):
   if (sub.plan === "essai" && sub.trialEndsAt && new Date(sub.trialEndsAt) < new Date()) {
     if (isReadOnlyAllowed) return { allowed: true };
     return { allowed: false, reason: "trial_expired", message: "Votre periode d'essai est terminee. Vos donnees restent accessibles en lecture seule. Souscrivez un plan pour reprendre l'ecriture." };
+  }
+
+  if (oldestUnpaidAt) {
+    const invoiceAccess = evaluatePastDueAccess(oldestUnpaidAt, method, path);
+    if (!invoiceAccess.allowed || invoiceAccess.reason !== "payment_grace") return invoiceAccess;
   }
 
   if (sub.status === "past_due") {

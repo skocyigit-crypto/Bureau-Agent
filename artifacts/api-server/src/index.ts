@@ -4,6 +4,7 @@ import { startAutoBackup } from "./services/auto-backup";
 import { startAutomationEngine } from "./services/automation-engine";
 import { ensureSuperAdmin } from "./services/ensure-admin";
 import { ensureAuditAppendOnly } from "./services/ensure-audit-append-only";
+import { ensureUserQuotaTrigger } from "./services/ensure-user-quota";
 import { startGoogleAutoPointage } from "./services/google-auto-pointage";
 import { startDataProtectionMonitor } from "./services/data-protection-monitor";
 import { startAiUsagePurgeJob, installGeminiModelFallback, onGeminiModelFallback } from "./services/ai-utils";
@@ -124,6 +125,7 @@ async function startServer(): Promise<void> {
     });
     ensureSuperAdmin().catch(err => logger.error({ err }, "Erreur seed admin"));
     void ensureAuditAppendOnly();
+    void ensureUserQuotaTrigger();
     startAutoBackup();
     startAutomationEngine();
     startGoogleAutoPointage();

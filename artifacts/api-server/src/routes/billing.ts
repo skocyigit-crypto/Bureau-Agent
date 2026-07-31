@@ -4,6 +4,7 @@ import { db, invoicesTable, paymentsTable, organisationsTable } from "@workspace
 import { generateMonthlyInvoices, getOrgBillingSummary } from "../services/billing-engine";
 import { logger } from "../lib/logger";
 import { requireSuperAdmin } from "../middleware/auth";
+import { invalidateLicenseCache } from "../middleware/license-check";
 
 const router = Router();
 
@@ -25,8 +26,12 @@ router.get("/billing/invoices", async (req: Request, res: Response): Promise<voi
 
     res.json({
       invoices: invoices.map(r => ({
-        ...r.invoice,
-        organisationName: r.orgName,
+        id: r.invoice.id, organisationId: r.invoice.organisationId,
+        organisationName: r.orgName, periodLabel: r.invoice.periodLabel,
+        periodStart: r.invoice.periodStart, periodEnd: r.invoice.periodEnd,
+        plan: r.invoice.plan, totalAmount: r.invoice.totalAmount,
+        currency: r.invoice.currency, status: r.invoice.status,
+        paidAt: r.invoice.paidAt, createdAt: r.invoice.createdAt,
       })),
     });
   } catch (err: any) {
@@ -91,7 +96,8 @@ router.patch("/billing/invoices/:id/status", async (req: Request, res: Response)
     const [updated] = await db.update(invoicesTable).set(updateData).where(eq(invoicesTable.id, id)).returning();
     if (!updated) { res.status(404).json({ error: "Facture introuvable." }); return; }
 
-    res.json({ message: "Statut mis a jour.", invoice: updated });
+    invalidateLicenseCache(updated.organisationId);
+    res.json({ message: "Statut mis a jour.", invoice: { id: updated.id, organisationId: updated.organisationId, status: updated.status, totalAmount: updated.totalAmount, currency: updated.currency, paidAt: updated.paidAt } });
   } catch (err: any) {
     req.log.error({ err }, "Erreur mise a jour statut facture");
     res.status(500).json({ error: "Erreur lors de la mise a jour du statut." });
@@ -219,6 +225,7 @@ router.post("/billing/match-payments", async (req: Request, res: Response): Prom
           }
         });
 
+        invalidateLicenseCache(match.orgId);
         matched++;
       }
     }
@@ -247,8 +254,12 @@ router.get("/billing/payments", async (req: Request, res: Response): Promise<voi
 
     res.json({
       payments: payments.map(r => ({
-        ...r.payment,
-        organisationName: r.orgName,
+        id: r.payment.id, invoiceId: r.payment.invoiceId,
+        organisationId: r.payment.organisationId, organisationName: r.orgName,
+        amount: r.payment.amount, currency: r.payment.currency,
+        source: r.payment.source, status: r.payment.status,
+        matchedBy: r.payment.matchedBy, matchConfidence: r.payment.matchConfidence,
+        bankDate: r.payment.bankDate, createdAt: r.payment.createdAt,
       })),
     });
   } catch (err: any) {
@@ -286,6 +297,7 @@ router.post("/billing/payments/:id/assign", async (req: Request, res: Response):
       }).where(eq(invoicesTable.id, invoiceId));
     });
 
+    invalidateLicenseCache(invoice.organisationId);
     res.json({ message: "Paiement affecte et facture marquee comme payee." });
   } catch (err: any) {
     req.log.error({ err }, "Erreur affectation paiement");
@@ -353,14 +365,14 @@ router.get("/billing/saas-metrics", async (req: Request, res: Response): Promise
     let trialCount = 0;
     let suspendedCount = 0;
     const planDist: Record<string, number> = { essai: 0, starter: 0, professionnel: 0, entreprise: 0 };
-    const trialExpiringSoon: { id: number; name: string; email: string | null; trialEndsAt: string; daysLeft: number }[] = [];
-    const suspendedOrgs: { id: number; name: string; email: string | null; plan: string }[] = [];
+    const trialExpiringSoon: { id: number; name: string; trialEndsAt: string; daysLeft: number }[] = [];
+    const suspendedOrgs: { id: number; name: string; plan: string }[] = [];
 
     for (const org of allOrgs) {
       const sub = allSubs.find(s => s.organisationId === org.id);
       if (!org.actif) {
         suspendedCount++;
-        suspendedOrgs.push({ id: org.id, name: org.name, email: org.email, plan: sub?.plan || "inconnu" });
+        suspendedOrgs.push({ id: org.id, name: org.name, plan: sub?.plan || "inconnu" });
         continue;
       }
       if (!sub) continue;
@@ -373,7 +385,7 @@ router.get("/billing/saas-metrics", async (req: Request, res: Response): Promise
           const endsAt = new Date(sub.trialEndsAt);
           if (endsAt > now && endsAt <= in7Days) {
             const daysLeft = Math.ceil((endsAt.getTime() - now.getTime()) / 86400000);
-            trialExpiringSoon.push({ id: org.id, name: org.name, email: org.email, trialEndsAt: sub.trialEndsAt.toISOString(), daysLeft });
+            trialExpiringSoon.push({ id: org.id, name: org.name, trialEndsAt: sub.trialEndsAt.toISOString(), daysLeft });
           }
         }
       } else {
@@ -386,7 +398,7 @@ router.get("/billing/saas-metrics", async (req: Request, res: Response): Promise
       .filter(o => new Date(o.createdAt) >= thirtyDaysAgo)
       .map(o => {
         const sub = allSubs.find(s => s.organisationId === o.id);
-        return { id: o.id, name: o.name, email: o.email, plan: sub?.plan || "essai", createdAt: o.createdAt.toISOString(), actif: o.actif };
+        return { id: o.id, name: o.name, plan: sub?.plan || "essai", createdAt: o.createdAt.toISOString(), actif: o.actif };
       });
 
     const revenueTrend = await db.select({
