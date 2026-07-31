@@ -21,6 +21,8 @@ Webhook
 } from "lucide-react";
 import { useEffect,useMemo,useState } from "react";
 
+import { getAvailableSettingsTabs } from "./settings/settings-access";
+
 import { TabAbonnement } from "./settings/tab-abonnement";
 import { TabApiWebhooks } from "./settings/tab-api-webhooks";
 import { TabAppels } from "./settings/tab-appels";
@@ -44,16 +46,8 @@ export default function SettingsPage() {
   const isAdmin = user?.role === "super_admin" || user?.role === "administrateur";
   const isSuperAdmin = user?.role === "super_admin";
   const [activeTab, setActiveTab] = useState(isAdmin ? "profil" : "appels");
-  const availableTabs = useMemo(() => [
-    ...(isAdmin ? ["profil", "abonnement", "equipe", "google"] : []),
-    "appels",
-    ...(isAdmin ? ["sauvegardes"] : []),
-    "preferences-ia",
-    "installation",
-    "notifications",
-    ...(isAdmin ? ["securite", "intelligence-artificielle", "api-webhooks", "email-expediteur", "cles-ia"] : []),
-    ...(isSuperAdmin ? ["mises-a-jour"] : []),
-  ], [isAdmin, isSuperAdmin]);
+  const availableTabs = useMemo(() => getAvailableSettingsTabs(isAdmin, isSuperAdmin), [isAdmin, isSuperAdmin]);
+
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
