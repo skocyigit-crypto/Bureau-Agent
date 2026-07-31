@@ -64,9 +64,6 @@ import contactRequestRouter from "./contact-request";
 import supportInboxRouter from "./support-inbox";
 import publicDemoChatRouter from "./public-demo-chat";
 import publicAppointmentsRouter from "./public-appointments";
-import prospectsRouter from "./prospects";
-import devisRouter from "./devis";
-import facturesClientRouter from "./factures-client";
 import notesInternesRouter from "./notes-internes";
 import projetsRouter from "./projets";
 import dailyDigestRouter from "./daily-digest";
@@ -145,13 +142,12 @@ router.use(requireAuth);
 // super-admin. On scope donc la garde au prefixe exact de chaque router
 // (les routers declarent leur chemin complet en interne, ex. `/prospects`).
 router.use("/admin/saas-dashboard", requireSuperAdmin);
-router.use("/prospects", requireSuperAdmin);
-router.use("/devis", requireSuperAdmin);
-router.use("/factures-client", requireSuperAdmin);
 router.use(adminSaasDashboardRouter);
-router.use(prospectsRouter);
-router.use(devisRouter);
-router.use(facturesClientRouter);
+// Customer content is deliberately unavailable in the global SaaS scope.
+// Super-admin receives aggregate metrics only and cannot enumerate tenant records.
+router.use(["/prospects", "/devis", "/factures-client"], requireSuperAdmin, (_req, res) => {
+  res.status(403).json({ error: "Contenu client protege", code: "tenant_content_forbidden" });
+});
 router.use("/stock", requireSuperAdmin, (_req, res) => {
   res.status(404).json({ error: "Module stock indisponible." });
 });
@@ -214,9 +210,6 @@ router.use(meetingsRouter);
 router.use(gmailRouter);
 router.use(orgProfileRouter);
 router.use(orgClosuresRouter);
-// NOTE: adminSaasDashboardRouter, prospectsRouter, devisRouter et
-// facturesClientRouter sont montes plus haut, AVANT requireTenant, sous
-// `requireSuperAdmin` (Tâche #53).
 router.use(notesInternesRouter);
 router.use(projetsRouter);
 router.use(dailyDigestRouter);

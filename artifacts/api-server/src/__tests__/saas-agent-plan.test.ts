@@ -32,7 +32,6 @@ function item(partial: Partial<AttentionItem>): AttentionItem {
     severity: "moyenne",
     organisationId: 42,
     organisationName: "Acme",
-    organisationEmail: "a@x.fr",
     detail: "détail",
     suggestedAction: "action",
     metric: {},

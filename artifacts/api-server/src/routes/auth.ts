@@ -613,11 +613,6 @@ router.post("/auth/users", adminEmailLimiter, async (req: Request, res: Response
   // ── GUARD: prevent role escalation to super_admin by tenant admins ──────────
   if (!assertRoleAllowed(req, res, role)) return;
 
-  // ── GUARD: enforce user quota ───────────────────────────────────────────────
-  if (organisationId && !isSuperAdmin(req)) {
-    if (!(await assertUserQuotaNotExceeded(req, res, organisationId))) return;
-  }
-
   // ── GUARD: un utilisateur DOIT etre rattache a une organisation ────────────
   // Voir l'explication detaillee sur /auth/users/create-and-send: un compte
   // cree avec organisation_id = NULL se connecte mais ne peut plus rien faire,
@@ -630,6 +625,9 @@ router.post("/auth/users", adminEmailLimiter, async (req: Request, res: Response
     });
     return;
   }
+
+  // Enforce the target tenant quota for tenant admins and super-admin alike.
+  if (!(await assertUserQuotaNotExceeded(req, res, targetOrgId))) return;
 
   // ── GUARD: rate-limit user creation ────────────────────────────────────────
   if (!checkSensitiveRateLimit(req, res, "create_user", 30, 60_000)) return;
@@ -956,11 +954,6 @@ router.post("/auth/users/create-and-send", adminEmailLimiter, async (req: Reques
   // ── GUARD: prevent role escalation ─────────────────────────────────────────
   if (!assertRoleAllowed(req, res, role)) return;
 
-  // ── GUARD: enforce user quota ───────────────────────────────────────────────
-  if (organisationId && !isSuperAdmin(req)) {
-    if (!(await assertUserQuotaNotExceeded(req, res, organisationId))) return;
-  }
-
   // ── GUARD: un utilisateur DOIT etre rattache a une organisation ────────────
   // `organisationId` vient de la session du createur. Un super-admin n'etant
   // rattache a aucune organisation, sa session n'en contient pas: le compte
@@ -977,6 +970,9 @@ router.post("/auth/users/create-and-send", adminEmailLimiter, async (req: Reques
     });
     return;
   }
+
+  // Enforce the target tenant quota for tenant admins and super-admin alike.
+  if (!(await assertUserQuotaNotExceeded(req, res, targetOrgId))) return;
 
   // ── GUARD: rate-limit ───────────────────────────────────────────────────────
   if (!checkSensitiveRateLimit(req, res, "create_user", 30, 60_000)) return;

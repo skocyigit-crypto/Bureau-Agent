@@ -40,6 +40,23 @@ function generateSecurePassword(): string {
 
 const router = Router();
 
+// Global SaaS views expose commercial state and aggregate usage only.
+// Contact, banking, tax, credentials and provider identifiers stay tenant-private.
+function publicOrganisation(org: typeof organisationsTable.$inferSelect) {
+  return { id: org.id, name: org.name, slug: org.slug, actif: org.actif, maxUsers: org.maxUsers, createdAt: org.createdAt, updatedAt: org.updatedAt };
+}
+
+function publicSubscription(sub: typeof subscriptionsTable.$inferSelect) {
+  return {
+    plan: sub.plan, status: sub.status, maxUsers: sub.maxUsers,
+    maxContacts: sub.maxContacts, maxCallsPerMonth: sub.maxCallsPerMonth,
+    price: sub.price, currency: sub.currency, billingCycle: sub.billingCycle,
+    trialEndsAt: sub.trialEndsAt, currentPeriodEnd: sub.currentPeriodEnd,
+    paymentFailedCount: sub.paymentFailedCount, lastPaymentFailedAt: sub.lastPaymentFailedAt,
+    suspendedAt: sub.suspendedAt, suspensionReason: sub.suspensionReason,
+  };
+}
+
 // Path-scoped guard: only intercept /organisations/* requests. Without a
 // path prefix, router.use(mw) would match every request that reaches this
 // sub-router and block downstream sub-routers in the parent chain.
@@ -200,9 +217,9 @@ router.get("/organisations", async (req: Request, res: Response): Promise<void> 
       const ac = callCounts.find(a => a.organisationId === org.id);
       const plan = sub ? PLANS[sub.plan as PlanKey] : null;
       return {
-        ...org,
+        ...publicOrganisation(org),
         subscription: sub ? {
-          ...sub,
+          ...publicSubscription(sub),
           planDetails: plan,
           isTrialExpired: sub.plan === "essai" && sub.trialEndsAt && new Date(sub.trialEndsAt) < new Date(),
         } : null,
@@ -233,8 +250,8 @@ router.get("/organisations/:id", async (req: Request, res: Response): Promise<vo
     const plan = sub ? PLANS[sub.plan as PlanKey] : null;
 
     res.json({
-      organisation: org,
-      subscription: sub ? { ...sub, planDetails: plan } : null,
+      organisation: publicOrganisation(org),
+      subscription: sub ? { ...publicSubscription(sub), planDetails: plan } : null,
       userCount: userCount?.count ?? 0,
     });
   } catch (err: any) {
@@ -357,11 +374,11 @@ router.post("/organisations", async (req: Request, res: Response): Promise<void>
     }
 
     res.status(201).json({
-      message: `Organisation "${name}" creee avec le plan ${planConfig.name}.${result.adminUser ? ` Administrateur ${result.adminUser.prenom} ${result.adminUser.nom} cree.` : ""}`,
-      ...result,
-      licenseKey,
+      message: `Organisation "${name}" creee avec le plan ${planConfig.name}.`,
+      organisation: publicOrganisation(result.organisation),
+      subscription: publicSubscription(result.subscription),
+      adminCreated: Boolean(result.adminUser),
       emailSent: emailResult ? emailResult.success : false,
-      emailTo: sendTo || null,
       // Remonter la VRAIE cause de l'echec (domaine non verifie chez Resend,
       // cle absente...) au lieu d'un "Erreur lors de l'envoi" generique:
       // l'organisation est deja creee a ce stade, l'operateur doit savoir quoi
@@ -369,7 +386,7 @@ router.post("/organisations", async (req: Request, res: Response): Promise<void>
       emailNote: !sendTo
         ? "Aucun email fourni."
         : emailResult?.success
-          ? (emailResult.preview || "Email envoye avec licence et identifiants.")
+          ? "Email envoye avec licence et identifiants."
           : (emailResult?.error || "Erreur lors de l'envoi de l'email."),
     });
   } catch (err: any) {
@@ -466,8 +483,7 @@ router.post("/organisations/:id/resend-license", async (req: Request, res: Respo
 
     if (result.success) {
       res.json({
-        message: `Email envoye a ${org.email} avec le lien securise de definition du mot de passe pour ${adminUser.email}. Lien valide 24 heures.`,
-        preview: result.preview,
+        message: "Email de licence envoye avec un lien securise valable 24 heures.",
       });
     } else {
       logger.warn({ err: result.error }, "Envoi licence email echoue");
@@ -517,7 +533,7 @@ router.put("/organisations/:id", async (req: Request, res: Response): Promise<vo
     const [updated] = await db.update(organisationsTable).set(updateData).where(eq(organisationsTable.id, id)).returning();
     if (!updated) { res.status(404).json({ error: "Organisation non trouvee." }); return; }
 
-    res.json({ message: "Organisation mise a jour.", organisation: updated });
+    res.json({ message: "Organisation mise a jour.", organisation: publicOrganisation(updated) });
   } catch (err: any) {
     req.log.error({ err }, "Erreur mise a jour organisation");
     res.status(500).json({ error: "Erreur lors de la mise a jour de l'organisation." });

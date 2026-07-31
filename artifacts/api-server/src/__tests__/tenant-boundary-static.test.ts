@@ -26,10 +26,10 @@ describe("tenant boundary invariants", () => {
     expect(ownership).toContain("usersTable.organisationId");
   });
 
-  it("keeps global SaaS data behind explicit super-admin guards", () => {
+  it("keeps global SaaS data aggregate-only and blocks customer records", () => {
     const routes = source("routes/index.ts");
-    for (const path of ["/admin/saas-dashboard", "/prospects", "/devis", "/factures-client"]) {
-      expect(routes).toContain(`router.use("${path}", requireSuperAdmin)`);
-    }
+    expect(routes).toContain('router.use("/admin/saas-dashboard", requireSuperAdmin)');
+    expect(routes).toContain('["/prospects", "/devis", "/factures-client"]');
+    expect(routes).toContain('tenant_content_forbidden');
   });
 });

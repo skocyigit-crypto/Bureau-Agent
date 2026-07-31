@@ -41,7 +41,6 @@ export interface AttentionItem {
   severity: AttentionSeverity;
   organisationId: number;
   organisationName: string;
-  organisationEmail: string | null;
   /** Phrase courte lisible: l'etat constate. */
   detail: string;
   /** Action suggeree (informatif en phase 1; l'agent la traduira en proposition en phase 2). */
@@ -72,7 +71,7 @@ const PAID_PLANS = new Set(["starter", "professionnel", "entreprise"]);
 
 /** Vue minimale d'une organisation + son abonnement, pour la classification. */
 export interface OrgClassificationInput {
-  org: { id: number; name: string; email: string | null; actif: boolean };
+  org: { id: number; name: string; actif: boolean };
   sub: {
     plan: string;
     status: string;
@@ -99,7 +98,7 @@ export interface OrgClassificationInput {
 export function classifyOrganisation(input: OrgClassificationInput, now: Date): AttentionItem[] {
   const { org, sub, usage, overdueInvoices } = input;
   const items: AttentionItem[] = [];
-  const base = { organisationId: org.id, organisationName: org.name, organisationEmail: org.email };
+  const base = { organisationId: org.id, organisationName: org.name };
 
   // Organisation suspendue (drapeau actif OU statut d'abonnement): demande une
   // decision (reactiver ou cloturer). Terminal: on ne cumule pas d'autres
@@ -237,7 +236,6 @@ export async function gatherSaasAttention(): Promise<SaasAttentionSummary> {
         .select({
           id: organisationsTable.id,
           name: organisationsTable.name,
-          email: organisationsTable.email,
           actif: organisationsTable.actif,
         })
         .from(organisationsTable),

@@ -26,7 +26,7 @@ const day = 86400000;
 
 function make(partial: Partial<OrgClassificationInput>): OrgClassificationInput {
   return {
-    org: { id: 1, name: "Org", email: "o@x.fr", actif: true },
+    org: { id: 1, name: "Org", actif: true },
     sub: {
       plan: "professionnel",
       status: "active",
@@ -53,7 +53,7 @@ describe("classifyOrganisation", () => {
 
   it("un compte suspendu est terminal (aucun autre signal cumulé)", () => {
     const r = classifyOrganisation(
-      make({ org: { id: 1, name: "Org", email: null, actif: false }, sub: { ...make({}).sub!, status: "suspended", paymentFailedCount: 3, suspensionReason: "manual" } }),
+      make({ org: { id: 1, name: "Org", actif: false }, sub: { ...make({}).sub!, status: "suspended", paymentFailedCount: 3, suspensionReason: "manual" } }),
       NOW,
     );
     expect(r).toHaveLength(1);

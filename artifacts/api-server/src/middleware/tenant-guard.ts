@@ -138,14 +138,15 @@ export async function assertUserQuotaNotExceeded(
   res: Response,
   organisationId: number,
 ): Promise<boolean> {
-  if (isSuperAdmin(req)) return true; // platform admin is exempt
-
   try {
     const [org] = await db.select({ maxUsers: organisationsTable.maxUsers })
       .from(organisationsTable)
       .where(eq(organisationsTable.id, organisationId));
 
-    if (!org) return true; // org not found — let the caller handle
+    if (!org) {
+      res.status(404).json({ error: "Organisation non trouvee.", code: "TENANT_NOT_FOUND" });
+      return false;
+    }
 
     const [{ total }] = await db.select({ total: count() })
       .from(usersTable)
@@ -165,7 +166,8 @@ export async function assertUserQuotaNotExceeded(
     return true;
   } catch (err) {
     logger.error({ err }, "tenant-guard: quota check failed");
-    return true; // fail open — don't block on DB error
+    res.status(503).json({ error: "Verification du quota indisponible.", code: "QUOTA_CHECK_UNAVAILABLE" });
+    return false;
   }
 }
 

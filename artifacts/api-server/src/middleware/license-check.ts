@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { eq } from "drizzle-orm";
 import { db, organisationsTable, subscriptionsTable } from "@workspace/db";
+import { evaluatePastDueAccess } from "../services/payment-access-policy";
 
 const EXEMPT_PATHS = [
   "/api/auth",
@@ -139,10 +140,7 @@ export async function checkLicense(orgId: number, method: string, path: string):
   }
 
   if (sub.status === "past_due") {
-    const isReadOrBilling = method === "GET" || READ_ONLY_PATHS_WHEN_PAST_DUE.some(p => path.startsWith(p));
-    if (!isReadOrBilling) {
-      return { allowed: false, reason: "past_due", message: "Paiement en retard. Reglez votre derniere facture pour retrouver l'acces complet." };
-    }
+    return evaluatePastDueAccess(sub.lastPaymentFailedAt, method, path);
   }
 
   return { allowed: true };

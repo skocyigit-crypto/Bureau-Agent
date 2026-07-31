@@ -6,6 +6,7 @@ import { getPlanForPriceId } from "./stripe-client";
 import { logLicenseEvent } from "./license-audit";
 import { sendSubscriptionSuspendedEmail, sendSubscriptionRecoveredEmail } from "./email";
 import { invalidateQuotaCache } from "./ai-quota";
+import { invalidateLicenseCache } from "../middleware/license-check";
 
 async function getOrgEmail(orgId: number): Promise<{ email: string | null; name: string }> {
   const [org] = await db.select({ email: organisationsTable.email, name: organisationsTable.name }).from(organisationsTable).where(eq(organisationsTable.id, orgId)).limit(1);
@@ -265,6 +266,7 @@ export async function handleInvoicePaid(invoice: Stripe.Invoice) {
       }
     }
   }
+  invalidateLicenseCache(orgId);
   logger.info({ orgId, invoice: invoice.id, total, currency }, "[stripe-sync] invoice.paid recorded");
 }
 
@@ -303,6 +305,7 @@ export async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
       updatedAt: now,
     })
     .where(eq(subscriptionsTable.organisationId, orgId));
+  invalidateLicenseCache(orgId);
   const transitionedToSuspended = shouldSuspend && current?.status !== "suspended";
   logger.warn(
     { orgId, invoice: invoice.id, attempts: newCount, suspended: shouldSuspend },
