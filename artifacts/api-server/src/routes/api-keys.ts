@@ -4,22 +4,22 @@ import { db, apiKeysTable } from "@workspace/db";
 import { CreateApiKeyBody } from "@workspace/api-zod";
 import { getOrgId } from "../middleware/tenant";
 import { zodErrorResponse } from "../lib/zod-error";
-import { decryptSensitiveData } from "../lib/crypto";
 import { generateApiKey, HASH_ONLY_KEY_SENTINEL } from "../lib/api-key-auth";
 import { logAudit } from "./audit";
 import { requireRole } from "../middleware/auth";
 
-// Clés API entrantes (Faz 1). CRUD tenant-scoped. La clé complète n'est
-// renvoyée qu'à la création ; ensuite seul le préfixe est listé. La révélation
-// ultérieure déchiffre la copie au repos (modèle « reveal » assumé).
+// Clés API entrantes (Faz 1). CRUD tenant-scoped, à AFFICHAGE UNIQUE : la clé
+// complète n'est renvoyée qu'à la création, ensuite seul le préfixe est listé.
+// Il n'existe plus de « reveal » : aucune copie déchiffrable n'est conservée
+// (colonne key_encrypted remplie par HASH_ONLY_KEY_SENTINEL), pour qu'une
+// compromission « base + clé de chiffrement » ne rende pas les clés.
 //
-// SÉCURITÉ — contrôle d'accès intra-tenant : une clé API authentifie en tant
-// que son créateur (cf. middleware/auth.ts). Sans garde de propriété, n'importe
-// quel membre de l'organisation pourrait lister/révéler/révoquer la clé d'un
-// autre utilisateur et donc usurper son rôle (élévation de privilège). On
-// restreint donc list/reveal/revoke au **propriétaire** de la clé, avec
-// dérogation pour les rôles admin (administrateur / super_admin) qui gèrent
-// l'ensemble du parc de leur organisation.
+// SÉCURITÉ — une clé API authentifie en tant que son créateur (cf.
+// middleware/auth.ts) et les `scopes` enregistrés ne sont PAS encore appliqués
+// par les routes en aval : en émettre une revient donc à déléguer l'intégralité
+// de l'autorité du compte. Tant que les scopes ne sont pas appliqués, la
+// gestion des clés est réservée aux administrateurs de l'organisation
+// (garde ci-dessous), et non simplement à leur propriétaire.
 
 const router: IRouter = Router();
 
@@ -115,48 +115,17 @@ router.post("/api-keys", async (req, res) => {
   res.status(201).json({ ...toSummary(row), key: generated.full });
 });
 
-router.post("/api-keys/:id/reveal", async (req, res) => {
-  // Keys are display-once. Returning legacy ciphertext-backed material would
-  // turn a database + encryption-key compromise into credential recovery.
+// Conservée uniquement pour répondre proprement aux clients déjà déployés qui
+// appellent encore cette route : elle ne peut plus rien révéler, puisque plus
+// aucun chiffré réutilisable n'est stocké (cf. HASH_ONLY_KEY_SENTINEL).
+router.post("/api-keys/:id/reveal", (_req, res) => {
+  // Les clés sont à affichage unique. Renvoyer l'ancien matériel chiffré
+  // transformerait une compromission « base + clé de chiffrement » en
+  // récupération d'identifiants.
   res.status(410).json({
     error: "Les cles API ne sont affichees qu'une seule fois. Revoquez puis recreez la cle.",
     code: "api_key_reveal_removed",
   });
-  return;
-
-  const id = Number(req.params.id);
-  if (!Number.isInteger(id)) {
-    res.status(400).json({ error: "Identifiant invalide." });
-    return;
-  }
-  const orgId = getOrgId(req);
-  const userId = req.session?.userId ?? null;
-  const [row] = await db
-    .select()
-    .from(apiKeysTable)
-    .where(and(eq(apiKeysTable.id, id), eq(apiKeysTable.organisationId, orgId)));
-  if (!row) {
-    res.status(404).json({ error: "Clé API introuvable." });
-    return;
-  }
-  // Seul le propriétaire (ou un admin) peut révéler la clé en clair.
-  if (row.createdByUserId !== userId && !isOrgAdmin(req)) {
-    res.status(403).json({ error: "Accès refusé." });
-    return;
-  }
-  // La révélation d'un secret est une action sensible : on l'audite.
-  await logAudit(
-    userId ?? undefined,
-    req.session?.userEmail as string | undefined,
-    "api_key_reveal",
-    "api_key",
-    String(row.id),
-    { name: row.name, keyPrefix: row.keyPrefix },
-    req.ip,
-    req.get("user-agent"),
-    orgId,
-  );
-  res.json({ id: row.id, key: decryptSensitiveData(row.keyEncrypted) });
 });
 
 router.delete("/api-keys/:id", async (req, res) => {

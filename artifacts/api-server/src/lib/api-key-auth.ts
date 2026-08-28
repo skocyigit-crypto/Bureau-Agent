@@ -29,7 +29,6 @@ export interface GeneratedApiKey {
   prefix: string;
   /** SHA-256 de la clé complète (colonne key_hash). */
   hash: string;
-  /** Clé complète chiffrée au repos (colonne key_encrypted). */
 }
 
 // Transitional non-secret value for the legacy NOT NULL `key_encrypted`

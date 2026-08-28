@@ -1,17 +1,26 @@
 /**
- * Contrôle d'accès intra-tenant sur la gestion des clés API.
+ * Contrôle d'accès sur la gestion des clés API.
  *
- * Une clé API authentifie AU NOM de son créateur (le porteur hérite de
- * l'identité/rôle du créateur). Révéler ou révoquer la clé d'autrui revient
- * donc à pouvoir l'usurper. Cette suite verrouille l'invariant — sans elle,
- * une régression qui retirerait le garde owner-or-admin rouvrirait une
- * escalade de privilèges au sein d'une même organisation :
+ * Une clé API authentifie AU NOM de son créateur, et les `scopes` enregistrés
+ * ne sont pas encore appliqués par les routes en aval : émettre une clé revient
+ * donc à déléguer l'intégralité de l'autorité du compte. Trois invariants en
+ * découlent, tous verrouillés ici — les perdre rouvrirait une élévation de
+ * privilège intra-tenant :
  *
- *   - liste : un admin voit toutes les clés de l'org ; un membre standard ne
- *     voit que les siennes.
- *   - révélation / révocation : autorisées seulement au propriétaire OU à un
- *     admin (administrateur / super_admin), sinon 403.
- *   - révocation idempotente : seconde révocation = no-op 204.
+ *   1. `/api-keys` est réservé aux administrateurs (administrateur /
+ *      super_admin). Un agent — pourtant autorisé à muter le reste du tenant —
+ *      reçoit 403 sur TOUTES les méthodes, lecture comprise : connaître l'ID
+ *      d'une clé est déjà la cible d'une révocation non autorisée.
+ *   2. La clé en clair n'est renvoyée qu'UNE fois, à la création. L'ancienne
+ *      route `reveal` est supprimée (410) et plus aucun chiffré réutilisable
+ *      n'est stocké : une compromission base + clé de chiffrement ne permet
+ *      plus de récupérer des identifiants.
+ *   3. Le cloisonnement inter-organisations tient : l'admin d'une autre org ne
+ *      voit ni ne révoque les clés de celle-ci.
+ *
+ * Cette suite couvrait auparavant un modèle « reveal » où un agent créait et
+ * redévoilait ses propres clés. Ce modèle a été retiré volontairement ; les cas
+ * ci-dessous verrouillent le comportement de remplacement.
  */
 process.env.NODE_ENV = process.env.NODE_ENV ?? "test";
 process.env.PORT = process.env.PORT ?? "0";
@@ -21,10 +30,11 @@ process.env.DISABLE_CSRF_DEV = "1";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import request from "supertest";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db, apiKeysTable, organisationsTable, usersTable } from "@workspace/db";
 import app from "../app";
 import { mintApiToken } from "../lib/api-token";
+import { HASH_ONLY_KEY_SENTINEL } from "../lib/api-key-auth";
 
 const stamp = Date.now();
 
@@ -34,10 +44,12 @@ interface SeededUser {
 }
 
 let orgId: number;
+let otherOrgId: number;
 let admin: SeededUser;
 let agent: SeededUser;
-let agentKeyId: number;
+let otherAdmin: SeededUser;
 let adminKeyId: number;
+let revocableKeyId: number;
 
 function tokenFor(u: {
   id: number;
@@ -55,7 +67,47 @@ function tokenFor(u: {
   });
 }
 
-async function createKey(token: string, name: string): Promise<number> {
+async function seedOrg(slug: string): Promise<number> {
+  const [org] = await db
+    .insert(organisationsTable)
+    .values({
+      name: `ApiKey ACL Org ${slug}`,
+      slug: `apikey-acl-${slug}`,
+      maxUsers: 5,
+      actif: true,
+    })
+    .returning({ id: organisationsTable.id });
+  return org.id;
+}
+
+async function seedUser(
+  email: string,
+  role: string,
+  organisationId: number,
+): Promise<SeededUser> {
+  const [row] = await db
+    .insert(usersTable)
+    .values({
+      email,
+      passwordHash: "x",
+      nom: "Test",
+      prenom: "User",
+      role,
+      organisationId,
+      actif: true,
+    })
+    .returning({ id: usersTable.id });
+  return {
+    id: row.id,
+    token: tokenFor({ id: row.id, role, organisationId, email }),
+  };
+}
+
+/** Crée une clé via l'API en tant qu'admin et renvoie (id, clé en clair). */
+async function createKey(
+  token: string,
+  name: string,
+): Promise<{ id: number; key: string }> {
   const res = await request(app)
     .post("/api/api-keys")
     .set("Authorization", `Bearer ${token}`)
@@ -63,113 +115,67 @@ async function createKey(token: string, name: string): Promise<number> {
     .send({ name, scopes: ["read"] });
   expect(res.status).toBe(201);
   expect(res.body?.id).toBeTypeOf("number");
-  return res.body.id as number;
+  expect(res.body?.key).toBeTypeOf("string");
+  return { id: res.body.id as number, key: res.body.key as string };
 }
 
 beforeAll(async () => {
-  const [org] = await db
-    .insert(organisationsTable)
-    .values({
-      name: `ApiKey ACL Org ${stamp}`,
-      slug: `apikey-acl-${stamp}`,
-      maxUsers: 5,
-      actif: true,
-    })
-    .returning({ id: organisationsTable.id });
-  orgId = org.id;
+  orgId = await seedOrg(String(stamp));
+  otherOrgId = await seedOrg(`other-${stamp}`);
 
-  const [adminRow] = await db
-    .insert(usersTable)
-    .values({
-      email: `acl-admin-${stamp}@example.test`,
-      passwordHash: "x",
-      nom: "Admin",
-      prenom: "Test",
-      role: "administrateur",
-      organisationId: orgId,
-      actif: true,
-    })
-    .returning({ id: usersTable.id });
-  const [agentRow] = await db
-    .insert(usersTable)
-    .values({
-      email: `acl-agent-${stamp}@example.test`,
-      passwordHash: "x",
-      nom: "Agent",
-      prenom: "Test",
-      role: "agent",
-      organisationId: orgId,
-      actif: true,
-    })
-    .returning({ id: usersTable.id });
+  admin = await seedUser(
+    `acl-admin-${stamp}@example.test`,
+    "administrateur",
+    orgId,
+  );
+  agent = await seedUser(`acl-agent-${stamp}@example.test`, "agent", orgId);
+  otherAdmin = await seedUser(
+    `acl-other-admin-${stamp}@example.test`,
+    "administrateur",
+    otherOrgId,
+  );
 
-  admin = {
-    id: adminRow.id,
-    token: tokenFor({
-      id: adminRow.id,
-      role: "administrateur",
-      organisationId: orgId,
-      email: `acl-admin-${stamp}@example.test`,
-    }),
-  };
-  agent = {
-    id: agentRow.id,
-    token: tokenFor({
-      id: agentRow.id,
-      role: "agent",
-      organisationId: orgId,
-      email: `acl-agent-${stamp}@example.test`,
-    }),
-  };
-
-  agentKeyId = await createKey(agent.token, `acl-agent-key-${stamp}`);
-  adminKeyId = await createKey(admin.token, `acl-admin-key-${stamp}`);
+  adminKeyId = (await createKey(admin.token, `acl-admin-key-${stamp}`)).id;
+  revocableKeyId = (await createKey(admin.token, `acl-revoke-key-${stamp}`)).id;
 });
 
 afterAll(async () => {
   try {
     await db
       .delete(apiKeysTable)
-      .where(inArray(apiKeysTable.organisationId, [orgId]));
+      .where(inArray(apiKeysTable.organisationId, [orgId, otherOrgId]));
     await db
       .delete(usersTable)
-      .where(inArray(usersTable.id, [admin.id, agent.id]));
+      .where(inArray(usersTable.id, [admin.id, agent.id, otherAdmin.id]));
     await db
       .delete(organisationsTable)
-      .where(inArray(organisationsTable.id, [orgId]));
+      .where(inArray(organisationsTable.id, [orgId, otherOrgId]));
   } catch {
     // nettoyage best-effort; ids uniques par run (stamp).
   }
 });
 
-describe("Clés API — contrôle d'accès intra-tenant", () => {
-  it("agent → ne révèle PAS la clé d'un autre membre (403)", async () => {
+describe("Clés API — réservées aux administrateurs", () => {
+  it("agent → ne peut PAS créer de clé (403)", async () => {
     const res = await request(app)
-      .post(`/api/api-keys/${adminKeyId}/reveal`)
+      .post("/api/api-keys")
+      .set("Authorization", `Bearer ${agent.token}`)
+      .set("Origin", "http://localhost")
+      .send({ name: `acl-agent-denied-${stamp}`, scopes: ["read"] });
+    expect(res.status).toBe(403);
+  });
+
+  it("agent → ne peut PAS lister les clés (403)", async () => {
+    // La lecture est refusée elle aussi : divulguer les IDs de clés est le
+    // premier pas d'une révocation non autorisée.
+    const res = await request(app)
+      .get("/api/api-keys")
       .set("Authorization", `Bearer ${agent.token}`)
       .set("Origin", "http://localhost");
     expect(res.status).toBe(403);
   });
 
-  it("agent → révèle sa propre clé (200 + clé en clair)", async () => {
-    const res = await request(app)
-      .post(`/api/api-keys/${agentKeyId}/reveal`)
-      .set("Authorization", `Bearer ${agent.token}`)
-      .set("Origin", "http://localhost");
-    expect(res.status).toBe(200);
-    expect(typeof res.body?.key).toBe("string");
-    expect(res.body.key.length).toBeGreaterThan(0);
-  });
-
-  it("admin → révèle la clé de l'agent (override admin, 200)", async () => {
-    const res = await request(app)
-      .post(`/api/api-keys/${agentKeyId}/reveal`)
-      .set("Authorization", `Bearer ${admin.token}`)
-      .set("Origin", "http://localhost");
-    expect(res.status).toBe(200);
-  });
-
-  it("agent → ne révoque PAS la clé d'un autre membre (403)", async () => {
+  it("agent → ne peut PAS révoquer une clé (403)", async () => {
     const res = await request(app)
       .delete(`/api/api-keys/${adminKeyId}`)
       .set("Authorization", `Bearer ${agent.token}`)
@@ -177,37 +183,94 @@ describe("Clés API — contrôle d'accès intra-tenant", () => {
     expect(res.status).toBe(403);
   });
 
-  it("liste — agent ne voit QUE ses propres clés", async () => {
+  it("appel non authentifié → 401", async () => {
     const res = await request(app)
       .get("/api/api-keys")
-      .set("Authorization", `Bearer ${agent.token}`)
+      .set("Origin", "http://localhost");
+    expect(res.status).toBe(401);
+  });
+});
+
+describe("Clés API — affichage unique, aucun secret récupérable", () => {
+  it("la création renvoie la clé en clair exactement une fois", async () => {
+    const created = await createKey(admin.token, `acl-once-${stamp}`);
+    expect(created.key.length).toBeGreaterThan(0);
+
+    // La liste ne doit jamais reproduire la clé complète.
+    const list = await request(app)
+      .get("/api/api-keys")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .set("Origin", "http://localhost");
+    expect(list.status).toBe(200);
+    const entry = (list.body as Array<Record<string, unknown>>).find(
+      (k) => k.id === created.id,
+    );
+    expect(entry).toBeDefined();
+    expect(entry).not.toHaveProperty("key");
+    expect(entry).not.toHaveProperty("keyEncrypted");
+    expect(entry).not.toHaveProperty("keyHash");
+  });
+
+  it("aucun chiffré réutilisable n'est stocké au repos", async () => {
+    const [row] = await db
+      .select({ keyEncrypted: apiKeysTable.keyEncrypted })
+      .from(apiKeysTable)
+      .where(eq(apiKeysTable.id, adminKeyId));
+    expect(row?.keyEncrypted).toBe(HASH_ONLY_KEY_SENTINEL);
+  });
+
+  it("reveal est supprimé (410) même pour l'admin propriétaire", async () => {
+    const res = await request(app)
+      .post(`/api/api-keys/${adminKeyId}/reveal`)
+      .set("Authorization", `Bearer ${admin.token}`)
+      .set("Origin", "http://localhost");
+    expect(res.status).toBe(410);
+    expect(res.body?.code).toBe("api_key_reveal_removed");
+    expect(res.body).not.toHaveProperty("key");
+  });
+});
+
+describe("Clés API — cloisonnement inter-organisations", () => {
+  it("l'admin d'une autre org ne voit pas les clés de celle-ci", async () => {
+    const res = await request(app)
+      .get("/api/api-keys")
+      .set("Authorization", `Bearer ${otherAdmin.token}`)
       .set("Origin", "http://localhost");
     expect(res.status).toBe(200);
     const ids = new Set((res.body as Array<{ id: number }>).map((k) => k.id));
-    expect(ids.has(agentKeyId)).toBe(true);
     expect(ids.has(adminKeyId)).toBe(false);
   });
 
-  it("liste — admin voit toutes les clés de l'org", async () => {
+  it("l'admin d'une autre org ne révoque pas une clé de celle-ci (404)", async () => {
+    const res = await request(app)
+      .delete(`/api/api-keys/${adminKeyId}`)
+      .set("Authorization", `Bearer ${otherAdmin.token}`)
+      .set("Origin", "http://localhost");
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("Clés API — révocation", () => {
+  it("l'admin voit les clés de son organisation", async () => {
     const res = await request(app)
       .get("/api/api-keys")
       .set("Authorization", `Bearer ${admin.token}`)
       .set("Origin", "http://localhost");
     expect(res.status).toBe(200);
     const ids = new Set((res.body as Array<{ id: number }>).map((k) => k.id));
-    expect(ids.has(agentKeyId)).toBe(true);
     expect(ids.has(adminKeyId)).toBe(true);
+    expect(ids.has(revocableKeyId)).toBe(true);
   });
 
-  it("révocation propriétaire (204) puis seconde révocation idempotente (204)", async () => {
+  it("révocation (204) puis seconde révocation idempotente (204)", async () => {
     const first = await request(app)
-      .delete(`/api/api-keys/${agentKeyId}`)
-      .set("Authorization", `Bearer ${agent.token}`)
+      .delete(`/api/api-keys/${revocableKeyId}`)
+      .set("Authorization", `Bearer ${admin.token}`)
       .set("Origin", "http://localhost");
     expect(first.status).toBe(204);
     const second = await request(app)
-      .delete(`/api/api-keys/${agentKeyId}`)
-      .set("Authorization", `Bearer ${agent.token}`)
+      .delete(`/api/api-keys/${revocableKeyId}`)
+      .set("Authorization", `Bearer ${admin.token}`)
       .set("Origin", "http://localhost");
     expect(second.status).toBe(204);
   });

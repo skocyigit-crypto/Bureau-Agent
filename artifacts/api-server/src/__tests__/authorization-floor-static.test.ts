@@ -51,9 +51,11 @@ describe("server-side authorization floor", () => {
     );
     expect(apiKeys).toContain("keyEncrypted: HASH_ONLY_KEY_SENTINEL");
     expect(apiKeys).toContain('code: "api_key_reveal_removed"');
-    expect(apiKeys.indexOf('code: "api_key_reveal_removed"')).toBeLessThan(
-      apiKeys.indexOf("decryptSensitiveData(row.keyEncrypted)"),
-    );
+    // Invariant plus fort que « le 410 precede l'ancien code » : le chemin de
+    // revelation est supprime, la route ne peut donc plus dechiffrer aucun
+    // materiel de cle. Une regression qui reintroduirait un dechiffrement
+    // rouvrirait la recuperation d'identifiants depuis la base.
+    expect(apiKeys).not.toContain("decryptSensitiveData");
   });
 
   it("protects tenant-wide provider credentials with administrator roles", () => {
