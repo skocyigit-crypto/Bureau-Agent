@@ -55,8 +55,25 @@ type CouncilAttempt = {
   run: (signal: AbortSignal) => Promise<{ text: string; record: () => void } | null>;
 };
 
-function isQuotaErr(err: unknown): boolean {
-  return String((err as any)?.message ?? "").toLowerCase().includes("quota");
+/**
+ * Seule une erreur de quota de l'ORGANISATION doit interrompre le conseil.
+ *
+ * `AiQuotaExceededError` (levee par `assertAiQuota`) signifie que l'org a
+ * depasse son budget IA mensuel : essayer un autre fournisseur ne ferait que
+ * depenser davantage, on remonte donc tout de suite. Une erreur de quota ou de
+ * limite cote FOURNISSEUR est l'inverse — c'est exactement ce que le hedging
+ * doit absorber en basculant sur le suivant.
+ *
+ * Le test portait auparavant sur la sous-chaine "quota" du message, ce qui
+ * confondait les deux. Un 429 Gemini ("Quota exceeded ...") ou Vertex ("Quota
+ * exceeded for aiplatform.googleapis.com/online_prediction_input_tokens...")
+ * faisait donc echouer TOUT le conseil alors que les autres fournisseurs
+ * repondaient normalement — une panne d'un seul fournisseur coupait l'IA.
+ *
+ * Exporte pour que le test de regression puisse verrouiller la distinction.
+ */
+export function isQuotaErr(err: unknown): boolean {
+  return err instanceof AiQuotaExceededError;
 }
 
 async function hedgedCouncil(attempts: CouncilAttempt[]): Promise<string> {
