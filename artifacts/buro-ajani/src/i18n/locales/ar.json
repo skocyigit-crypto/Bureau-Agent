@@ -2385,7 +2385,6 @@
       "colActions": "الإجراءات",
       "revoked": "مُلغى",
       "active": "نشط",
-      "reveal": "إظهار المفتاح",
       "revoke": "إلغاء"
     },
     "copy": "نسخ",
@@ -2483,8 +2482,6 @@
       "keyApiTitle": "مفتاح API « {{name}} »",
       "keyCreated": "تم إنشاء مفتاح API",
       "keyCreateFailedDesc": "تعذّر إنشاء المفتاح.",
-      "revealFailed": "تعذّر الإظهار",
-      "revealFailedDesc": "تم رفض الوصول أو المفتاح غير موجود.",
       "keyRevoked": "تم إلغاء المفتاح",
       "revokeFailed": "تعذّر الإلغاء.",
       "deliveryRescheduled": "تمت إعادة جدولة التسليم",

@@ -2385,7 +2385,6 @@
       "colActions": "Aktionen",
       "revoked": "Widerrufen",
       "active": "Aktiv",
-      "reveal": "Schlüssel anzeigen",
       "revoke": "Widerrufen"
     },
     "copy": "Kopieren",
@@ -2483,8 +2482,6 @@
       "keyApiTitle": "API-Schlüssel „{{name}}“",
       "keyCreated": "API-Schlüssel erstellt",
       "keyCreateFailedDesc": "Schlüssel konnte nicht erstellt werden.",
-      "revealFailed": "Anzeige nicht möglich",
-      "revealFailedDesc": "Zugriff verweigert oder Schlüssel nicht gefunden.",
       "keyRevoked": "Schlüssel widerrufen",
       "revokeFailed": "Widerruf nicht möglich.",
       "deliveryRescheduled": "Zustellung neu geplant",

@@ -2385,7 +2385,6 @@
       "colActions": "İşlemler",
       "revoked": "İptal edildi",
       "active": "Etkin",
-      "reveal": "Anahtarı göster",
       "revoke": "İptal et"
     },
     "copy": "Kopyala",
@@ -2483,8 +2482,6 @@
       "keyApiTitle": "API anahtarı « {{name}} »",
       "keyCreated": "API anahtarı oluşturuldu",
       "keyCreateFailedDesc": "Anahtar oluşturulamadı.",
-      "revealFailed": "Gösterilemedi",
-      "revealFailedDesc": "Erişim reddedildi veya anahtar bulunamadı.",
       "keyRevoked": "Anahtar iptal edildi",
       "revokeFailed": "İptal edilemedi.",
       "deliveryRescheduled": "Teslimat yeniden planlandı",

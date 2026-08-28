@@ -30,7 +30,7 @@ useListApiKeys,
 useListWebhookDeliveries,
 useListWebhooks,
 useRetryWebhookDelivery,
-useRevealApiKey,useRevokeApiKey,
+useRevokeApiKey,
 useRotateWebhookSecret,
 useUpdateWebhook,
 type ApiKeySummary,
@@ -40,7 +40,6 @@ import {
 AlertTriangle,
 Check,
 Copy,
-Eye,
 KeyRound,
 ListChecks,Loader2,
 Plus,
@@ -262,7 +261,6 @@ export function TabApiWebhooks() {
   // ----- Clés API -----
   const apiKeysQuery = useListApiKeys();
   const createApiKey = useCreateApiKey();
-  const revealApiKey = useRevealApiKey();
   const revokeApiKey = useRevokeApiKey();
 
   const [keyCreateOpen, setKeyCreateOpen] = useState(false);
@@ -295,17 +293,6 @@ export function TabApiWebhooks() {
         },
         onError: (err) =>
           toast({ title: t("settingsApiWebhooks.toast.createFailed"), description: errMsg(err, t("settingsApiWebhooks.toast.keyCreateFailedDesc")), variant: "destructive" }),
-      },
-    );
-  }
-
-  function doReveal(k: ApiKeySummary) {
-    revealApiKey.mutate(
-      { id: k.id },
-      {
-        onSuccess: (res) => setSecretReveal({ title: t("settingsApiWebhooks.toast.keyApiTitle", { name: k.name }), secret: res.key }),
-        onError: (err) =>
-          toast({ title: t("settingsApiWebhooks.toast.revealFailed"), description: errMsg(err, t("settingsApiWebhooks.toast.revealFailedDesc")), variant: "destructive" }),
       },
     );
   }
@@ -481,9 +468,6 @@ export function TabApiWebhooks() {
                         <TableCell className="text-xs text-muted-foreground">{fmtDate(k.expiresAt)}</TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-1">
-                            <Button variant="ghost" size="icon" title={t("settingsApiWebhooks.keys.reveal")} disabled={revoked || revealApiKey.isPending} onClick={() => doReveal(k)}>
-                              <Eye className="w-4 h-4" />
-                            </Button>
                             <Button variant="ghost" size="icon" title={t("settingsApiWebhooks.keys.revoke")} disabled={revoked} onClick={() => setRevokeTarget(k)}>
                               <PowerOff className="w-4 h-4 text-red-600" />
                             </Button>

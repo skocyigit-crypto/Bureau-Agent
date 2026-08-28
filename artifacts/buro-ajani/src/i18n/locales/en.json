@@ -2385,7 +2385,6 @@
       "colActions": "Actions",
       "revoked": "Revoked",
       "active": "Active",
-      "reveal": "Reveal key",
       "revoke": "Revoke"
     },
     "copy": "Copy",
@@ -2483,8 +2482,6 @@
       "keyApiTitle": "API key “{{name}}”",
       "keyCreated": "API key created",
       "keyCreateFailedDesc": "Unable to create the key.",
-      "revealFailed": "Reveal failed",
-      "revealFailedDesc": "Access denied or key not found.",
       "keyRevoked": "Key revoked",
       "revokeFailed": "Revocation failed.",
       "deliveryRescheduled": "Delivery rescheduled",

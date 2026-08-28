@@ -2385,7 +2385,6 @@
       "colActions": "Actions",
       "revoked": "Révoquée",
       "active": "Active",
-      "reveal": "Révéler la clé",
       "revoke": "Révoquer"
     },
     "copy": "Copier",
@@ -2483,8 +2482,6 @@
       "keyApiTitle": "Clé API « {{name}} »",
       "keyCreated": "Clé API créée",
       "keyCreateFailedDesc": "Impossible de créer la clé.",
-      "revealFailed": "Révélation impossible",
-      "revealFailedDesc": "Accès refusé ou clé introuvable.",
       "keyRevoked": "Clé révoquée",
       "revokeFailed": "Révocation impossible.",
       "deliveryRescheduled": "Livraison reprogrammée",
