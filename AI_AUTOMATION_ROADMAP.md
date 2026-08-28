@@ -153,10 +153,25 @@ girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamla
   - `ANTHROPIC_MODEL=claude-sonnet-4-6`, `ANTHROPIC_FAST_MODEL=claude-haiku-4-5`
   - `ANTHROPIC_VERTEX_*` korundu; doğrudan anahtar varken `getAnthropicMode()`
     onu yok sayar, anahtar kaldırılırsa Vertex yeniden devreye girer.
-  - **Dikkat**: anahtar batiflow ile PAYLAŞILIYOR. Batiflow tarafında iptal/
-    rotasyon yapılırsa agent-de-bureau da durur. Ayrıştırmak için yeni bir
-    Anthropic anahtarı üretip `anthropic-api-key` adında ayrı bir sır oluşturmak
-    ve Cloud Run bağını ona çevirmek yeterli (tek komut).
+  - **Dikkat**: anahtar batiflow ile PAYLAŞILIYOR (batiflow-api de aynı sırrı
+    `ANTHROPIC_API_KEY` olarak bağlıyor). Batiflow tarafında iptal/rotasyon
+    yapılırsa agent-de-bureau da durur. Ayrıştırmak için yeni bir Anthropic
+    anahtarı üretip `anthropic-api-key` adında ayrı bir sır oluşturmak ve Cloud
+    Run bağını ona çevirmek yeterli (tek komut).
+- **KALAN TEK ENGEL — Anthropic aylık harcama limiti (2026-08-28'de ölçüldü)**:
+  Anahtar geçerli (`GET /v1/models` → 200) ve yapılandırılan model kimlikleri
+  doğru çözülüyor (`claude-sonnet-4-6` → kendisi, `claude-haiku-4-5` →
+  `claude-haiku-4-5-20251001`). Ancak gerçek bir `POST /v1/messages` çağrısı
+  429 dönüyor:
+  > `enforced_spend_limit_reached` — "your organization has crossed its monthly
+  > API usage threshold, set based on your organization's API tier. You will
+  > regain access on **2026-09-01 at 00:00 UTC**."
+
+  Yani Claude, kod veya yapılandırma yüzünden değil, **Anthropic hesabının aylık
+  harcama tavanı** yüzünden kapalı. İki seçenek: (a) 1 Eylül'ü beklemek — o an
+  hiçbir değişiklik gerekmeden çalışır; (b) Anthropic Console → Plans & Billing
+  üzerinden limiti/tier'ı yükseltmek. Bu arada Gemini ve OpenAI çalıştığı için
+  konsey yanıt vermeye devam eder (bkz. `isQuotaErr` düzeltmesi).
 - **Hâlâ açık olan Vertex maddesi (opsiyonel)**: Vertex'i ileride kullanmak
   istenirse Cloud Console → IAM & Admin → Quotas →
   `online_prediction_input_tokens_per_minute_per_base_model`
