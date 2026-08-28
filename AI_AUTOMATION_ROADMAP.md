@@ -63,10 +63,11 @@ devre dışı kal" mantığıyla korunuyor — yani sistem çökmüyor, sadece o
 **Şu an canlıda ÇALIŞMAYAN / erişilemez olanlar** (eksik yapılandırma yüzünden):
 - Autonomous Inbox taraması (Gmail OAuth yok — her org için "bağlı Gmail yok" dönüyor)
 - Super Agent'ın e-posta ayağı (aynı Gmail OAuth eksikliği)
-- Anthropic/Claude (Vertex AI) — iki ayrı engel, 2026-08-28'de ölçüldü: uygulamanın
-  çağırdığı `claude-sonnet-4-6` bu projede Vertex'te hiçbir bölgede yok (404), ve
-  erişilebilen tek model `claude-opus-4-8`'in kotası sıfır (429). Kod tarafı düzeltildi;
-  kota talebi veya doğrudan `ANTHROPIC_API_KEY` bekleniyor (bkz. madde 3)
+- ~~Anthropic/Claude~~ — 2026-08-28'de çözüldü. Vertex'te iki engel ölçülmüştü
+  (`claude-sonnet-4-6` hiçbir bölgede yok → 404; erişilebilen tek model
+  `claude-opus-4-8`'in kotası sıfır → 429). Vertex kotasını beklemek yerine
+  doğrudan Anthropic API anahtarına geçildi. Kod + yapılandırma canlıda;
+  anahtarın geçerliliği ilk gerçek Claude çağrısında doğrulanacak (bkz. madde 3)
 
 **2026-07-14'te düzeltilen iki gerçek Twilio BYOK hatası** (müşteri kendi Twilio'sunu
 girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamlanmış işler"):
@@ -143,14 +144,24 @@ girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamla
   - Yani kota talebi Opus 4.8 için verilse bile, uygulama Sonnet 4.6 istediği sürece
     404 almaya devam ederdi. Deploy betiği artık Vertex modunda `ANTHROPIC_MODEL`
     varsayılanını `claude-opus-4-8` yapıyor.
-- **Kullanıcının yapması gerekenler (otomatikleştirilemez)**:
-  1. Cloud Console → IAM & Admin → Quotas →
-     `online_prediction_input_tokens_per_minute_per_base_model`
-     (base model: `anthropic-claude-opus-4-8`, bölge: us-east5) için artırım talebi;
-     **veya** Model Garden'da Sonnet 4.6 / Haiku 4.5'i etkinleştirip kotalarını istemek.
-  2. Anında çözüm istenirse: doğrudan bir `ANTHROPIC_API_KEY` tanımlamak. Artık
-     doğrudan anahtar Vertex'ten ÖNCELİKLİ (`getAnthropicMode`), yani Vertex
-     yapılandırmasını silmeden Claude'u çalışır hale getirir.
+- **Uygulanan çözüm (2026-08-28)**: Vertex kotasını beklemek yerine doğrudan API
+  yoluna geçildi. Projede zaten duran `batiflow-anthropic-api-key` sırrı,
+  değeri kopyalanmadan doğrudan `ANTHROPIC_API_KEY` adıyla Cloud Run'a bağlandı
+  (servis hesabına o sır için `roles/secretmanager.secretAccessor` verildi).
+  Canlı yapılandırma:
+  - `ANTHROPIC_API_KEY` → `batiflow-anthropic-api-key:latest`
+  - `ANTHROPIC_MODEL=claude-sonnet-4-6`, `ANTHROPIC_FAST_MODEL=claude-haiku-4-5`
+  - `ANTHROPIC_VERTEX_*` korundu; doğrudan anahtar varken `getAnthropicMode()`
+    onu yok sayar, anahtar kaldırılırsa Vertex yeniden devreye girer.
+  - **Dikkat**: anahtar batiflow ile PAYLAŞILIYOR. Batiflow tarafında iptal/
+    rotasyon yapılırsa agent-de-bureau da durur. Ayrıştırmak için yeni bir
+    Anthropic anahtarı üretip `anthropic-api-key` adında ayrı bir sır oluşturmak
+    ve Cloud Run bağını ona çevirmek yeterli (tek komut).
+- **Hâlâ açık olan Vertex maddesi (opsiyonel)**: Vertex'i ileride kullanmak
+  istenirse Cloud Console → IAM & Admin → Quotas →
+  `online_prediction_input_tokens_per_minute_per_base_model`
+  (base model `anthropic-claude-opus-4-8`, bölge us-east5) için artırım talebi
+  gerekir; ayrıca Sonnet 4.6 / Haiku 4.5 Model Garden'da etkin değil.
 - **Dosyalar**: `lib/integrations-anthropic-ai/src/client.ts`, `services/ai-providers.ts:223-329`,
   `deploy/gcp-deploy.sh`, `src/__tests__/claude-model-ids.test.ts`
 - **Durum**: OpenAI tamam. Anthropic: kod tarafı tamam; Vertex kotası / doğrudan
