@@ -114,19 +114,42 @@ export function getAnthropic(): AnthropicLike {
 //    IDs vers leur successeur au lieu de laisser partir un 404.
 // 2. Alias "-latest" (specifique Vertex) : Vertex n'accepte pas les alias
 //    mouvants, il faut un identifiant de version explicite.
+// Source: platform.claude.com/docs/en/about-claude/model-deprecations,
+// verifiee le 2026-08-28. Chaque cible est le remplacant RECOMMANDE par cette
+// page (et non un choix arbitraire), pour que la substitution reste alignee sur
+// l'intention d'Anthropic. Y ajouter tout modele au passage en "Retired".
 const RETIRED_MODEL_MAP: Record<string, string> = {
+  // Retires le 2026-08-05 / 2026-06-15 — recents, donc les plus susceptibles
+  // de trainer dans du code ou une variable d'environnement existante.
+  "claude-opus-4-1": "claude-opus-4-8",
+  "claude-opus-4-1-20250805": "claude-opus-4-8",
+  "claude-opus-4-0": "claude-opus-4-8",
+  "claude-opus-4-20250514": "claude-opus-4-8",
+  "claude-sonnet-4-0": "claude-sonnet-4-6",
+  "claude-sonnet-4-20250514": "claude-sonnet-4-6",
+  // Retires le 2026-04-20 / 2026-02-19.
+  "claude-3-haiku-20240307": "claude-haiku-4-5",
   "claude-3-5-haiku-latest": "claude-haiku-4-5",
   "claude-3-5-haiku-20241022": "claude-haiku-4-5",
+  "claude-3-7-sonnet-latest": "claude-sonnet-4-6",
+  "claude-3-7-sonnet-20250219": "claude-sonnet-4-6",
+  // Retires en 2025.
+  "claude-3-opus-latest": "claude-opus-4-8",
+  "claude-3-opus-20240229": "claude-opus-4-8",
   "claude-3-5-sonnet-latest": "claude-sonnet-4-6",
   "claude-3-5-sonnet-20241022": "claude-sonnet-4-6",
   "claude-3-5-sonnet-20240620": "claude-sonnet-4-6",
-  "claude-3-7-sonnet-latest": "claude-sonnet-4-6",
-  "claude-3-7-sonnet-20250219": "claude-sonnet-4-6",
-  "claude-3-opus-latest": "claude-opus-4-8",
-  "claude-3-opus-20240229": "claude-opus-4-8",
   "claude-3-sonnet-20240229": "claude-sonnet-4-6",
-  "claude-2.1": "claude-sonnet-4-6",
-  "claude-2.0": "claude-sonnet-4-6",
+  "claude-2.1": "claude-opus-4-8",
+  "claude-2.0": "claude-opus-4-8",
+  // Retires le 2024-11-06.
+  "claude-1.0": "claude-haiku-4-5",
+  "claude-1.1": "claude-haiku-4-5",
+  "claude-1.2": "claude-haiku-4-5",
+  "claude-1.3": "claude-haiku-4-5",
+  "claude-instant-1.0": "claude-haiku-4-5",
+  "claude-instant-1.1": "claude-haiku-4-5",
+  "claude-instant-1.2": "claude-haiku-4-5",
 };
 
 // Alias mouvants encore servis par l'API directe mais refuses par Vertex.

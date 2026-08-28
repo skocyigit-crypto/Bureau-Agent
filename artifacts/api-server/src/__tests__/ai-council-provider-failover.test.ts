@@ -9,66 +9,67 @@
  *
  * Le test portait sur la sous-chaine "quota" du message d'erreur, ce qui
  * confondait ce cas avec les erreurs de quota cote FOURNISSEUR — dont le
- * message contient lui aussi le mot. Consequences mesurees sur ce projet :
+ * message contient lui aussi le mot. Chacune faisait donc echouer la requete
+ * entiere alors que les autres fournisseurs repondaient : le hedging, dont le
+ * seul but est d'absorber la panne d'un fournisseur, se retournait contre
+ * lui-meme. `assertAiQuota` s'execute AVANT la construction du conseil, donc
+ * `AiQuotaExceededError` ne peut de toute facon pas naitre dans une tentative.
  *
- *   - Vertex AI : "Quota exceeded for aiplatform.googleapis.com/
- *     online_prediction_input_tokens_per_minute_per_base_model with base model:
- *     anthropic-claude-opus-4-8" (quota par defaut a zero) ;
- *   - Gemini : "Quota exceeded" sur 429.
- *
- * Chacune faisait echouer la requete entiere alors que les autres fournisseurs
- * repondaient normalement : le hedging, dont le seul but est d'absorber la
- * panne d'un fournisseur, se retournait contre lui-meme.
- *
- * Ce test verrouille la distinction : type de l'erreur, pas contenu du message.
+ * SUITE STATIQUE, deliberement. Importer `isQuotaErr` entrainerait la chaine
+ * ai-commandant -> ai-quota -> lib/db, qui exige DATABASE_URL des l'import. Y
+ * repondre par une URL factice avait un effet de bord mesure : vitest partage
+ * `process.env` entre fichiers d'un meme worker, si bien que les suites a base
+ * de donnees echouaient ensuite sur "Connection terminated unexpectedly" au
+ * lieu de leur erreur d'import habituelle — des resultats non deterministes.
+ * On verifie donc la propriete a la source, sans rien importer.
  */
-process.env.NODE_ENV = process.env.NODE_ENV ?? "test";
-process.env.SESSION_SECRET =
-  process.env.SESSION_SECRET ?? "test-session-secret-please-change-aaaaaaaa";
-// `lib/db` exige DATABASE_URL des l'import, et la chaine d'imports y mene via
-// ai-quota. Aucune requete n'est emise ici : une URL factice suffit a satisfaire
-// le garde, ce qui rend la suite executable sans base (en CI la vraie URL est
-// deja definie et prend le pas).
-process.env.DATABASE_URL =
-  process.env.DATABASE_URL ?? "postgresql://unused:unused@127.0.0.1:1/unused";
-
 import { describe, expect, it } from "vitest";
-// Imports DYNAMIQUES, apres les affectations d'environnement ci-dessus. Des
-// imports statiques seraient hisses en tete de module (semantique ESM) et
-// s'evalueraient AVANT elles : `lib/db` leverait alors sur DATABASE_URL absent.
-// Meme precaution que dans gemini-model-fallback.test.ts.
-const { AiQuotaExceededError } = await import("../services/ai-quota");
-const { isQuotaErr } = await import("../routes/ai-commandant");
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+const commandant = readFileSync(
+  join(import.meta.dirname, "..", "routes/ai-commandant.ts"),
+  "utf8",
+);
+
+/**
+ * Messages reels releves en production. Ils partagent tous la sous-chaine
+ * "quota" alors qu'ils designent des pannes de FOURNISSEUR, recuperables en
+ * basculant sur le suivant.
+ */
+const PROVIDER_QUOTA_MESSAGES = [
+  "Quota exceeded for aiplatform.googleapis.com/online_prediction_input_tokens_per_minute_per_base_model with base model: anthropic-claude-opus-4-8.",
+  "Quota exceeded",
+  "429 RESOURCE_EXHAUSTED: You exceeded your current quota, please check your plan and billing details.",
+];
 
 describe("conseil IA — interruption reservee au quota de l'organisation", () => {
-  it("interrompt sur le quota IA de l'organisation", () => {
-    // Le budget de l'org est epuise : insister coute de l'argent pour rien.
-    expect(isQuotaErr(new AiQuotaExceededError("cost", 51.2, 50))).toBe(true);
-    expect(isQuotaErr(new AiQuotaExceededError("calls", 1001, 1000))).toBe(true);
+  it("classe l'erreur par TYPE, pas par contenu du message", () => {
+    expect(commandant).toContain(
+      "return err instanceof AiQuotaExceededError;",
+    );
   });
 
-  it("n'interrompt PAS sur une erreur de quota cote fournisseur", () => {
-    // Messages reels releves en production — tous contiennent "quota" et
-    // faisaient donc tomber le conseil entier avec l'ancien test par sous-chaine.
-    const providerFailures = [
-      "Quota exceeded for aiplatform.googleapis.com/online_prediction_input_tokens_per_minute_per_base_model with base model: anthropic-claude-opus-4-8.",
-      "Quota exceeded",
-      "429 RESOURCE_EXHAUSTED: You exceeded your current quota, please check your plan and billing details.",
-      "Rate limit reached for gpt-5.2 in organization org-xxx on tokens per min (TPM)",
-      "You have reached your API usage limits: your organization has crossed its monthly API usage threshold.",
-    ];
-    for (const message of providerFailures) {
-      expect(isQuotaErr(new Error(message)), message.slice(0, 48)).toBe(false);
+  it("n'utilise plus de correspondance par sous-chaine sur le message", () => {
+    // C'est la forme exacte qui causait la panne ; la reintroduire ferait
+    // retomber une erreur fournisseur dans le chemin « on arrete tout ».
+    expect(commandant).not.toContain('includes("quota")');
+    expect(commandant).not.toContain("includes('quota')");
+  });
+
+  it("interrompt le conseil uniquement via isQuotaErr", () => {
+    // Verrouille le point d'entree : si un autre test d'erreur venait a
+    // declencher `reject`, la distinction ci-dessus ne suffirait plus.
+    expect(commandant).toContain("if (isQuotaErr(err)) { done = true;");
+  });
+
+  it("les messages fournisseurs piegeaient bien l'ancienne implementation", () => {
+    // Documente pourquoi la sous-chaine etait un mauvais discriminant : ces
+    // messages, tous recuperables, contiennent le mot "quota".
+    const ancienPredicat = (message: string) =>
+      message.toLowerCase().includes("quota");
+    for (const message of PROVIDER_QUOTA_MESSAGES) {
+      expect(ancienPredicat(message), message.slice(0, 48)).toBe(true);
     }
-  });
-
-  it("n'interrompt pas non plus sur les pannes ordinaires", () => {
-    expect(isQuotaErr(new Error("Connection terminated"))).toBe(false);
-    expect(isQuotaErr(new Error("The operation was aborted"))).toBe(false);
-    expect(isQuotaErr(undefined)).toBe(false);
-    expect(isQuotaErr(null)).toBe(false);
-    // Un objet qui imite seulement le message ne doit pas suffire : c'est le
-    // type qui fait foi, sinon la confusion d'origine revient par la fenetre.
-    expect(isQuotaErr({ message: "Quota IA mensuel atteint" })).toBe(false);
   });
 });

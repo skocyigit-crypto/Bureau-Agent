@@ -70,9 +70,9 @@ type CouncilAttempt = {
  * faisait donc echouer TOUT le conseil alors que les autres fournisseurs
  * repondaient normalement — une panne d'un seul fournisseur coupait l'IA.
  *
- * Exporte pour que le test de regression puisse verrouiller la distinction.
+ * Verrouille par ai-council-provider-failover.test.ts.
  */
-export function isQuotaErr(err: unknown): boolean {
+function isQuotaErr(err: unknown): boolean {
   return err instanceof AiQuotaExceededError;
 }
 

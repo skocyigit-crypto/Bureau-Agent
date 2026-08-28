@@ -70,8 +70,23 @@ const LIVE_MODEL_IDS = new Set([
   "claude-haiku-4-5",
 ]);
 
-/** IDs retires : tout appel avec ceux-ci renvoie 404. */
+/**
+ * IDs retires : tout appel avec ceux-ci renvoie 404.
+ *
+ * Liste alignee sur platform.claude.com/docs/en/about-claude/model-deprecations
+ * (verifiee le 2026-08-28). Les trois premieres familles sont les plus
+ * dangereuses en pratique : Opus 4.1 n'est retire que depuis le 2026-08-05 et
+ * Sonnet 4 / Opus 4 depuis le 2026-06-15, donc ils restent tres presents dans
+ * du code ou des variables d'environnement ecrits il y a quelques mois.
+ */
 const RETIRED_MODEL_IDS = [
+  "claude-opus-4-1",
+  "claude-opus-4-1-20250805",
+  "claude-opus-4-0",
+  "claude-opus-4-20250514",
+  "claude-sonnet-4-0",
+  "claude-sonnet-4-20250514",
+  "claude-3-haiku-20240307",
   "claude-3-5-haiku-latest",
   "claude-3-5-haiku-20241022",
   "claude-3-5-sonnet-latest",
@@ -84,6 +99,13 @@ const RETIRED_MODEL_IDS = [
   "claude-3-sonnet-20240229",
   "claude-2.1",
   "claude-2.0",
+  "claude-1.0",
+  "claude-1.1",
+  "claude-1.2",
+  "claude-1.3",
+  "claude-instant-1.0",
+  "claude-instant-1.1",
+  "claude-instant-1.2",
 ];
 
 const withVertex = <T,>(projectId: string | undefined, fn: () => T): T =>
