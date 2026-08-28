@@ -7,6 +7,7 @@ import { sendEmail } from "../services/email";
 import { getContextForContact, getLatestAgentInsights, buildCommandantContextPrompt } from "./agent-collaboration";
 import { safeJsonParse, extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, geminiActualModel, sanitizePromptInput, aiCallWithRetry, sanitizeAiErrorMessage, GEMINI_PRO_MODEL, OPENAI_MODEL, ANTHROPIC_MODEL } from "../services/ai-utils";
 import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
+import { callOrgAnthropic } from "../services/ai-providers";
 import { buildLearnedContextBlock, fingerprintLearned } from "../services/ai-learning";
 import { getOrCompute, buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 import { openSseStream, multiAiGenerateStream, StreamAbortedError } from "../services/ai-stream";
@@ -32,11 +33,6 @@ async function getGemini() {
 async function getOpenAI() {
   const { openai } = await import("@workspace/integrations-openai-ai-server");
   return openai;
-}
-
-async function getAnthropic() {
-  const { anthropic } = await import("@workspace/integrations-anthropic-ai");
-  return anthropic;
 }
 
 async function resolveClaudeModel(model: string): Promise<string> {
@@ -199,13 +195,16 @@ async function multiAiGenerate(prompt: string, systemPrompt?: string, orgId?: nu
     {
       provider: "anthropic",
       run: async (signal) => {
-        const anthropic = await getAnthropic();
-        const r = await anthropic.messages.create({
-          model: await resolveClaudeModel(ANTHROPIC_MODEL),
+        // callOrgAnthropic : cle Anthropic de l'org si elle en a une, avec repli
+        // plateforme si elle est revoquee. Sans ce passage, une org en BYOK
+        // voyait le conseil Claude echouer alors que sa cle etait valide.
+        const claudeModel = await resolveClaudeModel(ANTHROPIC_MODEL);
+        const r = await callOrgAnthropic<any>(orgId ?? null, (anthropic) => anthropic.messages.create({
+          model: claudeModel,
           max_tokens: 4096,
           ...(safeSystem ? { system: safeSystem } : {}),
           messages: [{ role: "user", content: safePrompt }],
-        }, { signal });
+        }, { signal }));
         const text = r.content?.[0]?.type === "text" ? r.content[0].text : "";
         if (!text || text.length <= 10) return null;
         return {

@@ -3,8 +3,8 @@ import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable
 import { sql, eq, gte, lte, and, count, desc, lt, ne, isNull, isNotNull, or, sum, avg, inArray } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache, reserveAiCall } from "../services/ai-quota";
-import { extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL, GEMINI_FLASH_MODEL, sanitizePromptInput, sanitizeAiErrorMessage } from "../services/ai-utils";
-import { callOrgGemini, callOrgOpenAI } from "../services/ai-providers";
+import { extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL, GEMINI_FLASH_MODEL, ANTHROPIC_MODEL, sanitizePromptInput, sanitizeAiErrorMessage } from "../services/ai-utils";
+import { callOrgGemini, callOrgOpenAI, callOrgAnthropic } from "../services/ai-providers";
 import { withProviderTimeout, buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 import { openSseStream, multiAiGenerateStream, StreamAbortedError } from "../services/ai-stream";
 import { buildLearnedContextBlock } from "../services/ai-learning";
@@ -785,14 +785,17 @@ async function callOpenAIAgent(agentId: string, orgId: number, prompt: string, s
 }
 
 async function callAnthropicAgent(agentId: string, orgId: number, prompt: string, signal: AbortSignal | undefined, t0: number): Promise<CouncilMember> {
-  const { anthropic, resolveClaudeModelId } = await import("@workspace/integrations-anthropic-ai");
-  const resp: any = await withProviderTimeout(() => (anthropic.messages.create as any)({
-    model: resolveClaudeModelId("claude-sonnet-4-6"),
+  const { resolveClaudeModelId } = await import("@workspace/integrations-anthropic-ai");
+  // callOrgAnthropic : cle Anthropic de l'org si elle en a une, avec repli sur
+  // le singleton plateforme quand cette cle est revoquee. Sans ce passage, une
+  // org en BYOK voyait Claude echouer alors que sa cle etait valide.
+  const resp: any = await callOrgAnthropic(orgId, (anthropic) => withProviderTimeout(() => (anthropic.messages.create as any)({
+    model: resolveClaudeModelId(ANTHROPIC_MODEL),
     max_tokens: 8192,
     messages: [{ role: "user", content: prompt + "\n\nReponds UNIQUEMENT en JSON valide." }],
-  }, signal ? { signal } : undefined), { timeoutMs: 45_000, label: `agent-${agentId}-anthropic` });
+  }, signal ? { signal } : undefined), { timeoutMs: 45_000, label: `agent-${agentId}-anthropic` }));
   const atokens = extractAnthropicTokens(resp);
-  recordAiUsage({ organisationId: orgId, provider: "anthropic", model: "claude-sonnet-4-6", route: `/ai/agents/${agentId}`, inputTokens: atokens.input, outputTokens: atokens.output, durationMs: Date.now() - t0 }).catch(() => {});
+  recordAiUsage({ organisationId: orgId, provider: "anthropic", model: ANTHROPIC_MODEL, route: `/ai/agents/${agentId}`, inputTokens: atokens.input, outputTokens: atokens.output, durationMs: Date.now() - t0 }).catch(() => {});
   invalidateQuotaCache(orgId);
   const txt = resp.content?.[0]?.type === "text" ? resp.content[0].text : "{}";
   return { text: txt, model: "Claude (Anthropic)" };
@@ -1215,11 +1218,11 @@ async function getOpenAIReview(reportsSummary: any[]): Promise<any> {
   }
 }
 
-async function getAnthropicStrategy(reportsSummary: any[]): Promise<any> {
+async function getAnthropicStrategy(reportsSummary: any[], orgId: number): Promise<any> {
   try {
-    const { anthropic, resolveClaudeModelId } = await import("@workspace/integrations-anthropic-ai");
-    const message = await anthropic.messages.create({
-      model: resolveClaudeModelId("claude-sonnet-4-6"),
+    const { resolveClaudeModelId } = await import("@workspace/integrations-anthropic-ai");
+    const message = await callOrgAnthropic<any>(orgId, (anthropic) => anthropic.messages.create({
+      model: resolveClaudeModelId(ANTHROPIC_MODEL),
       max_tokens: 8192,
       messages: [
         {
@@ -1229,7 +1232,7 @@ async function getAnthropicStrategy(reportsSummary: any[]): Promise<any> {
 Rapports:\n${JSON.stringify(reportsSummary, null, 2)}`,
         },
       ],
-    });
+    }));
     const block = message.content[0];
     const text = block.type === "text" ? block.text : "{}";
     return JSON.parse(text);
@@ -1310,7 +1313,7 @@ Rapports des agents:\n${JSON.stringify(reportsSummary, null, 2)}`
         config: { maxOutputTokens: 16384, responseMimeType: "application/json" },
       }),
       getOpenAIReview(reportsSummary),
-      getAnthropicStrategy(reportsSummary),
+      getAnthropicStrategy(reportsSummary, orgId),
     ]);
 
     const text = geminiResponse.text ?? "{}";
@@ -1360,7 +1363,7 @@ Rapports des agents:\n${JSON.stringify(reportsSummary, null, 2)}`
         multiAI: {
           openaiVerification: openaiReview,
           anthropicStrategie: anthropicStrategy,
-          providersUsed: [GEMINI_PRO_MODEL, "gpt-5.2", "claude-sonnet-4-6"],
+          providersUsed: [GEMINI_PRO_MODEL, "gpt-5.2", ANTHROPIC_MODEL],
         },
       },
       errors: parsed.errors || [],
@@ -2250,14 +2253,14 @@ Etat du systeme:\n${JSON.stringify({ ...systemHealth, issuesCount: issues.length
           return JSON.parse(r.choices[0]?.message?.content ?? "{}");
         })(),
         (async () => {
-          const { anthropic, resolveClaudeModelId } = await import("@workspace/integrations-anthropic-ai");
-          const m = await anthropic.messages.create({
-            model: resolveClaudeModelId("claude-sonnet-4-6"),
+          const { resolveClaudeModelId } = await import("@workspace/integrations-anthropic-ai");
+          const m = await callOrgAnthropic<any>(orgId, (anthropic) => anthropic.messages.create({
+            model: resolveClaudeModelId(ANTHROPIC_MODEL),
             max_tokens: 2048,
             messages: [
               { role: "user", content: diagPrompt + "\n\nFocus: risques strategiques et recommandations de securite" },
             ],
-          });
+          }));
           const block = m.content[0];
           return JSON.parse(block.type === "text" ? block.text : "{}");
         })(),

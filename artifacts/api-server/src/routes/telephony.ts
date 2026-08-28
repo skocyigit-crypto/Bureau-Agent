@@ -14,9 +14,17 @@ import {
   encryptProviderConfig,
   decryptProviderConfig,
 } from "../services/telephony-providers";
+import { requireRole } from "../middleware/auth";
 
 const router: IRouter = Router();
 export const telephonyWebhookRouter: IRouter = Router();
+const requireTenantAdmin = requireRole("super_admin", "administrateur");
+
+// Configuration contains tenant-wide provider secrets and fraud controls.
+// Operational call/SMS routes intentionally remain available to agents.
+router.use("/telephony/providers", requireTenantAdmin);
+router.use("/telephony/fraud-protection", requireTenantAdmin);
+router.use("/telephony/ai-receptionist", requireTenantAdmin);
 
 function timingSafeEqualStr(a: string, b: string): boolean {
   const bufA = Buffer.from(a);

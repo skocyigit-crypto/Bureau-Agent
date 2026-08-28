@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { and, eq, isNull, or, sql } from "drizzle-orm";
 import { db, apiKeysTable, usersTable } from "@workspace/db";
-import { encryptSensitiveData, hashSensitiveData } from "./crypto";
+import { hashSensitiveData } from "./crypto";
 
 // ---------------------------------------------------------------------------
 // Clés API entrantes (Faz 1). Authentifient des appels programmatiques vers
@@ -30,8 +30,11 @@ export interface GeneratedApiKey {
   /** SHA-256 de la clé complète (colonne key_hash). */
   hash: string;
   /** Clé complète chiffrée au repos (colonne key_encrypted). */
-  encrypted: string;
 }
+
+// Transitional non-secret value for the legacy NOT NULL `key_encrypted`
+// column. A later database migration can scrub old ciphertexts and drop it.
+export const HASH_ONLY_KEY_SENTINEL = "enc:v1:hash-only";
 
 /** Génère une nouvelle clé API et ses formes dérivées (hash, chiffré, préfixe). */
 export function generateApiKey(): GeneratedApiKey {
@@ -40,7 +43,6 @@ export function generateApiKey(): GeneratedApiKey {
     full,
     prefix: full.slice(0, PREFIX_DISPLAY_LEN),
     hash: hashSensitiveData(full),
-    encrypted: encryptSensitiveData(full),
   };
 }
 

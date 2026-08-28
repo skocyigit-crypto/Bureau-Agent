@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { requireAuth, requireSuperAdmin } from "../middleware/auth";
+import { requireAuth, requireMutationRole, requireSuperAdmin } from "../middleware/auth";
 import { requireTenant } from "../middleware/tenant";
 import { licenseCheck } from "../middleware/license-check";
 import healthRouter from "./health";
@@ -153,6 +153,13 @@ router.use("/stock", requireSuperAdmin, (_req, res) => {
 });
 
 router.use(requireTenant);
+
+// Global authorization floor for tenant state changes. `lecture_seule` is a
+// real server-side permission, not merely a UI presentation choice. Keeping
+// this immediately after requireTenant protects every current and future
+// tenant router, while public callbacks/webhooks mounted above remain governed
+// by their dedicated signatures/tokens.
+router.use(requireMutationRole("super_admin", "administrateur", "agent"));
 
 router.use(mySubscriptionRouter);
 router.use(stripeRouter);

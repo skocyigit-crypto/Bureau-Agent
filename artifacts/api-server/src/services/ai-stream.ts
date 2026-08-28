@@ -14,6 +14,7 @@ import {
   ANTHROPIC_MODEL,
 } from "./ai-utils";
 import { getOrgGeminiClient, getOrgOpenAIClient, getOrgAnthropicClient, callOrgOpenAI, isAiAuthKeyError } from "./ai-providers";
+import { resolveClaudeModelId } from "@workspace/integrations-anthropic-ai";
 
 export interface SseStream {
   send: (event: string, data: unknown) => void;
@@ -333,7 +334,10 @@ export async function multiAiGenerateStream(opts: StreamOptions): Promise<Stream
 
     const startStream = () => {
       stream = (anthropic as any).messages.stream({
-        model: anthropicModel,
+        // resolveClaudeModelId: neutralise les IDs retires (404) et les alias
+        // "-latest" que Vertex refuse. anthropicModel vient de ANTHROPIC_MODEL
+        // ou de l appelant, donc il peut contenir n importe quel alias.
+        model: resolveClaudeModelId(anthropicModel),
         max_tokens: maxOutputTokens || 4096,
         ...(safeSystem ? { system: safeSystem } : {}),
         messages: [{ role: "user" as const, content: safePrompt }],

@@ -34,8 +34,8 @@ IMAGE_WEB="${REGION}-docker.pkg.dev/${PROJECT}/${AR_REPO}/web:latest"
 echo "== Project: ${PROJECT} | Region: ${REGION} =="
 
 # ---------------------------------------------------------------------------
-# 0. Load GEMINI_API_KEY / ADMIN_EMAIL / ADMIN_PASSWORD from deploy/.env if
-#    not already exported.
+# 0. Load GEMINI_API_KEY / OPENAI_API_KEY / ANTHROPIC_API_KEY / ADMIN_EMAIL /
+#    ADMIN_PASSWORD from deploy/.env if not already exported.
 # ---------------------------------------------------------------------------
 load_from_env_file() {
   local var="$1"
@@ -44,11 +44,28 @@ load_from_env_file() {
   fi
 }
 [ -z "${GEMINI_API_KEY:-}" ] && GEMINI_API_KEY="$(load_from_env_file GEMINI_API_KEY)"
+[ -z "${OPENAI_API_KEY:-}" ] && OPENAI_API_KEY="$(load_from_env_file OPENAI_API_KEY)"
+[ -z "${ANTHROPIC_API_KEY:-}" ] && ANTHROPIC_API_KEY="$(load_from_env_file ANTHROPIC_API_KEY)"
+# Vertex AI: voie SANS cle pour Claude — les Application Default Credentials du
+# service Cloud Run suffisent (memes credentials que Cloud SQL/Secret Manager).
+# Prerequis manuel: activer les modeles Claude dans Vertex AI Model Garden.
+[ -z "${ANTHROPIC_VERTEX_PROJECT_ID:-}" ] && ANTHROPIC_VERTEX_PROJECT_ID="$(load_from_env_file ANTHROPIC_VERTEX_PROJECT_ID)"
+[ -z "${ANTHROPIC_VERTEX_REGION:-}" ] && ANTHROPIC_VERTEX_REGION="$(load_from_env_file ANTHROPIC_VERTEX_REGION)"
 [ -z "${ADMIN_EMAIL:-}" ] && ADMIN_EMAIL="$(load_from_env_file ADMIN_EMAIL)"
 [ -z "${ADMIN_PASSWORD:-}" ] && ADMIN_PASSWORD="$(load_from_env_file ADMIN_PASSWORD)"
 ADMIN_EMAIL="${ADMIN_EMAIL:-admin@agentdebureau.fr}"
 if [ -z "${GEMINI_API_KEY:-}" ]; then
   echo "GEMINI_API_KEY not set (env var or deploy/.env) — AI features will be unavailable until configured later." >&2
+fi
+# Claude n'est pas une option de confort: le conseil IA, le commandant,
+# l'analyse multi-modeles de documents et l'analyse de performance l'appellent
+# tous. Sans credentials montes dans Cloud Run, chaque appel leve "Anthropic
+# API key missing" — ce que l'interface presente comme "Claude ne marche pas".
+if [ -z "${ANTHROPIC_API_KEY:-}" ] && [ -z "${ANTHROPIC_VERTEX_PROJECT_ID:-}" ]; then
+  echo "ANTHROPIC_API_KEY / ANTHROPIC_VERTEX_PROJECT_ID not set — Claude sera indisponible." >&2
+fi
+if [ -z "${OPENAI_API_KEY:-}" ]; then
+  echo "OPENAI_API_KEY not set — OpenAI sera indisponible." >&2
 fi
 
 # ---------------------------------------------------------------------------
@@ -117,6 +134,12 @@ create_or_reuse_secret admin-password "${ADMIN_PASSWORD:-$(openssl rand -base64 
 if [ -n "${GEMINI_API_KEY:-}" ]; then
   create_or_reuse_secret gemini-api-key "${GEMINI_API_KEY}"
 fi
+if [ -n "${OPENAI_API_KEY:-}" ]; then
+  create_or_reuse_secret openai-api-key "${OPENAI_API_KEY}"
+fi
+if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+  create_or_reuse_secret anthropic-api-key "${ANTHROPIC_API_KEY}"
+fi
 
 # ---------------------------------------------------------------------------
 # 5. Build + push the api image via Cloud Build (context = repo root).
@@ -176,6 +199,46 @@ SECRET_REFS="SESSION_SECRET=session-secret:latest,DATA_ENCRYPTION_KEY=data-encry
 if gcloud secrets describe gemini-api-key --project "${PROJECT}" >/dev/null 2>&1; then
   SECRET_REFS="${SECRET_REFS},GEMINI_API_KEY=gemini-api-key:latest"
 fi
+# Sans ces deux montages, ANTHROPIC_API_KEY/OPENAI_API_KEY etaient tout
+# simplement absents du conteneur: Gemini fonctionnait, Claude et GPT
+# echouaient a chaque appel, silencieusement (fournisseurs "degradés").
+if gcloud secrets describe openai-api-key --project "${PROJECT}" >/dev/null 2>&1; then
+  SECRET_REFS="${SECRET_REFS},OPENAI_API_KEY=openai-api-key:latest"
+fi
+if gcloud secrets describe anthropic-api-key --project "${PROJECT}" >/dev/null 2>&1; then
+  SECRET_REFS="${SECRET_REFS},ANTHROPIC_API_KEY=anthropic-api-key:latest"
+fi
+
+# Vertex AI (Claude sans cle API): pas un secret, quelques variables suffisent.
+# Le client ne bascule sur Vertex que si AUCUNE cle Anthropic directe n'est
+# definie — une cle explicite est prioritaire, ce qui permet de contourner un
+# Vertex indisponible sans avoir a supprimer la configuration Vertex.
+RUN_ENV_VARS="NODE_ENV=production,ADMIN_EMAIL=${ADMIN_EMAIL}"
+if [ -n "${ANTHROPIC_VERTEX_PROJECT_ID:-}" ]; then
+  # aiplatform.googleapis.com n'est pas dans la liste d'APIs de l'etape 1: on
+  # ne l'active que si Vertex est reellement demande.
+  gcloud services enable aiplatform.googleapis.com --project "${PROJECT}"
+  # Modele par defaut EN MODE VERTEX. Mesure sur ce projet le 2026-08-28:
+  # claude-sonnet-4-6 et claude-haiku-4-5 renvoient 404 ("not found or your
+  # project does not have access") sur us-east5 / us-central1 / europe-west1 /
+  # europe-west4 — seul claude-opus-4-8 est accessible. Garder le defaut Sonnet
+  # ici revenait a garantir un 404 a chaque appel Claude en production.
+  # A ajuster des qu'un autre modele est active dans Vertex AI Model Garden.
+  VERTEX_CLAUDE_MODEL="${ANTHROPIC_MODEL:-claude-opus-4-8}"
+  RUN_ENV_VARS="${RUN_ENV_VARS},ANTHROPIC_VERTEX_PROJECT_ID=${ANTHROPIC_VERTEX_PROJECT_ID},ANTHROPIC_VERTEX_REGION=${ANTHROPIC_VERTEX_REGION:-us-east5},ANTHROPIC_MODEL=${VERTEX_CLAUDE_MODEL},ANTHROPIC_FAST_MODEL=${ANTHROPIC_FAST_MODEL:-${VERTEX_CLAUDE_MODEL}}"
+  # Deux prerequis manuels restent: roles/aiplatform.user sur le compte de
+  # service d'execution Cloud Run, et l'activation des modeles Claude dans
+  # Vertex AI Model Garden (acceptation des conditions Anthropic).
+  #
+  # Un troisieme, mesure le 2026-08-28: le quota par defaut est a ZERO
+  # (429 "Quota exceeded ... online_prediction_input_tokens_per_minute_per_base_model,
+  # base model: anthropic-claude-opus-4-8"). Tant qu'une demande d'augmentation
+  # n'est pas accordee (Cloud Console -> IAM & Admin -> Quotas), Claude via
+  # Vertex repondra 429 quel que soit le code. Voie de secours immediate:
+  # definir ANTHROPIC_API_KEY (elle est desormais prioritaire sur Vertex).
+elif [ -n "${ANTHROPIC_MODEL:-}" ]; then
+  RUN_ENV_VARS="${RUN_ENV_VARS},ANTHROPIC_MODEL=${ANTHROPIC_MODEL}"
+fi
 
 gcloud run deploy "${API_SERVICE}" \
   --image="${IMAGE_API}" \
@@ -184,7 +247,7 @@ gcloud run deploy "${API_SERVICE}" \
   --platform=managed \
   --allow-unauthenticated \
   --add-cloudsql-instances="${SQL_CONNECTION_NAME}" \
-  --update-env-vars="NODE_ENV=production,ADMIN_EMAIL=${ADMIN_EMAIL}" \
+  --update-env-vars="${RUN_ENV_VARS}" \
   --update-secrets="${SECRET_REFS}" \
   --min=1 --max-instances=3 --memory=1Gi --cpu=1 --no-cpu-throttling --cpu-boost \
   --port=8080

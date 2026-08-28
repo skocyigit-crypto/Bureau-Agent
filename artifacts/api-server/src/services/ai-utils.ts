@@ -50,6 +50,10 @@ export const GEMINI_PRO_FALLBACK_MODEL =
  */
 export const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5.2";
 export const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
+// Modele court/bon marche : ping de validation de cle BYOK, classifications.
+// NE JAMAIS y remettre un modele Claude 3.x : ils sont retires depuis le
+// 19/02/2026 et repondent 404, ce que l UI presentait comme "cle invalide".
+export const ANTHROPIC_FAST_MODEL = process.env.ANTHROPIC_FAST_MODEL || "claude-haiku-4-5";
 
 /**
  * Signatures d'erreurs renvoyees par l'API Gemini lorsqu'un nom de modele

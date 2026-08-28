@@ -18,6 +18,7 @@ import {
   handleInvoicePaid,
   handleInvoicePaymentFailed,
 } from "../services/stripe-sync";
+import { requireRole } from "../middleware/auth";
 
 // Webhook router uses RAW body — must mount BEFORE express.json
 export const stripeWebhookRouter: Router = Router();
@@ -117,6 +118,7 @@ stripeWebhookRouter.post(
 
 // Authenticated router (mounted under /api with auth+tenant)
 const router: Router = Router();
+const requireTenantAdmin = requireRole("super_admin", "administrateur");
 
 router.get("/stripe/status", async (_req: Request, res: Response) => {
   res.json({
@@ -130,7 +132,7 @@ router.get("/stripe/status", async (_req: Request, res: Response) => {
   });
 });
 
-router.post("/stripe/create-checkout-session", async (req: Request, res: Response) => {
+router.post("/stripe/create-checkout-session", requireTenantAdmin, async (req: Request, res: Response) => {
   const stripe = await getStripeClient();
   if (!stripe) {
     res.status(503).json({ error: "Paiements Stripe non actives. Contactez l'administrateur." });
@@ -202,7 +204,7 @@ router.post("/stripe/create-checkout-session", async (req: Request, res: Respons
   }
 });
 
-router.post("/stripe/create-portal-session", async (req: Request, res: Response) => {
+router.post("/stripe/create-portal-session", requireTenantAdmin, async (req: Request, res: Response) => {
   const stripe = await getStripeClient();
   if (!stripe) {
     res.status(503).json({ error: "Stripe non configure" });
@@ -230,7 +232,7 @@ router.post("/stripe/create-portal-session", async (req: Request, res: Response)
   }
 });
 
-router.post("/stripe/cancel-subscription", async (req: Request, res: Response) => {
+router.post("/stripe/cancel-subscription", requireTenantAdmin, async (req: Request, res: Response) => {
   const stripe = await getStripeClient();
   if (!stripe) {
     res.status(503).json({ error: "Stripe non configure" });
@@ -265,7 +267,7 @@ router.post("/stripe/cancel-subscription", async (req: Request, res: Response) =
   }
 });
 
-router.post("/stripe/resume-subscription", async (req: Request, res: Response) => {
+router.post("/stripe/resume-subscription", requireTenantAdmin, async (req: Request, res: Response) => {
   const stripe = await getStripeClient();
   if (!stripe) {
     res.status(503).json({ error: "Stripe non configure" });

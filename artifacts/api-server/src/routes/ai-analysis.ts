@@ -5,7 +5,8 @@ import { sql, eq, gte, lte, and, count, avg, desc, asc, lt, ne, isNull, isNotNul
 import { logger } from "../lib/logger";
 import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
 import { buildLearnedContextBlock, fingerprintLearned } from "../services/ai-learning";
-import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL, sanitizePromptInput } from "../services/ai-utils";
+import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL, ANTHROPIC_MODEL, sanitizePromptInput } from "../services/ai-utils";
+import { getAnthropicMode } from "@workspace/integrations-anthropic-ai";
 import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 import { generateUniqueReference } from "../lib/unique-reference";
 
@@ -231,17 +232,18 @@ router.get("/ai/status", (_req, res) => {
   const openaiDirect = !!process.env.OPENAI_API_KEY;
   const hasOpenAI = openaiProxy || openaiDirect;
 
-  const anthropicProxy = !!(process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL && process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY);
-  const anthropicDirect = !!process.env.ANTHROPIC_API_KEY;
-  const anthropicVertex = !!process.env.ANTHROPIC_VERTEX_PROJECT_ID;
-  const hasAnthropic = anthropicProxy || anthropicDirect || anthropicVertex;
+  // Source unique de verite: la meme fonction que celle qui construit le
+  // client. Recalculer la priorite ici la faisait diverger — le statut
+  // annoncait "vertex" alors que le client pouvait prendre une autre voie.
+  const anthropicMode = getAnthropicMode();
+  const hasAnthropic = anthropicMode !== "none";
 
   res.json({
     available: hasGemini || hasOpenAI || hasAnthropic,
     providers: {
       gemini: { available: hasGemini, model: GEMINI_PRO_MODEL, role: "Analyse principale", source: geminiProxy ? "proxy" : geminiDirect ? "direct" : null },
       openai: { available: hasOpenAI, model: "gpt-5.2", role: "Verification et synthese", source: openaiProxy ? "proxy" : openaiDirect ? "direct" : null },
-      anthropic: { available: hasAnthropic, model: "claude-sonnet-4-6", role: "Raisonnement avance", source: anthropicProxy ? "proxy" : anthropicVertex ? "vertex" : anthropicDirect ? "direct" : null },
+      anthropic: { available: hasAnthropic, model: ANTHROPIC_MODEL, role: "Raisonnement avance", source: hasAnthropic ? anthropicMode : null },
     },
   });
 });

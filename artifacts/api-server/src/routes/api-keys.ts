@@ -5,8 +5,9 @@ import { CreateApiKeyBody } from "@workspace/api-zod";
 import { getOrgId } from "../middleware/tenant";
 import { zodErrorResponse } from "../lib/zod-error";
 import { decryptSensitiveData } from "../lib/crypto";
-import { generateApiKey } from "../lib/api-key-auth";
+import { generateApiKey, HASH_ONLY_KEY_SENTINEL } from "../lib/api-key-auth";
 import { logAudit } from "./audit";
+import { requireRole } from "../middleware/auth";
 
 // Clés API entrantes (Faz 1). CRUD tenant-scoped. La clé complète n'est
 // renvoyée qu'à la création ; ensuite seul le préfixe est listé. La révélation
@@ -21,6 +22,12 @@ import { logAudit } from "./audit";
 // l'ensemble du parc de leur organisation.
 
 const router: IRouter = Router();
+
+// API scopes are persisted but are not yet enforced by downstream routes.
+// Until scope enforcement exists, issuing/revealing a key is equivalent to
+// delegating the creator's complete account authority and is therefore an
+// administrator-only operation.
+router.use("/api-keys", requireRole("super_admin", "administrateur"));
 
 const ADMIN_ROLES = new Set(["administrateur", "super_admin"]);
 
@@ -98,7 +105,7 @@ router.post("/api-keys", async (req, res) => {
       name: parsed.data.name,
       keyPrefix: generated.prefix,
       keyHash: generated.hash,
-      keyEncrypted: generated.encrypted,
+      keyEncrypted: HASH_ONLY_KEY_SENTINEL,
       scopes: parsed.data.scopes ?? [],
       expiresAt,
       createdByUserId: userId,
@@ -109,6 +116,14 @@ router.post("/api-keys", async (req, res) => {
 });
 
 router.post("/api-keys/:id/reveal", async (req, res) => {
+  // Keys are display-once. Returning legacy ciphertext-backed material would
+  // turn a database + encryption-key compromise into credential recovery.
+  res.status(410).json({
+    error: "Les cles API ne sont affichees qu'une seule fois. Revoquez puis recreez la cle.",
+    code: "api_key_reveal_removed",
+  });
+  return;
+
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) {
     res.status(400).json({ error: "Identifiant invalide." });

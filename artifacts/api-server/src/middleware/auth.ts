@@ -201,3 +201,22 @@ export function requireRole(...roles: string[]) {
     next();
   };
 }
+
+/**
+ * Central fail-closed guard for tenant mutations.
+ *
+ * Route-level guards remain responsible for sensitive operations that require
+ * an administrator. This middleware establishes the global floor: a
+ * `lecture_seule` account may never mutate tenant state merely because a new
+ * POST/PATCH/DELETE route forgot to install its own role guard.
+ */
+export function requireMutationRole(...roles: string[]) {
+  const roleGuard = requireRole(...roles);
+  return (req: Request, res: Response, next: NextFunction): void | Promise<void> => {
+    if (["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+      next();
+      return;
+    }
+    return roleGuard(req, res, next);
+  };
+}

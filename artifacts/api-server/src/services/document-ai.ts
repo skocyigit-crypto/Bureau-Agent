@@ -2,7 +2,7 @@ import { db, contactsTable, tasksTable, stockArticlesTable, devisTable, factures
 import { eq, ilike, or, and } from "drizzle-orm";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { logger } from "../lib/logger";
-import { safeJsonParse, aiCallWithRetry, GEMINI_PRO_MODEL, GEMINI_FLASH_MODEL } from "./ai-utils";
+import { safeJsonParse, aiCallWithRetry, GEMINI_PRO_MODEL, GEMINI_FLASH_MODEL, ANTHROPIC_MODEL } from "./ai-utils";
 
 export type DocumentType =
   | "facture"
@@ -839,7 +839,7 @@ async function runOpenAIAnalysis(textContent: string, fileName: string, mimeType
 
 async function runClaudeAnalysis(textContent: string, fileName: string, mimeType: string, imageBase64?: string): Promise<ModelAnalysis> {
   const t0 = Date.now();
-  const { anthropic } = await import("@workspace/integrations-anthropic-ai");
+  const { anthropic, resolveClaudeModelId } = await import("@workspace/integrations-anthropic-ai");
 
   let content: any;
   if (imageBase64 && mimeType.startsWith("image/")) {
@@ -854,7 +854,7 @@ async function runClaudeAnalysis(textContent: string, fileName: string, mimeType
   const { withProviderTimeout: _to2 } = await import("./ai-cache");
   const response = await aiCallWithRetry(
     () => _to2(() => anthropic.messages.create({
-      model: "claude-sonnet-4-5",
+      model: resolveClaudeModelId(ANTHROPIC_MODEL),
       max_tokens: 2048,
       system: "Tu es un analyste documentaire expert. Retourne uniquement du JSON valide.",
       messages: [{ role: "user", content }],
@@ -864,7 +864,7 @@ async function runClaudeAnalysis(textContent: string, fileName: string, mimeType
   const rawText = (response.content[0] as any)?.text ?? "{}";
   const parsed = safeJsonParse<any>(rawText, {});
   return {
-    model: "claude-sonnet-4-5", provider: "claude",
+    model: ANTHROPIC_MODEL, provider: "claude",
     summary: parsed.summary || "", keyPoints: parsed.keyPoints || [],
     insights: parsed.insights || "", recommendations: parsed.recommendations || [],
     risks: parsed.risks || [], sentiment: parsed.sentiment || "neutre",
@@ -917,7 +917,7 @@ export async function analyzeDocumentMultiModel(
 
   const gemini  = geminiRes.status  === "fulfilled" ? geminiRes.value  : { model: GEMINI_FLASH_MODEL, provider: "gemini"  as const, error: (geminiRes.reason as any)?.message, summary: "", keyPoints: [], insights: "", recommendations: [], risks: [], sentiment: "neutre" as const, urgency: "basse" as const };
   const openai  = openaiRes.status  === "fulfilled" ? openaiRes.value  : { model: "gpt-4o",           provider: "openai"  as const, error: (openaiRes.reason as any)?.message, summary: "", keyPoints: [], insights: "", recommendations: [], risks: [], sentiment: "neutre" as const, urgency: "basse" as const };
-  const claude  = claudeRes.status  === "fulfilled" ? claudeRes.value  : { model: "claude-sonnet-4-5",provider: "claude"  as const, error: (claudeRes.reason as any)?.message, summary: "", keyPoints: [], insights: "", recommendations: [], risks: [], sentiment: "neutre" as const, urgency: "basse" as const };
+  const claude  = claudeRes.status  === "fulfilled" ? claudeRes.value  : { model: ANTHROPIC_MODEL,   provider: "claude"  as const, error: (claudeRes.reason as any)?.message, summary: "", keyPoints: [], insights: "", recommendations: [], risks: [], sentiment: "neutre" as const, urgency: "basse" as const };
 
   // Build consensus
   const allPoints = [...(gemini.keyPoints ?? []), ...(openai.keyPoints ?? []), ...(claude.keyPoints ?? [])];
@@ -987,20 +987,20 @@ export async function askDocumentQuestion(
         });
         answers.push({ model: "gpt-4o", provider: "openai", answer: res.choices[0]?.message?.content ?? "", tokensUsed: res.usage?.total_tokens ?? 0, durationMs: Date.now() - t0 });
       } else if (m === "claude") {
-        const { anthropic } = await import("@workspace/integrations-anthropic-ai");
+        const { anthropic, resolveClaudeModelId } = await import("@workspace/integrations-anthropic-ai");
         const content: any = imageBase64 && mimeType.startsWith("image/")
           ? [{ type: "image", source: { type: "base64", media_type: mimeType, data: imageBase64 } }, { type: "text", text: userPrompt }]
           : userPrompt;
         const res = await anthropic.messages.create({
-          model: "claude-sonnet-4-5",
+          model: resolveClaudeModelId(ANTHROPIC_MODEL),
           max_tokens: 2048,
           system: QA_SYSTEM_PROMPT,
           messages: [{ role: "user", content }],
         });
-        answers.push({ model: "claude-sonnet-4-5", provider: "claude", answer: (res.content[0] as any)?.text ?? "", tokensUsed: (res.usage?.input_tokens ?? 0) + (res.usage?.output_tokens ?? 0), durationMs: Date.now() - t0 });
+        answers.push({ model: ANTHROPIC_MODEL, provider: "claude", answer: (res.content[0] as any)?.text ?? "", tokensUsed: (res.usage?.input_tokens ?? 0) + (res.usage?.output_tokens ?? 0), durationMs: Date.now() - t0 });
       }
     } catch (err: any) {
-      const modelNames = { gemini: GEMINI_FLASH_MODEL, openai: "gpt-4o", claude: "claude-sonnet-4-5" };
+      const modelNames = { gemini: GEMINI_FLASH_MODEL, openai: "gpt-4o", claude: ANTHROPIC_MODEL };
       answers.push({ model: modelNames[m], provider: m, answer: "", error: err.message });
     }
   });

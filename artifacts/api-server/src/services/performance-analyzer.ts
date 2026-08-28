@@ -1,7 +1,7 @@
 import { db, usersTable, auditLogsTable, checkinsTable, tasksTable, callsTable, messagesTable, calendarEventsTable, performanceReportsTable } from "@workspace/db";
 import { eq, sql, gte, lte, and, count, desc } from "drizzle-orm";
 import { logger } from "../lib/logger";
-import { GEMINI_PRO_MODEL } from "./ai-utils";
+import { GEMINI_PRO_MODEL, ANTHROPIC_MODEL } from "./ai-utils";
 
 interface UserMetrics {
   userId: number;
@@ -351,9 +351,9 @@ async function analyzeWithOpenAI(metricsJSON: string, periodeStr: string): Promi
 
 async function analyzeWithAnthropic(metricsJSON: string, periodeStr: string): Promise<any | null> {
   try {
-    const { anthropic } = await import("@workspace/integrations-anthropic-ai");
+    const { anthropic, resolveClaudeModelId } = await import("@workspace/integrations-anthropic-ai");
     const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+      model: resolveClaudeModelId(ANTHROPIC_MODEL),
       max_tokens: 8192,
       messages: [
         {

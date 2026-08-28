@@ -12,8 +12,13 @@ import {
 } from "../services/email-providers";
 import { sendTestEmailWithKey } from "../services/email";
 import { decryptSensitiveData } from "../lib/crypto";
+import { requireRole } from "../middleware/auth";
 
 const router: IRouter = Router();
+
+// Sender credentials and test delivery can expose or consume tenant-wide
+// email infrastructure, so the complete configuration surface is admin-only.
+router.use("/email/providers", requireRole("super_admin", "administrateur"));
 
 router.get("/email/providers/available", async (_req, res): Promise<void> => {
   res.json({ providers: getSupportedEmailProviders() });

@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { and, desc, eq } from "drizzle-orm";
 import { db, aiProvidersTable } from "@workspace/db";
 import { getOrgId } from "../middleware/tenant";
-import { GEMINI_FLASH_MODEL } from "../services/ai-utils";
+import { GEMINI_FLASH_MODEL, ANTHROPIC_FAST_MODEL } from "../services/ai-utils";
 import {
   getSupportedAiProviders,
   getAiProviderInfo,
@@ -16,9 +16,13 @@ import {
   createGeminiClient,
 } from "@workspace/integrations-gemini-ai";
 import { createOpenAIClient } from "@workspace/integrations-openai-ai-server";
-import { createAnthropicClient } from "@workspace/integrations-anthropic-ai";
+import { createAnthropicClient, resolveClaudeModelId } from "@workspace/integrations-anthropic-ai";
+import { requireRole } from "../middleware/auth";
 
 const router: IRouter = Router();
+
+// Provider credentials control tenant-wide AI execution and spend.
+router.use("/ai-providers", requireRole("super_admin", "administrateur"));
 
 router.get("/ai-providers/available", async (_req, res): Promise<void> => {
   res.json({ providers: getSupportedAiProviders() });
@@ -194,7 +198,9 @@ router.post("/ai-providers/:id/test", async (req, res): Promise<void> => {
     if (row.provider === "anthropic") {
       const client = createAnthropicClient(apiKey);
       const r: any = await client.messages.create({
-        model: "claude-3-5-haiku-latest",
+        // Modele courant obligatoire : un ID retire renvoie 404 et le catch
+        // ci-dessous le presentait a l utilisateur comme une cle invalide.
+        model: resolveClaudeModelId(ANTHROPIC_FAST_MODEL),
         max_tokens: 8,
         messages: [{ role: "user", content: ping }],
       });

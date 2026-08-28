@@ -4,8 +4,10 @@ import { eq, count, sql, and } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { GEMINI_PRO_MODEL } from "../services/ai-utils";
 import { encryptSensitiveData } from "../lib/crypto";
+import { requireRole } from "../middleware/auth";
 
 const router = Router();
+const requireTenantAdmin = requireRole("super_admin", "administrateur");
 
 function getOrgId(req: any): number {
   return req.session?.organisationId || 0;
@@ -732,7 +734,7 @@ router.get("/catalog", (_req, res) => {
 });
 
 router.get("/:integrationId", (req, res) => {
-  const { integrationId } = req.params;
+  const integrationId = String(req.params.integrationId);
   const integration = SOFTWARE_CATALOG.find(s => s.id === integrationId);
   if (!integration) {
     res.status(404).json({ error: "Integration inconnue." }); return;
@@ -740,8 +742,8 @@ router.get("/:integrationId", (req, res) => {
   res.json(integration);
 });
 
-router.post("/:integrationId/connect", async (req, res) => {
-  const { integrationId } = req.params;
+router.post("/:integrationId/connect", requireTenantAdmin, async (req, res) => {
+  const integrationId = String(req.params.integrationId);
   const integration = SOFTWARE_CATALOG.find(s => s.id === integrationId);
   if (!integration) {
     res.status(404).json({ error: "Integration inconnue." }); return;
@@ -818,8 +820,8 @@ router.post("/:integrationId/connect", async (req, res) => {
   });
 });
 
-router.post("/:integrationId/disconnect", async (req, res) => {
-  const { integrationId } = req.params;
+router.post("/:integrationId/disconnect", requireTenantAdmin, async (req, res) => {
+  const integrationId = String(req.params.integrationId);
   const integration = SOFTWARE_CATALOG.find(s => s.id === integrationId);
   if (!integration) {
     res.status(404).json({ error: "Integration inconnue." }); return;
@@ -859,8 +861,8 @@ router.post("/:integrationId/disconnect", async (req, res) => {
  * Les integrations reellement branchees (IA, e-mail, telephonie, Google) ont
  * leurs propres tests qui, eux, appellent le fournisseur.
  */
-router.post("/:integrationId/test", (req, res) => {
-  const { integrationId } = req.params;
+router.post("/:integrationId/test", requireTenantAdmin, (req, res) => {
+  const integrationId = String(req.params.integrationId);
   const integration = SOFTWARE_CATALOG.find(s => s.id === integrationId);
   if (!integration) {
     res.status(404).json({ error: "Integration inconnue." }); return;
@@ -873,8 +875,8 @@ router.post("/:integrationId/test", (req, res) => {
 });
 
 /** Meme raison que /test: rien n'etait lance, la reponse laissait croire le contraire. */
-router.post("/:integrationId/sync", (req, res) => {
-  const { integrationId } = req.params;
+router.post("/:integrationId/sync", requireTenantAdmin, (req, res) => {
+  const integrationId = String(req.params.integrationId);
   const integration = SOFTWARE_CATALOG.find(s => s.id === integrationId);
   if (!integration) {
     res.status(404).json({ error: "Integration inconnue." }); return;
