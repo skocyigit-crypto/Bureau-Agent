@@ -25,9 +25,13 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
   },
 }));
 
-const { scopedCacheKey, clearAllOfflineCaches, purgeLegacyCacheKey } = await import(
-  "../offline-cache"
-);
+const {
+  scopedCacheKey,
+  clearAllOfflineCaches,
+  purgeLegacyCacheKey,
+  saveCachedProfile,
+  loadCachedProfile,
+} = await import("../offline-cache");
 
 beforeEach(() => {
   store.clear();
@@ -76,5 +80,30 @@ describe("purgeLegacyCacheKey", () => {
     store.set("contacts_list", '[{"id":1}]');
     await purgeLegacyCacheKey("contacts_list");
     expect(store.has("contacts_list")).toBe(false);
+  });
+});
+
+describe("profil mis en cache", () => {
+  it("relit le profil enregistre", async () => {
+    await saveCachedProfile({ id: 7, email: "a@b.fr" });
+    expect(await loadCachedProfile()).toEqual({ id: 7, email: "a@b.fr" });
+  });
+
+  it("rend null quand rien n'est stocke", async () => {
+    expect(await loadCachedProfile()).toBeNull();
+  });
+
+  it("rend null sur une entree corrompue plutot qu'un profil bancal", async () => {
+    store.set("adb_cache_v1:__session__:profile", "{ pas du json");
+    expect(await loadCachedProfile()).toBeNull();
+  });
+
+  it("disparait avec le reste du cache a la deconnexion", async () => {
+    // Le profil vit sous le prefixe de cache precisement pour etre efface
+    // par la purge existante: un appareil partage ne doit pas garder le
+    // profil du compte precedent.
+    await saveCachedProfile({ id: 7 });
+    await clearAllOfflineCaches();
+    expect(await loadCachedProfile()).toBeNull();
   });
 });

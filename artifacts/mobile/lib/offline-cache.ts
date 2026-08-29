@@ -43,6 +43,47 @@ export async function clearAllOfflineCaches(): Promise<void> {
 }
 
 /**
+ * Emplacement du profil utilisateur mis en cache.
+ *
+ * Volontairement sous `CACHE_PREFIX`: il est ainsi efface par
+ * `clearAllOfflineCaches`, donc a la deconnexion comme a l'expiration de
+ * session, sans qu'aucun appelant ait a y penser.
+ */
+const PROFILE_CACHE_KEY = `${CACHE_PREFIX}__session__:profile`;
+
+/**
+ * Conserve le profil renvoye par `/api/auth/me` ou par la connexion.
+ *
+ * `isAuthenticated` vaut `!!user`: sans profil, un demarrage sans reseau
+ * renvoyait vers l'ecran de connexion malgre un jeton valide en coffre — et
+ * l'utilisateur ne pouvait pas s'y connecter non plus, faute de reseau. Tout
+ * le cache hors ligne devenait donc inaccessible des le premier redemarrage.
+ */
+export async function saveCachedProfile(profile: unknown): Promise<void> {
+  try {
+    await AsyncStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile));
+  } catch (err) {
+    console.warn("[offline-cache] profil non mis en cache:", err);
+  }
+}
+
+/**
+ * Relit le profil mis en cache. Renvoie `null` si rien n'est stocke ou si
+ * l'entree est illisible — dans ce cas on preferera l'ecran de connexion a un
+ * profil corrompu.
+ */
+export async function loadCachedProfile<T = unknown>(): Promise<T | null> {
+  try {
+    const raw = await AsyncStorage.getItem(PROFILE_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? (parsed as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Supprime une eventuelle entree ecrite par l'ancien schema global
  * (cle non prefixee). Appelee une fois par cle au montage du hook, ce qui
  * garantit que les donnees deja presentes sur les appareils installes

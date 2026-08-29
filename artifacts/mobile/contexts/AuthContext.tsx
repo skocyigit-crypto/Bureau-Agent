@@ -2,8 +2,9 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { setBaseUrl, setAuthTokenGetter, setDefaultOrigin } from "@workspace/api-client-react";
 import { API_BASE, MOBILE_APP_ORIGIN } from "@/lib/api-config";
 import { loadSessionToken, saveSessionToken, clearSessionToken } from "@/lib/secure-session";
-import { clearAllOfflineCaches } from "@/lib/offline-cache";
+import { clearAllOfflineCaches, loadCachedProfile, saveCachedProfile } from "@/lib/offline-cache";
 import { unregisterPushNotifications } from "@/lib/push-registration";
+import { classifySessionProbe } from "@/lib/session-probe";
 
 // Configure le client API genere (OpenAPI / @workspace/api-client-react) une
 // seule fois au chargement du module : meme URL de base que `fetchAuth`. Les
@@ -121,22 +122,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function restoreSession() {
     try {
       const token = await loadSessionToken();
-      if (token) {
-        setApiToken(token);
+      if (!token) return;
+      setApiToken(token);
+
+      // On distingue trois issues (cf. `lib/session-probe.ts`). Auparavant tout
+      // etait confondu: une panne reseau comme un 503 de deploiement effacaient
+      // la session exactement comme un jeton revoque.
+      let status: number | null = null;
+      let body: unknown = null;
+      try {
         const res = await fetch(`${API_BASE}/api/auth/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (res.ok) {
-          const data = await res.json();
-          setUser(data);
-        } else {
-          // Token refuse au demarrage a froid: la session est morte, on
-          // purge aussi son cache metier.
-          await clearSessionToken();
-          await clearAllOfflineCaches();
-          setApiToken(null);
-        }
+        status = res.status;
+        if (res.ok) body = await res.json();
+      } catch {
+        status = null; // serveur injoignable
       }
+
+      const outcome = classifySessionProbe(status);
+      if (outcome === "valid") {
+        setUser(body as User);
+        await saveCachedProfile(body);
+        return;
+      }
+      if (outcome === "revoked") {
+        await clearSessionToken();
+        await clearAllOfflineCaches();
+        setApiToken(null);
+        return;
+      }
+
+      // "unavailable": le jeton n'est pas condamne. On ouvre l'application
+      // avec le profil mis en cache pour que le mode hors ligne serve
+      // reellement a quelque chose — sans profil, `isAuthenticated` reste faux
+      // et l'utilisateur est renvoye vers un ecran de connexion inutilisable
+      // faute de reseau.
+      const cached = await loadCachedProfile<User>();
+      if (cached) setUser(cached);
     } catch (err) {
       console.warn("[Auth] restoreSession failed:", err);
     } finally {
@@ -194,6 +217,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       setUser(data);
+      // Le profil est mis en cache des la connexion: sans cela, un utilisateur
+      // qui se connecte puis redemarre l'application hors reseau retomberait
+      // sur l'ecran de connexion faute de profil a restaurer.
+      await saveCachedProfile(data);
       return { success: true };
     } catch {
       return { success: false, error: "Erreur de connexion au serveur." };
