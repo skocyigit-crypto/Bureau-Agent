@@ -10,8 +10,13 @@
  *    Android chiffrés), jamais dans AsyncStorage en clair.
  *  - La lecture des identifiants exige une authentification biométrique
  *    réussie (LocalAuthentication.authenticateAsync) AVANT tout accès au
- *    trousseau — un attaquant qui obtient l'appareil déverrouillé ne peut
- *    pas extraire le mot de passe sans le facteur biométrique.
+ *    trousseau. Cette porte est appliquée par l'APPLICATION, pas par l'OS:
+ *    l'entrée elle-même n'utilise pas `requireAuthentication`. C'est un choix
+ *    assumé — cette option invalide définitivement la clé dès que l'utilisateur
+ *    ajoute une empreinte ou modifie son profil facial (docs Expo), ce qui
+ *    casserait le déverrouillage sans que personne comprenne pourquoi. La
+ *    protection réelle repose donc sur le chiffrement matériel du trousseau et
+ *    sur `*_THIS_DEVICE_ONLY`, pas sur une contrainte biométrique native.
  *  - Sur le web, la biométrie n'est pas disponible: toutes les fonctions
  *    se comportent de façon sûre (capability=false, get renvoie null).
  */
@@ -92,11 +97,16 @@ export async function enableBiometric(email: string, password: string): Promise<
       disableDeviceFallback: false,
     });
     if (!result.success) return false;
+    // Le drapeau est ecrit EN DERNIER: tant qu'il est absent, une paire
+    // d'identifiants incomplete reste inerte (`getBiometricCredentials` sort
+    // immediatement). En cas d'echec partiel on repasse par disableBiometric
+    // pour ne pas laisser d'identifiant orphelin dans le trousseau.
     await SecureStore.setItemAsync(CRED_EMAIL_KEY, email, KEYCHAIN_OPTS);
     await SecureStore.setItemAsync(CRED_PASSWORD_KEY, password, KEYCHAIN_OPTS);
     await SecureStore.setItemAsync(ENABLED_FLAG_KEY, "1", KEYCHAIN_OPTS);
     return true;
   } catch {
+    await disableBiometric();
     return false;
   }
 }
@@ -124,20 +134,42 @@ export async function refreshBiometricCredentials(
     await SecureStore.setItemAsync(CRED_EMAIL_KEY, email, KEYCHAIN_OPTS);
     await SecureStore.setItemAsync(CRED_PASSWORD_KEY, password, KEYCHAIN_OPTS);
   } catch {
-    // best-effort: la connexion manuelle reste possible.
+    // Un echec ici laisserait une paire DESACCORDEE — typiquement le nouvel
+    // e-mail avec l'ancien mot de passe. Le deverrouillage biometrique
+    // continuerait alors d'etre propose pour echouer ensuite cote serveur:
+    // exactement la boucle "invite puis echec" que cette fonction existe pour
+    // empecher. On desactive plutot la biometrie: l'utilisateur la reactive en
+    // une fois, avec des identifiants coherents, et la connexion manuelle
+    // reste evidemment disponible entre-temps.
+    await disableBiometric();
   }
 }
 
-/** Désactive et efface tout identifiant stocké. Idempotent. */
+/** Supprime une entree du trousseau sans jamais propager d'erreur. */
+async function deleteQuietly(key: string): Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(key);
+  } catch {
+    // best-effort: l'entree peut etre absente ou le coffre indisponible.
+  }
+}
+
+/**
+ * Désactive et efface tout identifiant stocké. Idempotent.
+ *
+ * Le drapeau part EN PREMIER, et chaque suppression est independante.
+ * Enchainer les trois dans un meme `try` laissait, si la premiere echouait,
+ * le mot de passe dans le trousseau ET le drapeau a "1": `isBiometricEnabled`
+ * continuait de repondre true, donc l'application proposait un deverrouillage
+ * biometrique adosse a des identifiants que l'utilisateur croyait effaces.
+ * En retirant le drapeau d'abord, la fonctionnalite est desactivee meme si le
+ * nettoyage qui suit echoue partiellement.
+ */
 export async function disableBiometric(): Promise<void> {
   if (isWeb) return;
-  try {
-    await SecureStore.deleteItemAsync(CRED_EMAIL_KEY);
-    await SecureStore.deleteItemAsync(CRED_PASSWORD_KEY);
-    await SecureStore.deleteItemAsync(ENABLED_FLAG_KEY);
-  } catch {
-    // best-effort
-  }
+  await deleteQuietly(ENABLED_FLAG_KEY);
+  await deleteQuietly(CRED_EMAIL_KEY);
+  await deleteQuietly(CRED_PASSWORD_KEY);
 }
 
 /**
