@@ -23,6 +23,16 @@ import { apiUrl } from "@/lib/api-config";
 let remotePushActive = false;
 let currentToken: string | null = null;
 
+/**
+ * La desinscription part sur le chemin de deconnexion: quelques tentatives
+ * rapides suffisent a absorber une coupure reseau passagere sans faire
+ * patienter l'utilisateur qui veut juste sortir.
+ */
+const MAX_UNREGISTER_ATTEMPTS = 3;
+const UNREGISTER_RETRY_MS = 300;
+
+const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
 export function isRemotePushActive(): boolean {
   return remotePushActive;
 }
@@ -55,6 +65,15 @@ export async function registerForPushNotifications(
   // Sur simulateur/emulateur, `getExpoPushTokenAsync` leve — c'est traite comme
   // un echec ordinaire plus bas (secours notifications locales), sans
   // dependance supplementaire juste pour detecter l'environnement.
+
+  // L'etat repart de zero a chaque tentative, et n'est remis a vrai qu'apres
+  // acceptation du serveur. Sans cela, une RE-inscription qui echoue (session
+  // expiree, serveur indisponible) laissait `remotePushActive` a vrai depuis la
+  // fois precedente: l'app croyait le push distant operationnel et n'activait
+  // donc pas le secours par notifications locales — l'utilisateur ne recevait
+  // plus rien du tout, en silence. `currentToken` est conserve pour que la
+  // deconnexion puisse encore tenter de desinscrire l'appareil.
+  remotePushActive = false;
 
   const projectId = getProjectId();
   if (!projectId) {
@@ -108,18 +127,54 @@ export async function registerForPushNotifications(
  */
 export async function unregisterPushNotifications(
   headers: Record<string, string>,
-): Promise<void> {
+): Promise<boolean> {
   const token = currentToken;
+  // Quoi qu'il arrive cote reseau, l'app cesse de se considerer abonnee.
   remotePushActive = false;
-  currentToken = null;
-  if (!token) return;
-  try {
-    await fetch(apiUrl("/api/push/unregister"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...headers },
-      body: JSON.stringify({ token }),
-    });
-  } catch (err) {
-    console.warn("[push] desinscription impossible:", err);
+  if (!token) {
+    currentToken = null;
+    return true;
   }
+
+  // Le jeton n'est efface localement qu'apres confirmation du serveur.
+  //
+  // L'ancienne version le mettait a null AVANT l'appel et se contentait d'un
+  // warn en cas d'echec: une deconnexion hors ligne laissait donc le jeton
+  // enregistre cote serveur, sans plus aucun moyen de reessayer puisque la
+  // seule copie venait d'etre perdue. Le telephone continuait a recevoir les
+  // notifications de l'organisation quittee — precisement ce que cette
+  // fonction existe pour empecher.
+  //
+  // Portee du risque residuel: `POST /push/register` fait un upsert cible sur
+  // le jeton (une seule ligne par appareil), donc la prochaine connexion, meme
+  // sur un autre compte, reprend la propriete du jeton et purge la fuite. La
+  // fenetre problematique est donc "deconnexion hors ligne suivie d'aucune
+  // reconnexion" — reelle, mais bornee.
+  for (let attempt = 0; attempt < MAX_UNREGISTER_ATTEMPTS; attempt += 1) {
+    try {
+      const res = await fetch(apiUrl("/api/push/unregister"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({ token }),
+      });
+      if (res.ok) {
+        currentToken = null;
+        return true;
+      }
+      // 4xx hors 429: la requete est refusee sur le fond (jeton invalide,
+      // session expiree). Reessayer ne ferait que retarder la deconnexion.
+      if (res.status < 500 && res.status !== 429) {
+        console.warn("[push] desinscription refusee:", res.status);
+        return false;
+      }
+    } catch (err) {
+      if (attempt === MAX_UNREGISTER_ATTEMPTS - 1) {
+        console.warn("[push] desinscription impossible:", err);
+      }
+    }
+    if (attempt < MAX_UNREGISTER_ATTEMPTS - 1) {
+      await delay(UNREGISTER_RETRY_MS * 2 ** attempt);
+    }
+  }
+  return false;
 }
