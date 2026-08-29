@@ -34,12 +34,46 @@ Dans la page du Worker → **Settings** → **Variables and Secrets** :
 | `SUPPORT_INBOX_WEBHOOK_SECRET`  | **Secret (encrypt)** | la valeur générée côté serveur — demandez-la si vous ne l'avez pas notée |
 | `BACKUP_FORWARD_TO`             | Text (optionnel) | une adresse e-mail réelle où recevoir une copie de secours de chaque message (voir étape 5) |
 
-## Étape 4 — Router l'adresse support@ vers ce Worker
+## Étape 4 — Router les adresses publiées vers ce Worker
 
 1. **Email** → **Email Routing** → **Email Workers**.
-2. **Create address** (ou **Route to a Worker**) → adresse : `support@agentdebureau.fr` (répétez pour `contact@agentdebureau.fr` si vous voulez aussi capter cette adresse).
+2. **Create address** (ou **Route to a Worker**) → créez une entrée pour
+   **chacune** des adresses ci-dessous.
 3. Action : **Send to a Worker** → sélectionnez `support-inbox-triage`.
 4. Enregistrez.
+
+### Adresses publiées — toutes doivent être routées
+
+Ces adresses sont imprimées sur des pages légales ou renvoyées par l'API. Une
+adresse publiée qui ne reçoit rien n'est pas un détail : la déclaration
+d'accessibilité et la politique de confidentialité doivent offrir un canal de
+contact **qui fonctionne**, et les mentions légales un contact d'éditeur
+joignable. Un message perdu, c'est une obligation non tenue.
+
+| Adresse | Publiée dans | Pourquoi elle existe |
+|---|---|---|
+| `support@agentdebureau.fr` | CGV, application | Support client |
+| `contact@agentdebureau.fr` | Mentions légales | Contact général de l'éditeur |
+| `legal@agentdebureau.fr` | Mentions légales, CGU, CGV | Questions contractuelles |
+| `privacy@agentdebureau.fr` | Politique de confidentialité (FR + TR) | Droit d'opposition RGPD |
+| `dpo@agentdebureau.fr` | API `/data-protection` | Contact délégué à la protection des données |
+| `accessibilite@agentdebureau.fr` | Déclaration d'accessibilité | Signalement d'un défaut d'accessibilité |
+
+Le plus simple est de router les six vers le même Worker : le tri IA se charge
+de la catégorisation, et rien ne se perd. À défaut de Worker, un simple
+transfert (**Send to an email**) vers une boîte réelle suffit — l'essentiel est
+qu'aucune de ces adresses ne reste sans destination.
+
+> `dpo@` mérite une décision distincte : désigner un délégué à la protection
+> des données n'est obligatoire que dans certains cas. Publier un contact DPO
+> alors qu'aucun n'est désigné est une information inexacte. À trancher avec le
+> conseil — soit on désigne, soit on retire la mention de
+> `artifacts/api-server/src/routes/data-protection.ts`.
+
+Un test (`artifacts/tanitim/src/pages/mentions-legales.test.ts`) vérifie que
+toute adresse publiée sur une page légale figure bien dans ce tableau. Il
+échouera si quelqu'un publie une nouvelle adresse sans la router — ce qui est
+exactement la faute qui a rendu ce tableau nécessaire.
 
 ## Étape 5 (recommandé) — Adresse de secours
 

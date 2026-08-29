@@ -88,6 +88,43 @@ describe("CGV en projet", () => {
   });
 });
 
+describe("adresses e-mail publiees", () => {
+  /**
+   * Une adresse imprimee sur une page legale doit recevoir du courrier. La
+   * declaration d'accessibilite et la politique de confidentialite doivent
+   * offrir un canal de contact qui FONCTIONNE, et les mentions legales un
+   * editeur joignable; une boite sans destination transforme chacune de ces
+   * obligations en promesse vide.
+   *
+   * Le routage se configure dans le tableau de bord Cloudflare, pas ici — ce
+   * depot ne peut donc pas prouver qu'une adresse recoit vraiment. Ce qu'il
+   * peut garantir, c'est qu'aucune adresse ne soit publiee sans figurer sur la
+   * liste a router du README du Worker: c'est precisement l'oubli qui a laisse
+   * quatre adresses hors routage.
+   */
+  const README = path.resolve(
+    SRC, "..", "..", "..", "deploy", "cloudflare-email-worker", "README.md",
+  );
+  const routed = read(README);
+  const EMAIL = /[a-zA-Z0-9._-]+@agentdebureau\.fr/g;
+
+  it("figurent toutes sur la liste a router", () => {
+    const published = new Set<string>();
+    for (const file of fs.readdirSync(PAGES_DIR).filter((f) => f.endsWith(".tsx"))) {
+      for (const address of readPage(file).match(EMAIL) ?? []) {
+        published.add(address);
+      }
+    }
+    expect(published.size, "aucune adresse trouvee — le scan est casse").toBeGreaterThan(0);
+
+    const missing = [...published].filter((a) => !routed.includes(a));
+    expect(
+      missing,
+      `Adresses publiees mais absentes de la liste a router:\n${missing.join("\n")}`,
+    ).toEqual([]);
+  });
+});
+
 describe("declaration d'accessibilite", () => {
   const page = readPage("accessibilite.tsx");
 
