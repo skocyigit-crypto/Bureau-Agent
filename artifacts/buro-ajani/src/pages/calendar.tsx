@@ -630,8 +630,8 @@ function EventDetailDialog({
                     <Copy className="w-3.5 h-3.5" />
                   </Button>
                 )}
-                <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={onDelete}>
-                  <Trash2 className="w-3.5 h-3.5" />
+                <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={onDelete} aria-label={t("common.delete")}>
+                  <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                 </Button>
               </>
             )}

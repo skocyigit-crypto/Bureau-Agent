@@ -503,8 +503,8 @@ export default function GoogleWorkspace() {
                   placeholder={t("googleWorkspace.searchInDrivePlaceholder")}
                   className="h-8 text-sm"
                 />
-                <Button size="sm" className="h-8" onClick={runDriveSearch} disabled={driveSearching || !driveQuery.trim()}>
-                  {driveSearching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+                <Button size="sm" className="h-8" onClick={runDriveSearch} disabled={driveSearching || !driveQuery.trim()} aria-label={t("common.search")}>
+                  {driveSearching ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Search className="h-3.5 w-3.5" aria-hidden="true" />}
                 </Button>
                 {driveResults && (
                   <Button size="sm" variant="ghost" className="h-8" onClick={() => { setDriveResults(null); setDriveQuery(""); }}>
@@ -553,7 +553,7 @@ export default function GoogleWorkspace() {
                           )}
                           {file.webViewLink && (
                             <a href={file.webViewLink} target="_blank" rel="noopener noreferrer">
-                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0"><ExternalLink className="h-3 w-3" /></Button>
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" aria-label={t("common.openExternal")}><ExternalLink className="h-3 w-3" aria-hidden="true" /></Button>
                             </a>
                           )}
                         </div>

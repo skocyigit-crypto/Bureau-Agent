@@ -147,7 +147,7 @@ export default function ExecutiveReport() {
               <SelectItem value="90">{t("executiveReport.last90")}</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="icon" onClick={fetchAll}><RefreshCw className="h-4 w-4" /></Button>
+          <Button variant="outline" size="icon" onClick={fetchAll} aria-label={t("common.refresh")}><RefreshCw className="h-4 w-4" aria-hidden="true" /></Button>
           <Button variant="outline" size="icon" onClick={() => window.print()}><Printer className="h-4 w-4" /></Button>
         </div>
       </div>

@@ -206,7 +206,7 @@ export default function NotesInternesPage() {
               ))}
               <div className="flex-1" />
               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditing(null)}><X className="w-3 h-3" /></Button>
-              <Button size="icon" className="h-6 w-6" disabled={saving} onClick={save}><Check className="w-3 h-3" /></Button>
+              <Button size="icon" className="h-6 w-6" disabled={saving} onClick={save} aria-label={t("common.save")}><Check className="w-3 h-3" aria-hidden="true" /></Button>
             </div>
           </>
         ) : (

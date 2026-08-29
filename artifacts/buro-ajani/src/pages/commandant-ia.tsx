@@ -272,12 +272,12 @@ function BriefingTab() {
               placeholder={t("commandantIa.briefing.searchPlaceholder")}
               className="flex-1 border-0 bg-transparent text-base focus-visible:ring-0 placeholder:text-muted-foreground/60"
             />
-            <Button onClick={smartSearch} disabled={searching} size="sm" className="bg-blue-600 hover:bg-blue-700">
-              {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            <Button onClick={smartSearch} disabled={searching} size="sm" className="bg-blue-600 hover:bg-blue-700" aria-label={t("common.search")}>
+              {searching ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Search className="h-4 w-4" aria-hidden="true" />}
             </Button>
             {searching && (
-              <Button onClick={cancelSearch} size="sm" variant="outline" className="border-red-300 text-red-700 hover:bg-red-50">
-                <X className="h-4 w-4" />
+              <Button onClick={cancelSearch} size="sm" variant="outline" className="border-red-300 text-red-700 hover:bg-red-50" aria-label={t("common.close")}>
+                <X className="h-4 w-4" aria-hidden="true" />
               </Button>
             )}
           </div>
@@ -326,7 +326,7 @@ function BriefingTab() {
 
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold flex items-center gap-2"><Coffee className="h-5 w-5 text-amber-500" />{t("commandantIa.briefing.dailyTitle")}</h2>
-        <Button onClick={loadBriefing} variant="outline" disabled={loading}>{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}</Button>
+        <Button onClick={loadBriefing} variant="outline" disabled={loading} aria-label={t("common.refresh")}>{loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <RefreshCw className="h-4 w-4" aria-hidden="true" />}</Button>
       </div>
 
       {loading && !data ? (
@@ -839,7 +839,7 @@ function FinanceTab() {
     <div className="space-y-4 mt-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold flex items-center gap-2"><DollarSign className="h-5 w-5 text-emerald-500" />{t("commandantIa.finance.title")}</h2>
-        <Button onClick={load} variant="outline" disabled={loading}><RefreshCw className="h-4 w-4" /></Button>
+        <Button onClick={load} variant="outline" disabled={loading} aria-label={t("common.refresh")}><RefreshCw className="h-4 w-4" aria-hidden="true" /></Button>
       </div>
 
       {data ? (
@@ -960,7 +960,7 @@ function StatsTab() {
     <div className="space-y-4 mt-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold flex items-center gap-2"><Users className="h-5 w-5 text-indigo-500" />{t("commandantIa.stats.title")}</h2>
-        <Button onClick={load} variant="outline" disabled={loading}><RefreshCw className="h-4 w-4" /></Button>
+        <Button onClick={load} variant="outline" disabled={loading} aria-label={t("common.refresh")}><RefreshCw className="h-4 w-4" aria-hidden="true" /></Button>
       </div>
 
       {data ? (
@@ -1170,7 +1170,7 @@ function RappelsTab() {
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold flex items-center gap-2"><Bell className="h-5 w-5 text-orange-500" />{t("commandantIa.rappels.title")}</h2>
         <div className="flex gap-2">
-          <Button onClick={loadOverdueTasks} variant="outline" disabled={loading}><RefreshCw className="h-4 w-4" /></Button>
+          <Button onClick={loadOverdueTasks} variant="outline" disabled={loading} aria-label={t("common.refresh")}><RefreshCw className="h-4 w-4" aria-hidden="true" /></Button>
           <Button onClick={sendBulkReminders} disabled={loading} className="bg-orange-600 hover:bg-orange-700">
             {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}{t("commandantIa.rappels.autoInvoiceBtn")}
           </Button>
@@ -1798,8 +1798,8 @@ function ChatTab() {
               disabled={sending}
               className="flex-1 resize-none text-sm"
             />
-            <Button onClick={sendMessage} disabled={sending || !input.trim()} className="bg-amber-600 hover:bg-amber-700 self-end">
-              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            <Button onClick={sendMessage} disabled={sending || !input.trim()} className="bg-amber-600 hover:bg-amber-700 self-end" aria-label={t("common.send")}>
+              {sending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
             </Button>
           </div>
         </CardContent>
@@ -1956,12 +1956,12 @@ function CommandesTab() {
               placeholder={t("commandantIa.commandes.cmdPlaceholder")}
               className="flex-1 border-0 bg-transparent text-base focus-visible:ring-0 placeholder:text-muted-foreground/60"
             />
-            <Button onClick={runCommand} disabled={cmdRunning} size="sm" className="bg-amber-600 hover:bg-amber-700">
-              {cmdRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            <Button onClick={runCommand} disabled={cmdRunning} size="sm" className="bg-amber-600 hover:bg-amber-700" aria-label={t("common.send")}>
+              {cmdRunning ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
             </Button>
             {cmdRunning && (
-              <Button onClick={cancelCommand} size="sm" variant="outline" className="border-red-300 text-red-700 hover:bg-red-50">
-                <X className="h-4 w-4" />
+              <Button onClick={cancelCommand} size="sm" variant="outline" className="border-red-300 text-red-700 hover:bg-red-50" aria-label={t("common.close")}>
+                <X className="h-4 w-4" aria-hidden="true" />
               </Button>
             )}
           </div>
@@ -2024,8 +2024,8 @@ function CommandesTab() {
                 {t("commandantIa.commandes.generate")}
               </Button>
               {digestRunning && (
-                <Button onClick={cancelDigest} size="sm" variant="outline" className="border-red-300 text-red-700 hover:bg-red-50">
-                  <X className="h-4 w-4" />
+                <Button onClick={cancelDigest} size="sm" variant="outline" className="border-red-300 text-red-700 hover:bg-red-50" aria-label={t("common.close")}>
+                  <X className="h-4 w-4" aria-hidden="true" />
                 </Button>
               )}
             </div>

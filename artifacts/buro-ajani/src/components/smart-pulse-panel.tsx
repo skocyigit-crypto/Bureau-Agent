@@ -214,8 +214,8 @@ export function SmartPulsePanel() {
                     {t("smartPulsePanel.alertCount", { count: alertSummary.warning })}
                   </Badge>
                 )}
-                <Button variant="ghost" size="icon" onClick={handleRefresh} className="text-white/60 hover:text-white hover:bg-white/10 h-8 w-8">
-                  <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+                <Button variant="ghost" size="icon" onClick={handleRefresh} className="text-white/60 hover:text-white hover:bg-white/10 h-8 w-8" aria-label={t("common.refresh")}>
+                  <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} aria-hidden="true" />
                 </Button>
               </div>
             </div>

@@ -17,7 +17,16 @@
     "next": "Siguiente",
     "language": "Idioma",
     "showPassword": "Mostrar la contraseña",
-    "hidePassword": "Ocultar la contraseña"
+    "hidePassword": "Ocultar la contraseña",
+    "refresh": "Actualizar",
+    "moreActions": "Más acciones",
+    "send": "Enviar",
+    "copy": "Copiar",
+    "download": "Descargar",
+    "openExternal": "Abrir en una pestaña nueva",
+    "viewDetail": "Ver el detalle",
+    "assign": "Asignar",
+    "selectAll": "Seleccionar todo"
   },
   "nav": {
     "dashboard": "Panel",

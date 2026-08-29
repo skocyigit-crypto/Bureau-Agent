@@ -938,8 +938,8 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                       onClick={handleAiClientSend}
                       disabled={aiTyping || !aiClientInput.trim()}
                       className="w-10 h-10 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-30 flex items-center justify-center transition-colors"
-                    >
-                      <Send className="w-4 h-4 text-white" />
+                     aria-label={t("common.send")}>
+                      <Send className="w-4 h-4 text-white" aria-hidden="true" />
                     </button>
                   </div>
                 </div>

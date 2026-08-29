@@ -621,10 +621,10 @@ export default function UsersPage() {
                   <TableRow>
                     {selectMode && (
                       <TableHead className="w-10">
-                        <button onClick={toggleAll} className="flex items-center">
+                        <button onClick={toggleAll} className="flex items-center" aria-label={t("common.selectAll")}>
                           {selectedIds.size === filteredUsers.filter(u => u.role !== "super_admin" && u.id !== workspaceUser?.id).length && selectedIds.size > 0
-                            ? <CheckSquare className="w-4 h-4 text-primary" />
-                            : <Square className="w-4 h-4 text-muted-foreground" />}
+                            ? <CheckSquare className="w-4 h-4 text-primary" aria-hidden="true" />
+                            : <Square className="w-4 h-4 text-muted-foreground" aria-hidden="true" />}
                         </button>
                       </TableHead>
                     )}
@@ -680,8 +680,8 @@ export default function UsersPage() {
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="w-8 h-8">
-                                <MoreHorizontal className="w-4 h-4" />
+                              <Button variant="ghost" size="icon" className="w-8 h-8" aria-label={t("common.moreActions")}>
+                                <MoreHorizontal className="w-4 h-4" aria-hidden="true" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
@@ -748,8 +748,8 @@ export default function UsersPage() {
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="w-8 h-8 shrink-0">
-                            <MoreHorizontal className="w-4 h-4" />
+                          <Button variant="ghost" size="icon" className="w-8 h-8 shrink-0" aria-label={t("common.moreActions")}>
+                            <MoreHorizontal className="w-4 h-4" aria-hidden="true" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">

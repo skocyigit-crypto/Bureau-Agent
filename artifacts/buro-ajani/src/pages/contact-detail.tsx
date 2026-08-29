@@ -251,7 +251,7 @@ export default function ContactDetail() {
               </div>
               <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="ghost" size="icon"><Edit className="w-4 h-4" /></Button>
+                  <Button variant="ghost" size="icon" aria-label={t("common.edit")}><Edit className="w-4 h-4" aria-hidden="true" /></Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[600px]">
                   <DialogHeader>
@@ -464,7 +464,7 @@ export default function ContactDetail() {
                               )}
                             </div>
                           </div>
-                          <Button variant="ghost" size="icon"><Edit className="w-4 h-4" /></Button>
+                          <Button variant="ghost" size="icon" aria-label={t("common.edit")}><Edit className="w-4 h-4" aria-hidden="true" /></Button>
                         </div>
                       ))}
                     </div>

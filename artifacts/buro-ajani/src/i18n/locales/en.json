@@ -17,7 +17,16 @@
     "next": "Next",
     "language": "Language",
     "showPassword": "Show password",
-    "hidePassword": "Hide password"
+    "hidePassword": "Hide password",
+    "refresh": "Refresh",
+    "moreActions": "More actions",
+    "send": "Send",
+    "copy": "Copy",
+    "download": "Download",
+    "openExternal": "Open in a new tab",
+    "viewDetail": "View detail",
+    "assign": "Assign",
+    "selectAll": "Select all"
   },
   "nav": {
     "dashboard": "Dashboard",

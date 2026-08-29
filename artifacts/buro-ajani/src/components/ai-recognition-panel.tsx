@@ -239,8 +239,8 @@ export function AiRecognitionPanel() {
             </div>
 
             <div className="flex items-center gap-1 border-l border-white/10 pl-3">
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-white/60 hover:text-white hover:bg-white/10" onClick={recognition.refresh}>
-                <RefreshCw className="w-3.5 h-3.5" />
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-white/60 hover:text-white hover:bg-white/10" onClick={recognition.refresh} aria-label={t("common.refresh")}>
+                <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" />
               </Button>
               <Button variant="ghost" size="icon" className="h-7 w-7 text-white/60 hover:text-white hover:bg-white/10" onClick={() => setIsExpanded(!isExpanded)}>
                 {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -304,8 +304,8 @@ export function AiRecognitionPanel() {
                     </div>
                     {det.lien && (
                       <Link href={det.lien}>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <ChevronRight className="w-4 h-4" />
+                        <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" aria-label={t("common.viewDetail")}>
+                          <ChevronRight className="w-4 h-4" aria-hidden="true" />
                         </Button>
                       </Link>
                     )}

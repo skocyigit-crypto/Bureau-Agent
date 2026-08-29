@@ -546,8 +546,8 @@ export function TabPlateformes() {
                         </p>
                         <div className="flex items-center gap-1.5 rounded bg-muted px-2 py-1.5">
                           <code className="text-[10px] break-all flex-1">{googleRedirectUri || "—"}</code>
-                          <Button variant="ghost" size="sm" className="h-6 px-1.5 shrink-0" onClick={copyRedirectUri} disabled={!googleRedirectUri}>
-                            {copiedUri ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                          <Button variant="ghost" size="sm" className="h-6 px-1.5 shrink-0" onClick={copyRedirectUri} disabled={!googleRedirectUri} aria-label={t("common.copy")}>
+                            {copiedUri ? <Check className="w-3 h-3 text-emerald-600" aria-hidden="true" /> : <Copy className="w-3 h-3" aria-hidden="true" />}
                           </Button>
                         </div>
                         <a href="https://console.cloud.google.com/apis/credentials/consent" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] text-blue-700 dark:text-blue-400 hover:underline">

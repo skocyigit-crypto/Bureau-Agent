@@ -113,8 +113,8 @@ export default function ActiviteRecentePage() {
               <Button key={d} variant={days === d ? "secondary" : "ghost"} size="sm" className="h-7 px-3 text-xs" onClick={() => setDays(d)}>{d}{t("activiteRecente.dayUnit")}</Button>
             ))}
           </div>
-          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          <Button variant="outline" size="sm" onClick={load} disabled={loading} aria-label={t("common.refresh")}>
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} aria-hidden="true" />
           </Button>
           <Button variant="outline" size="icon" title={t("activiteRecente.print")} onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
         </div>
@@ -167,8 +167,8 @@ export default function ActiviteRecentePage() {
                         {item.status && <Badge variant="secondary" className="text-xs">{item.status}</Badge>}
                       </div>
                       <Link href={cfg.href}>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
-                          <Activity className="w-3 h-3" />
+                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" aria-label={t("common.viewDetail")}>
+                          <Activity className="w-3 h-3" aria-hidden="true" />
                         </Button>
                       </Link>
                     </div>

@@ -174,8 +174,8 @@ export function AiDiscoveryPanel() {
               <p className="text-[11px] text-muted-foreground mt-0.5">{t("aiDiscoveryPanel.subtitle")}</p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleDismiss}>
-            <X className="w-4 h-4" />
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleDismiss} aria-label={t("common.close")}>
+            <X className="w-4 h-4" aria-hidden="true" />
           </Button>
         </div>
       </CardHeader>

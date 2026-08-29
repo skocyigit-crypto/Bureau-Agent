@@ -45,8 +45,8 @@ export function ExportMenu() {
       <Tooltip>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-              {exporting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" aria-label={t("common.download")}>
+              {exporting ? <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" /> : <Download className="w-5 h-5" aria-hidden="true" />}
             </Button>
           </DropdownMenuTrigger>
         </TooltipTrigger>

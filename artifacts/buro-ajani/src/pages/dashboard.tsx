@@ -550,8 +550,8 @@ export default function Dashboard() {
                       </div>
                       <span className="text-xs font-bold text-amber-700 dark:text-amber-400">{pct}%</span>
                     </div>
-                    <Button variant="ghost" size="icon" className="w-7 h-7 text-muted-foreground hover:text-foreground" onClick={dismiss}>
-                      <X className="w-4 h-4" />
+                    <Button variant="ghost" size="icon" className="w-7 h-7 text-muted-foreground hover:text-foreground" onClick={dismiss} aria-label={t("common.close")}>
+                      <X className="w-4 h-4" aria-hidden="true" />
                     </Button>
                   </div>
                 </div>

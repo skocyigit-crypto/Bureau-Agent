@@ -81,8 +81,11 @@ export function PwaInstallButton() {
               </Button>
             </div>
           </div>
-          <button onClick={handleDismiss} className="text-white/30 hover:text-white/60 shrink-0 mt-0.5">
-            <X className="w-4 h-4" />
+          {/* Chaine litterale: ce composant n'est pas internationalise (cf.
+              « Plus tard » ci-dessus). Y introduire t() a moitie mentirait sur
+              son etat. */}
+          <button onClick={handleDismiss} className="text-white/30 hover:text-white/60 shrink-0 mt-0.5" aria-label="Fermer">
+            <X className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
       </div>

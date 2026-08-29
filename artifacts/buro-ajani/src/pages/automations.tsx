@@ -170,8 +170,8 @@ function ActionEditor({ action, onChange, onRemove }: {
             ))}
           </SelectContent>
         </Select>
-        <Button size="icon" variant="ghost" className="shrink-0 h-8 w-8 text-muted-foreground" onClick={onRemove}>
-          <Trash2 className="w-3.5 h-3.5" />
+        <Button size="icon" variant="ghost" className="shrink-0 h-8 w-8 text-muted-foreground" onClick={onRemove} aria-label={t("common.delete")}>
+          <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
         </Button>
       </div>
 

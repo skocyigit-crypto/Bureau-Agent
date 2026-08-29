@@ -75,8 +75,8 @@ export function PwaInstallPrompt() {
               </Button>
             </div>
           </div>
-          <button onClick={handleDismiss} className="text-muted-foreground hover:text-foreground shrink-0 -mt-0.5">
-            <X className="h-4 w-4" />
+          <button onClick={handleDismiss} className="text-muted-foreground hover:text-foreground shrink-0 -mt-0.5" aria-label={t("common.close")}>
+            <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
       </div>

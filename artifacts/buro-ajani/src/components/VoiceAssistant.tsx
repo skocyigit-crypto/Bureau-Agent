@@ -1011,8 +1011,8 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
               <button onClick={() => { setShowHelp(!showHelp); if (!showHelp) setShowLibrary(false); }} className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-colors">
                 <HelpCircle className="w-4 h-4" />
               </button>
-              <button onClick={closeAssistant} className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-colors">
-                <X className="w-4 h-4" />
+              <button onClick={closeAssistant} className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-colors" aria-label={t("common.close")}>
+                <X className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
           </div>

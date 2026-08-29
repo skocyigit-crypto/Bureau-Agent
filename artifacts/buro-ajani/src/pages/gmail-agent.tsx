@@ -803,8 +803,8 @@ export default function GmailAgentPage() {
                 placeholder={t("gmailAgent.filters.searchPlaceholder")}
                 className="h-8 text-xs"
               />
-              <Button type="submit" size="sm" variant="ghost" className="h-8 w-8 p-0">
-                <Search className="h-3.5 w-3.5" />
+              <Button type="submit" size="sm" variant="ghost" className="h-8 w-8 p-0" aria-label={t("common.search")}>
+                <Search className="h-3.5 w-3.5" aria-hidden="true" />
               </Button>
             </form>
             <div className="flex gap-1 flex-wrap">

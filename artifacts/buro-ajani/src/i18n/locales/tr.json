@@ -17,7 +17,16 @@
     "next": "İleri",
     "language": "Dil",
     "showPassword": "Parolayı göster",
-    "hidePassword": "Parolayı gizle"
+    "hidePassword": "Parolayı gizle",
+    "refresh": "Yenile",
+    "moreActions": "Diğer işlemler",
+    "send": "Gönder",
+    "copy": "Kopyala",
+    "download": "İndir",
+    "openExternal": "Yeni sekmede aç",
+    "viewDetail": "Ayrıntıyı gör",
+    "assign": "Ata",
+    "selectAll": "Tümünü seç"
   },
   "nav": {
     "dashboard": "Kontrol Paneli",

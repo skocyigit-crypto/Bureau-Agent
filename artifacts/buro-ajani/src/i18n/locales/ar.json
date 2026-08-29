@@ -17,7 +17,16 @@
     "next": "التالي",
     "language": "اللغة",
     "showPassword": "إظهار كلمة المرور",
-    "hidePassword": "إخفاء كلمة المرور"
+    "hidePassword": "إخفاء كلمة المرور",
+    "refresh": "تحديث",
+    "moreActions": "إجراءات أخرى",
+    "send": "إرسال",
+    "copy": "نسخ",
+    "download": "تنزيل",
+    "openExternal": "فتح في علامة تبويب جديدة",
+    "viewDetail": "عرض التفاصيل",
+    "assign": "إسناد",
+    "selectAll": "تحديد الكل"
   },
   "nav": {
     "dashboard": "لوحة التحكم",

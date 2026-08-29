@@ -95,8 +95,8 @@ export function AiSuggestionsCard({ page, pageContext, title, compact = false }:
             <CardTitle className="text-base">{title || t("aiSuggestionsCard.title")}</CardTitle>
           </div>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleLoad} disabled={suggestions.isPending}>
-              <RefreshCw className={`w-3.5 h-3.5 ${suggestions.isPending ? 'animate-spin' : ''}`} />
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleLoad} disabled={suggestions.isPending} aria-label={t("common.refresh")}>
+              <RefreshCw className={`w-3.5 h-3.5 ${suggestions.isPending ? 'animate-spin' : ''}`} aria-hidden="true" />
             </Button>
             {compact && (
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsExpanded(!isExpanded)}>

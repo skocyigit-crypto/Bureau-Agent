@@ -17,7 +17,16 @@
     "next": "Suivant",
     "language": "Langue",
     "showPassword": "Afficher le mot de passe",
-    "hidePassword": "Masquer le mot de passe"
+    "hidePassword": "Masquer le mot de passe",
+    "refresh": "Actualiser",
+    "moreActions": "Plus d'actions",
+    "send": "Envoyer",
+    "copy": "Copier",
+    "download": "Télécharger",
+    "openExternal": "Ouvrir dans un nouvel onglet",
+    "viewDetail": "Voir le détail",
+    "assign": "Assigner",
+    "selectAll": "Tout sélectionner"
   },
   "nav": {
     "dashboard": "Tableau de bord",

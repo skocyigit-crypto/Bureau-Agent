@@ -573,8 +573,8 @@ export default function Tasks() {
                     className="h-8 w-36 text-sm"
                     autoFocus
                   />
-                  <Button size="sm" className="h-8" onClick={handleBulkAssign} disabled={!bulkAssignName.trim()}>
-                    <UserCheck className="w-3 h-3" />
+                  <Button size="sm" className="h-8" onClick={handleBulkAssign} disabled={!bulkAssignName.trim()} aria-label={t("common.assign")}>
+                    <UserCheck className="w-3 h-3" aria-hidden="true" />
                   </Button>
                 </div>
               ) : (
@@ -696,7 +696,7 @@ export default function Tasks() {
                             </div>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                <Button variant="ghost" className="h-6 w-6 p-0"><MoreHorizontal className="h-3 w-3" /></Button>
+                                <Button variant="ghost" className="h-6 w-6 p-0" aria-label={t("common.moreActions")}><MoreHorizontal className="h-3 w-3" aria-hidden="true" /></Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 {KANBAN_COLUMNS.filter(c => c.key !== task.status).map(c => (
@@ -846,8 +846,8 @@ export default function Tasks() {
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <MoreHorizontal className="h-4 w-4" />
+                              <Button variant="ghost" className="h-8 w-8 p-0" aria-label={t("common.moreActions")}>
+                                <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
