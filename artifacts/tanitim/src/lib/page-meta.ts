@@ -32,6 +32,18 @@ export const PAGE_META = {
       "Conditions générales d'utilisation de la plateforme SaaS Ajant Bureau : accès, abonnement et responsabilités.",
     path: "/cgu",
   },
+  cgv: {
+    title: "Conditions Générales de Vente",
+    description:
+      "Conditions générales de vente d'Ajant Bureau : prix, durée, résiliation, paiement et réversibilité des données.",
+    path: "/cgv",
+  },
+  accessibilite: {
+    title: "Déclaration d'accessibilité",
+    description:
+      "Déclaration d'accessibilité d'Ajant Bureau : état de conformité, contenus non accessibles et voies de recours.",
+    path: "/accessibilite",
+  },
   mentionsLegales: {
     title: "Mentions légales",
     description:

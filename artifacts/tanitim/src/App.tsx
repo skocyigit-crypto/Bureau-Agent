@@ -11,6 +11,8 @@ const MentionsLegales = lazy(() => import("@/pages/mentions-legales"));
 const Confidentialite = lazy(() => import("@/pages/confidentialite"));
 const Gizlilik = lazy(() => import("@/pages/gizlilik"));
 const CGU = lazy(() => import("@/pages/cgu"));
+const CGV = lazy(() => import("@/pages/cgv"));
+const Accessibilite = lazy(() => import("@/pages/accessibilite"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient();
@@ -24,6 +26,8 @@ function Router() {
         <Route path="/confidentialite" component={Confidentialite} />
         <Route path="/gizlilik" component={Gizlilik} />
         <Route path="/cgu" component={CGU} />
+        <Route path="/cgv" component={CGV} />
+        <Route path="/accessibilite" component={Accessibilite} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>

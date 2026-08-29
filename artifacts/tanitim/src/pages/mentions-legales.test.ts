@@ -22,19 +22,36 @@ import { describe, expect, it } from "vitest";
  * les valeurs reelles. Ce test redevient vert immediatement.
  */
 
-const source = fs.readFileSync(
-  path.resolve(import.meta.dirname, "mentions-legales.tsx"),
-  "utf8",
-);
+const read = (file: string) =>
+  fs.readFileSync(path.resolve(import.meta.dirname, file), "utf8");
+
+const source = read("mentions-legales.tsx");
+
+/**
+ * Toutes les pages legales passent par la meme porte: aucune ne doit atteindre
+ * la production avec un marqueur non renseigne. Les CGV et la declaration
+ * d'accessibilite en contiennent aussi — decisions commerciales pour les unes,
+ * date de publication et resultat d'audit pour l'autre.
+ */
+const LEGAL_PAGES = [
+  "mentions-legales.tsx",
+  "cgv.tsx",
+  "accessibilite.tsx",
+] as const;
+
+describe("pages legales", () => {
+  it("ne laisse aucun marqueur a completer en production", () => {
+    const offenders: string[] = [];
+    for (const file of LEGAL_PAGES) {
+      for (const marker of read(file).match(/<<[^>]*(à completer|à decider)[^>]*>>/g) ?? []) {
+        offenders.push(`${file}: ${marker}`);
+      }
+    }
+    expect(offenders, `Valeurs non renseignees:\n${offenders.join("\n")}`).toEqual([]);
+  });
+});
 
 describe("mentions legales", () => {
-  it("ne laisse aucun marqueur a completer en production", () => {
-    const markers = source.match(/<<[^>]*à completer[^>]*>>/g) ?? [];
-    expect(
-      markers,
-      `Mentions obligatoires non renseignees: ${markers.join(" | ")}`,
-    ).toEqual([]);
-  });
 
   it("identifie l'editeur par son immatriculation au RCS", () => {
     // Le SIRET identifie l'etablissement, pas l'immatriculation au registre.
