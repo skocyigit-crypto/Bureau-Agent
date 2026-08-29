@@ -20,10 +20,14 @@
  * Web platformunda devre dışı (background location yok). Mobil-only.
  */
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
 import * as TaskManager from "expo-task-manager";
 import { loadSessionToken } from "@/lib/secure-session";
+import {
+  acknowledgeKvkkFor,
+  hasAcknowledgedKvkk,
+  purgeLegacyKvkkAck,
+} from "@/lib/location-consent";
 import React, {
   createContext,
   useCallback,
@@ -36,7 +40,6 @@ import { Platform } from "react-native";
 import { API_BASE, MOBILE_APP_ORIGIN } from "@/lib/api-config";
 import { useAuth } from "@/contexts/AuthContext";
 
-const KVKK_ACK_KEY = "location:kvkk-acknowledged-v1";
 const BG_TASK = "agentdebureau-location-background";
 
 export type LocationPermissionStatus =
@@ -47,7 +50,7 @@ export type LocationPermissionStatus =
   | "unsupported";
 
 interface LocationContextType {
-  /** KVKK aydınlatması kabul edildi mi (cihaz başına 1 kez). */
+  /** KVKK aydınlatması bu KULLANICI tarafından kabul edildi mi. */
   kvkkAcknowledged: boolean;
   /** Aydınlatmayı kabul et — kabul olmadan tracking başlamaz. */
   acknowledgeKvkk: () => Promise<void>;
@@ -127,23 +130,38 @@ if (Platform.OS !== "web") {
 }
 
 export function LocationProvider({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [kvkkAcknowledged, setKvkkAcknowledged] = useState(false);
   const [permission, setPermission] = useState<LocationPermissionStatus>("unknown");
   const [isTracking, setIsTracking] = useState(false);
   const startedRef = useRef(false);
+  const userId = user?.id ?? null;
 
-  // ── KVKK durumunu hidrate et ──────────────────────────────────────────────
+  // ── KVKK durumunu hidrate et (kullanıcı başına) ───────────────────────────
+  // Onay kişiye özeldir: paylaşılan bir cihazda B kullanıcısı, A'nın verdiği
+  // onayla takibe başlamamalı. Kullanıcı değişince state sıfırlanır.
   useEffect(() => {
-    AsyncStorage.getItem(KVKK_ACK_KEY)
-      .then((v) => setKvkkAcknowledged(v === "1"))
+    let cancelled = false;
+    void purgeLegacyKvkkAck();
+    if (userId === null) {
+      setKvkkAcknowledged(false);
+      return;
+    }
+    hasAcknowledgedKvkk(userId)
+      .then((ok) => {
+        if (!cancelled) setKvkkAcknowledged(ok);
+      })
       .catch(() => {});
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   const acknowledgeKvkk = useCallback(async () => {
-    await AsyncStorage.setItem(KVKK_ACK_KEY, "1");
+    if (userId === null) return;
+    await acknowledgeKvkkFor(userId);
     setKvkkAcknowledged(true);
-  }, []);
+  }, [userId]);
 
   // ── İzin sorgusu ──────────────────────────────────────────────────────────
   const requestPermission = useCallback(async (): Promise<LocationPermissionStatus> => {
@@ -196,15 +214,20 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     if (Platform.OS === "web") return;
     if (!isAuthenticated || !kvkkAcknowledged || permission !== "granted") {
       // Logout veya izin reddi -> görevi durdur.
-      if (startedRef.current) {
-        Location.hasStartedLocationUpdatesAsync(BG_TASK)
-          .then((on) => (on ? Location.stopLocationUpdatesAsync(BG_TASK) : null))
-          .catch(() => {})
-          .finally(() => {
-            startedRef.current = false;
-            setIsTracking(false);
-          });
-      }
+      //
+      // Durdurma `startedRef`'e KOŞULLU DEĞİL: o bir React ref'i, yani JS
+      // bağlamıyla birlikte ölür. Native görev ise kasıtlı olarak yaşamaya
+      // devam eder. Uygulama kapatılıp yeniden açıldığında ref sıfır, görev
+      // hâlâ çalışıyor olur; eski koşul yüzünden çıkış yapmış bir kullanıcının
+      // konumu izlenmeye devam ediyordu — Android'de "Suivi de presence actif"
+      // bildirimi ekranda dururken. Tek güvenilir kaynak native taraftır.
+      Location.hasStartedLocationUpdatesAsync(BG_TASK)
+        .then((on) => (on ? Location.stopLocationUpdatesAsync(BG_TASK) : null))
+        .catch(() => {})
+        .finally(() => {
+          startedRef.current = false;
+          setIsTracking(false);
+        });
       return;
     }
     if (startedRef.current) return;
