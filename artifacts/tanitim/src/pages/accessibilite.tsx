@@ -84,8 +84,8 @@ export default function Accessibilite() {
             <p>
               Si vous ne parvenez pas à accéder à un contenu ou à un service,
               écrivez-nous à{" "}
-              <a href="mailto:accessibilite@agentdebureau.fr" className="text-primary underline">
-                accessibilite@agentdebureau.fr
+              <a href="mailto:contact@agentdebureau.fr" className="text-primary underline">
+                contact@agentdebureau.fr
               </a>{" "}
               en précisant la page concernée et la difficulté rencontrée. Nous
               nous engageons à vous répondre et à vous proposer une alternative

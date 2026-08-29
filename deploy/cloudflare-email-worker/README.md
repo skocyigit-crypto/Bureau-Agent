@@ -53,13 +53,18 @@ joignable. Un message perdu, c'est une obligation non tenue.
 | Adresse | Publiée dans | Pourquoi elle existe |
 |---|---|---|
 | `support@agentdebureau.fr` | CGV, application | Support client |
-| `contact@agentdebureau.fr` | Mentions légales | Contact général de l'éditeur |
+| `contact@agentdebureau.fr` | Mentions légales, déclaration d'accessibilité | Contact général de l'éditeur, et signalement d'un défaut d'accessibilité |
 | `legal@agentdebureau.fr` | Mentions légales, CGU, CGV | Questions contractuelles |
 | `privacy@agentdebureau.fr` | Politique de confidentialité (FR + TR) | Droit d'opposition RGPD |
 | `dpo@agentdebureau.fr` | API `/data-protection` | Contact délégué à la protection des données |
-| `accessibilite@agentdebureau.fr` | Déclaration d'accessibilité | Signalement d'un défaut d'accessibilité |
 
-Le plus simple est de router les six vers le même Worker : le tri IA se charge
+> Une adresse `accessibilite@` dédiée avait été introduite avec la déclaration
+> d'accessibilité, puis retirée : elle n'existait pas et créer une boîte de plus
+> pour un canal peu sollicité n'apportait rien. Le signalement passe par
+> `contact@`, qui est déjà routé — une adresse qui fonctionne vaut mieux qu'une
+> adresse spécialisée qui n'existe pas.
+
+Le plus simple est de router les cinq vers le même Worker : le tri IA se charge
 de la catégorisation, et rien ne se perd. À défaut de Worker, un simple
 transfert (**Send to an email**) vers une boîte réelle suffit — l'essentiel est
 qu'aucune de ces adresses ne reste sans destination.

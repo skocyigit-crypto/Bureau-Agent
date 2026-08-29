@@ -135,7 +135,10 @@ describe("declaration d'accessibilite", () => {
   });
 
   it("ouvre une voie de contact et une voie de recours", () => {
-    expect(page).toContain("accessibilite@agentdebureau.fr");
+    // `contact@` plutot qu'une adresse dediee: elle est deja routee, donc elle
+    // recoit vraiment. Le canal de signalement est un element obligatoire de la
+    // declaration — une adresse specialisee qui n'existe pas ne vaut rien.
+    expect(page).toContain("contact@agentdebureau.fr");
     expect(page).toContain("Défenseur des droits");
   });
 });
