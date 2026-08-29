@@ -140,7 +140,12 @@ function processArithmetic(text: string): MathSubComponent[] {
       case "+": result = a + b; break;
       case "-": result = a - b; break;
       case "*": result = a * b; break;
-      case "/": result = b !== 0 ? a / b : NaN; break;
+      // Division par zero: on n'emet PAS de composant. Produire NaN ici le
+      // faisait remonter avec confidence 0.99, et JSON.stringify(NaN) vaut
+      // `null` — le client recevait donc un resultat nul presente comme un
+      // calcul sur : meme traitement que processFraction/processRatio, qui
+      // ignorent deja ce cas.
+      case "/": if (b === 0) continue; result = a / b; break;
       default: continue;
     }
 
@@ -691,14 +696,28 @@ export function analyzeMath(text: string): MathAnalysis {
   subComponents.push(...processFraction(text));
   subComponents.push(...processDateCalc(text));
 
-  const uniqueComponents = deduplicateComponents(subComponents);
+  // Point de passage unique: aucun resultat numerique non fini ne sort d'ici.
+  //
+  // JSON.stringify(NaN | Infinity | -Infinity) vaut `null`. Sans ce filtre,
+  // `ln(0)` ou `9^999` renvoyaient au client `result: null` accompagne d'etapes
+  // affirmant "= -∞" avec confidence 0.95 : un resultat vide presente comme un
+  // calcul abouti. Les cas sont ecartes a la source quand c'est possible (voir
+  // la division par zero), mais ce garde-fou couvre aussi tout processeur
+  // ajoute plus tard — c'est la seule barriere que personne ne peut oublier.
+  const finiteComponents = subComponents.filter(
+    (c) => typeof c.result !== "number" || Number.isFinite(c.result),
+  );
+
+  const uniqueComponents = deduplicateComponents(finiteComponents);
   const category = determineCategory(uniqueComponents);
 
   let finalResult: number | string | undefined;
   if (uniqueComponents.length === 1) {
     finalResult = uniqueComponents[0].result;
   } else if (uniqueComponents.length > 1) {
-    const numericResults = uniqueComponents.map(c => typeof c.result === "number" ? c.result : NaN).filter(n => !isNaN(n));
+    const numericResults = uniqueComponents
+      .map((c) => c.result)
+      .filter((n): n is number => typeof n === "number" && Number.isFinite(n));
     if (numericResults.length > 0) {
       finalResult = numericResults[numericResults.length - 1];
     }
