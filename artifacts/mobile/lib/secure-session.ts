@@ -22,6 +22,35 @@ import { SESSION_STORAGE_KEY } from "@/lib/api-config";
 const SECURE_TOKEN_KEY = "adb_api_token_secure_v1";
 
 /**
+ * Accessibilite du trousseau — determinante pour les taches de fond.
+ *
+ * Par defaut, expo-secure-store ecrit en `WHEN_UNLOCKED` : l'entree est
+ * illisible tant que l'appareil est verrouille, et apres un redemarrage tant
+ * qu'il n'a pas ete deverrouille une fois. Or la tache de fond de localisation
+ * (`contexts/LocationContext.tsx`) lit ce token precisement dans cet etat —
+ * telephone en poche, ecran verrouille. Avec le defaut, elle n'obtenait jamais
+ * de token et aucun ping de position n'etait envoye : la fonctionnalite etait
+ * silencieusement inerte quand elle sert le plus.
+ *
+ * `AFTER_FIRST_UNLOCK` garde une protection reelle (rien n'est lisible avant
+ * le premier deverrouillage suivant un redemarrage) tout en autorisant la
+ * lecture ecran verrouille, ce qui est le reglage attendu pour un secret dont
+ * une tache de fond a besoin.
+ */
+const SECURE_OPTIONS: SecureStore.SecureStoreOptions = {
+  keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
+};
+
+/**
+ * Marqueur non sensible signalant que le token en coffre a deja ete reecrit
+ * avec `SECURE_OPTIONS`. L'accessibilite est fixee a l'ECRITURE : les tokens
+ * deja stockes conservent `WHEN_UNLOCKED` jusqu'a leur prochaine ecriture.
+ * Sans cette reecriture unique, les installations existantes garderaient une
+ * tache de fond inerte jusqu'a la prochaine reconnexion.
+ */
+const ACCESSIBILITY_UPGRADE_KEY = "adb_secure_accessibility_v2";
+
+/**
  * Extrait un token exploitable d'une valeur stockee, qu'elle soit au
  * format JSON legacy `{ "token": "..." }` ou un token brut.
  * Retourne null si rien d'exploitable (=> a nettoyer).
@@ -58,7 +87,10 @@ export async function loadSessionToken(): Promise<string | null> {
     console.warn("[secure-session] Lecture SecureStore echouee:", err);
   }
   const secureToken = parseStoredToken(secureRaw);
-  if (secureToken) return secureToken;
+  if (secureToken) {
+    await upgradeAccessibilityOnce(secureToken);
+    return secureToken;
+  }
   // Valeur presente mais corrompue/illisible -> nettoyage immediat.
   if (secureRaw) {
     try {
@@ -76,7 +108,38 @@ export async function loadSessionToken(): Promise<string | null> {
     console.warn("[secure-session] Lecture AsyncStorage legacy echouee:", err);
   }
   const legacyToken = parseStoredToken(legacyRaw);
-  // Toujours purger le slot en clair une fois lu (migre OU corrompu).
+
+  if (legacyToken) {
+    // ECRIRE D'ABORD, purger ensuite — et seulement si l'ecriture a reussi.
+    //
+    // L'ordre inverse perdait la session: la purge du slot en clair reussit
+    // meme appareil verrouille (AsyncStorage n'est pas chiffre), tandis que
+    // l'ecriture SecureStore, elle, echoue dans cet etat. Le token
+    // disparaissait alors des DEUX emplacements et l'utilisateur etait
+    // deconnecte definitivement — declenchable par la simple tache de fond de
+    // localisation tournant ecran verrouille.
+    let migrated = false;
+    try {
+      await saveSessionToken(legacyToken);
+      migrated = true;
+    } catch {
+      // Coffre indisponible (appareil verrouille, etc.). On CONSERVE le slot
+      // en clair: il reste la seule copie, et la migration sera retentee au
+      // prochain appel. On rend quand meme le token pour ne pas casser la
+      // session en cours.
+    }
+    if (migrated) {
+      try {
+        await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
+      } catch (err) {
+        console.warn("[secure-session] Purge AsyncStorage legacy echouee:", err);
+      }
+    }
+    return legacyToken;
+  }
+
+  // Valeur legacy presente mais inexploitable (JSON corrompu, blob vide):
+  // rien a migrer, on nettoie pour eviter de la relire a chaque demarrage.
   if (legacyRaw) {
     try {
       await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
@@ -84,11 +147,25 @@ export async function loadSessionToken(): Promise<string | null> {
       console.warn("[secure-session] Purge AsyncStorage legacy echouee:", err);
     }
   }
-  if (legacyToken) {
-    await saveSessionToken(legacyToken);
-    return legacyToken;
-  }
   return null;
+}
+
+/**
+ * Reecrit une seule fois le token deja stocke pour lui appliquer
+ * `SECURE_OPTIONS`. Sans bruit et sans consequence en cas d'echec: le
+ * marqueur n'est pose qu'apres une reecriture reussie, donc l'operation est
+ * simplement retentee au prochain demarrage (par exemple si l'appareil etait
+ * verrouille). Ne jamais laisser cette montee de version casser un chargement
+ * de session qui, lui, a deja reussi.
+ */
+async function upgradeAccessibilityOnce(token: string): Promise<void> {
+  try {
+    if (await AsyncStorage.getItem(ACCESSIBILITY_UPGRADE_KEY)) return;
+    await SecureStore.setItemAsync(SECURE_TOKEN_KEY, token, SECURE_OPTIONS);
+    await AsyncStorage.setItem(ACCESSIBILITY_UPGRADE_KEY, "1");
+  } catch {
+    // Reessaie au prochain chargement.
+  }
 }
 
 /**
@@ -98,7 +175,10 @@ export async function loadSessionToken(): Promise<string | null> {
  */
 export async function saveSessionToken(token: string): Promise<void> {
   try {
-    await SecureStore.setItemAsync(SECURE_TOKEN_KEY, token);
+    await SecureStore.setItemAsync(SECURE_TOKEN_KEY, token, SECURE_OPTIONS);
+    // Le token vient d'etre ecrit avec la bonne accessibilite: la montee de
+    // version unique n'a plus lieu d'etre.
+    await AsyncStorage.setItem(ACCESSIBILITY_UPGRADE_KEY, "1").catch(() => {});
   } catch (err) {
     console.warn("[secure-session] Ecriture SecureStore echouee:", err);
     throw err;
