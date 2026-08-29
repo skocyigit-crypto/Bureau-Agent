@@ -22,6 +22,16 @@ export default function MentionsLegales() {
               <li><strong>SK GROUP</strong> (SASU)</li>
               <li>Siège social : 17 rue Saint-Exupéry, 67500 Haguenau, France</li>
               <li>SIRET : 890 977 648 00017</li>
+              {/* Mention obligatoire (LCEN art. 6-III / C. com. R123-237) : le
+                  SIRET ne la remplace pas. Format attendu : « RCS <ville
+                  d'immatriculation> 890 977 648 ». Haguenau depend a priori du
+                  greffe de Strasbourg, A CONFIRMER sur l'extrait Kbis. */}
+              <li>RCS : {"<< RCS à completer — voir Kbis >>"}</li>
+              {/* Le capital social figure sur les documents commerciaux d'une
+                  societe commerciale (C. com. R123-237). A verifier avec le
+                  conseil : la liste LCEN pour un site ne le cite pas
+                  explicitement, celle du Code de commerce si. */}
+              <li>Capital social : {"<< montant à completer >>"}</li>
               <li>N° TVA intracommunautaire : FR83 890977648</li>
               <li>Président : Serkan Kocyigit</li>
               <li>Email : contact@agentdebureau.fr</li>
@@ -39,6 +49,9 @@ export default function MentionsLegales() {
             <ul className="mt-2 space-y-1 pl-4 list-disc">
               <li><strong>Google Cloud EMEA Limited</strong> (Google Cloud Platform)</li>
               <li>70 Sir John Rogerson's Quay, Dublin 2, Irlande</li>
+              {/* La LCEN (art. 6-III) impose le nom, l'adresse ET le telephone
+                  de l'hebergeur : les deux premiers suffisaient jusqu'ici. */}
+              <li>Téléphone : {"<< téléphone de l'hébergeur à completer >>"}</li>
               <li>Données hébergées dans la région europe-west9 (Paris, France)</li>
             </ul>
           </div>

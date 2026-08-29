@@ -54,9 +54,34 @@ export default function Confidentialite() {
             <ul className="mt-2 space-y-1 pl-4 list-disc">
               <li><strong>Données de compte</strong> : durée de l'abonnement + 3 ans après résiliation</li>
               <li><strong>Données de facturation</strong> : 10 ans (obligation légale comptable)</li>
-              <li><strong>Données de log</strong> : 12 mois maximum</li>
+              <li><strong>Journaux techniques</strong> : 12 mois maximum</li>
               <li><strong>Enregistrements d'appels</strong> : selon paramétrage client (max. 12 mois par défaut)</li>
+              {/* Cette ligne manquait, et son absence etait le vrai probleme:
+                  les journaux d'audit sont rendus non modifiables et non
+                  supprimables par des declencheurs PostgreSQL
+                  (lib/db/scripts/ensure-audit-append-only.sql). Ils contiennent
+                  des donnees personnelles (identifiant, e-mail, adresse IP,
+                  agent utilisateur) et sont donc conserves de maniere
+                  permanente. Les annoncer comme des « logs a 12 mois » etait
+                  une promesse que l'architecture rendait intenable. */}
+              <li>
+                <strong>Journaux d'audit de sécurité</strong> : conservés de
+                manière permanente et inaltérable. Ces journaux tracent les
+                actions sensibles (connexion, export, suppression, changement de
+                rôle ou de mot de passe) afin de pouvoir établir l'origine d'un
+                incident de sécurité. Leur inaltérabilité est ce qui leur donne
+                une valeur probante : ils ne peuvent être ni modifiés ni
+                effacés, y compris par nous. Ils contiennent votre identifiant,
+                votre adresse e-mail, votre adresse IP et votre navigateur.
+              </li>
             </ul>
+            <p className="mt-3 text-sm">
+              La conservation permanente des journaux d'audit repose sur notre
+              intérêt légitime à assurer la sécurité de la plateforme et la
+              traçabilité des accès (art. 6.1.f du RGPD). Vous pouvez exercer
+              votre droit d'opposition à cette adresse :{" "}
+              <strong>privacy@agentdebureau.fr</strong>.
+            </p>
           </div>
 
           <div>

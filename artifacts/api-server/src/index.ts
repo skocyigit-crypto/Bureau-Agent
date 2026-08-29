@@ -8,6 +8,7 @@ import { ensureUserQuotaTrigger } from "./services/ensure-user-quota";
 import { startGoogleAutoPointage } from "./services/google-auto-pointage";
 import { startDataProtectionMonitor } from "./services/data-protection-monitor";
 import { startAiUsagePurgeJob, installGeminiModelFallback, onGeminiModelFallback } from "./services/ai-utils";
+import { startRetentionCron } from "./services/retention-cron";
 import { startAiCachePurgeJob } from "./services/ai-cache";
 import { startBillingCron } from "./services/billing-cron";
 import { startQuotaWarningCron } from "./services/quota-warning-cron";
@@ -134,6 +135,9 @@ async function startServer(): Promise<void> {
     // Google externe. Ne pas reactiver sans consigne explicite du client.
     startDataProtectionMonitor();
     startAiUsagePurgeJob();
+    // Applique la duree de conservation annoncee pour les enregistrements
+    // d'appel: elle etait publiee sans qu'aucun traitement ne l'applique.
+    void startRetentionCron();
     startAiCachePurgeJob();
     startBillingCron();
     startQuotaWarningCron();
