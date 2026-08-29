@@ -15,7 +15,9 @@
     "no": "Non",
     "back": "Retour",
     "next": "Suivant",
-    "language": "Langue"
+    "language": "Langue",
+    "showPassword": "Afficher le mot de passe",
+    "hidePassword": "Masquer le mot de passe"
   },
   "nav": {
     "dashboard": "Tableau de bord",

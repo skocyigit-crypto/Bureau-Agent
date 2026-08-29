@@ -15,7 +15,9 @@
     "no": "No",
     "back": "Atrás",
     "next": "Siguiente",
-    "language": "Idioma"
+    "language": "Idioma",
+    "showPassword": "Mostrar la contraseña",
+    "hidePassword": "Ocultar la contraseña"
   },
   "nav": {
     "dashboard": "Panel",

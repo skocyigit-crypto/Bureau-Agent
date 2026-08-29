@@ -15,7 +15,9 @@
     "no": "Hayır",
     "back": "Geri",
     "next": "İleri",
-    "language": "Dil"
+    "language": "Dil",
+    "showPassword": "Parolayı göster",
+    "hidePassword": "Parolayı gizle"
   },
   "nav": {
     "dashboard": "Kontrol Paneli",

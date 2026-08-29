@@ -208,8 +208,10 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
                     value={password} onChange={e => setPassword(e.target.value)}
                     className="pl-10 pr-10" required autoComplete="current-password" />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    aria-label={showPassword ? t("common.hidePassword") : t("common.showPassword")}
+                    aria-pressed={showPassword}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                    {showPassword ? <EyeOff className="w-4 h-4" aria-hidden="true" /> : <Eye className="w-4 h-4" aria-hidden="true" />}
                   </button>
                 </div>
               </div>
@@ -300,8 +302,10 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
                     value={newPassword} onChange={e => setNewPassword(e.target.value)}
                     className="pl-10 pr-10" required minLength={8} autoFocus />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    aria-label={showPassword ? t("common.hidePassword") : t("common.showPassword")}
+                    aria-pressed={showPassword}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                    {showPassword ? <EyeOff className="w-4 h-4" aria-hidden="true" /> : <Eye className="w-4 h-4" aria-hidden="true" />}
                   </button>
                 </div>
               </div>

@@ -15,7 +15,9 @@
     "no": "لا",
     "back": "رجوع",
     "next": "التالي",
-    "language": "اللغة"
+    "language": "اللغة",
+    "showPassword": "إظهار كلمة المرور",
+    "hidePassword": "إخفاء كلمة المرور"
   },
   "nav": {
     "dashboard": "لوحة التحكم",
