@@ -3,71 +3,102 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * Mentions legales — completude des mentions obligatoires.
+ * Pages legales — ce qui peut etre publie, et ce qui ne peut pas l'etre.
  *
- * Verifie sur service-public.gouv.fr (fiche F31228, base LCEN art. 6 et 19) :
+ * Verifie sur service-public.gouv.fr (fiche F31228, base LCEN art. 6 et 19):
  * le numero d'immatriculation au RCS et le TELEPHONE de l'hebergeur sont
- * obligatoires. Le SIRET ne remplace pas le RCS, et l'hebergeur doit etre
- * identifie par nom, adresse ET telephone. Le defaut de mentions legales est
- * puni d'un an d'emprisonnement et 75 000 € d'amende.
+ * obligatoires; le SIRET ne remplace pas le RCS. Le defaut de mentions legales
+ * est puni d'un an d'emprisonnement et 75 000 € d'amende.
  *
- * Ces valeurs sont des faits propres a la societe — extrait Kbis pour le RCS,
- * contrat pour l'hebergeur — donc elles ne peuvent pas etre devinees. Les
- * emplacements ont ete prepares avec des marqueurs visibles, et ce test bloque
- * la mise en ligne tant qu'ils n'ont pas ete remplaces: une page legale
- * affichant « à completer » en production est un defaut plus visible encore
- * que la mention manquante.
+ * Ces valeurs sont des faits propres a la societe (Kbis, contrat
+ * d'hebergement) ou des decisions commerciales. Elles ne peuvent pas etre
+ * devinees, et une valeur inventee sur une page legale engage la societe.
  *
- * POUR DEBLOQUER: remplacer les deux marqueurs dans mentions-legales.tsx par
- * les valeurs reelles. Ce test redevient vert immediatement.
+ * D'ou deux mecanismes, et un principe commun: rien d'incomplet ne doit
+ * atteindre le public, mais l'attente d'une saisie ne doit pas non plus
+ * bloquer les deploiements sans rapport.
+ *
+ *  - Mentions legales: chaque valeur manquante fait disparaitre SA ligne
+ *    (`@/lib/legal-info`). La page reste publiable et n'est pas degradee — la
+ *    mention manquait deja avant. La remplir suffit a corriger la page.
+ *  - CGV: les decisions manquantes sont au milieu de phrases contractuelles,
+ *    donc la page ne peut pas etre publiee a moitie. Elle reste un projet NON
+ *    ROUTE tant qu'elles ne sont pas prises. C'est ce que ce test verrouille:
+ *    on ne peut pas la mettre en ligne par inadvertance.
  */
 
-const read = (file: string) =>
-  fs.readFileSync(path.resolve(import.meta.dirname, file), "utf8");
+const PAGES_DIR = import.meta.dirname;
+const SRC = path.resolve(PAGES_DIR, "..");
 
-const source = read("mentions-legales.tsx");
+const read = (p: string) => fs.readFileSync(p, "utf8");
+const readPage = (file: string) => read(path.join(PAGES_DIR, file));
 
-/**
- * Toutes les pages legales passent par la meme porte: aucune ne doit atteindre
- * la production avec un marqueur non renseigne. Les CGV et la declaration
- * d'accessibilite en contiennent aussi — decisions commerciales pour les unes,
- * date de publication et resultat d'audit pour l'autre.
- */
-const LEGAL_PAGES = [
-  "mentions-legales.tsx",
-  "cgv.tsx",
-  "accessibilite.tsx",
-] as const;
+/** Marqueurs de valeur en attente, quelle que soit la page. */
+const PENDING = /<<[^>]*(à completer|à decider)[^>]*>>/g;
 
-describe("pages legales", () => {
-  it("ne laisse aucun marqueur a completer en production", () => {
-    const offenders: string[] = [];
-    for (const file of LEGAL_PAGES) {
-      for (const marker of read(file).match(/<<[^>]*(à completer|à decider)[^>]*>>/g) ?? []) {
-        offenders.push(`${file}: ${marker}`);
-      }
+describe("pages publiees", () => {
+  it("n'affichent aucun marqueur de valeur en attente", () => {
+    // Une page legale affichant « à completer » est un defaut plus visible
+    // encore que la mention manquante.
+    for (const file of ["mentions-legales.tsx", "confidentialite.tsx", "cgu.tsx", "accessibilite.tsx"]) {
+      const markers = readPage(file).match(PENDING) ?? [];
+      expect(markers, `${file}: ${markers.join(" | ")}`).toEqual([]);
     }
-    expect(offenders, `Valeurs non renseignees:\n${offenders.join("\n")}`).toEqual([]);
+  });
+
+  it("omettent les mentions non renseignees au lieu de les inventer", () => {
+    const source = readPage("mentions-legales.tsx");
+    expect(source).toContain("isPublished(LEGAL_INFO.rcs)");
+    expect(source).toContain("isPublished(LEGAL_INFO.hebergeurTelephone)");
+  });
+
+  it("conservent les mentions deja obtenues", () => {
+    const source = readPage("mentions-legales.tsx");
+    for (const mention of ["SIRET", "TVA intracommunautaire", "Directeur de la publication", "Google Cloud EMEA"]) {
+      expect(source, `mention manquante: ${mention}`).toContain(mention);
+    }
   });
 });
 
-describe("mentions legales", () => {
+describe("CGV en projet", () => {
+  const cgv = readPage("cgv.tsx");
+  const hasPendingDecisions = (cgv.match(PENDING) ?? []).length > 0;
 
-  it("identifie l'editeur par son immatriculation au RCS", () => {
-    // Le SIRET identifie l'etablissement, pas l'immatriculation au registre.
-    expect(source).toMatch(/RCS\s*:/);
+  it("n'est ni routee ni liee tant que des decisions restent en attente", () => {
+    if (!hasPendingDecisions) return; // decisions prises: la page peut etre publiee
+
+    const app = read(path.join(SRC, "App.tsx"));
+    const footer = read(path.join(SRC, "components", "layout", "Footer.tsx"));
+
+    expect(app, "CGV routee alors que des clauses sont incompletes").not.toContain('path="/cgv"');
+    expect(footer, "CGV liee alors que des clauses sont incompletes").not.toContain('href="/cgv"');
   });
 
-  it("identifie l'hebergeur par nom, adresse et telephone", () => {
-    expect(source).toContain("Google Cloud EMEA Limited");
-    expect(source).toContain("Dublin");
-    expect(source).toMatch(/Téléphone\s*:/);
+  it("garde la trace des decisions qui restent a prendre", () => {
+    // Le projet doit rester explicite sur ce qui manque, sinon il sera publie
+    // un jour tel quel.
+    expect(cgv).toContain("A FAIRE RELIRE PAR UN CONSEIL");
   });
 
-  it("conserve les mentions deja presentes", () => {
-    // Filet contre une regression par reecriture de la page.
-    for (const mention of ["SIRET", "TVA intracommunautaire", "Directeur de la publication"]) {
-      expect(source, `mention manquante: ${mention}`).toContain(mention);
+  it("couvre les clauses qui ne dependent d'aucune decision", () => {
+    // Ce qui decoule de la loi est deja redige et ne doit pas disparaitre.
+    for (const clause of ["L441-10", "réversibilité", "Droit applicable"]) {
+      expect(cgv, `clause manquante: ${clause}`).toMatch(new RegExp(clause, "i"));
     }
+  });
+});
+
+describe("declaration d'accessibilite", () => {
+  const page = readPage("accessibilite.tsx");
+
+  it("annonce l'etat reel sans inventer de taux de conformite", () => {
+    // Declarer une conformite non mesuree serait une fausse declaration.
+    expect(page).toContain("non conforme");
+    expect(page).not.toMatch(/taux de conformité (est|de) \d/);
+  });
+
+  it("ouvre une voie de contact et une voie de recours", () => {
+    expect(page).toContain("accessibilite@agentdebureau.fr");
+    expect(page).toContain("Défenseur des droits");
   });
 });

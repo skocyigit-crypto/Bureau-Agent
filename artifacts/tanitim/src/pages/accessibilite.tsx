@@ -25,7 +25,7 @@ export default function Accessibilite() {
       <Navbar onDemoClick={() => setDemoOpen(true)} />
       <main id="contenu" className="container mx-auto px-4 pt-32 pb-20 max-w-3xl">
         <h1 className="text-3xl font-bold mb-2">Déclaration d'accessibilité</h1>
-        <p className="text-muted-foreground mb-10">Dernière mise à jour : {"<< date de publication à completer >>"}</p>
+        <p className="text-muted-foreground mb-10">Dernière mise à jour : août 2026</p>
 
         <section className="space-y-8 text-sm leading-relaxed text-foreground/80">
           <div>
