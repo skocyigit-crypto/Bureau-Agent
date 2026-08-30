@@ -497,7 +497,7 @@ export default function ProspectsScreen() {
         />
       )}
 
-      <FAB onPress={openNew} icon="plus" />
+      <FAB accessibilityLabel={t("prospectsScreen.formTitleNew")} onPress={openNew} icon="plus" />
 
       <FormModal
         visible={showForm}

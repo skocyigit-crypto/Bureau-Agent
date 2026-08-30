@@ -497,7 +497,7 @@ export default function TasksScreen() {
         />
       )}
 
-      <FAB icon="plus" onPress={openNew} />
+      <FAB accessibilityLabel={t("tasksScreen.newTitle")} icon="plus" onPress={openNew} />
 
       <FormModal
         visible={showForm}

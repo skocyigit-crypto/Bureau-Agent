@@ -476,7 +476,7 @@ export default function MessagesScreen() {
         />
       )}
 
-      <FAB onPress={() => { setEditId(null); setFormValues({ type: "note", priority: "moyenne", phoneNumber: "" }); loadContacts(); setShowForm(true); }} />
+      <FAB accessibilityLabel={t("messagesScreen.newMessage")} onPress={() => { setEditId(null); setFormValues({ type: "note", priority: "moyenne", phoneNumber: "" }); loadContacts(); setShowForm(true); }} />
 
       <FormModal
         visible={showForm}

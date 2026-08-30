@@ -522,7 +522,7 @@ export default function ProjetsScreen() {
         />
       )}
 
-      <FAB onPress={openNew} icon="plus" />
+      <FAB accessibilityLabel={t("projetsScreen.formTitleNew")} onPress={openNew} icon="plus" />
 
       <FormModal
         visible={showForm}

@@ -827,6 +827,7 @@ export default function CalendarScreen() {
       )}
 
       <FAB
+        accessibilityLabel={t("calendarScreen.newEvent")}
         icon="plus"
         onPress={() => {
           if (selectedDateStr && isDateClosed(selectedDateStr)) {

@@ -9,9 +9,19 @@ interface FABProps {
   icon?: keyof typeof Feather.glyphMap;
   onPress: () => void;
   bottom?: number;
+  /**
+   * Nom accessible, OBLIGATOIRE.
+   *
+   * Le bouton flottant porte l'action principale d'un ecran et ne contient
+   * qu'une icone: sans nom, un lecteur d'ecran n'annonce rien du tout. Aucune
+   * valeur par defaut n'est fournie a dessein — un defaut ferait passer
+   * l'oubli inapercu sur chaque nouvel ecran, ce qui est precisement la faute
+   * a eviter. Le typage force donc a repondre « ce bouton fait quoi ? ».
+   */
+  accessibilityLabel: string;
 }
 
-export function FAB({ icon = "plus", onPress, bottom = 100 }: FABProps) {
+export function FAB({ icon = "plus", onPress, bottom = 100, accessibilityLabel }: FABProps) {
   const colors = useColors();
   const isWeb = Platform.OS === "web";
 
@@ -25,6 +35,8 @@ export function FAB({ icon = "plus", onPress, bottom = 100 }: FABProps) {
   return (
     <Pressable
       onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       style={({ pressed }) => [
         styles.fab,
         {

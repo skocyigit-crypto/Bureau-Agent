@@ -82,8 +82,9 @@ function controls(): Control[] {
 describe("budget d'accessibilite mobile", () => {
   const all = controls();
 
-  // ~174 muets au depart. 144 corriges par lot, puis 10 relus un par un.
-  const SILENT_BUDGET = 21;
+  // ~174 muets au depart: 144 corriges par lot, 10 relus un par un, puis les
+  // composants generiques (FAB, DetailModal) rendus nommables par contrat.
+  const SILENT_BUDGET = 19;
 
   it(`ne laisse pas plus de ${SILENT_BUDGET} controles muets`, () => {
     const silent = all.filter((c) => c.kind === "silent");

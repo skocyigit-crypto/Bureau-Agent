@@ -421,7 +421,7 @@ export default function ContactsScreen() {
         </View>
       )}
 
-      <FAB icon="user-plus" onPress={openNew} />
+      <FAB accessibilityLabel={t("contactsScreen.newTitle")} icon="user-plus" onPress={openNew} />
 
       <FormModal
         visible={showForm}

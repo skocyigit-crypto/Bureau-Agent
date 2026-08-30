@@ -470,7 +470,7 @@ export default function CallsScreen() {
         />
       )}
 
-      <FAB icon="plus" onPress={() => { setEditId(null); setFormValues({ direction: "entrant", status: "repondu" }); loadContacts(); setShowForm(true); }} />
+      <FAB accessibilityLabel={t("callsScreen.newTitle")} icon="plus" onPress={() => { setEditId(null); setFormValues({ direction: "entrant", status: "repondu" }); loadContacts(); setShowForm(true); }} />
 
       <FormModal
         visible={showForm}

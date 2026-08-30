@@ -280,7 +280,7 @@ export default function ReportsScreen() {
         />
       )}
 
-      <FAB icon="plus" onPress={() => setShowForm(true)} />
+      <FAB accessibilityLabel={t("reportsScreen.formTitle")} icon="plus" onPress={() => setShowForm(true)} />
 
       <FormModal
         visible={showForm}

@@ -163,10 +163,14 @@ export function DetailModal({
                 <Feather name="trash-2" size={18} color={colors.destructive} />
               </Pressable>
             ) : null}
+            {/* Le libelle existe deja dans ExtraAction: il ne servait qu au
+                titre visuel, jamais au nom accessible du bouton-icone. */}
             {extraActions?.map((action, idx) => (
               <Pressable
                 key={idx}
                 onPress={action.onPress}
+                accessibilityRole="button"
+                accessibilityLabel={action.label}
                 style={[styles.actionBtn, { borderColor: action.color || colors.primary }]}
               >
                 <Feather name={action.icon} size={16} color={action.color || colors.primary} />
