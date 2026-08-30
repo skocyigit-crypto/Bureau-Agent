@@ -19,7 +19,13 @@
     "call": "Appeler",
     "email": "Envoyer un e-mail",
     "previousMonth": "Mois précédent",
-    "nextMonth": "Mois suivant"
+    "nextMonth": "Mois suivant",
+    "showPassword": "Afficher le mot de passe",
+    "hidePassword": "Masquer le mot de passe",
+    "download": "Télécharger",
+    "helpful": "Utile",
+    "notHelpful": "Pas utile",
+    "pin": "Épingler"
   },
   "tabs": {
     "home": "Accueil",

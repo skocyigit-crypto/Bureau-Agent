@@ -19,7 +19,13 @@
     "call": "Ara",
     "email": "E-posta gönder",
     "previousMonth": "Önceki ay",
-    "nextMonth": "Sonraki ay"
+    "nextMonth": "Sonraki ay",
+    "showPassword": "Parolayı göster",
+    "hidePassword": "Parolayı gizle",
+    "download": "İndir",
+    "helpful": "Faydalı",
+    "notHelpful": "Faydalı değil",
+    "pin": "Sabitle"
   },
   "tabs": {
     "home": "Ana Sayfa",

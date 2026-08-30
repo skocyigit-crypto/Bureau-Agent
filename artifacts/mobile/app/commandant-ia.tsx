@@ -319,7 +319,7 @@ function SearchSection() {
           returnKeyType="search"
         />
         {query ? <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={() => { setQuery(""); setResults([]); }}><Feather name="x" size={14} color={colors.mutedForeground} /></Pressable> : null}
-        <Pressable onPress={doSearch} style={[styles.searchBtn, { backgroundColor: "#3b82f6" }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("common.search")} onPress={doSearch} style={[styles.searchBtn, { backgroundColor: "#3b82f6" }]}>
           {searching ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="arrow-right" size={14} color="#fff" />}
         </Pressable>
       </View>

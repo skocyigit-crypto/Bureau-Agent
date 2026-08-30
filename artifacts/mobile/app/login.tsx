@@ -284,7 +284,7 @@ export default function LoginScreen() {
                     secureTextEntry={!showPassword}
                     testID="password-input"
                   />
-                  <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={10}>
+                  <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={10} accessibilityRole="button" accessibilityState={{ expanded: showPassword }} accessibilityLabel={showPassword ? t("common.hidePassword") : t("common.showPassword")}>
                     <Feather
                       name={showPassword ? "eye-off" : "eye"}
                       size={18}

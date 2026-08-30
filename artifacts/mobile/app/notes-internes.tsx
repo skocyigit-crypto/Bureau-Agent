@@ -108,7 +108,7 @@ function NoteCard({ note, colors, isDark, onPress, onPin, onDelete }: NoteCardPr
           </Text>
         )}
         <View style={styles.noteCardActions}>
-          <Pressable onPress={onPin} hitSlop={8} style={styles.noteActionBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.pin")} onPress={onPin} hitSlop={8} style={styles.noteActionBtn}>
             <Feather name="bookmark" size={14} color={note.pinned ? "#f59e0b" : colors.mutedForeground} />
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel={t("common.delete")} onPress={onDelete} hitSlop={8} style={styles.noteActionBtn}>

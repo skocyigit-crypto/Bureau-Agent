@@ -19,7 +19,13 @@
     "call": "Call",
     "email": "Send an email",
     "previousMonth": "Previous month",
-    "nextMonth": "Next month"
+    "nextMonth": "Next month",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "download": "Download",
+    "helpful": "Helpful",
+    "notHelpful": "Not helpful",
+    "pin": "Pin"
   },
   "tabs": {
     "home": "Home",

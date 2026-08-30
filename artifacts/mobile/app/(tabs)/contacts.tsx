@@ -122,7 +122,7 @@ function ContactRow({
           </Pressable>
         ) : null}
         {item.phone ? (
-          <Pressable onPress={onSms} style={[styles.actionBtn, { backgroundColor: "#3b82f618" }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.send")} onPress={onSms} style={[styles.actionBtn, { backgroundColor: "#3b82f618" }]}>
             <Feather name="message-circle" size={15} color="#3b82f6" />
           </Pressable>
         ) : null}

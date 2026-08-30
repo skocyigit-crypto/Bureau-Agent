@@ -82,8 +82,8 @@ function controls(): Control[] {
 describe("budget d'accessibilite mobile", () => {
   const all = controls();
 
-  // ~174 muets au depart, 144 corriges.
-  const SILENT_BUDGET = 31;
+  // ~174 muets au depart. 144 corriges par lot, puis 10 relus un par un.
+  const SILENT_BUDGET = 21;
 
   it(`ne laisse pas plus de ${SILENT_BUDGET} controles muets`, () => {
     const silent = all.filter((c) => c.kind === "silent");
@@ -144,6 +144,7 @@ describe("pieges appris a nos depens", () => {
     const keys = [
       "back", "close", "delete", "confirm", "add",
       "refresh", "send", "call", "email", "previousMonth", "nextMonth",
+      "showPassword", "hidePassword", "download", "helpful", "notHelpful", "pin",
     ];
     for (const file of fs.readdirSync(dir).filter((f) => f.endsWith(".json"))) {
       const json = JSON.parse(fs.readFileSync(path.join(dir, file), "utf8")) as {

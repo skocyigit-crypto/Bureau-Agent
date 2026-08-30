@@ -914,7 +914,7 @@ export default function DocumentReaderScreen() {
               </View>
             )}
           </View>
-          <Pressable onPress={handleDownload} hitSlop={10} style={rd.headerBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.download")} onPress={handleDownload} hitSlop={10} style={rd.headerBtn}>
             <Feather name="download" size={18} color="#fff" />
           </Pressable>
         </View>

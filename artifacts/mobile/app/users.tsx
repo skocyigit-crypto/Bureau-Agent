@@ -213,7 +213,7 @@ export default function UsersScreen() {
             <Feather name="arrow-left" size={22} color="#ffffff" />
           </Pressable>
           <Text style={styles.headerTitle}>{t("usersScreen.title")}</Text>
-          <Pressable onPress={openNew} hitSlop={12}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.add")} onPress={openNew} hitSlop={12}>
             <Feather name="user-plus" size={22} color="#ffffff" />
           </Pressable>
         </View>

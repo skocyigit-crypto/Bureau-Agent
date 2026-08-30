@@ -923,7 +923,7 @@ export default function CalendarScreen() {
                     <Text style={[styles.pickerMonthLabel, { color: colors.foreground }]}>
                       {pickerMonthLabel.charAt(0).toUpperCase() + pickerMonthLabel.slice(1)}
                     </Text>
-                    <Pressable
+                    <Pressable accessibilityRole="button" accessibilityLabel={t("common.nextMonth")}
                       onPress={() => {
                         const d = new Date(datePickerMonth);
                         d.setMonth(d.getMonth() + 1);

@@ -19,7 +19,13 @@
     "call": "اتصال",
     "email": "إرسال بريد إلكتروني",
     "previousMonth": "الشهر السابق",
-    "nextMonth": "الشهر التالي"
+    "nextMonth": "الشهر التالي",
+    "showPassword": "إظهار كلمة المرور",
+    "hidePassword": "إخفاء كلمة المرور",
+    "download": "تنزيل",
+    "helpful": "مفيد",
+    "notHelpful": "غير مفيد",
+    "pin": "تثبيت"
   },
   "tabs": {
     "home": "الرئيسية",

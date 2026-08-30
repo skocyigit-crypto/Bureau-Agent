@@ -127,7 +127,7 @@ function PinPad({ onComplete, error, onErrorReset }: PinPadProps) {
           if (key === "") return <View key={idx} style={styles.keyEmpty} />;
           if (key === "del") {
             return (
-              <Pressable key={idx} style={styles.keyBtn} onPress={pressDelete}>
+              <Pressable key={idx} style={styles.keyBtn} onPress={pressDelete} accessibilityRole="button" accessibilityLabel="Effacer le dernier chiffre">
                 <Feather name="delete" size={22} color="#ffffff" />
               </Pressable>
             );

@@ -249,10 +249,10 @@ export default function AssistantProactifScreen() {
                   ) : null}
                   {s.status === "pending" ? (
                     <>
-                      <Pressable onPress={() => sendFeedback(s.id, "up")} hitSlop={8} style={styles.iconBtn}>
+                      <Pressable accessibilityRole="button" accessibilityLabel={t("common.helpful")} onPress={() => sendFeedback(s.id, "up")} hitSlop={8} style={styles.iconBtn}>
                         <Feather name="thumbs-up" size={18} color={s.feedback === "up" ? "#22c55e" : colors.mutedForeground} />
                       </Pressable>
-                      <Pressable onPress={() => sendFeedback(s.id, "down")} hitSlop={8} style={styles.iconBtn}>
+                      <Pressable accessibilityRole="button" accessibilityLabel={t("common.notHelpful")} onPress={() => sendFeedback(s.id, "down")} hitSlop={8} style={styles.iconBtn}>
                         <Feather name="thumbs-down" size={18} color={s.feedback === "down" ? "#ef4444" : colors.mutedForeground} />
                       </Pressable>
                       <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={() => resolve(s.id, "dismiss")} style={[styles.actionBtn, { borderColor: colors.border }]}>
