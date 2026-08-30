@@ -864,7 +864,7 @@ export default function VoiceAssistantScreen() {
           onPress={() => setProtOpen(false)}
           style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "center", padding: 20 }}
         >
-          <Pressable accessibilityRole="button"
+          <Pressable
             onPress={() => {}}
             style={{
               backgroundColor: colors.card,

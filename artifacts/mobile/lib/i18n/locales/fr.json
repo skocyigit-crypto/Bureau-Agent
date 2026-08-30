@@ -17,7 +17,9 @@
     "refresh": "Actualiser",
     "send": "Envoyer",
     "call": "Appeler",
-    "email": "Envoyer un e-mail"
+    "email": "Envoyer un e-mail",
+    "previousMonth": "Mois précédent",
+    "nextMonth": "Mois suivant"
   },
   "tabs": {
     "home": "Accueil",

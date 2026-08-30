@@ -17,7 +17,9 @@
     "refresh": "Yenile",
     "send": "Gönder",
     "call": "Ara",
-    "email": "E-posta gönder"
+    "email": "E-posta gönder",
+    "previousMonth": "Önceki ay",
+    "nextMonth": "Sonraki ay"
   },
   "tabs": {
     "home": "Ana Sayfa",

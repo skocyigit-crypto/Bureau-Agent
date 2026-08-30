@@ -89,7 +89,7 @@ function PickerModal({ visible, title, options, selected, onSelect, onClose }: P
   const { t } = useTranslation();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={onClose}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
         <View
           style={[styles.modalSheet, { backgroundColor: colors.card, borderColor: colors.border }]}
           onStartShouldSetResponder={() => true}
@@ -195,7 +195,7 @@ function TimePickerModal({ visible, title, value, onConfirm, onClose }: TimePick
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={onClose}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
         <View
           style={[styles.modalSheet, { backgroundColor: colors.card, borderColor: colors.border }]}
           onStartShouldSetResponder={() => true}
