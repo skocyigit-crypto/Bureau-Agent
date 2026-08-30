@@ -27,11 +27,22 @@ vi.mock("@workspace/db/schema", () => ({
 // Sans cela le test du report dependrait du budget de production (45 s).
 process.env.CRON_TICK_BUDGET_MS = "50";
 
-const { registerRunnableCron, runDueCrons } = await import("../services/cron-registry");
+type CronRegistry = typeof import("../services/cron-registry");
+let registerRunnableCron: CronRegistry["registerRunnableCron"];
+let runDueCrons: CronRegistry["runDueCrons"];
 
 describe("runDueCrons", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     heartbeats.length = 0;
+    // Le registre est un Map de portee module, et rien ne le vide. Sans ce
+    // reimport, les taches inscrites par un test restaient dues dans le
+    // suivant: elles consommaient le budget de 50 ms avant que la tache du
+    // test lui-meme ne soit atteinte, qui se retrouvait alors REPORTEE et
+    // jamais executee. Selon la vitesse de la machine, ces tests passaient ou
+    // echouaient — un test intermittent dans une porte de qualite bloque des
+    // deploiements au hasard et finit par etre ignore.
+    vi.resetModules();
+    ({ registerRunnableCron, runDueCrons } = await import("../services/cron-registry"));
   });
 
   it("enchaine les taches dues au lieu de les lancer en parallele", async () => {
