@@ -537,7 +537,25 @@ async function executeAction(
 ): Promise<void> {
   const p = action.params ?? {};
 
-  if (orgId && needsApproval(action.type, requiresApproval)) {
+  // La decision d'approbation ne depend PAS de la presence de l'organisation.
+  //
+  // Elle en dependait: `orgId && needsApproval(...)`. Or `organisation_id` est
+  // nullable sur `automation_rules`, et une regle sans organisation faisait
+  // donc sauter le controle entier — l'e-mail ou le SMS partait directement,
+  // c'est-a-dire exactement ce que ce garde existe pour empecher. Un champ
+  // manquant desactivait silencieusement une protection, et ce depot a deja
+  // connu des lignes creees avec `organisation_id = NULL` (cf. routes/auth.ts).
+  if (needsApproval(action.type, requiresApproval)) {
+    if (!orgId) {
+      // Sans organisation, impossible de deposer la proposition en file: on
+      // refuse l'action au lieu de l'executer. Une action sortante non relue
+      // vaut moins qu'une action non faite.
+      logger.error(
+        { actionType: action.type, rule: ruleName },
+        "[Automation] Action sortante refusee: regle sans organisation, approbation impossible",
+      );
+      return;
+    }
     await proposeAction(orgId, action, context, ruleName);
     return;
   }
