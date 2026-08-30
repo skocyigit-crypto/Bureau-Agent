@@ -154,7 +154,7 @@ export default function RappelsScreen() {
           { backgroundColor: colors.secondary, paddingTop: (isWeb ? 67 : insets.top) + 12 },
         ]}
       >
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={20} color="#fff" />
         </Pressable>
         <View style={{ flex: 1 }}>

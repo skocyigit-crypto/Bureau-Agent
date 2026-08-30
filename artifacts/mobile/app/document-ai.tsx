@@ -178,7 +178,7 @@ export default function DocumentAIScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={20} color="#fff" />
         </Pressable>
         <View>
@@ -206,7 +206,7 @@ export default function DocumentAIScreen() {
                     : `${(file.size / (1024 * 1024)).toFixed(1)} MB`}
                 </Text>
               </View>
-              <Pressable onPress={() => { setFile(null); setResult(null); setActionResults([]); }}>
+              <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={() => { setFile(null); setResult(null); setActionResults([]); }}>
                 <Feather name="x" size={18} color={colors.mutedForeground} />
               </Pressable>
             </View>

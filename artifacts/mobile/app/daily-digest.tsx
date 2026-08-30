@@ -189,7 +189,7 @@ export default function DailyDigestScreen() {
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { backgroundColor: colors.secondary, paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
           <View style={styles.headerRow}>
-            <Pressable onPress={() => router.back()} hitSlop={12}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} hitSlop={12}>
               <Feather name="arrow-left" size={22} color="#ffffff" />
             </Pressable>
             <Text style={styles.headerTitle}>{t("dailyDigestScreen.headerTitle")}</Text>
@@ -216,7 +216,7 @@ export default function DailyDigestScreen() {
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { backgroundColor: colors.secondary, paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
           <View style={styles.headerRow}>
-            <Pressable onPress={() => router.back()} hitSlop={12}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} hitSlop={12}>
               <Feather name="arrow-left" size={22} color="#ffffff" />
             </Pressable>
             <Text style={styles.headerTitle}>{t("dailyDigestScreen.headerTitle")}</Text>
@@ -243,11 +243,11 @@ export default function DailyDigestScreen() {
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.secondary, paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={styles.headerRow}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} hitSlop={12}>
             <Feather name="arrow-left" size={22} color="#ffffff" />
           </Pressable>
           <Text style={styles.headerTitle}>{t("dailyDigestScreen.headerTitle")}</Text>
-          <Pressable onPress={onRefresh} hitSlop={12}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.refresh")} onPress={onRefresh} hitSlop={12}>
             <Feather name="refresh-cw" size={18} color="rgba(255,255,255,0.8)" />
           </Pressable>
         </View>

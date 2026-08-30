@@ -89,7 +89,7 @@ export function DetailModal({
       <View style={styles.overlay}>
         <View style={[styles.container, { backgroundColor: colors.background }]}>
           <View style={[styles.header, { borderBottomColor: colors.border }]}>
-            <Pressable onPress={onClose} hitSlop={12}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={onClose} hitSlop={12}>
               <Feather name="x" size={22} color={colors.foreground} />
             </Pressable>
             <Text style={[styles.headerTitle, { color: colors.foreground }]}>{t("detailModal.header")}</Text>
@@ -156,7 +156,7 @@ export function DetailModal({
 
           <View style={[styles.footer, { borderTopColor: colors.border }]}>
             {onDelete ? (
-              <Pressable
+              <Pressable accessibilityRole="button" accessibilityLabel={t("common.delete")}
                 onPress={handleDelete}
                 style={[styles.actionBtn, { borderColor: colors.destructive }]}
               >

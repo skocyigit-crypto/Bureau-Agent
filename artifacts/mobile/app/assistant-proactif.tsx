@@ -158,11 +158,11 @@ export default function AssistantProactifScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} hitSlop={12}>
           <Feather name="arrow-left" size={24} color={colors.foreground} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>{t("assistantProactifScreen.title")}</Text>
-        <Pressable onPress={runNow} disabled={running} hitSlop={12}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("common.refresh")} onPress={runNow} disabled={running} hitSlop={12}>
           {running ? <ActivityIndicator size="small" color={colors.primary} /> : <Feather name="refresh-cw" size={20} color={colors.primary} />}
         </Pressable>
       </View>
@@ -255,10 +255,10 @@ export default function AssistantProactifScreen() {
                       <Pressable onPress={() => sendFeedback(s.id, "down")} hitSlop={8} style={styles.iconBtn}>
                         <Feather name="thumbs-down" size={18} color={s.feedback === "down" ? "#ef4444" : colors.mutedForeground} />
                       </Pressable>
-                      <Pressable onPress={() => resolve(s.id, "dismiss")} style={[styles.actionBtn, { borderColor: colors.border }]}>
+                      <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={() => resolve(s.id, "dismiss")} style={[styles.actionBtn, { borderColor: colors.border }]}>
                         <Feather name="x" size={16} color={colors.mutedForeground} />
                       </Pressable>
-                      <Pressable onPress={() => resolve(s.id, "accept")} style={[styles.actionBtn, { backgroundColor: colors.primary, borderColor: colors.primary }]}>
+                      <Pressable accessibilityRole="button" accessibilityLabel={t("common.confirm")} onPress={() => resolve(s.id, "accept")} style={[styles.actionBtn, { backgroundColor: colors.primary, borderColor: colors.primary }]}>
                         <Feather name="check" size={16} color="#fff" />
                       </Pressable>
                     </>

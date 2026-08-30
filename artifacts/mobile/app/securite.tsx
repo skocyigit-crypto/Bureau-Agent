@@ -320,7 +320,7 @@ export default function SecuriteScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: colors.border, backgroundColor: colors.card }]}>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
           <Feather name="chevron-left" size={26} color={colors.foreground} />
         </Pressable>
         <View style={{ flex: 1 }}>
@@ -643,7 +643,7 @@ export default function SecuriteScreen() {
               style={[styles.input, { flex: 1, color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
               onSubmitEditing={addEntry}
             />
-            <Pressable
+            <Pressable accessibilityRole="button" accessibilityLabel={t("common.add")}
               onPress={addEntry}
               disabled={savingEntry || !listValue.trim()}
               style={[styles.btn, { paddingHorizontal: 16, justifyContent: "center", backgroundColor: colors.primary, opacity: savingEntry || !listValue.trim() ? 0.6 : 1 }]}
@@ -666,7 +666,7 @@ export default function SecuriteScreen() {
                 />
                 <Feather name={e.entryType === "domain" ? "globe" : "phone"} size={13} color={colors.mutedForeground} />
                 <Text style={{ flex: 1, fontSize: 12, color: colors.foreground }} numberOfLines={1}>{e.value}</Text>
-                <Pressable onPress={() => removeEntry(e.id)} hitSlop={8}>
+                <Pressable accessibilityRole="button" accessibilityLabel={t("common.delete")} onPress={() => removeEntry(e.id)} hitSlop={8}>
                   <Feather name="trash-2" size={14} color={colors.mutedForeground} />
                 </Pressable>
               </View>

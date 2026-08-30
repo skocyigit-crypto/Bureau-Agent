@@ -209,7 +209,7 @@ export default function UsersScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.secondary, paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={styles.headerRow}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} hitSlop={12}>
             <Feather name="arrow-left" size={22} color="#ffffff" />
           </Pressable>
           <Text style={styles.headerTitle}>{t("usersScreen.title")}</Text>
@@ -297,7 +297,7 @@ export default function UsersScreen() {
                     </Text>
                   </Pressable>
                   {currentUser?.role === "super_admin" && item.id !== currentUser.id && (
-                    <Pressable onPress={() => deleteUser(item.id)} style={styles.userActionBtn}>
+                    <Pressable accessibilityRole="button" accessibilityLabel={t("common.delete")} onPress={() => deleteUser(item.id)} style={styles.userActionBtn}>
                       <Feather name="trash-2" size={14} color="#ef4444" />
                     </Pressable>
                   )}

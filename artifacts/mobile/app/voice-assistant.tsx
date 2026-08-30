@@ -745,7 +745,7 @@ export default function VoiceAssistantScreen() {
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <View style={[styles.header, { backgroundColor: colors.secondary, paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={styles.headerRow}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
           <View style={styles.headerCenter}>

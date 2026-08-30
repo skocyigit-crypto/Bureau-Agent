@@ -619,7 +619,7 @@ export default function GmailAgentScreen() {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}><Feather name="arrow-left" size={20} color="#fff" /></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} style={styles.backBtn}><Feather name="arrow-left" size={20} color="#fff" /></Pressable>
           <Text style={styles.headerTitle}>Gmail Agent</Text>
         </View>
         <View style={styles.notConnected}>
@@ -644,7 +644,7 @@ export default function GmailAgentScreen() {
       {/* Header */}
       <View style={[styles.header, { paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={styles.headerTop}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
           <View style={{ flex: 1 }}>
@@ -753,7 +753,7 @@ export default function GmailAgentScreen() {
             {/* Header */}
             <View style={[styles.detailHeader, { backgroundColor: "#dc2626", paddingTop: isWeb ? 20 : insets.top + 8 }]}>
               <View style={styles.detailHeaderTop}>
-                <Pressable onPress={() => { setSelected(null); setScanReport(null); }} style={styles.backBtn}>
+                <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={() => { setSelected(null); setScanReport(null); }} style={styles.backBtn}>
                   <Feather name="x" size={20} color="#fff" />
                 </Pressable>
                 <Text style={[styles.headerTitle, { flex: 1 }]} numberOfLines={1}>{selected.subject || t("gmailAgentScreen.noSubject")}</Text>
@@ -902,9 +902,9 @@ export default function GmailAgentScreen() {
           <View style={[styles.detailContainer, { backgroundColor: colors.background }]}>
             <View style={[styles.detailHeader, { backgroundColor: "#dc2626", paddingTop: isWeb ? 20 : insets.top + 8 }]}>
               <View style={styles.detailHeaderTop}>
-                <Pressable onPress={() => setShowCompose(false)} style={styles.backBtn}><Feather name="x" size={20} color="#fff" /></Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={() => setShowCompose(false)} style={styles.backBtn}><Feather name="x" size={20} color="#fff" /></Pressable>
                 <Text style={styles.headerTitle}>{compose.replyToId ? t("gmailAgentScreen.reply") : t("gmailAgentScreen.newMessage")}</Text>
-                <Pressable onPress={handleSend} disabled={sendLoading || !compose.to || !compose.subject || !compose.body}
+                <Pressable accessibilityRole="button" accessibilityLabel={t("common.send")} onPress={handleSend} disabled={sendLoading || !compose.to || !compose.subject || !compose.body}
                   style={[styles.sendActionBtn, { opacity: sendLoading || !compose.to || !compose.subject || !compose.body ? 0.5 : 1 }]}>
                   {sendLoading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="send" size={18} color="#fff" />}
                 </Pressable>

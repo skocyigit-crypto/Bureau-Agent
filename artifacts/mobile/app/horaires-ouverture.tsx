@@ -96,7 +96,7 @@ function PickerModal({ visible, title, options, selected, onSelect, onClose }: P
         >
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>{title}</Text>
-            <Pressable onPress={onClose} hitSlop={12}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={onClose} hitSlop={12}>
               <Feather name="x" size={20} color={colors.mutedForeground} />
             </Pressable>
           </View>
@@ -202,7 +202,7 @@ function TimePickerModal({ visible, title, value, onConfirm, onClose }: TimePick
         >
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>{title}</Text>
-            <Pressable onPress={onClose} hitSlop={12}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={onClose} hitSlop={12}>
               <Feather name="x" size={20} color={colors.mutedForeground} />
             </Pressable>
           </View>
@@ -458,7 +458,7 @@ export default function HorairesOuvertureScreen() {
           },
         ]}
       >
-        <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={12}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} style={styles.backButton} hitSlop={12}>
           <Feather name="arrow-left" size={22} color="#ffffff" />
         </Pressable>
         <Text style={styles.headerTitle}>{t("horairesScreen.headerTitle")}</Text>

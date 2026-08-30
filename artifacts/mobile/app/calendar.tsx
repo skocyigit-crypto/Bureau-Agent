@@ -547,7 +547,7 @@ export default function CalendarScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.secondary, paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={styles.headerRow}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} hitSlop={12}>
             <Feather name="arrow-left" size={22} color="#ffffff" />
           </Pressable>
           <Text style={styles.headerTitle}>{t("calendarScreen.title")}</Text>
@@ -557,7 +557,7 @@ export default function CalendarScreen() {
         </View>
 
         <View style={styles.monthNav}>
-          <Pressable onPress={() => changeMonth(-1)} hitSlop={16} style={styles.navBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => changeMonth(-1)} hitSlop={16} style={styles.navBtn}>
             <Feather name="chevron-left" size={22} color="#ffffff" />
           </Pressable>
           <Text style={styles.monthLabel}>{monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}</Text>
@@ -894,8 +894,8 @@ export default function CalendarScreen() {
         transparent
         onRequestClose={() => setShowDatePicker(null)}
       >
-        <Pressable style={styles.pickerOverlay} onPress={() => setShowDatePicker(null)}>
-          <Pressable style={[styles.pickerCard, { backgroundColor: colors.background }]} onPress={() => {}}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} style={styles.pickerOverlay} onPress={() => setShowDatePicker(null)}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} style={[styles.pickerCard, { backgroundColor: colors.background }]} onPress={() => {}}>
             {(() => {
               const pickerYear = datePickerMonth.getFullYear();
               const pickerMonthIdx = datePickerMonth.getMonth();
@@ -910,7 +910,7 @@ export default function CalendarScreen() {
               return (
                 <>
                   <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
-                    <Pressable
+                    <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")}
                       onPress={() => {
                         const d = new Date(datePickerMonth);
                         d.setMonth(d.getMonth() - 1);

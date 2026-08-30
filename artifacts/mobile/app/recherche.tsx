@@ -210,7 +210,7 @@ export default function RechercheScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: "#1e293b", paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={styles.headerTop}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
           <Text style={styles.headerTitle}>{t("rechercheScreen.title")}</Text>
@@ -228,7 +228,7 @@ export default function RechercheScreen() {
             returnKeyType="search"
           />
           {query.length > 0 && (
-            <Pressable onPress={() => { setQuery(""); setResults(null); }}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={() => { setQuery(""); setResults(null); }}>
               <Feather name="x" size={16} color="#6b7280" />
             </Pressable>
           )}

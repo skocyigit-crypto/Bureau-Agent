@@ -92,7 +92,7 @@ export function FormModal({
       >
         <View style={[styles.container, { backgroundColor: colors.background }]}>
           <View style={[styles.header, { borderBottomColor: colors.border }]}>
-            <Pressable onPress={onClose} hitSlop={12}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={onClose} hitSlop={12}>
               <Feather name="x" size={22} color={colors.foreground} />
             </Pressable>
             <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>
@@ -260,7 +260,7 @@ function FormField({ field, values, onChange }: FormFieldProps) {
                 </Text>
               ) : null}
             </View>
-            <Pressable
+            <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")}
               onPress={() => onChange(field.key, "")}
               hitSlop={8}
               style={styles.contactClearBtn}
@@ -410,7 +410,7 @@ function FormField({ field, values, onChange }: FormFieldProps) {
                   {t("common.add")}
                 </Text>
               </Pressable>
-              <Pressable onPress={dismissSuggestion} hitSlop={8} style={styles.suggestionDismiss}>
+              <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={dismissSuggestion} hitSlop={8} style={styles.suggestionDismiss}>
                 <Feather name="x" size={14} color={colors.mutedForeground} />
               </Pressable>
             </View>

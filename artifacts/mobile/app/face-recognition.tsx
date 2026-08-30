@@ -513,7 +513,7 @@ export default function FaceRecognitionScreen() {
             <Text style={[styles.selectedContactText, { color: colors.primary }]}>
               {selectedContact.firstName} {selectedContact.lastName}
             </Text>
-            <Pressable onPress={() => { setSelectedContact(null); setContactSearch(""); }}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={() => { setSelectedContact(null); setContactSearch(""); }}>
               <Feather name="x" size={16} color={colors.mutedForeground} />
             </Pressable>
           </View>
@@ -608,7 +608,7 @@ export default function FaceRecognitionScreen() {
               </Text>
             )}
           </View>
-          <Pressable onPress={() => deleteProfile(item.id, item.name)} style={styles.deleteBtn} hitSlop={8}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.delete")} onPress={() => deleteProfile(item.id, item.name)} style={styles.deleteBtn} hitSlop={8}>
             <Feather name="trash-2" size={16} color={colors.destructive} />
           </Pressable>
         </View>
@@ -672,7 +672,7 @@ export default function FaceRecognitionScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.secondary, paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={styles.headerRow}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} style={styles.backButton}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
           <View style={{ flex: 1 }}>

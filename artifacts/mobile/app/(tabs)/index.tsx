@@ -477,7 +477,7 @@ export default function DashboardScreen() {
                       </Text>
                     </Pressable>
                     {call.status === "manque" && call.phoneNumber && (
-                      <Pressable
+                      <Pressable accessibilityRole="button" accessibilityLabel={t("common.call")}
                         onPress={() => {
                           if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                           Linking.openURL(`tel:${call.phoneNumber}`);

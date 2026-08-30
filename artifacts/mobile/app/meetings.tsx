@@ -223,7 +223,7 @@ export default function MeetingsScreen() {
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         {/* Header */}
         <View style={[styles.header, { paddingTop: insets.top + 12, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={22} color={colors.foreground} />
           </Pressable>
           <View style={styles.headerCenter}>
@@ -233,7 +233,7 @@ export default function MeetingsScreen() {
             <Text style={[styles.headerTitle, { color: colors.foreground }]}>{t("meetingsScreen.title")}</Text>
           </View>
           {result && (
-            <Pressable onPress={reset} style={styles.resetBtn}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("common.refresh")} onPress={reset} style={styles.resetBtn}>
               <Feather name="refresh-cw" size={18} color={colors.mutedForeground} />
             </Pressable>
           )}
@@ -288,7 +288,7 @@ export default function MeetingsScreen() {
                         {chantierDetecte.distanceKm} km · {chantierDetecte.status}
                       </Text>
                     </View>
-                    <Pressable onPress={() => { setChantierManuel(null); setPosition(null); }}>
+                    <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={() => { setChantierManuel(null); setPosition(null); }}>
                       <Feather name="x" size={16} color={colors.mutedForeground} />
                     </Pressable>
                   </View>

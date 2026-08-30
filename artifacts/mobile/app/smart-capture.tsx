@@ -366,7 +366,7 @@ export default function SmartCaptureScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={20} color="#fff" />
         </Pressable>
         <View>
@@ -398,7 +398,7 @@ export default function SmartCaptureScreen() {
         ) : (
           <View style={[styles.previewCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Image source={{ uri: capture.uri }} style={styles.previewImg} resizeMode="cover" />
-            <Pressable onPress={reset} style={styles.previewRemove}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={reset} style={styles.previewRemove}>
               <Feather name="x" size={16} color="#fff" />
             </Pressable>
           </View>

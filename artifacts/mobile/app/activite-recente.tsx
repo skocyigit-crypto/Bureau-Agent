@@ -214,14 +214,14 @@ export default function ActiviteRecenteScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: "#0f172a", paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={styles.headerTop}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>{t("activiteRecenteScreen.header")}</Text>
             {!loading && <Text style={styles.headerSub}>{filtered.length !== 1 ? t("activiteRecenteScreen.eventCountMany", { count: filtered.length }) : t("activiteRecenteScreen.eventCountOne", { count: filtered.length })}</Text>}
           </View>
-          <Pressable onPress={onRefresh} style={styles.backBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.refresh")} onPress={onRefresh} style={styles.backBtn}>
             <Feather name="refresh-cw" size={18} color="rgba(255,255,255,0.8)" />
           </Pressable>
         </View>

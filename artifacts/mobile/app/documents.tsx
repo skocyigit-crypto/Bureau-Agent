@@ -206,7 +206,7 @@ function DocCard({ doc, colors, onDelete, onDownload, onRead, onRescan, scanning
               : <Feather name="shield" size={12} color="#10b981" />}
             <Text style={[st.actionBtnText, { color: "#10b981" }]}>{scanning ? "..." : (doc.scanVerdict ? t("documentsScreen.rescan") : t("documentsScreen.scan"))}</Text>
           </Pressable>
-          <Pressable
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.delete")}
             onPress={() => {
               if (Platform.OS === "web") { onDelete(doc.id); return; }
               Alert.alert(t("common.delete"), t("documentsScreen.deleteConfirm", { name: doc.fileName }), [
@@ -579,11 +579,11 @@ export default function DocumentsScreen() {
       {/* ── Header ── */}
       <View style={[st.header, { backgroundColor: "#0f766e", paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={st.headerRow}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} hitSlop={12}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
           <Text style={st.headerTitle}>{t("documentsScreen.title")}</Text>
-          <Pressable onPress={onRefresh} hitSlop={10}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.refresh")} onPress={onRefresh} hitSlop={10}>
             <Feather name="refresh-cw" size={18} color="rgba(255,255,255,0.8)" />
           </Pressable>
         </View>
@@ -618,7 +618,7 @@ export default function DocumentsScreen() {
             value={search}
             onChangeText={setSearch}
           />
-          {search ? <Pressable onPress={() => setSearch("")}><Feather name="x" size={13} color="rgba(255,255,255,0.5)" /></Pressable> : null}
+          {search ? <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={() => setSearch("")}><Feather name="x" size={13} color="rgba(255,255,255,0.5)" /></Pressable> : null}
         </View>
 
         {/* Source filter — scrollable */}

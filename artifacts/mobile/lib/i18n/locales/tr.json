@@ -13,7 +13,11 @@
     "back": "Geri",
     "yes": "Evet",
     "no": "Hayır",
-    "language": "Dil"
+    "language": "Dil",
+    "refresh": "Yenile",
+    "send": "Gönder",
+    "call": "Ara",
+    "email": "E-posta gönder"
   },
   "tabs": {
     "home": "Ana Sayfa",

@@ -197,14 +197,14 @@ export default function OrganisationsScreen() {
       {/* Header */}
       <View style={[styles.header, { paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={styles.headerRow}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} hitSlop={12}>
             <Feather name="arrow-left" size={22} color="#fff" />
           </Pressable>
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>{t("organisationsScreen.headerTitle")}</Text>
             <Text style={styles.headerSub}>{t("organisationsScreen.headerSub", { orgs: orgs.length, users: totalUsers })}</Text>
           </View>
-          <Pressable onPress={() => setShowForm(true)} hitSlop={12} style={[styles.addBtn]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.add")} onPress={() => setShowForm(true)} hitSlop={12} style={[styles.addBtn]}>
             <Feather name="plus" size={20} color="#fff" />
           </Pressable>
         </View>

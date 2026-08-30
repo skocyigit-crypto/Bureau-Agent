@@ -349,7 +349,7 @@ export default function CallsScreen() {
             value={searchInput}
             onChangeText={setSearchInput}
           />
-          {searchInput ? <Pressable onPress={() => { setSearchInput(""); setSearch(""); }}><Feather name="x" size={16} color="rgba(255,255,255,0.5)" /></Pressable> : null}
+          {searchInput ? <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={() => { setSearchInput(""); setSearch(""); }}><Feather name="x" size={16} color="rgba(255,255,255,0.5)" /></Pressable> : null}
         </View>
         <View style={styles.filterRow}>
           {filters.map((f) => (
@@ -455,7 +455,7 @@ export default function CallsScreen() {
                     </View>
                   </Pressable>
                   {item.phoneNumber && (
-                    <Pressable
+                    <Pressable accessibilityRole="button" accessibilityLabel={t("common.call")}
                       onPress={() => callBack(item.phoneNumber)}
                       style={[styles.callbackBtn, { backgroundColor: isMissed ? "#ef444418" : "#22c55e18" }]}
                       hitSlop={8}

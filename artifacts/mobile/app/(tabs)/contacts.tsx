@@ -117,7 +117,7 @@ function ContactRow({
       </View>
       <View style={styles.actionBtns}>
         {item.phone ? (
-          <Pressable onPress={onCall} style={[styles.actionBtn, { backgroundColor: "#22c55e18" }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.call")} onPress={onCall} style={[styles.actionBtn, { backgroundColor: "#22c55e18" }]}>
             <Feather name="phone" size={15} color="#22c55e" />
           </Pressable>
         ) : null}
@@ -127,7 +127,7 @@ function ContactRow({
           </Pressable>
         ) : null}
         {item.email ? (
-          <Pressable onPress={onEmail} style={[styles.actionBtn, { backgroundColor: "#8b5cf618" }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.email")} onPress={onEmail} style={[styles.actionBtn, { backgroundColor: "#8b5cf618" }]}>
             <Feather name="mail" size={15} color="#8b5cf6" />
           </Pressable>
         ) : null}

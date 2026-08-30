@@ -153,7 +153,7 @@ function SwipeableTask({ item, colors, onToggle, onDelete, onOpen }: SwipeableTa
           dueInfo?.urgent && { borderLeftWidth: 3, borderLeftColor: dueInfo.color },
         ]}
       >
-        <Pressable onPress={() => onToggle(item)} style={[styles.checkCircle, { borderColor: statusColor }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("common.confirm")} onPress={() => onToggle(item)} style={[styles.checkCircle, { borderColor: statusColor }]}>
           {item.status === "termine" ? <Feather name="check" size={14} color={statusColor} /> : null}
         </Pressable>
         <Pressable onPress={() => onOpen(item)} style={styles.taskContent}>

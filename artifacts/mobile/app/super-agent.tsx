@@ -543,7 +543,7 @@ export default function SuperAgentScreen() {
       {/* Header */}
       <View style={[sa.header, { paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={sa.headerRow}>
-          <Pressable onPress={() => router.back()} hitSlop={12} style={sa.backBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} hitSlop={12} style={sa.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
           <View style={{ flex: 1 }}>

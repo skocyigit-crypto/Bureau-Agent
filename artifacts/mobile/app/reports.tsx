@@ -164,11 +164,11 @@ export default function ReportsScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={styles.headerTop}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
           <Text style={styles.headerTitle}>{t("reportsScreen.headerTitle")}</Text>
-          <Pressable onPress={onRefresh} style={styles.backBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.refresh")} onPress={onRefresh} style={styles.backBtn}>
             <Feather name="refresh-cw" size={16} color="#fff" />
           </Pressable>
         </View>
@@ -200,7 +200,7 @@ export default function ReportsScreen() {
             value={search}
             onChangeText={setSearch}
           />
-          {search ? <Pressable onPress={() => setSearch("")}><Feather name="x" size={14} color="rgba(255,255,255,0.6)" /></Pressable> : null}
+          {search ? <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={() => setSearch("")}><Feather name="x" size={14} color="rgba(255,255,255,0.6)" /></Pressable> : null}
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>

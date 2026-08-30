@@ -13,7 +13,11 @@
     "back": "Back",
     "yes": "Yes",
     "no": "No",
-    "language": "Language"
+    "language": "Language",
+    "refresh": "Refresh",
+    "send": "Send",
+    "call": "Call",
+    "email": "Send an email"
   },
   "tabs": {
     "home": "Home",

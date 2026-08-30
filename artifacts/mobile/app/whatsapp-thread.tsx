@@ -225,7 +225,7 @@ export default function WhatsappThreadScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.secondary, paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={styles.headerRow}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} hitSlop={12}>
             <Feather name="arrow-left" size={22} color="#ffffff" />
           </Pressable>
           <View style={styles.headerCenter}>
@@ -335,7 +335,7 @@ export default function WhatsappThreadScreen() {
                 }}
                 multiline
               />
-              <Pressable
+              <Pressable accessibilityRole="button" accessibilityLabel={t("common.send")}
                 onPress={handleSend}
                 disabled={composer.trim() === "" || sending}
                 style={({ pressed }) => [

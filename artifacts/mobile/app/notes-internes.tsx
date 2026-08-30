@@ -111,7 +111,7 @@ function NoteCard({ note, colors, isDark, onPress, onPin, onDelete }: NoteCardPr
           <Pressable onPress={onPin} hitSlop={8} style={styles.noteActionBtn}>
             <Feather name="bookmark" size={14} color={note.pinned ? "#f59e0b" : colors.mutedForeground} />
           </Pressable>
-          <Pressable onPress={onDelete} hitSlop={8} style={styles.noteActionBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.delete")} onPress={onDelete} hitSlop={8} style={styles.noteActionBtn}>
             <Feather name="trash-2" size={14} color={colors.mutedForeground} />
           </Pressable>
         </View>
@@ -172,7 +172,7 @@ function NoteEditor({ note, onSave, onClose, saving, colors, isDark }: NoteEdito
       <View style={[styles.editorOverlay, { backgroundColor: "rgba(0,0,0,0.5)" }]}>
         <View style={[styles.editorCard, { backgroundColor: cardBg, borderColor: COLOR_ACCENTS[color] ?? "#e2e8f0" }]}>
           <View style={styles.editorHeader}>
-            <Pressable onPress={onClose} style={styles.editorCloseBtn}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={onClose} style={styles.editorCloseBtn}>
               <Feather name="x" size={18} color={colors.foreground} />
             </Pressable>
             <Text style={[styles.editorTitle, { color: colors.foreground }]}>
@@ -227,7 +227,7 @@ function NoteEditor({ note, onSave, onClose, saving, colors, isDark }: NoteEdito
                   {t("notesInternesScreen.add")}
                 </Text>
               </Pressable>
-              <Pressable onPress={dismissSuggestion} hitSlop={8} style={styles.suggestionDismiss}>
+              <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={dismissSuggestion} hitSlop={8} style={styles.suggestionDismiss}>
                 <Feather name="x" size={14} color={colors.mutedForeground} />
               </Pressable>
             </View>
@@ -243,7 +243,7 @@ function NoteEditor({ note, onSave, onClose, saving, colors, isDark }: NoteEdito
 
           <View style={styles.colorRow}>
             {COLORS.map(c => (
-              <Pressable
+              <Pressable accessibilityRole="button" accessibilityLabel={t("common.confirm")}
                 key={c}
                 onPress={() => setColor(c)}
                 style={[
@@ -381,7 +381,7 @@ export default function NotesInternesScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.secondary, paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={styles.headerTop}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
           <Text style={styles.headerTitle}>{t("notesInternesScreen.title")}</Text>
@@ -449,7 +449,7 @@ export default function NotesInternesScreen() {
         />
       )}
 
-      <Pressable
+      <Pressable accessibilityRole="button" accessibilityLabel={t("common.add")}
         style={[styles.fab, { backgroundColor: colors.primary }]}
         onPress={() => { setEditing(null); setCreating(true); }}
       >

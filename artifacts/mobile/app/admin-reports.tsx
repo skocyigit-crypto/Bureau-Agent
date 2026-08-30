@@ -226,11 +226,11 @@ export default function AdminReportsScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.secondary, paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={styles.headerRow}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} hitSlop={12}>
             <Feather name="arrow-left" size={22} color="#ffffff" />
           </Pressable>
           <Text style={styles.headerTitle}>{t("adminReportsScreen.headerTitle")}</Text>
-          <Pressable onPress={() => tab === "rapports" ? setShowForm(true) : setShowUserForm(true)} hitSlop={12}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.add")} onPress={() => tab === "rapports" ? setShowForm(true) : setShowUserForm(true)} hitSlop={12}>
             <Feather name="plus" size={22} color="#ffffff" />
           </Pressable>
         </View>

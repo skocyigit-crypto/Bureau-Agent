@@ -228,7 +228,7 @@ export default function DocumentImportScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={styles.headerRow}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
           <Text style={styles.headerTitle}>{t("documentImportScreen.title")}</Text>
@@ -276,7 +276,7 @@ export default function DocumentImportScreen() {
                       <Text style={[styles.fileName, { color: colors.foreground }]} numberOfLines={1}>{f.name}</Text>
                       <Text style={[styles.fileMeta, { color: colors.mutedForeground }]}>{fmtSize(f.size)} · {f.mimeType.split("/")[1]?.toUpperCase() ?? "—"}</Text>
                     </View>
-                    <Pressable onPress={() => removeFile(i)} style={styles.removeBtn}>
+                    <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={() => removeFile(i)} style={styles.removeBtn}>
                       <Feather name="x" size={16} color="#ef4444" />
                     </Pressable>
                   </View>

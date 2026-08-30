@@ -189,7 +189,7 @@ export default function ContactDetailScreen() {
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
           <View style={styles.headerTop}>
-            <Pressable onPress={() => router.back()} style={styles.backBtn}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} style={styles.backBtn}>
               <Feather name="arrow-left" size={20} color="#fff" />
             </Pressable>
             <Text style={styles.headerTitle}>{t("contactDetailScreen.title")}</Text>
@@ -205,7 +205,7 @@ export default function ContactDetailScreen() {
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
           <View style={styles.headerTop}>
-            <Pressable onPress={() => router.back()} style={styles.backBtn}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} style={styles.backBtn}>
               <Feather name="arrow-left" size={20} color="#fff" />
             </Pressable>
             <Text style={styles.headerTitle}>{t("contactDetailScreen.notFound")}</Text>
@@ -226,7 +226,7 @@ export default function ContactDetailScreen() {
       {/* Header */}
       <View style={[styles.header, { paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={styles.headerTop}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
           <Text style={styles.headerTitle} numberOfLines={1}>{contact.firstName} {contact.lastName}</Text>
@@ -252,7 +252,7 @@ export default function ContactDetailScreen() {
           </View>
           <View style={{ gap: 8 }}>
             {contact.phone && (
-              <Pressable
+              <Pressable accessibilityRole="button" accessibilityLabel={t("common.call")}
                 onPress={() => Linking.openURL(`tel:${contact.phone}`)}
                 style={[styles.actionBtn, { backgroundColor: "#22c55e" }]}
               >
@@ -260,7 +260,7 @@ export default function ContactDetailScreen() {
               </Pressable>
             )}
             {contact.email && (
-              <Pressable
+              <Pressable accessibilityRole="button" accessibilityLabel={t("common.email")}
                 onPress={() => Linking.openURL(`mailto:${contact.email}`)}
                 style={[styles.actionBtn, { backgroundColor: "#3b82f6" }]}
               >

@@ -97,7 +97,7 @@ export default function SettingsScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.secondary, paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={styles.headerRow}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} hitSlop={12}>
             <Feather name="arrow-left" size={22} color="#ffffff" />
           </Pressable>
           <Text style={styles.headerTitle}>{t("settingsScreen.header")}</Text>
@@ -1220,7 +1220,7 @@ function ClosuresCard() {
                   isDeleting ? (
                     <ActivityIndicator size="small" color="#ef4444" />
                   ) : (
-                    <Pressable
+                    <Pressable accessibilityRole="button" accessibilityLabel={t("common.delete")}
                       onPress={() => handleDelete(c.id)}
                       hitSlop={10}
                       style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: 4 })}

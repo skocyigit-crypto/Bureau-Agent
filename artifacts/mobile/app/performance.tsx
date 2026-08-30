@@ -629,7 +629,7 @@ export default function PerformanceScreen() {
       {/* ── Header ── */}
       <View style={[pr.header, { paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={pr.headerRow}>
-          <Pressable onPress={() => router.back()} hitSlop={12} style={pr.backBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} hitSlop={12} style={pr.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
           <View style={{ flex: 1 }}>
@@ -638,7 +638,7 @@ export default function PerformanceScreen() {
               {data ? t("performanceScreen.headerSub", { count: data.employees.length, score: data.teamScore }) : t("performanceScreen.headerSubDefault")}
             </Text>
           </View>
-          <Pressable onPress={onRefresh} hitSlop={10}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.refresh")} onPress={onRefresh} hitSlop={10}>
             <Feather name="refresh-cw" size={18} color="rgba(255,255,255,0.8)" />
           </Pressable>
         </View>

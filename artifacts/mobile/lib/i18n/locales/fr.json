@@ -13,7 +13,11 @@
     "back": "Retour",
     "yes": "Oui",
     "no": "Non",
-    "language": "Langue"
+    "language": "Langue",
+    "refresh": "Actualiser",
+    "send": "Envoyer",
+    "call": "Appeler",
+    "email": "Envoyer un e-mail"
   },
   "tabs": {
     "home": "Accueil",

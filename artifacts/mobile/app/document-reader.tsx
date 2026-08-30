@@ -186,7 +186,7 @@ function ContentTab({ doc }: { doc: DocPreview }) {
         <View style={[rd.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Feather name="search" size={14} color={colors.mutedForeground} />
           <TextInput style={[rd.searchInput, { color: colors.foreground }]} placeholder={t("documentReaderScreen.searchPlaceholder")} placeholderTextColor={colors.mutedForeground} value={search} onChangeText={setSearch} />
-          {search ? <Pressable onPress={() => setSearch("")}><Feather name="x" size={13} color={colors.mutedForeground} /></Pressable> : null}
+          {search ? <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={() => setSearch("")}><Feather name="x" size={13} color={colors.mutedForeground} /></Pressable> : null}
         </View>
         {pages.length > 1 && (
           <View style={[rd.pageNav, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -779,7 +779,7 @@ function AnalyseTab({ doc, docId, onReloadDoc }: { doc: DocPreview; docId: numbe
               maxLength={1000}
               onSubmitEditing={() => handleAsk()}
             />
-            <Pressable onPress={() => handleAsk()} disabled={!question.trim() || asking}
+            <Pressable accessibilityRole="button" accessibilityLabel={t("common.send")} onPress={() => handleAsk()} disabled={!question.trim() || asking}
               style={[rd.sendBtn, { backgroundColor: question.trim() && !asking ? "#6366f1" : "#6366f140" }]}>
               <Feather name="send" size={16} color="#fff" />
             </Pressable>
@@ -893,7 +893,7 @@ export default function DocumentReaderScreen() {
       {/* Header */}
       <View style={[rd.header, { paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={rd.headerRow}>
-          <Pressable onPress={() => router.back()} hitSlop={12} style={rd.headerBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} hitSlop={12} style={rd.headerBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
           <View style={{ flex: 1, overflow: "hidden" }}>

@@ -741,7 +741,7 @@ export default function CallAssistantScreen() {
       {/* Header */}
       <View style={[st.header, { paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={st.headerRow}>
-          <Pressable onPress={() => router.back()} hitSlop={12} style={st.backBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} hitSlop={12} style={st.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
           <View style={{ flex: 1 }}>
@@ -752,7 +752,7 @@ export default function CallAssistantScreen() {
             </View>
           </View>
           {phone && (
-            <Pressable onPress={() => Linking.openURL(`tel:${phone}`)} style={[st.callBtn, { backgroundColor: "#22c55e" }]}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("common.call")} onPress={() => Linking.openURL(`tel:${phone}`)} style={[st.callBtn, { backgroundColor: "#22c55e" }]}>
               <Feather name="phone" size={18} color="#fff" />
             </Pressable>
           )}

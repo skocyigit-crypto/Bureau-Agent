@@ -306,7 +306,7 @@ export default function WorkforceAgentScreen() {
   const topBar = (
     <View style={[styles.header, { backgroundColor: colors.secondary, paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
       <View style={styles.headerRow}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} hitSlop={12}>
           <Feather name="arrow-left" size={22} color="#ffffff" />
         </Pressable>
         <View style={styles.headerCenter}>
@@ -316,7 +316,7 @@ export default function WorkforceAgentScreen() {
             <Text style={styles.agentBadgeText}>{t("workforceAgentScreen.active")}</Text>
           </View>
         </View>
-        <Pressable onPress={onRefresh} hitSlop={12}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("common.refresh")} onPress={onRefresh} hitSlop={12}>
           {refreshing ? <ActivityIndicator size="small" color="rgba(255,255,255,0.8)" /> : <Feather name="refresh-cw" size={18} color="rgba(255,255,255,0.8)" />}
         </Pressable>
       </View>

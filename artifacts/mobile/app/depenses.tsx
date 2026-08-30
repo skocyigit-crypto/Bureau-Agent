@@ -294,14 +294,14 @@ export default function DepensesScreen() {
           </Text>
           {tab === "queue" ? (
             <View style={styles.actions}>
-              <Pressable
+              <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")}
                 onPress={() => act(d.id, "reject")}
                 disabled={busyId === d.id}
                 style={[styles.actBtn, { borderColor: colors.border, backgroundColor: colors.background }]}
               >
                 <Feather name="x" size={16} color={colors.destructive} />
               </Pressable>
-              <Pressable
+              <Pressable accessibilityRole="button" accessibilityLabel={t("common.confirm")}
                 onPress={() => act(d.id, "approve")}
                 disabled={busyId === d.id}
                 style={[styles.actBtn, { backgroundColor: ACCENT, borderColor: ACCENT }]}
@@ -323,7 +323,7 @@ export default function DepensesScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={20} color="#fff" />
         </Pressable>
         <View>

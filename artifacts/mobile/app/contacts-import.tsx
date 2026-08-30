@@ -130,7 +130,7 @@ export default function ContactsImportScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: "#0369a1", paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={styles.headerTop}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
           <Text style={styles.headerTitle}>{t("contactsImportScreen.title")}</Text>
@@ -284,7 +284,7 @@ export default function ContactsImportScreen() {
                   </View>
                   <Text style={[styles.manualCardTitle, { color: colors.foreground }]}>{t("contactsImportScreen.contactN", { n: i + 1 })}</Text>
                   {rows.length > 1 && (
-                    <Pressable onPress={() => removeRow(i)} style={styles.removeBtn}>
+                    <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={() => removeRow(i)} style={styles.removeBtn}>
                       <Feather name="x" size={16} color="#ef4444" />
                     </Pressable>
                   )}

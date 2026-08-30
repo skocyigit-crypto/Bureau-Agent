@@ -219,11 +219,11 @@ export default function FileApprobationScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} hitSlop={12}>
           <Feather name="arrow-left" size={24} color={colors.foreground} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>{t("fileApprobationScreen.title")}</Text>
-        <Pressable onPress={() => load(tab)} hitSlop={12}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("common.refresh")} onPress={() => load(tab)} hitSlop={12}>
           <Feather name="refresh-cw" size={20} color={colors.primary} />
         </Pressable>
       </View>

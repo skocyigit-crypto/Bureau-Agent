@@ -169,7 +169,7 @@ function BriefingSection({ data, loading, onRefresh }: { data: BriefingData | nu
                 </Text>
               )}
             </View>
-            <Pressable onPress={onRefresh} style={styles.miniRefresh}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("common.refresh")} onPress={onRefresh} style={styles.miniRefresh}>
               <Feather name="refresh-cw" size={14} color="#f59e0b" />
             </Pressable>
           </View>
@@ -318,7 +318,7 @@ function SearchSection() {
           onSubmitEditing={doSearch}
           returnKeyType="search"
         />
-        {query ? <Pressable onPress={() => { setQuery(""); setResults([]); }}><Feather name="x" size={14} color={colors.mutedForeground} /></Pressable> : null}
+        {query ? <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={() => { setQuery(""); setResults([]); }}><Feather name="x" size={14} color={colors.mutedForeground} /></Pressable> : null}
         <Pressable onPress={doSearch} style={[styles.searchBtn, { backgroundColor: "#3b82f6" }]}>
           {searching ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="arrow-right" size={14} color="#fff" />}
         </Pressable>
@@ -402,7 +402,7 @@ function EmailSection() {
         <View style={[styles.resultBox, { backgroundColor: colors.card, borderColor: "#3b82f630" }]}>
           <View style={styles.resultBoxHeader}>
             <Text style={[styles.resultBoxTitle, { color: colors.foreground }]}>{t("commandantIaScreen.emailGenerated")}</Text>
-            <Pressable onPress={() => setResult("")}><Feather name="x" size={14} color={colors.mutedForeground} /></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={() => setResult("")}><Feather name="x" size={14} color={colors.mutedForeground} /></Pressable>
           </View>
           <Text style={[styles.resultBoxText, { color: colors.foreground }]}>{result}</Text>
         </View>
@@ -896,7 +896,7 @@ export default function CommandantIAScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: "#7c3aed", paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={styles.headerTop}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
           <Text style={styles.headerTitle}>AI Commandant</Text>
