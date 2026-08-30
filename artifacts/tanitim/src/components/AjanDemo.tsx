@@ -628,14 +628,29 @@ export function AjanDemo() {
               </div>
             </div>
 
-            <div className="flex justify-center gap-1.5">
+            {/* Les puces mesuraient 6 px de haut et etaient espacees de 6 px:
+                sous les 24x24 exiges par WCAG 2.2 (2.5.8, niveau AA), et sans
+                controle equivalent ailleurs — ces puces sont le seul moyen de
+                choisir un exemple. Au-dela de la conformite, une cible de 6 px
+                est en pratique intouchable au doigt, et c'est la page ou
+                arrivent les prospects.
+
+                La zone cliquable fait desormais 24x24; la puce visible garde
+                exactement sa taille, portee par un span interieur. */}
+            <div className="flex justify-center">
               {GOOGLE_SAMPLES.map((_, i) => (
                 <button
                   key={i}
                   onClick={() => setActiveSample(i)}
-                  className={`h-1.5 rounded-full transition-all ${i === activeSample ? "bg-amber-400 w-8" : "bg-white/20 w-1.5"}`}
+                  className="flex h-6 min-w-6 items-center justify-center px-0.5"
                   aria-label={`Exemple ${i + 1}`}
-                />
+                  aria-current={i === activeSample}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`block h-1.5 rounded-full transition-all ${i === activeSample ? "bg-amber-400 w-8" : "bg-white/20 w-1.5"}`}
+                  />
+                </button>
               ))}
             </div>
 
