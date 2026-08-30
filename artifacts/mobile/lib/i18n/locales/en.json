@@ -25,7 +25,21 @@
     "download": "Download",
     "helpful": "Helpful",
     "notHelpful": "Not helpful",
-    "pin": "Pin"
+    "pin": "Pin",
+    "createProject": "Create a project",
+    "markClosed": "Mark as closed",
+    "run": "Run",
+    "compose": "Compose a message",
+    "star": "Add to favourites",
+    "import": "Import",
+    "voiceOn": "Turn voice on",
+    "voiceOff": "Turn voice off",
+    "replay": "Play again",
+    "stopSpeaking": "Stop playback",
+    "library": "Library",
+    "commands": "Commands",
+    "reopen": "Reopen",
+    "markDone": "Mark as done"
   },
   "tabs": {
     "home": "Home",

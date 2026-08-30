@@ -773,7 +773,7 @@ export default function DocumentsScreen() {
       )}
 
       {/* ── Import FAB ── */}
-      <Pressable onPress={() => router.push("/document-import" as any)}
+      <Pressable accessibilityRole="button" accessibilityLabel={t("common.import")} onPress={() => router.push("/document-import" as any)}
         style={[st.fab, { backgroundColor: "#0f766e" }]}>
         <Feather name="upload" size={20} color="#fff" />
       </Pressable>

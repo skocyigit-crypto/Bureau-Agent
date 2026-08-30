@@ -117,6 +117,9 @@ export function AvatarDock({ text, defaultLang = "fr", size = 40, storageKey, au
         </Pressable>
 
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={voiceOn ? "Couper la voix" : "Activer la voix"}
+          accessibilityState={{ selected: voiceOn }}
           onPress={() => {
             haptic();
             setVoiceOn((v) => !v);
@@ -127,7 +130,7 @@ export function AvatarDock({ text, defaultLang = "fr", size = 40, storageKey, au
           <Feather name={voiceOn ? "volume-2" : "volume-x"} size={16} color="rgba(255,255,255,0.85)" />
         </Pressable>
 
-        <Pressable onPress={replay} disabled={!canReplay} style={[styles.iconBtn, !canReplay && styles.disabled]} hitSlop={10}>
+        <Pressable accessibilityRole="button" accessibilityLabel={speaking ? "Arreter la lecture" : "Reecouter"} accessibilityState={{ disabled: !canReplay }} onPress={replay} disabled={!canReplay} style={[styles.iconBtn, !canReplay && styles.disabled]} hitSlop={10}>
           <Feather name={speaking ? "square" : "rotate-ccw"} size={15} color="rgba(255,255,255,0.85)" />
         </Pressable>
       </View>

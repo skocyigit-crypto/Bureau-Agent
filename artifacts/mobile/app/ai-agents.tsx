@@ -391,7 +391,7 @@ function AgentsTab({ runningAll, timeline, onCancel, superStatus, externalRefres
                           <Text style={[styles.scoreBadgeText, { color: scoreColor }]}>{report.score}</Text>
                         </View>
                       )}
-                      <Pressable onPress={(e) => { e.stopPropagation?.(); runSingleAgent(agent.id); }} disabled={isRunning} hitSlop={8} style={[styles.runBtn, { backgroundColor: colors.primary + "18" }]}>
+                      <Pressable accessibilityRole="button" accessibilityLabel={t("common.run")} accessibilityState={{ disabled: isRunning, busy: isRunning }} onPress={(e) => { e.stopPropagation?.(); runSingleAgent(agent.id); }} disabled={isRunning} hitSlop={8} style={[styles.runBtn, { backgroundColor: colors.primary + "18" }]}>
                         {isRunning ? <ActivityIndicator size="small" color={colors.primary} /> : <Feather name="play" size={13} color={colors.primary} />}
                       </Pressable>
                       <Feather name={isExpanded ? "chevron-up" : "chevron-down"} size={14} color={colors.mutedForeground} />

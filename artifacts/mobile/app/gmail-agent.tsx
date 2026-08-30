@@ -657,7 +657,7 @@ export default function GmailAgentScreen() {
                 <Text style={styles.unreadText}>{unread}</Text>
               </View>
             )}
-            <Pressable onPress={() => { setCompose({ to: "", subject: "", body: "" }); setShowCompose(true); }}
+            <Pressable accessibilityRole="button" accessibilityLabel={t("common.compose")} onPress={() => { setCompose({ to: "", subject: "", body: "" }); setShowCompose(true); }}
               style={[styles.composeBtn, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
               <Feather name="edit" size={16} color="#fff" />
             </Pressable>
@@ -768,7 +768,7 @@ export default function GmailAgentScreen() {
                 {selected.aiSummary ? (
                   <AvatarDock text={selected.aiSummary} autoSpeak={false} size={32} storageKey="buro.gmailm.voice" />
                 ) : null}
-                <Pressable onPress={() => handleStar(selected)} style={styles.backBtn}>
+                <Pressable accessibilityRole="button" accessibilityLabel={t("common.star")} onPress={() => handleStar(selected)} style={styles.backBtn}>
                   {actionLoading === "star-" + selected.id
                     ? <ActivityIndicator size="small" color="#fff" />
                     : <Feather name="star" size={18} color={selected.starred ? "#fbbf24" : "#fff"} />

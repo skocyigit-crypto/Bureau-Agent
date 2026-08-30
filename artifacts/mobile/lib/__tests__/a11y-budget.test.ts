@@ -82,9 +82,20 @@ function controls(): Control[] {
 describe("budget d'accessibilite mobile", () => {
   const all = controls();
 
-  // ~174 muets au depart: 144 corriges par lot, 10 relus un par un, puis les
-  // composants generiques (FAB, DetailModal) rendus nommables par contrat.
-  const SILENT_BUDGET = 19;
+  /**
+   * Plancher atteint: 4, et aucun n'est un defaut.
+   *
+   * Deux sont des <Pressable> qui enveloppent un <StatCard>: le composant rend
+   * son propre texte, donc le controle EST annonce — ce scanner ne voit que
+   * les <Text> litteraux et ne peut pas le savoir.
+   * Deux sont le fond et la carte du selecteur de date: ce ne sont pas des
+   * controles, et leur donner un nom placerait un bouton plein ecran devant
+   * l'utilisateur.
+   *
+   * Descendre sous 4 demanderait donc de degrader quelque chose. Si ce compte
+   * monte, c'est qu'un vrai controle a ete ajoute sans nom.
+   */
+  const SILENT_BUDGET = 4;
 
   it(`ne laisse pas plus de ${SILENT_BUDGET} controles muets`, () => {
     const silent = all.filter((c) => c.kind === "silent");
@@ -146,6 +157,9 @@ describe("pieges appris a nos depens", () => {
       "back", "close", "delete", "confirm", "add",
       "refresh", "send", "call", "email", "previousMonth", "nextMonth",
       "showPassword", "hidePassword", "download", "helpful", "notHelpful", "pin",
+      "createProject", "markClosed", "run", "compose", "star", "import",
+      "voiceOn", "voiceOff", "replay", "stopSpeaking", "library", "commands",
+      "reopen", "markDone",
     ];
     for (const file of fs.readdirSync(dir).filter((f) => f.endsWith(".json"))) {
       const json = JSON.parse(fs.readFileSync(path.join(dir, file), "utf8")) as {

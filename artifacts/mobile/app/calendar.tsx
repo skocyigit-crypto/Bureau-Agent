@@ -656,6 +656,8 @@ export default function CalendarScreen() {
                           </View>
                         ) : isAdmin && cell.dateStr && !isSelected ? (
                           <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={t("common.markClosed")}
                             onPress={() => openClosureSheet(cell.dateStr!)}
                             hitSlop={4}
                             style={styles.cellLockToggle}
@@ -999,7 +1001,7 @@ export default function CalendarScreen() {
         <KeyboardAvoidingView style={styles.sheetOverlay} behavior={Platform.OS === "ios" ? "padding" : "height"}>
           <View style={[styles.sheetContainer, { backgroundColor: colors.background }]}>
             <View style={[styles.sheetHeader, { borderBottomColor: colors.border }]}>
-              <Pressable onPress={() => { if (closureEditMode) { cancelEditMode(); } else { setShowClosureSheet(false); } }} hitSlop={12}>
+              <Pressable accessibilityRole="button" accessibilityLabel={closureEditMode ? t("common.back") : t("common.close")} onPress={() => { if (closureEditMode) { cancelEditMode(); } else { setShowClosureSheet(false); } }} hitSlop={12}>
                 <Feather name={closureEditMode ? "arrow-left" : "x"} size={22} color={colors.foreground} />
               </Pressable>
               <Text style={[styles.sheetTitle, { color: colors.foreground }]}>

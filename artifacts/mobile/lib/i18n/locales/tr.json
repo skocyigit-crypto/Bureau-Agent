@@ -25,7 +25,21 @@
     "download": "İndir",
     "helpful": "Faydalı",
     "notHelpful": "Faydalı değil",
-    "pin": "Sabitle"
+    "pin": "Sabitle",
+    "createProject": "Proje oluştur",
+    "markClosed": "Kapalı olarak işaretle",
+    "run": "Çalıştır",
+    "compose": "Mesaj yaz",
+    "star": "Favorilere ekle",
+    "import": "İçe aktar",
+    "voiceOn": "Sesi aç",
+    "voiceOff": "Sesi kapat",
+    "replay": "Tekrar dinle",
+    "stopSpeaking": "Okumayı durdur",
+    "library": "Kitaplık",
+    "commands": "Komutlar",
+    "reopen": "Yeniden aç",
+    "markDone": "Tamamlandı olarak işaretle"
   },
   "tabs": {
     "home": "Ana Sayfa",

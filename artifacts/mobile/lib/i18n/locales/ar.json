@@ -25,7 +25,21 @@
     "download": "تنزيل",
     "helpful": "مفيد",
     "notHelpful": "غير مفيد",
-    "pin": "تثبيت"
+    "pin": "تثبيت",
+    "createProject": "إنشاء مشروع",
+    "markClosed": "وضع علامة مغلق",
+    "run": "تشغيل",
+    "compose": "كتابة رسالة",
+    "star": "إضافة إلى المفضلة",
+    "import": "استيراد",
+    "voiceOn": "تشغيل الصوت",
+    "voiceOff": "كتم الصوت",
+    "replay": "إعادة الاستماع",
+    "stopSpeaking": "إيقاف التشغيل",
+    "library": "المكتبة",
+    "commands": "الأوامر",
+    "reopen": "إعادة فتح",
+    "markDone": "وضع علامة مكتمل"
   },
   "tabs": {
     "home": "الرئيسية",

@@ -25,7 +25,21 @@
     "download": "Herunterladen",
     "helpful": "Hilfreich",
     "notHelpful": "Nicht hilfreich",
-    "pin": "Anheften"
+    "pin": "Anheften",
+    "createProject": "Projekt erstellen",
+    "markClosed": "Als geschlossen markieren",
+    "run": "Starten",
+    "compose": "Nachricht verfassen",
+    "star": "Zu Favoriten hinzufügen",
+    "import": "Importieren",
+    "voiceOn": "Sprache einschalten",
+    "voiceOff": "Sprache ausschalten",
+    "replay": "Erneut abspielen",
+    "stopSpeaking": "Wiedergabe stoppen",
+    "library": "Bibliothek",
+    "commands": "Befehle",
+    "reopen": "Wieder öffnen",
+    "markDone": "Als erledigt markieren"
   },
   "tabs": {
     "home": "Start",

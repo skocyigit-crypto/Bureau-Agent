@@ -690,6 +690,9 @@ export default function AIChatScreen() {
               <Text style={styles.langBtnText}>{voiceLang.toUpperCase()}</Text>
             </Pressable>
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={voiceOn ? t("common.voiceOff") : t("common.voiceOn")}
+              accessibilityState={{ selected: voiceOn }}
               onPress={() => {
                 if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setVoiceOn((v) => !v);

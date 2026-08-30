@@ -1161,6 +1161,9 @@ function ClosuresCard() {
         </Text>
         {isAdmin && (
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("common.add")}
+            accessibilityState={{ expanded: showForm }}
             onPress={() => { setShowForm(v => !v); setFormError(""); }}
             hitSlop={8}
             style={({ pressed }) => ({

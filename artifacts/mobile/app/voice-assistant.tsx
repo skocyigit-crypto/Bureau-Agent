@@ -754,6 +754,9 @@ export default function VoiceAssistantScreen() {
           </View>
           <View style={{ flexDirection: "row", gap: 6 }}>
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={tr("library", lang)}
+              accessibilityState={{ selected: panel === "library" }}
               onPress={() => setPanel(panel === "library" ? "chat" : "library")}
               style={[styles.helpBtn, panel === "library" && { backgroundColor: "#f59e0b40" }]}
               hitSlop={8}
@@ -761,6 +764,9 @@ export default function VoiceAssistantScreen() {
               <Feather name="grid" size={16} color={panel === "library" ? "#f59e0b" : "rgba(255,255,255,0.7)"} />
             </Pressable>
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={tr("commands", lang)}
+              accessibilityState={{ selected: panel === "commands" }}
               onPress={() => setPanel(panel === "commands" ? "chat" : "commands")}
               style={[styles.helpBtn, panel === "commands" && { backgroundColor: "rgba(255,255,255,0.25)" }]}
               hitSlop={8}

@@ -193,7 +193,7 @@ export default function AnalyticsScreen() {
           </Pressable>
           <Text style={styles.headerTitle}>{t("analyticsScreen.header")}</Text>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
-            <Pressable onPress={async () => {
+            <Pressable accessibilityRole="button" accessibilityLabel={t("common.createProject")} onPress={async () => {
               try {
                 const res = await fetchAuth(`${API_BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: t("analyticsScreen.newProjectTitle"), status: "planifie", priority: "moyenne", progress: 0, notes: t("analyticsScreen.newProjectNote") }) });
                 if (res.ok) router.push("/projets" as any);

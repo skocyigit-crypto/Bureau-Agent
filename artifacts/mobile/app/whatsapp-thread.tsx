@@ -235,7 +235,7 @@ export default function WhatsappThreadScreen() {
             ) : null}
           </View>
           {conv ? (
-            <Pressable onPress={toggleStatus} hitSlop={12}>
+            <Pressable accessibilityRole="button" accessibilityLabel={conv.status === "closed" ? t("common.reopen") : t("common.markDone")} onPress={toggleStatus} hitSlop={12}>
               <Feather name={conv.status === "closed" ? "rotate-ccw" : "check-circle"} size={20} color="#ffffff" />
             </Pressable>
           ) : (

@@ -179,6 +179,9 @@ function NoteEditor({ note, onSave, onClose, saving, colors, isDark }: NoteEdito
               {note ? t("notesInternesScreen.editNote") : t("notesInternesScreen.newNote")}
             </Text>
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("common.save")}
+              accessibilityState={{ disabled: saving || !content.trim(), busy: saving }}
               onPress={() => onSave({ title, content, color, tags })}
               disabled={saving || !content.trim()}
               style={[styles.editorSaveBtn, { backgroundColor: colors.primary, opacity: saving || !content.trim() ? 0.5 : 1 }]}
