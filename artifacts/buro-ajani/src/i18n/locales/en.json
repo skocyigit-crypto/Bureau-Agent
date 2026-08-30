@@ -26,7 +26,8 @@
     "openExternal": "Open in a new tab",
     "viewDetail": "View detail",
     "assign": "Assign",
-    "selectAll": "Select all"
+    "selectAll": "Select all",
+    "skipToContent": "Skip to main content"
   },
   "nav": {
     "dashboard": "Dashboard",

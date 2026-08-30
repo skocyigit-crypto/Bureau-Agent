@@ -201,7 +201,7 @@ export default function TelephonyScreen() {
             { key: "sms" as const, label: t("telephonyScreen.tabSms"), icon: "message-square" as const },
             { key: "providers" as const, label: t("telephonyScreen.tabConfig"), icon: "settings" as const },
           ]).map(tabItem => (
-            <Pressable
+            <Pressable accessibilityRole="button"
               key={tabItem.key}
               onPress={() => { setTab(tabItem.key); setResult(null); }}
               style={[styles.tabBtn, { backgroundColor: tab === tabItem.key ? colors.primary : "rgba(255,255,255,0.1)" }]}
@@ -247,7 +247,7 @@ export default function TelephonyScreen() {
                 />
 
                 {hasProvider ? (
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     onPress={doCall}
                     disabled={actionLoading || !callTo.trim()}
                     style={({ pressed }) => [styles.actionBtn, { backgroundColor: "#22c55e", opacity: (actionLoading || !callTo.trim()) ? 0.5 : pressed ? 0.8 : 1 }]}
@@ -263,7 +263,7 @@ export default function TelephonyScreen() {
                   </Pressable>
                 ) : (
                   <View>
-                    <Pressable
+                    <Pressable accessibilityRole="button"
                       onPress={fallbackCall}
                       disabled={!callTo.trim()}
                       style={({ pressed }) => [styles.actionBtn, { backgroundColor: "#3b82f6", opacity: !callTo.trim() ? 0.5 : pressed ? 0.8 : 1 }]}
@@ -310,7 +310,7 @@ export default function TelephonyScreen() {
                 />
 
                 {hasProvider ? (
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     onPress={doSms}
                     disabled={actionLoading || !smsTo.trim() || !smsBody.trim()}
                     style={({ pressed }) => [styles.actionBtn, { backgroundColor: "#3b82f6", opacity: (actionLoading || !smsTo.trim() || !smsBody.trim()) ? 0.5 : pressed ? 0.8 : 1 }]}
@@ -326,7 +326,7 @@ export default function TelephonyScreen() {
                   </Pressable>
                 ) : (
                   <View>
-                    <Pressable
+                    <Pressable accessibilityRole="button"
                       onPress={() => { if (smsTo.trim()) Linking.openURL(`sms:${smsTo}${smsBody ? `?body=${encodeURIComponent(smsBody)}` : ""}`); }}
                       disabled={!smsTo.trim()}
                       style={({ pressed }) => [styles.actionBtn, { backgroundColor: "#3b82f6", opacity: !smsTo.trim() ? 0.5 : pressed ? 0.8 : 1 }]}
@@ -379,7 +379,7 @@ export default function TelephonyScreen() {
                     {FRAUD_OPTIONS.map(opt => {
                       const active = fraudAction === opt.value;
                       return (
-                        <Pressable
+                        <Pressable accessibilityRole="button"
                           key={opt.value}
                           disabled={fraudSaving || !fraudConfigured}
                           onPress={() => saveFraudAction(opt.value)}

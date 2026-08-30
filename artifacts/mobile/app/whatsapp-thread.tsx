@@ -307,7 +307,7 @@ export default function WhatsappThreadScreen() {
 
           <View style={[styles.composerWrap, { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: (isWeb ? 12 : insets.bottom) + 8 }]}>
             <View style={styles.draftBar}>
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={handleRegenerate}
                 disabled={drafting}
                 style={({ pressed }) => [styles.draftBtn, { backgroundColor: colors.primary + "15" }, (pressed || drafting) && { opacity: 0.6 }]}

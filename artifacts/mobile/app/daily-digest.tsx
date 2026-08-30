@@ -226,7 +226,7 @@ export default function DailyDigestScreen() {
         <View style={styles.loadingCenter}>
           <Feather name="alert-circle" size={40} color={colors.destructive} />
           <Text style={[styles.loadingText, { color: colors.foreground }]}>{error ?? t("dailyDigestScreen.errorUnknown")}</Text>
-          <Pressable style={[styles.retryBtn, { backgroundColor: colors.primary }]} onPress={() => load()}>
+          <Pressable accessibilityRole="button" style={[styles.retryBtn, { backgroundColor: colors.primary }]} onPress={() => load()}>
             <Text style={[styles.retryText, { color: colors.secondary }]}>{t("common.retry")}</Text>
           </Pressable>
         </View>

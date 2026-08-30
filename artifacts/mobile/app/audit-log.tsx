@@ -129,7 +129,7 @@ export default function AuditLogScreen() {
         </View>
         <View style={styles.filterRow}>
           {filters.map(f => (
-            <Pressable key={f.key} onPress={() => setActionFilter(f.key)} style={[styles.filterChip, { backgroundColor: actionFilter === f.key ? colors.primary : "rgba(255,255,255,0.1)" }]}>
+            <Pressable accessibilityRole="button" key={f.key} onPress={() => setActionFilter(f.key)} style={[styles.filterChip, { backgroundColor: actionFilter === f.key ? colors.primary : "rgba(255,255,255,0.1)" }]}>
               <Text style={[styles.filterText, { color: actionFilter === f.key ? colors.primaryForeground : "rgba(255,255,255,0.7)" }]}>{f.label}</Text>
             </Pressable>
           ))}

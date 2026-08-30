@@ -326,7 +326,7 @@ export default function AbonnementScreen() {
 
           {/* Upgrade */}
           {!showUpgrade ? (
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={() => setShowUpgrade(true)}
               style={[styles.upgradeBtn, { backgroundColor: planCfg.color }]}
             >
@@ -350,10 +350,10 @@ export default function AbonnementScreen() {
                 textAlignVertical="top"
               />
               <View style={{ flexDirection: "row", gap: 8 }}>
-                <Pressable onPress={() => setShowUpgrade(false)} style={[styles.cancelBtn, { borderColor: colors.border }]}>
+                <Pressable accessibilityRole="button" onPress={() => setShowUpgrade(false)} style={[styles.cancelBtn, { borderColor: colors.border }]}>
                   <Text style={[styles.cancelBtnText, { color: colors.mutedForeground }]}>{t("common.cancel")}</Text>
                 </Pressable>
-                <Pressable
+                <Pressable accessibilityRole="button"
                   onPress={handleUpgradeRequest}
                   disabled={upgradeLoading || !upgradeMsg.trim()}
                   style={[styles.sendBtn, { backgroundColor: planCfg.color, opacity: upgradeLoading || !upgradeMsg.trim() ? 0.6 : 1 }]}

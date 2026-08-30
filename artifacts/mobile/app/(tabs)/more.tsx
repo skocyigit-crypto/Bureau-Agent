@@ -41,7 +41,7 @@ function MenuItem({ icon, label, sublabel, color, onPress, danger, badge }: Menu
   }
 
   return (
-    <Pressable
+    <Pressable accessibilityRole="button"
       onPress={handlePress}
       style={({ pressed }) => [
         styles.menuItem,
@@ -118,7 +118,7 @@ export default function MoreScreen() {
         showsVerticalScrollIndicator={false}
       >
         {user ? (
-          <Pressable
+          <Pressable accessibilityRole="button"
             onPress={() => nav("/settings")}
             style={({ pressed }) => [
               styles.profileCard,

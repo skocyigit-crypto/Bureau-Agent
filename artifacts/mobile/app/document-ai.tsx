@@ -189,7 +189,7 @@ export default function DocumentAIScreen() {
 
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: isWeb ? 118 : 100 }]}>
         {/* Drop zone */}
-        <Pressable
+        <Pressable accessibilityRole="button"
           onPress={pickDocument}
           style={[styles.dropZone, { backgroundColor: colors.card, borderColor: file ? "#8b5cf6" : colors.border }]}
         >
@@ -224,7 +224,7 @@ export default function DocumentAIScreen() {
         </Pressable>
 
         {file && !result && (
-          <Pressable
+          <Pressable accessibilityRole="button"
             onPress={analyseDocument}
             disabled={analysing}
             style={[styles.analyseBtn, { opacity: analysing ? 0.7 : 1 }]}
@@ -328,7 +328,7 @@ export default function DocumentAIScreen() {
                           <Text style={[styles.doneActionText, { color: done.success ? "#22c55e" : "#ef4444" }]}>{done.message}</Text>
                         </View>
                       ) : (
-                        <Pressable
+                        <Pressable accessibilityRole="button"
                           onPress={() => executeAction(act)}
                           disabled={!!actionLoading}
                           style={[styles.execBtn, { opacity: actionLoading ? 0.5 : 1 }]}
@@ -359,7 +359,7 @@ export default function DocumentAIScreen() {
             )}
 
             {/* Re-analyse */}
-            <Pressable onPress={() => { setResult(null); setActionResults([]); }} style={[styles.reanalyseBtn, { borderColor: colors.border }]}>
+            <Pressable accessibilityRole="button" onPress={() => { setResult(null); setActionResults([]); }} style={[styles.reanalyseBtn, { borderColor: colors.border }]}>
               <Feather name="refresh-cw" size={14} color={colors.mutedForeground} />
               <Text style={[styles.reanalyseBtnText, { color: colors.mutedForeground }]}>{t("documentAiScreen.analyzeAnother")}</Text>
             </Pressable>

@@ -551,7 +551,7 @@ export default function CalendarScreen() {
             <Feather name="arrow-left" size={22} color="#ffffff" />
           </Pressable>
           <Text style={styles.headerTitle}>{t("calendarScreen.title")}</Text>
-          <Pressable onPress={goToday} hitSlop={12}>
+          <Pressable accessibilityRole="button" onPress={goToday} hitSlop={12}>
             <Text style={styles.todayBtn}>{t("calendarScreen.today")}</Text>
           </Pressable>
         </View>
@@ -592,7 +592,7 @@ export default function CalendarScreen() {
                   marginRight: nextInClosure ? 0 : 1,
                 } : undefined;
                 return (
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     key={colIdx}
                     onPress={() => {
                       if (!cell.day) return;
@@ -629,7 +629,7 @@ export default function CalendarScreen() {
                         </Text>
                         {!isSelected && closure ? (
                           isAdmin ? (
-                            <Pressable
+                            <Pressable accessibilityRole="button"
                               onPress={() => openClosureSheet(cell.dateStr!)}
                               hitSlop={4}
                               style={styles.cellClosedToggle}
@@ -725,7 +725,7 @@ export default function CalendarScreen() {
                           </Text>
                         )}
                         {isAdmin && (
-                          <Pressable
+                          <Pressable accessibilityRole="button"
                             onPress={() => openClosureSheet(selectedDateStr)}
                             hitSlop={10}
                             style={[styles.closureToggleBtn, { backgroundColor: closure ? "rgba(239,68,68,0.12)" : "rgba(0,0,0,0.06)" }]}
@@ -781,7 +781,7 @@ export default function CalendarScreen() {
             const evColor = ev.color || TYPE_COLORS[ev.type] || "#64748b";
             const isHighlighted = highlightedEventId != null && String(ev.id) === String(highlightedEventId);
             return (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={() => { setHighlightedEventId(null); setSelected(ev); }}
                 style={({ pressed }) => [
                   styles.eventCard,
@@ -947,7 +947,7 @@ export default function CalendarScreen() {
                           const isSelected = cell.dateStr === selectedDate;
                           const isMin = cell.dateStr === minDate;
                           return (
-                            <Pressable
+                            <Pressable accessibilityRole="button"
                               key={colIdx}
                               disabled={isDisabled || !cell.day}
                               onPress={() => {
@@ -981,7 +981,7 @@ export default function CalendarScreen() {
                       </View>
                     ))}
                   </View>
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     onPress={() => setShowDatePicker(null)}
                     style={[styles.pickerCancelBtn, { borderTopColor: colors.border }]}
                   >
@@ -1042,7 +1042,7 @@ export default function CalendarScreen() {
                   <View style={{ gap: 16 }}>
                     <View>
                       <Text style={[styles.sheetFieldLabel, { color: colors.mutedForeground }]}>{t("calendarScreen.endDate")}</Text>
-                      <TouchableOpacity
+                      <TouchableOpacity accessibilityRole="button"
                         onPress={() => {
                           const [y, m] = (closureEditEndDate || closureSheetClosure!.dateEnd).split("-").map(Number);
                           setDatePickerMonth(new Date(y, m - 1, 1));
@@ -1089,7 +1089,7 @@ export default function CalendarScreen() {
                         )}
                       </View>
                     </View>
-                    <Pressable
+                    <Pressable accessibilityRole="button"
                       onPress={() => enterEditMode(closureSheetClosure!)}
                       style={({ pressed }) => [
                         styles.sheetSubmitBtn,
@@ -1108,7 +1108,7 @@ export default function CalendarScreen() {
                 <View style={{ gap: 16 }}>
                   <View>
                     <Text style={[styles.sheetFieldLabel, { color: colors.mutedForeground }]}>{t("calendarScreen.endDateOptional")}</Text>
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button"
                       onPress={() => {
                         const base = closureEndDate ?? closureSheetDate ?? new Date().toISOString().slice(0, 10);
                         const [y, m] = base.split("-").map(Number);
@@ -1148,7 +1148,7 @@ export default function CalendarScreen() {
             </ScrollView>
 
             <View style={[styles.sheetFooter, { borderTopColor: colors.border }]}>
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={() => { if (closureEditMode) { cancelEditMode(); } else { setShowClosureSheet(false); } }}
                 style={[styles.sheetCancelBtn, { borderColor: colors.border }]}
               >
@@ -1156,7 +1156,7 @@ export default function CalendarScreen() {
               </Pressable>
               {closureSheetClosure ? (
                 closureEditMode ? (
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     onPress={() => handleEditClosure(closureSheetClosure!.id, closureSheetClosure!.dateStart)}
                     disabled={closureLoading}
                     style={({ pressed }) => [styles.sheetSubmitBtn, { backgroundColor: colors.primary, opacity: pressed || closureLoading ? 0.8 : 1 }]}
@@ -1171,7 +1171,7 @@ export default function CalendarScreen() {
                     )}
                   </Pressable>
                 ) : (
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     onPress={() => {
                       Alert.alert(
                         t("calendarScreen.removeClosure"),
@@ -1196,7 +1196,7 @@ export default function CalendarScreen() {
                   </Pressable>
                 )
               ) : (
-                <Pressable
+                <Pressable accessibilityRole="button"
                   onPress={handleAddClosure}
                   disabled={closureLoading}
                   style={({ pressed }) => [styles.sheetSubmitBtn, { backgroundColor: colors.primary, opacity: pressed || closureLoading ? 0.8 : 1 }]}

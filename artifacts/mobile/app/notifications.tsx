@@ -251,7 +251,7 @@ export default function NotificationsScreen() {
             )}
           </View>
           {unreadCount > 0 && (
-            <Pressable onPress={markAllRead} style={[styles.markAllBtn, { backgroundColor: "rgba(255,255,255,0.12)" }]}>
+            <Pressable accessibilityRole="button" onPress={markAllRead} style={[styles.markAllBtn, { backgroundColor: "rgba(255,255,255,0.12)" }]}>
               <Feather name="check-circle" size={14} color="#fff" />
               <Text style={styles.markAllText}>{t("notificationsScreen.markAllRead")}</Text>
             </Pressable>
@@ -259,7 +259,7 @@ export default function NotificationsScreen() {
         </View>
         <View style={styles.tabRow}>
           {(["all", "unread"] as const).map((f) => (
-            <Pressable
+            <Pressable accessibilityRole="button"
               key={f}
               onPress={() => setFilter(f)}
               style={[styles.tab, filter === f && { borderBottomColor: "#fff", borderBottomWidth: 2 }]}
@@ -298,7 +298,7 @@ export default function NotificationsScreen() {
             <View>
               <Text style={[styles.dateLabel, { color: colors.mutedForeground }]}>{dateLabel}</Text>
               {items.map((item) => (
-                <Pressable
+                <Pressable accessibilityRole="button"
                   key={item.id}
                   onPress={() => handlePress(item)}
                   style={({ pressed }) => [

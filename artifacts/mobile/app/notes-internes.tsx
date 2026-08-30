@@ -89,7 +89,7 @@ function NoteCard({ note, colors, isDark, onPress, onPin, onDelete }: NoteCardPr
   const cardBg = isDark ? DARK_CARD_COLORS[note.color] ?? "#1e293b" : COLOR_MAP[note.color] ?? "#ffffff";
   const accent = COLOR_ACCENTS[note.color] ?? "#e2e8f0";
   return (
-    <Pressable
+    <Pressable accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [
         styles.noteCard,
@@ -218,7 +218,7 @@ function NoteEditor({ note, onSave, onClose, saving, colors, isDark }: NoteEdito
               >
                 {suggestion}
               </Text>
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={acceptSuggestion}
                 style={[styles.suggestionBtn, { borderColor: colors.primary }]}
                 hitSlop={6}

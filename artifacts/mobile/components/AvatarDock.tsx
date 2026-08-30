@@ -105,7 +105,7 @@ export function AvatarDock({ text, defaultLang = "fr", size = 40, storageKey, au
       </View>
 
       <View style={styles.controls}>
-        <Pressable
+        <Pressable accessibilityRole="button"
           onPress={() => {
             haptic();
             setVoiceLang((l) => (l === "fr" ? "tr" : "fr"));

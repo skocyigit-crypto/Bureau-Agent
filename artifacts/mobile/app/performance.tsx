@@ -189,7 +189,7 @@ function ClassementTab({ data, onSelectEmployee }: { data: QualityData; onSelect
         const gc = gradeColor(emp.grade);
         const sc = scoreColor(emp.overallScore);
         return (
-          <Pressable key={emp.id} onPress={() => onSelectEmployee(emp)}
+          <Pressable accessibilityRole="button" key={emp.id} onPress={() => onSelectEmployee(emp)}
             style={[pr.empCard, { backgroundColor: colors.card, borderColor: emp.risk === "high" ? "#ef444430" : colors.border }]}>
             {/* Rank badge */}
             <View style={[pr.rankBadge, { backgroundColor: idx < 3 ? ["#f59e0b20", "#94a3b820", "#cd7f3220"][idx] : colors.background }]}>
@@ -252,7 +252,7 @@ function IndividuelTab({ data, selected, onSelect }: { data: QualityData; select
       {/* Employee picker */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
         {data.employees.map(e => (
-          <Pressable key={e.id} onPress={() => onSelect(e)}
+          <Pressable accessibilityRole="button" key={e.id} onPress={() => onSelect(e)}
             style={[pr.pickerChip, { backgroundColor: emp.id === e.id ? scoreColor(e.overallScore) : colors.card, borderColor: emp.id === e.id ? scoreColor(e.overallScore) : colors.border }]}>
             <Text style={[pr.pickerChipText, { color: emp.id === e.id ? "#fff" : colors.foreground }]}>{e.name.split(" ")[0]}</Text>
             <View style={[pr.pickerScore, { backgroundColor: emp.id === e.id ? "rgba(255,255,255,0.25)" : scoreColor(e.overallScore) + "20" }]}>
@@ -646,7 +646,7 @@ export default function PerformanceScreen() {
         {/* Période selector */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }} contentContainerStyle={{ gap: 6 }}>
           {PERIODES.map(p => (
-            <Pressable key={p.val} onPress={() => setPeriode(p.val)}
+            <Pressable accessibilityRole="button" key={p.val} onPress={() => setPeriode(p.val)}
               style={[pr.periodChip, { backgroundColor: periode === p.val ? "#fff" : "rgba(255,255,255,0.15)" }]}>
               <Text style={[pr.periodText, { color: periode === p.val ? "#0f4c81" : "rgba(255,255,255,0.85)" }]}>{t(p.labelKey)}</Text>
             </Pressable>
@@ -676,7 +676,7 @@ export default function PerformanceScreen() {
         {/* Tab bar */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }} contentContainerStyle={{ gap: 8 }}>
           {TABS.map(tb => (
-            <Pressable key={tb.key} onPress={() => setTab(tb.key)}
+            <Pressable accessibilityRole="button" key={tb.key} onPress={() => setTab(tb.key)}
               style={[pr.tabChip, { backgroundColor: tab === tb.key ? "#fff" : "rgba(255,255,255,0.15)" }]}>
               <Feather name={tb.icon} size={12} color={tab === tb.key ? tb.color : "rgba(255,255,255,0.8)"} />
               <Text style={[pr.tabChipText, { color: tab === tb.key ? tb.color : "rgba(255,255,255,0.8)" }]}>{t(tb.labelKey)}</Text>

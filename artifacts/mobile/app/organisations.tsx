@@ -224,7 +224,7 @@ export default function OrganisationsScreen() {
 
         {/* Alert filter */}
         {alertOrgs.length > 0 && (
-          <Pressable
+          <Pressable accessibilityRole="button"
             onPress={() => setFilterAlert(f => !f)}
             style={[styles.alertFilter, { backgroundColor: filterAlert ? "#ef444430" : "rgba(255,255,255,0.12)", borderColor: filterAlert ? "#ef4444" : "transparent" }]}
           >
@@ -273,7 +273,7 @@ export default function OrganisationsScreen() {
             const isOver = userPct >= 100;
 
             return (
-              <Pressable onPress={() => setExpandedId(isExpanded ? null : item.id)}>
+              <Pressable accessibilityRole="button" onPress={() => setExpandedId(isExpanded ? null : item.id)}>
                 <View style={[
                   styles.orgCard,
                   { backgroundColor: colors.card, borderColor: isOver ? "#ef4444" : isAlert ? "#f59e0b" : colors.border },
@@ -381,7 +381,7 @@ export default function OrganisationsScreen() {
 
                       {/* Actions */}
                       <View style={styles.actionsRow}>
-                        <Pressable
+                        <Pressable accessibilityRole="button"
                           onPress={() => resendLicense(item.id)}
                           disabled={sendingEmail === item.id}
                           style={[styles.actionBtn, { backgroundColor: "#f59e0b18" }]}
@@ -391,7 +391,7 @@ export default function OrganisationsScreen() {
                             : <><Feather name="send" size={13} color="#f59e0b" /><Text style={[styles.actionBtnText, { color: "#f59e0b" }]}>{t("organisationsScreen.actionResendLicense")}</Text></>
                           }
                         </Pressable>
-                        <Pressable
+                        <Pressable accessibilityRole="button"
                           onPress={() => resendLicense(item.id, true)}
                           disabled={sendingEmail === item.id}
                           style={[styles.actionBtn, { backgroundColor: "#3b82f618" }]}
@@ -399,7 +399,7 @@ export default function OrganisationsScreen() {
                           <Feather name="key" size={13} color="#3b82f6" />
                           <Text style={[styles.actionBtnText, { color: "#3b82f6" }]}>{t("organisationsScreen.actionResetPwd")}</Text>
                         </Pressable>
-                        <Pressable
+                        <Pressable accessibilityRole="button"
                           onPress={() => toggleActive(item)}
                           style={[styles.actionBtn, { backgroundColor: (item.actif ? "#ef4444" : "#22c55e") + "18" }]}
                         >

@@ -243,7 +243,7 @@ export default function FileApprobationScreen() {
           ]).map((f) => {
             const active = tab === f.key;
             return (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 key={f.key}
                 onPress={() => setTab(f.key)}
                 style={[styles.chip, { borderColor: colors.border, backgroundColor: active ? colors.primary : "transparent" }]}
@@ -346,7 +346,7 @@ export default function FileApprobationScreen() {
 
                 {pending ? (
                   <View style={styles.actions}>
-                    <Pressable
+                    <Pressable accessibilityRole="button"
                       onPress={() => confirmApprove(p)}
                       disabled={busy}
                       style={[styles.approveBtn, { opacity: busy ? 0.5 : 1 }]}
@@ -360,7 +360,7 @@ export default function FileApprobationScreen() {
                         </>
                       )}
                     </Pressable>
-                    <Pressable
+                    <Pressable accessibilityRole="button"
                       onPress={() => reject(p)}
                       disabled={busy}
                       style={[styles.rejectBtn, { borderColor: colors.border, opacity: busy ? 0.5 : 1 }]}

@@ -309,7 +309,7 @@ function SecurityPanel({ scan, scanning }: { scan: EmailScanReport | null; scann
 
       {/* Attachments detail */}
       {scan.attachments.length > 0 && (
-        <Pressable onPress={() => setShowAttachments(e => !e)} style={sp.expandRow}>
+        <Pressable accessibilityRole="button" onPress={() => setShowAttachments(e => !e)} style={sp.expandRow}>
           <Feather name="paperclip" size={12} color="#64748b" />
           <Text style={[sp.expandText, { color: "#64748b" }]}>{t("gmailAgentScreen.attachmentsScanned", { count: scan.attachments.length })}</Text>
           <Feather name={showAttachments ? "chevron-up" : "chevron-down"} size={12} color="#64748b" />
@@ -336,7 +336,7 @@ function SecurityPanel({ scan, scanning }: { scan: EmailScanReport | null; scann
 
       {/* Links detail */}
       {scan.links.length > 0 && (
-        <Pressable onPress={() => setShowLinks(e => !e)} style={sp.expandRow}>
+        <Pressable accessibilityRole="button" onPress={() => setShowLinks(e => !e)} style={sp.expandRow}>
           <Feather name="link" size={12} color="#64748b" />
           <Text style={[sp.expandText, { color: "#64748b" }]}>{t("gmailAgentScreen.linksAnalyzed", { count: scan.links.length })}</Text>
           <Feather name={showLinks ? "chevron-up" : "chevron-down"} size={12} color="#64748b" />
@@ -630,7 +630,7 @@ export default function GmailAgentScreen() {
           <Text style={[styles.notConnectedSub, { color: colors.mutedForeground }]}>
             {t("gmailAgentScreen.notConnectedSub")}
           </Text>
-          <Pressable onPress={() => router.push("/integrations" as any)} style={styles.connectBtn}>
+          <Pressable accessibilityRole="button" onPress={() => router.push("/integrations" as any)} style={styles.connectBtn}>
             <Feather name="settings" size={16} color="#fff" />
             <Text style={styles.connectBtnText}>{t("gmailAgentScreen.manageIntegrations")}</Text>
           </Pressable>
@@ -701,7 +701,7 @@ export default function GmailAgentScreen() {
             const prio = item.aiPriority ? PRIORITY_COLORS[item.aiPriority] : null;
             const riskCfg = getRiskBadge(item.id);
             return (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={() => openMessage(item)}
                 style={({ pressed }) => [
                   styles.msgRow,
@@ -798,7 +798,7 @@ export default function GmailAgentScreen() {
 
               {/* Rescan button */}
               {!scanning && (
-                <Pressable onPress={rescan} style={[styles.rescanBtn, { borderColor: "#6366f140" }]}>
+                <Pressable accessibilityRole="button" onPress={rescan} style={[styles.rescanBtn, { borderColor: "#6366f140" }]}>
                   <Feather name="shield" size={12} color="#6366f1" />
                   <Text style={[styles.rescanText, { color: "#6366f1" }]}>
                     {scanReport ? t("gmailAgentScreen.rescan") : t("gmailAgentScreen.scanThisEmail")}
@@ -849,7 +849,7 @@ export default function GmailAgentScreen() {
                             <Feather name={scanned.safe ? "check" : "x"} size={10} color={scanned.safe ? "#22c55e" : "#ef4444"} />
                           </View>
                         )}
-                        <Pressable
+                        <Pressable accessibilityRole="button"
                           onPress={() => handleSaveAttachment(att)}
                           disabled={savingAtt === att.attachmentId}
                           style={[styles.saveAttBtn, { backgroundColor: "#6366f115", opacity: savingAtt === att.attachmentId ? 0.6 : 1 }]}
@@ -878,15 +878,15 @@ export default function GmailAgentScreen() {
 
               {/* Actions */}
               <View style={styles.detailActions}>
-                <Pressable onPress={() => openReply(selected)} style={[styles.actionBtn, { backgroundColor: "#dc2626" }]}>
+                <Pressable accessibilityRole="button" onPress={() => openReply(selected)} style={[styles.actionBtn, { backgroundColor: "#dc2626" }]}>
                   <Feather name="corner-down-left" size={15} color="#fff" />
                   <Text style={styles.actionBtnText}>{t("gmailAgentScreen.reply")}</Text>
                 </Pressable>
-                <Pressable onPress={() => handleArchive(selected)} style={[styles.actionBtn, { backgroundColor: "#6366f1" }]} disabled={!!actionLoading}>
+                <Pressable accessibilityRole="button" onPress={() => handleArchive(selected)} style={[styles.actionBtn, { backgroundColor: "#6366f1" }]} disabled={!!actionLoading}>
                   {actionLoading === "archive-" + selected.id ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="archive" size={15} color="#fff" />}
                   <Text style={styles.actionBtnText}>{t("gmailAgentScreen.archive")}</Text>
                 </Pressable>
-                <Pressable onPress={() => handleTrash(selected)} style={[styles.actionBtn, { backgroundColor: "#ef4444" }]} disabled={!!actionLoading}>
+                <Pressable accessibilityRole="button" onPress={() => handleTrash(selected)} style={[styles.actionBtn, { backgroundColor: "#ef4444" }]} disabled={!!actionLoading}>
                   {actionLoading === "trash-" + selected.id ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="trash-2" size={15} color="#fff" />}
                   <Text style={styles.actionBtnText}>{t("gmailAgentScreen.trash")}</Text>
                 </Pressable>

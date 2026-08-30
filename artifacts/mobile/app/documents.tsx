@@ -110,7 +110,7 @@ function DocCard({ doc, colors, onDelete, onDownload, onRead, onRescan, scanning
   const isReadable = doc.hasText || doc.mimeType.startsWith("image/") || doc.mimeType === "text/plain" || doc.mimeType === "application/json";
 
   return (
-    <Pressable onPress={() => onRead(doc.id)}
+    <Pressable accessibilityRole="button" onPress={() => onRead(doc.id)}
       style={[
         st.card,
         { backgroundColor: colors.card, borderColor: colors.border, borderLeftColor: catCfg.color, borderLeftWidth: 3 },
@@ -189,17 +189,17 @@ function DocCard({ doc, colors, onDelete, onDownload, onRead, onRescan, scanning
       <View style={st.cardFooter}>
         <Text style={[st.dateText, { color: colors.mutedForeground }]}>{date}</Text>
         <View style={st.footerActions}>
-          <Pressable onPress={() => onRead(doc.id)}
+          <Pressable accessibilityRole="button" onPress={() => onRead(doc.id)}
             style={[st.actionBtn, { backgroundColor: "#0f766e18", borderColor: "#0f766e30" }]}>
             <Feather name="book-open" size={12} color="#0f766e" />
             <Text style={[st.actionBtnText, { color: "#0f766e" }]}>{t("documentsScreen.readAction")}</Text>
           </Pressable>
-          <Pressable onPress={() => onDownload(doc.id, doc.fileName)}
+          <Pressable accessibilityRole="button" onPress={() => onDownload(doc.id, doc.fileName)}
             style={[st.actionBtn, { backgroundColor: "#3b82f618", borderColor: "#3b82f630" }]}>
             <Feather name="download" size={12} color="#3b82f6" />
             <Text style={[st.actionBtnText, { color: "#3b82f6" }]}>{t("documentsScreen.download")}</Text>
           </Pressable>
-          <Pressable onPress={() => onRescan(doc.id)} disabled={scanning}
+          <Pressable accessibilityRole="button" onPress={() => onRescan(doc.id)} disabled={scanning}
             style={[st.actionBtn, { backgroundColor: "#10b98118", borderColor: "#10b98130" }]}>
             {scanning
               ? <ActivityIndicator size="small" color="#10b981" />
@@ -629,7 +629,7 @@ export default function DocumentsScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ gap: 6 }}
           renderItem={({ item: s }) => (
-            <Pressable onPress={() => setSourceFilter(s.key)}
+            <Pressable accessibilityRole="button" onPress={() => setSourceFilter(s.key)}
               style={[st.sourceChip, { backgroundColor: sourceFilter === s.key ? s.color : "rgba(255,255,255,0.13)" }]}>
               <Feather name={s.icon} size={11} color={sourceFilter === s.key ? "#fff" : "rgba(255,255,255,0.75)"} />
               <Text style={[st.sourceChipText, { color: sourceFilter === s.key ? "#fff" : "rgba(255,255,255,0.75)" }]}>{s.label}</Text>
@@ -650,7 +650,7 @@ export default function DocumentsScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ gap: 6 }}
           renderItem={({ item: s }) => (
-            <Pressable onPress={() => setScanFilter(s.key)}
+            <Pressable accessibilityRole="button" onPress={() => setScanFilter(s.key)}
               style={[st.sourceChip, { backgroundColor: scanFilter === s.key ? s.color : "rgba(255,255,255,0.13)" }]}>
               <Feather name={s.icon} size={11} color={scanFilter === s.key ? "#fff" : "rgba(255,255,255,0.75)"} />
               <Text style={[st.sourceChipText, { color: scanFilter === s.key ? "#fff" : "rgba(255,255,255,0.75)" }]}>{s.label}</Text>
@@ -666,7 +666,7 @@ export default function DocumentsScreen() {
         {/* Bulk-scan all unscanned */}
         {!loading && ((data?.byScan?.unscanned ?? 0) > 0 || showAllScanCancel({ bulkScanning, bulkScanKind })) && (
           <View style={st.scanAllRow}>
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={handleScanAll}
               disabled={bulkScanning}
               style={[st.scanAllBtn, { flex: 1, opacity: bulkScanning ? 0.7 : 1 }]}
@@ -683,7 +683,7 @@ export default function DocumentsScreen() {
               </Text>
             </Pressable>
             {showAllScanCancel({ bulkScanning, bulkScanKind }) && (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={handleCancelBulkScan}
                 disabled={bulkScanCancelling}
                 hitSlop={8}
@@ -698,7 +698,7 @@ export default function DocumentsScreen() {
 
       {/* ── Bulk scan banner (unanalysed documents) ── */}
       {!loading && unscannedIds.length > 0 && (
-        <Pressable
+        <Pressable accessibilityRole="button"
           onPress={() => handleBulkScan(unscannedIds)}
           disabled={bulkScanning}
           style={[st.bulkBanner, { backgroundColor: colors.card, borderColor: "#10b98140" }]}>
@@ -713,7 +713,7 @@ export default function DocumentsScreen() {
               : t("documentsScreen.scanSecurityOf", { n: unscannedIds.length })}
           </Text>
           {bulkScanning && (
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={handleCancelBulkScan}
               disabled={bulkScanCancelling}
               hitSlop={8}

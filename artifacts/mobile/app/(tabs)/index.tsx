@@ -265,7 +265,7 @@ export default function DashboardScreen() {
               )}
             </View>
           </View>
-          <Pressable onPress={() => quickNav("/notifications")} hitSlop={8} style={[styles.notifBtn, { backgroundColor: "rgba(255,255,255,0.12)" }]}>
+          <Pressable accessibilityRole="button" onPress={() => quickNav("/notifications")} hitSlop={8} style={[styles.notifBtn, { backgroundColor: "rgba(255,255,255,0.12)" }]}>
             <Feather name="bell" size={18} color="#fff" />
             {(data?.unreadMessages || 0) > 0 && (
               <View style={[styles.notifDot, { backgroundColor: colors.destructive }]}>
@@ -273,7 +273,7 @@ export default function DashboardScreen() {
               </View>
             )}
           </Pressable>
-          <Pressable onPress={() => router.push("/settings" as any)} hitSlop={8} style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
+          <Pressable accessibilityRole="button" onPress={() => router.push("/settings" as any)} hitSlop={8} style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
             <Text style={[styles.avatarText, { color: colors.primaryForeground }]}>
               {user ? (user.prenom[0] + user.nom[0]).toUpperCase() : "AB"}
             </Text>
@@ -287,7 +287,7 @@ export default function DashboardScreen() {
             { icon: "plus-square" as const, label: t("home.quickTache"), route: "/(tabs)/tasks", color: "#f59e0b" },
             { icon: "search" as const, label: t("home.quickRecherche"), route: "/recherche", color: "#64748b" },
           ].map((a) => (
-            <Pressable
+            <Pressable accessibilityRole="button"
               key={a.label}
               onPress={() => quickNav(a.route)}
               hitSlop={6}
@@ -315,7 +315,7 @@ export default function DashboardScreen() {
         ) : (
           <>
             {overdueTasks.length > 0 && (
-              <Pressable onPress={() => quickNav("/(tabs)/tasks")} style={[styles.urgentBanner, { backgroundColor: "#ef444415", borderColor: "#ef4444" }]}>
+              <Pressable accessibilityRole="button" onPress={() => quickNav("/(tabs)/tasks")} style={[styles.urgentBanner, { backgroundColor: "#ef444415", borderColor: "#ef4444" }]}>
                 <Feather name="alert-triangle" size={18} color="#ef4444" />
                 <View style={{ flex: 1, marginLeft: 10 }}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -372,7 +372,7 @@ export default function DashboardScreen() {
                     <Feather name="shield" size={16} color={security.dangerous > 0 ? "#ef4444" : colors.mutedForeground} />
                     <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 0 }]}>{t("home.securityTitle")}</Text>
                   </View>
-                  <Pressable onPress={() => quickNav("/documents")}>
+                  <Pressable accessibilityRole="button" onPress={() => quickNav("/documents")}>
                     <Text style={[styles.seeAll, { color: colors.primary }]}>{t("home.see")}</Text>
                   </Pressable>
                 </View>
@@ -382,7 +382,7 @@ export default function DashboardScreen() {
                     { key: "dangerous", label: t("home.securityThreats"), count: security.dangerous, icon: "alert-triangle" as const, color: "#ef4444" },
                     { key: "none", label: t("home.securityUnscanned"), count: security.unscanned, icon: "help-circle" as const, color: "#64748b" },
                   ]).map((item) => (
-                    <Pressable
+                    <Pressable accessibilityRole="button"
                       key={item.key}
                       onPress={() => quickNav(`/documents?scan=${item.key}`)}
                       style={({ pressed }) => [
@@ -426,12 +426,12 @@ export default function DashboardScreen() {
               <>
                 <View style={styles.sectionHeader}>
                   <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 0 }]}>{t("home.todayAgenda")}</Text>
-                  <Pressable onPress={() => quickNav("/calendar")}>
+                  <Pressable accessibilityRole="button" onPress={() => quickNav("/calendar")}>
                     <Text style={[styles.seeAll, { color: colors.primary }]}>{t("home.seeAll")}</Text>
                   </Pressable>
                 </View>
                 {todayEvents.slice(0, 3).map((evt) => (
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     key={evt.id}
                     onPress={() => quickNav("/calendar")}
                     style={[styles.eventItem, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -455,7 +455,7 @@ export default function DashboardScreen() {
               <>
                 <View style={[styles.sectionHeader, { marginTop: todayEvents.length > 0 ? 8 : 0 }]}>
                   <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 0 }]}>{t("home.recentCalls")}</Text>
-                  <Pressable onPress={() => quickNav("/(tabs)/calls")}>
+                  <Pressable accessibilityRole="button" onPress={() => quickNav("/(tabs)/calls")}>
                     <Text style={[styles.seeAll, { color: colors.primary }]}>{t("home.seeAll")}</Text>
                   </Pressable>
                 </View>
@@ -468,7 +468,7 @@ export default function DashboardScreen() {
                         color={STATUS_COLORS[call.status] || "#64748b"}
                       />
                     </View>
-                    <Pressable onPress={() => quickNav("/(tabs)/calls")} style={styles.recentContent}>
+                    <Pressable accessibilityRole="button" onPress={() => quickNav("/(tabs)/calls")} style={styles.recentContent}>
                       <Text style={[styles.recentName, { color: colors.foreground }]} numberOfLines={1}>
                         {call.contactName || call.phoneNumber}
                       </Text>
@@ -506,7 +506,7 @@ export default function DashboardScreen() {
                 { icon: "users" as const, label: t("home.qaMeetings"), route: "/meetings", color: "#8b5cf6" },
                 { icon: "cpu" as const, label: t("home.qaAgents"), route: "/ai-agents", color: "#6366f1" },
               ].map((qa) => (
-                <Pressable
+                <Pressable accessibilityRole="button"
                   key={qa.label}
                   onPress={() => quickNav(qa.route)}
                   style={({ pressed }) => [
@@ -528,7 +528,7 @@ export default function DashboardScreen() {
               ))}
             </View>
 
-            <Pressable onPress={() => quickNav("/ai-chat")} style={[styles.infoCard, { backgroundColor: colors.secondary }]}>
+            <Pressable accessibilityRole="button" onPress={() => quickNav("/ai-chat")} style={[styles.infoCard, { backgroundColor: colors.secondary }]}>
               <Feather name="message-circle" size={20} color={colors.primary} />
               <View style={styles.infoContent}>
                 <Text style={styles.infoTitle}>{t("home.assistantTitle")}</Text>
@@ -537,7 +537,7 @@ export default function DashboardScreen() {
               <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.5)" />
             </Pressable>
 
-            <Pressable onPress={() => quickNav("/meetings")} style={[styles.infoCard, { backgroundColor: "#8b5cf615", borderWidth: 1, borderColor: "#8b5cf630", marginTop: 8 }]}>
+            <Pressable accessibilityRole="button" onPress={() => quickNav("/meetings")} style={[styles.infoCard, { backgroundColor: "#8b5cf615", borderWidth: 1, borderColor: "#8b5cf630", marginTop: 8 }]}>
               <Feather name="video" size={20} color="#8b5cf6" />
               <View style={styles.infoContent}>
                 <Text style={[styles.infoTitle, { color: "#8b5cf6" }]}>{t("home.meetingTitle")}</Text>

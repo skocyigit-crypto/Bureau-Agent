@@ -417,6 +417,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <RecognitionProvider>
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
+        {/* Lien d'evitement (WCAG 2.2 — 2.4.1, niveau A). La barre laterale
+            compte des dizaines de liens: sans ce raccourci, un utilisateur au
+            clavier ou au lecteur d'ecran devait les parcourir tous, sur chaque
+            page, avant d'atteindre le contenu. Invisible a la souris, il
+            apparait des qu'il recoit le focus. Meme motif que la vitrine. */}
+        <a
+          href="#contenu"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground focus:font-semibold"
+        >
+          {t("common.skipToContent")}
+        </a>
         <Sidebar className="border-r border-sidebar-border">
           <SidebarHeader className="p-4">
             <div className="flex items-center gap-3 px-2 py-1">
@@ -540,7 +551,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
           
           <LicenseStatusBanner />
           <TrialBanner />
-          <main className="flex-1 p-4 lg:p-8 overflow-auto">
+          {/* `tabIndex={-1}` est ici la bonne pratique, a l'inverse de son
+              usage sur un bouton: il rend cette region focalisable par
+              PROGRAMME (le lien d'evitement) sans l'ajouter au parcours de
+              tabulation. Sans lui, le saut deplace la vue mais pas le focus,
+              et la navigation clavier repart du haut. */}
+          <main id="contenu" tabIndex={-1} className="flex-1 p-4 lg:p-8 overflow-auto">
             <div className="mx-auto max-w-6xl">
               {children}
             </div>

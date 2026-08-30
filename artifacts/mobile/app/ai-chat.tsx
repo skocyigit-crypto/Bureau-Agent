@@ -571,7 +571,7 @@ export default function AIChatScreen() {
               <Feather name="cpu" size={14} color="#fff" />
             </View>
           )}
-          <Pressable
+          <Pressable accessibilityRole="button"
             onLongPress={() => copyMessage(item.content, item.id)}
             style={[
               styles.bubble,
@@ -602,7 +602,7 @@ export default function AIChatScreen() {
               const meta = ENTITY_META[e.type];
               const entityLabel = e.label || `${t(`aiChatScreen.entityType_${e.type}`)} #${e.id}`;
               return (
-                <Pressable
+                <Pressable accessibilityRole="button"
                   key={`${e.type}-${e.id}-${i}`}
                   onPress={() => {
                     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -623,7 +623,7 @@ export default function AIChatScreen() {
             {followUps.map((fuKey, i) => {
               const fuText = t(`aiChatScreen.${fuKey}`);
               return (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 key={i}
                 onPress={() => {
                   if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -679,7 +679,7 @@ export default function AIChatScreen() {
             </View>
           </View>
           <View style={styles.headerActions}>
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={() => {
                 if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setVoiceLang((l) => (l === "fr" ? "tr" : "fr"));
@@ -742,7 +742,7 @@ export default function AIChatScreen() {
             <>
               {importedDemo && importedDemo.length > 0 && (
                 <View style={styles.demoBox}>
-                  <Pressable onPress={() => setDemoOpen((o) => !o)} style={styles.demoHeader}>
+                  <Pressable accessibilityRole="button" onPress={() => setDemoOpen((o) => !o)} style={styles.demoHeader}>
                     <View style={styles.demoHeaderLeft}>
                       <Feather name="zap" size={13} color="#b45309" />
                       <Text style={styles.demoHeaderText}>
@@ -774,7 +774,7 @@ export default function AIChatScreen() {
                   <Text style={[styles.quickActionsTitle, { color: colors.mutedForeground }]}>{t("aiChatScreen.quickActionsTitle")}</Text>
                   <View style={styles.quickActionsGrid}>
                     {QUICK_ACTIONS.map((a) => (
-                      <Pressable
+                      <Pressable accessibilityRole="button"
                         key={a.labelKey}
                         onPress={() => {
                           if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -874,7 +874,7 @@ export default function AIChatScreen() {
                 { icon: "alert-circle" as const, labelKey: "sugUrgent", prompt: "Quelles sont mes taches urgentes?" },
                 { icon: "trending-up" as const, labelKey: "sugPerformance", prompt: "Analyse mes performances cette semaine" },
               ].map((s, i) => (
-                <Pressable
+                <Pressable accessibilityRole="button"
                   key={i}
                   onPress={() => sendMessage(s.prompt)}
                   style={[styles.inputSuggestion, { backgroundColor: colors.background, borderColor: colors.border }]}

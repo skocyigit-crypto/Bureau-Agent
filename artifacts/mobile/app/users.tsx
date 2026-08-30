@@ -276,11 +276,11 @@ export default function UsersScreen() {
                   </View>
                 </View>
                 <View style={[styles.userActions, { borderTopColor: colors.border }]}>
-                  <Pressable onPress={() => openEdit(item)} style={styles.userActionBtn}>
+                  <Pressable accessibilityRole="button" onPress={() => openEdit(item)} style={styles.userActionBtn}>
                     <Feather name="edit-2" size={14} color={colors.primary} />
                     <Text style={[styles.userActionText, { color: colors.primary }]}>{t("common.edit")}</Text>
                   </Pressable>
-                  <Pressable onPress={() => sendCredentials(item.id)} disabled={sendingCreds === item.id} style={styles.userActionBtn}>
+                  <Pressable accessibilityRole="button" onPress={() => sendCredentials(item.id)} disabled={sendingCreds === item.id} style={styles.userActionBtn}>
                     {sendingCreds === item.id ? (
                       <ActivityIndicator size="small" color="#f59e0b" />
                     ) : (
@@ -290,7 +290,7 @@ export default function UsersScreen() {
                       </>
                     )}
                   </Pressable>
-                  <Pressable onPress={() => toggleActive(item)} style={styles.userActionBtn}>
+                  <Pressable accessibilityRole="button" onPress={() => toggleActive(item)} style={styles.userActionBtn}>
                     <Feather name={item.actif ? "user-x" : "user-check"} size={14} color={item.actif ? "#ef4444" : "#22c55e"} />
                     <Text style={[styles.userActionText, { color: item.actif ? "#ef4444" : "#22c55e" }]}>
                       {item.actif ? t("usersScreen.deactivate") : t("usersScreen.activate")}

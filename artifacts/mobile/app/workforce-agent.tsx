@@ -375,7 +375,7 @@ export default function WorkforceAgentScreen() {
       <View style={styles.center}>
         <Feather name="alert-circle" size={40} color={colors.destructive} />
         <Text style={[styles.centerTitle, { color: colors.foreground }]}>{error ?? t("workforceAgentScreen.unknownError")}</Text>
-        <Pressable style={[styles.retryBtn, { backgroundColor: colors.primary }]} onPress={() => load()}>
+        <Pressable accessibilityRole="button" style={[styles.retryBtn, { backgroundColor: colors.primary }]} onPress={() => load()}>
           <Text style={[styles.retryText, { color: colors.secondary }]}>{t("workforceAgentScreen.relaunch")}</Text>
         </Pressable>
       </View>
@@ -402,7 +402,7 @@ export default function WorkforceAgentScreen() {
           { key: "equipe", label: t("workforceAgentScreen.tabEquipe"), icon: "users" as const },
           { key: "historique", label: t("workforceAgentScreen.tabHistorique"), icon: "clock" as const },
         ] as const).map((tab) => (
-          <Pressable key={tab.key} style={[styles.tab, activeTab === tab.key && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]} onPress={() => setActiveTab(tab.key)}>
+          <Pressable accessibilityRole="button" key={tab.key} style={[styles.tab, activeTab === tab.key && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]} onPress={() => setActiveTab(tab.key)}>
             <Feather name={tab.icon} size={14} color={activeTab === tab.key ? colors.primary : colors.mutedForeground} />
             <Text style={[styles.tabLabel, { color: activeTab === tab.key ? colors.primary : colors.mutedForeground }]}>{tab.label}</Text>
           </Pressable>

@@ -26,7 +26,8 @@
     "openExternal": "In neuem Tab öffnen",
     "viewDetail": "Details anzeigen",
     "assign": "Zuweisen",
-    "selectAll": "Alle auswählen"
+    "selectAll": "Alle auswählen",
+    "skipToContent": "Zum Hauptinhalt springen"
   },
   "nav": {
     "dashboard": "Übersicht",

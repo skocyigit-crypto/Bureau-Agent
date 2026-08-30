@@ -386,11 +386,11 @@ export default function SmartCaptureScreen() {
             <Text style={[styles.captureSub, { color: colors.mutedForeground }]}>
               {t("smartCaptureScreen.captureSub")}
             </Text>
-            <Pressable onPress={takePhoto} style={styles.primaryBtn}>
+            <Pressable accessibilityRole="button" onPress={takePhoto} style={styles.primaryBtn}>
               <Feather name="camera" size={18} color="#fff" />
               <Text style={styles.primaryBtnText}>{t("smartCaptureScreen.takePhoto")}</Text>
             </Pressable>
-            <Pressable onPress={pickFromGallery} style={[styles.secondaryBtn, { borderColor: colors.border }]}>
+            <Pressable accessibilityRole="button" onPress={pickFromGallery} style={[styles.secondaryBtn, { borderColor: colors.border }]}>
               <Feather name="image" size={16} color={colors.mutedForeground} />
               <Text style={[styles.secondaryBtnText, { color: colors.mutedForeground }]}>{t("smartCaptureScreen.pickGallery")}</Text>
             </Pressable>
@@ -405,7 +405,7 @@ export default function SmartCaptureScreen() {
         )}
 
         {capture && !result && (
-          <Pressable onPress={analyse} disabled={analysing} style={[styles.primaryBtn, { marginTop: 12, opacity: analysing ? 0.7 : 1 }]}>
+          <Pressable accessibilityRole="button" onPress={analyse} disabled={analysing} style={[styles.primaryBtn, { marginTop: 12, opacity: analysing ? 0.7 : 1 }]}>
             {analysing ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="cpu" size={18} color="#fff" />}
             <Text style={styles.primaryBtnText}>{analysing ? t("smartCaptureScreen.analysing") : t("smartCaptureScreen.analyseWithAI")}</Text>
           </Pressable>
@@ -489,7 +489,7 @@ export default function SmartCaptureScreen() {
                   <Text style={[styles.editFieldLabel, { color: colors.mutedForeground }]}>{t("smartCaptureScreen.linkedContact")}</Text>
                   {detectedContacts.length > 0 ? (
                     <View style={styles.contactChipRow}>
-                      <Pressable
+                      <Pressable accessibilityRole="button"
                         onPress={() => setEditContactId(null)}
                         style={[styles.contactChip, { borderColor: editContactId === null ? ACCENT : colors.border, backgroundColor: editContactId === null ? ACCENT + "18" : colors.card }]}
                       >
@@ -498,7 +498,7 @@ export default function SmartCaptureScreen() {
                       {detectedContacts.map((c, i) => {
                         const sel = editContactId === c.id;
                         return (
-                          <Pressable
+                          <Pressable accessibilityRole="button"
                             key={i}
                             onPress={() => setEditContactId(c.id)}
                             style={[styles.contactChip, { borderColor: sel ? ACCENT : colors.border, backgroundColor: sel ? ACCENT + "18" : colors.card }]}
@@ -515,7 +515,7 @@ export default function SmartCaptureScreen() {
                 </View>
               )}
 
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={() => setEditing(v => !v)}
                 style={[styles.editToggle, { borderColor: editing ? ACCENT : colors.border, backgroundColor: editing ? ACCENT + "12" : "transparent" }]}
               >
@@ -550,7 +550,7 @@ export default function SmartCaptureScreen() {
                 <View style={styles.actionsHead}>
                   <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 0 }]}>{t("smartCaptureScreen.suggestedActions")}</Text>
                   {pendingCount > 1 && (
-                    <Pressable onPress={runAll} disabled={batchLoading} style={[styles.allBtn, { opacity: batchLoading ? 0.6 : 1 }]}>
+                    <Pressable accessibilityRole="button" onPress={runAll} disabled={batchLoading} style={[styles.allBtn, { opacity: batchLoading ? 0.6 : 1 }]}>
                       {batchLoading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="check-circle" size={13} color="#fff" />}
                       <Text style={styles.allBtnText}>{t("smartCaptureScreen.validateAll")}</Text>
                     </Pressable>
@@ -580,7 +580,7 @@ export default function SmartCaptureScreen() {
                           <Text style={[styles.doneText, { color: done.success ? "#16a34a" : "#ef4444" }]} numberOfLines={2}>{done.message}</Text>
                         </View>
                       ) : (
-                        <Pressable
+                        <Pressable accessibilityRole="button"
                           onPress={() => runAction(act)}
                           disabled={!!actionLoading || batchLoading}
                           style={[styles.execBtn, { opacity: actionLoading || batchLoading ? 0.5 : 1 }]}
@@ -607,7 +607,7 @@ export default function SmartCaptureScreen() {
               </View>
             )}
 
-            <Pressable onPress={reset} style={[styles.reanalyseBtn, { borderColor: colors.border }]}>
+            <Pressable accessibilityRole="button" onPress={reset} style={[styles.reanalyseBtn, { borderColor: colors.border }]}>
               <Feather name="camera" size={14} color={colors.mutedForeground} />
               <Text style={[styles.reanalyseBtnText, { color: colors.mutedForeground }]}>{t("smartCaptureScreen.captureAnother")}</Text>
             </Pressable>

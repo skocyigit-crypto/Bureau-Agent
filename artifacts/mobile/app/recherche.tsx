@@ -132,7 +132,7 @@ function ResultRow({ item, colors }: { item: FlatResultItem & { kind: "result" }
   const { t } = useTranslation();
   const { cat } = item;
   return (
-    <Pressable
+    <Pressable accessibilityRole="button"
       onPress={() => router.push(cat.route as any)}
       style={({ pressed }) => [
         styles.resultRow,
@@ -253,7 +253,7 @@ export default function RechercheScreen() {
           </Text>
           <View style={styles.categoryGrid}>
             {CATEGORIES.map(cat => (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 key={cat.key}
                 onPress={() => router.push(cat.route as any)}
                 style={[styles.catCard, { backgroundColor: colors.card, borderColor: colors.border }]}

@@ -378,7 +378,7 @@ export default function DepensesScreen() {
                 </View>
               </View>
               <View style={styles.captureBtns}>
-                <Pressable onPress={takePhoto} disabled={uploading} style={[styles.primaryBtn, { opacity: uploading ? 0.7 : 1 }]}>
+                <Pressable accessibilityRole="button" onPress={takePhoto} disabled={uploading} style={[styles.primaryBtn, { opacity: uploading ? 0.7 : 1 }]}>
                   {uploading ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
@@ -386,7 +386,7 @@ export default function DepensesScreen() {
                   )}
                   <Text style={styles.primaryBtnText}>{uploading ? t("depensesScreen.sending") : t("depensesScreen.photo")}</Text>
                 </Pressable>
-                <Pressable
+                <Pressable accessibilityRole="button"
                   onPress={pickFromGallery}
                   disabled={uploading}
                   style={[styles.secondaryBtn, { borderColor: colors.border, opacity: uploading ? 0.7 : 1 }]}
@@ -406,7 +406,7 @@ export default function DepensesScreen() {
             {/* Onglets */}
             <View style={[styles.tabs, { backgroundColor: colors.muted }]}>
               {(["queue", "ledger"] as Tab[]).map((tabKey) => (
-                <Pressable
+                <Pressable accessibilityRole="button"
                   key={tabKey}
                   onPress={() => setTab(tabKey)}
                   style={[styles.tabBtn, tab === tabKey && { backgroundColor: colors.card }]}

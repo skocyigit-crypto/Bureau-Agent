@@ -26,7 +26,8 @@
     "openExternal": "Abrir en una pestaña nueva",
     "viewDetail": "Ver el detalle",
     "assign": "Asignar",
-    "selectAll": "Seleccionar todo"
+    "selectAll": "Seleccionar todo",
+    "skipToContent": "Ir al contenido principal"
   },
   "nav": {
     "dashboard": "Panel",

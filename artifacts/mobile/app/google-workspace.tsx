@@ -213,7 +213,7 @@ export default function GoogleWorkspaceScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 4 }}>
           <View style={styles.tabRow}>
             {TABS.map(tabItem => (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 key={tabItem.key}
                 onPress={() => setTab(tabItem.key)}
                 style={[styles.tabChip, { backgroundColor: tab === tabItem.key ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.1)" }]}
@@ -239,7 +239,7 @@ export default function GoogleWorkspaceScreen() {
           <Text style={[styles.notConnectedSub, { color: colors.mutedForeground }]}>
             {t("googleWorkspaceScreen.notConnectedSub")}
           </Text>
-          <Pressable onPress={() => router.push("/integrations" as any)} style={styles.connectBtn}>
+          <Pressable accessibilityRole="button" onPress={() => router.push("/integrations" as any)} style={styles.connectBtn}>
             <Feather name="link" size={16} color="#fff" />
             <Text style={styles.connectBtnText}>{t("googleWorkspaceScreen.connectGoogle")}</Text>
           </Pressable>
@@ -269,7 +269,7 @@ export default function GoogleWorkspaceScreen() {
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={{ flexDirection: "row", gap: 6, paddingBottom: 2 }}>
                   {["all", ...(hub.categories ?? [])].map(c => (
-                    <Pressable
+                    <Pressable accessibilityRole="button"
                       key={c}
                       onPress={() => setActiveCategory(c)}
                       style={[styles.categoryChip, {
@@ -286,7 +286,7 @@ export default function GoogleWorkspaceScreen() {
               </ScrollView>
               <View style={styles.appsGrid}>
                 {filteredApps.map(app => (
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     key={app.id}
                     onPress={() => openUrl(app.url)}
                     style={[styles.appCard, { backgroundColor: colors.card, borderColor: app.connected ? "#4285f4" : colors.border }]}
@@ -317,7 +317,7 @@ export default function GoogleWorkspaceScreen() {
             tabLoading ? <ActivityIndicator color="#4285f4" style={{ marginTop: 24 }} /> :
             emails.length === 0 ? <EmptyState icon="mail" title={t("googleWorkspaceScreen.noEmails")} subtitle={t("googleWorkspaceScreen.noEmailsSub")} /> :
             emails.map(e => (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 key={e.id}
                 onPress={() => router.push("/gmail-agent" as any)}
                 style={[styles.emailRow, { backgroundColor: colors.card, borderColor: colors.border, borderLeftWidth: e.read ? 1 : 3, borderLeftColor: e.read ? colors.border : "#ea4335" }]}
@@ -371,7 +371,7 @@ export default function GoogleWorkspaceScreen() {
             files.map(f => {
               const isFolder = f.mimeType === "application/vnd.google-apps.folder";
               return (
-                <Pressable
+                <Pressable accessibilityRole="button"
                   key={f.id}
                   onPress={() => f.webViewLink && openUrl(f.webViewLink)}
                   style={[styles.fileRow, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -384,7 +384,7 @@ export default function GoogleWorkspaceScreen() {
                     <Text style={[styles.fileDate, { color: colors.mutedForeground }]}>{t("googleWorkspaceScreen.modifiedDate", { date: fmtDate(f.modifiedTime) })}</Text>
                   </View>
                   {!isFolder && (
-                    <Pressable
+                    <Pressable accessibilityRole="button"
                       onPress={() => handleImportFile(f)}
                       disabled={importingFile === f.id}
                       style={[styles.importBtn, { backgroundColor: "#6366f115", opacity: importingFile === f.id ? 0.6 : 1 }]}

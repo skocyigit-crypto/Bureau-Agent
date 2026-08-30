@@ -198,7 +198,7 @@ function ThemeCard() {
       </View>
       <View style={styles.themeRow}>
         {modes.map(m => (
-          <Pressable
+          <Pressable accessibilityRole="button"
             key={m.key}
             onPress={() => setMode(m.key)}
             style={[styles.themeBtn, { borderColor: mode === m.key ? colors.primary : colors.border, backgroundColor: mode === m.key ? colors.primary + "18" : "transparent" }]}
@@ -225,7 +225,7 @@ function LanguageCard() {
       </View>
       <View style={styles.langRow}>
         {LANGUAGES.map(l => (
-          <Pressable
+          <Pressable accessibilityRole="button"
             key={l.code}
             onPress={() => i18n.changeLanguage(l.code)}
             style={[styles.langBtn, { borderColor: lang === l.code ? colors.primary : colors.border, backgroundColor: lang === l.code ? colors.primary + "18" : "transparent" }]}
@@ -456,7 +456,7 @@ function PrivacyCard() {
       </View>
       <View style={styles.lockOptionsRow}>
         {AUTO_LOCK_OPTIONS.map(opt => (
-          <Pressable
+          <Pressable accessibilityRole="button"
             key={opt.minutes}
             onPress={() => updateSettings({ autoLockMinutes: opt.minutes })}
             style={[
@@ -480,7 +480,7 @@ function PrivacyCard() {
       {/* PIN Yönetimi */}
       <View style={[styles.pinSection, { borderTopColor: colors.border }]}>
         {!settings.hasPIN ? (
-          <Pressable
+          <Pressable accessibilityRole="button"
             style={[styles.pinActionBtn, { borderColor: colors.primary, backgroundColor: colors.primary + "12" }]}
             onPress={() => { setShowPinSetup(true); setPinStep("enter"); setPinInput(""); setPinError(""); }}
           >
@@ -489,14 +489,14 @@ function PrivacyCard() {
           </Pressable>
         ) : (
           <View style={styles.pinActionsRow}>
-            <Pressable
+            <Pressable accessibilityRole="button"
               style={[styles.pinActionBtn, { flex: 1, borderColor: colors.border }]}
               onPress={() => { setShowPinSetup(true); setPinStep("enter"); setPinInput(""); setPinError(""); }}
             >
               <Feather name="edit-2" size={14} color={colors.mutedForeground} />
               <Text style={[styles.pinActionText, { color: colors.mutedForeground }]}>{t("settingsScreen.changePinBtn")}</Text>
             </Pressable>
-            <Pressable
+            <Pressable accessibilityRole="button"
               style={[styles.pinActionBtn, { flex: 1, borderColor: "#ef444444", backgroundColor: "#ef444408" }]}
               onPress={handleRemovePIN}
             >
@@ -525,13 +525,13 @@ function PrivacyCard() {
             />
             {pinError ? <Text style={styles.pinErrText}>{pinError}</Text> : null}
             <View style={styles.pinFormBtns}>
-              <Pressable
+              <Pressable accessibilityRole="button"
                 style={[styles.pinFormBtn, { borderColor: colors.border }]}
                 onPress={() => { setShowPinSetup(false); setPinInput(""); setPinError(""); setPinStep("enter"); }}
               >
                 <Text style={[styles.pinFormBtnText, { color: colors.mutedForeground }]}>{t("common.cancel")}</Text>
               </Pressable>
-              <Pressable
+              <Pressable accessibilityRole="button"
                 style={[styles.pinFormBtn, { backgroundColor: colors.primary, borderColor: colors.primary }]}
                 onPress={handleSetPIN}
               >
@@ -545,7 +545,7 @@ function PrivacyCard() {
       </View>
 
       {/* Manuel kilit butonu */}
-      <Pressable
+      <Pressable accessibilityRole="button"
         style={[styles.lockNowBtn, { borderTopColor: colors.border }]}
         onPress={() => { lock(); router.back(); }}
       >
@@ -828,7 +828,7 @@ function WhatsAppNotificationsCard() {
         <Feather name="message-circle" size={18} color="#22c55e" />
         <Text style={[styles.cardTitle, { color: colors.foreground, flex: 1 }]}>{t("settingsScreen.whatsappTitle")}</Text>
         {dirty && (
-          <Pressable
+          <Pressable accessibilityRole="button"
             onPress={onSave}
             disabled={saving}
             style={({ pressed }) => ({
@@ -953,7 +953,7 @@ function PreferencesIaCard() {
           const active = language === opt.value;
           const disabled = !enabled || !loaded || !isAuthenticated;
           return (
-            <Pressable
+            <Pressable accessibilityRole="button"
               key={opt.value}
               onPress={() => !disabled && onSelectLanguage(opt.value)}
               disabled={disabled}
@@ -1295,13 +1295,13 @@ function ClosuresCard() {
           ) : null}
 
           <View style={styles.closureFormBtns}>
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={() => { setShowForm(false); setDateStart(""); setDateEnd(""); setLabel(""); setFormError(""); }}
               style={[styles.closureFormBtn, { borderColor: colors.border }]}
             >
               <Text style={[styles.closureFormBtnText, { color: colors.mutedForeground }]}>{t("common.cancel")}</Text>
             </Pressable>
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={handleAdd}
               disabled={saving}
               style={({ pressed }) => [

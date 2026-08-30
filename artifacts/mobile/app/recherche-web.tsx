@@ -291,7 +291,7 @@ export default function RechercheWebScreen() {
                 {EXAMPLE_QUERY_KEYS.map((exKey) => {
                   const ex = t("rechercheWebScreen." + exKey);
                   return (
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     key={exKey}
                     onPress={() => void runSearch({ term: ex })}
                     style={[styles.exampleChip, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -352,7 +352,7 @@ export default function RechercheWebScreen() {
                 {data.results.length > 1 ? t("rechercheWebScreen.resultsAnalyzedOther", { count: data.results.length }) : t("rechercheWebScreen.resultsAnalyzedOne", { count: data.results.length })}
               </Text>
               {dangerousCount > 0 && (
-                <Pressable
+                <Pressable accessibilityRole="button"
                   onPress={() => setSafeOnly((v) => !v)}
                   style={[styles.safeToggle, { borderColor: safeOnly ? "#10b981" : colors.border, backgroundColor: safeOnly ? "#10b98115" : "transparent" }]}
                 >
@@ -378,7 +378,7 @@ export default function RechercheWebScreen() {
                 ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(item.domain)}&sz=64`
                 : null;
               return (
-                <Pressable
+                <Pressable accessibilityRole="button"
                   key={`${item.url}-${i}`}
                   onPress={() => openResult(item)}
                   style={({ pressed }) => [
@@ -425,7 +425,7 @@ export default function RechercheWebScreen() {
             })}
 
           {!loading && hiddenCount > 0 && (
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={() => setSafeOnly(false)}
               style={[styles.showHidden, { borderColor: colors.border }]}
             >
@@ -441,7 +441,7 @@ export default function RechercheWebScreen() {
               <Text style={[styles.relatedTitle, { color: colors.mutedForeground }]}>{t("rechercheWebScreen.relatedTitle")}</Text>
               <View style={styles.relatedChips}>
                 {data.relatedSearches.map((rs) => (
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     key={rs}
                     onPress={() => void runSearch({ term: rs })}
                     style={[styles.relatedChip, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -472,7 +472,7 @@ function Chip({
   onPress: () => void;
 }) {
   return (
-    <Pressable
+    <Pressable accessibilityRole="button"
       onPress={onPress}
       style={[
         styles.chip,

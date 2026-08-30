@@ -113,7 +113,7 @@ function ApercuTab({ status, onRun, running }: { status: AgentStatus | null; onR
         </View>
 
         <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
-          <Pressable onPress={onRun} disabled={running} style={[sa.btn, { flex: 1, backgroundColor: running ? "#6366f160" : "#6366f1" }]}>
+          <Pressable accessibilityRole="button" onPress={onRun} disabled={running} style={[sa.btn, { flex: 1, backgroundColor: running ? "#6366f160" : "#6366f1" }]}>
             {running ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="play" size={16} color="#fff" />}
             <Text style={sa.btnText}>{running ? t("superAgentScreen.agentActive") : t("superAgentScreen.runFullCycle")}</Text>
           </Pressable>
@@ -203,7 +203,7 @@ function EmailTab({ onRun, running, logs }: { onRun: () => void; running: boolea
         <Text style={[sa.bodyText, { color: colors.mutedForeground, marginTop: 8 }]}>
           {t("superAgentScreen.emailBody")}
         </Text>
-        <Pressable onPress={onRun} disabled={running} style={[sa.btn, { backgroundColor: "#dc2626", opacity: running ? 0.6 : 1, marginTop: 10 }]}>
+        <Pressable accessibilityRole="button" onPress={onRun} disabled={running} style={[sa.btn, { backgroundColor: "#dc2626", opacity: running ? 0.6 : 1, marginTop: 10 }]}>
           {running ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="refresh-cw" size={14} color="#fff" />}
           <Text style={sa.btnText}>{running ? t("superAgentScreen.processing") : t("superAgentScreen.analyzeEmailsNow")}</Text>
         </Pressable>
@@ -299,7 +299,7 @@ function ChantierTab() {
         <Text style={[sa.fieldLabel, { color: colors.mutedForeground }]}>{t("superAgentScreen.documentType")}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingBottom: 4 }}>
           {TYPES.map(ty => (
-            <Pressable key={ty.key} onPress={() => setReportType(ty.key)} style={[sa.typeChip, { backgroundColor: reportType === ty.key ? ty.color : colors.background, borderColor: reportType === ty.key ? ty.color : colors.border }]}>
+            <Pressable accessibilityRole="button" key={ty.key} onPress={() => setReportType(ty.key)} style={[sa.typeChip, { backgroundColor: reportType === ty.key ? ty.color : colors.background, borderColor: reportType === ty.key ? ty.color : colors.border }]}>
               <Feather name={ty.icon} size={11} color={reportType === ty.key ? "#fff" : colors.mutedForeground} />
               <Text style={[sa.typeChipText, { color: reportType === ty.key ? "#fff" : colors.mutedForeground }]}>{ty.label}</Text>
             </Pressable>
@@ -319,7 +319,7 @@ function ChantierTab() {
           textAlignVertical="top"
         />
 
-        <Pressable onPress={process} disabled={loading || !report.trim()} style={[sa.btn, { backgroundColor: "#f59e0b", opacity: loading || !report.trim() ? 0.6 : 1, marginTop: 8 }]}>
+        <Pressable accessibilityRole="button" onPress={process} disabled={loading || !report.trim()} style={[sa.btn, { backgroundColor: "#f59e0b", opacity: loading || !report.trim() ? 0.6 : 1, marginTop: 8 }]}>
           {loading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="zap" size={14} color="#fff" />}
           <Text style={sa.btnText}>{loading ? t("superAgentScreen.aiAnalyzing") : t("superAgentScreen.analyzeAndCreate")}</Text>
         </Pressable>
@@ -406,7 +406,7 @@ function ChantierTab() {
             </View>
           )}
 
-          <Pressable onPress={() => { setResult(null); setReport(""); }} style={[sa.btn, { backgroundColor: colors.muted }]}>
+          <Pressable accessibilityRole="button" onPress={() => { setResult(null); setReport(""); }} style={[sa.btn, { backgroundColor: colors.muted }]}>
             <Feather name="plus" size={14} color={colors.mutedForeground} />
             <Text style={[sa.btnText, { color: colors.mutedForeground }]}>{t("superAgentScreen.analyzeAnother")}</Text>
           </Pressable>
@@ -447,7 +447,7 @@ function JournalTab({ logs, refreshing, onRefresh }: { logs: AgentLog[]; refresh
       {/* Filters */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
         {FILTER_OPTIONS.map(f => (
-          <Pressable key={f.key} onPress={() => setFilter(f.key)} style={[sa.filterChip, { backgroundColor: filter === f.key ? "#6366f1" : colors.card, borderColor: filter === f.key ? "#6366f1" : colors.border }]}>
+          <Pressable accessibilityRole="button" key={f.key} onPress={() => setFilter(f.key)} style={[sa.filterChip, { backgroundColor: filter === f.key ? "#6366f1" : colors.card, borderColor: filter === f.key ? "#6366f1" : colors.border }]}>
             <Text style={[sa.filterChipText, { color: filter === f.key ? "#fff" : colors.mutedForeground }]}>{f.label}</Text>
           </Pressable>
         ))}
@@ -554,7 +554,7 @@ export default function SuperAgentScreen() {
           </View>
           {running && <ActivityIndicator size="small" color="rgba(255,255,255,0.8)" />}
           {!running && (
-            <Pressable onPress={runCycle} style={[sa.runBtn, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
+            <Pressable accessibilityRole="button" onPress={runCycle} style={[sa.runBtn, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
               <Feather name="play" size={14} color="#fff" />
               <Text style={sa.runBtnText}>{t("superAgentScreen.run")}</Text>
             </Pressable>
@@ -564,7 +564,7 @@ export default function SuperAgentScreen() {
         {/* Tab bar */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }} contentContainerStyle={{ gap: 8 }}>
           {TABS.map(tb => (
-            <Pressable key={tb.key} onPress={() => setTab(tb.key)} style={[sa.tabChip, { backgroundColor: tab === tb.key ? tb.color : "rgba(255,255,255,0.12)" }]}>
+            <Pressable accessibilityRole="button" key={tb.key} onPress={() => setTab(tb.key)} style={[sa.tabChip, { backgroundColor: tab === tb.key ? tb.color : "rgba(255,255,255,0.12)" }]}>
               <Feather name={tb.icon} size={12} color={tab === tb.key ? "#fff" : "rgba(255,255,255,0.7)"} />
               <Text style={[sa.tabChipText, { color: tab === tb.key ? "#fff" : "rgba(255,255,255,0.7)" }]}>{t(tb.labelKey)}</Text>
               {tb.key === "email" && logs.filter(l => l.source === "email" && l.level === "success").length > 0 && (

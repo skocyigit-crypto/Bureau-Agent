@@ -138,7 +138,7 @@ export default function ContactsImportScreen() {
         {step === "edit" && (
           <View style={styles.modeRow}>
             {(["manual", "paste"] as Mode[]).map(m => (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 key={m}
                 onPress={() => setMode(m)}
                 style={[styles.modeChip, { backgroundColor: mode === m ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.1)" }]}
@@ -180,11 +180,11 @@ export default function ContactsImportScreen() {
               </View>
             )}
             <View style={styles.doneActions}>
-              <Pressable onPress={() => router.push("/(tabs)/contacts" as any)} style={[styles.primaryBtn, { backgroundColor: "#0369a1" }]}>
+              <Pressable accessibilityRole="button" onPress={() => router.push("/(tabs)/contacts" as any)} style={[styles.primaryBtn, { backgroundColor: "#0369a1" }]}>
                 <Feather name="users" size={15} color="#fff" />
                 <Text style={styles.primaryBtnText}>{t("contactsImportScreen.viewContacts")}</Text>
               </Pressable>
-              <Pressable onPress={resetForm} style={[styles.secondaryBtn, { borderColor: colors.border }]}>
+              <Pressable accessibilityRole="button" onPress={resetForm} style={[styles.secondaryBtn, { borderColor: colors.border }]}>
                 <Feather name="plus" size={15} color={colors.foreground} />
                 <Text style={[styles.secondaryBtnText, { color: colors.foreground }]}>{t("contactsImportScreen.newImport")}</Text>
               </Pressable>
@@ -225,11 +225,11 @@ export default function ContactsImportScreen() {
               </View>
             ))}
             <View style={styles.previewActions}>
-              <Pressable onPress={() => setStep("edit")} style={[styles.secondaryBtn, { borderColor: colors.border }]}>
+              <Pressable accessibilityRole="button" onPress={() => setStep("edit")} style={[styles.secondaryBtn, { borderColor: colors.border }]}>
                 <Feather name="arrow-left" size={15} color={colors.foreground} />
                 <Text style={[styles.secondaryBtnText, { color: colors.foreground }]}>{t("common.edit")}</Text>
               </Pressable>
-              <Pressable onPress={handleImport} disabled={loading} style={[styles.primaryBtn, { backgroundColor: "#0369a1", flex: 2, opacity: loading ? 0.7 : 1 }]}>
+              <Pressable accessibilityRole="button" onPress={handleImport} disabled={loading} style={[styles.primaryBtn, { backgroundColor: "#0369a1", flex: 2, opacity: loading ? 0.7 : 1 }]}>
                 {loading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="upload" size={15} color="#fff" />}
                 <Text style={styles.primaryBtnText}>{loading ? t("contactsImportScreen.importInProgress") : t("contactsImportScreen.launchImport")}</Text>
               </Pressable>
@@ -262,7 +262,7 @@ export default function ContactsImportScreen() {
             <Text style={[styles.fieldHint, { color: colors.mutedForeground }]}>
               {t("contactsImportScreen.formatHint")}
             </Text>
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={handleParsePaste}
               disabled={!pasteText.trim()}
               style={[styles.primaryBtn, { backgroundColor: "#0369a1", opacity: !pasteText.trim() ? 0.6 : 1, marginTop: 16 }]}
@@ -315,12 +315,12 @@ export default function ContactsImportScreen() {
               </View>
             ))}
 
-            <Pressable onPress={addRow} style={[styles.addRowBtn, { borderColor: "#0369a1" }]}>
+            <Pressable accessibilityRole="button" onPress={addRow} style={[styles.addRowBtn, { borderColor: "#0369a1" }]}>
               <Feather name="plus" size={16} color="#0369a1" />
               <Text style={[styles.addRowText, { color: "#0369a1" }]}>{t("contactsImportScreen.addContact")}</Text>
             </Pressable>
 
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={handlePreviewManual}
               style={[styles.primaryBtn, { backgroundColor: "#0369a1", marginTop: 16 }]}
             >

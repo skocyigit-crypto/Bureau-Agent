@@ -238,7 +238,7 @@ export default function LoginScreen() {
                 {t("loginScreen.forgotDoneInfo", { email: email.trim() })}
               </Text>
             </View>
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={() => { setMode("login"); setError(""); }}
               style={[styles.loginButton, { backgroundColor: colors.primary, marginTop: 8 }]}
             >
@@ -269,7 +269,7 @@ export default function LoginScreen() {
               <View style={styles.inputGroup}>
                 <View style={styles.passwordLabelRow}>
                   <Text style={[styles.label, { color: colors.mutedForeground }]}>{t("loginScreen.passwordLabel")}</Text>
-                  <Pressable onPress={() => { setMode("forgot"); setError(""); }} hitSlop={10} testID="forgot-link">
+                  <Pressable accessibilityRole="button" onPress={() => { setMode("forgot"); setError(""); }} hitSlop={10} testID="forgot-link">
                     <Text style={[styles.forgotLink, { color: colors.primary }]}>{t("loginScreen.forgotLink")}</Text>
                   </Pressable>
                 </View>
@@ -315,7 +315,7 @@ export default function LoginScreen() {
               </View>
             )}
 
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={mode === "login" ? handleLogin : handleForgot}
               disabled={loading || (mode === "login" && mfaRequired && totpCode.length < 6)}
               style={({ pressed }) => [
@@ -334,7 +334,7 @@ export default function LoginScreen() {
             </Pressable>
 
             {mode === "login" && bioCapable && bioEnabled && (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={unlockWithBiometric}
                 disabled={bioLoading}
                 style={({ pressed }) => [
@@ -357,7 +357,7 @@ export default function LoginScreen() {
             )}
 
             {mode === "forgot" && (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={() => { setMode("login"); setError(""); }}
                 style={styles.backLink}
                 hitSlop={10}

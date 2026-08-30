@@ -183,7 +183,7 @@ export default function IntegrationsScreen() {
                 {categories.map(cat => {
                   const catColor = cat.id === "all" ? colors.primary : (CATEGORY_COLORS[cat.id]?.color || "#64748b");
                   return (
-                    <Pressable
+                    <Pressable accessibilityRole="button"
                       key={cat.id}
                       onPress={() => setCategoryFilter(cat.id)}
                       style={[catStyles.chip, { backgroundColor: categoryFilter === cat.id ? catColor + "20" : colors.muted }]}

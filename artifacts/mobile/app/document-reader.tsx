@@ -190,7 +190,7 @@ function ContentTab({ doc }: { doc: DocPreview }) {
         </View>
         {pages.length > 1 && (
           <View style={[rd.pageNav, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Pressable onPress={goPrev} disabled={page === 0} style={[rd.pageBtn, { opacity: page === 0 ? 0.4 : 1 }]}>
+            <Pressable accessibilityRole="button" onPress={goPrev} disabled={page === 0} style={[rd.pageBtn, { opacity: page === 0 ? 0.4 : 1 }]}>
               <Feather name="chevron-left" size={16} color={colors.foreground} />
               <Text style={[rd.pageBtnText, { color: colors.foreground }]}>{t("documentReaderScreen.prev")}</Text>
             </Pressable>
@@ -198,7 +198,7 @@ function ContentTab({ doc }: { doc: DocPreview }) {
               <Text style={[rd.pageNum, { color: colors.foreground }]}>{t("documentReaderScreen.pageOf", { current: page + 1, total: pages.length })}</Text>
               <Text style={[rd.pageChars, { color: colors.mutedForeground }]}>{t("documentReaderScreen.charsApprox", { count: currentText.length })}</Text>
             </View>
-            <Pressable onPress={goNext} disabled={page === pages.length - 1} style={[rd.pageBtn, { opacity: page === pages.length - 1 ? 0.4 : 1 }]}>
+            <Pressable accessibilityRole="button" onPress={goNext} disabled={page === pages.length - 1} style={[rd.pageBtn, { opacity: page === pages.length - 1 ? 0.4 : 1 }]}>
               <Text style={[rd.pageBtnText, { color: colors.foreground }]}>{t("documentReaderScreen.next")}</Text>
               <Feather name="chevron-right" size={16} color={colors.foreground} />
             </Pressable>
@@ -333,7 +333,7 @@ function InfosTab({ doc, docId, onReloadDoc }: { doc: DocPreview; docId: number;
                 {t("documentReaderScreen.notScannedHint")}
               </Text>
             )}
-            <Pressable onPress={handleRescan} disabled={scanning}
+            <Pressable accessibilityRole="button" onPress={handleRescan} disabled={scanning}
               style={[rd.outlineBtn, { borderColor: accent + "40", marginTop: 12 }]}>
               {scanning ? <ActivityIndicator size="small" color={accent} /> : <Feather name="refresh-cw" size={13} color={accent} />}
               <Text style={[rd.outlineBtnText, { color: accent }]}>
@@ -413,7 +413,7 @@ function ModelCard({ analysis, provider }: { analysis?: ModelAnalysis; provider:
 
   return (
     <View style={[rd.modelCard, { backgroundColor: cfg.bg, borderColor: cfg.color + "30" }]}>
-      <Pressable onPress={() => setExpanded(e => !e)} style={rd.modelCardHeader}>
+      <Pressable accessibilityRole="button" onPress={() => setExpanded(e => !e)} style={rd.modelCardHeader}>
         <View style={[rd.modelIcon, { backgroundColor: cfg.color + "20" }]}>
           <Feather name={cfg.icon} size={14} color={cfg.color} />
         </View>
@@ -577,7 +577,7 @@ function AnalyseTab({ doc, docId, onReloadDoc }: { doc: DocPreview; docId: numbe
           <Text style={[rd.bodyText, { color: colors.mutedForeground, textAlign: "center" }]}>
             {t("documentReaderScreen.multiModelDesc")}
           </Text>
-          <Pressable onPress={handleMultiAnalyze} disabled={analyzing}
+          <Pressable accessibilityRole="button" onPress={handleMultiAnalyze} disabled={analyzing}
             style={[rd.primaryBtn, { backgroundColor: analyzing ? "#6366f180" : "#6366f1" }]}>
             {analyzing ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="zap" size={14} color="#fff" />}
             <Text style={rd.primaryBtnText}>{analyzing ? t("documentReaderScreen.analyzing3Models") : t("documentReaderScreen.analyzeWith3AI")}</Text>
@@ -591,12 +591,12 @@ function AnalyseTab({ doc, docId, onReloadDoc }: { doc: DocPreview; docId: numbe
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={140}>
       {/* Tab: Analyse / Chat */}
       <View style={[rd.subTabBar, { borderColor: colors.border }]}>
-        <Pressable onPress={() => setChatMode(false)}
+        <Pressable accessibilityRole="button" onPress={() => setChatMode(false)}
           style={[rd.subTab, { backgroundColor: !chatMode ? "#6366f1" : "transparent" }]}>
           <Feather name="bar-chart-2" size={12} color={!chatMode ? "#fff" : colors.mutedForeground} />
           <Text style={[rd.subTabText, { color: !chatMode ? "#fff" : colors.mutedForeground }]}>{t("documentReaderScreen.subTabAnalysis")}</Text>
         </Pressable>
-        <Pressable onPress={() => setChatMode(true)}
+        <Pressable accessibilityRole="button" onPress={() => setChatMode(true)}
           style={[rd.subTab, { backgroundColor: chatMode ? "#6366f1" : "transparent" }]}>
           <Feather name="message-circle" size={12} color={chatMode ? "#fff" : colors.mutedForeground} />
           <Text style={[rd.subTabText, { color: chatMode ? "#fff" : colors.mutedForeground }]}>{t("documentReaderScreen.subTabChat")}</Text>
@@ -650,7 +650,7 @@ function AnalyseTab({ doc, docId, onReloadDoc }: { doc: DocPreview; docId: numbe
           ) : null}
 
           {/* Re-analyze button */}
-          <Pressable onPress={handleMultiAnalyze} disabled={analyzing}
+          <Pressable accessibilityRole="button" onPress={handleMultiAnalyze} disabled={analyzing}
             style={[rd.outlineBtn, { borderColor: "#6366f140" }]}>
             {analyzing ? <ActivityIndicator size="small" color="#6366f1" /> : <Feather name="refresh-cw" size={13} color="#6366f1" />}
             <Text style={[rd.outlineBtnText, { color: "#6366f1" }]}>{analyzing ? t("documentReaderScreen.reanalyzing") : t("documentReaderScreen.reanalyzeWith3AI")}</Text>
@@ -675,7 +675,7 @@ function AnalyseTab({ doc, docId, onReloadDoc }: { doc: DocPreview; docId: numbe
                 const c = MODEL_CFG[m];
                 const active = selectedModels.includes(m);
                 return (
-                  <Pressable key={m} onPress={() => toggleModel(m)}
+                  <Pressable accessibilityRole="button" key={m} onPress={() => toggleModel(m)}
                     style={[rd.modelChip, { backgroundColor: active ? c.color + "20" : colors.border, borderColor: active ? c.color + "60" : "transparent" }]}>
                     <Feather name={c.icon} size={10} color={active ? c.color : colors.mutedForeground} />
                     <Text style={[{ fontSize: 10, fontFamily: "Inter_600SemiBold", color: active ? c.color : colors.mutedForeground }]}>{c.short}</Text>
@@ -694,7 +694,7 @@ function AnalyseTab({ doc, docId, onReloadDoc }: { doc: DocPreview; docId: numbe
                   {QUICK_QUESTION_KEYS.map((qk, i) => {
                     const q = t(`documentReaderScreen.quickQuestionsList.${qk}`);
                     return (
-                    <Pressable key={i} onPress={() => handleAsk(q)}
+                    <Pressable accessibilityRole="button" key={i} onPress={() => handleAsk(q)}
                       style={[rd.quickQ, { backgroundColor: colors.card, borderColor: colors.border }]}>
                       <Text style={[{ fontSize: 11, fontFamily: "Inter_400Regular", color: colors.foreground }]}>{q}</Text>
                     </Pressable>
@@ -815,7 +815,7 @@ function ActionsTab({ doc, onDownload, onDelete }: { doc: DocPreview; onDownload
         { icon: "external-link" as const,  label: t("documentReaderScreen.openInBrowser"), sub: t("documentReaderScreen.externalViewer"),           color: "#6366f1", onPress: () => Linking.openURL(`${API_BASE}/api/documents/${doc.id}/download`).catch(() => {}) },
         { icon: "trash-2" as const,        label: t("documentReaderScreen.deleteAction"),                sub: t("documentReaderScreen.irreversibleAction"),            color: "#ef4444", onPress: onDelete },
       ].map((a, i) => (
-        <Pressable key={i} onPress={a.onPress}
+        <Pressable accessibilityRole="button" key={i} onPress={a.onPress}
           style={[rd.actionCard, { backgroundColor: a.color === "#ef4444" ? "#ef444408" : colors.card, borderColor: a.color === "#ef4444" ? "#ef444430" : colors.border }]}>
           <View style={[rd.infoIcon, { backgroundColor: a.color + "15" }]}>
             <Feather name={a.icon} size={16} color={a.color} />
@@ -922,7 +922,7 @@ export default function DocumentReaderScreen() {
         {/* Tab bar */}
         <View style={rd.tabBar}>
           {TABS.map(tabItem => (
-            <Pressable key={tabItem.key} onPress={() => setTab(tabItem.key)}
+            <Pressable accessibilityRole="button" key={tabItem.key} onPress={() => setTab(tabItem.key)}
               style={[rd.tabItem, { backgroundColor: tab === tabItem.key ? "#fff" : "rgba(255,255,255,0.12)" }]}>
               <Feather name={tabItem.icon} size={11} color={tab === tabItem.key ? tabItem.color : "rgba(255,255,255,0.8)"} />
               <Text style={[rd.tabText, { color: tab === tabItem.key ? tabItem.color : "rgba(255,255,255,0.8)" }]}>{t(`documentReaderScreen.${tabItem.labelKey}`)}</Text>

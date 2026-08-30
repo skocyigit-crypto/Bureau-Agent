@@ -116,13 +116,13 @@ export function FormModal({
           </ScrollView>
 
           <View style={[styles.footer, { borderTopColor: colors.border }]}>
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={onClose}
               style={[styles.cancelBtn, { borderColor: colors.border }]}
             >
               <Text style={[styles.cancelText, { color: colors.foreground }]}>{t("common.cancel")}</Text>
             </Pressable>
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={onSubmit}
               disabled={loading}
               style={({ pressed }) => [
@@ -297,7 +297,7 @@ function FormField({ field, values, onChange }: FormFieldProps) {
             ) : (
               <View style={styles.contactList}>
                 {filteredContacts.map((c) => (
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     key={c.id}
                     onPress={() => {
                       onChange(field.key, String(c.id));
@@ -335,7 +335,7 @@ function FormField({ field, values, onChange }: FormFieldProps) {
       ) : field.type === "select" ? (
         <View style={styles.selectRow}>
           {field.options?.map((opt) => (
-            <Pressable
+            <Pressable accessibilityRole="button"
               key={opt.value}
               onPress={() => onChange(field.key, opt.value)}
               style={[
@@ -401,7 +401,7 @@ function FormField({ field, values, onChange }: FormFieldProps) {
               >
                 {suggestion}
               </Text>
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={acceptSuggestion}
                 style={[styles.suggestionBtn, { borderColor: colors.primary }]}
                 hitSlop={6}

@@ -88,7 +88,7 @@ function ContactRow({
   const lastContact = formatLastContact(item.lastCallAt);
 
   return (
-    <Pressable
+    <Pressable accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [
         styles.contactRow,
@@ -344,7 +344,7 @@ export default function ContactsScreen() {
         </View>
         <View style={styles.filterRow}>
           {catFilters.map((f) => (
-            <Pressable
+            <Pressable accessibilityRole="button"
               key={f.key}
               onPress={() => setFilterCat(f.key)}
               style={[styles.filterChip, { backgroundColor: filterCat === f.key ? colors.primary : "rgba(255,255,255,0.1)" }]}
@@ -412,7 +412,7 @@ export default function ContactsScreen() {
           {!isWeb && letters.length > 0 && (
             <View style={styles.alphabetSidebar} pointerEvents="box-none">
               {letters.map((letter) => (
-                <TouchableOpacity key={letter} onPress={() => scrollToLetter(letter)} style={styles.alphabetBtn}>
+                <TouchableOpacity accessibilityRole="button" key={letter} onPress={() => scrollToLetter(letter)} style={styles.alphabetBtn}>
                   <Text style={[styles.alphabetLetter, { color: colors.primary }]}>{letter}</Text>
                 </TouchableOpacity>
               ))}

@@ -445,7 +445,7 @@ export default function SecuriteScreen() {
             style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
             onSubmitEditing={scan}
           />
-          <Pressable
+          <Pressable accessibilityRole="button"
             onPress={scan}
             disabled={scanning || !url.trim()}
             style={[styles.btn, { backgroundColor: colors.primary, opacity: scanning || !url.trim() ? 0.6 : 1 }]}
@@ -471,7 +471,7 @@ export default function SecuriteScreen() {
               ) : (
                 <Text style={{ fontSize: 12, color: colors.mutedForeground }}>{t("securiteScreen.noRiskSignal")}</Text>
               )}
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={() => openSafely()}
                 style={[styles.btnOutline, { borderColor: result.risk === "safe" ? colors.success : colors.destructive }]}
               >
@@ -502,7 +502,7 @@ export default function SecuriteScreen() {
             numberOfLines={4}
             style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background, minHeight: 90, textAlignVertical: "top" }]}
           />
-          <Pressable
+          <Pressable accessibilityRole="button"
             onPress={scanText}
             disabled={piiScanning || !piiText.trim()}
             style={[styles.btn, { backgroundColor: colors.primary, opacity: piiScanning || !piiText.trim() ? 0.6 : 1 }]}
@@ -602,28 +602,28 @@ export default function SecuriteScreen() {
 
           {/* Sélecteurs type + sens */}
           <View style={{ flexDirection: "row", gap: 6 }}>
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={() => setEntryType("domain")}
               style={[styles.toggle, { borderColor: colors.border, backgroundColor: entryType === "domain" ? "#0d9488" : colors.background }]}
             >
               <Feather name="globe" size={12} color={entryType === "domain" ? "#fff" : colors.mutedForeground} />
               <Text style={{ fontSize: 11, fontWeight: "600", color: entryType === "domain" ? "#fff" : colors.mutedForeground }}>{t("securiteScreen.site")}</Text>
             </Pressable>
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={() => setEntryType("phone")}
               style={[styles.toggle, { borderColor: colors.border, backgroundColor: entryType === "phone" ? "#0d9488" : colors.background }]}
             >
               <Feather name="phone" size={12} color={entryType === "phone" ? "#fff" : colors.mutedForeground} />
               <Text style={{ fontSize: 11, fontWeight: "600", color: entryType === "phone" ? "#fff" : colors.mutedForeground }}>{t("securiteScreen.phone")}</Text>
             </Pressable>
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={() => setListKind("block")}
               style={[styles.toggle, { borderColor: colors.border, backgroundColor: listKind === "block" ? colors.destructive : colors.background }]}
             >
               <Feather name="slash" size={12} color={listKind === "block" ? "#fff" : colors.mutedForeground} />
               <Text style={{ fontSize: 11, fontWeight: "600", color: listKind === "block" ? "#fff" : colors.mutedForeground }}>{t("securiteScreen.block")}</Text>
             </Pressable>
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={() => setListKind("allow")}
               style={[styles.toggle, { borderColor: colors.border, backgroundColor: listKind === "allow" ? colors.success : colors.background }]}
             >
@@ -719,7 +719,7 @@ export default function SecuriteScreen() {
             autoCorrect={false}
             style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
           />
-          <Pressable
+          <Pressable accessibilityRole="button"
             onPress={() => {
               const link = nextdnsId.trim()
                 ? `https://my.nextdns.io/${encodeURIComponent(nextdnsId.trim())}/setup`

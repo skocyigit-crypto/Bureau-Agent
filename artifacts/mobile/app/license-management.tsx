@@ -322,7 +322,7 @@ export default function LicenseManagementScreen() {
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <SectionTitle title={t("licenseManagementScreen.quickActions")} icon="zap" color="#166834" />
             <View style={{ gap: 10 }}>
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={generateInvoice}
                 style={[styles.actionBtn, { backgroundColor: "#166834" }]}
                 disabled={actionLoading === "generate"}
@@ -336,7 +336,7 @@ export default function LicenseManagementScreen() {
                   </>
                 )}
               </Pressable>
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={sendAutoReminders}
                 style={[styles.actionBtn, { backgroundColor: "#f59e0b" }]}
                 disabled={actionLoading === "auto"}

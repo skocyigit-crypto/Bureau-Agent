@@ -411,7 +411,7 @@ export default function IaApprentissageScreen() {
                       <Text style={{ color: "#dc2626", fontSize: 12, fontWeight: "700" }}>{p.downCount} 👎</Text>
                     </View>
                     {isManager ? (
-                      <Pressable
+                      <Pressable accessibilityRole="button"
                         onPress={() => reactivate(p.key)}
                         disabled={reactivating === p.key}
                         style={[styles.reactivateBtn, { borderColor: colors.primary }]}
@@ -508,7 +508,7 @@ export default function IaApprentissageScreen() {
                   {team.map((m) => {
                     const active = m.id === selectedUserId;
                     return (
-                      <Pressable
+                      <Pressable accessibilityRole="button"
                         key={m.id}
                         onPress={() => setSelectedUserId(m.id)}
                         style={[

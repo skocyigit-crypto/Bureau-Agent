@@ -252,7 +252,7 @@ export default function DocumentImportScreen() {
         {/* STEP 1 — Pick */}
         {step === "pick" && (
           <>
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={pickFiles}
               style={[styles.dropZone, { backgroundColor: colors.card, borderColor: "#0f766e" }]}
             >
@@ -283,14 +283,14 @@ export default function DocumentImportScreen() {
                 ))}
 
                 <View style={{ gap: 8, marginTop: 4 }}>
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     onPress={() => setStep("meta")}
                     style={[styles.primaryBtn, { backgroundColor: "#0f766e" }]}
                   >
                     <Feather name="settings" size={16} color="#fff" />
                     <Text style={styles.primaryBtnText}>{t("documentImportScreen.configureImport")}</Text>
                   </Pressable>
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     onPress={uploadAll}
                     style={[styles.secondaryBtn, { borderColor: "#0f766e" }]}
                   >
@@ -336,7 +336,7 @@ export default function DocumentImportScreen() {
               <Text style={[styles.sectionLabel, { color: colors.foreground, marginBottom: 12 }]}>{t("documentImportScreen.category")}</Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
                 {CATEGORY_OPTIONS.map(c => (
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     key={c.value}
                     onPress={() => setMetaValues(prev => ({ ...prev, category: c.value }))}
                     style={[
@@ -373,7 +373,7 @@ export default function DocumentImportScreen() {
             </View>
 
             <View style={{ gap: 8 }}>
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={uploadAll}
                 disabled={uploading}
                 style={[styles.primaryBtn, { backgroundColor: "#0f766e" }]}
@@ -381,7 +381,7 @@ export default function DocumentImportScreen() {
                 {uploading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="upload" size={16} color="#fff" />}
                 <Text style={styles.primaryBtnText}>{uploading ? t("documentImportScreen.importing") : t(pickedFiles.length > 1 ? "documentImportScreen.importCountMany" : "documentImportScreen.importCountOne", { count: pickedFiles.length })}</Text>
               </Pressable>
-              <Pressable onPress={() => setStep("pick")} style={[styles.secondaryBtn, { borderColor: colors.border }]}>
+              <Pressable accessibilityRole="button" onPress={() => setStep("pick")} style={[styles.secondaryBtn, { borderColor: colors.border }]}>
                 <Feather name="arrow-left" size={16} color={colors.mutedForeground} />
                 <Text style={[styles.secondaryBtnText, { color: colors.mutedForeground }]}>{t("common.back")}</Text>
               </Pressable>
@@ -441,14 +441,14 @@ export default function DocumentImportScreen() {
             )}
 
             <View style={{ gap: 8 }}>
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={() => router.push("/documents" as any)}
                 style={[styles.primaryBtn, { backgroundColor: "#0f766e" }]}
               >
                 <Feather name="folder" size={16} color="#fff" />
                 <Text style={styles.primaryBtnText}>{t("documentImportScreen.viewDocuments")}</Text>
               </Pressable>
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={() => { setStep("pick"); setPickedFiles([]); setUploadedDocs([]); setErrors([]); setMetaValues({ category: "general" }); }}
                 style={[styles.secondaryBtn, { borderColor: colors.border }]}
               >

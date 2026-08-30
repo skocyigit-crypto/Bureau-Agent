@@ -208,7 +208,7 @@ export default function AnalyticsScreen() {
         </View>
         <View style={styles.periodRow}>
           {PERIODS.map((p) => (
-            <Pressable
+            <Pressable accessibilityRole="button"
               key={p}
               onPress={() => setPeriod(p)}
               style={[styles.periodBtn, { backgroundColor: period === p ? colors.primary : "rgba(255,255,255,0.1)" }]}

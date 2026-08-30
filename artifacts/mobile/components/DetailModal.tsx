@@ -120,7 +120,7 @@ export function DetailModal({
 
             <View style={[styles.fieldsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               {fields.map((field, i) => (
-                <Pressable
+                <Pressable accessibilityRole="button"
                   key={i}
                   onPress={field.action ? () => handleAction(field.action, field.value) : undefined}
                   style={[
@@ -173,7 +173,7 @@ export function DetailModal({
               </Pressable>
             ))}
             {onEdit ? (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={onEdit}
                 style={[styles.editBtn, { backgroundColor: colors.primary }]}
               >

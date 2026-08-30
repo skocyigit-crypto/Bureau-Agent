@@ -235,11 +235,11 @@ export default function AdminReportsScreen() {
           </Pressable>
         </View>
         <View style={styles.tabRow}>
-          <Pressable onPress={() => setTab("equipe")} style={[styles.tabBtn, tab === "equipe" && { backgroundColor: colors.primary }]}>
+          <Pressable accessibilityRole="button" onPress={() => setTab("equipe")} style={[styles.tabBtn, tab === "equipe" && { backgroundColor: colors.primary }]}>
             <Feather name="users" size={14} color={tab === "equipe" ? colors.primaryForeground : "rgba(255,255,255,0.7)"} />
             <Text style={[styles.tabText, { color: tab === "equipe" ? colors.primaryForeground : "rgba(255,255,255,0.7)" }]}>{t("adminReportsScreen.tabTeam")}</Text>
           </Pressable>
-          <Pressable onPress={() => setTab("rapports")} style={[styles.tabBtn, tab === "rapports" && { backgroundColor: colors.primary }]}>
+          <Pressable accessibilityRole="button" onPress={() => setTab("rapports")} style={[styles.tabBtn, tab === "rapports" && { backgroundColor: colors.primary }]}>
             <Feather name="send" size={14} color={tab === "rapports" ? colors.primaryForeground : "rgba(255,255,255,0.7)"} />
             <Text style={[styles.tabText, { color: tab === "rapports" ? colors.primaryForeground : "rgba(255,255,255,0.7)" }]}>{t("adminReportsScreen.tabReports")}</Text>
           </Pressable>
@@ -346,7 +346,7 @@ export default function AdminReportsScreen() {
               const isExpanded = expandedId === item.id;
 
               return (
-                <Pressable onPress={() => setExpandedId(isExpanded ? null : item.id)}>
+                <Pressable accessibilityRole="button" onPress={() => setExpandedId(isExpanded ? null : item.id)}>
                   <View style={[styles.reportCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     <View style={styles.reportHeader}>
                       <View style={[styles.catIcon, { backgroundColor: cat.color + "18" }]}>
@@ -393,12 +393,12 @@ export default function AdminReportsScreen() {
                         {isSuperAdmin && item.status !== "resolu" && (
                           <View style={styles.adminActions}>
                             {item.status === "nouveau" && (
-                              <Pressable onPress={() => updateReportStatus(item.id, "en_cours")} style={[styles.actionBtn, { backgroundColor: "#f59e0b18" }]}>
+                              <Pressable accessibilityRole="button" onPress={() => updateReportStatus(item.id, "en_cours")} style={[styles.actionBtn, { backgroundColor: "#f59e0b18" }]}>
                                 <Feather name="clock" size={14} color="#f59e0b" />
                                 <Text style={[styles.actionBtnText, { color: "#f59e0b" }]}>{t("adminReportsScreen.actionEnCours")}</Text>
                               </Pressable>
                             )}
-                            <Pressable onPress={() => updateReportStatus(item.id, "resolu")} style={[styles.actionBtn, { backgroundColor: "#22c55e18" }]}>
+                            <Pressable accessibilityRole="button" onPress={() => updateReportStatus(item.id, "resolu")} style={[styles.actionBtn, { backgroundColor: "#22c55e18" }]}>
                               <Feather name="check" size={14} color="#22c55e" />
                               <Text style={[styles.actionBtnText, { color: "#22c55e" }]}>{t("adminReportsScreen.actionResoudre")}</Text>
                             </Pressable>

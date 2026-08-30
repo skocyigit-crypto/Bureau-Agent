@@ -156,7 +156,7 @@ function SwipeableTask({ item, colors, onToggle, onDelete, onOpen }: SwipeableTa
         <Pressable accessibilityRole="button" accessibilityLabel={t("common.confirm")} onPress={() => onToggle(item)} style={[styles.checkCircle, { borderColor: statusColor }]}>
           {item.status === "termine" ? <Feather name="check" size={14} color={statusColor} /> : null}
         </Pressable>
-        <Pressable onPress={() => onOpen(item)} style={styles.taskContent}>
+        <Pressable accessibilityRole="button" onPress={() => onOpen(item)} style={styles.taskContent}>
           <Text
             style={[styles.taskTitle, { color: colors.foreground }, item.status === "termine" && styles.taskDone]}
             numberOfLines={1}
@@ -422,7 +422,7 @@ export default function TasksScreen() {
         </View>
         <View style={styles.filterRow}>
           {filters.map((f) => (
-            <Pressable
+            <Pressable accessibilityRole="button"
               key={f.key}
               onPress={() => setFilter(f.key)}
               style={[styles.filterChip, { backgroundColor: filter === f.key ? colors.primary : "rgba(255,255,255,0.1)" }]}

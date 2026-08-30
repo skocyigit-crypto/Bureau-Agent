@@ -253,7 +253,7 @@ function AgentsTab({ runningAll, timeline, onCancel, superStatus, externalRefres
           </View>
 
           {/* Auto-fix */}
-          <Pressable onPress={runAutoFix} disabled={autoFixLoading} style={[styles.autoFixBtn, { backgroundColor: "#0369a118" }]}>
+          <Pressable accessibilityRole="button" onPress={runAutoFix} disabled={autoFixLoading} style={[styles.autoFixBtn, { backgroundColor: "#0369a118" }]}>
             {autoFixLoading ? <ActivityIndicator size="small" color="#0369a1" /> : <Feather name="tool" size={14} color="#0369a1" />}
             <Text style={[styles.autoFixBtnText, { color: "#0369a1" }]}>{autoFixLoading ? t("aiAgentsScreen.autoFixRunning") : t("aiAgentsScreen.autoFix")}</Text>
             <Feather name="chevron-right" size={14} color="#0369a1" />
@@ -284,7 +284,7 @@ function AgentsTab({ runningAll, timeline, onCancel, superStatus, externalRefres
                   {runningAll ? t("aiAgentsScreen.liveAnalysis") : t("aiAgentsScreen.lastRun")}
                 </Text>
                 {runningAll && (
-                  <Pressable onPress={onCancel} style={[styles.cancelBtn, { backgroundColor: "#ef444418" }]} hitSlop={6}>
+                  <Pressable accessibilityRole="button" onPress={onCancel} style={[styles.cancelBtn, { backgroundColor: "#ef444418" }]} hitSlop={6}>
                     <Feather name="x" size={12} color="#ef4444" />
                     <Text style={styles.cancelBtnText}>{t("common.cancel")}</Text>
                   </Pressable>
@@ -376,7 +376,7 @@ function AgentsTab({ runningAll, timeline, onCancel, superStatus, externalRefres
 
             return (
               <View key={agent.id} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Pressable onPress={() => setExpandedAgent(isExpanded ? null : agent.id)}>
+                <Pressable accessibilityRole="button" onPress={() => setExpandedAgent(isExpanded ? null : agent.id)}>
                   <View style={styles.cardHeader}>
                     <View style={[styles.agentIcon, { backgroundColor: agentColor + "18" }]}>
                       <Feather name={iconName} size={18} color={agentColor} />
@@ -530,7 +530,7 @@ function AutopilotTab() {
               </Text>
             )}
           </View>
-          <Pressable onPress={toggle} disabled={toggling} style={[styles.toggleBtn, { backgroundColor: status?.active ? "#ef4444" : "#22c55e" }]}>
+          <Pressable accessibilityRole="button" onPress={toggle} disabled={toggling} style={[styles.toggleBtn, { backgroundColor: status?.active ? "#ef4444" : "#22c55e" }]}>
             {toggling
               ? <ActivityIndicator size="small" color="#fff" />
               : <Feather name={status?.active ? "pause" : "play"} size={16} color="#fff" />
@@ -559,7 +559,7 @@ function AutopilotTab() {
       )}
 
       {/* Run once */}
-      <Pressable onPress={runOnce} disabled={running} style={[styles.generateBtn, { backgroundColor: "#6366f1", opacity: running ? 0.6 : 1 }]}>
+      <Pressable accessibilityRole="button" onPress={runOnce} disabled={running} style={[styles.generateBtn, { backgroundColor: "#6366f1", opacity: running ? 0.6 : 1 }]}>
         {running ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="play" size={16} color="#fff" />}
         <Text style={styles.generateBtnText}>{running ? t("aiAgentsScreen.cycleRunning") : t("aiAgentsScreen.runCycleNow")}</Text>
       </Pressable>
@@ -692,7 +692,7 @@ function AnomaliesTab() {
         );
       })}
 
-      <Pressable onPress={() => { setLoading(true); load(); }} style={[styles.generateBtn, { backgroundColor: "#ef4444", marginTop: 8, marginBottom: 24 }]}>
+      <Pressable accessibilityRole="button" onPress={() => { setLoading(true); load(); }} style={[styles.generateBtn, { backgroundColor: "#ef4444", marginTop: 8, marginBottom: 24 }]}>
         <Feather name="refresh-cw" size={16} color="#fff" />
         <Text style={styles.generateBtnText}>{t("aiAgentsScreen.rerunDetection")}</Text>
       </Pressable>
@@ -806,12 +806,12 @@ export default function AiAgentsScreen() {
             {lastRunAt && <Text style={styles.headerSub}>{timeAgo(lastRunAt, t)}</Text>}
           </View>
           {runningAll ? (
-            <Pressable onPress={cancelRunAll} style={[styles.runAllBtn, { backgroundColor: "rgba(239,68,68,0.35)" }]} hitSlop={8}>
+            <Pressable accessibilityRole="button" onPress={cancelRunAll} style={[styles.runAllBtn, { backgroundColor: "rgba(239,68,68,0.35)" }]} hitSlop={8}>
               <Feather name="x" size={16} color="#ffffff" />
               <Text style={styles.runAllText}>{t("common.cancel")}</Text>
             </Pressable>
           ) : (
-            <Pressable onPress={() => { setTab("agents"); runAllAgents(); }} style={[styles.runAllBtn, { backgroundColor: "rgba(255,255,255,0.2)" }]} hitSlop={8}>
+            <Pressable accessibilityRole="button" onPress={() => { setTab("agents"); runAllAgents(); }} style={[styles.runAllBtn, { backgroundColor: "rgba(255,255,255,0.2)" }]} hitSlop={8}>
               <Feather name="play" size={16} color="#ffffff" />
               <Text style={styles.runAllText}>{t("aiAgentsScreen.runAll")}</Text>
             </Pressable>
@@ -821,7 +821,7 @@ export default function AiAgentsScreen() {
         {/* Tab bar */}
         <View style={styles.mainTabRow}>
           {MAIN_TABS.map(tb => (
-            <Pressable key={tb.key} onPress={() => setTab(tb.key)} style={[styles.mainTabBtn, { backgroundColor: tab === tb.key ? tb.color : "rgba(255,255,255,0.1)" }]}>
+            <Pressable accessibilityRole="button" key={tb.key} onPress={() => setTab(tb.key)} style={[styles.mainTabBtn, { backgroundColor: tab === tb.key ? tb.color : "rgba(255,255,255,0.1)" }]}>
               <Feather name={tb.icon} size={13} color={tab === tb.key ? "#fff" : "rgba(255,255,255,0.7)"} />
               <Text style={[styles.mainTabBtnText, { color: tab === tb.key ? "#fff" : "rgba(255,255,255,0.7)" }]}>{t(`aiAgentsScreen.${tb.labelKey}`)}</Text>
             </Pressable>

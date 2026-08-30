@@ -144,7 +144,7 @@ function BriefingSection({ data, loading, onRefresh }: { data: BriefingData | nu
       <View style={styles.emptyBox}>
         <Feather name="coffee" size={40} color="#f59e0b" />
         <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("commandantIaScreen.readyBriefing")}</Text>
-        <Pressable style={[styles.refreshBtn, { backgroundColor: "#f59e0b" }]} onPress={onRefresh}>
+        <Pressable accessibilityRole="button" style={[styles.refreshBtn, { backgroundColor: "#f59e0b" }]} onPress={onRefresh}>
           <Feather name="refresh-cw" size={16} color="#fff" />
           <Text style={styles.refreshBtnText}>{t("commandantIaScreen.loadBriefing")}</Text>
         </Pressable>
@@ -394,7 +394,7 @@ function EmailSection() {
       <TextInput style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder={t("commandantIaScreen.recipientPlaceholder")} placeholderTextColor={colors.mutedForeground} value={recipient} onChangeText={setRecipient} />
       <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("commandantIaScreen.fieldPurpose")}</Text>
       <TextInput style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder={t("commandantIaScreen.purposePlaceholder")} placeholderTextColor={colors.mutedForeground} value={purpose} onChangeText={setPurpose} />
-      <Pressable style={[styles.generateBtn, { backgroundColor: "#3b82f6", opacity: loading || !context.trim() ? 0.6 : 1 }]} onPress={generate} disabled={loading || !context.trim()}>
+      <Pressable accessibilityRole="button" style={[styles.generateBtn, { backgroundColor: "#3b82f6", opacity: loading || !context.trim() ? 0.6 : 1 }]} onPress={generate} disabled={loading || !context.trim()}>
         {loading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="send" size={16} color="#fff" />}
         <Text style={styles.generateBtnText}>{loading ? t("commandantIaScreen.generating") : t("commandantIaScreen.generateEmail")}</Text>
       </Pressable>
@@ -527,11 +527,11 @@ function TachesSection() {
 
       {/* Action buttons */}
       <View style={{ gap: 8, marginBottom: 20 }}>
-        <Pressable onPress={() => load()} style={[styles.generateBtn, { backgroundColor: "#22c55e" }]} disabled={loading}>
+        <Pressable accessibilityRole="button" onPress={() => load()} style={[styles.generateBtn, { backgroundColor: "#22c55e" }]} disabled={loading}>
           {loading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="refresh-cw" size={16} color="#fff" />}
           <Text style={styles.generateBtnText}>{t("commandantIaScreen.refreshAnalysis")}</Text>
         </Pressable>
-        <Pressable onPress={() => load(true)} style={[styles.generateBtn, { backgroundColor: "#f59e0b", opacity: sendingEmails ? 0.6 : 1 }]} disabled={sendingEmails}>
+        <Pressable accessibilityRole="button" onPress={() => load(true)} style={[styles.generateBtn, { backgroundColor: "#f59e0b", opacity: sendingEmails ? 0.6 : 1 }]} disabled={sendingEmails}>
           {sendingEmails ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="send" size={16} color="#fff" />}
           <Text style={styles.generateBtnText}>{sendingEmails ? t("commandantIaScreen.sendingEmails") : t("commandantIaScreen.sendEmailReminders")}</Text>
         </Pressable>
@@ -594,7 +594,7 @@ function ReunionsSection() {
       <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("commandantIaScreen.fieldType")}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={{ gap: 8, paddingBottom: 2 }}>
         {MEETING_TYPES.map(mt => (
-          <Pressable key={mt.value} onPress={() => setMeetingType(mt.value)} style={[styles.typeChip, { backgroundColor: meetingType === mt.value ? "#8b5cf6" : colors.card, borderColor: meetingType === mt.value ? "#8b5cf6" : colors.border }]}>
+          <Pressable accessibilityRole="button" key={mt.value} onPress={() => setMeetingType(mt.value)} style={[styles.typeChip, { backgroundColor: meetingType === mt.value ? "#8b5cf6" : colors.card, borderColor: meetingType === mt.value ? "#8b5cf6" : colors.border }]}>
             <Text style={[styles.typeChipText, { color: meetingType === mt.value ? "#fff" : colors.mutedForeground }]}>{t(`commandantIaScreen.${mt.labelKey}`)}</Text>
           </Pressable>
         ))}
@@ -609,7 +609,7 @@ function ReunionsSection() {
       <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("commandantIaScreen.fieldNotes")}</Text>
       <TextInput style={[styles.multilineInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border, minHeight: 100 }]} placeholder={t("commandantIaScreen.notesPlaceholder")} placeholderTextColor={colors.mutedForeground} value={notes} onChangeText={setNotes} multiline textAlignVertical="top" />
 
-      <Pressable onPress={compile} style={[styles.generateBtn, { backgroundColor: "#8b5cf6", opacity: loading || !notes.trim() ? 0.6 : 1 }]} disabled={loading || !notes.trim()}>
+      <Pressable accessibilityRole="button" onPress={compile} style={[styles.generateBtn, { backgroundColor: "#8b5cf6", opacity: loading || !notes.trim() ? 0.6 : 1 }]} disabled={loading || !notes.trim()}>
         {loading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="cpu" size={16} color="#fff" />}
         <Text style={styles.generateBtnText}>{loading ? t("commandantIaScreen.compiling") : t("commandantIaScreen.compileMeeting")}</Text>
       </Pressable>
@@ -666,7 +666,7 @@ function ReunionsSection() {
             </View>
           )}
 
-          <Pressable onPress={() => setResult(null)} style={[styles.generateBtn, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}>
+          <Pressable accessibilityRole="button" onPress={() => setResult(null)} style={[styles.generateBtn, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}>
             <Feather name="refresh-cw" size={14} color={colors.mutedForeground} />
             <Text style={[styles.generateBtnText, { color: colors.mutedForeground }]}>{t("commandantIaScreen.newMeeting")}</Text>
           </Pressable>
@@ -702,7 +702,7 @@ function EquipeSection() {
     <View style={styles.emptyBox}>
       <Feather name="users" size={40} color="#ec4899" />
       <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("commandantIaScreen.teamStats")}</Text>
-      <Pressable style={[styles.refreshBtn, { backgroundColor: "#ec4899" }]} onPress={load}>
+      <Pressable accessibilityRole="button" style={[styles.refreshBtn, { backgroundColor: "#ec4899" }]} onPress={load}>
         <Feather name="refresh-cw" size={16} color="#fff" />
         <Text style={styles.refreshBtnText}>{t("commandantIaScreen.load")}</Text>
       </Pressable>
@@ -790,7 +790,7 @@ function EquipeSection() {
         );
       })}
 
-      <Pressable onPress={load} style={[styles.generateBtn, { backgroundColor: "#ec4899", marginTop: 8, marginBottom: 24 }]}>
+      <Pressable accessibilityRole="button" onPress={load} style={[styles.generateBtn, { backgroundColor: "#ec4899", marginTop: 8, marginBottom: 24 }]}>
         <Feather name="refresh-cw" size={16} color="#fff" />
         <Text style={styles.generateBtnText}>{t("commandantIaScreen.refresh")}</Text>
       </Pressable>
@@ -824,7 +824,7 @@ function FinanceSection() {
     <View style={styles.emptyBox}>
       <Feather name="dollar-sign" size={40} color="#22c55e" />
       <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("commandantIaScreen.financeOverview")}</Text>
-      <Pressable style={[styles.refreshBtn, { backgroundColor: "#22c55e" }]} onPress={load}>
+      <Pressable accessibilityRole="button" style={[styles.refreshBtn, { backgroundColor: "#22c55e" }]} onPress={load}>
         <Feather name="refresh-cw" size={16} color="#fff" />
         <Text style={styles.refreshBtnText}>{t("commandantIaScreen.refresh")}</Text>
       </Pressable>
@@ -845,7 +845,7 @@ function FinanceSection() {
           <Text style={[styles.resultBoxText, { color: colors.foreground }]}>{data.aiInsights}</Text>
         </View>
       )}
-      <Pressable onPress={load} style={[styles.generateBtn, { backgroundColor: "#22c55e", marginTop: 4, marginBottom: 24 }]}>
+      <Pressable accessibilityRole="button" onPress={load} style={[styles.generateBtn, { backgroundColor: "#22c55e", marginTop: 4, marginBottom: 24 }]}>
         <Feather name="refresh-cw" size={16} color="#fff" />
         <Text style={styles.generateBtnText}>{t("commandantIaScreen.refresh")}</Text>
       </Pressable>
@@ -911,7 +911,7 @@ export default function CommandantIAScreen() {
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabBar} contentContainerStyle={{ gap: 8 }}>
           {TABS.map(tb => (
-            <Pressable key={tb.key} onPress={() => setTab(tb.key)} style={[styles.tabChip, { backgroundColor: tab === tb.key ? tb.color : "rgba(255,255,255,0.1)" }]}>
+            <Pressable accessibilityRole="button" key={tb.key} onPress={() => setTab(tb.key)} style={[styles.tabChip, { backgroundColor: tab === tb.key ? tb.color : "rgba(255,255,255,0.1)" }]}>
               <Feather name={tb.icon} size={13} color={tab === tb.key ? "#fff" : "rgba(255,255,255,0.7)"} />
               <Text style={[styles.tabChipText, { color: tab === tb.key ? "#fff" : "rgba(255,255,255,0.7)" }]}>{t(`commandantIaScreen.${tb.labelKey}`)}</Text>
             </Pressable>

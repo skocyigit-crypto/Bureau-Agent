@@ -157,7 +157,7 @@ export default function WhatsappInboxScreen() {
 
         <View style={styles.filterRow}>
           {filters.map((f) => (
-            <Pressable
+            <Pressable accessibilityRole="button"
               key={f.key}
               onPress={() => setFilter(f.key)}
               style={[styles.filterChip, { backgroundColor: filter === f.key ? colors.primary : "rgba(255,255,255,0.1)" }]}
@@ -192,7 +192,7 @@ export default function WhatsappInboxScreen() {
             const unread = item.unreadCount > 0;
             const pill = DRAFT_PILL[item.draftStatus];
             return (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={() => router.push(`/whatsapp-thread?id=${item.id}` as any)}
                 style={({ pressed }) => [
                   styles.convCard,

@@ -77,7 +77,7 @@ function KvkkScreen({ onAccept }: { onAccept: () => Promise<void> }) {
       <Text style={styles.sectionHeading}>{t("locationConsentGate.sectionRights")}</Text>
       <Text style={styles.bullet}>{t("locationConsentGate.bulletRights")}</Text>
       <Text style={[styles.paragraph, styles.warning]}>{t("locationConsentGate.warning")}</Text>
-      <TouchableOpacity style={styles.primaryButton} onPress={onAccept}>
+      <TouchableOpacity accessibilityRole="button" style={styles.primaryButton} onPress={onAccept}>
         <Text style={styles.primaryButtonText}>{t("locationConsentGate.acceptBtn")}</Text>
       </TouchableOpacity>
     </View>
@@ -108,18 +108,18 @@ function PermissionScreen({
       {permission === "denied" ? (
         <>
           <Text style={[styles.paragraph, styles.warning]}>{t("locationConsentGate.deniedWarning")}</Text>
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             style={styles.primaryButton}
             onPress={() => Linking.openSettings().catch(() => {})}
           >
             <Text style={styles.primaryButtonText}>{t("locationConsentGate.openSettings")}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryButton} onPress={onRequest}>
+          <TouchableOpacity accessibilityRole="button" style={styles.secondaryButton} onPress={onRequest}>
             <Text style={styles.secondaryButtonText}>{t("locationConsentGate.retry")}</Text>
           </TouchableOpacity>
         </>
       ) : (
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={styles.primaryButton}
           disabled={requesting}
           onPress={onRequest}

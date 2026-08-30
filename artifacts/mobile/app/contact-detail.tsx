@@ -279,7 +279,7 @@ export default function ContactDetailScreen() {
         contentContainerStyle={{ paddingHorizontal: 4 }}
       >
         {TABS.map(tab => (
-          <Pressable
+          <Pressable accessibilityRole="button"
             key={tab.key}
             onPress={() => setActiveTab(tab.key)}
             style={[styles.tab, activeTab === tab.key && { borderBottomColor: "#0369a1", borderBottomWidth: 2 }]}
@@ -299,13 +299,13 @@ export default function ContactDetailScreen() {
             <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("contactDetailScreen.contactInfo")}</Text>
               {contact.phone && (
-                <Pressable onPress={() => Linking.openURL(`tel:${contact.phone}`)} style={styles.infoRow}>
+                <Pressable accessibilityRole="button" onPress={() => Linking.openURL(`tel:${contact.phone}`)} style={styles.infoRow}>
                   <Feather name="phone" size={14} color="#0369a1" />
                   <Text style={[styles.infoText, { color: "#0369a1" }]}>{contact.phone}</Text>
                 </Pressable>
               )}
               {contact.email && (
-                <Pressable onPress={() => Linking.openURL(`mailto:${contact.email}`)} style={styles.infoRow}>
+                <Pressable accessibilityRole="button" onPress={() => Linking.openURL(`mailto:${contact.email}`)} style={styles.infoRow}>
                   <Feather name="mail" size={14} color="#0369a1" />
                   <Text style={[styles.infoText, { color: "#0369a1" }]}>{contact.email}</Text>
                 </Pressable>

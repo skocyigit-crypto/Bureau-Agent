@@ -26,7 +26,8 @@
     "openExternal": "Yeni sekmede aç",
     "viewDetail": "Ayrıntıyı gör",
     "assign": "Ata",
-    "selectAll": "Tümünü seç"
+    "selectAll": "Tümünü seç",
+    "skipToContent": "Ana içeriğe geç"
   },
   "nav": {
     "dashboard": "Kontrol Paneli",

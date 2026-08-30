@@ -158,7 +158,7 @@ function SwipeableProspect({ item, colors, onDelete, onOpen }: SwipeableProspect
       renderRightActions={(progress) => <RightAction progress={progress} />}
       onSwipeableOpen={handleSwipeOpen}
     >
-      <Pressable
+      <Pressable accessibilityRole="button"
         onPress={() => onOpen(item)}
         style={({ pressed }) => [
           styles.row,
@@ -387,7 +387,7 @@ export default function ProspectsScreen() {
         <Text style={{ color: colors.mutedForeground, fontSize: 14, marginTop: 8, textAlign: "center" }}>
           {t("prospectsScreen.accessDesc")}
         </Text>
-        <Pressable
+        <Pressable accessibilityRole="button"
           onPress={() => router.replace("/(tabs)")}
           style={{ marginTop: 24, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: colors.primary, borderRadius: 8 }}
         >
@@ -427,7 +427,7 @@ export default function ProspectsScreen() {
 
         <View style={styles.filterRow}>
           {filters.map(f => (
-            <Pressable
+            <Pressable accessibilityRole="button"
               key={f.key}
               onPress={() => setFilter(f.key)}
               style={[styles.filterChip, { backgroundColor: filter === f.key ? colors.primary : "rgba(255,255,255,0.1)" }]}

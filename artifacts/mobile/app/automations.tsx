@@ -124,10 +124,10 @@ export default function AutomationsScreen() {
           <View style={{ width: 22 }} />
         </View>
         <View style={styles.tabRow}>
-          <Pressable onPress={() => setTab("rules")} style={[styles.tabBtn, tab === "rules" && { backgroundColor: colors.primary }]}>
+          <Pressable accessibilityRole="button" onPress={() => setTab("rules")} style={[styles.tabBtn, tab === "rules" && { backgroundColor: colors.primary }]}>
             <Text style={[styles.tabText, { color: tab === "rules" ? colors.primaryForeground : "rgba(255,255,255,0.7)" }]}>{t("automationsScreen.tabRules")}</Text>
           </Pressable>
-          <Pressable onPress={() => setTab("logs")} style={[styles.tabBtn, tab === "logs" && { backgroundColor: colors.primary }]}>
+          <Pressable accessibilityRole="button" onPress={() => setTab("logs")} style={[styles.tabBtn, tab === "logs" && { backgroundColor: colors.primary }]}>
             <Text style={[styles.tabText, { color: tab === "logs" ? colors.primaryForeground : "rgba(255,255,255,0.7)" }]}>{t("automationsScreen.tabLogs")}</Text>
           </Pressable>
         </View>

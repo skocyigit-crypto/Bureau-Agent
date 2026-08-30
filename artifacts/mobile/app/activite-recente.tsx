@@ -228,7 +228,7 @@ export default function ActiviteRecenteScreen() {
 
         <View style={styles.periodRow}>
           {DAYS_OPTIONS.map(p => (
-            <Pressable
+            <Pressable accessibilityRole="button"
               key={p.val}
               onPress={() => setDays(p.val)}
               style={[styles.periodChip, { backgroundColor: days === p.val ? "#fff" : "rgba(255,255,255,0.15)" }]}
@@ -251,7 +251,7 @@ export default function ActiviteRecenteScreen() {
             const cfg = ENTITY_CFG[f.key];
             const isActive = typeFilter === f.key;
             return (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={() => setTypeFilter(f.key)}
                 style={[
                   styles.typeChip,

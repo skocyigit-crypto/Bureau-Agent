@@ -161,7 +161,7 @@ export default function RapportExecutifScreen() {
 
         <View style={styles.periodRow}>
           {PERIOD_OPTIONS.map(p => (
-            <Pressable
+            <Pressable accessibilityRole="button"
               key={p}
               onPress={() => setDays(p)}
               style={[styles.periodChip, { backgroundColor: days === p ? "#fff" : "rgba(255,255,255,0.15)" }]}

@@ -294,7 +294,7 @@ export default function MeetingsScreen() {
                   </View>
                 ) : (
                   <>
-                    <Pressable
+                    <Pressable accessibilityRole="button"
                       style={[styles.locBtn, { backgroundColor: "#22c55e" + "15", borderColor: "#22c55e" + "40" }]}
                       onPress={getLocation}
                       disabled={locLoading}
@@ -321,7 +321,7 @@ export default function MeetingsScreen() {
               </View>
 
               {/* Compile button */}
-              <Pressable
+              <Pressable accessibilityRole="button"
                 style={[styles.compileBtn, compiling && styles.compileBtnDisabled]}
                 onPress={compileMeeting}
                 disabled={compiling}
@@ -444,11 +444,11 @@ export default function MeetingsScreen() {
 
               {/* Action buttons */}
               <View style={styles.actionRow}>
-                <Pressable style={[styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={reset}>
+                <Pressable accessibilityRole="button" style={[styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={reset}>
                   <Feather name="plus" size={16} color={colors.foreground} />
                   <Text style={[styles.actionBtnText, { color: colors.foreground }]}>{t("meetingsScreen.newMeeting")}</Text>
                 </Pressable>
-                <Pressable
+                <Pressable accessibilityRole="button"
                   style={[styles.actionBtn, { backgroundColor: "#8b5cf6", borderColor: "#8b5cf6" }]}
                   onPress={() => router.push("/(tabs)/tasks" as any)}
                 >

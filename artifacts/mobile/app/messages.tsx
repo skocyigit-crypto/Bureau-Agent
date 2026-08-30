@@ -324,7 +324,7 @@ export default function MessagesScreen() {
 
   function renderRightActions(id: number) {
     return (
-      <Pressable
+      <Pressable accessibilityRole="button"
         onPress={() => confirmDelete(id)}
         style={[styles.swipeAction, { backgroundColor: "#ef4444" }]}
       >
@@ -336,7 +336,7 @@ export default function MessagesScreen() {
 
   function renderLeftActions(id: number) {
     return (
-      <Pressable
+      <Pressable accessibilityRole="button"
         onPress={() => {
           const msg = messages.find((m) => m.id === id);
           if (msg) { markAsRead(msg); swipeRefs.current[id]?.close(); }
@@ -365,7 +365,7 @@ export default function MessagesScreen() {
             )}
           </View>
           {unreadCount > 0 ? (
-            <Pressable onPress={markAllRead} hitSlop={12}>
+            <Pressable accessibilityRole="button" onPress={markAllRead} hitSlop={12}>
               <Text style={styles.markAllBtn}>{t("messagesScreen.markAllRead")}</Text>
             </Pressable>
           ) : (
@@ -387,7 +387,7 @@ export default function MessagesScreen() {
 
         <View style={styles.filterRow}>
           {filters.map((f) => (
-            <Pressable
+            <Pressable accessibilityRole="button"
               key={f.key}
               onPress={() => setFilter(f.key)}
               style={[styles.filterChip, { backgroundColor: filter === f.key ? colors.primary : "rgba(255,255,255,0.1)" }]}
@@ -430,7 +430,7 @@ export default function MessagesScreen() {
                   else if (dir === "left") { markAsRead(item); swipeRefs.current[item.id]?.close(); }
                 }}
               >
-                <Pressable
+                <Pressable accessibilityRole="button"
                   onPress={() => { markAsRead(item); setSelected(item); }}
                   style={({ pressed }) => [
                     styles.msgCard,

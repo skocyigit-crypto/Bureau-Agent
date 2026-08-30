@@ -166,7 +166,7 @@ export default function RappelsScreen() {
           </Text>
         </View>
         {unreadCount > 0 ? (
-          <Pressable
+          <Pressable accessibilityRole="button"
             onPress={markAllRead}
             style={[styles.markAllBtn, { backgroundColor: "rgba(255,255,255,0.12)" }]}
           >
@@ -198,7 +198,7 @@ export default function RappelsScreen() {
           renderItem={({ item }) => {
             const accent = item.priority === "haute" ? "#ef4444" : "#3b82f6";
             return (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={() => handlePress(item)}
                 style={({ pressed }) => [
                   styles.row,

@@ -169,7 +169,7 @@ export default function KnowledgeBaseScreen() {
                 </View>
               )}
               {isAdmin && (
-                <Pressable
+                <Pressable accessibilityRole="button"
                   onPress={() => void handleReindex()}
                   disabled={reindexing}
                   style={({ pressed }) => [
@@ -203,7 +203,7 @@ export default function KnowledgeBaseScreen() {
               multiline
               maxLength={1000}
             />
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={() => void handleAsk()}
               disabled={asking || !question.trim()}
               style={({ pressed }) => [
@@ -228,7 +228,7 @@ export default function KnowledgeBaseScreen() {
                 {EXAMPLE_QUESTION_KEYS.map((exKey) => {
                   const ex = t(`knowledgeBaseScreen.${exKey}`);
                   return (
-                    <Pressable
+                    <Pressable accessibilityRole="button"
                       key={exKey}
                       onPress={() => void handleAsk(ex)}
                       style={[styles.exampleChip, { backgroundColor: colors.background, borderColor: colors.border }]}

@@ -347,7 +347,7 @@ export default function CheckinsScreen() {
                   </View>
                 )}
                 <View style={styles.actionRow}>
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     onPress={togglePause}
                     disabled={acting}
                     style={[styles.actionBtn, { backgroundColor: "#f59e0b18" }]}
@@ -361,7 +361,7 @@ export default function CheckinsScreen() {
                       </>
                     )}
                   </Pressable>
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     onPress={confirmCheckout}
                     disabled={acting}
                     style={[styles.actionBtn, { backgroundColor: "#ef444418" }]}
@@ -401,7 +401,7 @@ export default function CheckinsScreen() {
                 )}
                 <View style={styles.typeRow}>
                   {Object.entries(TYPE_MAP).map(([key, val]) => (
-                    <Pressable
+                    <Pressable accessibilityRole="button"
                       key={key}
                       onPress={() => checkin(key)}
                       disabled={acting || locLoading}

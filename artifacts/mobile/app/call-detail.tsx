@@ -249,16 +249,16 @@ export default function CallDetailScreen() {
             <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("callDetailScreen.notes")}</Text>
             <View style={{ flex: 1 }} />
             {!editingNotes ? (
-              <Pressable onPress={() => setEditingNotes(true)} style={styles.editBtn}>
+              <Pressable accessibilityRole="button" onPress={() => setEditingNotes(true)} style={styles.editBtn}>
                 <Feather name="edit-2" size={14} color="#0369a1" />
                 <Text style={styles.editBtnText}>{t("common.edit")}</Text>
               </Pressable>
             ) : (
               <View style={{ flexDirection: "row", gap: 8 }}>
-                <Pressable onPress={() => { setEditingNotes(false); setNotes(call.notes ?? ""); }}>
+                <Pressable accessibilityRole="button" onPress={() => { setEditingNotes(false); setNotes(call.notes ?? ""); }}>
                   <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: colors.mutedForeground }}>{t("common.cancel")}</Text>
                 </Pressable>
-                <Pressable onPress={saveNotes} disabled={savingNotes} style={[styles.editBtn, { backgroundColor: "#0369a1" }]}>
+                <Pressable accessibilityRole="button" onPress={saveNotes} disabled={savingNotes} style={[styles.editBtn, { backgroundColor: "#0369a1" }]}>
                   {savingNotes ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
@@ -293,7 +293,7 @@ export default function CallDetailScreen() {
           </View>
 
           {/* AI Call Assistant (full-screen) */}
-          <Pressable
+          <Pressable accessibilityRole="button"
             onPress={() => router.push(
               `/call-assistant?phone=${encodeURIComponent(call.phoneNumber)}&name=${encodeURIComponent(call.contactName ?? "")}&direction=${call.direction}&callId=${call.id}${call.contactId ? `&contactId=${call.contactId}` : ""}` as any
             )}
@@ -305,7 +305,7 @@ export default function CallDetailScreen() {
           </Pressable>
 
           <View style={{ flexDirection: "row", gap: 8 }}>
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={runAiBriefing}
               disabled={!!aiLoading}
               style={[styles.aiBtn, { backgroundColor: "#7c3aed" }]}
@@ -319,7 +319,7 @@ export default function CallDetailScreen() {
                 </>
               )}
             </Pressable>
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={runAiCoaching}
               disabled={!!aiLoading}
               style={[styles.aiBtn, { backgroundColor: "#ec4899" }]}
@@ -365,7 +365,7 @@ export default function CallDetailScreen() {
 
         {/* Quick actions */}
         <View style={{ flexDirection: "row", gap: 10 }}>
-          <Pressable
+          <Pressable accessibilityRole="button"
             onPress={() => Linking.openURL(`tel:${call.phoneNumber}`)}
             style={[styles.quickAction, { backgroundColor: "#22c55e", flex: 1 }]}
           >
@@ -373,7 +373,7 @@ export default function CallDetailScreen() {
             <Text style={styles.quickActionText}>{t("callDetailScreen.callBack")}</Text>
           </Pressable>
           {call.contactId && (
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={() => router.push(`/contact-detail?id=${call.contactId}` as any)}
               style={[styles.quickAction, { backgroundColor: "#0369a1", flex: 1 }]}
             >

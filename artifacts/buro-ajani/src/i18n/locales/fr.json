@@ -26,7 +26,8 @@
     "openExternal": "Ouvrir dans un nouvel onglet",
     "viewDetail": "Voir le détail",
     "assign": "Assigner",
-    "selectAll": "Tout sélectionner"
+    "selectAll": "Tout sélectionner",
+    "skipToContent": "Aller au contenu principal"
   },
   "nav": {
     "dashboard": "Tableau de bord",

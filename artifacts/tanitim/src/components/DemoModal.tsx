@@ -81,9 +81,10 @@ export function DemoModal({ open, onClose, source }: DemoModalProps) {
           >
             <button
               onClick={handleClose}
+              aria-label="Fermer la fenêtre de démonstration"
               className="absolute top-5 right-5 z-10 w-9 h-9 rounded-full bg-muted/80 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4" aria-hidden="true" />
             </button>
 
             {success ? (

@@ -206,7 +206,7 @@ export default function ReportsScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={{ flexDirection: "row", gap: 6 }}>
             {STATUS_FILTERS.map(f => (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 key={f.key}
                 onPress={() => setFilterStatus(f.key)}
                 style={[styles.filterChip, { backgroundColor: filterStatus === f.key ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.1)" }]}
@@ -238,7 +238,7 @@ export default function ReportsScreen() {
             const pr = PRIORITY_MAP[item.priority] ?? PRIORITY_MAP.normale;
             const cat = CATEGORY_MAP[item.category] ?? CATEGORY_MAP.autre;
             return (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={() => setSelected(item)}
                 style={({ pressed }) => [
                   styles.card,

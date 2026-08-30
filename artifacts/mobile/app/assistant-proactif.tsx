@@ -185,7 +185,7 @@ export default function AssistantProactifScreen() {
           {FILTERS.map((f) => {
             const active = filter === f.key;
             return (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 key={f.key}
                 onPress={() => setFilter(f.key)}
                 style={[
@@ -243,7 +243,7 @@ export default function AssistantProactifScreen() {
                   <Text style={[styles.typeLabel, { color: colors.mutedForeground }]}>{meta.label}</Text>
                   <View style={{ flex: 1 }} />
                   {nav ? (
-                    <Pressable onPress={() => router.push(nav.route as never)} style={[styles.actionBtn, { borderColor: colors.border }]}>
+                    <Pressable accessibilityRole="button" onPress={() => router.push(nav.route as never)} style={[styles.actionBtn, { borderColor: colors.border }]}>
                       <Text style={{ color: colors.primary, fontSize: 13, fontWeight: "600" }}>{nav.label}</Text>
                     </Pressable>
                   ) : null}

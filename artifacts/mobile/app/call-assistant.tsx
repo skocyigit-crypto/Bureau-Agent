@@ -257,7 +257,7 @@ function PreparerTab({ phone, name, direction, callId }: { phone: string; name: 
           numberOfLines={3}
           textAlignVertical="top"
         />
-        <Pressable onPress={prepare} disabled={loading} style={[st.btn, { backgroundColor: "#3b82f6", opacity: loading ? 0.7 : 1 }]}>
+        <Pressable accessibilityRole="button" onPress={prepare} disabled={loading} style={[st.btn, { backgroundColor: "#3b82f6", opacity: loading ? 0.7 : 1 }]}>
           {loading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="refresh-cw" size={14} color="#fff" />}
           <Text style={st.btnText}>{loading ? t("callAssistantScreen.analyzing") : t("callAssistantScreen.rerunAnalysis")}</Text>
         </Pressable>
@@ -320,7 +320,7 @@ function ScriptTab({ phone, name, direction }: { phone: string; name: string; di
         <Text style={[st.fieldLabel, { color: colors.mutedForeground }]}>{t("callAssistantScreen.callType")}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 2 }}>
           {SCENARIOS.map(s => (
-            <Pressable key={s.key} onPress={() => { setScenario(s.key); setExpandedIdx(0); }} style={[st.scenarioChip, { backgroundColor: scenario === s.key ? s.color : colors.background, borderColor: scenario === s.key ? s.color : colors.border }]}>
+            <Pressable accessibilityRole="button" key={s.key} onPress={() => { setScenario(s.key); setExpandedIdx(0); }} style={[st.scenarioChip, { backgroundColor: scenario === s.key ? s.color : colors.background, borderColor: scenario === s.key ? s.color : colors.border }]}>
               <Feather name={s.icon} size={11} color={scenario === s.key ? "#fff" : colors.mutedForeground} />
               <Text style={[st.scenarioChipText, { color: scenario === s.key ? "#fff" : colors.mutedForeground }]}>{t(`callAssistantScreen.${s.labelKey}`)}</Text>
             </Pressable>
@@ -337,7 +337,7 @@ function ScriptTab({ phone, name, direction }: { phone: string; name: string; di
         {template.steps.map((step, i) => {
           const isOpen = expandedIdx === i;
           return (
-            <Pressable key={i} onPress={() => setExpandedIdx(isOpen ? null : i)} style={[st.stepRow, { borderColor: colors.border, backgroundColor: isOpen ? "#8b5cf608" : "transparent" }]}>
+            <Pressable accessibilityRole="button" key={i} onPress={() => setExpandedIdx(isOpen ? null : i)} style={[st.stepRow, { borderColor: colors.border, backgroundColor: isOpen ? "#8b5cf608" : "transparent" }]}>
               <View style={[st.stepNum, { backgroundColor: isOpen ? "#8b5cf6" : colors.muted }]}>
                 <Text style={[st.stepNumText, { color: isOpen ? "#fff" : colors.mutedForeground }]}>{i + 1}</Text>
               </View>
@@ -378,7 +378,7 @@ function ScriptTab({ phone, name, direction }: { phone: string; name: string; di
         </View>
       )}
 
-      <Pressable onPress={generateAI} disabled={loading} style={[st.btn, { backgroundColor: "#8b5cf6", opacity: loading ? 0.7 : 1 }]}>
+      <Pressable accessibilityRole="button" onPress={generateAI} disabled={loading} style={[st.btn, { backgroundColor: "#8b5cf6", opacity: loading ? 0.7 : 1 }]}>
         {loading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="cpu" size={14} color="#fff" />}
         <Text style={st.btnText}>{loading ? t("callAssistantScreen.generatingAI") : t("callAssistantScreen.generateAiResponses")}</Text>
       </Pressable>
@@ -461,11 +461,11 @@ function CompilerTab({ phone, name, callId, contactId }: { phone: string; name: 
           </View>
         </View>
         <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
-          <Pressable onPress={compile} disabled={loading || !notes.trim()} style={[st.btn, { flex: 1, backgroundColor: "#22c55e", opacity: loading || !notes.trim() ? 0.6 : 1 }]}>
+          <Pressable accessibilityRole="button" onPress={compile} disabled={loading || !notes.trim()} style={[st.btn, { flex: 1, backgroundColor: "#22c55e", opacity: loading || !notes.trim() ? 0.6 : 1 }]}>
             {loading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="file-text" size={14} color="#fff" />}
             <Text style={st.btnText}>{loading ? t("callAssistantScreen.compiling") : t("callAssistantScreen.compileCall")}</Text>
           </Pressable>
-          <Pressable onPress={autoCreate} disabled={autoLoading || !notes.trim()} style={[st.btn, { flex: 1, backgroundColor: "#3b82f6", opacity: autoLoading || !notes.trim() ? 0.6 : 1 }]}>
+          <Pressable accessibilityRole="button" onPress={autoCreate} disabled={autoLoading || !notes.trim()} style={[st.btn, { flex: 1, backgroundColor: "#3b82f6", opacity: autoLoading || !notes.trim() ? 0.6 : 1 }]}>
             {autoLoading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="zap" size={14} color="#fff" />}
             <Text style={st.btnText}>{autoLoading ? t("callAssistantScreen.creating") : t("callAssistantScreen.autoCreateTasks")}</Text>
           </Pressable>
@@ -600,7 +600,7 @@ function SanteTab({ contactId, contactName }: { contactId?: string; contactName?
         <View style={[st.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[st.bodyText, { color: colors.mutedForeground, marginBottom: 8 }]}>{t("callAssistantScreen.enterContactId")}</Text>
           <TextInput style={[st.inputSm, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]} placeholder={t("callAssistantScreen.contactIdPlaceholder")} placeholderTextColor={colors.mutedForeground} value={manualId} onChangeText={setManualId} keyboardType="numeric" />
-          <Pressable onPress={() => load()} disabled={loading || !manualId} style={[st.btn, { backgroundColor: "#ec4899", marginTop: 8, opacity: !manualId ? 0.6 : 1 }]}>
+          <Pressable accessibilityRole="button" onPress={() => load()} disabled={loading || !manualId} style={[st.btn, { backgroundColor: "#ec4899", marginTop: 8, opacity: !manualId ? 0.6 : 1 }]}>
             {loading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="heart" size={14} color="#fff" />}
             <Text style={st.btnText}>{t("callAssistantScreen.analyze")}</Text>
           </Pressable>
@@ -615,7 +615,7 @@ function SanteTab({ contactId, contactName }: { contactId?: string; contactName?
     <View style={st.emptyBox}>
       <Feather name="heart" size={40} color="#ec4899" />
       <Text style={[st.emptyText, { color: colors.foreground }]}>{contactName ?? t("callAssistantScreen.contactFallback")}</Text>
-      <Pressable onPress={() => load()} style={[st.btn, { backgroundColor: "#ec4899" }]}>
+      <Pressable accessibilityRole="button" onPress={() => load()} style={[st.btn, { backgroundColor: "#ec4899" }]}>
         <Feather name="refresh-cw" size={14} color="#fff" />
         <Text style={st.btnText}>{t("callAssistantScreen.loadHealth")}</Text>
       </Pressable>
@@ -712,7 +712,7 @@ function SanteTab({ contactId, contactName }: { contactId?: string; contactName?
         </View>
       )}
 
-      <Pressable onPress={() => load()} style={[st.btn, { backgroundColor: "#ec4899", marginBottom: 16 }]}>
+      <Pressable accessibilityRole="button" onPress={() => load()} style={[st.btn, { backgroundColor: "#ec4899", marginBottom: 16 }]}>
         <Feather name="refresh-cw" size={14} color="#fff" />
         <Text style={st.btnText}>{t("callAssistantScreen.refresh")}</Text>
       </Pressable>
@@ -761,7 +761,7 @@ export default function CallAssistantScreen() {
         {/* Tab row */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }} contentContainerStyle={{ gap: 8 }}>
           {TABS.map(tb => (
-            <Pressable key={tb.key} onPress={() => setTab(tb.key)} style={[st.tabChip, { backgroundColor: tab === tb.key ? tb.color : "rgba(255,255,255,0.12)" }]}>
+            <Pressable accessibilityRole="button" key={tb.key} onPress={() => setTab(tb.key)} style={[st.tabChip, { backgroundColor: tab === tb.key ? tb.color : "rgba(255,255,255,0.12)" }]}>
               <Feather name={tb.icon} size={12} color={tab === tb.key ? "#fff" : "rgba(255,255,255,0.7)"} />
               <Text style={[st.tabChipText, { color: tab === tb.key ? "#fff" : "rgba(255,255,255,0.7)" }]}>{t(`callAssistantScreen.${tb.labelKey}`)}</Text>
             </Pressable>

@@ -289,7 +289,7 @@ export default function CallsScreen() {
 
   function renderRightActions(id: number) {
     return (
-      <Pressable
+      <Pressable accessibilityRole="button"
         onPress={() => confirmDelete(id)}
         style={[styles.swipeAction, { backgroundColor: "#ef4444" }]}
       >
@@ -302,7 +302,7 @@ export default function CallsScreen() {
   function renderLeftActions(phone: string) {
     if (!phone) return null;
     return (
-      <Pressable
+      <Pressable accessibilityRole="button"
         onPress={() => callBack(phone)}
         style={[styles.swipeAction, { backgroundColor: "#22c55e" }]}
       >
@@ -353,7 +353,7 @@ export default function CallsScreen() {
         </View>
         <View style={styles.filterRow}>
           {filters.map((f) => (
-            <Pressable
+            <Pressable accessibilityRole="button"
               key={f.key}
               onPress={() => setFilter(f.key)}
               style={[styles.filterChip, { backgroundColor: filter === f.key ? colors.primary : "rgba(255,255,255,0.1)" }]}
@@ -433,7 +433,7 @@ export default function CallsScreen() {
                       color={statusColor}
                     />
                   </View>
-                  <Pressable onPress={() => setSelected(item)} style={styles.callContent}>
+                  <Pressable accessibilityRole="button" onPress={() => setSelected(item)} style={styles.callContent}>
                     <View style={styles.callTop}>
                       <Text style={[styles.callName, { color: colors.foreground }]} numberOfLines={1}>
                         {item.contactName || item.phoneNumber || t("callsScreen.unknown")}

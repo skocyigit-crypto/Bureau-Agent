@@ -160,7 +160,7 @@ function SwipeableProjet({ item, colors, onDelete, onOpen }: SwipeableProjetProp
       renderRightActions={(progress) => <RightAction progress={progress} />}
       onSwipeableOpen={handleSwipeOpen}
     >
-      <Pressable
+      <Pressable accessibilityRole="button"
         onPress={() => onOpen(item)}
         style={({ pressed }) => [
           styles.projetRow,
@@ -453,7 +453,7 @@ export default function ProjetsScreen() {
         </View>
         <View style={styles.filterRow}>
           {filters.map((f) => (
-            <Pressable
+            <Pressable accessibilityRole="button"
               key={f.key}
               onPress={() => setFilter(f.key)}
               style={[styles.filterChip, { backgroundColor: filter === f.key ? colors.primary : "rgba(255,255,255,0.1)" }]}

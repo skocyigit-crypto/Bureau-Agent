@@ -293,11 +293,11 @@ export default function FaceRecognitionScreen() {
           <Text style={[styles.permissionTitle, { color: colors.foreground }]}>{t("faceRecognitionScreen.cameraAccessRequired")}</Text>
           <Text style={[styles.permissionText, { color: colors.mutedForeground }]}>{t("faceRecognitionScreen.cameraAccessText")}</Text>
           {permission.canAskAgain ? (
-            <Pressable onPress={requestPermission} style={[styles.permButton, { backgroundColor: colors.primary }]}>
+            <Pressable accessibilityRole="button" onPress={requestPermission} style={[styles.permButton, { backgroundColor: colors.primary }]}>
               <Text style={[styles.permButtonText, { color: colors.primaryForeground }]}>{t("faceRecognitionScreen.allowCamera")}</Text>
             </Pressable>
           ) : (
-            <Pressable onPress={() => { try { Linking.openSettings(); } catch {} }} style={[styles.permButton, { backgroundColor: colors.destructive }]}>
+            <Pressable accessibilityRole="button" onPress={() => { try { Linking.openSettings(); } catch {} }} style={[styles.permButton, { backgroundColor: colors.destructive }]}>
               <Text style={[styles.permButtonText, { color: "#fff" }]}>{t("faceRecognitionScreen.openSettings")}</Text>
             </Pressable>
           )}
@@ -349,7 +349,7 @@ export default function FaceRecognitionScreen() {
 
       {renderCameraView(true)}
 
-      <Pressable
+      <Pressable accessibilityRole="button"
         onPress={handleScan}
         disabled={scanning}
         style={({ pressed }) => [
@@ -453,7 +453,7 @@ export default function FaceRecognitionScreen() {
             )}
           </View>
 
-          <Pressable
+          <Pressable accessibilityRole="button"
             onPress={handleScan}
             style={[styles.rescanBtn, { borderColor: colors.border }]}
           >
@@ -487,7 +487,7 @@ export default function FaceRecognitionScreen() {
         <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>{t("faceRecognitionScreen.role")}</Text>
         <View style={styles.roleRow}>
           {["visiteur", "employe", "client", "fournisseur", "vip"].map((role) => (
-            <Pressable
+            <Pressable accessibilityRole="button"
               key={role}
               onPress={() => setRegRole(role)}
               style={[styles.roleChip, { backgroundColor: regRole === role ? colors.primary : colors.background, borderColor: regRole === role ? colors.primary : colors.border }]}
@@ -521,7 +521,7 @@ export default function FaceRecognitionScreen() {
         {contactResults.length > 0 && !selectedContact && (
           <View style={[styles.contactList, { borderColor: colors.border }]}>
             {contactResults.map((c: any) => (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 key={c.id}
                 onPress={() => { setSelectedContact(c); setContactResults([]); setContactSearch(`${c.firstName} ${c.lastName}`); }}
                 style={[styles.contactItem, { borderBottomColor: colors.border }]}
@@ -535,7 +535,7 @@ export default function FaceRecognitionScreen() {
           </View>
         )}
 
-        <Pressable
+        <Pressable accessibilityRole="button"
           onPress={handleRegister}
           disabled={registering || !regName.trim()}
           style={({ pressed }) => [
@@ -688,7 +688,7 @@ export default function FaceRecognitionScreen() {
 
       <View style={[styles.tabBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
         {tabs.map((tb) => (
-          <Pressable
+          <Pressable accessibilityRole="button"
             key={tb.key}
             onPress={() => setActiveTab(tb.key)}
             style={[styles.tab, activeTab === tb.key && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}

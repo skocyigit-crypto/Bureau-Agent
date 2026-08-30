@@ -133,7 +133,7 @@ function PinPad({ onComplete, error, onErrorReset }: PinPadProps) {
             );
           }
           return (
-            <Pressable
+            <Pressable accessibilityRole="button"
               key={idx}
               style={({ pressed }) => [styles.keyBtn, pressed && styles.keyBtnPressed]}
               onPress={() => pressDigit(key)}
@@ -218,7 +218,7 @@ function LockScreen() {
           )}
           {/* Biyometrik butonu (eğer etkinse) */}
           {settings.biometricEnabled && biometricAvailable && (
-            <Pressable style={styles.bioBtn} onPress={tryBiometric}>
+            <Pressable accessibilityRole="button" style={styles.bioBtn} onPress={tryBiometric}>
               <Feather name="cpu" size={16} color="#f59e0b" />
               <Text style={styles.bioBtnText}>
                 {t("privacyOverlay.useBiometric", { type: biometricType || t("privacyOverlay.biometricFallback") })}
@@ -228,7 +228,7 @@ function LockScreen() {
         </>
       ) : (
         <View style={styles.bioCenter}>
-          <Pressable style={styles.bioBigBtn} onPress={tryBiometric} disabled={bioLoading}>
+          <Pressable accessibilityRole="button" style={styles.bioBigBtn} onPress={tryBiometric} disabled={bioLoading}>
             {bioLoading ? (
               <ActivityIndicator color="#f59e0b" size="large" />
             ) : (
@@ -248,7 +248,7 @@ function LockScreen() {
             )}
           </Pressable>
           {settings.hasPIN && (
-            <Pressable style={styles.altBtn} onPress={() => setShowPIN(true)}>
+            <Pressable accessibilityRole="button" style={styles.altBtn} onPress={() => setShowPIN(true)}>
               <Text style={styles.altBtnText}>{t("privacyOverlay.usePinCode")}</Text>
             </Pressable>
           )}
@@ -302,7 +302,7 @@ export function MaskedText({ value, maskChar = "•", style, visibleCount = 4 }:
 
   if (!settings.maskSensitiveData || revealed) {
     return (
-      <Pressable onLongPress={() => settings.maskSensitiveData && setRevealed(false)}>
+      <Pressable accessibilityRole="button" onLongPress={() => settings.maskSensitiveData && setRevealed(false)}>
         <Text style={style}>{value}</Text>
       </Pressable>
     );
@@ -313,7 +313,7 @@ export function MaskedText({ value, maskChar = "•", style, visibleCount = 4 }:
     : maskChar.repeat(value.length);
 
   return (
-    <Pressable onPress={() => setRevealed(true)} hitSlop={4}>
+    <Pressable accessibilityRole="button" onPress={() => setRevealed(true)} hitSlop={4}>
       <Text style={[style, { opacity: 0.7 }]}>{masked}</Text>
     </Pressable>
   );

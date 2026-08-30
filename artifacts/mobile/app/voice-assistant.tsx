@@ -773,7 +773,7 @@ export default function VoiceAssistantScreen() {
         {/* Selecteur de langue */}
         <View style={styles.langRow}>
           {SUPPORTED_LANGS.map((l) => (
-            <Pressable
+            <Pressable accessibilityRole="button"
               key={l}
               onPress={() => setLang(l)}
               style={[styles.langPill, lang === l && styles.langPillActive]}
@@ -785,7 +785,7 @@ export default function VoiceAssistantScreen() {
 
         {/* Selecteur de mode (Commande / Sohbet) */}
         <View style={styles.modeRow}>
-          <Pressable
+          <Pressable accessibilityRole="button"
             onPress={() => setMode("command")}
             style={[styles.modePill, mode === "command" && { backgroundColor: "#f59e0b" }]}
           >
@@ -794,7 +794,7 @@ export default function VoiceAssistantScreen() {
               {tr("mode_command", lang)}
             </Text>
           </Pressable>
-          <Pressable
+          <Pressable accessibilityRole="button"
             onPress={() => setMode("chat")}
             style={[styles.modePill, mode === "chat" && { backgroundColor: "#3b82f6" }]}
           >
@@ -808,7 +808,7 @@ export default function VoiceAssistantScreen() {
         {/* Deep + Wake row */}
         <View style={styles.toolRow}>
           {mode === "chat" && (
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={() => setDeep((v) => !v)}
               style={[styles.deepPill, deep && { backgroundColor: "#a855f733", borderColor: "#a855f7" }]}
             >
@@ -819,7 +819,7 @@ export default function VoiceAssistantScreen() {
               {deep && <Text style={styles.deepBadge}>Pro</Text>}
             </Pressable>
           )}
-          <Pressable
+          <Pressable accessibilityRole="button"
             onPress={toggleWakeWord}
             onLongPress={openProtectionSettings}
             delayLongPress={400}
@@ -836,7 +836,7 @@ export default function VoiceAssistantScreen() {
               <Feather name="lock" size={11} color={wakeWordActive ? "#f59e0b" : "rgba(255,255,255,0.5)"} style={{ marginLeft: 4 }} />
             )}
           </Pressable>
-          <Pressable
+          <Pressable accessibilityRole="button"
             onPress={openProtectionSettings}
             accessibilityLabel={tr("prot_title", lang)}
             style={{
@@ -860,11 +860,11 @@ export default function VoiceAssistantScreen() {
         animationType="fade"
         onRequestClose={() => setProtOpen(false)}
       >
-        <Pressable
+        <Pressable accessibilityRole="button"
           onPress={() => setProtOpen(false)}
           style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "center", padding: 20 }}
         >
-          <Pressable
+          <Pressable accessibilityRole="button"
             onPress={() => {}}
             style={{
               backgroundColor: colors.card,
@@ -919,13 +919,13 @@ export default function VoiceAssistantScreen() {
             </Text>
 
             <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 8 }}>
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={() => setProtOpen(false)}
                 style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10 }}
               >
                 <Text style={{ color: colors.mutedForeground, fontWeight: "600" }}>{tr("prot_cancel", lang)}</Text>
               </Pressable>
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={saveProtectionSettings}
                 style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10, backgroundColor: colors.primary }}
               >
@@ -945,7 +945,7 @@ export default function VoiceAssistantScreen() {
               <Text style={[styles.libCatTitle, { color: colors.primary }]}>{cat.title}</Text>
               <View style={styles.libGrid}>
                 {cat.items.map((it, ii) => (
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     key={ii}
                     onPress={() => { setPanel("chat"); processCommand(it.text); }}
                     disabled={voiceState === "processing"}
@@ -962,7 +962,7 @@ export default function VoiceAssistantScreen() {
         <ScrollView style={styles.commandsPanel} contentContainerStyle={styles.commandsPanelContent}>
           <Text style={[styles.commandsPanelTitle, { color: colors.foreground }]}>{t("voiceAssistantScreen.commands")}</Text>
           {commands.slice(0, 30).map((c, i) => (
-            <Pressable
+            <Pressable accessibilityRole="button"
               key={i}
               onPress={() => { setPanel("chat"); processCommand(c.phrase); }}
               style={[styles.commandFullItem, { backgroundColor: colors.card, borderColor: colors.border }]}

@@ -89,7 +89,7 @@ function PickerModal({ visible, title, options, selected, onSelect, onClose }: P
   const { t } = useTranslation();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.modalOverlay} onPress={onClose}>
+      <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={onClose}>
         <View
           style={[styles.modalSheet, { backgroundColor: colors.card, borderColor: colors.border }]}
           onStartShouldSetResponder={() => true}
@@ -107,7 +107,7 @@ function PickerModal({ visible, title, options, selected, onSelect, onClose }: P
             renderItem={({ item }) => {
               const isSelected = item.value === selected;
               return (
-                <Pressable
+                <Pressable accessibilityRole="button"
                   style={({ pressed }) => [
                     styles.pickerItem,
                     { borderBottomColor: colors.border },
@@ -195,7 +195,7 @@ function TimePickerModal({ visible, title, value, onConfirm, onClose }: TimePick
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.modalOverlay} onPress={onClose}>
+      <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={onClose}>
         <View
           style={[styles.modalSheet, { backgroundColor: colors.card, borderColor: colors.border }]}
           onStartShouldSetResponder={() => true}
@@ -250,7 +250,7 @@ function TimePickerModal({ visible, title, value, onConfirm, onClose }: TimePick
                 renderItem={({ item }) => {
                   const selected = item === hour;
                   return (
-                    <Pressable
+                    <Pressable accessibilityRole="button"
                       style={[
                         drumStyles.drumItem,
                         { height: DRUM_ITEM_HEIGHT },
@@ -304,7 +304,7 @@ function TimePickerModal({ visible, title, value, onConfirm, onClose }: TimePick
                 renderItem={({ item }) => {
                   const selected = item === minute;
                   return (
-                    <Pressable
+                    <Pressable accessibilityRole="button"
                       style={[
                         drumStyles.drumItem,
                         { height: DRUM_ITEM_HEIGHT },
@@ -327,7 +327,7 @@ function TimePickerModal({ visible, title, value, onConfirm, onClose }: TimePick
             </View>
           </View>
 
-          <Pressable
+          <Pressable accessibilityRole="button"
             style={({ pressed }) => [
               drumStyles.confirmBtn,
               { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 },
@@ -463,7 +463,7 @@ export default function HorairesOuvertureScreen() {
         </Pressable>
         <Text style={styles.headerTitle}>{t("horairesScreen.headerTitle")}</Text>
         {isAdmin ? (
-          <Pressable
+          <Pressable accessibilityRole="button"
             onPress={save}
             disabled={saving}
             style={[styles.saveButton, { backgroundColor: "#ffffff20" }]}
@@ -528,7 +528,7 @@ export default function HorairesOuvertureScreen() {
               {WEEKDAYS.map((day) => {
                 const active = form.workingDays.includes(day.value);
                 return (
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     key={day.value}
                     onPress={() => toggleDay(day.value)}
                     disabled={!isAdmin}
@@ -575,7 +575,7 @@ export default function HorairesOuvertureScreen() {
                 <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
                   {t("horairesScreen.openLabel")}
                 </Text>
-                <Pressable
+                <Pressable accessibilityRole="button"
                   onPress={() => isAdmin && setTimePickerField("start")}
                   disabled={!isAdmin}
                   style={({ pressed }) => [
@@ -600,7 +600,7 @@ export default function HorairesOuvertureScreen() {
                 <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
                   {t("horairesScreen.closeLabel")}
                 </Text>
-                <Pressable
+                <Pressable accessibilityRole="button"
                   onPress={() => isAdmin && setTimePickerField("end")}
                   disabled={!isAdmin}
                   style={({ pressed }) => [
@@ -636,7 +636,7 @@ export default function HorairesOuvertureScreen() {
               </View>
             </View>
 
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={() => isAdmin && setTzModalVisible(true)}
               disabled={!isAdmin}
               style={({ pressed }) => [
@@ -670,7 +670,7 @@ export default function HorairesOuvertureScreen() {
               </View>
             </View>
 
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={() => isAdmin && setDurationModalVisible(true)}
               disabled={!isAdmin}
               style={({ pressed }) => [
