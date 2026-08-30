@@ -58,7 +58,7 @@ const MAX_PER_SCAN = clampEnv(process.env.PAYMENT_REMINDER_MAX_PER_SCAN, 20, 1, 
 
 // Statuts de facture NON recouvrables : ni brouillon (pas encore émise), ni
 // payée, ni annulée. Tout le reste avec un solde > 0 et échue est relançable.
-const NON_COLLECTIBLE_STATUSES = ["brouillon", "payee", "annulee"] as const;
+export const NON_COLLECTIBLE_STATUSES = ["brouillon", "payee", "annulee"] as const;
 
 type Stage = "gentle" | "firm" | "final";
 

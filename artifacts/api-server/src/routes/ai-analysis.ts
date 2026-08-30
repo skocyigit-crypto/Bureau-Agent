@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, platformConnectionsTable, notificationsTable, stockArticlesTable, calendarEventsTable, projetsTable, prospectsTable, automationRulesTable, facturesClientTable, compteClientTable, organisationsTable } from "@workspace/db";
 import { sendEmail } from "../services/email";
 import { sql, eq, gte, lte, and, count, avg, desc, asc, lt, ne, isNull, isNotNull, or, not, inArray } from "drizzle-orm";
+import { NON_COLLECTIBLE_STATUSES } from "../services/payment-reminder";
 import { logger } from "../lib/logger";
 import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
 import { buildLearnedContextBlock, fingerprintLearned } from "../services/ai-learning";
@@ -2656,7 +2657,35 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           const remText = `Rappel de paiement: solde impaye ${Number(acct.solde || 0).toFixed(2)} EUR dont ${Number(acct.montantEnRetard || 0).toFixed(2)} EUR en retard.`;
           const sendRes3 = await sendEmail(acctEmail, `Rappel de paiement — ${Number(acct.montantEnRetard || 0).toFixed(2)}€ en retard`, remHtml, remText, { orgId });
           if (!sendRes3.success) { result = { success: false, message: sendRes3.error || "Service email non configure." }; break; }
-          await db.update(compteClientTable).set({ lastReminderAt: new Date(), reminderCount: (acct.reminderCount || 0) + 1 }).where(eq(compteClientTable.id, accountId));
+          const remindedAt = new Date();
+          await db.update(compteClientTable).set({ lastReminderAt: remindedAt, reminderCount: (acct.reminderCount || 0) + 1 }).where(eq(compteClientTable.id, accountId));
+          // Marque aussi les factures echues du client comme relancees.
+          //
+          // Sans cela, cette relance restait invisible pour le detecteur de
+          // services/payment-reminder.ts, qui lit `factures_client.lastReminderAt`
+          // pour son espacement anti-spam. Le client relance ici pouvait donc
+          // recevoir une seconde relance des le lendemain — exactement le
+          // martelement que ce detecteur promet d'eviter. Le message envoye
+          // ci-dessus porte sur le solde en retard du compte, il couvre donc
+          // bien ces factures.
+          if (acct.contactId) {
+            await db
+              .update(facturesClientTable)
+              .set({
+                reminderCount: sql`${facturesClientTable.reminderCount} + 1`,
+                lastReminderAt: remindedAt,
+                updatedAt: remindedAt,
+              })
+              .where(
+                and(
+                  eq(facturesClientTable.organisationId, orgId),
+                  eq(facturesClientTable.contactId, acct.contactId),
+                  not(inArray(facturesClientTable.status, NON_COLLECTIBLE_STATUSES as unknown as string[])),
+                  lt(facturesClientTable.dueDate, remindedAt),
+                  sql`(${facturesClientTable.totalAmount} - ${facturesClientTable.paidAmount}) > 0`,
+                ),
+              );
+          }
           result = { success: true, message: `Rappel de paiement envoye a ${acctEmail} pour ${acct.clientName} (${Number(acct.montantEnRetard || 0).toFixed(2)}€ en retard).` };
         } catch (e: any) { result = { success: false, message: `Erreur envoi rappel: ${e.message}` }; }
         break;
