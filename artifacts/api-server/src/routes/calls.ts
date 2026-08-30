@@ -12,7 +12,7 @@ import {
 } from "@workspace/api-zod";
 import { processCallWithAI } from "../services/call-processor";
 import { assertAiQuota, invalidateQuotaCache } from "../services/ai-quota";
-import { recordAiUsage, extractGeminiTokens, geminiActualModel, GEMINI_PRO_MODEL } from "../services/ai-utils";
+import { recordAiUsage, extractGeminiTokens, geminiActualModel, GEMINI_PRO_MODEL, sanitizePromptInput } from "../services/ai-utils";
 import { logAudit } from "./audit";
 import { getOrgId } from "../middleware/tenant";
 import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
@@ -349,7 +349,7 @@ INFORMATIONS DISPONIBLES:
 - Telephone: ${phoneNumber || "Non disponible"}
 - Entreprise: ${contact?.company || "Non renseignee"}
 - Categorie: ${contact?.category || "Inconnue"}
-- Derniers appels: ${JSON.stringify(recentCalls.map(c => ({ date: c.createdAt, status: c.status, duree: c.duration + "s", notes: c.notes?.substring(0, 100), sentiment: c.sentiment })))}
+- Derniers appels: ${JSON.stringify(recentCalls.map(c => ({ date: c.createdAt, status: c.status, duree: c.duration + "s", notes: sanitizePromptInput(c.notes, 100), sentiment: c.sentiment })))}
 - Taches en cours: ${JSON.stringify(recentTasks.map(t => ({ titre: t.title, statut: t.status, priorite: t.priority })))}
 - Rendez-vous a venir: ${JSON.stringify(upcomingEvents.map(e => ({ titre: e.title, date: e.startDate, type: e.type })))}
 
@@ -657,10 +657,10 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
 
   HISTORIQUE ENRICHI (MEMOIRE PROFONDE):
   Appels recents (${recentCalls.length}):
-  ${recentCalls.length > 0 ? recentCalls.map(c => "  [" + new Date(c.createdAt!).toLocaleDateString("fr-FR") + "] " + c.direction + " | " + c.status + " | " + c.duration + "s | Sentiment: " + (c.sentiment || "?") + " | " + (c.notes?.substring(0, 120) || "Pas de notes")).join("\n") : "  Aucun historique"}
+  ${recentCalls.length > 0 ? recentCalls.map(c => "  [" + new Date(c.createdAt!).toLocaleDateString("fr-FR") + "] " + c.direction + " | " + c.status + " | " + c.duration + "s | Sentiment: " + (c.sentiment || "?") + " | " + (sanitizePromptInput(c.notes, 120) || "Pas de notes")).join("\n") : "  Aucun historique"}
 
   Messages recents:
-  ${recentMessages.length > 0 ? recentMessages.map(m => "  [" + new Date(m.createdAt!).toLocaleDateString("fr-FR") + "] " + m.type + ": " + (m.content?.substring(0, 100) || "")).join("\n") : "  Aucun message"}
+  ${recentMessages.length > 0 ? recentMessages.map(m => "  [" + new Date(m.createdAt!).toLocaleDateString("fr-FR") + "] " + m.type + ": " + sanitizePromptInput(m.content, 100)).join("\n") : "  Aucun message"}
 
   Taches ouvertes:
   ${openTasks.length > 0 ? openTasks.map(t => "  - [" + t.priority + "] " + t.title + " (" + t.status + ")" + (t.dueDate ? " - Echeance: " + new Date(t.dueDate).toLocaleDateString("fr-FR") : "")).join("\n") : "  Aucune"}

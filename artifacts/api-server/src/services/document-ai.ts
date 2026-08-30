@@ -2,7 +2,7 @@ import { db, contactsTable, tasksTable, stockArticlesTable, devisTable, factures
 import { eq, ilike, or, and } from "drizzle-orm";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { logger } from "../lib/logger";
-import { safeJsonParse, aiCallWithRetry, GEMINI_PRO_MODEL, GEMINI_FLASH_MODEL, ANTHROPIC_MODEL } from "./ai-utils";
+import { safeJsonParse, aiCallWithRetry, GEMINI_PRO_MODEL, GEMINI_FLASH_MODEL, ANTHROPIC_MODEL, wrapUntrusted } from "./ai-utils";
 
 export type DocumentType =
   | "facture"
@@ -812,7 +812,7 @@ async function runOpenAIAnalysis(textContent: string, fileName: string, mimeType
       ]
     });
   } else {
-    messages.push({ role: "user", content: `${MULTI_ANALYSIS_PROMPT(fileName, mimeType)}\n\nCONTENU DU DOCUMENT:\n${textContent.slice(0, 12000)}` });
+    messages.push({ role: "user", content: `${MULTI_ANALYSIS_PROMPT(fileName, mimeType)}\n\n${wrapUntrusted("CONTENU DU DOCUMENT", textContent, 12000)}` });
   }
 
   const { withProviderTimeout: _to1 } = await import("./ai-cache");
@@ -848,7 +848,7 @@ async function runClaudeAnalysis(textContent: string, fileName: string, mimeType
       { type: "text", text: MULTI_ANALYSIS_PROMPT(fileName, mimeType) },
     ];
   } else {
-    content = `${MULTI_ANALYSIS_PROMPT(fileName, mimeType)}\n\nCONTENU DU DOCUMENT:\n${textContent.slice(0, 12000)}`;
+    content = `${MULTI_ANALYSIS_PROMPT(fileName, mimeType)}\n\n${wrapUntrusted("CONTENU DU DOCUMENT", textContent, 12000)}`;
   }
 
   const { withProviderTimeout: _to2 } = await import("./ai-cache");
@@ -906,7 +906,7 @@ export async function analyzeDocumentMultiModel(
   // Gemini content parts (native multimodal)
   const geminiParts: any[] = isVisual
     ? [{ inlineData: { mimeType, data: base64Content } }]
-    : [{ text: `CONTENU DU DOCUMENT:\n${textContent.slice(0, 20000)}` }];
+    : [{ text: wrapUntrusted("CONTENU DU DOCUMENT", textContent, 20000) }];
 
   // Run all 3 models in parallel
   const [geminiRes, openaiRes, claudeRes] = await Promise.allSettled([
@@ -961,7 +961,7 @@ export async function askDocumentQuestion(
   const tasks = models.map(async (m) => {
     const t0 = Date.now();
     const context = documentContext.slice(0, 15000);
-    const userPrompt = `Document: "${fileName}"\n\n${imageBase64 && mimeType.startsWith("image/") ? "" : `CONTENU:\n${context}\n\n`}Question: ${question}`;
+    const userPrompt = `Document: "${fileName}"\n\n${imageBase64 && mimeType.startsWith("image/") ? "" : wrapUntrusted("CONTENU", context, 15000) + "\n\n"}Question: ${question}`;
 
     try {
       if (m === "gemini") {

@@ -135,3 +135,38 @@ describe("boite de reception autonome", () => {
     expect(source).toMatch(/explicite de l'humain/);
   });
 });
+
+describe("surfaces non fiables — cliquet", () => {
+  /**
+   * Les contenus venant de l'exterieur ne doivent jamais etre interpoles bruts
+   * dans un prompt. Ce cliquet ne prouve pas l'absence d'injection — il empeche
+   * qu'une NOUVELLE surface soit ajoutee sans protection, ce qui est la facon
+   * dont celles-ci sont apparues.
+   */
+  const read = (p: string) => readFileSync(join(import.meta.dirname, "..", p), "utf8");
+
+  it("le contenu des documents importes est delimite", () => {
+    // Le texte extrait vient d'une piece jointe ou d'un fichier Drive: son
+    // auteur n'est pas l'utilisateur.
+    const src = read("services/document-ai.ts");
+    expect(src).not.toMatch(/CONTENU DU DOCUMENT:\n\$\{textContent/);
+    expect(src).toContain('wrapUntrusted("CONTENU DU DOCUMENT"');
+  });
+
+  it("le contenu des messages entrants est filtre", () => {
+    // Un SMS ou un WhatsApp entrant est ecrit par un tiers.
+    const src = read("routes/calls.ts");
+    expect(src).not.toContain('(m.content?.substring(0, 100) || "")');
+    expect(src).toContain("sanitizePromptInput(m.content");
+  });
+
+  it("chaque appel a wrapUntrusted nomme sa source", () => {
+    // Un libelle vide priverait le modele de l'indice qui lui permet de
+    // distinguer la donnee de la consigne.
+    for (const f of ["services/document-ai.ts", "services/autonomous-inbox.ts"]) {
+      for (const m of read(f).matchAll(/wrapUntrusted\(\s*([^,]+),/g)) {
+        expect(m[1].trim(), `libelle vide dans ${f}`).not.toBe('""');
+      }
+    }
+  });
+});
