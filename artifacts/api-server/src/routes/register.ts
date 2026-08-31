@@ -16,6 +16,22 @@ const router = Router();
 
 const SALT_ROUNDS = 12;
 
+/**
+ * Cinq inscriptions par heure et par client.
+ *
+ * Une saisie refusee ne consomme PAS ce quota. Elle le consommait: oublier son
+ * nom, choisir un mot de passe trop court, mal taper son adresse — trois
+ * erreurs de formulaire ordinaires — et la cinquieme tentative repondait
+ * "Reessayez dans une heure". La personne se voyait refuser la creation d'un
+ * compte pendant une heure pour avoir mal rempli un champ, sans qu'on lui dise
+ * quoi corriger. Sur une inscription, cela ne protege de rien et coute un
+ * client.
+ *
+ * En revanche, un 409 « cet email existe deja » compte, lui: c'est la reponse
+ * qui permettrait d'enumerer les comptes existants, et c'est donc elle qu'il
+ * faut plafonner. Le debit brut reste borne par le limiteur general de
+ * l'application (1000 requetes / 15 min).
+ */
 const registerLimiter = rateLimit({
   keyGenerator: rateLimitKey,
   windowMs: 60 * 60 * 1000,
@@ -23,6 +39,10 @@ const registerLimiter = rateLimit({
   message: { error: "Trop de tentatives d'inscription. Reessayez dans une heure." },
   standardHeaders: true,
   legacyHeaders: false,
+  skipFailedRequests: true,
+  // Seul un 400 (saisie invalide) est « non abouti » et donc non decompte.
+  // Tout le reste — creation reussie, 409, erreur serveur — compte.
+  requestWasSuccessful: (_req, res) => res.statusCode !== 400,
 });
 
 router.post("/auth/register", registerLimiter, async (req: Request, res: Response): Promise<void> => {
