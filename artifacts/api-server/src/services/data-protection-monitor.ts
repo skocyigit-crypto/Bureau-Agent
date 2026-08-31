@@ -108,7 +108,7 @@ async function runDataProtectionCheck() {
     let totalNotifications = 0;
 
     for (const org of orgsWithSubs) {
-      const orgStatus = await analyzeOrgBackupStatus(org, lastSuccessfulBackup, driveConfig, localConfig, totalRecords);
+      const orgStatus = await analyzeOrgBackupStatus(org, lastSuccessfulBackup, driveConfig, localConfig, totalRecords, tableCounts);
 
       if (orgStatus.issues.length > 0) {
         totalNotifications += await createProtectionNotifications(orgStatus);
@@ -161,7 +161,8 @@ async function analyzeOrgBackupStatus(
   lastBackup: any | null,
   driveConfig: any | null,
   localConfig: any | null,
-  totalRecords: number
+  totalRecords: number,
+  tableCounts: Record<string, number>
 ): Promise<OrgBackupStatus> {
   const admins = await withDbRetry(
     () =>
@@ -226,10 +227,16 @@ async function analyzeOrgBackupStatus(
   }
 
   if (totalRecords > 0) {
+    // Verifie reellement qu'au moins une de ces tables contient des lignes.
+    //
+    // Le predicat s'ecrivait `rgpdTables.some(t => { return true; })`: il
+    // ignorait `t` et renvoyait donc toujours vrai. L'alerte annoncait
+    // « Donnees personnelles detectees » sans qu'aucune detection n'ait eu
+    // lieu — elle partait pour toute organisation ayant la moindre ligne, y
+    // compris quand ces quatre tables etaient vides. Une alerte qui affirme
+    // un constat qu'elle n'a pas fait apprend surtout a ignorer les alertes.
     const rgpdTables = ["contacts", "calls", "messages", "prospects"];
-    const hasPersonalData = rgpdTables.some(t => {
-      return true;
-    });
+    const hasPersonalData = rgpdTables.some((t) => (tableCounts[t] ?? 0) > 0);
     if (hasPersonalData && !driveEnabled) {
       issues.push("Donnees personnelles detectees (contacts, appels, messages). La reglementation RGPD recommande des sauvegardes regulieres et securisees.");
       if (severity !== "critique") severity = "moyenne";
