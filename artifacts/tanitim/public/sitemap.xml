@@ -32,4 +32,13 @@
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
+  <!-- Declaration d'accessibilite : page reglementaire (RGAA / directive
+       (UE) 2016-2102), donc elle doit etre trouvable. Elle etait servie par
+       l'application mais absente d'ici — la meme omission que pour /gizlilik
+       ci-dessus, d'ou le test qui compare desormais routes et sitemap. -->
+  <url>
+    <loc>https://agentdebureau.fr/accessibilite</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
 </urlset>
