@@ -334,14 +334,17 @@ export async function confirmOfferSelection(token: string, slotIndex: number): P
   const start = new Date(slot.start);
   const end = new Date(slot.end);
 
-  // Revalidation de disponibilite + reservation, sous verrou avisoire par
-  // organisation (pg_advisory_xact_lock, auto-libere a la fin de la
-  // transaction). Sans ce verrou, deux offres DIFFERENTES envoyees a deux
-  // clients differents pour un creneau qui se chevauche pouvaient toutes
-  // les deux passer isSlotFree en concurrence puis toutes les deux inserer
-  // un evenement — la clause WHERE status='envoye' ci-dessous ne protege
-  // que contre la double confirmation de LA MEME offre, pas contre deux
-  // offres distinctes sur des creneaux qui se chevauchent.
+  // Reservation sous verrou avisoire par organisation (pg_advisory_xact_lock,
+  // auto-libere a la fin de la transaction). Sans ce verrou, deux offres
+  // DIFFERENTES envoyees a deux clients differents pour un creneau qui se
+  // chevauche pouvaient toutes les deux se croire libres en concurrence puis
+  // toutes les deux inserer un evenement — la clause WHERE status='envoye'
+  // ci-dessous ne protege que contre la double confirmation de LA MEME offre,
+  // pas contre deux offres distinctes sur des creneaux qui se chevauchent.
+  //
+  // La disponibilite est verifiee en deux temps: le controle complet juste en
+  // dessous, hors transaction, puis la seule re-verification que la
+  // concurrence peut invalider, sous le verrou (cf. hasOverlappingEvent).
   let conflict: ConfirmResult | null = null;
   let claimed: { id: number }[] = [];
   let event: { id: number } | undefined;
