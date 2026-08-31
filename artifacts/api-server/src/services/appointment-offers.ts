@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { db, appointmentOffersTable, calendarEventsTable, organisationsTable, contactsTable, organisationClosuresTable } from "@workspace/db";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, gt, lt, ne, sql } from "drizzle-orm";
 import { sendEmail } from "./email";
 import { sendSms as providerSendSms } from "./telephony-providers";
 import { computeFreeSlots, isSlotFree, isSlotWithinWorkingHours, type TimeSlot } from "./availability";
@@ -30,6 +30,59 @@ const OFFER_TTL_DAYS = 7;
 // confirmOfferSelection/rescheduleOffer below) - distinct from
 // call-processor.ts's CALL_LOCK_NAMESPACE (4242).
 const SLOT_BOOKING_LOCK_NAMESPACE = 4243;
+
+/** Executeur de requetes: la base ou une transaction en cours. */
+type Executor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * Re-verifie sous le verrou la SEULE chose qu'une reservation concurrente peut
+ * changer: l'existence d'un evenement d'agenda qui chevauche le creneau.
+ *
+ * `isSlotFree()` fait bien plus — fermetures exceptionnelles, horaires
+ * d'ouverture, et un appel reseau a Google Calendar (freebusy). Tout cela
+ * s'executait a l'interieur de la transaction, donc en tenant a la fois une
+ * connexion du pool ET le verrou avisoire de l'organisation. Un appel HTTP
+ * lent transformait alors une section critique de quelques millisecondes en
+ * plusieurs secondes, pendant lesquelles toute autre confirmation de la meme
+ * organisation attendait le verrou sans lacher sa propre connexion. Comme
+ * `isSlotFree()` en reclamait deux de plus (Promise.all) sur le meme pool
+ * borne a 15, l'interblocage etait atteignable: le detenteur du verrou attend
+ * une connexion que les bloques ne rendront pas, et c'est tout l'acces base de
+ * l'application qui se fige, pas seulement les rendez-vous.
+ *
+ * Les autres verifications ne dependent pas de la concurrence: les fermetures
+ * et les horaires sont de la configuration, et l'agenda Google est un systeme
+ * externe qu'aucun verrou local ne peut figer de toute facon. Les faire hors
+ * transaction ne perd donc aucune garantie; seule celle-ci doit rester dedans.
+ *
+ * Meme semantique que `localBusyIntervals`: on ignore les evenements annules,
+ * les journees entieres (qui ne bloquent pas un creneau horaire) et les
+ * intervalles degeneres.
+ */
+async function hasOverlappingEvent(
+  exec: Executor,
+  orgId: number,
+  start: Date,
+  end: Date,
+  excludeEventId?: number,
+): Promise<boolean> {
+  const rows = await exec
+    .select({ id: calendarEventsTable.id })
+    .from(calendarEventsTable)
+    .where(
+      and(
+        eq(calendarEventsTable.organisationId, orgId),
+        lt(calendarEventsTable.startDate, end),
+        gt(calendarEventsTable.endDate, start),
+        ne(calendarEventsTable.status, "annule"),
+        eq(calendarEventsTable.allDay, false),
+        sql`${calendarEventsTable.endDate} > ${calendarEventsTable.startDate}`,
+        ...(excludeEventId ? [ne(calendarEventsTable.id, excludeEventId)] : []),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
+}
 
 export function generateOfferToken(): string {
   return crypto.randomBytes(24).toString("base64url");
@@ -293,16 +346,24 @@ export async function confirmOfferSelection(token: string, slotIndex: number): P
   let claimed: { id: number }[] = [];
   let event: { id: number } | undefined;
 
+  // Verification complete HORS transaction: fermetures, horaires d'ouverture
+  // et agenda Google. Aucun verrou ni connexion de transaction n'est tenu
+  // pendant l'appel reseau (cf. hasOverlappingEvent).
+  const free = await isSlotFree({
+    orgId: offer.organisationId,
+    userId: offer.createdBy ?? undefined,
+    start,
+    end,
+  });
+  if (!free) {
+    return { ok: false, code: "conflict", message: "Ce creneau vient d'etre reserve. Merci d'en choisir un autre." };
+  }
+
   await db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(${SLOT_BOOKING_LOCK_NAMESPACE}, ${offer.organisationId})`);
 
-    const free = await isSlotFree({
-      orgId: offer.organisationId,
-      userId: offer.createdBy ?? undefined,
-      start,
-      end,
-    });
-    if (!free) {
+    // Sous le verrou, on ne re-verifie que ce que la concurrence peut changer.
+    if (await hasOverlappingEvent(tx, offer.organisationId, start, end)) {
       conflict = { ok: false, code: "conflict", message: "Ce creneau vient d'etre reserve. Merci d'en choisir un autre." };
       return;
     }
@@ -529,17 +590,31 @@ export async function rescheduleOffer(token: string, slotRef: number | TimeSlot)
   let existingGoogleEventId: string | null = null;
   let isNewEvent = false;
 
+  // Meme decoupage que confirmOfferSelection: verification complete (dont
+  // l'appel reseau Google) hors transaction, re-verification etroite dessous.
+  const free = await isSlotFree({
+    orgId: offer.organisationId,
+    userId: offer.createdBy ?? undefined,
+    start,
+    end,
+    excludeEventId: offer.calendarEventId ?? undefined,
+  });
+  if (!free) {
+    return { ok: false, code: "conflict", message: "Ce creneau vient d'etre reserve. Merci d'en choisir un autre." };
+  }
+
   await db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(${SLOT_BOOKING_LOCK_NAMESPACE}, ${offer.organisationId})`);
 
-    const free = await isSlotFree({
-      orgId: offer.organisationId,
-      userId: offer.createdBy ?? undefined,
-      start,
-      end,
-      excludeEventId: offer.calendarEventId ?? undefined,
-    });
-    if (!free) {
+    if (
+      await hasOverlappingEvent(
+        tx,
+        offer.organisationId,
+        start,
+        end,
+        offer.calendarEventId ?? undefined,
+      )
+    ) {
       conflict = { ok: false, code: "conflict", message: "Ce creneau vient d'etre reserve. Merci d'en choisir un autre." };
       return;
     }
