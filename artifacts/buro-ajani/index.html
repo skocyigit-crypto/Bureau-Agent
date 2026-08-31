@@ -21,7 +21,10 @@
     <meta name="msapplication-TileColor" content="#1a2744" />
     <meta name="msapplication-config" content="none" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+    <!-- PNG et non SVG: iOS ignore le SVG pour l'icone d'ecran d'accueil et
+         retombe alors sur une capture de la page, ce qui donne une vignette
+         floue au lieu de l'icone. 180x180 est la taille attendue par iOS. -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
