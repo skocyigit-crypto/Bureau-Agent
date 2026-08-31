@@ -1,4 +1,4 @@
-const CACHE_NAME = "adb-cache-v3";
+const CACHE_NAME = "adb-cache-v4";
 const STATIC_ASSETS = ["/favicon.svg", "/manifest.json"];
 
 self.addEventListener("install", (event) => {
@@ -40,8 +40,17 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((res) => {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then((c) => c.put(request, clone));
+          // Ne mettre en cache que les reponses valides.
+          //
+          // La branche des assets statiques verifie `res.ok`, pas celle-ci:
+          // toute reponse etait stockee, y compris un 502 servi pendant un
+          // deploiement. Cette page d'erreur devenait alors le repli hors
+          // ligne, et l'utilisateur la revoyait a la place de la derniere
+          // page valide.
+          if (res.ok) {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then((c) => c.put(request, clone)).catch(() => {});
+          }
           return res;
         })
         .catch(() =>
@@ -59,10 +68,17 @@ self.addEventListener("fetch", (event) => {
       caches.open(CACHE_NAME).then((cache) =>
         cache.match(request).then((cached) => {
           const fresh = fetch(request).then((res) => {
-            if (res.ok) cache.put(request, res.clone());
+            if (res.ok) cache.put(request, res.clone()).catch(() => {});
             return res;
           });
-          return cached || fresh;
+          // Quand une copie est deja en cache, `fresh` continue en arriere-plan
+          // et personne ne l'attend: hors ligne, son rejet remontait en
+          // "unhandled rejection" dans la console a chaque asset charge.
+          if (cached) {
+            fresh.catch(() => {});
+            return cached;
+          }
+          return fresh;
         })
       )
     );
