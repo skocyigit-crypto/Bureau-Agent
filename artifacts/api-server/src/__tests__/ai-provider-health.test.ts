@@ -34,6 +34,10 @@ const health = vi.hoisted(() => ({ states: [] as any[] }));
 
 vi.mock("../services/ai-failover", () => ({
   providerHealth: () => health.states,
+  // L'agent sonde avant de lire, sinon il affirmerait une disponibilite qu'il
+  // n'a pas verifiee. Ici les etats sont fournis directement: la sonde n'a
+  // rien a apprendre et ne doit surtout pas appeler de fournisseur.
+  probeStaleProviders: async () => [],
 }));
 
 const { HEALTH_AGENTS } = await import("../services/health-agents");

@@ -278,6 +278,18 @@ export interface ProviderHealth {
   sinceMs: number | null;
   reason: string | null;
   failures: number;
+  /**
+   * Age de la derniere observation reelle (succes ou echec), ou `null` si ce
+   * fournisseur n'a jamais ete appele depuis le demarrage.
+   *
+   * Sans cette distinction, « jamais appele » et « en bonne sante » se
+   * ressemblaient: un recours peut donc etre mort depuis des semaines et
+   * compte comme disponible. C'est ce qui est arrive le 1er septembre 2026 —
+   * OpenAI n'avait plus de credits, la surveillance n'en savait rien, et
+   * l'application se croyait deux recours alors qu'il ne lui en restait
+   * aucun.
+   */
+  lastSeenMs: number | null;
 }
 
 /** Etat courant de chaque fournisseur, pour la surveillance. */
@@ -292,8 +304,95 @@ export function providerHealth(): ProviderHealth[] {
       sinceMs: failing && s?.lastFailureAt ? Date.now() - s.lastFailureAt : null,
       reason: failing ? (s?.lastReason ?? null) : null,
       failures: s?.failures ?? 0,
+      lastSeenMs: lastSeen(s) === null ? null : Date.now() - lastSeen(s)!,
     };
   });
+}
+
+/** Derniere observation reelle, succes ou echec confondus. */
+function lastSeen(s: ProviderState | undefined): number | null {
+  if (!s) return null;
+  const seen = Math.max(s.lastSuccessAt ?? 0, s.lastFailureAt ?? 0);
+  return seen > 0 ? seen : null;
+}
+
+/**
+ * Age au-dela duquel l'etat d'un fournisseur n'est plus une information.
+ *
+ * Une heure: assez long pour que le trafic reel suffise a renseigner les
+ * fournisseurs reellement utilises (ils sont appeles bien plus souvent), assez
+ * court pour qu'un recours mort soit decouvert le jour meme et non le jour ou
+ * on en a besoin.
+ */
+const STALE_AFTER_MS = parseInt(process.env.AI_PROVIDER_STALE_MS || String(60 * 60 * 1000), 10);
+
+/**
+ * Verifie les fournisseurs dont on ne sait rien de recent.
+ *
+ * POURQUOI CECI EXISTE
+ *
+ * L'etat d'un fournisseur n'etait connu que par les appels reels. Or la
+ * bascule s'arrete au PREMIER qui repond: le deuxieme recours n'est jamais
+ * appele tant que le premier tient, donc jamais evalue, donc repute sain. Un
+ * recours pouvait ainsi mourir en silence, et on ne l'apprenait qu'en ayant
+ * besoin de lui — c'est-a-dire au pire moment.
+ *
+ * Constate le 1er septembre 2026: Gemini et OpenAI etaient tous deux sans
+ * credits, Anthropic portait seul la totalite du service, et la surveillance
+ * annoncait « aucune indisponibilite ». La panne d'OpenAI n'a ete decouverte
+ * qu'en appelant l'API a la main.
+ *
+ * CE QUE CA COUTE
+ *
+ * Une invite d'un mot et une reponse plafonnee a quelques jetons, au plus une
+ * fois par heure et par fournisseur — donc quelques dizaines d'appels
+ * minuscules par jour. C'est le prix d'une information qu'aucun autre moyen
+ * ne donne. `AI_PROVIDER_PROBE=off` la desactive.
+ *
+ * Les fournisseurs deja renseignes par le trafic reel ne sont PAS sondes:
+ * payer pour reapprendre ce qu'on sait n'a pas de sens.
+ */
+export async function probeStaleProviders(): Promise<AiProviderName[]> {
+  if ((process.env.AI_PROVIDER_PROBE || "").toLowerCase() === "off") return [];
+
+  const now = Date.now();
+  const stale = DEFAULT_ORDER.filter((name) => {
+    const seen = lastSeen(providerStates.get(name));
+    return seen === null || now - seen > STALE_AFTER_MS;
+  });
+
+  for (const name of stale) {
+    try {
+      const res = await callWithTimeout(name, () =>
+        CALLERS[name](
+          // Aucune organisation: ni quota a decompter, ni usage a facturer a
+          // un client — cette depense est celle de la plateforme.
+          { orgId: null, config: { maxOutputTokens: 4 }, route: "health-probe" },
+          [{ role: "user", text: "OK" }],
+        ),
+      );
+      if (!res.text.trim()) throw new EmptyResponseError(`${name}: reponse vide`);
+      noteSuccess(name);
+    } catch (err: any) {
+      // TOUT echec compte ici, contrairement au trafic reel.
+      //
+      // Sur un appel reel, une erreur de requete ne dit rien de la sante du
+      // fournisseur — l'invite vient de l'appelant et peut etre fautive; la
+      // retenir ferait ecarter un fournisseur en parfait etat. La sonde, elle,
+      // envoie une invite fixe et connue pour valide: si elle echoue, la cause
+      // est du cote du fournisseur, quelle qu'elle soit — credentiels absents,
+      // client mal configure, service injoignable.
+      //
+      // Ne retenir que les erreurs « d'indisponibilite » avait deux effets,
+      // tous deux mauvais: le fournisseur restait sans observation, donc
+      // resonde a chaque cycle, et surtout il continuait de passer pour sain.
+      const msg = String(err?.message ?? err);
+      noteFailure(name, msg);
+      logger.warn({ provider: name, err: msg.slice(0, 200) }, "[ai-failover] sonde: fournisseur en echec");
+    }
+  }
+
+  return stale;
 }
 
 /** Message normalise, independant du fournisseur. */

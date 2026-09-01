@@ -537,18 +537,36 @@ const aiProvidersAgent: HealthAgent = {
     const results: CheckResult[] = [];
 
     results.push(await safeCheck("ai_provider_availability", async () => {
-      const { providerHealth } = await import("./ai-failover");
+      const { providerHealth, probeStaleProviders } = await import("./ai-failover");
+
+      // Sonder AVANT de lire: la bascule s'arrete au premier fournisseur qui
+      // repond, donc les recours suivants ne sont jamais appeles tant que le
+      // premier tient — et un recours jamais appele passait pour sain. Sans
+      // cette ligne, cet agent affirme une disponibilite qu'il n'a pas
+      // verifiee.
+      await probeStaleProviders();
+
       const states = providerHealth();
       const failing = states.filter((s) => s.failing);
       const healthy = states.filter((s) => !s.failing && s.failures === 0);
 
       if (failing.length === 0) {
+        // Distinguer « verifie disponible » de « jamais appele ». Un
+        // fournisseur sans observation n'est pas une bonne nouvelle, c'est
+        // une absence de nouvelle — et c'est ce qui a fait passer une panne
+        // d'OpenAI pour un recours en bon etat.
+        const inconnus = states.filter((s) => s.lastSeenMs === null);
         return {
           check: "ai_provider_availability",
           status: "ok" as const,
           severity: "basse" as CheckSeverity,
-          summary: "Aucune indisponibilite de fournisseur IA relevee.",
-          metrics: { fournisseurs: states.length },
+          summary: inconnus.length === 0
+            ? `Fournisseurs IA verifies disponibles: ${states.length}.`
+            : `Aucune indisponibilite relevee, mais ${inconnus.length} fournisseur(s) n'ont pas pu etre verifies (${inconnus.map((s) => s.provider).join(", ")}).`,
+          remediation: inconnus.length === 0
+            ? ""
+            : "Etat inconnu, pas forcement mauvais: la sonde est-elle desactivee (AI_PROVIDER_PROBE=off) ?",
+          metrics: { fournisseurs: states.length, verifies: states.length - inconnus.length },
         };
       }
 
