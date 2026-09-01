@@ -30,6 +30,7 @@ import {
   dataIntegrityAgent,
 } from "./health-agents-external";
 import { registerRunnableCron } from "./cron-registry";
+import { withDbRetry } from "../lib/db-retry";
 
 export type CheckStatus = "ok" | "degrade" | "echec" | "inconnu";
 export type CheckSeverity = "basse" | "moyenne" | "haute" | "critique";
@@ -335,11 +336,29 @@ export async function recordCronHeartbeat(
  * elle vient d'etre armee, son premier tick n'a pas encore eu lieu.
  * `onConflictDoNothing` preserve l'historique d'un cron deja connu.
  */
+/**
+ * Inscrit un cron dans la table des battements.
+ *
+ * L'inscription a lieu au demarrage, c'est-a-dire au moment ou toutes les
+ * instances se connectent en meme temps. Sur un deploiement, les anciennes
+ * drainent pendant que les nouvelles montent, et les connexions manquent
+ * quelques secondes: `timeout exceeded when trying to connect`.
+ *
+ * L'echec etait seulement journalise. Le cron continuait de tourner, mais sans
+ * ligne de battement il sortait du champ de l'agent « Taches planifiees »:
+ * une hoquet de connexion au demarrage privait donc discretement une tache de
+ * toute surveillance, jusqu'au redemarrage suivant. Une reprise suffit — la
+ * base redevient joignable des que la vague de connexions retombe.
+ */
 async function registerCron(name: string, expectedIntervalSec: number): Promise<void> {
   try {
-    await db.insert(cronHeartbeatsTable)
-      .values({ name, expectedIntervalSec, lastRunAt: new Date(), runCount: 0, errorCount: 0 })
-      .onConflictDoNothing({ target: cronHeartbeatsTable.name });
+    await withDbRetry(
+      () =>
+        db.insert(cronHeartbeatsTable)
+          .values({ name, expectedIntervalSec, lastRunAt: new Date(), runCount: 0, errorCount: 0 })
+          .onConflictDoNothing({ target: cronHeartbeatsTable.name }),
+      { label: `health:register-cron:${name}` },
+    );
   } catch (err) {
     logger.warn({ err, name }, "[Health] Echec inscription du cron");
   }
