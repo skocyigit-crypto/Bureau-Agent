@@ -109,7 +109,13 @@ describe("budget d'accessibilite", () => {
 
   // Etat constate au moment de la mesure. Chacune reste a juger au regard des
   // exceptions du critere avant correction.
-  const UNDERSIZED_BUDGET = 13;
+  //
+  // 13 -> 12 le 2026-09-01: le compte reel etait retombe a 12 sans que le
+  // plafond suive. Un budget qui traine au-dessus du reel laisse rentrer une
+  // regression gratuitement — c est exactement ce que ce cliquet existe pour
+  // empecher. Mesure en resserrant jusqu au point de rupture: 12 passe, 11
+  // echoue.
+  const UNDERSIZED_BUDGET = 12;
 
   it(`ne laisse pas plus de ${UNDERSIZED_BUDGET} cibles sous 24px`, () => {
     const found = undersizedTargets();
