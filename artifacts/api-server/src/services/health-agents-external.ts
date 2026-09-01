@@ -81,6 +81,7 @@ export const dependenciesAgent: HealthAgent = {
       let netError = "";
       let domainsNote = "";
       let verifiedOk = true;
+      let restricted = false;
       try {
         const res = await fetch("https://api.resend.com/domains", {
           headers: { Authorization: `Bearer ${resendKey}` },
@@ -88,6 +89,27 @@ export const dependenciesAgent: HealthAgent = {
         });
         httpStatus = res.status;
         reachable = res.ok;
+        // Une cle restreinte a l'envoi n'est PAS une cle refusee. Resend
+        // distingue les deux sans ambiguite: une cle revoquee ou erronee est
+        // rejetee en 400 `validation_error`, tandis qu'une cle valide dont la
+        // portee ne couvre pas /domains repond 401 `restricted_api_key`. Ce
+        // 401 prouve donc que Resend a AUTHENTIFIE la cle avant d'en refuser
+        // la portee: c'est un signal positif sur sa validite, et le rapporter
+        // en panne critique serait une fausse alerte a chaque cycle.
+        //
+        // Le service ne fait qu'envoyer. Lui confier une cle a acces complet
+        // lui donnerait de quoi creer et supprimer cles et domaines sans
+        // aucun besoin. On accepte donc la cle restreinte, au prix de la
+        // seule verification qu'elle interdit — signalee explicitement dans
+        // la remediation plutot que perdue en silence.
+        if (res.status === 401) {
+          const body = await res.json().catch(() => null) as { name?: string } | null;
+          if (body?.name === "restricted_api_key") {
+            restricted = true;
+            reachable = true;
+            domainsNote = "Cle restreinte a l'envoi: le statut du domaine expediteur n'a pas pu etre verifie.";
+          }
+        }
         if (res.ok) {
           const data = await res.json() as { data?: Array<{ name: string; status: string }> };
           const from = process.env.RESEND_FROM_EMAIL || "";
@@ -128,7 +150,11 @@ export const dependenciesAgent: HealthAgent = {
           ? "Si le constat se repete a chaque cycle, verifier l'etat de Resend et la sortie reseau."
           : !reachable
             ? "Verifier RESEND_API_KEY (revoquee ?)."
-            : verifiedOk ? "" : "Verifier le domaine sur resend.com/domains, sinon les envois vers des tiers seront refuses.",
+            : !verifiedOk
+              ? "Verifier le domaine sur resend.com/domains, sinon les envois vers des tiers seront refuses."
+              : restricted
+                ? "Verification du domaine indisponible avec une cle restreinte a l'envoi. Pour la retablir, utiliser une cle Resend a acces complet — au prix d'une portee bien plus large en cas de fuite."
+                : "",
         metrics: { httpStatus, latencyMs: ms },
       });
     }
