@@ -412,6 +412,49 @@ export function withHeartbeat(
   return run;
 }
 
+/**
+ * Cadence du declenchement externe (Cloud Scheduler -> /api/cron/tick).
+ *
+ * Doit refleter la planification reelle du job `agent-de-bureau-cron`
+ * (toutes les 10 minutes au moment de l'ecriture). Ce n'est pas une
+ * preference: une tache ne peut tourner qu'a un battement, donc cette valeur
+ * determine la cadence REELLEMENT atteignable de toutes les taches.
+ */
+const TICK_INTERVAL_SEC = parseInt(process.env.CRON_TICK_INTERVAL_SEC || "600", 10);
+
+/**
+ * A partir de quel age une tache est vraiment en retard.
+ *
+ * Une tache ne demarre qu'a un battement du declencheur externe. Une tache
+ * "toutes les 15 min" avec un battement toutes les 10 min ne peut donc pas
+ * tourner mieux que toutes les 20 min — c'est sa cadence reelle, pas un
+ * retard. L'ancienne regle (2x l'intervalle demande, soit 30 min) ne laissait
+ * alors qu'UN SEUL battement de marge: un deploiement qui recycle l'instance
+ * pendant un battement suffisait a franchir le seuil, et le proprietaire
+ * recevait une "panne d'automatisation" alors que tout fonctionnait. C'est
+ * arrive en production le 2026-09-01 (trou 11:40 -> 12:10).
+ *
+ * Une alerte qui se declenche en fonctionnement normal est pire qu'absente:
+ * on apprend a la filtrer, et la vraie panne part avec elle.
+ *
+ * On prend donc le PLUS GRAND des deux seuils:
+ *   - l'ancienne tolerance (2x), pour ne relacher aucune surveillance
+ *     existante — les taches horaires et quotidiennes gardent leur seuil;
+ *   - la cadence reellement atteignable + deux battements de marge, pour les
+ *     taches dont l'intervalle n'est pas un multiple du battement.
+ *
+ * Le seuil ne peut ainsi que s'assouplir la ou il etait intenable, jamais se
+ * durcir ailleurs. Une tache reellement morte reste detectee: au pire 40 min
+ * pour une tache de 15 min, au lieu de 30.
+ */
+export function cronLateAfterSec(expectedIntervalSec: number, tickSec = TICK_INTERVAL_SEC): number {
+  const legacy = expectedIntervalSec * 2;
+  if (tickSec <= 0) return legacy;
+  // Cadence reelle: l'intervalle demande arrondi au battement superieur.
+  const achievable = Math.ceil(expectedIntervalSec / tickSec) * tickSec;
+  return Math.max(legacy, achievable + tickSec * 2);
+}
+
 const schedulerAgent: HealthAgent = {
   id: "scheduler",
   name: "Taches planifiees",
@@ -431,8 +474,7 @@ const schedulerAgent: HealthAgent = {
     const now = Date.now();
     return rows.map((r) => {
       const ageSec = Math.round((now - new Date(r.lastRunAt).getTime()) / 1000);
-      // Tolerance x2: un cron horaire n'est pas en retard a 61 minutes.
-      const late = ageSec > r.expectedIntervalSec * 2;
+      const late = ageSec > cronLateAfterSec(r.expectedIntervalSec);
       const failing = r.lastError != null;
       const status: CheckStatus = late ? "echec" : failing ? "degrade" : "ok";
       return {
@@ -449,7 +491,13 @@ const schedulerAgent: HealthAgent = {
           : failing
             ? "Corriger l'erreur remontee ci-dessus."
             : "",
-        metrics: { ageSec, expectedIntervalSec: r.expectedIntervalSec, runCount: r.runCount, errorCount: r.errorCount },
+        metrics: {
+          ageSec,
+          expectedIntervalSec: r.expectedIntervalSec,
+          lateAfterSec: cronLateAfterSec(r.expectedIntervalSec),
+          runCount: r.runCount,
+          errorCount: r.errorCount,
+        },
       };
     });
   },
