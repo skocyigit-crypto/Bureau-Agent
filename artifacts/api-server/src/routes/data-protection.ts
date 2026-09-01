@@ -116,7 +116,30 @@ router.post("/data-protection/request", async (req, res): Promise<void> => {
   }
 });
 
-router.post("/data-protection/export", async (req, res): Promise<void> => {
+/**
+ * Export integral des donnees de l'ORGANISATION — reserve aux administrateurs.
+ *
+ * Cette route ne rend pas « les donnees de celui qui la demande »: elle rend
+ * l'INTEGRALITE du fichier de l'organisation — contacts, prospects, historique
+ * d'appels et notes internes. Le plancher global des mutations
+ * (routes/index.ts) n'exige qu'un role `agent` ou superieur: seuls les
+ * comptes `lecture_seule` etaient donc arretes. Tout salarie ordinaire
+ * pouvait telecharger le CRM entier en une requete, sous couvert de
+ * portabilite RGPD — et le bouton lui etait affiche.
+ *
+ * Or l'article 20 ouvre un droit sur SES PROPRES donnees, pas sur celles des
+ * clients et prospects de l'employeur. Le responsable de traitement, c'est
+ * l'organisation; l'export global est un acte de sa direction.
+ *
+ * Restreindre ne prive donc personne de son droit: la demande individuelle
+ * (POST /data-protection/request, traitee sous 30 jours) reste ouverte a tous
+ * et figure sur la meme carte, juste en dessous du bouton. C'est le canal
+ * legal pour une personne; celui-ci est un outil d'administration.
+ *
+ * Meme exigence que /data-protection/requests et /status plus bas, qui
+ * exposent pourtant bien moins.
+ */
+router.post("/data-protection/export", requireRole("super_admin", "administrateur"), async (req, res): Promise<void> => {
   try {
     const userId = req.session?.userId;
     const orgId = req.session?.organisationId;

@@ -245,17 +245,27 @@ export default function DataProtectionPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3">
-                <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">{t("dataProtection.exportTitle")}</p>
-                    <p className="text-xs text-emerald-700 dark:text-emerald-400">{t("dataProtection.exportDesc")}</p>
-                  </div>
-                  <Button size="sm" variant="outline" onClick={handleExport} className="gap-2 shrink-0">
-                    <FileDown className="h-4 w-4" /> {t("dataProtection.export")}
-                  </Button>
-                </div>
+                {/* L'export rend le fichier ENTIER de l'organisation, pas les
+                    donnees du demandeur: le serveur le reserve donc aux
+                    administrateurs. Afficher le bouton aux autres ne leur
+                    vaudrait qu'un 403 et un message d'erreur. La demande
+                    individuelle juste en dessous, elle, reste ouverte a tous:
+                    c'est le canal prevu pour l'article 20. */}
+                {isAdmin && (
+                  <>
+                    <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">{t("dataProtection.exportTitle")}</p>
+                        <p className="text-xs text-emerald-700 dark:text-emerald-400">{t("dataProtection.exportDesc")}</p>
+                      </div>
+                      <Button size="sm" variant="outline" onClick={handleExport} className="gap-2 shrink-0">
+                        <FileDown className="h-4 w-4" /> {t("dataProtection.export")}
+                      </Button>
+                    </div>
 
-                <Separator />
+                    <Separator />
+                  </>
+                )}
 
                 <div className="space-y-3">
                   <Label>{t("dataProtection.requestType")}</Label>
