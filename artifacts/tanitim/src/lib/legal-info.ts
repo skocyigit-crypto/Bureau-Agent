@@ -18,17 +18,24 @@
 export const LEGAL_INFO = {
   /**
    * Obligatoire (LCEN art. 6). Le SIRET ne le remplace pas.
-   * Format: « RCS <ville d'immatriculation> 890 977 648 ».
-   * Haguenau depend a priori du greffe de Strasbourg — A CONFIRMER sur le Kbis.
+   *
+   * Greffe confirme: Haguenau (Bas-Rhin) releve du RCS de Strasbourg,
+   * immatriculation du 27/11/2020. Valeur relevee au registre public puis
+   * confirmee par l'editeur sur son Kbis — pas deduite.
+   *
+   * Sans le prefixe « RCS »: la page l'ecrit deja en etiquette de la ligne
+   * («RCS : …»), comme pour le SIRET et le capital juste au-dessus.
    */
-  rcs: "",
+  rcs: "Strasbourg 890 977 648",
 
   /**
    * Figure sur les documents commerciaux d'une societe commerciale
    * (C. com. R123-237). A confirmer avec le conseil: la liste LCEN pour un
    * site web ne le cite pas explicitement, celle du Code de commerce si.
+   *
+   * Valeur confirmee par l'editeur sur son Kbis.
    */
-  capitalSocial: "",
+  capitalSocial: "1 000 €",
 
   /**
    * Obligatoire (LCEN art. 6-III): l'hebergeur doit etre identifie par son

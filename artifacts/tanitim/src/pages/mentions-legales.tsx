@@ -20,7 +20,7 @@ export default function MentionsLegales() {
             <h2 className="text-lg font-semibold text-foreground mb-3">1. Éditeur du site</h2>
             <p>Le site <strong>agentdebureau.fr</strong> et la marque commerciale « Ajant Bureau » sont édités par :</p>
             <ul className="mt-2 space-y-1 pl-4 list-disc">
-              <li><strong>SK GROUP</strong> (SASU)</li>
+              <li><strong>SK GROUP</strong> (SAS)</li>
               <li>Siège social : 17 rue Saint-Exupéry, 67500 Haguenau, France</li>
               <li>SIRET : 890 977 648 00017</li>
               {/* Valeurs et justification dans `@/lib/legal-info`. La ligne

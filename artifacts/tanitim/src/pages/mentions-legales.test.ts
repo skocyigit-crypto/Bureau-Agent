@@ -60,6 +60,45 @@ describe("pages publiees", () => {
   });
 });
 
+describe("identite de l'editeur", () => {
+  /**
+   * Ces valeurs engagent la societe: elles doivent correspondre au registre,
+   * pas a un souvenir.
+   *
+   * La forme juridique etait publiee comme « SASU ». Le registre officiel
+   * porte la categorie juridique 5710, dont le libelle INSEE est « Societe
+   * par actions simplifiee (SAS) » — la SASU releve du code 5720. La SASU
+   * n'est d'ailleurs pas une forme distincte, seulement une SAS a associe
+   * unique: ecrire « SAS » est exact dans tous les cas, « SASU » seulement
+   * s'il n'y a qu'un associe. Corrige apres verification au registre et
+   * confirmation de l'editeur sur son Kbis.
+   */
+  it("annonce la forme juridique du registre", () => {
+    for (const page of ["mentions-legales.tsx", "cgu.tsx", "cgv.tsx", "confidentialite.tsx", "gizlilik.tsx"]) {
+      const source = readPage(page);
+      if (!source.includes("SK GROUP")) continue;
+      expect(source, `${page}: forme juridique obsolete`).not.toContain("SASU");
+    }
+  });
+
+  it("porte les identifiants tels qu'ils figurent au registre", () => {
+    const source = readPage("mentions-legales.tsx");
+    // Releves sur recherche-entreprises.api.gouv.fr (INSEE) le 2026-09-01.
+    expect(source).toContain("890 977 648 00017");
+    expect(source).toContain("17 rue Saint-Exupéry, 67500 Haguenau");
+  });
+
+  it("publie le RCS et le capital une fois obtenus", () => {
+    const legal = fs.readFileSync(path.join(SRC, "lib", "legal-info.ts"), "utf8");
+    // Confirmes par l'editeur sur son Kbis: greffe de Strasbourg, 1 000 €.
+    expect(legal).toMatch(/rcs:\s*"Strasbourg 890 977 648"/);
+    expect(legal).toMatch(/capitalSocial:\s*"1 000 €"/);
+    // Le prefixe « RCS » est porte par l'etiquette de la ligne, pas par la
+    // valeur: le laisser ici afficherait « RCS : RCS Strasbourg ... ».
+    expect(legal).not.toMatch(/rcs:\s*"RCS /);
+  });
+});
+
 describe("CGV en projet", () => {
   const cgv = readPage("cgv.tsx");
   const hasPendingDecisions = (cgv.match(PENDING) ?? []).length > 0;

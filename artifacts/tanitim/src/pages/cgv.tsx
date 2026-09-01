@@ -33,7 +33,7 @@ export default function CGV() {
             <p>
               Les présentes Conditions Générales de Vente (CGV) régissent la
               vente des abonnements à la plateforme SaaS <strong>Ajant Bureau</strong>,
-              éditée par <strong>SK GROUP</strong> (SASU), dont les coordonnées
+              éditée par <strong>SK GROUP</strong> (SAS), dont les coordonnées
               figurent dans les mentions légales. Elles complètent les
               Conditions Générales d'Utilisation, qui régissent l'usage du
               service. En cas de contradiction, les CGV prévalent sur les CGU

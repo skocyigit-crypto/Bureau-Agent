@@ -17,7 +17,7 @@ export default function CGU() {
         <section className="space-y-8 text-sm leading-relaxed text-foreground/80">
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-3">1. Objet</h2>
-            <p>Les présentes Conditions Générales d'Utilisation (CGU) régissent l'accès et l'utilisation de la plateforme SaaS <strong>Ajant Bureau</strong> éditée par SK GROUP (SASU). En créant un compte, l'utilisateur accepte sans réserve les présentes CGU.</p>
+            <p>Les présentes Conditions Générales d'Utilisation (CGU) régissent l'accès et l'utilisation de la plateforme SaaS <strong>Ajant Bureau</strong> éditée par SK GROUP (SAS). En créant un compte, l'utilisateur accepte sans réserve les présentes CGU.</p>
           </div>
 
           <div>
