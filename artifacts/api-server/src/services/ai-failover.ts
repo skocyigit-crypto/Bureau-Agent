@@ -104,6 +104,68 @@ export function shouldFailover(err: any): boolean {
   return err instanceof EmptyResponseError || isAiCapacityError(err) || isAiAuthKeyError(err);
 }
 
+/**
+ * Dernier etat connu de chaque fournisseur.
+ *
+ * La bascule rend la panne invisible pour l'utilisateur — c'est le but, mais
+ * cela veut aussi dire que personne n'est prevenu. Le 1er septembre 2026, la
+ * panne Gemini a ete decouverte parce qu'une personne a remarque que l'IA ne
+ * repondait plus; rien ne l'avait signalee.
+ *
+ * Ces compteurs alimentent l'agent de sante: ils sont un sous-produit gratuit
+ * des appels deja effectues, sans requete supplementaire ni cout.
+ */
+interface ProviderState {
+  lastFailureAt: number | null;
+  lastSuccessAt: number | null;
+  lastReason: string | null;
+  failures: number;
+}
+
+const providerStates = new Map<AiProviderName, ProviderState>();
+
+function noteFailure(name: AiProviderName, reason: string): void {
+  const s = providerStates.get(name) ?? { lastFailureAt: null, lastSuccessAt: null, lastReason: null, failures: 0 };
+  s.lastFailureAt = Date.now();
+  s.lastReason = reason.slice(0, 200);
+  s.failures += 1;
+  providerStates.set(name, s);
+}
+
+function noteSuccess(name: AiProviderName): void {
+  const s = providerStates.get(name) ?? { lastFailureAt: null, lastSuccessAt: null, lastReason: null, failures: 0 };
+  s.lastSuccessAt = Date.now();
+  // Un succes efface l'historique d'echec: seul l'etat courant interesse
+  // l'exploitant, pas le total depuis le demarrage du processus.
+  s.failures = 0;
+  s.lastReason = null;
+  providerStates.set(name, s);
+}
+
+export interface ProviderHealth {
+  provider: AiProviderName;
+  /** Vrai si le dernier appel connu a echoue et qu'aucun succes n'a suivi. */
+  failing: boolean;
+  sinceMs: number | null;
+  reason: string | null;
+  failures: number;
+}
+
+/** Etat courant de chaque fournisseur, pour la surveillance. */
+export function providerHealth(): ProviderHealth[] {
+  return DEFAULT_ORDER.map((provider) => {
+    const s = providerStates.get(provider);
+    const failing = !!s?.lastFailureAt && (!s.lastSuccessAt || s.lastSuccessAt < s.lastFailureAt);
+    return {
+      provider,
+      failing,
+      sinceMs: failing && s?.lastFailureAt ? Date.now() - s.lastFailureAt : null,
+      reason: failing ? (s?.lastReason ?? null) : null,
+      failures: s?.failures ?? 0,
+    };
+  });
+}
+
 /** Message normalise, independant du fournisseur. */
 interface PortableMessage {
   role: "user" | "assistant";
@@ -265,6 +327,7 @@ export async function generateText(opts: GenerateOptions): Promise<GenerateResul
         }).catch(() => {});
         invalidateQuotaCache(opts.orgId);
       }
+      noteSuccess(name);
       if (name !== order[0]) {
         logger.warn(
           { route: opts.route, provider: name, apres: failures.join(" | ") },
@@ -278,6 +341,7 @@ export async function generateText(opts: GenerateOptions): Promise<GenerateResul
         // Erreur de requete: basculer n'aiderait pas et masquerait le defaut.
         throw err;
       }
+      noteFailure(name, msg);
       failures.push(`${name}: ${msg.slice(0, 160)}`);
       logger.warn({ route: opts.route, provider: name, err: msg.slice(0, 200) }, "[ai-failover] fournisseur indisponible");
     }
@@ -321,6 +385,7 @@ export async function generateContentFallback(params: any): Promise<any> {
     try {
       const res = await CALLERS[name](opts, messages);
       if (!res.text.trim()) throw new EmptyResponseError(`${name}: reponse vide`);
+      noteSuccess(name);
       logger.warn({ provider: name, apres: failures.join(" | ") }, "[ai-failover] reponse servie par un autre fournisseur");
       const shaped: any = {
         text: res.text,
@@ -334,6 +399,7 @@ export async function generateContentFallback(params: any): Promise<any> {
       return shaped;
     } catch (err: any) {
       if (!shouldFailover(err)) throw err;
+      noteFailure(name, String(err?.message ?? err));
       failures.push(`${name}: ${String(err?.message ?? err).slice(0, 160)}`);
     }
   }

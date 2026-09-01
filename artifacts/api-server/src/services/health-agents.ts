@@ -442,8 +442,111 @@ const schedulerAgent: HealthAgent = {
  * Agents ajoutes ici sont automatiquement executes et affiches — un nouveau
  * domaine de surveillance se resume a ecrire un HealthAgent et a l'inscrire.
  */
+// ── Agent: fournisseurs IA ──────────────────────────────────────────────────
+
+/**
+ * Signale qu'un fournisseur IA ne repond plus, meme quand la bascule masque
+ * la panne pour l'utilisateur.
+ *
+ * Le 1er septembre 2026, les credits Gemini epuises ont coupe toutes les
+ * fonctions IA. Personne n'a ete prevenu: la panne a ete decouverte parce
+ * qu'une personne a remarque que l'assistant ne repondait plus. Aucun agent ne
+ * surveillait ce domaine.
+ *
+ * Depuis, la bascule automatique fait que l'utilisateur ne voit plus rien —
+ * ce qui rend cet agent PLUS necessaire, pas moins: la depense glisse
+ * silencieusement vers un fournisseur plus cher, et la chaine de secours
+ * s'epuise sans que personne ne le sache.
+ *
+ * L'agent n'appelle aucun fournisseur: il lit l'etat laisse par les appels
+ * reels. Sonder activement couterait de l'argent a chaque cycle pour une
+ * information que le trafic donne deja.
+ */
+const aiProvidersAgent: HealthAgent = {
+  id: "ai_providers",
+  name: "Fournisseurs IA",
+  domain: "Disponibilite des fournisseurs (credits, quotas) et bascules en cours",
+  run: async () => {
+    const results: CheckResult[] = [];
+
+    results.push(await safeCheck("ai_provider_availability", async () => {
+      const { providerHealth } = await import("./ai-failover");
+      const states = providerHealth();
+      const failing = states.filter((s) => s.failing);
+      const healthy = states.filter((s) => !s.failing && s.failures === 0);
+
+      if (failing.length === 0) {
+        return {
+          check: "ai_provider_availability",
+          status: "ok" as const,
+          severity: "basse" as CheckSeverity,
+          summary: "Aucune indisponibilite de fournisseur IA relevee.",
+          metrics: { fournisseurs: states.length },
+        };
+      }
+
+      const noms = failing.map((f) => f.provider).join(", ");
+      const raison = failing[0]?.reason ?? "raison inconnue";
+
+      // Plus aucun recours: l'IA est reellement hors service.
+      if (failing.length >= states.length) {
+        return {
+          check: "ai_provider_availability",
+          status: "echec" as const,
+          severity: "critique" as CheckSeverity,
+          summary: `Tous les fournisseurs IA sont indisponibles (${noms}). Les fonctions IA ne repondent plus. Cause du dernier echec: ${raison}`,
+          remediation:
+            "Recharger le compte du fournisseur principal (credits/quota), ou verifier les cles. Voir services/ai-failover.ts.",
+          metrics: { indisponibles: noms, restants: healthy.length },
+        };
+      }
+
+      const restants = states.length - failing.length;
+
+      // Un seul fournisseur encore debout: la prochaine panne devient une
+      // vraie coupure. C'est le moment d'alerter, pas apres.
+      //
+      // `echec` + `haute` est la condition retenue par selectAlertableChecks
+      // pour envoyer un e-mail. Elle est volontairement etroite afin d'eviter
+      // le bruit; un dernier recours en jeu la merite.
+      if (restants <= 1) {
+        return {
+          check: "ai_provider_availability",
+          status: "echec" as const,
+          severity: "haute" as CheckSeverity,
+          summary:
+            `${noms} indisponible(s): il ne reste qu'un seul fournisseur IA. ` +
+            `La prochaine panne coupera les fonctions IA. Cause: ${raison}`,
+          remediation:
+            "Recharger le compte du fournisseur indisponible avant que le dernier recours ne cede.",
+          metrics: { indisponibles: noms, restants },
+        };
+      }
+
+      // Un fournisseur perdu sur trois: l'application fonctionne et l'alerte
+      // par e-mail serait du bruit. L'etat reste visible dans le panneau de
+      // sante, ou l'exploitant le verra en regardant.
+      return {
+        check: "ai_provider_availability",
+        status: "degrade" as const,
+        severity: "moyenne" as CheckSeverity,
+        summary:
+          `${noms} indisponible(s); les appels basculent sur un autre fournisseur. ` +
+          `L'application fonctionne, mais la depense se deplace et le recours s'amenuise. Cause: ${raison}`,
+        remediation:
+          "Recharger le compte concerne. Tant qu'il est vide, chaque appel paie un aller-retour perdu: " +
+          "AI_PROVIDER_ORDER permet de le passer en dernier sans redeployer.",
+        metrics: { indisponibles: noms, restants },
+      };
+    }));
+
+    return results;
+  },
+};
+
 export const HEALTH_AGENTS: HealthAgent[] = [
   databaseAgent,
+  aiProvidersAgent,
   runtimeAgent,
   schedulerAgent,
   dependenciesAgent,
