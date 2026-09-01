@@ -13,6 +13,7 @@
  * tout passe par l'approbation du patron (réutilise executeProposal côté queue).
  */
 import { db } from "@workspace/db";
+import { generateText } from "./ai-failover";
 import {
   appAuditFindingsTable,
   agentProposalsTable,
@@ -43,24 +44,10 @@ const VALID_SEVERITIES = ["basse", "moyenne", "haute", "critique"] as const;
 // ── Appel IA (Gemini) ───────────────────────────────────────────────────────
 
 async function aiGenerate(orgId: number, prompt: string): Promise<string> {
-  await assertAiQuota(orgId);
-  const t0 = Date.now();
-  const { ai } = await import("@workspace/integrations-gemini-ai");
-  // Passe par la source de verite centrale plutot qu'un nom fige: `gemini-2.5-flash`
-  // etait retire et faisait echouer chaque audit avant repli.
-  const model = GEMINI_FLASH_MODEL;
-  const response = await ai.models.generateContent({
-    model,
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-  });
-  const text = response.text ?? "{}";
-  const tokens = extractGeminiTokens(response);
-  recordAiUsage({
-    organisationId: orgId, provider: "gemini", model: geminiActualModel(response, model), route: "/app-audit/run",
-    inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0,
-  }).catch(() => {});
-  invalidateQuotaCache(orgId);
-  return text;
+  // Bascule multi-fournisseurs: cet appel visait Gemini en dur et tombait
+  // des que ce compte n avait plus de credit (cf. services/ai-failover.ts).
+  const { text } = await generateText({ orgId, prompt, model: GEMINI_FLASH_MODEL, route: "/app-audit/run" });
+  return text || "{}";
 }
 
 function safeJson<T>(raw: string, fallback: T): T {

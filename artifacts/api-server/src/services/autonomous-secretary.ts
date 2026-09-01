@@ -14,6 +14,7 @@
  * → exécution.
  */
 import { db } from "@workspace/db";
+import { generateText } from "./ai-failover";
 import {
   agentProposalsTable,
   tasksTable,
@@ -53,22 +54,10 @@ interface ProposedAction {
 // ── Appel IA (Gemini) ───────────────────────────────────────────────────────
 
 async function aiGenerate(orgId: number, prompt: string): Promise<string> {
-  await assertAiQuota(orgId);
-  const t0 = Date.now();
-  const { ai } = await import("@workspace/integrations-gemini-ai");
-  const model = GEMINI_FLASH_MODEL;
-  const response = await ai.models.generateContent({
-    model,
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-  });
-  const text = response.text ?? "{}";
-  const tokens = extractGeminiTokens(response);
-  recordAiUsage({
-    organisationId: orgId, provider: "gemini", model: geminiActualModel(response, model), route: "/agent-queue/run",
-    inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0,
-  }).catch(() => {});
-  invalidateQuotaCache(orgId);
-  return text;
+  // Bascule multi-fournisseurs: cet appel visait Gemini en dur et tombait
+  // des que ce compte n avait plus de credit (cf. services/ai-failover.ts).
+  const { text } = await generateText({ orgId, prompt, model: GEMINI_FLASH_MODEL, route: "/agent-queue/run" });
+  return text || "{}";
 }
 
 function safeJson<T>(raw: string, fallback: T): T {

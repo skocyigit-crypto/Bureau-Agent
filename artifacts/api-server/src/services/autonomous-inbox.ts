@@ -47,6 +47,7 @@ import {
   wrapUntrusted,
 } from "./ai-utils";
 import { getSuppressedSuggestionTypes } from "./ai-learning";
+import { generateText } from "./ai-failover";
 
 /** Type de suggestion porté par ce service (hors DETECTOR_TYPES du moteur
  * déterministe : son cycle de vie est géré ICI, pas par runProactiveForOrg). */
@@ -114,27 +115,11 @@ function extractEmailAddress(from: string): string {
 // respecter le quota par org ; le repli modèle (singleton de boot) couvre les
 // retraits de modèle.
 async function aiGenerate(orgId: number, prompt: string, route: string): Promise<string> {
-  await assertAiQuota(orgId);
-  const t0 = Date.now();
-  const { ai } = await import("@workspace/integrations-gemini-ai");
-  const model = GEMINI_FLASH_MODEL;
-  const response = await ai.models.generateContent({
-    model,
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-  });
-  const text = response.text ?? "{}";
-  const tokens = extractGeminiTokens(response);
-  recordAiUsage({
-    organisationId: orgId,
-    provider: "gemini",
-    model: geminiActualModel(response, model),
-    route,
-    inputTokens: tokens.input,
-    outputTokens: tokens.output,
-    durationMs: Date.now() - t0,
-  }).catch(() => {});
-  invalidateQuotaCache(orgId);
-  return text;
+  // Passe par la bascule multi-fournisseurs: cette fonction appelait Gemini en
+  // dur, et le tri de la boite s'arretait des que ce compte n'avait plus de
+  // credit (cf. services/ai-failover.ts).
+  const { text } = await generateText({ orgId, prompt, model: GEMINI_FLASH_MODEL, route });
+  return text || "{}";
 }
 
 // ── Sélection de la boîte à scanner ─────────────────────────────────────────

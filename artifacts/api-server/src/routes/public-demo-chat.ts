@@ -6,6 +6,7 @@ import { db, demoHandoffsTable } from "@workspace/db";
 import { lt, or, isNotNull } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sanitizePromptInput, GEMINI_FLASH_MODEL } from "../services/ai-utils";
+import { generateText } from "../services/ai-failover";
 import { withProviderTimeout } from "../services/ai-cache";
 
 const router = Router();
@@ -95,7 +96,6 @@ router.post("/public/demo-chat", demoChatLimiter, async (req: Request, res: Resp
     : [];
 
   try {
-    const { ai } = await import("@workspace/integrations-gemini-ai");
     const contents: any[] = [
       { role: "user", parts: [{ text: DEMO_SYSTEM_PROMPT }] },
       { role: "model", parts: [{ text: "Compris. Je suis pret a presenter la demo." }] },
@@ -105,25 +105,27 @@ router.post("/public/demo-chat", demoChatLimiter, async (req: Request, res: Resp
     }
     contents.push({ role: "user", parts: [{ text: safeMessage }] });
 
-    const response = await withProviderTimeout(
-      () => ai.models.generateContent({
-        model: GEMINI_FLASH_MODEL,
+    // Bascule multi-fournisseurs. Cette demo est la vitrine publique du
+    // produit: quand elle repond "momentanement indisponible", c'est un
+    // visiteur qui decouvre l'application qui le lit. Elle visait Gemini seul
+    // et s'est tue le jour ou ce compte n'a plus eu de credit.
+    //
+    // `orgId: null` — aucun client derriere cet appel, donc rien a decompter.
+    // Le delai maximal englobe TOUTE la chaine: un visiteur ne doit pas
+    // attendre trois fournisseurs l'un apres l'autre.
+    const { text: generated } = await withProviderTimeout(
+      () => generateText({
+        orgId: null,
         contents,
         config: { maxOutputTokens: 300, temperature: 0.6 },
+        model: GEMINI_FLASH_MODEL,
+        route: "/public/demo-chat",
       }),
-      { timeoutMs: 8000, label: "public-demo-chat" },
+      { timeoutMs: 12000, label: "public-demo-chat" },
     );
 
-    let reply = "";
-    if (typeof response === "object" && response !== null && "text" in response) {
-      const t = (response as { text?: unknown }).text;
-      reply = t == null ? "" : String(t).trim();
-    } else {
-      reply = String(response).trim();
-    }
-    if (!reply) {
-      reply = "Je n'ai pas pu generer de reponse. Reessayez ou creez un compte pour la version complete.";
-    }
+    const reply = String(generated ?? "").trim()
+      || "Je n'ai pas pu generer de reponse. Reessayez ou creez un compte pour la version complete.";
     res.json({ reply });
   } catch (err: any) {
     logger.warn({ err: err?.message }, "[public-demo-chat] provider failed");

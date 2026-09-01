@@ -4,6 +4,7 @@ import { sendEmail } from "../services/email";
 import { sql, eq, gte, lte, and, count, avg, desc, asc, lt, ne, isNull, isNotNull, or, not, inArray } from "drizzle-orm";
 import { NON_COLLECTIBLE_STATUSES } from "../services/payment-reminder";
 import { logger } from "../lib/logger";
+import { generateText } from "../services/ai-failover";
 import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
 import { buildLearnedContextBlock, fingerprintLearned } from "../services/ai-learning";
 import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL, ANTHROPIC_MODEL, sanitizePromptInput } from "../services/ai-utils";
@@ -14,20 +15,18 @@ import { generateUniqueReference } from "../lib/unique-reference";
 const router = Router();
 
 async function aiGenerate(orgId: number, options: { model?: string; contents: any[]; config?: any; route?: string }): Promise<string> {
-  await assertAiQuota(orgId);
-  const t0 = Date.now();
-  const { ai } = await import("@workspace/integrations-gemini-ai");
-  const model = options.model ?? GEMINI_PRO_MODEL;
-  const response = await ai.models.generateContent({
-    model,
+  // Bascule multi-fournisseurs: cet appel visait Gemini en dur, et toutes les
+  // analyses de cette route se sont arretees le jour ou ce compte n'a plus eu
+  // de credit — alors qu'Anthropic et OpenAI etaient configures et
+  // disponibles (cf. services/ai-failover.ts).
+  const { text } = await generateText({
+    orgId,
     contents: options.contents,
-    ...(options.config ? { config: options.config } : {}),
+    config: options.config,
+    model: options.model ?? GEMINI_PRO_MODEL,
+    route: options.route ?? "/ai",
   });
-  const text = response.text ?? "{}";
-  const tokens = extractGeminiTokens(response);
-  recordAiUsage({ organisationId: orgId, provider: "gemini", model: geminiActualModel(response, model), route: options.route ?? "/ai", inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
-  invalidateQuotaCache(orgId);
-  return text;
+  return text || "{}";
 }
 
 function isQuotaError(err: unknown): err is AiQuotaExceededError {
