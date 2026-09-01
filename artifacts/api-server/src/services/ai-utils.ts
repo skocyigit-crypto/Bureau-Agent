@@ -235,10 +235,12 @@ export async function installGeminiModelFallback(): Promise<void> {
       // Gemini est ecarte: on ne le rappelle meme pas.
       //
       // Ce chemin-ci part TOUJOURS sur Gemini, puisque c'est son client qui
-      // est appele. Le disjoncteur ne pouvait donc rien empecher ici, et
-      // chaque appel repayait l'attente d'un fournisseur qu'on savait muet —
-      // 15 s par appel le 1er septembre 2026. Le court-circuiter est ce qui
-      // rend la bascule reellement immediate.
+      // est appele; le disjoncteur ne pouvait donc rien empecher ici. Mesure
+      // faite: un compte sans credit repond `429` en ~0,2 s, l'aller-retour
+      // evite est donc modeste. Ce qui compte davantage, c'est qu'il devient
+      // CERTAIN — on cesse de payer un refus connu d'avance a chaque appel,
+      // et le cout monterait franchement le jour ou le fournisseur ne
+      // refuserait plus mais se tairait.
       //
       // L'ecart est temporaire (cinq minutes): si Gemini revient, il reprend
       // sa place sans intervention.

@@ -102,11 +102,11 @@ class EmptyResponseError extends Error {}
 /**
  * Le fournisseur ne repond pas — pas de refus, pas de reponse, juste rien.
  *
- * C'est le mode de panne le plus courant, et il manquait: le 1er septembre
- * 2026, Gemini a passe la journee a expirer au bout de 15 s sans jamais
- * repondre. Aucun de ces echecs ne ressemblait a un manque de credit, donc
- * aucun ne declenchait de bascule — alors qu'un fournisseur muet est
- * exactement aussi inutilisable qu'un fournisseur qui refuse.
+ * C'est le mode de panne le plus courant d'un service distant, et il
+ * manquait: la classification ne connaissait que le REFUS (quota, credits,
+ * surcharge, cle invalide), parce que le module a ete ecrit pour une panne de
+ * credits. Un fournisseur muet est pourtant exactement aussi inutilisable
+ * qu'un fournisseur qui refuse — et l'appelant, lui, attend.
  *
  * L'injoignable est traite pareil: si la connexion est refusee ou le nom
  * introuvable, insister n'a pas plus de sens qu'attendre.

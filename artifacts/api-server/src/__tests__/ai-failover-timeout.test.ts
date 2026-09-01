@@ -14,14 +14,17 @@ import { isAiTimeoutError, shouldFailover } from "../services/ai-failover";
  *
  * Ce module a ete ecrit pour la panne du 1er septembre 2026 (credits Gemini
  * epuises, `429 RESOURCE_EXHAUSTED`), et ne reconnaissait donc que le REFUS:
- * quota, credits, surcharge, cle invalide. Or le meme jour, plus tard, Gemini
- * a cesse de repondre du tout — il expirait au bout de 15 s. Aucun de ces
- * echecs ne ressemblait a un manque de credit, donc aucun ne basculait: la
- * fonction retombait sur un resultat degrade sans IA, alors qu'Anthropic
- * repondait normalement.
+ * quota, credits, surcharge, cle invalide. Or l'expiration est le mode de
+ * panne le plus courant d'un service distant, et c'etait le seul que la
+ * bascule ne couvrait pas: une invite qui n'aboutit pas remontait comme une
+ * erreur ordinaire, donc sans recours, alors qu'un autre fournisseur aurait
+ * repondu.
  *
- * C'est le mode de panne le plus courant d'un service distant, et c'etait le
- * seul que la bascule ne couvrait pas.
+ * Le message de reference ci-dessous vient d'un journal de production reel.
+ * Attention a ce qu'il raconte: son etiquette dit « gemini », mais le
+ * chronometre de l'appelant enveloppe TOUTE la chaine, bascule comprise —
+ * l'expiration peut donc venir du recours et non du principal. C'est
+ * precisement pour ca que chaque fournisseur a desormais son propre budget.
  */
 
 describe("fournisseur muet", () => {

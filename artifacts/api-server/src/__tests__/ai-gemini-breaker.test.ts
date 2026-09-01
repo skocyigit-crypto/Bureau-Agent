@@ -18,13 +18,13 @@ vi.hoisted(() => {
  *   1. La chaine de secours SAUTE Gemini — c'est lui qui vient d'echouer —
  *      donc elle ne le voyait jamais tomber. L'echec du fournisseur principal
  *      n'etait compte nulle part: le disjoncteur ne se declenchait jamais, et
- *      l'agent de sante affichait « Gemini en bonne sante » pendant la panne.
+ *      l'agent de sante affichait « Gemini en bonne sante » pendant toute une
+ *      journee de panne. Aucune alerte n'est partie. C'est le defaut grave
+ *      des deux: la bascule masque la panne pour l'utilisateur, ce qui est le
+ *      but, mais alors plus rien ne la signale.
  *   2. Ce chemin part toujours sur Gemini, puisque c'est son client qui est
  *      appele. Meme un disjoncteur declenche n'empechait rien: chaque appel
- *      repayait l'attente d'un fournisseur muet — 15 s a chaque fois.
- *
- * La bascule etait donc reelle mais jamais « immediate », ce qui est
- * precisement ce que ce module promet.
+ *      repayait un aller-retour dont le refus etait connu d'avance.
  */
 
 const gemini = vi.hoisted(() => ({ calls: 0, fail: true }));
@@ -34,7 +34,14 @@ vi.mock("@workspace/integrations-gemini-ai", () => ({
     models: {
       generateContent: async () => {
         gemini.calls += 1;
-        if (gemini.fail) throw new Error("[gemini] timeout after 15000ms");
+        // Refus reel observe en production, verifie en appelant l'API avec la
+        // cle de production: le compte repond `429` en ~0,2 s.
+        if (gemini.fail) {
+          throw Object.assign(
+            new Error("Your prepayment credits are depleted."),
+            { status: 429 },
+          );
+        }
         return { text: "reponse de gemini" };
       },
     },
