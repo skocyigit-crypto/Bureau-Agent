@@ -284,9 +284,9 @@ export function FileUpload({
                   {doc.aiProcessed && <Sparkles className="w-3 h-3 text-violet-500" />}
                   <span className="text-xs text-muted-foreground shrink-0">{formatSize(doc.fileSize)}</span>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={(e) => { e.stopPropagation(); downloadDocument(doc.id, doc.fileName); }} className="p-1 hover:text-blue-500"><Download className="w-3 h-3" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); downloadDocument(doc.id, doc.fileName); }} className="p-1 hover:text-blue-500" aria-label={t("common.download")}><Download className="w-3 h-3" aria-hidden="true" /></button>
                     {!doc.aiProcessed && <button onClick={(e) => { e.stopPropagation(); analyzeDoc(doc.id); }} className="p-1 hover:text-violet-500"><Brain className="w-3 h-3" /></button>}
-                    <button onClick={(e) => { e.stopPropagation(); deleteDocument(doc.id); }} className="p-1 hover:text-red-500"><Trash2 className="w-3 h-3" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); deleteDocument(doc.id); }} className="p-1 hover:text-red-500" aria-label={t("common.delete")}><Trash2 className="w-3 h-3" aria-hidden="true" /></button>
                   </div>
                 </div>
               );
@@ -370,16 +370,16 @@ export function FileUpload({
                       </div>
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => downloadDocument(doc.id, doc.fileName)}>
-                        <Download className="w-3.5 h-3.5" />
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => downloadDocument(doc.id, doc.fileName)} aria-label={t("common.download")}>
+                        <Download className="w-3.5 h-3.5" aria-hidden="true" />
                       </Button>
                       {!doc.aiProcessed && (
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => analyzeDoc(doc.id)}>
                           <Brain className="w-3.5 h-3.5" />
                         </Button>
                       )}
-                      <Button size="icon" variant="ghost" className="h-7 w-7 hover:text-red-500" onClick={() => deleteDocument(doc.id)}>
-                        <Trash2 className="w-3.5 h-3.5" />
+                      <Button size="icon" variant="ghost" className="h-7 w-7 hover:text-red-500" onClick={() => deleteDocument(doc.id)} aria-label={t("common.delete")}>
+                        <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                       </Button>
                     </div>
                   </div>

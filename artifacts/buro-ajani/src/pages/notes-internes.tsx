@@ -205,7 +205,7 @@ export default function NotesInternesPage() {
                 <button key={c.key} onClick={() => setForm(f => ({ ...f, color: c.key }))} className={`w-5 h-5 rounded-full border-2 ${c.bg.split(" ")[0] || "bg-white"} ${form.color === c.key ? "border-primary ring-1 ring-primary" : "border-transparent"}`} title={t(`notesInternes.color.${c.key}`)} />
               ))}
               <div className="flex-1" />
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditing(null)}><X className="w-3 h-3" /></Button>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditing(null)} aria-label={t("common.close")}><X className="w-3 h-3" aria-hidden="true" /></Button>
               <Button size="icon" className="h-6 w-6" disabled={saving} onClick={save} aria-label={t("common.save")}><Check className="w-3 h-3" aria-hidden="true" /></Button>
             </div>
           </>

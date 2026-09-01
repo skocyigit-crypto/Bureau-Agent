@@ -1603,9 +1603,8 @@ function ChatTab() {
                 size="icon"
                 variant="ghost"
                 className="h-5 w-5 absolute right-1 top-1/2 -translate-y-1/2"
-                onClick={() => setSearchQuery("")}
-              >
-                <X className="h-3 w-3" />
+                onClick={() => setSearchQuery("")} aria-label={t("common.close")}>
+                <X className="h-3 w-3" aria-hidden="true" />
               </Button>
             )}
           </div>
@@ -1665,8 +1664,8 @@ function ChatTab() {
                           className="h-6 text-xs flex-1"
                           onClick={e => e.stopPropagation()}
                         />
-                        <Button size="icon" variant="ghost" className="h-5 w-5" onClick={e => { e.stopPropagation(); saveRename(c.id); }}><Check className="h-3 w-3" /></Button>
-                        <Button size="icon" variant="ghost" className="h-5 w-5" onClick={e => { e.stopPropagation(); cancelRename(); }}><X className="h-3 w-3" /></Button>
+                        <Button size="icon" variant="ghost" className="h-5 w-5" onClick={e => { e.stopPropagation(); saveRename(c.id); }} aria-label={t("common.confirm")}><Check className="h-3 w-3" aria-hidden="true" /></Button>
+                        <Button size="icon" variant="ghost" className="h-5 w-5" onClick={e => { e.stopPropagation(); cancelRename(); }} aria-label={t("common.close")}><X className="h-3 w-3" aria-hidden="true" /></Button>
                       </>
                     ) : (
                       <>
@@ -1674,8 +1673,8 @@ function ChatTab() {
                           <div className="font-medium truncate">{c.title}</div>
                           <div className="text-[10px] text-muted-foreground">{format(new Date(c.updatedAt), "d MMM HH:mm", { locale: fr })}</div>
                         </div>
-                        <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover:opacity-100" onClick={e => { e.stopPropagation(); startRename(c); }}><Edit2 className="h-3 w-3" /></Button>
-                        <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover:opacity-100 text-red-500" onClick={e => { e.stopPropagation(); deleteConv(c.id); }}><Trash2 className="h-3 w-3" /></Button>
+                        <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover:opacity-100" onClick={e => { e.stopPropagation(); startRename(c); }} aria-label={t("common.edit")}><Edit2 className="h-3 w-3" aria-hidden="true" /></Button>
+                        <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover:opacity-100 text-red-500" onClick={e => { e.stopPropagation(); deleteConv(c.id); }} aria-label={t("common.delete")}><Trash2 className="h-3 w-3" aria-hidden="true" /></Button>
                       </>
                     )}
                   </div>

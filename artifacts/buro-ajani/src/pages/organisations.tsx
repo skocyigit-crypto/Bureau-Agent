@@ -1522,8 +1522,8 @@ export default function OrganisationsPage() {
                         </Button>
                       )}
                       {org.id !== 1 && (
-                        <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700" onClick={() => { setSelectedOrg(org); setShowDelete(true); }}>
-                          <Trash2 className="w-3.5 h-3.5" />
+                        <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700" onClick={() => { setSelectedOrg(org); setShowDelete(true); }} aria-label={t("common.delete")}>
+                          <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                         </Button>
                       )}
                     </div>

@@ -121,8 +121,8 @@ export function GlobalSearch() {
       />
       {loading && <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 text-muted-foreground animate-spin" />}
       {query && !loading && (
-        <button onClick={() => { setQuery(""); setResults(null); }} className="absolute right-2.5 top-2.5">
-          <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+        <button onClick={() => { setQuery(""); setResults(null); }} className="absolute right-2.5 top-2.5" aria-label={t("common.close")}>
+          <X className="h-4 w-4 text-muted-foreground hover:text-foreground" aria-hidden="true" />
         </button>
       )}
 

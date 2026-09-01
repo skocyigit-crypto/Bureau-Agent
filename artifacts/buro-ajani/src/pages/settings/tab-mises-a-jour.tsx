@@ -314,9 +314,8 @@ export function TabMisesAJour() {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDelete(release.id)}
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                    >
-                      <Trash2 className="h-4 w-4" />
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10" aria-label={t("common.delete")}>
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
                     </Button>
                   </div>
                 </CardContent>

@@ -85,7 +85,7 @@ export function LineItemsEditor({
               <Input type="number" step="0.01" value={it.unitPrice} onChange={(e) => update(i, { unitPrice: parseFloat(e.target.value) || 0 })} className="h-8 text-sm" />
               <Input type="number" value={autoliquidation ? 0 : it.taxRate} disabled={autoliquidation} onChange={(e) => update(i, { taxRate: parseFloat(e.target.value) || 0 })} className="h-8 text-sm" />
               <span className="text-sm text-right tabular-nums pr-1">{fmt(round2((it.quantity || 0) * (it.unitPrice || 0)), currency)}</span>
-              <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => remove(i)}><Trash2 className="w-3.5 h-3.5" /></Button>
+              <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => remove(i)} aria-label={t("common.delete")}><Trash2 className="w-3.5 h-3.5" aria-hidden="true" /></Button>
             </div>
           ))}
         </div>

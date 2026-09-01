@@ -683,9 +683,8 @@ export function TabProfilOrg() {
                     <button
                       type="button"
                       onClick={() => { setShowClosureForm(false); setNewClosure({ dateStart: "", dateEnd: "", label: "" }); }}
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="h-4 w-4" />
+                      className="text-muted-foreground hover:text-foreground" aria-label={t("common.close")}>
+                      <X className="h-4 w-4" aria-hidden="true" />
                     </button>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

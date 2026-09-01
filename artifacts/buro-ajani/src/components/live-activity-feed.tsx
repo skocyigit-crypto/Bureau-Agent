@@ -101,9 +101,8 @@ export function LiveActivityFeed({ compact = false }: { compact?: boolean }) {
                 <TooltipTrigger asChild>
                   <Button
                     variant="ghost" size="icon" className="h-7 w-7"
-                    onClick={() => setAutoRefresh(!autoRefresh)}
-                  >
-                    <RefreshCw className={`h-3.5 w-3.5 ${autoRefresh ? "text-green-500 animate-spin" : "text-muted-foreground"}`} style={autoRefresh ? { animationDuration: "3s" } : {}} />
+                    onClick={() => setAutoRefresh(!autoRefresh)} aria-label={t("common.refresh")}>
+                    <RefreshCw className={`h-3.5 w-3.5 ${autoRefresh ? "text-green-500 animate-spin" : "text-muted-foreground"}`} style={autoRefresh ? { animationDuration: "3s" } : {}} aria-hidden="true" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>{autoRefresh ? t("liveActivityFeed.autoRefreshOn") : t("liveActivityFeed.autoRefreshOff")}</TooltipContent>

@@ -1007,8 +1007,8 @@ export default function GmailAgentPage() {
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleArchive(selectedEmail.id)}>
                       <Archive className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600" onClick={() => handleTrash(selectedEmail.id)}>
-                      <Trash2 className="h-4 w-4" />
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600" onClick={() => handleTrash(selectedEmail.id)} aria-label={t("common.delete")}>
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
                     </Button>
                     <Button
                       variant="outline"
@@ -1474,8 +1474,8 @@ export default function GmailAgentPage() {
                             <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => {
                               navigator.clipboard.writeText(aiDraft.replyBodyPlain || aiDraft.replyBodyHtml?.replace(/<[^>]+>/g, "") || "");
                               toast({ title: t("gmailAgent.toast.copied") });
-                            }}>
-                              <Copy className="h-3.5 w-3.5" />
+                            }} aria-label={t("common.copy")}>
+                              <Copy className="h-3.5 w-3.5" aria-hidden="true" />
                             </Button>
                           </div>
 

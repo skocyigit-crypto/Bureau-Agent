@@ -367,7 +367,7 @@ export default function ContactDetail() {
                 {tags.map(tag => (
                   <span key={tag} className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full border border-primary/20">
                     {tag}
-                    <button onClick={() => removeTag(tag)} disabled={isSavingTags} className="hover:text-destructive transition-colors"><X className="w-3 h-3" /></button>
+                    <button onClick={() => removeTag(tag)} disabled={isSavingTags} className="hover:text-destructive transition-colors" aria-label={t("common.close")}><X className="w-3 h-3" aria-hidden="true" /></button>
                   </span>
                 ))}
               </div>

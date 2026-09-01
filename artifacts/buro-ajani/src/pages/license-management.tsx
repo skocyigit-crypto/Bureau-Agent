@@ -824,7 +824,7 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
                     <Input className="col-span-2 h-7 text-xs text-center" type="number" min="1" value={item.quantity} onChange={e => updateItem(i, "quantity", parseFloat(e.target.value) || 1)} />
                     <Input className="col-span-2 h-7 text-xs text-right" type="number" min="0" step="0.01" value={item.unitPrice} onChange={e => updateItem(i, "unitPrice", parseFloat(e.target.value) || 0)} />
                     <Input className="col-span-2 h-7 text-xs text-right" type="number" min="0" max="100" value={item.taxRate} onChange={e => updateItem(i, "taxRate", parseFloat(e.target.value) || 0)} />
-                    <Button size="sm" variant="ghost" className="col-span-1 h-7 w-7 p-0 text-red-400 hover:text-red-600" onClick={() => removeItem(i)} disabled={newInvoice.items.length === 1}><Trash2 className="h-3 w-3" /></Button>
+                    <Button size="sm" variant="ghost" className="col-span-1 h-7 w-7 p-0 text-red-400 hover:text-red-600" onClick={() => removeItem(i)} disabled={newInvoice.items.length === 1} aria-label={t("common.delete")}><Trash2 className="h-3 w-3" aria-hidden="true" /></Button>
                   </div>
                 ))}
               </div>

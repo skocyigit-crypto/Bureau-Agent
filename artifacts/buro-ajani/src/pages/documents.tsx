@@ -927,8 +927,8 @@ export default function DocumentsPage() {
                         <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEditDoc(doc)}>
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => downloadDoc(doc.id, doc.fileName)}>
-                          <Download className="w-4 h-4" />
+                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => downloadDoc(doc.id, doc.fileName)} aria-label={t("common.download")}>
+                          <Download className="w-4 h-4" aria-hidden="true" />
                         </Button>
                         {!doc.aiProcessed && (
                           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => analyzeDoc(doc.id)} disabled={analyzingId === doc.id}>
@@ -956,8 +956,8 @@ export default function DocumentsPage() {
                         >
                           <FolderKanban className="w-4 h-4" />
                         </Button>
-                        <Button size="icon" variant="ghost" className="h-8 w-8 hover:text-red-500" onClick={() => deleteDoc(doc.id)}>
-                          <Trash2 className="w-4 h-4" />
+                        <Button size="icon" variant="ghost" className="h-8 w-8 hover:text-red-500" onClick={() => deleteDoc(doc.id)} aria-label={t("common.delete")}>
+                          <Trash2 className="w-4 h-4" aria-hidden="true" />
                         </Button>
                       </div>
                     </CardContent>

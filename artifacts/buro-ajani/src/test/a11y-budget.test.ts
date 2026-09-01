@@ -131,10 +131,21 @@ describe("budget d'accessibilite", () => {
   // corrige. Les 16 d'origine ne sont toujours pas corrigeables (fichiers
   // tenus par une autre session), le reste l'est.
   //
+  // Premier lot: 105 -> 79. Ce sont les boutons dont l'icone nomme deja
+  // l'action sans ambiguite (corbeille, fermeture, telechargement...), donc
+  // ceux qu'une cle `common.*` existante etiquette sans inventer de
+  // formulation ni toucher aux six fichiers de langue. L'icone recoit
+  // `aria-hidden` dans le meme geste: une fois le bouton nomme, la laisser
+  // exposee ferait annoncer la meme chose deux fois.
+  //
+  // Les 79 restants demandent des libelles nouveaux (pagination, plier/
+  // deplier, bascules de vue) — donc une traduction dans chaque langue, et
+  // une decision de formulation. Lot suivant.
+  //
   // Cas limite assume: un bouton enveloppe dans un Tooltip Radix est compte.
   // Le tooltip pose `aria-describedby`, donc une DESCRIPTION; le critere
   // 4.1.2 exige un NOM. Un lecteur d'ecran annonce toujours « bouton ».
-  const UNNAMED_BUDGET = 105;
+  const UNNAMED_BUDGET = 79;
 
   it(`ne laisse pas plus de ${UNNAMED_BUDGET} boutons-icone sans nom accessible`, () => {
     const found = unnamedIconButtons();

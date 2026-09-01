@@ -854,8 +854,8 @@ export default function AutomationsPage() {
                         }}>
                           <Copy className="w-3.5 h-3.5" />
                         </Button>
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10" onClick={() => deleteRule(rule.id, rule.name)}>
-                          <Trash2 className="w-3.5 h-3.5" />
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10" onClick={() => deleteRule(rule.id, rule.name)} aria-label={t("common.delete")}>
+                          <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                         </Button>
                       </div>
                     )}

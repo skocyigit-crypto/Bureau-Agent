@@ -175,9 +175,8 @@ export function IntegrationDiscovery() {
             <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
             <button
               className="ml-1 text-muted-foreground hover:text-foreground shrink-0"
-              onClick={e => { e.stopPropagation(); handleDismiss(); }}
-            >
-              <X className="h-3.5 w-3.5" />
+              onClick={e => { e.stopPropagation(); handleDismiss(); }} aria-label={t("common.close")}>
+              <X className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -199,8 +198,8 @@ export function IntegrationDiscovery() {
                   </SheetDescription>
                 </div>
               </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => refetch()}>
-                <RefreshCw className="h-4 w-4" />
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => refetch()} aria-label={t("common.refresh")}>
+                <RefreshCw className="h-4 w-4" aria-hidden="true" />
               </Button>
             </div>
 
