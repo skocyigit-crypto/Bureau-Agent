@@ -293,6 +293,62 @@ describe("bascule effective", () => {
     expect(geminiCall).not.toHaveBeenCalled();
   });
 
+  it("cesse de rappeler un fournisseur durablement en panne", async () => {
+    /**
+     * Sans cela, chaque appel repayait un aller-retour vers un compte dont on
+     * savait deja qu'il etait vide: environ une seconde perdue par reponse,
+     * mesuree en production, pour un refus certain.
+     *
+     * Le module garde son etat entre les tests: on le recharge pour partir
+     * d'une ardoise propre (meme raison que dans cron-registry-sequential).
+     */
+    vi.resetModules();
+    const fresh = await import("../services/ai-failover");
+
+    geminiCall.mockRejectedValue(CREDITS_DEPLETED);
+    anthropicCall.mockResolvedValue({
+      content: [{ type: "text", text: "ok" }],
+      usage: { input_tokens: 1, output_tokens: 1 },
+    });
+
+    // Trois echecs installent la panne.
+    for (let i = 0; i < 3; i++) {
+      await fresh.generateText({ orgId: null, prompt: "x", route: "/t" });
+    }
+    const appelsApres3 = geminiCall.mock.calls.length;
+    expect(appelsApres3).toBe(3);
+
+    expect(fresh.providerHealth().find((p) => p.provider === "gemini")?.tripped).toBe(true);
+
+    // Les appels suivants ne le sollicitent plus en premier.
+    await fresh.generateText({ orgId: null, prompt: "x", route: "/t" });
+    await fresh.generateText({ orgId: null, prompt: "x", route: "/t" });
+    expect(
+      geminiCall.mock.calls.length,
+      "le fournisseur en panne est encore appele a chaque requete",
+    ).toBe(appelsApres3);
+  });
+
+  it("garde le fournisseur ecarte en dernier recours, sans le retirer", async () => {
+    // S'il etait retire, une panne simultanee des trois ne laisserait personne
+    // a appeler — alors que l'un d'eux est peut-etre revenu entre-temps.
+    vi.resetModules();
+    const fresh = await import("../services/ai-failover");
+
+    geminiCall.mockRejectedValue(CREDITS_DEPLETED);
+    anthropicCall.mockRejectedValue(Object.assign(new Error("quota"), { status: 429 }));
+    openaiCall.mockRejectedValue(Object.assign(new Error("quota"), { status: 429 }));
+
+    for (let i = 0; i < 3; i++) {
+      await expect(fresh.generateText({ orgId: null, prompt: "x", route: "/t" })).rejects.toThrow();
+    }
+
+    // Tous ecartes. Gemini revient: il doit quand meme etre essaye.
+    geminiCall.mockResolvedValue({ text: "revenu" });
+    const res = await fresh.generateText({ orgId: null, prompt: "x", route: "/t" });
+    expect(res.text).toBe("revenu");
+  });
+
   it("dit ce qui a echoue quand plus personne ne repond", async () => {
     geminiCall.mockRejectedValue(CREDITS_DEPLETED);
     anthropicCall.mockRejectedValue(Object.assign(new Error("quota"), { status: 429 }));

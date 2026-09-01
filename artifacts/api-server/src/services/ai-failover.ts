@@ -142,10 +142,52 @@ function noteSuccess(name: AiProviderName): void {
   providerStates.set(name, s);
 }
 
+/**
+ * Nombre d'echecs consecutifs avant de mettre un fournisseur de cote, et duree
+ * de cette mise a l'ecart.
+ *
+ * Trois echecs distinguent une panne installee d'un incident isole; cinq
+ * minutes laissent le temps a un rechargement de credit d'etre pris en compte
+ * sans attendre longtemps si le fournisseur revient.
+ */
+const TRIP_AFTER_FAILURES = 3;
+const COOLDOWN_MS = 5 * 60 * 1000;
+
+/**
+ * Le fournisseur est-il ecarte pour l'instant?
+ *
+ * Sans cela, chaque appel repayait un aller-retour vers un compte dont on
+ * savait deja qu'il n'avait plus de credit: mesure en production, environ une
+ * seconde perdue sur chaque reponse, pour un refus certain.
+ */
+function isTripped(name: AiProviderName): boolean {
+  const s = providerStates.get(name);
+  if (!s || s.failures < TRIP_AFTER_FAILURES || !s.lastFailureAt) return false;
+  return Date.now() - s.lastFailureAt < COOLDOWN_MS;
+}
+
+/**
+ * Ordre effectif: les fournisseurs ecartes passent en fin de liste plutot que
+ * d'etre retires.
+ *
+ * Les retirer serait une faute: si tous sont ecartes en meme temps, il ne
+ * resterait personne a appeler et l'IA tomberait alors qu'un fournisseur est
+ * peut-etre revenu entre-temps. Les reculer suffit — on les essaie encore,
+ * mais en dernier.
+ */
+function effectiveOrder(): AiProviderName[] {
+  const order = providerOrder();
+  const ready = order.filter((p) => !isTripped(p));
+  const tripped = order.filter((p) => isTripped(p));
+  return [...ready, ...tripped];
+}
+
 export interface ProviderHealth {
   provider: AiProviderName;
   /** Vrai si le dernier appel connu a echoue et qu'aucun succes n'a suivi. */
   failing: boolean;
+  /** Vrai si le fournisseur est momentanement ecarte de la tete de liste. */
+  tripped: boolean;
   sinceMs: number | null;
   reason: string | null;
   failures: number;
@@ -159,6 +201,7 @@ export function providerHealth(): ProviderHealth[] {
     return {
       provider,
       failing,
+      tripped: isTripped(provider),
       sinceMs: failing && s?.lastFailureAt ? Date.now() - s.lastFailureAt : null,
       reason: failing ? (s?.lastReason ?? null) : null,
       failures: s?.failures ?? 0,
@@ -305,7 +348,7 @@ export async function generateText(opts: GenerateOptions): Promise<GenerateResul
     throw new Error("generateText: aucune invite fournie.");
   }
 
-  const order = providerOrder();
+  const order = effectiveOrder();
   const failures: string[] = [];
 
   for (const name of order) {
@@ -380,7 +423,7 @@ export async function generateContentFallback(params: any): Promise<any> {
   };
 
   const failures: string[] = [];
-  for (const name of providerOrder()) {
+  for (const name of effectiveOrder()) {
     if (name === "gemini") continue; // c'est lui qui vient d'echouer
     try {
       const res = await CALLERS[name](opts, messages);
