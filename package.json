@@ -8,6 +8,7 @@
     "dev": "pnpm --parallel --filter @workspace/api-server --filter @workspace/buro-ajani run dev",
     "codegen": "pnpm --filter @workspace/api-spec run codegen",
     "db:push": "pnpm --filter @workspace/db run push",
+    "db:setup-test": "pnpm --filter @workspace/db run setup-test-db",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
