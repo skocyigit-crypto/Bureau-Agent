@@ -43,18 +43,41 @@ function openingTag(src: string, from: number): string {
 const FILES = walk(SRC);
 
 /**
+ * Contenu se reduisant a une seule icone auto-fermante, eventuellement choisie
+ * par un ternaire. Un bouton qui porte aussi du texte, ou un `<span
+ * class="sr-only">`, a deja un nom.
+ */
+const ICON_BODY =
+  /^\s*(?:\{[^}]*\?\s*)?<[A-Z][A-Za-z0-9]*\b[^>]*\/>(?:\s*:\s*<[A-Z][A-Za-z0-9]*\b[^>]*\/>\s*\})?\s*$/;
+
+/**
  * Bouton dont le seul contenu est une icone. Sans nom accessible, un lecteur
  * d'ecran annonce « bouton » et rien d'autre — WCAG 2.2 4.1.2, niveau A.
+ *
+ * La balise ouvrante est delimitee par `openingTag`, PAS par un `[^>]*`: les
+ * attributs contiennent tres souvent une fonction flechee (`onClick={e => …}`)
+ * dont le `>` fermait la balise prematurement. Le motif ne reconnaissait alors
+ * plus le bouton et le comptait comme conforme. C'est ce qui faisait tenir ce
+ * budget a 16 alors que le compte reel etait de 105 — l'angle mort couvrait
+ * precisement les boutons les plus courants, ceux qui portent un gestionnaire
+ * de clic en ligne.
  */
-const ICON_ONLY =
-  /<(Button|button)\b([^>]*)>\s*(?:\{[^}]*\?\s*)?<([A-Z][A-Za-z0-9]*)\b[^>]*\/>(?:\s*:\s*<[A-Z][A-Za-z0-9]*\b[^>]*\/>\s*\})?\s*<\/\1>/g;
-
 function unnamedIconButtons(): string[] {
   const found: string[] = [];
   for (const file of FILES) {
     const src = fs.readFileSync(file, "utf8");
-    for (const m of src.matchAll(ICON_ONLY)) {
-      if (/aria-label|aria-labelledby|title=/.test(m[2] ?? "")) continue;
+    for (const m of src.matchAll(/<(Button|button)\b/g)) {
+      const tag = openingTag(src, m.index);
+      if (!tag || tag.endsWith("/>")) continue; // auto-fermante: aucun contenu
+      const close = `</${m[1]}>`;
+      const bodyStart = m.index + tag.length;
+      const bodyEnd = src.indexOf(close, bodyStart);
+      // Au-dela, la fermeture trouvee appartient a un bouton imbrique ou
+      // eloigne: on ne cherche pas a analyser ces cas ici.
+      if (bodyEnd < 0 || bodyEnd - bodyStart > 400) continue;
+      if (!ICON_BODY.test(src.slice(bodyStart, bodyEnd))) continue;
+      const attrs = tag.slice(m[1].length + 1, -1);
+      if (/aria-label|aria-labelledby|title=/.test(attrs)) continue;
       found.push(`${path.relative(SRC, file)}:${src.slice(0, m.index).split("\n").length}`);
     }
   }
@@ -95,9 +118,23 @@ function undersizedTargets(): string[] {
 }
 
 describe("budget d'accessibilite", () => {
-  // 58 au depart, 42 corriges. Les 16 restants vivent dans des fichiers
-  // qu'une autre session modifiait au moment de la correction.
-  const UNNAMED_BUDGET = 16;
+  // 16 -> 105 le 2026-09-01. Ce n'est PAS une regression: rien n'a empire,
+  // c'est le detecteur qui vient de cesser de mentir. Son ancien motif
+  // s'arretait au premier `>`, y compris celui d'une fonction flechee dans un
+  // attribut — donc tout bouton portant un `onClick={e => …}` lui echappait,
+  // c'est-a-dire la majorite. Les « 58 au depart, 42 corriges » d'origine
+  // etaient comptes avec cet angle mort et ne decrivaient qu'une fraction du
+  // reel.
+  //
+  // Un budget faux est pire qu'un budget haut: il annonce un acquis qui
+  // n'existe pas. On fige donc le compte reel, et il redescend a chaque lot
+  // corrige. Les 16 d'origine ne sont toujours pas corrigeables (fichiers
+  // tenus par une autre session), le reste l'est.
+  //
+  // Cas limite assume: un bouton enveloppe dans un Tooltip Radix est compte.
+  // Le tooltip pose `aria-describedby`, donc une DESCRIPTION; le critere
+  // 4.1.2 exige un NOM. Un lecteur d'ecran annonce toujours « bouton ».
+  const UNNAMED_BUDGET = 105;
 
   it(`ne laisse pas plus de ${UNNAMED_BUDGET} boutons-icone sans nom accessible`, () => {
     const found = unnamedIconButtons();
