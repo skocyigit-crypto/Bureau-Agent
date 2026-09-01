@@ -103,7 +103,9 @@ router.post("/ai-insights/regenerate", async (req: Request, res: Response): Prom
       return;
     }
     try {
-      const count = await generateInsightsForOrg(orgId);
+      // Un utilisateur attend devant son ecran: budget court, quitte a
+      // rendre le texte deterministe. Le cron enrichira au passage suivant.
+      const count = await generateInsightsForOrg(orgId, { interactive: true });
       // Set cooldown only after success so transient failures don't lock the user out.
       lastRegenByOrg.set(orgId, Date.now());
       pruneRegenMap();

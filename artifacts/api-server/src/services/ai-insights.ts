@@ -257,7 +257,39 @@ function topUpToMinimum(drafts: InsightDraft[]): InsightDraft[] {
   return out.slice(0, MAX_INSIGHTS);
 }
 
-async function maybeEnrichWithAi(orgId: number, signals: RawSignals, drafts: InsightDraft[]): Promise<InsightDraft[]> {
+/**
+ * Budget accorde a la reecriture IA des insights, selon qui attend.
+ *
+ * Il valait 15 s dans les deux cas, et c'etait la valeur la plus serree du
+ * depot (document-ai en accorde 30, le defaut du helper est 25). Resultat
+ * mesure en production le 2026-09-01: 18 expirations en six heures et pas une
+ * seule reussite — l'enrichissement IA ne fonctionnait tout simplement plus,
+ * en silence, chaque insight retombant sur son texte deterministe.
+ *
+ * La cause n'est pas la lenteur des fournisseurs (appeles directement, ils
+ * repondent en 0,2 a 2 s) mais le contexte: le cron tourne HORS requete, et
+ * Cloud Run y bride le CPU. Le temps de mur s'ecoule alors bien plus vite que
+ * le travail n'avance; une reponse arrivait vers 25 s de mur.
+ *
+ * D'ou deux budgets, parce que les deux appelants n'ont pas la meme
+ * contrainte:
+ *
+ *  - le cron ne fait attendre personne et tourne toutes les 20 minutes: lui
+ *    donner large ne coute rien et lui rend la fonction;
+ *  - `/ai-insights/regenerate` fait patienter un utilisateur devant son
+ *    ecran. Le laisser a 15 s est deliberement court: mieux vaut un texte
+ *    deterministe tout de suite qu'une page figee. Le cron aura de toute
+ *    facon enrichi entre-temps.
+ */
+const ENRICH_TIMEOUT_BACKGROUND_MS = parseInt(process.env.AI_INSIGHTS_TIMEOUT_MS || "45000", 10);
+const ENRICH_TIMEOUT_INTERACTIVE_MS = 15_000;
+
+/** Budget applicable selon que quelqu'un attend la reponse ou non. */
+export function enrichTimeoutMs(interactive: boolean): number {
+  return interactive ? ENRICH_TIMEOUT_INTERACTIVE_MS : ENRICH_TIMEOUT_BACKGROUND_MS;
+}
+
+async function maybeEnrichWithAi(orgId: number, signals: RawSignals, drafts: InsightDraft[], timeoutMs: number): Promise<InsightDraft[]> {
   // If no signals worth mentioning, skip AI entirely.
   if (drafts.length === 0) return drafts;
 
@@ -297,7 +329,7 @@ Reponds UNIQUEMENT avec un tableau JSON de la meme structure que les drafts. Pas
       const response = await withProviderTimeout(() => ai.models.generateContent({
         model,
         contents: [{ role: "user", parts: [{ text: prompt }] }],
-      }), { timeoutMs: 15_000, label: "gemini-insights" });
+      }), { timeoutMs, label: "gemini-insights" });
 
       const text = response.text ?? "";
       const tokens = extractGeminiTokens(response);
@@ -326,13 +358,21 @@ Reponds UNIQUEMENT avec un tableau JSON de la meme structure que les drafts. Pas
   });
 }
 
-export async function generateInsightsForOrg(orgId: number): Promise<number> {
+export async function generateInsightsForOrg(
+  orgId: number,
+  opts: { interactive?: boolean } = {},
+): Promise<number> {
   const signals = await gatherSignals(orgId);
   const rawDrafts = deterministicInsights(signals);
   const drafts = topUpToMinimum(rawDrafts);
   if (drafts.length === 0) return 0;
 
-  const enriched = await maybeEnrichWithAi(orgId, signals, drafts);
+  const enriched = await maybeEnrichWithAi(
+    orgId,
+    signals,
+    drafts,
+    enrichTimeoutMs(opts.interactive === true),
+  );
 
   // Soft-replace: dismiss previous non-dismissed insights for this org so we don't accumulate
   await db.update(aiInsightsTable)
