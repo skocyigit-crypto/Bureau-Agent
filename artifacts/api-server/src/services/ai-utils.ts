@@ -227,8 +227,23 @@ export async function installGeminiModelFallback(): Promise<void> {
     geminiFallbackInstalled = true;
 
     const origGen = models.generateContent.bind(models);
-    models.generateContent = (params: any) =>
-      geminiGenerateWithFallback(params?.model, (m) => origGen({ ...params, model: m }));
+    models.generateContent = async (params: any) => {
+      try {
+        return await geminiGenerateWithFallback(params?.model, (m) => origGen({ ...params, model: m }));
+      } catch (err) {
+        // Repli de FOURNISSEUR, au-dela du repli de modele ci-dessus.
+        //
+        // Le 1er septembre 2026, les credits Gemini epuises ont coupe toute
+        // l'IA: changer de modele n'y pouvait rien, c'est le compte qui ne
+        // pouvait plus servir. Anthropic et OpenAI etaient disponibles.
+        //
+        // L'import est dynamique pour ne pas creer de cycle: ai-failover
+        // importe deja ce module.
+        const { shouldFailover, generateContentFallback } = await import("./ai-failover");
+        if (!shouldFailover(err)) throw err;
+        return generateContentFallback(params);
+      }
+    };
 
     if (typeof models.generateContentStream === "function") {
       const origStream = models.generateContentStream.bind(models);
@@ -460,13 +475,25 @@ export async function recordAiUsage(opts: RecordAiUsageOpts): Promise<void> {
   }
   try {
     const { db, aiUsageTable } = await import("@workspace/db");
+    // Corrige l'attribution quand un appel a bascule sur un autre fournisseur.
+    //
+    // Le repli de fournisseur est pose sur le client Gemini partage (cf.
+    // installGeminiModelFallback): les appelants passent donc encore
+    // `provider: "gemini"` alors que la reponse peut venir d'Anthropic ou
+    // d'OpenAI. Le modele est alors prefixe (`anthropic:claude-...`), et c'est
+    // ce prefixe qui fait foi ici. Sans cette correction, la consommation
+    // d'un fournisseur serait facturee au compte d'un autre dans les
+    // statistiques d'usage.
+    const prefixed = /^(gemini|anthropic|openai):(.+)$/.exec(opts.model);
+    const provider = prefixed ? prefixed[1]! : opts.provider;
+    const model = prefixed ? prefixed[2]! : opts.model;
     const total = opts.inputTokens + opts.outputTokens;
-    const cost = estimateAiCostUsd(opts.model, opts.inputTokens, opts.outputTokens);
+    const cost = estimateAiCostUsd(model, opts.inputTokens, opts.outputTokens);
     await db.insert(aiUsageTable).values({
       organisationId: opts.organisationId,
       userId: opts.userId ?? null,
-      provider: opts.provider,
-      model: opts.model,
+      provider,
+      model,
       route: opts.route,
       inputTokens: opts.inputTokens,
       outputTokens: opts.outputTokens,

@@ -74,6 +74,7 @@ const {
   providerOrder,
   fromGeminiContents,
   stripCodeFences,
+  generateContentFallback,
 } = await import("../services/ai-failover");
 
 /** L'erreur exacte relevee en production le 1er septembre 2026. */
@@ -232,6 +233,64 @@ describe("bascule effective", () => {
 
     await expect(generateText({ ...opts })).rejects.toThrow(/Invalid JSON payload/);
     expect(anthropicCall).not.toHaveBeenCalled();
+  });
+
+  it("sert une reponse a la forme Gemini quand le client partage bascule", async () => {
+    /**
+     * Une soixantaine de sites appellent directement le client Gemini partage
+     * et lisent `response.text`, `usageMetadata` et le modele marque. Le repli
+     * de fournisseur est pose sur ce client (comme le repli de modele l'etait
+     * deja), donc la reponse de secours doit se faire passer pour une reponse
+     * Gemini — sinon la bascule casserait chez chaque appelant.
+     */
+    anthropicCall.mockResolvedValue({
+      content: [{ type: "text", text: "reponse compatible" }],
+      usage: { input_tokens: 12, output_tokens: 7 },
+    });
+
+    const res = await generateContentFallback({
+      model: "gemini-flash-latest",
+      contents: [{ role: "user", parts: [{ text: "bonjour" }] }],
+    });
+
+    expect(res.text).toBe("reponse compatible");
+    expect(res.usageMetadata.promptTokenCount).toBe(12);
+    expect(res.usageMetadata.candidatesTokenCount).toBe(7);
+    expect(res.usageMetadata.totalTokenCount).toBe(19);
+  });
+
+  it("marque le fournisseur reel pour que la consommation soit bien attribuee", async () => {
+    // Les appelants passent encore `provider: "gemini"` sans savoir qu'une
+    // bascule a eu lieu. C'est ce prefixe que recordAiUsage lit pour porter la
+    // consommation au bon compte; sans lui, la depense d'un fournisseur serait
+    // facturee a un autre.
+    anthropicCall.mockResolvedValue({
+      content: [{ type: "text", text: "ok" }],
+      usage: { input_tokens: 1, output_tokens: 1 },
+    });
+
+    const res = await generateContentFallback({
+      model: "gemini-flash-latest",
+      contents: [{ role: "user", parts: [{ text: "x" }] }],
+    });
+
+    const tag = res[Symbol.for("workspace.geminiActualModel")];
+    expect(tag).toMatch(/^anthropic:/);
+  });
+
+  it("ne rappelle pas Gemini dans le repli", async () => {
+    // Gemini vient d'echouer: le reessayer ferait patienter pour rien.
+    anthropicCall.mockResolvedValue({
+      content: [{ type: "text", text: "ok" }],
+      usage: { input_tokens: 1, output_tokens: 1 },
+    });
+
+    await generateContentFallback({
+      model: "gemini-flash-latest",
+      contents: [{ role: "user", parts: [{ text: "x" }] }],
+    });
+
+    expect(geminiCall).not.toHaveBeenCalled();
   });
 
   it("dit ce qui a echoue quand plus personne ne repond", async () => {

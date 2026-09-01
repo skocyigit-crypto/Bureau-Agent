@@ -285,3 +285,58 @@ export async function generateText(opts: GenerateOptions): Promise<GenerateResul
 
   throw new Error(`Tous les fournisseurs IA sont indisponibles — ${failures.join(" | ")}`);
 }
+
+/** Cle utilisee par `geminiActualModel` pour lire le modele reellement servi. */
+const ACTUAL_MODEL_KEY = Symbol.for("workspace.geminiActualModel");
+
+/**
+ * Repond a un appel `ai.models.generateContent` avec un AUTRE fournisseur,
+ * dans la forme d'une reponse Gemini.
+ *
+ * Pourquoi cette forme: une soixantaine de sites appellent directement le
+ * client Gemini partage et lisent `response.text`, `usageMetadata` et le
+ * modele marque. Les reecrire un par un serait long et risque; le depot a
+ * deja choisi l'autre voie — patcher le client une fois au demarrage pour que
+ * tous en heritent (cf. `installGeminiModelFallback`). Cette fonction fournit
+ * la reponse de secours a ce patch.
+ *
+ * Le modele est prefixe par le fournisseur (`anthropic:claude-...`) pour que
+ * `recordAiUsage` attribue la consommation au bon compte: les appelants, eux,
+ * passent toujours `provider: "gemini"` sans savoir qu'une bascule a eu lieu.
+ */
+export async function generateContentFallback(params: any): Promise<any> {
+  const messages = fromGeminiContents(params?.contents ?? []);
+  if (messages.length === 0) throw new Error("generateContentFallback: contenu vide");
+
+  const opts: GenerateOptions = {
+    orgId: null, // l'usage est enregistre par l'appelant, pas ici
+    config: params?.config,
+    model: params?.model,
+    route: "gemini-compat",
+  };
+
+  const failures: string[] = [];
+  for (const name of providerOrder()) {
+    if (name === "gemini") continue; // c'est lui qui vient d'echouer
+    try {
+      const res = await CALLERS[name](opts, messages);
+      if (!res.text.trim()) throw new EmptyResponseError(`${name}: reponse vide`);
+      logger.warn({ provider: name, apres: failures.join(" | ") }, "[ai-failover] reponse servie par un autre fournisseur");
+      const shaped: any = {
+        text: res.text,
+        usageMetadata: {
+          promptTokenCount: res.tokens.input,
+          candidatesTokenCount: res.tokens.output,
+          totalTokenCount: res.tokens.input + res.tokens.output,
+        },
+      };
+      shaped[ACTUAL_MODEL_KEY] = `${res.provider}:${res.model}`;
+      return shaped;
+    } catch (err: any) {
+      if (!shouldFailover(err)) throw err;
+      failures.push(`${name}: ${String(err?.message ?? err).slice(0, 160)}`);
+    }
+  }
+
+  throw new Error(`Aucun fournisseur de secours disponible — ${failures.join(" | ")}`);
+}
