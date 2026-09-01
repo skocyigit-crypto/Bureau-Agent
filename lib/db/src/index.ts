@@ -29,11 +29,23 @@ const IDLE_TX_TIMEOUT_MS = parseInt(process.env.DB_IDLE_IN_TX_TIMEOUT_MS || "600
 
 // Taille du pool PAR INSTANCE. Cloud Run peut lancer plusieurs instances
 // (maxScale) et, pendant un deploiement, les anciennes et nouvelles coexistent
-// quelques secondes. Avec un Postgres db-f1-micro (~25 connexions au total),
-// un pool de 20 x plusieurs instances epuisait instantanement les slots et
-// TOUTES les requetes repondaient 500 ("remaining connection slots are
-// reserved..."). 8 par instance laisse de la marge meme pendant un rollout.
-const POOL_MAX = parseInt(process.env.DB_POOL_MAX || "15", 10);
+// quelques secondes. Un pool de 20 x plusieurs instances epuisait
+// instantanement les slots et TOUTES les requetes repondaient 500
+// ("remaining connection slots are reserved...").
+//
+// Le budget se calcule au PIRE cas, celui du rollout, ou les instances
+// doublent: 2 x maxScale x POOL_MAX doit rester sous max_connections, moins
+// les slots reserves au superutilisateur et aux outils d'administration.
+// Production (2026-09-01): max_connections = 60, maxScale = 3, d'ou
+// 2 x 3 x 8 = 48, et il reste de la marge.
+//
+// Cette valeur est la RETOMBEE, pas le reglage: le service la fixe
+// explicitement (DB_POOL_MAX=8 sur Cloud Run). Elle doit neanmoins rester
+// tenable seule, car elle s'applique partout ou la variable est absente —
+// scripts, migrations, nouveau service. Elle valait 15, soit presque le
+// double du chiffre que ce commentaire justifiait: un deploiement lance sans
+// la variable aurait vise 90 connexions pour 60 disponibles.
+const POOL_MAX = parseInt(process.env.DB_POOL_MAX || "8", 10);
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
