@@ -99,9 +99,41 @@ export function isAiCapacityError(err: any): boolean {
  */
 class EmptyResponseError extends Error {}
 
+/**
+ * Le fournisseur ne repond pas — pas de refus, pas de reponse, juste rien.
+ *
+ * C'est le mode de panne le plus courant, et il manquait: le 1er septembre
+ * 2026, Gemini a passe la journee a expirer au bout de 15 s sans jamais
+ * repondre. Aucun de ces echecs ne ressemblait a un manque de credit, donc
+ * aucun ne declenchait de bascule — alors qu'un fournisseur muet est
+ * exactement aussi inutilisable qu'un fournisseur qui refuse.
+ *
+ * L'injoignable est traite pareil: si la connexion est refusee ou le nom
+ * introuvable, insister n'a pas plus de sens qu'attendre.
+ */
+export function isAiTimeoutError(err: any): boolean {
+  const code = String(err?.code ?? "");
+  if (err?.name === "AbortError" || err?.name === "TimeoutError") return true;
+  if (["ETIMEDOUT", "ECONNRESET", "ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "EPIPE"].includes(code)) {
+    return true;
+  }
+  const msg = String(err?.message ?? err?.error?.message ?? "").toLowerCase();
+  return (
+    msg.includes("timeout") ||
+    msg.includes("timed out") ||
+    msg.includes("aborted") ||
+    msg.includes("socket hang up")
+  );
+}
+
 /** Raison suffisante pour essayer le fournisseur suivant. */
 export function shouldFailover(err: any): boolean {
-  return err instanceof EmptyResponseError || isAiCapacityError(err) || isAiAuthKeyError(err);
+  return (
+    err instanceof EmptyResponseError ||
+    isAiCapacityError(err) ||
+    isAiAuthKeyError(err) ||
+    isAiTimeoutError(err)
+  );
 }
 
 /**
@@ -180,6 +212,61 @@ function effectiveOrder(): AiProviderName[] {
   const ready = order.filter((p) => !isTripped(p));
   const tripped = order.filter((p) => isTripped(p));
   return [...ready, ...tripped];
+}
+
+/** Le fournisseur est-il ecarte? Expose pour les appelants hors de ce module. */
+export function isProviderTripped(name: AiProviderName): boolean {
+  return isTripped(name);
+}
+
+/**
+ * Enregistre l'echec d'un fournisseur appele AILLEURS que dans cette chaine.
+ *
+ * Le client Gemini partage est appele directement par une soixantaine de
+ * sites; quand il echoue, c'est son propre patch qui rattrape et delegue ici.
+ * Sans ce point d'entree, l'echec du fournisseur PRINCIPAL n'etait jamais
+ * compte: la chaine de secours saute Gemini (c'est lui qui vient d'echouer),
+ * donc `noteFailure` ne le voyait pas passer.
+ *
+ * Les consequences etaient silencieuses et exactement contraires au but de ce
+ * fichier: le disjoncteur ne se declenchait jamais, donc chaque appel
+ * repayait l'attente d'un fournisseur qu'on savait muet; et l'agent de sante
+ * voyait Gemini en bonne sante pendant toute une journee de panne, donc
+ * personne n'etait prevenu.
+ */
+export function noteProviderFailure(name: AiProviderName, reason: string): void {
+  noteFailure(name, reason);
+}
+
+/**
+ * Budget de temps accorde a CHAQUE fournisseur.
+ *
+ * Sans lui, un fournisseur muet consommait tout le budget de l'appelant et il
+ * ne restait rien pour le suivant: la bascule existait sur le papier mais
+ * n'avait jamais le temps de servir. Le budget est donc par tentative, pas
+ * pour la chaine entiere.
+ */
+const PROVIDER_TIMEOUT_MS = parseInt(process.env.AI_PROVIDER_TIMEOUT_MS || "12000", 10);
+
+async function callWithTimeout<T>(
+  name: AiProviderName,
+  run: () => Promise<T>,
+): Promise<T> {
+  if (!(PROVIDER_TIMEOUT_MS > 0)) return run();
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      run(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`${name}: timeout after ${PROVIDER_TIMEOUT_MS}ms`)),
+          PROVIDER_TIMEOUT_MS,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 export interface ProviderHealth {
@@ -354,7 +441,7 @@ export async function generateText(opts: GenerateOptions): Promise<GenerateResul
   for (const name of order) {
     const t0 = Date.now();
     try {
-      const res = await CALLERS[name](opts, messages);
+      const res = await callWithTimeout(name, () => CALLERS[name](opts, messages));
       if (!res.text.trim()) {
         throw new EmptyResponseError(`${name}: reponse vide`);
       }
@@ -426,7 +513,7 @@ export async function generateContentFallback(params: any): Promise<any> {
   for (const name of effectiveOrder()) {
     if (name === "gemini") continue; // c'est lui qui vient d'echouer
     try {
-      const res = await CALLERS[name](opts, messages);
+      const res = await callWithTimeout(name, () => CALLERS[name](opts, messages));
       if (!res.text.trim()) throw new EmptyResponseError(`${name}: reponse vide`);
       noteSuccess(name);
       logger.warn({ provider: name, apres: failures.join(" | ") }, "[ai-failover] reponse servie par un autre fournisseur");

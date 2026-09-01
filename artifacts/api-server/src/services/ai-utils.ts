@@ -228,6 +228,24 @@ export async function installGeminiModelFallback(): Promise<void> {
 
     const origGen = models.generateContent.bind(models);
     models.generateContent = async (params: any) => {
+      // L'import est dynamique pour ne pas creer de cycle: ai-failover importe
+      // deja ce module.
+      const failover = await import("./ai-failover");
+
+      // Gemini est ecarte: on ne le rappelle meme pas.
+      //
+      // Ce chemin-ci part TOUJOURS sur Gemini, puisque c'est son client qui
+      // est appele. Le disjoncteur ne pouvait donc rien empecher ici, et
+      // chaque appel repayait l'attente d'un fournisseur qu'on savait muet —
+      // 15 s par appel le 1er septembre 2026. Le court-circuiter est ce qui
+      // rend la bascule reellement immediate.
+      //
+      // L'ecart est temporaire (cinq minutes): si Gemini revient, il reprend
+      // sa place sans intervention.
+      if (failover.isProviderTripped("gemini")) {
+        return failover.generateContentFallback(params);
+      }
+
       try {
         return await geminiGenerateWithFallback(params?.model, (m) => origGen({ ...params, model: m }));
       } catch (err) {
@@ -236,12 +254,16 @@ export async function installGeminiModelFallback(): Promise<void> {
         // Le 1er septembre 2026, les credits Gemini epuises ont coupe toute
         // l'IA: changer de modele n'y pouvait rien, c'est le compte qui ne
         // pouvait plus servir. Anthropic et OpenAI etaient disponibles.
-        //
-        // L'import est dynamique pour ne pas creer de cycle: ai-failover
-        // importe deja ce module.
-        const { shouldFailover, generateContentFallback } = await import("./ai-failover");
-        if (!shouldFailover(err)) throw err;
-        return generateContentFallback(params);
+        if (!failover.shouldFailover(err)) throw err;
+
+        // L'echec du fournisseur PRINCIPAL se compte ici, et nulle part
+        // ailleurs: la chaine de secours saute Gemini — c'est lui qui vient
+        // d'echouer — donc elle ne le voit jamais tomber. Sans cette ligne,
+        // le disjoncteur ne se declenchait jamais et l'agent de sante a
+        // affiche « Gemini en bonne sante » pendant toute une journee de
+        // panne.
+        failover.noteProviderFailure("gemini", String((err as any)?.message ?? err));
+        return failover.generateContentFallback(params);
       }
     };
 
