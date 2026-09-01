@@ -131,8 +131,11 @@ function getExpoPublicReplId() {
   return process.env.REPL_ID || process.env.EXPO_PUBLIC_REPL_ID;
 }
 
-async function startMetro(expoPublicDomain, expoPublicReplId) {
-  const isRunning = await checkMetroHealth();
+async function startMetro(expoPublicDomain, expoPublicReplId, { force = false } = {}) {
+  // `force`: on sait deja que le Metro en place ne sert pas (sa demande de
+  // bundle vient d'echouer). Le controle de sante repondrait pourtant encore
+  // pendant sa fermeture, et nous ferait le reprendre une seconde fois.
+  const isRunning = force ? false : await checkMetroHealth();
   if (isRunning) {
     console.log("Metro already running");
     return;
@@ -314,7 +317,12 @@ async function downloadBundlesAndManifests(timestamp) {
     console.log("All downloads completed successfully");
     return { ios: iosManifest, android: androidManifest };
   } catch (error) {
-    exitWithError(`Download failed: ${error.message}`);
+    // On propage au lieu de sortir: l'appelant sait, lui, si un Metro repris
+    // etait en cause et peut retenter avec le sien. Sortir ici rendait cet
+    // echec irrattrapable — c'est ce qui faisait echouer systematiquement un
+    // second build consecutif. `main().catch` arrete proprement si personne
+    // ne rattrape.
+    throw new Error(`Download failed: ${error.message}`);
   }
 }
 
@@ -546,7 +554,22 @@ async function main() {
   const timestamp = `${Date.now()}-${process.pid}`;
 
   prepareDirectories(timestamp);
-  clearMetroCache();
+
+  // L'ordre compte, et il etait faux: le cache etait vide AVANT de regarder si
+  // un Metro tournait deja. Or vider le cache d'un Metro en cours lui retire
+  // ses fichiers sous les pieds; il repondait encore au controle de sante,
+  // puis mourait a la premiere demande de bundle.
+  //
+  // Concretement, deux builds de suite echouaient toujours au second: le
+  // premier laisse son Metro en vie, le second lui supprimait son cache puis
+  // lui demandait un bundle — « Download failed: fetch failed ».
+  //
+  // On ne vide donc le cache que si l'on demarre soi-meme Metro. Un Metro deja
+  // en place (celui d'un precedent build, ou le serveur de developpement) est
+  // utilise tel quel: son cache est chaud et valide pour ce meme projet, et il
+  // n'appartient pas a ce script de le detruire.
+  const metroAlreadyUp = await checkMetroHealth();
+  if (!metroAlreadyUp) clearMetroCache();
 
   await startMetro(domain, expoPublicReplId);
 
@@ -563,7 +586,40 @@ async function main() {
     }, downloadTimeout);
   });
 
-  const manifests = await Promise.race([downloadPromise, timeoutPromise]);
+  let manifests;
+  try {
+    manifests = await Promise.race([downloadPromise, timeoutPromise]);
+  } catch (err) {
+    // Un Metro repris n'est pas un Metro fiable.
+    //
+    // Apres un build reussi, Metro ne s'arrete pas net: il repond encore au
+    // controle de sante pendant sa fermeture. Le build suivant le croit
+    // disponible, ne demarre donc pas le sien, et sa premiere demande de
+    // bundle tombe dans le vide — « Download failed: fetch failed ». Deux
+    // builds de suite echouaient ainsi systematiquement au second, ce qui
+    // rendait la commande inutilisable en boucle (CI, verification avant
+    // livraison).
+    //
+    // Resserrer le controle de sante ne suffirait pas: Metro peut mourir
+    // entre la verification et la demande. On rattrape donc au lieu de
+    // predire — on repart avec notre propre Metro, une seule fois.
+    if (!metroAlreadyUp) throw err;
+
+    // Rien a arreter: ce Metro-la ne nous appartient pas, et s'il a fait
+    // echouer la demande c'est qu'il a fini de mourir.
+    console.log("Le Metro repris n'a pas repondu; redemarrage avec le notre...");
+    clearMetroCache();
+    await startMetro(domain, expoPublicReplId, { force: true });
+    manifests = await Promise.race([
+      downloadBundlesAndManifests(timestamp),
+      new Promise((_, reject) => {
+        setTimeout(
+          () => reject(new Error(`Overall download timeout after ${downloadTimeout / 1000} seconds.`)),
+          downloadTimeout,
+        );
+      }),
+    ]);
+  }
 
   console.log("Processing assets...");
   const assets = extractAssets(timestamp);
