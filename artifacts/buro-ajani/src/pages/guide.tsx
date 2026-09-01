@@ -41,24 +41,27 @@ const LANG_LABELS: Record<string, string> = {
 };
 
 // Chaine de l'interface du guide (hors contenu) par langue, avec repli FR.
-const UI_STRINGS: Record<string, { title: string; subtitle: string; search: string; empty: string }> = {
+const UI_STRINGS: Record<string, { title: string; subtitle: string; search: string; empty: string; clearSearch: string }> = {
   fr: {
     title: "Guide d'utilisation",
     subtitle: "Tout ce que fait l'application, section par section. Utilisez le sommaire ou la recherche.",
     search: "Rechercher une section…",
     empty: "Aucune section.",
+    clearSearch: "Effacer la recherche",
   },
   tr: {
     title: "Kullanma Kilavuzu",
     subtitle: "Uygulamanin yaptigi her sey, bolum bolum. Icindekiler'i veya aramayi kullanin.",
     search: "Bir bolum arayin…",
     empty: "Bolum yok.",
+    clearSearch: "Aramayi temizle",
   },
   en: {
     title: "User Guide",
     subtitle: "Everything the app does, section by section. Use the table of contents or search.",
     search: "Search a section…",
     empty: "No section.",
+    clearSearch: "Clear search",
   },
 };
 
@@ -173,8 +176,8 @@ export default function GuidePage() {
               className="pl-9 pr-8 h-9"
             />
             {query && (
-              <button onClick={() => setQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                <X className="w-4 h-4" />
+              <button onClick={() => setQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label={t.clearSearch}>
+                <X className="w-4 h-4" aria-hidden="true" />
               </button>
             )}
           </div>

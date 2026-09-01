@@ -504,7 +504,7 @@ export default function ContactDetail() {
                                 {p.endDate && <span className="text-xs text-muted-foreground flex items-center gap-0.5"><Calendar className="w-3 h-3" />{format(new Date(p.endDate), "dd/MM/yy")}</span>}
                               </div>
                             </div>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/projets`)}><ArrowLeft className="w-3.5 h-3.5 rotate-180" /></Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/projets`)} aria-label={t("common.back")}><ArrowLeft className="w-3.5 h-3.5 rotate-180" aria-hidden="true" /></Button>
                           </div>
                         );
                       })}

@@ -386,8 +386,8 @@ export function CentralIntelligence() {
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { sessionStorage.removeItem("adb_ci_data"); sessionStorage.removeItem("adb_ci_ts"); loadData(); }} title={t("centralIntelligence.refresh")}>
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
             </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCollapsed(!collapsed)}>
-              {collapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCollapsed(!collapsed)} aria-label={t("common.toggleDetails")}>
+              {collapsed ? <ChevronDown className="w-4 h-4" aria-hidden="true" /> : <ChevronUp className="w-4 h-4" aria-hidden="true" />}
             </Button>
           </div>
         </div>

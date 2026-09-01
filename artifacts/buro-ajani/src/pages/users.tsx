@@ -944,8 +944,8 @@ export default function UsersPage() {
                       <RotateCcw className="w-3 h-3" />
                       {t("users.pending.resend")}
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20" onClick={() => handleCancelInvite(inv.id)}>
-                      <Ban className="w-3 h-3" />
+                    <Button variant="ghost" size="sm" className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20" onClick={() => handleCancelInvite(inv.id)} aria-label={t("common.block")}>
+                      <Ban className="w-3 h-3" aria-hidden="true" />
                     </Button>
                   </div>
                 </div>

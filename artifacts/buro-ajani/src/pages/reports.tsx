@@ -404,8 +404,8 @@ export default function Reports() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setViewingReport(report); }}>
-                          <Eye className="w-4 h-4" />
+                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setViewingReport(report); }} aria-label={t("common.preview")}>
+                          <Eye className="w-4 h-4" aria-hidden="true" />
                         </Button>
                         <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700" onClick={(e) => { e.stopPropagation(); handleDelete(report.id); }} aria-label={t("common.delete")}>
                           <Trash2 className="w-4 h-4" aria-hidden="true" />

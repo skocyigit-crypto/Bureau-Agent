@@ -434,8 +434,8 @@ export default function DocumentImportPage() {
                               ))}
                             </div>
                           </div>
-                          <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => toggleExpandRow(row.rowIndex)}>
-                            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                          <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => toggleExpandRow(row.rowIndex)} aria-label={t("common.toggleDetails")}>
+                            {isExpanded ? <ChevronUp className="w-4 h-4" aria-hidden="true" /> : <ChevronDown className="w-4 h-4" aria-hidden="true" />}
                           </Button>
                         </div>
 

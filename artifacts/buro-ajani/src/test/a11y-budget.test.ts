@@ -131,21 +131,27 @@ describe("budget d'accessibilite", () => {
   // corrige. Les 16 d'origine ne sont toujours pas corrigeables (fichiers
   // tenus par une autre session), le reste l'est.
   //
-  // Premier lot: 105 -> 79. Ce sont les boutons dont l'icone nomme deja
-  // l'action sans ambiguite (corbeille, fermeture, telechargement...), donc
-  // ceux qu'une cle `common.*` existante etiquette sans inventer de
-  // formulation ni toucher aux six fichiers de langue. L'icone recoit
-  // `aria-hidden` dans le meme geste: une fois le bouton nomme, la laisser
-  // exposee ferait annoncer la meme chose deux fois.
+  // Premier lot: 105 -> 79. Les boutons dont l'icone nomme deja l'action sans
+  // ambiguite (corbeille, fermeture, telechargement...), etiquetes par une cle
+  // `common.*` existante. L'icone recoit `aria-hidden` dans le meme geste: une
+  // fois le bouton nomme, la laisser exposee ferait annoncer deux fois la
+  // meme chose.
   //
-  // Les 79 restants demandent des libelles nouveaux (pagination, plier/
-  // deplier, bascules de vue) — donc une traduction dans chaque langue, et
-  // une decision de formulation. Lot suivant.
+  // Second lot: 79 -> 39. Ceux qui demandaient des libelles nouveaux —
+  // pagination, plier/deplier, bascules de vue, navigation de periode — donc
+  // 21 cles ajoutees dans les six langues. Le libelle vient du CONTEXTE et non
+  // de l'icone: le meme chevron sert de pagination a un endroit et de
+  // navigation de periode a un autre, et une etiquette deduite du dessin
+  // aurait annonce la mauvaise action.
+  //
+  // Les 39 qui restent sont TOUS dans des fichiers qu'une autre session
+  // modifie; aucun n'est corrigeable sans risquer un conflit. Ce budget ne
+  // pourra donc descendre qu'une fois ce travail-la integre.
   //
   // Cas limite assume: un bouton enveloppe dans un Tooltip Radix est compte.
   // Le tooltip pose `aria-describedby`, donc une DESCRIPTION; le critere
   // 4.1.2 exige un NOM. Un lecteur d'ecran annonce toujours « bouton ».
-  const UNNAMED_BUDGET = 79;
+  const UNNAMED_BUDGET = 39;
 
   it(`ne laisse pas plus de ${UNNAMED_BUDGET} boutons-icone sans nom accessible`, () => {
     const found = unnamedIconButtons();

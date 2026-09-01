@@ -1381,8 +1381,8 @@ function SystemAuditTab() {
             <div className="flex items-center justify-between pt-4 border-t mt-4">
               <span className="text-xs text-muted-foreground">{t("licenseManagement.systemAudit.pageInfo", { page: logsData.page, pages: logsData.totalPages, total: logsData.total })}</span>
               <div className="flex gap-1">
-                <Button variant="outline" size="icon" className="h-7 w-7" disabled={page <= 1} onClick={() => setPage(p => p - 1)}><ChevronLeft className="w-4 h-4" /></Button>
-                <Button variant="outline" size="icon" className="h-7 w-7" disabled={page >= logsData.totalPages} onClick={() => setPage(p => p + 1)}><ChevronRight className="w-4 h-4" /></Button>
+                <Button variant="outline" size="icon" className="h-7 w-7" disabled={page <= 1} onClick={() => setPage(p => p - 1)} aria-label={t("common.previousPage")}><ChevronLeft className="w-4 h-4" aria-hidden="true" /></Button>
+                <Button variant="outline" size="icon" className="h-7 w-7" disabled={page >= logsData.totalPages} onClick={() => setPage(p => p + 1)} aria-label={t("common.nextPage")}><ChevronRight className="w-4 h-4" aria-hidden="true" /></Button>
               </div>
             </div>
           )}

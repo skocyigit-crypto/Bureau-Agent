@@ -655,11 +655,11 @@ export default function Tasks() {
             </SelectContent>
           </Select>
           <div className="flex border border-border rounded-md overflow-hidden">
-            <Button variant={viewMode === "table" ? "default" : "ghost"} size="icon" className="h-9 w-9 rounded-none" onClick={() => setViewMode("table")}>
-              <LayoutList className="w-4 h-4" />
+            <Button variant={viewMode === "table" ? "default" : "ghost"} size="icon" className="h-9 w-9 rounded-none" onClick={() => setViewMode("table")} aria-label={t("common.viewList")}>
+              <LayoutList className="w-4 h-4" aria-hidden="true" />
             </Button>
-            <Button variant={viewMode === "kanban" ? "default" : "ghost"} size="icon" className="h-9 w-9 rounded-none" onClick={() => setViewMode("kanban")}>
-              <Columns3 className="w-4 h-4" />
+            <Button variant={viewMode === "kanban" ? "default" : "ghost"} size="icon" className="h-9 w-9 rounded-none" onClick={() => setViewMode("kanban")} aria-label={t("common.viewColumns")}>
+              <Columns3 className="w-4 h-4" aria-hidden="true" />
             </Button>
           </div>
         </div>
@@ -896,10 +896,10 @@ export default function Tasks() {
               {data ? t("tasks.pagination", { total: data.total, page: page + 1, pages: totalPages }) : ""}
             </p>
             <div className="flex items-center gap-1">
-              <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(0)}><ChevronsLeft className="h-4 w-4" /></Button>
-              <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(p => p - 1)}><ChevronLeft className="h-4 w-4" /></Button>
-              <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}><ChevronRight className="h-4 w-4" /></Button>
-              <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)}><ChevronsRight className="h-4 w-4" /></Button>
+              <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(0)} aria-label={t("common.firstPage")}><ChevronsLeft className="h-4 w-4" aria-hidden="true" /></Button>
+              <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(p => p - 1)} aria-label={t("common.previousPage")}><ChevronLeft className="h-4 w-4" aria-hidden="true" /></Button>
+              <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} aria-label={t("common.nextPage")}><ChevronRight className="h-4 w-4" aria-hidden="true" /></Button>
+              <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)} aria-label={t("common.lastPage")}><ChevronsRight className="h-4 w-4" aria-hidden="true" /></Button>
             </div>
           </div>
         </>

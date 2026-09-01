@@ -995,17 +995,17 @@ export default function GmailAgentPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleStar(selectedEmail.id, selectedEmail.starred)}>
-                      {selectedEmail.starred ? <Star className="h-4 w-4 text-amber-400 fill-amber-400" /> : <StarOff className="h-4 w-4" />}
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleStar(selectedEmail.id, selectedEmail.starred)} aria-label={t("common.toggleFavorite")}>
+                      {selectedEmail.starred ? <Star className="h-4 w-4 text-amber-400 fill-amber-400" aria-hidden="true" /> : <StarOff className="h-4 w-4" aria-hidden="true" />}
                     </Button>
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
                       setComposeReplyTo({ from: selectedEmail.from, subject: selectedEmail.subject, threadId: selectedEmail.threadId, messageId: emailDetail?.messageId });
                       setComposeOpen(true);
-                    }}>
-                      <Reply className="h-4 w-4" />
+                    }} aria-label={t("common.reply")}>
+                      <Reply className="h-4 w-4" aria-hidden="true" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleArchive(selectedEmail.id)}>
-                      <Archive className="h-4 w-4" />
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleArchive(selectedEmail.id)} aria-label={t("common.archive")}>
+                      <Archive className="h-4 w-4" aria-hidden="true" />
                     </Button>
                     <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600" onClick={() => handleTrash(selectedEmail.id)} aria-label={t("common.delete")}>
                       <Trash2 className="h-4 w-4" aria-hidden="true" />

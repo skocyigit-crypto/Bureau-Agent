@@ -921,18 +921,18 @@ export default function DocumentsPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
-                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => viewDetail(doc.id)}>
-                          <Eye className="w-4 h-4" />
+                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => viewDetail(doc.id)} aria-label={t("common.preview")}>
+                          <Eye className="w-4 h-4" aria-hidden="true" />
                         </Button>
-                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEditDoc(doc)}>
-                          <Edit className="w-4 h-4" />
+                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEditDoc(doc)} aria-label={t("common.edit")}>
+                          <Edit className="w-4 h-4" aria-hidden="true" />
                         </Button>
                         <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => downloadDoc(doc.id, doc.fileName)} aria-label={t("common.download")}>
                           <Download className="w-4 h-4" aria-hidden="true" />
                         </Button>
                         {!doc.aiProcessed && (
-                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => analyzeDoc(doc.id)} disabled={analyzingId === doc.id}>
-                            {analyzingId === doc.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
+                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => analyzeDoc(doc.id)} disabled={analyzingId === doc.id} aria-label={t("common.analyzeAi")}>
+                            {analyzingId === doc.id ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Brain className="w-4 h-4" aria-hidden="true" />}
                           </Button>
                         )}
                         {!doc.scanVerdict && (

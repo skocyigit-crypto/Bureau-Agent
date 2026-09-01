@@ -1394,9 +1394,8 @@ export default function OrganisationsPage() {
                           variant="ghost"
                           size="sm"
                           className="h-6 w-6 p-0"
-                          onClick={() => copyLicenseKey(org.subscription!.licenseKey!, org.id)}
-                        >
-                          {copiedKey === org.id ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                          onClick={() => copyLicenseKey(org.subscription!.licenseKey!, org.id)} aria-label={t("common.copy")}>
+                          {copiedKey === org.id ? <Check className="w-3.5 h-3.5 text-emerald-500" aria-hidden="true" /> : <Copy className="w-3.5 h-3.5" aria-hidden="true" />}
                         </Button>
                       </div>
                     )}

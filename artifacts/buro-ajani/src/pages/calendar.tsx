@@ -1322,7 +1322,7 @@ export default function CalendarPage() {
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}><ChevronLeft className="w-5 h-5" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label={t("common.previousPeriod")}><ChevronLeft className="w-5 h-5" aria-hidden="true" /></Button>
             <CardTitle className="text-lg">
               {view === "jour"
                 ? currentDate.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
@@ -1331,7 +1331,7 @@ export default function CalendarPage() {
                 : `${t(`calendar.months.${MONTH_KEYS[month]}`)} ${year}`
               }
             </CardTitle>
-            <Button variant="ghost" size="icon" onClick={() => navigate(1)}><ChevronRight className="w-5 h-5" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => navigate(1)} aria-label={t("common.nextPeriod")}><ChevronRight className="w-5 h-5" aria-hidden="true" /></Button>
           </div>
         </CardHeader>
         <CardContent className="p-0 sm:p-4">

@@ -99,8 +99,8 @@ export function AiSuggestionsCard({ page, pageContext, title, compact = false }:
               <RefreshCw className={`w-3.5 h-3.5 ${suggestions.isPending ? 'animate-spin' : ''}`} aria-hidden="true" />
             </Button>
             {compact && (
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsExpanded(!isExpanded)}>
-                {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsExpanded(!isExpanded)} aria-label={t("common.toggleDetails")}>
+                {isExpanded ? <ChevronUp className="w-3.5 h-3.5" aria-hidden="true" /> : <ChevronDown className="w-3.5 h-3.5" aria-hidden="true" />}
               </Button>
             )}
           </div>

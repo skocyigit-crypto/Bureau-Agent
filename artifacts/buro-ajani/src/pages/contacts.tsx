@@ -390,11 +390,11 @@ export default function Contacts() {
             </SelectContent>
           </Select>
           <div className="flex border border-border rounded-md overflow-hidden">
-            <Button variant={viewMode === "table" ? "default" : "ghost"} size="icon" className="h-9 w-9 rounded-none" onClick={() => setViewMode("table")}>
-              <LayoutList className="w-4 h-4" />
+            <Button variant={viewMode === "table" ? "default" : "ghost"} size="icon" className="h-9 w-9 rounded-none" onClick={() => setViewMode("table")} aria-label={t("common.viewList")}>
+              <LayoutList className="w-4 h-4" aria-hidden="true" />
             </Button>
-            <Button variant={viewMode === "grid" ? "default" : "ghost"} size="icon" className="h-9 w-9 rounded-none" onClick={() => setViewMode("grid")}>
-              <LayoutGrid className="w-4 h-4" />
+            <Button variant={viewMode === "grid" ? "default" : "ghost"} size="icon" className="h-9 w-9 rounded-none" onClick={() => setViewMode("grid")} aria-label={t("common.viewGrid")}>
+              <LayoutGrid className="w-4 h-4" aria-hidden="true" />
             </Button>
           </div>
         </div>

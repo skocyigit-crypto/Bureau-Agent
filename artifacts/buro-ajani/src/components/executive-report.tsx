@@ -148,7 +148,7 @@ export default function ExecutiveReport() {
             </SelectContent>
           </Select>
           <Button variant="outline" size="icon" onClick={fetchAll} aria-label={t("common.refresh")}><RefreshCw className="h-4 w-4" aria-hidden="true" /></Button>
-          <Button variant="outline" size="icon" onClick={() => window.print()}><Printer className="h-4 w-4" /></Button>
+          <Button variant="outline" size="icon" onClick={() => window.print()} aria-label={t("common.print")}><Printer className="h-4 w-4" aria-hidden="true" /></Button>
         </div>
       </div>
 
