@@ -239,14 +239,35 @@ export function noteProviderFailure(name: AiProviderName, reason: string): void 
 }
 
 /**
- * Budget de temps accorde a CHAQUE fournisseur.
+ * Budget de temps accorde a CHAQUE fournisseur. DESACTIVE par defaut.
  *
- * Sans lui, un fournisseur muet consommait tout le budget de l'appelant et il
- * ne restait rien pour le suivant: la bascule existait sur le papier mais
- * n'avait jamais le temps de servir. Le budget est donc par tentative, pas
- * pour la chaine entiere.
+ * L'intention: un fournisseur muet ne doit pas consommer tout le budget de
+ * l'appelant et ne rien laisser au suivant. Le budget devait donc etre par
+ * tentative, pas pour la chaine entiere.
+ *
+ * POURQUOI C'EST DESACTIVE
+ *
+ * Mis a 12 s, ce garde-fou a coupe les TROIS fournisseurs en production le
+ * 2026-09-01 (« gemini/anthropic/openai: timeout after 12000ms », deux cycles
+ * de suite), et l'IA a cesse de repondre — exactement la panne qu'il
+ * pretendait eviter. Or les memes fournisseurs, appeles directement depuis un
+ * poste, repondaient en 0,2 a 2 s.
+ *
+ * L'ecart vient du chronometre: `setTimeout` mesure du temps de MUR, alors
+ * que ces appels partent de taches de fond, et Cloud Run brise le CPU hors
+ * requete. Douze secondes de mur peuvent donc s'ecouler pendant que l'appel a
+ * peine progresse. Dans ce contexte, un delai serre ne mesure pas la lenteur
+ * du fournisseur, il mesure la privation de CPU — et coupe des appels qui
+ * allaient aboutir.
+ *
+ * A zero, on retrouve le comportement d'avant, celui qui fonctionnait: la
+ * borne reste celle de l'appelant, et la plupart en posent une (ai-insights:
+ * 15 s). Le mecanisme reste disponible pour un contexte sans bridage
+ * (`AI_PROVIDER_TIMEOUT_MS=60000`), mais il ne doit pas etre resserre sans
+ * avoir mesure la latence REELLE depuis l'environnement vise: la valeur qui
+ * parait raisonnable vue d'un poste de travail y est un piege.
  */
-const PROVIDER_TIMEOUT_MS = parseInt(process.env.AI_PROVIDER_TIMEOUT_MS || "12000", 10);
+const PROVIDER_TIMEOUT_MS = parseInt(process.env.AI_PROVIDER_TIMEOUT_MS || "0", 10);
 
 async function callWithTimeout<T>(
   name: AiProviderName,
