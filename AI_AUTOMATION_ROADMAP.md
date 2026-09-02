@@ -1355,3 +1355,38 @@ yapıştırılmış metinler; koddan hiçbiri referans almıyor. Ama içlerinde 
 şartnamesi gibi duran Türkçe belgeler var ("BTP Operasyonel Risk ve Maliyet
 İstihbarat Motoru" gibi). Kullanılmıyor olması değersiz olduğu anlamına gelmez;
 **senin malzemen, silmek benim kararım değil.**
+
+## Faz 7 — TAMAM (yenilik: harcamanın kime ait olduğu görünür oldu)
+
+Yenilik listesindeki ilk madde "kiracı-başına AI maliyet paneli"ydi. Bakınca
+panel **zaten vardı** — `/ai-usage/summary` jetonları, maliyeti, modelleri,
+rotaları, günlük dağılımı ve son hataları veriyor. Eksik olan tek şey vardı ve
+tam da bugünkü işin çekirdeğiydi: **kimin ödediği.**
+
+Bu, ekleme değil düzeltmeydi. 2 Eylül'e kadar müşterinin yapıştırdığı anahtar
+hiçbir yerde okunmuyordu; tüm çağrılar platform kredisinden gidiyordu ve panel
+bu tutarları **müşterinin harcaması gibi** gösteriyordu. Doğru bir sayının
+yanlış hesaba yazılması, sayının hiç olmamasından kötüdür — çünkü ona inanılır.
+
+- `/ai-usage/summary` artık `billing` alanı döndürüyor.
+- Yeni `/ai-usage/key-status`: ayar ekranı tek çağrıda "kendi anahtarın
+  kullanılıyor mu?" sorusunu sorabiliyor — ve cevap **"hayır" olduğunda da**
+  söylüyor, ki düzeltilebilsin.
+
+Bu aynı zamanda ilk fazda yazıp **hiçbir yerde kullanmadığım** `getAiKeyStatus`'u
+devreye alıyor: yazılmış ama bağlanmamış kod, bu depoda tam da bugün düzelttiğim
+hatanın şekli.
+
+**6 uçtan uca test** (gerçek veritabanı + oturum): kendi anahtarı olan/olmayan
+iki organizasyon, oturumsuz 401, ve **anahtarın kendisinin asla sızmadığı** —
+yapılandırma ekranını ekransızlıktan tehlikeli yapacak tek şey odur.
+
+Rota envanteri yeniden üretildi: **652 rota** (`routes:write`). Bu adım
+unutulduğunda dağıtım bir gün boyunca sessizce durmuştu.
+
+Toplam **875 test geçti**.
+
+### Faz 7'de kalan yenilik adayları (yapılmadı)
+- RGPD taşınabilirlik / unutulma hakkı akışının tamamlanması
+- Factur-X (Faz D, zaten bekliyor)
+- Arayüz erişilebilirlik denetimi (EAA) — `sellability-audit` ajanı bunun için

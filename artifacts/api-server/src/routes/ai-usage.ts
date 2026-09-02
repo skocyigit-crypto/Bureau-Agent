@@ -3,6 +3,7 @@ import { db, aiUsageTable, organisationsTable } from "@workspace/db";
 import { eq, and, gte, sql, desc } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { getQuotaStatus, invalidateQuotaCache } from "../services/ai-quota";
+import { getAiKeyStatus } from "../services/ai-key-policy";
 import { requireRole } from "../middleware/auth";
 import { logger } from "../lib/logger";
 
@@ -68,6 +69,16 @@ router.get("/ai-usage/summary", async (req: Request, res: Response): Promise<voi
       .orderBy(desc(aiUsageTable.createdAt)).limit(10),
   ]);
 
+  // QUI a paye ces appels.
+  //
+  // Ce resume comptait deja les jetons, le cout et les modeles — mais pas la
+  // seule chose qui rendait ces montants trompeurs. Jusqu'au 2 septembre, la
+  // cle collee par un client n'etait consultee nulle part: tous ces appels
+  // partaient sur le credit de la plateforme, et le tableau les presentait
+  // comme la depense du client. Un chiffre juste attribue au mauvais compte
+  // est pire qu'un chiffre absent, parce qu'on le croit.
+  const billing = await getAiKeyStatus(orgId).catch(() => null);
+
   res.json({
     period: { days, since: since.toISOString() },
     totals: totals[0] ?? { totalCalls: 0, successCalls: 0, errorCalls: 0, totalTokens: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCostUsd: 0, avgDurationMs: 0 },
@@ -75,10 +86,31 @@ router.get("/ai-usage/summary", async (req: Request, res: Response): Promise<voi
     byModel,
     byDay,
     recentErrors,
+    billing,
   });
   } catch (err: any) {
     req.log.error({ err }, "Erreur resume usage IA");
     res.status(500).json({ error: "Erreur lors de la recuperation du resume d'utilisation IA." });
+  }
+});
+
+/**
+ * Avec quelle cle cette organisation consomme-t-elle l'IA.
+ *
+ * L'ecran « Fournisseurs d'IA » permettait de coller une cle sans jamais dire
+ * si elle servait. Elle ne servait pas: pendant des mois, un client qui avait
+ * fait la demarche continuait a depenser le credit du proprietaire, et rien a
+ * l'ecran ne pouvait le lui apprendre. Cette route repond a la question en une
+ * ligne — et elle repond aussi « non » quand c'est le cas, ce qui est le seul
+ * moyen de le corriger.
+ */
+router.get("/ai-usage/key-status", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  try {
+    res.json(await getAiKeyStatus(orgId));
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur statut des cles d'IA");
+    res.status(500).json({ error: "Erreur lors de la lecture du statut des cles d'IA." });
   }
 });
 
