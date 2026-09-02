@@ -320,6 +320,7 @@ const errorWindow = {
   since: Date.now(),
   total: 0,
   s4xx: 0,
+  s403: 0,
   s429: 0,
   s5xx: 0,
 };
@@ -328,7 +329,13 @@ export function recordHttpStatus(status: number): void {
   errorWindow.total++;
   if (status === 429) errorWindow.s429++;
   else if (status >= 500) errorWindow.s5xx++;
-  else if (status >= 400) errorWindow.s4xx++;
+  else if (status >= 400) {
+    errorWindow.s4xx++;
+    // Compte a part: le 403 est la reponse du Guardian et des gardes de role.
+    // Il etait noye dans s4xx avec les 401/404, or c'est le SEUL des trois qui
+    // signale que l'application refuse des visiteurs legitimes.
+    if (status === 403) errorWindow.s403++;
+  }
 }
 
 /** Remet la fenetre a zero apres lecture, pour mesurer par intervalle. */
@@ -337,6 +344,7 @@ function readAndResetWindow() {
   errorWindow.since = Date.now();
   errorWindow.total = 0;
   errorWindow.s4xx = 0;
+  errorWindow.s403 = 0;
   errorWindow.s429 = 0;
   errorWindow.s5xx = 0;
   return snapshot;
@@ -384,6 +392,25 @@ export const errorRateAgent: HealthAgent = {
         : `${w.s429} requete(s) bloquees en 429 sur ${w.total} (${pct429.toFixed(1)}%).`,
       remediation: pct429 === 0 ? "" : "Un taux eleve indique un limiteur trop strict ou monte sur un chemin trop large. Verifier les limiteurs dans app.ts et les routes publiques.",
       metrics: { ...w, pct429: Number(pct429.toFixed(2)) },
+    });
+
+    // Refus d'acces (403). C'est la forme exacte qu'avait l'incident du
+    // 14 juillet: le Guardian, ne voyant plus l'IP reelle des visiteurs, a
+    // banni l'adresse interne partagee et ferme le site a TOUT LE MONDE
+    // pendant cinq minutes. L'agent d'erreurs ne surveillait que 5xx et 429;
+    // un site entierement bloque affichait donc un tableau de bord vert.
+    const pct403 = (w.s403 / w.total) * 100;
+    results.push({
+      check: "blocked_requests",
+      status: pct403 >= 20 ? "echec" : pct403 >= 5 ? "degrade" : "ok",
+      severity: pct403 >= 40 ? "critique" : pct403 >= 20 ? "haute" : pct403 >= 5 ? "moyenne" : "basse",
+      summary: w.s403 === 0
+        ? `Aucun refus d'acces sur ${w.total} requetes.`
+        : `${w.s403} requete(s) refusees en 403 sur ${w.total} (${pct403.toFixed(1)} %).`,
+      remediation: pct403 >= 5
+        ? "Un taux eleve vient presque toujours du Guardian ou d'un garde de role, pas d'attaquants. Verifier que l'IP reelle du visiteur arrive bien (X-Real-Client-IP) avant de suspecter le trafic."
+        : "",
+      metrics: { ...w, pct403: Number(pct403.toFixed(2)) },
     });
 
     return results;

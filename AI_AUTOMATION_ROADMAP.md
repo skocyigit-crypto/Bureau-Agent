@@ -1003,3 +1003,76 @@ platform kredisi kullanılıyor mu, refüz açık mı.
 **Artık `AI_REQUIRE_OWN_KEY=true` güvenle açılabilir** — ama açmadan önce
 müşterilere haber verilmeli, çünkü anahtarı olmayan herkes o anda 402 görmeye
 başlar.
+
+---
+
+## Derinlemesine denetim programı — 2026-09-02
+
+Kullanıcı "eksik, yanlış ve yenilikler" için beş turluk bir inceleme istedi ve
+çıkan yedi fazın **hepsinin sırayla uygulanmasını** onayladı. Bulgular ve
+ilerleme burada.
+
+### Ölçüm
+~255.000 satır TS/TSX, 5 uygulama (api-server 98k, buro-ajani 73k, mobile 45k,
+tanıtım 11k, lib 27k), 654 rota, 86 tablo, 92+26 test dosyası.
+
+### Doğrulanmış bulgular
+1. **Ölçek ↔ süreç-içi durum**: `maxScale=3`, `concurrency=80` (canlıdan
+   ölçüldü). Buna karşılık modül seviyesinde **55 `Map`/`Set`** güvenlik ve iş
+   durumu tutuyor: Guardian yasak listesi, lisans önbelleği, hız sınırı sayacı,
+   çalışan-iş kayıtları. Üç örnek arasında hiçbiri paylaşılmıyor.
+2. **Çok kiracılılık**: 1331 `db.select`, Postgres tarafında **RLS yok**;
+   izolasyon tamamen el disiplinine bağlı.
+3. **Girdi doğrulama**: 654 rotaya karşılık 60 zod şeması. (Kimlik doğrulama
+   merkezî ve sağlam: `routes/index.ts:129` → `router.use(requireAuth)`.)
+4. **Şema**: `drizzle-kit push`, sürümlü migration yok; 7 `ensure-*.mjs`
+   betiği bunu telafi ediyor.
+5. **Repo hijyeni**: `schema_files_aa..aq` (17 çöp dosya izleniyor),
+   `cloud-sql-proxy.exe` (ikili), `apps/api-py` (44 dosyalık FastAPI, CI'da
+   test ediliyor ama hiçbir yere dağıtılmıyor), `attached_assets` 9.8 MB.
+6. **E2E testi yok** (Playwright repoda değil).
+
+### Düzeltilen bir yanlış hüküm
+İlk sunumda "dağıtım sonrası gözü kapalı" dedim — **yanlıştı**. `health-agents.ts`
+sekiz ajanla 15 dakikada bir koşuyor ve `health-alert.ts` kritik arızaları
+e-postayla sahibe iletiyor. Gerçek boşluk daha dar: sekiz ajan **altyapıyı**
+izliyor, ürünün **sonuç üretip üretmediğini** izlemiyor.
+
+## Faz 0 — TAMAM (uygulamanın kendi kendini ihbar etmesi)
+
+Olayları mevcut kapsamla karşılaştırınca üç somut kör nokta çıktı; üçü de
+kapatıldı.
+
+**1. Sonuç ajanı** (`services/health-agents-outcome.ts`, 9. ajan). Dört kontrol,
+hepsi **koşullu** — girdi yoksa susar, çünkü boşuna bağıran ajan kapatılır ve
+asıl sinyal o zaman kaybolur:
+- `invoice_reminders`: 7 günden eski vadesi geçmiş fatura **var** ve aynı
+  sürede hiç hatırlatma gitmemiş → echec/haute. *31 Temmuz panasının tam şekli.*
+- `tenant_backups`: aktif organizasyon var ve 48 saattir otomatik yedek yok →
+  echec/critique.
+- `ai_activity`: geçen hafta çağrı vardı, bu hafta sıfır → echec. Sadece
+  kendisiyle kıyaslar.
+- `ai_failure_rate`: `ai_usage.status` üzerinden 24 saatlik hata oranı. "Sonda
+  yeşil ama gerçek çağrılar kırmızı" ayrımını yapar.
+
+**2. 403 kör noktası** (`health-agents-external.ts`). `errors` ajanı yalnız
+**5xx ve 429**'a bakıyordu; Guardian yasağı **403** döndürür ve `s4xx` içinde
+401/404 ile birlikte gömülüydü. 14 Temmuz'da site tamamen kapalıyken sağlık
+paneli yeşildi. Artık 403 ayrı sayılıyor ve `blocked_requests` kontrolü var;
+düzeltme metni suçu ziyaretçilere değil `X-Real-Client-IP` zincirine
+yönlendiriyor — ilk seferinde zaman kaybettiren yanlış sonuç buydu.
+
+**3. Sahte derleme kimliği** (`routes/health.ts`). `APP_BUILD_HASH`, **süreç
+başlama dakikasının MD5'iydi**. İki sonucu vardı:
+- "Değişikliğim canlıda mı?" sorusunun cevabı yoktu — 2 Eylül'de build'ler bir
+  gün boyunca başarısızken bu fark edilmedi.
+- `update-banner.tsx` bu değeri karşılaştırıp "yeni sürüm var" gösteriyor. Değer
+  başlama saatinden türediği için **her soğuk başlatma** bunu değiştiriyordu ve
+  üç örnek arasında iki ardışık istek iki farklı değer dönebiliyordu: hiç sürüm
+  yayınlanmadan çıkan bir bildirim.
+
+Artık Cloud Build'in kısa SHA'sı (`BUILD_SHA`, `deploy/cloudbuild.yaml`'da
+`--update-env-vars` ile — `--set-env-vars` tüm yapılandırmayı silerdi).
+`/api/healthz` artık `build` alanını oturumsuz döndürüyor.
+
+**18 yeni test**, toplam **830 geçti**, tsc temiz.

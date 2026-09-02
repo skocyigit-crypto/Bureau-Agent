@@ -29,6 +29,7 @@ import {
   errorRateAgent,
   dataIntegrityAgent,
 } from "./health-agents-external";
+import { outcomeAgent } from "./health-agents-outcome";
 import { registerRunnableCron } from "./cron-registry";
 import { withDbRetry } from "../lib/db-retry";
 
@@ -638,6 +639,7 @@ export const HEALTH_AGENTS: HealthAgent[] = [
   configurationAgent,
   errorRateAgent,
   dataIntegrityAgent,
+  outcomeAgent,
 ];
 
 export interface HealthRunSummary {

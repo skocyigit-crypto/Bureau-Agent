@@ -7,8 +7,34 @@ import { requireAuth, requireRole } from "../middleware/auth";
 
 const router: IRouter = Router();
 
-const APP_BUILD_HASH = crypto.createHash("md5").update(new Date().toISOString().slice(0, 16)).digest("hex").substring(0, 12);
-const APP_BUILD_TIME = new Date().toISOString();
+/**
+ * Identite REELLE du build en cours d'execution.
+ *
+ * Avant: un MD5 de la minute de DEMARRAGE du processus. Deux consequences, et
+ * les deux ont coute.
+ *
+ * D'abord, personne ne pouvait repondre a « est-ce que ma modification est en
+ * ligne ? ». Le 2 septembre les builds ont echoue toute une journee sans que
+ * ca se voie: la liste des builds, consultee sans region, renvoyait ceux d'un
+ * AUTRE projet, tous verts. Une empreinte de build qui ne dit pas quel commit
+ * tourne ne sert a rien le jour ou la question se pose.
+ *
+ * Ensuite, `update-banner.tsx` compare cette valeur d'un sondage a l'autre et
+ * affiche « nouvelle version disponible » quand elle change. Comme elle etait
+ * derivee de l'heure de demarrage, un simple demarrage a froid de Cloud Run la
+ * changeait — et avec trois instances derriere le meme domaine, deux requetes
+ * successives pouvaient rendre deux empreintes differentes. La banniere
+ * s'affichait donc sans qu'aucune version n'ait ete publiee.
+ *
+ * Desormais: le SHA court injecte par Cloud Build (`BUILD_SHA`). Stable pour
+ * toute la duree d'une revision, identique sur les trois instances, et il
+ * designe un commit. En developpement local la variable est absente: on garde
+ * l'ancien comportement, marque `dev-` pour qu'il ne se fasse pas passer pour
+ * une identite de build.
+ */
+const APP_BUILD_HASH = process.env.BUILD_SHA
+  || `dev-${crypto.createHash("md5").update(new Date().toISOString().slice(0, 16)).digest("hex").substring(0, 8)}`;
+const APP_BUILD_TIME = process.env.BUILD_TIME || new Date().toISOString();
 const startedAt = new Date().toISOString();
 
 router.get("/healthz", async (_req, res) => {
@@ -21,6 +47,10 @@ router.get("/healthz", async (_req, res) => {
     uptime: Math.floor(process.uptime()),
     startedAt,
     db: dbHealthy ? "connected" : "unreachable",
+    // Repond a « quel commit tourne ? » sans session: c'est precisement la
+    // question qu'on ne pouvait pas poser le jour ou le deploiement etait
+    // casse. Un SHA court de depot prive n'apprend rien a un attaquant.
+    build: APP_BUILD_HASH,
     memory: {
       rss: Math.round(process.memoryUsage().rss / 1024 / 1024),
       heap: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),

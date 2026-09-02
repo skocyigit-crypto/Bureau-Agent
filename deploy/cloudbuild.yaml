@@ -93,6 +93,10 @@ steps:
       - '--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/api:${_TAG}'
       - '--region=${_REGION}'
       - '--platform=managed'
+      # Identite du build, lisible ensuite sur /api/healthz et /api/app-version.
+      # `--update-env-vars` et NON `--set-env-vars`: le second remplace toute la
+      # configuration du service et effacerait secrets et reglages en place.
+      - '--update-env-vars=BUILD_SHA=${_TAG},BUILD_ID=${BUILD_ID}'
     waitFor: ['push-api']
 
   - id: build-web
