@@ -848,3 +848,41 @@ itmesi. CI şemayı yalnızca test veritabanına uyguluyor; üretim şeması ell
 gidiyor (`deploy/gcp-schema-push.sh` veya `DATABASE_URL=<prod> pnpm db:push`).
 Bu yapılana kadar yedek uçları hata döner. Canlı veritabanına `--force` şema
 itmesini bilerek yapmadım — kullanıcının kararı.
+
+---
+
+## Geri yükleme + bir gün boyunca fark edilmeyen dağıtım hatası — 2026-09-02
+
+### Geri yükleme (`318a464c`)
+İndirilebilen ama geri konulamayan bir yedek dosyadan ibarettir. `tenant-restore.ts`
+**yalnızca ekleyen** bir kurtarma sağlıyor: eksik satırları yeniden ekler, hiçbir
+satırı güncellemez ve silmez. Dünkü yedeği geri yükleyen müşteri bugün yaptığı
+her şeyi korur — üzerine yazan bir kurtarma, insanın verisini korumaya çalıştığı
+anda bir günlük emeğini alırdı.
+
+İki adım: `GET /my-backups/:id/restore-preview` hiçbir şey yazmadan tablo tablo
+neyin eksik olduğunu döndürür; ekran bu sayıları gösterip onay ister; sonra
+`POST .../restore`. Kapsam ebeveyn-önce sıralı, seçilmiş iş tabloları; kimlik
+doğrulama/abonelik, append-only günlükler ve telemetri bilerek dışarıda. Her
+satır oturumun `organisation_id`'siyle yeniden yazılır. 6 test (gerçek veritabanı),
+"üzerine yaz" mutasyonuyla düştüğü doğrulandı.
+
+### Dağıtım: bir gün boyunca hiçbir şey canlıya inmemiş
+`gcloud builds list` bölge belirtmeden çalıştırıldığında **başka projelerin**
+(`assise`, `batiflow`) build'lerini döndürüyor. Hepsi `SUCCESS` olduğu için
+oturum boyunca "canlıya indi" diye rapor edildi. Gerçek: Bureau-Agent build'leri
+`europe-west9`'da ve bugünkü push'ların **hepsi FAILURE** idi.
+
+Sebep: `lib/api-spec` çalışma zamanı rota envanteri. Bu oturumda üç grup rota
+eklendi (prospects/devis/factures-client yeniden bağlama, fatura PDF ucu, yedek
+uçları) ama `runtime-routes.generated.json` yeniden üretilmedi. Build ilk adımda
+(`quality-gate` → `routes:check`) duruyor, dağıtım adımına hiç gelmiyor — yani
+push sessizce hiçbir şey yapmıyor.
+
+Düzeltme `8cd2d0f3`: envanter üretildi (648 rota), build geçti, API `00275` ve
+web `00233` 15:06 UTC'de dağıtıldı.
+
+**Kalıcı ders (hafızaya da işlendi):** dağıtımın indiğinin kanıtı build listesi
+değil, çalışan sürecin durumudur. Bu kez kanıt cron kaydı oldu:
+`/api/cron/registered` 14'ten **23**'e çıktı ve bu oturumda kaydettiğim dokuz
+işin hepsi göründü. Uç yoklaması kanıt değil — var olmayan bir yol da 401 döner.
