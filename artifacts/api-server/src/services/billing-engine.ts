@@ -1,5 +1,6 @@
 import { db, invoicesTable, subscriptionsTable, organisationsTable, usersTable, contactsTable, callsTable, PLANS, type PlanKey, OVERAGE_RATES } from "@workspace/db";
 import { eq, and, gte, lt, sql } from "drizzle-orm";
+import { withCronLock, CRON_LOCK_NAMESPACE } from "../lib/cron-lock";
 import { logger } from "../lib/logger";
 
 /**
@@ -32,100 +33,121 @@ export async function generateMonthlyInvoices(
 
   for (const org of orgs) {
     try {
-      const existing = await db.select({ id: invoicesTable.id })
-        .from(invoicesTable)
-        .where(and(
-          eq(invoicesTable.organisationId, org.id),
-          eq(invoicesTable.periodLabel, periodLabel),
-        ))
-        .limit(1);
+      // Verrou par organisation avant de decider s'il faut facturer.
+      //
+      // Le controle « une facture existe-t-elle deja pour cette periode ? »
+      // est un SELECT suivi d'un INSERT: entre les deux, une autre instance
+      // peut faire le meme constat et inserer aussi. Il n'existe aucune
+      // contrainte d'unicite sur (organisation, periode) pour rattraper —
+      // l'index unique de cette table ne porte que sur l'identifiant Stripe,
+      // absent des factures produites ici. Le resultat serait deux factures
+      // pour le meme mois, sur le meme client.
+      //
+      // La course n'est pas hypothetique: `startBillingCron` lance un tick
+      // des le demarrage (rattrapage), et Cloud Run demarre plusieurs
+      // instances a la fois pendant un deploiement (maxScale=3).
+      //
+      // `withCronLock` existe deja pour exactement ce motif, et son propre
+      // commentaire decrit ce schema SELECT-puis-ecriture; la facturation
+      // avait ete oubliee alors que c'est le cron dont l'erreur coute le plus
+      // cher. Si le verrou est pris ailleurs, on saute: l'autre instance fait
+      // le travail.
+      await withCronLock(CRON_LOCK_NAMESPACE.billing, org.id, async () => {
+        const existing = await db.select({ id: invoicesTable.id })
+          .from(invoicesTable)
+          .where(and(
+            eq(invoicesTable.organisationId, org.id),
+            eq(invoicesTable.periodLabel, periodLabel),
+          ))
+          .limit(1);
 
-      if (existing.length > 0) {
-        result.skipped++;
-        continue;
-      }
+        if (existing.length > 0) {
+          result.skipped++;
+          return;
+        }
 
-      const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, org.id));
-      if (!sub) {
-        result.skipped++;
-        continue;
-      }
+        const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, org.id));
+        if (!sub) {
+          result.skipped++;
+          return;
+        }
 
-      const planKey = sub.plan as PlanKey;
-      const planConfig = PLANS[planKey];
-      if (!planConfig) {
-        result.skipped++;
-        continue;
-      }
+        const planKey = sub.plan as PlanKey;
+        const planConfig = PLANS[planKey];
+        if (!planConfig) {
+          result.skipped++;
+          return;
+        }
 
-      if (planKey === "essai") {
-        result.skipped++;
-        continue;
-      }
+        if (planKey === "essai") {
+          result.skipped++;
+          return;
+        }
 
-      const [userCount] = await db.select({ count: sql<number>`count(*)::int` })
-        .from(usersTable)
-        .where(eq(usersTable.organisationId, org.id));
+        const [userCount] = await db.select({ count: sql<number>`count(*)::int` })
+          .from(usersTable)
+          .where(eq(usersTable.organisationId, org.id));
 
-      const [contactCount] = await db.select({ count: sql<number>`count(*)::int` })
-        .from(contactsTable)
-        .where(eq(contactsTable.organisationId, org.id));
+        const [contactCount] = await db.select({ count: sql<number>`count(*)::int` })
+          .from(contactsTable)
+          .where(eq(contactsTable.organisationId, org.id));
 
-      const [callCount] = await db.select({ count: sql<number>`count(*)::int` })
-        .from(callsTable)
-        .where(and(
-          eq(callsTable.organisationId, org.id),
-          gte(callsTable.createdAt, periodStart),
-          lt(callsTable.createdAt, periodEnd),
-        ));
+        const [callCount] = await db.select({ count: sql<number>`count(*)::int` })
+          .from(callsTable)
+          .where(and(
+            eq(callsTable.organisationId, org.id),
+            gte(callsTable.createdAt, periodStart),
+            lt(callsTable.createdAt, periodEnd),
+          ));
 
-      const users = userCount?.count ?? 0;
-      const contacts = contactCount?.count ?? 0;
-      const calls = callCount?.count ?? 0;
+        const users = userCount?.count ?? 0;
+        const contacts = contactCount?.count ?? 0;
+        const calls = callCount?.count ?? 0;
 
-      const extraUsers = Math.max(0, users - sub.maxUsers);
-      const extraContacts = Math.max(0, contacts - sub.maxContacts);
-      const extraCalls = Math.max(0, calls - sub.maxCallsPerMonth);
+        const extraUsers = Math.max(0, users - sub.maxUsers);
+        const extraContacts = Math.max(0, contacts - sub.maxContacts);
+        const extraCalls = Math.max(0, calls - sub.maxCallsPerMonth);
 
-      const extraUsersAmount = extraUsers * OVERAGE_RATES.extraUserPerMonth;
-      const extraContactsAmount = Math.ceil(extraContacts / 100) * OVERAGE_RATES.extraContactsPer100;
-      const extraCallsAmount = Math.ceil(extraCalls / 100) * OVERAGE_RATES.extraCallsPer100;
+        const extraUsersAmount = extraUsers * OVERAGE_RATES.extraUserPerMonth;
+        const extraContactsAmount = Math.ceil(extraContacts / 100) * OVERAGE_RATES.extraContactsPer100;
+        const extraCallsAmount = Math.ceil(extraCalls / 100) * OVERAGE_RATES.extraCallsPer100;
 
-      const baseAmount = planConfig.price;
-      const overageAmount = extraUsersAmount + extraContactsAmount + extraCallsAmount;
-      const totalAmount = baseAmount + overageAmount;
+        const baseAmount = planConfig.price;
+        const overageAmount = extraUsersAmount + extraContactsAmount + extraCallsAmount;
+        const totalAmount = baseAmount + overageAmount;
 
-      const usageSnapshot = {
-        users: { current: users, max: sub.maxUsers, overage: extraUsers },
-        contacts: { current: contacts, max: sub.maxContacts, overage: extraContacts },
-        calls: { current: calls, max: sub.maxCallsPerMonth, overage: extraCalls },
-        overageDetails: {
-          extraUsers,
-          extraUsersAmount,
-          extraContacts,
-          extraContactsAmount,
-          extraCalls,
-          extraCallsAmount,
-        },
-      };
+        const usageSnapshot = {
+          users: { current: users, max: sub.maxUsers, overage: extraUsers },
+          contacts: { current: contacts, max: sub.maxContacts, overage: extraContacts },
+          calls: { current: calls, max: sub.maxCallsPerMonth, overage: extraCalls },
+          overageDetails: {
+            extraUsers,
+            extraUsersAmount,
+            extraContacts,
+            extraContactsAmount,
+            extraCalls,
+            extraCallsAmount,
+          },
+        };
 
-      await db.insert(invoicesTable).values({
-        organisationId: org.id,
-        periodLabel,
-        periodStart,
-        periodEnd,
-        plan: planKey,
-        baseAmount: String(baseAmount),
-        overageAmount: String(overageAmount),
-        totalAmount: String(totalAmount),
-        currency: sub.currency || "EUR",
-        // Une org peut opter pour la finalisation directe; sinon la facture
-        // reste un brouillon jusqu'a validation humaine.
-        status: mode === "direct" || !org.billingRequiresApproval ? "en_attente" : "brouillon",
-        usageSnapshot,
+        await db.insert(invoicesTable).values({
+          organisationId: org.id,
+          periodLabel,
+          periodStart,
+          periodEnd,
+          plan: planKey,
+          baseAmount: String(baseAmount),
+          overageAmount: String(overageAmount),
+          totalAmount: String(totalAmount),
+          currency: sub.currency || "EUR",
+          // Une org peut opter pour la finalisation directe; sinon la facture
+          // reste un brouillon jusqu'a validation humaine.
+          status: mode === "direct" || !org.billingRequiresApproval ? "en_attente" : "brouillon",
+          usageSnapshot,
       });
 
       result.generated++;
+      });
     } catch (err: any) {
       result.errors++;
       logger.error({ err: err.message }, `[Billing] Erreur org ${org.id}:`);

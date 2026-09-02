@@ -13,6 +13,7 @@ export const CRON_LOCK_NAMESPACE = {
   dailyDigest: 4301,
   invoiceReminder: 4302,
   autonomousSecretary: 4303,
+  billing: 4304,
 } as const;
 
 /**
