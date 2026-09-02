@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 648,
+    "runtimeOperations": 651,
     "documentedOperations": 96,
-    "undocumentedOperations": 552
+    "undocumentedOperations": 555
   },
   "operations": [
     {
@@ -3831,6 +3831,30 @@
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/org-closures.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/org-google-credentials",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/org-google-credentials.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/org-google-credentials",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/org-google-credentials.ts"
+      ]
+    },
+    {
+      "method": "put",
+      "path": "/org-google-credentials",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/org-google-credentials.ts"
       ]
     },
     {

@@ -9096,5 +9096,31 @@
       "description": "Yalnızca eksik satırlar yeniden eklenir. O tarihten sonra yaptıklarınız değiştirilmez ve silinmez.",
       "confirm": "Geri yükle"
     }
+  },
+  "googleCredentials": {
+    "title": "Kendi Google uygulamanız",
+    "subtitle": "Kendi OAuth uygulamanızı bağlayın; Gmail, Takvim ve Drive bizim hesabımız yerine sizin Google hesabınız üzerinden çalışsın.",
+    "redirectLabel": "Google konsolunda yetkilendirilecek yönlendirme URI’si",
+    "redirectHelp": "Harfi harfine kopyalayın: farklı bir URI bağlantıyı redirect_uri_mismatch ile düşürür.",
+    "copy": "Kopyala",
+    "clientId": "İstemci kimliği",
+    "clientSecret": "İstemci sırrı",
+    "save": "Kaydet",
+    "replace": "Değiştir",
+    "delete": "Sil",
+    "configured": "Uygulama yapılandırıldı",
+    "notConfigured": "Yapılandırılmış uygulama yok: Google hizmetleri kullanılamıyor.",
+    "usingPlatform": "Yapılandırılmış uygulama yok: Google hizmetleri platformun uygulamasını kullanıyor.",
+    "confirmDelete": {
+      "title": "Bu kimlik bilgileri silinsin mi?",
+      "description": "Yenilerini kaydedene kadar organizasyonunuzun Google hizmetleri çalışmayı durduracak.",
+      "confirm": "Sil"
+    },
+    "toast": {
+      "saved": "Kimlik bilgileri kaydedildi",
+      "saveFailed": "Kaydedilemedi",
+      "deleted": "Kimlik bilgileri silindi",
+      "deleteFailed": "Silinemedi"
+    }
   }
 }

@@ -9096,5 +9096,31 @@
       "description": "Solo se reinsertan las filas que faltan. Nada de lo que haya hecho desde entonces se modifica ni se elimina.",
       "confirm": "Restaurar"
     }
+  },
+  "googleCredentials": {
+    "title": "Su aplicación de Google",
+    "subtitle": "Conecte su propia aplicación OAuth para que Gmail, Calendario y Drive pasen por su cuenta de Google en lugar de la nuestra.",
+    "redirectLabel": "URI de redirección que autorizar en la consola de Google",
+    "redirectHelp": "Cópiela exactamente: una URI distinta hace fallar la conexión con redirect_uri_mismatch.",
+    "copy": "Copiar",
+    "clientId": "ID de cliente",
+    "clientSecret": "Secreto de cliente",
+    "save": "Guardar",
+    "replace": "Reemplazar",
+    "delete": "Eliminar",
+    "configured": "Aplicación configurada",
+    "notConfigured": "Ninguna aplicación configurada: los servicios de Google no están disponibles.",
+    "usingPlatform": "Ninguna aplicación configurada: los servicios de Google usan la aplicación de la plataforma.",
+    "confirmDelete": {
+      "title": "¿Eliminar estas credenciales?",
+      "description": "Los servicios de Google de su organización dejarán de funcionar hasta que guarde otras nuevas.",
+      "confirm": "Eliminar"
+    },
+    "toast": {
+      "saved": "Credenciales guardadas",
+      "saveFailed": "No se pudo guardar",
+      "deleted": "Credenciales eliminadas",
+      "deleteFailed": "No se pudo eliminar"
+    }
   }
 }

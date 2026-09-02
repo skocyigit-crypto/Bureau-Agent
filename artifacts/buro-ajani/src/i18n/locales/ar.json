@@ -9096,5 +9096,31 @@
       "description": "تُعاد الصفوف المفقودة فقط. لن يُغيَّر أو يُحذف أي شيء قمت به منذ ذلك الحين.",
       "confirm": "استعادة"
     }
+  },
+  "googleCredentials": {
+    "title": "تطبيق Google الخاص بك",
+    "subtitle": "اربط تطبيق OAuth الخاص بك ليمر Gmail والتقويم وDrive عبر حسابك في Google بدلاً من حسابنا.",
+    "redirectLabel": "عنوان إعادة التوجيه المطلوب اعتماده في وحدة تحكم Google",
+    "redirectHelp": "انسخه حرفياً: أي عنوان مختلف يُفشل الاتصال برسالة redirect_uri_mismatch.",
+    "copy": "نسخ",
+    "clientId": "معرّف العميل",
+    "clientSecret": "سر العميل",
+    "save": "حفظ",
+    "replace": "استبدال",
+    "delete": "حذف",
+    "configured": "تم إعداد التطبيق",
+    "notConfigured": "لا يوجد تطبيق مُعد: خدمات Google غير متاحة.",
+    "usingPlatform": "لا يوجد تطبيق مُعد: خدمات Google تستخدم تطبيق المنصة.",
+    "confirmDelete": {
+      "title": "حذف بيانات الاعتماد هذه؟",
+      "description": "ستتوقف خدمات Google في مؤسستك حتى تحفظ بيانات جديدة.",
+      "confirm": "حذف"
+    },
+    "toast": {
+      "saved": "تم حفظ بيانات الاعتماد",
+      "saveFailed": "تعذر الحفظ",
+      "deleted": "تم حذف بيانات الاعتماد",
+      "deleteFailed": "تعذر الحذف"
+    }
   }
 }

@@ -9096,5 +9096,31 @@
       "description": "Es werden nur fehlende Zeilen wieder eingefügt. Nichts, was Sie seitdem getan haben, wird geändert oder gelöscht.",
       "confirm": "Wiederherstellen"
     }
+  },
+  "googleCredentials": {
+    "title": "Ihre Google-App",
+    "subtitle": "Verbinden Sie Ihre eigene OAuth-Anwendung, damit Gmail, Kalender und Drive über Ihr Google-Konto laufen statt über unseres.",
+    "redirectLabel": "In der Google-Konsole zu autorisierende Weiterleitungs-URI",
+    "redirectHelp": "Zeichengenau kopieren: eine abweichende URI lässt die Verbindung mit redirect_uri_mismatch scheitern.",
+    "copy": "Kopieren",
+    "clientId": "Client-ID",
+    "clientSecret": "Client-Secret",
+    "save": "Speichern",
+    "replace": "Ersetzen",
+    "delete": "Löschen",
+    "configured": "Anwendung konfiguriert",
+    "notConfigured": "Keine Anwendung konfiguriert: Google-Dienste sind nicht verfügbar.",
+    "usingPlatform": "Keine Anwendung konfiguriert: Google-Dienste nutzen die Plattform-Anwendung.",
+    "confirmDelete": {
+      "title": "Diese Zugangsdaten löschen?",
+      "description": "Die Google-Dienste Ihrer Organisation funktionieren nicht mehr, bis Sie neue speichern.",
+      "confirm": "Löschen"
+    },
+    "toast": {
+      "saved": "Zugangsdaten gespeichert",
+      "saveFailed": "Speichern fehlgeschlagen",
+      "deleted": "Zugangsdaten gelöscht",
+      "deleteFailed": "Löschen fehlgeschlagen"
+    }
   }
 }

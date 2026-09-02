@@ -9096,5 +9096,31 @@
       "description": "Only missing rows are re-inserted. Nothing you have done since is changed or deleted.",
       "confirm": "Restore"
     }
+  },
+  "googleCredentials": {
+    "title": "Your Google app",
+    "subtitle": "Connect your own OAuth application so Gmail, Calendar and Drive go through your Google account rather than ours.",
+    "redirectLabel": "Redirect URI to authorise in the Google console",
+    "redirectHelp": "Copy it exactly: a different URI fails the connection with redirect_uri_mismatch.",
+    "copy": "Copy",
+    "clientId": "Client ID",
+    "clientSecret": "Client secret",
+    "save": "Save",
+    "replace": "Replace",
+    "delete": "Delete",
+    "configured": "Application configured",
+    "notConfigured": "No application configured: Google services are unavailable.",
+    "usingPlatform": "No application configured: Google services use the platform application.",
+    "confirmDelete": {
+      "title": "Delete these credentials?",
+      "description": "Your organisation’s Google services will stop working until you save new ones.",
+      "confirm": "Delete"
+    },
+    "toast": {
+      "saved": "Credentials saved",
+      "saveFailed": "Could not save",
+      "deleted": "Credentials deleted",
+      "deleteFailed": "Could not delete"
+    }
   }
 }

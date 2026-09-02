@@ -74,6 +74,7 @@ XCircle,
 Zap
 } from "lucide-react";
 import { useCallback,useEffect,useState } from "react";
+import { GoogleCredentialsCard } from "./google-credentials-card";
 
 interface GoogleService {
   id: string;
@@ -409,6 +410,10 @@ export function TabPlateformes() {
 
   return (
     <div className="space-y-6">
+      {/* Application OAuth propre au client: sans elle, Gmail/Drive/Agenda
+          passent par l'application de la plateforme (ou ne marchent pas). */}
+      <GoogleCredentialsCard />
+
       {totalConnected > 0 && (
         <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4">
           <div className="flex items-center justify-between">

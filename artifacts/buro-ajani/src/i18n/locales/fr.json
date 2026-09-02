@@ -9096,5 +9096,31 @@
       "description": "Seules les lignes absentes seront reinserees. Rien de ce que vous avez fait depuis ne sera modifie ni supprime.",
       "confirm": "Restaurer"
     }
+  },
+  "googleCredentials": {
+    "title": "Votre application Google",
+    "subtitle": "Branchez votre propre application OAuth pour que Gmail, Agenda et Drive passent par votre compte Google plutot que par le notre.",
+    "redirectLabel": "URI de redirection a autoriser dans la console Google",
+    "redirectHelp": "A recopier au caractere pres: une URI differente fait echouer la connexion avec redirect_uri_mismatch.",
+    "copy": "Copier",
+    "clientId": "Identifiant client",
+    "clientSecret": "Secret client",
+    "save": "Enregistrer",
+    "replace": "Remplacer",
+    "delete": "Supprimer",
+    "configured": "Application configuree",
+    "notConfigured": "Aucune application configuree: les services Google sont indisponibles.",
+    "usingPlatform": "Aucune application configuree: les services Google passent par l’application de la plateforme.",
+    "confirmDelete": {
+      "title": "Supprimer ces identifiants ?",
+      "description": "Les services Google de votre organisation cesseront de fonctionner jusqu’a ce que vous en enregistriez de nouveaux.",
+      "confirm": "Supprimer"
+    },
+    "toast": {
+      "saved": "Identifiants enregistres",
+      "saveFailed": "Enregistrement impossible",
+      "deleted": "Identifiants supprimes",
+      "deleteFailed": "Suppression impossible"
+    }
   }
 }
