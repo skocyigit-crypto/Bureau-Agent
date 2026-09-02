@@ -12,6 +12,7 @@ import { logger } from "../lib/logger";
 import { EventEmitter } from "events";
 import { aiForOrg } from "../services/ai-client";
 import { respondAiError } from "../services/ai-guard";
+import { CRON_LOCK_NAMESPACE, tryWithLock } from "../lib/cron-lock";
 
 const router = Router();
 
@@ -2369,32 +2370,42 @@ Reponds en JSON:
   }
 }
 
-const runningAutopilotJobs = new Map<number, boolean>();
-
 router.post("/ai/autopilot/run", requireAdmin, async (req, res): Promise<void> => {
   const orgId = req.session?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
 
-  if (runningAutopilotJobs.get(orgId)) {
+  // Le garde etait une `Map` de module, c'est-a-dire un garde PAR PROCESSUS.
+  // Le service tourne avec maxScale=3: trois clics simultanes repartis sur
+  // trois instances lançaient trois cycles complets pour la meme organisation
+  // — trois fois le conseil d'agents, trois fois la facture d'IA, et trois
+  // series d'ecritures concurrentes. Le verrou consultatif est partage par la
+  // base, donc par les trois instances.
+  //
+  // On repond des que le verrou est pris, sans attendre le cycle: il dure
+  // plusieurs minutes, bien au-dela de ce qu'une requete HTTP doit tenir. Le
+  // verrou, lui, reste detenu jusqu'a la fin du travail de fond.
+  let settled = false;
+  const acquired = await new Promise<boolean>((resolve) => {
+    void tryWithLock(CRON_LOCK_NAMESPACE.autopilot, orgId, async () => {
+      settled = true;
+      resolve(true);
+      await runAutopilotCycle(orgId).catch((err: any) => {
+        logger.error({ err, orgId }, "Autopilot background run error");
+        addAutopilotLog(orgId, "error", `Cycle echoue: ${err.message}`, "system", "haute");
+      });
+    }).then((got) => {
+      if (!got && !settled) resolve(false);
+    }).catch((err: any) => {
+      logger.error({ err, orgId }, "[Autopilot] Erreur lancement cycle");
+      if (!settled) resolve(false);
+    });
+  });
+
+  if (!acquired) {
     res.json({ status: "already_running", message: "Un cycle Oto-Pilot est deja en cours." });
     return;
   }
-
-  try {
-    runningAutopilotJobs.set(orgId, true);
-    res.json({ status: "started", message: "Cycle Oto-Pilot lance en arriere-plan." });
-
-    runAutopilotCycle(orgId).catch((err: any) => {
-      logger.error({ err }, "Autopilot background run error");
-      addAutopilotLog(orgId, "error", `Cycle echoue: ${err.message}`, "system", "haute");
-    }).finally(() => {
-      runningAutopilotJobs.delete(orgId);
-    });
-  } catch (err: any) {
-    runningAutopilotJobs.delete(orgId);
-    logger.error({ err, orgId }, "[Autopilot] Erreur lancement cycle");
-    res.status(500).json({ error: "Erreur cycle Oto-Pilot" });
-  }
+  res.json({ status: "started", message: "Cycle Oto-Pilot lance en arriere-plan." });
 });
 
 router.post("/ai/autopilot/start", requireAdmin, async (req, res): Promise<void> => {

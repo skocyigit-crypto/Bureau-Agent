@@ -13,6 +13,7 @@
 
 import type { Request, Response, NextFunction } from "express";
 import { logger } from "../lib/logger";
+import { persistBan, refreshIfStale, type SharedBan } from "../services/ip-ban-store";
 import { logSecurityEvent } from "./security";
 import { resolveClientIp } from "../lib/request-ip";
 
@@ -150,6 +151,29 @@ interface GuardianBlock {
 }
 const guardianBlocklist = new Map<string, GuardianBlock>();
 
+/**
+ * La `Map` ci-dessus reste le chemin de LECTURE — le Guardian s'execute sur
+ * chaque requete et ne peut pas attendre la base. Mais elle n'est plus la
+ * verite: le service tourne avec `maxScale=3`, et une liste par processus
+ * laissait un attaquant banni sur une instance se faire servir par les deux
+ * autres, avec un compteur d'escalade qui repartait de zero a chaque fois.
+ * `ip-ban-store` porte la version partagee: on lit vite ici, on ecrit la-bas,
+ * et on se resynchronise entre deux requetes.
+ */
+function applySharedBans(bans: Map<string, SharedBan>): void {
+  for (const [ip, shared] of bans) {
+    const local = guardianBlocklist.get(ip);
+    // On garde le plus severe des deux: une instance qui vient de bannir ne
+    // doit pas etre adoucie par une lecture anterieure a sa propre ecriture.
+    guardianBlocklist.set(ip, {
+      count: Math.max(shared.count, local?.count ?? 0),
+      until: Math.max(shared.until, local?.until ?? 0),
+      permanent: shared.permanent || (local?.permanent ?? false),
+      reasons: [...new Set([...(local?.reasons ?? []), ...shared.reasons])].slice(-5),
+    });
+  }
+}
+
 // ── Davranışsal parmak izi per-IP ─────────────────────────────────────────────
 interface IpProfile {
   requests: number[];
@@ -236,6 +260,17 @@ function banIp(ip: string, reason: string, req: Request): void {
   }
 
   guardianBlocklist.set(ip, entry);
+
+  // Ecriture partagee, jamais attendue: la reponse en cours n'en depend pas.
+  // Le compteur d'escalade est incremente EN BASE, pour que trois instances
+  // qui bannissent deux fois chacune totalisent bien six manquements — donc un
+  // bannissement definitif — au lieu de trois compteurs a deux.
+  void persistBan(ip, {
+    count: entry.count,
+    until: entry.until,
+    permanent: entry.permanent,
+    reasons: entry.reasons,
+  });
 
   const userId = req.session?.userId ?? null;
   logSecurityEvent(
@@ -385,6 +420,13 @@ export function guardian(req: Request, res: Response, next: NextFunction): void 
   // La sonde de santé reste toujours joignable: elle ne divulgue rien et sert à
   // la supervision. Un bannissement la rendait muette (403), ce qui faisait
   // passer un service parfaitement sain pour hors service.
+  // Resynchronisation paresseuse — pas de minuteur: Cloud Run n'alloue du
+  // processeur que pendant une requete, lecon deja apprise avec les agents de
+  // sante. Ne bloque pas la requete en cours; c'est la suivante qui profite de
+  // la mise a jour, et trente secondes d'ecart sur un bannissement ne changent
+  // rien face au fait qu'aujourd'hui les deux autres instances ne l'ont jamais.
+  refreshIfStale(applySharedBans);
+
   const banned = normalPath !== "/api/healthz" && isGuardianBanned(ip);
   if (banned) {
     guardianStats.totalBlocked++;

@@ -97,6 +97,16 @@ steps:
       # `--update-env-vars` et NON `--set-env-vars`: le second remplace toute la
       # configuration du service et effacerait secrets et reglages en place.
       - '--update-env-vars=BUILD_SHA=${_TAG},BUILD_ID=${BUILD_ID}'
+      # Affinite de session. Le service tourne jusqu'a trois instances et
+      # certains etats ne peuvent PAS etre partages: le flux SSE d'un cycle
+      # d'agents porte un EventEmitter et un AbortController, qui n'existent
+      # que dans le processus qui a lance le travail. Sans affinite, le
+      # navigateur qui vient lire la progression tombe une fois sur deux sur
+      # une instance qui ne connait pas ce travail et voit un flux vide.
+      # L'affinite est « au mieux » cote Cloud Run: elle ne remplace pas un
+      # etat partage, elle enleve seulement le cas ou l'etat partageable ne
+      # l'est pas.
+      - '--session-affinity'
     waitFor: ['push-api']
 
   - id: build-web

@@ -1076,3 +1076,70 @@ Artık Cloud Build'in kısa SHA'sı (`BUILD_SHA`, `deploy/cloudbuild.yaml`'da
 `/api/healthz` artık `build` alanını oturumsuz döndürüyor.
 
 **18 yeni test**, toplam **830 geçti**, tsc temiz.
+
+## Faz 1 — TAMAM (paylaşılan durum paylaşılan yere)
+
+`maxScale=3` canlıda ölçüldü; üç süreç aynı alan adını sunuyor ve ziyaretçi
+aynı örneğe düşmek zorunda değil. Modül seviyesindeki 55 `Map`/`Set`'in hepsi
+yanlış değil — bazıları doğru şekilde süreç-içi (SSE `EventEmitter`,
+`AbortController`). Hangisinin gerçekten paylaşılması gerektiğine tek tek
+bakıldı; şunlar **zaten doğruydu ve dokunulmadı**: `agentAutoRunLastRunAt`
+üzerinden atomik `UPDATE ... RETURNING` ile sahiplenme (`runAutoCycle`), ve 30
+saniyelik TTL'iyle kendini iyileştiren `licenseCache`.
+
+### 1a. Advisory kilidin kendisi bozuktu
+En önemli bulgu, düzeltmek için yola çıktığım şey değildi. `lib/cron-lock.ts`
+kilidi `db.execute(...)` ile alıyor, **ikinci bir** `db.execute(...)` ile
+bırakıyordu. Ama `db` sekiz bağlantılık bir havuz ve her `execute` rastgele
+birini ödünç alıyor: `pg_advisory_lock` **oturuma**, yani bağlantıya ait olduğu
+için ikisi farklı bağlantıya düştüğünde Postgres bırakmayı reddediyor, dönen
+değeri kimse okumuyor, ve kilit ilk bağlantıda kalıyor — o bağlantı boşta kalıp
+kapanana (30 sn) veya yük altında çok daha uzun süre kullanılmaya devam edene
+kadar. O süre boyunca korunan cron **her döngüde kilidi alamayıp kendini
+sessizce atlıyordu**.
+
+Bu kilit şunları koruyor: `dailyDigest`, `invoiceReminder`,
+`autonomousSecretary`, `billing`, `aiInsights`, `tenantBackup` — yani
+"hatırlatmalar neden gitmiyor?" sorusunun tam ortası. Kusur **belirsiz**di:
+havuz genelde en son bırakılan bağlantıyı geri verdiği için çoğu zaman aynı
+bağlantı düşüyor ve her şey çalışıyordu. Bu yüzden "çalıştı mı" diye bakan bir
+test asla yakalayamazdı.
+
+Düzeltme: kilit süresince havuzdan **tek bir bağlantı** ayrılıyor, alma ve
+bırakma aynı bağlantıda. Test, sonucu değil bu eşliği doğruluyor.
+
+### 1b. Guardian yasakları paylaşılıyor
+Yeni `ip_bans` tablosu + `services/ip-ban-store.ts`. Guardian hâlâ bellekteki
+`Map`'ten **okuyor** (her istekte çalışıyor, bekleyemez) ama artık yazma
+tabloya geçiyor ve senkronizasyon **tembel** — `setInterval` yok, çünkü bu depo
+Cloud Run'ın yalnız istek sırasında CPU verdiğini sağlık ajanlarında zaten
+öğrenmişti. Eskalasyon sayacı **veritabanında** artıyor: üç örnek ikişer kez
+yasaklarsa toplam altı olur, yani kalıcı yasak — üç ayrı "iki" değil.
+
+Tablo yoksa modül kendini kapatıyor ve Guardian eski davranışına dönüyor.
+Tablosu eksik diye çöken bir güvenlik duvarı, düzeltmeye çalıştığı kusurdan
+kötüdür.
+
+### 1c. Eşzamanlı otopilot döngüsü
+`runningAutopilotJobs` süreç-başına bir gardı. Üç örneğe dağılmış üç tık, aynı
+organizasyon için üç tam döngü başlatıyordu: üç kat ajan konseyi, üç kat AI
+faturası, üç seri eşzamanlı yazma. Artık paylaşılan advisory kilit; kilit
+alınınca hemen yanıt dönüyor, kilit ise arka plandaki iş bitene kadar tutuluyor.
+
+### 1d. Oturum yapışkanlığı
+`--session-affinity` eklendi. SSE iş akışı bir `EventEmitter` ve
+`AbortController` taşır — bunlar **paylaşılamaz**, yalnız işi başlatan süreçte
+vardır. Yapışkanlık olmadan ilerlemeyi okumaya gelen tarayıcı, işi tanımayan
+bir örneğe düşüp boş akış görüyordu. Bu, paylaşılan durumun yerine geçmez;
+yalnızca paylaşılamayanın vurduğu yeri kaldırır.
+
+**16 yeni test**, toplam **846 geçti**, tsc temiz, 651 rota.
+
+### ⚠️ Kullanıcıdan beklenen adım
+`ip_bans` tablosu **üretimde henüz yok**. Dağıtım hattındaki `drizzle-kit push`
+yalnız CI test veritabanına uygulanıyor; üretim şeması elle gidiyor:
+
+    bash deploy/gcp-schema-push.sh
+
+Bu yapılana kadar Guardian eski (örnek-başına) davranışında kalır ve günde bir
+kez uyarı loglar — çökme yok.

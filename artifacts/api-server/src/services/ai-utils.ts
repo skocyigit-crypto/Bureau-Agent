@@ -557,7 +557,14 @@ export function startAiUsagePurgeJob(): void {
   // Purge de retention: elle supprime des lignes en base, donc elle doit
   // tourner tous les jours meme sans trafic — d ou l inscription au registre
   // du declencheur externe via `withHeartbeat`.
-  purgeTimer = setInterval(withHeartbeat("ai-usage-purge", 24 * 60 * 60 * 1000, async () => { await purgeOldAiUsage(); }), 24 * 60 * 60 * 1000);
+  purgeTimer = setInterval(withHeartbeat("ai-usage-purge", 24 * 60 * 60 * 1000, async () => {
+    await purgeOldAiUsage();
+    // Bannissements d'IP expires depuis plus d'une semaine. Greffe ici plutot
+    // qu'en tache separee: meme cadence, meme nature (menage), et une tache de
+    // plus serait une tache de plus a surveiller pour trois lignes supprimees.
+    const { purgeExpiredBans } = await import("./ip-ban-store");
+    await purgeExpiredBans();
+  }), 24 * 60 * 60 * 1000);
   purgeTimer.unref?.();
   logger.info(`[ai-utils] Purge job started (retention: ${RETENTION_DAYS}j)`);
 }
