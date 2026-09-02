@@ -26,10 +26,32 @@ describe("tenant boundary invariants", () => {
     expect(ownership).toContain("usersTable.organisationId");
   });
 
-  it("keeps global SaaS data aggregate-only and blocks customer records", () => {
+  it("keeps global SaaS data aggregate-only and customer records tenant-scoped", () => {
     const routes = source("routes/index.ts");
     expect(routes).toContain('router.use("/admin/saas-dashboard", requireSuperAdmin)');
-    expect(routes).toContain('["/prospects", "/devis", "/factures-client"]');
-    expect(routes).toContain('tenant_content_forbidden');
+
+    // Customer content must be mounted AFTER requireTenant: mounted above it,
+    // the handlers would run with no organisation bound to the session and
+    // getOrgId would be the only thing standing between a super-admin and
+    // every tenant's records.
+    const tenantBoundary = routes.indexOf("router.use(requireTenant)");
+    expect(tenantBoundary).toBeGreaterThan(-1);
+    for (const mount of ["router.use(prospectsRouter)", "router.use(devisRouter)", "router.use(facturesClientRouter)"]) {
+      expect(routes).toContain(mount);
+      expect(routes.indexOf(mount), `${mount} must be mounted after requireTenant`).toBeGreaterThan(tenantBoundary);
+    }
+  });
+
+  it("binds every customer-content query to the session organisation", () => {
+    // These three routers were once SaaS-global and read `?organisationId=` /
+    // `body.organisationId` from the caller. Under tenant scope that would let
+    // one customer address another customer's rows, so the caller-supplied
+    // organisation must stay gone and `getOrgId` must be the only source.
+    for (const file of ["routes/prospects.ts", "routes/devis.ts", "routes/factures-client.ts"]) {
+      const routeSource = source(file);
+      expect(routeSource, `${file} must derive the organisation from the session`).toContain('getOrgId(req)');
+      expect(routeSource, `${file} must not accept a caller-chosen organisation`).not.toContain("parseOrgFilter");
+      expect(routeSource, `${file} must not read organisationId from the body`).not.toMatch(/const\s+orgFromBody\s*=/);
+    }
   });
 });

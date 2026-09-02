@@ -3,28 +3,23 @@ import { eq, desc, ilike, or, sql, and, type Column, type SQL } from "drizzle-or
 import { db, devisTable, facturesClientTable } from "@workspace/db";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { generateUniqueReference } from "../lib/unique-reference";
+import { getOrgId } from "../middleware/tenant";
 import { computeInvoiceTotals, isValidCurrency, parseUserDate, clampPagination } from "../services/invoice-totals";
 
 const router: IRouter = Router();
 
 const STATUSES = ["brouillon", "envoye", "accepte", "refuse", "expire"] as const;
 
-// Backoffice SaaS (super-admin uniquement). Plus de filtre organisation_id
-// par defaut: la vue est globale. Un parametre ?organisationId= permet de
-// scoper une organisation specifique pour le tri/QA. Voir Tâche #53.
-function parseOrgFilter(req: Request): number | null {
-  const raw = (req.query as Record<string, unknown>).organisationId;
-  if (raw == null || raw === "") return null;
-  const n = Number(raw);
-  return Number.isFinite(n) ? n : null;
-}
+// Ressource TENANT: chaque requete est bornee a l'organisation de la session
+// (`getOrgId`), jamais a un `organisationId` choisi par l'appelant. Le devis
+// appartient au client, pas a la plateforme: le scope SaaS global n'existe
+// plus ici (cf. routes/index.ts, "Customer content").
 
 router.get("/devis", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
   const { search, status } = req.query as any;
   const { limit, offset } = clampPagination((req.query as any).limit, (req.query as any).offset);
-  const conditions: SQL[] = [];
-  const orgFilter = parseOrgFilter(req);
-  if (orgFilter != null) conditions.push(eq(devisTable.organisationId, orgFilter));
+  const conditions: SQL[] = [eq(devisTable.organisationId, orgId)];
   if (status && status !== "all") conditions.push(eq(devisTable.status, status));
   if (search) {
     const useUnaccent = await ensureUnaccentExtension();
@@ -37,14 +32,14 @@ router.get("/devis", async (req: Request, res: Response): Promise<void> => {
       il(devisTable.clientCompany),
     )!);
   }
-  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  // Toujours defini: le filtre organisation est la premiere condition, donc
+  // aucune branche ne peut interroger la table sans borne tenant.
+  const where = and(...conditions);
   try {
     const [rows, countRes] = await Promise.all([
-      (where ? db.select().from(devisTable).where(where) : db.select().from(devisTable))
+      db.select().from(devisTable).where(where)
         .orderBy(desc(devisTable.createdAt)).limit(limit).offset(offset),
-      where
-        ? db.select({ count: sql<number>`count(*)::int` }).from(devisTable).where(where)
-        : db.select({ count: sql<number>`count(*)::int` }).from(devisTable),
+      db.select({ count: sql<number>`count(*)::int` }).from(devisTable).where(where),
     ]);
     res.json({ devis: rows, total: countRes[0]?.count ?? 0 });
   } catch (err: any) {
@@ -54,10 +49,12 @@ router.get("/devis", async (req: Request, res: Response): Promise<void> => {
 });
 
 router.get("/devis/:id", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   try {
-    const [row] = await db.select().from(devisTable).where(eq(devisTable.id, id));
+    const [row] = await db.select().from(devisTable)
+      .where(and(eq(devisTable.id, id), eq(devisTable.organisationId, orgId)));
     if (!row) { res.status(404).json({ error: "Devis non trouve." }); return; }
     res.json(row);
   } catch (err: any) {
@@ -67,7 +64,8 @@ router.get("/devis/:id", async (req: Request, res: Response): Promise<void> => {
 });
 
 router.post("/devis", async (req: Request, res: Response): Promise<void> => {
-  const { reference, title, description, clientName, clientEmail, clientPhone, clientAddress, clientCompany, items, subtotal, taxAmount, totalAmount, currency = "EUR", status = "brouillon", validUntil, notes, conditions, contactId, prospectId, organisationId } = req.body;
+  const targetOrg = getOrgId(req);
+  const { reference, title, description, clientName, clientEmail, clientPhone, clientAddress, clientCompany, items, subtotal, taxAmount, totalAmount, currency = "EUR", status = "brouillon", validUntil, notes, conditions, contactId, prospectId } = req.body;
   if (!title?.trim()) { res.status(400).json({ error: "Le titre est obligatoire." }); return; }
   if (!clientName?.trim()) { res.status(400).json({ error: "Le client est obligatoire." }); return; }
   if (!STATUSES.includes(status)) { res.status(400).json({ error: "Statut invalide." }); return; }
@@ -76,17 +74,6 @@ router.post("/devis", async (req: Request, res: Response): Promise<void> => {
   if (validUntilDate === undefined) { res.status(400).json({ error: "Date de validité invalide." }); return; }
   const totalsPre = computeInvoiceTotals(Array.isArray(items) ? items : []);
   if (totalsPre.overflow) { res.status(400).json({ error: "Montant trop élevé (dépasse la limite autorisée)." }); return; }
-  const orgFromBody = organisationId != null && organisationId !== "" ? Number(organisationId) : null;
-  if (orgFromBody != null && (!Number.isInteger(orgFromBody) || orgFromBody <= 0)) {
-    res.status(400).json({ error: "organisationId invalide." });
-    return;
-  }
-  const sessionOrg = req.session?.organisationId ?? null;
-  const targetOrg = orgFromBody ?? sessionOrg;
-  if (targetOrg == null) {
-    res.status(400).json({ error: "organisationId requis (le super-admin n'a pas d'organisation rattachee)." });
-    return;
-  }
   try {
     const checkExists = async (candidate: string): Promise<boolean> => {
       const [existing] = await db.select({ id: devisTable.id }).from(devisTable)
@@ -136,10 +123,12 @@ router.post("/devis", async (req: Request, res: Response): Promise<void> => {
 });
 
 router.patch("/devis/:id", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  const scoped = and(eq(devisTable.id, id), eq(devisTable.organisationId, orgId));
   try {
-    const [existing] = await db.select({ id: devisTable.id }).from(devisTable).where(eq(devisTable.id, id));
+    const [existing] = await db.select({ id: devisTable.id }).from(devisTable).where(scoped);
     if (!existing) { res.status(404).json({ error: "Devis non trouve." }); return; }
     const b = req.body ?? {};
     if (b.status !== undefined && !STATUSES.includes(b.status)) { res.status(400).json({ error: "Statut invalide." }); return; }
@@ -153,7 +142,7 @@ router.patch("/devis/:id", async (req: Request, res: Response): Promise<void> =>
     if (b.reference !== undefined && String(b.reference).trim()) {
       const newRef = String(b.reference).trim();
       const [dup] = await db.select({ id: devisTable.id }).from(devisTable)
-        .where(and(eq(devisTable.reference, newRef), sql`${devisTable.id} <> ${id}`));
+        .where(and(eq(devisTable.organisationId, orgId), eq(devisTable.reference, newRef), sql`${devisTable.id} <> ${id}`));
       if (dup) { res.status(409).json({ error: `La reference "${newRef}" existe deja.` }); return; }
       updates.reference = newRef;
     }
@@ -174,7 +163,7 @@ router.patch("/devis/:id", async (req: Request, res: Response): Promise<void> =>
     }
     if (b.status === "accepte") updates.acceptedAt = new Date();
     if (b.status === "refuse") updates.rejectedAt = new Date();
-    const [row] = await db.update(devisTable).set(updates).where(eq(devisTable.id, id)).returning();
+    const [row] = await db.update(devisTable).set(updates).where(scoped).returning();
     res.json(row);
   } catch (err: any) {
     req.log.error({ err }, "Erreur mise a jour devis");
@@ -196,22 +185,24 @@ router.patch("/devis/:id", async (req: Request, res: Response): Promise<void> =>
 const DEVIS_CONVERT_LOCK_NAMESPACE = 4320;
 
 router.post("/devis/:id/convert-to-facture", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
   await db.execute(sql`SELECT pg_advisory_lock(${DEVIS_CONVERT_LOCK_NAMESPACE}, ${id})`);
   try {
-    const [devis] = await db.select().from(devisTable).where(eq(devisTable.id, id));
+    const [devis] = await db.select().from(devisTable)
+      .where(and(eq(devisTable.id, id), eq(devisTable.organisationId, orgId)));
     if (!devis) { res.status(404).json({ error: "Devis non trouve." }); return; }
 
     // Deja converti: on renvoie la facture liee plutot que d'en creer une autre.
     if (devis.convertedToInvoice) {
-      const [existing] = await db.select().from(facturesClientTable).where(eq(facturesClientTable.id, devis.convertedToInvoice));
+      const [existing] = await db.select().from(facturesClientTable)
+        .where(and(eq(facturesClientTable.id, devis.convertedToInvoice), eq(facturesClientTable.organisationId, orgId)));
       if (existing) { res.status(200).json({ facture: existing, alreadyConverted: true }); return; }
       // La facture liee a disparu (supprimee): on autorise une nouvelle conversion.
     }
 
-    const orgId = devis.organisationId;
     const checkExists = async (candidate: string): Promise<boolean> => {
       const [e] = await db.select({ id: facturesClientTable.id }).from(facturesClientTable)
         .where(and(eq(facturesClientTable.organisationId, orgId), eq(facturesClientTable.reference, candidate)));
@@ -249,7 +240,7 @@ router.post("/devis/:id/convert-to-facture", async (req: Request, res: Response)
 
     await db.update(devisTable)
       .set({ convertedToInvoice: facture.id, status: devis.status === "brouillon" ? "accepte" : devis.status, acceptedAt: devis.acceptedAt ?? new Date(), updatedAt: new Date() })
-      .where(eq(devisTable.id, id));
+      .where(and(eq(devisTable.id, id), eq(devisTable.organisationId, orgId)));
 
     res.status(201).json({ facture });
   } catch (err: any) {
@@ -261,10 +252,13 @@ router.post("/devis/:id/convert-to-facture", async (req: Request, res: Response)
 });
 
 router.delete("/devis/:id", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   try {
-    const result = await db.delete(devisTable).where(eq(devisTable.id, id)).returning({ id: devisTable.id });
+    const result = await db.delete(devisTable)
+      .where(and(eq(devisTable.id, id), eq(devisTable.organisationId, orgId)))
+      .returning({ id: devisTable.id });
     if (result.length === 0) { res.status(404).json({ error: "Devis non trouve." }); return; }
     res.json({ ok: true });
   } catch (err: any) {

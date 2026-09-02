@@ -1,4 +1,4 @@
-/** Dynamic regression: no authenticated role may enumerate global tenant customer content. */
+/** Dynamic regression: no authenticated role may reach another organisation's customer content. */
 process.env.NODE_ENV = process.env.NODE_ENV ?? "test";
 process.env.PORT = process.env.PORT ?? "0";
 process.env.SESSION_SECRET =
@@ -119,9 +119,8 @@ beforeAll(async () => {
     })
     .returning({ id: usersTable.id });
 
-  // Une ressource de chaque type, dans CHACUNE des deux orgs, pour
-  // pouvoir verifier que le super_admin voit bien les deux (vue SaaS
-  // globale).
+  // Une ressource de chaque type, dans CHACUNE des deux orgs: org B sert de
+  // temoin, elle ne doit jamais apparaitre pour un compte rattache a org A.
   const [pA] = await db
     .insert(prospectsTable)
     .values({
@@ -267,6 +266,8 @@ type Resource = {
   ids: () => { idA: number; idB: number };
   postBody: (orgId: number) => Record<string, unknown>;
   patchBody: Record<string, unknown>;
+  /** Reads the row straight from the database, bypassing every route guard. */
+  readById: (id: number) => Promise<Array<{ id: number }>>;
 };
 
 const RESOURCES: Resource[] = [
@@ -275,6 +276,7 @@ const RESOURCES: Resource[] = [
     base: "/api/prospects",
     listKey: "prospects",
     ids: () => ({ idA: seeded.prospectA, idB: seeded.prospectB }),
+    readById: (id) => db.select({ id: prospectsTable.id }).from(prospectsTable).where(eq(prospectsTable.id, id)),
     postBody: (orgId) => ({
       title: `Iso new prospect ${stamp}`,
       stage: "nouveau",
@@ -288,6 +290,7 @@ const RESOURCES: Resource[] = [
     base: "/api/devis",
     listKey: "devis",
     ids: () => ({ idA: seeded.devisA, idB: seeded.devisB }),
+    readById: (id) => db.select({ id: devisTable.id }).from(devisTable).where(eq(devisTable.id, id)),
     postBody: (orgId) => ({
       title: `Iso new devis ${stamp}`,
       clientName: "Client New",
@@ -300,6 +303,7 @@ const RESOURCES: Resource[] = [
     base: "/api/factures-client",
     listKey: "factures",
     ids: () => ({ idA: seeded.factureA, idB: seeded.factureB }),
+    readById: (id) => db.select({ id: facturesClientTable.id }).from(facturesClientTable).where(eq(facturesClientTable.id, id)),
     postBody: (orgId) => ({
       title: `Iso new facture ${stamp}`,
       clientName: "Client New",
@@ -309,29 +313,63 @@ const RESOURCES: Resource[] = [
   },
 ];
 
-describe("Customer content is unavailable from the platform scope", () => {
+describe("Customer content is readable only inside the caller's own organisation", () => {
   for (const r of RESOURCES) {
     describe(r.label, () => {
+      // Every seeded account belongs to org A, super-admin included: the
+      // platform owner is a tenant like any other here, with no SaaS-wide
+      // view of customer records.
       for (const role of ["superAdmin", "admin", "agent"] as const) {
-        it(`${role} cannot list, read, create, update or delete customer records`, async () => {
+        it(`${role} lists its own organisation and never another one`, async () => {
+          const { idA, idB } = r.ids();
+          const response = await request(app)
+            .get(r.base)
+            .set("Authorization", `Bearer ${seeded[role].token}`)
+            .set("Origin", "http://localhost");
+
+          expect(response.status).toBe(200);
+          const ids = (response.body[r.listKey] as Array<{ id: number }>).map((row) => row.id);
+          expect(ids).toContain(idA);
+          expect(ids).not.toContain(idB);
+        });
+
+        it(`${role} cannot read, update or delete another organisation's record`, async () => {
           const token = seeded[role].token;
-          const { idA } = r.ids();
+          const { idB } = r.ids();
           const calls = [
-            request(app).get(r.base),
-            request(app).get(`${r.base}/${idA}`),
-            request(app).post(r.base).send(r.postBody(seeded.orgA)),
-            request(app).patch(`${r.base}/${idA}`).send(r.patchBody),
-            request(app).delete(`${r.base}/${idA}`),
+            request(app).get(`${r.base}/${idB}`),
+            request(app).patch(`${r.base}/${idB}`).send(r.patchBody),
+            request(app).delete(`${r.base}/${idB}`),
           ];
           for (const call of calls) {
             const response = await call
               .set("Authorization", `Bearer ${token}`)
               .set("Origin", "http://localhost");
-            expect(response.status).toBe(403);
-            if (role === "superAdmin") expect(response.body.code).toBe("tenant_content_forbidden");
+            // 404 (invisible) or 403 (role floor, e.g. agent deleting a
+            // prospect) — never 200, and never a mutation that lands.
+            expect([403, 404]).toContain(response.status);
           }
         });
+
+        it(`${role} cannot place a new record in another organisation`, async () => {
+          const response = await request(app)
+            .post(r.base)
+            // The body asks for org B on purpose: it must be ignored in
+            // favour of the session's organisation.
+            .send(r.postBody(seeded.orgB))
+            .set("Authorization", `Bearer ${seeded[role].token}`)
+            .set("Origin", "http://localhost");
+
+          expect(response.status).toBe(201);
+          expect(response.body.organisationId).toBe(seeded.orgA);
+        });
       }
+
+      it("leaves the other organisation's record untouched after those attempts", async () => {
+        const { idB } = r.ids();
+        const rows = await r.readById(idB);
+        expect(rows.length, "cross-organisation delete must not have removed the row").toBe(1);
+      });
     });
   }
 });

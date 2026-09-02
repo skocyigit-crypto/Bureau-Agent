@@ -64,6 +64,9 @@ import contactRequestRouter from "./contact-request";
 import supportInboxRouter from "./support-inbox";
 import publicDemoChatRouter from "./public-demo-chat";
 import publicAppointmentsRouter from "./public-appointments";
+import prospectsRouter from "./prospects";
+import devisRouter from "./devis";
+import facturesClientRouter from "./factures-client";
 import notesInternesRouter from "./notes-internes";
 import projetsRouter from "./projets";
 import dailyDigestRouter from "./daily-digest";
@@ -125,11 +128,8 @@ router.use(requireAuth);
 
 // Backoffice SaaS — accessible super-admin uniquement (Tâche #52, #53).
 // Monte AVANT `requireTenant` pour que le super-admin puisse appeler ces
-// routes meme s'il n'a pas d'organisation rattachee, et pour basculer la
-// vue de "scope tenant" a "scope SaaS global". Les handlers internes ne
-// filtrent plus par `organisation_id` par defaut (cf. routes/{prospects,
-// devis,factures-client}.ts) et acceptent un parametre `?organisationId=`
-// optionnel pour scoper une organisation.
+// routes meme s'il n'a pas d'organisation rattachee: la vue SaaS est
+// AGREGEE (metriques), jamais le contenu des clients.
 //
 // Garde aussi tout futur module `/stock` derriere `requireSuperAdmin`:
 // aucun controleur dedie n'existe aujourd'hui, mais cela garantit que
@@ -143,11 +143,11 @@ router.use(requireAuth);
 // (les routers declarent leur chemin complet en interne, ex. `/prospects`).
 router.use("/admin/saas-dashboard", requireSuperAdmin);
 router.use(adminSaasDashboardRouter);
-// Customer content is deliberately unavailable in the global SaaS scope.
-// Super-admin receives aggregate metrics only and cannot enumerate tenant records.
-router.use(["/prospects", "/devis", "/factures-client"], requireSuperAdmin, (_req, res) => {
-  res.status(403).json({ error: "Contenu client protege", code: "tenant_content_forbidden" });
-});
+// Prospects, devis et factures client sont du contenu CLIENT: ils sont montes
+// plus bas, derriere `requireTenant`, et chaque handler borne ses requetes a
+// l'organisation de la session. Aucun scope SaaS global n'y donne acces —
+// le super-admin qui appelle ces routes ne voit que sa propre organisation,
+// exactement comme n'importe quel autre compte.
 router.use("/stock", requireSuperAdmin, (_req, res) => {
   res.status(404).json({ error: "Module stock indisponible." });
 });
@@ -217,6 +217,9 @@ router.use(meetingsRouter);
 router.use(gmailRouter);
 router.use(orgProfileRouter);
 router.use(orgClosuresRouter);
+router.use(prospectsRouter);
+router.use(devisRouter);
+router.use(facturesClientRouter);
 router.use(notesInternesRouter);
 router.use(projetsRouter);
 router.use(dailyDigestRouter);

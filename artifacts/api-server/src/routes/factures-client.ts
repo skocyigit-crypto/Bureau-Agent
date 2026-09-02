@@ -1,9 +1,10 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, desc, ilike, or, sql, and, type Column, type SQL } from "drizzle-orm";
-import { db, facturesClientTable } from "@workspace/db";
+import { db, devisTable, facturesClientTable } from "@workspace/db";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { sendInvoiceReminderEmail } from "../services/email";
 import { generateUniqueReference } from "../lib/unique-reference";
+import { getOrgId } from "../middleware/tenant";
 import { computeInvoiceTotals, isValidCurrency, parseUserDate, clampPagination, normalizePaidAmount } from "../services/invoice-totals";
 
 const router: IRouter = Router();
@@ -13,22 +14,15 @@ const STATUSES = ["brouillon", "envoyee", "payee", "partiellement_payee", "en_re
 // Intervalle minimal entre deux relances d'une meme facture (anti-spam serveur).
 const REMINDER_COOLDOWN_HOURS = Number(process.env.INVOICE_REMINDER_COOLDOWN_HOURS) || 24;
 
-// Backoffice SaaS (super-admin uniquement). Plus de filtre organisation_id
-// par defaut: la vue est globale. Un parametre ?organisationId= permet de
-// scoper une organisation specifique. Voir Tâche #53.
-function parseOrgFilter(req: Request): number | null {
-  const raw = (req.query as Record<string, unknown>).organisationId;
-  if (raw == null || raw === "") return null;
-  const n = Number(raw);
-  return Number.isFinite(n) ? n : null;
-}
+// Ressource TENANT: la facture appartient au client qui l'emet. Chaque requete
+// est bornee a l'organisation de la session (`getOrgId`); aucun appelant ne
+// choisit son `organisationId` (cf. routes/index.ts, "Customer content").
 
 router.get("/factures-client", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
   const { search, status } = req.query as any;
   const { limit, offset } = clampPagination((req.query as any).limit, (req.query as any).offset);
-  const conditions: SQL[] = [];
-  const orgFilter = parseOrgFilter(req);
-  if (orgFilter != null) conditions.push(eq(facturesClientTable.organisationId, orgFilter));
+  const conditions: SQL[] = [eq(facturesClientTable.organisationId, orgId)];
   if (status && status !== "all") conditions.push(eq(facturesClientTable.status, status));
   if (search) {
     const useUnaccent = await ensureUnaccentExtension();
@@ -41,14 +35,14 @@ router.get("/factures-client", async (req: Request, res: Response): Promise<void
       il(facturesClientTable.clientCompany),
     )!);
   }
-  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  // Toujours defini: le filtre organisation est la premiere condition, donc
+  // aucune branche ne peut interroger la table sans borne tenant.
+  const where = and(...conditions);
   try {
     const [rows, countRes] = await Promise.all([
-      (where ? db.select().from(facturesClientTable).where(where) : db.select().from(facturesClientTable))
+      db.select().from(facturesClientTable).where(where)
         .orderBy(desc(facturesClientTable.createdAt)).limit(limit).offset(offset),
-      where
-        ? db.select({ count: sql<number>`count(*)::int` }).from(facturesClientTable).where(where)
-        : db.select({ count: sql<number>`count(*)::int` }).from(facturesClientTable),
+      db.select({ count: sql<number>`count(*)::int` }).from(facturesClientTable).where(where),
     ]);
     res.json({ factures: rows, total: countRes[0]?.count ?? 0 });
   } catch (err: any) {
@@ -58,10 +52,12 @@ router.get("/factures-client", async (req: Request, res: Response): Promise<void
 });
 
 router.get("/factures-client/:id", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   try {
-    const [row] = await db.select().from(facturesClientTable).where(eq(facturesClientTable.id, id));
+    const [row] = await db.select().from(facturesClientTable)
+      .where(and(eq(facturesClientTable.id, id), eq(facturesClientTable.organisationId, orgId)));
     if (!row) { res.status(404).json({ error: "Facture non trouvee." }); return; }
     res.json(row);
   } catch (err: any) {
@@ -71,7 +67,8 @@ router.get("/factures-client/:id", async (req: Request, res: Response): Promise<
 });
 
 router.post("/factures-client", async (req: Request, res: Response): Promise<void> => {
-  const { reference, title, clientName, clientEmail, clientPhone, clientAddress, clientCompany, items, subtotal, taxAmount, totalAmount, paidAmount, isAutoliquidation, currency = "EUR", status = "brouillon", dueDate, paymentMethod, notes, conditions, contactId, devisId, organisationId } = req.body;
+  const targetOrg = getOrgId(req);
+  const { reference, title, clientName, clientEmail, clientPhone, clientAddress, clientCompany, items, subtotal, taxAmount, totalAmount, paidAmount, isAutoliquidation, currency = "EUR", status = "brouillon", dueDate, paymentMethod, notes, conditions, contactId, devisId } = req.body;
   if (!title?.trim()) { res.status(400).json({ error: "Le titre est obligatoire." }); return; }
   if (!clientName?.trim()) { res.status(400).json({ error: "Le client est obligatoire." }); return; }
   if (!STATUSES.includes(status)) { res.status(400).json({ error: "Statut invalide." }); return; }
@@ -80,18 +77,15 @@ router.post("/factures-client", async (req: Request, res: Response): Promise<voi
   if (dueDateVal === undefined) { res.status(400).json({ error: "Date d'échéance invalide." }); return; }
   const totalsPre = computeInvoiceTotals(Array.isArray(items) ? items : [], { autoliquidation: !!isAutoliquidation });
   if (totalsPre.overflow) { res.status(400).json({ error: "Montant trop élevé (dépasse la limite autorisée)." }); return; }
-  const orgFromBody = organisationId != null && organisationId !== "" ? Number(organisationId) : null;
-  if (orgFromBody != null && (!Number.isInteger(orgFromBody) || orgFromBody <= 0)) {
-    res.status(400).json({ error: "organisationId invalide." });
-    return;
-  }
-  const sessionOrg = req.session?.organisationId ?? null;
-  const targetOrg = orgFromBody ?? sessionOrg;
-  if (targetOrg == null) {
-    res.status(400).json({ error: "organisationId requis (le super-admin n'a pas d'organisation rattachee)." });
-    return;
-  }
   try {
+    // Un devis lie doit appartenir a la meme organisation: sans ce controle,
+    // une facture pourrait pointer vers le devis d'un autre client.
+    const linkedDevis = devisId ? Number(devisId) : null;
+    if (linkedDevis != null) {
+      const [owned] = await db.select({ id: devisTable.id }).from(devisTable)
+        .where(and(eq(devisTable.id, linkedDevis), eq(devisTable.organisationId, targetOrg)));
+      if (!owned) { res.status(400).json({ error: "Devis lie introuvable." }); return; }
+    }
     const checkExists = async (candidate: string): Promise<boolean> => {
       const [existing] = await db.select({ id: facturesClientTable.id }).from(facturesClientTable)
         .where(and(eq(facturesClientTable.organisationId, targetOrg), eq(facturesClientTable.reference, candidate)));
@@ -131,7 +125,7 @@ router.post("/factures-client", async (req: Request, res: Response): Promise<voi
       notes: notes ?? null,
       conditions: conditions ?? null,
       contactId: contactId ? Number(contactId) : null,
-      devisId: devisId ? Number(devisId) : null,
+      devisId: linkedDevis,
     }).returning();
     res.status(201).json(row);
   } catch (err: any) {
@@ -141,10 +135,12 @@ router.post("/factures-client", async (req: Request, res: Response): Promise<voi
 });
 
 router.patch("/factures-client/:id", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  const scoped = and(eq(facturesClientTable.id, id), eq(facturesClientTable.organisationId, orgId));
   try {
-    const [existing] = await db.select({ id: facturesClientTable.id }).from(facturesClientTable).where(eq(facturesClientTable.id, id));
+    const [existing] = await db.select({ id: facturesClientTable.id }).from(facturesClientTable).where(scoped);
     if (!existing) { res.status(404).json({ error: "Facture non trouvee." }); return; }
     const b = req.body ?? {};
     if (b.status !== undefined && !STATUSES.includes(b.status)) { res.status(400).json({ error: "Statut invalide." }); return; }
@@ -158,7 +154,7 @@ router.patch("/factures-client/:id", async (req: Request, res: Response): Promis
     if (b.reference !== undefined && String(b.reference).trim()) {
       const newRef = String(b.reference).trim();
       const [dup] = await db.select({ id: facturesClientTable.id }).from(facturesClientTable)
-        .where(and(eq(facturesClientTable.reference, newRef), sql`${facturesClientTable.id} <> ${id}`));
+        .where(and(eq(facturesClientTable.organisationId, orgId), eq(facturesClientTable.reference, newRef), sql`${facturesClientTable.id} <> ${id}`));
       if (dup) { res.status(409).json({ error: `La reference "${newRef}" existe deja.` }); return; }
       updates.reference = newRef;
     }
@@ -168,7 +164,7 @@ router.patch("/factures-client/:id", async (req: Request, res: Response): Promis
     if (b.isAutoliquidation !== undefined) updates.isAutoliquidation = !!b.isAutoliquidation;
     if (b.items !== undefined || b.isAutoliquidation !== undefined) {
       const [cur] = await db.select({ items: facturesClientTable.items, isAutoliquidation: facturesClientTable.isAutoliquidation })
-        .from(facturesClientTable).where(eq(facturesClientTable.id, id));
+        .from(facturesClientTable).where(scoped);
       const effectiveItems = b.items !== undefined ? (Array.isArray(b.items) ? b.items : []) : (cur?.items ?? []);
       const effectiveAutoliq = b.isAutoliquidation !== undefined ? !!b.isAutoliquidation : !!cur?.isAutoliquidation;
       const t = computeInvoiceTotals(effectiveItems, { autoliquidation: effectiveAutoliq });
@@ -188,11 +184,11 @@ router.patch("/factures-client/:id", async (req: Request, res: Response): Promis
     // encaissement dans les KPI). Reciproquement `paidAt` est renseigne.
     if (b.status === "payee") {
       updates.paidAt = new Date();
-      const [cur] = await db.select({ totalAmount: facturesClientTable.totalAmount }).from(facturesClientTable).where(eq(facturesClientTable.id, id));
+      const [cur] = await db.select({ totalAmount: facturesClientTable.totalAmount }).from(facturesClientTable).where(scoped);
       if (updates.totalAmount === undefined && cur) updates.paidAmount = cur.totalAmount;
       else if (updates.totalAmount !== undefined) updates.paidAmount = updates.totalAmount;
     }
-    const [row] = await db.update(facturesClientTable).set(updates).where(eq(facturesClientTable.id, id)).returning();
+    const [row] = await db.update(facturesClientTable).set(updates).where(scoped).returning();
     res.json(row);
   } catch (err: any) {
     req.log.error({ err }, "Erreur mise a jour facture");
@@ -201,13 +197,15 @@ router.patch("/factures-client/:id", async (req: Request, res: Response): Promis
 });
 
 // Relance d'une facture impayee : envoie un email courtois au client et
-// enregistre la relance (compteur + date). Backoffice super-admin uniquement
-// (le routeur est monte derriere requireSuperAdmin dans routes/index.ts).
+// enregistre la relance (compteur + date). Bornee a l'organisation de la
+// session, comme le reste du routeur.
 router.post("/factures-client/:id/relance", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  const scoped = and(eq(facturesClientTable.id, id), eq(facturesClientTable.organisationId, orgId));
   try {
-    const [facture] = await db.select().from(facturesClientTable).where(eq(facturesClientTable.id, id));
+    const [facture] = await db.select().from(facturesClientTable).where(scoped);
     if (!facture) { res.status(404).json({ error: "Facture non trouvee." }); return; }
 
     if (!facture.clientEmail || !facture.clientEmail.trim()) {
@@ -270,7 +268,7 @@ router.post("/factures-client/:id/relance", async (req: Request, res: Response):
     const now = new Date();
     const [updated] = await db.update(facturesClientTable)
       .set({ reminderCount: reminderNumber, lastReminderAt: now, updatedAt: now })
-      .where(eq(facturesClientTable.id, id))
+      .where(scoped)
       .returning();
 
     req.log.info({ factureId: id, reminderNumber, provider: result.provider }, "Relance facture envoyee");
@@ -282,10 +280,13 @@ router.post("/factures-client/:id/relance", async (req: Request, res: Response):
 });
 
 router.delete("/factures-client/:id", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   try {
-    const result = await db.delete(facturesClientTable).where(eq(facturesClientTable.id, id)).returning({ id: facturesClientTable.id });
+    const result = await db.delete(facturesClientTable)
+      .where(and(eq(facturesClientTable.id, id), eq(facturesClientTable.organisationId, orgId)))
+      .returning({ id: facturesClientTable.id });
     if (result.length === 0) { res.status(404).json({ error: "Facture non trouvee." }); return; }
     res.json({ ok: true });
   } catch (err: any) {

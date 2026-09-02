@@ -4,6 +4,7 @@ import { db, prospectsTable, contactsTable, devisTable, facturesClientTable, cal
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { requireRole } from "../middleware/auth";
 import { generateUniqueReference } from "../lib/unique-reference";
+import { getOrgId } from "../middleware/tenant";
 import { computeInvoiceTotals } from "../services/invoice-totals";
 
 const router: IRouter = Router();
@@ -11,14 +12,13 @@ const router: IRouter = Router();
 const STAGES = ["nouveau", "contact", "qualification", "proposition", "negociation", "gagne", "perdu"] as const;
 const PRIORITIES = ["haute", "moyenne", "basse"] as const;
 
-// Backoffice SaaS (super-admin uniquement). Plus de filtre organisation_id
-// par defaut: la vue est globale. Un parametre ?organisationId= permet de
-// scoper une organisation pour le tri/QA. Voir Tâche #53.
-function parseOrgFilter(req: Request): number | null {
-  const raw = (req.query as Record<string, unknown>).organisationId;
-  if (raw == null || raw === "") return null;
-  const n = Number(raw);
-  return Number.isFinite(n) ? n : null;
+// Ressource TENANT: le prospect appartient au client. Chaque requete est
+// bornee a l'organisation de la session (`getOrgId`); aucun appelant ne choisit
+// son `organisationId` (cf. routes/index.ts, "Customer content").
+
+/** Borne une ligne a la fois par son id ET par l'organisation appelante. */
+function ownedById(id: number, orgId: number): SQL {
+  return and(eq(prospectsTable.id, id), eq(prospectsTable.organisationId, orgId))!;
 }
 
 const sortCols: Record<string, any> = {
@@ -31,11 +31,10 @@ const sortCols: Record<string, any> = {
 };
 
 router.get("/prospects", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
   const { search, stage, priority, assignedTo, limit = "50", offset = "0", sortBy = "createdAt", sortOrder = "desc" } = req.query as any;
 
-  const conditions: SQL[] = [];
-  const orgFilter = parseOrgFilter(req);
-  if (orgFilter != null) conditions.push(eq(prospectsTable.organisationId, orgFilter));
+  const conditions: SQL[] = [eq(prospectsTable.organisationId, orgId)];
   if (stage && stage !== "all") conditions.push(eq(prospectsTable.stage, stage));
   if (priority && priority !== "all") conditions.push(eq(prospectsTable.priority, priority));
   const useUnaccent = await ensureUnaccentExtension();
@@ -51,17 +50,17 @@ router.get("/prospects", async (req: Request, res: Response): Promise<void> => {
     )!);
   }
 
-  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  // Toujours defini: le filtre organisation est la premiere condition, donc
+  // aucune branche ne peut interroger la table sans borne tenant.
+  const where = and(...conditions);
   const col = sortCols[sortBy] ?? prospectsTable.createdAt;
   const orderFn = sortOrder === "asc" ? asc : desc;
 
   try {
     const [rows, countRes] = await Promise.all([
-      (where ? db.select().from(prospectsTable).where(where) : db.select().from(prospectsTable))
+      db.select().from(prospectsTable).where(where)
         .orderBy(orderFn(col)).limit(Number(limit)).offset(Number(offset)),
-      where
-        ? db.select({ count: sql<number>`count(*)::int` }).from(prospectsTable).where(where)
-        : db.select({ count: sql<number>`count(*)::int` }).from(prospectsTable),
+      db.select({ count: sql<number>`count(*)::int` }).from(prospectsTable).where(where),
     ]);
     res.json({ prospects: rows, total: countRes[0]?.count ?? 0 });
   } catch (err: any) {
@@ -71,8 +70,7 @@ router.get("/prospects", async (req: Request, res: Response): Promise<void> => {
 });
 
 router.get("/prospects/stats", async (req: Request, res: Response): Promise<void> => {
-  const orgFilter = parseOrgFilter(req);
-  const where = orgFilter != null ? eq(prospectsTable.organisationId, orgFilter) : undefined;
+  const where = eq(prospectsTable.organisationId, getOrgId(req));
   try {
     const stageQ = db.select({
       stage: prospectsTable.stage,
@@ -87,8 +85,8 @@ router.get("/prospects/stats", async (req: Request, res: Response): Promise<void
       lostCount: sql<number>`count(*) filter (where ${prospectsTable.stage} = 'perdu')::int`,
     }).from(prospectsTable);
     const [byStage, totals] = await Promise.all([
-      where ? stageQ.where(where).groupBy(prospectsTable.stage) : stageQ.groupBy(prospectsTable.stage),
-      where ? totalsQ.where(where) : totalsQ,
+      stageQ.where(where).groupBy(prospectsTable.stage),
+      totalsQ.where(where),
     ]);
     res.json({ byStage, ...totals[0] });
   } catch (err: any) {
@@ -98,10 +96,11 @@ router.get("/prospects/stats", async (req: Request, res: Response): Promise<void
 });
 
 router.get("/prospects/:id", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   try {
-    const [row] = await db.select().from(prospectsTable).where(eq(prospectsTable.id, id));
+    const [row] = await db.select().from(prospectsTable).where(ownedById(id, orgId));
     if (!row) { res.status(404).json({ error: "Prospect non trouve." }); return; }
     res.json(row);
   } catch (err: any) {
@@ -111,22 +110,11 @@ router.get("/prospects/:id", async (req: Request, res: Response): Promise<void> 
 });
 
 router.post("/prospects", async (req: Request, res: Response): Promise<void> => {
-  const { title, description, contactName, company, email, phone, stage = "nouveau", priority = "moyenne", value, currency = "EUR", probability = 50, source, assignedTo, expectedCloseDate, notes, tags, contactId, organisationId } = req.body;
+  const targetOrg = getOrgId(req);
+  const { title, description, contactName, company, email, phone, stage = "nouveau", priority = "moyenne", value, currency = "EUR", probability = 50, source, assignedTo, expectedCloseDate, notes, tags, contactId } = req.body;
 
   if (!title?.trim()) { res.status(400).json({ error: "Le titre est obligatoire." }); return; }
   if (!STAGES.includes(stage)) { res.status(400).json({ error: "Etape invalide." }); return; }
-
-  const orgFromBody = organisationId != null && organisationId !== "" ? Number(organisationId) : null;
-  if (orgFromBody != null && (!Number.isInteger(orgFromBody) || orgFromBody <= 0)) {
-    res.status(400).json({ error: "organisationId invalide." });
-    return;
-  }
-  const sessionOrg = req.session?.organisationId ?? null;
-  const targetOrg = orgFromBody ?? sessionOrg;
-  if (targetOrg == null) {
-    res.status(400).json({ error: "organisationId requis (le super-admin n'a pas d'organisation rattachee)." });
-    return;
-  }
 
   try {
     const [row] = await db.insert(prospectsTable).values({
@@ -157,11 +145,13 @@ router.post("/prospects", async (req: Request, res: Response): Promise<void> => 
 });
 
 router.patch("/prospects/:id", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  const owned = ownedById(id, orgId);
 
   try {
-    const [existing] = await db.select({ id: prospectsTable.id }).from(prospectsTable).where(eq(prospectsTable.id, id));
+    const [existing] = await db.select({ id: prospectsTable.id }).from(prospectsTable).where(owned);
     if (!existing) { res.status(404).json({ error: "Prospect non trouve." }); return; }
 
     const { title, description, contactName, company, email, phone, stage, priority, value, currency, probability, source, assignedTo, expectedCloseDate, notes, tags, contactId, lostReason } = req.body;
@@ -186,7 +176,7 @@ router.patch("/prospects/:id", async (req: Request, res: Response): Promise<void
     if (contactId !== undefined) updates.contactId = contactId ? Number(contactId) : null;
     if (lostReason !== undefined) updates.lostReason = lostReason;
 
-    const [row] = await db.update(prospectsTable).set(updates).where(eq(prospectsTable.id, id)).returning();
+    const [row] = await db.update(prospectsTable).set(updates).where(owned).returning();
     res.json(row);
   } catch (err: any) {
     req.log.error({ err }, "Erreur mise a jour prospect");
@@ -195,13 +185,11 @@ router.patch("/prospects/:id", async (req: Request, res: Response): Promise<void
 });
 
 router.get("/prospects/export/csv", async (req: Request, res: Response): Promise<void> => {
-  const orgFilter = parseOrgFilter(req);
+  const orgId = getOrgId(req);
   try {
-    const baseQ = db.select().from(prospectsTable);
-    const rows = await (orgFilter != null
-      ? baseQ.where(eq(prospectsTable.organisationId, orgFilter))
-      : baseQ
-    ).orderBy(desc(prospectsTable.createdAt));
+    const rows = await db.select().from(prospectsTable)
+      .where(eq(prospectsTable.organisationId, orgId))
+      .orderBy(desc(prospectsTable.createdAt));
     const headers = ["Titre", "Contact", "Entreprise", "Email", "Téléphone", "Étape", "Priorité", "Valeur", "Probabilité", "Source", "Clôture prévue", "Créé le"];
     const escape = (v: any) => {
       if (v == null) return "";
@@ -224,10 +212,11 @@ router.get("/prospects/export/csv", async (req: Request, res: Response): Promise
 });
 
 router.post("/prospects/:id/convert", requireRole("agent"), async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   try {
-    const [prospect] = await db.select().from(prospectsTable).where(eq(prospectsTable.id, id));
+    const [prospect] = await db.select().from(prospectsTable).where(ownedById(id, orgId));
     if (!prospect) { res.status(404).json({ error: "Prospect non trouvé." }); return; }
 
     const nameParts = (prospect.contactName || "").trim().split(" ");
@@ -246,7 +235,7 @@ router.post("/prospects/:id/convert", requireRole("agent"), async (req: Request,
     } as any).returning();
 
     await db.update(prospectsTable).set({ stage: "gagne", updatedAt: new Date() } as any)
-      .where(eq(prospectsTable.id, id));
+      .where(ownedById(id, orgId));
 
     res.status(201).json({ contact, message: "Prospect converti en contact avec succès." });
   } catch (err: any) {
@@ -264,13 +253,13 @@ router.post("/prospects/:id/convert", requireRole("agent"), async (req: Request,
  * ajuste ensuite les lignes reelles; les totaux sont recalcules cote serveur.
  */
 router.post("/prospects/:id/create-devis", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   try {
-    const [prospect] = await db.select().from(prospectsTable).where(eq(prospectsTable.id, id));
+    const [prospect] = await db.select().from(prospectsTable).where(ownedById(id, orgId));
     if (!prospect) { res.status(404).json({ error: "Prospect non trouvé." }); return; }
 
-    const orgId = prospect.organisationId;
     const checkExists = async (candidate: string): Promise<boolean> => {
       const [e] = await db.select({ id: devisTable.id }).from(devisTable)
         .where(and(eq(devisTable.organisationId, orgId), eq(devisTable.reference, candidate)));
@@ -306,7 +295,7 @@ router.post("/prospects/:id/create-devis", async (req: Request, res: Response): 
 
     // Le prospect avance a l'etape "proposition" (un devis a ete emis).
     if (prospect.stage === "nouveau" || prospect.stage === "contact" || prospect.stage === "qualification") {
-      await db.update(prospectsTable).set({ stage: "proposition", updatedAt: new Date() }).where(eq(prospectsTable.id, id));
+      await db.update(prospectsTable).set({ stage: "proposition", updatedAt: new Date() }).where(ownedById(id, orgId));
     }
 
     res.status(201).json({ devis });
@@ -317,10 +306,11 @@ router.post("/prospects/:id/create-devis", async (req: Request, res: Response): 
 });
 
 router.post("/prospects/:id/duplicate", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   try {
-    const [original] = await db.select().from(prospectsTable).where(eq(prospectsTable.id, id));
+    const [original] = await db.select().from(prospectsTable).where(ownedById(id, orgId));
     if (!original) { res.status(404).json({ error: "Prospect non trouve." }); return; }
     const [copy] = await db.insert(prospectsTable).values({
       organisationId: original.organisationId,
@@ -345,6 +335,7 @@ router.post("/prospects/:id/duplicate", async (req: Request, res: Response): Pro
 });
 
 router.get("/prospects/:id/devis", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   try {
@@ -353,11 +344,8 @@ router.get("/prospects/:id/devis", async (req: Request, res: Response): Promise<
       contactName: prospectsTable.contactName,
       company: prospectsTable.company,
       email: prospectsTable.email,
-    }).from(prospectsTable).where(eq(prospectsTable.id, id)).limit(1);
+    }).from(prospectsTable).where(ownedById(id, orgId)).limit(1);
     if (!prospect) { res.status(404).json({ error: "Prospect non trouve." }); return; }
-    if (prospect.organisationId == null) { res.json({ devis: [], factures: [] }); return; }
-
-    const orgId: number = prospect.organisationId;
     const name = (prospect.contactName || "").trim();
     const company = (prospect.company || "").trim();
     const email = (prospect.email || "").trim();
@@ -397,15 +385,13 @@ router.get("/prospects/:id/devis", async (req: Request, res: Response): Promise<
 });
 
 router.get("/prospects/:id/history", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   try {
     const [prospect] = await db.select().from(prospectsTable)
-      .where(eq(prospectsTable.id, id)).limit(1);
+      .where(ownedById(id, orgId)).limit(1);
     if (!prospect) { res.status(404).json({ error: "Prospect non trouve." }); return; }
-    if (prospect.organisationId == null) { res.json({ calls: [], tasks: [] }); return; }
-
-    const orgId: number = prospect.organisationId;
     const name = (prospect.contactName || "").trim();
     const phone = (prospect.phone || "").trim();
     const email = (prospect.email || "").trim();
@@ -450,10 +436,11 @@ router.get("/prospects/:id/history", async (req: Request, res: Response): Promis
 });
 
 router.delete("/prospects/:id", requireRole("administrateur", "super_admin"), async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   try {
-    const [row] = await db.delete(prospectsTable).where(eq(prospectsTable.id, id)).returning({ id: prospectsTable.id });
+    const [row] = await db.delete(prospectsTable).where(ownedById(id, orgId)).returning({ id: prospectsTable.id });
     if (!row) { res.status(404).json({ error: "Prospect non trouve." }); return; }
     res.json({ success: true });
   } catch (err: any) {
