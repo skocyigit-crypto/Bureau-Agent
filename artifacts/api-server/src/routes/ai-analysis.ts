@@ -11,6 +11,7 @@ import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL
 import { getAnthropicMode } from "@workspace/integrations-anthropic-ai";
 import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 import { generateUniqueReference } from "../lib/unique-reference";
+import { overdueCondition } from "../services/invoice-status";
 
 const router = Router();
 
@@ -1942,13 +1943,13 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
           totalHT: sql<number>`coalesce(sum(${facturesClientTable.subtotal}::numeric), 0)::numeric`,
           totalTTC: sql<number>`coalesce(sum(${facturesClientTable.totalAmount}::numeric), 0)::numeric`,
           paid: sql<number>`count(*) filter (where ${facturesClientTable.status} = 'payee')`,
-          unpaid: sql<number>`count(*) filter (where ${facturesClientTable.status} in ('envoyee','en_attente'))`,
-          overdue: sql<number>`count(*) filter (where ${facturesClientTable.status} = 'en_retard')`,
+          unpaid: sql<number>`count(*) filter (where ${facturesClientTable.status} in ('envoyee'))`,
+          overdue: sql<number>`count(*) filter (where ${facturesClientTable.dueDate} is not null and ${facturesClientTable.dueDate} < now() and ${facturesClientTable.status} not in ('payee','annulee','brouillon') and ${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0) > 0)`,
           paidAmount: sql<number>`coalesce(sum(case when ${facturesClientTable.status} = 'payee' then ${facturesClientTable.totalAmount}::numeric else 0 end), 0)::numeric`,
-          unpaidAmount: sql<number>`coalesce(sum(case when ${facturesClientTable.status} in ('envoyee','en_attente','en_retard') then ${facturesClientTable.totalAmount}::numeric else 0 end), 0)::numeric`,
+          unpaidAmount: sql<number>`coalesce(sum(case when ${facturesClientTable.status} in ('envoyee','en_retard') then ${facturesClientTable.totalAmount}::numeric else 0 end), 0)::numeric`,
         }).from(facturesClientTable).where(orgInvoice),
         db.select({ id: facturesClientTable.id, invoiceNumber: facturesClientTable.reference, clientName: facturesClientTable.clientName, totalTTC: facturesClientTable.totalAmount, status: facturesClientTable.status, dueDate: facturesClientTable.dueDate, paidAmount: facturesClientTable.paidAmount }).from(facturesClientTable).where(orgInvoice).orderBy(desc(facturesClientTable.createdAt)).limit(10),
-        db.select({ id: facturesClientTable.id, invoiceNumber: facturesClientTable.reference, clientName: facturesClientTable.clientName, totalTTC: facturesClientTable.totalAmount, dueDate: facturesClientTable.dueDate, paidAmount: facturesClientTable.paidAmount }).from(facturesClientTable).where(and(orgInvoice, eq(facturesClientTable.status, "en_retard"))).orderBy(asc(facturesClientTable.dueDate)).limit(10),
+        db.select({ id: facturesClientTable.id, invoiceNumber: facturesClientTable.reference, clientName: facturesClientTable.clientName, totalTTC: facturesClientTable.totalAmount, dueDate: facturesClientTable.dueDate, paidAmount: facturesClientTable.paidAmount }).from(facturesClientTable).where(and(orgInvoice, overdueCondition())).orderBy(asc(facturesClientTable.dueDate)).limit(10),
         db.select({
           totalAccounts: count(),
           avgHealth: sql<number>`coalesce(avg(${compteClientTable.healthScore}), 0)::int`,
@@ -2712,8 +2713,8 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         const days = parseInt(String(target), 10) || 30;
         const futureDate = new Date(Date.now() + days * 86400000);
         const [incoming, outstandingTotal] = await Promise.all([
-          db.select({ total: sql<number>`coalesce(sum(${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0)), 0)::numeric` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), sql`${facturesClientTable.status} in ('envoyee','en_attente')`, lte(facturesClientTable.dueDate, futureDate))),
-          db.select({ total: sql<number>`coalesce(sum(${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0)), 0)::numeric`, overdue: sql<number>`coalesce(sum(case when ${facturesClientTable.status} = 'en_retard' then ${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0) else 0 end), 0)::numeric`, count: count() }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), sql`${facturesClientTable.status} not in ('payee','annulee')`)),
+          db.select({ total: sql<number>`coalesce(sum(${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0)), 0)::numeric` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), sql`${facturesClientTable.status} in ('envoyee')`, lte(facturesClientTable.dueDate, futureDate))),
+          db.select({ total: sql<number>`coalesce(sum(${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0)), 0)::numeric`, overdue: sql<number>`coalesce(sum(case when ${facturesClientTable.dueDate} is not null and ${facturesClientTable.dueDate} < now() and ${facturesClientTable.status} not in ('payee','annulee','brouillon') then ${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0) else 0 end), 0)::numeric`, count: count() }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), sql`${facturesClientTable.status} not in ('payee','annulee')`)),
         ]);
         const avgHealthRes = await db.select({ avg: sql<number>`coalesce(avg(${compteClientTable.healthScore}), 50)::int` }).from(compteClientTable).where(eq(compteClientTable.organisationId, orgId));
         const avgHealth = avgHealthRes[0]?.avg ?? 50;
@@ -2761,7 +2762,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           db.select({ count: count() }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.priority, "haute"), ne(tasksTable.status, "termine"))),
           db.select({ count: count() }).from(messagesTable).where(and(eq(messagesTable.organisationId, orgId), eq(messagesTable.isRead, false))),
           db.select({ title: calendarEventsTable.title, startDate: calendarEventsTable.startDate, contactName: calendarEventsTable.contactName }).from(calendarEventsTable).where(and(eq(calendarEventsTable.organisationId, orgId), gte(calendarEventsTable.startDate, nowBrief), lte(calendarEventsTable.startDate, new Date(nowBrief.getTime() + 86400000)))).orderBy(asc(calendarEventsTable.startDate)).limit(10),
-          db.select({ count: count(), total: sql<number>`coalesce(sum(${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0)), 0)::numeric` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), eq(facturesClientTable.status, "en_retard"))),
+          db.select({ count: count(), total: sql<number>`coalesce(sum(${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0)), 0)::numeric` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), overdueCondition())),
           db.select({ count: count() }).from(compteClientTable).where(and(eq(compteClientTable.organisationId, orgId), eq(compteClientTable.riskLevel, "critique"))),
         ]);
         const briefingContext = `Date: ${todayStr}\nTaches en retard: ${overdueCount[0]?.count ?? 0}\nTaches urgentes: ${urgentCount[0]?.count ?? 0}\nMessages non lus: ${unreadCount[0]?.count ?? 0}\nEvenements aujourd'hui: ${todayEvents.length} — ${todayEvents.map(e => `${e.title}${e.contactName ? ` (${e.contactName})` : ""} a ${new Date(e.startDate).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`).join(", ")}\nFactures en retard: ${invoiceOverdue[0]?.count ?? 0} pour ${Number(invoiceOverdue[0]?.total ?? 0).toFixed(2)}€\nComptes critiques: ${criticalAccounts[0]?.count ?? 0}`;
@@ -2804,7 +2805,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
       case "risk_analysis": {
         const { ai: riskAi } = await import("@workspace/integrations-gemini-ai");
         const [rOverdue, rCritical, rStock, rMissed, rOverBudget] = await Promise.all([
-          db.select({ count: count(), total: sql<number>`coalesce(sum(${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0)), 0)::numeric` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), eq(facturesClientTable.status, "en_retard"))),
+          db.select({ count: count(), total: sql<number>`coalesce(sum(${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0)), 0)::numeric` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), overdueCondition())),
           db.select({ count: count() }).from(compteClientTable).where(and(eq(compteClientTable.organisationId, orgId), or(eq(compteClientTable.riskLevel, "critique"), eq(compteClientTable.riskLevel, "eleve")))),
           db.select({ count: count() }).from(stockArticlesTable).where(and(eq(stockArticlesTable.organisationId, orgId), sql`${stockArticlesTable.quantity} <= ${stockArticlesTable.minQuantity}`)),
           db.select({ count: count() }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), eq(callsTable.status, "manque"), gte(callsTable.createdAt, new Date(Date.now() - 7 * 86400000)))),
@@ -2870,7 +2871,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         const [aCalls, aTasks, aInvoices, aProspects, aAccounts] = await Promise.all([
           db.select({ total: count(), answered: sql<number>`count(*) filter (where ${callsTable.status} = 'repondu')`, missed: sql<number>`count(*) filter (where ${callsTable.status} = 'manque')`, avgDuration: avg(callsTable.duration) }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), gte(callsTable.createdAt, monthAgoAudit))),
           db.select({ total: count(), completed: sql<number>`count(*) filter (where ${tasksTable.status} = 'termine')`, overdue: sql<number>`count(*) filter (where ${tasksTable.dueDate} < now() and ${tasksTable.status} not in ('termine','annule'))` }).from(tasksTable).where(eq(tasksTable.organisationId, orgId)),
-          db.select({ total: count(), paid: sql<number>`count(*) filter (where ${facturesClientTable.status} = 'payee')`, overdue: sql<number>`count(*) filter (where ${facturesClientTable.status} = 'en_retard')`, ca: sql<number>`coalesce(sum(case when ${facturesClientTable.status} = 'payee' then ${facturesClientTable.totalAmount}::numeric else 0 end), 0)::numeric` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), gte(facturesClientTable.createdAt, monthAgoAudit))),
+          db.select({ total: count(), paid: sql<number>`count(*) filter (where ${facturesClientTable.status} = 'payee')`, overdue: sql<number>`count(*) filter (where ${facturesClientTable.dueDate} is not null and ${facturesClientTable.dueDate} < now() and ${facturesClientTable.status} not in ('payee','annulee','brouillon') and ${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0) > 0)`, ca: sql<number>`coalesce(sum(case when ${facturesClientTable.status} = 'payee' then ${facturesClientTable.totalAmount}::numeric else 0 end), 0)::numeric` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), gte(facturesClientTable.createdAt, monthAgoAudit))),
           db.select({ total: count(), won: sql<number>`count(*) filter (where ${prospectsTable.stage} = 'gagne')`, lost: sql<number>`count(*) filter (where ${prospectsTable.stage} = 'perdu')`, pipeline: sql<number>`coalesce(sum(${prospectsTable.value}::numeric), 0)::numeric` }).from(prospectsTable).where(eq(prospectsTable.organisationId, orgId)),
           db.select({ avgHealth: sql<number>`coalesce(avg(${compteClientTable.healthScore}), 0)::int`, critical: sql<number>`count(*) filter (where ${compteClientTable.riskLevel} = 'critique')` }).from(compteClientTable).where(eq(compteClientTable.organisationId, orgId)),
         ]);

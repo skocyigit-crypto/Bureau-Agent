@@ -5,6 +5,7 @@ import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/acce
 import { sendInvoiceReminderEmail } from "../services/email";
 import { generateUniqueReference } from "../lib/unique-reference";
 import { getOrgId } from "../middleware/tenant";
+import { deriveInvoiceStatus, overdueCondition } from "../services/invoice-status";
 import { buildInvoiceDocument, invoiceFileName, renderInvoicePdf } from "../services/invoice-pdf";
 import { computeInvoiceTotals, isValidCurrency, parseUserDate, clampPagination, normalizePaidAmount } from "../services/invoice-totals";
 
@@ -24,7 +25,15 @@ router.get("/factures-client", async (req: Request, res: Response): Promise<void
   const { search, status } = req.query as any;
   const { limit, offset } = clampPagination((req.query as any).limit, (req.query as any).offset);
   const conditions: SQL[] = [eq(facturesClientTable.organisationId, orgId)];
-  if (status && status !== "all") conditions.push(eq(facturesClientTable.status, status));
+  if (status === "en_retard") {
+    // "En retard" est DEDUIT de l'echeance et du reste du, pas lu dans la
+    // colonne: aucun chemin de code n'y ecrivait cette valeur, donc le filtre
+    // ne renvoyait jamais rien (et le lien "Voir les factures en retard" des
+    // insights tombait sur une liste vide).
+    conditions.push(overdueCondition());
+  } else if (status && status !== "all") {
+    conditions.push(eq(facturesClientTable.status, status));
+  }
   if (search) {
     const useUnaccent = await ensureUnaccentExtension();
     const pattern = `%${search}%`;
@@ -239,6 +248,30 @@ router.patch("/factures-client/:id", async (req: Request, res: Response): Promis
       const [cur] = await db.select({ totalAmount: facturesClientTable.totalAmount }).from(facturesClientTable).where(scoped);
       if (updates.totalAmount === undefined && cur) updates.paidAmount = cur.totalAmount;
       else if (updates.totalAmount !== undefined) updates.paidAmount = updates.totalAmount;
+    } else if (b.status === undefined) {
+      // Statut deduit quand l'appelant n'en impose pas: un encaissement
+      // partiel doit se lire "partiellement payee", un solde atteint "payee".
+      // Sans cela, `partiellement_payee` n'etait jamais atteint par l'API et
+      // une facture soldee restait "envoyee" tant qu'un humain ne la corrigeait
+      // pas. Un statut envoye explicitement reste souverain.
+      const [cur] = await db.select({
+        status: facturesClientTable.status,
+        paidAmount: facturesClientTable.paidAmount,
+        totalAmount: facturesClientTable.totalAmount,
+        dueDate: facturesClientTable.dueDate,
+      }).from(facturesClientTable).where(scoped);
+      if (cur) {
+        const derived = deriveInvoiceStatus({
+          status: cur.status,
+          paidAmount: updates.paidAmount ?? cur.paidAmount,
+          totalAmount: updates.totalAmount ?? cur.totalAmount,
+          dueDate: updates.dueDate ?? cur.dueDate,
+        });
+        if (derived) {
+          updates.status = derived;
+          if (derived === "payee") updates.paidAt = new Date();
+        }
+      }
     }
     const [row] = await db.update(facturesClientTable).set(updates).where(scoped).returning();
     res.json(row);

@@ -34,8 +34,9 @@ import {
   compteClientTable,
   proactiveSuggestionsTable,
 } from "@workspace/db";
-import { and, eq, inArray, lt, gt, ne, notInArray, sql } from "drizzle-orm";
+import { and, eq, gt, inArray } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { overdueCondition } from "./invoice-status";
 import { withDbRetry } from "../lib/db-retry";
 import { broadcaster } from "./broadcaster";
 
@@ -216,12 +217,11 @@ export async function runPaymentReminderScanForOrg(orgId: number): Promise<Payme
         .where(
           and(
             eq(facturesClientTable.organisationId, orgId),
-            notInArray(facturesClientTable.status, NON_COLLECTIBLE_STATUSES as unknown as string[]),
-            lt(facturesClientTable.dueDate, now),
-            gt(
-              sql`(${facturesClientTable.totalAmount} - ${facturesClientTable.paidAmount})`,
-              sql`0`,
-            ),
+            // Ce service portait la seule definition correcte du retard
+            // (echeance passee + reste du + statut encaissable). Elle vit
+            // maintenant dans `invoice-status.ts` et sert partout, au lieu
+            // d'etre reecrite differemment a chaque appelant.
+            overdueCondition(now),
           ),
         ),
     { label: "payment-reminder:overdue" },

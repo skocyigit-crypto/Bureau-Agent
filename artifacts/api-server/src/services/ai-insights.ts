@@ -59,7 +59,7 @@ async function gatherSignals(orgId: number): Promise<RawSignals> {
     db.select({ c: count(), s: sql<string>`COALESCE(SUM(${facturesClientTable.totalAmount}::numeric), 0)::text` }).from(facturesClientTable).where(and(
       eq(facturesClientTable.organisationId, orgId),
       sql`${facturesClientTable.dueDate} < ${now.toISOString()}`,
-      sql`${facturesClientTable.status} in ('envoyee','en_attente','en_retard')`,
+      sql`${facturesClientTable.status} not in ('payee','annulee','brouillon')`,
     )),
     db.select({ c: count() }).from(callsTable).where(and(
       eq(callsTable.organisationId, orgId),

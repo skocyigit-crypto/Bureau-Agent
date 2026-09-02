@@ -8,6 +8,7 @@ import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/acce
 import { prepareQuery, rankByRelevance } from "../helpers/relevance";
 import { scoreContact, scoreTask, scoreEvent, scoreCall, scoreProject } from "../helpers/tool-scorers";
 import { sendEmail } from "./email";
+import { unpaidCondition } from "./invoice-status";
 import { sendSms as providerSendSms } from "./telephony-providers";
 import { generateImage } from "@workspace/integrations-gemini-ai/image";
 import { buildExcelBase64, buildWordBase64, buildPdfBase64, buildPptxBase64 } from "./document-export";
@@ -140,7 +141,7 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
         db.select({ n: sql<number>`count(*)::int` }).from(contactsTable).where(eq(contactsTable.organisationId, orgId)),
         db.select({ n: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.status, "en_attente"))),
         db.select({ n: sql<number>`count(*)::int` }).from(prospectsTable).where(eq(prospectsTable.organisationId, orgId)),
-        db.select({ n: sql<number>`count(*)::int` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), or(eq(facturesClientTable.status, "envoyee"), eq(facturesClientTable.status, "en_attente"), eq(facturesClientTable.status, "en_retard"))!)),
+        db.select({ n: sql<number>`count(*)::int` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), unpaidCondition())),
         db.select({ n: sql<number>`count(*)::int` }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), gte(callsTable.createdAt, new Date(Date.now() - 24 * 60 * 60 * 1000)))),
       ]);
       return {
@@ -161,10 +162,10 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
       const now = new Date();
       const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
       const [row] = await db.select({
-        restantAEncaisser: sql<number>`coalesce(sum(${facturesClientTable.totalAmount} - ${facturesClientTable.paidAmount}) filter (where ${facturesClientTable.status} in ('envoyee','en_attente','en_retard')), 0)::float8`,
-        facturesImpayees: sql<number>`count(*) filter (where ${facturesClientTable.status} in ('envoyee','en_attente','en_retard'))::int`,
-        montantEnRetard: sql<number>`coalesce(sum(${facturesClientTable.totalAmount} - ${facturesClientTable.paidAmount}) filter (where ${facturesClientTable.status} in ('envoyee','en_attente','en_retard') and ${facturesClientTable.dueDate} is not null and ${facturesClientTable.dueDate} < now()), 0)::float8`,
-        facturesEnRetard: sql<number>`count(*) filter (where ${facturesClientTable.status} in ('envoyee','en_attente','en_retard') and ${facturesClientTable.dueDate} is not null and ${facturesClientTable.dueDate} < now())::int`,
+        restantAEncaisser: sql<number>`coalesce(sum(${facturesClientTable.totalAmount} - ${facturesClientTable.paidAmount}) filter (where ${facturesClientTable.status} not in ('payee','annulee','brouillon')), 0)::float8`,
+        facturesImpayees: sql<number>`count(*) filter (where ${facturesClientTable.status} not in ('payee','annulee','brouillon'))::int`,
+        montantEnRetard: sql<number>`coalesce(sum(${facturesClientTable.totalAmount} - ${facturesClientTable.paidAmount}) filter (where ${facturesClientTable.status} not in ('payee','annulee','brouillon') and ${facturesClientTable.dueDate} is not null and ${facturesClientTable.dueDate} < now()), 0)::float8`,
+        facturesEnRetard: sql<number>`count(*) filter (where ${facturesClientTable.status} not in ('payee','annulee','brouillon') and ${facturesClientTable.dueDate} is not null and ${facturesClientTable.dueDate} < now())::int`,
         encaisseCeMois: sql<number>`coalesce(sum(${facturesClientTable.paidAmount}) filter (where ${facturesClientTable.paidAt} >= ${monthStart}), 0)::float8`,
         facturesPayeesCeMois: sql<number>`count(*) filter (where ${facturesClientTable.paidAt} >= ${monthStart})::int`,
       }).from(facturesClientTable).where(eq(facturesClientTable.organisationId, orgId));
