@@ -66,6 +66,12 @@ node ./scripts/ensure-search-extensions.mjs
 node ./scripts/ensure-unique-constraint-names.mjs
 node ./scripts/ensure-automation-logs-rule-id.mjs
 node ./scripts/ensure-fk-orphans.mjs
+# Garde-fou AVANT la poussee. `push --force` ne pose aucune question, pas meme
+# pour supprimer une table: ce script refuse la poussee si elle ferait perdre
+# des donnees, sauf demande explicite (ALLOW_DESTRUCTIVE_SCHEMA=true).
+# C'est la production: il n'y a pas de seconde chance ici.
+node ./scripts/schema-guard.mjs
+
 pnpm exec drizzle-kit push --force --config ./drizzle.config.ts
 node ./scripts/ensure-audit-append-only.mjs
 

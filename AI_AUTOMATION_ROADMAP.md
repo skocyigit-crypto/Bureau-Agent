@@ -1233,3 +1233,55 @@ oradan 1 okur — kimsenin istemediği bir satır üzerinde işlem. Aynı şekil
 ediliyor: **tahmin edilen bir kimlik, reddedilen kimlikten kötüdür.**
 
 **15 yeni test**, toplam **861 geçti**, tsc temiz, kiracı kapısı sıfırda.
+
+## Faz 4 — TAMAM ama kapsamı bilerek değiştirildi
+
+### Planladığım şey
+Sürümlü migration'lara geçmek (`push` yerine `migrate`).
+
+### Neden yapmadım
+Üretim veritabanını bir migration günlüğüne "baseline"lamak, canlı şemaya
+dokunmayı ve bu oturumdan doğrulayamayacağım bir durumu varsaymayı gerektirir.
+Yanlış baseline, ilk migration'da tüm şemayı yeniden yaratmayı deneyebilir.
+Doğrulayamadığım bir şeyi üretim şemasına uygulamak, çözdüğü sorundan büyük bir
+risk. Bu yüzden asıl tehlikeyi hedef aldım.
+
+### Asıl tehlike, ve kanıtı
+`drizzle.config.ts`'in kendi yorumu **yaşanmış bir kazayı** anlatıyor: `push`,
+connect-pg-simple'a ait olan (dolayısıyla Drizzle şemasında bulunmayan)
+`user_sessions` tablosunu öksüz sanmış ve yeni eklenen bir tabloya "yeniden
+adlandırmak" üzereymiş. `--force` altında bu, **giriş yapmış tüm kullanıcıların
+oturumlarının silinmesi** demekti. Alınan önlem isimle korumaydı: adını
+yazabildiğini korur, başkasını korumaz.
+
+Ve bu komut üretimde **elle** çalışıyor (`deploy/gcp-schema-push.sh`), `--force`
+ile — yani hiçbir soru sormadan, tablo silmek için bile.
+
+### Yapılan
+`lib/db/scripts/schema-guard.mjs`: push'tan **önce** canlı şema ile kaynak şemayı
+karşılaştırır ve bir şey kaybolacaksa **durdurur**. Silmek hâlâ mümkün, sadece
+kazara olmaktan çıktı:
+
+    ALLOW_DESTRUCTIVE_SCHEMA=true pnpm push
+
+En sık rastlanan kayıp biçimini de yakalar: **yeniden adlandırma**. Drizzle bir
+kolonun adının değiştiğini bilemez; siler ve yeniden yaratır, veri gelmez.
+
+Bağlandığı yerler: `pnpm push`, `pnpm push-force`, üretim betiği ve dağıtım
+hattı. Hattaki çağrı **kendi kendini denetliyor**: CI veritabanı az önce
+senkronlandığı için hiçbir şey bulmamalı; bir silme bildiriyorsa bozulan şey
+şemanın kendisi değil, **korumanın şema okuması**dır — ve sapmış bir koruma,
+elle çalıştırılan `push --force`'un önündeki tek engel olduğu üretimde artık
+koruma değildir.
+
+Karşılaştırma mantığı saf bir fonksiyon olarak ayrıldı ve **8 testle** kaplandı
+— müşteri verisi üzerinde geri alınamaz bir işleme izin veren tek karar noktası
+orası.
+
+Toplam **869 test geçti**.
+
+### Sürümlü migration'lar için kalan
+Hâlâ doğru hedef, ama önce güvenli bir baseline gerekiyor: üretim şemasının
+dökümü alınıp `drizzle-kit generate` ile karşılaştırılmalı, ve ilk migration
+"zaten uygulanmış" olarak işaretlenmeli. Bu, canlı veritabanına erişimle
+yapılacak bir iş; koruma bu arada kaza riskini kapatıyor.

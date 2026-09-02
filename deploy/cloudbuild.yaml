@@ -65,6 +65,12 @@ steps:
         node ./scripts/ensure-automation-logs-rule-id.mjs
         node ./scripts/ensure-fk-orphans.mjs
         pnpm exec drizzle-kit push --force --config ./drizzle.config.ts
+        # Le garde-fou anti-perte, exerce a chaque build. La base de CI vient
+        # d'etre synchronisee, il ne doit donc rien trouver: s'il signale une
+        # suppression, c'est que SA lecture du schema a derive — et un
+        # garde-fou qui a derive ne protege plus la production, ou il est le
+        # seul rempart devant un `push --force` lance a la main.
+        node ./scripts/schema-guard.mjs
         node ./scripts/ensure-audit-append-only.mjs
         cd ../..
         pnpm --filter @workspace/api-server run test
