@@ -4,7 +4,8 @@
 > hale gelmesi için yapılan denetimlerin ve kalan işlerin **kalıcı** kaydıdır. Her
 > oturumda güncellenir, silinmez — yeni bulgu/tamamlanan iş oldukça buraya eklenir.
 >
-> Son güncelleme: 2026-07-14 ("maximum ne gerekiyorsa yap" tamamlandı: fatura hatırlatmaları
+> Son güncelleme: 2026-09-02 (satış zincirinin 31 Temmuz'dan beri kapalı olduğu bulundu ve
+> tenant kapsamında güvenli biçimde geri açıldı; önceki güncelleme 2026-07-14: fatura hatırlatmaları
 > gerçek cron'a bağlandı VE AI destekli müşteri desteği e-posta triyajı uçtan uca canlıda
 > doğrulandı — kalan tek adım kullanıcının Cloudflare Worker'ı kurması)
 
@@ -635,3 +636,46 @@ high kapısını geçmeli (brace-expansion olayı gibi build'i düşürebilir).
 ### ⏳ Faz D — BEKLİYOR (Factur-X)
 EN 16931 CII XML üretimi + PDF/A-3'e gömme (hibrit). Fransa 2026 e-fatura
 zorunluluğu. Chorus Pro/PDP iletimi ayrı sonraki adım.
+
+---
+
+## Satış zinciri sessizce kapalıymış — 2026-09-02
+
+**Bulgu.** Faz A/B'yi (tutar motoru + devis→fatura dönüşümü) canlıda kullanan
+hiç kimse yoktu: `b61de530` ("security: restrict super admin data", 31 Temmuz)
+`prospectsRouter`, `devisRouter` ve `facturesClientRouter`'ı router'dan tamamen
+çıkarmış, yerlerine her kimlikli role `403 tenant_content_forbidden` dönen bir
+handler koymuştu. O commit gerçek bir açığı kapatıyordu — bu üç router'ın
+varsayılan `organisation_id` filtresi yoktu, yani SaaS kapsamı her müşterinin
+pipeline'ını sayabiliyordu — ama düzeltmeyi router'ları tenant kapsamına
+taşıyarak değil, tamamen kaldırarak yaptığı için satış zinciri sahiplerine de
+kapandı. `/admin/factures-b2b` sayfası o günden beri hata gösteriyordu ve
+kimse fark etmemişti.
+
+**Yapıldı (`245348e3`).** Üç router `requireTenant` altına geri bağlandı ve
+organizasyon artık pazarlık konusu değil: her listeleme/okuma/güncelleme/silme/
+hatırlatma `getOrgId(req)` ile sınırlı, `?organisationId=` ve `body.organisationId`
+kaldırıldı, referans tekilliği organizasyon başına kontrol ediliyor, bir fatura
+yalnızca kendi organizasyonundaki bir devis'e bağlanabiliyor. Super-admin'in
+ayrıcalıklı yolu yok: kendi organizasyonunun satış zincirini görür, SaaS kapsamı
+yalnızca toplu metrik döndürmeye devam eder.
+
+`admin-isolation.test.ts` artık gerçek sınırı sürüyor (üç rol × üç kaynak:
+org B satırları listede yok, okuma/güncelleme/silmede 404, silme denemesinden
+sonra veritabanında hâlâ duruyor, org B isteyen bir create org A'ya düşüyor).
+`tenant-boundary-static.test.ts` router'ların `requireTenant`'tan SONRA
+bağlandığını ve çağıran-seçimli organizasyonun geri gelmediğini kilitliyor.
+Ön yüz route'ları `1cbd4967` ile geri geldi (sayfaların kendi super-admin
+kontrolü korundu).
+
+**Kalan karar (kullanıcıya ait):** bu sayfalar sıradan müşteri rollerine
+(administrateur/agent) açılsın mı? API artık izin veriyor, sayfalar hâlâ
+super-admin'e kilitli.
+
+### Faz C notu güncellendi (2026-09-02)
+"YENİ BAĞIMLILIK gerekir (pdf-lib önerilir)" notu geçersiz: `pdfkit` zaten
+`artifacts/api-server` bağımlılığı ve `services/document-export.ts` içinde
+kullanılıyor. Yasal A4 fatura PDF'i yeni paket eklemeden yazılabilir (satıcı
+kimliği `organisationsTable`'da hazır: siret, tvaNumber, legalForm, capital,
+bankIban/bic, invoiceFooter). Faz D (Factur-X / PDF‑A‑3 gömme) için pdfkit
+yetmeyebilir, o adımda yeniden değerlendirilecek.
