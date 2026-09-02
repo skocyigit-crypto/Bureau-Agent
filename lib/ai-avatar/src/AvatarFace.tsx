@@ -25,7 +25,7 @@ export const DEFAULT_PALETTE: Required<AvatarPalette> = {
   skinShadow: "#dca888",
   hair: "#33303f",
   hairHi: "#4c4860",
-  lips: "#c8697a",
+  lips: "#a95f62",
   mouthInner: "#54222f",
   tongue: "#d97a86",
   ring: "#f59e0b",
@@ -294,7 +294,7 @@ export function AvatarFace({
       viewBox="0 0 200 200"
       className={className}
       role="img"
-      aria-label="Assistant"
+      aria-label="Young office assistant"
     >
       <defs>
         <radialGradient id={`${uid}-skin`} cx="50%" cy="40%" r="65%">
@@ -335,17 +335,19 @@ export function AvatarFace({
 
       <g className={`${uid}-breathe`}>
         <g ref={headRef}>
-          {/* shoulders / collar hint */}
-          <path d="M 52 196 Q 100 158 148 196 Z" fill={p.skinShadow} opacity="0.85" />
-          <path d="M 64 196 Q 100 168 136 196 Z" fill="#1f2937" opacity="0.5" />
+          {/* hoodie shoulders — a relaxed, youthful silhouette */}
+          <path d="M 43 200 Q 51 172 78 166 L 100 181 L 122 166 Q 149 172 157 200 Z" fill="#334155" />
+          <path d="M 78 166 Q 84 177 100 181 Q 116 177 122 166 L 114 163 Q 100 174 86 163 Z" fill="#475569" />
+          <path d="M 99 181 L 99 198" fill="none" stroke="#94a3b8" strokeWidth="2" opacity="0.75" />
+          <circle cx="99" cy="190" r="2" fill={p.ring} opacity="0.9" />
           {/* neck */}
           <rect x="86" y="150" width="28" height="26" rx="11" fill={p.skinShadow} />
 
           {/* hair back */}
-          <ellipse cx="100" cy="92" rx="63" ry="65" fill={`url(#${uid}-hair)`} />
+          <ellipse cx="100" cy="91" rx="61" ry="63" fill={`url(#${uid}-hair)`} />
 
           {/* face */}
-          <ellipse cx="100" cy="102" rx="53" ry="57" fill={`url(#${uid}-skin)`} />
+          <ellipse cx="100" cy="104" rx="52" ry="55" fill={`url(#${uid}-skin)`} />
           {/* soft jaw shadow */}
           <path d="M 54 116 Q 100 168 146 116 Q 132 150 100 152 Q 68 150 54 116 Z" fill={p.skinShadow} opacity="0.25" />
 
@@ -353,11 +355,12 @@ export function AvatarFace({
           <circle cx="48" cy="106" r="9" fill={`url(#${uid}-skin)`} />
           <circle cx="152" cy="106" r="9" fill={`url(#${uid}-skin)`} />
 
-          {/* hair top + fringe */}
-          <path d="M 46 80 Q 100 26 154 80 Q 140 54 100 52 Q 60 54 46 80 Z" fill={`url(#${uid}-hair)`} />
-          <path d="M 46 82 Q 60 70 76 73 L 71 90 Q 56 89 47 96 Z" fill={`url(#${uid}-hair)`} />
-          <path d="M 154 82 Q 140 70 124 73 L 129 90 Q 144 89 153 96 Z" fill={`url(#${uid}-hair)`} />
-          <path d="M 60 60 Q 100 44 140 60" fill="none" stroke={p.hairHi} strokeWidth="2" strokeLinecap="round" opacity="0.5" />
+          {/* tousled crop + uneven fringe for a teenage look */}
+          <path d="M 43 82 Q 47 52 67 43 L 64 31 L 82 40 Q 94 25 101 41 Q 119 24 119 43 L 140 35 L 135 51 Q 151 61 157 84 Q 139 62 101 59 Q 64 62 43 82 Z" fill={`url(#${uid}-hair)`} />
+          <path d="M 48 78 Q 63 61 82 62 L 75 88 Q 62 82 48 96 Z" fill={`url(#${uid}-hair)`} />
+          <path d="M 72 62 Q 91 51 109 59 L 96 82 Q 83 71 72 90 Z" fill={`url(#${uid}-hair)`} />
+          <path d="M 101 58 Q 122 51 145 72 L 132 91 Q 120 73 101 83 Z" fill={`url(#${uid}-hair)`} />
+          <path d="M 61 54 Q 98 37 137 54" fill="none" stroke={p.hairHi} strokeWidth="2.5" strokeLinecap="round" opacity="0.55" />
 
           {/* cheeks */}
           <ellipse cx="70" cy="122" rx="12" ry="8" fill={`url(#${uid}-cheek)`} />
@@ -388,9 +391,9 @@ export function AvatarFace({
               <circle cx="76.8" cy="103" r="1.7" fill="#fff" />
               <circle cx="126.8" cy="103" r="1.7" fill="#fff" />
             </g>
-            {/* upper lashes */}
-            <path d="M 63 100 Q 75 95 87 100" fill="none" stroke={p.hair} strokeWidth="2.2" strokeLinecap="round" />
-            <path d="M 113 100 Q 125 95 137 100" fill="none" stroke={p.hair} strokeWidth="2.2" strokeLinecap="round" />
+            {/* soft upper eye line */}
+            <path d="M 63 100 Q 75 96 87 100" fill="none" stroke={p.hair} strokeWidth="1.7" strokeLinecap="round" />
+            <path d="M 113 100 Q 125 96 137 100" fill="none" stroke={p.hair} strokeWidth="1.7" strokeLinecap="round" />
             {/* lower-lid squint for warm expressions */}
             <rect x="64.5" y="109" width="21" height="6" rx="3" fill={p.skin} style={{ transformBox: "fill-box", transformOrigin: "bottom", transform: `scaleY(${lowerLid})`, transition: "transform .2s" }} />
             <rect x="114.5" y="109" width="21" height="6" rx="3" fill={p.skin} style={{ transformBox: "fill-box", transformOrigin: "bottom", transform: `scaleY(${lowerLid})`, transition: "transform .2s" }} />
