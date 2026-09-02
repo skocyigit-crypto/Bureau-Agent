@@ -9057,5 +9057,33 @@
     "detectedLanguage": "Idioma detectado automáticamente para esta sugerencia",
     "disableSuggest": "Desactivar las sugerencias de IA en línea",
     "enableSuggest": "Activar las sugerencias de IA en línea"
+  },
+  "myBackups": {
+    "title": "Mis copias de seguridad",
+    "subtitle": "Una copia automática al día. Se conservan las últimas {{retention}} y se pueden descargar.",
+    "backupNow": "Copiar ahora",
+    "refresh": "Actualizar",
+    "download": "Descargar",
+    "delete": "Eliminar",
+    "empty": "Todavía no hay copias. La primera se hará esta noche, o ahora mismo con «Copiar ahora».",
+    "coverage": "{{tables}} tablas exportadas.",
+    "redacted": "Se eliminan {{columns}} columnas sensibles (contraseñas, tokens) del archivo.",
+    "rowsAndSize": "{{rows}} filas · {{size}}",
+    "originAuto": "Automática",
+    "originManual": "Manual",
+    "confirmDelete": {
+      "title": "¿Eliminar esta copia?",
+      "description": "Ya no se podrá descargar.",
+      "confirm": "Eliminar"
+    },
+    "toast": {
+      "created": "Copia creada",
+      "createdDesc": "{{rows}} filas exportadas.",
+      "createFailed": "No se pudo crear la copia",
+      "loadFailed": "No se pudieron cargar las copias",
+      "downloadFailed": "No se pudo descargar",
+      "deleted": "Copia eliminada",
+      "deleteFailed": "No se pudo eliminar"
+    }
   }
 }

@@ -67,6 +67,7 @@ import publicAppointmentsRouter from "./public-appointments";
 import prospectsRouter from "./prospects";
 import devisRouter from "./devis";
 import facturesClientRouter from "./factures-client";
+import myBackupsRouter from "./my-backups";
 import notesInternesRouter from "./notes-internes";
 import projetsRouter from "./projets";
 import dailyDigestRouter from "./daily-digest";
@@ -163,6 +164,10 @@ router.use(requireMutationRole("super_admin", "administrateur", "agent"));
 
 router.use(mySubscriptionRouter);
 router.use(stripeRouter);
+// Sauvegardes du client: montees AVANT licenseCheck. Recuperer ses propres
+// donnees ne doit pas dependre d un abonnement a jour — c est precisement
+// quand une licence expire que le client en a besoin.
+router.use(myBackupsRouter);
 router.use(licenseCheck);
 
 router.use(autoBroadcast);

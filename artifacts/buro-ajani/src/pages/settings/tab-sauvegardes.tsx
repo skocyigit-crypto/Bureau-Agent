@@ -27,6 +27,7 @@ XCircle,
 Zap
 } from "lucide-react";
 import { useCallback,useEffect,useState } from "react";
+import { MyBackupsCard } from "./my-backups-card";
 
 const WORKSPACE_API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/workspace";
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api";
@@ -313,6 +314,10 @@ export function TabSauvegardes() {
 
   return (
     <div className="space-y-6">
+      {/* Sauvegardes du client: la seule section de cet onglet branchee sur des
+          routes reelles et bornees a son organisation. */}
+      <MyBackupsCard />
+
       {dataProtectionStatus?.globalHealth && (
         <Card className="border-emerald-200 dark:border-emerald-800">
           <CardHeader>

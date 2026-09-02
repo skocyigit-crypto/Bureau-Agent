@@ -9057,5 +9057,33 @@
     "detectedLanguage": "Bu öneri için dil otomatik algılandı",
     "disableSuggest": "Satır içi Yapay Zeka önerilerini devre dışı bırak",
     "enableSuggest": "Satır içi Yapay Zeka önerilerini etkinleştir"
+  },
+  "myBackups": {
+    "title": "Yedeklerim",
+    "subtitle": "Günde bir otomatik yedek. Son {{retention}} yedek saklanır ve indirilebilir.",
+    "backupNow": "Şimdi yedekle",
+    "refresh": "Yenile",
+    "download": "İndir",
+    "delete": "Sil",
+    "empty": "Henüz yedek yok. İlki bu gece alınacak, ya da « Şimdi yedekle » ile hemen.",
+    "coverage": "{{tables}} tablo dışa aktarılıyor.",
+    "redacted": "{{columns}} hassas sütun (parola, jeton) dosyadan çıkarılır.",
+    "rowsAndSize": "{{rows}} satır · {{size}}",
+    "originAuto": "Otomatik",
+    "originManual": "Elle",
+    "confirmDelete": {
+      "title": "Bu yedek silinsin mi?",
+      "description": "Bir daha indirilemez.",
+      "confirm": "Sil"
+    },
+    "toast": {
+      "created": "Yedek oluşturuldu",
+      "createdDesc": "{{rows}} satır dışa aktarıldı.",
+      "createFailed": "Yedekleme başarısız",
+      "loadFailed": "Yedekler yüklenemedi",
+      "downloadFailed": "İndirme başarısız",
+      "deleted": "Yedek silindi",
+      "deleteFailed": "Silme başarısız"
+    }
   }
 }

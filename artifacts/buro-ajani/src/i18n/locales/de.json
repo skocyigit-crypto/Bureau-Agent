@@ -9057,5 +9057,33 @@
     "detectedLanguage": "Sprache für diesen Vorschlag automatisch erkannt",
     "disableSuggest": "Inline-KI-Vorschläge deaktivieren",
     "enableSuggest": "Inline-KI-Vorschläge aktivieren"
+  },
+  "myBackups": {
+    "title": "Meine Sicherungen",
+    "subtitle": "Eine automatische Sicherung pro Tag. Die letzten {{retention}} bleiben erhalten und sind abrufbar.",
+    "backupNow": "Jetzt sichern",
+    "refresh": "Aktualisieren",
+    "download": "Herunterladen",
+    "delete": "Löschen",
+    "empty": "Noch keine Sicherung. Die erste läuft heute Nacht, oder sofort über „Jetzt sichern“.",
+    "coverage": "{{tables}} Tabellen exportiert.",
+    "redacted": "{{columns}} sensible Spalten (Passwörter, Token) werden entfernt.",
+    "rowsAndSize": "{{rows}} Zeilen · {{size}}",
+    "originAuto": "Automatisch",
+    "originManual": "Manuell",
+    "confirmDelete": {
+      "title": "Diese Sicherung löschen?",
+      "description": "Sie kann danach nicht mehr heruntergeladen werden.",
+      "confirm": "Löschen"
+    },
+    "toast": {
+      "created": "Sicherung erstellt",
+      "createdDesc": "{{rows}} Zeilen exportiert.",
+      "createFailed": "Sicherung fehlgeschlagen",
+      "loadFailed": "Sicherungen konnten nicht geladen werden",
+      "downloadFailed": "Download fehlgeschlagen",
+      "deleted": "Sicherung gelöscht",
+      "deleteFailed": "Löschen fehlgeschlagen"
+    }
   }
 }

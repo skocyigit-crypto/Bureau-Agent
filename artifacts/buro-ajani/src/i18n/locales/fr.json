@@ -9057,5 +9057,33 @@
     "detectedLanguage": "Langue détectée automatiquement pour cette suggestion",
     "disableSuggest": "Désactiver les suggestions IA en ligne",
     "enableSuggest": "Activer les suggestions IA en ligne"
+  },
+  "myBackups": {
+    "title": "Mes sauvegardes",
+    "subtitle": "Une sauvegarde automatique par jour. Les {{retention}} dernieres sont conservees et telechargeables.",
+    "backupNow": "Sauvegarder maintenant",
+    "refresh": "Actualiser",
+    "download": "Telecharger",
+    "delete": "Supprimer",
+    "empty": "Aucune sauvegarde pour le moment. La premiere sera prise cette nuit, ou immediatement avec « Sauvegarder maintenant ».",
+    "coverage": "{{tables}} tables exportees.",
+    "redacted": "{{columns}} colonnes sensibles (mots de passe, jetons) sont retirees du fichier.",
+    "rowsAndSize": "{{rows}} lignes · {{size}}",
+    "originAuto": "Automatique",
+    "originManual": "Manuelle",
+    "confirmDelete": {
+      "title": "Supprimer cette sauvegarde ?",
+      "description": "Elle ne pourra plus etre telechargee.",
+      "confirm": "Supprimer"
+    },
+    "toast": {
+      "created": "Sauvegarde creee",
+      "createdDesc": "{{rows}} lignes exportees.",
+      "createFailed": "Sauvegarde impossible",
+      "loadFailed": "Chargement des sauvegardes impossible",
+      "downloadFailed": "Telechargement impossible",
+      "deleted": "Sauvegarde supprimee",
+      "deleteFailed": "Suppression impossible"
+    }
   }
 }

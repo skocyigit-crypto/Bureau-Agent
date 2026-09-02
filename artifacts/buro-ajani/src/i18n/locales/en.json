@@ -9057,5 +9057,33 @@
     "detectedLanguage": "Language automatically detected for this suggestion",
     "disableSuggest": "Disable inline AI suggestions",
     "enableSuggest": "Enable inline AI suggestions"
+  },
+  "myBackups": {
+    "title": "My backups",
+    "subtitle": "One automatic backup per day. The last {{retention}} are kept and downloadable.",
+    "backupNow": "Back up now",
+    "refresh": "Refresh",
+    "download": "Download",
+    "delete": "Delete",
+    "empty": "No backup yet. The first one runs tonight, or right now with \"Back up now\".",
+    "coverage": "{{tables}} tables exported.",
+    "redacted": "{{columns}} sensitive columns (passwords, tokens) are stripped from the file.",
+    "rowsAndSize": "{{rows}} rows · {{size}}",
+    "originAuto": "Automatic",
+    "originManual": "Manual",
+    "confirmDelete": {
+      "title": "Delete this backup?",
+      "description": "It will no longer be downloadable.",
+      "confirm": "Delete"
+    },
+    "toast": {
+      "created": "Backup created",
+      "createdDesc": "{{rows}} rows exported.",
+      "createFailed": "Backup failed",
+      "loadFailed": "Could not load backups",
+      "downloadFailed": "Download failed",
+      "deleted": "Backup deleted",
+      "deleteFailed": "Delete failed"
+    }
   }
 }

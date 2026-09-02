@@ -14,6 +14,7 @@ import { startBillingCron } from "./services/billing-cron";
 import { startQuotaWarningCron } from "./services/quota-warning-cron";
 import { startTrialWarningCron } from "./services/trial-warning-cron";
 import { startAiInsightsCron } from "./services/ai-insights";
+import { startTenantBackupCron } from "./services/tenant-backup-cron";
 import { startLocationCleanupCron } from "./services/location-cleanup-cron";
 import { startSecurityDigestCron } from "./services/security-digest-cron";
 import { startProactiveEngine, recordModelFallbackSuggestion } from "./services/proactive-engine";
@@ -143,6 +144,7 @@ async function startServer(): Promise<void> {
     startQuotaWarningCron();
     startTrialWarningCron();
     startAiInsightsCron();
+    startTenantBackupCron();
     startLocationCleanupCron();
     startSecurityDigestCron();
     startProactiveEngine();
