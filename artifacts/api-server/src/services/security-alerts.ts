@@ -8,6 +8,7 @@
 // (un scan, un webhook Twilio, etc.). Buffer in-memory volontaire, aligne sur
 // security-scans.ts (pas de migration DB pour cette couche).
 
+import { randomUUID } from "node:crypto";
 import { broadcaster } from "./broadcaster";
 import { notifyOrgUsers } from "./whatsapp-notify";
 import { logger } from "../lib/logger";
@@ -82,7 +83,7 @@ export function emitSecurityAlert(input: {
   const label = KIND_LABEL[input.kind] ?? "Element";
   const base = `Alerte securite — ${label} dangereux detecte : ${input.target}`;
   const alert: SecurityAlert = {
-    id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    id: randomUUID(),
     orgId: input.orgId,
     kind: input.kind,
     verdict: input.verdict,
