@@ -795,3 +795,56 @@ Not: bu üç ölçümün ilk sürümleri sırasıyla 2, 1 ve 16 "bulgu" verdi; i
 ölçüm körlüğüydü (kısayol özellikler `{ logs, total }`, iç içe nesneler, 400
 karakterlik pencerenin yanlış fetch'e atfı). Elle doğrulanmadan hiçbiri
 bulgu olarak kaydedilmedi.
+
+---
+
+## Müşteri-başına günlük yedek — 2026-09-02
+
+**Talep:** her müşteri kendi verisini kaybetmesin; günlük yedek olsun ve müşteri
+bunu **kendi tarafından** yapabilsin.
+
+**Bulunan durum (üçü de gerçek kusurdu):**
+- `auto-backup.ts` hiçbir veri yedeklemiyordu: satır **sayıyor**, özeti
+  hash'leyip bir kayıt satırı yazıyordu. Geri yüklenecek hiçbir şey yok.
+- `google-drive-backup.ts` gerçek veri çıkarıyor ama `SELECT * FROM table`
+  ile, filtre olmadan — yani **tüm kiracıların** satırları. Bir müşterinin
+  Drive'ına bağlansaydı ona herkesin verisini verecekti. Hiç başlatılmamış
+  olması tek şanstı.
+- Müşterinin "Sauvegardes" ekranı `/api/workspace/backups*` çağırıyordu; o
+  uçlar **hiç yok**. Ekran bir cepheydi.
+- Cloud SQL yedekleri açık (doğrulandı: her gün 03:00, 7 yedek saklanıyor,
+  7 günlük PITR). Bu **veritabanını** korur, müşteriyi değil: yanlışlıkla
+  silinen bir kayıt onun için yine kayıptır ve bize başvurmadan hiçbir şey
+  geri alamaz.
+
+**Yapılan (`267278c5`):** organizasyon-başına gerçek yedek.
+`organisation_id` taşıyan 77 tablonun tamamı artı organizasyon kaydı, partiler
+halinde okunup JSON'a yazılıyor, gzip'leniyor, sha256 ile mühürleniyor ve
+saklanıyor. Sırlar sütun adına göre çıkarılıyor (parola hash'i, MFA sırrı,
+OAuth access/refresh jetonları, şifreli client secret, API anahtarı hash'i):
+indirilip kaybolan bir dosya müşterinin entegrasyonlarını teslim etmemeli.
+
+Müşteri kendi yönetiyor: `/api/my-backups` listeler, oluşturur (15 dakikada
+bir), indirir, siler — hepsi oturumun organizasyonuyla sınırlı ve organizasyon
+yöneticilerine ayrılmış (bir yedek tüm müşteri ve fatura verisini taşır).
+Ayarlar → Yedekler sekmesinin başına 6 dilde bir kart eklendi.
+
+Günlük iş 02:00 UTC'de, organizasyon başına kilitle, "bugün zaten alındı"
+güvencesi **yazılmış satırlardan** türetilerek çalışıyor ve dış tetikleyici
+registry'sine kayıtlı — yoksa yalnızca uyanık örnek varken çalışırdı.
+
+Uçlar **bilerek `licenseCheck` öncesine** bağlandı: kendi verisini almak
+güncel aboneliğe bağlı olmamalı; lisans biterken müşterinin ona en çok
+ihtiyacı olur.
+
+**Testler:** 13 birim (kapsamın şemayla karşılaştırılması, sır çıkarma,
+bütünlük, dosya adı sertleştirme) + gerçek veritabanına karşı 6 test; en
+önemlisi iki organizasyonu yan yana kurup birinin yedeğinde diğerinden hiçbir
+iz olmadığını gösteriyor. Kapsam testi, listeden bir tablo çıkarıldığında
+düştüğü doğrulanarak sabitlendi.
+
+**⚠️ Üretimde gereken tek adım:** `organisation_backups` tablosu için şema
+itmesi. CI şemayı yalnızca test veritabanına uyguluyor; üretim şeması elle
+gidiyor (`deploy/gcp-schema-push.sh` veya `DATABASE_URL=<prod> pnpm db:push`).
+Bu yapılana kadar yedek uçları hata döner. Canlı veritabanına `--force` şema
+itmesini bilerek yapmadım — kullanıcının kararı.
