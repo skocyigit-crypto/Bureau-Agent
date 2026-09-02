@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Database, Download, Loader2, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
+import { Database, Download, History, Loader2, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
@@ -50,6 +50,7 @@ export function MyBackupsCard() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [restoringId, setRestoringId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -114,6 +115,54 @@ export function MyBackupsCard() {
       toast({ title: t("myBackups.toast.downloadFailed"), variant: "destructive" });
     } finally {
       setDownloadingId(null);
+    }
+  };
+
+  /**
+   * Restauration en deux temps: on montre d'abord ce qui manque, et on ne
+   * demande confirmation qu'ensuite. Personne ne doit lancer une restauration
+   * sans savoir ce qu'elle va rendre.
+   */
+  const restore = async (backup: Backup) => {
+    setRestoringId(backup.id);
+    try {
+      const previewRes = await fetch(`${BASE}/api/my-backups/${backup.id}/restore-preview`, { credentials: "include" });
+      const preview = await previewRes.json().catch(() => ({}));
+      if (!previewRes.ok) {
+        toast({ title: t("myBackups.toast.restoreFailed"), description: preview.error, variant: "destructive" });
+        return;
+      }
+
+      const total: number = preview.totalMissing ?? 0;
+      if (total === 0) {
+        toast({ title: t("myBackups.toast.nothingToRestore"), description: t("myBackups.toast.nothingToRestoreDesc") });
+        return;
+      }
+
+      const detail = (preview.plan as Array<{ table: string; missing: number }>)
+        .map((p) => `${p.table}: ${p.missing}`).join(", ");
+      if (!(await confirmAction({
+        title: t("myBackups.confirmRestore.title", { count: total }),
+        description: `${t("myBackups.confirmRestore.description")}\n\n${detail}`,
+        confirmLabel: t("myBackups.confirmRestore.confirm"),
+      }))) return;
+
+      const res = await fetch(`${BASE}/api/my-backups/${backup.id}/restore`, {
+        method: "POST", credentials: "include",
+      });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast({
+          title: t("myBackups.toast.restored"),
+          description: t("myBackups.toast.restoredDesc", { rows: d.result?.restored ?? 0, failed: d.result?.failed ?? 0 }),
+        });
+      } else {
+        toast({ title: t("myBackups.toast.restoreFailed"), description: d.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: t("myBackups.toast.restoreFailed"), variant: "destructive" });
+    } finally {
+      setRestoringId(null);
     }
   };
 
@@ -190,6 +239,17 @@ export function MyBackupsCard() {
                   title={t("myBackups.download")}
                 >
                   {downloadingId === b.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => restore(b)}
+                  disabled={restoringId === b.id}
+                  aria-label={t("myBackups.restore")}
+                  title={t("myBackups.restore")}
+                >
+                  {restoringId === b.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <History className="h-4 w-4" />}
                 </Button>
                 <Button
                   variant="ghost"

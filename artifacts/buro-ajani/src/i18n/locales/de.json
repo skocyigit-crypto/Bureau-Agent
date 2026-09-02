@@ -9083,7 +9083,18 @@
       "loadFailed": "Sicherungen konnten nicht geladen werden",
       "downloadFailed": "Download fehlgeschlagen",
       "deleted": "Sicherung gelöscht",
-      "deleteFailed": "Löschen fehlgeschlagen"
+      "deleteFailed": "Löschen fehlgeschlagen",
+      "restored": "Wiederherstellung abgeschlossen",
+      "restoredDesc": "{{rows}} Zeilen zurückgeholt ({{failed}} übersprungen).",
+      "restoreFailed": "Wiederherstellung fehlgeschlagen",
+      "nothingToRestore": "Nichts wiederherzustellen",
+      "nothingToRestoreDesc": "Alles aus dieser Sicherung ist bereits vorhanden."
+    },
+    "restore": "Wiederherstellen",
+    "confirmRestore": {
+      "title": "{{count}} gelöschte Zeilen wiederherstellen?",
+      "description": "Es werden nur fehlende Zeilen wieder eingefügt. Nichts, was Sie seitdem getan haben, wird geändert oder gelöscht.",
+      "confirm": "Wiederherstellen"
     }
   }
 }

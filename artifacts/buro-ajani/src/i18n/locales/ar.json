@@ -9083,7 +9083,18 @@
       "loadFailed": "تعذر تحميل النسخ",
       "downloadFailed": "تعذر التنزيل",
       "deleted": "تم حذف النسخة",
-      "deleteFailed": "تعذر الحذف"
+      "deleteFailed": "تعذر الحذف",
+      "restored": "اكتملت الاستعادة",
+      "restoredDesc": "تمت استعادة {{rows}} صفاً ({{failed}} متخطى).",
+      "restoreFailed": "تعذرت الاستعادة",
+      "nothingToRestore": "لا شيء للاستعادة",
+      "nothingToRestoreDesc": "كل ما في هذه النسخة موجود بالفعل."
+    },
+    "restore": "استعادة",
+    "confirmRestore": {
+      "title": "استعادة {{count}} صفاً محذوفاً؟",
+      "description": "تُعاد الصفوف المفقودة فقط. لن يُغيَّر أو يُحذف أي شيء قمت به منذ ذلك الحين.",
+      "confirm": "استعادة"
     }
   }
 }

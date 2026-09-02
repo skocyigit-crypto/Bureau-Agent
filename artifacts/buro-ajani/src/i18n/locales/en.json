@@ -9083,7 +9083,18 @@
       "loadFailed": "Could not load backups",
       "downloadFailed": "Download failed",
       "deleted": "Backup deleted",
-      "deleteFailed": "Delete failed"
+      "deleteFailed": "Delete failed",
+      "restored": "Restore complete",
+      "restoredDesc": "{{rows}} rows returned ({{failed}} skipped).",
+      "restoreFailed": "Restore failed",
+      "nothingToRestore": "Nothing to restore",
+      "nothingToRestoreDesc": "Everything in this backup is already present."
+    },
+    "restore": "Restore",
+    "confirmRestore": {
+      "title": "Restore {{count}} deleted rows?",
+      "description": "Only missing rows are re-inserted. Nothing you have done since is changed or deleted.",
+      "confirm": "Restore"
     }
   }
 }

@@ -9083,7 +9083,18 @@
       "loadFailed": "Yedekler yüklenemedi",
       "downloadFailed": "İndirme başarısız",
       "deleted": "Yedek silindi",
-      "deleteFailed": "Silme başarısız"
+      "deleteFailed": "Silme başarısız",
+      "restored": "Geri yükleme tamamlandı",
+      "restoredDesc": "{{rows}} satır geri getirildi ({{failed}} atlandı).",
+      "restoreFailed": "Geri yükleme başarısız",
+      "nothingToRestore": "Geri yüklenecek bir şey yok",
+      "nothingToRestoreDesc": "Bu yedekteki her şey zaten mevcut."
+    },
+    "restore": "Geri yükle",
+    "confirmRestore": {
+      "title": "Silinmiş {{count}} satır geri yüklensin mi?",
+      "description": "Yalnızca eksik satırlar yeniden eklenir. O tarihten sonra yaptıklarınız değiştirilmez ve silinmez.",
+      "confirm": "Geri yükle"
     }
   }
 }

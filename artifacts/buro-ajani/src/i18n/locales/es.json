@@ -9083,7 +9083,18 @@
       "loadFailed": "No se pudieron cargar las copias",
       "downloadFailed": "No se pudo descargar",
       "deleted": "Copia eliminada",
-      "deleteFailed": "No se pudo eliminar"
+      "deleteFailed": "No se pudo eliminar",
+      "restored": "Restauración completada",
+      "restoredDesc": "{{rows}} filas recuperadas ({{failed}} omitidas).",
+      "restoreFailed": "No se pudo restaurar",
+      "nothingToRestore": "Nada que restaurar",
+      "nothingToRestoreDesc": "Todo lo de esta copia ya está presente."
+    },
+    "restore": "Restaurar",
+    "confirmRestore": {
+      "title": "¿Restaurar {{count}} filas eliminadas?",
+      "description": "Solo se reinsertan las filas que faltan. Nada de lo que haya hecho desde entonces se modifica ni se elimina.",
+      "confirm": "Restaurar"
     }
   }
 }

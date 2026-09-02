@@ -9083,7 +9083,18 @@
       "loadFailed": "Chargement des sauvegardes impossible",
       "downloadFailed": "Telechargement impossible",
       "deleted": "Sauvegarde supprimee",
-      "deleteFailed": "Suppression impossible"
+      "deleteFailed": "Suppression impossible",
+      "restored": "Restauration terminee",
+      "restoredDesc": "{{rows}} lignes rendues ({{failed}} ignorees).",
+      "restoreFailed": "Restauration impossible",
+      "nothingToRestore": "Rien a restaurer",
+      "nothingToRestoreDesc": "Toutes les donnees de cette sauvegarde sont deja presentes."
+    },
+    "restore": "Restaurer",
+    "confirmRestore": {
+      "title": "Restaurer {{count}} lignes supprimees ?",
+      "description": "Seules les lignes absentes seront reinserees. Rien de ce que vous avez fait depuis ne sera modifie ni supprime.",
+      "confirm": "Restaurer"
     }
   }
 }

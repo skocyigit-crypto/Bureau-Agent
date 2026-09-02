@@ -16,6 +16,7 @@ import { requireRole } from "../middleware/auth";
 import { getOrgId } from "../middleware/tenant";
 import {
   backupFileName,
+  type BackupContent,
   createOrganisationBackup,
   DEFAULT_RETENTION,
   EXCLUDED_TABLES,
@@ -23,6 +24,7 @@ import {
   REDACTED_COLUMNS,
   TENANT_TABLES,
 } from "../services/tenant-backup";
+import { planRestore, restoreMissingRows, RESTORABLE_TABLES } from "../services/tenant-restore";
 
 const router: IRouter = Router();
 
@@ -133,6 +135,69 @@ router.get("/my-backups/:id/download", requireRole("administrateur", "super_admi
   } catch (err: any) {
     req.log.error({ err }, "[my-backups] telechargement impossible");
     res.status(500).json({ error: "Erreur lors du telechargement." });
+  }
+});
+
+/** Charge une sauvegarde de l'organisation et verifie son empreinte. */
+async function loadVerifiedBackup(orgId: number, id: number) {
+  const [row] = await db.select()
+    .from(organisationBackupsTable)
+    .where(and(
+      eq(organisationBackupsTable.id, id),
+      eq(organisationBackupsTable.organisationId, orgId),
+    ));
+  if (!row) return { error: "notfound" as const };
+  const { json, valid } = readStoredBackup({ content: row.content, checksum: row.checksum });
+  if (!valid) return { error: "corrupt" as const };
+  return { content: JSON.parse(json) as BackupContent, row };
+}
+
+/**
+ * Ce qu'une restauration ajouterait. Aucune ecriture: le client doit pouvoir
+ * lire la liste avant de decider.
+ */
+router.get("/my-backups/:id/restore-preview", requireRole("administrateur", "super_admin"), async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const id = parseInt(req.params.id as string);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  try {
+    const loaded = await loadVerifiedBackup(orgId, id);
+    if (loaded.error === "notfound") { res.status(404).json({ error: "Sauvegarde introuvable." }); return; }
+    if (loaded.error === "corrupt") { res.status(500).json({ error: "Sauvegarde corrompue: empreinte invalide." }); return; }
+
+    const plan = await planRestore(loaded.content, orgId);
+    res.json({
+      plan,
+      totalMissing: plan.reduce((s, p) => s + p.missing, 0),
+      restorableTables: RESTORABLE_TABLES,
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "[my-backups] apercu de restauration impossible");
+    res.status(500).json({ error: "Erreur lors de l'analyse de la sauvegarde." });
+  }
+});
+
+/**
+ * Restauration ADDITIVE: reinsere uniquement les lignes absentes. Rien n'est
+ * mis a jour ni supprime, donc le travail fait depuis la sauvegarde est
+ * conserve.
+ */
+router.post("/my-backups/:id/restore", requireRole("administrateur", "super_admin"), async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const id = parseInt(req.params.id as string);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  const tables = Array.isArray(req.body?.tables) ? req.body.tables.map(String) : undefined;
+  try {
+    const loaded = await loadVerifiedBackup(orgId, id);
+    if (loaded.error === "notfound") { res.status(404).json({ error: "Sauvegarde introuvable." }); return; }
+    if (loaded.error === "corrupt") { res.status(500).json({ error: "Sauvegarde corrompue: empreinte invalide." }); return; }
+
+    const result = await restoreMissingRows(loaded.content, orgId, { tables });
+    req.log.info({ orgId, backupId: id, restored: result.restored, failed: result.failed }, "[my-backups] restauration");
+    res.json({ result });
+  } catch (err: any) {
+    req.log.error({ err }, "[my-backups] restauration impossible");
+    res.status(500).json({ error: "Erreur lors de la restauration." });
   }
 });
 
