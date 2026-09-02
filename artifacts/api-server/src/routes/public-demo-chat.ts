@@ -79,6 +79,46 @@ router.get("/public/demo-chat/suggestions", (_req: Request, res: Response): void
   res.json({ suggestions: SUGGESTED_PROMPTS });
 });
 
+/**
+ * Plafond ABSOLU de la demo publique, toutes provenances confondues.
+ *
+ * La limite par IP ne borne pas la depense: elle borne un visiteur. Trente
+ * adresses suffisent a la multiplier par trente, et cet appel-ci part avec
+ * `orgId: null` — donc sans quota client pour le rattraper. Rien ne limitait
+ * donc la facture IA que cette page peut generer.
+ *
+ * Ce n'est pas theorique: le 2026-09-01, les credits Gemini puis OpenAI se
+ * sont epuises et toutes les fonctions IA sont tombees. Une page publique
+ * capable de vider un compte est le moyen le plus simple de reproduire ca,
+ * volontairement cette fois.
+ *
+ * Le compteur est en memoire, donc PAR INSTANCE: le plafond reel vaut
+ * `MAX x nombre d'instances` (maxScale=3, soit 900/h au pire). C'est
+ * volontaire — un compteur en base ajouterait une ecriture par message de
+ * demo pour un gain de precision qui ne change rien a l'ordre de grandeur.
+ * Ce qui compte est qu'un maximum existe.
+ *
+ * Au plafond, on rend la reponse de repli deja prevue: la demo reste
+ * presentable, elle cesse simplement de depenser.
+ */
+const DEMO_GLOBAL_MAX_PER_HOUR = Number(process.env.PUBLIC_DEMO_MAX_PER_HOUR ?? 300);
+let demoWindowStart = Date.now();
+let demoWindowCount = 0;
+
+function demoBudgetAvailable(): boolean {
+  const now = Date.now();
+  if (now - demoWindowStart >= 60 * 60 * 1000) {
+    demoWindowStart = now;
+    demoWindowCount = 0;
+  }
+  if (demoWindowCount >= DEMO_GLOBAL_MAX_PER_HOUR) return false;
+  demoWindowCount += 1;
+  return true;
+}
+
+const DEMO_FALLBACK_REPLY =
+  "Je suis momentanement indisponible. Pendant ce temps, decouvrez nos fonctionnalites en bas de page ou demarrez votre essai gratuit (14 jours, sans CB).";
+
 router.post("/public/demo-chat", demoChatLimiter, async (req: Request, res: Response): Promise<void> => {
   const { message, history } = req.body ?? {};
   const safeMessage = sanitizePromptInput(typeof message === "string" ? message : "", 1000);
@@ -94,6 +134,14 @@ router.post("/public/demo-chat", demoChatLimiter, async (req: Request, res: Resp
       text: sanitizePromptInput(String(h?.text ?? ""), 500),
     })).filter((h) => h.text)
     : [];
+
+  // Plafond global avant tout appel payant. Place apres la validation pour
+  // qu une requete malformee ne consomme pas de budget.
+  if (!demoBudgetAvailable()) {
+    logger.warn({ max: DEMO_GLOBAL_MAX_PER_HOUR }, "[public-demo-chat] plafond horaire atteint");
+    res.json({ reply: DEMO_FALLBACK_REPLY, degraded: true });
+    return;
+  }
 
   try {
     const contents: any[] = [
@@ -131,7 +179,7 @@ router.post("/public/demo-chat", demoChatLimiter, async (req: Request, res: Resp
     logger.warn({ err: err?.message }, "[public-demo-chat] provider failed");
     // Always succeed with a friendly fallback so the demo never looks broken.
     res.json({
-      reply: "Je suis momentanement indisponible. Pendant ce temps, decouvrez nos fonctionnalites en bas de page ou demarrez votre essai gratuit (14 jours, sans CB).",
+      reply: DEMO_FALLBACK_REPLY,
       degraded: true,
     });
   }
