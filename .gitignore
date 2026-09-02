@@ -72,3 +72,9 @@ Thumbs.db
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Binaire telecharge par deploy/gcp-schema-push.sh au besoin — pas un fichier
+# source. Il pesait 32 Mo dans le depot alors que le script sait aller le
+# chercher lui-meme.
+/cloud-sql-proxy
+/cloud-sql-proxy.exe

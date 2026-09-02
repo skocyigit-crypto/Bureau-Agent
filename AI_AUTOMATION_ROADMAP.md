@@ -1321,3 +1321,37 @@ gerçekten yüklendiğini de doğruluyor.
 ### Kapsam dışı, bilerek
 Kimlik doğrulamalı uygulama tohumlanmış bir veritabanı ve test hesabı istiyor.
 Yarım yapılacak bir şey değil; ayrı bir iş olarak durmalı.
+
+## Faz 6 — TAMAM (temizlik) + iki karar kullanıcıda
+
+### Temizlenenler
+- **`schema_files_aa` … `schema_files_aq`** silindi: 17 dosya, tamamı bir
+  `split` çıktısı — içlerinde yalnız şema dosyalarının **isimleri** var. Hiçbir
+  şey onlara bakmıyordu.
+- **`cloud-sql-proxy.exe` (32 MB) izlemeden çıkarıldı** ve `.gitignore`'a
+  eklendi. `git rm --cached` ile: **yerel dosyan duruyor**, sadece depoda
+  taşınmıyor. Güvenli olduğu doğrulandı — `deploy/gcp-schema-push.sh` zaten
+  yoksa kendisi indiriyor (satır 33-48).
+
+  Not: bu dosyayı HEAD'den çıkarmak **geçmişten silmez**; 32 MB blob commit
+  geçmişinde duruyor. Geçmişi yeniden yazmak (`filter-repo`) klonu olan herkesi
+  etkiler, o yüzden tek taraflı yapmadım.
+
+### Karar bekleyen iki şey — bilerek dokunmadım
+
+**1. `apps/api-py` (44 Python dosyası).** `pyproject.toml`'un kendi tarifi:
+*"Python (FastAPI) rewrite of the Ajant Bureau Express API — Phase 1
+foundation"*. Son gerçek çalışma 14-16 Temmuz; Eylül'deki dokunuş yalnız depo
+geneli bir yeniden adlandırma. **CI'da hâlâ test ediliyor, hiçbir yere
+dağıtılmıyor.**
+
+Bu bir mimari karar, temizlik değil. Yaşayan bir plansa yol haritasına girmeli
+ve neden beklediği yazılmalı; değilse silinmeli. Arada kalması en kötüsü: her
+build'de zaman harcıyor ve okuyan herkese "acaba Express tarafı mı ölüyor?"
+sorusunu sordurtuyor. **Silmedim — gerçek bir emek ve senin kararın.**
+
+**2. `attached_assets` (9.8 MB, 46 dosya).** Replit dönemi ekran görüntüleri ve
+yapıştırılmış metinler; koddan hiçbiri referans almıyor. Ama içlerinde ürün
+şartnamesi gibi duran Türkçe belgeler var ("BTP Operasyonel Risk ve Maliyet
+İstihbarat Motoru" gibi). Kullanılmıyor olması değersiz olduğu anlamına gelmez;
+**senin malzemen, silmek benim kararım değil.**

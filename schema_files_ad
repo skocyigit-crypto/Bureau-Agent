@@ -1,3 +1,0 @@
-lib/db/src/schema/assistant.ts
-lib/db/src/schema/audit-logs.ts
-lib/db/src/schema/auto-backups.ts
