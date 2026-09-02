@@ -41,6 +41,11 @@ export default function AdminAuditPage() {
   const { t } = useTranslation();
   if (user.role !== "super_admin") return <AccessDenied title={t("adminAudit.accessTitle")} message={t("adminAudit.accessMessage")} />;
 
+  return <AdminAuditContent />;
+}
+
+function AdminAuditContent() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [total, setTotal] = useState(0);
@@ -93,7 +98,7 @@ export default function AdminAuditPage() {
     const params = new URLSearchParams();
     if (userEmail.trim()) params.set("userEmail", userEmail.trim());
     if (orgFilter !== "all") params.set("organisationId", orgFilter);
-    window.open(`${BASE}/api/audit/export/csv?${params}`, "_blank");
+    window.open(`${BASE}/api/audit/export/csv?${params}`, "_blank", "noopener,noreferrer");
   };
 
   return (

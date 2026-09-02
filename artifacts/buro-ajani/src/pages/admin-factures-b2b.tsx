@@ -63,8 +63,13 @@ function fmtMoney(v: string | number | null | undefined, currency = "EUR") {
 
 export default function AdminFacturesB2BPage() {
   const { user } = useWorkspaceUser();
-  const { t } = useTranslation();
   if (user.role !== "super_admin") return <AccessDenied />;
+
+  return <AdminFacturesB2BContent />;
+}
+
+function AdminFacturesB2BContent() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [items, setItems] = useState<Facture[]>([]);
   const [total, setTotal] = useState(0);

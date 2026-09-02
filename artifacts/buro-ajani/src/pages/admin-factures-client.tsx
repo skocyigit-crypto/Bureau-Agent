@@ -70,8 +70,13 @@ function canRemind(f: FactureClient): boolean {
 
 export default function AdminFacturesClientPage() {
   const { user } = useWorkspaceUser();
-  const { t } = useTranslation();
   if (user.role !== "super_admin") return <AccessDenied />;
+
+  return <AdminFacturesClientContent />;
+}
+
+function AdminFacturesClientContent() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [items, setItems] = useState<FactureClient[]>([]);
   const [total, setTotal] = useState(0);

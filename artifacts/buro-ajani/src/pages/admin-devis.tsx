@@ -62,8 +62,13 @@ function fmtMoney(v: string | number | null | undefined, currency = "EUR") {
 
 export default function AdminDevisPage() {
   const { user } = useWorkspaceUser();
-  const { t } = useTranslation();
   if (user.role !== "super_admin") return <AccessDenied />;
+
+  return <AdminDevisContent />;
+}
+
+function AdminDevisContent() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [items, setItems] = useState<Devis[]>([]);
   const [total, setTotal] = useState(0);

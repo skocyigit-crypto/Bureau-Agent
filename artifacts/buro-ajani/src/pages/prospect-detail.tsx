@@ -93,10 +93,15 @@ interface Prospect {
 const EMPTY_FORM = { title: "", contactName: "", company: "", email: "", phone: "", stage: "nouveau", priority: "moyenne", value: "", currency: "EUR", probability: "50", source: "", assignedTo: "", expectedCloseDate: "", notes: "" };
 
 export default function ProspectDetail() {
-  const { t } = useTranslation();
   // Module backoffice (super-admin uniquement) — Tâche #52.
   const { user: workspaceUser } = useWorkspaceUser();
   if (workspaceUser.role !== "super_admin") return <AccessDenied />;
+
+  return <ProspectDetailContent />;
+}
+
+function ProspectDetailContent() {
+  const { t } = useTranslation();
   const [, params] = useRoute("/prospects/:id");
   const prospectId = params?.id ? parseInt(params.id) : 0;
   const { toast } = useToast();
