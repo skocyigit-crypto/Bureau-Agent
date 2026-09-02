@@ -19,4 +19,17 @@ describe("application route priority", () => {
     expect(detailRoute).toBeGreaterThan(-1);
     expect(importRoute).toBeLessThan(detailRoute);
   });
+
+  it("keeps API- and workflow-generated destinations reachable", () => {
+    const source = fs.readFileSync(path.resolve(import.meta.dirname, "../App.tsx"), "utf8");
+
+    for (const route of [
+      "/prospects",
+      "/prospects/:id",
+      "/admin/devis",
+      "/admin/factures-client",
+    ]) {
+      expect(source, `missing application route: ${route}`).toContain(`path="${route}"`);
+    }
+  });
 });
