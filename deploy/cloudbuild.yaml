@@ -17,6 +17,7 @@ steps:
         pnpm install --frozen-lockfile
         pnpm run typecheck
         pnpm --filter @workspace/api-spec routes:check
+        pnpm --filter @workspace/api-server tenant:check
         pnpm run security:audit
 
   - id: start-test-db

@@ -8,6 +8,7 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "tenant:check": "node ./scripts/tenant-scope-check.mjs --check",
     "test": "vitest run"
   },
   "dependencies": {

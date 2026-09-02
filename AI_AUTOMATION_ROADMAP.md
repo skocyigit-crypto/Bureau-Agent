@@ -1143,3 +1143,55 @@ yalnız CI test veritabanına uygulanıyor; üretim şeması elle gidiyor:
 
 Bu yapılana kadar Guardian eski (örnek-başına) davranışında kalır ve günde bir
 kez uyarı loglar — çökme yok.
+
+## Faz 2 — TAMAM (kiracı izolasyonu: ölçüldü, sızıntı yok, kapı kondu)
+
+### Sonuç önce: gerçek bir sızıntı bulunamadı
+İlk taramamda "571 sorguda `organisationId` geçmiyor" demiştim. **O sayı kaba
+bir sezgisel yöntemin eseriydi**, bulgu değil. Nedenini yazmak önemli, çünkü
+aynı hataya bir daha düşülmesin: ifade seviyesinde bakınca, sahipliği on satır
+önce doğrulanmış bir belge üzerindeki `update ... where id = :id` "filtresiz"
+görünüyor — ve bunlardan yüzlerce var.
+
+Analiz birimini **ifadeden işleyiciye** yükseltince soru netleşti ve
+kararlaştırılabilir hale geldi: *kiracı verisine dokunan bu işleyici, hangi
+organizasyonda olduğunu biliyor mu?* Hiç bilmeyen bir işleyici izolasyon
+yapamaz — bu şüphe değil, kesin kusurdur. Bilen bir işleyicide noktasal bir
+unutma hâlâ mümkündür ama o insan gözü ister, her commit'te bağıran ve üç gün
+sonra kapatılan bir kapı değil.
+
+624 blok tarandı, 31'i organizasyondan hiç söz etmiyordu, **31'inin de meşru
+olduğu tek tek doğrulandı**:
+- kimlik akışları (`auth.ts`): şifre sıfırlama, doğrulama e-postası, yeni giriş
+  bildirimi — bunlar oturumdan **önce** çalışır, filtrelenecek organizasyon
+  henüz yoktur; e-posta platform genelinde benzersiz.
+- kullanıcıya anahtarlı altyapı (Google jetonları, API anahtarları, jeton
+  iptali, isim çözümleme): `userId` ile kapanıyor. Bir kullanıcı tek
+  organizasyona ait olduğu için bu kapsam **daha dar**, daha geniş değil.
+- `requireSuperAdmin` arkasındaki platform yüzeyleri: amaçları zaten
+  organizasyonlar arası görünüm.
+- vitrin demosu: arkasında müşteri yok.
+
+Yol boyunca iki "şüpheli" de elle açıldı ve ikisi de zaten doğruydu:
+`/data-protection/status` platform sağlığını yalnız super_admin'e döndürüyor
+(gerekçesi yorumda yazılı), `/audit/stats` `tenantCondition(req)` kullanıyor.
+
+### Kalıcı olan kısım: kapı
+Bulgu yokluğu bir garanti değil — bugünkü doğruluğu yarın koruyan bir şey lazım.
+`scripts/tenant-scope-check.mjs` artık hem GitHub Actions'ta hem **dağıtım
+hattının quality-gate'inde** koşuyor (`pnpm --filter @workspace/api-server
+tenant:check`). Kiracı tablosuna dokunup organizasyondan habersiz yeni bir
+işleyici build'i düşürür.
+
+Muafiyet listesi bilerek **gerekçe yazmaya zorluyor**: bir girdi, "bu sorgunun
+organizasyon filtresine ihtiyacı yok, çünkü…" diye okunan bir iddiadır ve kod
+incelemesinde tartışılabilir. Ayrıca super-admin muafiyeti dosya **adına** değil
+`requireSuperAdmin` montajına bakıyor: koruma kaldırılırsa muafiyet de kalkar.
+
+### Neden RLS değil (şimdilik)
+Postgres Row-Level Security asıl yapısal cevap olurdu, ama istek başına bir
+oturum değişkeni (`SET LOCAL app.current_org`) gerektirir — yani **her HTTP
+isteğini bir transaction'a sarmak**. Bu bir düzeltme değil, mimari değişiklik ve
+havuzlu bağlantılarla gerçek bir performans bedeli var. Bulgu sayısı sıfırken bu
+bedeli ödemek orantısız; kapı, "bir daha sessizce unutulamaz" özelliğini çok daha
+ucuza veriyor. RLS, kiracı sayısı veya ekip büyüdüğünde yeniden değerlendirilmeli.

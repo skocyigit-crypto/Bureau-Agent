@@ -50,6 +50,14 @@ jobs:
       - name: Check API route inventory
         run: pnpm --filter @workspace/api-spec routes:check
 
+      # Isolation multi-locataire. Il n'y a pas de Row-Level Security cote
+      # Postgres: rien n'empeche structurellement une requete d'oublier son
+      # filtre d'organisation, et cet oubli ne produit aucune erreur — la page
+      # s'affiche, avec les lignes d'un autre client. Cette barriere est ce qui
+      # tient lieu de garde-fou en attendant.
+      - name: Check tenant isolation
+        run: pnpm --filter @workspace/api-server tenant:check
+
       - name: Build
         # Mobile falls back to the production domain when no preview domain
         # is provided; mockup-sandbox uses local PORT/BASE_PATH defaults.
