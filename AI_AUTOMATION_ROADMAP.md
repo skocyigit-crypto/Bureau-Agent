@@ -627,11 +627,25 @@ POST /devis/:id/convert-to-facture: kalemler+müşteri+tutarlar devis'ten fatura
 kopyalanıyor (echeance 30g), devisId↔convertedToInvoice bağlanıyor. Advisory lock
 ile çift-dönüşüm engelli. Frontend'de "Facturer" düğmesi. Tutarlar birebir kopya.
 
-### ⏳ Faz C — BEKLİYOR (Fatura PDF)
-Yasal A4 fatura PDF'i (satıcı SIRET/TVA/adres/IBAN + kalemler + KDV dökümü +
-ibareler). YENİ BAĞIMLILIK gerekir (pdf-lib önerilir — saf JS, native yok,
-PDF/A-3 dosya gömme destekli). Dikkat: bağımlılık security:audit --audit-level
-high kapısını geçmeli (brace-expansion olayı gibi build'i düşürebilir).
+### ✅ Faz C — TAMAM (2026-09-02, commit 900ed995)
+`services/invoice-pdf.ts`: yasal A4 fatura PDF'i. Saf `buildInvoiceDocument`
+(satıcı kimliği: hukuki form/sermaye/adres/SIRET/TVA, alıcı kimliği, kalemler,
+orana göre KDV dökümü, HT/KDV/TTC, ödenen ve kalan tutar, IBAN/BIC, zorunlu
+ibareler) ile pdfkit'te çizen `renderInvoicePdf`. Uç: `GET /factures-client/:id/pdf`
+(org-kapsamlı), ön yüzde fatura satırında PDF düğmesi. 22 test.
+
+Zorunlu ibareler: gecikme faizi (L441-10 Ticaret Kanunu), 40 € tahsilat tazminatı
+(D441-5), erken ödeme iskontosu beyanı, otoliquidation (283-2 nonies CGI) ve
+franchise en base (293 B CGI) — uygun olduğunda. Eksik zorunlu veri PDF'i
+düşürmüyor: loglanıyor ve `X-Invoice-Warnings` başlığıyla dönüyor.
+
+İki not: (1) yeni bağımlılık GEREKMEDİ, `pdfkit` zaten kuruluydu — yol haritasının
+"pdf-lib gerekir" notu eskimişti; (2) render sırasında gerçek bir hata çıktı:
+`Intl` binlik ayracı olarak dar bölünmez boşluk (U+202F) kullanıyor, bu karakter
+PDF standart fontlarının WinAnsi kodlamasında yok ve pdfkit onu EĞİK ÇİZGİ olarak
+çiziyordu — 999'dan büyük her tutar "1 /800,00 €" görünüyordu. Çizilen tüm metin
+artık `toWinAnsiText`'ten geçiyor; bir test PDF içerik akışını açıp tutarın sayfaya
+bozulmadan ulaştığını kanıtlıyor.
 
 ### ⏳ Faz D — BEKLİYOR (Factur-X)
 EN 16931 CII XML üretimi + PDF/A-3'e gömme (hibrit). Fransa 2026 e-fatura
@@ -668,14 +682,16 @@ bağlandığını ve çağıran-seçimli organizasyonun geri gelmediğini kilitl
 Ön yüz route'ları `1cbd4967` ile geri geldi (sayfaların kendi super-admin
 kontrolü korundu).
 
-**Kalan karar (kullanıcıya ait):** bu sayfalar sıradan müşteri rollerine
-(administrateur/agent) açılsın mı? API artık izin veriyor, sayfalar hâlâ
-super-admin'e kilitli.
+**Kalan karar — ÇÖZÜLDÜ (2026-09-02):** sayfalar sıradan müşteri rollerine açıldı
+(`df15ee63`). Org sütunu/filtresi/form alanı üç sayfadan da kaldırıldı (sunucu
+zaten oturumdan türetiyor ve `/api/organisations` sadece super-admin'e açık
+olduğu için müşteri yöneticisinde boş seçici + "organizasyon seç" doğrulaması
+her oluşturmayı bloke ederdi). Yeni yollar: `/prospects`, `/prospects/:id`,
+`/devis`, `/factures` — lisans kapısı arkasında, kenar çubuğunda "Ventes" grubu
+ile 6 dilde. `/admin/factures-b2b` super-admin route'unda kaldı ve artık
+`/factures`'ın neredeyse birebir kopyası; bilerek silinmedi (ayrı bir temizlik).
 
-### Faz C notu güncellendi (2026-09-02)
-"YENİ BAĞIMLILIK gerekir (pdf-lib önerilir)" notu geçersiz: `pdfkit` zaten
-`artifacts/api-server` bağımlılığı ve `services/document-export.ts` içinde
-kullanılıyor. Yasal A4 fatura PDF'i yeni paket eklemeden yazılabilir (satıcı
-kimliği `organisationsTable`'da hazır: siret, tvaNumber, legalForm, capital,
-bankIban/bic, invoiceFooter). Faz D (Factur-X / PDF‑A‑3 gömme) için pdfkit
-yetmeyebilir, o adımda yeniden değerlendirilecek.
+### Faz D için not (2026-09-02)
+Factur-X, CII XML'i PDF/A-3 olarak GÖMMEYİ gerektiriyor; pdfkit bunu desteklemiyor.
+O adımda ya pdf-lib (saf JS, dosya gömme destekli) eklenecek ya da PDF/A-3
+üretimi başka bir yolla çözülecek. Faz C bunu bilerek kapsamadı.
