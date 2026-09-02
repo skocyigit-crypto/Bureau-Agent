@@ -49,6 +49,13 @@
                         # handling for it, so it survives untouched. Backend prefers
                         # this over X-Forwarded-For (lib/request-ip.ts).
                         header_up X-Real-Client-IP {http.request.header.X-Forwarded-For}
+                        # Jeton partage: prouve a l API que cette requete vient bien
+                        # du proxy et non d un appel direct a son URL run.app, qui
+                        # repond publiquement. Sans lui, n importe qui pouvait dicter
+                        # X-Real-Client-IP et neutraliser toute limite par IP.
+                        # Vide tant que PROXY_TOKEN n est pas defini: l API garde alors
+                        # son comportement historique.
+                        header_up X-Proxy-Token {$PROXY_TOKEN}
                 }
         }
 
