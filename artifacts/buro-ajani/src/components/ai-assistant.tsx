@@ -360,7 +360,7 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
                 <p className="text-xs text-muted-foreground px-1 italic">{requestSuggestions.data.resumeCourt}</p>
               )}
               {requestSuggestions.data.suggestions.map((s, i) => (
-                <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer" onClick={() => sendMessage(s.titre)}>
+                <button type="button" key={i} className="flex w-full items-start gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => sendMessage(s.titre)}>
                   {getSuggestionIcon(s.type)}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
@@ -371,7 +371,7 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
                     </div>
                     <p className="text-[11px] text-muted-foreground line-clamp-2">{s.description}</p>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )}

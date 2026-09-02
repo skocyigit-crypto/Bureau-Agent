@@ -344,7 +344,7 @@ export default function Software() {
                         const initials = rec.integration.name.split(" ").map((w: string) => w[0]).join("").substring(0, 2).toUpperCase();
                         const textColor = ["docusign", "mailchimp"].includes(rec.integration.id) ? "text-black" : "text-white";
                         return (
-                          <div key={idx} className="flex items-start gap-3 p-3 rounded-xl bg-white dark:bg-white/5 border shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => handleOpenConfig(rec.integration)}>
+                          <button type="button" key={idx} className="flex w-full items-start gap-3 p-3 rounded-xl bg-white dark:bg-white/5 border shadow-sm hover:shadow-md transition-shadow text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => handleOpenConfig(rec.integration)}>
                             <div className={`w-8 h-8 rounded-lg ${bg} flex items-center justify-center ${textColor} font-bold text-xs shrink-0`}>
                               {initials}
                             </div>
@@ -361,7 +361,7 @@ export default function Software() {
                               </div>
                               <p className="text-[9px] text-muted-foreground mt-0.5">{t("software.score", { score: rec.score })}</p>
                             </div>
-                          </div>
+                          </button>
                         );
                       })}
                     </div>

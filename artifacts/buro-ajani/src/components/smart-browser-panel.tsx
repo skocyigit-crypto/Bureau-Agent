@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Dialog,DialogContent,DialogTitle } from "@/components/ui/dialog";
 import { Tooltip,TooltipContent,TooltipProvider,TooltipTrigger } from "@/components/ui/tooltip";
 import {
 useBatteryStatus,
@@ -16,6 +17,7 @@ useWakeLock,
 } from "@/hooks/use-smart-browser";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import { openSafeExternalUrl } from "@/lib/safe-url";
 import {
 Activity,
 Battery,BatteryCharging,BatteryLow,
@@ -339,7 +341,7 @@ function ClipboardDetector() {
   const actions: Record<string, { label: string; action: () => void }> = {
     email: { label: t("smartBrowserPanel.clipboardActions.addContact"), action: () => navigate("/contacts") },
     phone: { label: t("smartBrowserPanel.clipboardActions.addContact"), action: () => navigate("/contacts") },
-    url: { label: t("smartBrowserPanel.clipboardActions.open"), action: () => window.open(detected.value, "_blank") },
+    url: { label: t("smartBrowserPanel.clipboardActions.open"), action: () => openSafeExternalUrl(detected.value) },
     iban: { label: t("smartBrowserPanel.clipboardActions.viewBilling"), action: () => navigate("/parametres") },
     siret: { label: t("smartBrowserPanel.clipboardActions.viewBilling"), action: () => navigate("/parametres") },
   };
@@ -379,8 +381,6 @@ function SmartKeyboardShortcutsHelp() {
     return () => document.removeEventListener("keydown", handler);
   }, []);
 
-  if (!show) return null;
-
   const shortcuts = [
     { keys: "Ctrl+K", desc: t("smartBrowserPanel.shortcuts.commandPalette") },
     { keys: "Ctrl+/", desc: t("smartBrowserPanel.shortcuts.shortcutsHelp") },
@@ -393,11 +393,11 @@ function SmartKeyboardShortcutsHelp() {
   ];
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center animate-in fade-in" onClick={() => setShow(false)}>
-      <div className="bg-card rounded-xl shadow-2xl p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
+    <Dialog open={show} onOpenChange={setShow}>
+      <DialogContent className="max-w-md">
         <div className="flex items-center gap-2 mb-4">
           <Keyboard className="h-5 w-5 text-indigo-500" />
-          <h3 className="font-semibold">{t("smartBrowserPanel.keyboardShortcuts")}</h3>
+          <DialogTitle>{t("smartBrowserPanel.keyboardShortcuts")}</DialogTitle>
         </div>
         <div className="space-y-2">
           {shortcuts.map(s => (
@@ -408,8 +408,8 @@ function SmartKeyboardShortcutsHelp() {
           ))}
         </div>
         <p className="text-xs text-muted-foreground mt-4 text-center">{t("smartBrowserPanel.pressEscape")}</p>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -417,21 +417,6 @@ function DeviceCapabilitiesPanel() {
   const { t } = useTranslation();
   const caps = useDeviceCapabilities();
   const [show, setShow] = useState(false);
-
-  if (!show) {
-    return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShow(true)}>
-              <Monitor className="h-3.5 w-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t("smartBrowserPanel.browserCapabilities")}</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    );
-  }
 
   const features = [
     { name: t("smartBrowserPanel.features.camera"), icon: Camera, active: caps.hasCamera },
@@ -451,12 +436,28 @@ function DeviceCapabilitiesPanel() {
   ];
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center animate-in fade-in" onClick={() => setShow(false)}>
-      <div className="bg-card rounded-xl shadow-2xl p-6 max-w-lg w-full mx-4" onClick={e => e.stopPropagation()}>
+    <>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              aria-label={t("smartBrowserPanel.browserCapabilities")}
+              onClick={() => setShow(true)}
+            >
+              <Monitor className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t("smartBrowserPanel.browserCapabilities")}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <Dialog open={show} onOpenChange={setShow}>
+        <DialogContent className="max-w-lg">
         <div className="flex items-center gap-2 mb-4">
           <BrainCircuit className="h-5 w-5 text-indigo-500" />
-          <h3 className="font-semibold">{t("smartBrowserPanel.browserCapabilitiesTitle")}</h3>
-          <button onClick={() => setShow(false)} className="ml-auto text-muted-foreground hover:text-foreground">x</button>
+          <DialogTitle>{t("smartBrowserPanel.browserCapabilitiesTitle")}</DialogTitle>
         </div>
 
         <div className="grid grid-cols-2 gap-2 mb-4">
@@ -477,8 +478,9 @@ function DeviceCapabilitiesPanel() {
           {caps.cores && <div className="flex justify-between"><span>{t("smartBrowserPanel.deviceInfo.cpuCores")}</span><span>{caps.cores}</span></div>}
           {caps.maxTouchPoints > 0 && <div className="flex justify-between"><span>{t("smartBrowserPanel.deviceInfo.touchPoints")}</span><span>{caps.maxTouchPoints}</span></div>}
         </div>
-      </div>
-    </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

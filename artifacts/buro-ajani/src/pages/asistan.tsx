@@ -290,10 +290,12 @@ export default function AsistanPage() {
               <div className="text-xs text-muted-foreground p-3 text-center">{t("asistan.noConversations")}</div>
             )}
             {conversations.map(c => (
-              <div key={c.id} className={`group flex items-center gap-1.5 rounded-md px-2 py-1.5 cursor-pointer hover:bg-accent ${activeId === c.id ? "bg-accent" : ""}`} onClick={() => loadConversation(c.id)} data-testid={`conv-${c.id}`}>
-                <MessageSquare className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                <span className="text-xs flex-1 truncate">{c.title}</span>
-                <button onClick={(e) => { e.stopPropagation(); deleteConversation(c.id); }} className="opacity-0 group-hover:opacity-100 transition" data-testid={`del-conv-${c.id}`}>
+              <div key={c.id} className={`group flex items-center gap-1.5 rounded-md px-2 py-1.5 hover:bg-accent focus-within:bg-accent ${activeId === c.id ? "bg-accent" : ""}`} data-testid={`conv-${c.id}`}>
+                <button type="button" className="flex min-w-0 flex-1 items-center gap-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm" onClick={() => loadConversation(c.id)}>
+                  <MessageSquare className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  <span className="text-xs flex-1 truncate">{c.title}</span>
+                </button>
+                <button type="button" aria-label={`${t("common.delete")} ${c.title}`} onClick={() => deleteConversation(c.id)} className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm" data-testid={`del-conv-${c.id}`}>
                   <Trash2 className="h-3 w-3 text-muted-foreground hover:text-red-500" />
                 </button>
               </div>

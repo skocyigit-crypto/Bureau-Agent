@@ -73,6 +73,11 @@ export default function ProspectsPage() {
   // src/routes/index.ts). Vue 403 affichee si l'utilisateur tape l'URL.
   const { user: workspaceUser } = useWorkspaceUser();
   if (workspaceUser.role !== "super_admin") return <AccessDenied />;
+
+  return <ProspectsContent />;
+}
+
+function ProspectsContent() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -452,10 +457,10 @@ export default function ProspectsPage() {
             {prospects.map(p => (
               <div key={p.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20">
                 <Checkbox checked={selectedIds.includes(p.id)} onCheckedChange={() => toggleSelect(p.id)} />
-                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setLocation(`/prospects/${p.id}`)}>
+                <button type="button" className="flex-1 min-w-0 text-left rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => setLocation(`/prospects/${p.id}`)}>
                   <p className="text-sm font-medium truncate hover:text-primary">{p.title}</p>
                   <p className="text-xs text-muted-foreground">{[p.company, p.contactName].filter(Boolean).join(" · ")}</p>
-                </div>
+                </button>
                 <Badge variant="outline" className="text-[10px] hidden md:inline-flex" data-testid={`prospect-org-${p.id}`}>
                   {p.organisationId != null ? (orgNameById.get(p.organisationId) || t("prospects.orgFallback", { id: p.organisationId })) : "—"}
                 </Badge>

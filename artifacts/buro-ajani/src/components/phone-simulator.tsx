@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog,DialogContent,DialogTitle } from "@/components/ui/dialog";
 import { useTranslation } from "@/i18n";
 import { cn } from "@/lib/utils";
 import {
@@ -492,13 +493,12 @@ export function PhoneSimulator({ className, defaultScreen = "accueil", expanded 
 }
 
 export function PhoneSimulatorDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center" onClick={() => onOpenChange(false)}>
-      <div onClick={(e) => e.stopPropagation()} className="animate-in zoom-in-95 fade-in duration-200">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-auto max-w-none border-0 bg-transparent p-0 shadow-none [&>button]:hidden">
+        <DialogTitle className="sr-only">Simulateur téléphonique</DialogTitle>
         <PhoneSimulator expanded onClose={() => onOpenChange(false)} />
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
