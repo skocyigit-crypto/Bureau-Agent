@@ -85,7 +85,8 @@
       "integrations": "Entegrasyonlar",
       "administration": "Yönetim",
       "superAdmin": "Süper Yönetici",
-      "system": "Sistem"
+      "system": "Sistem",
+      "sales": "Satış"
     },
     "items": {
       "dashboard": "Kontrol Paneli",
@@ -131,14 +132,16 @@
       "automations": "Otomasyonlar",
       "saasBackoffice": "SaaS Yönetim Paneli",
       "organisations": "Organizasyonlar",
-      "prospects": "Müşteri Adayları",
+      "prospects": "Potansiyel müşteriler",
       "globalAuditLog": "Küresel Denetim Günlüğü",
       "techHealth": "Teknik Sağlık",
       "guide": "Kullanma Kılavuzu",
       "settings": "Ayarlar",
       "smartImport": "Akıllı İçe Aktarma",
       "initialSetup": "İlk Kurulum",
-      "mobileApp": "Mobil Uygulama"
+      "mobileApp": "Mobil Uygulama",
+      "quotes": "Teklifler",
+      "clientInvoices": "Müşteri faturaları"
     }
   },
   "userMenu": {

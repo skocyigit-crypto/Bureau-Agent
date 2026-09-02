@@ -1,4 +1,3 @@
-import { AccessDenied } from "@/components/access-denied";
 import { LineItemsEditor,type LineItem } from "@/components/line-items-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { useWorkspaceUser } from "@/components/workspace-user";
 import { confirmAction } from "@/hooks/use-confirm";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
@@ -32,15 +30,12 @@ const STATUSES = [
 interface Devis {
   id: number; reference: string; title: string; clientName: string; clientEmail?: string;
   clientCompany?: string; status: string; totalAmount?: string; currency: string;
-  validUntil?: string; createdAt: string; organisationId?: number | null;
+  validUntil?: string; createdAt: string;
 }
-
-interface OrgOption { id: number; name: string }
 
 const EMPTY_FORM = {
   reference: "", title: "", clientName: "", clientEmail: "", clientCompany: "",
   items: [] as LineItem[], currency: "EUR", status: "brouillon", validUntil: "", notes: "",
-  organisationId: "",
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -60,14 +55,10 @@ function fmtMoney(v: string | number | null | undefined, currency = "EUR") {
   }
 }
 
+// Documents commerciaux de lorganisation connectee: le serveur borne chaque
+// requete a `getOrgId(req)`, donc pas de garde super-admin ni de selecteur
+// dorganisation ici.
 export default function AdminDevisPage() {
-  const { user } = useWorkspaceUser();
-  if (user.role !== "super_admin") return <AccessDenied />;
-
-  return <AdminDevisContent />;
-}
-
-function AdminDevisContent() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [items, setItems] = useState<Devis[]>([]);
@@ -76,9 +67,6 @@ function AdminDevisContent() {
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [orgFilter, setOrgFilter] = useState("all");
-  const [orgs, setOrgs] = useState<OrgOption[]>([]);
-  const orgNameById = new Map(orgs.map(o => [o.id, o.name] as const));
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
@@ -91,22 +79,14 @@ function AdminDevisContent() {
       const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(page * PAGE_SIZE) });
       if (search) params.set("search", search);
       if (statusFilter !== "all") params.set("status", statusFilter);
-      if (orgFilter !== "all") params.set("organisationId", orgFilter);
       const res = await fetch(`${BASE}/api/devis?${params}`, { credentials: "include" });
       if (res.ok) { const d = await res.json(); setItems(d.devis || []); setTotal(d.total || 0); }
     } catch { toast({ title: t("adminDevis.toast.error"), description: t("adminDevis.toast.loadFailed"), variant: "destructive" }); }
     finally { setLoading(false); }
-  }, [page, search, statusFilter, orgFilter, toast, t]);
+  }, [page, search, statusFilter, toast, t]);
 
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { setPage(0); }, [search, statusFilter, orgFilter]);
-
-  useEffect(() => {
-    fetch(`${BASE}/api/organisations`, { credentials: "include" })
-      .then(r => r.ok ? r.json() : { organisations: [] })
-      .then((d: { organisations?: OrgOption[] }) => setOrgs((d.organisations || []).map(o => ({ id: o.id, name: o.name }))))
-      .catch(() => { /* non-bloquant */ });
-  }, []);
+  useEffect(() => { setPage(0); }, [search, statusFilter]);
 
   const openCreate = () => { setEditingId(null); setForm({ ...EMPTY_FORM }); setDialogOpen(true); };
   const openEdit = (d: Devis) => {
@@ -116,7 +96,6 @@ function AdminDevisContent() {
       clientEmail: d.clientEmail || "", clientCompany: d.clientCompany || "",
       items: Array.isArray((d as any).items) ? (d as any).items : [], currency: d.currency || "EUR", status: d.status,
       validUntil: d.validUntil ? d.validUntil.substring(0, 10) : "", notes: "",
-      organisationId: d.organisationId != null ? String(d.organisationId) : "",
     });
     setDialogOpen(true);
   };
@@ -124,16 +103,13 @@ function AdminDevisContent() {
   const handleSave = async () => {
     if (!form.title.trim()) { toast({ title: t("adminDevis.toast.titleRequired"), variant: "destructive" }); return; }
     if (!form.clientName.trim()) { toast({ title: t("adminDevis.toast.clientRequired"), variant: "destructive" }); return; }
-    if (!editingId && !form.organisationId) { toast({ title: t("adminDevis.toast.orgRequired"), variant: "destructive" }); return; }
     setSaving(true);
     try {
       const url = editingId ? `${BASE}/api/devis/${editingId}` : `${BASE}/api/devis`;
       const method = editingId ? "PATCH" : "POST";
-      const { organisationId: orgIdStr, ...rest } = form;
       // On envoie les LIGNES; le serveur calcule subtotal/TVA/total. Plus de
       // champ "montant total" saisi a la main.
-      const payload: Record<string, unknown> = { ...rest };
-      if (orgIdStr) payload.organisationId = Number(orgIdStr);
+      const payload: Record<string, unknown> = { ...form };
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(payload) });
       if (res.ok) {
         toast({ title: editingId ? t("adminDevis.toast.updated") : t("adminDevis.toast.created") });
@@ -193,13 +169,6 @@ function AdminDevisContent() {
             {STATUSES.map(s => <SelectItem key={s.key} value={s.key}>{t(`adminDevis.status.${s.key}`)}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={orgFilter} onValueChange={setOrgFilter}>
-          <SelectTrigger className="w-56" data-testid="devis-org-filter"><SelectValue placeholder={t("adminDevis.orgPlaceholder")} /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("adminDevis.allOrgs")}</SelectItem>
-            {orgs.map(o => <SelectItem key={o.id} value={String(o.id)}>{o.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
         <Button variant="ghost" size="icon" onClick={load}><RefreshCw className="w-4 h-4" /></Button>
       </div>
 
@@ -220,9 +189,6 @@ function AdminDevisContent() {
                     {format(new Date(d.createdAt), "dd MMM yyyy", { locale: fr })}
                   </p>
                 </div>
-                <Badge variant="outline" className="text-[10px] hidden md:inline-flex" data-testid={`devis-org-${d.id}`}>
-                  {d.organisationId != null ? (orgNameById.get(d.organisationId) || `Org #${d.organisationId}`) : "—"}
-                </Badge>
                 <StatusBadge status={d.status} />
                 <span className="text-sm font-bold text-emerald-600 hidden md:block w-24 text-right">{fmtMoney(d.totalAmount, d.currency)}</span>
                 <Button variant="ghost" size="sm" className="h-7 text-xs text-blue-600" onClick={() => handleConvert(d)} disabled={convertingId === d.id} title={t("adminDevis.convertTitle")}>
@@ -252,22 +218,6 @@ function AdminDevisContent() {
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <Label className="text-xs">{t("adminDevis.form.targetOrg")} {editingId ? "" : "*"}</Label>
-              <Select
-                value={form.organisationId}
-                onValueChange={v => setForm(f => ({ ...f, organisationId: v }))}
-                disabled={editingId !== null}
-              >
-                <SelectTrigger data-testid="devis-form-org"><SelectValue placeholder={t("adminDevis.form.chooseOrg")} /></SelectTrigger>
-                <SelectContent>
-                  {orgs.map(o => <SelectItem key={o.id} value={String(o.id)}>{o.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                {editingId
-                  ? t("adminDevis.form.orgHelpEdit")
-                  : t("adminDevis.form.orgHelpCreate")}
-              </p>
             </div>
             <div><Label className="text-xs">{t("adminDevis.form.title")} *</Label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">

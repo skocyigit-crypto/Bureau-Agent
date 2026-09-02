@@ -85,7 +85,8 @@
       "integrations": "Integrationen",
       "administration": "Verwaltung",
       "superAdmin": "Super-Admin",
-      "system": "System"
+      "system": "System",
+      "sales": "Vertrieb"
     },
     "items": {
       "dashboard": "Dashboard",
@@ -138,7 +139,9 @@
       "settings": "Einstellungen",
       "smartImport": "Intelligenter Import",
       "initialSetup": "Ersteinrichtung",
-      "mobileApp": "Mobile App"
+      "mobileApp": "Mobile App",
+      "quotes": "Angebote",
+      "clientInvoices": "Kundenrechnungen"
     }
   },
   "userMenu": {

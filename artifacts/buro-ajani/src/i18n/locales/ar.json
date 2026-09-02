@@ -85,7 +85,8 @@
       "integrations": "التكاملات",
       "administration": "الإدارة",
       "superAdmin": "المشرف الأعلى",
-      "system": "النظام"
+      "system": "النظام",
+      "sales": "المبيعات"
     },
     "items": {
       "dashboard": "لوحة التحكم",
@@ -138,7 +139,9 @@
       "settings": "الإعدادات",
       "smartImport": "الاستيراد الذكي",
       "initialSetup": "الإعداد الأولي",
-      "mobileApp": "تطبيق الجوال"
+      "mobileApp": "تطبيق الجوال",
+      "quotes": "عروض الأسعار",
+      "clientInvoices": "فواتير العملاء"
     }
   },
   "userMenu": {

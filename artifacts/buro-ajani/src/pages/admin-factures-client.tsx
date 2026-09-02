@@ -1,4 +1,3 @@
-import { AccessDenied } from "@/components/access-denied";
 import { LineItemsEditor,type LineItem } from "@/components/line-items-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { useWorkspaceUser } from "@/components/workspace-user";
 import { confirmAction } from "@/hooks/use-confirm";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
@@ -34,16 +32,14 @@ interface FactureClient {
   id: number; reference: string; title: string; clientName: string; clientEmail?: string;
   clientCompany?: string; status: string; totalAmount?: string; paidAmount?: string; currency: string;
   items?: LineItem[]; isAutoliquidation?: boolean;
-  dueDate?: string; paymentMethod?: string; notes?: string | null; createdAt: string; organisationId?: number | null;
+  dueDate?: string; paymentMethod?: string; notes?: string | null; createdAt: string;
   reminderCount?: number; lastReminderAt?: string | null;
 }
-
-interface OrgOption { id: number; name: string }
 
 const EMPTY_FORM = {
   reference: "", title: "", clientName: "", clientEmail: "", clientCompany: "",
   items: [] as LineItem[], paidAmount: "", isAutoliquidation: false, currency: "EUR", status: "brouillon", dueDate: "",
-  paymentMethod: "", notes: "", organisationId: "",
+  paymentMethod: "", notes: "",
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -68,14 +64,10 @@ function canRemind(f: FactureClient): boolean {
   return !!(f.clientEmail && f.clientEmail.trim()) && f.status !== "payee" && f.status !== "annulee";
 }
 
+// Documents commerciaux de lorganisation connectee: le serveur borne chaque
+// requete a `getOrgId(req)`, donc pas de garde super-admin ni de selecteur
+// dorganisation ici.
 export default function AdminFacturesClientPage() {
-  const { user } = useWorkspaceUser();
-  if (user.role !== "super_admin") return <AccessDenied />;
-
-  return <AdminFacturesClientContent />;
-}
-
-function AdminFacturesClientContent() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [items, setItems] = useState<FactureClient[]>([]);
@@ -84,9 +76,6 @@ function AdminFacturesClientContent() {
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [orgFilter, setOrgFilter] = useState("all");
-  const [orgs, setOrgs] = useState<OrgOption[]>([]);
-  const orgNameById = new Map(orgs.map(o => [o.id, o.name] as const));
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
@@ -99,22 +88,14 @@ function AdminFacturesClientContent() {
       const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(page * PAGE_SIZE) });
       if (search) params.set("search", search);
       if (statusFilter !== "all") params.set("status", statusFilter);
-      if (orgFilter !== "all") params.set("organisationId", orgFilter);
       const res = await fetch(`${BASE}/api/factures-client?${params}`, { credentials: "include" });
       if (res.ok) { const d = await res.json(); setItems(d.factures || []); setTotal(d.total || 0); }
     } catch { toast({ title: t("adminFacturesClient.toast.error"), description: t("adminFacturesClient.toast.loadFailed"), variant: "destructive" }); }
     finally { setLoading(false); }
-  }, [page, search, statusFilter, orgFilter, toast, t]);
+  }, [page, search, statusFilter, toast, t]);
 
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { setPage(0); }, [search, statusFilter, orgFilter]);
-
-  useEffect(() => {
-    fetch(`${BASE}/api/organisations`, { credentials: "include" })
-      .then(r => r.ok ? r.json() : { organisations: [] })
-      .then((d: { organisations?: OrgOption[] }) => setOrgs((d.organisations || []).map(o => ({ id: o.id, name: o.name }))))
-      .catch(() => { /* non-bloquant */ });
-  }, []);
+  useEffect(() => { setPage(0); }, [search, statusFilter]);
 
   const openCreate = () => { setEditingId(null); setForm({ ...EMPTY_FORM }); setDialogOpen(true); };
   const openEdit = (f: FactureClient) => {
@@ -125,7 +106,6 @@ function AdminFacturesClientContent() {
       items: Array.isArray(f.items) ? f.items : [], paidAmount: f.paidAmount || "", isAutoliquidation: !!f.isAutoliquidation, currency: f.currency || "EUR",
       status: f.status, dueDate: f.dueDate ? f.dueDate.substring(0, 10) : "",
       paymentMethod: f.paymentMethod || "", notes: f.notes || "",
-      organisationId: f.organisationId != null ? String(f.organisationId) : "",
     });
     setDialogOpen(true);
   };
@@ -133,14 +113,11 @@ function AdminFacturesClientContent() {
   const handleSave = async () => {
     if (!form.title.trim()) { toast({ title: t("adminFacturesClient.toast.titleRequired"), variant: "destructive" }); return; }
     if (!form.clientName.trim()) { toast({ title: t("adminFacturesClient.toast.clientRequired"), variant: "destructive" }); return; }
-    if (!editingId && !form.organisationId) { toast({ title: t("adminFacturesClient.toast.orgRequired"), variant: "destructive" }); return; }
     setSaving(true);
     try {
       const url = editingId ? `${BASE}/api/factures-client/${editingId}` : `${BASE}/api/factures-client`;
       const method = editingId ? "PATCH" : "POST";
-      const { organisationId: orgIdStr, ...rest } = form;
-      const payload: Record<string, unknown> = { ...rest, paidAmount: form.paidAmount || null };
-      if (orgIdStr) payload.organisationId = Number(orgIdStr);
+      const payload: Record<string, unknown> = { ...form, paidAmount: form.paidAmount || null };
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(payload) });
       if (res.ok) {
         toast({ title: editingId ? t("adminFacturesClient.toast.updated") : t("adminFacturesClient.toast.created") });
@@ -202,13 +179,6 @@ function AdminFacturesClientContent() {
             {STATUSES.map(s => <SelectItem key={s.key} value={s.key}>{t(`adminFacturesClient.status.${s.key}`)}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={orgFilter} onValueChange={setOrgFilter}>
-          <SelectTrigger className="w-56" data-testid="factures-org-filter"><SelectValue placeholder={t("adminFacturesClient.orgPlaceholder")} /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("adminFacturesClient.allOrgs")}</SelectItem>
-            {orgs.map(o => <SelectItem key={o.id} value={String(o.id)}>{o.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
         <Button variant="ghost" size="icon" onClick={load}><RefreshCw className="w-4 h-4" /></Button>
       </div>
 
@@ -231,9 +201,6 @@ function AdminFacturesClientContent() {
                     {f.reminderCount ? ` · ${t("adminFacturesClient.reminders", { count: f.reminderCount })}` : ""}
                   </p>
                 </div>
-                <Badge variant="outline" className="text-[10px] hidden md:inline-flex" data-testid={`facture-org-${f.id}`}>
-                  {f.organisationId != null ? (orgNameById.get(f.organisationId) || `Org #${f.organisationId}`) : "—"}
-                </Badge>
                 <StatusBadge status={f.status} />
                 <span className="text-sm font-bold text-emerald-600 hidden md:block w-24 text-right">{fmtMoney(f.totalAmount, f.currency)}</span>
                 {canRemind(f) && (
@@ -272,22 +239,6 @@ function AdminFacturesClientContent() {
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <Label className="text-xs">{t("adminFacturesClient.form.targetOrg")} {editingId ? "" : "*"}</Label>
-              <Select
-                value={form.organisationId}
-                onValueChange={v => setForm(f => ({ ...f, organisationId: v }))}
-                disabled={editingId !== null}
-              >
-                <SelectTrigger data-testid="facture-form-org"><SelectValue placeholder={t("adminFacturesClient.form.chooseOrg")} /></SelectTrigger>
-                <SelectContent>
-                  {orgs.map(o => <SelectItem key={o.id} value={String(o.id)}>{o.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                {editingId
-                  ? t("adminFacturesClient.form.orgHelpEdit")
-                  : t("adminFacturesClient.form.orgHelpCreate")}
-              </p>
             </div>
             <div><Label className="text-xs">{t("adminFacturesClient.form.title")} *</Label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">

@@ -1,4 +1,3 @@
-import { AccessDenied } from "@/components/access-denied";
 import { EmptyOnboardingHint } from "@/components/empty-onboarding-hint";
 import { GhostTextarea } from "@/components/ghost-textarea";
 import { Icon3D } from "@/components/icon-3d";
@@ -12,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useWorkspaceUser } from "@/components/workspace-user";
 import { confirmAction } from "@/hooks/use-confirm";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
@@ -59,25 +57,15 @@ interface Prospect {
   id: number; title: string; contactName?: string; company?: string; email?: string; phone?: string;
   stage: string; priority: string; value?: string; currency: string; probability: number;
   source?: string; assignedTo?: string; expectedCloseDate?: string; notes?: string; createdAt: string;
-  organisationId?: number | null;
 }
 
-interface OrgOption { id: number; name: string }
+const EMPTY_FORM = { title: "", contactName: "", company: "", email: "", phone: "", stage: "nouveau", priority: "moyenne", value: "", currency: "EUR", probability: "50", source: "", assignedTo: "", expectedCloseDate: "", notes: "" };
 
-const EMPTY_FORM = { title: "", contactName: "", company: "", email: "", phone: "", stage: "nouveau", priority: "moyenne", value: "", currency: "EUR", probability: "50", source: "", assignedTo: "", expectedCloseDate: "", notes: "", organisationId: "" };
-
+// Pipeline commercial de l'organisation connectee. Le serveur borne chaque
+// requete a `getOrgId(req)` (artifacts/api-server/src/routes/prospects.ts):
+// il n'y a plus de vue inter-organisations, donc plus de garde super-admin
+// ni de selecteur d'organisation dans cette page.
 export default function ProspectsPage() {
-  // Module deplacé dans le backoffice SaaS — accessible super-admin uniquement.
-  // Refactor "Admin Backoffice + Müşteri Sadeleştirme" — Tâche #52.
-  // Verrou serveur: requireSuperAdmin sur le router (artifacts/api-server/
-  // src/routes/index.ts). Vue 403 affichee si l'utilisateur tape l'URL.
-  const { user: workspaceUser } = useWorkspaceUser();
-  if (workspaceUser.role !== "super_admin") return <AccessDenied />;
-
-  return <ProspectsContent />;
-}
-
-function ProspectsContent() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -88,9 +76,6 @@ function ProspectsContent() {
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState("all");
-  const [orgFilter, setOrgFilter] = useState<string>("all");
-  const [orgs, setOrgs] = useState<OrgOption[]>([]);
-  const orgNameById = new Map(orgs.map(o => [o.id, o.name] as const));
   const [viewMode, setViewMode] = useState<"table" | "kanban">("kanban");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -104,28 +89,18 @@ function ProspectsContent() {
       const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(page * PAGE_SIZE), sortBy: "createdAt", sortOrder: "desc" });
       if (search) params.set("search", search);
       if (stageFilter !== "all") params.set("stage", stageFilter);
-      if (orgFilter !== "all") params.set("organisationId", orgFilter);
-      const statsParams = new URLSearchParams();
-      if (orgFilter !== "all") statsParams.set("organisationId", orgFilter);
       const [r1, r2] = await Promise.all([
         fetch(`${BASE}/api/prospects?${params}`, { credentials: "include" }),
-        fetch(`${BASE}/api/prospects/stats?${statsParams}`, { credentials: "include" }),
+        fetch(`${BASE}/api/prospects/stats`, { credentials: "include" }),
       ]);
       if (r1.ok) { const d = await r1.json(); setProspects(d.prospects || []); setTotal(d.total || 0); }
       if (r2.ok) { setStats(await r2.json()); }
     } catch { toast({ title: t("prospects.toast.error"), description: t("prospects.toast.loadError"), variant: "destructive" }); }
     finally { setLoading(false); }
-  }, [page, search, stageFilter, orgFilter, toast]);
+  }, [page, search, stageFilter, toast]);
 
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { setPage(0); }, [search, stageFilter, orgFilter]);
-
-  useEffect(() => {
-    fetch(`${BASE}/api/organisations`, { credentials: "include" })
-      .then(r => r.ok ? r.json() : { organisations: [] })
-      .then((d: { organisations?: OrgOption[] }) => setOrgs((d.organisations || []).map(o => ({ id: o.id, name: o.name }))))
-      .catch(() => { /* non-bloquant */ });
-  }, []);
+  useEffect(() => { setPage(0); }, [search, stageFilter]);
 
   useEffect(() => {
     try { window.localStorage.setItem("prospect-badge-count", "0"); } catch {}
@@ -158,13 +133,11 @@ function ProspectsContent() {
     try {
       const url = editingId ? `${BASE}/api/prospects/${editingId}` : `${BASE}/api/prospects`;
       const method = editingId ? "PATCH" : "POST";
-      const { organisationId: orgIdStr, ...rest } = form;
       const payload: Record<string, unknown> = {
-        ...rest,
+        ...form,
         probability: Number(form.probability),
         value: form.value || null,
       };
-      if (orgIdStr) payload.organisationId = Number(orgIdStr);
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(payload) });
       if (res.ok) {
         toast({ title: editingId ? t("prospects.toast.updated") : t("prospects.toast.created") });
@@ -311,13 +284,6 @@ function ProspectsContent() {
             {STAGES.map(s => <SelectItem key={s.key} value={s.key}>{t(`prospects.stages.${s.key}`)}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={orgFilter} onValueChange={setOrgFilter}>
-          <SelectTrigger className="w-56" data-testid="prospects-org-filter"><SelectValue placeholder={t("prospects.filters.orgPlaceholder")} /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("prospects.filters.allOrgs")}</SelectItem>
-            {orgs.map(o => <SelectItem key={o.id} value={String(o.id)}>{o.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
         <div className="flex gap-1 border rounded-md p-1">
           <Button variant={viewMode === "kanban" ? "secondary" : "ghost"} size="sm" className="h-7 px-2" onClick={() => setViewMode("kanban")}><Kanban className="w-3 h-3" /></Button>
           <Button variant={viewMode === "table" ? "secondary" : "ghost"} size="sm" className="h-7 px-2" onClick={() => setViewMode("table")}><LayoutList className="w-3 h-3" /></Button>
@@ -358,11 +324,6 @@ function ProspectsContent() {
                       <CardContent className="p-3 space-y-2">
                         <p className="text-xs font-semibold leading-tight line-clamp-2">{p.title}</p>
                         {p.company && <p className="text-xs text-muted-foreground">{p.company}</p>}
-                        {p.organisationId != null && (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0" data-testid={`prospect-kanban-org-${p.id}`}>
-                            {orgNameById.get(p.organisationId) || t("prospects.orgFallback", { id: p.organisationId })}
-                          </Badge>
-                        )}
                         {p.value && <p className="text-xs font-bold text-emerald-600">{fmtEur(p.value)}</p>}
                         <div className="flex items-center justify-between">
                           <PriorityBadge priority={p.priority} />
@@ -461,9 +422,6 @@ function ProspectsContent() {
                   <p className="text-sm font-medium truncate hover:text-primary">{p.title}</p>
                   <p className="text-xs text-muted-foreground">{[p.company, p.contactName].filter(Boolean).join(" · ")}</p>
                 </button>
-                <Badge variant="outline" className="text-[10px] hidden md:inline-flex" data-testid={`prospect-org-${p.id}`}>
-                  {p.organisationId != null ? (orgNameById.get(p.organisationId) || t("prospects.orgFallback", { id: p.organisationId })) : "—"}
-                </Badge>
                 <StageBadge stage={p.stage} />
                 <PriorityBadge priority={p.priority} />
                 {p.value && <span className="text-sm font-bold text-emerald-600 hidden md:block">{fmtEur(p.value)}</span>}
@@ -502,24 +460,6 @@ function ProspectsContent() {
           </DialogHeader>
           <div className="space-y-3">
             <div><Label className="text-xs">{t("prospects.dialog.titleRequired")}</Label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder={t("prospects.dialog.titlePlaceholder")} /></div>
-            <div>
-              <Label className="text-xs">{editingId ? t("prospects.dialog.targetOrg") : t("prospects.dialog.targetOrgRequired")}</Label>
-              <Select
-                value={form.organisationId}
-                onValueChange={v => setForm(f => ({ ...f, organisationId: v }))}
-                disabled={editingId !== null}
-              >
-                <SelectTrigger data-testid="prospect-form-org"><SelectValue placeholder={t("prospects.dialog.chooseOrg")} /></SelectTrigger>
-                <SelectContent>
-                  {orgs.map(o => <SelectItem key={o.id} value={String(o.id)}>{o.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                {editingId
-                  ? t("prospects.dialog.orgHelpEdit")
-                  : t("prospects.dialog.orgHelpCreate")}
-              </p>
-            </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs">{t("prospects.dialog.stage")}</Label>
                 <Select value={form.stage} onValueChange={v => setForm(f => ({ ...f, stage: v }))}>

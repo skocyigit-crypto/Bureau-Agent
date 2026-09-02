@@ -1,4 +1,3 @@
-import { AccessDenied } from "@/components/access-denied";
 import { DocumentsPanel } from "@/components/file-upload";
 import { GhostTextarea } from "@/components/ghost-textarea";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +10,6 @@ import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs,TabsContent,TabsList,TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { useWorkspaceUser } from "@/components/workspace-user";
 import { confirmAction } from "@/hooks/use-confirm";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
@@ -92,15 +90,10 @@ interface Prospect {
 
 const EMPTY_FORM = { title: "", contactName: "", company: "", email: "", phone: "", stage: "nouveau", priority: "moyenne", value: "", currency: "EUR", probability: "50", source: "", assignedTo: "", expectedCloseDate: "", notes: "" };
 
+// Le serveur ne renvoie que les prospects de l'organisation connectee
+// (`getOrgId`), donc un identifiant d'une autre organisation repond 404 et
+// aucune garde de role n'est necessaire ici.
 export default function ProspectDetail() {
-  // Module backoffice (super-admin uniquement) — Tâche #52.
-  const { user: workspaceUser } = useWorkspaceUser();
-  if (workspaceUser.role !== "super_admin") return <AccessDenied />;
-
-  return <ProspectDetailContent />;
-}
-
-function ProspectDetailContent() {
   const { t } = useTranslation();
   const [, params] = useRoute("/prospects/:id");
   const prospectId = params?.id ? parseInt(params.id) : 0;
@@ -279,7 +272,7 @@ function ProspectDetailContent() {
     if (!(await confirmAction({ title: t("prospectDetail.confirmDevis"), description: t("prospectDetail.confirmDevisDesc"), confirmLabel: t("prospectDetail.confirmDevisAction") }))) return;
     const res = await fetch(`${BASE}/api/prospects/${prospectId}/create-devis`, { method: "POST", credentials: "include" });
     const d = await res.json();
-    if (res.ok) { toast({ title: t("prospectDetail.devisCreated"), description: t("prospectDetail.devisCreatedDesc", { ref: d.devis?.reference ?? "" }) }); load(); navigate("/admin/devis"); }
+    if (res.ok) { toast({ title: t("prospectDetail.devisCreated"), description: t("prospectDetail.devisCreatedDesc", { ref: d.devis?.reference ?? "" }) }); load(); navigate("/devis"); }
     else toast({ title: t("prospectDetail.error"), description: d.error, variant: "destructive" });
   };
 

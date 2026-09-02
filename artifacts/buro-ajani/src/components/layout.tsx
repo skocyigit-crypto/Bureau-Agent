@@ -25,7 +25,7 @@ import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 import { useTranslation } from "@/i18n";
 import { getGetMyPreferencesQueryKey,useGetMyPreferences,type BadgeMuteFlags } from "@workspace/api-client-react";
 import { motion } from "framer-motion";
-import { Activity,BarChart,BarChart3,Bell,BookOpen,Bot,Brain,Building2,Calendar,CheckSquare,ClipboardCheck,ClipboardList,Clock,CreditCard,Crown,Download,FileText,Globe,GraduationCap,HardHat,Inbox,KeyRound,LayoutDashboard,Mail,MapPin,MessageCircle,MessageSquare,Monitor,Phone,PhoneCall,PhoneIncoming,Plug,Plus,Puzzle,Radar,ReceiptText,Rocket,ScanSearch,Search,Settings,Shield,ShieldCheck,Smartphone,Sparkles,StickyNote,Tablet,Trophy,UserCog,Users,Wallet,Wifi,WifiOff,Zap } from "lucide-react";
+import { Activity,BarChart,BarChart3,Bell,BookOpen,Bot,Brain,Briefcase,Building2,Calendar,CheckSquare,ClipboardCheck,ClipboardList,Clock,CreditCard,Crown,Download,FileSignature,FileText,Globe,GraduationCap,HardHat,Inbox,KeyRound,LayoutDashboard,Mail,MapPin,MessageCircle,MessageSquare,Monitor,Phone,PhoneCall,PhoneIncoming,Plug,Plus,Puzzle,Radar,Receipt,ReceiptText,Rocket,ScanSearch,Search,Settings,Shield,ShieldCheck,Smartphone,Sparkles,StickyNote,Tablet,Trophy,UserCog,Users,Wallet,Wifi,WifiOff,Zap } from "lucide-react";
 import { createContext,useContext,useEffect,useMemo,useRef,useState } from "react";
 import { Link,useLocation } from "wouter";
 
@@ -102,7 +102,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // pour eviter qu'un compteur fuite d'un compte a l'autre dans un meme navigateur.
   const userScope = user.id ?? "anon";
   const BADGE_CONFIG = useMemo(() => ({
-    prospect: { storageKey: `badge:${userScope}:prospect`, route: "/prospects", clearEvent: "prospect-badge-clear", gated: true },
+    // `gated: false` depuis que /prospects est une page tenant: le pipeline
+    // appartient a l'organisation connectee, plus au seul proprietaire SaaS.
+    prospect: { storageKey: `badge:${userScope}:prospect`, route: "/prospects", clearEvent: "prospect-badge-clear", gated: false },
     message: { storageKey: `badge:${userScope}:message`, route: "/messages", clearEvent: "message-badge-clear", gated: false },
     task: { storageKey: `badge:${userScope}:task`, route: "/taches", clearEvent: "task-badge-clear", gated: false },
     call: { storageKey: `badge:${userScope}:call`, route: "/appels", clearEvent: "call-badge-clear", gated: false },
@@ -315,6 +317,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
         label: t("sidebar.groups.addressBook"),
         items: [
           { name: t("sidebar.items.contacts"), href: "/contacts", icon: Users },
+        ],
+      },
+      // Chaine commerciale: prospect -> devis -> facture. Chaque page est
+      // bornee a l'organisation connectee cote serveur (`getOrgId`).
+      {
+        label: t("sidebar.groups.sales"),
+        items: [
+          { name: t("sidebar.items.prospects"), href: "/prospects", icon: Briefcase, badge: mutedBadges.prospect ? 0 : badges.prospect },
+          { name: t("sidebar.items.quotes"), href: "/devis", icon: FileSignature },
+          { name: t("sidebar.items.clientInvoices"), href: "/factures", icon: Receipt },
         ],
       },
       {

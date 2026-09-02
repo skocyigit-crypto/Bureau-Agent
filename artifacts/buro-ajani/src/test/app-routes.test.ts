@@ -26,8 +26,8 @@ describe("application route priority", () => {
     for (const route of [
       "/prospects",
       "/prospects/:id",
-      "/admin/devis",
-      "/admin/factures-client",
+      "/devis",
+      "/factures",
     ]) {
       expect(source, `missing application route: ${route}`).toContain(`path="${route}"`);
     }
