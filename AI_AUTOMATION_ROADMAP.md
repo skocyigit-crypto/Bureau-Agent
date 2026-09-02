@@ -1285,3 +1285,39 @@ Hâlâ doğru hedef, ama önce güvenli bir baseline gerekiyor: üretim şeması
 dökümü alınıp `drizzle-kit generate` ile karşılaştırılmalı, ve ilk migration
 "zaten uygulanmış" olarak işaretlenmeli. Bu, canlı veritabanına erişimle
 yapılacak bir iş; koruma bu arada kaza riskini kapatıyor.
+
+## Faz 5 — TAMAM (gerçek tarayıcı testi)
+
+En pahalı arızalar kod okunarak görünmüyordu: 14 Temmuz'da Guardian tüm siteyi
+kapattı (her fonksiyon tek başına doğruydu; bozulan, proxy arkasında gerçek IP'yi
+kaybeden zincirdi), 2 Eylül'de build'ler bir gün boyunca düştü ve canlıda eski
+sürüm kaldı. İkisini de **tarayıcı istekleri** ortaya çıkardı, kod incelemesi
+değil.
+
+Playwright kuruldu; `e2e/tanitim.spec.ts` **10 test**, Chromium, GitHub
+Actions'ta ayrı bir iş olarak koşuyor. Dağıtım kapısına **bilerek konmadı**:
+tarayıcı indirmesi her dağıtımı yavaşlatır ve bu testler dağıtımın *ürettiğini*
+değil, *göründüğünü* denetler.
+
+Kapsam: `vite preview` ile **build edilmiş** site (dev sunucusu değil — dağıtılan
+dosyanın açıldığını görmek istiyoruz). Denetlenenler: ana sayfa boş sayfa
+değil ve konsol hatası yok; `<title>` ve meta açıklama var; tam bir `h1`;
+**dört zorunlu hukuki sayfa** (mentions légales, confidentialité, CGU,
+accessibilité) erişilebilir ve dolu; footer bağlantısı çalışıyor; bilinmeyen
+adres kullanılabilir bir 404 veriyor; mobilde yatay taşma yok.
+
+Hukuki sayfalar sıradan içerik değil, yükümlülük: boş veya 404 bir sayfa onları
+dayanaksız kılar ve bunu başka hiçbir bariyer görmez.
+
+### Testlerin yakaladığı ilk şey benim testlerimdi
+İlk koşuda dört hukuki sayfa "boş" düştü — 223 karakter. Sayfa gerçekten boş
+değildi: `lazy()` ile kod-bölünmüşler ve Suspense fallback'i **boş bir div**,
+yani `goto` sonrası okunan metin yalnızca çerez bandıydı. Aynı zayıflık
+navigasyon testinde de vardı: "gövdede metin var" iddiasını çerez bandı tek
+başına karşılıyor ve test, hiçbir şey render etmemiş bir sayfada yeşil
+yanabiliyordu. İkisi de artık `h1`'i bekliyor — bu aynı zamanda kod parçasının
+gerçekten yüklendiğini de doğruluyor.
+
+### Kapsam dışı, bilerek
+Kimlik doğrulamalı uygulama tohumlanmış bir veritabanı ve test hesabı istiyor.
+Yarım yapılacak bir şey değil; ayrı bir iş olarak durmalı.

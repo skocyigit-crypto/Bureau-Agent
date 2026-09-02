@@ -14,12 +14,14 @@
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
     "test": "pnpm -r --if-present --workspace-concurrency=1 run test",
     "test:local": "node ./scripts/run-tests-local.mjs",
+    "e2e": "playwright test",
     "security:audit": "pnpm audit --prod --audit-level high"
   },
   "private": true,
   "devDependencies": {
-    "typescript": "~5.9.2",
-    "prettier": "^3.8.1"
+    "@playwright/test": "1.62.1",
+    "prettier": "^3.8.1",
+    "typescript": "~5.9.2"
   },
   "pnpm": {
     "auditConfig": {

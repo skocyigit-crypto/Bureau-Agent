@@ -185,3 +185,40 @@ jobs:
           context: .
           file: deploy/Dockerfile.api
           push: false
+
+  e2e:
+    name: Browser smoke tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Enable corepack (pnpm)
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Un seul navigateur: ces tests verifient que la page s'affiche, pas la
+      # compatibilite entre moteurs. Trois navigateurs tripleraient l'attente
+      # pour la meme reponse.
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      # Le typage, les 869 tests unitaires et l'inventaire des routes peuvent
+      # tous etre verts pendant que le site affiche une page blanche. C'est le
+      # seul controle de ce depot qui ouvre reellement une page.
+      - name: Browser smoke tests
+        run: pnpm run e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

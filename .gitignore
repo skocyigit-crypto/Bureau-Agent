@@ -66,3 +66,9 @@ Thumbs.db
 
 # Local agent state
 .local/.commit_message
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
