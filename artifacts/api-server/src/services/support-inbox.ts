@@ -22,6 +22,7 @@ import {
   wrapUntrusted,
 } from "./ai-utils";
 import { logger } from "../lib/logger";
+import { aiForOrg } from "./ai-client";
 
 const SUPER_ADMIN_ORG_SLUG = "agent-de-bureau-sas";
 const BODY_MAX = 6000;
@@ -100,7 +101,7 @@ RÈGLES STRICTES pour draftReply:
 - Pas de markdown, pas de signature (une signature standard sera ajoutée automatiquement à l'envoi).
 - "priority" = "haute" si réclamation/problème urgent/facturation, "moyenne" si demande commerciale, "basse" si question générale ou spam probable.`;
 
-  const { ai } = await import("@workspace/integrations-gemini-ai");
+  const ai = await aiForOrg(orgId);
   const t0 = Date.now();
   const response = await ai.models.generateContent({
     model: GEMINI_FLASH_MODEL,

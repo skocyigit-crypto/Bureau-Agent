@@ -13,6 +13,7 @@ import { getOrCompute, buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } fro
 import { openSseStream, multiAiGenerateStream, StreamAbortedError } from "../services/ai-stream";
 import { logger } from "../lib/logger";
 import { scanBase64Content } from "../middleware/security";
+import { aiForOrg } from "../services/ai-client";
 
 function handleCommandantError(err: unknown, res: Response, logLabel: string): void {
   if (err instanceof AiQuotaExceededError) {
@@ -25,9 +26,8 @@ function handleCommandantError(err: unknown, res: Response, logLabel: string): v
 
 const router = Router();
 
-async function getGemini() {
-  const { ai } = await import("@workspace/integrations-gemini-ai");
-  return ai;
+async function getGemini(orgId: number | null | undefined) {
+  return aiForOrg(orgId);
 }
 
 async function getOpenAI() {
@@ -166,7 +166,7 @@ async function multiAiGenerate(prompt: string, systemPrompt?: string, orgId?: nu
     {
       provider: "gemini",
       run: async (signal) => {
-        const ai = await getGemini();
+        const ai = await getGemini(orgId);
         const r = await ai.models.generateContent({
           model: GEMINI_PRO_MODEL,
           contents: safeSystem ? [{ role: "user", parts: [{ text: safeSystem + "\n\n" + safePrompt }] }] : safePrompt,

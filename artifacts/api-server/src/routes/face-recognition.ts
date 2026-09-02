@@ -9,6 +9,7 @@ import { assertAiQuota, AiQuotaExceededError } from "../services/ai-quota";
 import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL, withProviderTimeout } from "../services/ai-cache";
 import crypto from "node:crypto";
 import { scanBase64Content } from "../middleware/security";
+import { aiForOrg } from "../services/ai-client";
 
 function rejectIfUnsafePhoto(photoBase64: unknown, res: Response): boolean {
   if (photoBase64 == null) return false;
@@ -35,9 +36,8 @@ function rejectIfUnsafePhoto(photoBase64: unknown, res: Response): boolean {
 
 const router = Router();
 
-async function getGemini() {
-  const { ai } = await import("@workspace/integrations-gemini-ai");
-  return ai;
+async function getGemini(orgId: number | null | undefined) {
+  return aiForOrg(orgId);
 }
 
 async function getOpenAI() {
@@ -45,10 +45,10 @@ async function getOpenAI() {
   return openai;
 }
 
-async function multiAiAnalyze(prompt: string, systemPrompt?: string): Promise<string> {
+async function multiAiAnalyze(orgId: number | null | undefined, prompt: string, systemPrompt?: string): Promise<string> {
   const errors: string[] = [];
   try {
-    const ai = await getGemini();
+    const ai = await getGemini(orgId);
     const r = await withProviderTimeout(() => ai.models.generateContent({
       model: GEMINI_PRO_MODEL,
       contents: systemPrompt ? [{ role: "user", parts: [{ text: systemPrompt + "\n\n" + prompt }] }] : prompt,
@@ -115,6 +115,7 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
       }
       try {
         aiAnalysis = await multiAiAnalyze(
+          orgId,
           `Analyse cette description de photo d'une personne nommee "${name}" pour un systeme de reconnaissance faciale en bureau. 
            Role: ${role || "contact"}. 
            Genere un profil descriptif utile pour l'identification future: traits distinctifs, estimation d'age, style vestimentaire professionnel, etc.
@@ -188,6 +189,7 @@ router.post("/recognize", async (req: Request, res: Response): Promise<void> => 
     });
     const faceCached = getCached<string>(faceCacheKey);
     const aiResult = faceCached ?? await multiAiAnalyze(
+      orgId,
       `Systeme de reconnaissance faciale de bureau.
        Voici les profils enregistres dans ce bureau:
        ${profileList}

@@ -33,6 +33,7 @@ import { requireAuth, requireRole } from "../middleware/auth";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "../services/ai-quota";
 import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL } from "../services/ai-utils";
 import { logger } from "../lib/logger";
+import { aiForOrg } from "../services/ai-client";
 
 const router = Router();
 
@@ -56,7 +57,7 @@ function startOfToday(): Date {
 async function runGemini(orgId: number, prompt: string): Promise<string> {
   await assertAiQuota(orgId);
   const t0 = Date.now();
-  const { ai } = await import("@workspace/integrations-gemini-ai");
+  const ai = await aiForOrg(orgId);
   const model = GEMINI_PRO_MODEL;
   const response = await ai.models.generateContent({
     model,

@@ -11,6 +11,7 @@ import { ingestDocument } from "../services/document-ingest";
 import { triggerExpenseCapture } from "../services/expense-capture";
 import { getGmailForUser, handleGoogleApiError } from "../lib/google-auth";
 import { dlpBlocksOutgoing } from "../services/outgoing-dlp";
+import { aiForOrg } from "../services/ai-client";
 
 const router = Router();
 
@@ -797,7 +798,7 @@ router.post("/gmail/message/:id/scan", async (req: Request, res: Response): Prom
       aiAnalysis = phishingCached;
     } else {
       try {
-        const { ai } = await import("@workspace/integrations-gemini-ai");
+        const ai = await aiForOrg(orgId);
         // Every field below is fully attacker-controlled (this route's whole
         // purpose is judging a possibly-malicious email) — sanitize before
         // it reaches the prompt so a crafted email can't inject instructions

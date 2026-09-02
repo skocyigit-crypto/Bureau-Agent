@@ -42,7 +42,8 @@ import {
   organisationsTable,
   usersTable,
 } from "@workspace/db";
-import { ai } from "@workspace/integrations-gemini-ai";
+import type { GoogleGenAI } from "@google/genai";
+import { aiForOrg } from "../services/ai-client";
 import { callOrgGemini } from "../services/ai-providers";
 import { sendSms, decryptProviderConfig, type TelephonyProviderConfig } from "../services/telephony-providers";
 import {
@@ -421,7 +422,7 @@ function isAllowedTwilioRecordingUrl(rawUrl: string): boolean {
 }
 
 /** Transcrit un enregistrement Twilio via Gemini multimodal. Fail-open: renvoie null. */
-async function transcribeVoicemail(recordingUrl: string, accountSid: string, authToken: string): Promise<string | null> {
+async function transcribeVoicemail(orgId: number, recordingUrl: string, accountSid: string, authToken: string): Promise<string | null> {
   try {
     if (!isAllowedTwilioRecordingUrl(recordingUrl)) {
       logger.warn({ recordingUrl }, "[voice] RecordingUrl hors domaines Twilio autorises — rejetee");
@@ -439,6 +440,7 @@ async function transcribeVoicemail(recordingUrl: string, accountSid: string, aut
     if (b64.length === 0) return null;
 
     const t0 = Date.now();
+    const ai = await aiForOrg(orgId);
     const r = await ai.models.generateContent({
       model: GEMINI_PRO_MODEL,
       contents: [{
@@ -1016,7 +1018,7 @@ async function runReceptionistTurn(session: CallSession): Promise<ReceptionistRe
     // plateforme automatique si la cle org est absente OU invalide a l'exec.
     response = (await callOrgGemini(session.orgId, (client) => client.models.generateContent({
       model: GEMINI_FLASH_MODEL,
-      contents: contents as unknown as Parameters<typeof ai.models.generateContent>[0]["contents"],
+      contents: contents as unknown as Parameters<GoogleGenAI["models"]["generateContent"]>[0]["contents"],
       config: {
         systemInstruction: buildSystemInstruction(
           session.orgName,
@@ -1836,7 +1838,7 @@ voiceReceptionistRouter.post("/voice/twilio/voicemail-complete", async (req: Req
   const callerNumber = body.From ?? "";
   let transcript: string | null = null;
   if (recordingUrl) {
-    transcript = await transcribeVoicemail(recordingUrl, accountSid, tenant.authToken);
+    transcript = await transcribeVoicemail(tenant.orgId, recordingUrl, accountSid, tenant.authToken);
   }
 
   try {

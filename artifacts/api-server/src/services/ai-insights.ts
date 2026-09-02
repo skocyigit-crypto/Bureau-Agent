@@ -18,6 +18,7 @@ import { buildLearnedContextBlock, fingerprintLearned } from "./ai-learning";
 import { withDbRetry } from "../lib/db-retry";
 import { withCronLock, CRON_LOCK_NAMESPACE } from "../lib/cron-lock";
 import { withHeartbeat } from "./health-agents";
+import { aiForOrg } from "./ai-client";
 
 interface RawSignals {
   overdueTasks: number;
@@ -317,7 +318,7 @@ async function maybeEnrichWithAi(orgId: number, signals: RawSignals, drafts: Ins
     // mesurer, et elle n'est lisible que depuis le catch.
     const t0 = Date.now();
     try {
-      const { ai } = await import("@workspace/integrations-gemini-ai");
+      const ai = await aiForOrg(orgId);
       const model = GEMINI_FLASH_MODEL;
 
       const prompt = `Tu es un assistant de bureau IA en francais. Voici les indicateurs du jour pour une organisation:

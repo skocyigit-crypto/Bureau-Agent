@@ -2,6 +2,7 @@ import { db, usersTable, auditLogsTable, checkinsTable, tasksTable, callsTable, 
 import { eq, sql, gte, lte, and, count, desc } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { GEMINI_PRO_MODEL, ANTHROPIC_MODEL } from "./ai-utils";
+import { aiForOrg } from "./ai-client";
 
 interface UserMetrics {
   userId: number;
@@ -208,7 +209,7 @@ export async function generatePerformanceReport(
   const periodeStr = `${dateDebut.toLocaleDateString("fr-FR")} au ${now.toLocaleDateString("fr-FR")}`;
 
   const [geminiResult, openaiResult, anthropicResult] = await Promise.all([
-    analyzeWithGemini(metricsJSON, periodeStr),
+    analyzeWithGemini(metricsJSON, periodeStr, orgId),
     analyzeWithOpenAI(metricsJSON, periodeStr),
     analyzeWithAnthropic(metricsJSON, periodeStr),
   ]);
@@ -309,9 +310,9 @@ Reponds UNIQUEMENT en JSON:
   "blague": "string"
 }`;
 
-async function analyzeWithGemini(metricsJSON: string, periodeStr: string): Promise<any | null> {
+async function analyzeWithGemini(metricsJSON: string, periodeStr: string, orgId: number): Promise<any | null> {
   try {
-    const { ai } = await import("@workspace/integrations-gemini-ai");
+    const ai = await aiForOrg(orgId);
     const response = await ai.models.generateContent({
       model: GEMINI_PRO_MODEL,
       contents: [{ role: "user", parts: [{ text: GEMINI_PROMPT(metricsJSON, periodeStr) }] }],

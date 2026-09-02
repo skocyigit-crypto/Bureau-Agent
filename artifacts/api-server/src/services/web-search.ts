@@ -1,5 +1,6 @@
 import { logger } from "../lib/logger";
 import { analyzeUrlsBatch, type UrlRisk } from "./url-safety";
+import { aiForOrg } from "./ai-client";
 import {
   extractGeminiTokens,
   recordAiUsage,
@@ -247,7 +248,7 @@ export async function searchWebWithSafety(
 ): Promise<WebSearchResponse> {
   const cleanQuery = sanitizePromptInput(rawQuery, 300);
   const opts = normalizeWebSearchOptions(options);
-  const { ai } = await import("@workspace/integrations-gemini-ai");
+  const ai = await aiForOrg(orgId);
   const model = GEMINI_FLASH_MODEL;
 
   const prompt = buildGroundedPrompt(cleanQuery, opts);

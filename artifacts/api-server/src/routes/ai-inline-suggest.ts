@@ -6,6 +6,7 @@ import { buildAiCacheKey, getCached, setCached, withProviderTimeout, AI_CACHE_TT
 import { detectLanguage } from "../services/language-detect";
 import { buildLearnedContextBlock, fingerprintLearned } from "../services/ai-learning";
 import { logger } from "../lib/logger";
+import { aiForOrg } from "../services/ai-client";
 
 // Per-user sliding-window rate limiter: max 10 inline-suggest calls / minute.
 // Lightweight in-memory map; acceptable for a single-process API server.
@@ -234,7 +235,7 @@ router.post("/ai/inline-suggest", async (req: Request, res: Response): Promise<v
     const t0 = Date.now();
     let raw = "";
     try {
-      const { ai } = await import("@workspace/integrations-gemini-ai");
+      const ai = await aiForOrg(orgId);
       const response = await withProviderTimeout(
         () => ai.models.generateContent({
           model: GEMINI_FLASH_MODEL,

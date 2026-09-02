@@ -18,6 +18,7 @@ import { getOrgId } from "../middleware/tenant";
 import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
 import { logger } from "../lib/logger";
 import { zodErrorResponse } from "../lib/zod-error";
+import { aiForOrg } from "../services/ai-client";
 
 const router: IRouter = Router();
 
@@ -339,7 +340,7 @@ router.post("/calls/ai-briefing", async (req, res): Promise<void> => {
       ? await db.select().from(contactsTable).where(and(eq(contactsTable.id, contactId), eq(contactsTable.organisationId, orgId))).then(r => r[0])
       : null;
 
-    const { ai } = await import("@workspace/integrations-gemini-ai");
+    const ai = await aiForOrg(orgId);
 
     const prompt = `Tu es l'assistant IA d'un bureau professionnel francais. Un appel entrant arrive.
 Prepare un brifing RAPIDE et ACTIONNABLE pour l'agent qui va repondre.
@@ -421,7 +422,7 @@ router.post("/calls/ai-coaching", async (req, res): Promise<void> => {
 
   try {
     await assertAiQuota(orgId);
-    const { ai } = await import("@workspace/integrations-gemini-ai");
+    const ai = await aiForOrg(orgId);
     const t0 = Date.now();
 
     const prompt = `Tu es un coach IA en temps reel pour un agent de bureau professionnel en France.
@@ -616,7 +617,7 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
         : [];
 
       await assertAiQuota(orgId);
-      const { ai } = await import("@workspace/integrations-gemini-ai");
+      const ai = await aiForOrg(orgId);
       const t0Respond = Date.now();
 
       const conversationLog = (conversationHistory || []).map((m: any) => `${m.role === "agent" ? respondAgentFirstName : "Client"}: ${m.text}`).join("\n");

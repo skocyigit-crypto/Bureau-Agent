@@ -33,6 +33,8 @@
  * n'aiderait pas, et avaler l'erreur cacherait un vrai defaut.
  */
 import { logger } from "../lib/logger";
+import { resolveAiAccess } from "./ai-key-policy";
+import { getOrgGeminiClient, getOrgOpenAIClient, getOrgAnthropicClient } from "./ai-providers";
 import { assertAiQuota, invalidateQuotaCache } from "./ai-quota";
 import {
   recordAiUsage,
@@ -390,6 +392,7 @@ export async function probeStaleProviders(): Promise<AiProviderName[]> {
           // un client — cette depense est celle de la plateforme.
           { orgId: null, config: { maxOutputTokens: 4 }, route: "health-probe" },
           [{ role: "user", text: "OK" }],
+          null,
         ),
       );
       if (!res.text.trim()) throw new EmptyResponseError(`${name}: reponse vide`);
@@ -472,8 +475,8 @@ export interface GenerateResult {
   model: string;
 }
 
-async function callGemini(opts: GenerateOptions, messages: PortableMessage[]): Promise<GenerateResult & { tokens: { input: number; output: number } }> {
-  const { ai } = await import("@workspace/integrations-gemini-ai");
+async function callGemini(opts: GenerateOptions, messages: PortableMessage[], payerOrgId: number | null): Promise<GenerateResult & { tokens: { input: number; output: number } }> {
+  const ai = await getOrgGeminiClient(payerOrgId);
   const model = opts.model ?? GEMINI_FLASH_MODEL;
   const contents = opts.contents ?? messages.map((m) => ({
     role: m.role === "assistant" ? "model" : "user",
@@ -493,8 +496,9 @@ async function callGemini(opts: GenerateOptions, messages: PortableMessage[]): P
   };
 }
 
-async function callAnthropic(opts: GenerateOptions, messages: PortableMessage[]): Promise<GenerateResult & { tokens: { input: number; output: number } }> {
-  const { anthropic, resolveClaudeModelId } = await import("@workspace/integrations-anthropic-ai");
+async function callAnthropic(opts: GenerateOptions, messages: PortableMessage[], payerOrgId: number | null): Promise<GenerateResult & { tokens: { input: number; output: number } }> {
+  const { resolveClaudeModelId } = await import("@workspace/integrations-anthropic-ai");
+  const anthropic = await getOrgAnthropicClient(payerOrgId);
   const model = resolveClaudeModelId(ANTHROPIC_MODEL);
   const wantsJson = opts.config?.responseMimeType === "application/json";
   // Anthropic n'a pas d'equivalent de `responseMimeType`: on le demande dans
@@ -516,8 +520,8 @@ async function callAnthropic(opts: GenerateOptions, messages: PortableMessage[])
   return { text: wantsJson ? stripCodeFences(raw) : raw, provider: "anthropic", model, tokens };
 }
 
-async function callOpenAI(opts: GenerateOptions, messages: PortableMessage[]): Promise<GenerateResult & { tokens: { input: number; output: number } }> {
-  const { openai } = await import("@workspace/integrations-openai-ai-server");
+async function callOpenAI(opts: GenerateOptions, messages: PortableMessage[], payerOrgId: number | null): Promise<GenerateResult & { tokens: { input: number; output: number } }> {
+  const openai = await getOrgOpenAIClient(payerOrgId);
   const model = process.env.OPENAI_MODEL || "gpt-5.2";
   const wantsJson = opts.config?.responseMimeType === "application/json";
   const response = await openai.chat.completions.create({
@@ -531,7 +535,12 @@ async function callOpenAI(opts: GenerateOptions, messages: PortableMessage[]): P
   return { text: wantsJson ? stripCodeFences(raw) : raw, provider: "openai", model, tokens };
 }
 
-const CALLERS: Record<AiProviderName, (o: GenerateOptions, m: PortableMessage[]) => Promise<GenerateResult & { tokens: { input: number; output: number } }>> = {
+/**
+ * Chaque appel porte l'organisation QUI PAIE, decidee par `ai-key-policy` —
+ * pas simplement celle a qui appartient la donnee. `null` = credit de la
+ * plateforme, et c'est un verdict, pas une information manquante.
+ */
+const CALLERS: Record<AiProviderName, (o: GenerateOptions, m: PortableMessage[], payerOrgId: number | null) => Promise<GenerateResult & { tokens: { input: number; output: number } }>> = {
   gemini: callGemini,
   anthropic: callAnthropic,
   openai: callOpenAI,
@@ -545,6 +554,10 @@ const CALLERS: Record<AiProviderName, (o: GenerateOptions, m: PortableMessage[])
  * Une bascule ne doit pas lui couter deux unites.
  */
 export async function generateText(opts: GenerateOptions): Promise<GenerateResult> {
+  // Qui paie cet appel. Leve AiKeyRequiredError quand l'organisation doit
+  // apporter sa cle et ne l'a pas fait: pas de bascule silencieuse sur le
+  // credit du proprietaire.
+  const { payerOrgId } = await resolveAiAccess(opts.orgId);
   if (opts.orgId != null) await assertAiQuota(opts.orgId);
 
   const messages = opts.contents
@@ -561,7 +574,7 @@ export async function generateText(opts: GenerateOptions): Promise<GenerateResul
   for (const name of order) {
     const t0 = Date.now();
     try {
-      const res = await callWithTimeout(name, () => CALLERS[name](opts, messages));
+      const res = await callWithTimeout(name, () => CALLERS[name](opts, messages, payerOrgId));
       if (!res.text.trim()) {
         throw new EmptyResponseError(`${name}: reponse vide`);
       }
@@ -633,7 +646,9 @@ export async function generateContentFallback(params: any): Promise<any> {
   for (const name of effectiveOrder()) {
     if (name === "gemini") continue; // c'est lui qui vient d'echouer
     try {
-      const res = await callWithTimeout(name, () => CALLERS[name](opts, messages));
+      // Chemin de compatibilite: le patch du client Gemini ne transporte pas
+      // l'organisation, il n'y a donc personne a qui attribuer la bascule.
+      const res = await callWithTimeout(name, () => CALLERS[name](opts, messages, null));
       if (!res.text.trim()) throw new EmptyResponseError(`${name}: reponse vide`);
       noteSuccess(name);
       logger.warn({ provider: name, apres: failures.join(" | ") }, "[ai-failover] reponse servie par un autre fournisseur");

@@ -37,6 +37,18 @@ vi.mock("../services/ai-quota", () => ({
   assertAiQuota: vi.fn(),
   invalidateQuotaCache: vi.fn(),
 }));
+
+// La bascule ne decide plus seule quelle cle utiliser: `ai-key-policy` dit qui
+// paie et `ai-providers` construit le client. Ici, aucune organisation n a de
+// cle propre -> credit plateforme, c est-a-dire les singletons moques ci-dessus.
+vi.mock("../services/ai-key-policy", () => ({
+  resolveAiAccess: vi.fn().mockResolvedValue({
+    source: "platform",
+    payerOrgId: null,
+    providers: {},
+    platformReason: "public-surface",
+  }),
+}));
 vi.mock("../services/ai-utils", () => ({
   recordAiUsage: vi.fn().mockResolvedValue(undefined),
   extractGeminiTokens: (r: any) => ({
@@ -59,6 +71,11 @@ vi.mock("../services/ai-utils", () => ({
   ANTHROPIC_MODEL: "claude-sonnet-5",
 }));
 vi.mock("../services/ai-providers", () => ({
+  // Aucune organisation n'a de cle propre dans ces tests: les constructeurs
+  // rendent les singletons plateforme, c'est-a-dire les mocks reseau ci-dessus.
+  getOrgGeminiClient: async () => (await import("@workspace/integrations-gemini-ai")).ai,
+  getOrgOpenAIClient: async () => (await import("@workspace/integrations-openai-ai-server")).openai,
+  getOrgAnthropicClient: async () => (await import("@workspace/integrations-anthropic-ai")).anthropic,
   // Meme regle que l'implementation reelle: 401/403 ou cle refusee.
   isAiAuthKeyError: (err: any) => {
     const s = Number(err?.status ?? err?.statusCode);

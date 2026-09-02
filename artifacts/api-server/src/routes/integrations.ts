@@ -5,6 +5,7 @@ import { logger } from "../lib/logger";
 import { GEMINI_PRO_MODEL } from "../services/ai-utils";
 import { encryptSensitiveData } from "../lib/crypto";
 import { requireRole } from "../middleware/auth";
+import { aiForOrg } from "../services/ai-client";
 
 const router = Router();
 const requireTenantAdmin = requireRole("super_admin", "administrateur");
@@ -652,7 +653,7 @@ router.get("/smart-discovery", async (req, res): Promise<void> => {
     let aiInsights = "";
     if (useAi) {
     try {
-      const { ai } = await import("@workspace/integrations-gemini-ai");
+      const ai = await aiForOrg(orgId);
       const prompt = `Tu es un consultant en transformation digitale pour entreprises francaises.
 
 Analyse ce profil d'organisation et donne 3-5 recommandations strategiques d'integration logicielle en 2-3 phrases chacune.

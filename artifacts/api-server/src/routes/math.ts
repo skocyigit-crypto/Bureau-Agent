@@ -30,7 +30,8 @@ router.post("/math/analyze", async (req, res): Promise<void> => {
     let analysis = analyzeMath(text);
 
     if (useAI && analysis.subComponents.length > 0) {
-      analysis = await analyzeWithAI(text, analysis);
+      // L'appel IA est paye par l'organisation de la session.
+      analysis = await analyzeWithAI(text, analysis, req.session?.organisationId ?? null);
     }
 
     res.json(analysis);

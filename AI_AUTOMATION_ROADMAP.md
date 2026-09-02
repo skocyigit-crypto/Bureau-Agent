@@ -913,3 +913,71 @@ Kullanıcıda kalan: Console'da OAuth istemcisini oluşturmak.
 
 Yani günlük yedek 02:00 UTC'de gerçekten ateşlenecek; kayıt, zamanlayıcı ve
 saat kapısı üçü de yerinde.
+
+---
+
+## Müşterinin AI anahtarı hiçbir zaman kullanılmıyormuş — 2026-09-02
+
+### Bulgu
+`ai_providers` tablosu, AES şifreleme, ayar ekranı ve **hatta per-org istemci
+kuran tam bir katman** (`services/ai-providers.ts`: `getOrgGeminiClient`,
+`callOrgGemini`, geçersiz anahtarda plataforma geri düşme…) zaten vardı. Ama bu
+katmanı **sunucudaki tek bir dosya** kullanıyordu: `ai-stream.ts`.
+
+Diğer her yerde — 22 dosya, 44 çağrı — kod şuydu:
+
+```ts
+const { ai } = await import("@workspace/integrations-gemini-ai");
+```
+
+yani platformun paylaşılan singleton'ı. Tüm çağrıların neredeyse tamamının
+geçtiği `ai-failover.ts` de dahil: `orgId`'yi **sadece kotayı saymak ve kullanımı
+kaydetmek** için alıyordu, çağrıyı yine platform anahtarıyla yapıyordu.
+
+**Sonuç:** kendi Gemini/OpenAI/Anthropic anahtarını yapıştıran müşteri, yine
+sahibin kredisinden harcıyordu. "Kendi anahtarınızı getirin" özelliği faturada
+hiçbir şey değiştirmiyordu. Kod incelemesiyle görünmeyen cinsten: her parça tek
+başına doğruydu, sadece hiçbiri diğerine bağlı değildi.
+
+### Yapılanlar
+1. **`services/ai-key-policy.ts` (yeni)** — tek yetkili: *bu çağrıyı kim ödüyor?*
+   Anahtar okumaz/çözmez (o iş `ai-providers.ts`'te kalır; aynı tablo üzerinde
+   ikinci bir cache, ekranın temizlemediği için dakikalarca iptal edilmiş anahtar
+   servis ederdi). Verdiği cevap `payerOrgId`: `null` = platform kredisi.
+2. **`services/ai-client.ts` (yeni)** — `aiForOrg(orgId)`, o tek satırın yerine
+   geçen ikame. Organizasyon **açıkça** geçirilir; AsyncLocalStorage'lı örtük
+   bağlam bilerek reddedildi — bağlamdan düşen bir cron sessizce "organizasyon
+   yok"a, yani sahibin kartına düşerdi.
+3. **44 çağrı yeri göç etti** (22 dosya): ai-agents, ai-analysis, ai-commandant,
+   ai-inline-suggest, calls, documents, face-recognition, gmail, integrations,
+   math, voice-command, voice-receptionist, voice-site-ops, workforce-*,
+   workspace, ai-insights, call-processor, document-ai, math-engine,
+   performance-analyzer, support-inbox, web-search, whatsapp-inbox.
+   Sekiz yerde `orgId` fonksiyon zincirinden geçirilmek zorunda kaldı
+   (`askDocumentQuestion`, `runGeminiAnalysis`, `analyzeWithAI`,
+   `analyzeWithGemini`, `parseCommandAI`, `extractActions`,
+   `transcribeVoicemail`, `multiAiAnalyze`).
+4. **`ai-failover.ts`** artık üç sağlayıcı çağrısına da `payerOrgId` taşıyor.
+   Sağlık sondası ve Gemini uyumluluk yolu açıkça `null` — orada gerçekten
+   arkada bir müşteri yok.
+5. **19 yeni test** + mevcut failover testinin mock'ları güncellendi.
+   Bütün takım: **805 geçti, 0 kaldı**. `tsc` temiz, `routes:check` 651 rota OK.
+
+### Uygulama kademeli — bilerek
+Refüz **varsayılan olarak kapalı**: `AI_REQUIRE_OWN_KEY=true` verilene kadar,
+anahtarı olmayan organizasyon eskisi gibi platform kredisiyle çalışır
+(`platformReason: "enforcement-off"`). Doğrudan "anahtar yoksa AI yok"a geçmek,
+ilk dağıtımda mevcut tüm müşterilerin AI'ını kapatırdı — bu ticari bir karar,
+teknik bir karar değil. Bu commit önce **atfı** doğru yapıyor: anahtarını girmiş
+müşteri artık gerçekten kendi anahtarını kullanıyor.
+
+Sahibin organizasyonu ve `AI_PLATFORM_KEY_ORG_IDS` listesi, refüz açıldığında
+bile platform kredisinde kalır.
+
+### Refüzü açmadan önce kalan tek iş
+`AiKeyRequiredError` 402 taşıyor ve `app.ts`'deki merkezi hata katmanı bunu
+doğru çeviriyor — **ama** rota işleyicilerinin çoğu kendi `catch`'inde 500
+döndürüyor. `AI_REQUIRE_OWN_KEY` açılmadan önce bu bloklarda 402'nin geçişine
+izin verilmeli, yoksa müşteri "Erreur interne" görür, ne yapacağını değil.
+Arayüz tarafı için `getAiKeyStatus(orgId)` hazır (hangi sağlayıcı yapılandırılmış,
+platform kredisi kullanılıyor mu, refüz açık mı).

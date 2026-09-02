@@ -7,12 +7,17 @@ import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/acce
 import { safeJsonParse, aiCallWithRetry, sanitizePromptInput } from "../services/ai-utils";
 import { assertAiQuota, AiQuotaExceededError } from "../services/ai-quota";
 import { logger } from "../lib/logger";
+import { aiForOrg } from "../services/ai-client";
 import { logAudit } from "./audit";
 
-let ai: any = null;
+// Le module n'est charge que pour savoir si Gemini est disponible du tout.
+// Le client REELLEMENT utilise est resolu par appel, avec la cle de
+// l'organisation (voir services/ai-client.ts) — sinon la commande vocale de
+// chaque client serait facturee au proprietaire de la plateforme.
+let aiAvailable = false;
 try {
-  const mod = require("@workspace/integrations-gemini-ai");
-  ai = mod.ai;
+  require("@workspace/integrations-gemini-ai");
+  aiAvailable = true;
 } catch (e) { logger.warn({ err: e }, "[VoiceCommand] Gemini AI not available:"); }
 
 const router: IRouter = Router();
@@ -511,8 +516,9 @@ function parseCommandRegex(text: string): VoiceCommand {
   return { intent: "unknown", params: { text } };
 }
 
-async function parseCommandAI(text: string, lang: Lang = "fr"): Promise<VoiceCommand> {
-  if (!ai) return parseCommandRegex(text);
+async function parseCommandAI(orgId: number, text: string, lang: Lang = "fr"): Promise<VoiceCommand> {
+  if (!aiAvailable) return parseCommandRegex(text);
+  const ai = await aiForOrg(orgId);
 
   const safeText = sanitizePromptInput(text, 1000);
   const langLabel = lang === "tr" ? "turkish" : lang === "en" ? "english" : "french";
@@ -744,8 +750,9 @@ async function dispatchReadIntent(
       spokenResponse = t(lang, "help"); break;
     }
     default: {
-      if (ai) {
+      if (aiAvailable) {
         try {
+          const ai = await aiForOrg(orgId);
           const langName = lang === "tr" ? "Turkish" : lang === "en" ? "English" : "French";
           const result = await ai.models.generateContent({
             model: "gemini-3-flash-preview",
@@ -851,7 +858,7 @@ router.post("/voice/command", async (req: Request, res: Response): Promise<void>
     throw qe;
   }
 
-  const command = await parseCommandAI(text, lang);
+  const command = await parseCommandAI(orgId, text, lang);
 
   // Write intents are NEVER executed inline. Return a signed pending action.
   if (WRITE_INTENTS.has(command.intent)) {
@@ -943,7 +950,7 @@ router.post("/voice/chat", async (req: Request, res: Response): Promise<void> =>
     throw qe;
   }
 
-  if (!ai) {
+  if (!aiAvailable) {
     res.json({ success: true, intent: "chat", spoken: t(lang, "unknown", { text }) });
     return;
   }
@@ -971,6 +978,7 @@ router.post("/voice/chat", async (req: Request, res: Response): Promise<void> =>
     // standard (rapide, conversationnel) et 3.1-pro-preview pour le mode "Derin
     // Dusunce" (raisonnement profond, brainstorming, analyse strategique).
     const modelId = useDeep ? "gemini-3.1-pro-preview" : "gemini-3-flash-preview";
+    const ai = await aiForOrg(orgId);
     const result = await aiCallWithRetry(
       () =>
         ai!.models.generateContent({

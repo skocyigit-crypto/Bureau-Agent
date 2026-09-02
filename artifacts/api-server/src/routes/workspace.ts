@@ -4,6 +4,7 @@ import { sql, eq, gte, lte, and, count, avg, desc, between, or } from "drizzle-o
 import { logger } from "../lib/logger";
 import { GEMINI_PRO_MODEL } from "../services/ai-utils";
 import { requireAuth, requireRole } from "../middleware/auth";
+import { aiForOrg } from "../services/ai-client";
 
 const router = Router();
 
@@ -554,7 +555,7 @@ router.post("/daily-report", async (req, res): Promise<void> => {
 
     const dailyData = await gatherDailyData(reportDate, orgId);
 
-    const { ai } = await import("@workspace/integrations-gemini-ai");
+    const ai = await aiForOrg(orgId);
 
     const response = await ai.models.generateContent({
       model: GEMINI_PRO_MODEL,

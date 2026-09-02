@@ -1618,6 +1618,7 @@ router.post("/documents/:id/ask", requireMinAgent, async (req: Request, res: Res
       doc.originalName,
       doc.mimeType,
       selectedModels,
+      orgId,
       isImage && doc.fileContent ? doc.fileContent : undefined,
     );
 

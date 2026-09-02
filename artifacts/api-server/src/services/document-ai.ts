@@ -3,6 +3,7 @@ import { eq, ilike, or, and } from "drizzle-orm";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { logger } from "../lib/logger";
 import { safeJsonParse, aiCallWithRetry, GEMINI_PRO_MODEL, GEMINI_FLASH_MODEL, ANTHROPIC_MODEL, wrapUntrusted } from "./ai-utils";
+import { aiForOrg } from "./ai-client";
 
 export type DocumentType =
   | "facture"
@@ -212,7 +213,7 @@ export async function analyzeDocument(
   fileName: string,
   orgId: number
 ): Promise<ExtractedData> {
-  const { ai } = await import("@workspace/integrations-gemini-ai");
+  const ai = await aiForOrg(orgId);
 
   const isVisual = VISUAL_MIME_TYPES.includes(mimeType);
   let contentParts: any[];
@@ -775,9 +776,9 @@ const QA_SYSTEM_PROMPT = `Tu es un assistant expert qui répond aux questions su
 Réponds de manière précise, structurée et utile. Base-toi UNIQUEMENT sur le contenu du document fourni.
 Si l'information n'est pas dans le document, dis-le clairement.`;
 
-async function runGeminiAnalysis(contentParts: any[], fileName: string, mimeType: string): Promise<ModelAnalysis> {
+async function runGeminiAnalysis(contentParts: any[], fileName: string, mimeType: string, organisationId: number): Promise<ModelAnalysis> {
   const t0 = Date.now();
-  const { ai } = await import("@workspace/integrations-gemini-ai");
+  const ai = await aiForOrg(organisationId);
   const { withProviderTimeout } = await import("./ai-cache");
   const response = await aiCallWithRetry(
     () => withProviderTimeout(() => ai.models.generateContent({
@@ -910,7 +911,7 @@ export async function analyzeDocumentMultiModel(
 
   // Run all 3 models in parallel
   const [geminiRes, openaiRes, claudeRes] = await Promise.allSettled([
-    runGeminiAnalysis(geminiParts, fileName, mimeType),
+    runGeminiAnalysis(geminiParts, fileName, mimeType, organisationId),
     runOpenAIAnalysis(textContent, fileName, mimeType, isImage ? base64Content : undefined),
     runClaudeAnalysis(textContent, fileName, mimeType, isImage ? base64Content : undefined),
   ]);
@@ -954,6 +955,7 @@ export async function askDocumentQuestion(
   fileName: string,
   mimeType: string,
   models: Array<"gemini" | "openai" | "claude">,
+  organisationId: number,
   imageBase64?: string,
 ): Promise<QAAnswer[]> {
   const answers: QAAnswer[] = [];
@@ -965,7 +967,7 @@ export async function askDocumentQuestion(
 
     try {
       if (m === "gemini") {
-        const { ai } = await import("@workspace/integrations-gemini-ai");
+        const ai = await aiForOrg(organisationId);
         const parts: any[] = imageBase64 && VISUAL_MIME_TYPES.includes(mimeType)
           ? [{ inlineData: { mimeType, data: imageBase64 } }, { text: `${QA_SYSTEM_PROMPT}\n\n${userPrompt}` }]
           : [{ text: `${QA_SYSTEM_PROMPT}\n\n${userPrompt}` }];
@@ -1015,7 +1017,7 @@ export async function processDocumentForImport(
   fileName: string,
   orgId: number
 ): Promise<ProcessResult> {
-  const { ai } = await import("@workspace/integrations-gemini-ai");
+  const ai = await aiForOrg(orgId);
 
   const isVisual = VISUAL_MIME_TYPES.includes(mimeType);
   let contentParts: any[];

@@ -50,6 +50,7 @@ import {
   GEMINI_PRO_MODEL,
 } from "../services/ai-utils";
 import { logger } from "../lib/logger";
+import { aiForOrg } from "../services/ai-client";
 
 const router = Router();
 
@@ -67,7 +68,7 @@ const daysAgo = (n: number) => {
 async function callGemini(orgId: number, prompt: string, phase: string): Promise<string> {
   await assertAiQuota(orgId);
   const t0 = Date.now();
-  const { ai } = await import("@workspace/integrations-gemini-ai");
+  const ai = await aiForOrg(orgId);
   const model = GEMINI_PRO_MODEL;
 
   const response = await aiCallWithRetry(

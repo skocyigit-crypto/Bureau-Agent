@@ -17,6 +17,7 @@ import {
 } from "../services/ai-utils";
 import { assertAiQuota, AiQuotaExceededError } from "../services/ai-quota";
 import { logger } from "../lib/logger";
+import { aiForOrg } from "../services/ai-client";
 import { logAudit } from "./audit";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -34,10 +35,12 @@ import { logAudit } from "./audit";
 // Multi-tenant : toutes les resolutions et ecritures sont bornees a orgId.
 // ─────────────────────────────────────────────────────────────────────────────
 
-let ai: any = null;
+// Presence du module seulement: le client est resolu par appel avec la cle de
+// l'organisation (cf. voice-command.ts et services/ai-client.ts).
+let aiAvailable = false;
 try {
-  const mod = require("@workspace/integrations-gemini-ai");
-  ai = mod.ai;
+  require("@workspace/integrations-gemini-ai");
+  aiAvailable = true;
 } catch (e) {
   logger.warn({ err: e }, "[VoiceSiteOps] Gemini AI indisponible:");
 }
@@ -250,8 +253,9 @@ Une seule note peut contenir plusieurs actions. N'invente jamais de quantite ou
 de chantier non mentionnes. Si la note ne contient aucune action exploitable,
 renvoie {"actions":[]}.`;
 
-async function extractActions(text: string, lang: string): Promise<AiAction[]> {
-  if (!ai) return [];
+async function extractActions(orgId: number, text: string, lang: string): Promise<AiAction[]> {
+  if (!aiAvailable) return [];
+  const ai = await aiForOrg(orgId);
   const safeText = sanitizePromptInput(text, 1500);
   const langLabel = lang === "tr" ? "turc" : lang === "en" ? "anglais" : "francais";
   try {
@@ -344,7 +348,7 @@ router.post("/voice/site-ops", async (req: Request, res: Response) => {
     const presetProjet =
       presetProjetId && projetById.has(presetProjetId) ? projetById.get(presetProjetId)! : null;
 
-    const aiActions = await extractActions(text, language);
+    const aiActions = await extractActions(orgId, text, language);
 
     // Pour "work_order complete", on tente de retrouver une tache ouverte du
     // chantier dont le titre correspond a la note.

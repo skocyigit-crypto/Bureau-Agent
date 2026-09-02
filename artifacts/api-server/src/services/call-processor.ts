@@ -4,6 +4,7 @@ import { logAudit } from "../routes/audit";
 import { safeJsonParse, aiCallWithRetry, sanitizePromptInput, wrapUntrusted, recordAiUsage, extractGeminiTokens, geminiActualModel, GEMINI_PRO_MODEL } from "./ai-utils";
 import { assertAiQuota, invalidateQuotaCache } from "./ai-quota";
 import { logger } from "../lib/logger";
+import { aiForOrg } from "./ai-client";
 
 const CALL_LOCK_NAMESPACE = 4242;
 
@@ -90,7 +91,7 @@ async function _processCallInternal(callId: number, orgId: number): Promise<{
 
   await assertAiQuota(call.organisationId);
 
-  const { ai } = await import("@workspace/integrations-gemini-ai");
+  const ai = await aiForOrg(orgId);
 
   const prompt = `Tu es l'analyste IA d'elite du bureau professionnel "Ajant Bureau" en France.
 Tu possedes une expertise avancee en analyse conversationnelle, detection de patterns et intelligence d'affaires.

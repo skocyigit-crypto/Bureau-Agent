@@ -24,6 +24,7 @@ import {
   wrapUntrusted,
 } from "./ai-utils";
 import { logger } from "../lib/logger";
+import { aiForOrg } from "./ai-client";
 
 const PREVIEW_MAX = 160;
 const DRAFT_HISTORY_TURNS = 15;
@@ -214,7 +215,7 @@ ${transcript ? wrapUntrusted("CONVERSATION", transcript, DRAFT_HISTORY_TURNS * (
 
 Rédige UNIQUEMENT le texte de la réponse suggérée, sans préfixe ni guillemets.`;
 
-    const { ai } = await import("@workspace/integrations-gemini-ai");
+    const ai = await aiForOrg(orgId);
     const t0 = Date.now();
     const response = await ai.models.generateContent({
       model: GEMINI_FLASH_MODEL,

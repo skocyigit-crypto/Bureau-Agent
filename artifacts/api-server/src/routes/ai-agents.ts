@@ -10,6 +10,7 @@ import { openSseStream, multiAiGenerateStream, StreamAbortedError } from "../ser
 import { buildLearnedContextBlock } from "../services/ai-learning";
 import { logger } from "../lib/logger";
 import { EventEmitter } from "events";
+import { aiForOrg } from "../services/ai-client";
 
 const router = Router();
 
@@ -760,7 +761,7 @@ const AGENT_GEMINI_MODEL = process.env.AI_AGENT_GEMINI_MODEL || GEMINI_FLASH_MOD
 const AGENT_THINKING_BUDGET = envInt("AI_AGENT_THINKING_BUDGET", 512);
 
 async function callGeminiAgent(agentId: string, orgId: number, prompt: string, signal: AbortSignal | undefined, t0: number): Promise<CouncilMember> {
-  const { ai } = await import("@workspace/integrations-gemini-ai");
+  const ai = await aiForOrg(orgId);
   const response = await withProviderTimeout(() => ai.models.generateContent({
     model: AGENT_GEMINI_MODEL,
     contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -1260,7 +1261,7 @@ async function runSuperAgent(childReports: any[], orgId: number): Promise<any> {
       }
     } catch (alertErr) { logger.warn({ err: alertErr }, "[SuperAgent] cross-agent alert creation failed"); }
 
-    const { ai } = await import("@workspace/integrations-gemini-ai");
+    const ai = await aiForOrg(orgId);
 
     const reportsSummary = childReports.map(r => ({
       agent: r.agentName,
@@ -2232,7 +2233,7 @@ Etat du systeme:\n${JSON.stringify({ ...systemHealth, issuesCount: issues.length
     try {
       const [geminiRes, openaiRes, anthropicRes] = await Promise.allSettled([
         (async () => {
-          const { ai } = await import("@workspace/integrations-gemini-ai");
+          const ai = await aiForOrg(orgId);
           const r = await ai.models.generateContent({
             model: GEMINI_PRO_MODEL,
             contents: [{ role: "user", parts: [{ text: diagPrompt + "\n\nFocus: detection d'anomalies et patterns de donnees" }] }],
@@ -2298,7 +2299,7 @@ Etat du systeme:\n${JSON.stringify({ ...systemHealth, issuesCount: issues.length
 
     let consensusSummary = "";
     try {
-      const { ai } = await import("@workspace/integrations-gemini-ai");
+      const ai = await aiForOrg(orgId);
       const consensusRes = await ai.models.generateContent({
         model: GEMINI_PRO_MODEL,
         contents: [{ role: "user", parts: [{ text: `Tu es le coordinateur de 3 IA (Gemini, OpenAI, Anthropic) qui analysent un systeme de bureau.

@@ -1,5 +1,6 @@
 import { logger } from "../lib/logger";
 import { GEMINI_PRO_MODEL } from "./ai-utils";
+import { aiForOrg } from "./ai-client";
 
 export interface MathSubComponent {
   id: string;
@@ -765,9 +766,9 @@ function generateSummary(components: MathSubComponent[], category: MathCategory)
   return `${categoryNames[category]} — ${typeCount} sous-composant${typeCount > 1 ? "s" : ""} detecte${typeCount > 1 ? "s" : ""} (${types.join(", ")}).`;
 }
 
-export async function analyzeWithAI(text: string, basicAnalysis: MathAnalysis): Promise<MathAnalysis> {
+export async function analyzeWithAI(text: string, basicAnalysis: MathAnalysis, orgId: number | null): Promise<MathAnalysis> {
   try {
-    const { ai } = await import("@workspace/integrations-gemini-ai");
+    const ai = await aiForOrg(orgId);
 
     const response = await ai.models.generateContent({
       model: GEMINI_PRO_MODEL,

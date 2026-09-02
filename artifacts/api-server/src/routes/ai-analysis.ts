@@ -12,6 +12,7 @@ import { getAnthropicMode } from "@workspace/integrations-anthropic-ai";
 import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 import { generateUniqueReference } from "../lib/unique-reference";
 import { overdueCondition } from "../services/invoice-status";
+import { aiForOrg } from "../services/ai-client";
 
 const router = Router();
 
@@ -164,7 +165,7 @@ router.post("/ai/analyze", async (req, res): Promise<void> => {
     const cached = getCached<any>(cacheKey);
     if (cached) { res.json(cached); return; }
 
-    const { ai } = await import("@workspace/integrations-gemini-ai");
+    const ai = await aiForOrg(orgId);
 
     const systemPrompt = `Tu es un analyste de bureau expert en gestion de secretariat et centre d'appels en France. Tu analyses les donnees de performance d'un bureau professionnel et fournis des insights actionnables.
 
@@ -374,7 +375,7 @@ router.post("/ai/suggest", async (req, res): Promise<void> => {
     const suggestCached = getCached<any>(suggestKey);
     if (suggestCached) { res.json(suggestCached); return; }
 
-    const { ai } = await import("@workspace/integrations-gemini-ai");
+    const ai = await aiForOrg(orgId);
 
     const pagePrompts: Record<string, string> = {
       dashboard: `Tu es un assistant IA de bureau intelligent. A partir des donnees suivantes, genere un briefing matinal concis et actionnable pour le gestionnaire de bureau. Identifie les priorites urgentes, les problemes potentiels et les actions a entreprendre immediatement. Sois direct et precis.`,
@@ -488,7 +489,7 @@ router.post("/ai/validate", async (req, res): Promise<void> => {
     const validateCached = getCached<any>(validateKey);
     if (validateCached) { res.json(validateCached); return; }
 
-    const { ai } = await import("@workspace/integrations-gemini-ai");
+    const ai = await aiForOrg(orgId ?? null);
 
     const response = await ai.models.generateContent({
       model: GEMINI_PRO_MODEL,
@@ -563,7 +564,7 @@ router.post("/ai/assistant", async (req, res): Promise<void> => {
       mathAnalysis = analyzeMath(question);
       if (mathAnalysis.subComponents.length > 0) {
         try {
-          mathAnalysis = await analyzeWithAI(question, mathAnalysis);
+          mathAnalysis = await analyzeWithAI(question, mathAnalysis, orgId ?? null);
         } catch (err) { logger.warn({ err: err }, "[AIAnalysis] operation failed:"); }
       }
     }
@@ -621,7 +622,7 @@ router.post("/ai/assistant", async (req, res): Promise<void> => {
         }, null, 2)}\n\nINCLUS les resultats mathematiques dans ta reponse. Presente chaque sous-composant avec ses etapes de resolution. Utilise les resultats exacts calcules ci-dessus.`
       : "";
 
-    const { ai } = await import("@workspace/integrations-gemini-ai");
+    const ai = await aiForOrg(orgId ?? null);
 
     const response = await ai.models.generateContent({
       model: GEMINI_PRO_MODEL,
@@ -969,7 +970,7 @@ router.post("/ai/draft-email", async (req, res): Promise<void> => {
     const safeAdditionalContext = sanitizePromptInput(additionalContext, 2000);
     const safeContactHistory = sanitizePromptInput(contactHistory, 6000);
 
-    const { ai } = await import("@workspace/integrations-gemini-ai");
+    const ai = await aiForOrg(orgId);
 
     const purposeLabels: Record<string, string> = {
       suivi_appel: "Suivi apres un appel telephonique",
@@ -1170,7 +1171,7 @@ router.post("/ai/discovery", async (req, res): Promise<void> => {
       utilisateursEquipe: Number(allUsers[0]?.count ?? 0),
     };
 
-    const { ai } = await import("@workspace/integrations-gemini-ai");
+    const ai = await aiForOrg(userOrgId);
 
     const response = await ai.models.generateContent({
       model: GEMINI_PRO_MODEL,
@@ -1550,7 +1551,7 @@ router.post("/ai/central-intelligence", async (req, res): Promise<void> => {
     if (currentMonth === 5 && jourDuMois <= 20) echeancesFiscalesProches.push("Liasse fiscale (2e quinzaine de mai)");
     if (currentMonth === 12 && jourDuMois >= 15) echeancesFiscalesProches.push("CFE (15 decembre)");
 
-    const { ai } = await import("@workspace/integrations-gemini-ai");
+    const ai = await aiForOrg(orgId);
 
     const response = await ai.models.generateContent({
       model: GEMINI_PRO_MODEL,
@@ -1865,7 +1866,7 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
     const { message, context, history } = req.body;
     if (!message?.trim()) { res.status(400).json({ error: "Message requis." }); return; }
 
-    const { ai } = await import("@workspace/integrations-gemini-ai");
+    const ai = await aiForOrg(orgId);
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 86400000);
     const monthAgo = new Date(now.getTime() - 30 * 86400000);
@@ -2494,7 +2495,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
       }
       case "search_web": {
         try {
-          const { ai } = await import("@workspace/integrations-gemini-ai");
+          const ai = await aiForOrg(orgId);
           const searchResponse = await ai.models.generateContent({
             model: GEMINI_PRO_MODEL,
             contents: [{ role: "user", parts: [{ text: `Tu es un assistant de recherche. Reponds de maniere concise et informative a cette question en francais. Donne des informations factuelles, des chiffres et des sources si possible. Question: ${String(target)}` }] }],
@@ -2508,7 +2509,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
       }
       case "generate_report": {
         const reportType = String(target).trim();
-        const { ai } = await import("@workspace/integrations-gemini-ai");
+        const ai = await aiForOrg(orgId);
         const orgCall = eq(callsTable.organisationId, orgId);
         const orgContact = eq(contactsTable.organisationId, orgId);
         const orgTask = eq(tasksTable.organisationId, orgId);
@@ -2754,7 +2755,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         break;
       }
       case "daily_briefing": {
-        const { ai: briefAi } = await import("@workspace/integrations-gemini-ai");
+        const briefAi = await aiForOrg(orgId);
         const nowBrief = new Date();
         const todayStr = nowBrief.toLocaleDateString("fr-FR", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
         const [overdueCount, urgentCount, unreadCount, todayEvents, invoiceOverdue, criticalAccounts] = await Promise.all([
@@ -2791,7 +2792,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           ]);
           meetingData = { contact: mc, calls: mcCalls, invoices: mcInvoices, account: mcAccount[0] || null };
         }
-        const { ai: meetAi } = await import("@workspace/integrations-gemini-ai");
+        const meetAi = await aiForOrg(orgId);
         const meetResponse = await meetAi.models.generateContent({
           model: GEMINI_PRO_MODEL,
           contents: [{ role: "user", parts: [{ text: `Tu es un directeur commercial expert. Prepare un dossier COMPLET pour un rendez-vous ${data.meetingType || "commercial"} avec ${data.contactName}.\n\nDonnees client: ${JSON.stringify(meetingData, null, 1)}\n\nGenere en JSON: {"dossier":"texte complet du dossier de preparation", "points_cles":["point 1",...], "questions_a_poser":["question 1",...], "risques":["risque 1",...], "opportunites":["opp 1",...], "strategie":"strategie recommandee"}` }] }],
@@ -2803,7 +2804,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         break;
       }
       case "risk_analysis": {
-        const { ai: riskAi } = await import("@workspace/integrations-gemini-ai");
+        const riskAi = await aiForOrg(orgId);
         const [rOverdue, rCritical, rStock, rMissed, rOverBudget] = await Promise.all([
           db.select({ count: count(), total: sql<number>`coalesce(sum(${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0)), 0)::numeric` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), overdueCondition())),
           db.select({ count: count() }).from(compteClientTable).where(and(eq(compteClientTable.organisationId, orgId), or(eq(compteClientTable.riskLevel, "critique"), eq(compteClientTable.riskLevel, "eleve")))),
@@ -2823,7 +2824,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         break;
       }
       case "revenue_forecast": {
-        const { ai: revAi } = await import("@workspace/integrations-gemini-ai");
+        const revAi = await aiForOrg(orgId);
         const [paidLast90, pipeline, prospects90] = await Promise.all([
           db.select({ month: sql<string>`to_char(${facturesClientTable.paidAt}, 'YYYY-MM')`, total: sql<number>`coalesce(sum(${facturesClientTable.totalAmount}::numeric), 0)::numeric` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), eq(facturesClientTable.status, "payee"), gte(facturesClientTable.paidAt, new Date(Date.now() - 90 * 86400000)))).groupBy(sql`to_char(${facturesClientTable.paidAt}, 'YYYY-MM')`),
           db.select({ total: sql<number>`coalesce(sum(${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0)), 0)::numeric`, count: count() }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), sql`${facturesClientTable.status} not in ('payee','annulee')`)),
@@ -2852,7 +2853,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           case "prospects": targetContacts = await db.select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName, email: contactsTable.email, company: contactsTable.company }).from(contactsTable).where(and(orgC, eq(contactsTable.category, "prospect"), isNotNull(contactsTable.email))).limit(50); break;
           default: targetContacts = await db.select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName, email: contactsTable.email, company: contactsTable.company }).from(contactsTable).where(and(orgC, isNotNull(contactsTable.email))).limit(50);
         }
-        const { ai: campAi } = await import("@workspace/integrations-gemini-ai");
+        const campAi = await aiForOrg(orgId);
         const campResponse = await campAi.models.generateContent({
           model: GEMINI_PRO_MODEL,
           contents: [{ role: "user", parts: [{ text: `Tu es un expert en marketing et communication. Concois une campagne email "${objective}" pour ${targetContacts.length} contacts (${criteria}).\n\nContacts cibles: ${JSON.stringify(targetContacts.slice(0, 10))}\n\nGenere en JSON: {"campagne":"description de la campagne", "sujet_email":"...", "template_email":"contenu HTML de l'email avec {{prenom}} {{nom}} {{entreprise}} comme variables", "nombre_cibles":${targetContacts.length}, "planning":"calendrier d'envoi recommande", "kpis":["kpi 1",...]}` }] }],
@@ -2865,7 +2866,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
       }
       case "performance_audit": {
         const auditType = String(target).trim() || "global";
-        const { ai: auditAi } = await import("@workspace/integrations-gemini-ai");
+        const auditAi = await aiForOrg(orgId);
         const nowAudit = new Date();
         const monthAgoAudit = new Date(nowAudit.getTime() - 30 * 86400000);
         const [aCalls, aTasks, aInvoices, aProspects, aAccounts] = await Promise.all([
@@ -2890,7 +2891,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         const searchTarget = String(target).trim();
         if (!searchTarget) { res.status(400).json({ error: "Secteur ou concurrent requis." }); return; }
         try {
-          const { ai: compAi } = await import("@workspace/integrations-gemini-ai");
+          const compAi = await aiForOrg(orgId);
           const compResponse = await compAi.models.generateContent({
             model: GEMINI_PRO_MODEL,
             contents: [{ role: "user", parts: [{ text: `Tu es un analyste strategique expert du marche francais. Realise une analyse concurrentielle COMPLETE et DETAILLEE pour "${searchTarget}".\n\nInclus: les principaux acteurs du marche, leurs forces/faiblesses, les tendances du secteur, les opportunites et menaces. Base-toi sur tes connaissances du marche francais.\n\nGenere en JSON: {"analyse":"analyse complete et detaillee", "concurrents":[{"nom":"...", "forces":"...", "faiblesses":"...", "part_marche_estimee":"..."}], "tendances":["..."], "opportunites":["..."], "menaces":["..."], "recommandations":["..."], "positionnement_recommande":"strategie de positionnement"}` }] }],
@@ -2974,7 +2975,7 @@ router.get("/ai/predictions", async (req, res): Promise<void> => {
     if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
         try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
 
-    const { ai } = await import("@workspace/integrations-gemini-ai");
+    const ai = await aiForOrg(orgId);
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 86400000);
     const twoWeeksAgo = new Date(now.getTime() - 14 * 86400000);
