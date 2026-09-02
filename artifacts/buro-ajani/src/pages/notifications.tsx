@@ -5,6 +5,7 @@ import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import { safeLinkHref } from "@/lib/safe-url";
 import { useMutation,useQuery,useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -159,9 +160,9 @@ export default function Notifications() {
                         <p className="text-xs text-muted-foreground">
                           {n.createdAt ? formatDistanceToNow(new Date(n.createdAt), { addSuffix: true, locale: fr }) : ""}
                         </p>
-                        {n.actionUrl && (
+                        {safeLinkHref(n.actionUrl) && (
                           <a
-                            href={n.actionUrl}
+                            href={safeLinkHref(n.actionUrl)!}
                             className="text-xs text-primary hover:underline flex items-center gap-0.5"
                             onClick={() => { if (!n.read) markReadMutation.mutate(n.id); }}
                           >

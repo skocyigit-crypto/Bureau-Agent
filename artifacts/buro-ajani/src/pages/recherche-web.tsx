@@ -14,6 +14,7 @@ import { Card,CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import { openSafeExternalUrl } from "@/lib/safe-url";
 import { AlertTriangle,Calculator,CalendarClock,CalendarDays,Clock,CloudSun,Coins,ExternalLink,Globe,Landmark,Languages,Loader2,Newspaper,Ruler,Search,ShieldAlert,ShieldCheck,ShieldX,Sparkles,X } from "lucide-react";
 import { useEffect,useRef,useState } from "react";
 import { useSearch } from "wouter";
@@ -363,7 +364,7 @@ export default function RechercheWebPage() {
       setPendingDanger(item);
       return;
     }
-    window.open(item.url, "_blank", "noopener,noreferrer");
+    openSafeExternalUrl(item.url);
   }
 
   const counts = data
@@ -817,7 +818,7 @@ export default function RechercheWebPage() {
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700"
               onClick={() => {
-                if (pendingDanger) window.open(pendingDanger.url, "_blank", "noopener,noreferrer");
+                if (pendingDanger) openSafeExternalUrl(pendingDanger.url);
                 setPendingDanger(null);
               }}
             >

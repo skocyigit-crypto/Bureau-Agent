@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip,TooltipContent,TooltipTrigger } from "@/components/ui/tooltip";
 import { useTranslation } from "@/i18n";
+import { safeLinkHref } from "@/lib/safe-url";
 import { AlertTriangle,ArrowRight,Bell,Check,CheckCheck,CheckSquare,Clock,ExternalLink,FolderKanban,Info,Lightbulb,MessageSquare,Package,Phone,Receipt } from "lucide-react";
 import { useEffect,useRef,useState } from "react";
 import { Link } from "wouter";
@@ -186,9 +187,9 @@ export function NotificationBell() {
                         <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
                         <div className="flex items-center gap-2 mt-1.5">
                           <span className="text-[10px] text-muted-foreground">{timeAgo(n.createdAt)}</span>
-                          {n.actionUrl && (
+                          {safeLinkHref(n.actionUrl) && (
                             <a
-                              href={n.actionUrl}
+                              href={safeLinkHref(n.actionUrl)!}
                               className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
                               onClick={e => e.stopPropagation()}
                             >

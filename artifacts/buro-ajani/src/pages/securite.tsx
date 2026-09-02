@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import { openSafeExternalUrl } from "@/lib/safe-url";
 import {
 AlertTriangle,
 ArrowRight,
@@ -338,7 +339,7 @@ function LinkScannerCard({ onScanned }: { onScanned: () => void }) {
   const openSafely = () => {
     if (!result) return;
     const target = result.url.startsWith("http") ? result.url : `https://${result.url}`;
-    window.open(target, "_blank", "noopener,noreferrer");
+    openSafeExternalUrl(target);
   };
 
   const rs = result ? RISK_STYLE[result.risk] : null;

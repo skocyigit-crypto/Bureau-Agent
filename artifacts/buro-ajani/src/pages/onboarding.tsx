@@ -218,7 +218,7 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
                         size="sm"
                         variant="outline"
                         className="border-white/20 text-white/70 hover:text-white text-xs"
-                        onClick={() => window.open(`${baseUrl}/telecharger`, "_blank")}
+                        onClick={() => window.open(`${baseUrl}/telecharger`, "_blank", "noopener,noreferrer")}
                       >
                         <ExternalLink className="w-3.5 h-3.5 mr-1" />
                         {t("onboarding.install.view")}

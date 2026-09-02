@@ -682,7 +682,7 @@ export default function ProjetsPage() {
           <Button size="sm" variant="outline" onClick={load} disabled={loading} className="h-8">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </Button>
-          <Button variant="outline" size="sm" className="h-8" onClick={() => { window.open(`${BASE}/api/export/projets`, "_blank"); }} title={t("projets.exportCsv")}><Download className="w-4 h-4" /></Button>
+          <Button variant="outline" size="sm" className="h-8" onClick={() => { window.open(`${BASE}/api/export/projets`, "_blank", "noopener,noreferrer"); }} title={t("projets.exportCsv")}><Download className="w-4 h-4" /></Button>
           <Button variant="outline" size="sm" className="h-8" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
           <CreateProjetDialog onCreated={load} />
         </div>

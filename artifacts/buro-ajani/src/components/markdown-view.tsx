@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { safeLinkHref } from "@/lib/safe-url";
 
 /**
  * Rendu Markdown minimal, SANS dependance externe.
@@ -37,7 +38,12 @@ function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
     if (token.startsWith("[")) {
       const linkMatch = token.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
       if (linkMatch) {
-        const href = linkMatch[2];
+        const href = safeLinkHref(linkMatch[2]);
+        if (!href) {
+          nodes.push(linkMatch[1]);
+          last = m.index + token.length;
+          continue;
+        }
         const external = /^https?:\/\//.test(href);
         nodes.push(
           <a
