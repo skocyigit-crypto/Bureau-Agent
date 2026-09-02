@@ -13,6 +13,7 @@ import {
 import { sendTestEmailWithKey } from "../services/email";
 import { decryptSensitiveData } from "../lib/crypto";
 import { requireRole } from "../middleware/auth";
+import { rowId } from "../lib/request-params";
 
 const router: IRouter = Router();
 
@@ -76,7 +77,8 @@ router.post("/email/providers", async (req, res): Promise<void> => {
 
 router.patch("/email/providers/:id", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const id = parseInt(String(req.params.id));
+  const id = rowId(req.params.id);
+  if (id === null) { res.status(400).json({ error: "Identifiant invalide." }); return; }
   const { label, config, isActive, isDefault } = req.body ?? {};
   try {
     const [existing] = await db.select().from(emailProvidersTable)
@@ -122,7 +124,8 @@ router.patch("/email/providers/:id", async (req, res): Promise<void> => {
 
 router.delete("/email/providers/:id", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const id = parseInt(String(req.params.id));
+  const id = rowId(req.params.id);
+  if (id === null) { res.status(400).json({ error: "Identifiant invalide." }); return; }
   try {
     const [existing] = await db.select({ id: emailProvidersTable.id }).from(emailProvidersTable)
       .where(and(eq(emailProvidersTable.id, id), eq(emailProvidersTable.organisationId, orgId)));
@@ -142,7 +145,8 @@ router.delete("/email/providers/:id", async (req, res): Promise<void> => {
 
 router.post("/email/providers/:id/test", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const id = parseInt(String(req.params.id));
+  const id = rowId(req.params.id);
+  if (id === null) { res.status(400).json({ error: "Identifiant invalide." }); return; }
   const to = String(req.body?.to ?? "").trim();
   if (!to || !to.includes("@")) {
     res.status(400).json({ error: "Adresse email destinataire de test requise." });

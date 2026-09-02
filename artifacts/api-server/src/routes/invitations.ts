@@ -7,6 +7,7 @@ import { escapeHtml } from "../lib/html-escape";
 import { sendEmail } from "../services/email";
 import { logAudit } from "./audit";
 import { validatePasswordStrength } from "./auth";
+import { rowId } from "../lib/request-params";
 
 const router: IRouter = Router();
 const SALT_ROUNDS = 12;
@@ -280,7 +281,8 @@ router.post("/invitations", async (req: Request, res: Response): Promise<void> =
 router.post("/invitations/:id/resend", async (req: Request, res: Response): Promise<void> => {
   const userRole = req.session?.userRole;
   const organisationId = req.session?.organisationId;
-  const invitationId = parseInt(String(req.params.id));
+  const invitationId = rowId(req.params.id);
+  if (invitationId === null) { res.status(400).json({ error: "Identifiant invalide." }); return; }
 
   if (userRole !== "super_admin" && userRole !== "administrateur") {
     res.status(403).json({ error: "Acces reserve aux administrateurs." });
@@ -353,7 +355,8 @@ router.post("/invitations/:id/resend", async (req: Request, res: Response): Prom
 router.delete("/invitations/:id", async (req: Request, res: Response): Promise<void> => {
   const userRole = req.session?.userRole;
   const organisationId = req.session?.organisationId;
-  const invitationId = parseInt(String(req.params.id));
+  const invitationId = rowId(req.params.id);
+  if (invitationId === null) { res.status(400).json({ error: "Identifiant invalide." }); return; }
 
   if (userRole !== "super_admin" && userRole !== "administrateur") {
     res.status(403).json({ error: "Acces reserve aux administrateurs." });

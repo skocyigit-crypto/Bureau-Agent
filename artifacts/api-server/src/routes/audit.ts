@@ -5,6 +5,7 @@ import { desc, eq, gte, lte, and, sql, lt } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { withDbRetry } from "../lib/db-retry";
+import { safeInt } from "../lib/request-params";
 
 const router = Router();
 
@@ -34,12 +35,6 @@ function tenantCondition(req: Request) {
   }
   if (!orgId) return eq(auditLogsTable.organisationId, -1); // verrou par defaut
   return eq(auditLogsTable.organisationId, orgId);
-}
-
-function safeInt(val: any, defaultVal: number, min: number, max: number): number {
-  const n = parseInt(val);
-  if (isNaN(n) || n < min) return defaultVal;
-  return Math.min(n, max);
 }
 
 router.get("/audit/logs", async (req: Request, res: Response): Promise<void> => {

@@ -1195,3 +1195,41 @@ isteğini bir transaction'a sarmak**. Bu bir düzeltme değil, mimari değişikl
 havuzlu bağlantılarla gerçek bir performans bedeli var. Bulgu sayısı sıfırken bu
 bedeli ödemek orantısız; kapı, "bir daha sessizce unutulamaz" özelliğini çok daha
 ucuza veriyor. RLS, kiracı sayısı veya ekip büyüdüğünde yeniden değerlendirilmeli.
+
+## Faz 3 — TAMAM (sınırda doğrulama: öncül daraldı, kusur netleşti)
+
+### Öncül yine ölçümle düzeldi
+"654 rota, 60 zod şeması" demiştim. Ölçünce doğrulama beklediğim yerde ince
+değilmiş: bu depo `req.body`'yi **hiçbir yerde blok halinde yazmıyor**, alanları
+tek tek seçiyor, ve **kütle atama (mass assignment) hiç yok** — üç `...body`
+yayılımının üçü de zaten doğrulanmış zod çıktısından (`body.data`,
+`parsed.data`) geliyor. 654 rotaya şema eklemek çoğunlukla kod eklemek olurdu.
+
+### Gerçekten eksik olan, daha dar ve ölçülebilir
+URL'den gelen sayılar korumasızdı:
+
+- **`parseInt(String(req.params.id))` → `NaN`.** `eq(table.id, NaN)` olarak
+  veritabanına kadar gidiyor, Postgres reddediyor ve istemciye **500** dönüyor.
+  Yani URL'deki bir yazım hatası sunucu arızasına dönüşüyordu. Dahası bu, Faz
+  0'da yeni kurduğum 5xx alarmını besliyordu: gürültü, az önce taktığım uyarıyı
+  kemiriyor.
+- **`parseInt(String(req.query.limit || "50"))` plafonsuz.** `?limit=99999999`
+  bir organizasyonun tüm telefon kayıt tablosunu tek istekte isteyebiliyordu;
+  `?limit=abc` ise `LIMIT NaN` üretiyordu.
+
+`audit.ts` doğru yardımcıya (`safeInt`) zaten sahipti — **yerel** olarak. Kusur
+doğru davranışın bilinmemesi değil, elin altında olmamasıydı.
+
+### Yapılan
+`lib/request-params.ts`: `rowId` (`NaN` yerine **`null`** döner — `null`
+görmezden gelinemez, çağıranı karar vermeye zorlar), `safeInt`, `pageLimit`.
+15 kimlik okuması + 3 limit okuması bunlara bağlandı; `audit.ts`'in yerel
+kopyası paylaşılan hale geldi.
+
+Testler yazarken uygulamanın **iki gerçek boşluğunu** yakaladı ve sıkılaştırdım:
+`?id=1&id=2` Express'te dizi olur, `String(["1","2"])` → `"1,2"`, `parseInt` de
+oradan 1 okur — kimsenin istemediği bir satır üzerinde işlem. Aynı şekilde
+`"1.5"` → 1 ve `"12abc"` → 12 kabul ediliyordu. Artık yalnız salt rakam kabul
+ediliyor: **tahmin edilen bir kimlik, reddedilen kimlikten kötüdür.**
+
+**15 yeni test**, toplam **861 geçti**, tsc temiz, kiracı kapısı sıfırda.

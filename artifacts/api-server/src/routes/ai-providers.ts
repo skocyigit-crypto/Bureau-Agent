@@ -18,6 +18,7 @@ import {
 import { createOpenAIClient } from "@workspace/integrations-openai-ai-server";
 import { createAnthropicClient, resolveClaudeModelId } from "@workspace/integrations-anthropic-ai";
 import { requireRole } from "../middleware/auth";
+import { rowId } from "../lib/request-params";
 
 const router: IRouter = Router();
 
@@ -88,7 +89,8 @@ router.post("/ai-providers", async (req, res): Promise<void> => {
 
 router.patch("/ai-providers/:id", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const id = parseInt(String(req.params.id));
+  const id = rowId(req.params.id);
+  if (id === null) { res.status(400).json({ error: "Identifiant invalide." }); return; }
   const { label, config, isActive, isDefault } = req.body ?? {};
   try {
     const [existing] = await db.select().from(aiProvidersTable)
@@ -134,7 +136,8 @@ router.patch("/ai-providers/:id", async (req, res): Promise<void> => {
 
 router.delete("/ai-providers/:id", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const id = parseInt(String(req.params.id));
+  const id = rowId(req.params.id);
+  if (id === null) { res.status(400).json({ error: "Identifiant invalide." }); return; }
   try {
     const [existing] = await db.select({ id: aiProvidersTable.id }).from(aiProvidersTable)
       .where(and(eq(aiProvidersTable.id, id), eq(aiProvidersTable.organisationId, orgId)));
@@ -155,7 +158,8 @@ router.delete("/ai-providers/:id", async (req, res): Promise<void> => {
 // Test de la cle : un petit appel reel au fournisseur pour valider la cle saisie.
 router.post("/ai-providers/:id/test", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const id = parseInt(String(req.params.id));
+  const id = rowId(req.params.id);
+  if (id === null) { res.status(400).json({ error: "Identifiant invalide." }); return; }
   try {
     const [row] = await db.select().from(aiProvidersTable)
       .where(and(eq(aiProvidersTable.id, id), eq(aiProvidersTable.organisationId, orgId)));

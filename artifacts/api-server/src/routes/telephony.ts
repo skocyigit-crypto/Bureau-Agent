@@ -15,6 +15,7 @@ import {
   decryptProviderConfig,
 } from "../services/telephony-providers";
 import { requireRole } from "../middleware/auth";
+import { rowId, pageLimit } from "../lib/request-params";
 
 const router: IRouter = Router();
 export const telephonyWebhookRouter: IRouter = Router();
@@ -498,7 +499,8 @@ router.post("/telephony/providers", async (req, res): Promise<void> => {
 
 router.patch("/telephony/providers/:id", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const id = parseInt(String(req.params.id));
+  const id = rowId(req.params.id);
+  if (id === null) { res.status(400).json({ error: "Identifiant invalide." }); return; }
   const { label, config, isActive, isDefault, phoneNumbers } = req.body;
 
   try {
@@ -548,7 +550,8 @@ router.patch("/telephony/providers/:id", async (req, res): Promise<void> => {
 
 router.delete("/telephony/providers/:id", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const id = parseInt(String(req.params.id));
+  const id = rowId(req.params.id);
+  if (id === null) { res.status(400).json({ error: "Identifiant invalide." }); return; }
 
   try {
     const [existing] = await db.select().from(telephonyProvidersTable)
@@ -571,7 +574,8 @@ router.delete("/telephony/providers/:id", async (req, res): Promise<void> => {
 
 router.post("/telephony/providers/:id/test", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const id = parseInt(String(req.params.id));
+  const id = rowId(req.params.id);
+  if (id === null) { res.status(400).json({ error: "Identifiant invalide." }); return; }
 
   try {
     const [provider] = await db.select().from(telephonyProvidersTable)
@@ -781,7 +785,7 @@ router.post("/telephony/sms", async (req, res): Promise<void> => {
 
 router.get("/telephony/call-logs", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const limit = parseInt(String(req.query.limit || "50"));
+  const limit = pageLimit(req.query.limit);
 
   try {
     const logs = await db.select().from(telephonyCallLogsTable)
@@ -798,7 +802,7 @@ router.get("/telephony/call-logs", async (req, res): Promise<void> => {
 
 router.get("/telephony/sms-logs", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const limit = parseInt(String(req.query.limit || "50"));
+  const limit = pageLimit(req.query.limit);
 
   try {
     const logs = await db.select().from(telephonySmsLogsTable)
@@ -896,7 +900,8 @@ router.post("/telephony/schedule", async (req, res): Promise<void> => {
 
 router.delete("/telephony/schedule/:id", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const id = parseInt(String(req.params.id));
+  const id = rowId(req.params.id);
+  if (id === null) { res.status(400).json({ error: "Identifiant invalide." }); return; }
   const list = scheduledCallsStore.get(orgId) || [];
   const idx = list.findIndex(s => s.id === id);
   if (idx >= 0) { list.splice(idx, 1); }

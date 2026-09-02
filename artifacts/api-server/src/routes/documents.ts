@@ -20,6 +20,7 @@ import { triggerExpenseCapture } from "../services/expense-capture";
 import { EventEmitter } from "events";
 import { startBulkScan, getBulkScanStatus, cancelBulkScan } from "../services/document-scan-job";
 import { respondAiError } from "../services/ai-guard";
+import { pageLimit } from "../lib/request-params";
 
 const router = Router();
 const requireMinAgent = requireRole("super_admin", "administrateur", "agent");
@@ -1638,7 +1639,7 @@ router.get("/documents/by-source", requireMinAgent, async (req: Request, res: Re
     const entityType = req.query.entityType ? String(req.query.entityType) : undefined;
     const search = req.query.q ? String(req.query.q) : undefined;
     const scanVerdict = req.query.scanVerdict ? String(req.query.scanVerdict) : undefined;
-    const limit = Math.min(parseInt(String(req.query.limit || "60")), 200);
+    const limit = pageLimit(req.query.limit);
 
     const conditions: any[] = [eq(documentsTable.organisationId, orgId)];
     if (entityType && entityType !== "all") conditions.push(eq(documentsTable.entityType, entityType));

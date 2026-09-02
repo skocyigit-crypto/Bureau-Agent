@@ -3,6 +3,7 @@ import { eq, desc, and } from "drizzle-orm";
 import { db, notesInternesTable } from "@workspace/db";
 import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
+import { rowId } from "../lib/request-params";
 
 const router: IRouter = Router();
 
@@ -44,7 +45,8 @@ router.post("/notes-internes", requireRole("agent"), async (req: Request, res: R
 router.put("/notes-internes/:id", requireRole("agent"), async (req: Request, res: Response) => {
   try {
     const orgId = getOrgId(req);
-    const id = parseInt(req.params.id as string);
+    const id = rowId(req.params.id);
+    if (id === null) { res.status(400).json({ error: "Identifiant invalide." }); return; }
     const [existing] = await db.select().from(notesInternesTable)
       .where(and(eq(notesInternesTable.id, id), eq(notesInternesTable.organisationId, orgId)));
     if (!existing) { res.status(404).json({ error: "Note introuvable" }); return; }
@@ -66,7 +68,8 @@ router.put("/notes-internes/:id", requireRole("agent"), async (req: Request, res
 router.delete("/notes-internes/:id", requireRole("agent"), async (req: Request, res: Response) => {
   try {
     const orgId = getOrgId(req);
-    const id = parseInt(req.params.id as string);
+    const id = rowId(req.params.id);
+    if (id === null) { res.status(400).json({ error: "Identifiant invalide." }); return; }
     if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
     const deleted = await db.delete(notesInternesTable)
       .where(and(eq(notesInternesTable.id, id), eq(notesInternesTable.organisationId, orgId)))
@@ -83,7 +86,8 @@ router.post("/notes-internes/:id/duplicate", requireRole("agent"), async (req: R
   try {
     const orgId = getOrgId(req);
     const userId = (req as any).user?.id || null;
-    const id = parseInt(req.params.id as string);
+    const id = rowId(req.params.id);
+    if (id === null) { res.status(400).json({ error: "Identifiant invalide." }); return; }
     const [existing] = await db.select().from(notesInternesTable)
       .where(and(eq(notesInternesTable.id, id), eq(notesInternesTable.organisationId, orgId)));
     if (!existing) { res.status(404).json({ error: "Note introuvable" }); return; }
