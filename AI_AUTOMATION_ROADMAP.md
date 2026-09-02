@@ -769,3 +769,29 @@ verisini zamanlayıcıyla onların Google Drive'ına yazmaya başlamak demek —
 ürün kararı, sessizce yapılacak bir düzeltme değil. Şimdilik durum
 `cron-registration.test.ts` içinde gerekçesiyle yazılı ve biri onu bağladığı an
 test düşüp registry'ye kaydını zorunlu kılıyor.
+
+---
+
+## Ön yüz denetimi — 2026-09-02
+
+**Efekt temizliği: bir gerçek sızıntı.** Uygulamadaki her `useEffect`
+temizlenmeyen dinleyici / interval / observer / socket için tarandı. Tek bulgu
+`useBatteryStatus`'tu: tarayıcının `BatteryManager` singleton'ına iki dinleyici
+ekleyip hiç kaldırmıyordu, yani her mount iki abonelik daha bırakıyor ve
+demonte bileşende `setState` çağırmaya devam ediyordu. Düzeltildi (`d762eeaf`),
+async yarış da kapatıldı: bileşen `getBattery()` uçuştayken demonte olursa artık
+hiç abone olmuyor. 4 test.
+
+**React Query önbelleği: temiz.** 27 mutasyonun tamamı değiştirdiği veriyi
+yeniliyor; etkisiz (hayalet) invalidation yok. Tek aday rapor üretip yerel
+state'e yazıyor, sunucu verisi değiştirmiyor.
+
+**Yanıt sözleşmesi: temiz.** 31 GET çağrısında ön yüzün okuduğu her üst düzey
+anahtar sunucunun döndürdükleri arasında. İki paket arasında tip bağı olmadığı
+için bu, satış zinciri kesintisini üreten sınıfın aynısı — statik olarak
+ölçüldü, ayrışma yok.
+
+Not: bu üç ölçümün ilk sürümleri sırasıyla 2, 1 ve 16 "bulgu" verdi; ikisi
+ölçüm körlüğüydü (kısayol özellikler `{ logs, total }`, iç içe nesneler, 400
+karakterlik pencerenin yanlış fetch'e atfı). Elle doğrulanmadan hiçbiri
+bulgu olarak kaydedilmedi.
