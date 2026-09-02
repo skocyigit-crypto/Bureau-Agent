@@ -486,6 +486,9 @@ export async function searchKnowledge(
       chunkIndex: documentChunksTable.chunkIndex,
       content: documentChunksTable.content,
       embedding: documentChunksTable.embedding,
+      // Le modele qui a produit le vecteur: sans lui, impossible de savoir si
+      // un vecteur stocke est comparable a celui de la requete.
+      embedModel: documentChunksTable.embedModel,
       fileName: documentsTable.originalName,
     })
     .from(documentChunksTable)
@@ -512,8 +515,16 @@ export async function searchKnowledge(
     logger.warn({ err, orgId }, "[knowledge-base] embedding requête indisponible — repli lexical");
   }
 
+  // « Avoir des vecteurs » ne suffit pas: il faut en avoir de COMPARABLES.
+  // Sans la condition de modele, un lot entierement indexe par un autre modele
+  // ferait prendre la branche semantique pour n'y produire que des scores nuls,
+  // au lieu du classement lexical seul — qui est le comportement prevu quand
+  // aucun vecteur exploitable n'existe.
   const hasEmbeddings = rows.some(
-    (r) => Array.isArray(r.embedding) && (r.embedding as number[]).length > 0,
+    (r) =>
+      Array.isArray(r.embedding)
+      && (r.embedding as number[]).length > 0
+      && r.embedModel === KB_EMBED_MODEL,
   );
   const useSemantic = Boolean(qVec) && hasEmbeddings;
 
@@ -525,8 +536,28 @@ export async function searchKnowledge(
   if (useSemantic) {
     // Cosinus brut par chunk (0 si pas de vecteur), puis normalisation 0..1 sur
     // le lot pour rendre le sémantique comparable au lexical avant mélange.
+    // Un vecteur n'est comparable qu'a un vecteur du MEME modele.
+    //
+    // La colonne `embed_model` etait ecrite a l'indexation mais jamais relue:
+    // la recherche comparait le vecteur de la requete a tous les vecteurs
+    // stockes, quel que soit le modele qui les avait produits. Or les
+    // dimensions different d'un modele a l'autre (768 pour text-embedding-004,
+    // 1536 ailleurs) et `cosineSim` tronque a la longueur la plus courte sans
+    // rien signaler: le score obtenu n'aurait alors aucun sens, et rien ne
+    // l'aurait montre — ni erreur, ni journal, juste de moins bonnes reponses.
+    //
+    // Le risque n'est pas theorique: `KB_EMBED_MODEL` est une variable
+    // d'environnement, et le modele actuel appartient a une famille que le
+    // fournisseur retire progressivement. Le jour ou il change, les anciens
+    // chunks gardent leurs vecteurs.
+    //
+    // Les chunks d'un autre modele ne sont donc pas compares; ils retombent
+    // sur le classement lexical, exactement comme ceux qui n'ont aucun vecteur
+    // — un chemin que cette fonction gere deja. Reindexer les remet en jeu.
     const sem = rows.map((r) =>
-      Array.isArray(r.embedding) && (r.embedding as number[]).length > 0
+      Array.isArray(r.embedding)
+      && (r.embedding as number[]).length > 0
+      && r.embedModel === KB_EMBED_MODEL
         ? cosineSim(qVec!, r.embedding as number[])
         : 0,
     );
