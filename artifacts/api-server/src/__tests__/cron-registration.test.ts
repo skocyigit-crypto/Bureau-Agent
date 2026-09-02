@@ -25,6 +25,16 @@ const SERVICES = join(import.meta.dirname, "..", "services");
  */
 const IN_MEMORY_ONLY = new Set(["ai-cache.ts"]);
 
+/**
+ * Boucles ecrites mais jamais demarrees: rien ne les appelle, donc rien a
+ * inscrire. `google-drive-backup.ts` expose un planificateur de sauvegarde
+ * toutes les 6 h que personne n'appelle — seule la sauvegarde manuelle
+ * (bouton) tourne aujourd'hui. Le brancher enverrait des donnees vers le Drive
+ * du client: c'est une decision produit, pas une correction technique, donc
+ * l'etat est consigne ici plutot que change en douce.
+ */
+const NEVER_STARTED = new Set(["google-drive-backup.ts"]);
+
 /** Modules qui pilotent une boucle planifiee (hors registre lui-meme). */
 function schedulerModules(): Array<{ name: string; source: string }> {
   return readdirSync(SERVICES)
@@ -34,8 +44,11 @@ function schedulerModules(): Array<{ name: string; source: string }> {
       name !== "cron-registry.ts" &&
       name !== "health-agents.ts" &&
       !IN_MEMORY_ONLY.has(name) &&
+      !NEVER_STARTED.has(name) &&
       /setInterval\(/.test(source) &&
-      /export function start\w+/.test(source));
+      // `async` inclus: sans lui, ce test ne voyait pas
+      // `export async function startGoogleDriveBackupScheduler`.
+      /export\s+(?:async\s+)?function\s+start\w+/.test(source));
 }
 
 describe("taches planifiees", () => {
@@ -62,6 +75,39 @@ describe("taches planifiees", () => {
       .map(({ name }) => name);
 
     expect(silent).toEqual([]);
+  });
+
+  it("verifie que les boucles declarees 'jamais demarrees' le sont vraiment", () => {
+    // L'exclusion ci-dessus ne doit pas devenir un mensonge: si quelqu'un
+    // branche ce planificateur un jour, il doit repasser par le registre, donc
+    // ce test doit tomber et forcer a retirer l'exclusion.
+    const src = join(import.meta.dirname, "..");
+    const files: string[] = [];
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir, { withFileTypes: true })) {
+        const p = join(dir, name.name);
+        if (name.isDirectory()) walk(p);
+        else if (p.endsWith(".ts") && !p.includes("__tests__")) files.push(p);
+      }
+    };
+    walk(src);
+
+    for (const moduleName of NEVER_STARTED) {
+      const source = readFileSync(join(SERVICES, moduleName), "utf8");
+      const starters = [...source.matchAll(/export\s+(?:async\s+)?function\s+(start\w+)/g)].map((m) => m[1]);
+      expect(starters.length, `${moduleName} n'expose aucun demarreur`).toBeGreaterThan(0);
+
+      for (const starter of starters) {
+        const callers = files.filter((f) => {
+          if (f.endsWith(moduleName)) return false;
+          return new RegExp("\\b" + starter + "\\s*\\(").test(readFileSync(f, "utf8"));
+        });
+        expect(
+          callers,
+          `${starter} est maintenant appele: retirer ${moduleName} de NEVER_STARTED et l'inscrire au registre`,
+        ).toEqual([]);
+      }
+    }
   });
 
   it("garde des identifiants de verrou distincts", () => {
