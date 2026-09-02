@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 641,
+    "runtimeOperations": 648,
     "documentedOperations": 96,
-    "undocumentedOperations": 545
+    "undocumentedOperations": 552
   },
   "operations": [
     {
@@ -2808,6 +2808,14 @@
       ]
     },
     {
+      "method": "get",
+      "path": "/factures-client/{id}/pdf",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/factures-client.ts"
+      ]
+    },
+    {
       "method": "post",
       "path": "/factures-client/{id}/relance",
       "documented": false,
@@ -3615,6 +3623,54 @@
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/messages.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/my-backups",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/my-backups.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/my-backups",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/my-backups.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/my-backups/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/my-backups.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/my-backups/{id}/download",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/my-backups.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/my-backups/{id}/restore",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/my-backups.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/my-backups/{id}/restore-preview",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/my-backups.ts"
       ]
     },
     {
