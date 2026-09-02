@@ -5795,7 +5795,8 @@
       "relanceSentDesc": "تم إرسال التذكير رقم {{count}}.",
       "relanceImpossible": "التذكير غير ممكن",
       "relanceFailed": "فشل إرسال التذكير."
-    }
+    },
+    "pdfTitle": "تنزيل الفاتورة بصيغة PDF"
   },
   "santeTechnique": {
     "title": "الصحة التقنية",

@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Edit,Loader2,Plus,Receipt,RefreshCw,Search,Send,Shield,Trash2 } from "lucide-react";
+import { Edit,FileDown,Loader2,Plus,Receipt,RefreshCw,Search,Send,Shield,Trash2 } from "lucide-react";
 import { useCallback,useEffect,useState } from "react";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
@@ -64,9 +64,9 @@ function canRemind(f: FactureClient): boolean {
   return !!(f.clientEmail && f.clientEmail.trim()) && f.status !== "payee" && f.status !== "annulee";
 }
 
-// Documents commerciaux de lorganisation connectee: le serveur borne chaque
+// Documents commerciaux de l'organisation connectee: le serveur borne chaque
 // requete a `getOrgId(req)`, donc pas de garde super-admin ni de selecteur
-// dorganisation ici.
+// d'organisation ici.
 export default function AdminFacturesClientPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -215,6 +215,16 @@ export default function AdminFacturesClientPage() {
                     {remindingId === f.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
                   </Button>
                 )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  title={t("adminFacturesClient.pdfTitle")}
+                  aria-label={t("adminFacturesClient.pdfTitle")}
+                  onClick={() => window.open(`${BASE}/api/factures-client/${f.id}/pdf`, "_blank", "noopener,noreferrer")}
+                >
+                  <FileDown className="w-3 h-3" />
+                </Button>
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(f)}><Edit className="w-3 h-3" /></Button>
                 <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => handleDelete(f.id)}><Trash2 className="w-3 h-3" /></Button>
               </div>

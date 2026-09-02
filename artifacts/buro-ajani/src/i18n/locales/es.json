@@ -5795,7 +5795,8 @@
       "relanceSentDesc": "Recordatorio n.º {{count}} enviado.",
       "relanceImpossible": "Recordatorio imposible",
       "relanceFailed": "Envío del recordatorio fallido."
-    }
+    },
+    "pdfTitle": "Descargar la factura en PDF"
   },
   "santeTechnique": {
     "title": "Salud técnica",

@@ -5795,7 +5795,8 @@
       "relanceSentDesc": "{{count}}. hatırlatma gönderildi.",
       "relanceImpossible": "Hatırlatma mümkün değil",
       "relanceFailed": "Hatırlatma gönderimi başarısız."
-    }
+    },
+    "pdfTitle": "Fatura PDF’ini indir"
   },
   "santeTechnique": {
     "title": "Teknik sağlık",

@@ -5795,7 +5795,8 @@
       "relanceSentDesc": "Reminder #{{count}} sent.",
       "relanceImpossible": "Reminder not possible",
       "relanceFailed": "Reminder sending failed."
-    }
+    },
+    "pdfTitle": "Download the PDF invoice"
   },
   "santeTechnique": {
     "title": "Technical health",

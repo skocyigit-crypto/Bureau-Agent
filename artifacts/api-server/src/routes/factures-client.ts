@@ -1,10 +1,11 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, desc, ilike, or, sql, and, type Column, type SQL } from "drizzle-orm";
-import { db, devisTable, facturesClientTable } from "@workspace/db";
+import { db, devisTable, facturesClientTable, organisationsTable } from "@workspace/db";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { sendInvoiceReminderEmail } from "../services/email";
 import { generateUniqueReference } from "../lib/unique-reference";
 import { getOrgId } from "../middleware/tenant";
+import { buildInvoiceDocument, invoiceFileName, renderInvoicePdf } from "../services/invoice-pdf";
 import { computeInvoiceTotals, isValidCurrency, parseUserDate, clampPagination, normalizePaidAmount } from "../services/invoice-totals";
 
 const router: IRouter = Router();
@@ -63,6 +64,57 @@ router.get("/factures-client/:id", async (req: Request, res: Response): Promise<
   } catch (err: any) {
     req.log.error({ err }, "Erreur get facture");
     res.status(500).json({ error: "Erreur lors de la recuperation." });
+  }
+});
+
+/**
+ * Facture PDF A4 conforme (identite du vendeur, lignes, ventilation de TVA,
+ * mentions obligatoires). L'identite vendeur vient du profil de
+ * l'organisation; si des mentions obligatoires manquent, le PDF est quand
+ * meme produit et les manques sont journalises et renvoyes dans un en-tete
+ * `X-Invoice-Warnings` (une facture incomplete doit se voir, pas echouer
+ * silencieusement au moment ou l'utilisateur veut l'envoyer).
+ */
+router.get("/factures-client/:id/pdf", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const id = parseInt(req.params.id as string);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  try {
+    const [facture] = await db.select().from(facturesClientTable)
+      .where(and(eq(facturesClientTable.id, id), eq(facturesClientTable.organisationId, orgId)));
+    if (!facture) { res.status(404).json({ error: "Facture non trouvee." }); return; }
+
+    const [org] = await db.select({
+      name: organisationsTable.name,
+      legalForm: organisationsTable.legalForm,
+      capital: organisationsTable.capital,
+      address: organisationsTable.address,
+      siret: organisationsTable.siret,
+      tvaNumber: organisationsTable.tvaNumber,
+      email: organisationsTable.email,
+      phone: organisationsTable.phone,
+      bankName: organisationsTable.bankName,
+      bankIban: organisationsTable.bankIban,
+      bankBic: organisationsTable.bankBic,
+      invoiceFooter: organisationsTable.invoiceFooter,
+    }).from(organisationsTable).where(eq(organisationsTable.id, orgId));
+
+    const model = buildInvoiceDocument(facture, org ?? {});
+    if (model.warnings.length > 0) {
+      req.log.warn({ factureId: id, warnings: model.warnings }, "Facture PDF emise avec des mentions obligatoires manquantes");
+      // En-tete ASCII: les avertissements sont rediges sans accent, mais on
+      // encode malgre tout pour qu'un futur libelle ne casse pas la reponse.
+      res.setHeader("X-Invoice-Warnings", encodeURIComponent(model.warnings.join(" | ")));
+    }
+
+    const pdf = await renderInvoicePdf(model);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", String(pdf.length));
+    res.setHeader("Content-Disposition", `inline; filename="${invoiceFileName(facture.reference)}"`);
+    res.end(pdf);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur generation PDF facture");
+    res.status(500).json({ error: "Erreur lors de la generation du PDF." });
   }
 });
 

@@ -55,9 +55,9 @@ function fmtMoney(v: string | number | null | undefined, currency = "EUR") {
   }
 }
 
-// Documents commerciaux de lorganisation connectee: le serveur borne chaque
+// Documents commerciaux de l'organisation connectee: le serveur borne chaque
 // requete a `getOrgId(req)`, donc pas de garde super-admin ni de selecteur
-// dorganisation ici.
+// d'organisation ici.
 export default function AdminDevisPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
