@@ -51,8 +51,6 @@ const Dashboard = lazy(() => import("@/pages/dashboard"));
 const Calls = lazy(() => import("@/pages/calls"));
 const CallDetail = lazy(() => import("@/pages/call-detail"));
 const Contacts = lazy(() => import("@/pages/contacts"));
-const ProspectsPage = lazy(() => import("@/pages/prospects"));
-const ProspectDetailPage = lazy(() => import("@/pages/prospect-detail"));
 const WhatsappInbox = lazy(() => import("@/pages/whatsapp"));
 const ContactDetail = lazy(() => import("@/pages/contact-detail"));
 const Tasks = lazy(() => import("@/pages/tasks"));
@@ -90,8 +88,6 @@ const AdminBackofficePage = lazy(() => import("@/pages/admin"));
 const AdminDashboardPage = lazy(() => import("@/pages/admin-dashboard"));
 const AdminAuditPage = lazy(() => import("@/pages/admin-audit"));
 const AdminFacturesB2BPage = lazy(() => import("@/pages/admin-factures-b2b"));
-const AdminDevisPage = lazy(() => import("@/pages/admin-devis"));
-const AdminFacturesClientPage = lazy(() => import("@/pages/admin-factures-client"));
 const NotesInternesPage = lazy(() => import("@/pages/notes-internes"));
 const DataProtectionPage = lazy(() => import("@/pages/data-protection"));
 const ContactsImportPage = lazy(() => import("@/pages/contacts-import"));
@@ -275,8 +271,6 @@ function AppRoutes() {
         <Route path="/contacts" component={withLicenseGate(Contacts)} />
         <Route path="/contacts/import" component={withLicenseGate(ContactsImportPage)} />
         <Route path="/contacts/:id" component={withLicenseGate(ContactDetail)} />
-        <Route path="/prospects" component={withRoleGate(ProspectsPage, SUPER_ADMIN_ROLES, { license: false })} />
-        <Route path="/prospects/:id" component={withRoleGate(ProspectDetailPage, SUPER_ADMIN_ROLES, { license: false })} />
         <Route path="/taches" component={withLicenseGate(Tasks)} />
         <Route path="/tresorerie" component={withLicenseGate(TresoreriePage)} />
         <Route path="/depenses" component={withLicenseGate(DepensesPage)} />
@@ -315,8 +309,6 @@ function AppRoutes() {
         <Route path="/admin" component={withRoleGate(AdminBackofficePage, SUPER_ADMIN_ROLES, { license: false })} />
         <Route path="/admin/dashboard" component={withRoleGate(AdminDashboardPage, SUPER_ADMIN_ROLES, { license: false })} />
         {/* Pas de licence-gate sur /admin/* : la garde est par role super-admin (cf. /admin/devis et /admin/factures-b2b). */}
-        <Route path="/admin/devis" component={withRoleGate(AdminDevisPage, SUPER_ADMIN_ROLES, { license: false })} />
-        <Route path="/admin/factures-client" component={withRoleGate(AdminFacturesClientPage, SUPER_ADMIN_ROLES, { license: false })} />
         <Route path="/admin/factures-b2b" component={withRoleGate(AdminFacturesB2BPage, SUPER_ADMIN_ROLES, { license: false })} />
         <Route path="/admin/audit" component={withRoleGate(AdminAuditPage, SUPER_ADMIN_ROLES, { license: false })} />
         <Route path="/notes-internes" component={withLicenseGate(NotesInternesPage)} />
