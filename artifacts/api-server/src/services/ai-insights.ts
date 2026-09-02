@@ -311,10 +311,12 @@ async function maybeEnrichWithAi(orgId: number, signals: RawSignals, drafts: Ins
   });
 
   return getOrCompute<InsightDraft[]>(cacheKey, AI_CACHE_TTL.LONG, async () => {
+    // Declare AVANT le try: la duree d'un echec est justement ce qu'on veut
+    // mesurer, et elle n'est lisible que depuis le catch.
+    const t0 = Date.now();
     try {
       const { ai } = await import("@workspace/integrations-gemini-ai");
       const model = GEMINI_FLASH_MODEL;
-      const t0 = Date.now();
 
       const prompt = `Tu es un assistant de bureau IA en francais. Voici les indicateurs du jour pour une organisation:
 ${JSON.stringify(signals, null, 2)}
@@ -352,7 +354,22 @@ Reponds UNIQUEMENT avec un tableau JSON de la meme structure que les drafts. Pas
         actionLabel: drafts[i].actionLabel,
       }));
     } catch (err) {
-      logger.warn({ err, orgId }, "[ai-insights] AI enrich failed, using deterministic");
+      // Duree et budget dans le journal, faute de quoi on ne peut pas savoir
+      // ce qu'il faut corriger.
+      //
+      // Porter le budget de 15 a 45 s a nettement reduit ces echecs sans les
+      // supprimer: il en reste environ un sur deux. Sans mesure, la suite
+      // serait une devinette — or deux valeurs choisies de tete ont deja fait
+      // du degat aujourd'hui, dont une qui a coupe toute l'IA en production.
+      //
+      // Ce que ces deux champs tranchent: un echec AU budget (`ms` proche de
+      // `budgetMs`) veut dire qu'il faut plus de temps; un echec bien avant a
+      // une autre cause, et rallonger n'y changerait rien.
+      const ms = Date.now() - t0;
+      logger.warn(
+        { err, orgId, ms, budgetMs: timeoutMs, atBudget: ms >= timeoutMs - 500 },
+        "[ai-insights] AI enrich failed, using deterministic",
+      );
       return drafts;
     }
   });
