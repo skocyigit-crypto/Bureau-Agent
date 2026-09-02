@@ -886,3 +886,30 @@ web `00233` 15:06 UTC'de dağıtıldı.
 değil, çalışan sürecin durumudur. Bu kez kanıt cron kaydı oldu:
 `/api/cron/registered` 14'ten **23**'e çıktı ve bu oturumda kaydettiğim dokuz
 işin hepsi göründü. Uç yoklaması kanıt değil — var olmayan bir yol da 401 döner.
+
+---
+
+## Google BYOC + teslim zincirinin doğrulanması — 2026-09-02
+
+### Müşteri-başına Google uygulaması (`42e5e986`)
+Yol haritasının 1 numaralı maddesinin sunucu tarafı tamamlandı. Tablo, şifreleme
+(`encryptSecret`/`decryptSecret`) ve okuma yolu zaten vardı — **hiçbir şey oraya
+yazmıyordu**, dolayısıyla Google'ı bağlamanın tek yolu platformun paylaşılan
+ortam değişkenleriydi. Üç uç eklendi (`/org-google-credentials`), hepsi
+`getOrgId` ile sınırlı ve organizasyon yöneticilerine ayrılmış. İstemci sırrı
+AES-256-GCM ile şifreli girer ve **hiçbir yanıtta geri dönmez**; okuma yalnızca
+"yapılandırılmış mı" ve maskelenmiş istemci kimliği verir. Ekran, Console'a
+yapıştırılacak yönlendirme URI'sini kopyalama düğmesiyle gösteriyor (bir karakter
+farkı `redirect_uri_mismatch` ile sessizce düşürür). 8 test.
+
+Kullanıcıda kalan: Console'da OAuth istemcisini oluşturmak.
+
+### Teslim zinciri ölçüldü (varsayılmadı)
+- Cloud Scheduler `agent-de-bureau-cron` (europe-west1): `*/10 * * * *`, gece
+  dahil, hedef `/api/cron/tick`.
+- Elle bir tick çalıştırıldı: **23 iş kontrol edildi**, `tenant-backup` listede,
+  vadesi gelen ikisi çalıştı.
+- API revizyonu `00277` (15:59 UTC), web `00233`.
+
+Yani günlük yedek 02:00 UTC'de gerçekten ateşlenecek; kayıt, zamanlayıcı ve
+saat kapısı üçü de yerinde.
