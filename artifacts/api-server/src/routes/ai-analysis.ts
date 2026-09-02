@@ -13,6 +13,7 @@ import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services
 import { generateUniqueReference } from "../lib/unique-reference";
 import { overdueCondition } from "../services/invoice-status";
 import { aiForOrg } from "../services/ai-client";
+import { assertAiUsable, respondAiError } from "../services/ai-guard";
 
 const router = Router();
 
@@ -153,7 +154,7 @@ router.post("/ai/analyze", async (req, res): Promise<void> => {
   try {
     const orgId = req.session?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
-    try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
+    try { await assertAiUsable(orgId); } catch (qe) { if (respondAiError(qe, res)) return; throw qe; }
     const analyticsData = await gatherAnalyticsData(orgId);
     const learnedBlock = await buildLearnedContextBlock(orgId);
 
@@ -359,7 +360,7 @@ router.post("/ai/suggest", async (req, res): Promise<void> => {
   try {
     const orgId = req.session?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
-    try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
+    try { await assertAiUsable(orgId); } catch (qe) { if (respondAiError(qe, res)) return; throw qe; }
     const { page } = req.body;
     if (!page || !["dashboard", "calls", "contacts", "tasks", "messages", "rapports", "logiciels", "pointage", "utilisateurs", "projets"].includes(page)) {
       res.status(400).json({ error: "Le parametre 'page' est requis." }); return;
@@ -447,7 +448,7 @@ router.post("/ai/validate", async (req, res): Promise<void> => {
   try {
     const orgId = req.session?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
-    try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
+    try { await assertAiUsable(orgId); } catch (qe) { if (respondAiError(qe, res)) return; throw qe; }
     const { entityType, data } = req.body;
     if (!entityType || !data) {
       res.status(400).json({ error: "Les parametres 'entityType' et 'data' sont requis." }); return;
@@ -550,7 +551,7 @@ router.post("/ai/assistant", async (req, res): Promise<void> => {
   try {
     const orgId = req.session?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
-    try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
+    try { await assertAiUsable(orgId); } catch (qe) { if (respondAiError(qe, res)) return; throw qe; }
     const { question, currentPage } = req.body;
     if (!question) {
       res.status(400).json({ error: "Le parametre 'question' est requis." }); return;
@@ -713,7 +714,7 @@ router.post("/ai/recognize", async (req, res): Promise<void> => {
   try {
     const orgId = req.session?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
-    try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
+    try { await assertAiUsable(orgId); } catch (qe) { if (respondAiError(qe, res)) return; throw qe; }
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -922,7 +923,7 @@ router.post("/ai/draft-email", async (req, res): Promise<void> => {
   try {
     const orgId = req.session?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
-    try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
+    try { await assertAiUsable(orgId); } catch (qe) { if (respondAiError(qe, res)) return; throw qe; }
     const { contactId, contactName, contactEmail, company, category, purpose, tone, language, additionalContext } = req.body;
 
     if (!purpose) {
@@ -1310,7 +1311,7 @@ router.post("/ai/central-intelligence", async (req, res): Promise<void> => {
       return;
     }
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
-    try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: (qe as AiQuotaExceededError).message, quotaExceeded: true }); return; } throw qe; }
+    try { await assertAiUsable(orgId); } catch (qe) { if (respondAiError(qe, res)) return; throw qe; }
 
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -1862,7 +1863,7 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
   try {
     const orgId = req.session?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
-        try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
+        try { await assertAiUsable(orgId); } catch (qe) { if (respondAiError(qe, res)) return; throw qe; }
     const { message, context, history } = req.body;
     if (!message?.trim()) { res.status(400).json({ error: "Message requis." }); return; }
 
@@ -2184,7 +2185,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
     const orgId = req.session?.organisationId;
     const userId = req.session?.userId;
     if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
-        try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
+        try { await assertAiUsable(orgId); } catch (qe) { if (respondAiError(qe, res)) return; throw qe; }
 
     const { type, target } = req.body;
     if (!type) { res.status(400).json({ error: "Type d'action requis." }); return; }
@@ -2973,7 +2974,7 @@ router.get("/ai/predictions", async (req, res): Promise<void> => {
   try {
     const orgId = req.session?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
-        try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
+        try { await assertAiUsable(orgId); } catch (qe) { if (respondAiError(qe, res)) return; throw qe; }
 
     const ai = await aiForOrg(orgId);
     const now = new Date();

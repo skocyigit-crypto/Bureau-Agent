@@ -51,6 +51,7 @@ import {
 } from "../services/ai-utils";
 import { logger } from "../lib/logger";
 import { aiForOrg } from "../services/ai-client";
+import { respondAiError } from "../services/ai-guard";
 
 const router = Router();
 
@@ -583,12 +584,9 @@ router.get(
         generatedAt: new Date().toISOString(),
       });
     } catch (err) {
-      if (err instanceof AiQuotaExceededError) {
-        res.status(429).json({ error: "Quota IA depasse. Reessayez plus tard." });
-      } else {
-        req.log?.error({ err }, "[workforce-agent] agent loop failed");
-        res.status(500).json({ error: "Erreur lors de l'analyse IA." });
-      }
+      if (respondAiError(err, res)) return;
+      req.log?.error({ err }, "[workforce-agent] agent loop failed");
+      res.status(500).json({ error: "Erreur lors de l'analyse IA." });
     }
   }
 );

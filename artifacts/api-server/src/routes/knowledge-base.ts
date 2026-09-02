@@ -8,6 +8,7 @@ import {
 } from "../services/knowledge-base";
 import { AiQuotaExceededError } from "../services/ai-quota";
 import { logger } from "../lib/logger";
+import { respondAiError } from "../services/ai-guard";
 
 const router = Router();
 
@@ -40,10 +41,7 @@ router.post("/knowledge-base/ask", async (req: Request, res: Response): Promise<
     const result = await answerFromKnowledge(orgId, question, { userId });
     res.json(result);
   } catch (err) {
-    if (err instanceof AiQuotaExceededError) {
-      res.status(429).json({ error: err.message });
-      return;
-    }
+    if (respondAiError(err, res)) return;
     logger.error({ err }, "[knowledge-base] ask failed");
     res.status(500).json({ error: "Erreur lors de la recherche dans vos documents." });
   }
@@ -83,10 +81,7 @@ router.post(
       const status = await getKnowledgeStatus(orgId);
       res.json({ success: true, ...result, status });
     } catch (err) {
-      if (err instanceof AiQuotaExceededError) {
-        res.status(429).json({ error: err.message });
-        return;
-      }
+      if (respondAiError(err, res)) return;
       logger.error({ err }, "[knowledge-base] reindex failed");
       res.status(500).json({ error: "Erreur lors de l'indexation des documents." });
     }

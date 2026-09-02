@@ -974,10 +974,32 @@ müşteri artık gerçekten kendi anahtarını kullanıyor.
 Sahibin organizasyonu ve `AI_PLATFORM_KEY_ORG_IDS` listesi, refüz açıldığında
 bile platform kredisinde kalır.
 
-### Refüzü açmadan önce kalan tek iş
-`AiKeyRequiredError` 402 taşıyor ve `app.ts`'deki merkezi hata katmanı bunu
-doğru çeviriyor — **ama** rota işleyicilerinin çoğu kendi `catch`'inde 500
-döndürüyor. `AI_REQUIRE_OWN_KEY` açılmadan önce bu bloklarda 402'nin geçişine
-izin verilmeli, yoksa müşteri "Erreur interne" görür, ne yapacağını değil.
-Arayüz tarafı için `getAiKeyStatus(orgId)` hazır (hangi sağlayıcı yapılandırılmış,
-platform kredisi kullanılıyor mu, refüz açık mı).
+### Refüz yolu da kapatıldı (aynı gün)
+`AiKeyRequiredError` 402 taşıyordu ama rota işleyicilerinin çoğu kendi
+`catch`'inde `500 / "Erreur interne"` döndürüyordu — yani bilerek konmuş bir
+kısıt, ürün arızası gibi görünecekti. Bunun için `services/ai-guard.ts`:
+
+- **`assertAiUsable(orgId)`** — kota + ödeme aracı, tek çağrıda. Rotaların zaten
+  `assertAiQuota`'yı çağırdığı **ön kapıya** kondu, çünkü orada `catch` cevabı
+  verip çıkıyor; sadece derinden fırlatmak son `catch`'in 500'üne düşerdi.
+- **`respondAiError(err, res)`** — iki reddi de çeviren tek yanıtlayıcı:
+  429 (kota) / **402 + `aiKeyRequired: true`** (anahtar). Tanımadığı hatada
+  `false` döner, gerçek arızalar eskisi gibi 500 ve loglu kalır.
+
+Bağlandığı yerler: ai-analysis (10 ön kapı), ai-commandant (paylaşılan
+`handleCommandantError` → tüm komutan rotaları), ai-agents (3), face-recognition
+(2), voice-command (2), voice-site-ops, web-search, knowledge-base (2), calls (3),
+workforce-agent, documents (belge Q&A). 7 yeni test.
+
+Bilerek dokunulmayanlar: `ai-inline-suggest` (tasarımı gereği sessiz — kota
+bittiğinde de öneri vermiyor), `gmail`/`integrations`/`workspace` içindeki
+"engellemeyen" iç `catch`'ler (akış devam edip başka bir yanıt gönderiyor;
+oraya yanıt yazmak "headers already sent" olurdu) ve SSE/arka plan işleri
+(zaten stream/log üzerinden bildiriyorlar).
+
+Arayüz tarafı için `getAiKeyStatus(orgId)` hazır: hangi sağlayıcı yapılandırılmış,
+platform kredisi kullanılıyor mu, refüz açık mı.
+
+**Artık `AI_REQUIRE_OWN_KEY=true` güvenle açılabilir** — ama açmadan önce
+müşterilere haber verilmeli, çünkü anahtarı olmayan herkes o anda 402 görmeye
+başlar.

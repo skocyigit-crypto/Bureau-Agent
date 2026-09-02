@@ -10,6 +10,7 @@ import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL, withProviderTimeou
 import crypto from "node:crypto";
 import { scanBase64Content } from "../middleware/security";
 import { aiForOrg } from "../services/ai-client";
+import { assertAiUsable, respondAiError } from "../services/ai-guard";
 
 function rejectIfUnsafePhoto(photoBase64: unknown, res: Response): boolean {
   if (photoBase64 == null) return false;
@@ -109,8 +110,8 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
 
     let aiAnalysis = "";
     if (photoBase64) {
-      try { await assertAiQuota(orgId); } catch (qe) {
-        if (qe instanceof AiQuotaExceededError) { res.status(429).json({ success: false, error: qe.message, quotaExceeded: true }); return; }
+      try { await assertAiUsable(orgId); } catch (qe) {
+        if (respondAiError(qe, res)) return;
         throw qe;
       }
       try {
@@ -176,8 +177,8 @@ router.post("/recognize", async (req: Request, res: Response): Promise<void> => 
 
     const profileList = profiles.map(p => `- ID:${p.id} Nom:${p.name} Role:${p.role} (vu ${p.recognitionCount} fois)`).join("\n");
 
-    try { await assertAiQuota(orgId); } catch (qe) {
-      if (qe instanceof AiQuotaExceededError) { res.status(429).json({ success: false, error: qe.message, quotaExceeded: true }); return; }
+    try { await assertAiUsable(orgId); } catch (qe) {
+      if (respondAiError(qe, res)) return;
       throw qe;
     }
 

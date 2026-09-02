@@ -11,6 +11,7 @@ import { buildLearnedContextBlock } from "../services/ai-learning";
 import { logger } from "../lib/logger";
 import { EventEmitter } from "events";
 import { aiForOrg } from "../services/ai-client";
+import { respondAiError } from "../services/ai-guard";
 
 const router = Router();
 
@@ -1660,7 +1661,7 @@ router.post("/ai/agents/run/:agentId", requireAdmin, async (req, res) => {
     const report = await runSingleAgent(agent, orgId, undefined, goal, req.session?.userId);
     res.json(report);
   } catch (error: any) {
-    if (error instanceof AiQuotaExceededError) { res.status(429).json({ error: error.message, quotaExceeded: true }); return; }
+    if (respondAiError(error, res)) return;
     logger.error({ err: error }, "AI Agent run error");
     res.status(500).json({ error: "Erreur lors de l'execution de l'agent" });
   }
@@ -1842,7 +1843,7 @@ router.post("/ai/agents/super", requireAdmin, async (req, res) => {
     const superReport = await runSuperAgent(todayReports, orgId);
     res.json(superReport);
   } catch (error: any) {
-    if (error instanceof AiQuotaExceededError) { res.status(429).json({ error: error.message, quotaExceeded: true }); return; }
+    if (respondAiError(error, res)) return;
     logger.error({ err: error }, "Super Agent error");
     res.status(500).json({ error: "Erreur Super Agent" });
   }
@@ -3180,7 +3181,7 @@ router.post("/ai/super-agent/process-report", requireAdmin, async (req, res): Pr
 
     res.json({ success: true, summary: parsed.summary, nextStepUrgency: parsed.nextStepUrgency, issues: parsed.issues ?? [], createdTasks, createdEvents, tasksCount: createdTasks.length, eventsCount: createdEvents.length });
   } catch (err: any) {
-    if (err instanceof AiQuotaExceededError) { res.status(429).json({ error: err.message, quotaExceeded: true }); return; }
+    if (respondAiError(err, res)) return;
     logger.error({ err }, "[SuperAgent/ProcessReport]");
     res.status(500).json({ error: "Erreur traitement rapport" });
   }

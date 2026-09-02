@@ -19,6 +19,7 @@ import { assertAiQuota, AiQuotaExceededError } from "../services/ai-quota";
 import { logger } from "../lib/logger";
 import { aiForOrg } from "../services/ai-client";
 import { logAudit } from "./audit";
+import { assertAiUsable, respondAiError } from "../services/ai-guard";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Voice Site Operations (saisie vocale chantier) — premier pilier BTP.
@@ -302,11 +303,9 @@ router.post("/voice/site-ops", async (req: Request, res: Response) => {
   if (text.length > 4000) return res.status(400).json({ error: "Note trop longue." });
 
   try {
-    await assertAiQuota(orgId);
+    await assertAiUsable(orgId);
   } catch (err) {
-    if (err instanceof AiQuotaExceededError) {
-      return res.status(429).json({ error: "Quota IA depasse pour cette organisation." });
-    }
+    if (respondAiError(err, res)) return;
     throw err;
   }
 

@@ -11,6 +11,7 @@ import {
 } from "../services/web-search";
 import { resolveInstantAnswer } from "../services/instant-answer";
 import { logger } from "../lib/logger";
+import { assertAiUsable, respondAiError } from "../services/ai-guard";
 
 const router: IRouter = Router();
 
@@ -61,12 +62,9 @@ router.post("/web-search", async (req, res) => {
   }
 
   try {
-    await assertAiQuota(orgId);
+    await assertAiUsable(orgId);
   } catch (err) {
-    if (err instanceof AiQuotaExceededError) {
-      res.status(429).json({
-        error: "Quota IA mensuel atteint. Reessayez le mois prochain ou augmentez votre forfait.",
-      });
+    if (respondAiError(err, res)) {
       return;
     }
     throw err;

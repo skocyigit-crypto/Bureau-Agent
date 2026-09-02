@@ -19,6 +19,7 @@ import { ingestDocument, resolveMime, ALLOWED_MIME_TYPES, MAX_FILE_SIZE_MB, find
 import { triggerExpenseCapture } from "../services/expense-capture";
 import { EventEmitter } from "events";
 import { startBulkScan, getBulkScanStatus, cancelBulkScan } from "../services/document-scan-job";
+import { respondAiError } from "../services/ai-guard";
 
 const router = Router();
 const requireMinAgent = requireRole("super_admin", "administrateur", "agent");
@@ -1624,6 +1625,7 @@ router.post("/documents/:id/ask", requireMinAgent, async (req: Request, res: Res
 
     res.json({ success: true, question, answers });
   } catch (err: any) {
+    if (respondAiError(err, res)) return;
     logger.error({ err }, "Document Q&A error");
     res.status(500).json({ error: "Erreur lors de la question" });
   }

@@ -9,6 +9,7 @@ import { assertAiQuota, AiQuotaExceededError } from "../services/ai-quota";
 import { logger } from "../lib/logger";
 import { aiForOrg } from "../services/ai-client";
 import { logAudit } from "./audit";
+import { assertAiUsable, respondAiError } from "../services/ai-guard";
 
 // Le module n'est charge que pour savoir si Gemini est disponible du tout.
 // Le client REELLEMENT utilise est resolu par appel, avec la cle de
@@ -853,8 +854,8 @@ router.post("/voice/command", async (req: Request, res: Response): Promise<void>
     return;
   }
 
-  try { await assertAiQuota(orgId); } catch (qe) {
-    if (qe instanceof AiQuotaExceededError) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; }
+  try { await assertAiUsable(orgId); } catch (qe) {
+    if (respondAiError(qe, res)) return;
     throw qe;
   }
 
@@ -945,8 +946,8 @@ router.post("/voice/chat", async (req: Request, res: Response): Promise<void> =>
     return;
   }
 
-  try { await assertAiQuota(orgId); } catch (qe) {
-    if (qe instanceof AiQuotaExceededError) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; }
+  try { await assertAiUsable(orgId); } catch (qe) {
+    if (respondAiError(qe, res)) return;
     throw qe;
   }
 

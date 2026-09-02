@@ -14,12 +14,12 @@ import { openSseStream, multiAiGenerateStream, StreamAbortedError } from "../ser
 import { logger } from "../lib/logger";
 import { scanBase64Content } from "../middleware/security";
 import { aiForOrg } from "../services/ai-client";
+import { respondAiError } from "../services/ai-guard";
 
 function handleCommandantError(err: unknown, res: Response, logLabel: string): void {
-  if (err instanceof AiQuotaExceededError) {
-    res.status(429).json({ error: err.message, quotaExceeded: true, reason: err.reason, current: err.current, limit: err.limit });
-    return;
-  }
+  // Quota atteint (429) ou cle d'IA manquante (402): deux refus voulus, pas
+  // des pannes. Sans cette ligne ils sortiraient en « Erreur interne ».
+  if (respondAiError(err, res)) return;
   logger.error({ err }, logLabel);
   res.status(500).json({ error: "Erreur interne" });
 }

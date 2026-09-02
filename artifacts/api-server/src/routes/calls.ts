@@ -19,6 +19,7 @@ import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/
 import { logger } from "../lib/logger";
 import { zodErrorResponse } from "../lib/zod-error";
 import { aiForOrg } from "../services/ai-client";
+import { respondAiError } from "../services/ai-guard";
 
 const router: IRouter = Router();
 
@@ -391,6 +392,7 @@ Reponds UNIQUEMENT en JSON:
       },
     });
   } catch (err: any) {
+    if (respondAiError(err, res)) return;
     logger.error({ err: err?.message }, "[AI Briefing] Erreur:");
     res.json({
       briefing: {
@@ -465,6 +467,7 @@ Reponds UNIQUEMENT en JSON:
     const coaching = JSON.parse(response.text ?? "{}");
     res.json(coaching);
   } catch (err: any) {
+    if (respondAiError(err, res)) return;
     if (err?.message?.includes("quota")) {
       res.status(429).json({ error: err.message, suggestions: [], detectedIntents: [], proposedResponse: "", actionItems: [], urgencyLevel: "normale", tips: "" });
       return;
@@ -723,6 +726,7 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
       const aiResponse = JSON.parse(response.text ?? "{}");
       res.json(aiResponse);
     } catch (err: any) {
+      if (respondAiError(err, res)) return;
       if ((err as any)?.message?.includes("quota")) {
         res.status(429).json({ error: (err as any).message, response: "Service IA temporairement indisponible (quota atteint).", conversationComplete: false });
         return;
