@@ -731,3 +731,41 @@ kapanınca yakalanacak bir şey kalmıyor.
 
 `cron-registration.test.ts` bu değişmezi kilitliyor (kayıt, kalp atışı, kilit
 ad alanı tekilliği) — sarmalayıcıyı kaldırdığımda düştüğü doğrulandı.
+
+---
+
+## Şema ↔ kod ve ölü kod denetimi — 2026-09-02
+
+**Şema (76 tablo, 1122 sütun).** 19 sütun (%1.7) koda hiç değmiyor ve hepsi
+şema olarak var ama hiç yazılmamış özelliklerde kümeleniyor (`compte_client`
+yaşlandırma kovaları, `objectifs_commerciaux` hedef/gerçekleşen). Bu bir kusur
+değil, şema kayması; sütun düşürmek riskli bir migrasyon ve karşılığı yok.
+Bilerek dokunulmadı.
+
+**İndeksler: temiz.** İlk ölçüm üç tenant tablosunu indekssiz gösterdi; ikisi
+ölçüm körlüğüydü (`geofences` indeksini `(t) => [...]` yazımı yüzünden
+göremedim, `subscriptions.organisation_id` zaten `.unique()` — Postgres bunun
+için indeks yaratır). Geriye `organisation_closures` kaldı: organizasyon başına
+birkaç satır tutuyor, tarama zaten ucuz. Değişiklik yapılmadı.
+
+**Hiç yazılmayan iki tablo.** `commandes_fournisseur` ve
+`google_app_credentials` yalnızca okunuyor, hiçbir yerde `insert` yok.
+İkincisi yol haritasının 1 numaralı bekleyen maddesi için önemli: Google OAuth
+kimlik bilgileri organizasyon başına bu tablodan okunuyor
+(`lib/google-auth.ts:168-186`) ama onları oraya yazacak ne bir uç ne bir ekran
+var. Yani kullanıcı Google Cloud Console'da istemciyi oluşturduktan sonra tek
+işleyen yol **ortam değişkenleri** (`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`);
+müşteri başına BYOC yolu şema ve okuma tarafında hazır, yazma tarafı yok.
+
+**Ölü ihracatlar.** 72 ihracat başka hiçbir dosyada (testler dahil)
+kullanılmıyor. Çoğu zararsız (MIME sabitleri, `stopX` kapatıcıları). Biri
+gerçek bulguydu: `startGoogleDriveBackupScheduler` hiç çağrılmıyor — Drive'a
+otomatik yedek yalnızca elle tıklandığında alınıyor, oysa servis kendi log
+satırında "6 saatte bir planlayıcı başladı" diyor. Yerel `auto-backup`
+başlatılıyor, bu başlatılmıyor.
+
+**Karar bekleyen:** Drive otomatik yedeklemesi açılsın mı? Açmak, müşteri
+verisini zamanlayıcıyla onların Google Drive'ına yazmaya başlamak demek — bu bir
+ürün kararı, sessizce yapılacak bir düzeltme değil. Şimdilik durum
+`cron-registration.test.ts` içinde gerekçesiyle yazılı ve biri onu bağladığı an
+test düşüp registry'ye kaydını zorunlu kılıyor.
