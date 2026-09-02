@@ -40,8 +40,33 @@ function isTransient(err: unknown): boolean {
   return false;
 }
 
+/**
+ * Nombre de tentatives par défaut.
+ *
+ * 3 ne suffisait pas, et la raison est arithmétique. Sur Cloud Run, une
+ * instance de fond est gelée entre deux requêtes : ses minuteurs ne tournent
+ * plus, donc `idleTimeoutMillis` ne recycle rien, pendant que le serveur, lui,
+ * ferme les connexions oisives. Au réveil, le pool détient plusieurs
+ * connexions mortes. `node-postgres` n'en écarte une qu'au moment où elle
+ * échoue : chaque tentative en élimine UNE. Avec un pool de 8, trois essais
+ * pouvaient donc tomber trois fois de suite sur une connexion morte.
+ *
+ * Mesuré sur six heures : 18 premières reprises, 9 secondes, et des échecs
+ * définitifs répartis sur sept tâches de fond distinctes (file de webhooks,
+ * insights, automatisations, moteur proactif, audit, rappels). La moitié des
+ * cycles d'insights échouait entièrement — pas sur une erreur SQL, sur
+ * l'établissement de la connexion.
+ *
+ * Le coût est borné et surtout supporté par le fond (22 services contre 4
+ * routes) : la moitié de ces échecs sont immédiats (« connection terminated
+ * unexpectedly »), seuls ceux en attente de connexion coûtent le délai du
+ * pool. Deux essais de plus ne créent pas de mode de panne nouveau — une base
+ * réellement indisponible remonte toujours l'erreur, un peu plus tard.
+ */
+const DEFAULT_ATTEMPTS = 5;
+
 export interface DbRetryOptions {
-  /** Nombre total de tentatives, première incluse. Défaut 3. */
+  /** Nombre total de tentatives, première incluse. Défaut `DEFAULT_ATTEMPTS`. */
   attempts?: number;
   /** Backoff de base en ms (exponentiel + jitter). Défaut 250. */
   baseDelayMs?: number;
@@ -58,7 +83,7 @@ export async function withDbRetry<T>(
   fn: () => Promise<T>,
   opts: DbRetryOptions = {},
 ): Promise<T> {
-  const attempts = Math.max(1, opts.attempts ?? 3);
+  const attempts = Math.max(1, opts.attempts ?? DEFAULT_ATTEMPTS);
   const base = opts.baseDelayMs ?? 250;
   let lastErr: unknown;
   for (let i = 0; i < attempts; i++) {
