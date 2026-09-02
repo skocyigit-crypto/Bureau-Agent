@@ -29,6 +29,12 @@
                         # api service's Guardian/rate-limit checks on the contact and
                         # demo-chat forms.
                         header_up X-Real-Client-IP {http.request.header.X-Forwarded-For}
+                        # Meme jeton partage que Caddyfile.cloudrun: CE proxy-ci sert
+                        # aussi /api (le load balancer envoie agentdebureau.fr vers le
+                        # service tanitim, et app.agentdebureau.fr vers le service web).
+                        # Oublier l un des deux laissait la moitie du trafic sans preuve
+                        # d origine — constate en verifiant, pas en supposant.
+                        header_up X-Proxy-Token {$PROXY_TOKEN}
                 }
         }
 
