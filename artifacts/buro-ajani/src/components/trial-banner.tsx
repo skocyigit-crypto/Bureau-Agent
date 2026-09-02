@@ -54,7 +54,7 @@ export function TrialBanner() {
         </span>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <Link href="/settings?tab=abonnement">
+        <Link href="/parametres?tab=abonnement">
           <Button
             size="sm"
             className={`h-7 text-xs font-bold px-3 ${isUrgent ? "bg-white text-red-700 hover:bg-white/90" : "bg-white text-amber-700 hover:bg-white/90"}`}

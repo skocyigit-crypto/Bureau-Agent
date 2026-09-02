@@ -38,6 +38,12 @@ Zap
 import { useEffect,useState } from "react";
 import { Link } from "wouter";
 
+// Liste blanche des destinations que l'IA a le droit de proposer. Un lien hors
+// liste retombe sur "/" — silencieusement, donc toute page absente d'ici rend
+// le bouton "Traiter" inoperant sans qu'aucune erreur ne le signale. Elle avait
+// derive: 27 pages reelles (tresorerie, depenses, securite, file d'approbation,
+// toute la chaine de vente...) manquaient. `app-routes.test.ts` verifie
+// desormais que chaque route statique declaree dans App.tsx est couverte ici.
 const VALID_ROUTES = [
   "/", "/appels", "/contacts", "/taches", "/messages", "/calendrier",
   "/rapports", "/rapport-executif", "/analyse", "/performance",
@@ -46,6 +52,17 @@ const VALID_ROUTES = [
   "/logiciels", "/utilisateurs", "/audit", "/automatisations",
   "/organisations", "/abonnement", "/parametres", "/notifications",
   "/telecharger", "/gestion-licence", "/projets",
+  // Chaine commerciale.
+  "/prospects", "/devis", "/factures",
+  // Finances et exploitation.
+  "/tresorerie", "/depenses", "/notes-internes", "/activite-recente",
+  "/saisie-chantier", "/securite", "/protection-donnees",
+  // Communication et assistants.
+  "/whatsapp", "/gmail-agent", "/asistan", "/assistant-proactif",
+  "/equipe-ia", "/file-approbation", "/ia-apprentissage", "/recherche-web",
+  "/base-connaissances", "/auto-audit",
+  // Espaces d'administration (le prefixe couvre les sous-pages).
+  "/admin", "/equipe", "/guide", "/sante-technique",
 ];
 
 function safeLink(lien: string): string {

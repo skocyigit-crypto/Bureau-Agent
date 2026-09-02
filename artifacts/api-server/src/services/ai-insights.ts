@@ -133,7 +133,7 @@ function deterministicInsights(signals: RawSignals): InsightDraft[] {
       category: "finance", severity: "critical",
       title: `${signals.overdueInvoices} facture${signals.overdueInvoices > 1 ? "s" : ""} en retard`,
       message: `Total a recouvrer: ${signals.overdueInvoicesAmount.toFixed(2)} EUR. Relances recommandees aujourd'hui.`,
-      actionUrl: "/factures-clients?status=en_retard", actionLabel: "Voir les factures",
+      actionUrl: "/factures?status=en_retard", actionLabel: "Voir les factures",
     });
   }
   if (signals.overdueTasks > 0) {
@@ -226,7 +226,7 @@ const GENERIC_TIPS: InsightDraft[] = [
     category: "general", severity: "info",
     title: "Sauvegardez vos donnees",
     message: "Verifiez que la derniere sauvegarde automatique est bien recente.",
-    actionUrl: "/backups", actionLabel: "Voir les sauvegardes",
+    actionUrl: "/parametres?tab=sauvegardes", actionLabel: "Voir les sauvegardes",
   },
   {
     category: "prospects", severity: "info",

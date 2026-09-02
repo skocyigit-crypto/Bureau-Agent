@@ -21,7 +21,7 @@ Webhook
 } from "lucide-react";
 import { lazy,Suspense,useEffect,useMemo,useState } from "react";
 
-import { getAvailableSettingsTabs } from "./settings/settings-access";
+import { getAvailableSettingsTabs, resolveSettingsTabFromQuery } from "./settings/settings-access";
 
 const TabAbonnement = lazy(() => import("./settings/tab-abonnement").then(m => ({ default: m.TabAbonnement })));
 const TabApiWebhooks = lazy(() => import("./settings/tab-api-webhooks").then(m => ({ default: m.TabApiWebhooks })));
@@ -57,8 +57,16 @@ export default function SettingsPage() {
   const { t } = useTranslation();
   const isAdmin = user?.role === "super_admin" || user?.role === "administrateur";
   const isSuperAdmin = user?.role === "super_admin";
-  const [activeTab, setActiveTab] = useState(isAdmin ? "profil" : "appels");
   const availableTabs = useMemo(() => getAvailableSettingsTabs(isAdmin, isSuperAdmin), [isAdmin, isSuperAdmin]);
+  // `?tab=` est honore des le premier rendu: les bannieres d'essai/licence et
+  // les insights serveur pointent vers un onglet precis.
+  const [activeTab, setActiveTab] = useState(() =>
+    resolveSettingsTabFromQuery(
+      typeof window === "undefined" ? "" : window.location.search,
+      availableTabs,
+      isAdmin ? "profil" : "appels",
+    ),
+  );
 
 
   useEffect(() => {

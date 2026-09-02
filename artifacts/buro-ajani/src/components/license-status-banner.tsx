@@ -28,7 +28,7 @@ export function LicenseStatusBanner() {
           <Lock className="w-4 h-4 shrink-0" />
           <span className="truncate">{t("licenseStatusBanner.suspended")}</span>
         </div>
-        <Link href="/settings?tab=abonnement">
+        <Link href="/parametres?tab=abonnement">
           <Button size="sm" className="h-7 text-xs font-bold px-3 bg-white text-red-700 hover:bg-white/90">
             {t("licenseStatusBanner.updatePayment")}
           </Button>
@@ -44,7 +44,7 @@ export function LicenseStatusBanner() {
           <AlertTriangle className="w-4 h-4 shrink-0" />
           <span className="truncate">{t("licenseStatusBanner.cancelled")}</span>
         </div>
-        <Link href="/settings?tab=abonnement">
+        <Link href="/parametres?tab=abonnement">
           <Button size="sm" className="h-7 text-xs font-bold px-3 bg-white text-slate-700 hover:bg-white/90">{t("licenseStatusBanner.viewPlans")}</Button>
         </Link>
       </div>
@@ -58,7 +58,7 @@ export function LicenseStatusBanner() {
           <Clock className="w-4 h-4 shrink-0" />
           <span className="truncate">{t("licenseStatusBanner.pastDue")}</span>
         </div>
-        <Link href="/settings?tab=abonnement">
+        <Link href="/parametres?tab=abonnement">
           <Button size="sm" className="h-7 text-xs font-bold px-3 bg-white text-orange-700 hover:bg-white/90">{t("licenseStatusBanner.payNow")}</Button>
         </Link>
       </div>

@@ -1495,7 +1495,7 @@ async function finalizeCall(callSid: string, session: CallSession): Promise<void
           `${session.callerName || caller}: ${summary || "appel necessitant votre attention"}` +
           ` (sentiment: ${session.sentiment}).`,
         priority: "haute",
-        actionUrl: "/communication",
+        actionUrl: "/appels",
         sourceType: "ai_receptionist_urgent",
         sourceId: null,
       });
