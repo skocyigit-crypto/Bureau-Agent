@@ -1,3 +1,4 @@
+import { withHeartbeat } from "./health-agents";
 import { logger } from "../lib/logger";
 
 /**
@@ -553,7 +554,10 @@ export async function purgeOldAiUsage(): Promise<number> {
 export function startAiUsagePurgeJob(): void {
   if (purgeTimer) return;
   setTimeout(() => { void purgeOldAiUsage(); }, 30_000);
-  purgeTimer = setInterval(() => { void purgeOldAiUsage(); }, 24 * 60 * 60 * 1000);
+  // Purge de retention: elle supprime des lignes en base, donc elle doit
+  // tourner tous les jours meme sans trafic — d ou l inscription au registre
+  // du declencheur externe via `withHeartbeat`.
+  purgeTimer = setInterval(withHeartbeat("ai-usage-purge", 24 * 60 * 60 * 1000, async () => { await purgeOldAiUsage(); }), 24 * 60 * 60 * 1000);
   purgeTimer.unref?.();
   logger.info(`[ai-utils] Purge job started (retention: ${RETENTION_DAYS}j)`);
 }

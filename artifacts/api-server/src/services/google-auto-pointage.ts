@@ -3,6 +3,7 @@ import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { getCalendarForUser } from "../lib/google-auth";
 import { withDbRetry } from "../lib/db-retry";
+import { withHeartbeat } from "./health-agents";
 
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 let isRunning = false;
@@ -20,9 +21,10 @@ export function startGoogleAutoPointage() {
 
   setTimeout(() => runAutoSync().catch(err => logger.error({ err: err.message }, "[GoogleAutoPointage] Erreur initiale:")), 10000);
 
-  intervalHandle = setInterval(() => {
-    runAutoSync().catch(err => logger.error({ err: err.message }, "[GoogleAutoPointage] Erreur periodique:"));
-  }, SYNC_INTERVAL_MS);
+  // `withHeartbeat` inscrit la tache au registre lu par le declencheur
+  // externe (/api/cron/tick). Sans elle, avec min-instances=0, cette boucle
+  // ne tournait que tant qu une instance restait eveillee par du trafic.
+  intervalHandle = setInterval(withHeartbeat("google-auto-pointage", SYNC_INTERVAL_MS, runAutoSync), SYNC_INTERVAL_MS);
 
   const shutdown = () => {
     stopGoogleAutoPointage();

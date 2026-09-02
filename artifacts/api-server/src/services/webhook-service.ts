@@ -37,6 +37,7 @@ import { assertSafePublicUrl } from "../lib/ssrf-guard";
 import { withDbRetry } from "../lib/db-retry";
 import { logger } from "../lib/logger";
 import { broadcaster, type SyncEvent } from "./broadcaster";
+import { withHeartbeat } from "./health-agents";
 
 const DELIVERY_TIMEOUT_MS = 10_000; // budget par tentative HTTP
 const RETRY_TICK_MS = 60_000; // le worker scanne la file chaque minute
@@ -488,7 +489,10 @@ export function startWebhookEngine(): void {
   // 2) Worker de retry périodique.
   if (!retryTimer) {
     setTimeout(() => void processRetryQueue(), RETRY_INITIAL_DELAY_MS);
-    retryTimer = setInterval(() => void processRetryQueue(), RETRY_TICK_MS);
+  // `withHeartbeat` inscrit la tache au registre lu par le declencheur
+  // externe (/api/cron/tick). Sans elle, avec min-instances=0, cette boucle
+  // ne tournait que tant qu une instance restait eveillee par du trafic.
+    retryTimer = setInterval(withHeartbeat("webhook-retry", RETRY_TICK_MS, processRetryQueue), RETRY_TICK_MS);
     if (typeof retryTimer.unref === "function") retryTimer.unref();
   }
 

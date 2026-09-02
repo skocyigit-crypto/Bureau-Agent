@@ -18,6 +18,7 @@ import { sendEmail } from "./email";
 import { broadcaster } from "./broadcaster";
 import { sendSms, decryptProviderConfig } from "./telephony-providers";
 import { enqueueProposal } from "./proposal-queue";
+import { withHeartbeat } from "./health-agents";
 
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 
@@ -26,7 +27,10 @@ export function startAutomationEngine() {
   logger.info("[Automation] Moteur d'automatisation demarre");
 
   runAllAutomations();
-  intervalHandle = setInterval(runAllAutomations, 5 * 60 * 1000);
+  // `withHeartbeat` inscrit la tache au registre lu par le declencheur
+  // externe (/api/cron/tick). Sans elle, avec min-instances=0, cette boucle
+  // ne tournait que tant qu une instance restait eveillee par du trafic.
+  intervalHandle = setInterval(withHeartbeat("automation-engine", 5 * 60 * 1000, runAllAutomations), 5 * 60 * 1000);
 
   const shutdown = () => {
     logger.info("[Automation] Arret du moteur d'automatisation");

@@ -18,6 +18,7 @@ import { and, eq, sql, gte, isNotNull, desc, notInArray, or, lt, isNull } from "
 import crypto from "node:crypto";
 import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
+import { withHeartbeat } from "./health-agents";
 
 // ---------------------------------------------------------------------------
 // Couche d'apprentissage IA (pilier B)
@@ -1125,8 +1126,9 @@ export function startAiLearning(): void {
   setTimeout(() => {
     void runLearningForAllOrgs();
   }, LEARNING_STARTUP_DELAY_MS);
-  learningTicker = setInterval(() => {
-    void runLearningForAllOrgs();
-  }, LEARNING_TICK_MS);
+  // `withHeartbeat` inscrit la tache au registre lu par le declencheur
+  // externe (/api/cron/tick). Sans elle, avec min-instances=0, cette boucle
+  // ne tournait que tant qu une instance restait eveillee par du trafic.
+  learningTicker = setInterval(withHeartbeat("ai-learning", LEARNING_TICK_MS, runLearningForAllOrgs), LEARNING_TICK_MS);
   logger.info("[ai-learning] cron démarré — fenêtre quotidienne persistée par organisation");
 }

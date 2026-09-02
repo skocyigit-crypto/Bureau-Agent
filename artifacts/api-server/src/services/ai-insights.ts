@@ -16,6 +16,8 @@ import { extractGeminiTokens, recordAiUsage, geminiActualModel, safeJsonParse, G
 import { buildAiCacheKey, getOrCompute, AI_CACHE_TTL, withProviderTimeout } from "./ai-cache";
 import { buildLearnedContextBlock, fingerprintLearned } from "./ai-learning";
 import { withDbRetry } from "../lib/db-retry";
+import { withCronLock, CRON_LOCK_NAMESPACE } from "../lib/cron-lock";
+import { withHeartbeat } from "./health-agents";
 
 interface RawSignals {
   overdueTasks: number;
@@ -441,7 +443,13 @@ async function runCronCycle(): Promise<void> {
     let total = 0;
     for (const o of orgs) {
       try {
-        total += await generateInsightsForOrg(o.id);
+        // Verrou par organisation, comme les autres crons. Sans lui, deux
+        // instances Cloud Run peuvent generer la meme organisation en meme
+        // temps: chacune paie son appel IA, puis la seconde marque
+        // "dismissed" les insights que la premiere venait d'inserer.
+        await withCronLock(CRON_LOCK_NAMESPACE.aiInsights, o.id, async () => {
+          total += await generateInsightsForOrg(o.id);
+        });
       } catch (err) {
         logger.warn({ err, orgId: o.id }, "[ai-insights] org generation failed");
       }
@@ -456,7 +464,11 @@ export function startAiInsightsCron(): void {
   if (cronTimer) return;
   // Run once 60s after boot, then every interval.
   setTimeout(() => { runCronCycle().catch(() => {}); }, 60_000);
-  cronTimer = setInterval(() => { runCronCycle().catch(() => {}); }, CRON_INTERVAL_MS);
+  // `withHeartbeat` fait deux choses que ce cron ne faisait pas: il inscrit la
+  // tache au registre du declencheur externe — sans quoi, avec min-instances=0,
+  // elle ne tournait QUE si quelqu'un utilisait l'application au meme moment —
+  // et il publie un battement, sans lequel son silence etait indetectable.
+  cronTimer = setInterval(withHeartbeat("ai-insights", CRON_INTERVAL_MS, runCronCycle), CRON_INTERVAL_MS);
   cronTimer.unref?.();
   logger.info({ intervalMs: CRON_INTERVAL_MS }, "[ai-insights] cron started");
 }

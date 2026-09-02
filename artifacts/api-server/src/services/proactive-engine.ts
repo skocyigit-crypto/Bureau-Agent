@@ -29,6 +29,7 @@ import { withDbRetry } from "../lib/db-retry";
 import { analyzeTreasuryRisk, CASH_CRUNCH_THRESHOLD, CASH_CRUNCH_RESOLVE_THRESHOLD } from "./treasury-risk";
 import { getSuppressedSuggestionTypes } from "./ai-learning";
 import { runPaymentReminderScanForOrg } from "./payment-reminder";
+import { withHeartbeat } from "./health-agents";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 // "Toujours en éveil": le veilleur déterministe (sans coût IA) ré-évalue
@@ -1167,9 +1168,10 @@ export function startProactiveEngine(): void {
   setTimeout(() => {
     void tick();
   }, FIRST_RUN_MS);
-  timer = setInterval(() => {
-    void tick();
-  }, TICK_MS);
+  // `withHeartbeat` inscrit la tache au registre lu par le declencheur
+  // externe (/api/cron/tick). Sans elle, avec min-instances=0, cette boucle
+  // ne tournait que tant qu une instance restait eveillee par du trafic.
+  timer = setInterval(withHeartbeat("proactive-engine", TICK_MS, tick), TICK_MS);
   logger.info(
     { tickMs: TICK_MS },
     "[proactive] moteur d'autonomie démarré — 10 détecteurs déterministes (dont SLA messages, clients silencieux, radar de trésorerie BTP)",

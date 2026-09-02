@@ -14,6 +14,7 @@ export const CRON_LOCK_NAMESPACE = {
   invoiceReminder: 4302,
   autonomousSecretary: 4303,
   billing: 4304,
+  aiInsights: 4305,
 } as const;
 
 /**

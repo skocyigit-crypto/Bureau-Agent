@@ -695,3 +695,39 @@ ile 6 dilde. `/admin/factures-b2b` super-admin route'unda kaldı ve artık
 Factur-X, CII XML'i PDF/A-3 olarak GÖMMEYİ gerektiriyor; pdfkit bunu desteklemiyor.
 O adımda ya pdf-lib (saf JS, dosya gömme destekli) eklenecek ya da PDF/A-3
 üretimi başka bir yolla çözülecek. Faz C bunu bilerek kapsamadı.
+
+---
+
+## Zamanlanmış işlerin yarısı canlıda çalışmıyormuş — 2026-09-02
+
+**Bulgu.** Cloud Run `min-instances=0` ile çalışıyor: trafik kesilince örnek
+kapanıyor ve `setInterval` onunla birlikte duruyor. `cron-registry` tam bu yüzden
+var — dış tetikleyici (`/api/cron/tick`, Cloud Scheduler) kayıtlı işleri uyandırıp
+çalıştırıyor. Ama **yedi iş motoru kayıt dışıydı**: ham `setInterval` ile
+başlatılıyor, ne kayıt ne kalp atışı veriyorlardı. Yani yalnızca birisi tam o anda
+uygulamayı kullanıyorsa çalışıyorlardı — ve sessiz kalmaları da fark edilemiyordu.
+
+Etkilenenler ve yol haritasının onlar için söyledikleri:
+
+| İş | Yol haritası iddiası | Gerçek |
+|---|---|---|
+| `automation-engine` | "5 dk'da bir çalışıyor" | örnek uyanıksa |
+| `proactive-engine` | "10 dedektör, 10 dk'da bir" | örnek uyanıksa |
+| `ai-insights` | günlük içgörü üretimi | örnek uyanıksa, üstelik kilitsiz |
+| `ai-learning` | "AI öğrenme (deterministik)" | örnek uyanıksa |
+| `webhook-service` (retry) | giden webhook yeniden denemeleri | örnek uyanıksa |
+| `google-auto-pointage` | 30 dk'da bir otomatik pointage | örnek uyanıksa |
+| `data-protection-monitor` | veri koruma denetimi | örnek uyanıksa |
+| `ai-utils` purge | `ai_usage` saklama süresi temizliği | örnek uyanıksa |
+
+**Yapıldı.** Sekizi de `withHeartbeat(...)` ile sarıldı — bu tek çağrı hem dış
+tetikleyici registry'sine kaydediyor hem kalp atışı yayınlıyor (sağlık panosu
+gecikmeyi görebiliyor). `ai-insights` ayrıca organizasyon başına `withCronLock`
+aldı: iki örnek aynı anda üretirse her biri kendi IA çağrısını ödüyor, sonra
+ikincisi birincinin yeni eklediği içgörüleri "dismissed" işaretliyordu.
+
+`ai-cache` bilerek dışarıda: yalnızca bellekteki bir Map'i süpürüyor, örnek
+kapanınca yakalanacak bir şey kalmıyor.
+
+`cron-registration.test.ts` bu değişmezi kilitliyor (kayıt, kalp atışı, kilit
+ad alanı tekilliği) — sarmalayıcıyı kaldırdığımda düştüğü doğrulandı.

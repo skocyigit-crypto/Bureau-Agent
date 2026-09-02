@@ -11,6 +11,7 @@ import {
 import { eq, and, desc, sql, gte, lte, inArray } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
+import { withHeartbeat } from "./health-agents";
 
 let monitorInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -38,7 +39,10 @@ export function startDataProtectionMonitor() {
   logger.info("[DataProtection] Moniteur de protection des donnees demarre");
 
   setTimeout(() => runDataProtectionCheck(), 30 * 1000);
-  monitorInterval = setInterval(runDataProtectionCheck, CHECK_INTERVAL_MS);
+  // `withHeartbeat` inscrit la tache au registre lu par le declencheur
+  // externe (/api/cron/tick). Sans elle, avec min-instances=0, cette boucle
+  // ne tournait que tant qu une instance restait eveillee par du trafic.
+  monitorInterval = setInterval(withHeartbeat("data-protection-monitor", CHECK_INTERVAL_MS, runDataProtectionCheck), CHECK_INTERVAL_MS);
 
   const shutdown = () => {
     logger.info("[DataProtection] Arret du moniteur");
