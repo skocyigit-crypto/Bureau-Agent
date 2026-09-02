@@ -8718,6 +8718,8 @@
     "totalCallTime": "Toplam arama süresi"
   },
   "voiceLive": {
+    "startConversation": "Konuşmayı başlat",
+    "secureContextRequired": "Mikrofon yalnızca HTTPS veya localhost üzerinden kullanılabilir.",
     "tools": {
       "create_task": "Görev oluşturur",
       "list_tasks": "Görevleri listeler",

@@ -97,9 +97,12 @@ app.use(helmet({
 const PERMISSIONS_POLICY = [
   "accelerometer=()",
   "autoplay=()",
-  "camera=()",
+  // VoiceLive needs these capture features, but only from our own origin.
+  // `=()` disables getUserMedia/getDisplayMedia before the browser can even
+  // show its permission prompt.
+  "camera=(self)",
   "cross-origin-isolated=()",
-  "display-capture=()",
+  "display-capture=(self)",
   "encrypted-media=()",
   "fullscreen=()",
   "geolocation=()",
@@ -110,7 +113,7 @@ const PERMISSIONS_POLICY = [
   "interest-cohort=()",
   "keyboard-map=()",
   "magnetometer=()",
-  "microphone=()",
+  "microphone=(self)",
   "midi=()",
   "payment=()",
   "picture-in-picture=()",

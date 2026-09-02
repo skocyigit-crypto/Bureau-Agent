@@ -8718,6 +8718,8 @@
     "totalCallTime": "إجمالي وقت المكالمات"
   },
   "voiceLive": {
+    "startConversation": "بدء المحادثة",
+    "secureContextRequired": "يتطلب الميكروفون HTTPS أو localhost.",
     "tools": {
       "create_task": "ينشئ مهمة",
       "list_tasks": "يعرض المهام",

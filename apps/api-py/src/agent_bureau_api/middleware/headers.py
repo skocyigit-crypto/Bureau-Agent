@@ -12,6 +12,9 @@ from starlette.responses import Response
 
 FRAME_ANCESTORS_DEV = ["'self'", "https://*.replit.dev", "https://*.repl.co", "https://replit.com", "https://*.spock.replit.dev"]
 
+# Deliberate divergence from app.ts: that service also serves the SPA document,
+# so it relaxes camera/microphone/display-capture to `(self)` for VoiceLive.
+# This API serves no document that captures media, so they stay fully off.
 PERMISSIONS_POLICY = ", ".join(
     [
         "accelerometer=()", "autoplay=()", "camera=()", "cross-origin-isolated=()",

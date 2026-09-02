@@ -21,10 +21,10 @@ const basePath = process.env.BASE_PATH || "/";
 // des warnings "Unrecognized feature" en console sans renforcer la politique
 // (un nom inconnu est ignore par le navigateur).
 const PERMISSIONS_POLICY = [
-  "accelerometer=()", "autoplay=()", "camera=()", "cross-origin-isolated=()",
-  "display-capture=()", "encrypted-media=()", "fullscreen=()", "geolocation=()",
+  "accelerometer=()", "autoplay=()", "camera=(self)", "cross-origin-isolated=()",
+  "display-capture=(self)", "encrypted-media=()", "fullscreen=()", "geolocation=()",
   "gyroscope=()", "hid=()", "identity-credentials-get=()", "idle-detection=()",
-  "interest-cohort=()", "keyboard-map=()", "magnetometer=()", "microphone=()",
+  "interest-cohort=()", "keyboard-map=()", "magnetometer=()", "microphone=(self)",
   "midi=()", "payment=()", "picture-in-picture=()",
   "publickey-credentials-get=()", "screen-wake-lock=()", "serial=()",
   "sync-xhr=()", "usb=()", "xr-spatial-tracking=()",

@@ -597,6 +597,20 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
     const myToken = ++startGenRef.current;
     const isStale = (): boolean => startGenRef.current !== myToken || !openRef.current;
     try {
+      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+        throw new Error(t("voiceLive.secureContextRequired"));
+      }
+
+      // Create and unlock both audio contexts while `start` is running from
+      // the user's click. Starting from a mount effect loses transient user
+      // activation in Chromium/Safari, leaving playback permanently
+      // suspended even though the WebSocket and microphone appear healthy.
+      const audioCtx = new AudioContext();
+      const playbackCtx = new AudioContext({ sampleRate: OUTPUT_SAMPLE_RATE });
+      audioCtxRef.current = audioCtx;
+      playbackCtxRef.current = playbackCtx;
+      await Promise.all([audioCtx.resume(), playbackCtx.resume()]);
+
       // 1. Request mic permission first (user gesture is in this call chain).
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -610,8 +624,6 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
       micStreamRef.current = stream;
 
       // 2. Set up capture AudioContext at the device's native rate.
-      const audioCtx = new AudioContext();
-      audioCtxRef.current = audioCtx;
       await audioCtx.audioWorklet.addModule(`${BASE}/voice-pcm-worklet.js`);
       if (isStale()) { try { audioCtx.close(); } catch { /* noop */ } stream.getTracks().forEach((t) => t.stop()); return; }
 
@@ -628,8 +640,6 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
       // want the user's mic echoing through their speakers.
 
       // 3. Set up playback context at Gemini's output rate (24kHz).
-      playbackCtxRef.current = new AudioContext({ sampleRate: OUTPUT_SAMPLE_RATE });
-
       // 4. Open WebSocket to the server bridge. La voix est fixee a
       // l'ouverture cote Gemini Live, donc on la passe en query-param.
       // Si on a un handle de reprise (perte reseau / goAway recent), on
@@ -967,11 +977,10 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
     }
   }, [teardown]);
 
-  // Lifecycle: start when opened, teardown when closed.
+  // Lifecycle: opening only displays the overlay. Audio capture must start
+  // from an explicit click so browsers keep user activation for AudioContext.
   useEffect(() => {
-    if (open) {
-      start();
-    } else {
+    if (!open) {
       // Fermeture VOLONTAIRE (utilisateur ferme l'overlay): purge le
       // handle de reprise pour eviter qu'un nouveau visiteur sur le
       // meme navigateur reprenne la conversation precedente. Reset
@@ -985,7 +994,7 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
     }
     return () => teardown();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, teardown]);
 
   // Press Escape to close.
   useEffect(() => {
@@ -1187,9 +1196,29 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
 
         {/* Error */}
         {error && (
-          <div className="max-w-md mx-6 mb-6 p-4 rounded-xl bg-red-500/20 border border-red-400/30 text-red-100 text-sm">
-            {error}
+          <div className="max-w-md mx-6 mb-6 p-4 rounded-xl bg-red-500/20 border border-red-400/30 text-red-100 text-sm text-center">
+            <p>{error}</p>
+            <button
+              type="button"
+              onClick={() => {
+                teardown();
+                void startRef.current();
+              }}
+              className="mt-3 rounded-full bg-white/15 px-4 py-2 font-medium text-white hover:bg-white/25"
+            >
+              {t("voiceAssistant.retry_last")}
+            </button>
           </div>
+        )}
+
+        {state === "idle" && !error && (
+          <button
+            type="button"
+            onClick={() => void start()}
+            className="mb-6 rounded-full bg-gradient-to-r from-cyan-500 to-violet-500 px-6 py-3 font-semibold text-white shadow-lg shadow-violet-500/30 hover:brightness-110"
+          >
+            {t("voiceLive.startConversation")}
+          </button>
         )}
       </div>
 
