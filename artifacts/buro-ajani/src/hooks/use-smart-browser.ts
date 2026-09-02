@@ -85,17 +85,36 @@ export function useBatteryStatus() {
   const [battery, setBattery] = useState<{ level: number; charging: boolean } | null>(null);
 
   useEffect(() => {
+    // Le BatteryManager est un singleton fourni par le navigateur: il survit au
+    // composant. Sans retrait, chaque montage y laissait deux abonnements de
+    // plus, qui continuent d'appeler setBattery sur un composant demonte et
+    // retiennent sa fermeture. StrictMode monte deux fois, ce qui doublait la
+    // fuite en developpement.
+    let cancelled = false;
+    let detach: (() => void) | null = null;
+
     const getBattery = async () => {
       try {
         const batt = await (navigator as any).getBattery?.();
-        if (!batt) return;
+        // Le composant peut avoir ete demonte pendant l'attente: dans ce cas on
+        // ne s'abonne meme pas, sinon il n'y aurait plus personne pour retirer.
+        if (!batt || cancelled) return;
         const update = () => setBattery({ level: Math.round(batt.level * 100), charging: batt.charging });
         update();
         batt.addEventListener("levelchange", update);
         batt.addEventListener("chargingchange", update);
-      } catch {}
+        detach = () => {
+          batt.removeEventListener("levelchange", update);
+          batt.removeEventListener("chargingchange", update);
+        };
+      } catch { /* API absente ou refusee: pas de statut batterie */ }
     };
-    getBattery();
+    void getBattery();
+
+    return () => {
+      cancelled = true;
+      detach?.();
+    };
   }, []);
 
   return battery;
