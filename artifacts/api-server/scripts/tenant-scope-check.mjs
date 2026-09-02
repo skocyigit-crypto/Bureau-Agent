@@ -38,16 +38,42 @@ const schemaDir = path.join(here, "..", "..", "..", "lib", "db", "src", "schema"
 
 // ── 1. Quelles tables appartiennent a un locataire ───────────────────────────
 
+/**
+ * Le corps est delimite en comptant les accolades, pas par une expression
+ * reguliere qui fermerait sur le premier `\n}`.
+ *
+ * La premiere version supposait une accolade fermante en colonne zero. Elle
+ * ratait donc en silence la forme multi-lignes, ou l'appel est indente:
+ *
+ *   export const t = pgTable(
+ *     "whatsapp_messages",
+ *     { ... },
+ *   );
+ *
+ * Deux tables manquaient a l'appel — donc deux tables de locataire que ce
+ * controle ne surveillait pas du tout, sans que rien ne le signale. Le
+ * garde-fou de schema, qui partageait la meme erreur, l'a fait echouer un
+ * build; celui-ci se serait tu indefiniment.
+ */
 function tenantScopedTables() {
   const scoped = new Set();
   const global = new Set();
   for (const file of fs.readdirSync(schemaDir)) {
     if (!file.endsWith(".ts") || file === "index.ts") continue;
     const src = fs.readFileSync(path.join(schemaDir, file), "utf8");
-    const re = /export const (\w+) = pgTable\(\s*["'`]([\w_]+)["'`]([\s\S]*?)\n\}/g;
+    const re = /export const (\w+) = pgTable\(\s*["'`]([\w_]+)["'`]\s*,/g;
     let m;
     while ((m = re.exec(src))) {
-      const [, varName, , body] = m;
+      const varName = m[1];
+      const open = src.indexOf("{", re.lastIndex);
+      if (open === -1) continue;
+      let depth = 0, close = -1;
+      for (let i = open; i < src.length; i++) {
+        if (src[i] === "{") depth++;
+        else if (src[i] === "}" && --depth === 0) { close = i; break; }
+      }
+      if (close === -1) continue;
+      const body = src.slice(open + 1, close);
       if (/organisation_?[Ii]d/.test(body)) scoped.add(varName);
       else global.add(varName);
     }
@@ -103,6 +129,16 @@ const ALLOWLIST = [
     appliesTo: (file) =>
       ["src/lib/google-auth.ts", "src/lib/api-key-auth.ts", "src/middleware/auth.ts",
        "src/helpers/user-tracking.ts"].includes(file),
+  },
+  {
+    file: "src/routes/whatsapp.ts — magasin d'idempotence du webhook",
+    reason:
+      "`whatsapp_processed_messages` est clos par le `MessageSid` de Twilio, " +
+      "qui est sa cle primaire et est unique a l'echelle mondiale. Un filtre " +
+      "d'organisation n'y ajouterait rien et empecherait la deduplication de " +
+      "faire son travail sur un rejeu recu avant que l'organisation ne soit " +
+      "resolue.",
+    appliesTo: (file) => file === "src/routes/whatsapp.ts",
   },
   {
     file: "surfaces publiques",

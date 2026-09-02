@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
 // @ts-expect-error — script d'outillage en JS pur, volontairement hors du build.
-import { destructiveChanges } from "../../../../lib/db/scripts/schema-guard.mjs";
+import { destructiveChanges, declaredSchema } from "../../../../lib/db/scripts/schema-guard.mjs";
 
 /**
  * Une poussee de schema ne doit pas pouvoir effacer des donnees par accident.
@@ -87,5 +89,56 @@ describe("changements destructeurs", () => {
     const result = destructiveChanges(declared, live);
     expect(result.droppedTables).toEqual(["b", "c"]);
     expect(result.droppedColumns).toEqual(["a.x", "a.y"]);
+  });
+});
+
+/**
+ * Le garde-fou lit-il TOUT le schema.
+ *
+ * Sa premiere version fermait le corps d'une table sur le premier `\n}` — une
+ * accolade en colonne zero. Elle ratait donc en silence la forme multi-lignes,
+ * ou l'appel est indente :
+ *
+ *   export const t = pgTable(
+ *     "whatsapp_messages",
+ *     { ... },
+ *   );
+ *
+ * Deux tables manquaient. Le garde-fou les a vues comme absentes du schema,
+ * donc comme des tables a supprimer, et a fait echouer un deploiement — ce
+ * qu'il devait faire: son appel en CI existe precisement pour reperer une
+ * derive de sa propre lecture, et il l'a fait des le premier build.
+ *
+ * Ce test empeche la rechute. Il ne compte pas un nombre fige — qui se
+ * perimerait a la table suivante — mais compare la lecture du garde-fou au
+ * texte source: chaque `pgTable("...")` du depot doit se retrouver dans le
+ * resultat. Un oubli ici rend le garde-fou dangereux dans les deux sens: il
+ * bloque des poussees legitimes, et surtout il ne protege pas les tables qu'il
+ * n'a pas su lire.
+ */
+describe("lecture du schema", () => {
+  const schemaDir = path.join(__dirname, "..", "..", "..", "..", "lib", "db", "src", "schema");
+
+  it("trouve chaque table declaree dans les fichiers de schema", () => {
+    const declared = declaredSchema();
+    const namesInSource = new Set<string>();
+    for (const file of fs.readdirSync(schemaDir)) {
+      if (!file.endsWith(".ts") || file === "index.ts") continue;
+      const src = fs.readFileSync(path.join(schemaDir, file), "utf8");
+      for (const m of src.matchAll(/pgTable\(\s*["'`]([\w_]+)["'`]/g)) namesInSource.add(m[1]);
+    }
+
+    const missing = [...namesInSource].filter((t) => !declared.has(t));
+    expect(missing, `tables non lues par le garde-fou: ${missing.join(", ")}`).toEqual([]);
+    expect(declared.size).toBe(namesInSource.size);
+  });
+
+  it("lit les colonnes d'une table declaree sur plusieurs lignes", () => {
+    // La forme exacte qui echappait a la version precedente.
+    const declared = declaredSchema();
+    const columns = declared.get("whatsapp_processed_messages");
+    expect(columns, "whatsapp_processed_messages introuvable").toBeTruthy();
+    expect([...columns]).toContain("message_sid");
+    expect([...columns]).toContain("organisation_id");
   });
 });

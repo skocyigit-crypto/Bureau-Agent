@@ -1390,3 +1390,46 @@ Toplam **875 test geçti**.
 - RGPD taşınabilirlik / unutulma hakkı akışının tamamlanması
 - Factur-X (Faz D, zaten bekliyor)
 - Arayüz erişilebilirlik denetimi (EAA) — `sellability-audit` ajanı bunun için
+
+## Koruma ilk build'de kendi hatasını yakaladı — 2026-09-02
+
+`f58f5717` dağıtımı **başarısız** oldu. Sebep, kod değil, Faz 4'te yazdığım
+korumanın kendisiydi: `whatsapp_messages` ve `whatsapp_processed_messages`
+tablolarını "silinecek" sanıp build'i durdurdu.
+
+**Ve tam da bunun için oradaydı.** Hattaki çağrının gerekçesini yazarken şöyle
+demiştim: *"CI veritabanı az önce senkronlandığı için hiçbir şey bulmamalı; bir
+silme bildiriyorsa bozulan şey şemanın kendisi değil, korumanın şema
+okumasıdır."* Bu, ilk build'de aynen gerçekleşti.
+
+**Kusur:** ayrıştırıcım tablo gövdesini **sütun 0'daki** `\n}` ile kapatıyordu.
+Çok satırlı biçimi — çağrının bölündüğü ve kapanış parantezinin girintili
+olduğu hali — sessizce atlıyordu:
+
+    export const t = pgTable(
+      "whatsapp_messages",
+      { ... },
+    );
+
+**Düzeltme:** regex yerine parantez sayma. Bir mizanpaj varsayan düzenli ifade
+kod okuması değildir; parantez saymak öyledir.
+
+### İkinci, daha sinsi sonuç
+**Aynı regex `tenant-scope-check.mjs`'te de vardı.** Yani Faz 2'nin "sızıntı
+yok" sonucu, iki kiracı tablosunu **hiç görmeden** verilmişti. Koruma bir
+build'i düşürerek kendini ihbar etti; kiracı kontrolü ise süresiz susacaktı.
+
+Düzeltince kontrol hemen kör olduğu yeri gösterdi:
+`whatsapp.ts markProcessed`. İncelendi ve **meşru** — `whatsapp_processed_messages`
+Twilio'nun evrensel benzersiz `MessageSid`'i ile kapanıyor, ki o tablonun
+birincil anahtarı; organizasyon filtresi hiçbir şey eklemez ve organizasyon
+çözülmeden gelen bir rejeuda tekilleştirmeyi bozardı. Gerekçesiyle kaydedildi.
+Blok sayısı 624 → **626**, açıklanmayan **0**.
+
+### Regresyon testi
+Sabit bir sayı tutmuyor (bir sonraki tabloda bayatlardı): depodaki **her**
+`pgTable("...")` korumanın okumasında bulunmalı. Okunmayan bir tablo, korumayı
+iki yönde birden tehlikeli yapar — meşru poüşeleri bloke eder, ve asıl
+korumadığı tabloları korumaz.
+
+**877 test geçti.**
