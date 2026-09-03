@@ -5814,7 +5814,8 @@
       "relanceImpossible": "Relance impossible",
       "relanceFailed": "Envoi de la relance échoué."
     },
-    "pdfTitle": "Télécharger la facture PDF"
+    "pdfTitle": "Télécharger la facture PDF",
+    "xmlTitle": "Telecharger le XML Factur-X"
   },
   "santeTechnique": {
     "title": "Santé technique",

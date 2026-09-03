@@ -5814,7 +5814,8 @@
       "relanceImpossible": "Reminder not possible",
       "relanceFailed": "Reminder sending failed."
     },
-    "pdfTitle": "Download the PDF invoice"
+    "pdfTitle": "Download the PDF invoice",
+    "xmlTitle": "Download the Factur-X XML"
   },
   "santeTechnique": {
     "title": "Technical health",
