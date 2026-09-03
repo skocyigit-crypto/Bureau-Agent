@@ -6,6 +6,7 @@ import { requireRole } from "../middleware/auth";
 import { generateUniqueReference } from "../lib/unique-reference";
 import { getOrgId } from "../middleware/tenant";
 import { computeInvoiceTotals } from "../services/invoice-totals";
+import { archiveDeletedRows, deletionContext } from "../services/trash";
 
 const router: IRouter = Router();
 
@@ -440,8 +441,9 @@ router.delete("/prospects/:id", requireRole("administrateur", "super_admin"), as
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   try {
-    const [row] = await db.delete(prospectsTable).where(ownedById(id, orgId)).returning({ id: prospectsTable.id });
+    const [row] = await db.delete(prospectsTable).where(ownedById(id, orgId)).returning();
     if (!row) { res.status(404).json({ error: "Prospect non trouve." }); return; }
+    await archiveDeletedRows(prospectsTable, [row], deletionContext(req, orgId));
     res.json({ success: true });
   } catch (err: any) {
     req.log.error({ err }, "Erreur suppression prospect");

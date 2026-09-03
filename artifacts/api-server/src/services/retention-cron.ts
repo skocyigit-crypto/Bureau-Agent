@@ -1,5 +1,6 @@
 import { logger } from "../lib/logger";
 import { purgeOldSecurityScans } from "./security-scans";
+import { purgeExpiredTrash } from "./trash";
 
 /**
  * Application effective des durees de conservation annoncees.
@@ -100,6 +101,7 @@ export async function startRetentionCron(): Promise<void> {
   registerRunnableCron(CRON_NAME, TICK_MS, async () => {
     await purgeExpiredCallRecordings();
     await purgeOldSecurityScans();
+    await purgeExpiredTrash();
   });
   logger.info(
     { retentionDays: RETENTION_DAYS },

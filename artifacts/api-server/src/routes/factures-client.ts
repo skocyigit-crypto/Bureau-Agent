@@ -9,6 +9,7 @@ import { deriveInvoiceStatus, overdueCondition } from "../services/invoice-statu
 import { buildInvoiceDocument, invoiceFileName, renderInvoicePdf } from "../services/invoice-pdf";
 import { buildFacturXXml } from "../services/facturx";
 import { computeInvoiceTotals, isValidCurrency, parseUserDate, clampPagination, normalizePaidAmount } from "../services/invoice-totals";
+import { archiveDeletedRows, deletionContext } from "../services/trash";
 
 const router: IRouter = Router();
 
@@ -430,8 +431,9 @@ router.delete("/factures-client/:id", async (req: Request, res: Response): Promi
   try {
     const result = await db.delete(facturesClientTable)
       .where(and(eq(facturesClientTable.id, id), eq(facturesClientTable.organisationId, orgId)))
-      .returning({ id: facturesClientTable.id });
+      .returning();
     if (result.length === 0) { res.status(404).json({ error: "Facture non trouvee." }); return; }
+    await archiveDeletedRows(facturesClientTable, result, deletionContext(req, orgId));
     res.json({ ok: true });
   } catch (err: any) {
     req.log.error({ err }, "Erreur suppression facture");

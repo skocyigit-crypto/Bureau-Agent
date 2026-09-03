@@ -141,7 +141,8 @@
       "initialSetup": "Ersteinrichtung",
       "mobileApp": "Mobile App",
       "quotes": "Angebote",
-      "clientInvoices": "Kundenrechnungen"
+      "clientInvoices": "Kundenrechnungen",
+      "trash": "Papierkorb"
     }
   },
   "userMenu": {
@@ -9141,6 +9142,26 @@
       "saveFailed": "Speichern fehlgeschlagen",
       "deleted": "Zugangsdaten gelöscht",
       "deleteFailed": "Löschen fehlgeschlagen"
+    }
+  },
+  "corbeille": {
+    "title": "Papierkorb",
+    "subtitle": "Gelöschtes bleibt {{days}} Tage lang wiederherstellbar.",
+    "subtitleGeneric": "Gelöschtes bleibt eine Zeit lang wiederherstellbar.",
+    "empty": "Der Papierkorb ist leer",
+    "emptyHint": "Gelöschte Einträge erscheinen hier und können zurückgeholt werden.",
+    "unnamed": "Eintrag Nr. {{id}}",
+    "restore": "Wiederherstellen",
+    "restored": "Eintrag wiederhergestellt",
+    "restoreFailed": "Wiederherstellung fehlgeschlagen",
+    "loadFailed": "Papierkorb konnte nicht gelesen werden",
+    "tables": {
+      "prospects": "Lead",
+      "devis": "Angebot",
+      "factures_client": "Rechnung",
+      "projets": "Projekt",
+      "notes_internes": "Interne Notiz",
+      "tasks": "Aufgabe"
     }
   }
 }

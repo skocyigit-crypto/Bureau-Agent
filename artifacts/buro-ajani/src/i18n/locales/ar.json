@@ -141,7 +141,8 @@
       "initialSetup": "الإعداد الأولي",
       "mobileApp": "تطبيق الجوال",
       "quotes": "عروض الأسعار",
-      "clientInvoices": "فواتير العملاء"
+      "clientInvoices": "فواتير العملاء",
+      "trash": "سلة المحذوفات"
     }
   },
   "userMenu": {
@@ -9141,6 +9142,26 @@
       "saveFailed": "تعذر الحفظ",
       "deleted": "تم حذف بيانات الاعتماد",
       "deleteFailed": "تعذر الحذف"
+    }
+  },
+  "corbeille": {
+    "title": "سلة المحذوفات",
+    "subtitle": "يمكن استرجاع المحذوف خلال {{days}} يومًا.",
+    "subtitleGeneric": "يمكن استرجاع المحذوف لفترة.",
+    "empty": "سلة المحذوفات فارغة",
+    "emptyHint": "تظهر العناصر المحذوفة هنا، ويمكنك إعادتها.",
+    "unnamed": "عنصر رقم {{id}}",
+    "restore": "استرجاع",
+    "restored": "تمت إعادة العنصر",
+    "restoreFailed": "تعذّر الاسترجاع",
+    "loadFailed": "تعذّرت قراءة سلة المحذوفات",
+    "tables": {
+      "prospects": "عميل محتمل",
+      "devis": "عرض سعر",
+      "factures_client": "فاتورة",
+      "projets": "مشروع",
+      "notes_internes": "ملاحظة داخلية",
+      "tasks": "مهمة"
     }
   }
 }

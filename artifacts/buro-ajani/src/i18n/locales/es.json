@@ -141,7 +141,8 @@
       "initialSetup": "Configuración inicial",
       "mobileApp": "Aplicación móvil",
       "quotes": "Presupuestos",
-      "clientInvoices": "Facturas de clientes"
+      "clientInvoices": "Facturas de clientes",
+      "trash": "Papelera"
     }
   },
   "userMenu": {
@@ -9141,6 +9142,26 @@
       "saveFailed": "No se pudo guardar",
       "deleted": "Credenciales eliminadas",
       "deleteFailed": "No se pudo eliminar"
+    }
+  },
+  "corbeille": {
+    "title": "Papelera",
+    "subtitle": "Lo eliminado se puede recuperar durante {{days}} días.",
+    "subtitleGeneric": "Lo eliminado se puede recuperar durante un tiempo.",
+    "empty": "La papelera está vacía",
+    "emptyHint": "Los elementos eliminados aparecen aquí y puede devolverlos a su sitio.",
+    "unnamed": "Elemento n.º {{id}}",
+    "restore": "Restaurar",
+    "restored": "Elemento restaurado",
+    "restoreFailed": "No se ha podido restaurar",
+    "loadFailed": "No se ha podido leer la papelera",
+    "tables": {
+      "prospects": "Prospecto",
+      "devis": "Presupuesto",
+      "factures_client": "Factura",
+      "projets": "Proyecto",
+      "notes_internes": "Nota interna",
+      "tasks": "Tarea"
     }
   }
 }

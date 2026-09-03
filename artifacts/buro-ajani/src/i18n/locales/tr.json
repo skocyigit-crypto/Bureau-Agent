@@ -141,7 +141,8 @@
       "initialSetup": "İlk Kurulum",
       "mobileApp": "Mobil Uygulama",
       "quotes": "Teklifler",
-      "clientInvoices": "Müşteri faturaları"
+      "clientInvoices": "Müşteri faturaları",
+      "trash": "Çöp kutusu"
     }
   },
   "userMenu": {
@@ -9141,6 +9142,26 @@
       "saveFailed": "Kaydedilemedi",
       "deleted": "Kimlik bilgileri silindi",
       "deleteFailed": "Silinemedi"
+    }
+  },
+  "corbeille": {
+    "title": "Çöp kutusu",
+    "subtitle": "Silinenler {{days}} gün boyunca geri alınabilir.",
+    "subtitleGeneric": "Silinenler bir süre geri alınabilir.",
+    "empty": "Çöp kutusu boş",
+    "emptyHint": "Sildiğiniz öğeler burada görünür ve geri koyabilirsiniz.",
+    "unnamed": "Öğe no {{id}}",
+    "restore": "Geri yükle",
+    "restored": "Öğe geri yüklendi",
+    "restoreFailed": "Geri yüklenemedi",
+    "loadFailed": "Çöp kutusu okunamadı",
+    "tables": {
+      "prospects": "Potansiyel müşteri",
+      "devis": "Teklif",
+      "factures_client": "Fatura",
+      "projets": "Proje",
+      "notes_internes": "İç not",
+      "tasks": "Görev"
     }
   }
 }
