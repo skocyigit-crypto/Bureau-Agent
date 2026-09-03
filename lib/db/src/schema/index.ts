@@ -66,5 +66,6 @@ export * from "./organisation-backups";
 export * from "./organisation-closures";
 export * from "./health-checks";
 export * from "./ip-bans";
+export * from "./super-agent";
 export * from "./security-scans";
 export * from "./push-tokens";

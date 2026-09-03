@@ -13,6 +13,16 @@ import { EventEmitter } from "events";
 import { aiForOrg } from "../services/ai-client";
 import { respondAiError } from "../services/ai-guard";
 import { CRON_LOCK_NAMESPACE, tryWithLock } from "../lib/cron-lock";
+import {
+  appendSuperAgentLog,
+  bumpSuperAgentStats,
+  finishSuperAgentCycle,
+  getSuperAgentSnapshot,
+  tryStartSuperAgentCycle,
+  type SuperAgentLogLevel,
+  type SuperAgentLogSource,
+  type SuperAgentStats,
+} from "../services/super-agent-state";
 
 const router = Router();
 
@@ -2811,45 +2821,29 @@ router.get("/ai/anomalies", requireMinAgent, async (req, res): Promise<void> => 
 // SUPER AGENT OTONOM — email + chantier + sistem yönetimi
 // ═══════════════════════════════════════════════════════════════════
 
-interface SuperAgentLog {
-  timestamp: string;
-  level: "info" | "success" | "warning" | "error";
-  source: "email" | "chantier" | "system" | "tache" | "appel";
-  message: string;
-  detail?: string;
+/**
+ * L'etat du Super Agent (drapeau d'execution, compteurs, journal) vit en base
+ * et non plus dans une `Map` de module: voir `services/super-agent-state.ts`.
+ * Avec trois instances, `run` et `status` n'atterrissaient pas forcement sur
+ * le meme processus, et l'utilisateur voyait un ecran vide apres un cycle qui
+ * avait pourtant bien tourne.
+ */
+
+/**
+ * Journalise sans attendre: le cycle ne doit pas ralentir au rythme des
+ * ecritures, et une ligne de journal perdue ne doit pas l'interrompre.
+ */
+function saLog(orgId: number, level: SuperAgentLogLevel, source: SuperAgentLogSource, message: string, detail?: string) {
+  void appendSuperAgentLog(orgId, level, source, message, detail);
 }
 
-interface SuperAgentState {
-  running: boolean;
-  lastRun?: string;
-  logs: SuperAgentLog[];
-  stats: {
-    tasksCreated: number;
-    tasksFixed: number;
-    emailsProcessed: number;
-    reportsProcessed: number;
-    fixesApplied: number;
-    cyclesRun: number;
-  };
-}
-
-const superAgentStates = new Map<number, SuperAgentState>();
-
-function getSuperAgentState(orgId: number): SuperAgentState {
-  if (!superAgentStates.has(orgId)) {
-    superAgentStates.set(orgId, {
-      running: false,
-      logs: [],
-      stats: { tasksCreated: 0, tasksFixed: 0, emailsProcessed: 0, reportsProcessed: 0, fixesApplied: 0, cyclesRun: 0 },
-    });
-  }
-  return superAgentStates.get(orgId)!;
-}
-
-function saLog(orgId: number, level: SuperAgentLog["level"], source: SuperAgentLog["source"], message: string, detail?: string) {
-  const state = getSuperAgentState(orgId);
-  state.logs.push({ timestamp: new Date().toISOString(), level, source, message, detail });
-  if (state.logs.length > 500) state.logs = state.logs.slice(-500);
+/**
+ * Compteurs accumules PENDANT un cycle, puis ecrits en une fois a la fin sous
+ * forme d'increments SQL. Les incrementer un par un ferait une requete par
+ * tache creee.
+ */
+function newStatDeltas(): SuperAgentStats {
+  return { tasksCreated: 0, tasksFixed: 0, emailsProcessed: 0, reportsProcessed: 0, fixesApplied: 0, cyclesRun: 0 };
 }
 
 /**
@@ -2891,9 +2885,9 @@ async function superAgentAI(orgId: number, prompt: string, systemPrompt: string)
 }
 
 async function runSuperAgentCycle(orgId: number, userId: number) {
-  const state = getSuperAgentState(orgId);
-  state.running = true;
-  state.stats.cyclesRun++;
+  // `state` n'est plus l'etat partage: c'est l'accumulateur local du cycle,
+  // vide en base a la fin.
+  const state = { lastRun: undefined as string | undefined, stats: newStatDeltas() };
   saLog(orgId, "info", "system", "Démarrage du cycle Super Agent IA");
 
   try {
@@ -3117,7 +3111,13 @@ async function runSuperAgentCycle(orgId: number, userId: number) {
       saLog(orgId, "error", "system", `Erreur cycle: ${err.message}`);
     }
   } finally {
-    state.running = false;
+    // Les compteurs partent AVANT la liberation du drapeau: si le processus
+    // meurt entre les deux, on prefere un cycle qui parait encore en cours a
+    // un cycle dont le travail n'est compte nulle part.
+    await bumpSuperAgentStats(orgId, state.stats).catch((err) =>
+      logger.warn({ err, orgId }, "[SuperAgent] compteurs non enregistres"));
+    await finishSuperAgentCycle(orgId, { completed: Boolean(state.lastRun) }).catch((err) =>
+      logger.error({ err, orgId }, "[SuperAgent] drapeau d'execution non libere"));
   }
 }
 
@@ -3126,15 +3126,21 @@ router.post("/ai/super-agent/run", requireAdmin, async (req, res): Promise<void>
   const userId = req.session?.userId;
   if (!orgId || !userId) { res.status(403).json({ error: "Organisation requise." }); return; }
 
-  const state = getSuperAgentState(orgId);
-  if (state.running) {
+  // Le drapeau est pris en base, en une instruction conditionnelle: c'est ce
+  // qui empeche deux instances de lancer le meme cycle sur la meme
+  // organisation. Un `if (state.running)` en memoire ne gardait qu'un
+  // processus sur trois.
+  if (!(await tryStartSuperAgentCycle(orgId))) {
     res.json({ status: "already_running", message: "Cycle déjà en cours." });
     return;
   }
 
   res.json({ status: "started", message: "Cycle Super Agent lancé en arrière-plan." });
-  runSuperAgentCycle(orgId, userId).catch((e) => {
+  runSuperAgentCycle(orgId, userId).catch(async (e) => {
     saLog(orgId, "error", "system", `Cycle échoué: ${e.message}`);
+    // `runSuperAgentCycle` libere deja le drapeau dans son `finally`; ce filet
+    // ne sert qu'au cas ou l'echec survient avant d'y entrer.
+    await finishSuperAgentCycle(orgId, { completed: false }).catch(() => {});
   });
 });
 
@@ -3167,7 +3173,6 @@ router.post("/ai/super-agent/process-report", requireAdmin, async (req, res): Pr
           organisationId: orgId, title: t.title, description: `${t.description || ""}\n\nSource: Rapport ${reportType}${t.assignedTo ? `\nAssigné à: ${t.assignedTo}` : ""}`.trim(), priority: t.priority || "moyenne", status: "en_attente", dueDate, relatedContactId: contactId || null,
         }).returning();
         createdTasks.push(inserted);
-        getSuperAgentState(orgId).stats.tasksCreated++;
       } catch (err: any) {
         logger.warn({ err: err?.message, orgId, title: t?.title }, "[SuperAgent/ProcessReport] echec insertion tache extraite par IA");
       }
@@ -3187,7 +3192,9 @@ router.post("/ai/super-agent/process-report", requireAdmin, async (req, res): Pr
       }
     }
 
-    getSuperAgentState(orgId).stats.reportsProcessed++;
+    // Un seul increment pour tout le rapport: les taches creees sont comptees
+    // ici plutot qu'une par une dans la boucle ci-dessus.
+    await bumpSuperAgentStats(orgId, { reportsProcessed: 1, tasksCreated: createdTasks.length });
     saLog(orgId, "success", "chantier", `Rapport traité: ${createdTasks.length} tâche(s), ${createdEvents.length} RDV créés`, parsed.summary);
 
     res.json({ success: true, summary: parsed.summary, nextStepUrgency: parsed.nextStepUrgency, issues: parsed.issues ?? [], createdTasks, createdEvents, tasksCount: createdTasks.length, eventsCount: createdEvents.length });
@@ -3201,8 +3208,16 @@ router.post("/ai/super-agent/process-report", requireAdmin, async (req, res): Pr
 router.get("/ai/super-agent/status", requireMinAgent, async (req, res): Promise<void> => {
   const orgId = req.session?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
-  const state = getSuperAgentState(orgId);
-  res.json({ running: state.running, lastRun: state.lastRun, stats: state.stats, recentLogs: state.logs.slice(-50) });
+  const snapshot = await getSuperAgentSnapshot(orgId);
+  res.json({
+    running: snapshot.running,
+    lastRun: snapshot.lastRun,
+    stats: snapshot.stats,
+    recentLogs: snapshot.recentLogs,
+    // Signale l'etat par instance (tables absentes): le client voit alors
+    // pourquoi ses compteurs peuvent sauter d'une requete a l'autre.
+    ...(snapshot.degraded ? { degraded: true } : {}),
+  });
 });
 
 export default router;
