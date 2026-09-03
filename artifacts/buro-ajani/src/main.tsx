@@ -5,6 +5,9 @@ import "./index.css";
 
 import { ConfirmProvider } from "@/hooks/use-confirm";
 import { I18nProvider } from "@/i18n";
+import { bootstrapDocument } from "./bootstrap-document";
+
+bootstrapDocument();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
