@@ -174,6 +174,53 @@ describe("cloture d'une demande", () => {
   });
 });
 
+describe("inventaire des donnees", () => {
+  const src = fs.readFileSync(ROUTE_FILE, "utf8");
+
+  it("declare le journal d'analyses de securite", () => {
+    // Il manquait: une categorie entiere de donnee personnelle — qui a
+    // analyse quel fichier, quelle adresse, quel numero — que l'inventaire
+    // public ne mentionnait pas. Une categorie non declaree est une
+    // information incomplete au sens des art. 13/14, et elle est invisible:
+    // l'ecran affiche fidelement les categories qu'on lui donne.
+    expect(src).toContain('category: "Analyses de sécurité"');
+    // Considerant 49: la securite des reseaux et de l'information est
+    // nommement un interet legitime pour un fournisseur de services de
+    // securite.
+    expect(src).toMatch(/Intérêt légitime[^"]*6\(1\)\(f\)[^"]*49/);
+  });
+
+  it("annonce la duree qu'il applique reellement, pas une autre", () => {
+    // Le point de tout ce garde-fou. Une duree ecrite en dur dans la
+    // declaration pourrait derive de celle appliquee par la purge sans que
+    // rien ne casse: les deux chiffres vivent dans deux fichiers que personne
+    // ne lit cote a cote. La declaration doit donc LIRE la constante.
+    expect(src).toContain("${SECURITY_SCAN_RETENTION_DAYS} jours");
+    expect(src).not.toMatch(/retention: "90 jours"/);
+
+    // Et la constante doit rester celle que la purge applique.
+    const service = fs.readFileSync(
+      path.resolve(import.meta.dirname, "../services/security-scans.ts"),
+      "utf8",
+    );
+    expect(service).toContain("export const SECURITY_SCAN_RETENTION_DAYS");
+    expect(service).toContain("olderThanDays = SECURITY_SCAN_RETENTION_DAYS");
+  });
+
+  it("rend a la personne ses propres analyses, sans les details d'infrastructure", () => {
+    const handler = src.slice(
+      src.indexOf('router.get("/data-protection/my-data"'),
+      src.indexOf('router.post("/data-protection/requests/:id/process"'),
+    );
+    // Art. 15: une analyse qu'elle a declenchee la concerne.
+    expect(handler).toContain("target: securityScansTable.target");
+    expect(handler).toContain("eq(securityScansTable.userId, userId)");
+    // Le moteur et la source decrivent l'infrastructure, pas l'individu.
+    expect(handler).not.toContain("securityScansTable.engine");
+    expect(handler).not.toContain("securityScansTable.source");
+  });
+});
+
 describe("echeance de l'article 12(3)", () => {
   it("place l'echeance un mois apres le depot", () => {
     const { dueAt, overdue } = requestDeadline(
