@@ -30,6 +30,7 @@ import { startHealthAgentsCron } from "./services/health-agents-cron";
 import { startAgentAutoRunScheduler } from "./routes/ai-agents";
 import { startWebhookEngine } from "./services/webhook-service";
 import { startPushNotifications } from "./services/push-notifications";
+import { startEventBus } from "./services/event-bus";
 import { startAppointmentReminderCron } from "./services/appointment-reminder-cron";
 import { attachVoiceLiveWs } from "./routes/voice-live";
 
@@ -161,6 +162,7 @@ async function startServer(): Promise<void> {
     startAgentAutoRunScheduler();
     startWebhookEngine();
     startPushNotifications();
+    startEventBus();
     startAppointmentReminderCron();
     attachVoiceLiveWs(server);
   });

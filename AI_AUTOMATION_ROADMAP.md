@@ -1999,3 +1999,46 @@ yeniden kuruldu. Pencere kapandı — dağıtılmış kod ve üretim şeması ar
 yapıldığı için "No such file or directory" verdi; (2) bu adım harness tarafından
 iki oturum üst üste engellendi (üretim veritabanına yazma), yani böyle kalan
 işler kodda değil izinde bekliyor.
+
+## Canlı akış instance sınırında duruyormuş — 2026-09-03
+
+Faz 1'in kapattığı sanılan bir boşluk açık kalmış. `--session-affinity` bir
+tarayıcıyı **tek bir instance'a** sabitliyor, ama olayın nerede DOĞDUĞU hakkında
+hiçbir şey söylemiyor: Twilio/WhatsApp webhook'u, cron, ya da bir meslektaşın
+işlemi üç instance'tan herhangi birine düşüyor. `broadcaster` süreç-içi olduğu
+için kullanıcının canlı akışı yalnız kendi instance'ında doğan olayları
+görüyordu — aynı anda bağlı iki çalışan birbirinin işlemlerini görmüyordu, ve
+hiçbir yerde hata çıkmıyordu.
+
+### Yanlış çıkan varsayım
+
+`push-notifications.ts` ve `webhook-service.ts` yıllardır "hypothèse
+mono-instance: çok instance aynı bildirimi birden fazla kez gönderirdi" diyordu.
+Ölçünce korku haklı, sonuç yanlış çıktı: bir olayın **tek** emitörü var — onu
+üreten isteği hangi instance servis ettiyse o. Doğru düzeltme bu yüzden
+"kilit koymak" değil, uzaktan gelen olayı **yalnız SSE'ye** dağıtmak oldu.
+
+### Yapılan
+
+Postgres `LISTEN/NOTIFY` üzerinden instance'lar arası bir olay yolu
+(`lib/db/src/notify.ts` + `services/event-bus.ts`). Yeni bağımlılık yok.
+
+- Uzak olay **sadece** tarayıcı SSE istemcilerine gidiyor; sunucu dinleyicileri
+  (mobil push, giden webhook'lar) rejoue edilmiyor — edilseydi aynı push
+  instance sayısı kadar giderdi. Eski yorumlar da bu gerçeğe göre düzeltildi.
+- Kendi yayınını tanımak için instance kimliği taşınıyor; yoksa her instance
+  zaten servis ettiği tarayıcıya olayı ikinci kez yazardı.
+- Yayın "fire and forget": bu noktaya gelindiğinde yerel dağıtım çoktan
+  yapılmış olur, veritabanı düşerse uzak canlı akış bozulur ama kullanıcının
+  işlemi bozulmaz. Bus hatası dakikada bir loglanıyor, her olayda değil.
+- `pg_notify`'ın 8000 baytlık sınırı aşılırsa olay yayınlanmıyor (kesilmiyor).
+- Dinleme bağlantısı havuzdan **alınmıyor**: `LISTEN` oturuma bağlıdır, havuza
+  iade edilen bağlantı aboneliğini taşımaya devam ederdi. Instance başına +1
+  bağlantı; bütçe içinde (2 x 3 x 8 = 48 + 6 = 54 / 60).
+
+### Doğrulama
+
+7 yeni test: uzak olayın yerel tarayıcıya ulaştığı, sunucu dinleyicilerini
+**tetiklemediği**, komşu organizasyona sızmadığı, relai patlasa bile yerel
+dağıtımın sürdüğü, ve gerçek bir Postgres bağlantısından diğerine yükün
+taşındığı dahil.

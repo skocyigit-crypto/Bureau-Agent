@@ -19,8 +19,11 @@
  *  - Isolation multi-tenant : les requêtes sont scoppées par organisation_id et
  *    la FK composite en base interdit déjà tout couplage cross-tenant.
  *
- * Hypothèse mono-instance (un seul process) : voir billing-cron pour le pattern
- * advisory lock si l'on passe à un déploiement multi-instances.
+ * Multi-instance sans doublon: un évènement n'a qu'un seul émetteur, et le
+ * relai inter-instances (services/event-bus.ts) ne rejoue les évènements
+ * distants qu'aux clients SSE, jamais aux écouteurs serveur comme celui-ci.
+ * Une livraison sortante part donc une seule fois, quelle que soit l'instance
+ * qui a servi l'action.
  */
 
 import crypto from "crypto";

@@ -103,3 +103,4 @@ export async function closePool(): Promise<void> {
 }
 
 export * from "./schema";
+export * from "./notify";

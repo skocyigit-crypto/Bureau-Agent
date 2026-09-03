@@ -56,19 +56,58 @@ class Broadcaster {
     };
   }
 
+  /**
+   * Écouteur du bus inter-instances (branché au démarrage). Reçoit chaque
+   * évènement émis pour qu'il atteigne aussi les navigateurs connectés aux
+   * AUTRES instances.
+   */
+  private relay: ((orgId: number, event: SyncEvent, excludeUserId?: number) => void) | null = null;
+
+  setRelay(relay: ((orgId: number, event: SyncEvent, excludeUserId?: number) => void) | null): void {
+    this.relay = relay;
+  }
+
+  /**
+   * Évènement né sur une AUTRE instance. Il ne va qu'aux clients SSE: les
+   * écouteurs serveur (push mobile, webhooks sortants) ont déjà tourné sur
+   * l'instance d'origine, et les rejouer ici enverrait la même notification
+   * autant de fois qu'il y a d'instances.
+   */
+  dispatchRemote(orgId: number, event: SyncEvent): void {
+    this.writeToClients(orgId, event);
+  }
+
+  // `excludeUserId` n'est pas filtre ici, et ne l'a jamais ete: un client SSE
+  // est identifie par sa reponse HTTP, pas par un utilisateur. Le champ reste
+  // dans la signature publique parce que les appelants le passent deja.
+  private writeToClients(orgId: number, payload: SyncEvent): void {
+    const orgClients = this.clients.get(orgId);
+    if (!orgClients || orgClients.size === 0) return;
+    const data = `data: ${JSON.stringify(payload)}\n\n`;
+    for (const res of orgClients) {
+      try {
+        res.write(data);
+      } catch {
+        orgClients.delete(res);
+      }
+    }
+  }
+
   broadcast(orgId: number, event: Omit<SyncEvent, "ts">, excludeUserId?: number): void {
     const payload: SyncEvent = { ...event, ts: Date.now() };
 
     // 1) Diffusion temps réel aux clients SSE navigateur de l'organisation.
-    const orgClients = this.clients.get(orgId);
-    if (orgClients && orgClients.size > 0) {
-      const data = `data: ${JSON.stringify(payload)}\n\n`;
-      for (const res of orgClients) {
-        try {
-          res.write(data);
-        } catch {
-          orgClients.delete(res);
-        }
+    this.writeToClients(orgId, payload);
+
+    // 1bis) Les navigateurs des autres instances. Sans ce relai, l'affinité de
+    // session ne suffisait pas: elle colle un navigateur à une instance, mais
+    // l'évènement naît là où arrive le webhook, le cron ou l'action du
+    // collègue — donc souvent ailleurs.
+    if (this.relay) {
+      try {
+        this.relay(orgId, payload, excludeUserId);
+      } catch {
+        // Le temps réel des autres instances ne doit jamais casser celui-ci.
       }
     }
 

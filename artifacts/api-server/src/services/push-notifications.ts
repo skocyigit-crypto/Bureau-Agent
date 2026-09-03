@@ -24,9 +24,12 @@
  *    (app desinstallee, jeton revoque) est supprime, sinon la table grossit
  *    indefiniment et chaque envoi paie le cout des jetons morts.
  *
- * Hypothese mono-instance, comme webhook-service : plusieurs instances Cloud Run
- * enverraient la meme notification plusieurs fois. Voir billing-cron pour le
- * pattern advisory lock si ce deploiement change.
+ * Pas de doublon en multi-instance, et ce n'est pas un hasard: un evenement
+ * n'a qu'un seul emetteur — l'instance qui a servi l'action — et le relai
+ * inter-instances (services/event-bus.ts) ne rejoue les evenements distants
+ * QU'AUX clients SSE, jamais aux ecouteurs serveur comme celui-ci. L'ancien
+ * commentaire annoncait ici une « hypothese mono-instance »: la crainte etait
+ * juste, la conclusion non.
  */
 
 import { eq, inArray, ne, and } from "drizzle-orm";
