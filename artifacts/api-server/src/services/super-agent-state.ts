@@ -13,7 +13,7 @@
  * requete. Ce qui ne doit JAMAIS arriver, c'est qu'un cycle echoue parce que
  * son compte rendu n'a pas pu s'ecrire.
  */
-import { and, desc, eq, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { db, superAgentLogsTable, superAgentStateTable } from "@workspace/db";
 import { logger } from "../lib/logger";
 
@@ -40,6 +40,8 @@ export interface SuperAgentStats {
 export interface SuperAgentSnapshot {
   running: boolean;
   lastRun?: string;
+  /** Passage quotidien automatique, decide par l'organisation. */
+  autoRunEnabled: boolean;
   stats: SuperAgentStats;
   recentLogs: SuperAgentLog[];
   /** Vrai quand la reponse vient du repli en memoire (table absente). */
@@ -65,13 +67,13 @@ function emptyStats(): SuperAgentStats {
 // ---------------------------------------------------------------------------
 // Repli en memoire — uniquement tant que les tables n'existent pas.
 // ---------------------------------------------------------------------------
-interface FallbackState { running: boolean; runningSince?: number; lastRun?: string; stats: SuperAgentStats; logs: SuperAgentLog[] }
+interface FallbackState { running: boolean; runningSince?: number; lastRun?: string; autoRunEnabled: boolean; stats: SuperAgentStats; logs: SuperAgentLog[] }
 const fallback = new Map<number, FallbackState>();
 let lastFallbackWarn = 0;
 
 function fallbackState(orgId: number): FallbackState {
   let s = fallback.get(orgId);
-  if (!s) { s = { running: false, stats: emptyStats(), logs: [] }; fallback.set(orgId, s); }
+  if (!s) { s = { running: false, autoRunEnabled: false, stats: emptyStats(), logs: [] }; fallback.set(orgId, s); }
   return s;
 }
 
@@ -256,6 +258,7 @@ export async function getSuperAgentSnapshot(orgId: number): Promise<SuperAgentSn
     return {
       running: Boolean(row?.running) && !stale,
       lastRun: row?.lastRun?.toISOString(),
+      autoRunEnabled: Boolean(row?.autoRunEnabled),
       stats: row
         ? {
             tasksCreated: row.tasksCreated, tasksFixed: row.tasksFixed,
@@ -277,11 +280,49 @@ export async function getSuperAgentSnapshot(orgId: number): Promise<SuperAgentSn
     return {
       running: s.running,
       lastRun: s.lastRun,
+      autoRunEnabled: s.autoRunEnabled,
       stats: { ...s.stats },
       recentLogs: s.logs.slice(-LOG_PAGE),
       degraded: true,
     };
   });
+}
+
+/**
+ * Allume ou eteint le passage quotidien automatique pour une organisation.
+ * Repond `false` si l'etat n'a pas pu etre ecrit (tables absentes): l'appelant
+ * doit alors dire que le reglage n'a pas ete pris, jamais afficher un
+ * interrupteur allume que rien ne respecte.
+ */
+export async function setSuperAgentAutoRun(orgId: number, enabled: boolean): Promise<boolean> {
+  return withFallback<boolean>(async () => {
+    await ensureRow(orgId);
+    await db.update(superAgentStateTable)
+      .set({ autoRunEnabled: enabled, updatedAt: new Date() })
+      .where(eq(superAgentStateTable.organisationId, orgId));
+    return true;
+  }, () => {
+    fallbackState(orgId).autoRunEnabled = enabled;
+    return false;
+  });
+}
+
+/**
+ * Organisations ayant demande le passage automatique et qui n'en ont pas eu
+ * depuis `since`. Le garde « une fois par jour » sort donc de la base et non
+ * d'une variable de processus: un redemarrage ne relance pas un cycle deja
+ * fait, et trois instances voient la meme reponse.
+ */
+export async function listOrgsDueForAutoRun(since: Date): Promise<number[]> {
+  return withFallback<number[]>(async () => {
+    const rows = await db.select({ organisationId: superAgentStateTable.organisationId })
+      .from(superAgentStateTable)
+      .where(and(
+        eq(superAgentStateTable.autoRunEnabled, true),
+        or(isNull(superAgentStateTable.lastRun), lt(superAgentStateTable.lastRun, since)),
+      ));
+    return rows.map((r) => r.organisationId);
+  }, () => []);
 }
 
 /** Reservee aux tests: remet le repli en memoire a zero. */

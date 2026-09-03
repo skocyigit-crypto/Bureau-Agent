@@ -20,6 +20,7 @@ import { startSecurityDigestCron } from "./services/security-digest-cron";
 import { startProactiveEngine, recordModelFallbackSuggestion } from "./services/proactive-engine";
 import { startAiLearning } from "./services/ai-learning";
 import { startAutonomousSecretaryCron } from "./services/autonomous-secretary-cron";
+import { startSuperAgentCron } from "./services/super-agent-cron";
 import { startAutonomousInboxCron } from "./services/autonomous-inbox-cron";
 import { startDailyDigestCron } from "./services/daily-digest-cron";
 import { startInvoiceReminderCron } from "./services/invoice-reminder-cron";
@@ -150,6 +151,7 @@ async function startServer(): Promise<void> {
     startProactiveEngine();
     startAiLearning();
     startAutonomousSecretaryCron();
+    startSuperAgentCron();
     startAutonomousInboxCron();
     startDailyDigestCron();
     startInvoiceReminderCron();

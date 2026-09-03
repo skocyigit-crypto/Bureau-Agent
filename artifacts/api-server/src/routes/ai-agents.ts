@@ -18,6 +18,7 @@ import {
   bumpSuperAgentStats,
   finishSuperAgentCycle,
   getSuperAgentSnapshot,
+  setSuperAgentAutoRun,
   tryStartSuperAgentCycle,
   type SuperAgentLogLevel,
   type SuperAgentLogSource,
@@ -2884,7 +2885,12 @@ async function superAgentAI(orgId: number, prompt: string, systemPrompt: string)
   }
 }
 
-async function runSuperAgentCycle(orgId: number, userId: number) {
+/**
+ * Exporte pour le cron quotidien (`services/super-agent-cron.ts`). Le drapeau
+ * d'execution est pris par l'APPELANT (`tryStartSuperAgentCycle`), pas ici:
+ * c'est ce qui permet a la route et au cron de partager le meme garde-fou.
+ */
+export async function runSuperAgentCycle(orgId: number, userId: number) {
   // `state` n'est plus l'etat partage: c'est l'accumulateur local du cycle,
   // vide en base a la fin.
   const state = { lastRun: undefined as string | undefined, stats: newStatDeltas() };
@@ -3212,12 +3218,40 @@ router.get("/ai/super-agent/status", requireMinAgent, async (req, res): Promise<
   res.json({
     running: snapshot.running,
     lastRun: snapshot.lastRun,
+    autoRunEnabled: snapshot.autoRunEnabled,
     stats: snapshot.stats,
     recentLogs: snapshot.recentLogs,
     // Signale l'etat par instance (tables absentes): le client voit alors
     // pourquoi ses compteurs peuvent sauter d'une requete a l'autre.
     ...(snapshot.degraded ? { degraded: true } : {}),
   });
+});
+
+/**
+ * Allume/eteint le passage quotidien automatique. Reserve aux administrateurs:
+ * le Super Agent cree des taches et remonte des priorites pour toute
+ * l'organisation, ce n'est pas un reglage personnel.
+ */
+router.patch("/ai/super-agent/auto-run", requireAdmin, async (req, res): Promise<void> => {
+  const orgId = req.session?.organisationId;
+  if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
+
+  const { enabled } = req.body ?? {};
+  if (typeof enabled !== "boolean") {
+    res.status(400).json({ error: "Champ `enabled` (booleen) requis." });
+    return;
+  }
+
+  const persisted = await setSuperAgentAutoRun(orgId, enabled);
+  if (!persisted) {
+    // Le reglage n'a pas pu s'ecrire (tables absentes de la base): mieux vaut
+    // un refus clair qu'un interrupteur allume que le cron ne lira jamais.
+    res.status(503).json({ error: "Reglage indisponible: l'etat du Super Agent n'est pas encore initialise en base." });
+    return;
+  }
+
+  saLog(orgId, "info", "system", enabled ? "Passage quotidien automatique activé" : "Passage quotidien automatique désactivé");
+  res.json({ autoRunEnabled: enabled });
 });
 
 export default router;

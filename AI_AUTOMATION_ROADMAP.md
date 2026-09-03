@@ -227,7 +227,7 @@ girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamla
   `429 enforced_spend_limit_reached` → Anthropic Console → Plans & Billing'den
   tier yükseltilmeli. Ölçmeden "çalışıyor" yazılmayacak.
 
-### 4. [DURUM KALICI — 2026-09-03; cron hâlâ yok] Super Agent durumu
+### 4. [TAMAMLANDI] Super Agent: durum kalıcı + günlük cron (2026-09-03)
 
 - **Sorun**: `ai-agents.ts:2819` — `superAgentStates = new Map()` bellekte tutuluyor,
   her redeploy/restart'ta kayboluyor. Ayrıca sadece manuel tetiklemeyle çalışıyor
@@ -263,8 +263,26 @@ girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamla
   başlatmadan yalnız birinin kazandığı, terk edilmiş cycle'ın devralındığı,
   beş eşzamanlı sayaç artışının toplandığı ve kiracı sınırının aşılmadığı
   dahil. Tablolar `TENANT_TABLES`'a eklendi (kapsam testi kural).
-- **Durum**: Kalıcılık tamam. **Zamanlanmış cron hâlâ yok** — Super Agent
-  yalnız elle tetikleniyor. Bir sonraki adım o.
+- **Cron da eklendi (aynı gün) — ama açık değil, açılabilir**:
+  `services/super-agent-cron.ts` saatte bir tikliyor, günlük kapı
+  `super_agent_state.lastRun`'dan geliyor (süreç değişkeninden değil: yeniden
+  başlatma yapılmış bir cycle'ı tekrarlamıyor), organizasyon başına advisory
+  kilit var, askıya alınmış organizasyon atlanıyor ve dış tetikleyiciye
+  (`registerRunnableCron`) kaydediliyor — `min-instances=0` ile `setInterval`
+  tek başına neredeyse hiç çalışmıyor.
+- **Neden varsayılan KAPALI**: Super Agent rapor yazmıyor, **yazıyor** — görev
+  yaratıyor ve öncelik yükseltiyor, üstelik onay kuyruğundan geçmeden. Cron'u
+  herkes için açmak, ertesi sabah her müşteride kimsenin istemediği görevlerin
+  belirmesi olurdu. Bu ürün kararı her organizasyonun kendisine bırakıldı:
+  `super_agent_state.auto_run_enabled` (varsayılan `false`),
+  `PATCH /ai/super-agent/auto-run` (yalnız yönetici) ve mobil Super Agent
+  ekranında bir anahtar. Sunucu reddederse anahtar açık görünmüyor — okunmayacak
+  bir ayarı açık göstermek, kapalı göstermekten kötü.
+- **Doğrulama**: 7 yeni test — kapalı organizasyonun seçime hiç girmemesi,
+  günde ikinci kez alınmaması, hiç çalışmamış organizasyonun alınması ve
+  varsayılanın gerçekten `false` olması dahil.
+- **Durum**: Kalıcılık ve cron tamam. Madde 4 kapandı; e-posta ayağı hâlâ
+  madde 1'e (Google OAuth) bağlı.
 
 ### 5. [TAMAMLANDI] Günlük özeti gerçekten "günlük" yap (2026-07-14)
 

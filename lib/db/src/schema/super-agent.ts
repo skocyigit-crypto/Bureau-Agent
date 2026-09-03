@@ -24,6 +24,15 @@ export const superAgentStateTable = pgTable("super_agent_state", {
   organisationId: integer("organisation_id")
     .primaryKey()
     .references(() => organisationsTable.id, { onDelete: "cascade" }),
+  /**
+   * Passage quotidien automatique. VOLONTAIREMENT faux par defaut: le Super
+   * Agent n'est pas un rapport, il ecrit — il cree des taches et remonte des
+   * priorites sans passer par la file d'approbation. L'allumer pour tout le
+   * monde en meme temps qu'on ajoute le cron ferait apparaitre du jour au
+   * lendemain, chez chaque client, des taches que personne n'a demandees.
+   * C'est une decision de chaque organisation, prise depuis son ecran.
+   */
+  autoRunEnabled: boolean("auto_run_enabled").notNull().default(false),
   running: boolean("running").notNull().default(false),
   /**
    * Debut du cycle en cours. Sans lui, une instance tuee en plein cycle
