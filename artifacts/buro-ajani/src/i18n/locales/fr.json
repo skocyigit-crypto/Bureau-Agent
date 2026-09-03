@@ -4893,8 +4893,25 @@
       "exportError": "Erreur export",
       "exportDownloaded": "Export téléchargé",
       "exportDownloadedDesc": "Vos données ont été exportées avec succès (Art. 20 RGPD).",
-      "exportFailed": "Erreur lors de l'export"
-    }
+      "exportFailed": "Erreur lors de l'export",
+      "myDataDownloaded": "Vos données ont été téléchargées",
+      "myDataDownloadedDesc": "Le fichier contient les données qui vous concernent.",
+      "requestProcessed": "Demande close",
+      "requestProcessedDesc": "La réponse et sa date sont enregistrées.",
+      "processError": "La demande n'a pas pu être close"
+    },
+    "myDataTitle": "Mes données personnelles",
+    "myDataDesc": "Téléchargez les données qui vous concernent, dans un format lisible par machine (art. 15 et 20).",
+    "myData": "Télécharger",
+    "myDataScope": "Les contacts, appels et tâches saisis pour votre organisation n'y figurent pas : ils appartiennent à son fichier, pas à votre droit individuel.",
+    "statusRefused": "Refusée",
+    "deadlineDue": "Réponse attendue avant le {{date}}",
+    "deadlineOverdue": "En retard depuis le {{date}}",
+    "processTitle": "Répondre à cette demande",
+    "processNotes": "Motif ou réponse communiquée à la personne",
+    "processNotesPlaceholder": "Obligatoire en cas de refus : motifs, et rappel du droit de réclamation auprès de la CNIL (art. 12(4)).",
+    "processComplete": "Marquer traitée",
+    "processRefuse": "Refuser"
   },
   "assistantProactif": {
     "title": "Assistant proactif",

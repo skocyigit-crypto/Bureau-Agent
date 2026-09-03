@@ -4893,8 +4893,25 @@
       "exportError": "خطأ في التصدير",
       "exportDownloaded": "تم تنزيل التصدير",
       "exportDownloadedDesc": "تم تصدير بياناتك بنجاح (المادة 20 RGPD).",
-      "exportFailed": "خطأ أثناء التصدير"
-    }
+      "exportFailed": "خطأ أثناء التصدير",
+      "myDataDownloaded": "تم تنزيل بياناتك",
+      "myDataDownloadedDesc": "يحتوي الملف على البيانات التي تخصك.",
+      "requestProcessed": "أُغلق الطلب",
+      "requestProcessedDesc": "تم تسجيل الرد وتاريخه.",
+      "processError": "تعذّر إغلاق الطلب"
+    },
+    "myDataTitle": "بياناتي الشخصية",
+    "myDataDesc": "نزّل البيانات التي تخصك بصيغة قابلة للقراءة آليًا (المادتان 15 و20).",
+    "myData": "تنزيل",
+    "myDataScope": "جهات الاتصال والمكالمات والمهام التي أدخلتها لحساب مؤسستك غير مشمولة: فهي من سجلات المؤسسة، لا من حقك الفردي.",
+    "statusRefused": "مرفوضة",
+    "deadlineDue": "الرد مطلوب قبل {{date}}",
+    "deadlineOverdue": "متأخرة منذ {{date}}",
+    "processTitle": "الرد على هذا الطلب",
+    "processNotes": "السبب أو الرد المبلّغ إلى الشخص",
+    "processNotesPlaceholder": "إلزامي عند الرفض: الأسباب، والتذكير بحق الشكوى لدى سلطة الرقابة (المادة 12(4)).",
+    "processComplete": "وضع علامة تمت المعالجة",
+    "processRefuse": "رفض"
   },
   "assistantProactif": {
     "title": "المساعد الاستباقي",

@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 652,
+    "runtimeOperations": 654,
     "documentedOperations": 96,
-    "undocumentedOperations": 556
+    "undocumentedOperations": 558
   },
   "operations": [
     {
@@ -2263,6 +2263,14 @@
       ]
     },
     {
+      "method": "get",
+      "path": "/data-protection/my-data",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/data-protection.ts"
+      ]
+    },
+    {
       "method": "post",
       "path": "/data-protection/request",
       "documented": false,
@@ -2273,6 +2281,14 @@
     {
       "method": "get",
       "path": "/data-protection/requests",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/data-protection.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/data-protection/requests/{id}/process",
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/data-protection.ts"

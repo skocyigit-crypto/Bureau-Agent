@@ -4893,8 +4893,25 @@
       "exportError": "Exportfehler",
       "exportDownloaded": "Export heruntergeladen",
       "exportDownloadedDesc": "Ihre Daten wurden erfolgreich exportiert (Art. 20 DSGVO).",
-      "exportFailed": "Fehler beim Export"
-    }
+      "exportFailed": "Fehler beim Export",
+      "myDataDownloaded": "Ihre Daten wurden heruntergeladen",
+      "myDataDownloadedDesc": "Die Datei enthält die Sie betreffenden Daten.",
+      "requestProcessed": "Antrag geschlossen",
+      "requestProcessedDesc": "Antwort und Datum sind festgehalten.",
+      "processError": "Der Antrag konnte nicht geschlossen werden"
+    },
+    "myDataTitle": "Meine personenbezogenen Daten",
+    "myDataDesc": "Laden Sie die Sie betreffenden Daten in einem maschinenlesbaren Format herunter (Art. 15 und 20).",
+    "myData": "Herunterladen",
+    "myDataScope": "Kontakte, Anrufe und Aufgaben, die Sie für Ihre Organisation erfasst haben, sind nicht enthalten: Sie gehören zu deren Bestand, nicht zu Ihrem individuellen Recht.",
+    "statusRefused": "Abgelehnt",
+    "deadlineDue": "Antwort fällig bis {{date}}",
+    "deadlineOverdue": "Überfällig seit {{date}}",
+    "processTitle": "Diesen Antrag beantworten",
+    "processNotes": "Begründung oder Antwort an die Person",
+    "processNotesPlaceholder": "Bei Ablehnung verpflichtend: die Gründe und der Hinweis auf das Beschwerderecht bei der Aufsichtsbehörde (Art. 12(4)).",
+    "processComplete": "Als bearbeitet markieren",
+    "processRefuse": "Ablehnen"
   },
   "assistantProactif": {
     "title": "Proaktiver Assistent",

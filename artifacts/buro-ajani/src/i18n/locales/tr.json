@@ -4893,8 +4893,25 @@
       "exportError": "Dışa aktarma hatası",
       "exportDownloaded": "Dışa aktarma indirildi",
       "exportDownloadedDesc": "Verileriniz başarıyla dışa aktarıldı (Md. 20 RGPD).",
-      "exportFailed": "Dışa aktarma sırasında hata"
-    }
+      "exportFailed": "Dışa aktarma sırasında hata",
+      "myDataDownloaded": "Verileriniz indirildi",
+      "myDataDownloadedDesc": "Dosya sizinle ilgili verileri içeriyor.",
+      "requestProcessed": "Talep kapatıldı",
+      "requestProcessedDesc": "Yanıt ve tarihi kaydedildi.",
+      "processError": "Talep kapatılamadı"
+    },
+    "myDataTitle": "Kişisel verilerim",
+    "myDataDesc": "Sizinle ilgili verileri makinece okunabilir biçimde indirin (md. 15 ve 20).",
+    "myData": "İndir",
+    "myDataScope": "Kuruluşunuz adına girdiğiniz kişiler, aramalar ve görevler buna dahil değildir: onlar kuruluşun kaydıdır, sizin bireysel hakkınız değil.",
+    "statusRefused": "Reddedildi",
+    "deadlineDue": "Yanıt için son tarih: {{date}}",
+    "deadlineOverdue": "{{date}} tarihinden beri gecikmede",
+    "processTitle": "Bu talebi yanıtla",
+    "processNotes": "Kişiye iletilen gerekçe veya yanıt",
+    "processNotesPlaceholder": "Reddederken zorunlu: gerekçeler ve denetim makamına şikâyet hakkının hatırlatılması (md. 12(4)).",
+    "processComplete": "İşlendi olarak işaretle",
+    "processRefuse": "Reddet"
   },
   "assistantProactif": {
     "title": "Proaktif asistan",
