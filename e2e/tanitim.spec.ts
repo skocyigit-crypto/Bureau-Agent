@@ -58,18 +58,20 @@ test.describe("page d'accueil", () => {
 test.describe("pages obligatoires", () => {
   // Une page legale absente ou vide n'est pas un defaut d'affichage: elle rend
   // les conditions inopposables. Rien d'autre dans ce depot ne le verifierait.
+  // Chaque page porte le titre qu'on attend d'elle. Ce n'est pas cosmetique:
+  // c'est la SEULE chose qui distingue la vraie page de la page d'erreur.
   const pages = [
-    { path: "/mentions-legales", label: "mentions legales" },
-    { path: "/confidentialite", label: "politique de confidentialite" },
-    { path: "/cgu", label: "conditions d'utilisation" },
+    { path: "/mentions-legales", label: "mentions legales", titre: /mentions l[ée]gales/i },
+    { path: "/confidentialite", label: "politique de confidentialite", titre: /confidentialit[ée]/i },
+    { path: "/cgu", label: "conditions d'utilisation", titre: /conditions g[ée]n[ée]rales d'utilisation/i },
     // Publiee le 2026-09-03: vendre un abonnement sans CGV laisse le prix, la
     // duree, la resiliation et la responsabilite sans cadre contractuel.
-    { path: "/cgv", label: "conditions de vente" },
-    { path: "/dpa", label: "accord de sous-traitance" },
-    { path: "/accessibilite", label: "declaration d'accessibilite" },
+    { path: "/cgv", label: "conditions de vente", titre: /conditions g[ée]n[ée]rales de vente/i },
+    { path: "/dpa", label: "accord de sous-traitance", titre: /sous-traitance/i },
+    { path: "/accessibilite", label: "declaration d'accessibilite", titre: /d[ée]claration d'accessibilit[ée]/i },
   ];
 
-  for (const { path, label } of pages) {
+  for (const { path, label, titre } of pages) {
     test(`${label} : accessible et non vide`, async ({ page }) => {
       const response = await page.goto(path);
       expect(response?.status()).toBe(200);
@@ -79,7 +81,24 @@ test.describe("pages obligatoires", () => {
       // mesurait donc que la banniere cookies — 223 caracteres, et quatre
       // echecs qui ressemblaient a des pages legales vides. On attend le titre,
       // ce qui verifie au passage que le morceau charge vraiment.
-      await expect(page.locator("h1").first()).toBeVisible();
+      const h1 = page.locator("h1").first();
+      await expect(h1).toBeVisible();
+
+      // Le titre attendu, et pas seulement « un titre ».
+      //
+      // Mesure faite le 2026-09-03 contre la production, avant que /cgv et
+      // /dpa n'y soient deployees: les six tests passaient DEJA, alors que
+      // deux des pages n'existaient pas encore en ligne. C'est une
+      // application monopage — une adresse inconnue rend HTTP 200, affiche un
+      // `<h1>` (« Page introuvable ») et pese 333 caracteres, soit juste
+      // au-dessus du seuil de 300. Les trois assertions precedentes etaient
+      // donc vraies pour N'IMPORTE QUELLE adresse.
+      //
+      // Le test existait precisement pour attraper une page legale absente —
+      // « rien d'autre dans ce depot ne le verifierait » — et c'etait le seul
+      // cas qu'il ne pouvait pas voir. Un test toujours vert est pire qu'un
+      // test absent: il tient lieu de preuve.
+      await expect(h1, `${path} ne rend pas la page attendue`).toHaveText(titre);
 
       const text = await page.locator("main, body").first().innerText();
       expect(text.trim().length, `${path} semble vide`).toBeGreaterThan(300);

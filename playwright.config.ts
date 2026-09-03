@@ -26,6 +26,29 @@ import { defineConfig, devices } from "@playwright/test";
 const VITRINE_PORT = 4321;
 const APP_PORT = 4322;
 
+/**
+ * Viser un site DEJA en ligne plutot que le build local.
+ *
+ * Le commentaire ci-dessus rappelle la panne du 2 septembre: les builds ont
+ * echoue toute une journee et « le site en ligne restait l'ancien, sans que
+ * rien ne le dise ». Cette suite ne pouvait pourtant pas le dire non plus —
+ * elle construisait sa propre copie et la servait en local, donc elle
+ * affirmait « le code est juste », jamais « c'est bien ce code qui est
+ * servi ».
+ *
+ * Avec ces deux variables, le meme test s'execute contre la production:
+ *
+ *   VITRINE_BASE_URL=https://agentdebureau.fr npx playwright test --project=vitrine
+ *
+ * Les serveurs locaux ne sont alors pas demarres — les lancer construirait
+ * pendant plusieurs minutes une copie que personne ne regarde, et surtout
+ * cela laisserait croire qu'un echec vient du build local.
+ */
+const VITRINE_URL = process.env.VITRINE_BASE_URL || `http://127.0.0.1:${VITRINE_PORT}`;
+const APP_URL = process.env.APP_BASE_URL || `http://127.0.0.1:${APP_PORT}`;
+const VITRINE_IS_REMOTE = Boolean(process.env.VITRINE_BASE_URL);
+const APP_IS_REMOTE = Boolean(process.env.APP_BASE_URL);
+
 export default defineConfig({
   testDir: "./e2e",
   // Un test de fumee lent est un test qu'on finit par ne plus lancer.
@@ -46,14 +69,18 @@ export default defineConfig({
     {
       name: "vitrine",
       testMatch: /tanitim.spec.ts$/,
-      use: { ...devices["Desktop Chrome"], baseURL: `http://127.0.0.1:${VITRINE_PORT}` },
+      use: { ...devices["Desktop Chrome"], baseURL: VITRINE_URL },
     },
     {
       name: "application",
       testMatch: /app-shell.spec.ts$/,
-      use: { ...devices["Desktop Chrome"], baseURL: `http://127.0.0.1:${APP_PORT}` },
+      use: { ...devices["Desktop Chrome"], baseURL: APP_URL },
     },
   ],
+  // Un site distant se sert lui-meme: on ne demarre que les serveurs encore
+  // utiles. Construire une copie que personne ne regarde couterait plusieurs
+  // minutes, et ferait surtout passer un echec du site en ligne pour un
+  // echec du build local.
   webServer: [
     {
       // `preview` sert le BUILD, pas le serveur de developpement: c'est le
@@ -77,5 +104,5 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 300_000,
     },
-  ],
+  ].filter((_, index) => (index === 0 ? !VITRINE_IS_REMOTE : !APP_IS_REMOTE)),
 });
