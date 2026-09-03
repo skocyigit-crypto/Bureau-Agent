@@ -3,11 +3,13 @@ import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Platform,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -41,6 +43,8 @@ interface AgentStats {
 interface AgentStatus {
   running: boolean;
   lastRun?: string;
+  /** Passage quotidien automatique — decide par l'organisation, faux par defaut. */
+  autoRunEnabled?: boolean;
   stats: AgentStats;
   recentLogs: AgentLog[];
 }
@@ -78,7 +82,7 @@ function timeAgo(d: string, t: TFunction): string {
 }
 
 // ─── APERÇU ──────────────────────────────────────────────────────────────────
-function ApercuTab({ status, onRun, running }: { status: AgentStatus | null; onRun: () => void; running: boolean }) {
+function ApercuTab({ status, onRun, running, onToggleAutoRun, autoRunBusy }: { status: AgentStatus | null; onRun: () => void; running: boolean; onToggleAutoRun: (next: boolean) => void; autoRunBusy: boolean }) {
   const colors = useColors();
   const { t } = useTranslation();
 
@@ -117,6 +121,23 @@ function ApercuTab({ status, onRun, running }: { status: AgentStatus | null; onR
             {running ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="play" size={16} color="#fff" />}
             <Text style={sa.btnText}>{running ? t("superAgentScreen.agentActive") : t("superAgentScreen.runFullCycle")}</Text>
           </Pressable>
+        </View>
+
+        {/* Passage quotidien automatique. Eteint par defaut: l'agent cree des
+            taches et remonte des priorites, donc c'est l'organisation qui
+            decide de le laisser tourner seul. */}
+        <View style={[sa.autoRunRow, { borderTopColor: colors.border }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={[sa.autoRunTitle, { color: colors.foreground }]}>{t("superAgentScreen.autoRunTitle")}</Text>
+            <Text style={[sa.sub, { color: colors.mutedForeground }]}>
+              {status?.autoRunEnabled ? t("superAgentScreen.autoRunOn") : t("superAgentScreen.autoRunOff")}
+            </Text>
+          </View>
+          <Switch
+            value={Boolean(status?.autoRunEnabled)}
+            onValueChange={onToggleAutoRun}
+            disabled={autoRunBusy}
+          />
         </View>
       </View>
 
@@ -495,6 +516,7 @@ export default function SuperAgentScreen() {
   const [status, setStatus] = useState<AgentStatus | null>(null);
   const [running, setRunning] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [autoRunBusy, setAutoRunBusy] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
@@ -531,6 +553,32 @@ export default function SuperAgentScreen() {
       if (res.ok) { startPolling(); }
       else setRunning(false);
     } catch { setRunning(false); }
+  }
+
+  /**
+   * Le reglage n'est affiche comme change qu'apres confirmation du serveur:
+   * un interrupteur qui s'allume tout seul, alors que le serveur a refuse,
+   * ferait croire a un passage quotidien qui n'aura jamais lieu.
+   */
+  async function toggleAutoRun(next: boolean) {
+    setAutoRunBusy(true);
+    try {
+      const res = await fetchAuth(`${API_BASE}/api/ai/super-agent/auto-run`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: next }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setStatus((prev) => (prev ? { ...prev, autoRunEnabled: d.autoRunEnabled } : prev));
+      } else {
+        Alert.alert(t("superAgentScreen.autoRunTitle"), t("superAgentScreen.autoRunFailed"));
+      }
+    } catch {
+      Alert.alert(t("superAgentScreen.autoRunTitle"), t("superAgentScreen.autoRunFailed"));
+    } finally {
+      setAutoRunBusy(false);
+    }
   }
 
   function onRefresh() { setRefreshing(true); loadStatus(); }
@@ -583,7 +631,7 @@ export default function SuperAgentScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={tab === "journal" ? undefined : <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={activeTab.color} />}
       >
-        {tab === "apercu"   && <ApercuTab  status={status}   onRun={runCycle} running={running} />}
+        {tab === "apercu"   && <ApercuTab  status={status}   onRun={runCycle} running={running} onToggleAutoRun={toggleAutoRun} autoRunBusy={autoRunBusy} />}
         {tab === "email"    && <EmailTab   onRun={runCycle} running={running} logs={logs} />}
         {tab === "chantier" && <ChantierTab />}
         {tab === "journal"  && <JournalTab logs={logs} refreshing={refreshing} onRefresh={onRefresh} />}
@@ -610,6 +658,8 @@ const sa = StyleSheet.create({
   cardTitle: { fontSize: 14, fontFamily: "Inter_700Bold" },
   h2: { fontSize: 15, fontFamily: "Inter_700Bold" },
   sub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 1 },
+  autoRunRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 12, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth },
+  autoRunTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   sectionLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.5 },
   bodyText: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 19 },
   fieldLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold", marginBottom: 4 },

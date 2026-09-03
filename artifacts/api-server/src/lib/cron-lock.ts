@@ -16,6 +16,7 @@ export const CRON_LOCK_NAMESPACE = {
   aiInsights: 4305,
   tenantBackup: 4306,
   autopilot: 4307,
+  superAgent: 4308,
 } as const;
 
 /**
