@@ -40,6 +40,14 @@
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
+  <!-- Accord de sous-traitance (RGPD art. 28) : obligatoire des lors que des
+       donnees personnelles sont traitees pour le compte d'un client, et
+       premiere piece reclamee par un service achats. -->
+  <url>
+    <loc>https://agentdebureau.fr/dpa</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
   <!-- Declaration d'accessibilite : page reglementaire (RGAA / directive
        (UE) 2016-2102), donc elle doit etre trouvable. Elle etait servie par
        l'application mais absente d'ici — la meme omission que pour /gizlilik

@@ -40,7 +40,7 @@ describe("pages publiees", () => {
   it("n'affichent aucun marqueur de valeur en attente", () => {
     // Une page legale affichant « à completer » est un defaut plus visible
     // encore que la mention manquante.
-    for (const file of ["mentions-legales.tsx", "confidentialite.tsx", "cgu.tsx", "cgv.tsx", "accessibilite.tsx"]) {
+    for (const file of ["mentions-legales.tsx", "confidentialite.tsx", "cgu.tsx", "cgv.tsx", "dpa.tsx", "accessibilite.tsx"]) {
       const markers = readPage(file).match(PENDING) ?? [];
       expect(markers, `${file}: ${markers.join(" | ")}`).toEqual([]);
     }

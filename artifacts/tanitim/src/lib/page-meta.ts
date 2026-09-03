@@ -38,6 +38,12 @@ export const PAGE_META = {
       "Conditions générales de vente d'Ajant Bureau : prix, durée, résiliation, paiement et réversibilité des données.",
     path: "/cgv",
   },
+  dpa: {
+    title: "Accord de sous-traitance (DPA)",
+    description:
+      "Accord de sous-traitance RGPD d'Ajant Bureau : roles, securite, sous-traitants ulterieurs, transferts et sort des donnees.",
+    path: "/dpa",
+  },
   accessibilite: {
     title: "Déclaration d'accessibilité",
     description:
