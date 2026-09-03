@@ -137,7 +137,7 @@ export function GoogleCredentialsCard() {
         <div className="space-y-3">
           <div>
             <Label className="text-xs">{t("googleCredentials.clientId")}</Label>
-            <Input
+            <Input aria-label={t("googleCredentials.clientId")}
               value={clientId}
               onChange={(e) => setClientId(e.target.value)}
               placeholder="123456789-xxxx.apps.googleusercontent.com"
@@ -146,7 +146,7 @@ export function GoogleCredentialsCard() {
           </div>
           <div>
             <Label className="text-xs">{t("googleCredentials.clientSecret")}</Label>
-            <Input
+            <Input aria-label={t("googleCredentials.clientSecret")}
               type="password"
               value={clientSecret}
               onChange={(e) => setClientSecret(e.target.value)}

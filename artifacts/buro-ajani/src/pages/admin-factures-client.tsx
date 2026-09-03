@@ -268,7 +268,7 @@ export default function AdminFacturesClientPage() {
             </div>
             <div><Label className="text-xs">{t("adminFacturesClient.form.title")} *</Label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">{t("adminFacturesClient.form.reference")}</Label><Input value={form.reference} onChange={e => setForm(f => ({ ...f, reference: e.target.value }))} placeholder="FAC-..." /></div>
+              <div><Label className="text-xs">{t("adminFacturesClient.form.reference")}</Label><Input aria-label={t("adminFacturesClient.form.reference")} value={form.reference} onChange={e => setForm(f => ({ ...f, reference: e.target.value }))} placeholder="FAC-..." /></div>
               <div><Label className="text-xs">{t("adminFacturesClient.form.status")}</Label>
                 <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -278,19 +278,19 @@ export default function AdminFacturesClientPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs">{t("adminFacturesClient.form.client")} *</Label><Input value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} /></div>
-              <div><Label className="text-xs">{t("adminFacturesClient.form.company")}</Label><Input value={form.clientCompany} onChange={e => setForm(f => ({ ...f, clientCompany: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("adminFacturesClient.form.company")}</Label><Input aria-label={t("adminFacturesClient.form.company")} value={form.clientCompany} onChange={e => setForm(f => ({ ...f, clientCompany: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">{t("adminFacturesClient.form.email")}</Label><Input type="email" value={form.clientEmail} onChange={e => setForm(f => ({ ...f, clientEmail: e.target.value }))} /></div>
-              <div><Label className="text-xs">{t("adminFacturesClient.form.paymentMethod")}</Label><Input value={form.paymentMethod} onChange={e => setForm(f => ({ ...f, paymentMethod: e.target.value }))} placeholder={t("adminFacturesClient.form.paymentPlaceholder")} /></div>
+              <div><Label className="text-xs">{t("adminFacturesClient.form.email")}</Label><Input aria-label={t("adminFacturesClient.form.email")} type="email" value={form.clientEmail} onChange={e => setForm(f => ({ ...f, clientEmail: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("adminFacturesClient.form.paymentMethod")}</Label><Input aria-label={t("adminFacturesClient.form.paymentMethod")} value={form.paymentMethod} onChange={e => setForm(f => ({ ...f, paymentMethod: e.target.value }))} placeholder={t("adminFacturesClient.form.paymentPlaceholder")} /></div>
             </div>
             <LineItemsEditor items={form.items} onChange={(items) => setForm(f => ({ ...f, items }))} autoliquidation={form.isAutoliquidation} currency={form.currency} />
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">{t("adminFacturesClient.form.paidAmount")}</Label><Input type="number" value={form.paidAmount} onChange={e => setForm(f => ({ ...f, paidAmount: e.target.value }))} placeholder="0" /></div>
+              <div><Label className="text-xs">{t("adminFacturesClient.form.paidAmount")}</Label><Input aria-label={t("adminFacturesClient.form.paidAmount")} type="number" value={form.paidAmount} onChange={e => setForm(f => ({ ...f, paidAmount: e.target.value }))} placeholder="0" /></div>
               <div className="flex items-center gap-2 pt-5"><input id="autoliq" type="checkbox" checked={form.isAutoliquidation} onChange={e => setForm(f => ({ ...f, isAutoliquidation: e.target.checked }))} /><Label htmlFor="autoliq" className="text-xs">{t("adminFacturesClient.form.autoliq")}</Label></div>
             </div>
-            <div><Label className="text-xs">{t("adminFacturesClient.form.dueDate")}</Label><Input type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} /></div>
-            <div><Label className="text-xs">{t("adminFacturesClient.form.notes")}</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} /></div>
+            <div><Label className="text-xs">{t("adminFacturesClient.form.dueDate")}</Label><Input aria-label={t("adminFacturesClient.form.dueDate")} type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} /></div>
+            <div><Label className="text-xs">{t("adminFacturesClient.form.notes")}</Label><Textarea aria-label={t("adminFacturesClient.form.notes")} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.cancel")}</Button>

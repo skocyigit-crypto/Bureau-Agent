@@ -201,7 +201,7 @@ export default function TresoreriePage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="cash">{t("tresorerie.settings.cashLabel")}</Label>
-                  <Input
+                  <Input aria-label={t("tresorerie.settings.cashLabel")}
                     id="cash"
                     type="number"
                     min="0"
@@ -214,7 +214,7 @@ export default function TresoreriePage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="fixed">{t("tresorerie.settings.fixedLabel")}</Label>
-                  <Input
+                  <Input aria-label={t("tresorerie.settings.fixedLabel")}
                     id="fixed"
                     type="number"
                     min="0"

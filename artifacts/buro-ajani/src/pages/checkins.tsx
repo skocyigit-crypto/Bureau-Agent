@@ -775,7 +775,7 @@ export default function CheckinsPage() {
             </div>
             <div>
               <Label htmlFor="location">{t("checkins.newDialog.locationLabel")}</Label>
-              <Input
+              <Input aria-label={t("checkins.newDialog.locationLabel")}
                 id="location"
                 placeholder={t("checkins.newDialog.locationPlaceholder")}
                 value={newCheckin.location}
@@ -784,7 +784,7 @@ export default function CheckinsPage() {
             </div>
             <div>
               <Label htmlFor="notes">{t("checkins.newDialog.notesLabel")}</Label>
-              <Textarea
+              <Textarea aria-label={t("checkins.newDialog.notesLabel")}
                 id="notes"
                 placeholder={t("checkins.newDialog.notesPlaceholder")}
                 value={newCheckin.notes}
@@ -896,11 +896,11 @@ export default function CheckinsPage() {
             <div className="space-y-3 border-t pt-3">
               <div>
                 <Label className="text-xs text-muted-foreground">{t("checkins.detail.location")}</Label>
-                <Input value={editCheckinLocation} onChange={e => setEditCheckinLocation(e.target.value)} placeholder={t("checkins.detail.locationPlaceholder")} className="mt-1" />
+                <Input aria-label={t("checkins.detail.location")} value={editCheckinLocation} onChange={e => setEditCheckinLocation(e.target.value)} placeholder={t("checkins.detail.locationPlaceholder")} className="mt-1" />
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">{t("checkins.detail.notes")}</Label>
-                <Textarea value={editCheckinNotes} onChange={e => setEditCheckinNotes(e.target.value)} placeholder={t("checkins.detail.notesPlaceholder")} className="mt-1 min-h-[80px]" />
+                <Textarea aria-label={t("checkins.detail.notes")} value={editCheckinNotes} onChange={e => setEditCheckinNotes(e.target.value)} placeholder={t("checkins.detail.notesPlaceholder")} className="mt-1 min-h-[80px]" />
               </div>
             </div>
           )}
@@ -923,7 +923,7 @@ export default function CheckinsPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="sync-from">{t("checkins.sync.dateFrom")}</Label>
-                <Input
+                <Input aria-label={t("checkins.sync.dateFrom")}
                   id="sync-from"
                   type="date"
                   value={googleSync.dateFrom}
@@ -933,7 +933,7 @@ export default function CheckinsPage() {
               </div>
               <div>
                 <Label htmlFor="sync-to">{t("checkins.sync.dateTo")}</Label>
-                <Input
+                <Input aria-label={t("checkins.sync.dateTo")}
                   id="sync-to"
                   type="date"
                   value={googleSync.dateTo}

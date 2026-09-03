@@ -340,7 +340,7 @@ export default function DataProtectionPage() {
                   </Select>
 
                   <Label>{t("dataProtection.requestDetails")}</Label>
-                  <Textarea
+                  <Textarea aria-label={t("dataProtection.requestDetails")}
                     placeholder={t("dataProtection.requestDetailsPlaceholder")}
                     value={requestDetails}
                     onChange={e => setRequestDetails(e.target.value)}
@@ -505,7 +505,7 @@ export default function DataProtectionPage() {
                     {isAdmin && req.status === "pending" && (
                       <div className="mt-3 pt-3 border-t space-y-2">
                         <Label htmlFor={`notes-${req.id}`} className="text-xs">{t("dataProtection.processNotes")}</Label>
-                        <Textarea
+                        <Textarea aria-label={t("dataProtection.processNotes")}
                           id={`notes-${req.id}`}
                           rows={2}
                           className="text-xs"

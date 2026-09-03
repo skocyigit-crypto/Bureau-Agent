@@ -521,10 +521,10 @@ function PhoneTab() {
           <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Phone className="h-4 w-4 text-emerald-500" />{t("commandantIa.phone.smartTitle")}</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-2 gap-2">
-              <div><Label className="text-xs">{t("commandantIa.phone.phoneLabel")}</Label><Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+33 6 12 34 56 78" /></div>
-              <div><Label className="text-xs">{t("commandantIa.phone.nameLabel")}</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="Jean Dupont" /></div>
+              <div><Label className="text-xs">{t("commandantIa.phone.phoneLabel")}</Label><Input aria-label={t("commandantIa.phone.phoneLabel")} value={phone} onChange={e => setPhone(e.target.value)} placeholder="+33 6 12 34 56 78" /></div>
+              <div><Label className="text-xs">{t("commandantIa.phone.nameLabel")}</Label><Input aria-label={t("commandantIa.phone.nameLabel")} value={name} onChange={e => setName(e.target.value)} placeholder="Jean Dupont" /></div>
             </div>
-            <div><Label className="text-xs">{t("commandantIa.phone.notesLabel")}</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder={t("commandantIa.phone.notesPlaceholder")} rows={3} /></div>
+            <div><Label className="text-xs">{t("commandantIa.phone.notesLabel")}</Label><Textarea aria-label={t("commandantIa.phone.notesLabel")} value={notes} onChange={e => setNotes(e.target.value)} placeholder={t("commandantIa.phone.notesPlaceholder")} rows={3} /></div>
             <div className="flex gap-2">
               <Button onClick={getSmartResponse} disabled={loading} className="flex-1 bg-emerald-600 hover:bg-emerald-700">{loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Zap className="h-4 w-4 mr-2" />}{t("commandantIa.phone.aiResponseBtn")}</Button>
               <Button onClick={compileCall} disabled={compiling} variant="outline" className="flex-1">{compiling ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileText className="h-4 w-4 mr-2" />}{t("commandantIa.phone.compileBtn")}</Button>
@@ -610,9 +610,9 @@ function EmailTab() {
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Mail className="h-4 w-4 text-blue-500" />{t("commandantIa.email.smartTitle")}</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            <div><Label className="text-xs">{t("commandantIa.email.from")}</Label><Input value={emailFrom} onChange={e => setEmailFrom(e.target.value)} placeholder="contact@entreprise.fr" /></div>
-            <div><Label className="text-xs">{t("commandantIa.email.subject")}</Label><Input value={emailSubject} onChange={e => setEmailSubject(e.target.value)} placeholder={t("commandantIa.email.subjectPlaceholder")} /></div>
-            <div><Label className="text-xs">{t("commandantIa.email.body")}</Label><Textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} placeholder={t("commandantIa.email.bodyPlaceholder")} rows={4} /></div>
+            <div><Label className="text-xs">{t("commandantIa.email.from")}</Label><Input aria-label={t("commandantIa.email.from")} value={emailFrom} onChange={e => setEmailFrom(e.target.value)} placeholder="contact@entreprise.fr" /></div>
+            <div><Label className="text-xs">{t("commandantIa.email.subject")}</Label><Input aria-label={t("commandantIa.email.subject")} value={emailSubject} onChange={e => setEmailSubject(e.target.value)} placeholder={t("commandantIa.email.subjectPlaceholder")} /></div>
+            <div><Label className="text-xs">{t("commandantIa.email.body")}</Label><Textarea aria-label={t("commandantIa.email.body")} value={emailBody} onChange={e => setEmailBody(e.target.value)} placeholder={t("commandantIa.email.bodyPlaceholder")} rows={4} /></div>
             <div><Label className="text-xs">{t("commandantIa.email.tone")}</Label>
               <Select value={tone} onValueChange={setTone}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>
                 <SelectItem value="professionnel">{t("commandantIa.email.toneOpt.professionnel")}</SelectItem>
@@ -695,10 +695,10 @@ function MeetingsTab() {
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Calendar className="h-4 w-4 text-indigo-500" />{t("commandantIa.meetings.title")}</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            <div><Label className="text-xs">{t("commandantIa.meetings.titleLabel")}</Label><Input value={title} onChange={e => setTitle(e.target.value)} placeholder={t("commandantIa.meetings.titlePlaceholder")} /></div>
-            <div><Label className="text-xs">{t("commandantIa.meetings.participants")}</Label><Input value={participants} onChange={e => setParticipants(e.target.value)} placeholder="Jean, Marie, Pierre" /></div>
-            <div><Label className="text-xs">{t("commandantIa.meetings.duration")}</Label><Input value={duration} onChange={e => setDuration(e.target.value)} type="number" /></div>
-            <div><Label className="text-xs">{t("commandantIa.meetings.notes")}</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder={t("commandantIa.meetings.notesPlaceholder")} rows={6} /></div>
+            <div><Label className="text-xs">{t("commandantIa.meetings.titleLabel")}</Label><Input aria-label={t("commandantIa.meetings.titleLabel")} value={title} onChange={e => setTitle(e.target.value)} placeholder={t("commandantIa.meetings.titlePlaceholder")} /></div>
+            <div><Label className="text-xs">{t("commandantIa.meetings.participants")}</Label><Input aria-label={t("commandantIa.meetings.participants")} value={participants} onChange={e => setParticipants(e.target.value)} placeholder="Jean, Marie, Pierre" /></div>
+            <div><Label className="text-xs">{t("commandantIa.meetings.duration")}</Label><Input aria-label={t("commandantIa.meetings.duration")} value={duration} onChange={e => setDuration(e.target.value)} type="number" /></div>
+            <div><Label className="text-xs">{t("commandantIa.meetings.notes")}</Label><Textarea aria-label={t("commandantIa.meetings.notes")} value={notes} onChange={e => setNotes(e.target.value)} placeholder={t("commandantIa.meetings.notesPlaceholder")} rows={6} /></div>
             <Button onClick={compileMeeting} disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700">{loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Brain className="h-4 w-4 mr-2" />}{t("commandantIa.meetings.compileBtn")}</Button>
           </CardContent>
         </Card>
@@ -918,10 +918,10 @@ function DriveTab() {
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Send className="h-4 w-4 text-blue-500" />{t("commandantIa.drive.sendTitle")}</CardTitle><CardDescription className="text-xs">{t("commandantIa.drive.sendDesc")}</CardDescription></CardHeader>
           <CardContent className="space-y-3">
-            <div><Label className="text-xs">{t("commandantIa.drive.recipient")}</Label><Input value={recipientEmail} onChange={e => setRecipientEmail(e.target.value)} placeholder="contact@entreprise.fr" /></div>
-            <div><Label className="text-xs">{t("commandantIa.drive.subject")}</Label><Input value={subject} onChange={e => setSubject(e.target.value)} placeholder={t("commandantIa.drive.subjectPlaceholder")} /></div>
-            <div><Label className="text-xs">{t("commandantIa.drive.fileName")}</Label><Input value={fileName} onChange={e => setFileName(e.target.value)} placeholder="rapport-mensuel.pdf" /></div>
-            <div><Label className="text-xs">{t("commandantIa.drive.message")}</Label><Textarea value={message} onChange={e => setMessage(e.target.value)} placeholder={t("commandantIa.drive.messagePlaceholder")} rows={2} /></div>
+            <div><Label className="text-xs">{t("commandantIa.drive.recipient")}</Label><Input aria-label={t("commandantIa.drive.recipient")} value={recipientEmail} onChange={e => setRecipientEmail(e.target.value)} placeholder="contact@entreprise.fr" /></div>
+            <div><Label className="text-xs">{t("commandantIa.drive.subject")}</Label><Input aria-label={t("commandantIa.drive.subject")} value={subject} onChange={e => setSubject(e.target.value)} placeholder={t("commandantIa.drive.subjectPlaceholder")} /></div>
+            <div><Label className="text-xs">{t("commandantIa.drive.fileName")}</Label><Input aria-label={t("commandantIa.drive.fileName")} value={fileName} onChange={e => setFileName(e.target.value)} placeholder="rapport-mensuel.pdf" /></div>
+            <div><Label className="text-xs">{t("commandantIa.drive.message")}</Label><Textarea aria-label={t("commandantIa.drive.message")} value={message} onChange={e => setMessage(e.target.value)} placeholder={t("commandantIa.drive.messagePlaceholder")} rows={2} /></div>
             <Button onClick={sendFile} disabled={loading} className="w-full">{loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}{t("commandantIa.drive.sendBtn")}</Button>
           </CardContent>
         </Card>
@@ -929,8 +929,8 @@ function DriveTab() {
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><HardDrive className="h-4 w-4 text-emerald-500" />{t("commandantIa.drive.saveTitle")}</CardTitle><CardDescription className="text-xs">{t("commandantIa.drive.saveDesc")}</CardDescription></CardHeader>
           <CardContent className="space-y-3">
-            <div><Label className="text-xs">{t("commandantIa.drive.fileName")}</Label><Input value={attachmentName} onChange={e => setAttachmentName(e.target.value)} placeholder="contrat-signe.pdf" /></div>
-            <div><Label className="text-xs">{t("commandantIa.drive.originalEmail")}</Label><Input value={emailSubject} onChange={e => setEmailSubject(e.target.value)} placeholder="Re: Contrat de prestation" /></div>
+            <div><Label className="text-xs">{t("commandantIa.drive.fileName")}</Label><Input aria-label={t("commandantIa.drive.fileName")} value={attachmentName} onChange={e => setAttachmentName(e.target.value)} placeholder="contrat-signe.pdf" /></div>
+            <div><Label className="text-xs">{t("commandantIa.drive.originalEmail")}</Label><Input aria-label={t("commandantIa.drive.originalEmail")} value={emailSubject} onChange={e => setEmailSubject(e.target.value)} placeholder="Re: Contrat de prestation" /></div>
             <Button onClick={saveAttachment} disabled={saving} className="w-full bg-emerald-600 hover:bg-emerald-700">{saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <HardDrive className="h-4 w-4 mr-2" />}{t("commandantIa.drive.saveBtn")}</Button>
           </CardContent>
         </Card>
@@ -1063,10 +1063,10 @@ function PhotoTab() {
               {t("commandantIa.photo.detectBtn")}
             </Button>
             <div className="grid grid-cols-2 gap-2">
-              <div><Label className="text-xs">{t("commandantIa.photo.latitude")}</Label><Input value={latitude} onChange={e => setLatitude(e.target.value)} placeholder="48.8566" /></div>
-              <div><Label className="text-xs">{t("commandantIa.photo.longitude")}</Label><Input value={longitude} onChange={e => setLongitude(e.target.value)} placeholder="2.3522" /></div>
+              <div><Label className="text-xs">{t("commandantIa.photo.latitude")}</Label><Input aria-label={t("commandantIa.photo.latitude")} value={latitude} onChange={e => setLatitude(e.target.value)} placeholder="48.8566" /></div>
+              <div><Label className="text-xs">{t("commandantIa.photo.longitude")}</Label><Input aria-label={t("commandantIa.photo.longitude")} value={longitude} onChange={e => setLongitude(e.target.value)} placeholder="2.3522" /></div>
             </div>
-            <div><Label className="text-xs">{t("commandantIa.photo.description")}</Label><Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder={t("commandantIa.photo.descPlaceholder")} rows={2} /></div>
+            <div><Label className="text-xs">{t("commandantIa.photo.description")}</Label><Textarea aria-label={t("commandantIa.photo.description")} value={description} onChange={e => setDescription(e.target.value)} placeholder={t("commandantIa.photo.descPlaceholder")} rows={2} /></div>
             <div className="grid grid-cols-2 gap-2">
               <div><Label className="text-xs">{t("commandantIa.photo.linkTo")}</Label>
                 <Select value={linkedEntity} onValueChange={setLinkedEntity}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>
@@ -1075,7 +1075,7 @@ function PhotoTab() {
                   <SelectItem value="appel">{t("commandantIa.photo.link.appel")}</SelectItem>
                 </SelectContent></Select>
               </div>
-              <div><Label className="text-xs">{t("commandantIa.photo.idOptional")}</Label><Input value={linkedEntityId} onChange={e => setLinkedEntityId(e.target.value)} placeholder={t("commandantIa.photo.idPlaceholder")} type="number" /></div>
+              <div><Label className="text-xs">{t("commandantIa.photo.idOptional")}</Label><Input aria-label={t("commandantIa.photo.idOptional")} value={linkedEntityId} onChange={e => setLinkedEntityId(e.target.value)} placeholder={t("commandantIa.photo.idPlaceholder")} type="number" /></div>
             </div>
             <Button onClick={submitLocation} disabled={loading || (!latitude && !longitude)} className="w-full bg-rose-600 hover:bg-rose-700">
               {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <MapPin className="h-4 w-4 mr-2" />}{t("commandantIa.photo.saveBtn")}
@@ -1207,9 +1207,9 @@ function RappelsTab() {
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Send className="h-4 w-4 text-blue-500" />{t("commandantIa.rappels.individualTitle")}</CardTitle><CardDescription className="text-xs">{t("commandantIa.rappels.individualDesc")}</CardDescription></CardHeader>
           <CardContent className="space-y-3">
-            <div><Label className="text-xs">{t("commandantIa.rappels.taskId")}</Label><Input placeholder="Ex: 42" type="number" value={reminderTaskId} onChange={e => setReminderTaskId(e.target.value)} /></div>
-            <div><Label className="text-xs">{t("commandantIa.rappels.recipient")}</Label><Input value={reminderEmail} onChange={e => setReminderEmail(e.target.value)} placeholder="collaborateur@example.com" /></div>
-            <div><Label className="text-xs">{t("commandantIa.rappels.customMessage")}</Label><Textarea value={customMessage} onChange={e => setCustomMessage(e.target.value)} placeholder={t("commandantIa.rappels.customPlaceholder")} rows={3} /></div>
+            <div><Label className="text-xs">{t("commandantIa.rappels.taskId")}</Label><Input aria-label={t("commandantIa.rappels.taskId")} placeholder="Ex: 42" type="number" value={reminderTaskId} onChange={e => setReminderTaskId(e.target.value)} /></div>
+            <div><Label className="text-xs">{t("commandantIa.rappels.recipient")}</Label><Input aria-label={t("commandantIa.rappels.recipient")} value={reminderEmail} onChange={e => setReminderEmail(e.target.value)} placeholder="collaborateur@example.com" /></div>
+            <div><Label className="text-xs">{t("commandantIa.rappels.customMessage")}</Label><Textarea aria-label={t("commandantIa.rappels.customMessage")} value={customMessage} onChange={e => setCustomMessage(e.target.value)} placeholder={t("commandantIa.rappels.customPlaceholder")} rows={3} /></div>
             <Button
               onClick={() => {
                 const taskId = parseInt(reminderTaskId || "0");

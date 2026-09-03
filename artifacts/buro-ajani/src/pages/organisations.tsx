@@ -2135,20 +2135,20 @@ export default function OrganisationsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>{t("organisationsPage.createDialog.phone")}</Label>
-                  <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder={t("organisationsPage.createDialog.phonePlaceholder")} />
+                  <Input aria-label={t("organisationsPage.createDialog.phone")} value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder={t("organisationsPage.createDialog.phonePlaceholder")} />
                 </div>
                 <div>
                   <Label>{t("organisationsPage.createDialog.contactEmail")}</Label>
-                  <Input type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} placeholder={t("organisationsPage.createDialog.contactEmailPlaceholder")} />
+                  <Input aria-label={t("organisationsPage.createDialog.contactEmail")} type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} placeholder={t("organisationsPage.createDialog.contactEmailPlaceholder")} />
                 </div>
               </div>
               <div>
                 <Label>{t("organisationsPage.createDialog.address")}</Label>
-                <Input value={formAddress} onChange={(e) => setFormAddress(e.target.value)} placeholder={t("organisationsPage.createDialog.addressPlaceholder")} />
+                <Input aria-label={t("organisationsPage.createDialog.address")} value={formAddress} onChange={(e) => setFormAddress(e.target.value)} placeholder={t("organisationsPage.createDialog.addressPlaceholder")} />
               </div>
               <div>
                 <Label>{t("organisationsPage.createDialog.siret")}</Label>
-                <Input value={formSiret} onChange={(e) => setFormSiret(e.target.value)} placeholder={t("organisationsPage.createDialog.siretPlaceholder")} />
+                <Input aria-label={t("organisationsPage.createDialog.siret")} value={formSiret} onChange={(e) => setFormSiret(e.target.value)} placeholder={t("organisationsPage.createDialog.siretPlaceholder")} />
               </div>
               <div>
                 <Label>{t("organisationsPage.createDialog.licensePlan")}</Label>
@@ -2169,16 +2169,16 @@ export default function OrganisationsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>{t("organisationsPage.createDialog.firstName")}</Label>
-                  <Input value={formAdminPrenom} onChange={(e) => setFormAdminPrenom(e.target.value)} placeholder={t("organisationsPage.createDialog.firstNamePlaceholder")} />
+                  <Input aria-label={t("organisationsPage.createDialog.firstName")} value={formAdminPrenom} onChange={(e) => setFormAdminPrenom(e.target.value)} placeholder={t("organisationsPage.createDialog.firstNamePlaceholder")} />
                 </div>
                 <div>
                   <Label>{t("organisationsPage.createDialog.lastName")}</Label>
-                  <Input value={formAdminNom} onChange={(e) => setFormAdminNom(e.target.value)} placeholder={t("organisationsPage.createDialog.lastNamePlaceholder")} />
+                  <Input aria-label={t("organisationsPage.createDialog.lastName")} value={formAdminNom} onChange={(e) => setFormAdminNom(e.target.value)} placeholder={t("organisationsPage.createDialog.lastNamePlaceholder")} />
                 </div>
               </div>
               <div>
                 <Label>{t("organisationsPage.createDialog.loginEmail")}</Label>
-                <Input type="email" value={formAdminEmail} onChange={(e) => setFormAdminEmail(e.target.value)} placeholder={t("organisationsPage.createDialog.loginEmailPlaceholder")} />
+                <Input aria-label={t("organisationsPage.createDialog.loginEmail")} type="email" value={formAdminEmail} onChange={(e) => setFormAdminEmail(e.target.value)} placeholder={t("organisationsPage.createDialog.loginEmailPlaceholder")} />
               </div>
               <p className="text-[11px] text-muted-foreground">{t("organisationsPage.createDialog.adminHint")}</p>
             </div>
@@ -2204,19 +2204,19 @@ export default function OrganisationsPage() {
           <div className="space-y-4">
             <div>
               <Label>{t("organisationsPage.editDialog.name")}</Label>
-              <Input value={formName} onChange={(e) => setFormName(e.target.value)} />
+              <Input aria-label={t("organisationsPage.editDialog.name")} value={formName} onChange={(e) => setFormName(e.target.value)} />
             </div>
             <div>
               <Label>{t("organisationsPage.editDialog.email")}</Label>
-              <Input type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
+              <Input aria-label={t("organisationsPage.editDialog.email")} type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
             </div>
             <div>
               <Label>{t("organisationsPage.editDialog.phone")}</Label>
-              <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} />
+              <Input aria-label={t("organisationsPage.editDialog.phone")} value={formPhone} onChange={(e) => setFormPhone(e.target.value)} />
             </div>
             <div>
               <Label>{t("organisationsPage.editDialog.address")}</Label>
-              <Input value={formAddress} onChange={(e) => setFormAddress(e.target.value)} />
+              <Input aria-label={t("organisationsPage.editDialog.address")} value={formAddress} onChange={(e) => setFormAddress(e.target.value)} />
             </div>
             <div className="flex items-center justify-between">
               <Label>{t("organisationsPage.editDialog.orgActive")}</Label>
@@ -2283,7 +2283,7 @@ export default function OrganisationsPage() {
             {licenseDialog?.action === "extend-trial" && (
               <div className="space-y-1.5">
                 <Label className="text-xs">{t("organisationsPage.licenseDialog.daysLabel")}</Label>
-                <Input
+                <Input aria-label={t("organisationsPage.licenseDialog.daysLabel")}
                   value={trialDays}
                   onChange={(e) => setTrialDays(e.target.value.replace(/\D/g, "").slice(0, 3))}
                   inputMode="numeric"

@@ -232,7 +232,7 @@ export function TabEmailExpediteur() {
                   <div className="flex items-end gap-2 flex-wrap">
                     <div className="flex-1 min-w-[220px]">
                       <Label className="text-xs">{t("settingsEmailExpediteur.testAddressLabel")}</Label>
-                      <Input value={testEmail} onChange={(e) => setTestEmail(e.target.value)} placeholder={t("settingsEmailExpediteur.testPlaceholder")} />
+                      <Input aria-label={t("settingsEmailExpediteur.testAddressLabel")} value={testEmail} onChange={(e) => setTestEmail(e.target.value)} placeholder={t("settingsEmailExpediteur.testPlaceholder")} />
                     </div>
                     <Button variant="secondary" onClick={() => sendTest(p.id)} disabled={testingId === p.id} className="gap-2">
                       {testingId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
@@ -269,7 +269,7 @@ export function TabEmailExpediteur() {
                       </p>
                       <div>
                         <Label className="text-xs">{t("settingsEmailExpediteur.nameLabel")}</Label>
-                        <Input value={configLabel} onChange={(e) => setConfigLabel(e.target.value)} placeholder={selected.displayName} />
+                        <Input aria-label={t("settingsEmailExpediteur.nameLabel")} value={configLabel} onChange={(e) => setConfigLabel(e.target.value)} placeholder={selected.displayName} />
                       </div>
                       {selected.configFields.map((f) => (
                         <div key={f.key}>

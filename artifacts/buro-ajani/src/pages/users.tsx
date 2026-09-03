@@ -860,20 +860,20 @@ export default function UsersPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>{t("users.form.firstName")}</Label>
-                <Input placeholder={t("users.form.firstNamePlaceholder")} value={newUser.prenom} onChange={(e) => setNewUser({ ...newUser, prenom: e.target.value })} />
+                <Input aria-label={t("users.form.firstName")} placeholder={t("users.form.firstNamePlaceholder")} value={newUser.prenom} onChange={(e) => setNewUser({ ...newUser, prenom: e.target.value })} />
               </div>
               <div className="space-y-2">
                 <Label>{t("users.form.lastName")}</Label>
-                <Input placeholder={t("users.form.lastNamePlaceholder")} value={newUser.nom} onChange={(e) => setNewUser({ ...newUser, nom: e.target.value })} />
+                <Input aria-label={t("users.form.lastName")} placeholder={t("users.form.lastNamePlaceholder")} value={newUser.nom} onChange={(e) => setNewUser({ ...newUser, nom: e.target.value })} />
               </div>
             </div>
             <div className="space-y-2">
               <Label>{t("users.form.email")}</Label>
-              <Input type="email" placeholder={t("users.form.emailPlaceholder")} value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} />
+              <Input aria-label={t("users.form.email")} type="email" placeholder={t("users.form.emailPlaceholder")} value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label>{t("users.form.password")}</Label>
-              <Input type="password" placeholder={t("users.form.passwordPlaceholder")} value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} />
+              <Input aria-label={t("users.form.password")} type="password" placeholder={t("users.form.passwordPlaceholder")} value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} />
               <p className="text-[11px] text-muted-foreground">{t("users.form.passwordHint")}</p>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -892,7 +892,7 @@ export default function UsersPage() {
               </div>
               <div className="space-y-2">
                 <Label>{t("users.form.department")}</Label>
-                <Input placeholder={t("users.form.departmentPlaceholder")} value={newUser.departement} onChange={(e) => setNewUser({ ...newUser, departement: e.target.value })} />
+                <Input aria-label={t("users.form.department")} placeholder={t("users.form.departmentPlaceholder")} value={newUser.departement} onChange={(e) => setNewUser({ ...newUser, departement: e.target.value })} />
               </div>
             </div>
           </div>
@@ -969,7 +969,7 @@ export default function UsersPage() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>{t("users.inviteDialog.emailLabel")}</Label>
-              <Input type="email" placeholder={t("users.inviteDialog.emailPlaceholder")} value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} />
+              <Input aria-label={t("users.inviteDialog.emailLabel")} type="email" placeholder={t("users.inviteDialog.emailPlaceholder")} value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>{t("users.form.role")}</Label>
@@ -1015,20 +1015,20 @@ export default function UsersPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>{t("users.form.firstNamePlaceholder")}</Label>
-                <Input value={editUserForm.prenom} onChange={(e) => setEditUserForm(f => ({ ...f, prenom: e.target.value }))} />
+                <Input aria-label={t("users.form.firstNamePlaceholder")} value={editUserForm.prenom} onChange={(e) => setEditUserForm(f => ({ ...f, prenom: e.target.value }))} />
               </div>
               <div>
                 <Label>{t("users.form.lastNamePlaceholder")}</Label>
-                <Input value={editUserForm.nom} onChange={(e) => setEditUserForm(f => ({ ...f, nom: e.target.value }))} />
+                <Input aria-label={t("users.form.lastNamePlaceholder")} value={editUserForm.nom} onChange={(e) => setEditUserForm(f => ({ ...f, nom: e.target.value }))} />
               </div>
             </div>
             <div>
               <Label>{t("users.form.department")}</Label>
-              <Input value={editUserForm.departement} onChange={(e) => setEditUserForm(f => ({ ...f, departement: e.target.value }))} placeholder={t("users.editDialog.departmentPlaceholder")} />
+              <Input aria-label={t("users.form.department")} value={editUserForm.departement} onChange={(e) => setEditUserForm(f => ({ ...f, departement: e.target.value }))} placeholder={t("users.editDialog.departmentPlaceholder")} />
             </div>
             <div>
               <Label>{t("users.editDialog.phone")}</Label>
-              <Input value={editUserForm.telephone} onChange={(e) => setEditUserForm(f => ({ ...f, telephone: e.target.value }))} placeholder={t("users.editDialog.phonePlaceholder")} />
+              <Input aria-label={t("users.editDialog.phone")} value={editUserForm.telephone} onChange={(e) => setEditUserForm(f => ({ ...f, telephone: e.target.value }))} placeholder={t("users.editDialog.phonePlaceholder")} />
             </div>
           </div>
           <DialogFooter>

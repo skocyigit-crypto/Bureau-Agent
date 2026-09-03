@@ -252,15 +252,15 @@ function ComposeModal({ open, onClose, replyTo }: { open: boolean; onClose: () =
         <div className="space-y-3">
           <div>
             <Label className="text-xs">{t("gmailAgent.compose.to")}</Label>
-            <Input value={to} onChange={e => setTo(e.target.value)} placeholder={t("gmailAgent.compose.toPlaceholder")} className="mt-1" />
+            <Input aria-label={t("gmailAgent.compose.to")} value={to} onChange={e => setTo(e.target.value)} placeholder={t("gmailAgent.compose.toPlaceholder")} className="mt-1" />
           </div>
           <div>
             <Label className="text-xs">{t("gmailAgent.compose.subject")}</Label>
-            <Input value={subject} onChange={e => setSubject(e.target.value)} placeholder={t("gmailAgent.compose.subjectPlaceholder")} className="mt-1" />
+            <Input aria-label={t("gmailAgent.compose.subject")} value={subject} onChange={e => setSubject(e.target.value)} placeholder={t("gmailAgent.compose.subjectPlaceholder")} className="mt-1" />
           </div>
           <div>
             <Label className="text-xs">{t("gmailAgent.compose.message")}</Label>
-            <Textarea value={body} onChange={e => setBody(e.target.value)} placeholder={t("gmailAgent.compose.messagePlaceholder")} className="mt-1 min-h-[200px]" />
+            <Textarea aria-label={t("gmailAgent.compose.message")} value={body} onChange={e => setBody(e.target.value)} placeholder={t("gmailAgent.compose.messagePlaceholder")} className="mt-1 min-h-[200px]" />
           </div>
           {dlpWarning && (
             <div className="rounded-md border border-amber-200 bg-amber-50/70 p-2.5 space-y-1.5">
@@ -1400,7 +1400,7 @@ export default function GmailAgentPage() {
 
                       <div>
                         <Label className="text-xs">{t("gmailAgent.panel.additionalInstructions")}</Label>
-                        <Textarea
+                        <Textarea aria-label={t("gmailAgent.panel.additionalInstructions")}
                           value={draftInstructions}
                           onChange={e => setDraftInstructions(e.target.value)}
                           placeholder={t("gmailAgent.panel.instructionsPlaceholder")}

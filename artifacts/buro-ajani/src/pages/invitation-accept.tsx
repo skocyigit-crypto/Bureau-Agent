@@ -211,21 +211,21 @@ export default function InvitationAcceptPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="inv-prenom">{t("invitation.firstNameLabel")}</Label>
-                <Input id="inv-prenom" placeholder={t("invitation.firstNamePlaceholder")} value={form.prenom} onChange={(e) => setForm({ ...form, prenom: e.target.value })} autoFocus />
+                <Input aria-label={t("invitation.firstNameLabel")} id="inv-prenom" placeholder={t("invitation.firstNamePlaceholder")} value={form.prenom} onChange={(e) => setForm({ ...form, prenom: e.target.value })} autoFocus />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="inv-nom">{t("invitation.lastNameLabel")}</Label>
-                <Input id="inv-nom" placeholder={t("invitation.lastNamePlaceholder")} value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} />
+                <Input aria-label={t("invitation.lastNameLabel")} id="inv-nom" placeholder={t("invitation.lastNamePlaceholder")} value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} />
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="inv-password">{t("invitation.passwordLabel")}</Label>
-              <Input id="inv-password" type="password" placeholder={t("invitation.passwordPlaceholder")} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+              <Input aria-label={t("invitation.passwordLabel")} id="inv-password" type="password" placeholder={t("invitation.passwordPlaceholder")} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
               <p className="text-[11px] text-muted-foreground">{t("invitation.passwordHint")}</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="inv-confirm-password">{t("invitation.confirmLabel")}</Label>
-              <Input id="inv-confirm-password" type="password" placeholder={t("invitation.confirmPlaceholder")} value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} />
+              <Input aria-label={t("invitation.confirmLabel")} id="inv-confirm-password" type="password" placeholder={t("invitation.confirmPlaceholder")} value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} />
             </div>
 
             {form.password && form.password.length >= 8 && (

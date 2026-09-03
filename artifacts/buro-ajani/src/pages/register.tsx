@@ -260,7 +260,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="lastName" className="text-sm font-medium">{t("register.lastNameLabel")}</Label>
-                <Input
+                <Input aria-label={t("register.lastNameLabel")}
                   id="lastName"
                   placeholder={t("register.lastNamePlaceholder")}
                   value={lastName}

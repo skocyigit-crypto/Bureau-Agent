@@ -364,7 +364,7 @@ function EventFormDialog({
           <div className="space-y-4">
             <div>
               <Label className="text-xs font-medium">{t("calendar.form.title")}</Label>
-              <Input
+              <Input aria-label={t("calendar.form.title")}
                 value={form.title}
                 onChange={e => update("title", e.target.value)}
                 placeholder={t("calendar.form.titlePlaceholder")}
@@ -394,22 +394,22 @@ function EventFormDialog({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs font-medium">{t("calendar.form.startTime")}</Label>
-                <Input type="time" value={form.startTime} onChange={e => update("startTime", e.target.value)} className="mt-1" />
+                <Input aria-label={t("calendar.form.startTime")} type="time" value={form.startTime} onChange={e => update("startTime", e.target.value)} className="mt-1" />
               </div>
               <div>
                 <Label className="text-xs font-medium">{t("calendar.form.endTime")}</Label>
-                <Input type="time" value={form.endTime} onChange={e => update("endTime", e.target.value)} className="mt-1" />
+                <Input aria-label={t("calendar.form.endTime")} type="time" value={form.endTime} onChange={e => update("endTime", e.target.value)} className="mt-1" />
               </div>
             </div>
 
             <div>
               <Label className="text-xs font-medium">{t("calendar.form.location")}</Label>
-              <Input value={form.location} onChange={e => update("location", e.target.value)} placeholder={t("calendar.form.locationPlaceholder")} className="mt-1" />
+              <Input aria-label={t("calendar.form.location")} value={form.location} onChange={e => update("location", e.target.value)} placeholder={t("calendar.form.locationPlaceholder")} className="mt-1" />
             </div>
 
             <div>
               <Label className="text-xs font-medium">{t("calendar.form.description")}</Label>
-              <Textarea
+              <Textarea aria-label={t("calendar.form.description")}
                 value={form.description}
                 onChange={e => update("description", e.target.value)}
                 placeholder={t("calendar.form.descriptionPlaceholder")}
@@ -851,7 +851,7 @@ function ClosureDayDialog({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs font-medium">{t("calendar.closureDialog.start")}</Label>
-                <Input
+                <Input aria-label={t("calendar.closureDialog.start")}
                   type="date"
                   value={dateStartStr}
                   readOnly
@@ -860,7 +860,7 @@ function ClosureDayDialog({
               </div>
               <div>
                 <Label className="text-xs font-medium">{t("calendar.closureDialog.end")}</Label>
-                <Input
+                <Input aria-label={t("calendar.closureDialog.end")}
                   type="date"
                   value={dateEndStr}
                   min={dateStartStr}

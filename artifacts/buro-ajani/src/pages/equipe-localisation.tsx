@@ -444,7 +444,7 @@ function HistorySection() {
           </div>
           <div>
             <Label>{t("equipeLocalisation.period")}</Label>
-            <Input
+            <Input aria-label={t("equipeLocalisation.period")}
               type="number"
               min={1}
               max={30}

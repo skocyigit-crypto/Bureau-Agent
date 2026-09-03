@@ -452,7 +452,7 @@ function QuietHoursCard() {
             <div className="flex flex-wrap items-end gap-4">
               <div className="space-y-1">
                 <Label htmlFor="qh-start">{t("settingsNotifications.qh.start")}</Label>
-                <Input
+                <Input aria-label={t("settingsNotifications.qh.start")}
                   id="qh-start"
                   type="time"
                   className="w-32"
@@ -463,7 +463,7 @@ function QuietHoursCard() {
               </div>
               <div className="space-y-1">
                 <Label htmlFor="qh-end">{t("settingsNotifications.qh.end")}</Label>
-                <Input
+                <Input aria-label={t("settingsNotifications.qh.end")}
                   id="qh-end"
                   type="time"
                   className="w-32"

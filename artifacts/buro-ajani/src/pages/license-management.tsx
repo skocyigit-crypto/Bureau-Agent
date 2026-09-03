@@ -379,7 +379,7 @@ function InvoiceDetailDialog({ invoice, onClose, onRefresh, onReloadInvoice }: {
           <div className="space-y-3">
             <div className="text-sm"><span className="text-muted-foreground">{t("licenseManagement.dialog.invoiceLabel")}</span> <span className="font-semibold">{invoice.reference}</span> — {invoice.clientName}</div>
             <div className="text-sm"><span className="text-muted-foreground">{t("licenseManagement.dialog.remainingLabel")}</span> <span className="font-bold text-orange-600">{remaining.toFixed(2)} EUR</span></div>
-            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.amountReceived")}</Label><Input type="number" step="0.01" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} placeholder="0.00" /></div>
+            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.amountReceived")}</Label><Input aria-label={t("licenseManagement.dialog.amountReceived")} type="number" step="0.01" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} placeholder="0.00" /></div>
             <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.paymentMethod")}</Label>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
@@ -444,7 +444,7 @@ function InvoiceDetailDialog({ invoice, onClose, onRefresh, onReloadInvoice }: {
             <div className="text-sm"><span className="text-muted-foreground">{t("licenseManagement.dialog.invoiceLabel")}</span> <span className="font-semibold">{invoice.reference}</span></div>
             <div className="text-sm"><span className="text-muted-foreground">{t("licenseManagement.dialog.clientLabel")}</span> <span>{invoice.clientName}{invoice.clientEmail ? ` (${invoice.clientEmail})` : ""}</span></div>
             <div className="text-sm"><span className="text-muted-foreground">{t("licenseManagement.dialog.remainingAmount")}</span> <span className="font-bold text-red-600">{remaining.toFixed(2)} EUR</span></div>
-            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.customMessage")}</Label><Textarea value={customMessage} onChange={(e) => setCustomMessage(e.target.value)} placeholder={t("licenseManagement.dialog.customPlaceholder")} rows={3} /></div>
+            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.customMessage")}</Label><Textarea aria-label={t("licenseManagement.dialog.customMessage")} value={customMessage} onChange={(e) => setCustomMessage(e.target.value)} placeholder={t("licenseManagement.dialog.customPlaceholder")} rows={3} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setReminderOpen(false); setCustomMessage(""); }}>{t("common.cancel")}</Button>
@@ -798,17 +798,17 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
             <div>
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t("licenseManagement.clientInv.clientInfo")}</h4>
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.clientInv.clientName")}</Label><Input value={newInvoice.clientName} onChange={e => setNewInvoice(p => ({ ...p, clientName: e.target.value }))} placeholder="ACME SARL" /></div>
-                <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.clientInv.companyName")}</Label><Input value={newInvoice.clientCompany} onChange={e => setNewInvoice(p => ({ ...p, clientCompany: e.target.value }))} placeholder={t("licenseManagement.clientInv.companyPlaceholder")} /></div>
-                <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.email")}</Label><Input type="email" value={newInvoice.clientEmail} onChange={e => setNewInvoice(p => ({ ...p, clientEmail: e.target.value }))} placeholder="client@exemple.fr" /></div>
-                <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.clientInv.telephone")}</Label><Input value={newInvoice.clientPhone} onChange={e => setNewInvoice(p => ({ ...p, clientPhone: e.target.value }))} placeholder="06 12 34 56 78" /></div>
+                <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.clientInv.clientName")}</Label><Input aria-label={t("licenseManagement.clientInv.clientName")} value={newInvoice.clientName} onChange={e => setNewInvoice(p => ({ ...p, clientName: e.target.value }))} placeholder="ACME SARL" /></div>
+                <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.clientInv.companyName")}</Label><Input aria-label={t("licenseManagement.clientInv.companyName")} value={newInvoice.clientCompany} onChange={e => setNewInvoice(p => ({ ...p, clientCompany: e.target.value }))} placeholder={t("licenseManagement.clientInv.companyPlaceholder")} /></div>
+                <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.email")}</Label><Input aria-label={t("licenseManagement.dialog.email")} type="email" value={newInvoice.clientEmail} onChange={e => setNewInvoice(p => ({ ...p, clientEmail: e.target.value }))} placeholder="client@exemple.fr" /></div>
+                <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.clientInv.telephone")}</Label><Input aria-label={t("licenseManagement.clientInv.telephone")} value={newInvoice.clientPhone} onChange={e => setNewInvoice(p => ({ ...p, clientPhone: e.target.value }))} placeholder="06 12 34 56 78" /></div>
               </div>
             </div>
             <div>
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t("licenseManagement.clientInv.invoice")}</h4>
               <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2 space-y-1"><Label className="text-xs">{t("licenseManagement.clientInv.titleReq")}</Label><Input value={newInvoice.title} onChange={e => setNewInvoice(p => ({ ...p, title: e.target.value }))} placeholder={t("licenseManagement.clientInv.titlePlaceholder")} /></div>
-                <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.clientInv.dueDateLabel")}</Label><Input type="date" value={newInvoice.dueDate} onChange={e => setNewInvoice(p => ({ ...p, dueDate: e.target.value }))} /></div>
+                <div className="col-span-2 space-y-1"><Label className="text-xs">{t("licenseManagement.clientInv.titleReq")}</Label><Input aria-label={t("licenseManagement.clientInv.titleReq")} value={newInvoice.title} onChange={e => setNewInvoice(p => ({ ...p, title: e.target.value }))} placeholder={t("licenseManagement.clientInv.titlePlaceholder")} /></div>
+                <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.clientInv.dueDateLabel")}</Label><Input aria-label={t("licenseManagement.clientInv.dueDateLabel")} type="date" value={newInvoice.dueDate} onChange={e => setNewInvoice(p => ({ ...p, dueDate: e.target.value }))} /></div>
               </div>
             </div>
             <div>
@@ -841,7 +841,7 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
                 <div className="flex justify-between font-semibold"><span>{t("licenseManagement.dialog.totalTTC")}</span><span className="font-mono text-base">{totalTTC.toFixed(2)} EUR</span></div>
               </div>
             </div>
-            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.clientInv.internalNotes")}</Label><Textarea value={newInvoice.notes} onChange={e => setNewInvoice(p => ({ ...p, notes: e.target.value }))} placeholder={t("licenseManagement.clientInv.notesPlaceholder")} rows={2} /></div>
+            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.clientInv.internalNotes")}</Label><Textarea aria-label={t("licenseManagement.clientInv.internalNotes")} value={newInvoice.notes} onChange={e => setNewInvoice(p => ({ ...p, notes: e.target.value }))} placeholder={t("licenseManagement.clientInv.notesPlaceholder")} rows={2} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel")}</Button>
@@ -861,7 +861,7 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
           <div className="space-y-3">
             <div className="text-sm"><span className="text-muted-foreground">{t("licenseManagement.dialog.invoiceLabel")}</span> <span className="font-semibold">{paymentDialog?.reference}</span> — {paymentDialog?.clientName}</div>
             <div className="text-sm"><span className="text-muted-foreground">{t("licenseManagement.dialog.remainingLabel")}</span> <span className="font-bold text-orange-600">{((paymentDialog?.totalAmount || 0) - (paymentDialog?.paidAmount || 0)).toFixed(2)} EUR</span></div>
-            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.amountReceived")}</Label><Input type="number" step="0.01" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} placeholder="0.00" /></div>
+            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.amountReceived")}</Label><Input aria-label={t("licenseManagement.dialog.amountReceived")} type="number" step="0.01" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} placeholder="0.00" /></div>
             <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.paymentMethod")}</Label>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
@@ -925,7 +925,7 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
             <div className="text-sm"><span className="text-muted-foreground">{t("licenseManagement.dialog.invoiceLabel")}</span> <span className="font-semibold">{reminderDialog?.reference}</span></div>
             <div className="text-sm"><span className="text-muted-foreground">{t("licenseManagement.dialog.clientLabel")}</span> <span>{reminderDialog?.clientName} ({reminderDialog?.clientEmail})</span></div>
             <div className="text-sm"><span className="text-muted-foreground">{t("licenseManagement.dialog.remainingAmount")}</span> <span className="font-bold text-red-600">{((reminderDialog?.totalAmount || 0) - (reminderDialog?.paidAmount || 0)).toFixed(2)} EUR</span></div>
-            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.customMessage")}</Label><Textarea value={customMessage} onChange={e => setCustomMessage(e.target.value)} placeholder={t("licenseManagement.dialog.customPlaceholder")} rows={3} /></div>
+            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.customMessage")}</Label><Textarea aria-label={t("licenseManagement.dialog.customMessage")} value={customMessage} onChange={e => setCustomMessage(e.target.value)} placeholder={t("licenseManagement.dialog.customPlaceholder")} rows={3} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setReminderDialog(null)}>{t("common.cancel")}</Button>
@@ -1099,13 +1099,13 @@ function BillingSettingsTab({ data, onRefresh }: { data: any; onRefresh: () => v
                 <p className="text-[10px] text-muted-foreground mt-1">{t("licenseManagement.settings.ibanKeep")}</p>
               )}
             </div>
-            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.settings.bicSwift")}</Label><Input value={bankBic} onChange={e => setBankBic(e.target.value)} placeholder="BNPAFRPP" /></div>
+            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.settings.bicSwift")}</Label><Input aria-label={t("licenseManagement.settings.bicSwift")} value={bankBic} onChange={e => setBankBic(e.target.value)} placeholder="BNPAFRPP" /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.settings.siret")}</Label><Input value={siret} onChange={e => setSiret(e.target.value)} placeholder="123 456 789 00012" /></div>
-            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.settings.tvaNumber")}</Label><Input value={tvaNumber} onChange={e => setTvaNumber(e.target.value)} placeholder="FR 12 123456789" /></div>
+            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.settings.siret")}</Label><Input aria-label={t("licenseManagement.settings.siret")} value={siret} onChange={e => setSiret(e.target.value)} placeholder="123 456 789 00012" /></div>
+            <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.settings.tvaNumber")}</Label><Input aria-label={t("licenseManagement.settings.tvaNumber")} value={tvaNumber} onChange={e => setTvaNumber(e.target.value)} placeholder="FR 12 123456789" /></div>
           </div>
-          <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.settings.invoiceFooter")}</Label><Textarea value={invoiceFooter} onChange={e => setInvoiceFooter(e.target.value)} placeholder={t("licenseManagement.settings.footerPlaceholder")} rows={3} /></div>
+          <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.settings.invoiceFooter")}</Label><Textarea aria-label={t("licenseManagement.settings.invoiceFooter")} value={invoiceFooter} onChange={e => setInvoiceFooter(e.target.value)} placeholder={t("licenseManagement.settings.footerPlaceholder")} rows={3} /></div>
         </CardContent>
       </Card>
 

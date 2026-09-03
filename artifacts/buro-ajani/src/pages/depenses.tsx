@@ -528,7 +528,7 @@ export default function DepensesPage() {
             </div>
             <div className="grid gap-1">
               <Label className="text-xs">{t("depenses.filters.vendor")}</Label>
-              <Input
+              <Input aria-label={t("depenses.filters.vendor")}
                 className="h-9 w-44"
                 placeholder={t("depenses.filters.searchPlaceholder")}
                 value={filterVendor}
@@ -537,11 +537,11 @@ export default function DepensesPage() {
             </div>
             <div className="grid gap-1">
               <Label className="text-xs">{t("depenses.filters.from")}</Label>
-              <Input className="h-9 w-36" type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} />
+              <Input aria-label={t("depenses.filters.from")} className="h-9 w-36" type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} />
             </div>
             <div className="grid gap-1">
               <Label className="text-xs">{t("depenses.filters.to")}</Label>
-              <Input className="h-9 w-36" type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} />
+              <Input aria-label={t("depenses.filters.to")} className="h-9 w-36" type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} />
             </div>
             <div className="grid gap-1">
               <Label className="text-xs">{t("depenses.filters.payment")}</Label>
@@ -808,12 +808,12 @@ export default function DepensesPage() {
           <div className="grid gap-3">
             <div className="grid gap-1">
               <Label>{t("depenses.form.vendor")}</Label>
-              <Input value={form.vendor} onChange={(e) => setForm((f) => ({ ...f, vendor: e.target.value }))} />
+              <Input aria-label={t("depenses.form.vendor")} value={form.vendor} onChange={(e) => setForm((f) => ({ ...f, vendor: e.target.value }))} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1">
                 <Label>{t("depenses.form.reference")}</Label>
-                <Input value={form.reference} onChange={(e) => setForm((f) => ({ ...f, reference: e.target.value }))} />
+                <Input aria-label={t("depenses.form.reference")} value={form.reference} onChange={(e) => setForm((f) => ({ ...f, reference: e.target.value }))} />
               </div>
               <div className="grid gap-1">
                 <Label>{t("depenses.form.category")}</Label>
@@ -829,22 +829,22 @@ export default function DepensesPage() {
             </div>
             <div className="grid gap-1">
               <Label>{t("depenses.form.title")}</Label>
-              <Input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
+              <Input aria-label={t("depenses.form.title")} value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1">
                 <Label>{t("depenses.form.date")}</Label>
-                <Input type="date" value={form.expenseDate} onChange={(e) => setForm((f) => ({ ...f, expenseDate: e.target.value }))} />
+                <Input aria-label={t("depenses.form.date")} type="date" value={form.expenseDate} onChange={(e) => setForm((f) => ({ ...f, expenseDate: e.target.value }))} />
               </div>
               <div className="grid gap-1">
                 <Label>{t("depenses.form.dueDate")}</Label>
-                <Input type="date" value={form.dueDate} onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))} />
+                <Input aria-label={t("depenses.form.dueDate")} type="date" value={form.dueDate} onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))} />
               </div>
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div className="grid gap-1">
                 <Label>{t("depenses.form.ht")}</Label>
-                <Input
+                <Input aria-label={t("depenses.form.ht")}
                   type="number"
                   step="0.01"
                   value={form.amountHt}
@@ -853,7 +853,7 @@ export default function DepensesPage() {
               </div>
               <div className="grid gap-1">
                 <Label>{t("depenses.form.tva")}</Label>
-                <Input
+                <Input aria-label={t("depenses.form.tva")}
                   type="number"
                   step="0.01"
                   value={form.amountTva}
@@ -862,7 +862,7 @@ export default function DepensesPage() {
               </div>
               <div className="grid gap-1">
                 <Label>{t("depenses.form.ttc")}</Label>
-                <Input
+                <Input aria-label={t("depenses.form.ttc")}
                   type="number"
                   step="0.01"
                   value={form.amountTtc}
@@ -882,7 +882,7 @@ export default function DepensesPage() {
             </div>
             <div className="grid gap-1">
               <Label>{t("depenses.form.notes")}</Label>
-              <Input value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
+              <Input aria-label={t("depenses.form.notes")} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
             </div>
           </div>
           <DialogFooter>

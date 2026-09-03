@@ -2042,3 +2042,39 @@ Postgres `LISTEN/NOTIFY` üzerinden instance'lar arası bir olay yolu
 **tetiklemediği**, komşu organizasyona sızmadığı, relai patlasa bile yerel
 dağıtımın sürdüğü, ve gerçek bir Postgres bağlantısından diğerine yükün
 taşındığı dahil.
+
+## Formda etiket borcu: ölçüldü, yarısı kapandı, gerisi cırcıra bağlandı — 2026-09-03
+
+Faz 7'nin "yapılmadı" listesindeki **arayüz erişilebilirlik denetimi (EAA)**
+kalemine girdim. Kaba sayım "478 alana karşılık 66 `htmlFor`" diyordu; bu bir
+bulgu değil sezgiydi, o yüzden ölçen bir script yazdım:
+`artifacts/buro-ajani/scripts/a11y-form-labels.mjs`.
+
+### Bulgu
+
+**478 form alanının 382'sinin erişilebilir adı yoktu.** Tipik hâli, hemen
+üstünde görünür bir `<Label>` duran ama ona hiç bağlanmamış bir `<Input>`:
+ekranda etiket var, ekran okuyucuda yok. İkinci hâli yalnızca `placeholder` —
+ki kullanıcı yazmaya başlar başlamaz kaybolur, yani ad değildir. Görsel olarak
+hiçbir şey bozuk görünmüyor; sayfa güzel, sadece klavye ve ekran okuyucuyla
+kullanılamıyor.
+
+### Yapılan
+
+Aynı satırda etiket-alan komşuluğu olan yerler, etiketin **kendi i18n**
+anahtarıyla bağlandı (placeholder anahtarıyla değil — ad, görünen metinle aynı
+olmalı): 31 dosyada **204 alan**. Kalan **208**, kapıya bağlandı:
+`pnpm --filter @workspace/buro-ajani a11y:check` CI'da koşuyor ve tavan
+yükselirse build düşüyor. Yani borç bir daha büyüyemez, her düzeltme tavanı
+indirir.
+
+### Neden sıfır değil
+
+382'yi tek seferde sıfırlamak, okunamayacak bir revizyon üretirdi. Cırcır, hemen
+işe yarayan şeyi veriyor — gerileme imkânsız — ve kalanı görünür tutuyor.
+Script'in sınırı da yazıldı: metin okuyor, sözdizim ağacı değil; boş ya da
+anlamsız bir `aria-label` onun gözünden kaçar.
+
+### Doğrulama
+
+tsc temiz, 96 ön yüz testi geçti, üretim build'i başarılı, lint cırcırı 686/687.

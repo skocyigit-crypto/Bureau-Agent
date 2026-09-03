@@ -1145,7 +1145,7 @@ export default function DocumentsPage() {
             </div>
             <div>
               <Label>{t("documents.form.description")}</Label>
-              <Textarea
+              <Textarea aria-label={t("documents.form.description")}
                 value={editDocForm.description}
                 onChange={(e) => setEditDocForm(f => ({ ...f, description: e.target.value }))}
                 placeholder={t("documents.form.descriptionPlaceholder")}

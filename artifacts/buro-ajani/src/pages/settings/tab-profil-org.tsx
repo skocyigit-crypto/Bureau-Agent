@@ -369,7 +369,7 @@ export function TabProfilOrg() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="name">{t("settingsProfilOrg.identity.name")}</Label>
-              <Input
+              <Input aria-label={t("settingsProfilOrg.identity.name")}
                 id="name"
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
@@ -465,7 +465,7 @@ export function TabProfilOrg() {
         <CardContent className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="aiAgentName">{t("settingsProfilOrg.ai.nameLabel")}</Label>
-            <Input
+            <Input aria-label={t("settingsProfilOrg.ai.nameLabel")}
               id="aiAgentName"
               value={form.aiAgentName}
               onChange={(e) => setForm((f) => ({ ...f, aiAgentName: e.target.value }))}
@@ -690,7 +690,7 @@ export function TabProfilOrg() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label htmlFor="closureDateStart">{t("settingsProfilOrg.closures.dateStart")}</Label>
-                      <Input
+                      <Input aria-label={t("settingsProfilOrg.closures.dateStart")}
                         id="closureDateStart"
                         type="date"
                         value={newClosure.dateStart}
@@ -800,7 +800,7 @@ export function TabProfilOrg() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="siret">{t("settingsProfilOrg.legal.siret")}</Label>
-              <Input
+              <Input aria-label={t("settingsProfilOrg.legal.siret")}
                 id="siret"
                 value={form.siret}
                 onChange={(e) => setForm((f) => ({ ...f, siret: e.target.value }))}
@@ -810,7 +810,7 @@ export function TabProfilOrg() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="tvaNumber">{t("settingsProfilOrg.legal.tva")}</Label>
-              <Input
+              <Input aria-label={t("settingsProfilOrg.legal.tva")}
                 id="tvaNumber"
                 value={form.tvaNumber}
                 onChange={(e) => setForm((f) => ({ ...f, tvaNumber: e.target.value }))}
@@ -820,7 +820,7 @@ export function TabProfilOrg() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="legalForm">{t("settingsProfilOrg.legal.legalForm")}</Label>
-              <Input
+              <Input aria-label={t("settingsProfilOrg.legal.legalForm")}
                 id="legalForm"
                 value={form.legalForm}
                 onChange={(e) => setForm((f) => ({ ...f, legalForm: e.target.value }))}
@@ -830,7 +830,7 @@ export function TabProfilOrg() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="capital">{t("settingsProfilOrg.legal.capital")}</Label>
-              <Input
+              <Input aria-label={t("settingsProfilOrg.legal.capital")}
                 id="capital"
                 value={form.capital}
                 onChange={(e) => setForm((f) => ({ ...f, capital: e.target.value }))}
@@ -844,7 +844,7 @@ export function TabProfilOrg() {
 
           <div className="space-y-1.5">
             <Label htmlFor="invoiceFooter">{t("settingsProfilOrg.legal.invoiceFooter")}</Label>
-            <Textarea
+            <Textarea aria-label={t("settingsProfilOrg.legal.invoiceFooter")}
               id="invoiceFooter"
               value={form.invoiceFooter}
               onChange={(e) => setForm((f) => ({ ...f, invoiceFooter: e.target.value }))}
@@ -868,7 +868,7 @@ export function TabProfilOrg() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="bankName">{t("settingsProfilOrg.bank.bank")}</Label>
-              <Input
+              <Input aria-label={t("settingsProfilOrg.bank.bank")}
                 id="bankName"
                 value={form.bankName}
                 onChange={(e) => setForm((f) => ({ ...f, bankName: e.target.value }))}
@@ -878,7 +878,7 @@ export function TabProfilOrg() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="bankIban">{t("settingsProfilOrg.bank.iban")}</Label>
-              <Input
+              <Input aria-label={t("settingsProfilOrg.bank.iban")}
                 id="bankIban"
                 value={form.bankIban}
                 onChange={(e) => setForm((f) => ({ ...f, bankIban: e.target.value }))}
@@ -888,7 +888,7 @@ export function TabProfilOrg() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="bankBic">{t("settingsProfilOrg.bank.bic")}</Label>
-              <Input
+              <Input aria-label={t("settingsProfilOrg.bank.bic")}
                 id="bankBic"
                 value={form.bankBic}
                 onChange={(e) => setForm((f) => ({ ...f, bankBic: e.target.value }))}

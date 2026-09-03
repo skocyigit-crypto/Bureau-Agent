@@ -495,11 +495,11 @@ export function TabApiWebhooks() {
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="wh-url">{t("settingsApiWebhooks.createDialog.urlLabel")}</Label>
-              <Input id="wh-url" placeholder={t("settingsApiWebhooks.createDialog.urlPlaceholder")} value={formUrl} onChange={(e) => setFormUrl(e.target.value)} />
+              <Input aria-label={t("settingsApiWebhooks.createDialog.urlLabel")} id="wh-url" placeholder={t("settingsApiWebhooks.createDialog.urlPlaceholder")} value={formUrl} onChange={(e) => setFormUrl(e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="wh-desc">{t("settingsApiWebhooks.createDialog.descLabel")}</Label>
-              <Textarea id="wh-desc" rows={2} placeholder={t("settingsApiWebhooks.createDialog.descPlaceholder")} value={formDesc} onChange={(e) => setFormDesc(e.target.value)} />
+              <Textarea aria-label={t("settingsApiWebhooks.createDialog.descLabel")} id="wh-desc" rows={2} placeholder={t("settingsApiWebhooks.createDialog.descPlaceholder")} value={formDesc} onChange={(e) => setFormDesc(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>{t("settingsApiWebhooks.createDialog.eventsLabel")}</Label>
@@ -541,11 +541,11 @@ export function TabApiWebhooks() {
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="key-name">{t("settingsApiWebhooks.keyDialog.nameLabel")}</Label>
-              <Input id="key-name" placeholder={t("settingsApiWebhooks.keyDialog.namePlaceholder")} value={keyName} onChange={(e) => setKeyName(e.target.value)} />
+              <Input aria-label={t("settingsApiWebhooks.keyDialog.nameLabel")} id="key-name" placeholder={t("settingsApiWebhooks.keyDialog.namePlaceholder")} value={keyName} onChange={(e) => setKeyName(e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="key-exp">{t("settingsApiWebhooks.keyDialog.expiryLabel")}</Label>
-              <Input id="key-exp" type="date" value={keyExpiry} onChange={(e) => setKeyExpiry(e.target.value)} />
+              <Input aria-label={t("settingsApiWebhooks.keyDialog.expiryLabel")} id="key-exp" type="date" value={keyExpiry} onChange={(e) => setKeyExpiry(e.target.value)} />
             </div>
           </div>
           <DialogFooter>
