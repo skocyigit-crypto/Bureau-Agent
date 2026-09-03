@@ -33,6 +33,8 @@ whenever the audit is touched; delete the entry as soon as a patch ships.
     `.pptx`. Worst case is a hung request handler.
   - `artifacts/mobile > expo-camera > expo > @expo/cli > metro > image-size` —
     Expo build tooling. Not shipped to users.
+- **Re-checked**: 2026-09-03. Still no fixed release — the latest published
+  version remains `2.0.2` (2 April 2025), so the suppression stands.
 - **Removal condition**: delete both GHSAs from `ignoreGhsas` as soon as
   `image-size` publishes a fixed release (watch
   <https://github.com/image-size/image-size/releases>), or when `pptxgenjs`
