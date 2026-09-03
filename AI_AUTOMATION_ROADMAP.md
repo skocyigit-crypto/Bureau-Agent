@@ -4,7 +4,12 @@
 > hale gelmesi için yapılan denetimlerin ve kalan işlerin **kalıcı** kaydıdır. Her
 > oturumda güncellenir, silinmez — yeni bulgu/tamamlanan iş oldukça buraya eklenir.
 >
-> Son güncelleme: 2026-09-03 (satılabilirlik denetimi: hukuki belgeler tamamlandı — CGV
+> Son güncelleme: 2026-09-03 (silinen veri artık geri gelebiliyor — çöp kutusu 24 silme
+> noktasını kapsıyor ve kapsam testi bütçe değil kural — altı haftadır bağlanmamış
+> güvenlik taraması purge'ü cron'a bağlandı ve beyan edildi, eksik tek tablonun bütün
+> müşterilerin yedeğini yok ettiği hata düzeltildi; **açık kalan tek adım: üretimde
+> `bash deploy/gcp-schema-push.sh`** — `deleted_rows` tablosu için;
+> aynı gün daha önce: satılabilirlik denetimi: hukuki belgeler tamamlandı — CGV
 > ve RGPD işleme sözleşmesi yayında — arayüz erişilebilirliği isimsiz buton borcunu
 > sıfıra indirdi, ve RGPD akışı kapandı: kişi kendi verisini indirebiliyor, talep
 > kapatılabiliyor, bir aylık süre görünür; önceki güncelleme 2026-09-02: satış zincirinin 31 Temmuz'dan beri kapalı olduğu bulundu ve
@@ -1718,3 +1723,177 @@ işin doğurduğu tek uyarı düzeltildikten sonra yine tam **687**.
 - Chorus Pro / PDP iletimi (ayrı adım, alıcı tarafı)
 - `apps/api-py` kararı (Faz 6'dan beri açık)
 - Silme akışının yayıncı kararı (RGPD, 2026-09-03 bölümü)
+
+## 2026-09-03 — Silinen veri geri gelebiliyor, ve yazılıp bağlanmayan kod kuralla kapatıldı
+
+Aynı gün, aynı kökten çıkan beş iş (PR #5–#9, hepsi main'de). Ortak kök iki
+tane: **hiçbir silme geri alınamıyordu**, ve **yazılmış ama hiç çağrılmayan kod**
+bu depoda tekrar eden bir kusur — belirtisi yok, derleniyor, sunucu kalkıyor,
+hiçbir şey düşmüyor; sadece iş yapılmıyor.
+
+### 1. Yazılıp bağlanmayan purge (PR #5)
+
+`purgeOldSecurityScans` 23 Temmuz'da, "tablo sınırsız büyüyor" yorumuyla
+yazılmış ve **altı hafta boyunca hiç çağrılmamış**. Mesele disk değil: her satır
+bir `userId` ve bir `target` taşıyor — analiz edilen dosya, adres veya numara,
+gelen e-posta ve WhatsApp ekleri dahil. Yani **süresiz tutulan kişisel veri**,
+madde 5.1.e'nin yasakladığı şey ve `retention-cron`'un tam da uygulamak için
+yazıldığı ilke. Bu yüzden kendi döngüsünü almadı, o cron'a katıldı: Cloud Run'da
+`min-instances=0` ile gerçekten çalışan tek şey kayıt (registry) üzerinden
+tetiklenen iş.
+
+**Asıl kazanç düzeltme değil, kural**: `purge-wiring.test.ts` her dışa açık
+purge/cleanup/prune fonksiyonunun en az bir çağrı yeri olmasını zorunlu kılıyor,
+ve bu vakayı yakaladığı mutasyonla kanıtlı. İlk sürümü ters yönde yanlıştı —
+tanımlayan dosyayı saymadığı için hemen üstündeki döngüden çağrılan
+`purgeExpiredCallRecordings` ve `purgeOldAiUsage`'ı suçluyordu. Dosya değil
+**çağrı yeri** saymak bunu çözdü. `DELIBERATELY_UNWIRED` haritası boş: bir
+istisna eklemek, o purge'ün neden çalışmadığını **yazmayı** zorunlu kılıyor —
+altı hafta boyunca eksik olan bilgi tam buydu.
+
+### 2. Beyan edilmeyen veri kategorisi (PR #6)
+
+`security_scans` `/data-protection/summary`'de hiç görünmüyordu. Bir envanterin
+eksik kategorisi madde 13/14 anlamında eksik bilgilendirmedir ve **görünmez**:
+ekran kendisine verilen kategorileri sadakatle çiziyor. Bunu bir gün önce
+"yayıncının hukuki kararı" diye bırakmıştım — yanlış içgüdü, çünkü soru
+araştırılabilir bir soruydu.
+
+Hukuki dayanak tahmin değil: **Gerekçe 49**, "güvenlik teknolojileri ve
+hizmetleri sağlayıcıları"nın "ağ ve bilgi güvenliğini sağlamak için kesinlikle
+gerekli ve ölçülü" işlemesini meşru menfaat olarak adıyla anıyor — madde
+6(1)(f).
+
+Süre 90 gün, ve beyan **purge'ün uyguladığı sabiti okuyor**
+(`SECURITY_SCAN_RETENTION_DAYS`), sayıyı tekrar yazmıyor. Bağlama işin bütün
+amacı: iki dosyada yaşayan ve kimsenin yan yana okumadığı iki sayı, beyan edilen
+sürenin uygulanandan sapmasının tam yolu. Cıvata, sabit değer tesadüfen tutsa
+bile düşüyor — mutasyonla kanıtlandı.
+
+Kayda geçsin: 90 gün, CNIL'in loglama için önerdiği **altı ay–bir yıl
+aralığının altında** (délibération n° 2021-122). Bu bilerek: öneri bir ihtiyat
+tavanı, minimizasyon ters yöne bastırıyor, ve ödün — üç aydan eskisi için olay
+sonrası analiz yok — örtük bırakılmayıp yazıldı. Kişinin kendi taramaları artık
+bireysel ihracatında da var (madde 15 kendisine ilişkin veriyi kapsıyor); motor
+ve kaynak kolonları dışarıda kaldı, çünkü onlar bireyi değil altyapıyı anlatıyor.
+
+### 3. Çöp kutusu: yanlışlıkla silmenin geri dönüşü (PR #7)
+
+Yanlışlıkla silmeye karşı **hiçbir koruma yoktu**. Sunucu tarafındaki 42 silme
+kesin, hiçbir tablo `deleted_at` taşımıyor, ve tek başvuru günlük yedekti — ki o
+da kimsenin düşene kadar görmediği bir boşluk bırakıyor: **iki yedek arasında
+oluşturulup silinen şey, o kişi için hiç var olmamıştır.** Sabah yazılıp öğleden
+sonra silinen fatura gitmiştir; üstelik geri yükleme yöneticilere ayrılmışken,
+hatayı yapan kişi genelde o role sahip olmayan kişidir.
+
+**Karar: `deleted_at` bayrağı değil, yanda bir günlük.** Silinen satır JSON
+olarak `deleted_rows`'a bütün halinde yazılıyor. Ödün bilerek verildi: bir
+bayrak depodaki **her okumayı** filtrelemeye zorlar, ve unutulan tek sorgu
+silinmiş veriyi geri getirir — ya da bir toplamda iki kez sayar. Burada mevcut
+hiçbir okuma değişmiyor; satır tablosunu gerçekten terk etmiş oluyor.
+
+İki kural `tenant-restore`'dan geliyor ve yeniden tartışılmadı: yalnız onun
+listesindeki tablolar geri gelebilir — asla `users`, `api_keys` veya abonelikler,
+çünkü silinmiş bir hesabı veya aboneliği geri koymak hizmet değil **atlatma**
+olurdu — ve ekleme yalnızca **EKLER** (`ON CONFLICT DO NOTHING`),
+`organisation_id` zorlanmış olarak. Veriyi korumak için yazılmış bir özelliğin
+en kötü sonucu, veri kurtardığını söyleyerek veri bozmak olurdu.
+
+Sayfa bilerek **herkese açık**: yalnız yöneticinin açabildiği bir çöp kutusu,
+hatayı henüz yapmış kişiye yardım etmez. Saklama süresi 30 gün
+(`TRASH_RETENTION_DAYS`) ve purge retention cron'a bağlı — süresi olmayan bir
+kutu, kimsenin bakmadığı ikinci bir kişisel veri deposudur (md. 5.1.e).
+
+**Gerçek veritabanı testi yerini anında hak etti**: bütün statik kurallar
+geçerken geri yükleme **çalışmıyordu**. `.returning()` JavaScript alan adlarını
+veriyor (`organisationId`), yeniden ekleme kolon adı istiyor (`organisation_id`)
+— yani kayıt ekranda kusursuz görünüp geri yüklemede düşüyordu, kusurun en kötü
+biçimi: vermeyeceği şeyi tam olarak vaat ediyor. Yardımcı fonksiyon artık tablo
+**adını değil tablonun kendisini** alıyor, eşlemeyi ve adı ondan türetiyor —
+böylece hiçbir çağıran `devis` satırlarını `factures_client` etiketiyle
+arşivleyemiyor.
+
+Mevcut iki cıvata bu işi yakaladı ve ikisinde de haklıydı: yedek kapsamı testi
+yeni tablonun dahil edilmesini istedi, asistanın rota envanteri yeni sayfanın
+kaydını istedi. İkisi de susturulmadı, uygulandı.
+
+### 4. Eksik tek tablo, herkesin yedeğini siliyordu (PR #8)
+
+Sabah bir tablo eklemek neredeyse **her müşterinin günlük yedeğini bozuyordu**,
+ve bu benim eserim olacaktı.
+
+Deploy hattı üretimi migrate etmiyor: kalite kapısı CI veritabanını eşitliyor,
+üretim ayrıca çalıştırılan bir `gcp-schema-push.sh` ile güncelleniyor. Yani
+**her yeni tablo, dağıtılmış kodun veritabanının bilmediği bir tabloyu bildiği
+bir pencere açıyor.**
+
+O pencerede yedek bozulmuyordu — **yok oluyordu**. Beyan edilen tablolar
+üzerindeki döngü hiçbir şey yakalamıyordu, tek bilinmeyen tablo **bütün
+organizasyonlar için** bütün yedeği iptal ediyordu, hem de onların verisiyle
+hiç ilgisi olmayan bir nedenle. Kimse fark etmezdi — biri geri yüklemeye
+çalışana kadar, ki bu bunu keşfetmek için mümkün olan en kötü an.
+
+Artık yalnız **42P01** (undefined_table) yakalanıyor: bağlantı hatası veya yetki
+sorunu yedeği hâlâ düşürüyor, çünkü onlar tek tabloyla sınırlı olmaz ve
+saklanmaları kimsenin sorgulamadığı boş dosyalar üretir. Eksik tablo hata olarak
+loglanıyor ve üretilen dosyada `meta.unavailableTables` altında adıyla yazılıyor.
+**Eksik olduğu bilinen bir yedek hâlâ işe yarar; kendini tam sanan bir yedek
+tuzaktır.**
+
+Tablo listesi parametre oldu — esneklik için değil, **bunu test edilebilir
+kılmak için**. Aksi halde bu yolu denemenin tek yolu gerçek bir tabloyu düşürmek
+olurdu, yani davranış tam da önemli olduğu yerde doğrulanmamış kalırdı. Test
+durumu gerçekten yaratıyor ve Postgres'in mesajını değil **hata kodunu** okuyor
+(mesaj sunucu diline göre çevriliyor). Mutasyonla kanıtlı: `catch` kaldırılınca
+takım kızarıyor.
+
+### 5. Kapsam bütçesi kurala çevrildi — ve sabahki hatam (PR #9)
+
+İki şey, ve birincisi aynı sabah benim gönderdiğim bir hata: **tasks rotası çöp
+kutusuna arşivlemeyi DELETE değil GET handler'ında yapıyordu.** Bir görevi
+okumak onu silinmiş diye kaydediyor, silmek hiçbir şey kaydetmiyordu. Betiğim
+dosyadaki ilk `if (!task)` bloğunu eşleştirmişti — o blok okuma yoluna ait — ve
+testim bunu **göremezdi**: dosyanın `archiveDeletedRows(tasksTable` **içerdiğini**
+doğruluyordu, ki bu doğruydu — yanlış fonksiyonda. Mutasyon kontrolü de aynı
+nedenle geçti. **Bir dosyada bulunmak, doğru handler'da bulunmak değildir**, ve
+sayı temelli kapsam testi de bunu asla göremezdi.
+
+Bu yüzden kapsam testi **tavan yerine kural** oldu: rotalardaki her
+`db.delete(XTable)`'ı okuyor, tabloyu veritabanı adına eşliyor, ve tablo geri
+yüklenebilirse **aynı route handler'ı içinde** bir arşivleme çağrısı istiyor.
+"En fazla 36 kapsanmamış" bütçesi, o 36'nın yapılacak iş mi kapsam dışı vaka mı
+olduğu hakkında hiçbir şey söylemiyordu, ve toplam sabit kaldığı sürece **yeni
+bir arşivlenmemiş silmeye sessizce izin veriyordu**. Gerçek kusura karşı
+kanıtlandı: çağrıyı okuma handler'ına geri taşı, takım dosyayı ve satırı adıyla
+söylüyor.
+
+**Handler sınırı** kendisi de bir düzeltmeydi: sabit birkaç satırlık pencere,
+zaten doğru olan dört rotayı suçladı — çünkü çok satırlı bir `.returning()` ve
+bir 404 kontrolü silmeyle arşivleme arasına giriyor — ve onları temizleyecek
+kadar genişletmek eninde sonunda **bir sonraki rotaya ait** bir arşivlemeyi
+kabul ederdi.
+
+Kuralla birlikte kapsam **6 silme noktasından 24'e** çıktı. En çok önemseyeni 14
+toplu işlem: tek tık onlarca satırı götürüyor ve hiçbir şey onları
+yakalamıyordu. Gerisi — takvim olayları, check-in'ler, belgeler, mesajlar —
+insanın yasını tutacağı kalan tablolar. Hâlâ kapsanmayan her şey, zaten geri
+getirilemeyen bir tabloyu siliyor: entegrasyon kimlik bilgileri, hesaplar,
+yedeklerin kendisi. Onları arşivlemek, çöp kutusunun **geri koyamayacağı** bir
+kayıt göstermek olurdu — hiçbir şey göstermemekten kötü — ve `RESTORABLE_TABLES`
+bunu zaten çözmüştü.
+
+### Doğrulama
+
+22 çöp kutusu testi, sunucu genelinde 946; kapsanan bütün silme noktalarının
+arşivlemesi kaldırıldığında takımın düştüğü ayrı ayrı kanıtlandı, kiracı sınırı
+ve kapsam kuralı dahil. Rota envanteri **657**. Beş PR'ın hepsi main'de, son
+Cloud Build (13:15) yeşil, site ayakta.
+
+### ⚠️ Buradan sonrası — üretim şeması
+
+`deleted_rows` yeni bir tablo, ve **madde 4'te yazılan pencere şu an açık**:
+dağıtılmış kod çöp kutusunu biliyor, üretim veritabanı bilmiyor olabilir. Bu
+oturumda `bash deploy/gcp-schema-push.sh` çalıştırılamadı (harness üretim
+veritabanı yazmasını engelledi). **Çalıştırılana kadar** çöp kutusu sayfası
+üretimde 42P01 verebilir — ve yedekler, PR #8 sayesinde artık bu yüzden yok
+olmuyor, sadece o tabloyu `meta.unavailableTables` altında eksik bildiriyor.
