@@ -190,6 +190,19 @@ girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamla
   `deploy/gcp-deploy.sh`, `src/__tests__/claude-model-ids.test.ts`
 - **Durum**: OpenAI tamam. Anthropic: kod tarafı tamam; Vertex kotası / doğrudan
   anahtar kullanıcının kararını bekliyor.
+- **2026-09-03 — doğrulanmayı bekleyen tek şey**: harcama tavanının kalkma tarihi
+  (1 Eylül 00:00 UTC) geçti, yani Claude'un **kendiliğinden** açılmış olması
+  gerekiyor. Bu oturumda ölçülemedi (harness sır okumayı + dış API çağrısını
+  engelledi). Tek komutluk doğrulama, repo kökünden:
+
+      K=$(gcloud secrets versions access latest --secret=batiflow-anthropic-api-key --project gwmme-1771577941260)
+      curl -s -o /dev/null -w "%{http_code}\n" https://api.anthropic.com/v1/messages \
+        -H "x-api-key: $K" -H "anthropic-version: 2023-06-01" -H "content-type: application/json" \
+        -d '{"model":"claude-sonnet-4-6","max_tokens":16,"messages":[{"role":"user","content":"ping"}]}'
+
+  `200` → konsey üç sağlayıcıyla çalışıyor, madde kapanır. Hâlâ `429`
+  (`enforced_spend_limit_reached`) → Anthropic Console → Plans & Billing'den
+  tier/limit yükseltilmeli. Ölçmeden "çalışıyor" yazılmayacak.
 
 ### 4. [ORTA] Super Agent durumunu kalıcı hale getir
 
@@ -1151,6 +1164,11 @@ yalnız CI test veritabanına uygulanıyor; üretim şeması elle gidiyor:
 
 Bu yapılana kadar Guardian eski (örnek-başına) davranışında kalır ve günde bir
 kez uyarı loglar — çökme yok.
+
+**KAPANDI — 2026-09-03.** Bu adım da bugünkü üretim şema push'uyla kapandı:
+`schema-guard` 89 tabloyu karşılaştırdı ve `drizzle-kit push` bütün eksik
+tabloları uyguladı, `ip_bans` dahil. Guardian artık paylaşılan yasak tablosunu
+kullanabilir.
 
 ## Faz 2 — TAMAM (kiracı izolasyonu: ölçüldü, sızıntı yok, kapı kondu)
 
