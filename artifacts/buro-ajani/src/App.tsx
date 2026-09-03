@@ -262,6 +262,24 @@ function AnimatedRouteContent({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Redirection d'une ancienne adresse vers la nouvelle.
+ *
+ * Ces deux redirections etaient ecrites en fonctions flechees anonymes, hooks
+ * compris, directement dans l'attribut `component` d'une `<Route>`. Elles
+ * fonctionnaient — wouter les rend bien comme des composants — mais aucun outil
+ * ne pouvait le savoir: pour l'analyse statique, ce sont des hooks appeles dans
+ * un callback quelconque, donc quatre erreurs `rules-of-hooks` qui masquaient
+ * les vraies. Un composant nomme dit la meme chose sans ambiguite.
+ */
+function RedirectTo({ to }: { to: string }) {
+  const [, navigate] = useLocation();
+  useEffect(() => {
+    navigate(to);
+  }, [to, navigate]);
+  return null;
+}
+
 function AppRoutes() {
   const [location] = useLocation();
   return (
@@ -291,7 +309,7 @@ function AppRoutes() {
         <Route path="/pointage" component={withLicenseGate(CheckinsPage)} />
         <Route path="/agents-ia" component={withLicenseGate(AiAgentsPage)} />
         <Route path="/calendrier" component={withLicenseGate(CalendarPage)} />
-        <Route path="/audit" component={() => { const [, nav] = useLocation(); useEffect(() => nav("/auto-audit"), []); return null; }} />
+        <Route path="/audit" component={() => <RedirectTo to="/auto-audit" />} />
         <Route path="/automatisations" component={withRoleGate(AutomationsPage, ADMIN_ROLES)} />
         <Route path="/performance" component={withRoleGate(PerformancePage, ADMIN_ROLES)} />
         <Route path="/google-workspace" component={withLicenseGate(GoogleWorkspacePage)} />
@@ -300,7 +318,7 @@ function AppRoutes() {
         <Route path="/documents" component={withLicenseGate(DocumentsPage)} />
         <Route path="/base-connaissances" component={withLicenseGate(KnowledgeBasePage)} />
         <Route path="/import" component={withLicenseGate(DocumentImportPage)} />
-        <Route path="/abonnement" component={() => { const [, nav] = useLocation(); useEffect(() => nav(`/gestion-licence${window.location.search}`), []); return null; }} />
+        <Route path="/abonnement" component={() => <RedirectTo to={`/gestion-licence${window.location.search}`} />} />
         <Route path="/organisations" component={withRoleGate(OrganisationsPage, SUPER_ADMIN_ROLES, { license: false })} />
         <Route path="/parametres" component={SettingsPage} />
         <Route path="/guide" component={GuidePage} />

@@ -56,14 +56,32 @@ export function RecognitionProvider({ children }: { children: ReactNode }) {
   );
 }
 
-function useRecognition() {
+/**
+ * La reconnaissance, qu'un fournisseur soit present au-dessus ou non.
+ *
+ * Les deux hooks de repli etaient appeles DANS le `if (!ctx)`. Un composant
+ * qui passe d'un rendu sans fournisseur a un rendu avec (ou l'inverse) change
+ * alors son nombre de hooks entre deux rendus, ce que React refuse — il leve
+ * « Rendered more hooks than during the previous render » et l'arbre casse.
+ * On les appelle donc toujours, et c'est la REQUETE, pas le hook, qui devient
+ * conditionnelle: instancier la mutation ne declenche aucun appel reseau.
+ */
+function useRecognition(): RecognitionContextValue {
   const ctx = useContext(RecognitionContext);
-  if (!ctx) {
-    const recognition = useRequestAiRecognition();
-    useEffect(() => { recognition.mutate({ data: {} }); }, []);
-    return { data: recognition.data, isPending: recognition.isPending, refresh: () => recognition.mutate({ data: {} }) };
-  }
-  return ctx;
+  const fallback = useRequestAiRecognition();
+  const standalone = ctx === null;
+
+  useEffect(() => {
+    if (standalone) fallback.mutate({ data: {} });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [standalone]);
+
+  if (ctx) return ctx;
+  return {
+    data: fallback.data,
+    isPending: fallback.isPending,
+    refresh: () => fallback.mutate({ data: {} }),
+  };
 }
 
 const ICON_MAP: Record<string, React.ReactNode> = {

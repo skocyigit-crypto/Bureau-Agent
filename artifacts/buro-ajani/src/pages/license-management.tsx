@@ -252,6 +252,14 @@ function InvoiceDetailDialog({ invoice, onClose, onRefresh, onReloadInvoice }: {
   const [paymentMethod, setPaymentMethod] = useState("virement");
   const [reminderOpen, setReminderOpen] = useState(false);
   const [customMessage, setCustomMessage] = useState("");
+  // Ces deux etats vivaient plus bas, APRES le `return null` ci-dessous. Le
+  // composant reste monte en permanence (`invoice={deepLinkInvoice}`, nul tant
+  // qu'aucune facture n'est ouverte): il rendait donc 8 hooks facture fermee et
+  // 10 facture ouverte. React refuse ce changement d'ordre — « Rendered more
+  // hooks than during the previous render » — et l'ecran de facturation cassait
+  // au moment precis ou un lien profond ouvrait une facture.
+  const [markPaidOpen, setMarkPaidOpen] = useState(false);
+  const [markPaidMethod, setMarkPaidMethod] = useState("virement");
 
   if (!invoice) return null;
   const remaining = (invoice.totalAmount || 0) - (invoice.paidAmount || 0);
@@ -278,8 +286,6 @@ function InvoiceDetailDialog({ invoice, onClose, onRefresh, onReloadInvoice }: {
     }
   };
 
-  const [markPaidOpen, setMarkPaidOpen] = useState(false);
-  const [markPaidMethod, setMarkPaidMethod] = useState("virement");
   const sendInvoice = () => callAction("send", "/api/license-management/send-invoice-email", { factureClientId: invoice.id }, (d) => d.message || t("licenseManagement.toastMsg.invoiceSent"));
   const markPaid = async () => {
     const ok = await callAction("paid", "/api/license-management/mark-invoice-paid", { factureClientId: invoice.id, paymentMethod: markPaidMethod }, (d) => d.message || t("licenseManagement.toastMsg.invoicePaid"));

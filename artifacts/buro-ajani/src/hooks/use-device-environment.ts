@@ -151,10 +151,21 @@ export function DeviceEnvironmentProvider({ children }: { children: ReactNode })
   return createElement(DeviceEnvContext.Provider, { value: env }, children);
 }
 
+/**
+ * L'environnement, qu'un fournisseur soit present au-dessus ou non.
+ *
+ * Le repli `return useDeviceEnvironment()` etait appele APRES un retour
+ * anticipe: un composant qui passe d'un rendu avec fournisseur a un rendu sans
+ * (ou l'inverse) change alors son nombre de hooks d'un rendu a l'autre, ce que
+ * React refuse — « Rendered more hooks than during the previous render ».
+ * Le hook est donc appele inconditionnellement, et c'est la VALEUR rendue qui
+ * reste conditionnelle. En pratique le seul appelant (`layout.tsx`) est rendu
+ * sous le fournisseur, donc ce repli ne sert que de filet.
+ */
 export function useDeviceEnvContext(): DeviceEnvironment {
   const ctx = useContext(DeviceEnvContext);
-  if (ctx) return ctx;
-  return useDeviceEnvironment();
+  const local = useDeviceEnvironment();
+  return ctx ?? local;
 }
 
 export function triggerHaptic(style: "light" | "medium" | "heavy" | "success" | "warning" | "error" = "light") {
