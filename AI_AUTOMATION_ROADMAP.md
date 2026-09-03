@@ -281,8 +281,12 @@ girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamla
 - **Doğrulama**: 7 yeni test — kapalı organizasyonun seçime hiç girmemesi,
   günde ikinci kez alınmaması, hiç çalışmamış organizasyonun alınması ve
   varsayılanın gerçekten `false` olması dahil.
-- **Durum**: Kalıcılık ve cron tamam. Madde 4 kapandı; e-posta ayağı hâlâ
-  madde 1'e (Google OAuth) bağlı.
+- **Üretim şeması aynı gün 18:11'de push edildi**: `super_agent_state`,
+  `super_agent_logs` ve `auto_run_enabled` artık üretimde. Degraded pencere
+  kapandı — sayaçlar üç instance arasında paylaşılıyor ve otomatik çalıştırma
+  anahtarı gerçekten kaydediliyor.
+- **Durum**: Kalıcılık ve cron tamam, şema üretimde. Madde 4 kapandı; e-posta
+  ayağı hâlâ madde 1'e (Google OAuth) bağlı.
 
 ### 5. [TAMAMLANDI] Günlük özeti gerçekten "günlük" yap (2026-07-14)
 
