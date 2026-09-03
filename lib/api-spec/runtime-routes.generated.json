@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 657,
+    "runtimeOperations": 658,
     "documentedOperations": 96,
-    "undocumentedOperations": 561
+    "undocumentedOperations": 562
   },
   "operations": [
     {
@@ -620,6 +620,14 @@
       "documented": true,
       "sources": [
         "artifacts/api-server/src/routes/ai-analysis.ts"
+      ]
+    },
+    {
+      "method": "patch",
+      "path": "/ai/super-agent/auto-run",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ai-agents.ts"
       ]
     },
     {
