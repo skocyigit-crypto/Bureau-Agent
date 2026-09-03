@@ -1,4 +1,5 @@
 import { logger } from "../lib/logger";
+import { purgeOldSecurityScans } from "./security-scans";
 
 /**
  * Application effective des durees de conservation annoncees.
@@ -16,6 +17,18 @@ import { logger } from "../lib/logger";
  * une donnee de facturation et d'exploitation (qui a appele qui, quand,
  * combien de temps). Effacer la ligne entiere ferait disparaitre des donnees
  * dont la conservation est par ailleurs justifiee.
+ *
+ * DEUXIEME PURGE, ajoutee le 2026-09-03: le journal des analyses de securite.
+ * `purgeOldSecurityScans` existait depuis le 23 juillet, avec un commentaire
+ * expliquant que la table « grossit indefiniment » — et rien ne l'appelait.
+ * Six semaines d'ecriture sans effet, exactement le defaut que ce depot
+ * rencontre a repetition: du code redige, jamais branche.
+ *
+ * L'enjeu n'est pas seulement la taille. Chaque ligne porte un `userId` et une
+ * `target` — le fichier, l'adresse ou le numero analyse, y compris pour les
+ * pieces jointes entrantes d'email et de WhatsApp. C'est donc de la donnee
+ * personnelle, conservee sans terme, ce que l'article 5.1.e interdit — le
+ * principe meme que ce module a ete ecrit pour appliquer.
  *
  * LIMITE CONNUE, a traiter separement: `recordingUrl` pointe vers un fichier
  * heberge chez l'operateur de telephonie (Twilio et equivalents). Effacer la
@@ -86,6 +99,7 @@ export async function startRetentionCron(): Promise<void> {
   const { registerRunnableCron } = await import("./cron-registry");
   registerRunnableCron(CRON_NAME, TICK_MS, async () => {
     await purgeExpiredCallRecordings();
+    await purgeOldSecurityScans();
   });
   logger.info(
     { retentionDays: RETENTION_DAYS },
