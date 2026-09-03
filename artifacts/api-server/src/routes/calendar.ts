@@ -8,6 +8,7 @@ import { resolveUserNames, enrichWithUserNames } from "../helpers/user-tracking"
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { notifyOrgUsers } from "../services/whatsapp-notify";
 import { computeFreeSlots, getWorkingHoursConfig } from "../services/availability";
+import { archiveDeletedRows, deletionContext } from "../services/trash";
 import {
   pushAppointmentToGoogleCalendar,
   updateAppointmentInGoogleCalendar,
@@ -506,7 +507,8 @@ router.delete("/calendar/events/:id", async (req: Request, res: Response): Promi
       .from(calendarEventsTable)
       .where(and(eq(calendarEventsTable.id, id), eq(calendarEventsTable.organisationId, orgId)));
 
-    await db.delete(calendarEventsTable).where(and(eq(calendarEventsTable.id, id), eq(calendarEventsTable.organisationId, orgId)));
+    const supprimes = await db.delete(calendarEventsTable).where(and(eq(calendarEventsTable.id, id), eq(calendarEventsTable.organisationId, orgId))).returning();
+    await archiveDeletedRows(calendarEventsTable, supprimes, deletionContext(req, orgId));
     logAudit(userId, req.session?.userEmail, "delete", "calendar_event", String(id), undefined, req.ip, req.get("user-agent"), req.session?.organisationId);
 
     if (existing?.googleEventId) {

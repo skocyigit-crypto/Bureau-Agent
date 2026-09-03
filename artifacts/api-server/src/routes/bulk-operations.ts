@@ -5,6 +5,7 @@ import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
 import { logAudit } from "./audit";
 import { logger } from "../lib/logger";
+import { archiveDeletedRows, deletionContext } from "../services/trash";
 
 const router = Router();
 
@@ -50,7 +51,8 @@ router.post("/bulk/tasks/delete", requireMinAdmin, async (req: Request, res: Res
 
     auditBulk(req, "bulk_delete", "tasks", ids);
 
-    await db.delete(tasksTable).where(and(eq(tasksTable.organisationId, orgId), inArray(tasksTable.id, ids)));
+    const supprimees = await db.delete(tasksTable).where(and(eq(tasksTable.organisationId, orgId), inArray(tasksTable.id, ids))).returning();
+    await archiveDeletedRows(tasksTable, supprimees, deletionContext(req, orgId));
     res.json({ success: true, deleted: ids.length });
   } catch (err: any) {
     logger.error({ err: err }, "Erreur bulk delete tasks:");
@@ -116,7 +118,8 @@ router.post("/bulk/contacts/delete", requireMinAdmin, async (req: Request, res: 
 
     auditBulk(req, "bulk_delete", "contacts", ids);
 
-    await db.delete(contactsTable).where(and(eq(contactsTable.organisationId, orgId), inArray(contactsTable.id, ids)));
+    const supprimees = await db.delete(contactsTable).where(and(eq(contactsTable.organisationId, orgId), inArray(contactsTable.id, ids))).returning();
+    await archiveDeletedRows(contactsTable, supprimees, deletionContext(req, orgId));
     res.json({ success: true, deleted: ids.length });
   } catch (err: any) {
     logger.error({ err: err }, "Erreur bulk delete contacts:");
@@ -204,8 +207,9 @@ router.post("/bulk/calls/delete", requireMinAdmin, async (req: Request, res: Res
     const { ids } = req.body as { ids: number[] };
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
     auditBulk(req, "bulk_delete", "calls", ids);
-    const result = await db.delete(callsTable).where(and(eq(callsTable.organisationId, orgId), inArray(callsTable.id, ids)));
-    res.json({ deleted: result.rowCount ?? ids.length });
+    const result = await db.delete(callsTable).where(and(eq(callsTable.organisationId, orgId), inArray(callsTable.id, ids))).returning();
+    await archiveDeletedRows(callsTable, result, deletionContext(req, orgId));
+    res.json({ deleted: result.length });
   } catch (err: any) {
     logger.error({ err }, "Bulk delete calls error");
     res.status(500).json({ error: "Erreur suppression" });
@@ -218,8 +222,9 @@ router.post("/bulk/messages/delete", requireMinAdmin, async (req: Request, res: 
     const { ids } = req.body as { ids: number[] };
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
     auditBulk(req, "bulk_delete", "messages", ids);
-    const result = await db.delete(messagesTable).where(and(eq(messagesTable.organisationId, orgId), inArray(messagesTable.id, ids)));
-    res.json({ deleted: result.rowCount ?? ids.length });
+    const result = await db.delete(messagesTable).where(and(eq(messagesTable.organisationId, orgId), inArray(messagesTable.id, ids))).returning();
+    await archiveDeletedRows(messagesTable, result, deletionContext(req, orgId));
+    res.json({ deleted: result.length });
   } catch (err: any) {
     logger.error({ err }, "Bulk delete messages error");
     res.status(500).json({ error: "Erreur suppression" });
@@ -354,8 +359,9 @@ router.post("/bulk/devis/delete", requireMinAdmin, async (req: Request, res: Res
     const { ids } = req.body as { ids: number[] };
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
     auditBulk(req, "bulk_delete", "devis", ids);
-    const result = await db.delete(devisTable).where(and(eq(devisTable.organisationId, orgId), inArray(devisTable.id, ids)));
-    res.json({ deleted: result.rowCount ?? ids.length });
+    const result = await db.delete(devisTable).where(and(eq(devisTable.organisationId, orgId), inArray(devisTable.id, ids))).returning();
+    await archiveDeletedRows(devisTable, result, deletionContext(req, orgId));
+    res.json({ deleted: result.length });
   } catch (err: any) {
     logger.error({ err }, "Bulk delete devis error");
     res.status(500).json({ error: "Erreur suppression" });
@@ -368,8 +374,9 @@ router.post("/bulk/factures/delete", requireMinAdmin, async (req: Request, res: 
     const { ids } = req.body as { ids: number[] };
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
     auditBulk(req, "bulk_delete", "factures", ids);
-    const result = await db.delete(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), inArray(facturesClientTable.id, ids)));
-    res.json({ deleted: result.rowCount ?? ids.length });
+    const result = await db.delete(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), inArray(facturesClientTable.id, ids))).returning();
+    await archiveDeletedRows(facturesClientTable, result, deletionContext(req, orgId));
+    res.json({ deleted: result.length });
   } catch (err: any) {
     logger.error({ err }, "Bulk delete factures error");
     res.status(500).json({ error: "Erreur suppression" });
@@ -382,8 +389,9 @@ router.post("/bulk/commandes/delete", requireMinAdmin, async (req: Request, res:
     const { ids } = req.body as { ids: number[] };
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
     auditBulk(req, "bulk_delete", "commandes", ids);
-    const result = await db.delete(commandesFournisseurTable).where(and(eq(commandesFournisseurTable.organisationId, orgId), inArray(commandesFournisseurTable.id, ids)));
-    res.json({ deleted: result.rowCount ?? ids.length });
+    const result = await db.delete(commandesFournisseurTable).where(and(eq(commandesFournisseurTable.organisationId, orgId), inArray(commandesFournisseurTable.id, ids))).returning();
+    await archiveDeletedRows(commandesFournisseurTable, result, deletionContext(req, orgId));
+    res.json({ deleted: result.length });
   } catch (err: any) {
     logger.error({ err }, "Bulk delete commandes error");
     res.status(500).json({ error: "Erreur suppression" });
@@ -424,8 +432,9 @@ router.post("/bulk/stock/delete", requireMinAdmin, async (req: Request, res: Res
     const { ids } = req.body as { ids: number[] };
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
     auditBulk(req, "bulk_delete", "stock", ids);
-    const result = await db.delete(stockArticlesTable).where(and(eq(stockArticlesTable.organisationId, orgId), inArray(stockArticlesTable.id, ids)));
-    res.json({ deleted: result.rowCount ?? ids.length });
+    const result = await db.delete(stockArticlesTable).where(and(eq(stockArticlesTable.organisationId, orgId), inArray(stockArticlesTable.id, ids))).returning();
+    await archiveDeletedRows(stockArticlesTable, result, deletionContext(req, orgId));
+    res.json({ deleted: result.length });
   } catch (err: any) {
     logger.error({ err }, "Bulk delete stock error");
     res.status(500).json({ error: "Erreur suppression" });
@@ -438,8 +447,9 @@ router.post("/bulk/prospects/delete", requireMinAdmin, async (req: Request, res:
     const { ids } = req.body as { ids: number[] };
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
     auditBulk(req, "bulk_delete", "prospects", ids);
-    const result = await db.delete(prospectsTable).where(and(eq(prospectsTable.organisationId, orgId), inArray(prospectsTable.id, ids)));
-    res.json({ deleted: result.rowCount ?? ids.length });
+    const result = await db.delete(prospectsTable).where(and(eq(prospectsTable.organisationId, orgId), inArray(prospectsTable.id, ids))).returning();
+    await archiveDeletedRows(prospectsTable, result, deletionContext(req, orgId));
+    res.json({ deleted: result.length });
   } catch (err: any) {
     logger.error({ err }, "Bulk delete prospects error");
     res.status(500).json({ error: "Erreur suppression" });
@@ -452,8 +462,9 @@ router.post("/bulk/checkins/delete", requireMinAdmin, async (req: Request, res: 
     const { ids } = req.body as { ids: number[] };
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
     auditBulk(req, "bulk_delete", "checkins", ids);
-    const result = await db.delete(checkinsTable).where(and(eq(checkinsTable.organisationId, orgId), inArray(checkinsTable.id, ids)));
-    res.json({ deleted: result.rowCount ?? ids.length });
+    const result = await db.delete(checkinsTable).where(and(eq(checkinsTable.organisationId, orgId), inArray(checkinsTable.id, ids))).returning();
+    await archiveDeletedRows(checkinsTable, result, deletionContext(req, orgId));
+    res.json({ deleted: result.length });
   } catch (err: any) {
     logger.error({ err }, "Bulk delete checkins error");
     res.status(500).json({ error: "Erreur suppression" });
@@ -466,8 +477,9 @@ router.post("/bulk/documents/delete", requireMinAdmin, async (req: Request, res:
     const { ids } = req.body as { ids: number[] };
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
     auditBulk(req, "bulk_delete", "documents", ids);
-    const result = await db.delete(documentsTable).where(and(eq(documentsTable.organisationId, orgId), inArray(documentsTable.id, ids)));
-    res.json({ deleted: result.rowCount ?? ids.length });
+    const result = await db.delete(documentsTable).where(and(eq(documentsTable.organisationId, orgId), inArray(documentsTable.id, ids))).returning();
+    await archiveDeletedRows(documentsTable, result, deletionContext(req, orgId));
+    res.json({ deleted: result.length });
   } catch (err: any) {
     logger.error({ err }, "Bulk delete documents error");
     res.status(500).json({ error: "Erreur suppression" });
@@ -480,8 +492,9 @@ router.post("/bulk/objectifs-commerciaux/delete", requireMinAdmin, async (req: R
     const { ids } = req.body as { ids: number[] };
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
     auditBulk(req, "bulk_delete", "objectifs", ids);
-    const result = await db.delete(objectifsCommerciauxTable).where(and(eq(objectifsCommerciauxTable.organisationId, orgId), inArray(objectifsCommerciauxTable.id, ids)));
-    res.json({ deleted: result.rowCount ?? ids.length });
+    const result = await db.delete(objectifsCommerciauxTable).where(and(eq(objectifsCommerciauxTable.organisationId, orgId), inArray(objectifsCommerciauxTable.id, ids))).returning();
+    await archiveDeletedRows(objectifsCommerciauxTable, result, deletionContext(req, orgId));
+    res.json({ deleted: result.length });
   } catch (err: any) {
     logger.error({ err }, "Bulk delete objectifs error");
     res.status(500).json({ error: "Erreur suppression" });
@@ -509,8 +522,9 @@ router.post("/bulk/notes-internes/delete", requireMinOperateur, async (req: Requ
     const { ids } = req.body as { ids: number[] };
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
     auditBulk(req, "bulk_delete", "notes_internes", ids);
-    const result = await db.delete(notesInternesTable).where(and(eq(notesInternesTable.organisationId, orgId), inArray(notesInternesTable.id, ids)));
-    res.json({ deleted: result.rowCount ?? ids.length });
+    const result = await db.delete(notesInternesTable).where(and(eq(notesInternesTable.organisationId, orgId), inArray(notesInternesTable.id, ids))).returning();
+    await archiveDeletedRows(notesInternesTable, result, deletionContext(req, orgId));
+    res.json({ deleted: result.length });
   } catch (err: any) {
     logger.error({ err }, "Bulk delete notes-internes error");
     res.status(500).json({ error: "Erreur suppression" });
@@ -538,8 +552,9 @@ router.post("/bulk/projets/delete", requireMinAdmin, async (req: Request, res: R
     const { ids } = req.body as { ids: number[] };
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
     auditBulk(req, "bulk_delete", "projets", ids);
-    const result = await db.delete(projetsTable).where(and(eq(projetsTable.organisationId, orgId), inArray(projetsTable.id, ids)));
-    res.json({ deleted: result.rowCount ?? ids.length });
+    const result = await db.delete(projetsTable).where(and(eq(projetsTable.organisationId, orgId), inArray(projetsTable.id, ids))).returning();
+    await archiveDeletedRows(projetsTable, result, deletionContext(req, orgId));
+    res.json({ deleted: result.length });
   } catch (err: any) {
     logger.error({ err }, "Bulk delete projets error");
     res.status(500).json({ error: "Erreur suppression" });

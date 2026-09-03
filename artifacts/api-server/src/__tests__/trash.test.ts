@@ -142,24 +142,56 @@ describe("les suppressions passent bien par la corbeille", () => {
     });
   }
 
-  it("mesure ce qui n'est pas encore couvert, au lieu de le taire", () => {
-    // Toutes les suppressions ne sont pas encore branchees. Le nombre est
-    // affiche pour que le reste soit un travail identifie et non une illusion
-    // de couverture: une corbeille partielle dont on croit qu'elle est
-    // complete est plus dangereuse qu'une absence de corbeille.
+  it("archive toute suppression d'une table restaurable, sans exception", () => {
+    /**
+     * Une regle plutot qu'un plafond.
+     *
+     * La premiere version comptait les suppressions non couvertes et exigeait
+     * que le total reste sous un seuil. C'etait le mauvais outil: un chiffre
+     * ne dit pas si les 36 restantes sont un travail a faire ou des cas hors
+     * sujet, et il autorise silencieusement une nouvelle suppression non
+     * archivee tant que le total ne bouge pas.
+     *
+     * Le critere reel est simple: si la table peut etre restauree, sa
+     * suppression DOIT passer par la corbeille. Sinon, il n'y a rien a
+     * archiver — la corbeille afficherait une entree qu'elle ne saurait pas
+     * remettre, ce qui est pire que de ne rien afficher. Les identifiants
+     * d'integration, les comptes, les sauvegardes elles-memes tombent dans ce
+     * second cas, et `RESTORABLE_TABLES` a deja tranche pourquoi.
+     */
     const routesDir = join(SRC, "routes");
-    let sites = 0;
-    let archived = 0;
+    const gaps: string[] = [];
+
     for (const name of readdirSync(routesDir).filter((f) => f.endsWith(".ts"))) {
       const src = readFileSync(join(routesDir, name), "utf8");
-      sites += (src.match(/db\.delete\(/g) || []).length;
-      archived += (src.match(/archiveDeletedRows\(/g) || []).length;
+      const lines = src.split(/\r?\n/);
+
+      for (let i = 0; i < lines.length; i += 1) {
+        const m = lines[i]!.match(/db\.delete\((\w+Table)\)/);
+        if (!m) continue;
+        const table = m[1]!;
+        // Nom de la table en base: `facturesClientTable` -> `factures_client`.
+        const dbName = table
+          .replace(/Table$/, "")
+          .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+          .toLowerCase();
+        if (!isRestorableTable(dbName)) continue;
+
+        // L'archivage doit se trouver dans la MEME poignee de route, pas dans
+        // une fenetre de quelques lignes: entre la suppression et l'archivage
+        // s'intercalent souvent un `.returning()` sur plusieurs lignes et un
+        // controle 404. Une fenetre fixe accusait a tort quatre routes deja
+        // correctes — et l'elargir jusqu'a les blanchir aurait fini par
+        // accepter un archivage appartenant a la route SUIVANTE.
+        const end = lines.findIndex((l, k) => k > i && /^router\.(get|post|put|patch|delete)\(/.test(l));
+        const handler = lines.slice(i, end < 0 ? lines.length : end).join("\n");
+        if (!handler.includes(`archiveDeletedRows(${table}`)) {
+          gaps.push(`${name}:${i + 1} supprime ${dbName} sans passer par la corbeille`);
+        }
+      }
     }
-    expect(sites).toBeGreaterThan(0);
-    expect(archived).toBeGreaterThanOrEqual(COVERED.length);
-    // Plafond constate, a faire baisser: il doit refleter la realite, jamais
-    // l'ambition.
-    expect(sites - archived).toBeLessThanOrEqual(36);
+
+    expect(gaps, gaps.join("\n")).toEqual([]);
   });
 });
 

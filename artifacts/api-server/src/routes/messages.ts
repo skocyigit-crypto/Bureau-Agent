@@ -15,6 +15,7 @@ import { getOrgId } from "../middleware/tenant";
 import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
 import { zodErrorResponse } from "../lib/zod-error";
 import { notifyOrgUsers, maskPhone } from "../services/whatsapp-notify";
+import { archiveDeletedRows, deletionContext } from "../services/trash";
 
 const router: IRouter = Router();
 
@@ -299,6 +300,7 @@ router.delete("/messages/:id", async (req, res): Promise<void> => {
 
   try {
     const [message] = await db.delete(messagesTable).where(and(eq(messagesTable.id, params.data.id), eq(messagesTable.organisationId, orgId))).returning();
+    await archiveDeletedRows(messagesTable, message ? [message] : [], deletionContext(req, orgId));
     if (!message) {
       res.status(404).json({ error: "Message not found" });
       return;
