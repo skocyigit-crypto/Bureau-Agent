@@ -5814,7 +5814,8 @@
       "relanceImpossible": "Mahnung nicht möglich",
       "relanceFailed": "Mahnungsversand fehlgeschlagen."
     },
-    "pdfTitle": "PDF-Rechnung herunterladen"
+    "pdfTitle": "PDF-Rechnung herunterladen",
+    "xmlTitle": "Factur-X-XML herunterladen"
   },
   "santeTechnique": {
     "title": "Technische Gesundheit",

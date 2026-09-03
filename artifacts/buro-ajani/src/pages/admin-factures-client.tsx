@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Edit,FileDown,Loader2,Plus,Receipt,RefreshCw,Search,Send,Shield,Trash2 } from "lucide-react";
+import { Edit,FileCode,FileDown,Loader2,Plus,Receipt,RefreshCw,Search,Send,Shield,Trash2 } from "lucide-react";
 import { useCallback,useEffect,useState } from "react";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
@@ -223,7 +223,23 @@ export default function AdminFacturesClientPage() {
                   aria-label={t("adminFacturesClient.pdfTitle")}
                   onClick={() => window.open(`${BASE}/api/factures-client/${f.id}/pdf`, "_blank", "noopener,noreferrer")}
                 >
-                  <FileDown className="w-3 h-3" />
+                  <FileDown className="w-3 h-3" aria-hidden="true" />
+                </Button>
+                {/* Le XML CII, separement du PDF.
+                    Depuis le 1er septembre 2026, c'est cette forme-la que
+                    reclament les plateformes de dematerialisation et Chorus
+                    Pro. Le PDF l'emporte deja en piece jointe, mais l'extraire
+                    a la main d'un fichier attache n'est pas une manipulation
+                    qu'on peut demander a un utilisateur. */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  title={t("adminFacturesClient.xmlTitle")}
+                  aria-label={t("adminFacturesClient.xmlTitle")}
+                  onClick={() => window.open(`${BASE}/api/factures-client/${f.id}/facturx.xml`, "_blank", "noopener,noreferrer")}
+                >
+                  <FileCode className="w-3 h-3" aria-hidden="true" />
                 </Button>
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(f)} aria-label={t("common.edit")}><Edit className="w-3 h-3" aria-hidden="true" /></Button>
                 <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => handleDelete(f.id)} aria-label={t("common.delete")}><Trash2 className="w-3 h-3" aria-hidden="true" /></Button>

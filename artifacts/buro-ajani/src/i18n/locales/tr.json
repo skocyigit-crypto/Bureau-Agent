@@ -5814,7 +5814,8 @@
       "relanceImpossible": "Hatırlatma mümkün değil",
       "relanceFailed": "Hatırlatma gönderimi başarısız."
     },
-    "pdfTitle": "Fatura PDF’ini indir"
+    "pdfTitle": "Fatura PDF’ini indir",
+    "xmlTitle": "Factur-X XML dosyasini indir"
   },
   "santeTechnique": {
     "title": "Teknik sağlık",

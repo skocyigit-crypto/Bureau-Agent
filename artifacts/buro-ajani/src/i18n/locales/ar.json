@@ -5814,7 +5814,8 @@
       "relanceImpossible": "التذكير غير ممكن",
       "relanceFailed": "فشل إرسال التذكير."
     },
-    "pdfTitle": "تنزيل الفاتورة بصيغة PDF"
+    "pdfTitle": "تنزيل الفاتورة بصيغة PDF",
+    "xmlTitle": "تنزيل ملف Factur-X XML"
   },
   "santeTechnique": {
     "title": "الصحة التقنية",
