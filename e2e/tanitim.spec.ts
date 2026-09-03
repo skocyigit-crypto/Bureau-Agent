@@ -62,6 +62,9 @@ test.describe("pages obligatoires", () => {
     { path: "/mentions-legales", label: "mentions legales" },
     { path: "/confidentialite", label: "politique de confidentialite" },
     { path: "/cgu", label: "conditions d'utilisation" },
+    // Publiee le 2026-09-03: vendre un abonnement sans CGV laisse le prix, la
+    // duree, la resiliation et la responsabilite sans cadre contractuel.
+    { path: "/cgv", label: "conditions de vente" },
     { path: "/accessibilite", label: "declaration d'accessibilite" },
   ];
 
