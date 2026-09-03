@@ -168,11 +168,17 @@ function MilestonesPanel({ projet, onUpdated }: { projet: Projet; onUpdated: () 
           <div key={m.id} className="flex items-center gap-2 group text-xs">
             <button
               onClick={() => toggle(m.id)} disabled={saving}
-              className={`shrink-0 w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors ${
-                m.completed ? "bg-emerald-500 border-emerald-500" : "border-gray-300 dark:border-gray-600 hover:border-emerald-400"
-              }`}
+              aria-pressed={m.completed}
+              aria-label={m.title}
+              className="shrink-0 w-6 h-6 -m-1 flex items-center justify-center"
             >
-              {m.completed && <CheckCircle2 className="w-2.5 h-2.5 text-white" />}
+              <span
+                className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors ${
+                  m.completed ? "bg-emerald-500 border-emerald-500" : "border-gray-300 dark:border-gray-600 hover:border-emerald-400"
+                }`}
+              >
+                {m.completed && <CheckCircle2 className="w-2.5 h-2.5 text-white" aria-hidden="true" />}
+              </span>
             </button>
             <span className={`flex-1 truncate ${m.completed ? "line-through text-muted-foreground" : ""} ${overdue ? "text-red-500" : ""}`}>
               {m.title}
@@ -185,8 +191,9 @@ function MilestonesPanel({ projet, onUpdated }: { projet: Projet; onUpdated: () 
             <button
               onClick={() => remove(m.id)} disabled={saving}
               className="shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-500 transition-opacity"
+              aria-label={t("common.delete")}
             >
-              <X className="w-3 h-3" />
+              <X className="w-3 h-3" aria-hidden="true" />
             </button>
           </div>
         );
@@ -203,8 +210,8 @@ function MilestonesPanel({ projet, onUpdated }: { projet: Projet; onUpdated: () 
           onChange={e => setNewDate(e.target.value)}
           className="h-6 text-xs px-1.5 w-28"
         />
-        <Button size="sm" variant="ghost" className="h-6 w-6 p-0 shrink-0" onClick={add} disabled={saving || !newTitle.trim()}>
-          {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+        <Button size="sm" variant="ghost" className="h-6 w-6 p-0 shrink-0" onClick={add} disabled={saving || !newTitle.trim()} aria-label={t("common.add")}>
+          {saving ? <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" /> : <Plus className="w-3 h-3" aria-hidden="true" />}
         </Button>
       </div>
     </div>
@@ -525,8 +532,8 @@ function ProjetCard({ projet, onEdit, onDelete, onDuplicate, onUpdated, selectMo
             <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" title={t("projets.card.duplicateTitle")} onClick={onDuplicate}>
               <Copy className="w-3.5 h-3.5" />
             </Button>
-            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10" onClick={onDelete}>
-              <Trash2 className="w-3.5 h-3.5" />
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10" onClick={onDelete} aria-label={t("common.delete")}>
+              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
             </Button>
           </div>
         )}
@@ -679,11 +686,11 @@ export default function ProjetsPage() {
               {selectMode ? <><X className="w-3 h-3" /> {t("projets.cancel")}</> : <><CheckSquare className="w-3 h-3" /> {t("projets.selectMode")}</>}
             </Button>
           )}
-          <Button size="sm" variant="outline" onClick={load} disabled={loading} className="h-8">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          <Button size="sm" variant="outline" onClick={load} disabled={loading} className="h-8" aria-label={t("common.refresh")}>
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} aria-hidden="true" />
           </Button>
           <Button variant="outline" size="sm" className="h-8" onClick={() => { window.open(`${BASE}/api/export/projets`, "_blank", "noopener,noreferrer"); }} title={t("projets.exportCsv")}><Download className="w-4 h-4" /></Button>
-          <Button variant="outline" size="sm" className="h-8" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+          <Button variant="outline" size="sm" className="h-8" onClick={() => window.print()} aria-label={t("common.print")}><Printer className="w-4 h-4" aria-hidden="true" /></Button>
           <CreateProjetDialog onCreated={load} />
         </div>
       </div>
@@ -768,11 +775,11 @@ export default function ProjetsPage() {
           </SelectContent>
         </Select>
         <div className="flex gap-1 border rounded-lg p-1">
-          <Button variant={view === "grid" ? "secondary" : "ghost"} size="sm" className="h-7 px-2" onClick={() => setView("grid")}>
-            <BarChart3 className="w-3.5 h-3.5" />
+          <Button variant={view === "grid" ? "secondary" : "ghost"} size="sm" className="h-7 px-2" onClick={() => setView("grid")} aria-label={t("common.viewGrid")}>
+            <BarChart3 className="w-3.5 h-3.5" aria-hidden="true" />
           </Button>
-          <Button variant={view === "kanban" ? "secondary" : "ghost"} size="sm" className="h-7 px-2" onClick={() => setView("kanban")}>
-            <FolderKanban className="w-3.5 h-3.5" />
+          <Button variant={view === "kanban" ? "secondary" : "ghost"} size="sm" className="h-7 px-2" onClick={() => setView("kanban")} aria-label={t("common.viewColumns")}>
+            <FolderKanban className="w-3.5 h-3.5" aria-hidden="true" />
           </Button>
         </div>
       </div>
@@ -851,12 +858,12 @@ export default function ProjetsPage() {
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">{t("projets.totalCount", { total })}</p>
           <div className="flex gap-1">
-            <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
-              <ChevronLeft className="w-4 h-4" />
+            <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(p => p - 1)} aria-label={t("common.previousPage")}>
+              <ChevronLeft className="w-4 h-4" aria-hidden="true" />
             </Button>
             <span className="flex items-center px-3 text-sm">{page + 1}/{totalPages}</span>
-            <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
-              <ChevronRight className="w-4 h-4" />
+            <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} aria-label={t("common.nextPage")}>
+              <ChevronRight className="w-4 h-4" aria-hidden="true" />
             </Button>
           </div>
         </div>

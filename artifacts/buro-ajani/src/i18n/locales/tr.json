@@ -3859,7 +3859,8 @@
     "phone": "Telefon",
     "expectedCloseDate": "Öngörülen kapanış tarihi",
     "notes": "Notlar",
-    "update": "Güncelle"
+    "update": "Güncelle",
+    "removeTag": "{{tag}} etiketini kaldır"
   },
   "notificationsPage": {
     "error": "Hata",
@@ -8915,7 +8916,8 @@
     "now": "Az önce",
     "minsAgo": "{{mins}} dk önce",
     "hoursAgo": "{{hours}} sa önce",
-    "daysAgo": "{{days}} gün önce"
+    "daysAgo": "{{days}} gün önce",
+    "markRead": "Okundu olarak işaretle"
   },
   "accessDenied": {
     "title": "Erişim kısıtlı",

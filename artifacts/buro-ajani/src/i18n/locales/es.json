@@ -3859,7 +3859,8 @@
     "phone": "Teléfono",
     "expectedCloseDate": "Fecha de cierre prevista",
     "notes": "Notas",
-    "update": "Actualizar"
+    "update": "Actualizar",
+    "removeTag": "Quitar la etiqueta {{tag}}"
   },
   "notificationsPage": {
     "error": "Error",
@@ -8915,7 +8916,8 @@
     "now": "Ahora mismo",
     "minsAgo": "Hace {{mins}}min",
     "hoursAgo": "Hace {{hours}}h",
-    "daysAgo": "Hace {{days}}d"
+    "daysAgo": "Hace {{days}}d",
+    "markRead": "Marcar como leído"
   },
   "accessDenied": {
     "title": "Acceso restringido",

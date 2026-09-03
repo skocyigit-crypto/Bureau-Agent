@@ -3859,7 +3859,8 @@
     "phone": "Phone",
     "expectedCloseDate": "Expected close date",
     "notes": "Notes",
-    "update": "Update"
+    "update": "Update",
+    "removeTag": "Remove the {{tag}} tag"
   },
   "notificationsPage": {
     "error": "Error",
@@ -8915,7 +8916,8 @@
     "now": "Just now",
     "minsAgo": "{{mins}}min ago",
     "hoursAgo": "{{hours}}h ago",
-    "daysAgo": "{{days}}d ago"
+    "daysAgo": "{{days}}d ago",
+    "markRead": "Mark as read"
   },
   "accessDenied": {
     "title": "Restricted access",

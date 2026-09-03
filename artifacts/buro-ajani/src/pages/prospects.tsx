@@ -285,10 +285,10 @@ export default function ProspectsPage() {
           </SelectContent>
         </Select>
         <div className="flex gap-1 border rounded-md p-1">
-          <Button variant={viewMode === "kanban" ? "secondary" : "ghost"} size="sm" className="h-7 px-2" onClick={() => setViewMode("kanban")}><Kanban className="w-3 h-3" /></Button>
-          <Button variant={viewMode === "table" ? "secondary" : "ghost"} size="sm" className="h-7 px-2" onClick={() => setViewMode("table")}><LayoutList className="w-3 h-3" /></Button>
+          <Button variant={viewMode === "kanban" ? "secondary" : "ghost"} size="sm" className="h-7 px-2" onClick={() => setViewMode("kanban")} aria-label={t("common.viewColumns")}><Kanban className="w-3 h-3" aria-hidden="true" /></Button>
+          <Button variant={viewMode === "table" ? "secondary" : "ghost"} size="sm" className="h-7 px-2" onClick={() => setViewMode("table")} aria-label={t("common.viewList")}><LayoutList className="w-3 h-3" aria-hidden="true" /></Button>
         </div>
-        <Button variant="ghost" size="icon" onClick={load}><RefreshCw className="w-4 h-4" /></Button>
+        <Button variant="ghost" size="icon" onClick={load} aria-label={t("common.refresh")}><RefreshCw className="w-4 h-4" aria-hidden="true" /></Button>
       </div>
 
       {loading ? (
@@ -327,8 +327,8 @@ export default function ProspectsPage() {
                         {p.value && <p className="text-xs font-bold text-emerald-600">{fmtEur(p.value)}</p>}
                         <div className="flex items-center justify-between">
                           <PriorityBadge priority={p.priority} />
-                          <button className="text-red-400 hover:text-red-600 p-0.5" onClick={e => { e.stopPropagation(); handleDelete(p.id); }}>
-                            <Trash2 className="w-3 h-3" />
+                          <button className="text-red-400 hover:text-red-600 p-0.5" onClick={e => { e.stopPropagation(); handleDelete(p.id); }} aria-label={t("common.delete")}>
+                            <Trash2 className="w-3 h-3" aria-hidden="true" />
                           </button>
                         </div>
                       </CardContent>
@@ -426,7 +426,7 @@ export default function ProspectsPage() {
                 <PriorityBadge priority={p.priority} />
                 {p.value && <span className="text-sm font-bold text-emerald-600 hidden md:block">{fmtEur(p.value)}</span>}
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
+                  <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" aria-label={t("common.moreActions")}><MoreHorizontal className="w-4 h-4" aria-hidden="true" /></Button></DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>{t("prospects.actionsLabel")}</DropdownMenuLabel>
                     <DropdownMenuItem onClick={() => setLocation(`/prospects/${p.id}`)}><Edit className="w-3 h-3 mr-2" />{t("prospects.rowActions.open")}</DropdownMenuItem>
@@ -444,8 +444,8 @@ export default function ProspectsPage() {
             <div className="flex items-center justify-between px-4 py-3 border-t">
               <p className="text-sm text-muted-foreground">{t("prospects.count", { total })}</p>
               <div className="flex gap-1">
-                <Button variant="outline" size="icon" className="h-7 w-7" disabled={page === 0} onClick={() => setPage(p => p - 1)}><ChevronLeft className="w-4 h-4" /></Button>
-                <Button variant="outline" size="icon" className="h-7 w-7" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}><ChevronRight className="w-4 h-4" /></Button>
+                <Button variant="outline" size="icon" className="h-7 w-7" disabled={page === 0} onClick={() => setPage(p => p - 1)} aria-label={t("common.previousPage")}><ChevronLeft className="w-4 h-4" aria-hidden="true" /></Button>
+                <Button variant="outline" size="icon" className="h-7 w-7" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} aria-label={t("common.nextPage")}><ChevronRight className="w-4 h-4" aria-hidden="true" /></Button>
               </div>
             </div>
           )}

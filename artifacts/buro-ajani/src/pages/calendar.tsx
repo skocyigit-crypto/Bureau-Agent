@@ -1395,7 +1395,7 @@ export default function CalendarPage() {
                               setClosureFormDate(date);
                               setShowClosureForm(true);
                             }}
-                            className={`opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center w-5 h-5 rounded hover:bg-red-100 dark:hover:bg-red-900/40 ${closureInfo ? "text-red-500" : "text-slate-400 hover:text-red-500"}`}
+                            className={`opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center w-6 h-6 rounded hover:bg-red-100 dark:hover:bg-red-900/40 ${closureInfo ? "text-red-500" : "text-slate-400 hover:text-red-500"}`}
                           >
                             {closureInfo ? <DoorOpen className="w-3 h-3" /> : <DoorClosed className="w-3 h-3" />}
                           </button>
@@ -1475,7 +1475,7 @@ export default function CalendarPage() {
                             setClosureFormDate(d);
                             setShowClosureForm(true);
                           }}
-                          className={`opacity-0 group-hover:opacity-100 transition-opacity absolute top-1 right-1 inline-flex items-center justify-center w-5 h-5 rounded hover:bg-red-100 dark:hover:bg-red-900/40 ${weekDayClosure ? "text-red-500" : "text-slate-400 hover:text-red-500"}`}
+                          className={`opacity-0 group-hover:opacity-100 transition-opacity absolute top-1 right-1 inline-flex items-center justify-center w-6 h-6 rounded hover:bg-red-100 dark:hover:bg-red-900/40 ${weekDayClosure ? "text-red-500" : "text-slate-400 hover:text-red-500"}`}
                         >
                           {weekDayClosure ? <DoorOpen className="w-3 h-3" /> : <DoorClosed className="w-3 h-3" />}
                         </button>

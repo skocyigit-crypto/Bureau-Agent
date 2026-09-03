@@ -3859,7 +3859,8 @@
     "phone": "الهاتف",
     "expectedCloseDate": "تاريخ الإغلاق المتوقع",
     "notes": "ملاحظات",
-    "update": "تحديث"
+    "update": "تحديث",
+    "removeTag": "إزالة الوسم {{tag}}"
   },
   "notificationsPage": {
     "error": "خطأ",
@@ -8915,7 +8916,8 @@
     "now": "الآن",
     "minsAgo": "قبل {{mins}} دقيقة",
     "hoursAgo": "قبل {{hours}} ساعة",
-    "daysAgo": "قبل {{days}} يوم"
+    "daysAgo": "قبل {{days}} يوم",
+    "markRead": "تعليم كمقروء"
   },
   "accessDenied": {
     "title": "الوصول مقيّد",

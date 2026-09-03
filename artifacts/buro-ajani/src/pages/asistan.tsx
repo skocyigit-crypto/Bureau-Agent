@@ -440,8 +440,8 @@ export default function AsistanPage() {
               className="resize-none"
               data-testid="input-assistant-message"
             />
-            <Button onClick={send} disabled={streaming || !input.trim()} size="lg" data-testid="button-send-assistant">
-              {streaming ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            <Button onClick={send} disabled={streaming || !input.trim()} size="lg" data-testid="button-send-assistant" aria-label={t("common.send")}>
+              {streaming ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
             </Button>
           </div>
         </div>

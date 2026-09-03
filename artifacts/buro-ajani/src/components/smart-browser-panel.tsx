@@ -257,8 +257,8 @@ function SmartQuickActions() {
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggleFullscreen}>
-              {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggleFullscreen} aria-label={isFullscreen ? t("smartBrowserPanel.exitFullscreen") : t("smartBrowserPanel.fullscreenMode")}>
+              {isFullscreen ? <Minimize className="h-3.5 w-3.5" aria-hidden="true" /> : <Maximize className="h-3.5 w-3.5" aria-hidden="true" />}
             </Button>
           </TooltipTrigger>
           <TooltipContent>{isFullscreen ? t("smartBrowserPanel.exitFullscreen") : t("smartBrowserPanel.fullscreenMode")}</TooltipContent>
@@ -271,8 +271,9 @@ function SmartQuickActions() {
               size="icon"
               className={`h-8 w-8 ${isLocked ? "text-amber-600" : ""}`}
               onClick={() => isLocked ? releaseWakeLock() : requestWakeLock()}
+              aria-label={isLocked ? t("smartBrowserPanel.screenOn") : t("smartBrowserPanel.keepScreenOn")}
             >
-              {isLocked ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+              {isLocked ? <Eye className="h-3.5 w-3.5" aria-hidden="true" /> : <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />}
             </Button>
           </TooltipTrigger>
           <TooltipContent>{isLocked ? t("smartBrowserPanel.screenOn") : t("smartBrowserPanel.keepScreenOn")}</TooltipContent>
@@ -281,8 +282,8 @@ function SmartQuickActions() {
         {canShare && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleShare}>
-                <Share2 className="h-3.5 w-3.5" />
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleShare} aria-label={t("smartBrowserPanel.share")}>
+                <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>{t("smartBrowserPanel.share")}</TooltipContent>
@@ -291,8 +292,8 @@ function SmartQuickActions() {
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.print()}>
-              <Printer className="h-3.5 w-3.5" />
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.print()} aria-label={t("smartBrowserPanel.printExport")}>
+              <Printer className="h-3.5 w-3.5" aria-hidden="true" />
             </Button>
           </TooltipTrigger>
           <TooltipContent>{t("smartBrowserPanel.printExport")}</TooltipContent>
@@ -506,8 +507,9 @@ function GeolocationButton() {
             className={`h-8 w-8 ${position ? "text-blue-600" : ""}`}
             onClick={handleClick}
             disabled={loading}
+            aria-label={t("smartBrowserPanel.locateMe")}
           >
-            <MapPin className={`h-3.5 w-3.5 ${loading ? "animate-pulse" : ""}`} />
+            <MapPin className={`h-3.5 w-3.5 ${loading ? "animate-pulse" : ""}`} aria-hidden="true" />
           </Button>
         </TooltipTrigger>
         <TooltipContent>

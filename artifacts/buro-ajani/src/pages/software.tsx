@@ -266,8 +266,8 @@ export default function Software() {
                 {discoveryLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <RefreshCw className="w-3 h-3 mr-1" />}
                 {t("software.analyze")}
               </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDiscoveryExpanded(!discoveryExpanded)}>
-                {discoveryExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDiscoveryExpanded(!discoveryExpanded)} aria-label={t("common.toggleDetails")}>
+                {discoveryExpanded ? <ChevronUp className="w-4 h-4" aria-hidden="true" /> : <ChevronDown className="w-4 h-4" aria-hidden="true" />}
               </Button>
             </div>
           </div>

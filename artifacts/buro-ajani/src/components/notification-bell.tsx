@@ -204,8 +204,9 @@ export function NotificationBell() {
                           size="icon"
                           className="h-6 w-6 flex-shrink-0"
                           onClick={e => { e.stopPropagation(); markRead(n.id); }}
+                          aria-label={t("notificationBell.markRead")}
                         >
-                          <Check className="w-3 h-3" />
+                          <Check className="w-3 h-3" aria-hidden="true" />
                         </Button>
                       )}
                     </div>

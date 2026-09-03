@@ -169,7 +169,7 @@ export default function AdminDevisPage() {
             {STATUSES.map(s => <SelectItem key={s.key} value={s.key}>{t(`adminDevis.status.${s.key}`)}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Button variant="ghost" size="icon" onClick={load}><RefreshCw className="w-4 h-4" /></Button>
+        <Button variant="ghost" size="icon" onClick={load} aria-label={t("common.refresh")}><RefreshCw className="w-4 h-4" aria-hidden="true" /></Button>
       </div>
 
       {loading ? (
@@ -194,8 +194,8 @@ export default function AdminDevisPage() {
                 <Button variant="ghost" size="sm" className="h-7 text-xs text-blue-600" onClick={() => handleConvert(d)} disabled={convertingId === d.id} title={t("adminDevis.convertTitle")}>
                   {convertingId === d.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <><ArrowRight className="w-3 h-3 mr-1" />{t("adminDevis.invoice")}</>}
                 </Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(d)}><Edit className="w-3 h-3" /></Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => handleDelete(d.id)}><Trash2 className="w-3 h-3" /></Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(d)} aria-label={t("common.edit")}><Edit className="w-3 h-3" aria-hidden="true" /></Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => handleDelete(d.id)} aria-label={t("common.delete")}><Trash2 className="w-3 h-3" aria-hidden="true" /></Button>
               </div>
             ))}
           </div>
