@@ -110,8 +110,22 @@ girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamla
   hem callback'i çalıştırır hem de sonrasında uygulamaya geri döndürür.
 - **Dosyalar**: `lib/google-auth.ts:160-192`, `routes/autonomous-inbox.ts:308`,
   `routes/ai-agents.ts:2895`
-- **Durum**: Bekliyor — kullanıcı kararı gerekiyor (Google Cloud Console'da proje sahibi
-  olarak kendisinin oluşturması lazım, ben oluşturamam).
+- **2026-09-03 — Console dışındaki her şey scriptlendi**: `deploy/setup-google-oauth.sh`
+  sırları oluşturuyor (rotasyonda yeni sürüm ekliyor), çalışma servis hesabına
+  `secretmanager.secretAccessor` veriyor, `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/
+  `GOOGLE_REDIRECT_URI`'yi Cloud Run'a bağlıyor ve **servisi geri okuyarak**
+  doğruluyor — komutlar hata vermedi diye "oldu" demiyor. Anahtarlar yoksa,
+  Console'da yapılacak beş adımı ve tam olarak yapıştırılacak redirect URI'yi
+  yazdırıp çıkıyor. `deploy/gcp-deploy.sh` de artık bu iki sırrı görürse
+  otomatik bağlıyor, yani tam bir yeniden dağıtım OAuth'u düşürmüyor.
+- **Kullanıcının yapması gereken** (sadece Console kısmı — proje sahibi olmak
+  gerekiyor): Gmail/Calendar/Drive API'lerini aç, OAuth consent screen'i
+  "External" olarak yayınla, "Web application" tipinde bir OAuth client ID
+  oluştur, yetkili redirect URI olarak yukarıdaki adresi ekle. Sonra:
+
+      GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... bash deploy/setup-google-oauth.sh
+
+- **Durum**: Console adımı kullanıcıda; gerisi hazır ve tek komut.
 
 ### 2. [TAMAMLANDI] Twilio BYOK (her müşteri kendi hesabını girer) (2026-07-14)
 

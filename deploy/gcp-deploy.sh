@@ -208,6 +208,13 @@ fi
 if gcloud secrets describe anthropic-api-key --project "${PROJECT}" >/dev/null 2>&1; then
   SECRET_REFS="${SECRET_REFS},ANTHROPIC_API_KEY=anthropic-api-key:latest"
 fi
+# Google OAuth de la plateforme (cree par deploy/setup-google-oauth.sh). Sans
+# ces deux-la, Autonomous Inbox et le volet e-mail du Super Agent repondent
+# "aucun Gmail connecte" pour chaque organisation — sans erreur visible.
+if gcloud secrets describe google-client-id --project "${PROJECT}" >/dev/null 2>&1 \
+   && gcloud secrets describe google-client-secret --project "${PROJECT}" >/dev/null 2>&1; then
+  SECRET_REFS="${SECRET_REFS},GOOGLE_CLIENT_ID=google-client-id:latest,GOOGLE_CLIENT_SECRET=google-client-secret:latest"
+fi
 
 # Vertex AI (Claude sans cle API): pas un secret, quelques variables suffisent.
 # Le client ne bascule sur Vertex que si AUCUNE cle Anthropic directe n'est
