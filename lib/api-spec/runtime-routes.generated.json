@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 654,
+    "runtimeOperations": 655,
     "documentedOperations": 96,
-    "undocumentedOperations": 558
+    "undocumentedOperations": 559
   },
   "operations": [
     {
@@ -2826,6 +2826,14 @@
     {
       "method": "patch",
       "path": "/factures-client/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/factures-client.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/factures-client/{id}/facturx.xml",
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/factures-client.ts"

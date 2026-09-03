@@ -7,6 +7,7 @@ import { generateUniqueReference } from "../lib/unique-reference";
 import { getOrgId } from "../middleware/tenant";
 import { deriveInvoiceStatus, overdueCondition } from "../services/invoice-status";
 import { buildInvoiceDocument, invoiceFileName, renderInvoicePdf } from "../services/invoice-pdf";
+import { buildFacturXXml } from "../services/facturx";
 import { computeInvoiceTotals, isValidCurrency, parseUserDate, clampPagination, normalizePaidAmount } from "../services/invoice-totals";
 
 const router: IRouter = Router();
@@ -116,7 +117,11 @@ router.get("/factures-client/:id/pdf", async (req: Request, res: Response): Prom
       res.setHeader("X-Invoice-Warnings", encodeURIComponent(model.warnings.join(" | ")));
     }
 
-    const pdf = await renderInvoicePdf(model);
+    // Le XML part du MEME enregistrement que le PDF, dans la meme requete: il
+    // ne peut donc pas decrire une version anterieure de la facture. Deux
+    // appels separes le pourraient, et l'ecart ne se verrait sur aucun ecran.
+    const facturX = buildFacturXXml(facture, org ?? {});
+    const pdf = await renderInvoicePdf(model, { facturXXml: facturX.xml });
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Length", String(pdf.length));
     res.setHeader("Content-Disposition", `inline; filename="${invoiceFileName(facture.reference)}"`);
@@ -124,6 +129,60 @@ router.get("/factures-client/:id/pdf", async (req: Request, res: Response): Prom
   } catch (err: any) {
     req.log.error({ err }, "Erreur generation PDF facture");
     res.status(500).json({ error: "Erreur lors de la generation du PDF." });
+  }
+});
+
+/**
+ * Le XML CII seul, sans le PDF.
+ *
+ * La reforme du 1er septembre 2026 fait transiter les factures par des
+ * plateformes (PDP) et par Chorus Pro pour la sphere publique, qui consomment
+ * la donnee STRUCTUREE. Beaucoup acceptent un CII autonome: exposer le XML
+ * evite d'obliger l'utilisateur a extraire une piece jointe a la main.
+ *
+ * Meme portee de tenant que le PDF: une facture appartient a une organisation,
+ * et le format sous lequel on la demande n'y change rien.
+ */
+router.get("/factures-client/:id/facturx.xml", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const id = parseInt(req.params.id as string);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  try {
+    const [facture] = await db.select().from(facturesClientTable)
+      .where(and(eq(facturesClientTable.id, id), eq(facturesClientTable.organisationId, orgId)));
+    if (!facture) { res.status(404).json({ error: "Facture non trouvee." }); return; }
+
+    const [org] = await db.select({
+      name: organisationsTable.name,
+      legalForm: organisationsTable.legalForm,
+      capital: organisationsTable.capital,
+      address: organisationsTable.address,
+      siret: organisationsTable.siret,
+      tvaNumber: organisationsTable.tvaNumber,
+      email: organisationsTable.email,
+      phone: organisationsTable.phone,
+      bankName: organisationsTable.bankName,
+      bankIban: organisationsTable.bankIban,
+      bankBic: organisationsTable.bankBic,
+      invoiceFooter: organisationsTable.invoiceFooter,
+    }).from(organisationsTable).where(eq(organisationsTable.id, orgId));
+
+    const facturX = buildFacturXXml(facture, org ?? {});
+    if (facturX.warnings.length > 0) {
+      // Une donnee absente ne bloque pas l'emission — la facture existe et le
+      // client l'attend — mais elle doit etre visible, sinon le rejet
+      // arrivera plus tard et depuis l'exterieur.
+      req.log.warn({ factureId: id, warnings: facturX.warnings }, "XML Factur-X emis avec des donnees manquantes");
+      res.setHeader("X-Invoice-Warnings", encodeURIComponent(facturX.warnings.join(" | ")));
+    }
+
+    res.setHeader("Content-Type", "application/xml; charset=utf-8");
+    res.setHeader("X-Facturx-Profile", facturX.profile);
+    res.setHeader("Content-Disposition", `attachment; filename="${invoiceFileName(facture.reference).replace(/\.pdf$/, "")}-factur-x.xml"`);
+    res.end(facturX.xml);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur generation XML Factur-X");
+    res.status(500).json({ error: "Erreur lors de la generation du XML." });
   }
 });
 
