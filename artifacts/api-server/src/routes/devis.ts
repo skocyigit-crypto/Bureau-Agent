@@ -5,6 +5,7 @@ import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/acce
 import { generateUniqueReference } from "../lib/unique-reference";
 import { getOrgId } from "../middleware/tenant";
 import { computeInvoiceTotals, isValidCurrency, parseUserDate, clampPagination } from "../services/invoice-totals";
+import { archiveDeletedRows, deletionContext } from "../services/trash";
 
 const router: IRouter = Router();
 
@@ -258,8 +259,9 @@ router.delete("/devis/:id", async (req: Request, res: Response): Promise<void> =
   try {
     const result = await db.delete(devisTable)
       .where(and(eq(devisTable.id, id), eq(devisTable.organisationId, orgId)))
-      .returning({ id: devisTable.id });
+      .returning();
     if (result.length === 0) { res.status(404).json({ error: "Devis non trouve." }); return; }
+    await archiveDeletedRows(devisTable, result, deletionContext(req, orgId));
     res.json({ ok: true });
   } catch (err: any) {
     req.log.error({ err }, "Erreur suppression devis");

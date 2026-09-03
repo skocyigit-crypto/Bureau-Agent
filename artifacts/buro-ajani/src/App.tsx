@@ -94,6 +94,9 @@ const AdminDevisPage = lazy(() => import("@/pages/admin-devis"));
 const AdminFacturesClientPage = lazy(() => import("@/pages/admin-factures-client"));
 const NotesInternesPage = lazy(() => import("@/pages/notes-internes"));
 const DataProtectionPage = lazy(() => import("@/pages/data-protection"));
+// Ouverte a tous, sans garde de role: celui qui supprime par erreur est le
+// plus souvent un utilisateur ordinaire.
+const CorbeillePage = lazy(() => import("@/pages/corbeille"));
 const ContactsImportPage = lazy(() => import("@/pages/contacts-import"));
 const ActiviteRecentePage = lazy(() => import("@/pages/activite-recente"));
 const ProjetsPage = lazy(() => import("@/pages/projets"));
@@ -338,6 +341,7 @@ function AppRoutes() {
         <Route path="/admin/factures-b2b" component={withRoleGate(AdminFacturesB2BPage, SUPER_ADMIN_ROLES, { license: false })} />
         <Route path="/admin/audit" component={withRoleGate(AdminAuditPage, SUPER_ADMIN_ROLES, { license: false })} />
         <Route path="/notes-internes" component={withLicenseGate(NotesInternesPage)} />
+        <Route path="/corbeille" component={withLicenseGate(CorbeillePage)} />
         <Route path="/protection-donnees" component={withRoleGate(DataProtectionPage, ADMIN_ROLES)} />
         <Route path="/activite-recente" component={withLicenseGate(ActiviteRecentePage)} />
         <Route path="/projets" component={withLicenseGate(ProjetsPage)} />

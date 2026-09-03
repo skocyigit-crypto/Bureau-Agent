@@ -25,7 +25,7 @@ import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 import { useTranslation } from "@/i18n";
 import { getGetMyPreferencesQueryKey,useGetMyPreferences,type BadgeMuteFlags } from "@workspace/api-client-react";
 import { motion } from "framer-motion";
-import { Activity,BarChart,BarChart3,Bell,BookOpen,Bot,Brain,Briefcase,Building2,Calendar,CheckSquare,ClipboardCheck,ClipboardList,Clock,CreditCard,Crown,Download,FileSignature,FileText,Globe,GraduationCap,HardHat,Inbox,KeyRound,LayoutDashboard,Mail,MapPin,MessageCircle,MessageSquare,Monitor,Phone,PhoneCall,PhoneIncoming,Plug,Plus,Puzzle,Radar,Receipt,ReceiptText,Rocket,ScanSearch,Search,Settings,Shield,ShieldCheck,Smartphone,Sparkles,StickyNote,Tablet,Trophy,UserCog,Users,Wallet,Wifi,WifiOff,Zap } from "lucide-react";
+import { Activity,BarChart,BarChart3,Bell,BookOpen,Bot,Brain,Briefcase,Building2,Calendar,CheckSquare,ClipboardCheck,ClipboardList,Clock,CreditCard,Crown,Download,FileSignature,FileText,Globe,GraduationCap,HardHat,Inbox,KeyRound,LayoutDashboard,Mail,MapPin,MessageCircle,MessageSquare,Monitor,Phone,PhoneCall,PhoneIncoming,Plug,Plus,Puzzle,Radar,Receipt,ReceiptText,Rocket,ScanSearch,Search,Settings,Shield,ShieldCheck,Smartphone,Sparkles,StickyNote,Tablet,Trophy,UserCog,Users,Wallet,Wifi,WifiOff,Zap,Trash2} from "lucide-react";
 import { createContext,useContext,useEffect,useMemo,useRef,useState } from "react";
 import { Link,useLocation } from "wouter";
 
@@ -300,6 +300,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
           { name: t("sidebar.items.calendar"), href: "/calendrier", icon: Calendar },
           { name: t("sidebar.items.reminders"), href: "/notifications", icon: Bell, badge: mutedBadges.rappel ? 0 : badges.rappel },
           { name: t("sidebar.items.recentActivity"), href: "/activite-recente", icon: Activity },
+          // Volontairement dans un groupe ouvert a tous, et non dans
+          // « Administration »: une corbeille que seul un administrateur voit
+          // ne sert pas celui qui vient de se tromper.
+          { name: t("sidebar.items.trash"), href: "/corbeille", icon: Trash2 },
         ],
       },
       {

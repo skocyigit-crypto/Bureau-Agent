@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 655,
+    "runtimeOperations": 657,
     "documentedOperations": 96,
-    "undocumentedOperations": 559
+    "undocumentedOperations": 561
   },
   "operations": [
     {
@@ -4863,6 +4863,22 @@
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/telephony.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/trash",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/trash.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/trash/{id}/restore",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/trash.ts"
       ]
     },
     {

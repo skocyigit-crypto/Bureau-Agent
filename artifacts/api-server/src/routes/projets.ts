@@ -3,6 +3,7 @@ import { eq, desc, asc, ilike, or, sql, and, ne, type Column, type SQL } from "d
 import { db, projetsTable } from "@workspace/db";
 import { getOrgId } from "../middleware/tenant";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
+import { archiveDeletedRows, deletionContext } from "../services/trash";
 
 const router: IRouter = Router();
 
@@ -213,8 +214,9 @@ router.delete("/projets/:id", async (req: Request, res: Response): Promise<void>
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   try {
-    const [deleted] = await db.delete(projetsTable).where(and(eq(projetsTable.id, id), eq(projetsTable.organisationId, orgId))).returning({ id: projetsTable.id });
+    const [deleted] = await db.delete(projetsTable).where(and(eq(projetsTable.id, id), eq(projetsTable.organisationId, orgId))).returning();
     if (!deleted) { res.status(404).json({ error: "Projet non trouve." }); return; }
+    await archiveDeletedRows(projetsTable, [deleted], deletionContext(req, orgId));
     res.status(204).end();
   } catch (err: any) {
     req.log.error({ err }, "Erreur suppression projet");

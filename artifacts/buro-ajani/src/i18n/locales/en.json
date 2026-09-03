@@ -141,7 +141,8 @@
       "initialSetup": "Initial setup",
       "mobileApp": "Mobile app",
       "quotes": "Quotes",
-      "clientInvoices": "Client invoices"
+      "clientInvoices": "Client invoices",
+      "trash": "Trash"
     }
   },
   "userMenu": {
@@ -9141,6 +9142,26 @@
       "saveFailed": "Could not save",
       "deleted": "Credentials deleted",
       "deleteFailed": "Could not delete"
+    }
+  },
+  "corbeille": {
+    "title": "Trash",
+    "subtitle": "Deleted items can be recovered for {{days}} days.",
+    "subtitleGeneric": "Deleted items can be recovered for a while.",
+    "empty": "The trash is empty",
+    "emptyHint": "Deleted items appear here, and you can put them back.",
+    "unnamed": "Item #{{id}}",
+    "restore": "Restore",
+    "restored": "Item restored",
+    "restoreFailed": "Could not restore",
+    "loadFailed": "Could not read the trash",
+    "tables": {
+      "prospects": "Lead",
+      "devis": "Quote",
+      "factures_client": "Invoice",
+      "projets": "Project",
+      "notes_internes": "Internal note",
+      "tasks": "Task"
     }
   }
 }

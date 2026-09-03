@@ -40,6 +40,9 @@ export const TENANT_TABLES = [
   "notifications", "bulk_scan_jobs", "calendar_events", "calls", "checkins",
   "commandant_conversations", "commandant_messages", "commandes_fournisseur",
   "compte_client", "contacts", "daily_reports", "data_subject_requests",
+  // La corbeille contient des lignes que le client a supprimees mais dont il
+  // dispose encore: elles sont a lui tant que le delai de retention court.
+  "deleted_rows",
   "demo_handoffs", "depenses", "devis", "documents", "email_providers",
   "face_profiles", "face_recognition_logs", "factures_client", "google_oauth_tokens",
   "google_app_credentials", "integration_connections", "invitations", "invoices",

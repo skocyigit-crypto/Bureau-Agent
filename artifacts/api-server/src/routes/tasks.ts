@@ -14,6 +14,7 @@ import { getOrgId } from "../middleware/tenant";
 import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
 import { zodErrorResponse } from "../lib/zod-error";
 import { sendWhatsAppNotification } from "../services/whatsapp-notify";
+import { archiveDeletedRows, deletionContext } from "../services/trash";
 
 const router: IRouter = Router();
 
@@ -162,6 +163,7 @@ router.get("/tasks/:id", async (req, res): Promise<void> => {
       res.status(404).json({ error: "Task not found" });
       return;
     }
+    await archiveDeletedRows(tasksTable, [task], deletionContext(req, orgId));
 
     const userMap = await resolveUserNames([task.createdBy, task.updatedBy]);
     res.json(enrichSingle(task, userMap));

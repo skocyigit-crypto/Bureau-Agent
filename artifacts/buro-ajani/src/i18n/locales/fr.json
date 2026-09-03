@@ -141,7 +141,8 @@
       "initialSetup": "Configuration initiale",
       "mobileApp": "Application mobile",
       "quotes": "Devis",
-      "clientInvoices": "Factures clients"
+      "clientInvoices": "Factures clients",
+      "trash": "Corbeille"
     }
   },
   "userMenu": {
@@ -9141,6 +9142,26 @@
       "saveFailed": "Enregistrement impossible",
       "deleted": "Identifiants supprimes",
       "deleteFailed": "Suppression impossible"
+    }
+  },
+  "corbeille": {
+    "title": "Corbeille",
+    "subtitle": "Ce qui a été supprimé reste récupérable pendant {{days}} jours.",
+    "subtitleGeneric": "Ce qui a été supprimé reste récupérable un temps.",
+    "empty": "La corbeille est vide",
+    "emptyHint": "Les éléments supprimés apparaissent ici, et vous pouvez les remettre en place.",
+    "unnamed": "Élément n° {{id}}",
+    "restore": "Restaurer",
+    "restored": "Élément restauré",
+    "restoreFailed": "Restauration impossible",
+    "loadFailed": "Impossible de lire la corbeille",
+    "tables": {
+      "prospects": "Prospect",
+      "devis": "Devis",
+      "factures_client": "Facture",
+      "projets": "Projet",
+      "notes_internes": "Note interne",
+      "tasks": "Tâche"
     }
   }
 }

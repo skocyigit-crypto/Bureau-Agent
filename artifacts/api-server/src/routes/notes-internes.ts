@@ -4,6 +4,7 @@ import { db, notesInternesTable } from "@workspace/db";
 import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
 import { rowId } from "../lib/request-params";
+import { archiveDeletedRows, deletionContext } from "../services/trash";
 
 const router: IRouter = Router();
 
@@ -73,8 +74,9 @@ router.delete("/notes-internes/:id", requireRole("agent"), async (req: Request, 
     if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
     const deleted = await db.delete(notesInternesTable)
       .where(and(eq(notesInternesTable.id, id), eq(notesInternesTable.organisationId, orgId)))
-      .returning({ id: notesInternesTable.id });
+      .returning();
     if (deleted.length === 0) { res.status(404).json({ error: "Note introuvable." }); return; }
+    await archiveDeletedRows(notesInternesTable, deleted, deletionContext(req, orgId));
     res.json({ success: true });
   } catch (err) {
     req.log.error({ err }, "DELETE /notes-internes/:id");

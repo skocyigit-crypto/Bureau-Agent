@@ -57,6 +57,9 @@ const VALID_ROUTES = [
   // Finances et exploitation.
   "/tresorerie", "/depenses", "/notes-internes", "/activite-recente",
   "/saisie-chantier", "/securite", "/protection-donnees",
+  // Recuperation: l'assistant doit pouvoir y renvoyer quelqu'un qui vient de
+  // supprimer par erreur — c'est le moment ou la page sert.
+  "/corbeille",
   // Communication et assistants.
   "/whatsapp", "/gmail-agent", "/asistan", "/assistant-proactif",
   "/equipe-ia", "/file-approbation", "/ia-apprentissage", "/recherche-web",
