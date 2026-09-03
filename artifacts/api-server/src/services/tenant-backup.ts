@@ -99,6 +99,12 @@ export interface BackupContent {
     organisationName: string | null;
     exportedAt: string;
     format: "ajant-bureau/organisation-backup";
+    /**
+     * Tables declarees que la base ne connaissait pas au moment de la
+     * sauvegarde. Vide dans le cas normal; non vide, c'est le signe que le
+     * schema de production est en retard sur le code deploye.
+     */
+    unavailableTables?: string[];
     version: 1;
     tables: number;
     rows: number;
@@ -118,10 +124,35 @@ export function redactRow(row: Record<string, unknown>): Record<string, unknown>
 }
 
 /**
+ * Postgres 42P01 « undefined_table ».
+ *
+ * Le CODE est teste, pas le message: celui-ci est traduit selon la locale
+ * du serveur, et un test sur son texte casserait en silence le jour ou la
+ * base parle une autre langue.
+ */
+function isUndefinedTable(err: unknown): boolean {
+  const cause = (err as { cause?: unknown })?.cause;
+  for (const candidate of [err, cause]) {
+    if (candidate && typeof candidate === "object" && (candidate as { code?: string }).code === "42P01") {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Construit le contenu de la sauvegarde d'une organisation. Lecture par lots,
  * chaque table bornee a `organisation_id`.
  */
-export async function buildOrganisationBackup(orgId: number): Promise<BackupContent> {
+export async function buildOrganisationBackup(
+  orgId: number,
+  /**
+   * Tables a parcourir. Injectable UNIQUEMENT pour rendre verifiable le
+   * comportement face a une table absente: autrement, la seule facon de
+   * l'eprouver serait d'en supprimer une vraie.
+   */
+  tableNames: readonly string[] = TENANT_TABLES,
+): Promise<BackupContent> {
   const [org] = await withDbRetry(
     () => db.select({ id: organisationsTable.id, name: organisationsTable.name })
       .from(organisationsTable).where(eq(organisationsTable.id, orgId)),
@@ -131,21 +162,59 @@ export async function buildOrganisationBackup(orgId: number): Promise<BackupCont
   const tables: Record<string, unknown[]> = {};
   let rows = 0;
 
-  for (const table of TENANT_TABLES) {
+  /**
+   * Tables declarees mais absentes de la base au moment de la sauvegarde.
+   *
+   * Le schema de production n'est PAS pousse par le pipeline de deploiement:
+   * la porte de qualite synchronise la base de CI, et la production se met a
+   * jour par un `gcp-schema-push.sh` lance a part. Il existe donc une fenetre,
+   * a chaque nouvelle table, ou le code deploye connait une table que la base
+   * ne connait pas encore.
+   *
+   * Sans le rattrapage ci-dessous, cette fenetre ne degradait pas la
+   * sauvegarde: elle la SUPPRIMAIT. La boucle n'attrapait rien, donc une seule
+   * table manquante faisait echouer la sauvegarde entiere de chaque client,
+   * pour une raison sans rapport avec leurs donnees.
+   *
+   * On continue donc, mais jamais en silence: la table absente est nommee dans
+   * le fichier produit et journalisee en erreur. Une sauvegarde incomplete
+   * qu'on sait incomplete reste utile; une sauvegarde incomplete qui se croit
+   * complete est un piege.
+   */
+  const unavailable: string[] = [];
+
+  for (const table of tableNames) {
     const collected: unknown[] = [];
     let offset = 0;
     // Boucle par lots: une organisation avec 200 000 appels ne doit pas
     // materialiser la table entiere en une fois.
+    let missing = false;
     for (;;) {
-      const batch = await withDbRetry(
-        () => db.execute(sql`
-          SELECT * FROM ${sql.identifier(table)}
-          WHERE organisation_id = ${orgId}
-          ORDER BY 1
-          LIMIT ${BATCH_SIZE} OFFSET ${offset}
-        `),
-        { label: `tenant-backup:${table}` },
-      );
+      let batch;
+      try {
+        batch = await withDbRetry(
+          () => db.execute(sql`
+            SELECT * FROM ${sql.identifier(table)}
+            WHERE organisation_id = ${orgId}
+            ORDER BY 1
+            LIMIT ${BATCH_SIZE} OFFSET ${offset}
+          `),
+          { label: `tenant-backup:${table}` },
+        );
+      } catch (err) {
+        // 42P01 = undefined_table. On ne rattrape QUE ce cas: toute autre
+        // erreur (droits, connexion, requete malformee) doit continuer de
+        // faire echouer la sauvegarde, parce qu'elle ne se limiterait pas a
+        // une table.
+        if (!isUndefinedTable(err)) throw err;
+        logger.error(
+          { table, orgId },
+          "[tenant-backup] table declaree absente de la base — sauvegarde incomplete",
+        );
+        unavailable.push(table);
+        missing = true;
+        break;
+      }
       const batchRows: Record<string, unknown>[] = Array.isArray(batch)
         ? (batch as Record<string, unknown>[])
         : ((batch as { rows?: Record<string, unknown>[] })?.rows ?? []);
@@ -153,6 +222,7 @@ export async function buildOrganisationBackup(orgId: number): Promise<BackupCont
       if (batchRows.length < BATCH_SIZE) break;
       offset += BATCH_SIZE;
     }
+    if (missing) continue;
     tables[table] = collected;
     rows += collected.length;
   }
@@ -173,6 +243,7 @@ export async function buildOrganisationBackup(orgId: number): Promise<BackupCont
       organisationName: org?.name ?? null,
       exportedAt: new Date().toISOString(),
       format: "ajant-bureau/organisation-backup",
+      unavailableTables: unavailable,
       version: 1,
       tables: Object.keys(tables).length,
       rows,
