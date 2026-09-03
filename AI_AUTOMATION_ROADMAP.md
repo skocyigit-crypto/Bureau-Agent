@@ -5,8 +5,9 @@
 > oturumda güncellenir, silinmez — yeni bulgu/tamamlanan iş oldukça buraya eklenir.
 >
 > Son güncelleme: 2026-09-03 (satılabilirlik denetimi: hukuki belgeler tamamlandı — CGV
-> ve RGPD işleme sözleşmesi yayında — ve arayüz erişilebilirliği isimsiz buton borcunu
-> sıfıra indirdi; önceki güncelleme 2026-09-02: satış zincirinin 31 Temmuz'dan beri kapalı olduğu bulundu ve
+> ve RGPD işleme sözleşmesi yayında — arayüz erişilebilirliği isimsiz buton borcunu
+> sıfıra indirdi, ve RGPD akışı kapandı: kişi kendi verisini indirebiliyor, talep
+> kapatılabiliyor, bir aylık süre görünür; önceki güncelleme 2026-09-02: satış zincirinin 31 Temmuz'dan beri kapalı olduğu bulundu ve
 > tenant kapsamında güvenli biçimde geri açıldı; önceki güncelleme 2026-07-14: fatura hatırlatmaları
 > gerçek cron'a bağlandı VE AI destekli müşteri desteği e-posta triyajı uçtan uca canlıda
 > doğrulandı — kalan tek adım kullanıcının Cloudflare Worker'ı kurması)
@@ -1513,9 +1514,95 @@ söylüyor:
 
 **96 test (müşteri uygulaması) geçti, typecheck temiz.**
 
+### Erişilebilirlik beyanı ölçümle hizalandı (aynı gün)
+
+Yukarıdaki iş, beyanı kendisi eskitti: sayfa hâlâ "arayüz bileşenlerinin
+erişilebilir adı tümüyle doğrulanmadı" diyordu, bu artık doğru değildi. Beyan
+şimdi ne tuttuğunu ve ne tutmadığını ayırıyor; uygunluk durumu **değişmedi**
+(hâlâ *non conforme*, hâlâ oran yok — zorunlu örneklem üzerinde RGAA denetimi
+yapılmadı, oran ilan etmek yanlış beyan olurdu).
+
+Asıl kazanç sayfa değil, **yeni `accessibilite.test.ts`**: halka söylenen
+rakamlar onları üreten `a11y-budget.test.ts` bütçelerine bağlandı. Bu sapmanın
+hiçbir belirtisi yoktu — sayfa render olmaya devam eder, tip kırılmaz, yerleşim
+oynamaz. Testin yakaladığı, bütçeler 1 ve 3 yapılarak kanıtlandı.
+
+## 2026-09-03 — RGPD akışı: kişi kendi verisini alabiliyor, talep kapatılabiliyor
+
+Faz 7'nin kalan listesindeki "RGPD taşınabilirlik / unutulma hakkı akışı"
+maddesi. Bulgu okuyarak değil, **grep'le** çıktı: `data_subject_requests`
+tablosu depoda **yalnızca INSERT ve SELECT** ediliyordu, hiçbir yerde UPDATE
+edilmiyordu.
+
+### İki yarım, aynı boşluk
+
+1. **Talep açılıyor, asla kapanmıyordu.** Kayıt `pending` girip sonsuza dek
+   orada kalıyordu — API'nin kendi cevabı kişiye "30 gün içinde yanıt"
+   sözü verirken. `processedAt`, `processedByName`, `responseNotes` kolonları
+   zaten vardı, **kimse yazmıyordu**: bu deponun tekrar tekrar bulduğu hatanın
+   tam şekli — yazılmış, bağlanmamış kod.
+
+   Madde 12(3) bir ay veriyor ve **gecikme ihlalin kendisi**; ama süre hiçbir
+   yerde temsil edilmiyordu. Hiçbir şey son tarihi hesaplamıyordu, dolayısıyla
+   hiçbir kuruluş zaten ihlalde olup olmadığını göremiyordu.
+
+2. **Sıradan çalışan kendi verisini alamıyordu.** Tek export, kuruluşun TÜM
+   dosyasını döndürüyor ve yöneticilere kısıtlı — haklı olarak, çünkü madde 20
+   kişinin *kendi* verisi üzerinde bir hak, işverenin müşterileri üzerinde
+   değil. Geriye kalan: arayüzde ilan edilmiş, uçtan uca **uygulanamaz** bir
+   hak, çünkü elle talep kanalı da kapatılamıyordu.
+
+### Yapılanlar
+
+- **`GET /data-protection/my-data`** — her kimliği doğrulanmış kullanıcıya
+  açık. Ayrım işin çekirdeği: kişi **hakkındaki** veriyi döndürüyor, kişinin
+  yalnızca **girdiği** veriyi asla. Kişiler, aramalar, görevler ve prospect'ler
+  `createdBy` taşıyor; onları buradan servis etmek, `/export`'un kısıtlanmasıyla
+  kapatılan CRM sızdırmasını bireysel hak kılıfında geri açardı — üstelik bu
+  rotada hiç rol koruması yok.
+
+  Kolonlar tek tek sayılıyor, asla çıplak `select()` değil: bu tablolar parola
+  özeti, MFA sırrı, sıfırlama jetonları, Google OAuth jetonları ve cihaz
+  bildirim jetonu tutuyor — ve RGPD export'u tam da dışarı verilen şey. Google
+  için yalnızca bağın **varlığı** dönüyor: hesabın bağlı olması kişisel veri,
+  jetonlar ise erişim kimlik bilgisi.
+
+- **`POST /data-protection/requests/:id/process`** — yönetici sonucu kaydediyor.
+  Ret bir başarısızlık değil, hukuken geçerli bir sonuç; madde 12(4) o zaman
+  **gerekçe** ve şikâyet hakkının hatırlatılmasını zorunlu kılıyor. Bu yüzden
+  reddederken not zorunlu: sessiz bir ret ihlalin kendisi olur ve ihmalden
+  ayırt edilemez. `organisationId` ile sınırlı, ve yalnızca hâlâ `pending` olan
+  bir talep yazılabiliyor — kimin ne zaman ne yanıtladığının izi sonradan
+  yeniden yazılamasın diye.
+
+- **Bir aylık süre** artık türetiliyor ve talebin göründüğü her yerde
+  gösteriliyor; "bekleyen" sayısının yanında bir de **gecikmiş** sayacı var.
+  Saklanmıyor, türetiliyor: başvuru tarihinin fonksiyonu, ve bir kolon ondan
+  sapabilirdi.
+
+### Silme (madde 17) bilerek otomatikleştirilmedi
+
+Madde 17(3), saklama bir yasal yükümlülük gereğiyse silme hakkını devre dışı
+bırakıyor. Bu ürün böyle yükümlülükler taşıyor ve bunları **kendi** summary
+ucunda ilan ediyor: pointage'lar "5 ans (obligations légales)", muhasebe
+belgeleri ticaret kanunu kapsamında. Kör bir cascade ya yasanın saklamayı
+emrettiğini yok ederdi ya da silmiş gibi yapardı. İkisi de ihlal, birincisi
+geri alınamaz. Bu takas yayıncıya ait, bu dosyaya değil — talep izleniyor,
+tarihleniyor ve ne yaptığını yazan bir insan tarafından açıkça kapatılıyor.
+
+### Doğrulama
+
+**On test, her biri korumasını kaldırınca düştüğü kanıtlanmış**: tenant
+filtresini silmek, rol korumasını kaldırmak ve export'a `passwordHash` eklemek
+— üçü de takımı kırmızıya çeviriyor. Rota envanteri yenilendi (652 → **654**);
+bu adım unutulduğunda dağıtım bir gün boyunca sessizce durmuştu.
+
+eslint cıvatası bu iş sırasında **bir yeni uyarı yakaladı**; tavan
+yükseltilmedi, uyarı düzeltildi — hâlâ tam 687.
+
 ### Buradan sonrası
 
-- RGPD taşınabilirlik / unutulma hakkı akışının tamamlanması
 - Factur-X (Faz D, hâlâ bekliyor)
-- Erişilebilirlik beyanının (`accessibilite.tsx`) yeni ölçümlerle
-  güncellenmesi — RGAA'da beyan, ölçümün kendisi kadar zorunlu
+- `apps/api-py` kararı (Faz 6'da kullanıcıya bırakılmıştı, hâlâ açık)
+- Silme akışının yayıncı kararı: hangi veri anonimleştirilir, hangisi yasal
+  süre dolana dek saklanır — koda dökülmeden önce cevaplanması gereken soru
