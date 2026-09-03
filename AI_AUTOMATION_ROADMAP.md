@@ -227,16 +227,44 @@ girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamla
   `429 enforced_spend_limit_reached` → Anthropic Console → Plans & Billing'den
   tier yükseltilmeli. Ölçmeden "çalışıyor" yazılmayacak.
 
-### 4. [ORTA] Super Agent durumunu kalıcı hale getir
+### 4. [DURUM KALICI — 2026-09-03; cron hâlâ yok] Super Agent durumu
 
 - **Sorun**: `ai-agents.ts:2819` — `superAgentStates = new Map()` bellekte tutuluyor,
   her redeploy/restart'ta kayboluyor. Ayrıca sadece manuel tetiklemeyle çalışıyor
   (`POST /ai/super-agent/run`), zamanlanmış bir cron yok.
 - **Yapılacak**: Durumu bir DB tablosuna taşı, `autonomous-secretary-cron.ts` gibi
   zamanlanmış bir cron ekle.
-- **Durum**: Ertelendi — bu ~37 kullanım noktasını dokunan riskli bir refactor, ve
-  zaten Gmail'e bağlı olan e-posta ayağı Google OAuth (madde 1) olmadan çalışmıyor.
-  OAuth kurulduktan sonra tekrar değerlendirilecek.
+- **Ertelenme gerekçesi ölçünce çürüdü (2026-09-03)**: "~37 kullanım noktası"
+  kaba bir sayımdı; gerçekte `Map`'e dokunan **dört** satır vardı, geri kalanı
+  aynı getter'ın döndürdüğü nesnenin alanlarıydı. Ve OAuth beklemesi de yanlış
+  gerekçeydi: durumun bozukluğu e-posta ayağıyla ilgili değil — `process-report`
+  ve şantiye/görev/arama ayakları Gmail olmadan da çalışıyor, sayaçları ve
+  günlüğü de onlar yazıyordu.
+- **Gerçek hata, Faz 1'dekiyle aynı sınıftan**: servis `maxScale=3` ile
+  çalışıyor. `POST /ai/super-agent/run` bir instance'a, `GET /status` başka
+  birine düşünce kullanıcı, gerçekten çalışmış bir cyclein ardından "hiç bir şey
+  olmamış" ekranı görüyordu (günlük boş, sayaçlar sıfır). Ayrıca `running`
+  bayrağı süreç başına olduğu için **üç instance aynı organizasyonda aynı
+  cycle'ı paralel çalıştırabiliyordu**.
+- **Yapıldı**: `super_agent_state` (organizasyon başına tek satır, sayaçlar
+  ayrı tamsayı sütunlar) ve `super_agent_logs` (satır başına bir olay) tabloları
+  + `services/super-agent-state.ts`. Bayrak tek bir koşullu SQL ile alınıyor —
+  iki instance ikisi birden kazanamaz —, sayaçlar SQL'de artırılıyor (oku-yaz
+  yaparsak eşzamanlı cycle'lar birbirini ezerdi), günlük satır ekleyerek
+  yazılıyor (JSON dizisi yeniden yazmak kayıp üretirdi). Ölen bir instance'ın
+  bıraktığı bayrak 30 dakika sonra devralınıyor, yoksa organizasyon bir daha
+  hiç cycle başlatamazdı.
+- **Şema penceresi bilerek ele alındı**: tablolar üretimde henüz yok. `42P01`
+  görülürse eski davranışa (instance başına bellek) düşülüyor, saatte bir kez
+  loglanıyor ve `GET /status` yanıtına `degraded: true` ekleniyor — cycle asla
+  günlüğü yazamadığı için başarısız olmuyor. **Kullanıcı adımı: `bash
+  deploy/gcp-schema-push.sh`.**
+- **Doğrulama**: 11 yeni test (`super-agent-state.test.ts`) — eşzamanlı üç
+  başlatmadan yalnız birinin kazandığı, terk edilmiş cycle'ın devralındığı,
+  beş eşzamanlı sayaç artışının toplandığı ve kiracı sınırının aşılmadığı
+  dahil. Tablolar `TENANT_TABLES`'a eklendi (kapsam testi kural).
+- **Durum**: Kalıcılık tamam. **Zamanlanmış cron hâlâ yok** — Super Agent
+  yalnız elle tetikleniyor. Bir sonraki adım o.
 
 ### 5. [TAMAMLANDI] Günlük özeti gerçekten "günlük" yap (2026-07-14)
 

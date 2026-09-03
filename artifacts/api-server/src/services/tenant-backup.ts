@@ -52,7 +52,11 @@ export const TENANT_TABLES = [
   "license_audit_log", "performance_reports", "platform_connections",
   "platform_sync_logs", "proactive_suggestions", "projets", "prospects",
   "push_tokens", "security_lists", "security_scans", "stock_mouvements",
-  "stock_articles", "subscriptions", "tasks", "telephony_providers",
+  "stock_articles", "subscriptions",
+  // Compteurs et journal du Super Agent: c'est le compte rendu de ce que
+  // l'automatisation a fait chez ce client, pas un etat technique.
+  "super_agent_state", "super_agent_logs",
+  "tasks", "telephony_providers",
   "telephony_call_logs", "telephony_sms_logs", "treasury_settings", "users",
   "webhook_deliveries", "webhook_endpoints", "whatsapp_processed_messages",
   "whatsapp_conversations", "whatsapp_messages",
