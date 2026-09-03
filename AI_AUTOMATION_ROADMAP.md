@@ -650,9 +650,9 @@ PDF standart fontlarının WinAnsi kodlamasında yok ve pdfkit onu EĞİK ÇİZG
 artık `toWinAnsiText`'ten geçiyor; bir test PDF içerik akışını açıp tutarın sayfaya
 bozulmadan ulaştığını kanıtlıyor.
 
-### ⏳ Faz D — BEKLİYOR (Factur-X)
-EN 16931 CII XML üretimi + PDF/A-3'e gömme (hibrit). Fransa 2026 e-fatura
-zorunluluğu. Chorus Pro/PDP iletimi ayrı sonraki adım.
+### ✅ Faz D — YAPILDI (Factur-X), bir parçası bilerek yayıncıya bırakıldı
+EN 16931 CII XML üretiliyor ve PDF'e gömülüyor. Ayrıntı için aşağıdaki
+2026-09-03 bölümüne bak. Chorus Pro/PDP iletimi ayrı sonraki adım olarak duruyor.
 
 ---
 
@@ -1648,3 +1648,73 @@ Bir testin geçmesi, ölçtüğü şeyin var olduğunu göstermez. Bu depoda ayn
 üçüncü kez çıkıyor (erişilebilirlik bütçesi 16 sanıyordu, gerçek 105'ti;
 `getAiKeyStatus` yazılmıştı, çağrılmıyordu; şimdi bu). Yeni bir koruma
 yazıldığında, **kaldırıldığında düştüğü** de ayrıca gösterilmeli.
+
+---
+
+## 2026-09-03 — Faz D: fatura artık yapısal veri olarak da çıkıyor
+
+Fransa'nın elektronik fatura reformu **1 Eylül 2026'da** yürürlüğe girdi. Code
+de commerce'e ne kadar uygun olursa olsun bir PDF, reform anlamında artık
+elektronik fatura değil: aynı olguların **makinece okunabilir** biçimde de
+gitmesi gerekiyor. Factur-X bunu tek dosyayla çözüyor — insan PDF'i okur,
+makine içine gömülü CII XML'ini.
+
+### Engel olduğu sanılan şey engel değilmiş
+
+Yol haritası Faz D'yi "pdfkit dosya gömmeyi desteklemiyor" gerekçesiyle
+bekletiyordu. **Ölçtüm, öyle değil**: pdfkit 0.18 gömüyor ve `/EmbeddedFiles`,
+`/Filespec`, `/AFRelationship /Data` üretiyor. Yeni kütüphane gerekmedi.
+
+Gerçek engel başka yerde ve çok daha dar — aşağıda.
+
+### Yapılanlar
+
+- **`services/facturx.ts`** — saf modül, CII XML'ini **aynı**
+  `buildInvoiceDocument`'ten üretiyor ve hiçbir şeyi yeniden hesaplamıyor. İki
+  paralel hesap er geç ayrışır, ve bir PDF ile kendi XML'inin çelişmesi tam da
+  bir denetimin aradığı şeydir.
+- **Profil: BASIC.** Satır detayı taşıyan ilk seviye, ve üründe zaten var.
+  MINIMUM/BASIC WL yalnız toplam gönderirdi. EN 16931 (COMFORT) iddia etmek,
+  modelin veremeyeceği alanları (alıcı referansı, kodlu ödeme yöntemi) vaat
+  etmek olurdu — **tutulamayan bir profil, mütevazı olandan kötüdür.**
+- **`GET /factures-client/:id/facturx.xml`** — XML'i tek başına servis ediyor;
+  PDP ve Chorus Pro'nun tükettiği şey bu. PDF rotası da aynı XML'i ekli
+  taşıyor, **aynı istekte aynı kayıttan** üretilerek: iki ayrı çağrı olsaydı
+  ek, faturanın eski bir sürümünü anlatabilirdi ve bu hiçbir ekranda görünmezdi.
+- **TVA kategori kodları** işin sonucu ağır olan kısmı: **vergiyi kimin
+  borçlandığını** söylüyorlar. Otoliquidation `AE`'dir, `S` değil — `S` olarak
+  gönderilirse müşteri hiç faturalanmamış bir TVA'yı indirir, üstelik PDF
+  Fransızca doğru mention'ı göstermeye devam eder. Kategori `S` değilse
+  muafiyet gerekçesi her zaman var (BR-E-10 / BR-AE-10 / BR-Z-10).
+- **Adresler** elden geldiğince yapılandırılıyor, **başarısızlık uyduruluyor
+  değil bildiriliyor**: yanlış tahmin edilen bir posta kodu başkasının
+  muhasebesine kadar gider.
+
+### Bilerek iddia EDİLMEYEN şey: PDF/A-3 uygunluğu
+
+Factur-X PDF/A-3 şart koşuyor ve onun merkezi kurallarından biri **bütün
+fontların gömülü olması**. pdfkit `subset: "PDF/A-3b"` üretebiliyor, ama burada
+kullanılan standart fontlarla **hiçbir font dosyası gömmüyor** — ölçüldü,
+çıktıda tek bir `/FontFile` yok. Yani belge, ihlal ettiği bir uygunluğu
+**beyan** ederdi.
+
+Bu, aynı gün test tarafında düzeltilen "hep yeşil" hatasının ta kendisi olurdu —
+üstelik hukuki bir belge üzerinde. **Bir test bu iddianın yokluğunu kilitliyor.**
+
+Kalan adım küçük ve belli: gömülebilir özgür bir font eklemek, sonra `subset`'i
+açmak. Ama bu depoya bir ikili dosya ekler ve hukuki bir belgenin görünümünü
+değiştirir — **yayıncının kararı.**
+
+### Doğrulama
+
+**53 test.** Gözle görünmeyen ve her şeyi belirleyen iki özellik — ekin zorunlu
+dosya adı ve `/AFRelationship /Data` — kaldırıldığında takımın düştüğü ayrı ayrı
+kanıtlandı. Rota envanteri 654 → **655**, typecheck temiz, eslint cıvatası bu
+işin doğurduğu tek uyarı düzeltildikten sonra yine tam **687**.
+
+### Buradan sonrası
+
+- **Yayıncı kararı**: gömülebilir font → gerçek PDF/A-3b → tam Factur-X uygunluğu
+- Chorus Pro / PDP iletimi (ayrı adım, alıcı tarafı)
+- `apps/api-py` kararı (Faz 6'dan beri açık)
+- Silme akışının yayıncı kararı (RGPD, 2026-09-03 bölümü)
