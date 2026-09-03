@@ -180,7 +180,7 @@ function ActionEditor({ action, onChange, onRemove }: {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <Label className="text-xs">{t("automationsPage.editor.title")}</Label>
-              <Input className="h-7 text-xs mt-1" value={action.params.title ?? ""} onChange={e => setParam("title", e.target.value)} placeholder={t("automationsPage.editor.notifTitlePlaceholder")} />
+              <Input aria-label={t("automationsPage.editor.title")} className="h-7 text-xs mt-1" value={action.params.title ?? ""} onChange={e => setParam("title", e.target.value)} placeholder={t("automationsPage.editor.notifTitlePlaceholder")} />
             </div>
             <div>
               <Label className="text-xs">{t("automationsPage.editor.type")}</Label>
@@ -208,7 +208,7 @@ function ActionEditor({ action, onChange, onRemove }: {
         <div className="grid grid-cols-2 gap-2">
           <div className="col-span-2">
             <Label className="text-xs">{t("automationsPage.editor.taskTitle")}</Label>
-            <Input className="h-7 text-xs mt-1" value={action.params.title ?? ""} onChange={e => setParam("title", e.target.value)} placeholder={t("automationsPage.editor.taskTitlePlaceholder")} />
+            <Input aria-label={t("automationsPage.editor.taskTitle")} className="h-7 text-xs mt-1" value={action.params.title ?? ""} onChange={e => setParam("title", e.target.value)} placeholder={t("automationsPage.editor.taskTitlePlaceholder")} />
           </div>
           <div>
             <Label className="text-xs">{t("automationsPage.editor.priority")}</Label>
@@ -224,7 +224,7 @@ function ActionEditor({ action, onChange, onRemove }: {
           </div>
           <div>
             <Label className="text-xs">{t("automationsPage.editor.dueDays")}</Label>
-            <Input type="number" className="h-7 text-xs mt-1" value={action.params.dueDays ?? "1"} onChange={e => setParam("dueDays", e.target.value)} min="1" />
+            <Input aria-label={t("automationsPage.editor.dueDays")} type="number" className="h-7 text-xs mt-1" value={action.params.dueDays ?? "1"} onChange={e => setParam("dueDays", e.target.value)} min="1" />
           </div>
         </div>
       )}
@@ -291,7 +291,7 @@ function EditRuleDialog({ rule, onSaved, onClose }: { rule: any; onSaved: () => 
           </div>
           <div>
             <Label>{t("automationsPage.dialog.description")}</Label>
-            <Input className="mt-1" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+            <Input aria-label={t("automationsPage.dialog.description")} className="mt-1" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
           </div>
           <div>
             <Label>{t("automationsPage.dialog.frequency")}</Label>
@@ -403,7 +403,7 @@ function CreateRuleDialog({ onCreated }: { onCreated: () => void }) {
             </div>
             <div className="col-span-2">
               <Label>{t("automationsPage.dialog.description")}</Label>
-              <Input className="mt-1" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder={t("automationsPage.dialog.descriptionPlaceholder")} />
+              <Input aria-label={t("automationsPage.dialog.description")} className="mt-1" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder={t("automationsPage.dialog.descriptionPlaceholder")} />
             </div>
           </div>
 
@@ -443,7 +443,7 @@ function CreateRuleDialog({ onCreated }: { onCreated: () => void }) {
             {form.trigger === "contact_no_activity" && (
               <div>
                 <Label>{t("automationsPage.dialog.inactivityDays")}</Label>
-                <Input type="number" className="mt-1" value={form.inactivityDays} onChange={e => setForm(f => ({ ...f, inactivityDays: e.target.value }))} min="1" max="365" />
+                <Input aria-label={t("automationsPage.dialog.inactivityDays")} type="number" className="mt-1" value={form.inactivityDays} onChange={e => setForm(f => ({ ...f, inactivityDays: e.target.value }))} min="1" max="365" />
               </div>
             )}
           </div>

@@ -80,7 +80,7 @@ export function CommandPalette() {
         <div className="border-b p-3">
           <div className="flex items-center gap-2">
             <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-            <Input className="border-0 shadow-none focus-visible:ring-0 p-0 h-8" placeholder={t("commandPalette.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} autoFocus />
+            <Input aria-label={t("commandPalette.searchPlaceholder")} className="border-0 shadow-none focus-visible:ring-0 p-0 h-8" placeholder={t("commandPalette.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} autoFocus />
             <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] text-muted-foreground">ESC</kbd>
           </div>
         </div>

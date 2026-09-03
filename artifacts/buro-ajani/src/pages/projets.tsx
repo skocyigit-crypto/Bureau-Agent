@@ -199,7 +199,7 @@ function MilestonesPanel({ projet, onUpdated }: { projet: Projet; onUpdated: () 
         );
       })}
       <div className="flex items-center gap-1">
-        <Input
+        <Input aria-label={t("projets.milestones.placeholder")}
           placeholder={t("projets.milestones.placeholder")} value={newTitle}
           onChange={e => setNewTitle(e.target.value)}
           onKeyDown={e => e.key === "Enter" && add()}
@@ -263,36 +263,36 @@ function ProjetForm({ form, setForm }: { form: any; setForm: (f: any) => void })
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>{t("projets.form.client")}</Label>
-          <Input className="mt-1" value={form.clientName} onChange={e => setForm((f: any) => ({ ...f, clientName: e.target.value }))} placeholder={t("projets.form.clientPlaceholder")} />
+          <Input aria-label={t("projets.form.client")} className="mt-1" value={form.clientName} onChange={e => setForm((f: any) => ({ ...f, clientName: e.target.value }))} placeholder={t("projets.form.clientPlaceholder")} />
         </div>
         <div>
           <Label>{t("projets.form.company")}</Label>
-          <Input className="mt-1" value={form.clientCompany} onChange={e => setForm((f: any) => ({ ...f, clientCompany: e.target.value }))} placeholder={t("projets.form.companyPlaceholder")} />
+          <Input aria-label={t("projets.form.company")} className="mt-1" value={form.clientCompany} onChange={e => setForm((f: any) => ({ ...f, clientCompany: e.target.value }))} placeholder={t("projets.form.companyPlaceholder")} />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>{t("projets.form.budget")}</Label>
-          <Input type="number" className="mt-1" value={form.budget} onChange={e => setForm((f: any) => ({ ...f, budget: e.target.value }))} placeholder={t("projets.form.budgetPlaceholder")} min="0" />
+          <Input aria-label={t("projets.form.budget")} type="number" className="mt-1" value={form.budget} onChange={e => setForm((f: any) => ({ ...f, budget: e.target.value }))} placeholder={t("projets.form.budgetPlaceholder")} min="0" />
         </div>
         <div>
           <Label>{t("projets.form.progress")}</Label>
-          <Input type="number" className="mt-1" value={form.progress} onChange={e => setForm((f: any) => ({ ...f, progress: e.target.value }))} min="0" max="100" />
+          <Input aria-label={t("projets.form.progress")} type="number" className="mt-1" value={form.progress} onChange={e => setForm((f: any) => ({ ...f, progress: e.target.value }))} min="0" max="100" />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>{t("projets.form.startDate")}</Label>
-          <Input type="date" className="mt-1" value={form.startDate} onChange={e => setForm((f: any) => ({ ...f, startDate: e.target.value }))} />
+          <Input aria-label={t("projets.form.startDate")} type="date" className="mt-1" value={form.startDate} onChange={e => setForm((f: any) => ({ ...f, startDate: e.target.value }))} />
         </div>
         <div>
           <Label>{t("projets.form.endDate")}</Label>
-          <Input type="date" className="mt-1" value={form.endDate} onChange={e => setForm((f: any) => ({ ...f, endDate: e.target.value }))} />
+          <Input aria-label={t("projets.form.endDate")} type="date" className="mt-1" value={form.endDate} onChange={e => setForm((f: any) => ({ ...f, endDate: e.target.value }))} />
         </div>
       </div>
       <div>
         <Label>{t("projets.form.assignedTo")}</Label>
-        <Input className="mt-1" value={form.assignedTo} onChange={e => setForm((f: any) => ({ ...f, assignedTo: e.target.value }))} placeholder={t("projets.form.assignedToPlaceholder")} />
+        <Input aria-label={t("projets.form.assignedTo")} className="mt-1" value={form.assignedTo} onChange={e => setForm((f: any) => ({ ...f, assignedTo: e.target.value }))} placeholder={t("projets.form.assignedToPlaceholder")} />
       </div>
       <div>
         <Label>{t("projets.form.tags")} <span className="text-muted-foreground font-normal text-xs">{t("projets.form.tagsHint")}</span></Label>
@@ -751,7 +751,7 @@ export default function ProjetsPage() {
       <div className="flex flex-col sm:flex-row gap-3 items-center">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder={t("projets.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+          <Input aria-label={t("projets.searchPlaceholder")} placeholder={t("projets.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-40">

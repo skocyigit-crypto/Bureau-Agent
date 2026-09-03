@@ -155,9 +155,9 @@ function AccountSecurityPanel() {
         <div className="space-y-3">
           <Label className="text-sm font-semibold">{t("settingsSecurite.account.changePassword")}</Label>
           <div className="grid gap-2 sm:grid-cols-3">
-            <Input type="password" placeholder={t("settingsSecurite.account.currentPassword")} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} autoComplete="current-password" />
-            <Input type="password" placeholder={t("settingsSecurite.account.newPassword")} value={newPassword} onChange={e => setNewPassword(e.target.value)} autoComplete="new-password" />
-            <Input type="password" placeholder={t("settingsSecurite.account.confirm")} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} autoComplete="new-password" />
+            <Input aria-label={t("settingsSecurite.account.currentPassword")} type="password" placeholder={t("settingsSecurite.account.currentPassword")} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} autoComplete="current-password" />
+            <Input aria-label={t("settingsSecurite.account.newPassword")} type="password" placeholder={t("settingsSecurite.account.newPassword")} value={newPassword} onChange={e => setNewPassword(e.target.value)} autoComplete="new-password" />
+            <Input aria-label={t("settingsSecurite.account.confirm")} type="password" placeholder={t("settingsSecurite.account.confirm")} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} autoComplete="new-password" />
           </div>
           <Button
             size="sm"
@@ -228,7 +228,7 @@ function AccountSecurityPanel() {
                 {t("settingsSecurite.account.disableInstructions")}
               </p>
               <div className="flex flex-wrap items-center gap-2">
-                <Input type="password" placeholder={t("settingsSecurite.account.password")} value={disablePassword} onChange={e => setDisablePassword(e.target.value)} className="w-48" autoComplete="current-password" />
+                <Input aria-label={t("settingsSecurite.account.password")} type="password" placeholder={t("settingsSecurite.account.password")} value={disablePassword} onChange={e => setDisablePassword(e.target.value)} className="w-48" autoComplete="current-password" />
                 <Input
                   value={totpCode}
                   onChange={e => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}

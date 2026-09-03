@@ -192,7 +192,7 @@ function AdminFacturesB2BContent() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder={t("adminFacturesB2b.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+          <Input aria-label={t("adminFacturesB2b.searchPlaceholder")} placeholder={t("adminFacturesB2b.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-44"><SelectValue placeholder={t("adminFacturesB2b.statusPlaceholder")} /></SelectTrigger>
@@ -292,7 +292,7 @@ function AdminFacturesB2BContent() {
             </div>
             <div><Label className="text-xs">{t("adminFacturesB2b.form.title")} *</Label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">{t("adminFacturesB2b.form.reference")}</Label><Input value={form.reference} onChange={e => setForm(f => ({ ...f, reference: e.target.value }))} placeholder="FAC-..." /></div>
+              <div><Label className="text-xs">{t("adminFacturesB2b.form.reference")}</Label><Input aria-label={t("adminFacturesB2b.form.reference")} value={form.reference} onChange={e => setForm(f => ({ ...f, reference: e.target.value }))} placeholder="FAC-..." /></div>
               <div><Label className="text-xs">{t("adminFacturesB2b.form.status")}</Label>
                 <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -302,17 +302,17 @@ function AdminFacturesB2BContent() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs">{t("adminFacturesB2b.form.client")} *</Label><Input value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} /></div>
-              <div><Label className="text-xs">{t("adminFacturesB2b.form.company")}</Label><Input value={form.clientCompany} onChange={e => setForm(f => ({ ...f, clientCompany: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("adminFacturesB2b.form.company")}</Label><Input aria-label={t("adminFacturesB2b.form.company")} value={form.clientCompany} onChange={e => setForm(f => ({ ...f, clientCompany: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">{t("adminFacturesB2b.form.email")}</Label><Input type="email" value={form.clientEmail} onChange={e => setForm(f => ({ ...f, clientEmail: e.target.value }))} /></div>
-              <div><Label className="text-xs">{t("adminFacturesB2b.form.dueDate")}</Label><Input type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("adminFacturesB2b.form.email")}</Label><Input aria-label={t("adminFacturesB2b.form.email")} type="email" value={form.clientEmail} onChange={e => setForm(f => ({ ...f, clientEmail: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("adminFacturesB2b.form.dueDate")}</Label><Input aria-label={t("adminFacturesB2b.form.dueDate")} type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">{t("adminFacturesB2b.form.totalAmount")}</Label><Input type="number" value={form.totalAmount} onChange={e => setForm(f => ({ ...f, totalAmount: e.target.value }))} placeholder="0" /></div>
-              <div><Label className="text-xs">{t("adminFacturesB2b.form.paidAmount")}</Label><Input type="number" value={form.paidAmount} onChange={e => setForm(f => ({ ...f, paidAmount: e.target.value }))} placeholder="0" /></div>
+              <div><Label className="text-xs">{t("adminFacturesB2b.form.totalAmount")}</Label><Input aria-label={t("adminFacturesB2b.form.totalAmount")} type="number" value={form.totalAmount} onChange={e => setForm(f => ({ ...f, totalAmount: e.target.value }))} placeholder="0" /></div>
+              <div><Label className="text-xs">{t("adminFacturesB2b.form.paidAmount")}</Label><Input aria-label={t("adminFacturesB2b.form.paidAmount")} type="number" value={form.paidAmount} onChange={e => setForm(f => ({ ...f, paidAmount: e.target.value }))} placeholder="0" /></div>
             </div>
-            <div><Label className="text-xs">{t("adminFacturesB2b.form.notes")}</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} /></div>
+            <div><Label className="text-xs">{t("adminFacturesB2b.form.notes")}</Label><Textarea aria-label={t("adminFacturesB2b.form.notes")} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.cancel")}</Button>

@@ -160,7 +160,7 @@ export default function AdminDevisPage() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder={t("adminDevis.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+          <Input aria-label={t("adminDevis.searchPlaceholder")} placeholder={t("adminDevis.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-44"><SelectValue placeholder={t("adminDevis.statusPlaceholder")} /></SelectTrigger>
@@ -221,7 +221,7 @@ export default function AdminDevisPage() {
             </div>
             <div><Label className="text-xs">{t("adminDevis.form.title")} *</Label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">{t("adminDevis.form.reference")}</Label><Input value={form.reference} onChange={e => setForm(f => ({ ...f, reference: e.target.value }))} placeholder="DEV-..." /></div>
+              <div><Label className="text-xs">{t("adminDevis.form.reference")}</Label><Input aria-label={t("adminDevis.form.reference")} value={form.reference} onChange={e => setForm(f => ({ ...f, reference: e.target.value }))} placeholder="DEV-..." /></div>
               <div><Label className="text-xs">{t("adminDevis.form.status")}</Label>
                 <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -231,14 +231,14 @@ export default function AdminDevisPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs">{t("adminDevis.form.client")} *</Label><Input value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} /></div>
-              <div><Label className="text-xs">{t("adminDevis.form.company")}</Label><Input value={form.clientCompany} onChange={e => setForm(f => ({ ...f, clientCompany: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("adminDevis.form.company")}</Label><Input aria-label={t("adminDevis.form.company")} value={form.clientCompany} onChange={e => setForm(f => ({ ...f, clientCompany: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">{t("adminDevis.form.email")}</Label><Input type="email" value={form.clientEmail} onChange={e => setForm(f => ({ ...f, clientEmail: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("adminDevis.form.email")}</Label><Input aria-label={t("adminDevis.form.email")} type="email" value={form.clientEmail} onChange={e => setForm(f => ({ ...f, clientEmail: e.target.value }))} /></div>
             </div>
             <LineItemsEditor items={form.items} onChange={(items) => setForm(f => ({ ...f, items }))} currency={form.currency} />
-            <div><Label className="text-xs">{t("adminDevis.form.validUntil")}</Label><Input type="date" value={form.validUntil} onChange={e => setForm(f => ({ ...f, validUntil: e.target.value }))} /></div>
-            <div><Label className="text-xs">{t("adminDevis.form.notes")}</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} /></div>
+            <div><Label className="text-xs">{t("adminDevis.form.validUntil")}</Label><Input aria-label={t("adminDevis.form.validUntil")} type="date" value={form.validUntil} onChange={e => setForm(f => ({ ...f, validUntil: e.target.value }))} /></div>
+            <div><Label className="text-xs">{t("adminDevis.form.notes")}</Label><Textarea aria-label={t("adminDevis.form.notes")} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.cancel")}</Button>

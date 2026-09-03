@@ -452,7 +452,7 @@ export default function Tasks() {
               <FormField control={form.control} name="assignedTo" render={({ field }) => (
                 <FormItem>
                   <FormLabel>{t("tasks.form.assignedTo")}</FormLabel>
-                  <FormControl><Input placeholder={t("tasks.form.assignedToPlaceholder")} {...field} value={field.value || ""} /></FormControl>
+                  <FormControl><Input aria-label={t("tasks.form.assignedToPlaceholder")} placeholder={t("tasks.form.assignedToPlaceholder")} {...field} value={field.value || ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
@@ -632,7 +632,7 @@ export default function Tasks() {
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-card p-4 border border-border rounded-lg shadow-sm">
         <div className="relative w-full sm:max-w-xs">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder={t("tasks.searchPlaceholder")} className="pl-9 w-full" value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} />
+          <Input aria-label={t("tasks.searchPlaceholder")} placeholder={t("tasks.searchPlaceholder")} className="pl-9 w-full" value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} />
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
           <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }}>

@@ -457,7 +457,7 @@ export default function AssistantProactifPage() {
                     {showSubject && (
                       <div className="space-y-1.5">
                         <Label htmlFor={`subj-${s.id}`} className="text-xs text-muted-foreground">{t("assistantProactif.subject")}</Label>
-                        <Input
+                        <Input aria-label={t("assistantProactif.subject")}
                           id={`subj-${s.id}`}
                           value={draft.subject}
                           onChange={(e) => updateDraft(s.id, { subject: e.target.value })}

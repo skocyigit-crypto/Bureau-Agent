@@ -115,13 +115,13 @@ function AiReceptionistSettings() {
             </Select>
           </div>
         </div>
-        <div><Label className="text-xs">{t("settingsAppels.recept.orgName")}</Label><Input value={cfg.orgName || ""} onChange={(e) => set({ orgName: e.target.value })} placeholder={t("settingsAppels.recept.orgNamePlaceholder")} /></div>
-        <div><Label className="text-xs">{t("settingsAppels.recept.greeting")}</Label><Textarea rows={2} value={cfg.greeting || ""} onChange={(e) => set({ greeting: e.target.value })} placeholder={t("settingsAppels.recept.greetingPlaceholder")} /></div>
+        <div><Label className="text-xs">{t("settingsAppels.recept.orgName")}</Label><Input aria-label={t("settingsAppels.recept.orgName")} value={cfg.orgName || ""} onChange={(e) => set({ orgName: e.target.value })} placeholder={t("settingsAppels.recept.orgNamePlaceholder")} /></div>
+        <div><Label className="text-xs">{t("settingsAppels.recept.greeting")}</Label><Textarea aria-label={t("settingsAppels.recept.greeting")} rows={2} value={cfg.greeting || ""} onChange={(e) => set({ greeting: e.target.value })} placeholder={t("settingsAppels.recept.greetingPlaceholder")} /></div>
         {toggle("autoDetectLanguage", t("settingsAppels.recept.autoDetectLabel"), t("settingsAppels.recept.autoDetectDesc"))}
         <Separator />
         <div className="grid grid-cols-2 gap-3">
-          <div><Label className="text-xs">{t("settingsAppels.recept.forwardLabel")}</Label><Input value={cfg.forwardToNumber || ""} onChange={(e) => set({ forwardToNumber: e.target.value })} placeholder="+33…" /></div>
-          <div><Label className="text-xs">{t("settingsAppels.recept.ownerLabel")}</Label><Input value={cfg.ownerAlertNumber || ""} onChange={(e) => set({ ownerAlertNumber: e.target.value })} placeholder="+33…" /></div>
+          <div><Label className="text-xs">{t("settingsAppels.recept.forwardLabel")}</Label><Input aria-label={t("settingsAppels.recept.forwardLabel")} value={cfg.forwardToNumber || ""} onChange={(e) => set({ forwardToNumber: e.target.value })} placeholder="+33…" /></div>
+          <div><Label className="text-xs">{t("settingsAppels.recept.ownerLabel")}</Label><Input aria-label={t("settingsAppels.recept.ownerLabel")} value={cfg.ownerAlertNumber || ""} onChange={(e) => set({ ownerAlertNumber: e.target.value })} placeholder="+33…" /></div>
         </div>
         <Separator />
         {toggle("smsConfirmation", t("settingsAppels.recept.smsConfirmLabel"), t("settingsAppels.recept.smsConfirmDesc"), true)}
@@ -129,7 +129,7 @@ function AiReceptionistSettings() {
         {toggle("allowPhoneCancellation", t("settingsAppels.recept.cancelPhoneLabel"), t("settingsAppels.recept.cancelPhoneDesc"))}
         {toggle("autoSmsOnMissed", t("settingsAppels.recept.autoSmsLabel"), t("settingsAppels.recept.autoSmsDesc"), true)}
         {toggle("emailRecapEnabled", t("settingsAppels.recept.recapLabel"), t("settingsAppels.recept.recapDesc"), true)}
-        <div><Label className="text-xs">{t("settingsAppels.recept.smsTemplate")}</Label><Input value={cfg.autoSmsTemplate || ""} onChange={(e) => set({ autoSmsTemplate: e.target.value })} placeholder={t("settingsAppels.recept.smsTemplatePlaceholder")} /><p className="text-[10px] text-muted-foreground mt-0.5">{t("settingsAppels.recept.smsVariables")}</p></div>
+        <div><Label className="text-xs">{t("settingsAppels.recept.smsTemplate")}</Label><Input aria-label={t("settingsAppels.recept.smsTemplate")} value={cfg.autoSmsTemplate || ""} onChange={(e) => set({ autoSmsTemplate: e.target.value })} placeholder={t("settingsAppels.recept.smsTemplatePlaceholder")} /><p className="text-[10px] text-muted-foreground mt-0.5">{t("settingsAppels.recept.smsVariables")}</p></div>
         <Separator />
         <div>
           <Label className="text-xs">{t("settingsAppels.recept.hoursLabel")}</Label>
@@ -326,7 +326,7 @@ export function TabAppels() {
                     <PhoneIncoming className="w-4 h-4" />
                     {t("settingsAppels.incoming.simulateBtn")}
                   </Button>
-                  <Input placeholder={t("settingsAppels.incoming.customPhonePlaceholder")} className="w-48" id="custom-phone" />
+                  <Input aria-label={t("settingsAppels.incoming.customPhonePlaceholder")} placeholder={t("settingsAppels.incoming.customPhonePlaceholder")} className="w-48" id="custom-phone" />
                   <Button
                     variant="secondary"
                     onClick={() => {

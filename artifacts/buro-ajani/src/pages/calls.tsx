@@ -361,7 +361,7 @@ export default function Calls() {
                   <FormField control={form.control} name="phoneNumber" render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t("calls.form.phoneNumber")}</FormLabel>
-                      <FormControl><Input placeholder={t("calls.form.phonePlaceholder")} {...field} /></FormControl>
+                      <FormControl><Input aria-label={t("calls.form.phonePlaceholder")} placeholder={t("calls.form.phonePlaceholder")} {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />

@@ -254,7 +254,7 @@ export function TabClesIa() {
                       </p>
                       <div>
                         <Label className="text-xs">{t("settingsClesIa.nameLabel")}</Label>
-                        <Input value={configLabel} onChange={(e) => setConfigLabel(e.target.value)} placeholder={selected.displayName} />
+                        <Input aria-label={t("settingsClesIa.nameLabel")} value={configLabel} onChange={(e) => setConfigLabel(e.target.value)} placeholder={selected.displayName} />
                       </div>
                       {selected.configFields.map((f) => (
                         <div key={f.key}>

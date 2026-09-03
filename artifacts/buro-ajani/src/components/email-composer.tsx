@@ -246,7 +246,7 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                     </SelectContent>
                   </Select>
                   {selectedContactId === "none" && (
-                    <Input
+                    <Input aria-label={t("emailComposer.recipient.emailPlaceholder")}
                       placeholder={t("emailComposer.recipient.emailPlaceholder")}
                       value={recipientEmail}
                       onChange={(e) => setRecipientEmail(e.target.value)}
@@ -313,7 +313,7 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                 {purpose === "personnalise" && (
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">{t("emailComposer.aiInstructions.label")}</Label>
-                    <Textarea
+                    <Textarea aria-label={t("emailComposer.aiInstructions.label")}
                       placeholder={t("emailComposer.aiInstructions.placeholder")}
                       value={additionalContext}
                       onChange={(e) => setAdditionalContext(e.target.value)}
@@ -325,7 +325,7 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                 {purpose !== "personnalise" && (
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">{t("emailComposer.additionalContext.label")}</Label>
-                    <Textarea
+                    <Textarea aria-label={t("emailComposer.additionalContext.label")}
                       placeholder={t("emailComposer.additionalContext.placeholder")}
                       value={additionalContext}
                       onChange={(e) => setAdditionalContext(e.target.value)}

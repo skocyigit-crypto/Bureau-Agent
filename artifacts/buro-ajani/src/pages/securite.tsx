@@ -357,7 +357,7 @@ function LinkScannerCard({ onScanned }: { onScanned: () => void }) {
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex gap-2">
-          <Input
+          <Input aria-label={t("securitePage.link.placeholder")}
             placeholder={t("securitePage.link.placeholder")}
             value={url}
             onChange={(e) => setUrl(e.target.value)}
@@ -899,7 +899,7 @@ function ListManagerCard() {
               onKeyDown={(e) => { if (e.key === "Enter") add(); }}
               className="text-sm"
             />
-            <Input
+            <Input aria-label={t("securitePage.lists.notePlaceholder")}
               placeholder={t("securitePage.lists.notePlaceholder")}
               value={note}
               onChange={(e) => setNote(e.target.value)}
@@ -1052,7 +1052,7 @@ function PartnersCard() {
             {t("securitePage.partners.nextdnsDesc")}
           </p>
           <div className="flex gap-2">
-            <Input
+            <Input aria-label={t("securitePage.partners.nextdnsPlaceholder")}
               placeholder={t("securitePage.partners.nextdnsPlaceholder")}
               value={nextdnsId}
               onChange={(e) => setNextdnsId(e.target.value)}

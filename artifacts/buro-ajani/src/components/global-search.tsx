@@ -110,7 +110,7 @@ export function GlobalSearch() {
   return (
     <div ref={containerRef} className="relative w-64 hidden md:block">
       <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-      <Input
+      <Input aria-label={t("header.searchEverywhere")}
         type="search"
         placeholder={t("header.searchEverywhere")}
         className="w-full bg-muted/50 border-none pl-9 h-9 pr-8"

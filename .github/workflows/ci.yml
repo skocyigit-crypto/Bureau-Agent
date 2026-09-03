@@ -73,6 +73,13 @@ jobs:
       - name: Check tenant isolation
         run: pnpm --filter @workspace/api-server tenant:check
 
+      # Accessibilite des formulaires. Un champ dont le seul libelle est un
+      # placeholder n'a pas de nom accessible: le texte disparait des que
+      # l'utilisateur tape. C'est une obligation (European Accessibility Act)
+      # et un defaut invisible a l'ecran. Le cliquet interdit d'en ajouter.
+      - name: Check form accessibility
+        run: pnpm --filter @workspace/buro-ajani a11y:check
+
       - name: Build
         # Mobile falls back to the production domain when no preview domain
         # is provided; mockup-sandbox uses local PORT/BASE_PATH defaults.

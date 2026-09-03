@@ -710,7 +710,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                         exit={{ height: 0, opacity: 0 }}
                         className="overflow-hidden mb-3"
                       >
-                        <Textarea
+                        <Textarea aria-label={t("incomingCall.notesPlaceholder")}
                           placeholder={t("incomingCall.notesPlaceholder")}
                           className="bg-white/5 border-white/10 text-white placeholder:text-white/30 resize-none h-20 text-sm"
                           value={notes}
@@ -1131,7 +1131,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
 
                 {phase === "ended" && !aiResult && (
                   <div className="px-8 pb-4">
-                    <Textarea
+                    <Textarea aria-label={t("incomingCall.callNotesPlaceholder")}
                       placeholder={t("incomingCall.callNotesPlaceholder")}
                       className="resize-none h-20"
                       value={notes}

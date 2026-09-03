@@ -275,7 +275,7 @@ export default function ProspectsPage() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder={t("prospects.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+          <Input aria-label={t("prospects.searchPlaceholder")} placeholder={t("prospects.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={stageFilter} onValueChange={setStageFilter}>
           <SelectTrigger className="w-44"><SelectValue placeholder={t("prospects.filters.stagePlaceholder")} /></SelectTrigger>
@@ -459,7 +459,7 @@ export default function ProspectsPage() {
             <DialogTitle>{editingId ? t("prospects.dialog.editTitle") : t("prospects.dialog.createTitle")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <div><Label className="text-xs">{t("prospects.dialog.titleRequired")}</Label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder={t("prospects.dialog.titlePlaceholder")} /></div>
+            <div><Label className="text-xs">{t("prospects.dialog.titleRequired")}</Label><Input aria-label={t("prospects.dialog.titleRequired")} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder={t("prospects.dialog.titlePlaceholder")} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs">{t("prospects.dialog.stage")}</Label>
                 <Select value={form.stage} onValueChange={v => setForm(f => ({ ...f, stage: v }))}>
@@ -475,22 +475,22 @@ export default function ProspectsPage() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">{t("prospects.dialog.value")}</Label><Input type="number" value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} placeholder={t("prospects.dialog.valuePlaceholder")} /></div>
-              <div><Label className="text-xs">{t("prospects.dialog.probability")}</Label><Input type="number" min="0" max="100" value={form.probability} onChange={e => setForm(f => ({ ...f, probability: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("prospects.dialog.value")}</Label><Input aria-label={t("prospects.dialog.value")} type="number" value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} placeholder={t("prospects.dialog.valuePlaceholder")} /></div>
+              <div><Label className="text-xs">{t("prospects.dialog.probability")}</Label><Input aria-label={t("prospects.dialog.probability")} type="number" min="0" max="100" value={form.probability} onChange={e => setForm(f => ({ ...f, probability: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">{t("prospects.dialog.contact")}</Label><Input value={form.contactName} onChange={e => setForm(f => ({ ...f, contactName: e.target.value }))} placeholder={t("prospects.dialog.contactPlaceholder")} /></div>
-              <div><Label className="text-xs">{t("prospects.dialog.company")}</Label><Input value={form.company} onChange={e => setForm(f => ({ ...f, company: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("prospects.dialog.contact")}</Label><Input aria-label={t("prospects.dialog.contact")} value={form.contactName} onChange={e => setForm(f => ({ ...f, contactName: e.target.value }))} placeholder={t("prospects.dialog.contactPlaceholder")} /></div>
+              <div><Label className="text-xs">{t("prospects.dialog.company")}</Label><Input aria-label={t("prospects.dialog.company")} value={form.company} onChange={e => setForm(f => ({ ...f, company: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">{t("prospects.dialog.email")}</Label><Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></div>
-              <div><Label className="text-xs">{t("prospects.dialog.phone")}</Label><Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("prospects.dialog.email")}</Label><Input aria-label={t("prospects.dialog.email")} type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("prospects.dialog.phone")}</Label><Input aria-label={t("prospects.dialog.phone")} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">{t("prospects.dialog.source")}</Label><Input value={form.source} onChange={e => setForm(f => ({ ...f, source: e.target.value }))} placeholder={t("prospects.dialog.sourcePlaceholder")} /></div>
-              <div><Label className="text-xs">{t("prospects.dialog.assignedTo")}</Label><Input value={form.assignedTo} onChange={e => setForm(f => ({ ...f, assignedTo: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("prospects.dialog.source")}</Label><Input aria-label={t("prospects.dialog.source")} value={form.source} onChange={e => setForm(f => ({ ...f, source: e.target.value }))} placeholder={t("prospects.dialog.sourcePlaceholder")} /></div>
+              <div><Label className="text-xs">{t("prospects.dialog.assignedTo")}</Label><Input aria-label={t("prospects.dialog.assignedTo")} value={form.assignedTo} onChange={e => setForm(f => ({ ...f, assignedTo: e.target.value }))} /></div>
             </div>
-            <div><Label className="text-xs">{t("prospects.dialog.closeDate")}</Label><Input type="date" value={form.expectedCloseDate} onChange={e => setForm(f => ({ ...f, expectedCloseDate: e.target.value }))} /></div>
+            <div><Label className="text-xs">{t("prospects.dialog.closeDate")}</Label><Input aria-label={t("prospects.dialog.closeDate")} type="date" value={form.expectedCloseDate} onChange={e => setForm(f => ({ ...f, expectedCloseDate: e.target.value }))} /></div>
             <div><Label className="text-xs">{t("prospects.dialog.notes")}</Label><GhostTextarea fieldType="prospect_note" context={{ title: form.title, contactName: form.contactName }} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} /></div>
           </div>
           <DialogFooter>

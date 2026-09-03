@@ -310,7 +310,7 @@ export default function GoogleWorkspace() {
           <div className="flex gap-2 flex-wrap">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input className="pl-9" placeholder={t("googleWorkspace.searchAppPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} />
+              <Input aria-label={t("googleWorkspace.searchAppPlaceholder")} className="pl-9" placeholder={t("googleWorkspace.searchAppPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <div className="flex gap-1 flex-wrap">
               {(hub?.categories || []).map((cat: any) => (
