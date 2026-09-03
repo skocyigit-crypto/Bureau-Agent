@@ -231,7 +231,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
               <Label htmlFor="orgName" className="text-sm font-medium">{t("register.orgLabel")}</Label>
               <div className="relative">
                 <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
+                <Input aria-label={t("register.orgPlaceholder")}
                   id="orgName"
                   placeholder={t("register.orgPlaceholder")}
                   value={orgName}
@@ -248,7 +248,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
                 <Label htmlFor="firstName" className="text-sm font-medium">{t("register.firstNameLabel")}</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
+                  <Input aria-label={t("register.firstNamePlaceholder")}
                     id="firstName"
                     placeholder={t("register.firstNamePlaceholder")}
                     value={firstName}
@@ -274,7 +274,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
               <Label htmlFor="regEmail" className="text-sm font-medium">{t("register.emailLabel")}</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
+                <Input aria-label={t("register.emailPlaceholder")}
                   id="regEmail"
                   type="email"
                   placeholder={t("register.emailPlaceholder")}
@@ -291,7 +291,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
               <Label htmlFor="regPhone" className="text-sm font-medium">{t("register.phoneLabel")} <span className="text-muted-foreground font-normal">{t("register.phoneOptional")}</span></Label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
+                <Input aria-label={t("register.phonePlaceholder")}
                   id="regPhone"
                   type="tel"
                   placeholder={t("register.phonePlaceholder")}
@@ -307,7 +307,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
                 <Label htmlFor="regPassword" className="text-sm font-medium">{t("register.passwordLabel")}</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
+                  <Input aria-label={t("register.passwordPlaceholder")}
                     id="regPassword"
                     type={showPassword ? "text" : "password"}
                     placeholder={t("register.passwordPlaceholder")}
@@ -333,7 +333,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
                 <Label htmlFor="regConfirmPassword" className="text-sm font-medium">{t("register.confirmLabel")}</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
+                  <Input aria-label={t("register.confirmPlaceholder")}
                     id="regConfirmPassword"
                     type={showPassword ? "text" : "password"}
                     placeholder={t("register.confirmPlaceholder")}

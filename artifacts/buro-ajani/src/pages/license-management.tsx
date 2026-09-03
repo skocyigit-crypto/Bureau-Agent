@@ -1567,7 +1567,7 @@ function AbonnementTab() {
               {t("licenseManagement.abonnement.changeRequestDesc", { plan: selectedPlan?.name, price: selectedPlan?.price === 0 ? t("licenseManagement.abonnement.free") : `${selectedPlan?.price}€/mois` })}
             </DialogDescription>
           </DialogHeader>
-          <Textarea placeholder={t("licenseManagement.abonnement.messagePlaceholder")} value={upgradeMessage} onChange={e => setUpgradeMessage(e.target.value)} rows={3} />
+          <Textarea aria-label={t("licenseManagement.abonnement.messagePlaceholder")} placeholder={t("licenseManagement.abonnement.messagePlaceholder")} value={upgradeMessage} onChange={e => setUpgradeMessage(e.target.value)} rows={3} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowUpgrade(false)}>{t("common.cancel")}</Button>
             <Button onClick={sendUpgradeRequest} disabled={sending}>{sending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}{t("licenseManagement.abonnement.sendRequest")}</Button>

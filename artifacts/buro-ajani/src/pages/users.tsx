@@ -581,7 +581,7 @@ export default function UsersPage() {
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
+          <Input aria-label={t("users.searchPlaceholder")}
             placeholder={t("users.searchPlaceholder")}
             className="pl-9"
             value={searchQuery}

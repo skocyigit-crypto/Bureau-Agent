@@ -246,7 +246,7 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                     </SelectContent>
                   </Select>
                   {selectedContactId === "none" && (
-                    <Input
+                    <Input aria-label={t("emailComposer.recipient.emailPlaceholder")}
                       placeholder={t("emailComposer.recipient.emailPlaceholder")}
                       value={recipientEmail}
                       onChange={(e) => setRecipientEmail(e.target.value)}

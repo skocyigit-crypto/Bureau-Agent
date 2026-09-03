@@ -163,7 +163,7 @@ export function TabEquipe() {
                 <Label htmlFor="inviteEmail" className="text-xs">{t("settingsEquipe.emailLabel")}</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
+                  <Input aria-label={t("settingsEquipe.emailPlaceholder")}
                     id="inviteEmail"
                     type="email"
                     placeholder={t("settingsEquipe.emailPlaceholder")}

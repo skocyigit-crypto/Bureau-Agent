@@ -326,7 +326,7 @@ export default function Messages() {
                   <FormField control={form.control} name="phoneNumber" render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t("messages.form.phoneNumber")}</FormLabel>
-                      <FormControl><Input placeholder={t("messages.form.phonePlaceholder")} {...field} /></FormControl>
+                      <FormControl><Input aria-label={t("messages.form.phonePlaceholder")} placeholder={t("messages.form.phonePlaceholder")} {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -400,7 +400,7 @@ export default function Messages() {
       <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-card p-4 border border-border rounded-lg shadow-sm">
         <div className="relative w-full sm:max-w-xs">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder={t("messages.searchPlaceholder")} className="pl-9 w-full" value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} />
+          <Input aria-label={t("messages.searchPlaceholder")} placeholder={t("messages.searchPlaceholder")} className="pl-9 w-full" value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} />
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
           <Select value={readFilter} onValueChange={(v) => { setReadFilter(v); setPage(0); }}>

@@ -41,10 +41,37 @@ const SRC = path.join(here, "..", "src");
  * libelle fait echouer le build. Baisser ce nombre en meme temps qu'on corrige
  * des champs fait partie de la correction.
  */
-const MAX_UNLABELLED = 208;
+const MAX_UNLABELLED = 178;
 
 /** Balises rendant un champ de saisie. */
-const CONTROL = /<(Input|Textarea|SelectTrigger)\b([^>]*)>/g;
+const CONTROL = /<(Input|Textarea|SelectTrigger)\b/g;
+
+/**
+ * Rend la liste d'attributs d'une balise ouverte a `start`.
+ *
+ * Surtout PAS `[^>]*`: une fonction flechee (`onChange={e => ...}`) contient
+ * un `>` et couperait les attributs en plein milieu — le lecteur croirait
+ * alors qu'un champ n'a pas d'`aria-label` alors qu'il en a un plus bas. On
+ * avance donc en comptant les accolades et en ignorant ce qui est entre
+ * guillemets, comme le fait deja `tenant-scope-check.mjs` pour les corps de
+ * table.
+ */
+function attributesOf(src, start) {
+  let depth = 0;
+  let quote = null;
+  for (let i = start; i < src.length; i++) {
+    const c = src[i];
+    if (quote) {
+      if (c === quote && src[i - 1] !== "\\") quote = null;
+      continue;
+    }
+    if (c === '"' || c === "'" || c === "`") { quote = c; continue; }
+    if (c === "{") { depth++; continue; }
+    if (c === "}") { depth--; continue; }
+    if (c === ">" && depth === 0) return src.slice(start, i);
+  }
+  return src.slice(start);
+}
 /** Fenetre remontee pour detecter un `<Label>` ou `<FormControl>` englobant. */
 const LOOKBEHIND = 600;
 
@@ -70,7 +97,7 @@ export function scan() {
 
     for (const match of src.matchAll(CONTROL)) {
       total++;
-      const attrs = match[2] ?? "";
+      const attrs = attributesOf(src, match.index + match[0].length);
       const id = attrs.match(/\bid=\{?["'`]?([\w.$-]+)/)?.[1];
       const hasAria = /aria-label(ledby)?=/.test(attrs);
       const linkedById = Boolean(id && htmlFors.has(id));

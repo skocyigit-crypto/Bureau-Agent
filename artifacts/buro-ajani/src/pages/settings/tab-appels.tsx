@@ -326,7 +326,7 @@ export function TabAppels() {
                     <PhoneIncoming className="w-4 h-4" />
                     {t("settingsAppels.incoming.simulateBtn")}
                   </Button>
-                  <Input placeholder={t("settingsAppels.incoming.customPhonePlaceholder")} className="w-48" id="custom-phone" />
+                  <Input aria-label={t("settingsAppels.incoming.customPhonePlaceholder")} placeholder={t("settingsAppels.incoming.customPhonePlaceholder")} className="w-48" id="custom-phone" />
                   <Button
                     variant="secondary"
                     onClick={() => {

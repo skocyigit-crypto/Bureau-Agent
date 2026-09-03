@@ -301,7 +301,7 @@ export default function NotesInternesPage() {
 
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input placeholder={t("notesInternes.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+        <Input aria-label={t("notesInternes.searchPlaceholder")} placeholder={t("notesInternes.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
       </div>
 
       {creating && (

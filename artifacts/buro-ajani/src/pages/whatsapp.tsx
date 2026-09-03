@@ -218,7 +218,7 @@ export default function WhatsappInbox() {
           <div className="p-3 border-b space-y-3">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
-              <Input
+              <Input aria-label={t("whatsappPage.searchPlaceholder")}
                 placeholder={t("whatsappPage.searchPlaceholder")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}

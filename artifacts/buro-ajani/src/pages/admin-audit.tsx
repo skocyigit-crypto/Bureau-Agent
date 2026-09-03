@@ -144,7 +144,7 @@ function AdminAuditContent() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder={t("adminAudit.searchPlaceholder")} value={userEmail} onChange={e => setUserEmail(e.target.value)} className="pl-9" />
+          <Input aria-label={t("adminAudit.searchPlaceholder")} placeholder={t("adminAudit.searchPlaceholder")} value={userEmail} onChange={e => setUserEmail(e.target.value)} className="pl-9" />
         </div>
         <Select value={orgFilter} onValueChange={setOrgFilter}>
           <SelectTrigger className="w-56"><SelectValue placeholder={t("adminAudit.orgPlaceholder")} /></SelectTrigger>

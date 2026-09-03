@@ -199,7 +199,7 @@ function MilestonesPanel({ projet, onUpdated }: { projet: Projet; onUpdated: () 
         );
       })}
       <div className="flex items-center gap-1">
-        <Input
+        <Input aria-label={t("projets.milestones.placeholder")}
           placeholder={t("projets.milestones.placeholder")} value={newTitle}
           onChange={e => setNewTitle(e.target.value)}
           onKeyDown={e => e.key === "Enter" && add()}
@@ -751,7 +751,7 @@ export default function ProjetsPage() {
       <div className="flex flex-col sm:flex-row gap-3 items-center">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder={t("projets.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+          <Input aria-label={t("projets.searchPlaceholder")} placeholder={t("projets.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-40">

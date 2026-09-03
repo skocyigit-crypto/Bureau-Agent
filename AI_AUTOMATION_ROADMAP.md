@@ -2078,3 +2078,18 @@ anlamsız bir `aria-label` onun gözünden kaçar.
 ### Doğrulama
 
 tsc temiz, 96 ön yüz testi geçti, üretim build'i başarılı, lint cırcırı 686/687.
+
+### İkinci dilim ve script'in kendi hatası (aynı gün)
+
+Görünür etiketi olmayan, yalnız placeholder taşıyan alanlar (arama kutuları
+gibi) da adlandırıldı — orada placeholder metni zaten kullanıcının gördüğü ad:
+28 dosyada **46 alan**, tavan **178**'e indi.
+
+Bu turda codemod'um bir alana ikinci bir `aria-label` yazdı ve tsc yakaladı.
+Sebep, bu depoda daha önce iki kez görülen kusurun aynısıydı: öznitelikleri
+`[^>]*` ile okumak. `onChange={e => setSearch(...)}` içindeki `>` özniteliği
+erken kesiyor, dolayısıyla daha aşağıdaki mevcut `aria-label` görünmüyordu —
+**ve aynı kusur ölçüm script'inde de vardı**, yani bir alanı "adsız" sanabilirdi.
+Script artık `tenant-scope-check.mjs` gibi süslü parantez sayıp tırnak içini
+atlayarak okuyor. Bir mizanpaj varsayan düzenli ifade kod okuması değildir.
+

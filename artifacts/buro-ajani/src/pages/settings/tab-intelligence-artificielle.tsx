@@ -404,7 +404,7 @@ export function TabIntelligenceArtificielle() {
                 </Tooltip>
               </Label>
               <div className="flex gap-2 items-center">
-                <Input
+                <Input aria-label={t("settingsIntelligenceArtificielle.agentPlaceholder")}
                   id="agent-name"
                   placeholder={t("settingsIntelligenceArtificielle.agentPlaceholder")}
                   value={agentName}

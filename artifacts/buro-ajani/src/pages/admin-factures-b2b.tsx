@@ -192,7 +192,7 @@ function AdminFacturesB2BContent() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder={t("adminFacturesB2b.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+          <Input aria-label={t("adminFacturesB2b.searchPlaceholder")} placeholder={t("adminFacturesB2b.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-44"><SelectValue placeholder={t("adminFacturesB2b.statusPlaceholder")} /></SelectTrigger>
