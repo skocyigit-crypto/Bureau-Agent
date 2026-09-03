@@ -8,11 +8,13 @@ import {
   auditLogsTable, aiUsageTable, pushTokensTable,
   commandantConversationsTable, commandantMessagesTable,
   userLocationStateTable, locationEventsTable, googleOAuthTokensTable,
+  securityScansTable,
 } from "@workspace/db";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
 import { logger } from "../lib/logger";
 import { getDataProtectionStatus } from "../services/data-protection-monitor";
+import { SECURITY_SCAN_RETENTION_DAYS } from "../services/security-scans";
 
 const router = Router();
 
@@ -48,7 +50,7 @@ router.get("/data-protection/summary", async (req, res): Promise<void> => {
     const orgId = req.session?.organisationId;
     if (!userId || !orgId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
-    const [users, contacts, calls, tasks, prospects, checkins, notes] = await Promise.all([
+    const [users, contacts, calls, tasks, prospects, checkins, notes, scans] = await Promise.all([
       db.select({ count: sql<number>`count(*)::int` }).from(usersTable).where(eq(usersTable.organisationId, orgId)),
       db.select({ count: sql<number>`count(*)::int` }).from(contactsTable).where(eq(contactsTable.organisationId, orgId)),
       db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(eq(callsTable.organisationId, orgId)),
@@ -56,6 +58,7 @@ router.get("/data-protection/summary", async (req, res): Promise<void> => {
       db.select({ count: sql<number>`count(*)::int` }).from(prospectsTable).where(eq(prospectsTable.organisationId, orgId)),
       db.select({ count: sql<number>`count(*)::int` }).from(checkinsTable).where(eq(checkinsTable.organisationId, orgId)),
       db.select({ count: sql<number>`count(*)::int` }).from(notesInternesTable).where(eq(notesInternesTable.organisationId, orgId)),
+      db.select({ count: sql<number>`count(*)::int` }).from(securityScansTable).where(eq(securityScansTable.organisationId, orgId)),
     ]);
 
     const agreements = await db.select().from(legalAgreementsTable)
@@ -80,6 +83,22 @@ router.get("/data-protection/summary", async (req, res): Promise<void> => {
         { category: "Prospects", description: "Noms, entreprises, statuts de prospection", count: prospects[0]?.count || 0, retention: "3 ans", legalBasis: "Intérêt légitime (Art. 6(1)(f))", sensitive: false },
         { category: "Pointages & présences", description: "Heures d'arrivée/départ, statuts de présence", count: checkins[0]?.count || 0, retention: "5 ans (obligations légales)", legalBasis: "Obligation légale (Art. 6(1)(c))", sensitive: false },
         { category: "Notes internes", description: "Mémos, contenus des notes, auteurs", count: notes[0]?.count || 0, retention: "Durée du contrat", legalBasis: "Exécution du contrat (Art. 6(1)(b))", sensitive: false },
+        // Categorie ajoutee le 2026-09-03. Elle manquait: le journal d'analyses
+        // porte un `userId` et une `target` — le fichier, l'adresse ou le
+        // numero analyse, y compris pour les pieces jointes entrantes — donc de
+        // la donnee personnelle que l'inventaire ne declarait pas du tout.
+        //
+        // Base legale: interet legitime. Le considerant 49 vise nommement le
+        // traitement « strictement necessaire et proportionne » a la securite
+        // des reseaux et de l'information par « les fournisseurs de
+        // technologies et de services de securite ».
+        //
+        // La duree n'est pas ecrite en dur: elle est lue depuis la constante
+        // qu'applique la purge. Une duree annoncee qui differe de celle
+        // appliquee est un manquement aux art. 13/14, et l'ecart serait
+        // invisible — c'est exactement ce qui s'est produit ici, ou la purge
+        // existait sans etre appelee.
+        { category: "Analyses de sécurité", description: "Fichiers et messages analysés, verdicts, auteur de l'analyse", count: scans[0]?.count || 0, retention: `${SECURITY_SCAN_RETENTION_DAYS} jours`, legalBasis: "Intérêt légitime — sécurité des systèmes (Art. 6(1)(f), cons. 49)", sensitive: false },
       ],
       legalDocuments: Object.entries(LEGAL_DOCUMENTS).map(([code, doc]) => {
         const agreement = agreements.find(a => a.documentType === code);
@@ -379,7 +398,7 @@ router.get("/data-protection/my-data", async (req, res): Promise<void> => {
         eq(commandantMessagesTable.organisationId, orgId),
       ));
 
-    const [profile, presences, journal, consommationIa, appareils, position, deplacements, google, demandes] = await Promise.all([
+    const [profile, presences, journal, consommationIa, appareils, position, deplacements, google, analysesSecurite, demandes] = await Promise.all([
       db.select({
         id: usersTable.id, email: usersTable.email, nom: usersTable.nom,
         prenom: usersTable.prenom, role: usersTable.role,
@@ -448,6 +467,19 @@ router.get("/data-protection/my-data", async (req, res): Promise<void> => {
       }).from(googleOAuthTokensTable)
         .where(and(eq(googleOAuthTokensTable.userId, userId), eq(googleOAuthTokensTable.organisationId, orgId))),
 
+      // Une analyse declenchee par la personne la concerne: l'article 15 lui
+      // en ouvre l'acces. La cible est incluse — c'est la donnee qui la
+      // designe — mais pas le moteur ni la source, qui decrivent
+      // l'infrastructure et non l'individu.
+      db.select({
+        kind: securityScansTable.kind,
+        target: securityScansTable.target,
+        verdict: securityScansTable.verdict,
+        createdAt: securityScansTable.createdAt,
+      }).from(securityScansTable)
+        .where(and(eq(securityScansTable.userId, userId), eq(securityScansTable.organisationId, orgId)))
+        .orderBy(desc(securityScansTable.createdAt)).limit(5000),
+
       db.select({
         requestType: dataSubjectRequestsTable.requestType,
         status: dataSubjectRequestsTable.status,
@@ -482,6 +514,7 @@ router.get("/data-protection/my-data", async (req, res): Promise<void> => {
         positionActuelle: position,
         deplacements,
         comptesGoogleRattaches: google,
+        analysesSecurite,
         demandesRgpd: demandes,
       },
     });

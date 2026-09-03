@@ -134,10 +134,28 @@ export async function getOrgScanSummary(orgId: number): Promise<{
 }
 
 /**
+ * Duree de conservation du journal d'analyses, en jours.
+ *
+ * Exportee, et non laissee en valeur par defaut d'un parametre, parce que la
+ * declaration faite au public dans /data-protection/summary doit lire LA MEME
+ * valeur. Une duree annoncee qui differe de celle appliquee est un manquement
+ * aux articles 13/14, et c'est invisible: les deux chiffres vivent dans deux
+ * fichiers que personne ne lit cote a cote.
+ *
+ * 90 jours est EN DECA de la fourchette que la CNIL recommande pour la
+ * journalisation (six mois a un an, deliberation n° 2021-122 du 14 octobre
+ * 2021). C'est deliberé: cette recommandation est un plafond de prudence, pas
+ * un plancher, et la minimisation (art. 5.1.c) pousse vers le court. La
+ * contrepartie est assumee — une analyse post-incident au-dela de trois mois
+ * n'est pas possible.
+ */
+export const SECURITY_SCAN_RETENTION_DAYS = 90;
+
+/**
  * Purge des verdicts anciens. Sans borne, cette table grossit indefiniment
  * alors que sa valeur est essentiellement recente.
  */
-export async function purgeOldSecurityScans(olderThanDays = 90): Promise<number> {
+export async function purgeOldSecurityScans(olderThanDays = SECURITY_SCAN_RETENTION_DAYS): Promise<number> {
   try {
     const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
     const rows = await db.delete(securityScansTable)
