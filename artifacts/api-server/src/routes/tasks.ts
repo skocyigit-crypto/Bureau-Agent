@@ -163,8 +163,6 @@ router.get("/tasks/:id", async (req, res): Promise<void> => {
       res.status(404).json({ error: "Task not found" });
       return;
     }
-    await archiveDeletedRows(tasksTable, [task], deletionContext(req, orgId));
-
     const userMap = await resolveUserNames([task.createdBy, task.updatedBy]);
     res.json(enrichSingle(task, userMap));
   } catch (err: any) {
@@ -275,6 +273,7 @@ router.delete("/tasks/:id", async (req, res): Promise<void> => {
       res.status(404).json({ error: "Task not found" });
       return;
     }
+    await archiveDeletedRows(tasksTable, [task], deletionContext(req, orgId));
 
     res.sendStatus(204);
   } catch (err: any) {

@@ -21,6 +21,7 @@ import { EventEmitter } from "events";
 import { startBulkScan, getBulkScanStatus, cancelBulkScan } from "../services/document-scan-job";
 import { respondAiError } from "../services/ai-guard";
 import { pageLimit } from "../lib/request-params";
+import { archiveDeletedRows, deletionContext } from "../services/trash";
 
 const router = Router();
 const requireMinAgent = requireRole("super_admin", "administrateur", "agent");
@@ -1483,7 +1484,8 @@ router.delete("/documents/:id", requireMinAgent, async (req: Request, res: Respo
 
     if (!doc) { res.status(404).json({ error: "Document introuvable" }); return; }
 
-    await db.delete(documentsTable).where(and(eq(documentsTable.id, docId), eq(documentsTable.organisationId, orgId)));
+    const supprimes = await db.delete(documentsTable).where(and(eq(documentsTable.id, docId), eq(documentsTable.organisationId, orgId))).returning();
+    await archiveDeletedRows(documentsTable, supprimes, deletionContext(req, orgId));
     res.json({ success: true, message: "Document supprime" });
   } catch (err: any) {
     logger.error({ err }, "Document delete error");

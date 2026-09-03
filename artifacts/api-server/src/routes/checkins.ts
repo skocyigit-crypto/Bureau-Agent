@@ -13,6 +13,7 @@ import { getOrgId } from "../middleware/tenant";
 import { syncGoogleCalendarToCheckins } from "../services/google-calendar-sync";
 import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
 import { zodErrorResponse } from "../lib/zod-error";
+import { archiveDeletedRows, deletionContext } from "../services/trash";
 
 const router: IRouter = Router();
 
@@ -280,6 +281,7 @@ router.delete("/checkins/:id", async (req, res): Promise<void> => {
 
   try {
     const [deleted] = await db.delete(checkinsTable).where(and(eq(checkinsTable.id, params.data.id), eq(checkinsTable.organisationId, orgId))).returning();
+    await archiveDeletedRows(checkinsTable, deleted ? [deleted] : [], deletionContext(req, orgId));
     if (!deleted) {
       res.status(404).json({ error: "Pointage introuvable" });
       return;
