@@ -7,8 +7,8 @@
 > Son güncelleme: 2026-09-03 (silinen veri artık geri gelebiliyor — çöp kutusu 24 silme
 > noktasını kapsıyor ve kapsam testi bütçe değil kural — altı haftadır bağlanmamış
 > güvenlik taraması purge'ü cron'a bağlandı ve beyan edildi, eksik tek tablonun bütün
-> müşterilerin yedeğini yok ettiği hata düzeltildi; **açık kalan tek adım: üretimde
-> `bash deploy/gcp-schema-push.sh`** — `deleted_rows` tablosu için;
+> müşterilerin yedeğini yok ettiği hata düzeltildi; **üretim şeması aynı gün 17:11'de
+> push edildi — `deleted_rows` artık üretimde, çöp kutusunun açık adımı kalmadı**;
 > aynı gün daha önce: satılabilirlik denetimi: hukuki belgeler tamamlandı — CGV
 > ve RGPD işleme sözleşmesi yayında — arayüz erişilebilirliği isimsiz buton borcunu
 > sıfıra indirdi, ve RGPD akışı kapandı: kişi kendi verisini indirebiliyor, talep
@@ -1897,3 +1897,14 @@ oturumda `bash deploy/gcp-schema-push.sh` çalıştırılamadı (harness üretim
 veritabanı yazmasını engelledi). **Çalıştırılana kadar** çöp kutusu sayfası
 üretimde 42P01 verebilir — ve yedekler, PR #8 sayesinde artık bu yüzden yok
 olmuyor, sadece o tabloyu `meta.unavailableTables` altında eksik bildiriyor.
+
+**KAPANDI — 2026-09-03 17:11.** Komut repo kökünden çalıştırıldı, push temiz
+geçti: `schema-guard` 89 tabloyu karşılaştırıp veri kaybı olmadığını doğruladı,
+`drizzle-kit push --force` "Changes applied" verdi, append-only trigger'lar
+yeniden kuruldu. Pencere kapandı — dağıtılmış kod ve üretim şeması artık aynı
+çöp kutusunu biliyor.
+
+İki ders: (1) komut **repo kökünden** çalışmalı — ilk deneme ev dizininden
+yapıldığı için "No such file or directory" verdi; (2) bu adım harness tarafından
+iki oturum üst üste engellendi (üretim veritabanına yazma), yani böyle kalan
+işler kodda değil izinde bekliyor.
