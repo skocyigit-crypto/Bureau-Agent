@@ -193,16 +193,16 @@ girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamla
 - **2026-09-03 — doğrulanmayı bekleyen tek şey**: harcama tavanının kalkma tarihi
   (1 Eylül 00:00 UTC) geçti, yani Claude'un **kendiliğinden** açılmış olması
   gerekiyor. Bu oturumda ölçülemedi (harness sır okumayı + dış API çağrısını
-  engelledi). Tek komutluk doğrulama, repo kökünden:
+  engelledi). Tek komutluk doğrulama, repo kökünden (PowerShell'den de çalışır):
 
-      K=$(gcloud secrets versions access latest --secret=batiflow-anthropic-api-key --project gwmme-1771577941260)
-      curl -s -o /dev/null -w "%{http_code}\n" https://api.anthropic.com/v1/messages \
-        -H "x-api-key: $K" -H "anthropic-version: 2023-06-01" -H "content-type: application/json" \
-        -d '{"model":"claude-sonnet-4-6","max_tokens":16,"messages":[{"role":"user","content":"ping"}]}'
+      bash scripts/check-anthropic-key.sh
 
-  `200` → konsey üç sağlayıcıyla çalışıyor, madde kapanır. Hâlâ `429`
-  (`enforced_spend_limit_reached`) → Anthropic Console → Plans & Billing'den
-  tier/limit yükseltilmeli. Ölçmeden "çalışıyor" yazılmayacak.
+  Script anahtarı Cloud Run'ın bağladığı sırdan okur — elle kopyalanan bir
+  anahtarı denemek üretimi değil başka bir şeyi ölçerdi — ve gerçek bir
+  `POST /v1/messages` çağrısı yapar: "anahtar geçerli" ile "hesap açık" ancak
+  bu çağrı ayırır. `200` → konsey üç sağlayıcıyla çalışıyor, madde kapanır.
+  `429 enforced_spend_limit_reached` → Anthropic Console → Plans & Billing'den
+  tier yükseltilmeli. Ölçmeden "çalışıyor" yazılmayacak.
 
 ### 4. [ORTA] Super Agent durumunu kalıcı hale getir
 
