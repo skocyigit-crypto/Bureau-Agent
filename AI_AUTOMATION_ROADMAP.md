@@ -1606,3 +1606,45 @@ yükseltilmedi, uyarı düzeltildi — hâlâ tam 687.
 - `apps/api-py` kararı (Faz 6'da kullanıcıya bırakılmıştı, hâlâ açık)
 - Silme akışının yayıncı kararı: hangi veri anonimleştirilir, hangisi yasal
   süre dolana dek saklanır — koda dökülmeden önce cevaplanması gereken soru
+
+---
+
+## 2026-09-03 — Dağıtım indi, ve doğrularken hep-yeşil bir test bulundu
+
+PR #1 `main`'e alındı (`af542f0`), bölgesel trigger dağıtımı yaptı:
+build **SUCCESS**, `/api/healthz` → `"build":"af542f0"`, yeni revizyon
+`agent-de-bureau-api-00282-znc`. Canlıya inenler: CGV + DPA, erişilebilirlik
+turu, RGPD akışı, ve gün içindeki düzeltmeler.
+
+### Doğrulama sırasında çıkan asıl bulgu
+
+Playwright suite'i localhost'a çiviliydi: "kod doğru" diyebiliyordu, **"servis
+edilen bu kod"** diyemiyordu. `playwright.config.ts`'in kendi yorumu 2 Eylül
+için "canlı eski kaldı ve hiçbir şey bunu söylemedi" diyor — suite de
+söyleyemiyordu. `VITRINE_BASE_URL` / `APP_BASE_URL` eklendi; bunlar verilince
+ilgili yerel sunucu başlatılmıyor (yoksa kimsenin bakmadığı bir kopya
+dakikalarca derlenir, ve canlının hatası yerel build'in hatası gibi görünürdü).
+
+**İlk kullanımda daha kötü bir şey çıktı.** Suite, `/cgv` ve `/dpa` daha
+dağıtılmamışken canlıya karşı çalıştırıldı: "pages obligatoires"in **altı testi
+de geçti** — ikisi, o an internette **var olmayan** sayfalar için.
+
+Sebep: bu bir tek-sayfa uygulaması. Bilinmeyen bir adres **HTTP 200** dönüyor,
+bir `<h1>` gösteriyor ("Page introuvable") ve **333 karakter** ağırlığında —
+eşik olan 300'ün hemen üstünde. Üç iddia da **herhangi bir adres** için doğruydu.
+
+Test tam olarak eksik bir hukuki sayfayı yakalamak için vardı — kendi yorumu
+"bunu depoda başka hiçbir şey doğrulamaz" diyor — ve göremediği tek durum
+buydu. **Hep yeşil bir test, testsizlikten kötüdür: kanıt yerine geçer.**
+
+Düzeltme: her sayfa artık **kendi başlığını** render etmek zorunda; gerçek
+sayfayı hata sayfasından ayıran tek şey bu. İki yönde de canlıya karşı
+kanıtlandı — dağıtımdan önce suite tam olarak `/cgv` ve `/dpa`'da düştü,
+diğer dördünde geçti; dağıtım indikten sonra on ikisi de geçti.
+
+### Bundan çıkan kural
+
+Bir testin geçmesi, ölçtüğü şeyin var olduğunu göstermez. Bu depoda aynı ders
+üçüncü kez çıkıyor (erişilebilirlik bütçesi 16 sanıyordu, gerçek 105'ti;
+`getAiKeyStatus` yazılmıştı, çağrılmıyordu; şimdi bu). Yeni bir koruma
+yazıldığında, **kaldırıldığında düştüğü** de ayrıca gösterilmeli.
