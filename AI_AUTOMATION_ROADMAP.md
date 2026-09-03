@@ -9,6 +9,8 @@
 > güvenlik taraması purge'ü cron'a bağlandı ve beyan edildi, eksik tek tablonun bütün
 > müşterilerin yedeğini yok ettiği hata düzeltildi; **üretim şeması aynı gün 17:11'de
 > push edildi — `deleted_rows` artık üretimde, çöp kutusunun açık adımı kalmadı**;
+> ve **AI konseyi ilk kez gerçekten üç sağlayıcılı**: Anthropic'in harcama tavanı
+> 1 Eylül'de kalkmış, ölçüldü (HTTP 200), tek nokta bağımlılığı bitti;
 > aynı gün daha önce: satılabilirlik denetimi: hukuki belgeler tamamlandı — CGV
 > ve RGPD işleme sözleşmesi yayında — arayüz erişilebilirliği isimsiz buton borcunu
 > sıfıra indirdi, ve RGPD akışı kapandı: kişi kendi verisini indirebiliyor, talep
@@ -75,8 +77,10 @@ devre dışı kal" mantığıyla korunuyor — yani sistem çökmüyor, sadece o
 - ~~Anthropic/Claude~~ — 2026-08-28'de çözüldü. Vertex'te iki engel ölçülmüştü
   (`claude-sonnet-4-6` hiçbir bölgede yok → 404; erişilebilen tek model
   `claude-opus-4-8`'in kotası sıfır → 429). Vertex kotasını beklemek yerine
-  doğrudan Anthropic API anahtarına geçildi. Kod + yapılandırma canlıda;
-  anahtarın geçerliliği ilk gerçek Claude çağrısında doğrulanacak (bkz. madde 3)
+  doğrudan Anthropic API anahtarına geçildi. Kod + yapılandırma canlıda.
+  **2026-09-03'te gerçek bir `POST /v1/messages` ile ölçüldü: HTTP 200** —
+  anahtar geçerli, harcama tavanı kalkmış, Claude canlıda çalışıyor. Konsey
+  artık gerçekten üç sağlayıcılı (bkz. madde 3)
 
 **2026-07-14'te düzeltilen iki gerçek Twilio BYOK hatası** (müşteri kendi Twilio'sunu
 girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamlanmış işler"):
@@ -106,8 +110,22 @@ girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamla
   hem callback'i çalıştırır hem de sonrasında uygulamaya geri döndürür.
 - **Dosyalar**: `lib/google-auth.ts:160-192`, `routes/autonomous-inbox.ts:308`,
   `routes/ai-agents.ts:2895`
-- **Durum**: Bekliyor — kullanıcı kararı gerekiyor (Google Cloud Console'da proje sahibi
-  olarak kendisinin oluşturması lazım, ben oluşturamam).
+- **2026-09-03 — Console dışındaki her şey scriptlendi**: `deploy/setup-google-oauth.sh`
+  sırları oluşturuyor (rotasyonda yeni sürüm ekliyor), çalışma servis hesabına
+  `secretmanager.secretAccessor` veriyor, `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/
+  `GOOGLE_REDIRECT_URI`'yi Cloud Run'a bağlıyor ve **servisi geri okuyarak**
+  doğruluyor — komutlar hata vermedi diye "oldu" demiyor. Anahtarlar yoksa,
+  Console'da yapılacak beş adımı ve tam olarak yapıştırılacak redirect URI'yi
+  yazdırıp çıkıyor. `deploy/gcp-deploy.sh` de artık bu iki sırrı görürse
+  otomatik bağlıyor, yani tam bir yeniden dağıtım OAuth'u düşürmüyor.
+- **Kullanıcının yapması gereken** (sadece Console kısmı — proje sahibi olmak
+  gerekiyor): Gmail/Calendar/Drive API'lerini aç, OAuth consent screen'i
+  "External" olarak yayınla, "Web application" tipinde bir OAuth client ID
+  oluştur, yetkili redirect URI olarak yukarıdaki adresi ekle. Sonra:
+
+      GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... bash deploy/setup-google-oauth.sh
+
+- **Durum**: Console adımı kullanıcıda; gerisi hazır ve tek komut.
 
 ### 2. [TAMAMLANDI] Twilio BYOK (her müşteri kendi hesabını girer) (2026-07-14)
 
@@ -124,7 +142,7 @@ girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamla
   hiç müşteri kendi hesabını girmediğinde devreye girecek bir yedek), hesap+numara
   satın alması gerekir. Zorunlu değil.
 
-### 3. [ORTA] OpenAI / Anthropic platform-seviyesi yedek anahtarı ekle
+### 3. [TAMAMLANDI] OpenAI / Anthropic platform-seviyesi yedek anahtarı ekle (2026-09-03)
 
 - **Neden önemli**: Şu an "hedged council" (Gemini/OpenAI/Anthropic yarışı) sadece
   Gemini ile çalışıyor — tek nokta bağımlılığı. Gemini kota/kesinti yaşarsa hiçbir
@@ -188,8 +206,26 @@ girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamla
   gerekir; ayrıca Sonnet 4.6 / Haiku 4.5 Model Garden'da etkin değil.
 - **Dosyalar**: `lib/integrations-anthropic-ai/src/client.ts`, `services/ai-providers.ts:223-329`,
   `deploy/gcp-deploy.sh`, `src/__tests__/claude-model-ids.test.ts`
-- **Durum**: OpenAI tamam. Anthropic: kod tarafı tamam; Vertex kotası / doğrudan
-  anahtar kullanıcının kararını bekliyor.
+- **KAPANDI — 2026-09-03, ölçüldü**: `bash scripts/check-anthropic-key.sh` →
+  **HTTP 200** (`claude-sonnet-4-6`). Harcama tavanı 1 Eylül'de kendiliğinden
+  kalktı; hiçbir kod veya yapılandırma değişikliği gerekmedi. Konsey artık
+  gerçekten üç sağlayıcılı (Gemini + OpenAI + Anthropic) — 14 Temmuz'dan beri
+  ilk kez tek nokta bağımlılığı yok.
+- **Kalan tek kırılganlık**: anahtar hâlâ batiflow ile PAYLAŞILIYOR. Orada bir
+  iptal/rotasyon agent-de-bureau'yu da durdurur; ayrıştırma tek komutluk
+  (yukarıda). Bunu ölçen script repoda, tekrar çalıştırılabilir.
+- **Durum**: OpenAI tamam. Anthropic tamam. Vertex yolu opsiyonel olarak açık
+  kaldı (doğrudan anahtar varken `getAnthropicMode()` onu yok sayar).
+- **Doğrulama komutu** (tekrar ölçmek gerektiğinde, PowerShell'den de çalışır):
+
+      bash scripts/check-anthropic-key.sh
+
+  Script anahtarı Cloud Run'ın bağladığı sırdan okur — elle kopyalanan bir
+  anahtarı denemek üretimi değil başka bir şeyi ölçerdi — ve gerçek bir
+  `POST /v1/messages` çağrısı yapar: "anahtar geçerli" ile "hesap açık" ancak
+  bu çağrı ayırır. `200` → konsey üç sağlayıcıyla çalışıyor, madde kapanır.
+  `429 enforced_spend_limit_reached` → Anthropic Console → Plans & Billing'den
+  tier yükseltilmeli. Ölçmeden "çalışıyor" yazılmayacak.
 
 ### 4. [ORTA] Super Agent durumunu kalıcı hale getir
 
@@ -1151,6 +1187,11 @@ yalnız CI test veritabanına uygulanıyor; üretim şeması elle gidiyor:
 
 Bu yapılana kadar Guardian eski (örnek-başına) davranışında kalır ve günde bir
 kez uyarı loglar — çökme yok.
+
+**KAPANDI — 2026-09-03.** Bu adım da bugünkü üretim şema push'uyla kapandı:
+`schema-guard` 89 tabloyu karşılaştırdı ve `drizzle-kit push` bütün eksik
+tabloları uyguladı, `ip_bans` dahil. Guardian artık paylaşılan yasak tablosunu
+kullanabilir.
 
 ## Faz 2 — TAMAM (kiracı izolasyonu: ölçüldü, sızıntı yok, kapı kondu)
 
