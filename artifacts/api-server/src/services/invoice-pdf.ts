@@ -95,6 +95,14 @@ export const AUTOLIQUIDATION_MENTION =
 export const VAT_EXEMPT_MENTION =
   "TVA non applicable, art. 293 B du CGI.";
 
+/**
+ * Nom impose par la specification Factur-X pour le XML joint.
+ *
+ * Il est defini ICI plutot que dans `services/facturx`, qui importe deja ce
+ * module: l'y placer creerait un cycle d'imports entre les deux.
+ */
+export const FACTURX_ATTACHMENT_NAME = "factur-x.xml";
+
 function toDate(value: Date | string | null | undefined): Date | null {
   if (!value) return null;
   const d = value instanceof Date ? value : new Date(value);
@@ -263,9 +271,56 @@ function formatRate(value: number): string {
 }
 
 /** Dessine le modele en PDF A4. Retourne le fichier complet en memoire. */
-export async function renderInvoicePdf(model: InvoiceDocument): Promise<Buffer> {
+export interface RenderInvoiceOptions {
+  /**
+   * XML CII a joindre au PDF (voir `services/facturx`).
+   *
+   * Le fichier est attache sous le nom impose par la specification et avec la
+   * relation `Data`, ce qu'un lecteur cherche pour detecter une facture
+   * electronique. Il rend donc le PDF LISIBLE PAR MACHINE, ce qui est l'objet
+   * de la reforme.
+   *
+   * Ce n'est PAS encore un Factur-X conforme, et le code ne le pretend pas:
+   * la specification impose en plus un PDF/A-3, dont une regle centrale est
+   * que toutes les polices soient incorporees. pdfkit sait produire un
+   * PDF/A-3b (`subset: "PDF/A-3b"`), mais avec les polices standard —
+   * Helvetica ici — il n'incorpore aucun fichier de police: le document
+   * DECLARERAIT une conformite qu'il viole. Mesure faite le 2026-09-03: en
+   * mode PDF/A-3b, aucun `/FontFile` n'apparait dans la sortie.
+   *
+   * Declarer la conformite serait donc le meme defaut que celui corrige le
+   * meme jour cote tests: une affirmation verte qui ne repose sur rien. Le pas
+   * qui reste est petit et identifie — livrer une police libre incorporable,
+   * puis activer `subset` — mais il ajoute un binaire au depot et change
+   * l'aspect d'un document legal: c'est une decision de l'editeur.
+   */
+  facturXXml?: string;
+}
+
+export async function renderInvoicePdf(
+  model: InvoiceDocument,
+  options: RenderInvoiceOptions = {},
+): Promise<Buffer> {
   const PDFDocument = (await import("pdfkit")).default;
   const doc = new PDFDocument({ margin: 45, size: "A4" });
+
+  if (options.facturXXml) {
+    // Le nom de fichier n'est pas libre: un lecteur cherche exactement
+    // `factur-x.xml`. Sous un autre nom, la piece jointe existe mais aucune
+    // machine ne la trouve.
+    doc.file(Buffer.from(options.facturXXml, "utf8"), {
+      name: FACTURX_ATTACHMENT_NAME,
+      type: "text/xml",
+      description: "Facture electronique — CII EN 16931",
+      // `relationship` produit `/AFRelationship /Data`, ce qui distingue une
+      // piece jointe QUI EST la facture d'un simple fichier joint. Les types
+      // livres (@types/pdfkit 0.17.6) sont en retard sur pdfkit 0.18 et ne
+      // declarent pas ce champ; le moteur, lui, l'honore — verifie le
+      // 2026-09-03 en relisant les octets du PDF produit, et verrouille par
+      // un test pour que la mise a jour des types ne passe pas inapercue.
+      relationship: "Data",
+    } as PDFKit.Mixins.PDFAttachmentOptions & { relationship: string });
+  }
 
   const chunks: Buffer[] = [];
   doc.on("data", (c: Buffer) => chunks.push(c));
