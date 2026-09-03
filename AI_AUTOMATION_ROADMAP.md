@@ -4,7 +4,9 @@
 > hale gelmesi için yapılan denetimlerin ve kalan işlerin **kalıcı** kaydıdır. Her
 > oturumda güncellenir, silinmez — yeni bulgu/tamamlanan iş oldukça buraya eklenir.
 >
-> Son güncelleme: 2026-09-02 (satış zincirinin 31 Temmuz'dan beri kapalı olduğu bulundu ve
+> Son güncelleme: 2026-09-03 (satılabilirlik denetimi: hukuki belgeler tamamlandı — CGV
+> ve RGPD işleme sözleşmesi yayında — ve arayüz erişilebilirliği isimsiz buton borcunu
+> sıfıra indirdi; önceki güncelleme 2026-09-02: satış zincirinin 31 Temmuz'dan beri kapalı olduğu bulundu ve
 > tenant kapsamında güvenli biçimde geri açıldı; önceki güncelleme 2026-07-14: fatura hatırlatmaları
 > gerçek cron'a bağlandı VE AI destekli müşteri desteği e-posta triyajı uçtan uca canlıda
 > doğrulandı — kalan tek adım kullanıcının Cloudflare Worker'ı kurması)
@@ -1433,3 +1435,87 @@ iki yönde birden tehlikeli yapar — meşru poüşeleri bloke eder, ve asıl
 korumadığı tabloları korumaz.
 
 **877 test geçti.**
+
+---
+
+## 2026-09-03 — Satılabilirlik: hukuki belgeler ve erişilebilirlik
+
+Faz 7'nin "kalan yenilik adayları" listesinde duran iki madde bu gün kapandı.
+Her ikisi de **ürünü satılabilir kılan** cinsten: yokluğu bir özelliği eksik
+bırakmıyor, satışın kendisini hukuka aykırı hale getiriyor.
+
+### Satış öncesi zorunlu belgeler yayında
+
+- **CGV (satış koşulları)** — `artifacts/tanitim/src/pages/cgv.tsx`. Uzaktan
+  satışta tüketici/profesyonel ayrımı, cayma hakkı, fiyat ve süre koşulları.
+- **RGPD işleme sözleşmesi (DPA)** — `artifacts/tanitim/src/pages/dpa.tsx`,
+  287 satır. Madde 28.3 bunu **yazılı** olarak zorunlu kılıyor; yokluğunda
+  ihlalde olan taraf **müşteri**. Kurumsal alımlarda satın alma biriminin
+  istediği ilk belge de budur, ve ana sayfa var olmayan bir belgeyi vaat
+  ediyordu.
+
+  En çok özen isteyen kısım ek 1 idi ve formalite değil: telefon/mesajlaşma
+  sağlayıcıları (Twilio, Telnyx, Plivo, Vonage, Sinch, Bandwidth) **müşterinin
+  kendi kimlik bilgileriyle** bağlanıyor — kuruluş başına saklanıyor, yayıncının
+  ortamında değil — dolayısıyla yayıncının alt-işleyeni **değiller**. Platform
+  anahtarları (`RESEND_API_KEY`, `GEMINI_API_KEY` vb.) ise öyle. AI
+  sağlayıcıları, müşterinin kendi anahtarını girip girmediğine göre iki tarafa
+  da düşebiliyor.
+
+Böylece yasal sayfa seti tamamlandı: mentions légales, CGU, **CGV**,
+confidentialité, **DPA**, accessibilité.
+
+### Erişilebilirlik: isimsiz buton borcu sıfırlandı
+
+İkon-butonların erişilebilir adı yoksa ekran okuyucu yalnızca "buton" diyor —
+WCAG 2.2 4.1.2 (A seviyesi). Avrupa Erişilebilirlik Yasası (EAA) bunu bir
+incelik değil, **satış koşulu** yapıyor.
+
+Önceki iki tur sayıyı 105 → 39'a indirmiş, orada durmuştu; kalan dosyaları
+başka oturumlar tutuyordu. O iş birleşince engel kalmadı:
+
+- **39 → 0**, ve bütçe de sıfıra çekildi. Sıfır tavan, bir sonraki isimsiz
+  ikon-butonu doğrudan başarısız teste çeviriyor — regresyonun saklanabileceği
+  bir bakiye bırakmıyor.
+- Yalnızca **iki yeni çeviri anahtarı** gerekti (`notificationBell.markRead`,
+  `prospectDetail.removeTag`, altı dilde); gerisi zaten var olan `common.*`
+  etiketlerini kullanıyor.
+- `smart-browser-panel`in beş butonu zaten çevrilmiş bir Tooltip taşıyordu;
+  `aria-label` **aynı anahtarı** kullanıyor, ki metin ilk düzenlendiğinde
+  seslendirilen ad ile görünen yazı ayrışmasın.
+
+### Dokunma hedefleri: 12 → 2 (WCAG 2.2 2.5.8, AA)
+
+Onu doğrudan 24px'e büyütüldü. On birincisi, proje kilometre taşı kutucuğu,
+**14px'lik çizimini koruyor** — büyüyen şey tıklamayı alan **yüzey**; kriter
+boyanan piksele değil, tıklamayı karşılayan alana bakıyor.
+
+Kalan 2 borç değil, kriterin kendi istisnası — ve test artık hangisi olduğunu
+söylüyor:
+- `ui/sidebar.tsx` rayı: sekme sırası dışında (`tabIndex={-1}`) bir yeniden
+  boyutlandırma tutamağı; aynı işi yapan SidebarTrigger zaten var → "eşdeğer
+  hedef" istisnası.
+- `knowledge-base.tsx` atıf rozeti: cümlenin **içinde** duruyor, metin
+  satırını takip ediyor → "satır içi" istisnası.
+
+İkisini de 24px'e zorlamak yerleşimi bozar, kimseye bir şey kazandırmaz.
+
+### Aynı gün yapılan diğer işler
+
+- `ci: run the customer app's tests in both gates, and the full schema chain`
+- `fix: the invoice dialog crashed the moment a deep link opened an invoice`
+- `build: add eslint on a ratchet, and raise three vulnerable dependency floors`
+  — cıvata **687 uyarıda** duruyor; erişilebilirlik turu bunu bir tık bile
+  yükseltmedi.
+- `test: the tenant isolation check could not see raw SQL`
+- `fix: the browser headers protected the JSON API, not the application` +
+  `test: open the application itself in a browser, under its real headers`
+
+**96 test (müşteri uygulaması) geçti, typecheck temiz.**
+
+### Buradan sonrası
+
+- RGPD taşınabilirlik / unutulma hakkı akışının tamamlanması
+- Factur-X (Faz D, hâlâ bekliyor)
+- Erişilebilirlik beyanının (`accessibilite.tsx`) yeni ölçümlerle
+  güncellenmesi — RGAA'da beyan, ölçümün kendisi kadar zorunlu
