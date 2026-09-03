@@ -16,6 +16,12 @@ import { PAGE_META } from "@/lib/page-meta";
  * releve cible, pas un audit complet. Il est ecrit ainsi volontairement — le
  * taux de conformite, qui suppose un audit RGAA sur l'echantillon obligatoire,
  * n'a pas ete etabli et n'est donc pas annonce.
+ *
+ * Corollaire, et c'est le piege de cette page: chaque correction reelle la
+ * PERIME. Une declaration qui decrit un etat depasse redevient fausse par
+ * simple immobilite, meme si personne n'y touche. Les points annonces comme
+ * acquis ici sont ceux que `a11y-budget.test.ts` verrouille cote application
+ * cliente; si ce test change de plafond, cette page doit changer avec lui.
  */
 export default function Accessibilite() {
   const [demoOpen, setDemoOpen] = useState(false);
@@ -25,7 +31,7 @@ export default function Accessibilite() {
       <Navbar onDemoClick={() => setDemoOpen(true)} />
       <main id="contenu" className="container mx-auto px-4 pt-32 pb-20 max-w-3xl">
         <h1 className="text-3xl font-bold mb-2">Déclaration d'accessibilité</h1>
-        <p className="text-muted-foreground mb-10">Dernière mise à jour : août 2026</p>
+        <p className="text-muted-foreground mb-10">Dernière mise à jour : septembre 2026</p>
 
         <section className="space-y-8 text-sm leading-relaxed text-foreground/80">
           <div>
@@ -59,8 +65,12 @@ export default function Accessibilite() {
                 identifiées peuvent subsister sur l'ensemble du parcours.
               </li>
               <li>
-                Les composants d'interface n'ont pas tous été vérifiés quant à
-                leur nom accessible, leur rôle et la restitution de leur état.
+                Le nom accessible des boutons porteurs d'une seule icône est
+                désormais vérifié automatiquement dans l'application cliente, et
+                aucun n'en est dépourvu. En revanche, le <em>rôle</em> et la
+                restitution de l'<em>état</em> des composants n'ont pas fait
+                l'objet d'un relevé équivalent, et les pages du site public ne
+                sont pas couvertes par cette vérification.
               </li>
               <li>
                 Les contrastes de couleur n'ont pas fait l'objet d'un relevé
@@ -70,13 +80,44 @@ export default function Accessibilite() {
                 Le parcours complet au clavier et au lecteur d'écran n'a pas été
                 validé sur l'ensemble des écrans.
               </li>
+              <li>
+                Deux cibles de pointage restent sous 24 × 24 pixels : la poignée
+                de redimensionnement du panneau latéral et la pastille de
+                citation de la base de connaissances. Elles relèvent des
+                exceptions prévues par le critère — la première est doublée par
+                une commande équivalente, la seconde est posée à l'intérieur
+                d'une phrase — mais elles sont signalées ici plutôt que passées
+                sous silence.
+              </li>
             </ul>
-            <p className="mt-3">
-              Corrections déjà apportées : les commandes d'affichage du mot de
-              passe des écrans de connexion, de réinitialisation et
-              d'inscription sont désormais atteignables au clavier et dotées
-              d'un nom accessible restituant leur état.
-            </p>
+            <p className="mt-3">Corrections déjà apportées :</p>
+            <ul className="mt-2 space-y-1 pl-4 list-disc">
+              <li>
+                Les commandes d'affichage du mot de passe des écrans de
+                connexion, de réinitialisation et d'inscription sont
+                atteignables au clavier et dotées d'un nom accessible
+                restituant leur état.
+              </li>
+              <li>
+                Tous les boutons porteurs d'une seule icône de l'application
+                cliente ont un nom accessible, traduit dans les six langues
+                livrées. Un test automatisé refuse désormais l'ajout d'un
+                bouton qui en serait dépourvu : la correction est acquise, pas
+                seulement effectuée.
+              </li>
+              <li>
+                Les cibles de pointage inférieures à 24 × 24 pixels sont passées
+                de douze à deux. Là où l'agrandissement aurait dénaturé
+                l'affichage, c'est la zone cliquable qui a été élargie et non le
+                dessin.
+              </li>
+              <li>
+                Un lien d'évitement mène directement au contenu principal, et la
+                langue comme le sens d'écriture de la page suivent la langue
+                choisie — ce qui conditionne aussi bien la restitution vocale
+                que la mise en page en arabe.
+              </li>
+            </ul>
           </div>
 
           <div>

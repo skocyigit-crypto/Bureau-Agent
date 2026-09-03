@@ -47,6 +47,21 @@ jobs:
       - name: Typecheck
         run: pnpm run typecheck
 
+      # Analyse statique. Le stock d'avertissements existant est fige par
+      # --max-warnings: il ne bloque personne, mais il ne peut plus grandir.
+      # Toute regle hors de ce stock est une erreur. Voir eslint.config.mjs
+      # pour le detail du reglage et pourquoi il est calibre ainsi.
+      - name: Lint
+        run: pnpm run lint:ratchet
+
+      # Les vulnerabilites des dependances de PRODUCTION. Le script existait
+      # depuis longtemps mais aucune etape ne l'appelait, donc les exceptions
+      # de pnpm.auditConfig.ignoreGhsas n'etaient jamais reconfrontees a la
+      # realite. --audit-level high: seules les severites haute et critique
+      # font echouer, pour que la barriere reste actionnable.
+      - name: Audit des dependances de production
+        run: pnpm run security:audit
+
       - name: Check API route inventory
         run: pnpm --filter @workspace/api-spec routes:check
 
@@ -116,23 +131,34 @@ jobs:
 
       - name: Push DB schema to test database
         working-directory: lib/db
-        # Same chain as the "push-force" script, minus its last step
-        # (verify-schema-sync.mjs): that script asserts user_sessions
-        # exists, but that table is created at runtime by connect-pg-simple
-        # when the Express app boots (drizzle.config.ts excludes it from
-        # the schema on purpose) - on this fresh CI database, where the app
-        # never actually starts, that assertion would always fail. It's a
-        # real production deploy-safety check, just not applicable to
-        # spinning up an empty test database.
+        # Meme chaine que le script "push-force". schema-guard tourne APRES la
+        # poussee, comme dans deploy/cloudbuild.yaml et pour la meme raison: la
+        # base vient d'etre synchronisee, il ne doit donc rien trouver. S'il
+        # signale une suppression, c'est que SA lecture du schema a derive — et
+        # un garde-fou qui a derive ne protege plus la production, ou il est le
+        # seul rempart devant un "push --force" lance a la main.
+        #
+        # Les trois derniers pas, eux, sont indispensables et manquaient:
+        # ensure-user-quota installe le trigger Postgres qui applique la
+        # limite de sieges payants — c'est un controle de facturation, et il
+        # ne vivait dans aucune base de test; ensure-user-sessions cree la
+        # table de sessions; verify-schema-sync verifie ensuite que la
+        # poussee a bien produit les tables/colonnes dont l'app depend et
+        # n'a pas detruit user_sessions. Sans eux, le schema teste par la CI
+        # n'etait pas celui qui tourne en production.
         run: >-
           node ./scripts/ensure-search-extensions.mjs &&
           node ./scripts/ensure-unique-constraint-names.mjs &&
           node ./scripts/ensure-automation-logs-rule-id.mjs &&
           node ./scripts/ensure-fk-orphans.mjs &&
           pnpm exec drizzle-kit push --force --config ./drizzle.config.ts &&
-          node ./scripts/ensure-audit-append-only.mjs
+          node ./scripts/schema-guard.mjs &&
+          node ./scripts/ensure-audit-append-only.mjs &&
+          node ./scripts/ensure-user-quota.mjs &&
+          node ./scripts/ensure-user-sessions.mjs &&
+          node ./scripts/verify-schema-sync.mjs
 
-      # Run per-package rather than the combined "pnpm run test": these four
+      # Run per-package rather than the combined "pnpm run test": these five
       # steps are individually confirmed passing, but the combined
       # "pnpm -r --if-present run test" (even with --workspace-concurrency=1)
       # failed at this same point for reasons that weren't identifiable
@@ -142,6 +168,15 @@ jobs:
         id: test-api-server
         continue-on-error: true
         run: pnpm --filter @workspace/api-server run test
+
+      # L'application client principale: 73 000 lignes, la seule que les clients
+      # ouvrent tous les jours. Sa suite existait deja et passait, mais aucune
+      # etape ne l'appelait — le budget d'accessibilite, l'inventaire des routes,
+      # le service worker et les icones PWA pouvaient donc casser sans un rouge.
+      - name: Test - buro-ajani
+        id: test-buro-ajani
+        continue-on-error: true
+        run: pnpm --filter @workspace/buro-ajani run test
 
       - name: Test - mobile
         id: test-mobile
@@ -162,10 +197,11 @@ jobs:
         if: always()
         run: |
           echo "api-server: ${{ steps.test-api-server.outcome }}"
+          echo "buro-ajani: ${{ steps.test-buro-ajani.outcome }}"
           echo "mobile: ${{ steps.test-mobile.outcome }}"
           echo "tanitim: ${{ steps.test-tanitim.outcome }}"
           echo "demo-handoff: ${{ steps.test-demo-handoff.outcome }}"
-          if [ "${{ steps.test-api-server.outcome }}" = "failure" ] || [ "${{ steps.test-mobile.outcome }}" = "failure" ] || [ "${{ steps.test-tanitim.outcome }}" = "failure" ] || [ "${{ steps.test-demo-handoff.outcome }}" = "failure" ]; then
+          if [ "${{ steps.test-api-server.outcome }}" = "failure" ] || [ "${{ steps.test-buro-ajani.outcome }}" = "failure" ] || [ "${{ steps.test-mobile.outcome }}" = "failure" ] || [ "${{ steps.test-tanitim.outcome }}" = "failure" ] || [ "${{ steps.test-demo-handoff.outcome }}" = "failure" ]; then
             echo "One or more test suites failed."
             exit 1
           fi

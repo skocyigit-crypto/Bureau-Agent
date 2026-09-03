@@ -144,14 +144,26 @@ describe("budget d'accessibilite", () => {
   // navigation de periode a un autre, et une etiquette deduite du dessin
   // aurait annonce la mauvaise action.
   //
-  // Les 39 qui restent sont TOUS dans des fichiers qu'une autre session
-  // modifie; aucun n'est corrigeable sans risquer un conflit. Ce budget ne
-  // pourra donc descendre qu'une fois ce travail-la integre.
-  //
   // Cas limite assume: un bouton enveloppe dans un Tooltip Radix est compte.
   // Le tooltip pose `aria-describedby`, donc une DESCRIPTION; le critere
   // 4.1.2 exige un NOM. Un lecteur d'ecran annonce toujours « bouton ».
-  const UNNAMED_BUDGET = 39;
+  //
+  // Troisieme lot: 39 -> 0, le 2026-09-03. Ce sont les 39 que les deux
+  // premiers lots avaient laisses parce que d'autres sessions tenaient les
+  // fichiers; ce travail est maintenant integre, donc plus rien ne les
+  // bloquait. Deux cles nouvelles ont suffi (`notificationBell.markRead`,
+  // `prospectDetail.removeTag`) — tout le reste reutilise des `common.*`
+  // deja traduites.
+  //
+  // Les cinq boutons de `smart-browser-panel` sont exactement le cas limite
+  // ci-dessus: ils portaient deja un Tooltip traduit. Leur `aria-label`
+  // reprend la MEME cle, pour que le nom annonce et le texte affiche ne
+  // divergent pas au premier changement de libelle.
+  //
+  // Le budget passe a zero, et c'est le point: un plafond a zero transforme
+  // chaque nouveau bouton-icone sans nom en echec de test immediat, au lieu
+  // d'un solde ou une regression peut se cacher.
+  const UNNAMED_BUDGET = 0;
 
   it(`ne laisse pas plus de ${UNNAMED_BUDGET} boutons-icone sans nom accessible`, () => {
     const found = unnamedIconButtons();
@@ -169,7 +181,23 @@ describe("budget d'accessibilite", () => {
   // regression gratuitement — c est exactement ce que ce cliquet existe pour
   // empecher. Mesure en resserrant jusqu au point de rupture: 12 passe, 11
   // echoue.
-  const UNDERSIZED_BUDGET = 12;
+  //
+  // 12 -> 2 le 2026-09-03. Dix cibles ont ete agrandies a 24px: les deux
+  // boutons de fermeture de journee du calendrier, les deux nuanciers des
+  // notes internes, et les cinq boutons de la liste de conversations du
+  // commandant IA. La dixieme, la case a cocher d'un jalon de projet (14px),
+  // garde son dessin de 14px — c'est la ZONE qui est passee a 24px, avec une
+  // marge negative pour ne pas deranger la ligne. Le critere porte sur la
+  // surface qui recoit le clic, pas sur le pixel dessine.
+  //
+  // Les 2 restantes sont des exceptions du critere, pas des dettes:
+  //   - `ui/sidebar.tsx` rail: poignee de redimensionnement de 16px, hors
+  //     tabulation (`tabIndex={-1}`), doublee par le SidebarTrigger qui fait
+  //     la meme chose — exception « cible equivalente ».
+  //   - `knowledge-base.tsx` puce de citation: pastille posee DANS une
+  //     phrase, elle suit la ligne de texte — exception « en ligne ».
+  // Les corriger degraderait la mise en page sans rien gagner pour personne.
+  const UNDERSIZED_BUDGET = 2;
 
   it(`ne laisse pas plus de ${UNDERSIZED_BUDGET} cibles sous 24px`, () => {
     const found = undersizedTargets();

@@ -49,6 +49,8 @@ export function Footer() {
               <li><a href="mailto:contact@agentdebureau.fr" className="hover:text-white transition-colors">Contact</a></li>
               <li><Link href="/mentions-legales" className="hover:text-white transition-colors">Mentions légales</Link></li>
               <li><Link href="/cgu" className="hover:text-white transition-colors">CGU</Link></li>
+              <li><Link href="/cgv" className="hover:text-white transition-colors">CGV</Link></li>
+              <li><Link href="/dpa" className="hover:text-white transition-colors">Sous-traitance RGPD (DPA)</Link></li>
               <li><Link href="/accessibilite" className="hover:text-white transition-colors">Accessibilité</Link></li>
               <li><Link href="/confidentialite" className="hover:text-white transition-colors">Politique de confidentialité</Link></li>
               <li><Link href="/gizlilik" className="hover:text-white transition-colors" hrefLang="tr" lang="tr">Gizlilik Politikası (TR)</Link></li>
@@ -61,6 +63,8 @@ export function Footer() {
           <div className="flex items-center gap-4">
             <Link href="/mentions-legales" className="hover:text-white transition-colors">Mentions légales</Link>
             <Link href="/cgu" className="hover:text-white transition-colors">CGU</Link>
+            <Link href="/cgv" className="hover:text-white transition-colors">CGV</Link>
+            <Link href="/dpa" className="hover:text-white transition-colors">DPA</Link>
             <Link href="/accessibilite" className="hover:text-white transition-colors">Accessibilité</Link>
             <Link href="/confidentialite" className="hover:text-white transition-colors">Confidentialité</Link>
           </div>

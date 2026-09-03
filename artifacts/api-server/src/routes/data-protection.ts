@@ -5,13 +5,42 @@ import {
   legalAgreementsTable, LEGAL_DOCUMENTS,
   usersTable, contactsTable, callsTable, tasksTable,
   checkinsTable, prospectsTable, notesInternesTable,
+  auditLogsTable, aiUsageTable, pushTokensTable,
+  commandantConversationsTable, commandantMessagesTable,
+  userLocationStateTable, locationEventsTable, googleOAuthTokensTable,
 } from "@workspace/db";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
 import { logger } from "../lib/logger";
 import { getDataProtectionStatus } from "../services/data-protection-monitor";
 
 const router = Router();
+
+/**
+ * Le mois de l'article 12(3), rendu visible.
+ *
+ * Le responsable de traitement doit repondre « dans les meilleurs delais et
+ * en tout etat de cause dans un delai d'un mois ». Ce delai n'existait nulle
+ * part dans le produit: la reponse a l'utilisateur le PROMET (« 30 jours »),
+ * mais rien ne le calculait, et donc rien ne pouvait dire a une organisation
+ * qu'elle etait en retard — alors que le retard EST le manquement.
+ *
+ * Il est derive plutot que stocke: la date d'echeance est une fonction de la
+ * date de depot, pas une donnee independante qui pourrait diverger. Un
+ * champ en base aurait exige une migration et aurait pu, lui, devenir faux.
+ */
+export function requestDeadline(createdAt: Date, now = new Date()) {
+  const dueAt = new Date(createdAt);
+  dueAt.setMonth(dueAt.getMonth() + 1);
+  const daysLeft = Math.ceil((dueAt.getTime() - now.getTime()) / 86_400_000);
+  return { dueAt, daysLeft, overdue: daysLeft < 0 };
+}
+
+/** Une demande close ne court plus: son echeance n'a plus de sens. */
+function withDeadline<T extends { createdAt: Date; status: string }>(r: T) {
+  if (r.status !== "pending") return { ...r, dueAt: null, daysLeft: null, overdue: false };
+  return { ...r, ...requestDeadline(r.createdAt) };
+}
 
 router.get("/data-protection/summary", async (req, res): Promise<void> => {
   try {
@@ -36,10 +65,11 @@ router.get("/data-protection/summary", async (req, res): Promise<void> => {
     const acceptedDocs = agreements.map(a => a.documentType);
     const missingMandatory = mandatoryDocs.filter(d => !acceptedDocs.includes(d));
 
-    const myRequests = await db.select().from(dataSubjectRequestsTable)
+    const myRequestRows = await db.select().from(dataSubjectRequestsTable)
       .where(eq(dataSubjectRequestsTable.organisationId, orgId))
       .orderBy(desc(dataSubjectRequestsTable.createdAt))
       .limit(10);
+    const myRequests = myRequestRows.map(withDeadline);
 
     res.json({
       dataInventory: [
@@ -231,10 +261,11 @@ router.get("/data-protection/requests", requireRole("super_admin", "administrate
   try {
     const orgId = req.session?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
-    const requests = await db.select().from(dataSubjectRequestsTable)
+    const rows = await db.select().from(dataSubjectRequestsTable)
       .where(eq(dataSubjectRequestsTable.organisationId, orgId))
       .orderBy(desc(dataSubjectRequestsTable.createdAt));
-    res.json({ requests });
+    const requests = rows.map(withDeadline);
+    res.json({ requests, overdue: requests.filter(r => r.overdue).length });
   } catch (err: any) {
     logger.error({ err }, "Data requests fetch error");
     res.status(500).json({ error: "Erreur serveur." });
@@ -254,10 +285,22 @@ router.get("/data-protection/status", requireRole("super_admin", "administrateur
       db.select({ count: sql<number>`count(*)::int` }).from(dataSubjectRequestsTable).where(eq(dataSubjectRequestsTable.organisationId, orgId)),
     ]);
 
+    // Le nombre de demandes en attente ne dit pas si l'organisation est en
+    // faute; seul le retard le dit. Il est compte en base plutot que derive
+    // en memoire, pour ne pas charger toutes les lignes juste pour un chiffre.
+    const [late] = await db.select({ count: sql<number>`count(*)::int` })
+      .from(dataSubjectRequestsTable)
+      .where(and(
+        eq(dataSubjectRequestsTable.organisationId, orgId),
+        eq(dataSubjectRequestsTable.status, "pending"),
+        sql`${dataSubjectRequestsTable.createdAt} < now() - interval '1 month'`,
+      ));
+
     const response: Record<string, unknown> = {
       pending: pending[0]?.count || 0,
       completed: completed[0]?.count || 0,
       total: total[0]?.count || 0,
+      overdue: late?.count || 0,
     };
 
     // Platform-wide infrastructure health (totalRecords, lastBackup,
@@ -277,5 +320,269 @@ router.get("/data-protection/status", requireRole("super_admin", "administrateur
     res.status(500).json({ error: "Erreur serveur." });
   }
 });
+
+/**
+ * L'export individuel — l'article 15/20 pour une personne, pas pour un fichier.
+ *
+ * L'export existant (/data-protection/export) rend l'INTEGRALITE du fichier
+ * de l'organisation et est reserve aux administrateurs, a juste titre: c'est
+ * un outil de direction. Restait donc ceci: un salarie ordinaire n'avait
+ * AUCUN moyen d'obtenir ses propres donnees. Le seul canal ouvert etait la
+ * demande manuelle sous 30 jours — laquelle, jusqu'a aujourd'hui, ne pouvait
+ * meme pas etre close (voir la route suivante). Le droit etait donc annonce
+ * dans l'interface et inexecutable de bout en bout.
+ *
+ * La ligne de partage est celle que le commentaire de /export trace deja, et
+ * elle est le coeur de cette route: on rend les donnees QUI CONCERNENT la
+ * personne, jamais celles qu'elle a seulement SAISIES. Les contacts, appels,
+ * taches et prospects portent un `createdBy`; les inclure rouvrirait, sous
+ * couvert de droit individuel, l'exfiltration integrale du CRM que l'on
+ * vient de fermer. Ils appartiennent au responsable de traitement.
+ *
+ * Les colonnes sont enumerees une par une, jamais `select()` complet. Les
+ * tables traversees contiennent des secrets — empreinte du mot de passe,
+ * secret MFA, jetons de reinitialisation, jetons OAuth Google, jeton de
+ * notification d'un appareil. Un `select *` les livrerait tous, et un export
+ * RGPD est precisement ce qu'on transmet a l'exterieur. Pour Google, seule
+ * l'EXISTENCE du rattachement est rendue: le fait qu'un compte soit lie est
+ * une donnee personnelle, les jetons sont des identifiants d'acces.
+ */
+router.get("/data-protection/my-data", async (req, res): Promise<void> => {
+  try {
+    const userId = req.session?.userId;
+    const orgId = req.session?.organisationId;
+    if (!userId || !orgId) { res.status(401).json({ error: "Non authentifie." }); return; }
+
+    const conversations = await db.select({
+      id: commandantConversationsTable.id,
+      title: commandantConversationsTable.title,
+      createdAt: commandantConversationsTable.createdAt,
+      updatedAt: commandantConversationsTable.updatedAt,
+    }).from(commandantConversationsTable)
+      .where(and(
+        eq(commandantConversationsTable.userId, userId),
+        eq(commandantConversationsTable.organisationId, orgId),
+      ));
+
+    // Les messages sont rattaches a la conversation, pas a la personne: sans
+    // ce filtre par identifiants, le `organisationId` seul rendrait ceux des
+    // collegues.
+    const conversationIds = conversations.map(c => c.id);
+    const messages = conversationIds.length === 0 ? [] : await db.select({
+      conversationId: commandantMessagesTable.conversationId,
+      role: commandantMessagesTable.role,
+      content: commandantMessagesTable.content,
+      createdAt: commandantMessagesTable.createdAt,
+    }).from(commandantMessagesTable)
+      .where(and(
+        inArray(commandantMessagesTable.conversationId, conversationIds),
+        eq(commandantMessagesTable.organisationId, orgId),
+      ));
+
+    const [profile, presences, journal, consommationIa, appareils, position, deplacements, google, demandes] = await Promise.all([
+      db.select({
+        id: usersTable.id, email: usersTable.email, nom: usersTable.nom,
+        prenom: usersTable.prenom, role: usersTable.role,
+        departement: usersTable.departement, telephone: usersTable.telephone,
+        avatar: usersTable.avatar, actif: usersTable.actif,
+        mfaActif: usersTable.mfaActif, preferences: usersTable.preferences,
+        dernierAcces: usersTable.dernierAcces, lastLoginIp: usersTable.lastLoginIp,
+        emailVerifiedAt: usersTable.emailVerifiedAt,
+        createdAt: usersTable.createdAt, updatedAt: usersTable.updatedAt,
+      }).from(usersTable).where(and(eq(usersTable.id, userId), eq(usersTable.organisationId, orgId))),
+
+      db.select({
+        id: checkinsTable.id, type: checkinsTable.type, status: checkinsTable.status,
+        location: checkinsTable.location, notes: checkinsTable.notes,
+        ipAddress: checkinsTable.ipAddress, checkInAt: checkinsTable.checkInAt,
+        checkOutAt: checkinsTable.checkOutAt, breakMinutes: checkinsTable.breakMinutes,
+        totalMinutes: checkinsTable.totalMinutes, createdAt: checkinsTable.createdAt,
+      }).from(checkinsTable)
+        .where(and(eq(checkinsTable.createdBy, userId), eq(checkinsTable.organisationId, orgId))),
+
+      db.select({
+        action: auditLogsTable.action, resource: auditLogsTable.resource,
+        resourceId: auditLogsTable.resourceId, ipAddress: auditLogsTable.ipAddress,
+        userAgent: auditLogsTable.userAgent, createdAt: auditLogsTable.createdAt,
+      }).from(auditLogsTable)
+        .where(and(eq(auditLogsTable.userId, userId), eq(auditLogsTable.organisationId, orgId)))
+        .orderBy(desc(auditLogsTable.createdAt)).limit(5000),
+
+      db.select({
+        provider: aiUsageTable.provider, model: aiUsageTable.model,
+        route: aiUsageTable.route, totalTokens: aiUsageTable.totalTokens,
+        estimatedCostUsd: aiUsageTable.estimatedCostUsd,
+        status: aiUsageTable.status, createdAt: aiUsageTable.createdAt,
+      }).from(aiUsageTable)
+        .where(and(eq(aiUsageTable.userId, userId), eq(aiUsageTable.organisationId, orgId)))
+        .orderBy(desc(aiUsageTable.createdAt)).limit(5000),
+
+      // `token` est exclu: c'est l'identifiant qui permet d'ecrire sur
+      // l'appareil, pas une donnee qui decrit la personne.
+      db.select({
+        platform: pushTokensTable.platform, lastSeenAt: pushTokensTable.lastSeenAt,
+        createdAt: pushTokensTable.createdAt,
+      }).from(pushTokensTable)
+        .where(and(eq(pushTokensTable.userId, userId), eq(pushTokensTable.organisationId, orgId))),
+
+      db.select({
+        lastAt: userLocationStateTable.lastAt,
+        currentGeofenceIds: userLocationStateTable.currentGeofenceIds,
+        battery: userLocationStateTable.battery,
+        isMoving: userLocationStateTable.isMoving,
+        updatedAt: userLocationStateTable.updatedAt,
+      }).from(userLocationStateTable)
+        .where(and(eq(userLocationStateTable.userId, userId), eq(userLocationStateTable.organisationId, orgId))),
+
+      db.select({
+        geofenceId: locationEventsTable.geofenceId,
+        event: locationEventsTable.event, at: locationEventsTable.at,
+      }).from(locationEventsTable)
+        .where(and(eq(locationEventsTable.userId, userId), eq(locationEventsTable.organisationId, orgId)))
+        .orderBy(desc(locationEventsTable.at)).limit(5000),
+
+      db.select({
+        scope: googleOAuthTokensTable.scope,
+        expiresAt: googleOAuthTokensTable.expiresAt,
+        createdAt: googleOAuthTokensTable.createdAt,
+      }).from(googleOAuthTokensTable)
+        .where(and(eq(googleOAuthTokensTable.userId, userId), eq(googleOAuthTokensTable.organisationId, orgId))),
+
+      db.select({
+        requestType: dataSubjectRequestsTable.requestType,
+        status: dataSubjectRequestsTable.status,
+        details: dataSubjectRequestsTable.details,
+        responseNotes: dataSubjectRequestsTable.responseNotes,
+        processedAt: dataSubjectRequestsTable.processedAt,
+        createdAt: dataSubjectRequestsTable.createdAt,
+      }).from(dataSubjectRequestsTable)
+        .where(and(eq(dataSubjectRequestsTable.requestedByUserId, userId), eq(dataSubjectRequestsTable.organisationId, orgId))),
+    ]);
+
+    if (profile.length === 0) { res.status(404).json({ error: "Compte introuvable." }); return; }
+
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader("Content-Disposition", `attachment; filename="mes-donnees-${new Date().toISOString().slice(0, 10)}.json"`);
+    res.json({
+      exportedAt: new Date().toISOString(),
+      legalBasis: "Art. 15 et 20 RGPD — droit d'acces et droit a la portabilite",
+      scope:
+        "Donnees qui concernent la personne connectee. Les contacts, appels, " +
+        "taches, prospects et notes qu'elle a saisis pour le compte de son " +
+        "organisation n'y figurent pas: ils relevent du fichier du " +
+        "responsable de traitement, et non de son droit individuel.",
+      data: {
+        profil: profile[0],
+        presences,
+        journalDActivite: journal,
+        conversationsIa: conversations,
+        messagesIa: messages,
+        consommationIa,
+        appareilsDeNotification: appareils,
+        positionActuelle: position,
+        deplacements,
+        comptesGoogleRattaches: google,
+        demandesRgpd: demandes,
+      },
+    });
+  } catch (err: any) {
+    logger.error({ err }, "Personal data export error");
+    res.status(500).json({ error: "Erreur lors de l'export de vos donnees." });
+  }
+});
+
+/**
+ * Clore une demande — le maillon qui manquait.
+ *
+ * Jusqu'ici `data_subject_requests` n'etait qu'INSERE et LU: aucune ligne du
+ * depot ne la mettait a jour. Une demande entrait en `pending` et y restait
+ * pour toujours, pendant que la reponse de l'API promettait a la personne
+ * « une reponse dans un delai de 30 jours ». Les colonnes `processedAt`,
+ * `processedByName` et `responseNotes` existaient deja, ecrites par personne
+ * — la forme exacte du defaut que ce depot corrige: du code redige, jamais
+ * branche.
+ *
+ * Le refus est un resultat de plein droit, pas un echec: l'article 12(4)
+ * impose alors d'exposer les MOTIFS et de rappeler la voie de reclamation.
+ * D'ou une note obligatoire quand on refuse — un refus muet serait lui-meme
+ * un manquement, et il serait indistinguable d'un oubli.
+ *
+ * L'effacement (art. 17) n'est deliberement PAS execute ici. Voir la note en
+ * fin de fichier: c'est une decision de l'editeur, pas un defaut d'outil.
+ */
+router.post("/data-protection/requests/:id/process", requireRole("super_admin", "administrateur"), async (req, res): Promise<void> => {
+  try {
+    const userId = req.session?.userId;
+    const orgId = req.session?.organisationId;
+    const prenom = req.session?.prenom || "";
+    if (!userId || !orgId) { res.status(401).json({ error: "Non authentifie." }); return; }
+
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ error: "Identifiant invalide." }); return; }
+
+    const { status, responseNotes } = req.body ?? {};
+    if (status !== "completed" && status !== "refused") {
+      res.status(400).json({ error: 'Statut invalide: attendu "completed" ou "refused".' }); return;
+    }
+    const notes = typeof responseNotes === "string" ? responseNotes.trim() : "";
+    if (status === "refused" && notes.length === 0) {
+      res.status(400).json({
+        error:
+          "Un refus doit etre motive (art. 12(4) RGPD): indiquez les motifs et " +
+          "rappelez a la personne son droit de reclamation aupres de la CNIL.",
+      });
+      return;
+    }
+
+    const user = await db.select({ nom: usersTable.nom }).from(usersTable).where(eq(usersTable.id, userId));
+    const processedByName = user[0] ? `${prenom} ${user[0].nom}`.trim() : "Administrateur";
+
+    // Le filtre par `organisationId` est la frontiere de tenant: sans lui, un
+    // administrateur pourrait clore la demande d'une AUTRE organisation en
+    // devinant un identifiant.
+    const [updated] = await db.update(dataSubjectRequestsTable)
+      .set({ status, responseNotes: notes || null, processedAt: new Date(), processedByName })
+      .where(and(
+        eq(dataSubjectRequestsTable.id, id),
+        eq(dataSubjectRequestsTable.organisationId, orgId),
+        eq(dataSubjectRequestsTable.status, "pending"),
+      ))
+      .returning();
+
+    if (!updated) {
+      // Une demande deja close ne doit pas pouvoir etre reecrite: la trace de
+      // qui a repondu quoi, et quand, est ce qui prouve le respect du delai.
+      res.status(404).json({ error: "Demande introuvable, ou deja traitee." });
+      return;
+    }
+
+    res.json({ success: true, request: withDeadline(updated) });
+  } catch (err: any) {
+    logger.error({ err }, "Data subject request processing error");
+    res.status(500).json({ error: "Erreur lors du traitement de la demande." });
+  }
+});
+
+/**
+ * Pourquoi l'effacement n'est pas automatise.
+ *
+ * L'article 17 est propose a l'utilisateur comme type de demande, et il le
+ * restera: le droit existe. Ce qui n'existe pas ici, c'est un bouton qui
+ * effacerait en cascade — et c'est un choix, pas un oubli.
+ *
+ * L'article 17(3) ecarte le droit a l'effacement quand la conservation est
+ * necessaire au respect d'une obligation legale. Ce produit en detient
+ * plusieurs, et il les annonce lui-meme dans /data-protection/summary: les
+ * pointages sont conserves « 5 ans (obligations legales) », et les pieces
+ * comptables relevent du code de commerce. Une cascade aveugle ferait donc
+ * l'un ou l'autre: detruire ce que la loi impose de garder, ou pretendre
+ * effacer sans le faire. Les deux sont des manquements, et le premier est
+ * irreversible.
+ *
+ * L'arbitrage tient a des faits propres a l'editeur — duree exacte, sort des
+ * sauvegardes, anonymisation plutot que suppression. Il appartient a
+ * l'editeur, pas a ce fichier. La demande est donc tracee, datee, et close
+ * explicitement par un humain qui ecrit ce qu'il a fait.
+ */
 
 export default router;

@@ -101,7 +101,7 @@ const FAQ_ITEMS: { q: string; a: string }[] = [
   },
   {
     q: "Mes données sont-elles sécurisées?",
-    a: "La sécurité est notre priorité absolue. Sauvegardes automatiques chiffrées quotidiennes avec récupération à un instant précis (point-in-time recovery) sur une infrastructure cloud européenne dédiée — vos données ne transitent jamais par un compte tiers externe. Monitoring continu de la protection des données, vérification d'intégrité et restauration rapide. Conforme RGPD avec gestion complète des documents juridiques (CGU, CGV, DPA, SLA)."
+    a: "La sécurité est notre priorité absolue. Sauvegardes automatiques chiffrées quotidiennes avec récupération à un instant précis (point-in-time recovery) sur une infrastructure cloud européenne dédiée — vos données ne transitent jamais par un compte tiers externe. Monitoring continu de la protection des données, vérification d'intégrité et restauration rapide. Nos conditions générales d'utilisation (CGU) et de vente (CGV), notre politique de confidentialité et notre accord de sous-traitance RGPD (DPA) sont publiés et opposables."
   },
   {
     q: "Que peut faire l'assistant IA?",

@@ -339,8 +339,8 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
           <Button variant="ghost" size="icon" className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/20" onClick={() => setMessages([])} title={t("aiAssistant.newConversation")}>
             <RotateCcw className="w-3.5 h-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/20" onClick={onClose}>
-            <X className="w-4 h-4" />
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/20" onClick={onClose} aria-label={t("common.close")}>
+            <X className="w-4 h-4" aria-hidden="true" />
           </Button>
         </div>
       </div>
@@ -522,8 +522,9 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
             type="submit" size="icon"
             className="h-9 w-9 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-full shrink-0"
             disabled={!input.trim() || isLoading}
+            aria-label={t("common.send")}
           >
-            <Send className="w-4 h-4" />
+            <Send className="w-4 h-4" aria-hidden="true" />
           </Button>
         </form>
       </div>

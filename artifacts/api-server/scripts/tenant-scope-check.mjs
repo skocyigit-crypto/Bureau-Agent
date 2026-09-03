@@ -57,6 +57,7 @@ const schemaDir = path.join(here, "..", "..", "..", "lib", "db", "src", "schema"
  */
 function tenantScopedTables() {
   const scoped = new Set();
+  const scopedSql = new Set();
   const global = new Set();
   for (const file of fs.readdirSync(schemaDir)) {
     if (!file.endsWith(".ts") || file === "index.ts") continue;
@@ -74,11 +75,12 @@ function tenantScopedTables() {
       }
       if (close === -1) continue;
       const body = src.slice(open + 1, close);
-      if (/organisation_?[Ii]d/.test(body)) scoped.add(varName);
+      const sqlName = m[2];
+      if (/organisation_?[Ii]d/.test(body)) { scoped.add(varName); scopedSql.add(sqlName); }
       else global.add(varName);
     }
   }
-  return { scoped, global };
+  return { scoped, scopedSql, global };
 }
 
 // ── 2. Requetes exemptees, avec la raison ────────────────────────────────────
@@ -168,10 +170,17 @@ function scopedIdentifiers(src) {
 /**
  * Decoupe le texte en requetes. On part de `db.select(` / `db.update(` /
  * `db.delete(` / `tx.select(` ... et on suit jusqu'a la fin de la chaine.
+ *
+ * `db.execute(` en fait partie, et c'etait un angle mort: une requete ecrite
+ * en SQL brut ne mentionne aucune des tables Drizzle que ce controle cherchait,
+ * donc un gestionnaire qui n'interrogeait la base QUE par SQL brut n'etait pas
+ * examine du tout — il n'apparaissait meme pas dans le total. Il y en a 47 dans
+ * l'API, dont 18 touchent une table de locataire; toutes portaient bien leur
+ * filtre au moment d'ecrire ces lignes, mais rien ne l'imposait.
  */
 function statements(src) {
   const out = [];
-  const re = /\b(?:db|tx|trx)\s*\.\s*(select|update|delete|insert)\s*\(/g;
+  const re = /\b(?:db|tx|trx)\s*\.\s*(select|update|delete|insert|execute)\s*\(/g;
   let m;
   while ((m = re.exec(src))) {
     const start = m.index;
@@ -187,6 +196,29 @@ function statements(src) {
     out.push({ kind: m[1], start, text: src.slice(start, end) });
   }
   return out;
+}
+
+/**
+ * Les tables de locataire touchees par une requete.
+ *
+ * Deux vocabulaires selon la forme. Une requete Drizzle nomme la table par
+ * son identifiant TypeScript (`tasksTable`); une requete en SQL brut la nomme
+ * par son nom de table (`tasks`). Ce dernier est un mot courant — `calls`,
+ * `messages`, `contacts` — donc on ne l'accepte qu'apres FROM / JOIN / UPDATE
+ * / INTO / DELETE FROM, sinon un simple commentaire suffirait a le declencher.
+ */
+function touchedTables(st, scoped, scopedSql) {
+  const found = new Set();
+  for (const t of scoped) if (st.text.includes(t)) found.add(t);
+  if (st.kind === "execute") {
+    const re = /\b(?:FROM|JOIN|UPDATE|INTO|DELETE\s+FROM)\s+["'`]?([a-z_][\w]*)["'`]?/gi;
+    let m;
+    while ((m = re.exec(st.text))) {
+      const name = m[1].toLowerCase();
+      if (scopedSql.has(name)) found.add(name);
+    }
+  }
+  return [...found];
 }
 
 function lineOf(src, index) {
@@ -227,7 +259,7 @@ function blocks(src) {
 }
 
 function analyse() {
-  const { scoped } = tenantScopedTables();
+  const { scoped, scopedSql } = tenantScopedTables();
   const findings = [];
   let examined = 0;
 
@@ -246,8 +278,8 @@ function analyse() {
       const ids = scopedIdentifiers(src);
 
       for (const block of blocks(src)) {
-        const stmts = statements(block.text).filter((st) =>
-          [...scoped].some((t) => st.text.includes(t)),
+        const stmts = statements(block.text).filter(
+          (st) => touchedTables(st, scoped, scopedSql).length > 0,
         );
         if (stmts.length === 0) continue;
         examined++;
@@ -277,7 +309,7 @@ function analyse() {
         if (aware) continue;
 
         const tables = [...new Set(
-          stmts.flatMap((st) => [...scoped].filter((t) => st.text.includes(t))),
+          stmts.flatMap((st) => touchedTables(st, scoped, scopedSql)),
         )];
         findings.push({
           file: rel,

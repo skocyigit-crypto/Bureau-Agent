@@ -404,7 +404,7 @@ export default function ProspectDetail() {
                 {tags.map(tag => (
                   <span key={tag} className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full border border-primary/20">
                     {tag}
-                    <button onClick={() => removeTag(tag)} disabled={savingTags} className="hover:text-destructive transition-colors"><X className="w-3 h-3" /></button>
+                    <button onClick={() => removeTag(tag)} disabled={savingTags} className="hover:text-destructive transition-colors" aria-label={t("prospectDetail.removeTag", { tag })}><X className="w-3 h-3" aria-hidden="true" /></button>
                   </span>
                 ))}
               </div>

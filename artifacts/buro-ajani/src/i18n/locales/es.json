@@ -3859,7 +3859,8 @@
     "phone": "Teléfono",
     "expectedCloseDate": "Fecha de cierre prevista",
     "notes": "Notas",
-    "update": "Actualizar"
+    "update": "Actualizar",
+    "removeTag": "Quitar la etiqueta {{tag}}"
   },
   "notificationsPage": {
     "error": "Error",
@@ -4892,8 +4893,25 @@
       "exportError": "Error de exportación",
       "exportDownloaded": "Exportación descargada",
       "exportDownloadedDesc": "Sus datos se han exportado con éxito (Art. 20 RGPD).",
-      "exportFailed": "Error durante la exportación"
-    }
+      "exportFailed": "Error durante la exportación",
+      "myDataDownloaded": "Sus datos se han descargado",
+      "myDataDownloadedDesc": "El archivo contiene los datos que le conciernen.",
+      "requestProcessed": "Solicitud cerrada",
+      "requestProcessedDesc": "La respuesta y su fecha quedan registradas.",
+      "processError": "No se ha podido cerrar la solicitud"
+    },
+    "myDataTitle": "Mis datos personales",
+    "myDataDesc": "Descargue los datos que le conciernen, en un formato legible por máquina (art. 15 y 20).",
+    "myData": "Descargar",
+    "myDataScope": "Los contactos, llamadas y tareas introducidos por cuenta de su organización no se incluyen: pertenecen a su fichero, no a su derecho individual.",
+    "statusRefused": "Denegada",
+    "deadlineDue": "Respuesta prevista antes del {{date}}",
+    "deadlineOverdue": "Con retraso desde el {{date}}",
+    "processTitle": "Responder a esta solicitud",
+    "processNotes": "Motivo o respuesta comunicada a la persona",
+    "processNotesPlaceholder": "Obligatorio en caso de denegación: los motivos y el recordatorio del derecho a reclamar ante la autoridad de control (art. 12(4)).",
+    "processComplete": "Marcar como tratada",
+    "processRefuse": "Denegar"
   },
   "assistantProactif": {
     "title": "Asistente proactivo",
@@ -8915,7 +8933,8 @@
     "now": "Ahora mismo",
     "minsAgo": "Hace {{mins}}min",
     "hoursAgo": "Hace {{hours}}h",
-    "daysAgo": "Hace {{days}}d"
+    "daysAgo": "Hace {{days}}d",
+    "markRead": "Marcar como leído"
   },
   "accessDenied": {
     "title": "Acceso restringido",

@@ -202,7 +202,7 @@ export default function NotesInternesPage() {
             <Input value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} placeholder={t("notesInternes.tagsPlaceholder")} className="text-xs bg-transparent border-none shadow-none px-0 h-6" />
             <div className="flex items-center gap-1.5 flex-wrap">
               {COLORS.map(c => (
-                <button key={c.key} onClick={() => setForm(f => ({ ...f, color: c.key }))} className={`w-5 h-5 rounded-full border-2 ${c.bg.split(" ")[0] || "bg-white"} ${form.color === c.key ? "border-primary ring-1 ring-primary" : "border-transparent"}`} title={t(`notesInternes.color.${c.key}`)} />
+                <button key={c.key} onClick={() => setForm(f => ({ ...f, color: c.key }))} className={`w-6 h-6 rounded-full border-2 ${c.bg.split(" ")[0] || "bg-white"} ${form.color === c.key ? "border-primary ring-1 ring-primary" : "border-transparent"}`} title={t(`notesInternes.color.${c.key}`)} />
               ))}
               <div className="flex-1" />
               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditing(null)} aria-label={t("common.close")}><X className="w-3 h-3" aria-hidden="true" /></Button>
@@ -311,7 +311,7 @@ export default function NotesInternesPage() {
           <Input value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} placeholder={t("notesInternes.tagsPlaceholderLong")} className="text-xs bg-transparent border-none shadow-none px-0 h-6" />
           <div className="flex items-center gap-1.5 flex-wrap">
             {COLORS.map(c => (
-              <button key={c.key} onClick={() => setForm(f => ({ ...f, color: c.key }))} className={`w-5 h-5 rounded-full border-2 ${c.bg.split(" ")[0] || "bg-white"} ${form.color === c.key ? "border-primary ring-1 ring-primary" : "border-transparent"}`} title={t(`notesInternes.color.${c.key}`)} />
+              <button key={c.key} onClick={() => setForm(f => ({ ...f, color: c.key }))} className={`w-6 h-6 rounded-full border-2 ${c.bg.split(" ")[0] || "bg-white"} ${form.color === c.key ? "border-primary ring-1 ring-primary" : "border-transparent"}`} title={t(`notesInternes.color.${c.key}`)} />
             ))}
             <div className="flex-1" />
             <Button variant="outline" size="sm" onClick={() => setCreating(false)}>{t("notesInternes.cancel")}</Button>

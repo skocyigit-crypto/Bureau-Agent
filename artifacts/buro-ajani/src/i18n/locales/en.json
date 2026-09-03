@@ -3859,7 +3859,8 @@
     "phone": "Phone",
     "expectedCloseDate": "Expected close date",
     "notes": "Notes",
-    "update": "Update"
+    "update": "Update",
+    "removeTag": "Remove the {{tag}} tag"
   },
   "notificationsPage": {
     "error": "Error",
@@ -4892,8 +4893,25 @@
       "exportError": "Export error",
       "exportDownloaded": "Export downloaded",
       "exportDownloadedDesc": "Your data has been exported successfully (Art. 20 GDPR).",
-      "exportFailed": "Error during export"
-    }
+      "exportFailed": "Error during export",
+      "myDataDownloaded": "Your data has been downloaded",
+      "myDataDownloadedDesc": "The file contains the data that concerns you.",
+      "requestProcessed": "Request closed",
+      "requestProcessedDesc": "The answer and its date are recorded.",
+      "processError": "The request could not be closed"
+    },
+    "myDataTitle": "My personal data",
+    "myDataDesc": "Download the data that concerns you, in a machine-readable format (art. 15 and 20).",
+    "myData": "Download",
+    "myDataScope": "Contacts, calls and tasks entered on behalf of your organisation are not included: they belong to its records, not to your individual right.",
+    "statusRefused": "Refused",
+    "deadlineDue": "Answer due by {{date}}",
+    "deadlineOverdue": "Overdue since {{date}}",
+    "processTitle": "Answer this request",
+    "processNotes": "Reason or answer given to the person",
+    "processNotesPlaceholder": "Mandatory when refusing: the reasons, and a reminder of the right to complain to the supervisory authority (art. 12(4)).",
+    "processComplete": "Mark as handled",
+    "processRefuse": "Refuse"
   },
   "assistantProactif": {
     "title": "Proactive assistant",
@@ -8915,7 +8933,8 @@
     "now": "Just now",
     "minsAgo": "{{mins}}min ago",
     "hoursAgo": "{{hours}}h ago",
-    "daysAgo": "{{days}}d ago"
+    "daysAgo": "{{days}}d ago",
+    "markRead": "Mark as read"
   },
   "accessDenied": {
     "title": "Restricted access",

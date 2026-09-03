@@ -22,6 +22,28 @@
                 X-Content-Type-Options "nosniff"
                 X-Frame-Options "DENY"
                 Referrer-Policy "strict-origin-when-cross-origin"
+                # Permissions-Policy: la meme valeur que api-server (app.ts) et
+                # deploy/non-docker/nginx.conf. Elle manquait ICI, et c'est ici
+                # qu'elle compte: ce bloc sert le DOCUMENT de l'application,
+                # celui qui execute le JavaScript. Pose sur les reponses JSON de
+                # /api, ce header ne gouverne aucune capacite navigateur de la
+                # page.
+                #
+                # Constate en ligne le 2026-09-03: app.agentdebureau.fr ne
+                # renvoyait aucun Permissions-Policy, alors que trois fichiers
+                # du depot en definissent un — mais deux d'entre eux
+                # (vite.config.ts, non-docker/nginx.conf) ne tournent pas en
+                # production, et le troisieme ne couvre que /api.
+                Permissions-Policy "accelerometer=(), autoplay=(), camera=(self), cross-origin-isolated=(), display-capture=(self), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), hid=(), identity-credentials-get=(), idle-detection=(), interest-cohort=(), keyboard-map=(), magnetometer=(), microphone=(self), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), sync-xhr=(), usb=(), xr-spatial-tracking=()"
+                # Content-Security-Policy — voir deploy/csp.policy.md.
+                # Report-Only pour l instant: la mesure a ete faite sur le
+                # build reel et ne signale zero violation, mais seul l ecran
+                # de connexion a pu etre ouvert (ni base ni API en local).
+                # Une CSP fausse sur une page interne ne produirait pas un
+                # defaut discret: elle casserait la page d un client qui paie.
+                # La valeur doit rester identique a deploy/csp.policy
+                # (verifie par csp-policy.test.ts).
+                Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self'; frame-src 'none'; frame-ancestors 'none'; form-action 'self' https://checkout.stripe.com https://billing.stripe.com https://accounts.google.com; base-uri 'none'; object-src 'none'; upgrade-insecure-requests"
         }
 
         # `handle` blocks are only mutually exclusive with OTHER `handle`/

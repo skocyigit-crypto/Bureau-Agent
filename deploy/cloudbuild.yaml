@@ -16,6 +16,9 @@ steps:
         corepack prepare pnpm@9.15.0 --activate
         pnpm install --frozen-lockfile
         pnpm run typecheck
+        # Le stock d'avertissements est fige par --max-warnings; toute autre
+        # regle est une erreur. Voir eslint.config.mjs.
+        pnpm run lint:ratchet
         pnpm --filter @workspace/api-spec routes:check
         pnpm --filter @workspace/api-server tenant:check
         pnpm run security:audit
@@ -72,8 +75,20 @@ steps:
         # seul rempart devant un `push --force` lance a la main.
         node ./scripts/schema-guard.mjs
         node ./scripts/ensure-audit-append-only.mjs
+        # Ces trois pas manquaient a la porte qui bloque la production.
+        # ensure-user-quota installe le trigger Postgres qui applique la limite
+        # de sieges payants: c'est un controle de facturation, et il n'existait
+        # dans aucune base de test. verify-schema-sync verifie ensuite que la
+        # poussee a produit les tables/colonnes dont l'app depend et n'a pas
+        # detruit user_sessions.
+        node ./scripts/ensure-user-quota.mjs
+        node ./scripts/ensure-user-sessions.mjs
+        node ./scripts/verify-schema-sync.mjs
         cd ../..
         pnpm --filter @workspace/api-server run test
+        # L'application que les clients ouvrent tous les jours: sa suite
+        # existait et passait, mais aucune porte ne l'appelait.
+        pnpm --filter @workspace/buro-ajani run test
         pnpm --filter @workspace/mobile run test
         pnpm --filter @workspace/tanitim run test
         pnpm --filter @workspace/demo-handoff run test

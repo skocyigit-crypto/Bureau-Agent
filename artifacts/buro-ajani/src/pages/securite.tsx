@@ -837,8 +837,8 @@ function ListManagerCard() {
         : <Phone className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
       <span className="truncate flex-1 font-mono">{e.value}</span>
       {e.note && <span className="text-muted-foreground truncate max-w-[40%] italic">{e.note}</span>}
-      <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-muted-foreground hover:text-red-600" onClick={() => remove(e.id)}>
-        <Trash2 className="w-3.5 h-3.5" />
+      <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-muted-foreground hover:text-red-600" onClick={() => remove(e.id)} aria-label={t("common.delete")}>
+        <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
       </Button>
     </div>
   );

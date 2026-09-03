@@ -25,7 +25,7 @@ export default function CGV() {
       <Navbar onDemoClick={() => setDemoOpen(true)} />
       <main id="contenu" className="container mx-auto px-4 pt-32 pb-20 max-w-3xl">
         <h1 className="text-3xl font-bold mb-2">Conditions Générales de Vente</h1>
-        <p className="text-muted-foreground mb-10">Dernière mise à jour : {"<< date de publication à completer >>"}</p>
+        <p className="text-muted-foreground mb-10">Dernière mise à jour : 3 septembre 2026</p>
 
         <section className="space-y-8 text-sm leading-relaxed text-foreground/80">
           <div>
@@ -56,8 +56,8 @@ export default function CGV() {
             </p>
             <p className="mt-2">
               <strong>Révision des prix :</strong> les prix peuvent être révisés.
-              Toute révision est notifiée au client avec un préavis de{" "}
-              {"<< préavis de révision tarifaire à decider (ex. 30 / 60 jours) >>"}.
+              Toute révision est notifiée au client avec un préavis de
+              soixante (60) jours avant sa prise d'effet.
               Le client qui refuse la révision peut résilier sans frais avant sa
               prise d'effet.
             </p>
@@ -66,9 +66,9 @@ export default function CGV() {
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-3">3. Durée, reconduction et résiliation</h2>
             <p>
-              L'abonnement est souscrit pour une durée de{" "}
-              {"<< durée d'engagement à decider (ex. mensuelle sans engagement / annuelle) >>"},
-              reconduite tacitement pour la même durée sauf résiliation.
+              L'abonnement est souscrit pour une durée d'un (1) mois, sans
+              engagement de durée minimale, reconduite tacitement de mois en
+              mois sauf résiliation.
             </p>
             <p className="mt-2">
               <strong>Résiliation par le client :</strong> à tout moment depuis
@@ -114,8 +114,11 @@ export default function CGV() {
               consommation ne s'applique pas de plein droit.
             </p>
             <p className="mt-2">
-              <strong>Politique commerciale :</strong>{" "}
-              {"<< période d'essai ou de remboursement à decider (ex. essai gratuit 14 jours / remboursement 30 jours / aucune) >>"}.
+              <strong>Politique commerciale :</strong> l'éditeur offre une
+              période d'essai gratuite de quatorze (14) jours, sans carte
+              bancaire requise. Passé cet essai, aucune période d'abonnement
+              entamée n'est remboursée : la résiliation prend effet à la fin de
+              la période mensuelle en cours, conformément à l'article 3.
             </p>
           </div>
 
@@ -128,8 +131,11 @@ export default function CGV() {
               hors cas de force majeure ou défaillance d'un prestataire tiers.
             </p>
             <p className="mt-2">
-              <strong>Engagement de disponibilité :</strong>{" "}
-              {"<< niveau de service à decider (ex. 99,5 % mensuel avec pénalités, ou aucun engagement chiffré) >>"}.
+              <strong>Engagement de disponibilité :</strong> l'éditeur ne
+              souscrit aucun engagement chiffré de disponibilité. Il s'engage à
+              mettre en œuvre les moyens raisonnables pour maintenir le service
+              accessible et pour en rétablir le fonctionnement dans les
+              meilleurs délais en cas d'interruption.
             </p>
             <p className="mt-2">
               Le support est joignable à{" "}
@@ -169,9 +175,14 @@ export default function CGV() {
               de faute du client, de fait d'un tiers ou de force majeure.
             </p>
             <p className="mt-2">
-              <strong>Plafond de responsabilité :</strong>{" "}
-              {"<< plafond à decider (ex. montant des sommes versées sur les 12 derniers mois) >>"}.
-              Les dommages indirects ne donnent lieu à aucune indemnisation.
+              <strong>Plafond de responsabilité :</strong> la responsabilité
+              de l'éditeur est limitée, tous préjudices confondus, au montant
+              des sommes effectivement versées par le client au titre de
+              l'abonnement au cours des douze (12) mois précédant le fait
+              générateur. Les dommages indirects ne donnent lieu à aucune
+              indemnisation. Cette limitation ne s'applique pas en cas de faute
+              lourde ou dolosive, ni dans les cas où la loi interdit de la
+              stipuler.
             </p>
           </div>
 

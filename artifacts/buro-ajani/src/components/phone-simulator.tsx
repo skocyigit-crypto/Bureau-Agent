@@ -58,11 +58,12 @@ function MobileStatusBar() {
 }
 
 function MobileHeader({ title, onBack }: { title: string; onBack?: () => void }) {
+  const { t } = useTranslation();
   return (
     <div className="bg-[#1a2744] text-white px-4 py-2.5 flex items-center gap-2">
       {onBack && (
-        <button onClick={onBack} className="p-0.5">
-          <ChevronLeft className="w-4 h-4" />
+        <button onClick={onBack} className="p-0.5" aria-label={t("common.back")}>
+          <ChevronLeft className="w-4 h-4" aria-hidden="true" />
         </button>
       )}
       <span className="text-xs font-semibold flex-1">{title}</span>

@@ -73,6 +73,7 @@ export default function DataProtectionPage() {
   const qc = useQueryClient();
   const [requestType, setRequestType] = useState("");
   const [requestDetails, setRequestDetails] = useState("");
+  const [processNotes, setProcessNotes] = useState<Record<number, string>>({});
   const isAdmin = user.role === "super_admin" || user.role === "administrateur";
 
   const { data, isLoading } = useQuery({
@@ -118,22 +119,61 @@ export default function DataProtectionPage() {
     onError: () => toast({ title: t("dataProtection.toast.networkError"), variant: "destructive" }),
   });
 
+  const download = async (res: Response, filename: string) => {
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleExport = async () => {
     try {
       const res = await apiFetch("/data-protection/export", { method: "POST" });
       if (!res.ok) { toast({ title: t("dataProtection.toast.exportError"), variant: "destructive" }); return; }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `agent-de-bureau-export-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await download(res, `agent-de-bureau-export-${new Date().toISOString().slice(0, 10)}.json`);
       toast({ title: t("dataProtection.toast.exportDownloaded"), description: t("dataProtection.toast.exportDownloadedDesc") });
     } catch {
       toast({ title: t("dataProtection.toast.exportFailed"), variant: "destructive" });
     }
   };
+
+  // L'export INDIVIDUEL, ouvert a tous — a ne pas confondre avec celui
+  // ci-dessus, qui rend le fichier entier de l'organisation et reste reserve
+  // aux administrateurs. C'est celui-ci qui porte le droit de la personne.
+  const handleMyExport = async () => {
+    try {
+      const res = await apiFetch("/data-protection/my-data");
+      if (!res.ok) { toast({ title: t("dataProtection.toast.exportError"), variant: "destructive" }); return; }
+      await download(res, `mes-donnees-${new Date().toISOString().slice(0, 10)}.json`);
+      toast({ title: t("dataProtection.toast.myDataDownloaded"), description: t("dataProtection.toast.myDataDownloadedDesc") });
+    } catch {
+      toast({ title: t("dataProtection.toast.exportFailed"), variant: "destructive" });
+    }
+  };
+
+  const processMutation = useMutation({
+    mutationFn: ({ id, status, responseNotes }: { id: number; status: string; responseNotes: string }) =>
+      apiFetch(`/data-protection/requests/${id}/process`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, responseNotes }),
+      }).then(r => r.json()),
+    onSuccess: (res) => {
+      if (res.success) {
+        toast({ title: t("dataProtection.toast.requestProcessed"), description: t("dataProtection.toast.requestProcessedDesc") });
+        setProcessNotes({});
+        qc.invalidateQueries({ queryKey: ["data-protection-summary"] });
+      } else {
+        // Le serveur refuse un refus non motive (art. 12(4)). Son message dit
+        // pourquoi: le relayer vaut mieux qu'un « erreur » generique.
+        toast({ title: t("dataProtection.toast.processError"), description: res.error, variant: "destructive" });
+      }
+    },
+    onError: () => toast({ title: t("dataProtection.toast.networkError"), variant: "destructive" }),
+  });
 
   if (isLoading) {
     return (
@@ -245,12 +285,31 @@ export default function DataProtectionPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3">
+                {/* Le droit de la PERSONNE, ouvert a tous. Il vient en
+                    premier: c'est celui que l'article 15 garantit a chacun,
+                    alors que l'export global ci-dessous est un outil de
+                    direction. Le libelle dit aussi ce qui n'y est PAS, faute
+                    de quoi un fichier plus court que prevu passerait pour un
+                    export incomplet. */}
+                <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-blue-800 dark:text-blue-300">{t("dataProtection.myDataTitle")}</p>
+                      <p className="text-xs text-blue-700 dark:text-blue-400">{t("dataProtection.myDataDesc")}</p>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={handleMyExport} className="gap-2 shrink-0">
+                      <FileDown className="h-4 w-4" aria-hidden="true" /> {t("dataProtection.myData")}
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-blue-700/80 dark:text-blue-400/80 mt-2">{t("dataProtection.myDataScope")}</p>
+                </div>
+
+                <Separator />
+
                 {/* L'export rend le fichier ENTIER de l'organisation, pas les
                     donnees du demandeur: le serveur le reserve donc aux
                     administrateurs. Afficher le bouton aux autres ne leur
-                    vaudrait qu'un 403 et un message d'erreur. La demande
-                    individuelle juste en dessous, elle, reste ouverte a tous:
-                    c'est le canal prevu pour l'article 20. */}
+                    vaudrait qu'un 403 et un message d'erreur. */}
                 {isAdmin && (
                   <>
                     <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
@@ -418,15 +477,60 @@ export default function DataProtectionPage() {
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <Badge variant={req.status === "completed" ? "default" : req.status === "pending" ? "secondary" : "outline"}>
-                            {req.status === "completed" ? t("dataProtection.statusCompleted") : req.status === "pending" ? t("dataProtection.statusPending") : req.status}
+                            {req.status === "completed" ? t("dataProtection.statusCompleted")
+                              : req.status === "pending" ? t("dataProtection.statusPending")
+                              : req.status === "refused" ? t("dataProtection.statusRefused") : req.status}
                           </Badge>
                           <span className="text-sm font-medium">{data?.requestTypes?.[req.requestType]?.label || req.requestType}</span>
                         </div>
+                        {/* Le mois de l'article 12(3). Le retard est le
+                            manquement, donc il se lit d'un coup d'oeil et non
+                            en soustrayant deux dates de tete. */}
+                        {req.dueAt && (
+                          <p className={`text-xs mt-1 ${req.overdue ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"}`}>
+                            {req.overdue
+                              ? t("dataProtection.deadlineOverdue", { date: new Date(req.dueAt).toLocaleDateString("fr-FR") })
+                              : t("dataProtection.deadlineDue", { date: new Date(req.dueAt).toLocaleDateString("fr-FR") })}
+                          </p>
+                        )}
                         {req.details && <p className="text-xs text-muted-foreground mt-1">{req.details}</p>}
                         {req.responseNotes && <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">{req.responseNotes}</p>}
                       </div>
                       <span className="text-xs text-muted-foreground shrink-0">{new Date(req.createdAt).toLocaleDateString("fr-FR")}</span>
                     </div>
+
+                    {/* Sans ceci, une demande entrait en « en attente » et y
+                        restait pour toujours, pendant que le produit promettait
+                        une reponse sous 30 jours. */}
+                    {isAdmin && req.status === "pending" && (
+                      <div className="mt-3 pt-3 border-t space-y-2">
+                        <Label htmlFor={`notes-${req.id}`} className="text-xs">{t("dataProtection.processNotes")}</Label>
+                        <Textarea
+                          id={`notes-${req.id}`}
+                          rows={2}
+                          className="text-xs"
+                          placeholder={t("dataProtection.processNotesPlaceholder")}
+                          value={processNotes[req.id] || ""}
+                          onChange={e => setProcessNotes(n => ({ ...n, [req.id]: e.target.value }))}
+                        />
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            size="sm" variant="outline"
+                            disabled={processMutation.isPending}
+                            onClick={() => processMutation.mutate({ id: req.id, status: "refused", responseNotes: processNotes[req.id] || "" })}
+                          >
+                            {t("dataProtection.processRefuse")}
+                          </Button>
+                          <Button
+                            size="sm"
+                            disabled={processMutation.isPending}
+                            onClick={() => processMutation.mutate({ id: req.id, status: "completed", responseNotes: processNotes[req.id] || "" })}
+                          >
+                            {t("dataProtection.processComplete")}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
