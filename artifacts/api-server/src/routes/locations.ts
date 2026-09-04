@@ -338,9 +338,16 @@ router.get("/admin/team-locations", requireRole("administrateur"), async (req: R
     const states = await db
       .select({
         userId: userLocationStateTable.userId,
-        lastLat: userLocationStateTable.lastLat,
-        lastLng: userLocationStateTable.lastLng,
-        lastAccuracyM: userLocationStateTable.lastAccuracyM,
+        // Ni `lastLat`, ni `lastLng`, ni `lastAccuracyM`. La notice affichee au
+        // salarie avant d'activer le suivi promet que l'employeur voit
+        // « uniquement la zone ou vous vous trouvez et l'heure du dernier
+        // passage ». C'etait vrai de l'ecran, pas des donnees: les coordonnees
+        // partaient vers le navigateur du dirigeant, lisibles dans l'onglet
+        // reseau et recuperables par un appel direct a l'API. Une promesse de
+        // confidentialite doit tenir au niveau de la donnee — sinon elle
+        // devient fausse en silence a la premiere evolution de l'interface.
+        // Le serveur garde les coordonnees: il en a besoin pour calculer
+        // l'appartenance aux zones. Il ne les rend pas.
         lastAt: userLocationStateTable.lastAt,
         currentGeofenceIds: userLocationStateTable.currentGeofenceIds,
         battery: userLocationStateTable.battery,
@@ -396,8 +403,18 @@ router.get("/admin/team-locations/history", requireRole("administrateur"), async
     if (geofenceId) conds.push(eq(locationEventsTable.geofenceId, geofenceId));
     if (event) conds.push(eq(locationEventsTable.event, event));
 
+    // Projection explicite, pour la meme raison qu'au-dessus: un `select()`
+    // renvoyait `lat`/`lng` de chaque entree et sortie, soit 30 jours de trace
+    // au metre pres. L'ecran n'affiche que « entree — Chantier — a telle
+    // heure », et c'est aussi tout ce que la notice annonce au salarie.
     const rows = await db
-      .select()
+      .select({
+        id: locationEventsTable.id,
+        userId: locationEventsTable.userId,
+        geofenceId: locationEventsTable.geofenceId,
+        event: locationEventsTable.event,
+        at: locationEventsTable.at,
+      })
       .from(locationEventsTable)
       .where(and(...conds))
       .orderBy(desc(locationEventsTable.at))

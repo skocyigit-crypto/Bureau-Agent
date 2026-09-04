@@ -29,8 +29,62 @@ export default function Gizlilik() {
               <li><strong>Bağlantı verileri</strong>: IP adresi, giriş kayıtları, gezinme verileri</li>
               <li><strong>İş verileri</strong>: CRM kontakları, arama kayıtları, üretilen belgeler (teklif, fatura)</li>
               <li><strong>Ödeme verileri</strong>: banka bilgileri (ödeme sağlayıcımız tarafından işlenir)</li>
-              <li><strong>Konum verileri</strong> (mobil uygulama): yalnızca açık onayla, iş yerinde GPS yoklaması için, 30 gün saklanır</li>
+              {/* Onceki metin iki noktada yanlisti: takibi "yalnizca acik
+                  onayla" ve "is yerinde GPS yoklamasi" diye anlatiyordu.
+                  Gerceginde takip surekli, arka planda calisiyor ve isveren
+                  ozelligi actiginda calisan icin zorunlu — reddeden uygulamayi
+                  kullanamiyor. Yanlis anlatilan bir toplama, hic
+                  anlatilmamis olandan daha kotudur. Ayrinti 2/A'da. */}
+              <li><strong>Konum verileri</strong> (mobil uygulama): işvereniniz yoklama takibini açtığında, sürekli ve arka planda toplanır (bkz. 2/A)</li>
             </ul>
+          </div>
+
+          <div>
+            <h2 className="text-lg font-semibold text-foreground mb-3">2/A. Konumla yoklama takibi (mobil uygulama)</h2>
+            <p>
+              Bu işleme yalnızca yoklama takibini açan kuruluşlar için ve
+              yalnızca mobil uygulamada geçerlidir; web sürümünde yoktur.
+            </p>
+            <ul className="mt-2 space-y-1 pl-4 list-disc">
+              <li>
+                <strong>Toplanan</strong>: yaklaşık enlem ve boylam, zaman
+                damgası, ölçüm doğruluğu ve varsa pil düzeyi. Ölçüm, siz giriş
+                yapmış durumdayken en çok 60 saniyede bir ya da 100 metrede bir,
+                <strong> uygulama arka plandayken de</strong> yapılır.
+              </li>
+              <li>
+                <strong>İşverenin gördüğü</strong>: yalnızca hangi bölgede
+                (şantiye, ofis, saha) olduğunuz ve son geçiş saati. Tam
+                koordinatlar sunucularımızdan çıkmaz; sadece bölge içinde olup
+                olmadığınızı hesaplamak için kullanılır ve yönetim ekranına
+                gönderilmez.
+              </li>
+              <li>
+                <strong>Saklama</strong>: 30 gün. Daha eski giriş/çıkış olayları
+                ve 30 gündür hareketsiz kullanıcıların son bilinen konumu
+                otomatik olarak silinir.
+              </li>
+              <li>
+                <strong>Sorumlu</strong>: takibi açma, bölgeleri ve amacı
+                belirleme kararı işvereninize aittir; veri sorumlusu odur. SK
+                GROUP veri işleyen sıfatıyla hareket eder
+                (<a href="/dpa" className="text-primary underline">DPA</a>).
+              </li>
+            </ul>
+            <p className="mt-3 text-sm">
+              Çalışanın konum takibi sıkı koşullara bağlıdır. Takip, güdülen
+              amaçla orantılı olmalı, çalışma saatleri dışında gözetim aracına
+              dönüşmemeli ve hem çalışan temsilcileri hem de ilgili kişiler
+              önceden bilgilendirilmelidir. Bu koşulları sağlamak, gerektiğinde
+              etki değerlendirmesi yapmak ve çalışma saatleri dışında takibin
+              kapatılabilmesini sağlamak, özelliği açan işverenin
+              sorumluluğundadır.
+            </p>
+            <p className="mt-3 text-sm">
+              Erişim, düzeltme, silme ve itiraz haklarınızı işvereninize ya da
+              <strong> privacy@agentdebureau.fr</strong> adresine
+              başvurarak kullanabilirsiniz.
+            </p>
           </div>
 
           <div>
