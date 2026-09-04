@@ -63,8 +63,16 @@ function runAudit() {
 }
 
 /**
- * Compte les avis haute/critique. On lit le JSON plutot que le code de
- * sortie: c'est lui qui distingue « zero vulnerabilite » d'« audit rate ».
+ * Compte les avis haute/critique REELLEMENT retenus. On lit le JSON plutot
+ * que le code de sortie: c'est lui qui distingue « zero vulnerabilite »
+ * d'« audit rate ».
+ *
+ * On compte `advisories`, PAS `metadata.vulnerabilities`. Mesure du
+ * 2026-09-04: ce compteur inclut les avis explicitement exemptes par
+ * `pnpm.auditConfig.ignoreGhsas` — il annoncait « high: 2 » alors que la liste
+ * ne contenait qu'un avis faible et un modere, les deux hauts etant exemptes.
+ * Premiere version de ce script: elle a casse le build de main pour deux avis
+ * que le depot avait deja decide d'ignorer.
  */
 function severeCount(stdout) {
   let parsed;
@@ -73,8 +81,14 @@ function severeCount(stdout) {
   } catch {
     return null;
   }
-  const v = parsed?.metadata?.vulnerabilities ?? {};
-  return (v.high ?? 0) + (v.critical ?? 0);
+  const advisories = parsed?.advisories;
+  if (!advisories || typeof advisories !== "object") {
+    // Sortie JSON d'une forme inattendue: on ne conclut pas « propre ».
+    return null;
+  }
+  return Object.values(advisories)
+    .filter((a) => a?.severity === "high" || a?.severity === "critical")
+    .length;
 }
 
 function sleep(ms) {

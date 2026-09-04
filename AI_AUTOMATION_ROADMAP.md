@@ -2191,3 +2191,17 @@ kapı hiçbir şeyi korumaz, çünkü kimse ne dediğini okumaz.
 Dört yolun dördü de ölçüldü: komut `SECURITY_AUDIT_CMD` ile enjekte edilebilir,
 böylece temiz / açıklı / ağ / bilinmeyen durumları registry'nin o anki hâline
 bağlı kalmadan doğrulanıyor (0, 1, 0+uyarı, 3).
+
+### Ve script'in ilk hâli main'i düşürdü — aynı gün
+
+Kapı ilk gerçek koşusunda "2 yüksek açık" deyip main'i düşürdü. Sebep
+bağımlılıklar değil, benim okuduğum alandı: `metadata.vulnerabilities` sayacı,
+`pnpm.auditConfig.ignoreGhsas` ile **bilerek muaf tutulan** tavsiyeleri de
+sayıyor. Gerçek listede (`advisories`) yalnızca bir düşük ve bir orta vardı;
+iki yüksek olan zaten deponun daha önce ignore ettiği ikisiydi. Eski komut
+geçiyordu çünkü pnpm'in çıkış kodu muafiyetleri hesaba katıyor.
+
+Script artık `advisories` listesini sayıyor, sayaç alanını değil; JSON beklenen
+biçimde değilse "temiz" demek yerine hata veriyor. Ders, bugün üçüncü kez
+aynısı: **özet bir sayı, ayrıntının yerine geçmez** — sayaç "2 yüksek" derken
+liste "hiçbiri" diyordu.
