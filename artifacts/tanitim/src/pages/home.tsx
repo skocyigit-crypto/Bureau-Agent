@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { AjanDemo } from "@/components/AjanDemo";
-import { REGISTER_URL } from "@/lib/app-url";
+import { REGISTER_URL, registerUrlForPlan } from "@/lib/app-url";
 
 // DemoModal n'est rendu que sur clic — chargement paresseux pour
 // retirer ses 215 lignes (+ framer-motion déjà en cache + lucide
@@ -779,7 +779,7 @@ export default function Home() {
                   <span className="text-5xl font-extrabold text-primary">29€</span>
                   <span className="text-muted-foreground font-medium">/mois</span>
                 </div>
-                <a href={REGISTER_URL} className="block w-full mb-8">
+                <a href={registerUrlForPlan("starter")} className="block w-full mb-8">
                   <Button variant="outline" className="w-full h-14 rounded-xl text-lg font-bold border-2 hover:bg-primary/5">
                     Essai gratuit 14 jours
                   </Button>
@@ -821,7 +821,7 @@ export default function Home() {
                   <span className="text-5xl font-extrabold text-white">79€</span>
                   <span className="text-blue-200/80 font-medium">/mois</span>
                 </div>
-                <a href={REGISTER_URL} className="block w-full mb-8">
+                <a href={registerUrlForPlan("professionnel")} className="block w-full mb-8">
                   <Button className="w-full h-14 rounded-xl text-lg font-bold bg-accent text-accent-foreground hover:bg-accent/90 shadow-xl">
                     Essai gratuit 14 jours
                   </Button>

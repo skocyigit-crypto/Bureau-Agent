@@ -20,9 +20,28 @@ interface RegisterPageProps {
  */
 const VITRINE_URL = import.meta.env.VITE_VITRINE_URL ?? "https://agentdebureau.fr";
 
+/**
+ * Le plan sur lequel le visiteur a clique, depuis la vitrine (`?plan=starter`).
+ *
+ * Il ne change rien a ce qui est cree — tout le monde commence par les 14 jours
+ * d'essai, c'est ce que les cartes de tarifs annoncent. Il sert a deux choses:
+ * dire a la personne que son choix n'a pas ete perdu, et transmettre cette
+ * intention au serveur, qui la consigne pour la fin de l'essai. Une valeur
+ * inconnue dans l'URL est ignoree plutot que renvoyee telle quelle.
+ */
+const PLANS_CONNUS = ["starter", "professionnel", "entreprise"] as const;
+
+function planDepuisUrl(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  const brut = new URLSearchParams(window.location.search).get("plan");
+  return PLANS_CONNUS.find((p) => p === brut);
+}
+
 export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
   const { t } = useTranslation();
   const [step, setStep] = useState<"form" | "success">("form");
+  // Lu une seule fois: l'URL ne change pas sous le formulaire.
+  const [planChoisi] = useState(planDepuisUrl);
   // Volontairement non cochee au depart: un consentement pre-coche n'en est pas un.
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [orgName, setOrgName] = useState("");
@@ -90,6 +109,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
           email: email.trim(),
           phone: normalizedPhone || undefined,
           password,
+          plan: planChoisi,
           acceptedTerms,
         }),
       });
@@ -231,6 +251,14 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
           <CardDescription className="text-sm">
             {t("register.subtitle")}
           </CardDescription>
+          {planChoisi && (
+            // On ne promet pas le plan: on accuse reception du choix, et on dit
+            // ce qui est reellement cree. Annoncer « plan Professionnel » alors
+            // qu'un essai est ouvert serait une promesse tarifaire fausse.
+            <p className="text-sm text-muted-foreground">
+              {t(`register.planChoisi.${planChoisi}`)}
+            </p>
+          )}
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-3">

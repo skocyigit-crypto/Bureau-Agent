@@ -1709,7 +1709,12 @@
     "acceptTermsPrefix": "J'ai lu et j'accepte les",
     "acceptTermsCgu": "conditions generales d'utilisation",
     "acceptTermsAnd": "et les",
-    "acceptTermsCgv": "conditions generales de vente"
+    "acceptTermsCgv": "conditions generales de vente",
+    "planChoisi": {
+      "starter": "Vous avez choisi le plan Starter. Votre compte demarre par 14 jours d'essai; vous choisirez votre abonnement a la fin.",
+      "professionnel": "Vous avez choisi le plan Professionnel. Votre compte demarre par 14 jours d'essai; vous choisirez votre abonnement a la fin.",
+      "entreprise": "Vous avez choisi l'offre Entreprise. Votre compte demarre par 14 jours d'essai; nous revenons vers vous pour l'offre sur mesure."
+    }
   },
   "invitation": {
     "roles": {

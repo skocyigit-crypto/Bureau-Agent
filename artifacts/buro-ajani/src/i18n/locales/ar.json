@@ -1709,7 +1709,12 @@
     "acceptTermsPrefix": "لقد قرأت وأوافق على",
     "acceptTermsCgu": "شروط الاستخدام",
     "acceptTermsAnd": "و",
-    "acceptTermsCgv": "شروط البيع"
+    "acceptTermsCgv": "شروط البيع",
+    "planChoisi": {
+      "starter": "لقد اخترت باقة Starter. يبدأ حسابك بفترة تجريبية مدتها ١٤ يوماً؛ ستختار اشتراكك في نهايتها.",
+      "professionnel": "لقد اخترت باقة Professionnel. يبدأ حسابك بفترة تجريبية مدتها ١٤ يوماً؛ ستختار اشتراكك في نهايتها.",
+      "entreprise": "لقد اخترت عرض Entreprise. يبدأ حسابك بفترة تجريبية مدتها ١٤ يوماً؛ وسنتواصل معك بشأن العرض المخصص."
+    }
   },
   "invitation": {
     "roles": {
