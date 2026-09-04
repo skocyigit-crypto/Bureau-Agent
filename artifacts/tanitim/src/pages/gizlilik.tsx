@@ -131,7 +131,27 @@ export default function Gizlilik() {
 
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-3">7. Çerezler</h2>
-            <p>Yalnızca hizmetin çalışması için kesinlikle gerekli olan çerezleri (oturum, kimlik doğrulama) kullanıyoruz. Açık rızanız olmadan reklam veya üçüncü taraf izleme çerezi kullanılmaz.</p>
+            <p>
+              Yalnızca hizmetin çalışması için kesinlikle gerekli olan
+              çerezleri (oturum, kimlik doğrulama) kullanıyoruz. Reklam çerezi
+              ya da izleyici yoktur.
+            </p>
+            {/* Bu ayrinti eksikti ve yoklugu ustteki cumleyi yanlis kiliyordu:
+                yazi tipi Google'dan yukleniyordu, yani her ziyaretcinin IP
+                adresi bir ucuncu tarafa gidiyordu. Yazi tipi cerez degildir,
+                ama ag istegi gerceklesiyordu ve ziyaretci ne bunu bilebiliyor
+                ne de itiraz edebiliyordu. */}
+            <p className="mt-2">
+              Sayfadaki hiçbir kaynak — yazı tipi, kütüphane, görsel — üçüncü
+              taraf bir servisten yüklenmez; her şey kendi sunucularımızdan
+              gelir. Ziyaretiniz nedeniyle IP adresiniz bizden başka kimseye
+              iletilmez.
+            </p>
+            <p className="mt-2">
+              Bu çerezler hizmet için zorunlu olduğundan rızanız gerekmez;
+              mevzuat bunları açıkça rıza alma yükümlülüğünden muaf tutar.
+              Bilgilendirilmeniz gerekir, başka hiçbir şey yerleştirilmez.
+            </p>
           </div>
 
           <div>

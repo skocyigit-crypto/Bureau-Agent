@@ -160,7 +160,28 @@ export default function Confidentialite() {
 
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-3">7. Cookies</h2>
-            <p>Nous utilisons des cookies strictement nécessaires au fonctionnement du service (session, authentification). Aucun cookie publicitaire ou de tracking tiers n'est utilisé sans votre consentement explicite.</p>
+            <p>
+              Nous utilisons uniquement des cookies strictement nécessaires au
+              fonctionnement du service (session, authentification). Aucun
+              cookie publicitaire, aucun traceur.
+            </p>
+            {/* Cette precision manquait, et son absence rendait la phrase
+                ci-dessus fausse: la police de caracteres etait chargee depuis
+                Google, ce qui transmettait l'adresse IP de chaque visiteur a
+                un tiers. Une police n'est pas un cookie, mais l'appel reseau
+                existe et le visiteur ne pouvait ni le savoir ni s'y opposer. */}
+            <p className="mt-2">
+              Aucune ressource de la page — police de caractères, bibliothèque,
+              image — n'est chargée depuis un service tiers : tout est servi
+              depuis nos propres serveurs. Votre adresse IP n'est donc
+              transmise à personne d'autre que nous du fait de votre visite.
+            </p>
+            <p className="mt-2">
+              Ces cookies étant indispensables au service, ils ne requièrent pas
+              votre consentement : la réglementation les dispense expressément
+              de recueil du consentement. Vous en êtes informé, et rien d'autre
+              n'est déposé.
+            </p>
           </div>
 
           <div>
