@@ -2382,7 +2382,7 @@ ortadan kaldırmamalı.
 ## Bir kapı Windows'ta hiç geçilemiyormuş — 2026-09-04
 
 Günün işini denetlerken bütün kapıları yerelde koştum. Altısı geçti, biri
-geçmedi: rota envanteri **perime** diyordu, ama  hiçbir fark
+geçmedi: rota envanteri **"bayat"** diyordu, ama `routes:write` hiçbir fark
 üretmiyordu. Yani geliştirici ne kapıyı memnun edebiliyor ne de sebebini
 görebiliyordu.
 
