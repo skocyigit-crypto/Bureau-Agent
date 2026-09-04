@@ -74,5 +74,10 @@ node ./scripts/schema-guard.mjs
 
 pnpm exec drizzle-kit push --force --config ./drizzle.config.ts
 node ./scripts/ensure-audit-append-only.mjs
+# La chaine de la CI finit par cette verification; la production, elle, ne la
+# faisait pas. C'est pourtant ici qu'elle compte le plus: une poussee qui
+# « reussit » sans creer la colonne attendue ne se voit qu'a la premiere
+# requete d'un vrai client, en 500.
+node ./scripts/verify-schema-sync.mjs
 
 echo "== Schema push complete =="
