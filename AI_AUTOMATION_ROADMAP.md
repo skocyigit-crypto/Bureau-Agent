@@ -2378,3 +2378,19 @@ gürültüdür. Yeniden kullanılırsa listeye girer.
 doğrulandı: `success` eski değerine döndürülünce 1, geri alınınca 0. Eksik
 jeton da hata sayılıyor — yeniden adlandırılan bir jeton, denetimini sessizce
 ortadan kaldırmamalı.
+
+## Bir kapı Windows'ta hiç geçilemiyormuş — 2026-09-04
+
+Günün işini denetlerken bütün kapıları yerelde koştum. Altısı geçti, biri
+geçmedi: rota envanteri **perime** diyordu, ama  hiçbir fark
+üretmiyordu. Yani geliştirici ne kapıyı memnun edebiliyor ne de sebebini
+görebiliyordu.
+
+Sebep karşılaştırmanın kendisiydi: dosya bayt bayt kıyaslanıyordu. Windows'ta
+git dosyayı CRLF ile açıyor, script LF yazıyor — içerik aynı, baytlar değil.
+CI Linux'ta koştuğu için orada hep geçiyordu, **yani kusur tam da bakılan yerde
+görünmüyordu**.
+
+Karşılaştırma artık satır sonlarını normalleştiriyor. Bu, kapının katılığını
+azaltmıyor: aynı içerik farklı satır sonuyla yazıldığında geçiyor, içerik
+değiştiğinde hâlâ düşüyor.
