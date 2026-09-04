@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import { sendEmail } from "../services/email";
 import { eq, and, sql, desc } from "drizzle-orm";
 import { db, organisationsTable, subscriptionsTable, usersTable, contactsTable, callsTable, invoicesTable } from "@workspace/db";
 import { PLANS, type PlanKey } from "@workspace/db/schema";
@@ -127,9 +128,43 @@ router.post("/my-subscription/upgrade-request", async (req: Request, res: Respon
       });
     }
 
+    // La notification seule ne suffisait pas: elle n'existe QUE dans
+    // l'application. Tant que personne n'ouvrait l'ecran, un client qui
+    // demandait a payer restait invisible — alors que la reponse ci-dessous
+    // lui promet d'etre recontacte. Tant que le paiement par carte n'est pas
+    // active, cette demande EST le canal de vente; elle doit sortir de
+    // l'application.
+    //
+    // L'envoi ne conditionne pas la reponse: si le mail echoue, la demande est
+    // deja enregistree en notification, et faire echouer l'appel ferait croire
+    // au client que sa demande n'est pas passee.
+    const planName = PLANS[targetPlan as PlanKey].name;
+    const sujet = `Demande de passage au plan ${planName} — ${org?.name ?? "organisation"}`;
+    const corps = [
+      `${org?.name ?? "Une organisation"} demande un passage au plan "${planName}".`,
+      `Demandeur: ${user?.email ?? "utilisateur inconnu"}`,
+      message ? `Message: ${message}` : "",
+    ].filter(Boolean).join("\n");
+
+    for (const admin of superAdmins) {
+      if (!admin.email) continue;
+      void sendEmail(
+        admin.email,
+        sujet,
+        `<p>${corps.split("\n").join("<br>")}</p>`,
+        corps,
+      ).then((r) => {
+        if (!r.success) {
+          req.log.warn({ err: r.error, admin: admin.email }, "[upgrade-request] mail non remis");
+        }
+      }).catch((err) => {
+        req.log.warn({ err }, "[upgrade-request] mail non remis");
+      });
+    }
+
     res.json({
       success: true,
-      message: `Votre demande de passage au plan "${PLANS[targetPlan as PlanKey].name}" a ete envoyee a l'administrateur. Vous serez contacte sous peu.`,
+      message: `Votre demande de passage au plan "${planName}" a ete envoyee a l'administrateur. Vous serez contacte sous peu.`,
     });
   } catch (err: any) {
     req.log.error({ err }, "Erreur demande upgrade abonnement");

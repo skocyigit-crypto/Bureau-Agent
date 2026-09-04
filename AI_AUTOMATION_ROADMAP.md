@@ -2592,3 +2592,30 @@ ve `TENANT_TABLES`'a eklenmeden testi düşürdü — tam da bunun için var.
 **Kalan (bilerek ayrı):** avoir (alacak dekontu) hâlâ yok. Emitilmiş bir
 faturayı düzeltmenin doğru yolu odur; bu PR onu eklemiyor, ama artık yanlış
 yolu (yeniden yazmak) kapatıyor.
+
+## Ödemek isteyen müşteri görünmüyormuş — 2026-09-04
+
+Satılabilirlik denetiminin ikinci bulgusu. Kartla ödeme üretimde kapalı
+olduğu için **satış kanalı** şu anda "plan yükseltme talebi". Uç, kullanıcıya
+*"yakında sizinle iletişime geçilecek"* diyordu — ama yalnızca uygulama içi
+bildirim yazıyordu. Hiçbir süper yönetici o ekranı açmazsa, **para vermek
+isteyen müşteri hiç görünmüyordu**.
+
+### Yapılan
+
+Talep artık her süper yöneticiye **e-posta da** gönderiyor: hangi organizasyon,
+hangi plan, kim istedi ve varsa mesajı — uygulamayı açmadan karar verilebilecek
+kadar bilgi.
+
+Gönderim **yanıtı koşullamıyor**. Mail başarısız olsa bile uç 200 dönüyor,
+çünkü bildirim zaten yazılmış durumda; hata döndürmek müşteriye "talebin
+gitmedi" dedirtirdi, ki bu yanlış olurdu.
+
+### Doğrulama
+
+3 test: mailin gerçekten çıktığı ve doğru adrese gittiği, içeriğinin plan ve
+talep mesajını taşıdığı, bildirimin **yerine geçmediği** (ikisi birden
+yazılıyor), ve mail patladığında bile yanıtın başarı olduğu.
+
+**Kalan:** fiyat kartlarındaki plan seçimi hâlâ kayıt ekranına taşınmıyor —
+üç kart da aynı forma düşüyor ve herkes denemeye başlıyor. Ayrı bir iş.
