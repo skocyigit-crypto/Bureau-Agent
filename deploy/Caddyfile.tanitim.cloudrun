@@ -42,7 +42,23 @@
                 root * /srv
                 @hashed path_regexp -[A-Za-z0-9_-]{8,}\.(js|css|woff2?|png|jpe?g|gif|svg|webp|avif)$
                 header @hashed Cache-Control "public, max-age=31536000, immutable"
-                header /index.html Cache-Control "no-cache, no-store, must-revalidate"
+                # Meme correction que pour l'application (voir
+                # Caddyfile.cloudrun): `header /index.html` filtre sur le chemin
+                # DEMANDE, or les visites arrivent sur `/`, `/cgv`,
+                # `/mentions-legales`... et ne deviennent `/index.html` qu'en
+                # interne, via `try_files`. La regle ne s'appliquait donc jamais,
+                # et la mesure en ligne le confirmait: aucune reponse ne portait
+                # de Cache-Control.
+                #
+                # Ce site aussi decoupe son code (`lazy()`), y compris les pages
+                # legales. Un visiteur qui garde un vieux document demande des
+                # fichiers supprimes au deploiement suivant: les CGV, les
+                # mentions legales ou la politique de confidentialite ne
+                # s'affichent alors plus — les documents memes que la loi impose
+                # de rendre accessibles, et dont les tests e2e verifient
+                # l'affichage sans jamais voir le cache du visiteur.
+                @document not path_regexp -[A-Za-z0-9_-]{8,}\.(js|css|woff2?|png|jpe?g|gif|svg|webp|avif)$
+                header @document Cache-Control "no-cache, must-revalidate"
 
                 try_files {path} /index.html
                 file_server
