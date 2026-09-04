@@ -252,7 +252,7 @@ export default function KnowledgeBaseScreen() {
           {error && (
             <View style={[styles.errorCard, { backgroundColor: colors.destructive + "12", borderColor: colors.destructive + "40" }]}>
               <Feather name="alert-triangle" size={15} color={colors.destructive} />
-              <Text style={[styles.errorText, { color: colors.destructive }]}>{error}</Text>
+              <Text style={[styles.errorText, { color: colors.destructiveText }]}>{error}</Text>
             </View>
           )}
 

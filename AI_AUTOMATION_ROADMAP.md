@@ -2343,3 +2343,38 @@ açıcısı `outline-none` ile tarayıcının verdiği göstergeyi siliyor, yeri
 Script her türlü görünür geri gelişi kabul ediyor — halka, kenarlık, arka plan,
 Radix'in `data-[highlighted]` özniteliği — çünkü dar bir tanım, düzeltilecek
 hiçbir şeyi olmayan yerlerde gürültü üretir ve kapıyı okunmaz hâle getirir.
+
+## Mobil palet hiç ölçülmemişti, ve web'den kötüydü — 2026-09-04
+
+Web'in kontrastını ölçtükten sonra simetrik boşluk göze battı: **cep
+uygulamasının paleti hiç ölçülmemişti**.
+
+### Bulgu
+
+- `destructiveForeground` / `destructive` = **3.76, iki temada da** — silme
+  düğmesinin beyaz yazısı.
+- Açık temada `success` **2.18**, `warning` **2.05**, `info` **3.52**. Bunları
+  "ihlal" demeden önce gerçekten metin olarak kullanıldıklarını doğruladım
+  (güvenlik ekranı, üç ayrı satır) — jetonun adı değil, kullanımı belirler.
+- `mutedForeground` / `muted` = 4.34, web'dekiyle aynı kusur.
+
+### Tek jetonun taşıyamadığı çelişki
+
+Koyu temada **hiçbir kırmızı** hem beyaz yazı taşıyıp (koyu olmalı) hem koyu
+zeminde metin olamıyor (açık olmalı). Bunu aramayla doğruladım: çözüm yok.
+Dolayısıyla jeton ikiye ayrıldı — `destructive` zemin, `destructiveText` metin
+— ve `destructive`'i metin olarak kullanan dört hata mesajı (giriş ekranı
+dahil) yeni jetona geçirildi. Yeni jeton bağlanmamış kalmadı.
+
+### Ölü jeton
+
+`tint` hâlâ sınırın altında ama **hiçbir yerde kullanılmıyor**
+(`colors.tint` = 0). Kapıda gerekçesiyle dışarıda: ölü bir jetonu raporlamak
+gürültüdür. Yeniden kullanılırsa listeye girer.
+
+### Kapı
+
+`artifacts/mobile/scripts/a11y-contrast.mjs`, `a11y:check` içinde. Ölçtüğü
+doğrulandı: `success` eski değerine döndürülünce 1, geri alınınca 0. Eksik
+jeton da hata sayılıyor — yeniden adlandırılan bir jeton, denetimini sessizce
+ortadan kaldırmamalı.

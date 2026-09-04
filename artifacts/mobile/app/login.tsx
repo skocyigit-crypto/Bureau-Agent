@@ -226,7 +226,7 @@ export default function LoginScreen() {
         {error ? (
           <View style={[styles.errorBox, { backgroundColor: colors.destructive + "15" }]}>
             <Feather name="alert-circle" size={16} color={colors.destructive} />
-            <Text style={[styles.errorText, { color: colors.destructive }]}>{error}</Text>
+            <Text style={[styles.errorText, { color: colors.destructiveText }]}>{error}</Text>
           </View>
         ) : null}
 
