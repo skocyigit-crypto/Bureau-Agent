@@ -309,7 +309,7 @@ export default function MeetingsScreen() {
                       </Text>
                     </Pressable>
                     {locError && (
-                      <Text style={[styles.locError, { color: colors.destructive }]}>{locError}</Text>
+                      <Text style={[styles.locError, { color: colors.destructiveText }]}>{locError}</Text>
                     )}
                     {position && !chantierDetecte && (
                       <Text style={[styles.locNote, { color: colors.mutedForeground }]}>
