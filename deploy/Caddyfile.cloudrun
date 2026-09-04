@@ -85,7 +85,26 @@
                 root * /srv
                 @hashed path_regexp -[A-Za-z0-9_-]{8,}\.(js|css|woff2?|png|jpe?g|gif|svg|webp|avif)$
                 header @hashed Cache-Control "public, max-age=31536000, immutable"
-                header /index.html Cache-Control "no-cache, no-store, must-revalidate"
+                # Le document HTML ne doit JAMAIS etre servi depuis le cache sans
+                # revalidation: il porte les noms (hashes) des morceaux de code, et
+                # ceux-ci disparaissent du serveur au deploiement suivant. Un
+                # navigateur qui garde un vieux document demande des fichiers qui
+                # n'existent plus: certains onglets s'ouvrent, les autres affichent
+                # « rechargez ou reessayez ». C'est exactement le symptome remonte
+                # par les utilisateurs le 2026-09-04.
+                #
+                # La regle existait deja — mais elle ne s'appliquait pas. `header
+                # /index.html` filtre sur le chemin DEMANDE, or les navigations
+                # arrivent sur `/`, `/taches`, `/appels`... et ne deviennent
+                # `/index.html` qu'en interne, via `try_files`. Mesure en ligne le
+                # 2026-09-04: `/` ne portait aucun Cache-Control, donc le navigateur
+                # appliquait sa mise en cache heuristique.
+                #
+                # `no-store` n'est volontairement pas repris: il interdirait aussi le
+                # cache de retour arriere du navigateur. `no-cache` dit ce qu'on veut
+                # vraiment — revalider avant de reutiliser.
+                @document not path_regexp -[A-Za-z0-9_-]{8,}\.(js|css|woff2?|png|jpe?g|gif|svg|webp|avif)$
+                header @document Cache-Control "no-cache, must-revalidate"
 
                 try_files {path} /index.html
                 file_server
