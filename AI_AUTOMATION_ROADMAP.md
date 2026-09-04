@@ -2619,3 +2619,35 @@ yazılıyor), ve mail patladığında bile yanıtın başarı olduğu.
 
 **Kalan:** fiyat kartlarındaki plan seçimi hâlâ kayıt ekranına taşınmıyor —
 üç kart da aynı forma düşüyor ve herkes denemeye başlıyor. Ayrı bir iş.
+
+## CGV'ler hiç gösterilmiyordu, ama "sipariş kabul sayılır" diyordu — 2026-09-04
+
+Denetimin hukuki bulgularından biri, ve satıştan önce kapanması gerekenlerden.
+CGV metni *"toute commande vaut acceptation sans reserve des presentes"* diyor.
+Ama kayıt ekranı CGV veya CGU'dan **tek kelime etmiyordu** — ne bağlantı, ne
+kutu, ne kayıt. Fransız Medeni Kanunu md. 1119, karşı tarafın bilgisine
+sunulmamış genel koşulları geçersiz sayıyor: yani madde **dayanaksızdı** ve
+riski satıcı taşıyordu.
+
+### Yapılan
+
+- Kayıt ekranına, **önceden işaretlenmemiş** bir onay kutusu ve iki belgeye
+  bağlantı (yeni sekmede açılıyor: yarım dolmuş bir form bir sözleşme okumak
+  için kaybedilmemeli). Altı dilin hepsine çeviri.
+- Sunucu `acceptedTerms !== true` ise reddediyor. `"true"`, `1`, `"on"` gibi
+  değerler de reddediliyor — yanlış kablolanmış bir formu kabul etmek,
+  olmayan bir rızayı uydurmak olurdu.
+- Kabul, hesabı oluşturan **işlemin içinde** `legal_agreements`'a yazılıyor:
+  kim, ne zaman, hangi sürüm, hangi IP. İşlem başarısız olursa kayıt da geri
+  alınıyor — var olmayan bir hesap için rıza kanıtı, kanıtsızlıktan kötüdür.
+
+### Sıra da bir bulguydu
+
+Kontrolü en başa koyunca **var olan bir test düştü**: kullanıcıya önce
+formundaki hatayı söylemesi gerekirken onay hatasını söylüyordu. O test tam da
+"ne düzelteceğini söyle, sadece reddetme" kuralını koruyor. Kontrol alan
+doğrulamalarından sonraya alındı.
+
+4 yeni test: kutu işaretlenmeden hesap açılmıyor, sahte doğruluk değerleri
+reddediliyor, kabul izi eksiksiz yazılıyor, ve başarısız kayıt hiç iz
+bırakmıyor.

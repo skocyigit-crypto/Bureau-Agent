@@ -13,9 +13,18 @@ interface RegisterPageProps {
   onBack: () => void;
 }
 
+/**
+ * Ou vivent les documents contractuels. Ils sont publies par le site vitrine,
+ * pas par l'application: le lien sort donc du domaine courant. Surchargeable
+ * pour les previsualisations, ou la vitrine porte une autre adresse.
+ */
+const VITRINE_URL = import.meta.env.VITE_VITRINE_URL ?? "https://agentdebureau.fr";
+
 export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
   const { t } = useTranslation();
   const [step, setStep] = useState<"form" | "success">("form");
+  // Volontairement non cochee au depart: un consentement pre-coche n'en est pas un.
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [orgName, setOrgName] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -42,6 +51,10 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
     }
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       setError(t("register.errEmail"));
+      return;
+    }
+    if (!acceptedTerms) {
+      setError(t("register.errTerms"));
       return;
     }
     const normalizedPhone = phone.trim().replace(/[\s.\-()]/g, "");
@@ -77,6 +90,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
           email: email.trim(),
           phone: normalizedPhone || undefined,
           password,
+          acceptedTerms,
         }),
       });
 
@@ -353,6 +367,38 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
                 <strong>{t("register.trialBold")}</strong> {t("register.trialText")}
               </p>
             </div>
+
+            {/* Acceptation des conditions, au moment de la commande.
+
+                Les CGV posent que « toute commande vaut acceptation sans
+                reserve des presentes ». Encore faut-il que l'acheteur ait pu
+                les lire: l'article 1119 du Code civil ecarte des conditions
+                generales qui n'ont pas ete portees a sa connaissance. Cet
+                ecran n'en disait pas un mot — la clause etait inopposable, et
+                c'est le vendeur qui en portait le risque.
+
+                Les liens s'ouvrent dans un nouvel onglet: un formulaire a demi
+                rempli ne doit pas etre perdu pour lire un contrat. */}
+            <label className="flex items-start gap-2 text-xs text-muted-foreground cursor-pointer">
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-input accent-emerald-600 focus-visible:ring-1 focus-visible:ring-ring"
+                aria-label={t("register.acceptTermsAria")}
+                required
+              />
+              <span>
+                {t("register.acceptTermsPrefix")}{" "}
+                <a href={`${VITRINE_URL}/cgu`} target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">
+                  {t("register.acceptTermsCgu")}
+                </a>{" "}
+                {t("register.acceptTermsAnd")}{" "}
+                <a href={`${VITRINE_URL}/cgv`} target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">
+                  {t("register.acceptTermsCgv")}
+                </a>.
+              </span>
+            </label>
 
             <Button
               type="submit"

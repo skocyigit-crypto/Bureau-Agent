@@ -1703,7 +1703,13 @@
     "createBtn": "Create my free account",
     "alreadyAccount": "Already have an account? Sign in",
     "secureConnection": "Secure connection",
-    "dataProtected": "Data protected"
+    "dataProtected": "Data protected",
+    "errTerms": "You must accept the terms and conditions to create your account.",
+    "acceptTermsAria": "I accept the terms and conditions",
+    "acceptTermsPrefix": "I have read and accept the",
+    "acceptTermsCgu": "terms of use",
+    "acceptTermsAnd": "and the",
+    "acceptTermsCgv": "terms of sale"
   },
   "invitation": {
     "roles": {
