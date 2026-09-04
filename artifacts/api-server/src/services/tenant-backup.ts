@@ -47,6 +47,9 @@ export const TENANT_TABLES = [
   "face_profiles", "face_recognition_logs", "factures_client", "google_oauth_tokens",
   "google_app_credentials", "integration_connections", "invitations", "invoices",
   "payments", "document_chunks", "legal_agreements", "geofences",
+  // Le compteur de numerotation fait partie des donnees du client: restaurer
+  // ses factures sans sa sequence rouvrirait des numeros deja utilises.
+  "invoice_sequences",
   "user_location_state", "location_events", "messages", "notes_internes",
   "objectifs_commerciaux", "organisation_closures", "payment_reminders",
   "license_audit_log", "performance_reports", "platform_connections",
