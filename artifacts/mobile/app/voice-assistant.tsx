@@ -311,7 +311,7 @@ export default function VoiceAssistantScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth, user } = useAuth();
-  const { t } = useTranslation();
+  const { t, lang: langueApp } = useTranslation();
   const isWeb = Platform.OS === "web";
 
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
@@ -320,7 +320,15 @@ export default function VoiceAssistantScreen() {
   const [commands, setCommands] = useState<CommandInfo[]>([]);
   const [panel, setPanel] = useState<"chat" | "commands" | "library">("chat");
   const [wakeWordActive, setWakeWordActive] = useState(false);
-  const [lang, setLang] = useState<Lang>("fr");
+  // Le francais en dur ignorait la langue choisie dans l'application: un
+  // utilisateur ayant mis l'application en turc obtenait un assistant
+  // francais, et l'inverse est vrai sur le web. L'application gere six
+  // langues, l'assistant trois: au-dela on retombe sur le francais, langue
+  // par defaut du produit. Un choix explicite fait dans l'assistant, lu plus
+  // bas depuis le stockage, reste prioritaire.
+  const [lang, setLang] = useState<Lang>(
+    langueApp === "tr" || langueApp === "en" ? langueApp : "fr",
+  );
   const [mode, setMode] = useState<AssistMode>("command");
   const [deep, setDeep] = useState(false);
   const [textInput, setTextInput] = useState("");
@@ -365,6 +373,9 @@ export default function VoiceAssistantScreen() {
           await AsyncStorage.multiGet([
             LANG_KEY, MODE_KEY, DEEP_KEY, WAKE_KEY, PASSPHRASE_KEY, REQUIRE_AUTH_KEY,
           ]);
+        // Choix explicite fait dans le selecteur de l'assistant: il l'emporte
+        // sur la langue de l'application, parce que quelqu'un peut vouloir
+        // dicter dans une autre langue que celle de son ecran.
         if (sLang === "fr" || sLang === "tr" || sLang === "en") setLang(sLang);
         if (sMode === "command" || sMode === "chat") setMode(sMode);
         if (sDeep === "1") setDeep(true);
