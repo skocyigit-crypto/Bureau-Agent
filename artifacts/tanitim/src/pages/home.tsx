@@ -836,7 +836,13 @@ export default function Home() {
                     "Google Workspace Hub",
                     "Protection des données auto",
                     "Conformité juridique",
-                    "Support prioritaire 24/7"
+                    // « 24/7 » etait une promesse d'horaires que l'article 6
+                    // des CGV ne reprend pas: le support y est joignable par
+                    // e-mail, sans plage horaire souscrite. Une caracteristique
+                    // listee dans un forfait paye se contracte comme le reste;
+                    // annoncer une permanence qu'aucune equipe ne tient est
+                    // une promesse qu'un client peut invoquer un dimanche soir.
+                    "Support prioritaire par e-mail",
                   ].map((feature, i) => (
                     <li key={i} className="flex items-center gap-3 text-white font-medium">
                       <CheckCircle2 className="w-5 h-5 text-accent shrink-0" />
@@ -873,10 +879,24 @@ export default function Home() {
                 <ul className="space-y-4">
                   {[
                     "Jusqu'à 100 utilisateurs",
-                    "50 000 contacts illimités",
-                    "Appels illimités",
+                    // Trois affirmations etaient fausses, et les deux premieres
+                    // etaient dementies par notre propre code: le moteur de
+                    // facturation facture le depassement (2 € par tranche de
+                    // 100 contacts, 3 € par tranche de 100 appels). Annoncer
+                    // « illimite » puis facturer le depassement, c'est faire
+                    // payer ce qu'on a promis sans limite. « 50 000 contacts
+                    // illimites » se contredisait de surcroit tout seul.
+                    "50 000 contacts inclus",
+                    "100 000 appels par mois inclus",
                     "IA sur mesure + API ouverte",
-                    "SLA Garanti 99.9%",
+                    // « SLA Garanti 99.9% » figurait ici alors que l'article 6
+                    // des CGV pose que « l'editeur ne souscrit aucun engagement
+                    // chiffre de disponibilite ». En cas de contradiction, c'est
+                    // l'interpretation favorable au client qui prevaut
+                    // (art. 1190 du Code civil): le chiffre affiche aurait pu
+                    // etre oppose, sans qu'aucun engagement ne le soutienne.
+                    // Pour le retablir, il faut d'abord le souscrire aux CGV.
+                    "Supervision et retablissement prioritaires",
                     "Account Manager dédié",
                     "Sauvegarde & restauration avancée",
                     "Audit de sécurité complet",
