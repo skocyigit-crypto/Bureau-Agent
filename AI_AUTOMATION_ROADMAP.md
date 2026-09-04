@@ -2276,3 +2276,36 @@ kapının çıktısını "geçti" diye değil, sayı olarak okumak.
 
 `scripts/a11y-hardcoded-contrast.mjs` `a11y:check` içine eklendi; kesin
 altkümede tavan 0.
+
+## Dokunma hedefleri: ölçüldü, ihlal yok — kapı yine de kondu — 2026-09-04
+
+Erişilebilirliğin üçüncü katmanı. Eşik, WCAG 2.2 AA'nın 2.5.8 kriteri:
+**24×24 piksel**. Platformlar daha fazlasını öneriyor (iOS 44 pt, Android 48 dp)
+ama o bir tavsiye; ikisini karıştırmak sayıyı kullanılamaz hâle getirir.
+
+### Bulgu: bu sefer bulgu yok
+
+- **Web**: 1065 düğme tarandı. `Button` varyantlarının hepsi zaten ≥32px
+  (`min-h-9`, ikon `h-9 w-9`), yani yapısal olarak sağlam. Elle küçültülmüş
+  yalnız iki yer çıktı ve **ikisi de WCAG'ın kendi yazılı istisnalarına giriyor**:
+  kenar çubuğu rayı işlevi normal aç/kapa düğmesinde birebir var (üstelik
+  `tabIndex={-1}`, klavyeye kapalı), alıntı rozeti ise metin içi. Bunları
+  "2 ihlal" diye raporlamak fazla iddia olurdu; değişiklik yapılmadı.
+- **Mobil**: 512 dokunma alanı tarandı, **24px altında hiçbiri yok**.
+  22 tanesi 24 ile 44 arasında — tavsiyenin altında, zorunluluğun üstünde.
+
+### Neden o 22'yi kendiliğinden büyütmedim
+
+`hitSlop` dokunma alanını görüntüyü değiştirmeden genişletir; kulağa bedava
+gelir. Ama 6 piksel aralıklı üç adet 34 piksellik düğme her iki yandan 5 piksel
+kazanınca **çakışır** ve dokunuş yanlış düğmeye gider — düzelttiğinden beter bir
+kusur. Bu aralığı statik okuma ölçemez; ekran ekran göz ister. Sayı raporlanıyor,
+karar bırakılıyor.
+
+### Kapı
+
+`artifacts/mobile/scripts/a11y-tap-targets.mjs`, `a11y:check` içinde. Hiçbir şeyi
+düzeltmiyor — bozulmasını engelliyor. **Gerçekten ölçtüğü doğrulandı**: 20×20
+bir düğme eklendiğinde 1 ile çıkıyor, kaldırılınca 0. Sınırı da yazıldı: yalnız
+**yazılmış** ölçüler görülüyor; içeriğine göre boyutlanan bir alan ölçülemiyor —
+ve bu, "uygun" sayılmıyor, sadece görülmemiş sayılıyor.
