@@ -29,7 +29,67 @@ export default function Confidentialite() {
               <li><strong>Données de connexion</strong> : adresse IP, logs de connexion, données de navigation</li>
               <li><strong>Données métier</strong> : contacts CRM, enregistrements d'appels, documents générés (devis, factures)</li>
               <li><strong>Données de paiement</strong> : coordonnées bancaires (traitées par notre prestataire de paiement)</li>
+              {/* Cette ligne manquait, et c'etait le probleme: l'application
+                  mobile collecte la position en arriere-plan, en continu, et
+                  la politique n'en disait pas un mot. Une collecte de
+                  geolocalisation non annoncee est exactement ce que l'article
+                  13 du RGPD interdit. Le detail est en section 2 bis. */}
+              <li><strong>Données de localisation</strong> : position transmise par l'application mobile, lorsque votre employeur active le suivi de présence (voir 2 bis)</li>
             </ul>
+          </div>
+
+          <div>
+            <h2 className="text-lg font-semibold text-foreground mb-3">2 bis. Suivi de présence par géolocalisation (application mobile)</h2>
+            <p>
+              Ce traitement ne concerne que les organisations qui activent le
+              suivi de présence, et uniquement via l'application mobile. Il
+              n'existe pas sur la version web.
+            </p>
+            <ul className="mt-2 space-y-1 pl-4 list-disc">
+              <li>
+                <strong>Ce qui est collecté</strong> : latitude et longitude
+                approximatives, horodatage, précision de la mesure et, le cas
+                échéant, niveau de batterie. La mesure a lieu au maximum toutes
+                les 60 secondes ou tous les 100 mètres, <strong>y compris
+                lorsque l'application est en arrière-plan</strong>, pendant que
+                vous êtes connecté(e).
+              </li>
+              <li>
+                <strong>Ce que votre employeur voit</strong> : uniquement la
+                zone (chantier, agence, site) dans laquelle vous vous trouvez et
+                l'heure du dernier passage. Les coordonnées exactes ne quittent
+                pas nos serveurs : elles servent seulement à déterminer
+                l'appartenance à une zone, et ne sont pas transmises à
+                l'interface d'administration.
+              </li>
+              <li>
+                <strong>Durée de conservation</strong> : 30 jours. Les
+                événements d'entrée et de sortie plus anciens sont supprimés
+                automatiquement, ainsi que la dernière position connue des
+                utilisateurs inactifs depuis 30 jours.
+              </li>
+              <li>
+                <strong>Responsable</strong> : votre employeur décide d'activer
+                ce suivi, d'en définir les zones et la finalité ; il en est le
+                responsable de traitement. SK GROUP agit comme sous-traitant
+                (voir le <a href="/dpa" className="text-primary underline">DPA</a>).
+              </li>
+            </ul>
+            <p className="mt-3 text-sm">
+              La géolocalisation des salariés est strictement encadrée. La CNIL
+              rappelle qu'elle doit être proportionnée à la finalité poursuivie,
+              qu'elle ne peut pas servir à surveiller un salarié en dehors de son
+              temps de travail, et que les représentants du personnel comme les
+              personnes concernées doivent en être informés préalablement. Il
+              revient à l'employeur qui active cette fonction de vérifier ces
+              conditions, de mener l'analyse d'impact lorsqu'elle est requise et
+              de permettre la désactivation en dehors du temps de travail.
+            </p>
+            <p className="mt-3 text-sm">
+              Vous pouvez exercer vos droits d'accès, de rectification,
+              d'effacement et d'opposition auprès de votre employeur, ou nous
+              écrire à <strong>privacy@agentdebureau.fr</strong>.
+            </p>
           </div>
 
           <div>
