@@ -910,6 +910,22 @@ export default function Home() {
                 </ul>
               </motion.div>
             </div>
+
+            {/* Comment on paie, dit avant l'essai et non decouvert apres.
+                La page proposait « Essai gratuit 14 jours » sur chaque carte et
+                s'arretait la: rien ne disait ce qui se passe au quinzieme jour.
+                Or il n'existe pas de paiement en ligne — le plan se demande
+                depuis l'espace client, une facture part, et l'acces s'etend au
+                virement. Un visiteur qui s'attend a un formulaire de carte
+                bancaire decouvre le contraire au moment ou il a decide
+                d'acheter: c'est le pire endroit pour une surprise. */}
+            <p className="mt-10 text-center text-sm text-muted-foreground max-w-2xl mx-auto">
+              Prix en euros hors taxes, TVA en sus. L'essai de 14 jours ne
+              demande aucune carte bancaire. À son terme, vous indiquez le plan
+              souhaité depuis votre espace&nbsp;: nous vous adressons la facture
+              et l'accès est étendu dès réception du virement. Sans engagement
+              de durée, résiliable à tout moment.
+            </p>
           </div>
         </section>
 
