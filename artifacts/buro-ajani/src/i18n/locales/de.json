@@ -1709,7 +1709,12 @@
     "acceptTermsPrefix": "Ich habe gelesen und akzeptiere die",
     "acceptTermsCgu": "Nutzungsbedingungen",
     "acceptTermsAnd": "und die",
-    "acceptTermsCgv": "Verkaufsbedingungen"
+    "acceptTermsCgv": "Verkaufsbedingungen",
+    "planChoisi": {
+      "starter": "Sie haben den Starter-Tarif gewaehlt. Ihr Konto beginnt mit 14 Testtagen; Ihr Abonnement waehlen Sie am Ende.",
+      "professionnel": "Sie haben den Professionnel-Tarif gewaehlt. Ihr Konto beginnt mit 14 Testtagen; Ihr Abonnement waehlen Sie am Ende.",
+      "entreprise": "Sie haben das Entreprise-Angebot gewaehlt. Ihr Konto beginnt mit 14 Testtagen; wir melden uns zum massgeschneiderten Angebot."
+    }
   },
   "invitation": {
     "roles": {

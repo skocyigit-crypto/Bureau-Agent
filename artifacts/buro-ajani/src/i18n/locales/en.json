@@ -1709,7 +1709,12 @@
     "acceptTermsPrefix": "I have read and accept the",
     "acceptTermsCgu": "terms of use",
     "acceptTermsAnd": "and the",
-    "acceptTermsCgv": "terms of sale"
+    "acceptTermsCgv": "terms of sale",
+    "planChoisi": {
+      "starter": "You chose the Starter plan. Your account starts with a 14-day trial; you will pick your subscription at the end.",
+      "professionnel": "You chose the Professional plan. Your account starts with a 14-day trial; you will pick your subscription at the end.",
+      "entreprise": "You chose the Enterprise offer. Your account starts with a 14-day trial; we will contact you about the tailored offer."
+    }
   },
   "invitation": {
     "roles": {

@@ -1709,7 +1709,12 @@
     "acceptTermsPrefix": "He leído y acepto las",
     "acceptTermsCgu": "condiciones de uso",
     "acceptTermsAnd": "y las",
-    "acceptTermsCgv": "condiciones de venta"
+    "acceptTermsCgv": "condiciones de venta",
+    "planChoisi": {
+      "starter": "Ha elegido el plan Starter. Su cuenta empieza con 14 dias de prueba; elegira su suscripcion al final.",
+      "professionnel": "Ha elegido el plan Professionnel. Su cuenta empieza con 14 dias de prueba; elegira su suscripcion al final.",
+      "entreprise": "Ha elegido la oferta Entreprise. Su cuenta empieza con 14 dias de prueba; le contactaremos para la oferta a medida."
+    }
   },
   "invitation": {
     "roles": {

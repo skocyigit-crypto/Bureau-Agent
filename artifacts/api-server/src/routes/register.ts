@@ -97,8 +97,20 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
     return;
   }
 
+  // Tout le monde commence par l'essai: c'est ce que les cartes de tarifs
+  // annoncent. Mais le visiteur a clique sur un plan precis, et cette intention
+  // se perdait — `plan` etait lu du corps de la requete puis jamais utilise. Au
+  // bout des 14 jours, plus personne ne savait vers quoi convertir le compte.
+  // On la conserve donc dans le journal de licence (deja append-only), sans
+  // migration ni promesse tarifaire: c'est une intention, pas un engagement.
   const planKey: PlanKey = "essai";
   const planConfig = PLANS[planKey];
+  const planSouhaite: PlanKey | null =
+    typeof plan === "string"
+    && plan !== "essai"
+    && Object.prototype.hasOwnProperty.call(PLANS, plan)
+      ? (plan as PlanKey)
+      : null;
 
   const slug = orgName.trim().toLowerCase()
     .replace(/[^a-z0-9\s-]/g, "")
@@ -203,7 +215,7 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
     void logLicenseEvent(result.organisation.id, "subscription_created", `Inscription initiale: plan ${planConfig.name}`, {
       performedBy: result.user.id,
       ipAddress: req.ip ?? null,
-      metadata: { plan: planKey, licenseKey, trialEndsAt: result.subscription.trialEndsAt },
+      metadata: { plan: planKey, planSouhaite, licenseKey, trialEndsAt: result.subscription.trialEndsAt },
     });
     void logLicenseEvent(result.organisation.id, "trial_started", `Periode d'essai demarree (${planConfig.trialDays || 14} jours)`, {
       performedBy: result.user.id,

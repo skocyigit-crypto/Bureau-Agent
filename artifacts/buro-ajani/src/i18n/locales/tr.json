@@ -1709,7 +1709,12 @@
     "acceptTermsPrefix": "Okudum ve kabul ediyorum:",
     "acceptTermsCgu": "kullanım koşulları",
     "acceptTermsAnd": "ve",
-    "acceptTermsCgv": "satış koşulları"
+    "acceptTermsCgv": "satış koşulları",
+    "planChoisi": {
+      "starter": "Starter paketini sectiniz. Hesabiniz 14 gunluk deneme ile basliyor; aboneliginizi deneme sonunda sececeksiniz.",
+      "professionnel": "Professionnel paketini sectiniz. Hesabiniz 14 gunluk deneme ile basliyor; aboneliginizi deneme sonunda sececeksiniz.",
+      "entreprise": "Entreprise teklifini sectiniz. Hesabiniz 14 gunluk deneme ile basliyor; ozel teklif icin sizinle iletisime gececegiz."
+    }
   },
   "invitation": {
     "roles": {
