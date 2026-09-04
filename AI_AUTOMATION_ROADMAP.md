@@ -2651,3 +2651,32 @@ doğrulamalarından sonraya alındı.
 4 yeni test: kutu işaretlenmeden hesap açılmıyor, sahte doğruluk değerleri
 reddediliyor, kabul izi eksiksiz yazılıyor, ve başarısız kayıt hiç iz
 bırakmıyor.
+
+## PDF'ler hiç okunmuyormuş — 2026-09-04
+
+`services/document-ai.ts` içindeki `extractTextFromFile` xlsx, csv, docx, txt ve
+pptx'i işliyordu; `application/pdf` için **hiçbir dalı yoktu**. `null` dönüyor,
+çağıran taraf içeriği `Fichier: facture.pdf (application/pdf)` dizesiyle
+değiştiriyordu.
+
+Belge analizi üç modelin "konsensüs"ünü sunuyor, ama PDF'i doğal olarak yalnız
+Gemini alıyor (`VISUAL_MIME_TYPES`); OpenAI ile Claude bu çıkarılan metni
+alıyor. Yani bir PDF'te **üç modelden ikisi bir dosya adını** analiz ediyor ve
+cevapları konsensüse karışıyordu. Hiçbir şey hata vermiyordu — bir model her
+zaman bir şey söyler. Arızanın en kötü türü: "üç model okudu" denen fatura
+ikisi tarafından hiç görülmemiş.
+
+Ölçüm (2026-09-04): düzeltmeden önce 20 farklı PDF'te **sıfır karakter**;
+sonra **20/20**.
+
+Çözüm `unpdf` (saf JavaScript pdf.js — Cloud Run'a yerel ikili kurmak gerekmez).
+Taranmış PDF (metin katmanı olmayan görüntü) boş dize verir; o durumda `null`
+dönülüyor, boşluk içerik gibi gösterilmiyor ve sayfayı gerçekten gören yol
+Gemini olarak kalıyor.
+
+Sıradaki: taranmış PDF'ler için OCR yolu yok — Gemini dışındaki modeller böyle
+bir belgede hâlâ hiçbir şey görmüyor. Konsensüsün, belgeyi görmemiş bir modelin
+oyunu saymaması gerekir.
+
+PR #38. Test: `src/__tests__/pdf-text-extraction.test.ts`, 20 farklı belge,
+her biri belirli değerleri arıyor (boş değil demek yetmez).
