@@ -348,17 +348,35 @@ function tr(key: keyof typeof UI_T, lang: Lang): string {
   return UI_T[key][lang] ?? UI_T[key].fr;
 }
 
-function loadStoredLang(): Lang {
+/** Un choix explicite fait dans le selecteur de l'assistant, s'il existe. */
+export function choixExplicite(): Lang | null {
   try {
     const stored = localStorage.getItem(LANG_STORAGE_KEY);
     if (stored && (SUPPORTED_LANGS as string[]).includes(stored)) return stored as Lang;
   } catch {}
-  // Auto-detect from browser preference si pas de choix enregistre
-  try {
-    const nav = navigator.language.slice(0, 2).toLowerCase();
-    if ((SUPPORTED_LANGS as string[]).includes(nav)) return nav as Lang;
-  } catch {}
-  return "fr";
+  return null;
+}
+
+/**
+ * Langue de depart de l'assistant vocal.
+ *
+ * Elle se lisait sur `navigator.language`, jamais sur la langue choisie dans
+ * l'application. Un utilisateur dont le navigateur est en turc et qui a mis
+ * l'application en francais voyait donc la bibliotheque d'actions, les
+ * salutations et les messages d'erreur de l'assistant en TURC, au milieu d'une
+ * interface entierement francaise. Le defaut se figeait ensuite: la valeur
+ * detectee etait aussitot ecrite dans le stockage local et devenait
+ * permanente.
+ *
+ * L'ordre est desormais celui de l'intention: un choix explicite fait dans le
+ * selecteur de l'assistant l'emporte — quelqu'un peut vouloir dicter dans une
+ * autre langue que celle de son ecran — sinon on suit la langue de
+ * l'application. L'application gere six langues, l'assistant trois: pour les
+ * trois autres on retombe sur le francais, langue par defaut du produit.
+ */
+export function langueDeDepart(langueApp: string): Lang {
+  return choixExplicite()
+    ?? ((SUPPORTED_LANGS as string[]).includes(langueApp) ? (langueApp as Lang) : "fr");
 }
 
 function loadStoredMode(): AssistMode {
@@ -414,12 +432,12 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
   // la preference globale de l'app (fr/tr/en/es/de/ar). Independant de `lang`
   // ci-dessous, qui reste FONCTIONNEL (locale STT/TTS + langue des commandes
   // backend, limitee a fr/tr/en).
-  const { t } = useTranslation();
+  const { t, lang: langueApp } = useTranslation();
   // Ref miroir de t pour les callbacks STT (closures a deps figees) afin d'eviter
   // un t "perime" apres changement de langue globale.
   const tRef = useRef(t);
   useEffect(() => { tRef.current = t; }, [t]);
-  const [lang, setLang] = useState<Lang>(loadStoredLang);
+  const [lang, setLang] = useState<Lang>(() => langueDeDepart(langueApp));
   const [state, setState] = useState<VoiceState>("idle");
   const [transcript, setTranscript] = useState("");
   const [, setResponse] = useState("");
@@ -456,10 +474,21 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
 
   // Sync refs
   useEffect(() => { stateRef.current = state; }, [state]);
+  // Le ref suit l'etat, mais on N'ECRIT PLUS ici. Cet effet persistait toute
+  // valeur, y compris celle deduite au premier rendu et celle imposee par la
+  // detection automatique de la langue parlee: le stockage local se remplissait
+  // tout seul, et l'assistant cessait definitivement de suivre la langue de
+  // l'application. Seul le selecteur ecrit desormais, parce que lui seul
+  // exprime une intention.
+  useEffect(() => { langRef.current = lang; }, [lang]);
+
+  // Suivre la langue de l'application tant que personne n'a choisi autre chose
+  // dans l'assistant.
   useEffect(() => {
-    langRef.current = lang;
-    try { localStorage.setItem(LANG_STORAGE_KEY, lang); } catch {}
-  }, [lang]);
+    if (choixExplicite()) return;
+    const suivante = langueDeDepart(langueApp);
+    setLang((precedente) => (precedente === suivante ? precedente : suivante));
+  }, [langueApp]);
   useEffect(() => {
     modeRef.current = mode;
     try { localStorage.setItem(MODE_STORAGE_KEY, mode); } catch {}
