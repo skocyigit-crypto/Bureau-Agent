@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, timestamp, numeric, jsonb, boolean, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, numeric, jsonb, boolean, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { organisationsTable } from "./organisations";
 import { contactsTable } from "./contacts";
@@ -42,6 +42,12 @@ export const facturesClientTable = pgTable("factures_client", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [
+  // Le numero de facture est unique DANS l'organisation, et la base le garantit.
+  // Il ne l'etait qu'applicativement (lire puis inserer), ce qui laisse passer
+  // deux numeros identiques quand deux instances Cloud Run ecrivent au meme
+  // instant — et un doublon de numero de facture n'est pas un defaut cosmetique:
+  // il rend la piste d'audit incoherente pour l'administration fiscale.
+  uniqueIndex("factures_client_org_reference_unique").on(table.organisationId, table.reference),
   index("factures_client_org_id_idx").on(table.organisationId),
   index("factures_client_status_idx").on(table.status),
   index("factures_client_contact_id_idx").on(table.contactId),

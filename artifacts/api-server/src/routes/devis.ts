@@ -3,6 +3,7 @@ import { eq, desc, ilike, or, sql, and, type Column, type SQL } from "drizzle-or
 import { db, devisTable, facturesClientTable } from "@workspace/db";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { generateUniqueReference } from "../lib/unique-reference";
+import { nextInvoiceNumber } from "../services/invoice-numbering";
 import { getOrgId } from "../middleware/tenant";
 import { computeInvoiceTotals, isValidCurrency, parseUserDate, clampPagination } from "../services/invoice-totals";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
@@ -209,7 +210,10 @@ router.post("/devis/:id/convert-to-facture", async (req: Request, res: Response)
         .where(and(eq(facturesClientTable.organisationId, orgId), eq(facturesClientTable.reference, candidate)));
       return !!e;
     };
-    const ref = await generateUniqueReference("FAC", checkExists);
+    // La facture issue d'un devis entre dans la MEME sequence que les autres.
+    // Le devis, lui, garde une reference libre: aucune regle fiscale ne lui
+    // impose de suite continue.
+    const ref = await nextInvoiceNumber(db, orgId);
 
     // Echeance par defaut: 30 jours (delai de paiement usuel B2B en France).
     const dueDate = new Date(Date.now() + 30 * 86400000);

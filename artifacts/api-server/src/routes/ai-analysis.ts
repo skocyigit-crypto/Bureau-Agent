@@ -10,7 +10,7 @@ import { buildLearnedContextBlock, fingerprintLearned } from "../services/ai-lea
 import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL, ANTHROPIC_MODEL, sanitizePromptInput } from "../services/ai-utils";
 import { getAnthropicMode } from "@workspace/integrations-anthropic-ai";
 import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
-import { generateUniqueReference } from "../lib/unique-reference";
+import { nextInvoiceNumber } from "../services/invoice-numbering";
 import { overdueCondition } from "../services/invoice-status";
 import { aiForOrg } from "../services/ai-client";
 import { assertAiUsable, respondAiError } from "../services/ai-guard";
@@ -2588,11 +2588,10 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         });
         const taxAmountCalc = subtotalCalc * (tvaRate / 100);
         const totalAmountCalc = subtotalCalc + taxAmountCalc;
-        const invoiceRef = await generateUniqueReference("FAC", async (candidate) => {
-          const [existing] = await db.select({ id: facturesClientTable.id }).from(facturesClientTable)
-            .where(and(eq(facturesClientTable.organisationId, orgId), eq(facturesClientTable.reference, candidate)));
-          return !!existing;
-        });
+        // Meme sequence que les factures creees a la main: une facture emise par
+        // l'agent IA ne doit pas porter un numero d'une autre nature, sinon la
+        // suite chronologique de l'organisation comporte deux series.
+        const invoiceRef = await nextInvoiceNumber(db, orgId);
         const [invoice] = await db.insert(facturesClientTable).values({
           organisationId: orgId,
           reference: invoiceRef,

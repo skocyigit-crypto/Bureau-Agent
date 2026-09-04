@@ -2547,3 +2547,48 @@ bunu yakalayamaz: onlar ziyaretçinin önbelleğini görmez.
 
 Aynı düzeltme oraya da uygulandı ve yapılandırma testi üçüncü dosyayı da
 kapsıyor artık.
+
+## Fatura numaraları rastgeleydi, ve emitilmiş fatura değiştirilebiliyordu — 2026-09-04
+
+Satılabilirlik denetiminin en ağır bulgusu. Üç iddiayı da kendim doğruladım
+(başka bir ajanın raporunu olduğu gibi almadım):
+
+1. `unique-reference.ts` fatura numarasını `FAC-M4K2J1-A9F03B` biçiminde
+   üretiyordu: base36 zaman damgası + 3 rastgele bayt. Benzersiz, ama **sıra
+   değil**. CGI ek II md. 242 nonies A "kesintisiz, sürekli kronolojik sıra"
+   istiyor. Risk editörde değil, **bu yazılımla fatura kesen her müşteride**:
+   denetimde numaralandırmayı savunamazlar.
+2. `PATCH /factures-client/:id` **`payee` durumundaki** bir faturanın
+   kalemlerini, tutarlarını ve otoliquidation bayrağını yeniden yazabiliyordu.
+3. `DELETE` her faturayı siliyordu; çöp kutusu kopyayı saklıyor ama **numara
+   sıradan düşüyor**, yani tam da yasaklanan boşluk oluşuyordu.
+
+### Yapılan
+
+- `invoice_sequences` tablosu (organizasyon + yıl) ve `nextInvoiceNumber`:
+  numara `FAC-2026-000001` biçiminde, **tek bir SQL ifadesiyle** artırılıyor
+  (`ON CONFLICT DO UPDATE ... RETURNING`). `SELECT max()+1` üç instance'lı
+  serviste aynı numarayı iki kez verirdi.
+- Veritabanında `(organisation_id, reference)` **tekil kısıtı**. Önceden yalnız
+  uygulama içinde kontrol ediliyordu — oku-sonra-yaz, yani yarış açık.
+- Emitilmiş fatura donduruldu: içerik alanları (`reference`, `items`, tutarlar,
+  `isAutoliquidation`, müşteri kimliği) değiştirilemiyor; **takip alanları**
+  (durum, tahsilat, notlar) serbest — biri belgeyi, diğeri belgenin hayatını
+  anlatır.
+- Emitilmiş fatura silinemiyor; yanıt "annulee" statüsünü öneriyor, böylece
+  numara sırada kalıyor.
+- Yapay zekâ ajanının ve devis→fatura dönüşümünün ürettiği numaralar da aynı
+  sıraya bağlandı. Biri dışarıda kalsaydı organizasyonun iki paralel serisi
+  olurdu.
+
+### Doğrulama
+
+14 yeni test, gerçek veritabanına karşı: sıranın 1'den başlayıp birer birer
+gitmesi, **10 eşzamanlı emisyonda hiç numara atlanmaması veya tekrarlanmaması**,
+her organizasyonun kendi serisi, yıl başında sıfırlanma, ve donmuş alanların
+ayrımı. Ayrıca yedekleme kapsam kapısı beni yakaladı: yeni tablo kiracıya ait
+ve `TENANT_TABLES`'a eklenmeden testi düşürdü — tam da bunun için var.
+
+**Kalan (bilerek ayrı):** avoir (alacak dekontu) hâlâ yok. Emitilmiş bir
+faturayı düzeltmenin doğru yolu odur; bu PR onu eklemiyor, ama artık yanlış
+yolu (yeniden yazmak) kapatıyor.

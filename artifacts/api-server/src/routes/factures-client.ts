@@ -3,7 +3,7 @@ import { eq, desc, ilike, or, sql, and, type Column, type SQL } from "drizzle-or
 import { db, devisTable, facturesClientTable, organisationsTable } from "@workspace/db";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { sendInvoiceReminderEmail } from "../services/email";
-import { generateUniqueReference } from "../lib/unique-reference";
+import { frozenFieldsTouched, isIssued, nextInvoiceNumber } from "../services/invoice-numbering";
 import { getOrgId } from "../middleware/tenant";
 import { deriveInvoiceStatus, overdueCondition } from "../services/invoice-status";
 import { buildInvoiceDocument, invoiceFileName, renderInvoicePdf } from "../services/invoice-pdf";
@@ -212,6 +212,10 @@ router.post("/factures-client", async (req: Request, res: Response): Promise<voi
         .where(and(eq(facturesClientTable.organisationId, targetOrg), eq(facturesClientTable.reference, candidate)));
       return !!existing;
     };
+    // Numerotation. Une reference fournie par l'appelant reste acceptee (reprise
+    // d'un historique, import), mais elle n'entre plus dans la sequence: le
+    // compteur ne sert qu'aux factures que CE logiciel emet, et c'est lui qui
+    // doit rester continu.
     let ref: string;
     if (reference && String(reference).trim()) {
       ref = String(reference).trim();
@@ -220,7 +224,9 @@ router.post("/factures-client", async (req: Request, res: Response): Promise<voi
         return;
       }
     } else {
-      ref = await generateUniqueReference("FAC", checkExists);
+      // Sequence chronologique continue (art. 242 nonies A ann. II CGI), et non
+      // plus un identifiant aleatoire. Voir services/invoice-numbering.ts.
+      ref = await nextInvoiceNumber(db, targetOrg);
     }
     const [row] = await db.insert(facturesClientTable).values({
       organisationId: targetOrg,
@@ -261,9 +267,30 @@ router.patch("/factures-client/:id", async (req: Request, res: Response): Promis
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   const scoped = and(eq(facturesClientTable.id, id), eq(facturesClientTable.organisationId, orgId));
   try {
-    const [existing] = await db.select({ id: facturesClientTable.id }).from(facturesClientTable).where(scoped);
+    const [existing] = await db.select({ id: facturesClientTable.id, status: facturesClientTable.status })
+      .from(facturesClientTable).where(scoped);
     if (!existing) { res.status(404).json({ error: "Facture non trouvee." }); return; }
     const b = req.body ?? {};
+
+    // Une facture emise est figee. Elle ne se corrige pas en la reecrivant:
+    // elle s'annule, ou se corrige par un avoir. Jusqu'ici, une facture au
+    // statut "payee" pouvait voir ses lignes et son montant reecrits sans
+    // trace — ce qui vide de sens la piste d'audit exigee par l'article
+    // 286-I-3° bis du CGI, et fausse retroactivement la comptabilite du client.
+    //
+    // Les champs de SUIVI (statut, encaissement, relances, notes internes)
+    // restent modifiables: ils decrivent la vie de la facture, pas son contenu.
+    if (isIssued(existing.status)) {
+      const frozen = frozenFieldsTouched(b);
+      if (frozen.length > 0) {
+        res.status(409).json({
+          error: "Facture emise: son contenu ne peut plus etre modifie.",
+          champs: frozen,
+          remediation: "Annulez la facture (statut \"annulee\") puis emettez-en une nouvelle.",
+        });
+        return;
+      }
+    }
     if (b.status !== undefined && !STATUSES.includes(b.status)) { res.status(400).json({ error: "Statut invalide." }); return; }
     if (b.currency !== undefined && !isValidCurrency(b.currency)) { res.status(400).json({ error: "Devise invalide." }); return; }
     const updates: any = { updatedAt: new Date() };
@@ -429,6 +456,20 @@ router.delete("/factures-client/:id", async (req: Request, res: Response): Promi
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   try {
+    // Supprimer une facture emise ouvre un trou dans la sequence chronologique,
+    // que l'article 242 nonies A interdit precisement. La corbeille en gardait
+    // une copie, mais le numero, lui, disparaissait de la suite. Seul un
+    // brouillon — qui n'a jamais ete emis — peut etre supprime.
+    const [current] = await db.select({ status: facturesClientTable.status })
+      .from(facturesClientTable)
+      .where(and(eq(facturesClientTable.id, id), eq(facturesClientTable.organisationId, orgId)));
+    if (current && isIssued(current.status)) {
+      res.status(409).json({
+        error: "Facture emise: elle ne peut pas etre supprimee.",
+        remediation: "Passez-la au statut \"annulee\": le numero reste dans la sequence.",
+      });
+      return;
+    }
     const result = await db.delete(facturesClientTable)
       .where(and(eq(facturesClientTable.id, id), eq(facturesClientTable.organisationId, orgId)))
       .returning();
