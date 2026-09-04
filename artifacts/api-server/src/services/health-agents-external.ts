@@ -219,7 +219,28 @@ export const dependenciesAgent: HealthAgent = {
     }
 
     const stripeKey = process.env.STRIPE_SECRET_KEY;
-    if (stripeKey) {
+    if (!stripeKey) {
+      // Le silence n'est pas une reponse. Sans cle, cette sonde ne produisait
+      // AUCUNE ligne: l'ecran de sante restait vert alors que le paiement par
+      // carte n'existait tout simplement pas en production. Un operateur y
+      // lisait « rien a signaler ».
+      //
+      // Ce n'est pas une panne — c'est un etat de configuration choisi, et la
+      // voie manuelle fonctionne (la demande d'evolution cree une notification
+      // pour chaque super-administrateur). Mais il doit se LIRE, parce que
+      // personne ne devrait decouvrir en clientele que le paiement en ligne
+      // n'etait pas branche.
+      results.push({
+        check: "stripe",
+        status: "degrade",
+        severity: "basse",
+        summary: "Stripe non configure: le paiement par carte en libre-service est indisponible. " +
+          "Les demandes d'evolution de plan partent en notification aux super-administrateurs.",
+        remediation: "Pour activer le paiement en ligne: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET " +
+          "et les trois identifiants de prix (STRIPE_PRICE_STARTER / _PROFESSIONNEL / _ENTREPRISE).",
+        metrics: {},
+      });
+    } else {
       const r = await probe("https://api.stripe.com/v1/balance", {
         headers: { Authorization: `Bearer ${stripeKey}` },
       });

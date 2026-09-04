@@ -2435,3 +2435,40 @@ görünmüyordu**.
 Karşılaştırma artık satır sonlarını normalleştiriyor. Bu, kapının katılığını
 azaltmıyor: aynı içerik farklı satır sonuyla yazıldığında geçiyor, içerik
 değiştiğinde hâlâ düşüyor.
+
+## Kartla ödeme üretimde hiç bağlı değilmiş — ve sağlık ekranı susuyordu — 2026-09-04
+
+Erişilebilirlik bitince satılabilirlik eksenine geçtim: ürün gerçekten para
+tahsil edebiliyor mu?
+
+### Ölçüm
+
+Üretim API'sinde **hiçbir Stripe değişkeni yok** (projedeki iki Stripe sırrı
+batiflow'a ait). Oysa kod tarafı eksiksiz: checkout oturumu, müşteri portalı,
+iptal, devam ettirme, webhook imzası ve plan başına fiyat kimlikleri yazılmış.
+Anahtar yokken uçlar 503 dönüyor.
+
+### "Satış kapalı" demedim, çünkü değil
+
+Arayüz **düzgün** çöküyor: Stripe yapılandırılmamışsa "yükseltme talebi"
+gönderiyor, o da her `super_admin` için bildirim satırı açıyor. Yani satış
+manuel yoldan işliyor; eksik olan **self-servis kartla ödeme**. Bu ayrımı
+yapmadan "ödeme bozuk" demek yanlış olurdu — kodu okumak yetmedi, çağrı
+zincirini sonuna kadar takip etmek gerekti.
+
+### Asıl kusur: sessizlik
+
+Sağlık sondası **yalnız anahtar varsa** çalışıyordu. Anahtar yokken hiçbir
+satır üretmiyordu — ve satırsız bir sağlık ekranı "sorun yok" diye okunur.
+Üretimde kartla ödeme hiç bağlı değilken ekran yemyeşildi.
+
+Sonda artık yokluğu **söylüyor**: `degrade`, ama şiddeti `basse` — bu bir panne
+değil, seçilmiş bir yapılandırma; kırmızıya boyamak kimsenin okumadığı bir
+sağlık ekranı üretirdi. Metin hem eksiği hem **işleyen yolu** adlandırıyor, ve
+giderme adımı "Stripe'ı yapılandırın" demek yerine eksik beş değişkeni tek tek
+sayıyor.
+
+İki test bunu koruyor: satırın var olduğunu, şiddetinin düşük kaldığını ve
+metnin manuel yolu andığını doğruluyor. Testin ilk hâli yanlış ajanı çağırdı ve
+**boşuna geçmek yerine düştü** — sessizliği sınayan bir testin kendisi sessiz
+kalmamalı.
