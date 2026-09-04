@@ -2309,3 +2309,37 @@ düzeltmiyor — bozulmasını engelliyor. **Gerçekten ölçtüğü doğruland�
 bir düğme eklendiğinde 1 ile çıkıyor, kaldırılınca 0. Sınırı da yazıldı: yalnız
 **yazılmış** ölçüler görülüyor; içeriğine göre boyutlanan bir alan ölçülemiyor —
 ve bu, "uygun" sayılmıyor, sadece görülmemiş sayılıyor.
+
+## Odak görünürlüğü: iki düğme klavyede kayboluyormuş — 2026-09-04
+
+Erişilebilirliğin son ölçülebilir parçası: odak sırası ve klavyeyle gezinme.
+Kriter WCAG 2.2 AA 2.4.7 — klavye kullanan biri **nerede olduğunu görmeli**.
+
+### Önce iyi haber, çünkü o da bir ölçüm sonucu
+
+- **Pozitif `tabIndex` hiç yok**: odak sırası elle bozulmamış, DOM sırasını
+  izliyor. En yaygın odak kusuru burada mevcut değil.
+- `onClick` taşıyan üç `<div>` var ama üçü de yalnızca `stopPropagation()`
+  yapıyor; bir eylem yürütmüyorlar, dolayısıyla klavyeye kapalı bir düğme
+  değiller. "3 tıklanabilir div" diye raporlamak yanıltıcı olurdu.
+
+### Yanlış alarmı ayıklamak
+
+İlk desen `outline-none` yanında bir **halka** (`focus-visible:ring`) arıyordu
+ve 9 kusur bildiriyordu. Yedisi yanlıştı: menü öğeleri odağı **arka planla**
+gösteriyor (`focus:bg-accent`), giriş alanları **kenarlıkla**
+(`focus:border-...`). Görünür bir gösterge illa halka değildir.
+
+### Kalan iki gerçek kusur, düzeltildi
+
+`workspace-user.tsx` içindeki hesap düğmesi ve görev listesindeki durum
+açıcısı `outline-none` ile tarayıcının verdiği göstergeyi siliyor, yerine
+**hiçbir şey** koymuyordu. Klavyeyle sekme tuşu oraya geliyor ve ekranda hiçbir
+şey değişmiyordu. İkisine de deponun kendi düzeni verildi
+(`focus-visible:ring-1 focus-visible:ring-ring`).
+
+`scripts/a11y-focus-visible.mjs` `a11y:check` içinde, tavan 0. Gerçekten
+ölçtüğü doğrulandı: göstergesiz bir düğme eklendiğinde 1, kaldırılınca 0.
+Script her türlü görünür geri gelişi kabul ediyor — halka, kenarlık, arka plan,
+Radix'in `data-[highlighted]` özniteliği — çünkü dar bir tanım, düzeltilecek
+hiçbir şeyi olmayan yerlerde gürültü üretir ve kapıyı okunmaz hâle getirir.

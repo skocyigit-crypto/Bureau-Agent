@@ -244,7 +244,7 @@ export function UserProfileButton() {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="flex items-center gap-2 p-1 pr-2 rounded-full hover:bg-muted transition-colors outline-none border border-transparent hover:border-border">
+          <button className="flex items-center gap-2 p-1 pr-2 rounded-full hover:bg-muted transition-colors outline-none border border-transparent hover:border-border focus-visible:ring-1 focus-visible:ring-ring">
             <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center text-sm font-medium border border-primary/30">
               {user.avatar}
             </div>

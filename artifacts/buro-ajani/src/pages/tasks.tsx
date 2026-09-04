@@ -829,7 +829,7 @@ export default function Tasks() {
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
-                            <DropdownMenuTrigger className="outline-none">
+                            <DropdownMenuTrigger className="outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-md">
                               {getStatusBadge(task.status)}
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
