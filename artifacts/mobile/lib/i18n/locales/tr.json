@@ -3288,7 +3288,7 @@
   },
   "locationConsentGate": {
     "kvkkTitle": "Yoklama takibi — KVKK / GDPR Bilgilendirmesi",
-    "kvkkIntro": "Çalışabilmek için, Ajant Bureau uygulaması siz bağlıyken, arka planda dahil olmak üzere yaklaşık konumunuzu sürekli toplar.",
+    "kvkkIntro": "Çalışma saatleriniz boyunca Ajant Bureau uygulaması, arka planda da dahil olmak üzere yaklaşık konumunuzu toplar. Bu saatlerin dışında hiçbir konum toplanmaz ve kaydedilmez.",
     "sectionCollected": "Toplanan veriler",
     "bulletCollected1": "- İşvereninizin sunucusuna iletilen enlem / boylam.",
     "bulletCollected2": "- Ölçüm anındaki tarih/saat ve pil seviyesi (isteğe bağlı).",
@@ -3306,7 +3306,9 @@
     "openSettings": "Ayarları aç",
     "retry": "Tekrar dene",
     "requesting": "İstek gönderiliyor...",
-    "allowLocation": "Konuma izin ver"
+    "allowLocation": "Konuma izin ver",
+    "sectionHoraires": "Konumun toplandığı saatler",
+    "bulletHoraires": "- Yalnızca işvereninizin belirlediği saatlerde. Gece ve çalışılmayan günlerde takip durdurulur."
   },
   "formModal": {
     "searchContact": "Kişi ara...",

@@ -3288,7 +3288,7 @@
   },
   "locationConsentGate": {
     "kvkkTitle": "Attendance tracking — KVKK / GDPR Notice",
-    "kvkkIntro": "To function, the Ajant Bureau app continuously collects your approximate location while you are logged in, including in the background.",
+    "kvkkIntro": "During your working hours, the Ajant Bureau app collects your approximate location, including in the background. Outside those hours, no location is collected or recorded.",
     "sectionCollected": "What is collected",
     "bulletCollected1": "- Latitude / longitude sent to your employer's server.",
     "bulletCollected2": "- Date/time and battery level (optional) at the time of measurement.",
@@ -3306,7 +3306,9 @@
     "openSettings": "Open Settings",
     "retry": "Retry",
     "requesting": "Requesting...",
-    "allowLocation": "Allow location"
+    "allowLocation": "Allow location",
+    "sectionHoraires": "When location is collected",
+    "bulletHoraires": "- Only during the hours set by your employer. At night and on non-working days, tracking is stopped."
   },
   "formModal": {
     "searchContact": "Search a contact...",

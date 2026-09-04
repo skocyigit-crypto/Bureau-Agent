@@ -3288,7 +3288,7 @@
   },
   "locationConsentGate": {
     "kvkkTitle": "Seguimiento de presencia — Información KVKK / RGPD",
-    "kvkkIntro": "Para funcionar, la aplicación Ajant Bureau recopila continuamente tu ubicación aproximada mientras estás conectado(a), incluso en segundo plano.",
+    "kvkkIntro": "Durante su jornada laboral, la aplicación Ajant Bureau recoge su posición aproximada, también en segundo plano. Fuera de ese horario no se recoge ni se registra ninguna posición.",
     "sectionCollected": "Lo que se recopila",
     "bulletCollected1": "- Latitud / longitud transmitidas al servidor de tu empleador.",
     "bulletCollected2": "- Fecha/hora y nivel de batería (opcional) en el momento de la medición.",
@@ -3306,7 +3306,9 @@
     "openSettings": "Abrir Ajustes",
     "retry": "Reintentar",
     "requesting": "Solicitando...",
-    "allowLocation": "Permitir ubicación"
+    "allowLocation": "Permitir ubicación",
+    "sectionHoraires": "Horario de recogida",
+    "bulletHoraires": "- Únicamente durante el horario fijado por su empleador. Por la noche y en días no laborables el seguimiento está detenido."
   },
   "formModal": {
     "searchContact": "Buscar un contacto...",

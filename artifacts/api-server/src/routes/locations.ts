@@ -23,11 +23,13 @@ import {
   userLocationStateTable,
   locationEventsTable,
   usersTable,
+  organisationsTable,
 } from "@workspace/db";
 import { requireTenant, getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
 import { broadcaster } from "../services/broadcaster";
 import { zodErrorResponse } from "../lib/zod-error";
+import { dansLaFenetre } from "../services/location-window";
 
 const router: IRouter = Router();
 
@@ -238,6 +240,34 @@ router.post("/location/ping", pingLimiter, async (req: Request, res: Response): 
       const parsedAt = new Date(parsed.data.at);
       if (parsedAt.getTime() <= now.getTime() + 60_000) at = parsedAt;
     }
+    // Hors temps de travail, on n'enregistre rien.
+    //
+    // L'application mobile s'arrete deja d'elle-meme, mais un client peut
+    // etre d'une version anterieure, avoir une horloge fausse, ou rejouer un
+    // tampon hors ligne accumule pendant la nuit. La borne qui protege
+    // vraiment est celle du serveur: c'est lui qui ecrit.
+    //
+    // On repond 200 et non une erreur. Un 4xx ferait boucler le client en
+    // reessais toute la nuit — exactement l'inverse du but — et signalerait
+    // une panne la ou il n'y en a pas. `tracking: "hors-fenetre"` permet au
+    // client a jour de couper sa collecte jusqu'au lendemain.
+    const [orgFenetre] = await db
+      .select({
+        jours: organisationsTable.locationTrackingDays,
+        debut: organisationsTable.locationTrackingStart,
+        fin: organisationsTable.locationTrackingEnd,
+        fuseau: organisationsTable.appointmentTimezone,
+      })
+      .from(organisationsTable)
+      .where(eq(organisationsTable.id, orgId));
+
+    // Organisation introuvable: on ne collecte pas. Une position sans
+    // organisation n'a de toute facon aucune finalite.
+    if (!orgFenetre || !dansLaFenetre(at, orgFenetre)) {
+      res.json({ tracking: "hors-fenetre", entered: [], exited: [], geofencesNow: [] });
+      return;
+    }
+
     const { lat, lng, accuracyM, battery, isMoving } = parsed.data;
 
     // 1) Calculer les zones contenant ce point (parmi les zones actives de l'org).

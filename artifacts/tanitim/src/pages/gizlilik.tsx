@@ -48,9 +48,17 @@ export default function Gizlilik() {
             <ul className="mt-2 space-y-1 pl-4 list-disc">
               <li>
                 <strong>Toplanan</strong>: yaklaşık enlem ve boylam, zaman
-                damgası, ölçüm doğruluğu ve varsa pil düzeyi. Ölçüm, siz giriş
-                yapmış durumdayken en çok 60 saniyede bir ya da 100 metrede bir,
-                <strong> uygulama arka plandayken de</strong> yapılır.
+                damgası, ölçüm doğruluğu ve varsa pil düzeyi. Ölçüm en çok 60
+                saniyede bir ya da 100 metrede bir,
+                <strong> uygulama arka plandayken de</strong> yapılır — ancak
+                yalnızca <strong>işvereninizin belirlediği çalışma saatleri</strong>
+                içinde.
+              </li>
+              <li>
+                <strong>Ne zaman yapıldığı</strong>: yalnızca bu saatlerde. Bu
+                saatlerin dışında — gece, çalışılmayan günler — hiçbir konum
+                toplanmaz ve kaydedilmez: sunucu kaydetmeyi reddeder, uygulama
+                da toplamayı durdurur.
               </li>
               <li>
                 <strong>İşverenin gördüğü</strong>: yalnızca hangi bölgede
@@ -75,10 +83,11 @@ export default function Gizlilik() {
               Çalışanın konum takibi sıkı koşullara bağlıdır. Takip, güdülen
               amaçla orantılı olmalı, çalışma saatleri dışında gözetim aracına
               dönüşmemeli ve hem çalışan temsilcileri hem de ilgili kişiler
-              önceden bilgilendirilmelidir. Bu koşulları sağlamak, gerektiğinde
-              etki değerlendirmesi yapmak ve çalışma saatleri dışında takibin
-              kapatılabilmesini sağlamak, özelliği açan işverenin
-              sorumluluğundadır.
+              önceden bilgilendirilmelidir. Ürün, takibi kendiliğinden çalışma
+              saatleriyle sınırlar; amaç, takibin özel hayata taşmamasıdır.
+              Orantılı saatler belirlemek, çalışan temsilcilerini
+              bilgilendirmek ve gerektiğinde etki değerlendirmesi yapmak,
+              özelliği açan işverenin sorumluluğundadır.
             </p>
             <p className="mt-3 text-sm">
               Erişim, düzeltme, silme ve itiraz haklarınızı işvereninize ya da
