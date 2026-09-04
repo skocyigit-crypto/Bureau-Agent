@@ -2419,3 +2419,19 @@ yayımlanıp yayımlanmadığı `gcloud`'da görünmüyor. Yayımlanmamışsa ya
 doğrudur ama yalnız test hesapları bağlanabilir. Uçtan uca tek kanıt, uygulamada
 bir Google hesabı bağlamaktır — o yapılana kadar "Autonomous Inbox çalışıyor"
 yazılmayacak.
+
+## Bir kapı Windows'ta hiç geçilemiyormuş — 2026-09-04
+
+Günün işini denetlerken bütün kapıları yerelde koştum. Altısı geçti, biri
+geçmedi: rota envanteri **"bayat"** diyordu, ama `routes:write` hiçbir fark
+üretmiyordu. Yani geliştirici ne kapıyı memnun edebiliyor ne de sebebini
+görebiliyordu.
+
+Sebep karşılaştırmanın kendisiydi: dosya bayt bayt kıyaslanıyordu. Windows'ta
+git dosyayı CRLF ile açıyor, script LF yazıyor — içerik aynı, baytlar değil.
+CI Linux'ta koştuğu için orada hep geçiyordu, **yani kusur tam da bakılan yerde
+görünmüyordu**.
+
+Karşılaştırma artık satır sonlarını normalleştiriyor. Bu, kapının katılığını
+azaltmıyor: aynı içerik farklı satır sonuyla yazıldığında geçiyor, içerik
+değiştiğinde hâlâ düşüyor.
