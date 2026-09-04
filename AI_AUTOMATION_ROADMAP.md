@@ -2205,3 +2205,35 @@ Script artık `advisories` listesini sayıyor, sayaç alanını değil; JSON bek
 biçimde değilse "temiz" demek yerine hata veriyor. Ders, bugün üçüncü kez
 aynısı: **özet bir sayı, ayrıntının yerine geçmez** — sayaç "2 yüksek" derken
 liste "hiçbiri" diyordu.
+
+## Silme butonunun yazısı okunmuyormuş — 2026-09-04
+
+Erişilebilirliğin ikinci katmanına geçtim. Renk kontrastı, koddan **tamamen**
+karar verilebilen tek kural: renkler CSS değişkeni, kontrast ise bir formül.
+Yani üretimde keşfedilmesi için hiçbir sebep yok.
+
+### Bulgu (açık tema)
+
+- `destructive-foreground` / `destructive` = **3.59** (gereken 4.5). Yani
+  **silme butonunun yazısı** — uygulamanın en geri dönülmez eylemi, en az
+  okunabilir tonda yazılmış.
+- `muted-foreground` / `muted` = **4.34**. Bütün ikincil metin.
+
+İkisi de fark edilmemişti çünkü yetersiz kontrast hiçbir şeyi bozmaz: sayfa
+açılır, sadece bir kısım kullanıcı için okunmaz (güneş altındaki bir ekranda
+ise herkes için).
+
+### Yapılan
+
+Bileşen değil, **jeton** düzeltildi — yerel bir yama aynı kusuru başka her
+yerde bırakırdı. Açık temada `--destructive` L: %60.2 → %48 (4.64) ve
+`--muted-foreground` L: %46.9 → %45 (muted üzerinde 4.64, sayfa üzerinde 4.94).
+Koyu temada hiçbir çift zaten sınırın altında değildi, dokunulmadı.
+
+`scripts/a11y-contrast.mjs` 12 çifti iki temada da hesaplıyor ve 4.5'in
+altında build'i düşürüyor; `a11y:check` içine eklendi. Kapının gerçekten
+ölçtüğü doğrulandı: eski palette 1, düzeltilmiş palette 0 dönüyor.
+
+**Sınırı da yazıldı**: script yalnızca temanın ilan ettiği çiftleri görür.
+Bileşenlerin içine elle yazılmış renkler (`text-red-400`, `#6366f1`) onun
+görüş alanında değil — sıradaki tur onlar.
