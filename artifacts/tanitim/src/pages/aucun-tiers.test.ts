@@ -1,0 +1,77 @@
+/**
+ * Ce que le site promet aux visiteurs: aucune ressource tierce.
+ *
+ * Le bandeau et la politique de confidentialite affirment qu'aucun traceur ni
+ * service tiers n'est utilise. C'etait faux d'un cheveu, mais d'un cheveu qui
+ * compte: la police Inter etait chargee depuis `fonts.googleapis.com` et
+ * `fonts.gstatic.com`. Une police n'est pas un cookie — mais la requete
+ * transmet l'adresse IP du visiteur a Google, avant meme l'affichage du
+ * bandeau, et le tribunal regional de Munich (LG Munchen I, 3 O 17493/20) a
+ * juge ce seul appel suffisant pour caracteriser une atteinte.
+ *
+ * La police est desormais empaquetee avec l'application. Ce test empeche la
+ * regression, parce qu'un `<link>` vers un CDN se rajoute en une ligne, sans
+ * que rien n'echoue et sans que personne ne le remarque.
+ */
+import fs from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+
+const RACINE = path.resolve(__dirname, "../../..");
+
+/**
+ * Hotes tiers dont un appel depuis la page revele l'adresse IP du visiteur.
+ * La liste couvre ce qui se glisse le plus facilement dans un `index.html`:
+ * polices, bibliotheques servies par CDN, analytique.
+ */
+const HOTES_TIERS = [
+  "fonts.googleapis.com",
+  "fonts.gstatic.com",
+  "ajax.googleapis.com",
+  "cdn.jsdelivr.net",
+  "unpkg.com",
+  "cdnjs.cloudflare.com",
+  "google-analytics.com",
+  "googletagmanager.com",
+  "connect.facebook.net",
+];
+
+const PAGES = [
+  "tanitim/index.html",
+  "buro-ajani/index.html",
+];
+
+describe("aucune ressource chargee depuis un tiers", () => {
+  for (const page of PAGES) {
+    it(`${page} ne demande rien a un service tiers`, () => {
+      const fichier = path.join(RACINE, page);
+      const html = fs.readFileSync(fichier, "utf8");
+
+      // On ne regarde que ce qui declenche une requete — `href`, `src`,
+      // `content` d'une balise. Un commentaire qui NOMME un hote (pour
+      // expliquer pourquoi on ne l'appelle plus) n'en declenche aucune.
+      const sansCommentaires = html.replace(/<!--[^]*?-->/g, "");
+
+      for (const hote of HOTES_TIERS) {
+        expect(
+          sansCommentaires.includes(hote),
+          `${page} appelle ${hote}: l'adresse IP du visiteur lui est transmise, ` +
+          "alors que le bandeau et la politique de confidentialite annoncent l'absence de tiers",
+        ).toBe(false);
+      }
+    });
+  }
+
+  it("la police est bien empaquetee, pas simplement retiree", () => {
+    // Retirer le lien sans fournir la police laisserait le site en police
+    // systeme: le defaut serait « corrige » et le rendu casse.
+    const main = fs.readFileSync(path.join(RACINE, "tanitim/src/main.tsx"), "utf8");
+    expect(main).toContain("@fontsource/inter");
+
+    const pkg = JSON.parse(
+      fs.readFileSync(path.join(RACINE, "tanitim/package.json"), "utf8"),
+    );
+    const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+    expect(deps["@fontsource/inter"], "la police doit etre une dependance declaree").toBeTruthy();
+  });
+});
