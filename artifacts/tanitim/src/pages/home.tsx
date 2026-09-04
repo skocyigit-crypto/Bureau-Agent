@@ -777,7 +777,7 @@ export default function Home() {
                 <p className="text-muted-foreground mb-8 min-h-[48px]">Pour les petits bureaux et indépendants.</p>
                 <div className="mb-8">
                   <span className="text-5xl font-extrabold text-primary">29€</span>
-                  <span className="text-muted-foreground font-medium">/mois</span>
+                  <span className="text-muted-foreground font-medium">HT /mois</span>
                 </div>
                 <a href={registerUrlForPlan("starter")} className="block w-full mb-8">
                   <Button variant="outline" className="w-full h-14 rounded-xl text-lg font-bold border-2 hover:bg-primary/5">
@@ -819,7 +819,7 @@ export default function Home() {
                 <p className="text-blue-200/80 mb-8 min-h-[48px]">Pour les PME et bureaux en croissance.</p>
                 <div className="mb-8">
                   <span className="text-5xl font-extrabold text-white">79€</span>
-                  <span className="text-blue-200/80 font-medium">/mois</span>
+                  <span className="text-blue-200/80 font-medium">HT /mois</span>
                 </div>
                 <a href={registerUrlForPlan("professionnel")} className="block w-full mb-8">
                   <Button className="w-full h-14 rounded-xl text-lg font-bold bg-accent text-accent-foreground hover:bg-accent/90 shadow-xl">

@@ -1,4 +1,5 @@
 import { db, invoicesTable, subscriptionsTable, organisationsTable, usersTable, contactsTable, callsTable, PLANS, type PlanKey, OVERAGE_RATES } from "@workspace/db";
+import { emettreFacturePlateforme } from "./platform-invoice-issue";
 import { eq, and, gte, lt, sql } from "drizzle-orm";
 import { withCronLock, CRON_LOCK_NAMESPACE } from "../lib/cron-lock";
 import { logger } from "../lib/logger";
@@ -130,7 +131,9 @@ export async function generateMonthlyInvoices(
           },
         };
 
-        await db.insert(invoicesTable).values({
+        const emiseDirectement = mode === "direct" || !org.billingRequiresApproval;
+
+        const [creee] = await db.insert(invoicesTable).values({
           organisationId: org.id,
           periodLabel,
           periodStart,
@@ -142,9 +145,16 @@ export async function generateMonthlyInvoices(
           currency: sub.currency || "EUR",
           // Une org peut opter pour la finalisation directe; sinon la facture
           // reste un brouillon jusqu'a validation humaine.
-          status: mode === "direct" || !org.billingRequiresApproval ? "en_attente" : "brouillon",
+          status: emiseDirectement ? "en_attente" : "brouillon",
           usageSnapshot,
-      });
+        }).returning({ id: invoicesTable.id });
+
+        // Numero, date, TVA et identite de l'acheteur — seulement si la facture
+        // part vraiment. Numeroter un brouillon qui peut etre abandonne
+        // ouvrirait un trou dans la sequence, ce que le CGI interdit.
+        if (emiseDirectement && creee) {
+          await emettreFacturePlateforme(creee.id);
+        }
 
       result.generated++;
       });
@@ -165,13 +175,22 @@ export async function getOrgBillingSummary(orgId: number) {
       .orderBy(sql`${invoicesTable.periodStart} DESC`)
       .limit(12);
 
+    // « Ce que je dois » est un montant TTC: c'est ce que le client vire.
+    // Sommer le HT afficherait un du inferieur a la realite. Les factures
+    // anterieures a la TVA portent un `totalTtc` a zero — on retombe alors sur
+    // le HT, qui etait bien le montant reclame a l'epoque.
+    const duMontant = (i: { totalTtc: string; totalAmount: string }): number => {
+      const ttc = Number(i.totalTtc);
+      return ttc > 0 ? ttc : Number(i.totalAmount);
+    };
+
     const totalDue = invoices
       .filter(i => i.status === "en_attente" || i.status === "partiel" || i.status === "retard")
-      .reduce((sum, i) => sum + Number(i.totalAmount), 0);
+      .reduce((sum, i) => sum + duMontant(i), 0);
 
     const totalPaid = invoices
       .filter(i => i.status === "payee")
-      .reduce((sum, i) => sum + Number(i.totalAmount), 0);
+      .reduce((sum, i) => sum + duMontant(i), 0);
 
     const lastInvoice = invoices[0] || null;
 

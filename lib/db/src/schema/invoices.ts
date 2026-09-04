@@ -14,9 +14,48 @@ export const invoicesTable = pgTable("invoices", {
   periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
   periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
   plan: varchar("plan", { length: 50 }).notNull(),
+  /**
+   * Numero de facture, attribue au moment de l'EMISSION et jamais avant.
+   *
+   * Nul tant que la facture est un brouillon: un brouillon abandonne
+   * consommerait sinon un numero et ouvrirait un trou dans la sequence, ce que
+   * l'article 242 nonies A de l'annexe II au CGI interdit precisement. La
+   * contrainte d'unicite est partielle pour la meme raison — plusieurs
+   * brouillons coexistent, tous sans numero.
+   */
+  reference: varchar("reference", { length: 30 }),
+  /** Date d'emission. Nulle tant que la facture est un brouillon. */
+  issuedAt: timestamp("issued_at", { withTimezone: true }),
   baseAmount: numeric("base_amount", { precision: 10, scale: 2 }).notNull().default("0"),
   overageAmount: numeric("overage_amount", { precision: 10, scale: 2 }).notNull().default("0"),
+  /**
+   * Total HORS TAXES. C'est ce que cette colonne a toujours contenu — les prix
+   * affiches et les tarifs de depassement sont HT, comme le disent les CGV —
+   * mais rien ne le nommait, et rien ne portait la TVA. Le nom est conserve
+   * pour ne pas reinterpreter les lignes existantes; `totalTtc` est la somme
+   * reellement due.
+   */
   totalAmount: numeric("total_amount", { precision: 10, scale: 2 }).notNull().default("0"),
+  /** Taux de TVA applique, en pourcentage. Fige a l'emission. */
+  vatRate: numeric("vat_rate", { precision: 5, scale: 2 }).notNull().default("0"),
+  /** Montant de TVA. Une facture sans ligne de TVA n'est pas une facture valable. */
+  vatAmount: numeric("vat_amount", { precision: 10, scale: 2 }).notNull().default("0"),
+  /** Total toutes taxes comprises: ce que le client doit payer. */
+  totalTtc: numeric("total_ttc", { precision: 10, scale: 2 }).notNull().default("0"),
+  /**
+   * Identite du client telle qu'elle etait a l'emission.
+   *
+   * Une facture doit designer l'acheteur, et rester lisible dix ans plus tard.
+   * Lire le nom depuis `organisations` au moment de l'affichage donnerait le
+   * nom d'AUJOURD'HUI: une organisation qui change de raison sociale
+   * reecrirait retroactivement toutes ses factures passees.
+   */
+  buyerSnapshot: jsonb("buyer_snapshot").$type<{
+    name: string;
+    address: string | null;
+    siret: string | null;
+    tvaNumber: string | null;
+  }>(),
   currency: varchar("currency", { length: 3 }).notNull().default("EUR"),
   status: varchar("status", { length: 20 }).notNull().default("en_attente"),
   usageSnapshot: jsonb("usage_snapshot").$type<{
@@ -46,6 +85,11 @@ export const invoicesTable = pgTable("invoices", {
   index("invoices_org_id_idx").on(table.organisationId),
   index("invoices_status_idx").on(table.status),
   uniqueIndex("invoices_stripe_invoice_id_unique").on(table.stripeInvoiceId),
+  // Partielle: les brouillons n'ont pas encore de numero, et plusieurs `NULL`
+  // doivent pouvoir coexister. Deux factures emises ne peuvent jamais partager
+  // un numero — c'est la garantie que la sequence tient, meme si le code qui
+  // l'attribue venait a regresser.
+  uniqueIndex("invoices_reference_unique").on(table.reference),
 ]);
 
 export const paymentsTable = pgTable("payments", {

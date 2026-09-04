@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { db, invoicesTable, paymentsTable, organisationsTable } from "@workspace/db";
+import { emettreFacturePlateforme } from "../services/platform-invoice-issue";
 import { generateMonthlyInvoices, getOrgBillingSummary } from "../services/billing-engine";
 import { logger } from "../lib/logger";
 import { requireSuperAdmin } from "../middleware/auth";
@@ -30,6 +31,11 @@ router.get("/billing/invoices", async (req: Request, res: Response): Promise<voi
         organisationName: r.orgName, periodLabel: r.invoice.periodLabel,
         periodStart: r.invoice.periodStart, periodEnd: r.invoice.periodEnd,
         plan: r.invoice.plan, totalAmount: r.invoice.totalAmount,
+        // Le numero et le TTC sont ce qui identifie et chiffre la facture:
+        // les omettre de la liste obligerait a rouvrir chaque ligne.
+        reference: r.invoice.reference, issuedAt: r.invoice.issuedAt,
+        vatRate: r.invoice.vatRate, vatAmount: r.invoice.vatAmount,
+        totalTtc: r.invoice.totalTtc,
         currency: r.invoice.currency, status: r.invoice.status,
         paidAt: r.invoice.paidAt, createdAt: r.invoice.createdAt,
       })),
@@ -95,6 +101,15 @@ router.patch("/billing/invoices/:id/status", async (req: Request, res: Response)
   try {
     const [updated] = await db.update(invoicesTable).set(updateData).where(eq(invoicesTable.id, id)).returning();
     if (!updated) { res.status(404).json({ error: "Facture introuvable." }); return; }
+
+    // C'est ici qu'un brouillon devient une facture: numero de la sequence,
+    // date d'emission, TVA et identite de l'acheteur figee. `annulee` est
+    // exclu — une facture annulee avant d'avoir ete emise ne doit pas
+    // consommer un numero, et une facture deja emise garde le sien
+    // (l'emission est idempotente).
+    if (status !== "annulee" && !updated.reference) {
+      await emettreFacturePlateforme(updated.id);
+    }
 
     invalidateLicenseCache(updated.organisationId);
     res.json({ message: "Statut mis a jour.", invoice: { id: updated.id, organisationId: updated.organisationId, status: updated.status, totalAmount: updated.totalAmount, currency: updated.currency, paidAt: updated.paidAt } });
@@ -175,7 +190,14 @@ router.post("/billing/match-payments", async (req: Request, res: Response): Prom
         if (matchedInvoiceIds.has(inv.invoice.id)) continue;
 
         let confidence = 0;
-        const invoiceTotal = Number(inv.invoice.totalAmount);
+        // Le client vire le montant TTC — c'est ce qui figure sur la facture.
+        // Comparer au HT ferait manquer chaque rapprochement d'un ecart
+        // exactement egal a la TVA, et le paiement resterait « en attente »
+        // alors qu'il est arrive. Les factures anterieures a la TVA ont un
+        // `totalTtc` a zero: on retombe alors sur le HT, qui etait bien le
+        // montant reclame a l'epoque.
+        const ttc = Number(inv.invoice.totalTtc);
+        const invoiceTotal = ttc > 0 ? ttc : Number(inv.invoice.totalAmount);
         const paymentAmount = Number(payment.amount);
 
         if (Math.abs(invoiceTotal - paymentAmount) < 0.01) {
