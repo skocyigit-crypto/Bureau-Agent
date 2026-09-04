@@ -7,7 +7,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DeviceEnvironmentProvider,useDeviceEnvironment } from "@/hooks/use-device-environment";
 import { QueryClient,QueryClientProvider } from "@tanstack/react-query";
-import { AnimatePresence,motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { AlertTriangle } from "lucide-react";
 import { lazy,Suspense,useCallback,useEffect,useState } from "react";
 import { Route,Switch,useLocation,useRoute,Router as WouterRouter } from "wouter";
@@ -249,16 +249,29 @@ function withRoleGate(
 const ADMIN_ROLES = ["super_admin", "administrateur"] as const;
 const SUPER_ADMIN_ROLES = ["super_admin"] as const;
 
+/**
+ * Transition entre deux ecrans.
+ *
+ * Elle etait enveloppee dans un `<AnimatePresence mode="wait">` avec une
+ * animation de sortie: l'ecran courant s'effacait EN REMONTANT de 6 px
+ * (220 ms), puis seulement apres le nouvel ecran arrivait EN MONTANT depuis
+ * 6 px (220 ms encore). Pres d'une demi-seconde pendant laquelle la zone de
+ * contenu est vide et bouge — d'ou l'impression que « l'ecran part, revient et
+ * saute ».
+ *
+ * Le nouvel ecran apparait maintenant tout de suite, en fondu et SANS
+ * deplacement: le mouvement vertical etait precisement le saut. La sortie est
+ * supprimee, donc plus de trou entre les deux.
+ */
 function AnimatedRouteContent({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   return (
     <motion.div
       key={location}
-      initial={{ opacity: 0, y: prefersReduced ? 0 : 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: prefersReduced ? 0 : -6 }}
-      transition={{ duration: prefersReduced ? 0.01 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: prefersReduced ? 0.01 : 0.12, ease: "easeOut" }}
     >
       {children}
     </motion.div>
@@ -287,7 +300,15 @@ function AppRoutes() {
   const [location] = useLocation();
   return (
     <Layout>
-      <AnimatePresence mode="wait">
+      {/* Frontiere Suspense PROPRE au contenu route.
+
+          La seule frontiere etait a la racine, au-dessus de <AppContent>. Un
+          onglet dont le module n'etait pas encore charge suspendait donc tout
+          l'arbre: la barre laterale et l'en-tete disparaissaient, le voile de
+          chargement s'affichait, puis tout se remontait. C'est le « ca part et
+          ca revient » signale par l'utilisateur. Ici, seule la zone de contenu
+          attend; la coquille ne bouge plus. */}
+      <Suspense fallback={<PageLoader />}>
         <AnimatedRouteContent key={location}>
       <Switch>
         <Route path="/" component={withLicenseGate(Dashboard)} />
@@ -357,7 +378,7 @@ function AppRoutes() {
         <Route component={NotFound} />
       </Switch>
         </AnimatedRouteContent>
-      </AnimatePresence>
+      </Suspense>
     </Layout>
   );
 }

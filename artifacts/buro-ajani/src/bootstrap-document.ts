@@ -13,6 +13,8 @@
  * alors de deux violations a zero.
  */
 
+import { recoverFromChunkError } from "@/lib/chunk-recovery";
+
 /** Enregistre le service worker, sans jamais faire echouer le demarrage. */
 function registerServiceWorker(): void {
   if (!("serviceWorker" in navigator)) return;
@@ -34,7 +36,27 @@ function activateDeferredStyles(): void {
   }
 }
 
+/**
+ * Rattrape l'echec de chargement d'un morceau de code AVANT qu'il ne devienne
+ * une erreur React.
+ *
+ * Vite emet `vite:preloadError` quand le fichier d'une page chargee
+ * paresseusement ne peut pas etre recupere — le cas exact d'un deploiement qui
+ * a supprime l'ancien fichier. Pris ici, l'utilisateur ne voit jamais l'ecran
+ * « rechargez ou reessayez »: la page se recharge et s'ouvre. La frontiere
+ * d'erreur garde le meme rattrapage, pour les navigateurs ou l'echec passe
+ * autrement.
+ */
+function recoverFromStalePageChunks(): void {
+  window.addEventListener("vite:preloadError", (event) => {
+    // Empeche Vite de relancer l'erreur: on s'en occupe.
+    event.preventDefault();
+    recoverFromChunkError();
+  });
+}
+
 export function bootstrapDocument(): void {
   activateDeferredStyles();
   registerServiceWorker();
+  recoverFromStalePageChunks();
 }

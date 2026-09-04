@@ -3,6 +3,8 @@ import { useTranslation } from "@/i18n";
 import { AlertTriangle,RefreshCw } from "lucide-react";
 import { Component,type ReactNode } from "react";
 
+import { isChunkLoadError,recoverFromChunkError } from "@/lib/chunk-recovery";
+
 interface Props {
   children: ReactNode;
 }
@@ -78,19 +80,14 @@ export class ErrorBoundary extends Component<Props, State> {
 
     const msg = error?.message || "";
 
-    // Apres un deploiement, les noms de fichiers JS changent (hash de contenu).
-    // Un onglet ouvert AVANT le deploiement reference des chunks qui n'existent
-    // plus: le chargement paresseux d'une route echoue et tombe ici. C'est
-    // exactement le symptome "la page se ferme et demande de recharger". On
-    // recharge alors automatiquement UNE fois (garde sessionStorage pour ne pas
-    // boucler si le vrai probleme est autre chose) afin de recuperer la version
-    // a jour sans que l'utilisateur ait a le faire manuellement.
-    const isChunkError = /chunk|dynamically imported|Failed to fetch|Importing a module script failed|error loading/i.test(msg);
-    if (isChunkError && !sessionStorage.getItem("chunk-reload-done")) {
-      sessionStorage.setItem("chunk-reload-done", "1");
-      window.location.reload();
-      return;
-    }
+    // Apres un deploiement, les noms de fichiers JS changent (hash de contenu)
+    // et les anciens disparaissent du serveur. Un onglet ouvert AVANT le
+    // deploiement — ou dont le HTML vient du cache du service worker —
+    // continue de les demander: certaines pages s'ouvrent, d'autres tombent
+    // ici. La recuperation vide le cache puis recharge; voir
+    // lib/chunk-recovery.ts pour la regle exacte et pourquoi le drapeau
+    // "une fois par session" ne suffisait pas.
+    if (isChunkLoadError(msg) && recoverFromChunkError()) return;
 
     // Erreurs DOM transitoires (removeChild/insertBefore "not a child of this
     // node"): typiquement provoquees par une extension qui reecrit le DOM
