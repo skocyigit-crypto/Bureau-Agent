@@ -407,7 +407,7 @@ export default function WhatsappInbox() {
                     <Sparkles className="w-3.5 h-3.5" /> {t("whatsappPage.draftReady")}
                   </div>
                 )}
-                <Textarea
+                <Textarea aria-label={t("whatsappPage.composerPlaceholder")}
                   value={composer}
                   onChange={(e) => setComposer(e.target.value)}
                   placeholder={t("whatsappPage.composerPlaceholder")}

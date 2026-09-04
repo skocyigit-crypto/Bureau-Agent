@@ -1123,7 +1123,7 @@ export default function DocumentsPage() {
             <div>
               <Label>{t("documents.form.category")}</Label>
               <Select value={editDocForm.category} onValueChange={(v) => setEditDocForm(f => ({ ...f, category: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label={t("documents.form.category")}><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Object.keys(CATEGORY_LABELS).map((k) => (
                     <SelectItem key={k} value={k}>{t(`documents.categories.${k}`)}</SelectItem>
@@ -1134,7 +1134,7 @@ export default function DocumentsPage() {
             <div>
               <Label>{t("documents.form.module")}</Label>
               <Select value={editDocForm.entityType || "none"} onValueChange={(v) => setEditDocForm(f => ({ ...f, entityType: v === "none" ? "" : v }))}>
-                <SelectTrigger><SelectValue placeholder={t("documents.form.none")} /></SelectTrigger>
+                <SelectTrigger aria-label={t("documents.form.module")}><SelectValue placeholder={t("documents.form.none")} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">{t("documents.form.none")}</SelectItem>
                   {Object.keys(ENTITY_LABELS).map((k) => (

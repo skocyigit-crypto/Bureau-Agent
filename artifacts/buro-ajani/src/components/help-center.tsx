@@ -374,7 +374,7 @@ export function HelpCenter() {
           <div className="px-6 py-3 border-b">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input
+              <Input aria-label={t("helpCenter.searchPlaceholder")}
                 autoFocus
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}

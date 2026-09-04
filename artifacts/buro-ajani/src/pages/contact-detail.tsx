@@ -545,7 +545,7 @@ export default function ContactDetail() {
                 </CardHeader>
                 <CardContent>
                   {isEditingNotes ? (
-                    <Textarea
+                    <Textarea aria-label={t("contactDetail.notesPlaceholder")}
                       className="resize-none min-h-[160px] text-sm"
                       value={notesValue}
                       onChange={e => setNotesValue(e.target.value)}

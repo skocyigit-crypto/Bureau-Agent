@@ -177,7 +177,7 @@ export function TabEquipe() {
               <div className="w-full sm:w-44 space-y-1">
                 <Label className="text-xs">{t("settingsEquipe.roleLabel")}</Label>
                 <Select value={inviteRole} onValueChange={setInviteRole}>
-                  <SelectTrigger>
+                  <SelectTrigger aria-label={t("settingsEquipe.roleLabel")}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

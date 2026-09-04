@@ -483,9 +483,9 @@ export default function Calls() {
         <div className="flex flex-col sm:flex-row gap-3 items-center">
           <div className="flex items-center gap-2">
             <CalendarIcon className="w-4 h-4 text-muted-foreground" />
-            <Input type="date" className="w-[160px]" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(0); }} placeholder={t("calls.dateFrom")} />
+            <Input aria-label={t("calls.dateFrom")} type="date" className="w-[160px]" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(0); }} placeholder={t("calls.dateFrom")} />
             <span className="text-muted-foreground text-sm">{t("calls.dateSeparator")}</span>
-            <Input type="date" className="w-[160px]" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(0); }} placeholder={t("calls.dateTo")} />
+            <Input aria-label={t("calls.dateTo")} type="date" className="w-[160px]" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(0); }} placeholder={t("calls.dateTo")} />
             {(dateFrom || dateTo) && (
               <Button variant="ghost" size="sm" onClick={() => { setDateFrom(""); setDateTo(""); setPage(0); }}>
                 {t("calls.clear")}

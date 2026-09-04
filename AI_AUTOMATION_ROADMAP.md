@@ -2093,3 +2093,20 @@ erken kesiyor, dolayısıyla daha aşağıdaki mevcut `aria-label` görünmüyor
 Script artık `tenant-scope-check.mjs` gibi süslü parantez sayıp tırnak içini
 atlayarak okuyor. Bir mizanpaj varsayan düzenli ifade kod okuması değildir.
 
+### Üçüncü ve dördüncü dilim — 2026-09-04
+
+Tavan **178 → 81**. Üç ayrı biçim kapatıldı:
+
+1. `license-management.tsx`'in fatura satırı ızgarası (açıklama, miktar, birim
+   fiyat, KDV), IBAN kutusu, denetim filtreleri ve tarih aralığı — hepsinin
+   adı zaten sütun başlığı olarak ekranda duran i18n anahtarlarından geldi,
+   yeni anahtar gerekmedi.
+2. Etiketi biraz yukarıda olan, arada `<Select>` sarmalayıcısı bulunan alanlar:
+   en yakın **önceki** etiketle eşleştirildi, ama araya başka bir alan girerse
+   eşleştirme yapılmadı — yanlış ad, adsızlıktan kötüdür. 46 alan.
+3. Çok satırlı yazılmış placeholder-only alanlar: ilk turda `[^>]*` kusuru
+   yüzünden hiç görülmemişlerdi, doğru ayrıştırıcıyla 37 alan daha çıktı.
+
+Kalan **81**, gerçekten yargı isteyen kalıntı: etiketi hiç olmayan tek başına
+kutular ve yeni i18n anahtarı gerektiren ızgara alanları.
+

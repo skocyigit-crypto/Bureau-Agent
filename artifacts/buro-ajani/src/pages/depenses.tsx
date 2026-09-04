@@ -517,7 +517,7 @@ export default function DepensesPage() {
             <div className="grid gap-1">
               <Label className="text-xs">{t("depenses.filters.category")}</Label>
               <Select value={filterCategory} onValueChange={setFilterCategory}>
-                <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label={t("depenses.filters.category")} className="h-9 w-44"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{t("depenses.filters.all")}</SelectItem>
                   {Object.keys(CATEGORY_LABELS).map((k) => (
@@ -546,7 +546,7 @@ export default function DepensesPage() {
             <div className="grid gap-1">
               <Label className="text-xs">{t("depenses.filters.payment")}</Label>
               <Select value={filterPayment} onValueChange={setFilterPayment}>
-                <SelectTrigger className="h-9 w-36"><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label={t("depenses.filters.payment")} className="h-9 w-36"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{t("depenses.filters.allPayments")}</SelectItem>
                   <SelectItem value="a_payer">{t("depenses.payment.a_payer")}</SelectItem>
@@ -818,7 +818,7 @@ export default function DepensesPage() {
               <div className="grid gap-1">
                 <Label>{t("depenses.form.category")}</Label>
                 <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label={t("depenses.form.category")}><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {Object.keys(CATEGORY_LABELS).map((k) => (
                       <SelectItem key={k} value={k}>{t(`depenses.categories.${k}`)}</SelectItem>
@@ -873,7 +873,7 @@ export default function DepensesPage() {
             <div className="grid gap-1">
               <Label>{t("depenses.form.paymentStatus")}</Label>
               <Select value={form.paymentStatus} onValueChange={(v) => setForm((f) => ({ ...f, paymentStatus: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label={t("depenses.form.paymentStatus")}><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="a_payer">{t("depenses.payment.a_payer")}</SelectItem>
                   <SelectItem value="paye">{t("depenses.payment.paye")}</SelectItem>

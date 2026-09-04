@@ -185,7 +185,7 @@ function ActionEditor({ action, onChange, onRemove }: {
             <div>
               <Label className="text-xs">{t("automationsPage.editor.type")}</Label>
               <Select value={action.params.notifType ?? "info"} onValueChange={v => setParam("notifType", v)}>
-                <SelectTrigger className="h-7 text-xs mt-1">
+                <SelectTrigger aria-label={t("automationsPage.editor.type")} className="h-7 text-xs mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -213,7 +213,7 @@ function ActionEditor({ action, onChange, onRemove }: {
           <div>
             <Label className="text-xs">{t("automationsPage.editor.priority")}</Label>
             <Select value={action.params.priority ?? "moyenne"} onValueChange={v => setParam("priority", v)}>
-              <SelectTrigger className="h-7 text-xs mt-1"><SelectValue /></SelectTrigger>
+              <SelectTrigger aria-label={t("automationsPage.editor.priority")} className="h-7 text-xs mt-1"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="basse">{t("automationsPage.editor.prioBasse")}</SelectItem>
                 <SelectItem value="moyenne">{t("automationsPage.editor.prioMoyenne")}</SelectItem>
@@ -296,7 +296,7 @@ function EditRuleDialog({ rule, onSaved, onClose }: { rule: any; onSaved: () => 
           <div>
             <Label>{t("automationsPage.dialog.frequency")}</Label>
             <Select value={form.schedule} onValueChange={v => setForm(f => ({ ...f, schedule: v }))}>
-              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectTrigger aria-label={t("automationsPage.dialog.frequency")} className="mt-1"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="5min">{t("automationsPage.schedule.5min")}</SelectItem>
                 <SelectItem value="15min">{t("automationsPage.schedule.15min")}</SelectItem>
@@ -413,7 +413,7 @@ function CreateRuleDialog({ onCreated }: { onCreated: () => void }) {
             <div>
               <Label>{t("automationsPage.dialog.trigger")}</Label>
               <Select value={form.trigger} onValueChange={v => setForm(f => ({ ...f, trigger: v }))}>
-                <SelectTrigger className="mt-1">
+                <SelectTrigger aria-label={t("automationsPage.dialog.trigger")} className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -426,7 +426,7 @@ function CreateRuleDialog({ onCreated }: { onCreated: () => void }) {
             <div>
               <Label>{t("automationsPage.dialog.frequency")}</Label>
               <Select value={form.schedule} onValueChange={v => setForm(f => ({ ...f, schedule: v }))}>
-                <SelectTrigger className="mt-1">
+                <SelectTrigger aria-label={t("automationsPage.dialog.frequency")} className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

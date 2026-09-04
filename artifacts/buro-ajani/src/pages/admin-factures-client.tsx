@@ -271,7 +271,7 @@ export default function AdminFacturesClientPage() {
               <div><Label className="text-xs">{t("adminFacturesClient.form.reference")}</Label><Input aria-label={t("adminFacturesClient.form.reference")} value={form.reference} onChange={e => setForm(f => ({ ...f, reference: e.target.value }))} placeholder="FAC-..." /></div>
               <div><Label className="text-xs">{t("adminFacturesClient.form.status")}</Label>
                 <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label={t("adminFacturesClient.form.status")}><SelectValue /></SelectTrigger>
                   <SelectContent>{STATUSES.map(s => <SelectItem key={s.key} value={s.key}>{t(`adminFacturesClient.status.${s.key}`)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>

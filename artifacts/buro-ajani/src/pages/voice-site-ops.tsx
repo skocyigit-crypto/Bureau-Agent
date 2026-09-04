@@ -267,7 +267,7 @@ export default function VoiceSiteOpsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Textarea
+          <Textarea aria-label={t("voiceSiteOps.notePlaceholder")}
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={t("voiceSiteOps.notePlaceholder")}

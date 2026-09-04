@@ -797,7 +797,7 @@ export default function GmailAgentPage() {
         <div className="w-72 border-r flex flex-col bg-background shrink-0">
           <div className="p-2 border-b space-y-2">
             <form onSubmit={handleSearch} className="flex gap-1">
-              <Input
+              <Input aria-label={t("gmailAgent.filters.searchPlaceholder")}
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder={t("gmailAgent.filters.searchPlaceholder")}
@@ -1387,7 +1387,7 @@ export default function GmailAgentPage() {
                       <div>
                         <Label className="text-xs">{t("gmailAgent.panel.replyTone")}</Label>
                         <Select value={tone} onValueChange={setTone}>
-                          <SelectTrigger className="h-8 text-xs mt-1">
+                          <SelectTrigger aria-label={t("gmailAgent.panel.replyTone")} className="h-8 text-xs mt-1">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>

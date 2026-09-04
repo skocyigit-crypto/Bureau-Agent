@@ -880,7 +880,7 @@ export default function UsersPage() {
               <div className="space-y-2">
                 <Label>{t("users.form.role")}</Label>
                 <Select value={newUser.role} onValueChange={(v) => setNewUser({ ...newUser, role: v as UserRole })}>
-                  <SelectTrigger>
+                  <SelectTrigger aria-label={t("users.form.role")}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -974,7 +974,7 @@ export default function UsersPage() {
             <div className="space-y-2">
               <Label>{t("users.form.role")}</Label>
               <Select value={inviteRole} onValueChange={setInviteRole}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label={t("users.form.role")}><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="agent">{t("users.roles.agent")}</SelectItem>
                   <SelectItem value="administrateur">{t("users.roles.administrateur")}</SelectItem>
@@ -1055,7 +1055,7 @@ export default function UsersPage() {
           <div>
             <Label>{t("users.roleDialog.newRole")}</Label>
             <Select value={editRole} onValueChange={(v) => setEditRole(v as UserRole)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger aria-label={t("users.roleDialog.newRole")}><SelectValue /></SelectTrigger>
               <SelectContent>
                 {/* Le serveur (middleware/tenant-guard.ts: assertRoleAllowed)
                     refuse deja toute promotion vers super_admin par un

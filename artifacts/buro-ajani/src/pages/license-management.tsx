@@ -382,7 +382,7 @@ function InvoiceDetailDialog({ invoice, onClose, onRefresh, onReloadInvoice }: {
             <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.amountReceived")}</Label><Input aria-label={t("licenseManagement.dialog.amountReceived")} type="number" step="0.01" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} placeholder="0.00" /></div>
             <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.paymentMethod")}</Label>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9" aria-label={t("licenseManagement.dialog.paymentMethod")}><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="virement">{t("licenseManagement.method.virement")}</SelectItem>
                   <SelectItem value="cheque">{t("licenseManagement.method.cheque")}</SelectItem>
@@ -413,7 +413,7 @@ function InvoiceDetailDialog({ invoice, onClose, onRefresh, onReloadInvoice }: {
             <div className="text-sm"><span className="text-muted-foreground">{t("licenseManagement.dialog.invoiceLabel")}</span> <span className="font-semibold">{invoice.reference}</span> — {invoice.clientName}</div>
             <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.paymentMethod")}</Label>
               <Select value={markPaidMethod} onValueChange={setMarkPaidMethod}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9" aria-label={t("licenseManagement.dialog.paymentMethod")}><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="virement">{t("licenseManagement.method.virement")}</SelectItem>
                   <SelectItem value="cheque">{t("licenseManagement.method.cheque")}</SelectItem>
@@ -826,10 +826,10 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
                 </div>
                 {newInvoice.items.map((item, i) => (
                   <div key={i} className="grid grid-cols-12 gap-1 items-center">
-                    <Input className="col-span-5 h-7 text-xs" value={item.description} onChange={e => updateItem(i, "description", e.target.value)} placeholder={t("licenseManagement.clientInv.itemPlaceholder")} />
-                    <Input className="col-span-2 h-7 text-xs text-center" type="number" min="1" value={item.quantity} onChange={e => updateItem(i, "quantity", parseFloat(e.target.value) || 1)} />
-                    <Input className="col-span-2 h-7 text-xs text-right" type="number" min="0" step="0.01" value={item.unitPrice} onChange={e => updateItem(i, "unitPrice", parseFloat(e.target.value) || 0)} />
-                    <Input className="col-span-2 h-7 text-xs text-right" type="number" min="0" max="100" value={item.taxRate} onChange={e => updateItem(i, "taxRate", parseFloat(e.target.value) || 0)} />
+                    <Input aria-label={t("licenseManagement.clientInv.description")} className="col-span-5 h-7 text-xs" value={item.description} onChange={e => updateItem(i, "description", e.target.value)} placeholder={t("licenseManagement.clientInv.itemPlaceholder")} />
+                    <Input aria-label={t("licenseManagement.clientInv.qty")} className="col-span-2 h-7 text-xs text-center" type="number" min="1" value={item.quantity} onChange={e => updateItem(i, "quantity", parseFloat(e.target.value) || 1)} />
+                    <Input aria-label={t("licenseManagement.clientInv.priceHT")} className="col-span-2 h-7 text-xs text-right" type="number" min="0" step="0.01" value={item.unitPrice} onChange={e => updateItem(i, "unitPrice", parseFloat(e.target.value) || 0)} />
+                    <Input aria-label={t("licenseManagement.clientInv.tvaPct")} className="col-span-2 h-7 text-xs text-right" type="number" min="0" max="100" value={item.taxRate} onChange={e => updateItem(i, "taxRate", parseFloat(e.target.value) || 0)} />
                     <Button size="sm" variant="ghost" className="col-span-1 h-7 w-7 p-0 text-red-400 hover:text-red-600" onClick={() => removeItem(i)} disabled={newInvoice.items.length === 1} aria-label={t("common.delete")}><Trash2 className="h-3 w-3" aria-hidden="true" /></Button>
                   </div>
                 ))}
@@ -864,7 +864,7 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
             <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.amountReceived")}</Label><Input aria-label={t("licenseManagement.dialog.amountReceived")} type="number" step="0.01" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} placeholder="0.00" /></div>
             <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.paymentMethod")}</Label>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9" aria-label={t("licenseManagement.dialog.paymentMethod")}><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="virement">{t("licenseManagement.method.virement")}</SelectItem>
                   <SelectItem value="cheque">{t("licenseManagement.method.cheque")}</SelectItem>
@@ -894,7 +894,7 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
             <div className="text-sm"><span className="text-muted-foreground">{t("licenseManagement.dialog.invoiceLabel")}</span> <span className="font-semibold">{markPaidDialog?.ref}</span></div>
             <div className="space-y-1"><Label className="text-xs">{t("licenseManagement.dialog.paymentMethod")}</Label>
               <Select value={markPaidMethod} onValueChange={setMarkPaidMethod}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9" aria-label={t("licenseManagement.dialog.paymentMethod")}><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="virement">{t("licenseManagement.method.virement")}</SelectItem>
                   <SelectItem value="cheque">{t("licenseManagement.method.cheque")}</SelectItem>
@@ -1094,7 +1094,7 @@ function BillingSettingsTab({ data, onRefresh }: { data: any; onRefresh: () => v
                   <span className="text-[10px] text-muted-foreground font-mono">{data.organisation.bankIban}</span>
                 )}
               </div>
-              <Input value={bankIban} onChange={e => setBankIban(e.target.value)} placeholder="FR76 1234 5678 9012 3456 7890 123" />
+              <Input aria-label="IBAN" value={bankIban} onChange={e => setBankIban(e.target.value)} placeholder="FR76 1234 5678 9012 3456 7890 123" />
               {data.organisation?.bankIban && (
                 <p className="text-[10px] text-muted-foreground mt-1">{t("licenseManagement.settings.ibanKeep")}</p>
               )}
@@ -1318,17 +1318,17 @@ function SystemAuditTab() {
           <div className="flex flex-col sm:flex-row gap-2 pt-2">
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <Input value={userEmailSearch} onChange={e => setUserEmailSearch(e.target.value)} onKeyDown={e => { if (e.key === "Enter") applyFilters(); }} placeholder={t("licenseManagement.systemAudit.searchEmail")} className="pl-8 h-8 text-xs" />
+              <Input aria-label={t("licenseManagement.systemAudit.searchEmail")} value={userEmailSearch} onChange={e => setUserEmailSearch(e.target.value)} onKeyDown={e => { if (e.key === "Enter") applyFilters(); }} placeholder={t("licenseManagement.systemAudit.searchEmail")} className="pl-8 h-8 text-xs" />
             </div>
             <Select value={actionFilter} onValueChange={v => { setActionFilter(v); setPage(1); }}>
-              <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue placeholder={t("licenseManagement.systemAudit.actionPlaceholder")} /></SelectTrigger>
+              <SelectTrigger className="w-[140px] h-8 text-xs" aria-label={t("licenseManagement.systemAudit.actionPlaceholder")}><SelectValue placeholder={t("licenseManagement.systemAudit.actionPlaceholder")} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t("licenseManagement.systemAudit.allActions")}</SelectItem>
                 {AUDIT_ACTION_KEYS.map((k) => <SelectItem key={k} value={k}>{t("licenseManagement.auditAction." + k)}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={resourceFilter} onValueChange={v => { setResourceFilter(v); setPage(1); }}>
-              <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue placeholder={t("licenseManagement.systemAudit.resourcePlaceholder")} /></SelectTrigger>
+              <SelectTrigger className="w-[140px] h-8 text-xs" aria-label={t("licenseManagement.systemAudit.resourcePlaceholder")}><SelectValue placeholder={t("licenseManagement.systemAudit.resourcePlaceholder")} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t("licenseManagement.systemAudit.allResources")}</SelectItem>
                 {AUDIT_RESOURCE_KEYS.map((k) => <SelectItem key={k} value={k}>{t("licenseManagement.auditResource." + k)}</SelectItem>)}
@@ -1338,9 +1338,9 @@ function SystemAuditTab() {
           <div className="flex flex-col sm:flex-row gap-2 pt-1">
             <div className="flex items-center gap-2 flex-1">
               <span className="text-xs text-muted-foreground whitespace-nowrap">{t("licenseManagement.systemAudit.from")}</span>
-              <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-8 text-xs flex-1" />
+              <Input aria-label={t("licenseManagement.systemAudit.from")} type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-8 text-xs flex-1" />
               <span className="text-xs text-muted-foreground whitespace-nowrap">{t("licenseManagement.systemAudit.to")}</span>
-              <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-8 text-xs flex-1" />
+              <Input aria-label={t("licenseManagement.systemAudit.to")} type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-8 text-xs flex-1" />
             </div>
             <div className="flex gap-2">
               <Button size="sm" className="h-8 text-xs px-3" onClick={applyFilters}><Search className="w-3 h-3 mr-1" />{t("licenseManagement.systemAudit.filter")}</Button>

@@ -604,7 +604,7 @@ export default function ProspectDetail() {
                 </CardHeader>
                 <CardContent>
                   {editingNotes ? (
-                    <Textarea
+                    <Textarea aria-label={t("prospectDetail.notesPlaceholder")}
                       className="resize-none min-h-[160px] text-sm"
                       value={notesValue}
                       onChange={e => setNotesValue(e.target.value)}
@@ -630,13 +630,13 @@ export default function ProspectDetail() {
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs">{t("prospectDetail.stageLabel")}</Label>
                 <Select value={form.stage} onValueChange={v => setForm(f => ({ ...f, stage: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label={t("prospectDetail.stageLabel")}><SelectValue /></SelectTrigger>
                   <SelectContent>{STAGES.map(s => <SelectItem key={s.key} value={s.key}>{t(`prospectDetail.stage.${s.key}`)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div><Label className="text-xs">{t("prospectDetail.priorityLabel")}</Label>
                 <Select value={form.priority} onValueChange={v => setForm(f => ({ ...f, priority: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label={t("prospectDetail.priorityLabel")}><SelectValue /></SelectTrigger>
                   <SelectContent>{PRIORITIES.map(p => <SelectItem key={p.key} value={p.key}>{t(`prospectDetail.priority.${p.key}`)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>

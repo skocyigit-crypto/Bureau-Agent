@@ -2065,7 +2065,7 @@ export default function OrganisationsPage() {
               {t("organisationsPage.uploadDialog.desc")}
             </DialogDescription>
           </DialogHeader>
-          <Textarea
+          <Textarea aria-label={t("organisationsPage.uploadDialog.placeholder")}
             value={bankLines}
             onChange={(e) => setBankLines(e.target.value)}
             placeholder={t("organisationsPage.uploadDialog.placeholder")}
@@ -2101,7 +2101,7 @@ export default function OrganisationsPage() {
               <div className="relative">
                 <Label>{t("organisationsPage.createDialog.orgName")}</Label>
                 <div className="relative">
-                  <Input
+                  <Input aria-label={t("organisationsPage.createDialog.orgName")}
                     value={formName}
                     onChange={(e) => handleFormNameChange(e.target.value)}
                     onFocus={() => { if (companyResults.length > 0) setCompanySearchOpen(true); }}
@@ -2153,7 +2153,7 @@ export default function OrganisationsPage() {
               <div>
                 <Label>{t("organisationsPage.createDialog.licensePlan")}</Label>
                 <Select value={formPlan} onValueChange={setFormPlan}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label={t("organisationsPage.createDialog.licensePlan")}><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="essai">{t("organisationsPage.createDialog.planEssai")}</SelectItem>
                     <SelectItem value="starter">{t("organisationsPage.createDialog.planStarter")}</SelectItem>
@@ -2245,7 +2245,7 @@ export default function OrganisationsPage() {
           <div>
             <Label>{t("organisationsPage.planDialog.newPlan")}</Label>
             <Select value={formPlan} onValueChange={setFormPlan}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger aria-label={t("organisationsPage.planDialog.newPlan")}><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="essai">{t("organisationsPage.planDialog.planEssai")}</SelectItem>
                 <SelectItem value="starter">{t("organisationsPage.planDialog.planStarter")}</SelectItem>

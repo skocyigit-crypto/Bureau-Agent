@@ -41,7 +41,7 @@ const SRC = path.join(here, "..", "src");
  * libelle fait echouer le build. Baisser ce nombre en meme temps qu'on corrige
  * des champs fait partie de la correction.
  */
-const MAX_UNLABELLED = 178;
+const MAX_UNLABELLED = 81;
 
 /** Balises rendant un champ de saisie. */
 const CONTROL = /<(Input|Textarea|SelectTrigger)\b/g;

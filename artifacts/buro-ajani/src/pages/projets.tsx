@@ -241,7 +241,7 @@ function ProjetForm({ form, setForm }: { form: any; setForm: (f: any) => void })
         <div>
           <Label>{t("projets.form.status")}</Label>
           <Select value={form.status} onValueChange={v => setForm((f: any) => ({ ...f, status: v }))}>
-            <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label={t("projets.form.status")} className="mt-1"><SelectValue /></SelectTrigger>
             <SelectContent>
               {Object.keys(STATUS_CONFIG).map(v => <SelectItem key={v} value={v}>{t(`projets.status.${v}`)}</SelectItem>)}
             </SelectContent>
@@ -250,7 +250,7 @@ function ProjetForm({ form, setForm }: { form: any; setForm: (f: any) => void })
         <div>
           <Label>{t("projets.form.priority")}</Label>
           <Select value={form.priority} onValueChange={v => setForm((f: any) => ({ ...f, priority: v }))}>
-            <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label={t("projets.form.priority")} className="mt-1"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="haute">{t("projets.priority.haute")}</SelectItem>
               <SelectItem value="moyenne">{t("projets.priority.moyenne")}</SelectItem>

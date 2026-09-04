@@ -122,7 +122,7 @@ function QuickContactForm({ onSubmit, loading }: { onSubmit: (d: any) => void; l
         <div>
           <Label className="text-xs">{t("quickActionHub.contact.category")}</Label>
           <Select value={category} onValueChange={setCategory}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label={t("quickActionHub.contact.category")}><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="client">{t("quickActionHub.contact.catClient")}</SelectItem>
               <SelectItem value="fournisseur">{t("quickActionHub.contact.catFournisseur")}</SelectItem>
@@ -153,7 +153,7 @@ function QuickTaskForm({ onSubmit, loading }: { onSubmit: (d: any) => void; load
         <div>
           <Label className="text-xs">{t("quickActionHub.task.priority")}</Label>
           <Select value={priority} onValueChange={setPriority}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label={t("quickActionHub.task.priority")}><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="basse">{t("quickActionHub.task.prioBasse")}</SelectItem>
               <SelectItem value="moyenne">{t("quickActionHub.task.prioMoyenne")}</SelectItem>
@@ -185,7 +185,7 @@ function QuickCallForm({ onSubmit, loading }: { onSubmit: (d: any) => void; load
       <div>
         <Label className="text-xs">{t("quickActionHub.call.direction")}</Label>
         <Select value={direction} onValueChange={setDirection}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectTrigger aria-label={t("quickActionHub.call.direction")}><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="entrant">{t("quickActionHub.call.dirEntrant")}</SelectItem>
             <SelectItem value="sortant">{t("quickActionHub.call.dirSortant")}</SelectItem>
@@ -211,7 +211,7 @@ function QuickMessageForm({ onSubmit, loading }: { onSubmit: (d: any) => void; l
         <div>
           <Label className="text-xs">{t("quickActionHub.message.channel")}</Label>
           <Select value={channel} onValueChange={setChannel}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label={t("quickActionHub.message.channel")}><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="email">{t("quickActionHub.message.chEmail")}</SelectItem>
               <SelectItem value="sms">{t("quickActionHub.message.chSms")}</SelectItem>
@@ -245,7 +245,7 @@ function QuickEventForm({ onSubmit, loading }: { onSubmit: (d: any) => void; loa
       <div>
         <Label className="text-xs">{t("quickActionHub.event.type")}</Label>
         <Select value={type} onValueChange={setType}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectTrigger aria-label={t("quickActionHub.event.type")}><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="reunion">{t("quickActionHub.event.typeReunion")}</SelectItem>
             <SelectItem value="appel">{t("quickActionHub.event.typeAppel")}</SelectItem>
@@ -282,7 +282,7 @@ function QuickProjetForm({ onSubmit, loading }: { onSubmit: (d: any) => void; lo
         <div>
           <Label className="text-xs">{t("quickActionHub.projet.priority")}</Label>
           <Select value={priority} onValueChange={setPriority}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label={t("quickActionHub.projet.priority")}><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="basse">{t("quickActionHub.projet.prioBasse")}</SelectItem>
               <SelectItem value="moyenne">{t("quickActionHub.projet.prioMoyenne")}</SelectItem>

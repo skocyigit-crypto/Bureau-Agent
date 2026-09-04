@@ -295,7 +295,7 @@ function AdminFacturesB2BContent() {
               <div><Label className="text-xs">{t("adminFacturesB2b.form.reference")}</Label><Input aria-label={t("adminFacturesB2b.form.reference")} value={form.reference} onChange={e => setForm(f => ({ ...f, reference: e.target.value }))} placeholder="FAC-..." /></div>
               <div><Label className="text-xs">{t("adminFacturesB2b.form.status")}</Label>
                 <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label={t("adminFacturesB2b.form.status")}><SelectValue /></SelectTrigger>
                   <SelectContent>{STATUSES.map(s => <SelectItem key={s.key} value={s.key}>{t(`adminFacturesB2b.status.${s.key}`)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>

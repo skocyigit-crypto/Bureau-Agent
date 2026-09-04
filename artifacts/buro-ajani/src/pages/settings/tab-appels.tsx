@@ -104,13 +104,13 @@ function AiReceptionistSettings() {
         <div className="grid grid-cols-2 gap-3">
           <div><Label className="text-xs">{t("settingsAppels.recept.language")}</Label>
             <Select value={cfg.language || "fr"} onValueChange={(v) => set({ language: v, voice: "" })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger aria-label={t("settingsAppels.recept.language")}><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="fr">Français</SelectItem><SelectItem value="tr">Türkçe</SelectItem><SelectItem value="en">English</SelectItem></SelectContent>
             </Select>
           </div>
           <div><Label className="text-xs">{t("settingsAppels.recept.voice")}</Label>
             <Select value={cfg.voice || ""} onValueChange={(v) => set({ voice: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger aria-label={t("settingsAppels.recept.voice")}><SelectValue /></SelectTrigger>
               <SelectContent>{voices.map((v) => <SelectItem key={v.value || "default"} value={v.value}>{v.label}{v.value ? "" : t("settingsAppels.voiceDefaultSuffix")}</SelectItem>)}</SelectContent>
             </Select>
           </div>
@@ -255,7 +255,7 @@ export function TabAppels() {
               <p className="text-xs text-muted-foreground">{t("settingsAppels.incoming.ringDesc")}</p>
             </div>
             <Select value={callRingDuration} onValueChange={setCallRingDuration}>
-              <SelectTrigger className="w-32">
+              <SelectTrigger aria-label={t("settingsAppels.incoming.ringLabel")} className="w-32">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

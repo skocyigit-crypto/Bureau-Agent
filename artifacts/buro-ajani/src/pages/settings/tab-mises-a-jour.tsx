@@ -165,7 +165,7 @@ export function TabMisesAJour() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium mb-1 block">{t("settingsMisesAJour.versionLabel")}</label>
-                <Input
+                <Input aria-label={t("settingsMisesAJour.versionPlaceholder")}
                   value={form.version}
                   onChange={e => setForm(f => ({ ...f, version: e.target.value }))}
                   placeholder={t("settingsMisesAJour.versionPlaceholder")}
@@ -190,7 +190,7 @@ export function TabMisesAJour() {
 
             <div>
               <label className="text-sm font-medium mb-1 block">{t("settingsMisesAJour.titleLabel")}</label>
-              <Input
+              <Input aria-label={t("settingsMisesAJour.titlePlaceholder")}
                 value={form.title}
                 onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                 placeholder={t("settingsMisesAJour.titlePlaceholder")}
@@ -199,7 +199,7 @@ export function TabMisesAJour() {
 
             <div>
               <label className="text-sm font-medium mb-1 block">{t("settingsMisesAJour.descLabel")}</label>
-              <Input
+              <Input aria-label={t("settingsMisesAJour.descPlaceholder")}
                 value={form.description}
                 onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                 placeholder={t("settingsMisesAJour.descPlaceholder")}
@@ -210,7 +210,7 @@ export function TabMisesAJour() {
               <label className="text-sm font-medium mb-1 block">
                 {t("settingsMisesAJour.changesLabel")}
               </label>
-              <Textarea
+              <Textarea aria-label={t("settingsMisesAJour.changesPlaceholder")}
                 value={form.changes}
                 onChange={e => setForm(f => ({ ...f, changes: e.target.value }))}
                 placeholder={t("settingsMisesAJour.changesPlaceholder")}

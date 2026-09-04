@@ -197,9 +197,9 @@ export default function NotesInternesPage() {
         )}
         {isEditingThis && !selectMode ? (
           <>
-            <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder={t("notesInternes.titlePlaceholder")} className="text-sm font-medium bg-transparent border-none shadow-none px-0 h-7" />
+            <Input aria-label={t("notesInternes.titlePlaceholder")} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder={t("notesInternes.titlePlaceholder")} className="text-sm font-medium bg-transparent border-none shadow-none px-0 h-7" />
             <GhostTextarea ref={textareaRef} fieldType="note" context={{ title: form.title }} value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} rows={4} className="text-sm bg-transparent border-none shadow-none px-0 resize-none" showToggle={false} />
-            <Input value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} placeholder={t("notesInternes.tagsPlaceholder")} className="text-xs bg-transparent border-none shadow-none px-0 h-6" />
+            <Input aria-label={t("notesInternes.tagsPlaceholder")} value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} placeholder={t("notesInternes.tagsPlaceholder")} className="text-xs bg-transparent border-none shadow-none px-0 h-6" />
             <div className="flex items-center gap-1.5 flex-wrap">
               {COLORS.map(c => (
                 <button key={c.key} onClick={() => setForm(f => ({ ...f, color: c.key }))} className={`w-6 h-6 rounded-full border-2 ${c.bg.split(" ")[0] || "bg-white"} ${form.color === c.key ? "border-primary ring-1 ring-primary" : "border-transparent"}`} title={t(`notesInternes.color.${c.key}`)} />
@@ -306,9 +306,9 @@ export default function NotesInternesPage() {
 
       {creating && (
         <div className="bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800/50 rounded-xl p-4 space-y-2 ring-2 ring-primary">
-          <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder={t("notesInternes.titlePlaceholder")} className="bg-transparent border-none shadow-none px-0 font-medium" />
+          <Input aria-label={t("notesInternes.titlePlaceholder")} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder={t("notesInternes.titlePlaceholder")} className="bg-transparent border-none shadow-none px-0 font-medium" />
           <GhostTextarea ref={textareaRef} fieldType="note" context={{ title: form.title }} value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} placeholder={t("notesInternes.contentPlaceholder")} rows={4} className="bg-transparent border-none shadow-none px-0 resize-none" />
-          <Input value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} placeholder={t("notesInternes.tagsPlaceholderLong")} className="text-xs bg-transparent border-none shadow-none px-0 h-6" />
+          <Input aria-label={t("notesInternes.tagsPlaceholderLong")} value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} placeholder={t("notesInternes.tagsPlaceholderLong")} className="text-xs bg-transparent border-none shadow-none px-0 h-6" />
           <div className="flex items-center gap-1.5 flex-wrap">
             {COLORS.map(c => (
               <button key={c.key} onClick={() => setForm(f => ({ ...f, color: c.key }))} className={`w-6 h-6 rounded-full border-2 ${c.bg.split(" ")[0] || "bg-white"} ${form.color === c.key ? "border-primary ring-1 ring-primary" : "border-transparent"}`} title={t(`notesInternes.color.${c.key}`)} />

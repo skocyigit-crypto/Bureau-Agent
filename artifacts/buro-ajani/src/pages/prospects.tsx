@@ -372,7 +372,7 @@ export default function ProspectsPage() {
               </DropdownMenu>
               {showAssignInput ? (
                 <div className="flex items-center gap-1">
-                  <Input
+                  <Input aria-label={t("prospects.bulk.assignPlaceholder")}
                     value={bulkAssignName}
                     onChange={e => setBulkAssignName(e.target.value)}
                     onKeyDown={e => { if (e.key === "Enter") handleBulkAssign(); if (e.key === "Escape") { setShowAssignInput(false); setBulkAssignName(""); } }}
@@ -463,13 +463,13 @@ export default function ProspectsPage() {
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs">{t("prospects.dialog.stage")}</Label>
                 <Select value={form.stage} onValueChange={v => setForm(f => ({ ...f, stage: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label={t("prospects.dialog.stage")}><SelectValue /></SelectTrigger>
                   <SelectContent>{STAGES.map(s => <SelectItem key={s.key} value={s.key}>{t(`prospects.stages.${s.key}`)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div><Label className="text-xs">{t("prospects.dialog.priority")}</Label>
                 <Select value={form.priority} onValueChange={v => setForm(f => ({ ...f, priority: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label={t("prospects.dialog.priority")}><SelectValue /></SelectTrigger>
                   <SelectContent>{PRIORITIES.map(p => <SelectItem key={p.key} value={p.key}>{t(`prospects.priorities.${p.key}`)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>

@@ -224,7 +224,7 @@ export default function AdminDevisPage() {
               <div><Label className="text-xs">{t("adminDevis.form.reference")}</Label><Input aria-label={t("adminDevis.form.reference")} value={form.reference} onChange={e => setForm(f => ({ ...f, reference: e.target.value }))} placeholder="DEV-..." /></div>
               <div><Label className="text-xs">{t("adminDevis.form.status")}</Label>
                 <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label={t("adminDevis.form.status")}><SelectValue /></SelectTrigger>
                   <SelectContent>{STATUSES.map(s => <SelectItem key={s.key} value={s.key}>{t(`adminDevis.status.${s.key}`)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>

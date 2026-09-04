@@ -564,7 +564,7 @@ export default function Tasks() {
               </DropdownMenu>
               {showAssignInput ? (
                 <div className="flex items-center gap-1">
-                  <Input
+                  <Input aria-label={t("tasks.assignPlaceholder")}
                     ref={assignInputRef}
                     value={bulkAssignName}
                     onChange={e => setBulkAssignName(e.target.value)}

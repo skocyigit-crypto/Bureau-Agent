@@ -946,7 +946,7 @@ export function TabSecurite() {
               </div>
             </div>
             <Select value={sessionTimeout} onValueChange={setSessionTimeout}>
-              <SelectTrigger className="w-32">
+              <SelectTrigger aria-label={t("settingsSecurite.app.sessionExpiry")} className="w-32">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
