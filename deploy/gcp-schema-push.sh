@@ -8,7 +8,24 @@
 #   bash deploy/gcp-schema-push.sh
 set -euo pipefail
 
-PROJECT="$(gcloud config get-value project)"
+# Le projet est EPINGLE, pas lu dans la configuration active.
+#
+# Ce projet GCP heberge quatre applications: agent-de-bureau, assise,
+# batiflow et btp-ultra-os, avec une base Cloud SQL chacune. Et le compte
+# compte treize projets. `gcloud config get-value project` renvoie le projet
+# COURANT — celui sur lequel on travaillait il y a une heure. Un script qui
+# pousse un schema en production ne doit pas dependre de cela.
+#
+# Surchargeable pour un environnement de recette, mais il faut alors le dire
+# explicitement:  AGENT_DE_BUREAU_PROJECT=... bash deploy/gcp-schema-push.sh
+PROJECT="${AGENT_DE_BUREAU_PROJECT:-gwmme-1771577941260}"
+
+# Garde-fou: si le projet epingle n'est pas celui de la configuration active,
+# on le dit. Mieux vaut une ligne de trop qu'une poussee sur la mauvaise base.
+PROJET_ACTIF="$(gcloud config get-value project 2>/dev/null || true)"
+if [ -n "${PROJET_ACTIF}" ] && [ "${PROJET_ACTIF}" != "${PROJECT}" ]; then
+  echo "-- Projet actif (${PROJET_ACTIF}) different du projet vise (${PROJECT}); on utilise ${PROJECT}. --"
+fi
 SQL_INSTANCE="agent-de-bureau-db"
 SQL_DB="agent_de_bureau"
 SQL_USER="agent"
