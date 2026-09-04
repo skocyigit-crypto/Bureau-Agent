@@ -136,7 +136,12 @@ const VISUAL_MIME_TYPES = [
   "image/png", "image/jpeg", "image/webp", "image/gif", "image/bmp", "image/tiff",
 ];
 
-async function extractTextFromFile(base64Content: string, mimeType: string, fileName: string): Promise<string | null> {
+/**
+ * Exportee pour etre mesurable: c'est la seule porte par laquelle le contenu
+ * d'un document entre dans l'analyse, et une regression y est invisible depuis
+ * l'exterieur (les modeles repondent quand meme, avec ce qu'ils ont).
+ */
+export async function extractTextFromFile(base64Content: string, mimeType: string, fileName: string): Promise<string | null> {
   const buffer = Buffer.from(base64Content, "base64");
 
   if (mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || mimeType === "application/vnd.ms-excel" || fileName.match(/\.xlsx?$/i)) {
@@ -153,6 +158,38 @@ async function extractTextFromFile(base64Content: string, mimeType: string, file
       return `CONTENU EXCEL (${workbook.SheetNames.length} feuille(s)):\n\n${sheets.join("\n\n")}`;
     } catch (err: any) {
       logger.warn({ err, fileName }, "Excel parse error");
+      return null;
+    }
+  }
+
+  // PDF.
+  //
+  // Cette branche n'existait pas: la fonction renvoyait `null`, et l'appelant
+  // remplacait le contenu par la chaine « Fichier: facture.pdf
+  // (application/pdf) ». L'analyse annonce trois modeles dont les reponses sont
+  // fusionnees en un consensus; or seul Gemini recoit le PDF natif. Sur un PDF,
+  // les deux autres analysaient donc un NOM DE FICHIER — et repondaient quand
+  // meme, puisqu'un modele repond toujours. C'est le pire mode de panne: une
+  // facture « lue par trois modeles » dont deux ne l'ont jamais vue.
+  //
+  // Mesure du 2026-09-04, avant correction: sur 20 PDF differents, zero
+  // caractere extrait.
+  //
+  // `unpdf` est du JavaScript pur (pdf.js embarque), sans binaire natif: il
+  // fonctionne tel quel dans le conteneur Cloud Run.
+  if (mimeType === "application/pdf" || fileName.match(/\.pdf$/i)) {
+    try {
+      const { extractText, getDocumentProxy } = await import("unpdf");
+      const doc = await getDocumentProxy(new Uint8Array(buffer));
+      const { text, totalPages } = await extractText(doc, { mergePages: true });
+      const contenu = (typeof text === "string" ? text : String(text ?? "")).trim();
+      // Un PDF scanne (image sans couche texte) ressort vide. On ne renvoie pas
+      // une chaine vide qui passerait pour du contenu: `null` dit a l'appelant
+      // qu'il n'a rien, et Gemini reste la voie qui voit reellement la page.
+      if (!contenu) return null;
+      return `CONTENU PDF (${totalPages} page(s)):\n\n${contenu.slice(0, 30000)}`;
+    } catch (err: unknown) {
+      logger.warn({ err, fileName }, "PDF parse error");
       return null;
     }
   }
