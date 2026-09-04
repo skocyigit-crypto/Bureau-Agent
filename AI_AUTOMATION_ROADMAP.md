@@ -93,7 +93,7 @@ girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamla
 
 ## Öncelikli görevler (tam otomasyona ulaşmak için)
 
-### 1. [YÜKSEK] Google OAuth platformu kur (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET)
+### 1. [ÜRETİMDE KURULU — 2026-09-04 ölçüldü] Google OAuth platformu
 - **Neden önemli**: Autonomous Inbox (gelen kutusu tarama + otomatik görev oluşturma) ve
   Super Agent'ın e-posta ayağı tamamen bu olmadan çalışamıyor. Google Workspace
   entegrasyonu (Drive/Calendar) de aynı şekilde etkileniyor.
@@ -125,7 +125,24 @@ girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamla
 
       GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... bash deploy/setup-google-oauth.sh
 
-- **Durum**: Console adımı kullanıcıda; gerisi hazır ve tek komut.
+- **2026-09-04 — ölçüm bu maddeyi çürüttü**: Cloud Run yapılandırması okundu ve
+  üçü de **zaten tanımlı**:
+
+      GOOGLE_CLIENT_ID      -> 72 karakter, ...apps.googleusercontent.com
+      GOOGLE_CLIENT_SECRET  -> sır: google-client-secret
+      GOOGLE_REDIRECT_URI   -> https://app.agentdebureau.fr/api/google-oauth/callback
+
+  Ayrıca Gmail, Calendar ve Drive API'leri projede açık
+  (`gcloud services list --enabled`). Yani "kullanıcı Console adımını yapmalı"
+  kaydı **bayattı** ve ben onu bir gün boyunca doğrulamadan tekrarladım.
+  Ders, bu deponun kendi kuralının aynısı: **bir engel iddiası da bir ölçümdür**,
+  ve kaydın kendisi ölçülmeden alıntılanmamalı.
+- **Kalan tek belirsizlik, ve buradan görülemez**: OAuth onay ekranının
+  "External" olarak **yayımlanmış** olup olmadığı. Yayımlanmamışsa istemci
+  geçerlidir ama yalnızca test hesapları bağlanabilir. Bu bir Console ayarı;
+  `gcloud` göstermiyor. Pratik testi: uygulamada bir Google hesabı bağlamak.
+- **Durum**: Yapılandırma üretimde. Uçtan uca doğrulama (bir hesap bağlama)
+  yapılmadı — yapılana kadar "Autonomous Inbox çalışıyor" denmeyecek.
 
 ### 2. [TAMAMLANDI] Twilio BYOK (her müşteri kendi hesabını girer) (2026-07-14)
 
@@ -2378,6 +2395,30 @@ gürültüdür. Yeniden kullanılırsa listeye girer.
 doğrulandı: `success` eski değerine döndürülünce 1, geri alınınca 0. Eksik
 jeton da hata sayılıyor — yeniden adlandırılan bir jeton, denetimini sessizce
 ortadan kaldırmamalı.
+
+## Bayat bir "engel" kaydı, bir gün boyunca tekrarlandı — 2026-09-04
+
+Bugün kullanıcıya defalarca "kalan tek iş Google OAuth istemcisini oluşturmak"
+dedim. **Yanlıştı.** Ölçtüğümde üretimde üçü de tanımlıydı:
+`GOOGLE_CLIENT_ID` (gerçek bir `...apps.googleusercontent.com`),
+`GOOGLE_CLIENT_SECRET` (Secret Manager'dan) ve doğru `GOOGLE_REDIRECT_URI`;
+Gmail, Calendar ve Drive API'leri de açık.
+
+Kimse yanlış bilgi vermedi — kayıt bir kez yazıldı ve bir daha sınanmadı. Bu
+deponun bütün gün uyguladığı kuralın tam da kendisi: **bir engel iddiası da bir
+ölçümdür.** Doğrulanmadan alıntılanırsa, kod kadar kolay bayatlar; üstelik daha
+sinsidir, çünkü hiçbir test onu kırmızıya çevirmez.
+
+`deploy/check-google-oauth.sh` bu iddiayı ölçülebilir kılıyor: üç değişkeni ve
+üç API'yi okuyup rapor ediyor, yönlendirme adresi beklenenden farklıysa uyarıyor.
+Sırrın **değeri** hiç okunmuyor, yalnız varlığı; kimliğin de sadece son 24
+karakteri yazılıyor — bir CI günlüğüne tam kimlik düşürmemek için.
+
+**Script'in söyleyemediği şey de yazıldı**: onay ekranının "External" olarak
+yayımlanıp yayımlanmadığı `gcloud`'da görünmüyor. Yayımlanmamışsa yapılandırma
+doğrudur ama yalnız test hesapları bağlanabilir. Uçtan uca tek kanıt, uygulamada
+bir Google hesabı bağlamaktır — o yapılana kadar "Autonomous Inbox çalışıyor"
+yazılmayacak.
 
 ## Bir kapı Windows'ta hiç geçilemiyormuş — 2026-09-04
 
