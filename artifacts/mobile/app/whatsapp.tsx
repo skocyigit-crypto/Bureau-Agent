@@ -141,7 +141,7 @@ export default function WhatsappInboxScreen() {
 
         <View style={[styles.searchContainer, { backgroundColor: "rgba(255,255,255,0.1)" }]}>
           <Feather name="search" size={16} color="rgba(255,255,255,0.5)" />
-          <TextInput
+          <TextInput accessibilityLabel={t("whatsappScreen.searchPlaceholder")}
             style={styles.searchInput}
             placeholder={t("whatsappScreen.searchPlaceholder")}
             placeholderTextColor="rgba(255,255,255,0.4)"

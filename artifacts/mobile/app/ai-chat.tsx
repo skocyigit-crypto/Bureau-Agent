@@ -841,7 +841,7 @@ export default function AIChatScreen() {
                 <Feather name="mic" size={18} color={voiceListening ? "#ef4444" : colors.mutedForeground} />
               </Pressable>
             )}
-            <TextInput
+            <TextInput accessibilityLabel={t("aiChatScreen.inputPlaceholder")}
               style={[styles.input, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]}
               placeholder={t("aiChatScreen.inputPlaceholder")}
               placeholderTextColor={colors.mutedForeground}

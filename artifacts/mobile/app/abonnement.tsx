@@ -339,7 +339,7 @@ export default function AbonnementScreen() {
               <Text style={[styles.upgradeFormSub, { color: colors.mutedForeground }]}>
                 {t("abonnementScreen.upgradeFormSub")}
               </Text>
-              <TextInput
+              <TextInput accessibilityLabel={t("abonnementScreen.upgradePlaceholder")}
                 style={[styles.upgradeTextarea, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
                 value={upgradeMsg}
                 onChangeText={setUpgradeMsg}

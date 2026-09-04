@@ -1066,7 +1066,7 @@ export default function CalendarScreen() {
                     </View>
                     <View>
                       <Text style={[styles.sheetFieldLabel, { color: colors.mutedForeground }]}>{t("calendarScreen.reason")}</Text>
-                      <TextInput
+                      <TextInput accessibilityLabel={t("calendarScreen.reasonPlaceholder")}
                         style={[styles.sheetInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
                         placeholder={t("calendarScreen.reasonPlaceholder")}
                         placeholderTextColor={colors.mutedForeground}
@@ -1133,7 +1133,7 @@ export default function CalendarScreen() {
                   </View>
                   <View>
                     <Text style={[styles.sheetFieldLabel, { color: colors.mutedForeground }]}>{t("calendarScreen.reason")}</Text>
-                    <TextInput
+                    <TextInput accessibilityLabel={t("calendarScreen.reasonPlaceholder")}
                       style={[styles.sheetInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
                       placeholder={t("calendarScreen.reasonPlaceholder")}
                       placeholderTextColor={colors.mutedForeground}

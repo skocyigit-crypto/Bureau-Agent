@@ -674,7 +674,7 @@ export default function GmailAgentScreen() {
 
         <View style={[styles.searchBox, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
           <Feather name="search" size={14} color="rgba(255,255,255,0.6)" />
-          <TextInput style={styles.searchInput} placeholder={t("gmailAgentScreen.searchPlaceholder")} placeholderTextColor="rgba(255,255,255,0.5)" value={search} onChangeText={setSearch} />
+          <TextInput accessibilityLabel={t("gmailAgentScreen.searchPlaceholder")} style={styles.searchInput} placeholder={t("gmailAgentScreen.searchPlaceholder")} placeholderTextColor="rgba(255,255,255,0.5)" value={search} onChangeText={setSearch} />
           {search ? <Feather name="x" size={14} color="rgba(255,255,255,0.6)" onPress={() => setSearch("")} /> : null}
         </View>
       </View>
@@ -913,14 +913,14 @@ export default function GmailAgentScreen() {
             <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} keyboardShouldPersistTaps="handled">
               <View style={[styles.composeField, { borderColor: colors.border }]}>
                 <Text style={[styles.composeLabel, { color: colors.mutedForeground }]}>{t("gmailAgentScreen.fieldTo")}</Text>
-                <TextInput style={[styles.composeInput, { color: colors.foreground }]} value={compose.to} onChangeText={v => setCompose(p => ({ ...p, to: v }))} placeholder="email@example.com" placeholderTextColor={colors.mutedForeground} keyboardType="email-address" autoCapitalize="none" />
+                <TextInput accessibilityLabel={t("gmailAgentScreen.fieldTo")} style={[styles.composeInput, { color: colors.foreground }]} value={compose.to} onChangeText={v => setCompose(p => ({ ...p, to: v }))} placeholder="email@example.com" placeholderTextColor={colors.mutedForeground} keyboardType="email-address" autoCapitalize="none" />
               </View>
               <View style={[styles.composeField, { borderColor: colors.border }]}>
                 <Text style={[styles.composeLabel, { color: colors.mutedForeground }]}>{t("gmailAgentScreen.fieldSubject")}</Text>
-                <TextInput style={[styles.composeInput, { color: colors.foreground }]} value={compose.subject} onChangeText={v => setCompose(p => ({ ...p, subject: v }))} placeholder={t("gmailAgentScreen.subjectPlaceholder")} placeholderTextColor={colors.mutedForeground} />
+                <TextInput accessibilityLabel={t("gmailAgentScreen.subjectPlaceholder")} style={[styles.composeInput, { color: colors.foreground }]} value={compose.subject} onChangeText={v => setCompose(p => ({ ...p, subject: v }))} placeholder={t("gmailAgentScreen.subjectPlaceholder")} placeholderTextColor={colors.mutedForeground} />
               </View>
               <View style={[styles.composeBodyField, { borderColor: colors.border, backgroundColor: colors.card }]}>
-                <TextInput style={[styles.composeBodyInput, { color: colors.foreground }]} value={compose.body} onChangeText={v => setCompose(p => ({ ...p, body: v }))} placeholder={t("gmailAgentScreen.bodyPlaceholder")} placeholderTextColor={colors.mutedForeground} multiline numberOfLines={12} textAlignVertical="top" />
+                <TextInput accessibilityLabel={t("gmailAgentScreen.bodyPlaceholder")} style={[styles.composeBodyInput, { color: colors.foreground }]} value={compose.body} onChangeText={v => setCompose(p => ({ ...p, body: v }))} placeholder={t("gmailAgentScreen.bodyPlaceholder")} placeholderTextColor={colors.mutedForeground} multiline numberOfLines={12} textAlignVertical="top" />
               </View>
             </ScrollView>
           </View>

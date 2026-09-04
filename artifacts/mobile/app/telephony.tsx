@@ -237,7 +237,7 @@ export default function TelephonyScreen() {
                 </View>
 
                 <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>{t("telephonyScreen.destNumber")}</Text>
-                <TextInput
+                <TextInput accessibilityLabel={t("telephonyScreen.destNumber")}
                   style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
                   value={callTo}
                   onChangeText={setCallTo}
@@ -289,7 +289,7 @@ export default function TelephonyScreen() {
                 </View>
 
                 <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>{t("telephonyScreen.destNumber")}</Text>
-                <TextInput
+                <TextInput accessibilityLabel={t("telephonyScreen.destNumber")}
                   style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
                   value={smsTo}
                   onChangeText={setSmsTo}
@@ -299,7 +299,7 @@ export default function TelephonyScreen() {
                 />
 
                 <Text style={[styles.inputLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("telephonyScreen.message")}</Text>
-                <TextInput
+                <TextInput accessibilityLabel={t("telephonyScreen.messagePlaceholder")}
                   style={[styles.input, styles.textArea, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
                   value={smsBody}
                   onChangeText={setSmsBody}

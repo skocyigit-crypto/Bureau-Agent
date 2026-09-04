@@ -8,7 +8,8 @@
     "build": "node scripts/build.js",
     "serve": "node server/serve.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "a11y:check": "node ./scripts/a11y-input-labels.mjs --check"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

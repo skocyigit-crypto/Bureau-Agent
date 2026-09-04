@@ -611,7 +611,7 @@ export default function DocumentsScreen() {
         {/* Search */}
         <View style={st.searchBox}>
           <Feather name="search" size={14} color="rgba(255,255,255,0.5)" />
-          <TextInput
+          <TextInput accessibilityLabel={t("documentsScreen.searchPlaceholder")}
             style={st.searchInput}
             placeholder={t("documentsScreen.searchPlaceholder")}
             placeholderTextColor="rgba(255,255,255,0.4)"

@@ -324,7 +324,7 @@ export default function WhatsappThreadScreen() {
               <Text style={[styles.charCount, { color: colors.mutedForeground }]}>{composer.length}</Text>
             </View>
             <View style={styles.composerRow}>
-              <TextInput
+              <TextInput accessibilityLabel={t("whatsappThreadScreen.composerPlaceholder")}
                 style={[styles.composerInput, { backgroundColor: colors.background, color: colors.foreground, borderColor: colors.border }]}
                 placeholder={t("whatsappThreadScreen.composerPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}

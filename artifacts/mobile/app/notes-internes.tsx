@@ -193,7 +193,7 @@ function NoteEditor({ note, onSave, onClose, saving, colors, isDark }: NoteEdito
             </Pressable>
           </View>
 
-          <TextInput
+          <TextInput accessibilityLabel={t("notesInternesScreen.titlePlaceholder")}
             style={[styles.editorTitleInput, { color: colors.foreground, borderBottomColor: COLOR_ACCENTS[color] }]}
             placeholder={t("notesInternesScreen.titlePlaceholder")}
             placeholderTextColor={colors.mutedForeground}
@@ -201,7 +201,7 @@ function NoteEditor({ note, onSave, onClose, saving, colors, isDark }: NoteEdito
             onChangeText={setTitle}
           />
 
-          <TextInput
+          <TextInput accessibilityLabel={t("notesInternesScreen.contentPlaceholder")}
             style={[styles.editorContentInput, { color: colors.foreground }]}
             placeholder={t("notesInternesScreen.contentPlaceholder")}
             placeholderTextColor={colors.mutedForeground}
@@ -236,7 +236,7 @@ function NoteEditor({ note, onSave, onClose, saving, colors, isDark }: NoteEdito
             </View>
           ) : null}
 
-          <TextInput
+          <TextInput accessibilityLabel={t("notesInternesScreen.tagsPlaceholder")}
             style={[styles.editorTagsInput, { color: colors.foreground, borderTopColor: COLOR_ACCENTS[color] }]}
             placeholder={t("notesInternesScreen.tagsPlaceholder")}
             placeholderTextColor={colors.mutedForeground}
@@ -397,7 +397,7 @@ export default function NotesInternesScreen() {
         </View>
         <View style={[styles.searchContainer, { backgroundColor: "rgba(255,255,255,0.1)" }]}>
           <Feather name="search" size={16} color="rgba(255,255,255,0.5)" />
-          <TextInput
+          <TextInput accessibilityLabel={t("notesInternesScreen.searchPlaceholder")}
             style={styles.searchInput}
             placeholder={t("notesInternesScreen.searchPlaceholder")}
             placeholderTextColor="rgba(255,255,255,0.4)"

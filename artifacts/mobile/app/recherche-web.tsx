@@ -184,7 +184,7 @@ export default function RechercheWebScreen() {
         </View>
         <View style={[styles.searchBox, { backgroundColor: "#fff" }]}>
           <Feather name="search" size={16} color="#6b7280" />
-          <TextInput
+          <TextInput accessibilityLabel={t("rechercheWebScreen.searchPlaceholder")}
             ref={inputRef}
             style={styles.searchInput}
             placeholder={t("rechercheWebScreen.searchPlaceholder")}
@@ -254,7 +254,7 @@ export default function RechercheWebScreen() {
           {/* Filtre site: */}
           <View style={[styles.siteBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Feather name="filter" size={14} color={colors.mutedForeground} />
-            <TextInput
+            <TextInput accessibilityLabel={t("rechercheWebScreen.sitePlaceholder")}
               style={[styles.siteInput, { color: colors.foreground }]}
               placeholder={t("rechercheWebScreen.sitePlaceholder")}
               placeholderTextColor={colors.mutedForeground}

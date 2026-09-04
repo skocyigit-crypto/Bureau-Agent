@@ -354,7 +354,7 @@ export default function DocumentImportScreen() {
 
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.sectionLabel, { color: colors.foreground, marginBottom: 8 }]}>{t("documentImportScreen.tagsLabel")}</Text>
-              <TextInput
+              <TextInput accessibilityLabel={t("documentImportScreen.tagsPlaceholder")}
                 style={[styles.tagInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
                 placeholder={t("documentImportScreen.tagsPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
@@ -362,7 +362,7 @@ export default function DocumentImportScreen() {
                 onChangeText={v => setMetaValues(prev => ({ ...prev, tags: v }))}
               />
               <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 12, marginBottom: 8 }]}>{t("documentImportScreen.descLabel")}</Text>
-              <TextInput
+              <TextInput accessibilityLabel={t("documentImportScreen.descPlaceholder")}
                 style={[styles.tagInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background, minHeight: 60, textAlignVertical: "top" }]}
                 placeholder={t("documentImportScreen.descPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}

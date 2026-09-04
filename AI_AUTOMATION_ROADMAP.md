@@ -2131,3 +2131,39 @@ gerekçe yazmayı zorunlu kılıyor.
 Ölçüm: 478 alanın tamamı adlı. tsc temiz, 96 test, üretim build'i tamam,
 lint cırcırı 686/687.
 
+
+## Cep uygulaması ekran okuyucuya tamamen kapalıymış — 2026-09-04
+
+Ön yüzdeki ad borcunu kapattıktan sonra aynı ölçümü cep uygulamasına ve
+tanıtım sitesine uyguladım.
+
+### Bulgu
+
+**Cep uygulamasında 73 giriş alanının hiçbirinde `accessibilityLabel` yoktu.**
+Yani VoiceOver ve TalkBack her alanı yalnızca "metin alanı" diye okuyordu —
+hangi alan olduğunu söylemeden. Mobilde `placeholder` ad yerine geçmez: ekran
+okuyucu onu ada dönüştürmez ve kullanıcı yazmaya başlayınca kaybolur. Hiçbir
+ekran bozuk görünmüyordu; uygulama sadece ekran okuyucuyla kullanılamıyordu.
+Bu, uygulama mağazalarının denetlediği ve EAA'nın zorunlu kıldığı bir madde.
+
+### Yapılan
+
+73 alanın tamamı adlandırıldı: 59'u kendi `placeholder` anahtarından, 6'sı
+hemen üstündeki görünür `<Text>` etiketinden, 8'i tek tek (dinamik `f.label`,
+PIN adımına göre değişen başlık, sesli asistanın moda göre değişen alanı).
+`artifacts/mobile/scripts/a11y-input-labels.mjs` kapısı CI'a bağlandı, tavan
+**0**: adsız yeni bir alan build'i düşürüyor.
+
+### Ölçümün kendi hatası
+
+İlk sayım 75 diyordu. İkisi `useRef<TextInput>(null)` idi — yani bir tip
+parametresi, bileşen değil. Script artık ayırt ediyor: JSX'te `<`'ten önce
+boşluk/parantez gelir, jenerikte harf. Aynı gün üçüncü kez, "metni desenle
+okumak" yanlış sayı üretti; her seferinde sayının kendisi denetlendiği için
+yakalandı.
+
+### Tanıtım sitesi: ölçüldü, borç yok
+
+18 alanın 13'ü zaten `htmlFor`/saran etiketle bağlı. Kalan 5'i `ui/` altındaki
+ilkel bileşenler (`{...props}` yayıyorlar), yani adı çağrı yeri veriyor —
+ön yüzdeki `ALLOWLIST` ile aynı gerekçe. Sitede değişiklik gerekmedi.

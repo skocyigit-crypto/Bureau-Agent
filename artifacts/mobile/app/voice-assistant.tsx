@@ -894,6 +894,7 @@ export default function VoiceAssistantScreen() {
               {tr("prot_phrase", lang)}
             </Text>
             <TextInput
+              accessibilityLabel={tr("prot_phrase", lang)}
               value={draftPassphrase}
               onChangeText={setDraftPassphrase}
               placeholder={tr("prot_phrase_ph", lang)}
@@ -1034,6 +1035,7 @@ export default function VoiceAssistantScreen() {
         {/* Champ de saisie texte (toujours dispo, utile sur natif sans STT) */}
         <View style={[styles.inputRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <TextInput
+            accessibilityLabel={mode === "chat" ? tr("chat_ph", lang) : tr("cmd_ph", lang)}
             style={[styles.inputField, { color: colors.foreground }]}
             placeholder={mode === "chat" ? tr("chat_ph", lang) : tr("cmd_ph", lang)}
             placeholderTextColor={colors.mutedForeground}

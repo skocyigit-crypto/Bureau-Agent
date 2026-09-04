@@ -212,7 +212,7 @@ export default function OrganisationsScreen() {
         {/* Search */}
         <View style={[styles.searchBox, { backgroundColor: "rgba(255,255,255,0.12)" }]}>
           <Feather name="search" size={14} color="rgba(255,255,255,0.5)" />
-          <TextInput
+          <TextInput accessibilityLabel={t("organisationsScreen.searchPlaceholder")}
             style={styles.searchInput}
             placeholder={t("organisationsScreen.searchPlaceholder")}
             placeholderTextColor="rgba(255,255,255,0.4)"

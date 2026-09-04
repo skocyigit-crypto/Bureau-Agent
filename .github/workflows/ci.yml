@@ -80,6 +80,12 @@ jobs:
       - name: Check form accessibility
         run: pnpm --filter @workspace/buro-ajani a11y:check
 
+      # Meme regle cote mobile, avec l'attribut de React Native. Mesure avant
+      # correction: 75 champs, zero accessibilityLabel — l'application etait
+      # inutilisable au lecteur d'ecran sans qu'aucun ecran n'ait l'air casse.
+      - name: Check mobile accessibility
+        run: pnpm --filter @workspace/mobile a11y:check
+
       - name: Build
         # Mobile falls back to the production domain when no preview domain
         # is provided; mockup-sandbox uses local PORT/BASE_PATH defaults.

@@ -247,7 +247,7 @@ function PreparerTab({ phone, name, direction, callId }: { phone: string; name: 
       {/* Notes + refresh */}
       <View style={[st.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[st.fieldLabel, { color: colors.mutedForeground }]}>{t("callAssistantScreen.contextNotes")}</Text>
-        <TextInput
+        <TextInput accessibilityLabel={t("callAssistantScreen.contextNotesPlaceholder")}
           style={[st.input, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]}
           placeholder={t("callAssistantScreen.contextNotesPlaceholder")}
           placeholderTextColor={colors.mutedForeground}
@@ -444,7 +444,7 @@ function CompilerTab({ phone, name, callId, contactId }: { phone: string; name: 
           <Feather name="edit-3" size={14} color="#22c55e" />
           <Text style={[st.cardTitle, { color: colors.foreground }]}>{t("callAssistantScreen.callNotes")}</Text>
         </View>
-        <TextInput
+        <TextInput accessibilityLabel={t("callAssistantScreen.callNotesPlaceholder")}
           style={[st.inputLg, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]}
           placeholder={t("callAssistantScreen.callNotesPlaceholder")}
           placeholderTextColor={colors.mutedForeground}
@@ -457,7 +457,7 @@ function CompilerTab({ phone, name, callId, contactId }: { phone: string; name: 
         <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }}>
           <View style={{ flex: 1 }}>
             <Text style={[st.fieldLabel, { color: colors.mutedForeground }]}>{t("callAssistantScreen.durationSeconds")}</Text>
-            <TextInput style={[st.inputSm, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]} placeholder={t("callAssistantScreen.durationPlaceholder")} placeholderTextColor={colors.mutedForeground} value={duration} onChangeText={setDuration} keyboardType="numeric" />
+            <TextInput accessibilityLabel={t("callAssistantScreen.durationPlaceholder")} style={[st.inputSm, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]} placeholder={t("callAssistantScreen.durationPlaceholder")} placeholderTextColor={colors.mutedForeground} value={duration} onChangeText={setDuration} keyboardType="numeric" />
           </View>
         </View>
         <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
@@ -599,7 +599,7 @@ function SanteTab({ contactId, contactName }: { contactId?: string; contactName?
       <View style={{ gap: 12 }}>
         <View style={[st.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[st.bodyText, { color: colors.mutedForeground, marginBottom: 8 }]}>{t("callAssistantScreen.enterContactId")}</Text>
-          <TextInput style={[st.inputSm, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]} placeholder={t("callAssistantScreen.contactIdPlaceholder")} placeholderTextColor={colors.mutedForeground} value={manualId} onChangeText={setManualId} keyboardType="numeric" />
+          <TextInput accessibilityLabel={t("callAssistantScreen.contactIdPlaceholder")} style={[st.inputSm, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]} placeholder={t("callAssistantScreen.contactIdPlaceholder")} placeholderTextColor={colors.mutedForeground} value={manualId} onChangeText={setManualId} keyboardType="numeric" />
           <Pressable accessibilityRole="button" onPress={() => load()} disabled={loading || !manualId} style={[st.btn, { backgroundColor: "#ec4899", marginTop: 8, opacity: !manualId ? 0.6 : 1 }]}>
             {loading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="heart" size={14} color="#fff" />}
             <Text style={st.btnText}>{t("callAssistantScreen.analyze")}</Text>

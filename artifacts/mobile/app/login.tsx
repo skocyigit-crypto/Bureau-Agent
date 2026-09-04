@@ -251,7 +251,7 @@ export default function LoginScreen() {
               <Text style={[styles.label, { color: colors.mutedForeground }]}>{t("loginScreen.emailLabel")}</Text>
               <View style={[styles.inputContainer, { backgroundColor: colors.muted, borderColor: colors.border }]}>
                 <Feather name="mail" size={18} color={colors.mutedForeground} style={styles.inputIcon} />
-                <TextInput
+                <TextInput accessibilityLabel={t("loginScreen.emailPlaceholder")}
                   style={[styles.input, { color: colors.foreground }]}
                   placeholder={t("loginScreen.emailPlaceholder")}
                   placeholderTextColor={colors.mutedForeground}
@@ -275,7 +275,7 @@ export default function LoginScreen() {
                 </View>
                 <View style={[styles.inputContainer, { backgroundColor: colors.muted, borderColor: colors.border }]}>
                   <Feather name="lock" size={18} color={colors.mutedForeground} style={styles.inputIcon} />
-                  <TextInput
+                  <TextInput accessibilityLabel={t("loginScreen.passwordPlaceholder")}
                     style={[styles.input, { color: colors.foreground }]}
                     placeholder={t("loginScreen.passwordPlaceholder")}
                     placeholderTextColor={colors.mutedForeground}
@@ -301,6 +301,7 @@ export default function LoginScreen() {
                 <View style={[styles.inputContainer, { backgroundColor: colors.muted, borderColor: colors.border }]}>
                   <Feather name="shield" size={18} color={colors.mutedForeground} style={styles.inputIcon} />
                   <TextInput
+                    accessibilityLabel={t("loginScreen.verificationCode")}
                     style={[styles.input, { color: colors.foreground, letterSpacing: 4 }]}
                     placeholder="123456"
                     placeholderTextColor={colors.mutedForeground}

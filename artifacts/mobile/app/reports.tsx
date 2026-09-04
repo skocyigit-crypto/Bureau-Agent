@@ -193,7 +193,7 @@ export default function ReportsScreen() {
 
         <View style={[styles.searchBox, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
           <Feather name="search" size={14} color="rgba(255,255,255,0.6)" />
-          <TextInput
+          <TextInput accessibilityLabel={t("reportsScreen.searchPlaceholder")}
             style={styles.searchInput}
             placeholder={t("reportsScreen.searchPlaceholder")}
             placeholderTextColor="rgba(255,255,255,0.5)"

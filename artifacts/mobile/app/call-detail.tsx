@@ -269,7 +269,7 @@ export default function CallDetailScreen() {
             )}
           </View>
           {editingNotes ? (
-            <TextInput
+            <TextInput accessibilityLabel={t("callDetailScreen.notesPlaceholder")}
               style={[styles.notesInput, { color: colors.foreground, borderColor: "#0369a1", backgroundColor: colors.background }]}
               multiline
               value={notes}
