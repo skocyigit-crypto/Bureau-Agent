@@ -276,7 +276,7 @@ export default function ContactDetail() {
                           <FormItem>
                             <FormLabel>{t("contactDetail.category")}</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl><SelectTrigger><SelectValue placeholder={t("contactDetail.selectPlaceholder")} /></SelectTrigger></FormControl>
+                              <FormControl><SelectTrigger aria-label={t("contactDetail.selectPlaceholder")}><SelectValue placeholder={t("contactDetail.selectPlaceholder")} /></SelectTrigger></FormControl>
                               <SelectContent>
                                 <SelectItem value="client">{t("contactDetail.cat.client")}</SelectItem>
                                 <SelectItem value="prospect">{t("contactDetail.cat.prospect")}</SelectItem>

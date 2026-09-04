@@ -621,14 +621,14 @@ function ActionPreview({
           return (
             <div key={f.key} className="grid sm:grid-cols-[80px_1fr] gap-2">
               <Label className="text-xs text-muted-foreground pt-2">{t(f.labelKey)}</Label>
-              <Textarea value={v} onChange={(e) => set(f.key, e.target.value)} rows={5} className="text-sm" />
+              <Textarea aria-label={t(f.labelKey)} value={v} onChange={(e) => set(f.key, e.target.value)} rows={5} className="text-sm" />
             </div>
           );
         }
         return (
           <div key={f.key} className="grid sm:grid-cols-[80px_1fr] items-center gap-2">
             <Label className="text-xs text-muted-foreground">{t(f.labelKey)}</Label>
-            <Input value={v} onChange={(e) => set(f.key, e.target.value)} className="h-8 text-sm" />
+            <Input aria-label={t(f.labelKey)} value={v} onChange={(e) => set(f.key, e.target.value)} className="h-8 text-sm" />
           </div>
         );
       })}

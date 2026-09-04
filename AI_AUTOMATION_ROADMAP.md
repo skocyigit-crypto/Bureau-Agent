@@ -2110,3 +2110,24 @@ Tavan **178 → 81**. Üç ayrı biçim kapatıldı:
 Kalan **81**, gerçekten yargı isteyen kalıntı: etiketi hiç olmayan tek başına
 kutular ve yeni i18n anahtarı gerektiren ızgara alanları.
 
+### Borç sıfırlandı — 2026-09-04
+
+Kalan 81 de kapandı, **tavan artık 0**: yeni bir adsız alan eklemek build'i
+düşürüyor. Son turda üç şey yapıldı:
+
+- `<SelectValue placeholder={t(...)}/>` taşıyan 30 açılır liste, adını kendi
+  placeholder'ından aldı.
+- Dinamik etiketli alanlar (`{f.label}`, `{t(f.labelKey)}`) ve küçük harf
+  `<label>` kullanan yerler tek tek bağlandı.
+- Hiç etiketi olmayan filtre/tarih/saat alanları için altı dile **14 yeni**
+  i18n anahtarı eklendi (`common.filterStatus`, `common.startHour`, …).
+
+**İki bilinçli istisna**, gerekçesiyle script'in `ALLOWLIST`'ine yazıldı:
+`ghost-textarea.tsx` ve `ui/sidebar.tsx`. İkisi de `{...props}` yayan ilkel
+bileşenler; adı burada yazmak, kullanıldığı her yer dışında yanlış olurdu —
+kural çağrı yerine düşer. `tenant-scope-check.mjs`'teki gibi, istisna eklemek
+gerekçe yazmayı zorunlu kılıyor.
+
+Ölçüm: 478 alanın tamamı adlı. tsc temiz, 96 test, üretim build'i tamam,
+lint cırcırı 686/687.
+

@@ -694,7 +694,7 @@ export default function DocumentsPage() {
               />
             </div>
             <Select value={filterEntity} onValueChange={setFilterEntity}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger aria-label={t("documents.filters.modulePlaceholder")} className="w-[160px]">
                 <Filter className="w-4 h-4 mr-2" />
                 <SelectValue placeholder={t("documents.filters.modulePlaceholder")} />
               </SelectTrigger>
@@ -706,7 +706,7 @@ export default function DocumentsPage() {
               </SelectContent>
             </Select>
             <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger aria-label={t("documents.filters.categoryPlaceholder")} className="w-[160px]">
                 <SelectValue placeholder={t("documents.filters.categoryPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
@@ -717,7 +717,7 @@ export default function DocumentsPage() {
               </SelectContent>
             </Select>
             <Select value={filterScan} onValueChange={setFilterScan}>
-              <SelectTrigger className="w-[170px]">
+              <SelectTrigger aria-label={t("documents.filters.securityPlaceholder")} className="w-[170px]">
                 <ShieldCheck className="w-4 h-4 mr-2" />
                 <SelectValue placeholder={t("documents.filters.securityPlaceholder")} />
               </SelectTrigger>

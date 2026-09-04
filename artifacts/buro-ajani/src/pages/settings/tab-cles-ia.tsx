@@ -260,6 +260,7 @@ export function TabClesIa() {
                         <div key={f.key}>
                           <Label className="text-xs">{f.label}{f.required && <span className="text-destructive"> *</span>}</Label>
                           <Input
+                            aria-label={f.label}
                             type={f.secret ? "password" : "text"}
                             value={configValues[f.key] ?? ""}
                             onChange={(e) => setConfigValues((v) => ({ ...v, [f.key]: e.target.value }))}

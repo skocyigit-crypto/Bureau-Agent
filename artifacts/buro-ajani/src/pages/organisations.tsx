@@ -2309,7 +2309,7 @@ export default function OrganisationsPage() {
                 <Label className="text-xs">
                   {t("organisationsPage.licenseDialog.confirmName1")} <strong>{licenseDialog.org.name}</strong> {t("organisationsPage.licenseDialog.confirmName2")}
                 </Label>
-                <Input value={confirmOrgName} onChange={(e) => setConfirmOrgName(e.target.value)} />
+                <Input aria-label={t("organisationsPage.licenseDialog.confirmName1")} value={confirmOrgName} onChange={(e) => setConfirmOrgName(e.target.value)} />
               </div>
             )}
           </div>

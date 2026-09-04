@@ -562,6 +562,7 @@ export default function Software() {
                       {field.required && <span className="text-red-500 ml-0.5">*</span>}
                     </Label>
                     <Input
+                      aria-label={field.label}
                       type={field.type === "password" ? "password" : "text"}
                       placeholder={field.type === "url" ? "https://..." : field.label}
                       value={configValues[field.key] || ""}

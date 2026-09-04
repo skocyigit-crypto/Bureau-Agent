@@ -48,7 +48,18 @@
     "archive": "Archivieren",
     "block": "Sperren",
     "previousPeriod": "Vorheriger Zeitraum",
-    "nextPeriod": "Nächster Zeitraum"
+    "nextPeriod": "Nächster Zeitraum",
+    "filterStatus": "Nach Status filtern",
+    "filterPriority": "Nach Priorität filtern",
+    "filterPeriod": "Zeitraum",
+    "filterType": "Nach Typ filtern",
+    "filterMetric": "Metrik",
+    "filterDays": "Anzahl der Tage",
+    "filterNotifications": "Benachrichtigungen filtern",
+    "startHour": "Startzeit",
+    "endHour": "Endzeit",
+    "startDate": "Startdatum",
+    "endDate": "Enddatum"
   },
   "nav": {
     "dashboard": "Übersicht",
@@ -3634,7 +3645,8 @@
       "blockedTitle": "Blockiert ({{count}})",
       "allowedTitle": "Erlaubt ({{count}})",
       "noBlocked": "Kein blockiertes Element.",
-      "noAllowed": "Kein erlaubtes Element."
+      "noAllowed": "Kein erlaubtes Element.",
+      "valueLabel": "Hinzuzufügender Wert"
     },
     "settings": {
       "title": "Wöchentliche Zusammenfassung per E-Mail",
@@ -6203,7 +6215,8 @@
       "smsToHint": "(leer = Nummer des Kontakts)",
       "smsToPlaceholder": "+33612345678 (leer lassen, um den Standardempfänger zu verwenden)",
       "smsMessage": "SMS-Nachricht",
-      "smsMessagePlaceholder": "Hallo, wir haben Ihren Anruf verpasst..."
+      "smsMessagePlaceholder": "Hallo, wir haben Ihren Anruf verpasst...",
+      "actionType": "Aktionstyp"
     }
   },
   "organisationsPage": {
@@ -7270,7 +7283,8 @@
       "emptyExamples": "Z. B.: « Was sind meine dringenden Aufgaben? », « Fasse die Lage zusammen »",
       "open": "Öffnen",
       "thinking": "Der Kommandant denkt nach...",
-      "inputPlaceholder": "Geben Sie Ihre Nachricht ein... (Enter zum Senden, Umschalt+Enter für Zeilenumbruch)"
+      "inputPlaceholder": "Geben Sie Ihre Nachricht ein... (Enter zum Senden, Umschalt+Enter für Zeilenumbruch)",
+      "renameLabel": "Unterhaltung umbenennen"
     },
     "commandes": {
       "cmdStopped": "Befehl unterbrochen.",

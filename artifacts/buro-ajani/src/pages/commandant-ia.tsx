@@ -796,7 +796,7 @@ function TasksTab() {
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Zap className="h-4 w-4 text-amber-500" />{t("commandantIa.tasks.autoCreateTitle")}</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            <Select value={interactionType} onValueChange={setInteractionType}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>
+            <Select value={interactionType} onValueChange={setInteractionType}><SelectTrigger aria-label={t("commandantIa.tasks.type")}><SelectValue /></SelectTrigger><SelectContent>
               <SelectItem value="email">{t("commandantIa.tasks.type.email")}</SelectItem>
               <SelectItem value="appel">{t("commandantIa.tasks.type.appel")}</SelectItem>
               <SelectItem value="reunion">{t("commandantIa.tasks.type.reunion")}</SelectItem>
@@ -1657,6 +1657,7 @@ function ChatTab() {
                     {renamingId === c.id ? (
                       <>
                         <Input
+                          aria-label={t("commandantIa.chat.renameLabel")}
                           autoFocus
                           value={renameValue}
                           onChange={e => setRenameValue(e.target.value)}

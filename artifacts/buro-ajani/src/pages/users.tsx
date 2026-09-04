@@ -589,7 +589,7 @@ export default function UsersPage() {
           />
         </div>
         <Select value={roleFilter} onValueChange={setRoleFilter}>
-          <SelectTrigger className="w-full sm:w-44">
+          <SelectTrigger aria-label={t("users.allRoles")} className="w-full sm:w-44">
             <SelectValue placeholder={t("users.allRoles")} />
           </SelectTrigger>
           <SelectContent>

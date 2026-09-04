@@ -370,7 +370,7 @@ export default function Calls() {
                     <FormItem>
                       <FormLabel>{t("calls.form.contact")}</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value?.toString() || "none"}>
-                        <FormControl><SelectTrigger><SelectValue placeholder={t("calls.form.chooseContact")}/></SelectTrigger></FormControl>
+                        <FormControl><SelectTrigger aria-label={t("calls.form.chooseContact")}><SelectValue placeholder={t("calls.form.chooseContact")}/></SelectTrigger></FormControl>
                         <SelectContent>
                           <SelectItem value="none">{t("calls.form.noneUnknown")}</SelectItem>
                           {contactsData?.contacts.map(c => (
@@ -394,7 +394,7 @@ export default function Calls() {
                       <FormItem>
                         <FormLabel>{t("calls.form.sentiment")}</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value?.toString() || "none"}>
-                          <FormControl><SelectTrigger><SelectValue placeholder={t("calls.sentiment.undefined")}/></SelectTrigger></FormControl>
+                          <FormControl><SelectTrigger aria-label={t("calls.sentiment.undefined")}><SelectValue placeholder={t("calls.sentiment.undefined")}/></SelectTrigger></FormControl>
                           <SelectContent>
                             <SelectItem value="none">{t("calls.sentiment.undefined")}</SelectItem>
                             <SelectItem value="tres_positif">{t("calls.sentiment.tres_positif")}</SelectItem>
@@ -457,7 +457,7 @@ export default function Calls() {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }}>
-              <SelectTrigger className="w-[150px]">
+              <SelectTrigger aria-label={t("calls.filters.status")} className="w-[150px]">
                 <SelectValue placeholder={t("calls.filters.status")} />
               </SelectTrigger>
               <SelectContent>
@@ -469,7 +469,7 @@ export default function Calls() {
               </SelectContent>
             </Select>
             <Select value={directionFilter} onValueChange={(v) => { setDirectionFilter(v); setPage(0); }}>
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger aria-label={t("calls.filters.direction")} className="w-[140px]">
                 <SelectValue placeholder={t("calls.filters.direction")} />
               </SelectTrigger>
               <SelectContent>

@@ -48,7 +48,18 @@
     "archive": "Arşivle",
     "block": "Engelle",
     "previousPeriod": "Önceki dönem",
-    "nextPeriod": "Sonraki dönem"
+    "nextPeriod": "Sonraki dönem",
+    "filterStatus": "Duruma göre filtrele",
+    "filterPriority": "Önceliğe göre filtrele",
+    "filterPeriod": "Dönem",
+    "filterType": "Türe göre filtrele",
+    "filterMetric": "Ölçüt",
+    "filterDays": "Gün sayısı",
+    "filterNotifications": "Bildirimleri filtrele",
+    "startHour": "Başlangıç saati",
+    "endHour": "Bitiş saati",
+    "startDate": "Başlangıç tarihi",
+    "endDate": "Bitiş tarihi"
   },
   "nav": {
     "dashboard": "Kontrol Paneli",
@@ -3634,7 +3645,8 @@
       "blockedTitle": "Engellenenler ({{count}})",
       "allowedTitle": "İzin verilenler ({{count}})",
       "noBlocked": "Engellenen öğe yok.",
-      "noAllowed": "İzin verilen öğe yok."
+      "noAllowed": "İzin verilen öğe yok.",
+      "valueLabel": "Eklenecek değer"
     },
     "settings": {
       "title": "E-posta ile haftalık özet",
@@ -6203,7 +6215,8 @@
       "smsToHint": "(boş = kişinin numarası)",
       "smsToPlaceholder": "+33612345678 (varsayılan alıcıyı kullanmak için boş bırakın)",
       "smsMessage": "SMS mesajı",
-      "smsMessagePlaceholder": "Merhaba, çağrınızı kaçırdık..."
+      "smsMessagePlaceholder": "Merhaba, çağrınızı kaçırdık...",
+      "actionType": "Eylem türü"
     }
   },
   "organisationsPage": {
@@ -7270,7 +7283,8 @@
       "emptyExamples": "Örn: « Acil işlerim neler? », « Durumu özetle »",
       "open": "Aç",
       "thinking": "Komutan düşünüyor...",
-      "inputPlaceholder": "Mesajınızı yazın... (Göndermek için Enter, satır atlamak için Shift+Enter)"
+      "inputPlaceholder": "Mesajınızı yazın... (Göndermek için Enter, satır atlamak için Shift+Enter)",
+      "renameLabel": "Sohbeti yeniden adlandır"
     },
     "commandes": {
       "cmdStopped": "Komut durduruldu.",

@@ -278,7 +278,7 @@ export default function ProspectsPage() {
           <Input aria-label={t("prospects.searchPlaceholder")} placeholder={t("prospects.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={stageFilter} onValueChange={setStageFilter}>
-          <SelectTrigger className="w-44"><SelectValue placeholder={t("prospects.filters.stagePlaceholder")} /></SelectTrigger>
+          <SelectTrigger aria-label={t("prospects.filters.stagePlaceholder")} className="w-44"><SelectValue placeholder={t("prospects.filters.stagePlaceholder")} /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("prospects.filters.allStages")}</SelectItem>
             {STAGES.map(s => <SelectItem key={s.key} value={s.key}>{t(`prospects.stages.${s.key}`)}</SelectItem>)}

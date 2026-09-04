@@ -408,6 +408,7 @@ export default function GoogleWorkspace() {
                     <div>
                       <label className="text-[11px] text-muted-foreground">{t("googleWorkspace.start")}</label>
                       <Input
+                        aria-label={t("googleWorkspace.start")}
                         type="datetime-local"
                         value={newEvent.start}
                         onChange={(e) => setNewEvent(v => ({ ...v, start: e.target.value }))}
@@ -417,6 +418,7 @@ export default function GoogleWorkspace() {
                     <div>
                       <label className="text-[11px] text-muted-foreground">{t("googleWorkspace.end")}</label>
                       <Input
+                        aria-label={t("googleWorkspace.end")}
                         type="datetime-local"
                         value={newEvent.end}
                         onChange={(e) => setNewEvent(v => ({ ...v, end: e.target.value }))}

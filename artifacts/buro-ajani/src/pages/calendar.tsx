@@ -433,27 +433,27 @@ function EventFormDialog({
 
             <div>
               <Label className="text-xs font-medium flex items-center gap-1.5"><User className="w-3 h-3" /> {t("calendar.form.fullName")}</Label>
-              <Input value={form.contactName} onChange={e => update("contactName", e.target.value)} placeholder={t("calendar.form.fullNamePlaceholder")} className="mt-1" />
+              <Input aria-label={t("calendar.form.fullName")} value={form.contactName} onChange={e => update("contactName", e.target.value)} placeholder={t("calendar.form.fullNamePlaceholder")} className="mt-1" />
             </div>
 
             <div>
               <Label className="text-xs font-medium flex items-center gap-1.5"><Phone className="w-3 h-3" /> {t("calendar.form.phone")}</Label>
-              <Input value={form.contactPhone} onChange={e => update("contactPhone", e.target.value)} placeholder={t("calendar.form.phonePlaceholder")} className="mt-1" />
+              <Input aria-label={t("calendar.form.phone")} value={form.contactPhone} onChange={e => update("contactPhone", e.target.value)} placeholder={t("calendar.form.phonePlaceholder")} className="mt-1" />
             </div>
 
             <div>
               <Label className="text-xs font-medium flex items-center gap-1.5"><Mail className="w-3 h-3" /> {t("calendar.form.email")}</Label>
-              <Input type="email" value={form.contactEmail} onChange={e => update("contactEmail", e.target.value)} placeholder={t("calendar.form.emailPlaceholder")} className="mt-1" />
+              <Input aria-label={t("calendar.form.email")} type="email" value={form.contactEmail} onChange={e => update("contactEmail", e.target.value)} placeholder={t("calendar.form.emailPlaceholder")} className="mt-1" />
             </div>
 
             <div>
               <Label className="text-xs font-medium flex items-center gap-1.5"><Building className="w-3 h-3" /> {t("calendar.form.company")}</Label>
-              <Input value={form.contactCompany} onChange={e => update("contactCompany", e.target.value)} placeholder={t("calendar.form.companyPlaceholder")} className="mt-1" />
+              <Input aria-label={t("calendar.form.company")} value={form.contactCompany} onChange={e => update("contactCompany", e.target.value)} placeholder={t("calendar.form.companyPlaceholder")} className="mt-1" />
             </div>
 
             <div>
               <Label className="text-xs font-medium flex items-center gap-1.5"><FileText className="w-3 h-3" /> {t("calendar.form.contactNotes")}</Label>
-              <Textarea
+              <Textarea aria-label={t("calendar.form.contactNotes")}
                 value={form.contactNotes}
                 onChange={e => update("contactNotes", e.target.value)}
                 placeholder={t("calendar.form.contactNotesPlaceholder")}
@@ -871,7 +871,7 @@ function ClosureDayDialog({
             </div>
             <div>
               <Label className="text-xs font-medium">{t("calendar.closureDialog.reason")} <span className="text-muted-foreground font-normal">{t("calendar.closureDialog.optional")}</span></Label>
-              <Input
+              <Input aria-label={t("calendar.closureDialog.reason")}
                 value={label}
                 onChange={e => setLabel(e.target.value)}
                 placeholder={t("calendar.closureDialog.reasonPlaceholder")}

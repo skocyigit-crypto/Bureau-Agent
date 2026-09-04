@@ -142,9 +142,9 @@ function AiReceptionistSettings() {
                   <span className="w-8 text-xs">{t(`settingsAppels.days.${key}`)}</span>
                   {win ? (
                     <>
-                      <Input type="number" min={0} max={24} value={win[0]} onChange={(e) => setDayVal(key, 0, parseInt(e.target.value) || 0)} className="h-7 w-16 text-xs" />
+                      <Input aria-label={t("common.startHour")} type="number" min={0} max={24} value={win[0]} onChange={(e) => setDayVal(key, 0, parseInt(e.target.value) || 0)} className="h-7 w-16 text-xs" />
                       <span className="text-xs text-muted-foreground">→</span>
-                      <Input type="number" min={0} max={24} value={win[1]} onChange={(e) => setDayVal(key, 1, parseInt(e.target.value) || 0)} className="h-7 w-16 text-xs" />
+                      <Input aria-label={t("common.endHour")} type="number" min={0} max={24} value={win[1]} onChange={(e) => setDayVal(key, 1, parseInt(e.target.value) || 0)} className="h-7 w-16 text-xs" />
                       <span className="text-[10px] text-muted-foreground">h</span>
                     </>
                   ) : <span className="text-xs text-muted-foreground">{t("settingsAppels.recept.closed")}</span>}
@@ -305,7 +305,7 @@ export function TabAppels() {
               )}
             </div>
             <Select value={fraudAction} onValueChange={(v) => saveFraudAction(v as FraudAction)} disabled={fraudSaving || !fraudConfigured}>
-              <SelectTrigger className="w-44 shrink-0">
+              <SelectTrigger className="w-44 shrink-0" aria-label={t("settingsAppels.fraudLabel")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

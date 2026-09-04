@@ -205,6 +205,7 @@ function AccountSecurityPanel() {
               </p>
               <div className="flex items-center gap-2">
                 <Input
+                  aria-label={t("settingsSecurite.account.totpLabel")}
                   value={totpCode}
                   onChange={e => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   placeholder="123456"
@@ -230,6 +231,7 @@ function AccountSecurityPanel() {
               <div className="flex flex-wrap items-center gap-2">
                 <Input aria-label={t("settingsSecurite.account.password")} type="password" placeholder={t("settingsSecurite.account.password")} value={disablePassword} onChange={e => setDisablePassword(e.target.value)} className="w-48" autoComplete="current-password" />
                 <Input
+                  aria-label={t("settingsSecurite.account.totpLabel")}
                   value={totpCode}
                   onChange={e => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   placeholder="123456"

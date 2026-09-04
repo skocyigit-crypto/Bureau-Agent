@@ -430,6 +430,7 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                         <span className="text-muted-foreground w-8">{t("emailComposer.preview.subject")}</span>
                         {isEditing ? (
                           <Input
+                            aria-label={t("emailComposer.preview.subject")}
                             value={editedSubject}
                             onChange={(e) => setEditedSubject(e.target.value)}
                             className="h-7 text-sm flex-1 font-medium"

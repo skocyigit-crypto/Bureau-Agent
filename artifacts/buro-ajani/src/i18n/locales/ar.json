@@ -48,7 +48,18 @@
     "archive": "أرشفة",
     "block": "حظر",
     "previousPeriod": "الفترة السابقة",
-    "nextPeriod": "الفترة التالية"
+    "nextPeriod": "الفترة التالية",
+    "filterStatus": "تصفية حسب الحالة",
+    "filterPriority": "تصفية حسب الأولوية",
+    "filterPeriod": "الفترة",
+    "filterType": "تصفية حسب النوع",
+    "filterMetric": "المقياس",
+    "filterDays": "عدد الأيام",
+    "filterNotifications": "تصفية الإشعارات",
+    "startHour": "ساعة البدء",
+    "endHour": "ساعة الانتهاء",
+    "startDate": "تاريخ البدء",
+    "endDate": "تاريخ الانتهاء"
   },
   "nav": {
     "dashboard": "لوحة التحكم",
@@ -3634,7 +3645,8 @@
       "blockedTitle": "المحظورة ({{count}})",
       "allowedTitle": "المسموح بها ({{count}})",
       "noBlocked": "لا يوجد عنصر محظور.",
-      "noAllowed": "لا يوجد عنصر مسموح به."
+      "noAllowed": "لا يوجد عنصر مسموح به.",
+      "valueLabel": "القيمة المراد إضافتها"
     },
     "settings": {
       "title": "ملخّص أسبوعي عبر البريد الإلكتروني",
@@ -6203,7 +6215,8 @@
       "smsToHint": "(فارغ = رقم جهة الاتصال)",
       "smsToPlaceholder": "+33612345678 (اتركه فارغًا لاستخدام المستلم الافتراضي)",
       "smsMessage": "رسالة SMS",
-      "smsMessagePlaceholder": "مرحبًا، لقد فاتتنا مكالمتك..."
+      "smsMessagePlaceholder": "مرحبًا، لقد فاتتنا مكالمتك...",
+      "actionType": "نوع الإجراء"
     }
   },
   "organisationsPage": {
@@ -7270,7 +7283,8 @@
       "emptyExamples": "مثال: « ما هي أموري العاجلة؟ »، « لخّص لي الوضع »",
       "open": "فتح",
       "thinking": "القائد يفكّر...",
-      "inputPlaceholder": "اكتب رسالتك... (Enter للإرسال، Shift+Enter لسطر جديد)"
+      "inputPlaceholder": "اكتب رسالتك... (Enter للإرسال، Shift+Enter لسطر جديد)",
+      "renameLabel": "إعادة تسمية المحادثة"
     },
     "commandes": {
       "cmdStopped": "توقف الأمر.",

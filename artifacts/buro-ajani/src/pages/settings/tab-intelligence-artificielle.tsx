@@ -282,7 +282,7 @@ export function TabIntelligenceArtificielle() {
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <Select value={chartMetric} onValueChange={(v) => setChartMetric(v as "cost" | "calls")}>
-                    <SelectTrigger className="w-28 h-8 text-xs">
+                    <SelectTrigger className="w-28 h-8 text-xs" aria-label={t("common.filterMetric")}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -291,7 +291,7 @@ export function TabIntelligenceArtificielle() {
                     </SelectContent>
                   </Select>
                   <Select value={chartDays} onValueChange={setChartDays}>
-                    <SelectTrigger className="w-20 h-8 text-xs">
+                    <SelectTrigger className="w-20 h-8 text-xs" aria-label={t("common.filterDays")}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>

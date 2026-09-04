@@ -893,6 +893,7 @@ function ListManagerCard() {
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
             <Input
+              aria-label={t("securitePage.lists.valueLabel")}
               placeholder={entryType === "domain" ? t("securitePage.lists.valuePlaceholderDomain") : t("securitePage.lists.valuePlaceholderPhone")}
               value={value}
               onChange={(e) => setValue(e.target.value)}

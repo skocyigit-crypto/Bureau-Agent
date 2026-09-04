@@ -362,7 +362,7 @@ export default function ProspectDetail() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">{t("prospectDetail.stageLabel")}</span>
                   <Select value={prospect.stage} onValueChange={handleStageChange}>
-                    <SelectTrigger className="h-7 w-36 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-7 w-36 text-xs" aria-label={t("prospectDetail.stageLabel")}><SelectValue /></SelectTrigger>
                     <SelectContent>{STAGES.map(s => <SelectItem key={s.key} value={s.key}>{t(`prospectDetail.stage.${s.key}`)}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>

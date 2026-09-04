@@ -163,7 +163,7 @@ export default function AdminDevisPage() {
           <Input aria-label={t("adminDevis.searchPlaceholder")} placeholder={t("adminDevis.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-44"><SelectValue placeholder={t("adminDevis.statusPlaceholder")} /></SelectTrigger>
+          <SelectTrigger aria-label={t("adminDevis.statusPlaceholder")} className="w-44"><SelectValue placeholder={t("adminDevis.statusPlaceholder")} /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("adminDevis.allStatuses")}</SelectItem>
             {STATUSES.map(s => <SelectItem key={s.key} value={s.key}>{t(`adminDevis.status.${s.key}`)}</SelectItem>)}
@@ -219,7 +219,7 @@ export default function AdminDevisPage() {
           <div className="space-y-3">
             <div>
             </div>
-            <div><Label className="text-xs">{t("adminDevis.form.title")} *</Label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
+            <div><Label className="text-xs">{t("adminDevis.form.title")} *</Label><Input aria-label={t("adminDevis.form.title")} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs">{t("adminDevis.form.reference")}</Label><Input aria-label={t("adminDevis.form.reference")} value={form.reference} onChange={e => setForm(f => ({ ...f, reference: e.target.value }))} placeholder="DEV-..." /></div>
               <div><Label className="text-xs">{t("adminDevis.form.status")}</Label>
@@ -230,7 +230,7 @@ export default function AdminDevisPage() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">{t("adminDevis.form.client")} *</Label><Input value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("adminDevis.form.client")} *</Label><Input aria-label={t("adminDevis.form.client")} value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} /></div>
               <div><Label className="text-xs">{t("adminDevis.form.company")}</Label><Input aria-label={t("adminDevis.form.company")} value={form.clientCompany} onChange={e => setForm(f => ({ ...f, clientCompany: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">

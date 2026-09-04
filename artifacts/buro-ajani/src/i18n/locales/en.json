@@ -48,7 +48,18 @@
     "archive": "Archive",
     "block": "Block",
     "previousPeriod": "Previous period",
-    "nextPeriod": "Next period"
+    "nextPeriod": "Next period",
+    "filterStatus": "Filter by status",
+    "filterPriority": "Filter by priority",
+    "filterPeriod": "Period",
+    "filterType": "Filter by type",
+    "filterMetric": "Metric",
+    "filterDays": "Number of days",
+    "filterNotifications": "Filter notifications",
+    "startHour": "Start hour",
+    "endHour": "End hour",
+    "startDate": "Start date",
+    "endDate": "End date"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -3634,7 +3645,8 @@
       "blockedTitle": "Blocked ({{count}})",
       "allowedTitle": "Allowed ({{count}})",
       "noBlocked": "No blocked item.",
-      "noAllowed": "No allowed item."
+      "noAllowed": "No allowed item.",
+      "valueLabel": "Value to add"
     },
     "settings": {
       "title": "Weekly summary by email",
@@ -6203,7 +6215,8 @@
       "smsToHint": "(leave empty = contact's number)",
       "smsToPlaceholder": "+33612345678 (leave empty to use the default recipient)",
       "smsMessage": "SMS message",
-      "smsMessagePlaceholder": "Hello, we missed your call..."
+      "smsMessagePlaceholder": "Hello, we missed your call...",
+      "actionType": "Action type"
     }
   },
   "organisationsPage": {
@@ -7270,7 +7283,8 @@
       "emptyExamples": "E.g.: « What are my urgent matters? », « Summarize the situation »",
       "open": "Open",
       "thinking": "The Commandant is thinking...",
-      "inputPlaceholder": "Type your message... (Enter to send, Shift+Enter for a new line)"
+      "inputPlaceholder": "Type your message... (Enter to send, Shift+Enter for a new line)",
+      "renameLabel": "Rename conversation"
     },
     "commandes": {
       "cmdStopped": "Command interrupted.",

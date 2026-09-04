@@ -335,7 +335,7 @@ export default function Messages() {
                     <FormItem>
                       <FormLabel>{t("messages.form.contact")}</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value?.toString() || "none"}>
-                        <FormControl><SelectTrigger><SelectValue placeholder={t("messages.form.chooseContact")}/></SelectTrigger></FormControl>
+                        <FormControl><SelectTrigger aria-label={t("messages.form.chooseContact")}><SelectValue placeholder={t("messages.form.chooseContact")}/></SelectTrigger></FormControl>
                         <SelectContent>
                           <SelectItem value="none">{t("messages.form.none")}</SelectItem>
                           {contactsData?.contacts.map(c => (
@@ -404,7 +404,7 @@ export default function Messages() {
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
           <Select value={readFilter} onValueChange={(v) => { setReadFilter(v); setPage(0); }}>
-            <SelectTrigger className="w-[140px]"><SelectValue placeholder={t("messages.filters.readPlaceholder")} /></SelectTrigger>
+            <SelectTrigger aria-label={t("messages.filters.readPlaceholder")} className="w-[140px]"><SelectValue placeholder={t("messages.filters.readPlaceholder")} /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t("messages.filters.all")}</SelectItem>
               <SelectItem value="unread">{t("messages.filters.unread")}</SelectItem>
@@ -412,7 +412,7 @@ export default function Messages() {
             </SelectContent>
           </Select>
           <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(0); }}>
-            <SelectTrigger className="w-[140px]"><SelectValue placeholder={t("messages.filters.typePlaceholder")} /></SelectTrigger>
+            <SelectTrigger aria-label={t("messages.filters.typePlaceholder")} className="w-[140px]"><SelectValue placeholder={t("messages.filters.typePlaceholder")} /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t("messages.filters.allTypes")}</SelectItem>
               <SelectItem value="messagerie_vocale">{t("messages.type.vocalShort")}</SelectItem>
@@ -421,7 +421,7 @@ export default function Messages() {
             </SelectContent>
           </Select>
           <Select value={priorityFilter} onValueChange={(v) => { setPriorityFilter(v); setPage(0); }}>
-            <SelectTrigger className="w-[140px]"><SelectValue placeholder={t("messages.filters.priorityPlaceholder")} /></SelectTrigger>
+            <SelectTrigger aria-label={t("messages.filters.priorityPlaceholder")} className="w-[140px]"><SelectValue placeholder={t("messages.filters.priorityPlaceholder")} /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t("messages.filters.allPriorities")}</SelectItem>
               <SelectItem value="haute">{t("messages.priority.haute")}</SelectItem>

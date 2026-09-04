@@ -48,7 +48,18 @@
     "archive": "Archivar",
     "block": "Bloquear",
     "previousPeriod": "Período anterior",
-    "nextPeriod": "Período siguiente"
+    "nextPeriod": "Período siguiente",
+    "filterStatus": "Filtrar por estado",
+    "filterPriority": "Filtrar por prioridad",
+    "filterPeriod": "Periodo",
+    "filterType": "Filtrar por tipo",
+    "filterMetric": "Métrica",
+    "filterDays": "Número de días",
+    "filterNotifications": "Filtrar notificaciones",
+    "startHour": "Hora de inicio",
+    "endHour": "Hora de fin",
+    "startDate": "Fecha de inicio",
+    "endDate": "Fecha de fin"
   },
   "nav": {
     "dashboard": "Panel",
@@ -3634,7 +3645,8 @@
       "blockedTitle": "Bloqueados ({{count}})",
       "allowedTitle": "Autorizados ({{count}})",
       "noBlocked": "Ningún elemento bloqueado.",
-      "noAllowed": "Ningún elemento autorizado."
+      "noAllowed": "Ningún elemento autorizado.",
+      "valueLabel": "Valor a añadir"
     },
     "settings": {
       "title": "Resumen semanal por correo",
@@ -6203,7 +6215,8 @@
       "smsToHint": "(vacío = número del contacto)",
       "smsToPlaceholder": "+33612345678 (dejar vacío para usar el destinatario predeterminado)",
       "smsMessage": "Mensaje SMS",
-      "smsMessagePlaceholder": "Hola, no pudimos atender su llamada..."
+      "smsMessagePlaceholder": "Hola, no pudimos atender su llamada...",
+      "actionType": "Tipo de acción"
     }
   },
   "organisationsPage": {
@@ -7270,7 +7283,8 @@
       "emptyExamples": "Ej.: « ¿Cuáles son mis urgencias? », « Resúmeme la situación »",
       "open": "Abrir",
       "thinking": "El Comandante está pensando...",
-      "inputPlaceholder": "Escriba su mensaje... (Enter para enviar, Mayús+Enter para salto de línea)"
+      "inputPlaceholder": "Escriba su mensaje... (Enter para enviar, Mayús+Enter para salto de línea)",
+      "renameLabel": "Renombrar conversación"
     },
     "commandes": {
       "cmdStopped": "Comando interrumpido.",

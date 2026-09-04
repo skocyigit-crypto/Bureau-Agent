@@ -287,7 +287,7 @@ export default function CallDetail() {
                 <div className="flex-1">
                   <span className="text-sm font-medium block mb-2">{t("callDetail.sentimentLabel")}</span>
                   <Select value={call.sentiment || "none"} onValueChange={handleSentimentChange}>
-                    <SelectTrigger>
+                    <SelectTrigger aria-label={t("callDetail.sentimentPlaceholder")}>
                       <SelectValue placeholder={t("callDetail.sentimentPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
