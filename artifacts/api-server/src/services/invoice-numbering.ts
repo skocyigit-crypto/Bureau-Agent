@@ -15,7 +15,6 @@
  * instant; le verrou serialise les deux demandes.
  */
 import { sql } from "drizzle-orm";
-import { db } from "@workspace/db";
 
 /** Largeur du compteur: `FAC-2026-000001`. */
 const WIDTH = 6;
