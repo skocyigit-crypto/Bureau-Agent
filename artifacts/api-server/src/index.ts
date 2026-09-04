@@ -16,6 +16,7 @@ import { startTrialWarningCron } from "./services/trial-warning-cron";
 import { startAiInsightsCron } from "./services/ai-insights";
 import { startTenantBackupCron } from "./services/tenant-backup-cron";
 import { startLocationCleanupCron } from "./services/location-cleanup-cron";
+import { startAccountRetentionCron } from "./services/account-retention-cron";
 import { startSecurityDigestCron } from "./services/security-digest-cron";
 import { startProactiveEngine, recordModelFallbackSuggestion } from "./services/proactive-engine";
 import { startAiLearning } from "./services/ai-learning";
@@ -148,6 +149,7 @@ async function startServer(): Promise<void> {
     startAiInsightsCron();
     startTenantBackupCron();
     startLocationCleanupCron();
+    startAccountRetentionCron();
     startSecurityDigestCron();
     startProactiveEngine();
     startAiLearning();
