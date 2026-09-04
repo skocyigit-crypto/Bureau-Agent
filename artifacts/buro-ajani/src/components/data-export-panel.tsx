@@ -14,7 +14,7 @@ const entities = [
   { key: "contacts", icon: Users, color: "text-emerald-600 bg-emerald-100" },
   { key: "tasks", icon: CheckSquare, color: "text-green-600 bg-green-100" },
   { key: "calls", icon: Phone, color: "text-blue-600 bg-blue-100" },
-  { key: "messages", icon: MessageSquare, color: "text-orange-600 bg-orange-100" },
+  { key: "messages", icon: MessageSquare, color: "text-orange-700 bg-orange-100" },
   { key: "prospects", icon: Target, color: "text-purple-600 bg-purple-100" },
 ];
 

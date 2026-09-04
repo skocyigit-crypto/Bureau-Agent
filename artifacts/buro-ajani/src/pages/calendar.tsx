@@ -515,7 +515,7 @@ function EventFormDialog({
           <Button
             onClick={handleSave}
             disabled={!form.title.trim() || !selectedDate || isPending || (!editEvent && !!closureInfo)}
-            className="flex-1 bg-amber-500 hover:bg-amber-600 text-white"
+            className="flex-1 bg-amber-600 hover:bg-amber-600 text-white"
             title={(!editEvent && closureInfo) ? t("calendar.form.closedDayTitle") : undefined}
           >
             {isPending ? t("calendar.form.saving") : editEvent ? t("calendar.form.update") : t("calendar.form.createEvent")}
@@ -886,7 +886,7 @@ function ClosureDayDialog({
               </Button>
               <Button
                 disabled={isPending}
-                className="flex-1 bg-red-500 hover:bg-red-600 text-white"
+                className="flex-1 bg-red-600 hover:bg-red-600 text-white"
                 onClick={() => onAdd(label, dateEndStr || dateStartStr)}
               >
                 <DoorClosed className="w-3.5 h-3.5 mr-1.5" />
@@ -1275,7 +1275,7 @@ export default function CalendarPage() {
           </Button>
           <Button
             size="sm"
-            className="bg-amber-500 hover:bg-amber-600 text-white"
+            className="bg-amber-600 hover:bg-amber-600 text-white"
             onClick={() => {
               setSelectedDate(selectedDate || new Date());
               setSelectedHour(undefined);
@@ -1401,13 +1401,13 @@ export default function CalendarPage() {
                           </button>
                         )}
                         {closureInfo && isCurrentMonth && !isAdmin && (
-                          <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/40 border border-red-200 dark:border-red-800/50 rounded px-1 py-0.5 leading-none max-w-[5rem]">
+                          <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-red-700 dark:text-red-400 bg-red-100 dark:bg-red-900/40 border border-red-200 dark:border-red-800/50 rounded px-1 py-0.5 leading-none max-w-[5rem]">
                             <Lock className="w-2 h-2 shrink-0" />
                             <span className="truncate">{closureInfo.label || t("calendar.closure.closed")}</span>
                           </span>
                         )}
                         {closureInfo && isCurrentMonth && isAdmin && (
-                          <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/40 border border-red-200 dark:border-red-800/50 rounded px-1 py-0.5 leading-none group-hover:hidden max-w-[5rem]">
+                          <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-red-700 dark:text-red-400 bg-red-100 dark:bg-red-900/40 border border-red-200 dark:border-red-800/50 rounded px-1 py-0.5 leading-none group-hover:hidden max-w-[5rem]">
                             <Lock className="w-2 h-2 shrink-0" />
                             <span className="truncate">{closureInfo.label || t("calendar.closure.closed")}</span>
                           </span>

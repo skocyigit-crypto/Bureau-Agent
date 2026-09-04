@@ -136,7 +136,7 @@ const ROLE_CONFIG: Record<UserRole, {
     labelKey: "userMenu.roles.lecture_seule",
     niveau: 1,
     couleur: "gray",
-    badgeClass: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400 border-0",
+    badgeClass: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border-0",
     permissions: {
       telechargerFichiers: false,
       supprimerDonnees: false,

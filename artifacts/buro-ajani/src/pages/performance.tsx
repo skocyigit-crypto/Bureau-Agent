@@ -309,9 +309,9 @@ export default function PerformancePage() {
                     <MetriqueCard icon={Phone} label={t("performancePage.metrics.appelsTraites")} value={emp.appelsTraites} color="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600" />
                     <MetriqueCard icon={CheckSquare} label={t("performancePage.metrics.tachesCreees")} value={emp.tachesCreees} color="bg-violet-100 dark:bg-violet-900/30 text-violet-600" />
                     <MetriqueCard icon={Target} label={t("performancePage.metrics.tachesTerminees")} value={emp.tachesTerminees} color="bg-amber-100 dark:bg-amber-900/30 text-amber-600" />
-                    <MetriqueCard icon={Mail} label={t("performancePage.metrics.messages")} value={emp.messagesEnvoyes} color="bg-pink-100 dark:bg-pink-900/30 text-pink-600" />
+                    <MetriqueCard icon={Mail} label={t("performancePage.metrics.messages")} value={emp.messagesEnvoyes} color="bg-pink-100 dark:bg-pink-900/30 text-pink-700" />
                     <MetriqueCard icon={Users} label={t("performancePage.metrics.contactsAjoutes")} value={emp.contactsAjoutes} color="bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600" />
-                    <MetriqueCard icon={Calendar} label={t("performancePage.metrics.evenements")} value={emp.evenementsCrees} color="bg-orange-100 dark:bg-orange-900/30 text-orange-600" />
+                    <MetriqueCard icon={Calendar} label={t("performancePage.metrics.evenements")} value={emp.evenementsCrees} color="bg-orange-100 dark:bg-orange-900/30 text-orange-700" />
                     <MetriqueCard icon={Clock} label={t("performancePage.metrics.heures")} value={`${emp.heuresTravaillees}h`} color="bg-teal-100 dark:bg-teal-900/30 text-teal-600" />
                   </div>
                   {emp.derniereActivite && (

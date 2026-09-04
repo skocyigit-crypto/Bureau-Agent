@@ -143,7 +143,7 @@ export default function TelechargerPage() {
                     <CardDescription>{t("telecharger.pwa.desc")}</CardDescription>
                   </div>
                 </div>
-                <Badge className="absolute top-4 right-4 bg-amber-500 text-white border-0 text-[10px]">{t("telecharger.pwa.recommended")}</Badge>
+                <Badge className="absolute top-4 right-4 bg-amber-600 text-white border-0 text-[10px]">{t("telecharger.pwa.recommended")}</Badge>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-2">

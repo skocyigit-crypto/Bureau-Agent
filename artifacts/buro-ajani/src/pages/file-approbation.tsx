@@ -67,7 +67,7 @@ const CATEGORY_META: Record<string, { icon: typeof Mail; labelKey: string; color
   sms: { icon: MessageSquare, labelKey: "fileApprobation.category.sms", color: "text-violet-600 bg-violet-50 dark:bg-violet-950/40" },
   tache: { icon: CheckSquare, labelKey: "fileApprobation.category.tache", color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40" },
   rappel: { icon: Bell, labelKey: "fileApprobation.category.rappel", color: "text-amber-600 bg-amber-50 dark:bg-amber-950/40" },
-  relance: { icon: RefreshCw, labelKey: "fileApprobation.category.relance", color: "text-orange-600 bg-orange-50 dark:bg-orange-950/40" },
+  relance: { icon: RefreshCw, labelKey: "fileApprobation.category.relance", color: "text-orange-700 bg-orange-50 dark:bg-orange-950/40" },
   contact: { icon: UserPlus, labelKey: "fileApprobation.category.contact", color: "text-teal-600 bg-teal-50 dark:bg-teal-950/40" },
   autre: { icon: ShieldQuestion, labelKey: "fileApprobation.category.autre", color: "text-slate-600 bg-slate-100 dark:bg-slate-800/60" },
 };

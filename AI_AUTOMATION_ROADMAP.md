@@ -2237,3 +2237,42 @@ altında build'i düşürüyor; `a11y:check` içine eklendi. Kapının gerçekte
 **Sınırı da yazıldı**: script yalnızca temanın ilan ettiği çiftleri görür.
 Bileşenlerin içine elle yazılmış renkler (`text-red-400`, `#6366f1`) onun
 görüş alanında değil — sıradaki tur onlar.
+
+## Elle yazılmış renkler: 35'i kanıtlandı, 426'sı tahmin — ikisi ayrı tutuldu
+
+Jetonların kontrastı düzeldikten sonra sıradaki katman, bileşenlere elle
+yazılmış ~2900 renk sınıfıydı (`text-amber-500`, `bg-red-100`). Tailwind 4
+renkleri oklch ile tanımlıyor; dönüştürücüyü yazıp **bilinen hex değerleriyle**
+doğruladım (red-600 → #e7000b, blue-600 → #155dfc), yoksa bütün sayılar
+uydurma olurdu.
+
+### Ölçüm iki kez yanlıştı, ikisi de düzeltildi
+
+1. İlk çıkarıcı yalnız `className="..."` okuyordu ve 2500 çiftten **12**'sini
+   görüyordu — sınıflar `cn()`, şablon dizeleri ve yapılandırma tablolarından
+   geliyor. Artık Tailwind'in kendi tarayıcısı gibi bütün dize sabitleri
+   taranıyor.
+2. Zemini bilinmeyen beyaz metin "sayfa zemininde" sanılıyordu: 146 sahte
+   bulgu. Beyaz/siyah metin zemini bilinmiyorsa artık hiç sayılmıyor.
+
+### Kanıt ile tahminin ayrılması
+
+- **Kesin**: metin ve zemin **aynı sınıf dizesinde** olan 497 çift. Burada zemin
+  bilindiği için sonuç bir olgu. **35'i sınırın altındaydı** — butonlarda beyaz
+  üstü amber-500 (3.32), koyu temada gri 400 üstü gri 800 (2.97) rozetler.
+  Hepsi düzeltildi: geçen **en yakın** ton hesaplanarak seçildi, göz kararıyla
+  değil.
+- **Tahmin**: yalnız metin sınıfı olan 426 kullanım. Zemin bir üst bileşenden,
+  bir değişkenden veya satır içi stilden gelebilir; statik okuma bunu bilemez.
+  Bu yüzden raporlanıyor ama **kapıyı düşürmüyor**. Varsayıma dayanan bir sayıyı
+  kesinmiş gibi sunmak, hiç sayı vermemekten kötüdür.
+
+### Codemod'un kendi hatası
+
+İlk sürüm `dark:bg-gray-800` gördüğü yerde **öneksiz** metni de değiştirdi ve
+açık temada gri 300 üstü gri 100 üretti: 1.89 — düzelttiği kusurdan beter.
+Ölçüm bunu hemen yakaladı. Codemod artık temaları ayrı işliyor; ders,
+kapının çıktısını "geçti" diye değil, sayı olarak okumak.
+
+`scripts/a11y-hardcoded-contrast.mjs` `a11y:check` içine eklendi; kesin
+altkümede tavan 0.

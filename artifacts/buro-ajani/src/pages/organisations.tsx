@@ -79,7 +79,7 @@ const INVOICE_STATUS_COLORS: Record<string, string> = {
   payee: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
   partiel: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
   retard: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  annulee: "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500",
+  annulee: "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-300",
 };
 
 interface Organisation {
@@ -1896,7 +1896,7 @@ export default function OrganisationsPage() {
                           )}
                           <Badge className={doc.status === "accepted"
                             ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                            : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                            : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
                           }>
                             {doc.status === "accepted" ? t("organisationsPage.legalDetail.accepted") : t("organisationsPage.legalDetail.pending")}
                           </Badge>

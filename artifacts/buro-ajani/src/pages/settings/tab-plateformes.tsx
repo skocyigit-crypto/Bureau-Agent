@@ -129,7 +129,7 @@ const GOOGLE_CATEGORIES: Record<string, { label: string; couleur: string }> = {
   stockage: { label: "Stockage", couleur: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" },
   analyse: { label: "Analyse", couleur: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
   marketing: { label: "Marketing", couleur: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
-  administration: { label: "Administration", couleur: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400" },
+  administration: { label: "Administration", couleur: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" },
 };
 
 const GOOGLE_SERVICES: GoogleService[] = [
@@ -167,7 +167,7 @@ const MICROSOFT_CATEGORIES: Record<string, { label: string; couleur: string }> =
   stockage: { label: "Stockage", couleur: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" },
   sécurité: { label: "Securite", couleur: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
   analyse: { label: "Analyse", couleur: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
-  administration: { label: "Administration", couleur: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400" },
+  administration: { label: "Administration", couleur: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" },
   collaboration: { label: "Collaboration", couleur: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400" },
 };
 

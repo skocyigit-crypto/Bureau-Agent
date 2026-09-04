@@ -1190,7 +1190,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                             aiResult.analysis.sentiment === "positif" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400 border-emerald-200" :
                             aiResult.analysis.sentiment === "tres_negatif" ? "bg-red-200 text-red-800 dark:bg-red-900/70 dark:text-red-300 border-red-300" :
                             aiResult.analysis.sentiment === "negatif" ? "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400 border-red-200" :
-                            "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400 border-gray-200"
+                            "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border-gray-200"
                           }`}>
                             {aiResult.analysis.sentiment}
                           </Badge>

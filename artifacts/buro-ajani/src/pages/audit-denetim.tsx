@@ -144,7 +144,7 @@ export default function AuditDenetimPage() {
       <div className="flex items-center gap-1 border-b border-border">
         <TabButton active={tab === "eksik"} onClick={() => setTab("eksik")}>
           <AlertTriangle className="h-4 w-4 mr-1.5" />{t("auditDenetim.tabGaps")}
-          {(s?.eksik ?? 0) > 0 && <span className="ml-2 rounded-full bg-orange-500 text-white text-xs px-1.5 py-0.5">{s?.eksik}</span>}
+          {(s?.eksik ?? 0) > 0 && <span className="ml-2 rounded-full bg-orange-600 text-white text-xs px-1.5 py-0.5">{s?.eksik}</span>}
         </TabButton>
         <TabButton active={tab === "yenilik"} onClick={() => setTab("yenilik")}>
           <Lightbulb className="h-4 w-4 mr-1.5" />{t("auditDenetim.tabIdeas")}
