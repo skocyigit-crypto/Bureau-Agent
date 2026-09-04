@@ -63,6 +63,12 @@ test.describe("pages obligatoires", () => {
   const pages = [
     { path: "/mentions-legales", label: "mentions legales", titre: /mentions l[ée]gales/i },
     { path: "/confidentialite", label: "politique de confidentialite", titre: /confidentialit[ée]/i },
+    // La version turque de la politique de confidentialite. Elle etait dans le
+    // routeur mais absente de cette liste — donc la seule page legale dont
+    // rien ne prouvait qu'elle s'affiche. L'interface entiere est traduite en
+    // turc: une politique de confidentialite muette pour ces utilisateurs les
+    // laisse sans le document que le RGPD leur destine.
+    { path: "/gizlilik", label: "politique de confidentialite (turc)", titre: /gizlilik politikas/i },
     { path: "/cgu", label: "conditions d'utilisation", titre: /conditions g[ée]n[ée]rales d'utilisation/i },
     // Publiee le 2026-09-03: vendre un abonnement sans CGV laisse le prix, la
     // duree, la resiliation et la responsabilite sans cadre contractuel.

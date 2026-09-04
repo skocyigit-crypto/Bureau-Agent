@@ -2472,3 +2472,22 @@ sayıyor.
 metnin manuel yolu andığını doğruluyor. Testin ilk hâli yanlış ajanı çağırdı ve
 **boşuna geçmek yerine düştü** — sessizliği sınayan bir testin kendisi sessiz
 kalmamalı.
+
+## Türkçe gizlilik politikasının açıldığını hiçbir şey kanıtlamıyormuş — 2026-09-04
+
+Satılabilirliğin hukuki ayağını denetledim. Yedi belge de canlıda 200 dönüyor —
+ama bu tek başına hiçbir şey söylemiyor: site bir SPA, `/boyle-bir-sayfa-yok`
+da 200 dönüyor. Gerçek kanıt e2e tarafında ve orası iyi kurulmuş: her sayfa
+gerçek tarayıcıda açılıyor, `h1` bekleniyor ve **beklenen başlık** aranıyor —
+"bir başlık var" değil.
+
+### Boşluk
+
+Yönlendiricide **yedi** hukuki sayfa var, testte **altı**. Kapsam dışı kalan
+`/gizlilik`, yani Türkçe gizlilik politikasıydı — üstelik arayüzün tamamı
+Türkçeye çevrili. O sayfa sessizce bozulsa kimse görmezdi, ve RGPD'nin o
+kullanıcılara borçlu olduğu belge okunmaz hâlde kalırdı.
+
+Listeye eklendi. **Boşuna geçmediği doğrulandı**: beklenen başlık kasten
+yanlış yazıldığında test düşüyor, düzeltilince geçiyor. 13 e2e testinin hepsi
+yeşil.
