@@ -1703,7 +1703,13 @@
     "createBtn": "إنشاء حسابي المجاني",
     "alreadyAccount": "لديك حساب بالفعل؟ تسجيل الدخول",
     "secureConnection": "اتصال آمن",
-    "dataProtected": "البيانات محمية"
+    "dataProtected": "البيانات محمية",
+    "errTerms": "يجب قبول الشروط العامة لإنشاء حسابك.",
+    "acceptTermsAria": "أوافق على الشروط العامة",
+    "acceptTermsPrefix": "لقد قرأت وأوافق على",
+    "acceptTermsCgu": "شروط الاستخدام",
+    "acceptTermsAnd": "و",
+    "acceptTermsCgv": "شروط البيع"
   },
   "invitation": {
     "roles": {

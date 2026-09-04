@@ -1703,7 +1703,13 @@
     "createBtn": "Crear mi cuenta gratuita",
     "alreadyAccount": "¿Ya tiene una cuenta? Iniciar sesión",
     "secureConnection": "Conexión segura",
-    "dataProtected": "Datos protegidos"
+    "dataProtected": "Datos protegidos",
+    "errTerms": "Debe aceptar las condiciones generales para crear su cuenta.",
+    "acceptTermsAria": "Acepto las condiciones generales",
+    "acceptTermsPrefix": "He leído y acepto las",
+    "acceptTermsCgu": "condiciones de uso",
+    "acceptTermsAnd": "y las",
+    "acceptTermsCgv": "condiciones de venta"
   },
   "invitation": {
     "roles": {

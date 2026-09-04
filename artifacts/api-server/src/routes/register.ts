@@ -3,8 +3,8 @@ import { resolveClientIp, rateLimitKey } from "../lib/request-ip";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import rateLimit from "express-rate-limit";
-import { db, organisationsTable, subscriptionsTable, usersTable } from "@workspace/db";
-import { PLANS, type PlanKey } from "@workspace/db/schema";
+import { db, legalAgreementsTable, organisationsTable, subscriptionsTable, usersTable } from "@workspace/db";
+import { LEGAL_DOCUMENTS, PLANS, type PlanKey } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { sendWelcomeEmail } from "../services/email";
 import { resolveEmailLang } from "../i18n/email-i18n";
@@ -46,7 +46,8 @@ const registerLimiter = rateLimit({
 });
 
 router.post("/auth/register", registerLimiter, async (req: Request, res: Response): Promise<void> => {
-  const { orgName, firstName, lastName, email, password, phone, plan } = req.body;
+  const { orgName, firstName, lastName, email, password, phone, plan, acceptedTerms } = req.body;
+
 
   if (!orgName || orgName.trim().length < 2) {
     res.status(400).json({ error: "Le nom de l'organisation est requis (minimum 2 caracteres)." });
@@ -60,6 +61,25 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
 
   if (!email || !email.includes("@")) {
     res.status(400).json({ error: "Une adresse email valide est requise." });
+    return;
+  }
+
+// Acceptation des CGV/CGU au moment de la commande.
+  //
+  // Les CGV affirment que « toute commande vaut acceptation sans reserve des
+  // presentes » (cgv.tsx). Encore faut-il que l'acheteur ait pu en prendre
+  // connaissance: l'article 1119 du Code civil ecarte les conditions generales
+  // qui n'ont pas ete portees a la connaissance de la partie qui les subit.
+  // L'inscription ne les mentionnait nulle part — la clause etait donc
+  // inopposable, et c'est le vendeur qui en supporte le risque.
+  //
+  // La case doit etre COCHEE PAR L'UTILISATEUR: un consentement pre-coche ne
+  // vaut pas consentement.
+  if (acceptedTerms !== true) {
+    res.status(400).json({
+      error: "Vous devez accepter les conditions generales d'utilisation et de vente.",
+      champ: "acceptedTerms",
+    });
     return;
   }
 
@@ -150,6 +170,22 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
         organisation: usersTable.organisation,
         organisationId: usersTable.organisationId,
       });
+
+      // Trace de l'acceptation, DANS la transaction: si la creation echoue,
+      // la preuve d'un consentement qui n'a jamais abouti ne reste pas en base.
+      // Sans cette ligne, l'acceptation n'existait que dans la requete — donc
+      // nulle part, et le vendeur ne pouvait rien prouver.
+      for (const documentType of ["cgu", "cgv"] as const) {
+        await tx.insert(legalAgreementsTable).values({
+          organisationId: org.id,
+          documentType,
+          documentVersion: LEGAL_DOCUMENTS[documentType].version,
+          acceptedAt: new Date(),
+          acceptedBy: emailLower,
+          acceptedIp: resolveClientIp(req) ?? null,
+          notes: "Acceptation a l'inscription",
+        });
+      }
 
       return { organisation: org, subscription: sub, user };
     });

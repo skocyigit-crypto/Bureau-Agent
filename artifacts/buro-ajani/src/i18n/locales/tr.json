@@ -1703,7 +1703,13 @@
     "createBtn": "Ücretsiz hesabımı oluştur",
     "alreadyAccount": "Zaten hesabınız var mı? Giriş yapın",
     "secureConnection": "Güvenli bağlantı",
-    "dataProtected": "Veriler korunuyor"
+    "dataProtected": "Veriler korunuyor",
+    "errTerms": "Hesap oluşturmak için genel koşulları kabul etmelisiniz.",
+    "acceptTermsAria": "Genel koşulları kabul ediyorum",
+    "acceptTermsPrefix": "Okudum ve kabul ediyorum:",
+    "acceptTermsCgu": "kullanım koşulları",
+    "acceptTermsAnd": "ve",
+    "acceptTermsCgv": "satış koşulları"
   },
   "invitation": {
     "roles": {
