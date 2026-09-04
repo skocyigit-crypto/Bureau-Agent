@@ -15,7 +15,7 @@
     "test": "pnpm -r --if-present --workspace-concurrency=1 run test",
     "test:local": "node ./scripts/run-tests-local.mjs",
     "e2e": "playwright test",
-    "security:audit": "pnpm audit --prod --audit-level high",
+    "security:audit": "node ./scripts/security-audit.mjs",
     "lint": "eslint .",
     "lint:ratchet": "eslint . --max-warnings 687"
   },

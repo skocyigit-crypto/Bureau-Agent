@@ -2167,3 +2167,27 @@ yakalandı.
 18 alanın 13'ü zaten `htmlFor`/saran etiketle bağlı. Kalan 5'i `ui/` altındaki
 ilkel bileşenler (`{...props}` yayıyorlar), yani adı çağrı yeri veriyor —
 ön yüzdeki `ALLOWLIST` ile aynı gerekçe. Sitede değişiklik gerekmedi.
+
+## Güvenlik kapısı ağ yüzünden düşüyordu — 2026-09-04
+
+Aynı PR iki kez üst üste `pnpm audit` adımında düştü. Sebep bağımlılık değil,
+`registry.npmjs.org`'un yanıt vermemesiydi (`ERR_SOCKET_TIMEOUT`, üç deneme).
+
+Sorun sadece can sıkıcı değil: `pnpm audit` "açık bulundu" ile "audit
+çalıştırılamadı" durumlarının **ikisinde de 1 ile çıkıyor**. Yani kapı iki ayrı
+şeyi aynı şekilde söylüyordu, ve kodla ilgisi olmayan bir sebeple düşen bir
+kapının öğrettiği tek şey var: yeşil olana kadar tekrar çalıştırmak. O noktada
+kapı hiçbir şeyi korumaz, çünkü kimse ne dediğini okumaz.
+
+`scripts/security-audit.mjs` bu ikisini ayırıyor:
+
+- yüksek/kritik açık → build düşer (eskisi gibi);
+- ağ hatası → geri çekilmeli üç deneme, sonra **çok görünür bir uyarıyla**
+  geçer. Audit yayımlanmış tavsiyeleri sorgular, bu diff'i değil: registry'e
+  ulaşamamak bu değişikliği tehlikeli yapmaz ve bir sonraki build tekrar
+  deneyecek. Bu bir karar, kaza değil — bu yüzden script'in başına yazıldı;
+- başka her hata (okunamayan çıktı) → düşer. Anlamadığımız şeyi geçirmiyoruz.
+
+Dört yolun dördü de ölçüldü: komut `SECURITY_AUDIT_CMD` ile enjekte edilebilir,
+böylece temiz / açıklı / ağ / bilinmeyen durumları registry'nin o anki hâline
+bağlı kalmadan doğrulanıyor (0, 1, 0+uyarı, 3).
