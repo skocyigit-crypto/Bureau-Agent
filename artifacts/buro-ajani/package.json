@@ -9,7 +9,7 @@
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --config vitest.config.ts",
-    "a11y:check": "node ./scripts/a11y-form-labels.mjs --check && node ./scripts/a11y-contrast.mjs --check && node ./scripts/a11y-hardcoded-contrast.mjs --check"
+    "a11y:check": "node ./scripts/a11y-form-labels.mjs --check && node ./scripts/a11y-contrast.mjs --check && node ./scripts/a11y-hardcoded-contrast.mjs --check && node ./scripts/a11y-focus-visible.mjs --check"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",
