@@ -2491,3 +2491,39 @@ kullanıcılara borçlu olduğu belge okunmaz hâlde kalırdı.
 Listeye eklendi. **Boşuna geçmediği doğrulandı**: beklenen başlık kasten
 yanlış yazıldığında test düşüyor, düzeltilince geçiyor. 13 e2e testinin hepsi
 yeşil.
+
+## Sekme titremesi sürdü: asıl sebep sunucudaydı — 2026-09-04
+
+Kullanıcı, sabahki düzeltmeden sonra da aynı şeyi bildirdi: sekmeye basınca
+ekran gidip geliyor ve "yüklemek için yeniden deneyin" çıkıyor.
+
+### Önce kendi iddiamı ölçtüm
+
+Sabah "dağıtıldı" demiştim. Bu sefer varsaymadım: canlıdan `index.html`'i ve
+gösterdiği paketi indirip içine baktım. Düzeltme **gerçekten yayında** —
+`chunk-reload-at`, `chunk-reload-count` ve `vite:preloadError` pakette var,
+eski `chunk-reload-done` bayrağı yok. Yani sorun teşhisimin eksikliğindeydi.
+
+### Asıl sebep
+
+`curl -I https://app.agentdebureau.fr/` → **hiç `Cache-Control` yok**
+(varlıklar doğru: `immutable`). Başlıksız kalan bir HTML'e tarayıcı sezgisel
+önbellekleme uygular: eski belgeyi saklar, o belge de silinmiş parça adlarını
+ister. Parçası önbellekte olan sekmeler açılır, olmayanlar hata ekranına düşer.
+İstemci tarafındaki kurtarma bunu **çözemez**, çünkü tarayıcı ona her seferinde
+aynı bayat belgeyi verir.
+
+### Kural vardı ama tutmuyordu
+
+İki Caddyfile'da da `header /index.html Cache-Control ...` yazılıydı. Ama bu,
+**istenen** yolu eşliyor; navigasyonlar `/`, `/taches`, `/appels` olarak geliyor
+ve `index.html`'e ancak `try_files` ile içeriden dönüşüyor. Yani kural hiç
+uygulanmıyordu. **Var olup uygulanmayan bir kural, olmayandan kötüdür**: koruma
+gibi okunur.
+
+Artık hashli dosyalar dışındaki her yanıt `no-cache, must-revalidate` alıyor.
+`no-store` bilerek alınmadı: geri tuşu önbelleğini de yasaklardı, buradaki
+kazancı ise sıfır.
+
+Dört test bunu tutuyor ve **boşuna geçmedikleri doğrulandı**: eski (tutmayan)
+kural geri konduğunda düşüyorlar.
