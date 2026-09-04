@@ -2527,3 +2527,23 @@ kazancı ise sıfır.
 
 Dört test bunu tutuyor ve **boşuna geçmedikleri doğrulandı**: eski (tutmayan)
 kural geri konduğunda düşüyorlar.
+
+### Aynı kusurun süpürülmesi — 2026-09-04
+
+"Kural var ama uygulanmıyor" bulgusundan sonra, beyan edilen **her** başlığı
+canlıda ölçtüm.
+
+- Uygulama (`app.agentdebureau.fr`): Caddyfile'ın beyan ettiği altı başlığın
+  (HSTS, X-Content-Type-Options, X-Frame-Options, Referrer-Policy,
+  Permissions-Policy, CSP-Report-Only) **altısı da** yanıtta var.
+- Tanıtım sitesi (`agentdebureau.fr`): beyan edilen dört başlığın dördü de var.
+
+Yani "beyan edilip düşen" başka bir başlık yok. Ama **önbellek kusuru tanıtım
+sitesinde de aynen duruyordu**: `/` ve `/cgv` hiç `Cache-Control` döndürmüyor.
+Orası da `lazy()` ile bölünmüş ve hukuki sayfalar da öyle yükleniyor — yani
+bayat belge tutan bir ziyaretçi, kanunen erişilebilir olması gereken CGV'yi,
+mentions légales'i veya gizlilik politikasını hiç göremeyebilir. E2e testleri
+bunu yakalayamaz: onlar ziyaretçinin önbelleğini görmez.
+
+Aynı düzeltme oraya da uygulandı ve yapılandırma testi üçüncü dosyayı da
+kapsıyor artık.

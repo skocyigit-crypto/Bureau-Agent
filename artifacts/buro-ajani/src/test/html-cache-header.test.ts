@@ -28,7 +28,9 @@ const lire = (p: string) => readFileSync(resolve(workspaceRoot, p), "utf8");
  * Une regle qui existe et ne s'applique pas est pire qu'une regle absente:
  * elle se relit comme une protection.
  */
-const CADDYFILES = ["deploy/Caddyfile.cloudrun", "deploy/Caddyfile"];
+// Le site vitrine est concerne au meme titre: il decoupe aussi son code,
+// et ses pages legales sont chargees a la demande.
+const CADDYFILES = ["deploy/Caddyfile.cloudrun", "deploy/Caddyfile", "deploy/Caddyfile.tanitim.cloudrun"];
 
 describe("cache du document HTML", () => {
   for (const chemin of CADDYFILES) {
