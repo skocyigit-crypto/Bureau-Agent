@@ -29,8 +29,16 @@ const stamp = Date.now();
 const created: number[] = [];
 
 afterAll(async () => {
-  for (const id of created) {
-    await db.delete(organisationsTable).where(eq(organisationsTable.id, id));
+  // Nettoyage « au mieux », comme les autres tests de ce dossier: une ligne
+  // residuelle ne doit pas faire echouer la suite. Les identifiants portent
+  // l'horodatage du run, donc rien ne se telescope d'une execution a l'autre.
+  try {
+    for (const id of created) {
+      await db.delete(organisationsTable).where(eq(organisationsTable.id, id));
+    }
+  } catch {
+    // Une contrainte residuelle (abonnement, facture d'inscription) peut
+    // retenir la ligne. Ce n'est pas ce que ce test mesure.
   }
 });
 
