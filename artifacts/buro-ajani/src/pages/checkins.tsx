@@ -701,7 +701,7 @@ export default function CheckinsPage() {
                   {currentData?.paused?.map((c: any) => (
                     <div key={c.id} className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-100">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center text-sm font-bold">
+                        <div className="w-8 h-8 rounded-full bg-amber-600 text-white flex items-center justify-center text-sm font-bold">
                           {c.employeeName?.split(" ").map((n: string) => n[0]).join("").substring(0, 2)}
                         </div>
                         <div>

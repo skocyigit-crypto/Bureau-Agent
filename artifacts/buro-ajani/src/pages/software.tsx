@@ -20,9 +20,9 @@ const CATEGORY_META: Record<string, { icon: React.ElementType; color: string }> 
   communication: { icon: MessageSquare, color: "text-green-600 bg-green-100" },
   gestion_projet: { icon: BarChart3, color: "text-purple-600 bg-purple-100" },
   comptabilite: { icon: CreditCard, color: "text-amber-600 bg-amber-100" },
-  documents: { icon: FolderOpen, color: "text-orange-600 bg-orange-100" },
+  documents: { icon: FolderOpen, color: "text-orange-700 bg-orange-100" },
   messagerie: { icon: Mail, color: "text-sky-600 bg-sky-100" },
-  marketing: { icon: Zap, color: "text-pink-600 bg-pink-100" },
+  marketing: { icon: Zap, color: "text-pink-700 bg-pink-100" },
   automatisation: { icon: RefreshCw, color: "text-indigo-600 bg-indigo-100" },
   support: { icon: Shield, color: "text-teal-600 bg-teal-100" },
 };

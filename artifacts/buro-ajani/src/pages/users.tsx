@@ -81,7 +81,7 @@ const ROLE_CONFIG: Record<UserRole, { label: string; couleur: string; icon: Reac
   super_admin: { label: "Super Admin", couleur: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400", icon: Crown },
   administrateur: { label: "Administrateur", couleur: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400", icon: ShieldCheck },
   agent: { label: "Agent", couleur: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400", icon: Phone },
-  lecture_seule: { label: "Lecture seule", couleur: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400", icon: Eye },
+  lecture_seule: { label: "Lecture seule", couleur: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300", icon: Eye },
 };
 
 export default function UsersPage() {

@@ -403,7 +403,7 @@ export default function ExecutiveReport() {
                 { label: t("executiveReport.overdue"), count: reminderCounts.overdue, icon: AlertCircle, color: "text-red-600 bg-red-50" },
                 { label: t("executiveReport.reminderUpcoming"), count: reminderCounts.upcoming, icon: Calendar, color: "text-blue-600 bg-blue-50" },
                 { label: t("executiveReport.reminderUrgentProspects"), count: reminderCounts.urgentProspects, icon: Target, color: "text-purple-600 bg-purple-50" },
-                { label: t("executiveReport.reminderMissedCalls"), count: reminderCounts.missedCalls, icon: Phone, color: "text-orange-600 bg-orange-50" },
+                { label: t("executiveReport.reminderMissedCalls"), count: reminderCounts.missedCalls, icon: Phone, color: "text-orange-700 bg-orange-50" },
               ].map((c) => (
                 <div key={c.label} className={`flex items-center gap-2 p-2 rounded-lg ${c.color}`}>
                   <c.icon className="h-4 w-4" />

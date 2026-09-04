@@ -473,7 +473,7 @@ const CATEGORY_META: Record<string, { icon: typeof MailIcon; label: string; colo
   sms: { icon: MessageSquare, label: "SMS", color: "text-violet-600 bg-violet-50 dark:bg-violet-950/40" },
   tache: { icon: CheckSquare, label: "Tâche", color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40" },
   rappel: { icon: Bell, label: "Rappel", color: "text-amber-600 bg-amber-50 dark:bg-amber-950/40" },
-  relance: { icon: RefreshCw, label: "Relance", color: "text-orange-600 bg-orange-50 dark:bg-orange-950/40" },
+  relance: { icon: RefreshCw, label: "Relance", color: "text-orange-700 bg-orange-50 dark:bg-orange-950/40" },
   contact: { icon: UserPlus, label: "Contact", color: "text-teal-600 bg-teal-50 dark:bg-teal-950/40" },
   autre: { icon: ShieldQuestion, label: "Action", color: "text-slate-600 bg-slate-100 dark:bg-slate-800/60" },
 };

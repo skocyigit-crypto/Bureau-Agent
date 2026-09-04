@@ -103,7 +103,7 @@ export default function CommandantIAPage() {
         <div className="flex items-center gap-2">
           <Badge className="bg-emerald-500 text-white text-xs">Gemini</Badge>
           <Badge className="bg-violet-500 text-white text-xs">OpenAI</Badge>
-          <Badge className="bg-orange-500 text-white text-xs">Anthropic</Badge>
+          <Badge className="bg-orange-600 text-white text-xs">Anthropic</Badge>
           <Button variant="outline" size="icon" title={t("commandantIa.print")} onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
         </div>
       </div>
@@ -257,7 +257,7 @@ function BriefingTab() {
 
   const weatherIcons: Record<string, string> = { ensoleille: "☀️", nuageux: "⛅", orageux: "⛈️" };
   const typeIcons: Record<string, any> = { contact: Users, tache: CheckSquare, evenement: Calendar, message: MessageSquare };
-  const typeColors: Record<string, string> = { contact: "text-blue-600 bg-blue-50", tache: "text-emerald-600 bg-emerald-50", evenement: "text-purple-600 bg-purple-50", message: "text-orange-600 bg-orange-50" };
+  const typeColors: Record<string, string> = { contact: "text-blue-600 bg-blue-50", tache: "text-emerald-600 bg-emerald-50", evenement: "text-purple-600 bg-purple-50", message: "text-orange-700 bg-orange-50" };
 
   return (
     <div className="space-y-4 mt-4">

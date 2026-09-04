@@ -836,8 +836,8 @@ export default function GmailAgentPage() {
                   {t("gmailAgent.filters.all")}
                 </button>
                 {[
-                  { key: "critique" as const, labelKey: "critique", count: triageCounts.critique, cls: "bg-red-500 text-white border-red-500" },
-                  { key: "haute" as const, labelKey: "haute", count: triageCounts.haute, cls: "bg-orange-500 text-white border-orange-500" },
+                  { key: "critique" as const, labelKey: "critique", count: triageCounts.critique, cls: "bg-red-600 text-white border-red-500" },
+                  { key: "haute" as const, labelKey: "haute", count: triageCounts.haute, cls: "bg-orange-600 text-white border-orange-500" },
                   { key: "needsReply" as const, labelKey: "needsReply", count: triageCounts.needsReply, cls: "bg-violet-500 text-white border-violet-500" },
                   { key: "commercial" as const, labelKey: "commercial", count: triageCounts.commercial, cls: "bg-emerald-500 text-white border-emerald-500" },
                   { key: "spam" as const, labelKey: "spam", count: triageCounts.spam, cls: "bg-gray-500 text-white border-gray-500" },
@@ -1327,7 +1327,7 @@ export default function GmailAgentPage() {
                           <div className="space-y-1.5">
                             {triageData.triage.priorityActions.map((action: string, i: number) => (
                               <div key={i} className="flex items-start gap-1.5 text-xs">
-                                <div className="w-4 h-4 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center shrink-0 text-[10px] font-bold mt-0.5">{i + 1}</div>
+                                <div className="w-4 h-4 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center shrink-0 text-[10px] font-bold mt-0.5">{i + 1}</div>
                                 <span>{action}</span>
                               </div>
                             ))}

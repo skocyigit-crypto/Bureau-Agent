@@ -53,7 +53,7 @@ const RIGHT_COLORS: Record<string, string> = {
   rectification: "text-amber-600 bg-amber-50 dark:bg-amber-950/30",
   erasure: "text-red-600 bg-red-50 dark:bg-red-950/30",
   restriction: "text-purple-600 bg-purple-50 dark:bg-purple-950/30",
-  objection: "text-orange-600 bg-orange-50 dark:bg-orange-950/30",
+  objection: "text-orange-700 bg-orange-50 dark:bg-orange-950/30",
 };
 
 const DATA_ICONS: Record<string, any> = {

@@ -262,7 +262,7 @@ function AgentCard({ report, onRunAgent }: { report: any; onRunAgent?: (id: stri
                   <div key={i} className="p-2.5 rounded-lg bg-orange-50 dark:bg-orange-950/20 border border-orange-200/50 text-xs space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-orange-700">{p.scenario}</span>
-                      {p.horizon && <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-100 dark:bg-orange-900/30 text-orange-600">{p.horizon === '7_jours' ? t("aiAgents.card.days7") : t("aiAgents.card.days30")}</span>}
+                      {p.horizon && <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-100 dark:bg-orange-900/30 text-orange-700">{p.horizon === '7_jours' ? t("aiAgents.card.days7") : t("aiAgents.card.days30")}</span>}
                     </div>
                     {p.impact && <p className="text-muted-foreground text-[11px]">{t("aiAgents.card.impact")} {p.impact}</p>}
                     {p.prevention && <p className="text-emerald-600 text-[11px] flex items-center gap-1"><Shield className="w-3 h-3 shrink-0" />{t("aiAgents.card.prevention")} {p.prevention}</p>}

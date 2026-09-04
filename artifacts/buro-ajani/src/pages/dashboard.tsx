@@ -707,12 +707,12 @@ export default function Dashboard() {
               {[
                 { key: "contact", label: t("dashboard.quickActions.newContact"), href: "/contacts", icon: Users, color: "text-indigo-500 bg-indigo-50 dark:bg-indigo-950/30" },
                 { key: "appel", label: t("dashboard.quickActions.newCall"), action: () => openQuickAction("appel"), icon: Phone, color: "text-sky-500 bg-sky-50 dark:bg-sky-950/30" },
-                { key: "tache", label: t("dashboard.quickActions.newTask"), action: () => openQuickAction("tache"), icon: CheckSquare, color: "text-emerald-500 bg-emerald-50 dark:bg-emerald-950/30" },
-                { key: "message", label: t("dashboard.quickActions.newMessage"), action: () => openQuickAction("message"), icon: MessageSquare, color: "text-amber-500 bg-amber-50 dark:bg-amber-950/30" },
-                { key: "evenement", label: t("dashboard.quickActions.newEvent"), action: () => openQuickAction("evenement"), icon: Clock, color: "text-rose-500 bg-rose-50 dark:bg-rose-950/30" },
+                { key: "tache", label: t("dashboard.quickActions.newTask"), action: () => openQuickAction("tache"), icon: CheckSquare, color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30" },
+                { key: "message", label: t("dashboard.quickActions.newMessage"), action: () => openQuickAction("message"), icon: MessageSquare, color: "text-amber-600 bg-amber-50 dark:bg-amber-950/30" },
+                { key: "evenement", label: t("dashboard.quickActions.newEvent"), action: () => openQuickAction("evenement"), icon: Clock, color: "text-rose-700 bg-rose-50 dark:bg-rose-950/30" },
                 { key: "import", label: t("dashboard.quickActions.importContacts"), href: "/contacts/import", icon: Upload, color: "text-blue-500 bg-blue-50 dark:bg-blue-950/30" },
                 { key: "activite", label: t("dashboard.quickActions.recentActivity"), href: "/activite-recente", icon: Activity, color: "text-violet-500 bg-violet-50 dark:bg-violet-950/30" },
-                { key: "notes", label: t("dashboard.quickActions.internalNotes"), href: "/notes-internes", icon: StickyNote, color: "text-yellow-500 bg-yellow-50 dark:bg-yellow-950/30" },
+                { key: "notes", label: t("dashboard.quickActions.internalNotes"), href: "/notes-internes", icon: StickyNote, color: "text-yellow-600 bg-yellow-50 dark:bg-yellow-950/30" },
               ].map(item => {
                 const Inner = (
                   <div className={`flex flex-col items-center gap-2 p-3 rounded-xl hover:opacity-80 transition-all cursor-pointer ${item.color.split(" ").slice(1).join(" ")}`}>
