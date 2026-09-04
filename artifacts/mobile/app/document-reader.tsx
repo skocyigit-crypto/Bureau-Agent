@@ -185,7 +185,7 @@ function ContentTab({ doc }: { doc: DocPreview }) {
       <View style={{ flex: 1, gap: 8 }}>
         <View style={[rd.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Feather name="search" size={14} color={colors.mutedForeground} />
-          <TextInput style={[rd.searchInput, { color: colors.foreground }]} placeholder={t("documentReaderScreen.searchPlaceholder")} placeholderTextColor={colors.mutedForeground} value={search} onChangeText={setSearch} />
+          <TextInput accessibilityLabel={t("documentReaderScreen.searchPlaceholder")} style={[rd.searchInput, { color: colors.foreground }]} placeholder={t("documentReaderScreen.searchPlaceholder")} placeholderTextColor={colors.mutedForeground} value={search} onChangeText={setSearch} />
           {search ? <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={() => setSearch("")}><Feather name="x" size={13} color={colors.mutedForeground} /></Pressable> : null}
         </View>
         {pages.length > 1 && (
@@ -769,7 +769,7 @@ function AnalyseTab({ doc, docId, onReloadDoc }: { doc: DocPreview; docId: numbe
 
           {/* Input */}
           <View style={[rd.chatInput, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <TextInput
+            <TextInput accessibilityLabel={t("documentReaderScreen.chatPlaceholder")}
               style={[rd.chatTextInput, { color: colors.foreground }]}
               placeholder={t("documentReaderScreen.chatPlaceholder")}
               placeholderTextColor={colors.mutedForeground}

@@ -41,7 +41,21 @@ const SRC = path.join(here, "..", "src");
  * libelle fait echouer le build. Baisser ce nombre en meme temps qu'on corrige
  * des champs fait partie de la correction.
  */
-const MAX_UNLABELLED = 178;
+const MAX_UNLABELLED = 0;
+
+/**
+ * Composants primitifs qui transmettent leurs props au champ (`{...rest}`).
+ * Leur nom accessible ne peut PAS etre decide ici: il depend de l'endroit ou
+ * le composant est utilise, et un libelle ecrit dans le primitif serait faux
+ * partout sauf a un endroit. La regle s'applique donc aux appelants.
+ *
+ * Toute autre exception doit etre ajoutee ici AVEC sa raison — ce qui oblige
+ * a ecrire pourquoi un champ n'a pas besoin d'etre nomme.
+ */
+const ALLOWLIST = new Map([
+  ["src/components/ghost-textarea.tsx", "primitif: `{...rest}` transmet aria-label depuis l'appelant"],
+  ["src/components/ui/sidebar.tsx", "primitif: `{...props}` transmet aria-label depuis l'appelant"],
+]);
 
 /** Balises rendant un champ de saisie. */
 const CONTROL = /<(Input|Textarea|SelectTrigger)\b/g;
@@ -111,6 +125,9 @@ export function scan() {
       });
 
       if (hasAria || linkedById || wrapped) continue;
+
+      const relative = path.relative(path.join(here, ".."), file).split(path.sep).join("/");
+      if (ALLOWLIST.has(relative)) continue;
 
       const line = src.slice(0, match.index).split("\n").length;
       findings.push({

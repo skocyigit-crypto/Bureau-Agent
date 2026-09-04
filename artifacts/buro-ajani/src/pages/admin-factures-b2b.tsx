@@ -195,14 +195,14 @@ function AdminFacturesB2BContent() {
           <Input aria-label={t("adminFacturesB2b.searchPlaceholder")} placeholder={t("adminFacturesB2b.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-44"><SelectValue placeholder={t("adminFacturesB2b.statusPlaceholder")} /></SelectTrigger>
+          <SelectTrigger aria-label={t("adminFacturesB2b.statusPlaceholder")} className="w-44"><SelectValue placeholder={t("adminFacturesB2b.statusPlaceholder")} /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("adminFacturesB2b.allStatuses")}</SelectItem>
             {STATUSES.map(s => <SelectItem key={s.key} value={s.key}>{t(`adminFacturesB2b.status.${s.key}`)}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={orgFilter} onValueChange={setOrgFilter}>
-          <SelectTrigger className="w-56" data-testid="factures-org-filter"><SelectValue placeholder={t("adminFacturesB2b.orgPlaceholder")} /></SelectTrigger>
+          <SelectTrigger aria-label={t("adminFacturesB2b.orgPlaceholder")} className="w-56" data-testid="factures-org-filter"><SelectValue placeholder={t("adminFacturesB2b.orgPlaceholder")} /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("adminFacturesB2b.allOrgs")}</SelectItem>
             {orgs.map(o => <SelectItem key={o.id} value={String(o.id)}>{o.name}</SelectItem>)}
@@ -279,7 +279,7 @@ function AdminFacturesB2BContent() {
                 onValueChange={v => setForm(f => ({ ...f, organisationId: v }))}
                 disabled={editingId !== null}
               >
-                <SelectTrigger data-testid="facture-form-org"><SelectValue placeholder={t("adminFacturesB2b.form.chooseOrg")} /></SelectTrigger>
+                <SelectTrigger aria-label={t("adminFacturesB2b.form.targetOrg")} data-testid="facture-form-org"><SelectValue placeholder={t("adminFacturesB2b.form.chooseOrg")} /></SelectTrigger>
                 <SelectContent>
                   {orgs.map(o => <SelectItem key={o.id} value={String(o.id)}>{o.name}</SelectItem>)}
                 </SelectContent>
@@ -290,18 +290,18 @@ function AdminFacturesB2BContent() {
                   : t("adminFacturesB2b.form.orgHelpCreate")}
               </p>
             </div>
-            <div><Label className="text-xs">{t("adminFacturesB2b.form.title")} *</Label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
+            <div><Label className="text-xs">{t("adminFacturesB2b.form.title")} *</Label><Input aria-label={t("adminFacturesB2b.form.title")} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs">{t("adminFacturesB2b.form.reference")}</Label><Input aria-label={t("adminFacturesB2b.form.reference")} value={form.reference} onChange={e => setForm(f => ({ ...f, reference: e.target.value }))} placeholder="FAC-..." /></div>
               <div><Label className="text-xs">{t("adminFacturesB2b.form.status")}</Label>
                 <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label={t("adminFacturesB2b.form.status")}><SelectValue /></SelectTrigger>
                   <SelectContent>{STATUSES.map(s => <SelectItem key={s.key} value={s.key}>{t(`adminFacturesB2b.status.${s.key}`)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">{t("adminFacturesB2b.form.client")} *</Label><Input value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("adminFacturesB2b.form.client")} *</Label><Input aria-label={t("adminFacturesB2b.form.client")} value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} /></div>
               <div><Label className="text-xs">{t("adminFacturesB2b.form.company")}</Label><Input aria-label={t("adminFacturesB2b.form.company")} value={form.clientCompany} onChange={e => setForm(f => ({ ...f, clientCompany: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">

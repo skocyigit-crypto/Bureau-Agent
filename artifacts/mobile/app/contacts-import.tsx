@@ -247,7 +247,7 @@ export default function ContactsImportScreen() {
               </Text>
             </View>
             <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("contactsImportScreen.dataToImport")}</Text>
-            <TextInput
+            <TextInput accessibilityLabel={t("contactsImportScreen.pastePlaceholder")}
               style={[styles.pasteArea, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
               value={pasteText}
               onChangeText={setPasteText}
@@ -300,6 +300,7 @@ export default function ContactsImportScreen() {
                     <View key={f.key} style={[styles.manualField, { borderColor: colors.border }]}>
                       <Text style={[styles.manualFieldLabel, { color: colors.mutedForeground }]}>{f.label}</Text>
                       <TextInput
+                        accessibilityLabel={f.label}
                         style={[styles.manualFieldInput, { color: colors.foreground }]}
                         value={row[f.key]}
                         onChangeText={v => updateRow(i, f.key, v)}

@@ -339,6 +339,7 @@ export default function EquipeIaPage() {
                         <Target className="w-3.5 h-3.5" /> {t("equipeIa.goalLabel")}
                       </div>
                       <Textarea
+                        aria-label={t("equipeIa.goalLabel")}
                         value={goals[agent.id] || ""}
                         onChange={(e) => setGoals(g => ({ ...g, [agent.id]: e.target.value }))}
                         placeholder={t("equipeIa.goalPlaceholder", { example: t(`equipeIa.exampleGoals.${EXAMPLE_GOAL_IDS.includes(agent.id) ? agent.id : "default"}`) })}

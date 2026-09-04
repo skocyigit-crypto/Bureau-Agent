@@ -403,7 +403,7 @@ export default function RechercheWebPage() {
         <form onSubmit={runSearch} className="flex items-center gap-2">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+            <Input aria-label={t("rechercheWeb.placeholder")}
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
@@ -504,7 +504,7 @@ export default function RechercheWebPage() {
 
             {/* Filtre site: */}
             <div className="relative inline-flex items-center">
-              <Input
+              <Input aria-label={t("rechercheWeb.sitePlaceholder")}
                 value={siteInput}
                 onChange={(e) => setSiteInput(e.target.value)}
                 onKeyDown={(e) => {

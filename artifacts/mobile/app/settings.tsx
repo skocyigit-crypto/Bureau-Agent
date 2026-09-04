@@ -513,6 +513,7 @@ function PrivacyCard() {
               {pinStep === "enter" ? t("settingsScreen.newPinTitle") : t("settingsScreen.confirmPinTitle")}
             </Text>
             <TextInput
+              accessibilityLabel={pinStep === "enter" ? t("settingsScreen.newPinTitle") : t("settingsScreen.confirmPinTitle")}
               style={[styles.pinInput, { borderColor: pinError ? "#ef4444" : colors.border, color: colors.foreground, backgroundColor: colors.card }]}
               value={pinInput}
               onChangeText={t => { setPinInput(t.replace(/\D/g, "").slice(0, 4)); setPinError(""); }}
@@ -1249,7 +1250,7 @@ function ClosuresCard() {
               <Text style={[styles.closureFormLabel, { color: colors.mutedForeground }]}>
                 {t("settingsScreen.dateStart")}
               </Text>
-              <TextInput
+              <TextInput accessibilityLabel={t("settingsScreen.datePlaceholder")}
                 style={[styles.closureFormInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]}
                 value={dateStart}
                 onChangeText={v => { setDateStart(v); setFormError(""); }}
@@ -1265,7 +1266,7 @@ function ClosuresCard() {
               <Text style={[styles.closureFormLabel, { color: colors.mutedForeground }]}>
                 {t("settingsScreen.dateEnd")}
               </Text>
-              <TextInput
+              <TextInput accessibilityLabel={t("settingsScreen.datePlaceholder")}
                 style={[styles.closureFormInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]}
                 value={dateEnd}
                 onChangeText={v => { setDateEnd(v); setFormError(""); }}
@@ -1283,7 +1284,7 @@ function ClosuresCard() {
             <Text style={[styles.closureFormLabel, { color: colors.mutedForeground }]}>
               {t("settingsScreen.closureLabel")}
             </Text>
-            <TextInput
+            <TextInput accessibilityLabel={t("settingsScreen.closureLabelPlaceholder")}
               style={[styles.closureFormInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]}
               value={label}
               onChangeText={v => setLabel(v)}

@@ -181,7 +181,7 @@ export default function Analytics() {
             {t("analyticsPage.aiButton")}
           </Button>
           <Select value={period} onValueChange={(val: any) => setPeriod(val)}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger aria-label={t("analyticsPage.periodPlaceholder")} className="w-[180px]">
               <SelectValue placeholder={t("analyticsPage.periodPlaceholder")} />
             </SelectTrigger>
             <SelectContent>

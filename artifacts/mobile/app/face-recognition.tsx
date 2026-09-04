@@ -476,7 +476,7 @@ export default function FaceRecognitionScreen() {
         </View>
 
         <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>{t("faceRecognitionScreen.fullName")}</Text>
-        <TextInput
+        <TextInput accessibilityLabel={t("faceRecognitionScreen.namePlaceholder")}
           value={regName}
           onChangeText={setRegName}
           placeholder={t("faceRecognitionScreen.namePlaceholder")}
@@ -500,7 +500,7 @@ export default function FaceRecognitionScreen() {
         </View>
 
         <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>{t("faceRecognitionScreen.linkContact")}</Text>
-        <TextInput
+        <TextInput accessibilityLabel={t("faceRecognitionScreen.searchContact")}
           value={contactSearch}
           onChangeText={searchContacts}
           placeholder={t("faceRecognitionScreen.searchContact")}

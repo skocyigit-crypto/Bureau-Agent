@@ -194,7 +194,7 @@ export default function KnowledgeBaseScreen() {
 
           {/* Question */}
           <View style={[styles.askCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <TextInput
+            <TextInput accessibilityLabel={t("knowledgeBaseScreen.placeholder")}
               style={[styles.askInput, { color: colors.foreground, borderColor: colors.border }]}
               placeholder={t("knowledgeBaseScreen.placeholder")}
               placeholderTextColor={colors.mutedForeground}

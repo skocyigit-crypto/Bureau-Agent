@@ -318,6 +318,7 @@ export default function FileApprobationScreen() {
                         <View key={f.key} style={{ marginBottom: 8 }}>
                           <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{f.label}</Text>
                           <TextInput
+                            accessibilityLabel={f.label}
                             value={v}
                             onChangeText={(text) =>
                               setEdits((prev) => {

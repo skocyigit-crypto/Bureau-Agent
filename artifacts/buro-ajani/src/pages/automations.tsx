@@ -161,7 +161,7 @@ function ActionEditor({ action, onChange, onRemove }: {
       <div className="flex items-center gap-2">
         <Icon className="w-4 h-4 text-primary shrink-0" />
         <Select value={action.type} onValueChange={t => onChange({ type: t, params: {} })}>
-          <SelectTrigger className="flex-1 h-8 text-sm">
+          <SelectTrigger className="flex-1 h-8 text-sm" aria-label={t("automationsPage.editor.actionType")}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -185,7 +185,7 @@ function ActionEditor({ action, onChange, onRemove }: {
             <div>
               <Label className="text-xs">{t("automationsPage.editor.type")}</Label>
               <Select value={action.params.notifType ?? "info"} onValueChange={v => setParam("notifType", v)}>
-                <SelectTrigger className="h-7 text-xs mt-1">
+                <SelectTrigger aria-label={t("automationsPage.editor.type")} className="h-7 text-xs mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -199,7 +199,7 @@ function ActionEditor({ action, onChange, onRemove }: {
           </div>
           <div>
             <Label className="text-xs">{t("automationsPage.editor.message")} <span className="text-muted-foreground">{t("automationsPage.editor.phoneAvailable")}</span></Label>
-            <Textarea className="text-xs mt-1 min-h-[60px]" value={action.params.message ?? ""} onChange={e => setParam("message", e.target.value)} placeholder={t("automationsPage.editor.notifMessagePlaceholder")} />
+            <Textarea aria-label={t("automationsPage.editor.message")} className="text-xs mt-1 min-h-[60px]" value={action.params.message ?? ""} onChange={e => setParam("message", e.target.value)} placeholder={t("automationsPage.editor.notifMessagePlaceholder")} />
           </div>
         </>
       )}
@@ -213,7 +213,7 @@ function ActionEditor({ action, onChange, onRemove }: {
           <div>
             <Label className="text-xs">{t("automationsPage.editor.priority")}</Label>
             <Select value={action.params.priority ?? "moyenne"} onValueChange={v => setParam("priority", v)}>
-              <SelectTrigger className="h-7 text-xs mt-1"><SelectValue /></SelectTrigger>
+              <SelectTrigger aria-label={t("automationsPage.editor.priority")} className="h-7 text-xs mt-1"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="basse">{t("automationsPage.editor.prioBasse")}</SelectItem>
                 <SelectItem value="moyenne">{t("automationsPage.editor.prioMoyenne")}</SelectItem>
@@ -233,11 +233,11 @@ function ActionEditor({ action, onChange, onRemove }: {
         <>
           <div>
             <Label className="text-xs">{t("automationsPage.editor.smsTo")} <span className="text-muted-foreground">{t("automationsPage.editor.smsToHint")}</span></Label>
-            <Input className="h-7 text-xs mt-1" value={action.params.to ?? ""} onChange={e => setParam("to", e.target.value)} placeholder={t("automationsPage.editor.smsToPlaceholder")} />
+            <Input aria-label={t("automationsPage.editor.smsTo")} className="h-7 text-xs mt-1" value={action.params.to ?? ""} onChange={e => setParam("to", e.target.value)} placeholder={t("automationsPage.editor.smsToPlaceholder")} />
           </div>
           <div>
             <Label className="text-xs">{t("automationsPage.editor.smsMessage")} <span className="text-muted-foreground">{t("automationsPage.editor.phoneAvailable")}</span></Label>
-            <Textarea className="text-xs mt-1 min-h-[60px]" value={action.params.message ?? ""} onChange={e => setParam("message", e.target.value)} placeholder={t("automationsPage.editor.smsMessagePlaceholder")} />
+            <Textarea aria-label={t("automationsPage.editor.smsMessage")} className="text-xs mt-1 min-h-[60px]" value={action.params.message ?? ""} onChange={e => setParam("message", e.target.value)} placeholder={t("automationsPage.editor.smsMessagePlaceholder")} />
           </div>
         </>
       )}
@@ -287,7 +287,7 @@ function EditRuleDialog({ rule, onSaved, onClose }: { rule: any; onSaved: () => 
         <div className="space-y-4 py-2">
           <div>
             <Label>{t("automationsPage.dialog.ruleName")} <span className="text-red-500">*</span></Label>
-            <Input className="mt-1" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+            <Input aria-label={t("automationsPage.dialog.ruleName")} className="mt-1" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
           </div>
           <div>
             <Label>{t("automationsPage.dialog.description")}</Label>
@@ -296,7 +296,7 @@ function EditRuleDialog({ rule, onSaved, onClose }: { rule: any; onSaved: () => 
           <div>
             <Label>{t("automationsPage.dialog.frequency")}</Label>
             <Select value={form.schedule} onValueChange={v => setForm(f => ({ ...f, schedule: v }))}>
-              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectTrigger aria-label={t("automationsPage.dialog.frequency")} className="mt-1"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="5min">{t("automationsPage.schedule.5min")}</SelectItem>
                 <SelectItem value="15min">{t("automationsPage.schedule.15min")}</SelectItem>
@@ -399,7 +399,7 @@ function CreateRuleDialog({ onCreated }: { onCreated: () => void }) {
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
               <Label>{t("automationsPage.dialog.ruleName")} <span className="text-red-500">*</span></Label>
-              <Input className="mt-1" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={t("automationsPage.dialog.ruleNamePlaceholder")} />
+              <Input aria-label={t("automationsPage.dialog.ruleName")} className="mt-1" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={t("automationsPage.dialog.ruleNamePlaceholder")} />
             </div>
             <div className="col-span-2">
               <Label>{t("automationsPage.dialog.description")}</Label>
@@ -413,7 +413,7 @@ function CreateRuleDialog({ onCreated }: { onCreated: () => void }) {
             <div>
               <Label>{t("automationsPage.dialog.trigger")}</Label>
               <Select value={form.trigger} onValueChange={v => setForm(f => ({ ...f, trigger: v }))}>
-                <SelectTrigger className="mt-1">
+                <SelectTrigger aria-label={t("automationsPage.dialog.trigger")} className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -426,7 +426,7 @@ function CreateRuleDialog({ onCreated }: { onCreated: () => void }) {
             <div>
               <Label>{t("automationsPage.dialog.frequency")}</Label>
               <Select value={form.schedule} onValueChange={v => setForm(f => ({ ...f, schedule: v }))}>
-                <SelectTrigger className="mt-1">
+                <SelectTrigger aria-label={t("automationsPage.dialog.frequency")} className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

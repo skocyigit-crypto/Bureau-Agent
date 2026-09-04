@@ -149,7 +149,7 @@ function ContactAutocomplete({
     <div ref={ref} className="relative">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
+        <Input aria-label={t("calendar.form.searchContact")}
           value={search}
           onChange={e => { setSearch(e.target.value); setOpen(true); }}
           onFocus={() => search.length >= 1 && setOpen(true)}
@@ -375,7 +375,7 @@ function EventFormDialog({
             <div>
               <Label className="text-xs font-medium">{t("calendar.form.type")}</Label>
               <Select value={form.type} onValueChange={v => update("type", v)}>
-                <SelectTrigger className="mt-1">
+                <SelectTrigger aria-label={t("calendar.form.type")} className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -433,27 +433,27 @@ function EventFormDialog({
 
             <div>
               <Label className="text-xs font-medium flex items-center gap-1.5"><User className="w-3 h-3" /> {t("calendar.form.fullName")}</Label>
-              <Input value={form.contactName} onChange={e => update("contactName", e.target.value)} placeholder={t("calendar.form.fullNamePlaceholder")} className="mt-1" />
+              <Input aria-label={t("calendar.form.fullName")} value={form.contactName} onChange={e => update("contactName", e.target.value)} placeholder={t("calendar.form.fullNamePlaceholder")} className="mt-1" />
             </div>
 
             <div>
               <Label className="text-xs font-medium flex items-center gap-1.5"><Phone className="w-3 h-3" /> {t("calendar.form.phone")}</Label>
-              <Input value={form.contactPhone} onChange={e => update("contactPhone", e.target.value)} placeholder={t("calendar.form.phonePlaceholder")} className="mt-1" />
+              <Input aria-label={t("calendar.form.phone")} value={form.contactPhone} onChange={e => update("contactPhone", e.target.value)} placeholder={t("calendar.form.phonePlaceholder")} className="mt-1" />
             </div>
 
             <div>
               <Label className="text-xs font-medium flex items-center gap-1.5"><Mail className="w-3 h-3" /> {t("calendar.form.email")}</Label>
-              <Input type="email" value={form.contactEmail} onChange={e => update("contactEmail", e.target.value)} placeholder={t("calendar.form.emailPlaceholder")} className="mt-1" />
+              <Input aria-label={t("calendar.form.email")} type="email" value={form.contactEmail} onChange={e => update("contactEmail", e.target.value)} placeholder={t("calendar.form.emailPlaceholder")} className="mt-1" />
             </div>
 
             <div>
               <Label className="text-xs font-medium flex items-center gap-1.5"><Building className="w-3 h-3" /> {t("calendar.form.company")}</Label>
-              <Input value={form.contactCompany} onChange={e => update("contactCompany", e.target.value)} placeholder={t("calendar.form.companyPlaceholder")} className="mt-1" />
+              <Input aria-label={t("calendar.form.company")} value={form.contactCompany} onChange={e => update("contactCompany", e.target.value)} placeholder={t("calendar.form.companyPlaceholder")} className="mt-1" />
             </div>
 
             <div>
               <Label className="text-xs font-medium flex items-center gap-1.5"><FileText className="w-3 h-3" /> {t("calendar.form.contactNotes")}</Label>
-              <Textarea
+              <Textarea aria-label={t("calendar.form.contactNotes")}
                 value={form.contactNotes}
                 onChange={e => update("contactNotes", e.target.value)}
                 placeholder={t("calendar.form.contactNotesPlaceholder")}
@@ -468,7 +468,7 @@ function EventFormDialog({
             <div>
               <Label className="text-xs font-medium">{t("calendar.form.status")}</Label>
               <Select value={form.status} onValueChange={v => update("status", v)}>
-                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label={t("calendar.form.status")} className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {STATUSES.map(s => (
                     <SelectItem key={s.value} value={s.value}>
@@ -485,7 +485,7 @@ function EventFormDialog({
             <div>
               <Label className="text-xs font-medium">{t("calendar.form.priority")}</Label>
               <Select value={form.priority} onValueChange={v => update("priority", v)}>
-                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label={t("calendar.form.priority")} className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {PRIORITIES.map(p => (
                     <SelectItem key={p.value} value={p.value}>{t(`calendar.priorities.${p.value}`)}</SelectItem>
@@ -497,7 +497,7 @@ function EventFormDialog({
             <div>
               <Label className="text-xs font-medium">{t("calendar.form.reminder")}</Label>
               <Select value={form.reminder} onValueChange={v => update("reminder", v)}>
-                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label={t("calendar.form.reminder")} className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {REMINDERS.map(r => (
                     <SelectItem key={r} value={r}>{t(`calendar.reminders.${r}`)}</SelectItem>
@@ -871,7 +871,7 @@ function ClosureDayDialog({
             </div>
             <div>
               <Label className="text-xs font-medium">{t("calendar.closureDialog.reason")} <span className="text-muted-foreground font-normal">{t("calendar.closureDialog.optional")}</span></Label>
-              <Input
+              <Input aria-label={t("calendar.closureDialog.reason")}
                 value={label}
                 onChange={e => setLabel(e.target.value)}
                 placeholder={t("calendar.closureDialog.reasonPlaceholder")}

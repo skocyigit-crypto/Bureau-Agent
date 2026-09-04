@@ -189,6 +189,7 @@ export default function Reports() {
         </div>
         <div className="flex items-center gap-3">
           <Input
+            aria-label={t("common.filterPeriod")}
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}

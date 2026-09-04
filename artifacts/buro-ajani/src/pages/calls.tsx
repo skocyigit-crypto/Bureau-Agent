@@ -370,7 +370,7 @@ export default function Calls() {
                     <FormItem>
                       <FormLabel>{t("calls.form.contact")}</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value?.toString() || "none"}>
-                        <FormControl><SelectTrigger><SelectValue placeholder={t("calls.form.chooseContact")}/></SelectTrigger></FormControl>
+                        <FormControl><SelectTrigger aria-label={t("calls.form.chooseContact")}><SelectValue placeholder={t("calls.form.chooseContact")}/></SelectTrigger></FormControl>
                         <SelectContent>
                           <SelectItem value="none">{t("calls.form.noneUnknown")}</SelectItem>
                           {contactsData?.contacts.map(c => (
@@ -394,7 +394,7 @@ export default function Calls() {
                       <FormItem>
                         <FormLabel>{t("calls.form.sentiment")}</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value?.toString() || "none"}>
-                          <FormControl><SelectTrigger><SelectValue placeholder={t("calls.sentiment.undefined")}/></SelectTrigger></FormControl>
+                          <FormControl><SelectTrigger aria-label={t("calls.sentiment.undefined")}><SelectValue placeholder={t("calls.sentiment.undefined")}/></SelectTrigger></FormControl>
                           <SelectContent>
                             <SelectItem value="none">{t("calls.sentiment.undefined")}</SelectItem>
                             <SelectItem value="tres_positif">{t("calls.sentiment.tres_positif")}</SelectItem>
@@ -457,7 +457,7 @@ export default function Calls() {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }}>
-              <SelectTrigger className="w-[150px]">
+              <SelectTrigger aria-label={t("calls.filters.status")} className="w-[150px]">
                 <SelectValue placeholder={t("calls.filters.status")} />
               </SelectTrigger>
               <SelectContent>
@@ -469,7 +469,7 @@ export default function Calls() {
               </SelectContent>
             </Select>
             <Select value={directionFilter} onValueChange={(v) => { setDirectionFilter(v); setPage(0); }}>
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger aria-label={t("calls.filters.direction")} className="w-[140px]">
                 <SelectValue placeholder={t("calls.filters.direction")} />
               </SelectTrigger>
               <SelectContent>
@@ -483,9 +483,9 @@ export default function Calls() {
         <div className="flex flex-col sm:flex-row gap-3 items-center">
           <div className="flex items-center gap-2">
             <CalendarIcon className="w-4 h-4 text-muted-foreground" />
-            <Input type="date" className="w-[160px]" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(0); }} placeholder={t("calls.dateFrom")} />
+            <Input aria-label={t("calls.dateFrom")} type="date" className="w-[160px]" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(0); }} placeholder={t("calls.dateFrom")} />
             <span className="text-muted-foreground text-sm">{t("calls.dateSeparator")}</span>
-            <Input type="date" className="w-[160px]" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(0); }} placeholder={t("calls.dateTo")} />
+            <Input aria-label={t("calls.dateTo")} type="date" className="w-[160px]" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(0); }} placeholder={t("calls.dateTo")} />
             {(dateFrom || dateTo) && (
               <Button variant="ghost" size="sm" onClick={() => { setDateFrom(""); setDateTo(""); setPage(0); }}>
                 {t("calls.clear")}

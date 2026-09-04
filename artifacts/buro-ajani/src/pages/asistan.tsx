@@ -431,6 +431,7 @@ export default function AsistanPage() {
         <div className="p-3 border-t bg-card">
           <div className="max-w-3xl mx-auto flex gap-2 items-end">
             <Textarea
+              aria-label={t("asistan.inputPlaceholder")}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}

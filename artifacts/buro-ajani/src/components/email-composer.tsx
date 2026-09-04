@@ -229,7 +229,7 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                     const c = contactsData?.contacts?.find(ct => ct.id.toString() === v);
                     setRecipientEmail(c?.email || "");
                   }}>
-                    <SelectTrigger>
+                    <SelectTrigger aria-label={t("emailComposer.recipient.label")}>
                       <SelectValue placeholder={t("emailComposer.recipient.selectPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
@@ -416,7 +416,7 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                       <div className="flex items-center gap-2 text-sm">
                         <span className="text-muted-foreground w-8">{t("emailComposer.preview.to")}</span>
                         {isEditing ? (
-                          <Input
+                          <Input aria-label={t("emailComposer.recipient.emailPlaceholder")}
                             value={recipientEmail}
                             onChange={(e) => setRecipientEmail(e.target.value)}
                             className="h-7 text-sm flex-1"
@@ -430,6 +430,7 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                         <span className="text-muted-foreground w-8">{t("emailComposer.preview.subject")}</span>
                         {isEditing ? (
                           <Input
+                            aria-label={t("emailComposer.preview.subject")}
                             value={editedSubject}
                             onChange={(e) => setEditedSubject(e.target.value)}
                             className="h-7 text-sm flex-1 font-medium"

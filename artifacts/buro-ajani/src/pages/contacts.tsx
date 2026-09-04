@@ -377,7 +377,7 @@ export default function Contacts() {
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); setPage(0); }}>
-            <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectTrigger aria-label={t("contacts.allCategories")} className="w-full sm:w-[180px]">
               <SelectValue placeholder={t("contacts.allCategories")} />
             </SelectTrigger>
             <SelectContent>

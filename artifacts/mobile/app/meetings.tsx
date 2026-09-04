@@ -253,7 +253,7 @@ export default function MeetingsScreen() {
                   <Feather name="file-text" size={16} color="#8b5cf6" />
                   <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("meetingsScreen.notesTitle")}</Text>
                 </View>
-                <TextInput
+                <TextInput accessibilityLabel={t("meetingsScreen.notesPlaceholder")}
                   style={[styles.notesInput, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]}
                   placeholder={t("meetingsScreen.notesPlaceholder")}
                   placeholderTextColor={colors.mutedForeground}

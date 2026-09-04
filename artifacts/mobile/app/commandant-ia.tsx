@@ -309,7 +309,7 @@ function SearchSection() {
     <View style={{ flex: 1 }}>
       <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Feather name="search" size={16} color={colors.mutedForeground} />
-        <TextInput
+        <TextInput accessibilityLabel={t("commandantIaScreen.searchPlaceholder")}
           style={[styles.searchInput, { color: colors.foreground }]}
           placeholder={t("commandantIaScreen.searchPlaceholder")}
           placeholderTextColor={colors.mutedForeground}
@@ -389,11 +389,11 @@ function EmailSection() {
     <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("commandantIaScreen.emailTitle")}</Text>
       <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("commandantIaScreen.fieldContext")}</Text>
-      <TextInput style={[styles.multilineInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder={t("commandantIaScreen.contextPlaceholder")} placeholderTextColor={colors.mutedForeground} value={context} onChangeText={setContext} multiline numberOfLines={4} textAlignVertical="top" />
+      <TextInput accessibilityLabel={t("commandantIaScreen.contextPlaceholder")} style={[styles.multilineInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder={t("commandantIaScreen.contextPlaceholder")} placeholderTextColor={colors.mutedForeground} value={context} onChangeText={setContext} multiline numberOfLines={4} textAlignVertical="top" />
       <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("commandantIaScreen.fieldRecipient")}</Text>
-      <TextInput style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder={t("commandantIaScreen.recipientPlaceholder")} placeholderTextColor={colors.mutedForeground} value={recipient} onChangeText={setRecipient} />
+      <TextInput accessibilityLabel={t("commandantIaScreen.recipientPlaceholder")} style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder={t("commandantIaScreen.recipientPlaceholder")} placeholderTextColor={colors.mutedForeground} value={recipient} onChangeText={setRecipient} />
       <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("commandantIaScreen.fieldPurpose")}</Text>
-      <TextInput style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder={t("commandantIaScreen.purposePlaceholder")} placeholderTextColor={colors.mutedForeground} value={purpose} onChangeText={setPurpose} />
+      <TextInput accessibilityLabel={t("commandantIaScreen.purposePlaceholder")} style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder={t("commandantIaScreen.purposePlaceholder")} placeholderTextColor={colors.mutedForeground} value={purpose} onChangeText={setPurpose} />
       <Pressable accessibilityRole="button" style={[styles.generateBtn, { backgroundColor: "#3b82f6", opacity: loading || !context.trim() ? 0.6 : 1 }]} onPress={generate} disabled={loading || !context.trim()}>
         {loading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="send" size={16} color="#fff" />}
         <Text style={styles.generateBtnText}>{loading ? t("commandantIaScreen.generating") : t("commandantIaScreen.generateEmail")}</Text>
@@ -589,7 +589,7 @@ function ReunionsSection() {
 
       {/* Form */}
       <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("commandantIaScreen.fieldMeetingTitle")}</Text>
-      <TextInput style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder={t("commandantIaScreen.meetingTitlePlaceholder")} placeholderTextColor={colors.mutedForeground} value={title} onChangeText={setTitle} />
+      <TextInput accessibilityLabel={t("commandantIaScreen.meetingTitlePlaceholder")} style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder={t("commandantIaScreen.meetingTitlePlaceholder")} placeholderTextColor={colors.mutedForeground} value={title} onChangeText={setTitle} />
 
       <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("commandantIaScreen.fieldType")}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={{ gap: 8, paddingBottom: 2 }}>
@@ -601,13 +601,13 @@ function ReunionsSection() {
       </ScrollView>
 
       <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("commandantIaScreen.fieldParticipants")}</Text>
-      <TextInput style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder={t("commandantIaScreen.participantsPlaceholder")} placeholderTextColor={colors.mutedForeground} value={participants} onChangeText={setParticipants} />
+      <TextInput accessibilityLabel={t("commandantIaScreen.participantsPlaceholder")} style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder={t("commandantIaScreen.participantsPlaceholder")} placeholderTextColor={colors.mutedForeground} value={participants} onChangeText={setParticipants} />
 
       <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("commandantIaScreen.fieldDuration")}</Text>
-      <TextInput style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder="60" placeholderTextColor={colors.mutedForeground} value={duration} onChangeText={setDuration} keyboardType="numeric" />
+      <TextInput accessibilityLabel={t("commandantIaScreen.fieldDuration")} style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder="60" placeholderTextColor={colors.mutedForeground} value={duration} onChangeText={setDuration} keyboardType="numeric" />
 
       <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("commandantIaScreen.fieldNotes")}</Text>
-      <TextInput style={[styles.multilineInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border, minHeight: 100 }]} placeholder={t("commandantIaScreen.notesPlaceholder")} placeholderTextColor={colors.mutedForeground} value={notes} onChangeText={setNotes} multiline textAlignVertical="top" />
+      <TextInput accessibilityLabel={t("commandantIaScreen.notesPlaceholder")} style={[styles.multilineInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border, minHeight: 100 }]} placeholder={t("commandantIaScreen.notesPlaceholder")} placeholderTextColor={colors.mutedForeground} value={notes} onChangeText={setNotes} multiline textAlignVertical="top" />
 
       <Pressable accessibilityRole="button" onPress={compile} style={[styles.generateBtn, { backgroundColor: "#8b5cf6", opacity: loading || !notes.trim() ? 0.6 : 1 }]} disabled={loading || !notes.trim()}>
         {loading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="cpu" size={16} color="#fff" />}

@@ -510,7 +510,7 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
 
       <div className="border-t border-border p-3">
         <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="flex items-center gap-2">
-          <Input
+          <Input aria-label={t("aiAssistant.inputPlaceholder")}
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}

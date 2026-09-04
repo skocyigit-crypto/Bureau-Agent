@@ -206,6 +206,7 @@ function MilestonesPanel({ projet, onUpdated }: { projet: Projet; onUpdated: () 
           className="h-6 text-xs px-2 flex-1"
         />
         <Input
+          aria-label={t("common.endDate")}
           type="date" value={newDate}
           onChange={e => setNewDate(e.target.value)}
           className="h-6 text-xs px-1.5 w-28"
@@ -224,7 +225,7 @@ function ProjetForm({ form, setForm }: { form: any; setForm: (f: any) => void })
     <div className="space-y-4 py-1">
       <div>
         <Label>{t("projets.form.title")} <span className="text-red-500">*</span></Label>
-        <Input className="mt-1" value={form.title} onChange={e => setForm((f: any) => ({ ...f, title: e.target.value }))} placeholder={t("projets.form.titlePlaceholder")} />
+        <Input aria-label={t("projets.form.title")} className="mt-1" value={form.title} onChange={e => setForm((f: any) => ({ ...f, title: e.target.value }))} placeholder={t("projets.form.titlePlaceholder")} />
       </div>
       <div>
         <Label>{t("projets.form.description")}</Label>
@@ -241,7 +242,7 @@ function ProjetForm({ form, setForm }: { form: any; setForm: (f: any) => void })
         <div>
           <Label>{t("projets.form.status")}</Label>
           <Select value={form.status} onValueChange={v => setForm((f: any) => ({ ...f, status: v }))}>
-            <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label={t("projets.form.status")} className="mt-1"><SelectValue /></SelectTrigger>
             <SelectContent>
               {Object.keys(STATUS_CONFIG).map(v => <SelectItem key={v} value={v}>{t(`projets.status.${v}`)}</SelectItem>)}
             </SelectContent>
@@ -250,7 +251,7 @@ function ProjetForm({ form, setForm }: { form: any; setForm: (f: any) => void })
         <div>
           <Label>{t("projets.form.priority")}</Label>
           <Select value={form.priority} onValueChange={v => setForm((f: any) => ({ ...f, priority: v }))}>
-            <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label={t("projets.form.priority")} className="mt-1"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="haute">{t("projets.priority.haute")}</SelectItem>
               <SelectItem value="moyenne">{t("projets.priority.moyenne")}</SelectItem>
@@ -296,7 +297,7 @@ function ProjetForm({ form, setForm }: { form: any; setForm: (f: any) => void })
       </div>
       <div>
         <Label>{t("projets.form.tags")} <span className="text-muted-foreground font-normal text-xs">{t("projets.form.tagsHint")}</span></Label>
-        <Input
+        <Input aria-label={t("projets.form.tags")}
           className="mt-1"
           value={Array.isArray(form.tags) ? form.tags.join(", ") : (form.tags || "")}
           onChange={e => setForm((f: any) => ({ ...f, tags: e.target.value.split(",").map((t: string) => t.trim()).filter(Boolean) }))}
@@ -754,7 +755,7 @@ export default function ProjetsPage() {
           <Input aria-label={t("projets.searchPlaceholder")} placeholder={t("projets.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-40" aria-label={t("common.filterStatus")}>
             <Filter className="w-3 h-3 mr-2 text-muted-foreground" />
             <SelectValue />
           </SelectTrigger>
@@ -764,7 +765,7 @@ export default function ProjetsPage() {
           </SelectContent>
         </Select>
         <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-          <SelectTrigger className="w-36">
+          <SelectTrigger className="w-36" aria-label={t("common.filterPriority")}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

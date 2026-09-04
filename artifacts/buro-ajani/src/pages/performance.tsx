@@ -174,7 +174,7 @@ export default function PerformancePage() {
 
         <div className="flex items-center gap-3">
           <Select value={periode} onValueChange={setPeriode}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-40" aria-label={t("common.filterPeriod")}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

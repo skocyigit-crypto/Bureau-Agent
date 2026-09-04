@@ -434,7 +434,7 @@ export default function SecuriteScreen() {
           <Text style={[styles.hint, { color: colors.mutedForeground }]}>
             {t("securiteScreen.scanHint")}
           </Text>
-          <TextInput
+          <TextInput accessibilityLabel={t("securiteScreen.urlPlaceholder")}
             value={url}
             onChangeText={setUrl}
             placeholder={t("securiteScreen.urlPlaceholder")}
@@ -493,7 +493,7 @@ export default function SecuriteScreen() {
           <Text style={[styles.hint, { color: colors.mutedForeground }]}>
             {t("securiteScreen.gdprHint")}
           </Text>
-          <TextInput
+          <TextInput accessibilityLabel={t("securiteScreen.gdprPlaceholder")}
             value={piiText}
             onChangeText={setPiiText}
             placeholder={t("securiteScreen.gdprPlaceholder")}
@@ -633,7 +633,7 @@ export default function SecuriteScreen() {
           </View>
 
           <View style={{ flexDirection: "row", gap: 6 }}>
-            <TextInput
+            <TextInput accessibilityLabel={t("securiteScreen.allow")}
               value={listValue}
               onChangeText={setListValue}
               placeholder={entryType === "domain" ? t("securiteScreen.domainPlaceholder") : t("securiteScreen.phonePlaceholder")}
@@ -710,7 +710,7 @@ export default function SecuriteScreen() {
           <Text style={[styles.hint, { color: colors.mutedForeground }]}>
             {t("securiteScreen.partnersHint")}
           </Text>
-          <TextInput
+          <TextInput accessibilityLabel={t("securiteScreen.nextdnsPlaceholder")}
             value={nextdnsId}
             onChangeText={setNextdnsId}
             placeholder={t("securiteScreen.nextdnsPlaceholder")}

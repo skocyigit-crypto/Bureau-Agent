@@ -492,7 +492,7 @@ export default function CheckinsPage() {
         <TabsContent value="historique" className="space-y-4">
           <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
             <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v); setPage(0); }}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger aria-label={t("checkins.filters.allStatuses")} className="w-[180px]">
                 <SelectValue placeholder={t("checkins.filters.allStatuses")} />
               </SelectTrigger>
               <SelectContent>
@@ -504,7 +504,7 @@ export default function CheckinsPage() {
               </SelectContent>
             </Select>
             <Select value={filterType} onValueChange={(v) => { setFilterType(v); setPage(0); }}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger aria-label={t("checkins.filters.allTypes")} className="w-[180px]">
                 <SelectValue placeholder={t("checkins.filters.allTypes")} />
               </SelectTrigger>
               <SelectContent>
@@ -523,7 +523,7 @@ export default function CheckinsPage() {
             <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg flex-wrap">
               <span className="text-sm font-medium text-blue-700 dark:text-blue-300">{t("checkins.selectedCount", { count: selectedIds.length })}</span>
               <Select onValueChange={handleBulkStatus}>
-                <SelectTrigger className="h-7 text-xs w-36"><SelectValue placeholder={t("checkins.changeStatus")} /></SelectTrigger>
+                <SelectTrigger aria-label={t("checkins.changeStatus")} className="h-7 text-xs w-36"><SelectValue placeholder={t("checkins.changeStatus")} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="present">{t("checkins.status.present")}</SelectItem>
                   <SelectItem value="en_pause">{t("checkins.status.en_pause")}</SelectItem>

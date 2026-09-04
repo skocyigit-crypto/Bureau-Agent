@@ -147,7 +147,7 @@ function AdminAuditContent() {
           <Input aria-label={t("adminAudit.searchPlaceholder")} placeholder={t("adminAudit.searchPlaceholder")} value={userEmail} onChange={e => setUserEmail(e.target.value)} className="pl-9" />
         </div>
         <Select value={orgFilter} onValueChange={setOrgFilter}>
-          <SelectTrigger className="w-56"><SelectValue placeholder={t("adminAudit.orgPlaceholder")} /></SelectTrigger>
+          <SelectTrigger aria-label={t("adminAudit.orgPlaceholder")} className="w-56"><SelectValue placeholder={t("adminAudit.orgPlaceholder")} /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("adminAudit.allOrgs")}</SelectItem>
             {orgs.map(o => <SelectItem key={o.id} value={String(o.id)}>{o.name}</SelectItem>)}

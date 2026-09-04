@@ -329,7 +329,7 @@ function ChantierTab() {
 
         {/* Text area */}
         <Text style={[sa.fieldLabel, { color: colors.mutedForeground, marginTop: 10 }]}>{t("superAgentScreen.reportContent")}</Text>
-        <TextInput
+        <TextInput accessibilityLabel={t("superAgentScreen.reportContent")}
           style={[sa.textarea, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]}
           placeholder={t("superAgentScreen.contentPlaceholder", { type: TYPES.find(ty => ty.key === reportType)?.label.toLowerCase() ?? t("superAgentScreen.typeFallback") })}
           placeholderTextColor={colors.mutedForeground}

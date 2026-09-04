@@ -270,7 +270,7 @@ export default function KnowledgeBasePage() {
       {/* Zone de question */}
       <Card>
         <CardContent className="space-y-3 p-4">
-          <Textarea
+          <Textarea aria-label={t("knowledgeBase.questionPlaceholder")}
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             placeholder={t("knowledgeBase.questionPlaceholder")}

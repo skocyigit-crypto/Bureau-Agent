@@ -329,7 +329,7 @@ export default function DataProtectionPage() {
                 <div className="space-y-3">
                   <Label>{t("dataProtection.requestType")}</Label>
                   <Select value={requestType} onValueChange={setRequestType}>
-                    <SelectTrigger>
+                    <SelectTrigger aria-label={t("dataProtection.requestType")}>
                       <SelectValue placeholder={t("dataProtection.requestTypePlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>

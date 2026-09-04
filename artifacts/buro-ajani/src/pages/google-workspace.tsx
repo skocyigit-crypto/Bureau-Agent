@@ -398,7 +398,7 @@ export default function GoogleWorkspace() {
                   nulle part, le hub etait donc en lecture seule. */}
               {showNewEvent && (
                 <div className="pt-3 space-y-2">
-                  <Input
+                  <Input aria-label={t("googleWorkspace.eventTitlePlaceholder")}
                     value={newEvent.title}
                     onChange={(e) => setNewEvent(v => ({ ...v, title: e.target.value }))}
                     placeholder={t("googleWorkspace.eventTitlePlaceholder")}
@@ -408,6 +408,7 @@ export default function GoogleWorkspace() {
                     <div>
                       <label className="text-[11px] text-muted-foreground">{t("googleWorkspace.start")}</label>
                       <Input
+                        aria-label={t("googleWorkspace.start")}
                         type="datetime-local"
                         value={newEvent.start}
                         onChange={(e) => setNewEvent(v => ({ ...v, start: e.target.value }))}
@@ -417,6 +418,7 @@ export default function GoogleWorkspace() {
                     <div>
                       <label className="text-[11px] text-muted-foreground">{t("googleWorkspace.end")}</label>
                       <Input
+                        aria-label={t("googleWorkspace.end")}
                         type="datetime-local"
                         value={newEvent.end}
                         onChange={(e) => setNewEvent(v => ({ ...v, end: e.target.value }))}
@@ -424,7 +426,7 @@ export default function GoogleWorkspace() {
                       />
                     </div>
                   </div>
-                  <Input
+                  <Input aria-label={t("googleWorkspace.locationPlaceholder")}
                     value={newEvent.location}
                     onChange={(e) => setNewEvent(v => ({ ...v, location: e.target.value }))}
                     placeholder={t("googleWorkspace.locationPlaceholder")}
@@ -496,7 +498,7 @@ export default function GoogleWorkspace() {
                   nulle part: on ne pouvait que consulter les 15 derniers
                   fichiers modifies. */}
               <div className="flex items-center gap-2 pt-2">
-                <Input
+                <Input aria-label={t("googleWorkspace.searchInDrivePlaceholder")}
                   value={driveQuery}
                   onChange={(e) => setDriveQuery(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") runDriveSearch(); }}

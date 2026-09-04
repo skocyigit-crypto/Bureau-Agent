@@ -2093,3 +2093,101 @@ erken kesiyor, dolayısıyla daha aşağıdaki mevcut `aria-label` görünmüyor
 Script artık `tenant-scope-check.mjs` gibi süslü parantez sayıp tırnak içini
 atlayarak okuyor. Bir mizanpaj varsayan düzenli ifade kod okuması değildir.
 
+### Üçüncü ve dördüncü dilim — 2026-09-04
+
+Tavan **178 → 81**. Üç ayrı biçim kapatıldı:
+
+1. `license-management.tsx`'in fatura satırı ızgarası (açıklama, miktar, birim
+   fiyat, KDV), IBAN kutusu, denetim filtreleri ve tarih aralığı — hepsinin
+   adı zaten sütun başlığı olarak ekranda duran i18n anahtarlarından geldi,
+   yeni anahtar gerekmedi.
+2. Etiketi biraz yukarıda olan, arada `<Select>` sarmalayıcısı bulunan alanlar:
+   en yakın **önceki** etiketle eşleştirildi, ama araya başka bir alan girerse
+   eşleştirme yapılmadı — yanlış ad, adsızlıktan kötüdür. 46 alan.
+3. Çok satırlı yazılmış placeholder-only alanlar: ilk turda `[^>]*` kusuru
+   yüzünden hiç görülmemişlerdi, doğru ayrıştırıcıyla 37 alan daha çıktı.
+
+Kalan **81**, gerçekten yargı isteyen kalıntı: etiketi hiç olmayan tek başına
+kutular ve yeni i18n anahtarı gerektiren ızgara alanları.
+
+### Borç sıfırlandı — 2026-09-04
+
+Kalan 81 de kapandı, **tavan artık 0**: yeni bir adsız alan eklemek build'i
+düşürüyor. Son turda üç şey yapıldı:
+
+- `<SelectValue placeholder={t(...)}/>` taşıyan 30 açılır liste, adını kendi
+  placeholder'ından aldı.
+- Dinamik etiketli alanlar (`{f.label}`, `{t(f.labelKey)}`) ve küçük harf
+  `<label>` kullanan yerler tek tek bağlandı.
+- Hiç etiketi olmayan filtre/tarih/saat alanları için altı dile **14 yeni**
+  i18n anahtarı eklendi (`common.filterStatus`, `common.startHour`, …).
+
+**İki bilinçli istisna**, gerekçesiyle script'in `ALLOWLIST`'ine yazıldı:
+`ghost-textarea.tsx` ve `ui/sidebar.tsx`. İkisi de `{...props}` yayan ilkel
+bileşenler; adı burada yazmak, kullanıldığı her yer dışında yanlış olurdu —
+kural çağrı yerine düşer. `tenant-scope-check.mjs`'teki gibi, istisna eklemek
+gerekçe yazmayı zorunlu kılıyor.
+
+Ölçüm: 478 alanın tamamı adlı. tsc temiz, 96 test, üretim build'i tamam,
+lint cırcırı 686/687.
+
+
+## Cep uygulaması ekran okuyucuya tamamen kapalıymış — 2026-09-04
+
+Ön yüzdeki ad borcunu kapattıktan sonra aynı ölçümü cep uygulamasına ve
+tanıtım sitesine uyguladım.
+
+### Bulgu
+
+**Cep uygulamasında 73 giriş alanının hiçbirinde `accessibilityLabel` yoktu.**
+Yani VoiceOver ve TalkBack her alanı yalnızca "metin alanı" diye okuyordu —
+hangi alan olduğunu söylemeden. Mobilde `placeholder` ad yerine geçmez: ekran
+okuyucu onu ada dönüştürmez ve kullanıcı yazmaya başlayınca kaybolur. Hiçbir
+ekran bozuk görünmüyordu; uygulama sadece ekran okuyucuyla kullanılamıyordu.
+Bu, uygulama mağazalarının denetlediği ve EAA'nın zorunlu kıldığı bir madde.
+
+### Yapılan
+
+73 alanın tamamı adlandırıldı: 59'u kendi `placeholder` anahtarından, 6'sı
+hemen üstündeki görünür `<Text>` etiketinden, 8'i tek tek (dinamik `f.label`,
+PIN adımına göre değişen başlık, sesli asistanın moda göre değişen alanı).
+`artifacts/mobile/scripts/a11y-input-labels.mjs` kapısı CI'a bağlandı, tavan
+**0**: adsız yeni bir alan build'i düşürüyor.
+
+### Ölçümün kendi hatası
+
+İlk sayım 75 diyordu. İkisi `useRef<TextInput>(null)` idi — yani bir tip
+parametresi, bileşen değil. Script artık ayırt ediyor: JSX'te `<`'ten önce
+boşluk/parantez gelir, jenerikte harf. Aynı gün üçüncü kez, "metni desenle
+okumak" yanlış sayı üretti; her seferinde sayının kendisi denetlendiği için
+yakalandı.
+
+### Tanıtım sitesi: ölçüldü, borç yok
+
+18 alanın 13'ü zaten `htmlFor`/saran etiketle bağlı. Kalan 5'i `ui/` altındaki
+ilkel bileşenler (`{...props}` yayıyorlar), yani adı çağrı yeri veriyor —
+ön yüzdeki `ALLOWLIST` ile aynı gerekçe. Sitede değişiklik gerekmedi.
+
+## Güvenlik kapısı ağ yüzünden düşüyordu — 2026-09-04
+
+Aynı PR iki kez üst üste `pnpm audit` adımında düştü. Sebep bağımlılık değil,
+`registry.npmjs.org`'un yanıt vermemesiydi (`ERR_SOCKET_TIMEOUT`, üç deneme).
+
+Sorun sadece can sıkıcı değil: `pnpm audit` "açık bulundu" ile "audit
+çalıştırılamadı" durumlarının **ikisinde de 1 ile çıkıyor**. Yani kapı iki ayrı
+şeyi aynı şekilde söylüyordu, ve kodla ilgisi olmayan bir sebeple düşen bir
+kapının öğrettiği tek şey var: yeşil olana kadar tekrar çalıştırmak. O noktada
+kapı hiçbir şeyi korumaz, çünkü kimse ne dediğini okumaz.
+
+`scripts/security-audit.mjs` bu ikisini ayırıyor:
+
+- yüksek/kritik açık → build düşer (eskisi gibi);
+- ağ hatası → geri çekilmeli üç deneme, sonra **çok görünür bir uyarıyla**
+  geçer. Audit yayımlanmış tavsiyeleri sorgular, bu diff'i değil: registry'e
+  ulaşamamak bu değişikliği tehlikeli yapmaz ve bir sonraki build tekrar
+  deneyecek. Bu bir karar, kaza değil — bu yüzden script'in başına yazıldı;
+- başka her hata (okunamayan çıktı) → düşer. Anlamadığımız şeyi geçirmiyoruz.
+
+Dört yolun dördü de ölçüldü: komut `SECURITY_AUDIT_CMD` ile enjekte edilebilir,
+böylece temiz / açıklı / ağ / bilinmeyen durumları registry'nin o anki hâline
+bağlı kalmadan doğrulanıyor (0, 1, 0+uyarı, 3).

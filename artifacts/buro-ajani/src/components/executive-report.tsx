@@ -139,7 +139,7 @@ export default function ExecutiveReport() {
         </div>
         <div className="flex items-center gap-2">
           <Select value={period} onValueChange={setPeriod}>
-            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-40" aria-label={t("common.filterPeriod")}><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="7">{t("executiveReport.last7")}</SelectItem>
               <SelectItem value="14">{t("executiveReport.last14")}</SelectItem>

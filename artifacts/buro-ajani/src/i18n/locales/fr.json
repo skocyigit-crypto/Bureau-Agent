@@ -48,7 +48,18 @@
     "archive": "Archiver",
     "block": "Bloquer",
     "previousPeriod": "Période précédente",
-    "nextPeriod": "Période suivante"
+    "nextPeriod": "Période suivante",
+    "filterStatus": "Filtrer par statut",
+    "filterPriority": "Filtrer par priorité",
+    "filterPeriod": "Période",
+    "filterType": "Filtrer par type",
+    "filterMetric": "Métrique",
+    "filterDays": "Nombre de jours",
+    "filterNotifications": "Filtrer les notifications",
+    "startHour": "Heure de début",
+    "endHour": "Heure de fin",
+    "startDate": "Date de début",
+    "endDate": "Date de fin"
   },
   "nav": {
     "dashboard": "Tableau de bord",
@@ -3634,7 +3645,8 @@
       "blockedTitle": "Bloqués ({{count}})",
       "allowedTitle": "Autorisés ({{count}})",
       "noBlocked": "Aucun élément bloqué.",
-      "noAllowed": "Aucun élément autorisé."
+      "noAllowed": "Aucun élément autorisé.",
+      "valueLabel": "Valeur à ajouter"
     },
     "settings": {
       "title": "Synthèse hebdomadaire par email",
@@ -6203,7 +6215,8 @@
       "smsToHint": "(laisser vide = numero du contact)",
       "smsToPlaceholder": "+33612345678 (laisser vide pour utiliser le destinataire par défaut)",
       "smsMessage": "Message SMS",
-      "smsMessagePlaceholder": "Bonjour, nous avons manque votre appel..."
+      "smsMessagePlaceholder": "Bonjour, nous avons manque votre appel...",
+      "actionType": "Type d'action"
     }
   },
   "organisationsPage": {
@@ -7270,7 +7283,8 @@
       "emptyExamples": "Ex : « Quelles sont mes urgences ? », « Résume-moi la situation »",
       "open": "Ouvrir",
       "thinking": "Le Commandant réfléchit...",
-      "inputPlaceholder": "Tapez votre message... (Entrée pour envoyer, Maj+Entrée pour saut de ligne)"
+      "inputPlaceholder": "Tapez votre message... (Entrée pour envoyer, Maj+Entrée pour saut de ligne)",
+      "renameLabel": "Renommer la conversation"
     },
     "commandes": {
       "cmdStopped": "Commande interrompue.",

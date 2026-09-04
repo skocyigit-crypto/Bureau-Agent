@@ -100,7 +100,7 @@ export default function Notifications() {
         </div>
         <div className="flex items-center gap-2">
           <Select value={filter} onValueChange={setFilter}>
-            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-32" aria-label={t("common.filterNotifications")}><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t("notificationsPage.filterAll")}</SelectItem>
               <SelectItem value="unread">{t("notificationsPage.filterUnread")}</SelectItem>

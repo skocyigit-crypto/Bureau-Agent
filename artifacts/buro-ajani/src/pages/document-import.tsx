@@ -362,7 +362,7 @@ export default function DocumentImportPage() {
             <CardContent className="space-y-4">
               <div className="flex items-center gap-4">
                 <Select value={targetModule} onValueChange={setTargetModule}>
-                  <SelectTrigger className="w-[200px]">
+                  <SelectTrigger aria-label={t("documentImport.targetModulePlaceholder")} className="w-[200px]">
                     <SelectValue placeholder={t("documentImport.targetModulePlaceholder")} />
                   </SelectTrigger>
                   <SelectContent>

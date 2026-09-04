@@ -461,7 +461,7 @@ export default function Tasks() {
               <FormItem>
                 <FormLabel>{t("tasks.form.relatedContact")}</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value?.toString() || "none"}>
-                  <FormControl><SelectTrigger><SelectValue placeholder={t("tasks.form.chooseContact")}/></SelectTrigger></FormControl>
+                  <FormControl><SelectTrigger aria-label={t("tasks.form.chooseContact")}><SelectValue placeholder={t("tasks.form.chooseContact")}/></SelectTrigger></FormControl>
                   <SelectContent>
                     <SelectItem value="none">{t("tasks.form.none")}</SelectItem>
                     {contactsData?.contacts.map(c => (
@@ -489,7 +489,7 @@ export default function Tasks() {
                   <FormItem>
                     <FormLabel>{t("tasks.form.frequency")}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value || ""}>
-                      <FormControl><SelectTrigger><SelectValue placeholder={t("tasks.form.choose")} /></SelectTrigger></FormControl>
+                      <FormControl><SelectTrigger aria-label={t("tasks.form.choose")}><SelectValue placeholder={t("tasks.form.choose")} /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value="quotidien">{t("tasks.frequency.quotidien")}</SelectItem>
                         <SelectItem value="hebdomadaire">{t("tasks.frequency.hebdomadaire")}</SelectItem>
@@ -564,7 +564,7 @@ export default function Tasks() {
               </DropdownMenu>
               {showAssignInput ? (
                 <div className="flex items-center gap-1">
-                  <Input
+                  <Input aria-label={t("tasks.assignPlaceholder")}
                     ref={assignInputRef}
                     value={bulkAssignName}
                     onChange={e => setBulkAssignName(e.target.value)}
@@ -636,7 +636,7 @@ export default function Tasks() {
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
           <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }}>
-            <SelectTrigger className="w-[150px]"><SelectValue placeholder={t("tasks.filters.status")} /></SelectTrigger>
+            <SelectTrigger aria-label={t("tasks.filters.status")} className="w-[150px]"><SelectValue placeholder={t("tasks.filters.status")} /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t("tasks.filters.allStatuses")}</SelectItem>
               <SelectItem value="en_attente">{t("tasks.status.en_attente")}</SelectItem>
@@ -646,7 +646,7 @@ export default function Tasks() {
             </SelectContent>
           </Select>
           <Select value={priorityFilter} onValueChange={(v) => { setPriorityFilter(v); setPage(0); }}>
-            <SelectTrigger className="w-[150px]"><SelectValue placeholder={t("tasks.filters.priority")} /></SelectTrigger>
+            <SelectTrigger aria-label={t("tasks.filters.priority")} className="w-[150px]"><SelectValue placeholder={t("tasks.filters.priority")} /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t("tasks.filters.allPriorities")}</SelectItem>
               <SelectItem value="haute">{t("tasks.priority.haute")}</SelectItem>

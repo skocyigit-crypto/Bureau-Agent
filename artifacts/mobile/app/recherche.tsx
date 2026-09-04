@@ -217,7 +217,7 @@ export default function RechercheScreen() {
         </View>
         <View style={[styles.searchBox, { backgroundColor: "#fff" }]}>
           <Feather name="search" size={16} color="#6b7280" />
-          <TextInput
+          <TextInput accessibilityLabel={t("rechercheScreen.searchPlaceholder")}
             ref={inputRef}
             style={styles.searchInput}
             placeholder={t("rechercheScreen.searchPlaceholder")}

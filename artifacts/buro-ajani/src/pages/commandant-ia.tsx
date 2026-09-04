@@ -265,7 +265,7 @@ function BriefingTab() {
         <CardContent className="p-4">
           <div className="flex items-center gap-2">
             <Search className="h-5 w-5 text-blue-500" />
-            <Input
+            <Input aria-label={t("commandantIa.briefing.searchPlaceholder")}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               onKeyDown={e => e.key === "Enter" && smartSearch()}
@@ -426,7 +426,7 @@ function BriefingTab() {
               </Button>
             ))}
           </div>
-          <Textarea
+          <Textarea aria-label={t("commandantIa.briefing.analyzePlaceholder")}
             value={analysisText}
             onChange={e => setAnalysisText(e.target.value)}
             placeholder={t("commandantIa.briefing.analyzePlaceholder")}
@@ -614,7 +614,7 @@ function EmailTab() {
             <div><Label className="text-xs">{t("commandantIa.email.subject")}</Label><Input aria-label={t("commandantIa.email.subject")} value={emailSubject} onChange={e => setEmailSubject(e.target.value)} placeholder={t("commandantIa.email.subjectPlaceholder")} /></div>
             <div><Label className="text-xs">{t("commandantIa.email.body")}</Label><Textarea aria-label={t("commandantIa.email.body")} value={emailBody} onChange={e => setEmailBody(e.target.value)} placeholder={t("commandantIa.email.bodyPlaceholder")} rows={4} /></div>
             <div><Label className="text-xs">{t("commandantIa.email.tone")}</Label>
-              <Select value={tone} onValueChange={setTone}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>
+              <Select value={tone} onValueChange={setTone}><SelectTrigger aria-label={t("commandantIa.email.tone")}><SelectValue /></SelectTrigger><SelectContent>
                 <SelectItem value="professionnel">{t("commandantIa.email.toneOpt.professionnel")}</SelectItem>
                 <SelectItem value="formel">{t("commandantIa.email.toneOpt.formel")}</SelectItem>
                 <SelectItem value="empathique">{t("commandantIa.email.toneOpt.empathique")}</SelectItem>
@@ -655,7 +655,7 @@ function EmailTab() {
           <CardDescription className="text-xs">{t("commandantIa.email.compileDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Textarea value={emails} onChange={e => setEmails(e.target.value)} placeholder={t("commandantIa.email.compilePlaceholder")} rows={5} />
+          <Textarea aria-label={t("commandantIa.email.compilePlaceholder")} value={emails} onChange={e => setEmails(e.target.value)} placeholder={t("commandantIa.email.compilePlaceholder")} rows={5} />
           <Button onClick={compileEmails} disabled={compilingEmails} className="bg-purple-600 hover:bg-purple-700">{compilingEmails ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Zap className="h-4 w-4 mr-2" />}{t("commandantIa.email.compileBtn")}</Button>
           {compilation && (
             <div className="space-y-2">
@@ -796,13 +796,13 @@ function TasksTab() {
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Zap className="h-4 w-4 text-amber-500" />{t("commandantIa.tasks.autoCreateTitle")}</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            <Select value={interactionType} onValueChange={setInteractionType}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>
+            <Select value={interactionType} onValueChange={setInteractionType}><SelectTrigger aria-label={t("commandantIa.tasks.type")}><SelectValue /></SelectTrigger><SelectContent>
               <SelectItem value="email">{t("commandantIa.tasks.type.email")}</SelectItem>
               <SelectItem value="appel">{t("commandantIa.tasks.type.appel")}</SelectItem>
               <SelectItem value="reunion">{t("commandantIa.tasks.type.reunion")}</SelectItem>
               <SelectItem value="note">{t("commandantIa.tasks.type.note")}</SelectItem>
             </SelectContent></Select>
-            <Textarea value={interactionContent} onChange={e => setInteractionContent(e.target.value)} placeholder={t("commandantIa.tasks.autoPlaceholder")} rows={5} />
+            <Textarea aria-label={t("commandantIa.tasks.autoPlaceholder")} value={interactionContent} onChange={e => setInteractionContent(e.target.value)} placeholder={t("commandantIa.tasks.autoPlaceholder")} rows={5} />
             <Button onClick={autoCreate} disabled={creating} className="w-full">{creating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}{t("commandantIa.tasks.extractBtn")}</Button>
             {createResult && (
               <div className="p-2 bg-emerald-50 rounded text-xs space-y-1">
@@ -1069,7 +1069,7 @@ function PhotoTab() {
             <div><Label className="text-xs">{t("commandantIa.photo.description")}</Label><Textarea aria-label={t("commandantIa.photo.description")} value={description} onChange={e => setDescription(e.target.value)} placeholder={t("commandantIa.photo.descPlaceholder")} rows={2} /></div>
             <div className="grid grid-cols-2 gap-2">
               <div><Label className="text-xs">{t("commandantIa.photo.linkTo")}</Label>
-                <Select value={linkedEntity} onValueChange={setLinkedEntity}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>
+                <Select value={linkedEntity} onValueChange={setLinkedEntity}><SelectTrigger aria-label={t("commandantIa.photo.linkTo")}><SelectValue /></SelectTrigger><SelectContent>
                   <SelectItem value="contact">{t("commandantIa.photo.link.contact")}</SelectItem>
                   <SelectItem value="tache">{t("commandantIa.photo.link.tache")}</SelectItem>
                   <SelectItem value="appel">{t("commandantIa.photo.link.appel")}</SelectItem>
@@ -1592,7 +1592,7 @@ function ChatTab() {
           </div>
           <div className="relative mt-2">
             <Search className="h-3 w-3 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
+            <Input aria-label={t("commandantIa.chat.searchPlaceholder")}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder={t("commandantIa.chat.searchPlaceholder")}
@@ -1657,6 +1657,7 @@ function ChatTab() {
                     {renamingId === c.id ? (
                       <>
                         <Input
+                          aria-label={t("commandantIa.chat.renameLabel")}
                           autoFocus
                           value={renameValue}
                           onChange={e => setRenameValue(e.target.value)}
@@ -1788,7 +1789,7 @@ function ChatTab() {
             )}
           </ScrollArea>
           <div className="border-t p-3 flex gap-2">
-            <Textarea
+            <Textarea aria-label={t("commandantIa.chat.inputPlaceholder")}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
@@ -1948,7 +1949,7 @@ function CommandesTab() {
         <CardContent className="space-y-3">
           <div className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2">
             <Wand2 className="h-4 w-4 text-amber-500 shrink-0" />
-            <Input
+            <Input aria-label={t("commandantIa.commandes.cmdPlaceholder")}
               value={command}
               onChange={e => setCommand(e.target.value)}
               onKeyDown={e => e.key === "Enter" && !cmdRunning && runCommand()}

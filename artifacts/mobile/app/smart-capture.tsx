@@ -469,7 +469,7 @@ export default function SmartCaptureScreen() {
               {editing && (
                 <View style={[styles.editPanel, { borderColor: ACCENT + "40", backgroundColor: ACCENT + "08" }]}>
                   <Text style={[styles.editFieldLabel, { color: colors.mutedForeground }]}>{t("smartCaptureScreen.fieldMontantTTC")}</Text>
-                  <TextInput
+                  <TextInput accessibilityLabel={t("smartCaptureScreen.montantPlaceholder")}
                     value={editMontant}
                     onChangeText={setEditMontant}
                     keyboardType="decimal-pad"
@@ -478,7 +478,7 @@ export default function SmartCaptureScreen() {
                     style={[styles.editInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
                   />
                   <Text style={[styles.editFieldLabel, { color: colors.mutedForeground }]}>{t("smartCaptureScreen.fieldEcheance")}</Text>
-                  <TextInput
+                  <TextInput accessibilityLabel={t("smartCaptureScreen.echeancePlaceholder")}
                     value={editEcheance}
                     onChangeText={setEditEcheance}
                     autoCapitalize="none"

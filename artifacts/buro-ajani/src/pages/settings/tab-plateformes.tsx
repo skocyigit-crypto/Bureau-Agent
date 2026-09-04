@@ -575,7 +575,7 @@ export function TabPlateformes() {
 
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input type="search" placeholder={t("settingsPlateformes.searchPlaceholder", { platform: activePlatform === "google" ? "Google" : activePlatform === "microsoft" ? "Microsoft" : "Apple" })} className="pl-9"
+            <Input type="search" aria-label={t("settingsPlateformes.searchPlaceholder", { platform: activePlatform === "google" ? "Google" : "Microsoft" })} placeholder={t("settingsPlateformes.searchPlaceholder", { platform: activePlatform === "google" ? "Google" : activePlatform === "microsoft" ? "Microsoft" : "Apple" })} className="pl-9"
               value={activePlatform === "google" ? googleSearch : activePlatform === "microsoft" ? msSearch : appleSearch}
               onChange={(e) => { if (activePlatform === "google") setGoogleSearch(e.target.value); else if (activePlatform === "microsoft") setMsSearch(e.target.value); else setAppleSearch(e.target.value); }}
             />

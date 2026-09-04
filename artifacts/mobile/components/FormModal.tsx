@@ -278,6 +278,7 @@ function FormField({ field, values, onChange }: FormFieldProps) {
             >
               <Feather name="search" size={15} color={colors.mutedForeground} />
               <TextInput
+                accessibilityLabel={field.placeholder || t("formModal.searchContact")}
                 style={[styles.contactSearchInput, { color: colors.foreground }]}
                 placeholder={field.placeholder || t("formModal.searchContact")}
                 placeholderTextColor={colors.mutedForeground}
@@ -367,6 +368,7 @@ function FormField({ field, values, onChange }: FormFieldProps) {
       ) : (
         <>
           <TextInput
+            accessibilityLabel={field.label}
             style={[
               styles.input,
               {
