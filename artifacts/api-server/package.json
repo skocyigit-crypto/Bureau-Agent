@@ -27,6 +27,7 @@
     "express": "^5",
     "express-rate-limit": "^8.3.2",
     "express-session": "^1.19.0",
+    "fast-xml-parser": "^5.11.1",
     "googleapis": "^148.0.0",
     "helmet": "^8.1.0",
     "hpp": "^0.2.3",

@@ -111,10 +111,31 @@ export const paymentsTable = pgTable("payments", {
   matchConfidence: numeric("match_confidence", { precision: 5, scale: 2 }),
   status: varchar("status", { length: 20 }).notNull().default("pending"),
   rawLine: text("raw_line"),
+  /**
+   * Empreinte de l'ecriture bancaire d'origine, pour ne pas l'importer deux fois.
+   *
+   * Le meme releve redepose — par prudence, par erreur, ou parce qu'un mois
+   * chevauche le precedent — creait autant de paiements en double, et donc
+   * autant de factures soldees a tort. Rien ne l'empechait: aucune contrainte
+   * d'unicite n'existait sur cette table.
+   *
+   * L'empreinte combine ce que la banque affirme (sa propre reference
+   * d'ecriture) et ce qu'on observe: date, montant, devise, reference de bout
+   * en bout, IBAN du payeur, debut de la communication. On ne se fie pas a la
+   * seule reference de la banque — la norme la veut unique, mais toutes ne
+   * l'honorent pas.
+   *
+   * NULL pour les paiements saisis autrement: l'index est partiel, plusieurs
+   * NULL coexistent.
+   */
+  bankFingerprint: text("bank_fingerprint"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index("payments_org_id_idx").on(table.organisationId),
   index("payments_invoice_idx").on(table.invoiceId),
+  // La garantie est ICI, pas dans le code d'import: une verification
+  // applicative laisse passer deux imports simultanes, une contrainte non.
+  uniqueIndex("payments_bank_fingerprint_unique").on(table.bankFingerprint),
 ]);
 
 export type Invoice = typeof invoicesTable.$inferSelect;
