@@ -83,6 +83,38 @@ describe("la vitrine dit ce que l'application fait", () => {
     }
   });
 
+  it("ne promet pas un portage de lignes que le DPA exclut", () => {
+    // Le DPA pose que les operateurs de telephonie « sont raccordes au moyen
+    // des identifiants propres du client, qui contracte directement avec eux ».
+    // Promettre un delai de portage contredit donc un document contractuel, en
+    // plus d'annoncer un service que le code ne realise pas.
+    // Le JSX coupe les phrases en fin de ligne: « identifiants propres du » et
+    // « client » se retrouvent sur deux lignes. Chercher la phrase telle quelle
+    // ne trouvait rien, la condition etait donc toujours fausse, et ce test
+    // passait sans rien verifier — verifie: il restait vert sur la page
+    // fautive. Un test qui se tait vaut moins que pas de test. On aplatit les
+    // blancs avant de chercher, et on echoue si la clause est introuvable
+    // plutot que de sauter silencieusement la verification.
+    const dpa = fs
+      .readFileSync(path.resolve(__dirname, "dpa.tsx"), "utf8")
+      .replace(/\s+/g, " ");
+    expect(
+      /identifiants propres du client/.test(dpa),
+      "la clause du DPA n'a pas ete retrouvee: ce test ne verifie plus rien",
+    ).toBe(true);
+
+    // Ce qui est interdit n'est pas le MOT mais la PROMESSE. La page doit
+    // pouvoir dire « il n'y a aucun portage a faire » — c'est justement la
+    // formulation exacte. On cherche donc un portage associe a un delai, la
+    // forme que prenait l'affirmation fautive (« 3 a 7 jours ouvres »).
+    const promesseDeDelai = /(portabilit|portage)[^.!?]{0,120}(jour|semaine|d[eé]lai)/i;
+    expect(
+      promesseDeDelai.test(TEXTE),
+      "la page annonce un delai de portage de lignes alors que le DPA pose que le " +
+      "client contracte directement avec son operateur — le produit ne porte aucun numero",
+    ).toBe(false);
+  });
+
   it("n'annonce pas de scan de code-barres tant qu'aucun code n'en lit", () => {
     // `hasBarcodeDetector` dans le panneau navigateur teste une capacite du
     // navigateur; ce n'est pas une fonction d'inventaire.
