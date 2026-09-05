@@ -117,7 +117,15 @@ const FAQ_ITEMS: { q: string; a: string }[] = [
   },
   {
     q: "Quelles intégrations sont disponibles?",
-    a: "Aujourd'hui : Google Workspace (Gmail, Agenda, Drive) via OAuth sécurisé, la téléphonie avec 6 opérateurs (Twilio, Vonage, Telnyx, Plivo, Sinch, Bandwidth), l'envoi d'e-mails (Resend), les paiements (Stripe) et trois fournisseurs d'IA (Gemini, OpenAI, Anthropic). D'autres connexions, dont Microsoft 365, Apple/iCloud et plusieurs CRM, sont en cours de développement."
+    // « Les paiements (Stripe) » figurait parmi les integrations disponibles
+    // AUJOURD'HUI. Verifie en production: aucun secret Stripe n'existe et
+    // aucune variable STRIPE_* n'est montee sur le service. Le code du
+    // connecteur existe et se desactive proprement sans cles, mais un client
+    // ne peut pas payer par carte — l'abonnement se met en place sur facture
+    // (voir la section tarifs). Annoncer un moyen de paiement indisponible au
+    // moment ou le prospect evalue l'outil, c'est preparer une deception le
+    // jour ou il voudra s'en servir.
+    a: "Aujourd'hui : Google Workspace (Gmail, Agenda, Drive) via OAuth sécurisé, la téléphonie avec 6 opérateurs (Twilio, Vonage, Telnyx, Plivo, Sinch, Bandwidth), l'envoi d'e-mails (Resend) et trois fournisseurs d'IA (Gemini, OpenAI, Anthropic). L'abonnement se règle sur facture, par virement ; le paiement par carte en ligne arrive. D'autres connexions, dont Microsoft 365, Apple/iCloud et plusieurs CRM, sont en cours de développement."
   },
   {
     q: "Proposez-vous une application mobile?",
