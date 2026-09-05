@@ -118,7 +118,17 @@ steps:
       # Identite du build, lisible ensuite sur /api/healthz et /api/app-version.
       # `--update-env-vars` et NON `--set-env-vars`: le second remplace toute la
       # configuration du service et effacerait secrets et reglages en place.
-      - '--update-env-vars=BUILD_SHA=${_TAG},BUILD_ID=${BUILD_ID}'
+      # PUBLIC_URL construit TOUS les liens des courriels (activation de compte,
+      # reinitialisation de mot de passe, fin d'essai, abonnement) — dix-huit
+      # endroits dans email.ts. En production il valait
+      # `https://agent-de-bureau-web-...run.app`: chaque client recevait donc des
+      # liens vers un hote Cloud Run brut au lieu du domaine de la marque. Sur un
+      # lien de reinitialisation de mot de passe, cela apprend a l'utilisateur a
+      # cliquer sur un domaine qu'il ne reconnait pas — exactement ce qu'un
+      # hameconnage exploite — et le lien casserait si l'URL du service changeait.
+      # Declare ici plutot que pose a la main: une variable posee une fois ne se
+      # relit pas, et personne ne sait plus pourquoi elle vaut ce qu'elle vaut.
+      - '--update-env-vars=BUILD_SHA=${_TAG},BUILD_ID=${BUILD_ID},PUBLIC_URL=${_PUBLIC_URL}'
       # Affinite de session. Le service tourne jusqu'a trois instances et
       # certains etats ne peuvent PAS etre partages: le flux SSE d'un cycle
       # d'agents porte un EventEmitter et un AbortController, qui n'existent
@@ -203,5 +213,6 @@ substitutions:
   _API_SERVICE: agent-de-bureau-api
   _WEB_SERVICE: agent-de-bureau-web
   _TANITIM_SERVICE: agent-de-bureau-tanitim
+  _PUBLIC_URL: https://app.agentdebureau.fr
 
 timeout: 1800s

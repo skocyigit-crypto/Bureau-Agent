@@ -10,7 +10,12 @@ const SMTP_PORT = parseInt(process.env.SMTP_PORT || "587");
 const SMTP_USER = process.env.SMTP_USER || "";
 const SMTP_PASS = process.env.SMTP_PASS || "";
 const SMTP_FROM = process.env.SMTP_FROM || "noreply@agentdebureau.fr";
-const APP_URL = process.env.PUBLIC_URL || process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "agentdebureau.fr"}`;
+// Base de TOUS les liens envoyes par courriel. Le repli valait
+// `agentdebureau.fr` — le site vitrine, qui ne sert aucune des routes visees
+// (/settings, /abonnement, la reinitialisation de mot de passe): un courriel
+// envoye sans PUBLIC_URL menait donc a une page introuvable. L'application est
+// sur `app.agentdebureau.fr`, et c'est ce que le repli doit dire.
+const APP_URL = process.env.PUBLIC_URL || process.env.APP_URL || "https://app.agentdebureau.fr";
 const MOBILE_APP_URL = process.env.MOBILE_APP_URL || "";
 
 let resendCache: { client: Resend; from: string; fetchedAt: number } | null = null;
