@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, asc, and, gte, lte, sql } from "drizzle-orm";
-import { db, checkinsTable, usersTable } from "@workspace/db";
+import { db, checkinsTable, usersTable, userLocationStateTable } from "@workspace/db";
 import {
   ListCheckinsQueryParams,
   CreateCheckinBody,
@@ -14,6 +14,11 @@ import { syncGoogleCalendarToCheckins } from "../services/google-calendar-sync";
 import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
 import { zodErrorResponse } from "../lib/zod-error";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
+import {
+  bornerHorodatage,
+  constaterPresence,
+  type ConstatPointage,
+} from "../services/checkin-verification";
 
 const router: IRouter = Router();
 
@@ -72,11 +77,41 @@ router.post("/checkins", async (req, res): Promise<void> => {
   const userId = req.session?.userId;
 
   try {
+    // L'heure d'abord: comparer une position a une heure choisie par le client
+    // rouvrirait la porte que le constat ci-dessous ferme.
+    const { instant } = bornerHorodatage(
+      body.data.checkInAt ? new Date(body.data.checkInAt) : null,
+    );
+
+    // Le constat ne vient PAS du corps de la requete. `location` y arrive en
+    // chaine libre depuis le telephone et le serveur la recopiait sans rien
+    // verifier: n'importe qui pouvait poster « Chantier Haguenau » depuis chez
+    // lui, en appelant l'API. On confronte donc le pointage a l'etat de
+    // position que le serveur tient lui-meme a jour (`user_location_state`,
+    // alimente par /location/ping). Deux canaux independants: falsifier le
+    // pointage ne suffit plus.
+    let constat: ConstatPointage = { verdict: "inconnu", geofenceId: null };
+    if (userId) {
+      const [etat] = await db
+        .select({
+          currentGeofenceIds: userLocationStateTable.currentGeofenceIds,
+          lastAt: userLocationStateTable.lastAt,
+        })
+        .from(userLocationStateTable)
+        .where(and(
+          eq(userLocationStateTable.organisationId, orgId),
+          eq(userLocationStateTable.userId, userId),
+        ));
+      constat = constaterPresence(instant, etat);
+    }
+
     const [checkin] = await db.insert(checkinsTable).values({
       ...body.data,
       organisationId: orgId,
-      checkInAt: body.data.checkInAt ? new Date(body.data.checkInAt) : new Date(),
+      checkInAt: instant,
       checkOutAt: body.data.checkOutAt ? new Date(body.data.checkOutAt) : null,
+      locationCheck: constat.verdict,
+      geofenceId: constat.geofenceId,
       ipAddress: req.ip || null,
       createdBy: userId,
       updatedBy: userId,
