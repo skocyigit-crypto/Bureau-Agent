@@ -83,9 +83,17 @@ export default defineConfig({
   // echec du build local.
   webServer: [
     {
-      // `preview` sert le BUILD, pas le serveur de developpement: c'est le
-      // fichier reellement deploye qu'on veut voir s'afficher.
-      command: `pnpm --filter @workspace/tanitim run build && pnpm --filter @workspace/tanitim exec vite preview --config vite.config.ts --port ${VITRINE_PORT} --strictPort`,
+      // Le BUILD, pas le serveur de developpement: c'est le fichier reellement
+      // deploye qu'on veut voir s'afficher.
+      //
+      // Pas `vite preview` non plus, pour la meme raison que du cote
+      // application: le preview sert le build NU, sans aucun des en-tetes que
+      // Caddy pose en production. `serve-tanitim.mjs` applique la vraie CSP
+      // (deploy/csp.tanitim.policy), ce qui permet au test d'affirmer que la
+      // politique n'empeche aucune page de s'afficher — les pages legales
+      // comprises.
+      command: `pnpm --filter @workspace/tanitim run build && node e2e/serve-tanitim.mjs`,
+      env: { PORT: String(VITRINE_PORT) },
       url: `http://127.0.0.1:${VITRINE_PORT}/`,
       reuseExistingServer: !process.env.CI,
       timeout: 180_000,
