@@ -5816,7 +5816,14 @@
       "dueDate": "Échéance",
       "notes": "Notes",
       "update": "Mettre à jour",
-      "create": "Créer"
+      "create": "Créer",
+      "siren": "SIREN / SIRET du client",
+      "delivery": "Adresse de livraison (si differente)",
+      "category": "Categorie de l operation",
+      "catBiens": "Livraison de biens",
+      "catServices": "Prestation de services",
+      "catMixte": "Biens et services",
+      "debits": "TVA d apres les debits"
     },
     "toast": {
       "error": "Erreur",

@@ -5816,7 +5816,14 @@
       "dueDate": "Vencimiento",
       "notes": "Notas",
       "update": "Actualizar",
-      "create": "Crear"
+      "create": "Crear",
+      "siren": "SIREN / SIRET del cliente",
+      "delivery": "Direccion de entrega (si difiere)",
+      "category": "Tipo de operacion",
+      "catBiens": "Entrega de bienes",
+      "catServices": "Prestacion de servicios",
+      "catMixte": "Bienes y servicios",
+      "debits": "IVA por debitos"
     },
     "toast": {
       "error": "Error",

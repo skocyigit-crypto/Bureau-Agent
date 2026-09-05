@@ -5816,7 +5816,14 @@
       "dueDate": "Vade",
       "notes": "Notlar",
       "update": "Güncelle",
-      "create": "Oluştur"
+      "create": "Oluştur",
+      "siren": "Musteri SIREN / SIRET",
+      "delivery": "Teslimat adresi (farkliysa)",
+      "category": "Islem turu",
+      "catBiens": "Mal teslimi",
+      "catServices": "Hizmet sunumu",
+      "catMixte": "Mal ve hizmet",
+      "debits": "Borclandirma esasli KDV"
     },
     "toast": {
       "error": "Hata",

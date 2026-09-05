@@ -35,6 +35,7 @@ import {
   type InvoiceSeller,
 } from "./invoice-pdf";
 import type { VatBreakdownEntry } from "./invoice-totals";
+import { verifierIdentifiant } from "./siren";
 
 /** Identifiant du profil, tel qu'il doit apparaitre dans le XML ET dans le XMP. */
 export const FACTURX_PROFILE_BASIC =
@@ -261,6 +262,18 @@ export function buildFacturXXml(
     warnings.push("L'adresse du client n'a pas pu etre structuree (code postal / ville).");
   }
 
+  // Identifiant de l'acheteur: verifie avant d'etre ecrit. Un numero mal
+  // recopie serait pire qu'absent — il routerait la facture vers une autre
+  // entreprise.
+  const buyerId = verifierIdentifiant(invoice.clientSiren);
+  if (!buyerId.valide) {
+    warnings.push(
+      buyerId.motif === "identifiant absent"
+        ? "Le SIREN du client est absent: la facture ne pourra pas etre routee."
+        : `L'identifiant du client est invalide (${buyerId.motif}): il ne sera pas transmis.`,
+    );
+  }
+
   const siret = (seller.siret ?? "").replace(/\s/g, "");
   if (!siret) warnings.push("Le SIRET du vendeur est absent: l'identification legale du vendeur sera omise.");
   const sellerVat = (seller.tvaNumber ?? "").replace(/\s/g, "");
@@ -347,6 +360,15 @@ export function buildFacturXXml(
     `      </ram:SellerTradeParty>\n` +
     `      <ram:BuyerTradeParty>\n` +
     tag("ram:Name", buyerName, "        ") +
+    // Identification legale de l'acheteur. Le schemeID "0002" designe le
+    // repertoire SIRENE, comme pour le vendeur juste au-dessus. C'est sur cet
+    // identifiant que l'annuaire central route la facture: sans lui, elle
+    // n'atteint pas son destinataire, quelle que soit la qualite du reste.
+    (buyerId.valide && buyerId.valeur
+      ? `        <ram:SpecifiedLegalOrganization>\n` +
+        `          <ram:ID schemeID="0002">${xml(buyerId.valeur)}</ram:ID>\n` +
+        `        </ram:SpecifiedLegalOrganization>\n`
+      : "") +
     addressXml(buyerAddress, "        ") +
     `      </ram:BuyerTradeParty>\n` +
     `    </ram:ApplicableHeaderTradeAgreement>\n` +

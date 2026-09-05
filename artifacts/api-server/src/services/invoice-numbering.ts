@@ -89,6 +89,14 @@ export const FROZEN_FIELDS = [
   "clientName",
   "clientCompany",
   "clientAddress",
+  // Mentions obligatoires (decret n° 2022-1299): elles font partie du CONTENU
+  // de la facture, pas de son suivi. Les corriger apres emission reecrirait
+  // une facture deja transmise — c'est une facture nouvelle qu'il faut alors
+  // emettre, apres annulation.
+  "clientSiren",
+  "deliveryAddress",
+  "operationCategory",
+  "vatOnDebits",
 ] as const;
 
 /**

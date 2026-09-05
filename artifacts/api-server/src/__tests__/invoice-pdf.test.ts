@@ -64,6 +64,10 @@ const INVOICE: InvoiceRecord = {
   clientCompany: "Durand Travaux",
   clientAddress: "5 avenue du Port\n33000 Bordeaux",
   clientEmail: "compta@durand-travaux.fr",
+  // Mentions du decret n° 2022-1299: une facture qui ne les porte pas n'est
+  // plus complete, et cette fixture est celle de la facture COMPLETE.
+  clientSiren: "552100554",
+  operationCategory: "services",
   items: [
     { description: "Journee de conseil", quantity: 3, unitPrice: 600, taxRate: 20 },
     { description: "Deplacement", quantity: 1, unitPrice: 120, taxRate: 10 },

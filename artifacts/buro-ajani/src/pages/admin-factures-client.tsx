@@ -31,6 +31,10 @@ const STATUSES = [
 interface FactureClient {
   id: number; reference: string; title: string; clientName: string; clientEmail?: string;
   clientCompany?: string; status: string; totalAmount?: string; paidAmount?: string; currency: string;
+  // Mentions obligatoires (decret n° 2022-1299), exigees des PME a compter du
+  // 1er septembre 2027. Le SIREN sert aussi d'adresse de routage.
+  clientSiren?: string | null; deliveryAddress?: string | null;
+  operationCategory?: string | null; vatOnDebits?: boolean;
   items?: LineItem[]; isAutoliquidation?: boolean;
   dueDate?: string; paymentMethod?: string; notes?: string | null; createdAt: string;
   reminderCount?: number; lastReminderAt?: string | null;
@@ -38,6 +42,7 @@ interface FactureClient {
 
 const EMPTY_FORM = {
   reference: "", title: "", clientName: "", clientEmail: "", clientCompany: "",
+  clientSiren: "", deliveryAddress: "", operationCategory: "", vatOnDebits: false,
   items: [] as LineItem[], paidAmount: "", isAutoliquidation: false, currency: "EUR", status: "brouillon", dueDate: "",
   paymentMethod: "", notes: "",
 };
@@ -103,6 +108,8 @@ export default function AdminFacturesClientPage() {
     setForm({
       reference: f.reference || "", title: f.title, clientName: f.clientName || "",
       clientEmail: f.clientEmail || "", clientCompany: f.clientCompany || "",
+      clientSiren: f.clientSiren || "", deliveryAddress: f.deliveryAddress || "",
+      operationCategory: f.operationCategory || "", vatOnDebits: !!f.vatOnDebits,
       items: Array.isArray(f.items) ? f.items : [], paidAmount: f.paidAmount || "", isAutoliquidation: !!f.isAutoliquidation, currency: f.currency || "EUR",
       status: f.status, dueDate: f.dueDate ? f.dueDate.substring(0, 10) : "",
       paymentMethod: f.paymentMethod || "", notes: f.notes || "",
@@ -283,6 +290,28 @@ export default function AdminFacturesClientPage() {
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs">{t("adminFacturesClient.form.email")}</Label><Input aria-label={t("adminFacturesClient.form.email")} type="email" value={form.clientEmail} onChange={e => setForm(f => ({ ...f, clientEmail: e.target.value }))} /></div>
               <div><Label className="text-xs">{t("adminFacturesClient.form.paymentMethod")}</Label><Input aria-label={t("adminFacturesClient.form.paymentMethod")} value={form.paymentMethod} onChange={e => setForm(f => ({ ...f, paymentMethod: e.target.value }))} placeholder={t("adminFacturesClient.form.paymentPlaceholder")} /></div>
+            </div>
+            {/* Mentions obligatoires du decret n° 2022-1299. Le SIREN n'est pas
+                une donnee administrative de plus: c'est l'adresse a laquelle la
+                facture electronique sera routee. */}
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label className="text-xs">{t("adminFacturesClient.form.siren")}</Label><Input aria-label={t("adminFacturesClient.form.siren")} value={form.clientSiren} onChange={e => setForm(f => ({ ...f, clientSiren: e.target.value }))} placeholder="552100554" /></div>
+              <div>
+                <Label className="text-xs">{t("adminFacturesClient.form.category")}</Label>
+                <Select value={form.operationCategory || "none"} onValueChange={v => setForm(f => ({ ...f, operationCategory: v === "none" ? "" : v }))}>
+                  <SelectTrigger aria-label={t("adminFacturesClient.form.category")}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">—</SelectItem>
+                    <SelectItem value="biens">{t("adminFacturesClient.form.catBiens")}</SelectItem>
+                    <SelectItem value="services">{t("adminFacturesClient.form.catServices")}</SelectItem>
+                    <SelectItem value="mixte">{t("adminFacturesClient.form.catMixte")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label className="text-xs">{t("adminFacturesClient.form.delivery")}</Label><Input aria-label={t("adminFacturesClient.form.delivery")} value={form.deliveryAddress} onChange={e => setForm(f => ({ ...f, deliveryAddress: e.target.value }))} /></div>
+              <div className="flex items-center gap-2 pt-5"><input id="tva-debits" type="checkbox" checked={form.vatOnDebits} onChange={e => setForm(f => ({ ...f, vatOnDebits: e.target.checked }))} /><Label htmlFor="tva-debits" className="text-xs">{t("adminFacturesClient.form.debits")}</Label></div>
             </div>
             <LineItemsEditor items={form.items} onChange={(items) => setForm(f => ({ ...f, items }))} autoliquidation={form.isAutoliquidation} currency={form.currency} />
             <div className="grid grid-cols-2 gap-3">

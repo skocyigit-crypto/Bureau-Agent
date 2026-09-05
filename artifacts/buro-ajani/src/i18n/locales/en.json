@@ -5816,7 +5816,14 @@
       "dueDate": "Due date",
       "notes": "Notes",
       "update": "Update",
-      "create": "Create"
+      "create": "Create",
+      "siren": "Client SIREN / SIRET",
+      "delivery": "Delivery address (if different)",
+      "category": "Type of transaction",
+      "catBiens": "Supply of goods",
+      "catServices": "Supply of services",
+      "catMixte": "Goods and services",
+      "debits": "VAT on debits"
     },
     "toast": {
       "error": "Error",
