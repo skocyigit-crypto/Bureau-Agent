@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 658,
+    "runtimeOperations": 659,
     "documentedOperations": 96,
-    "undocumentedOperations": 562
+    "undocumentedOperations": 563
   },
   "operations": [
     {
@@ -1145,6 +1145,14 @@
     {
       "method": "post",
       "path": "/billing/generate",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/billing.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/billing/import-camt",
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/billing.ts"

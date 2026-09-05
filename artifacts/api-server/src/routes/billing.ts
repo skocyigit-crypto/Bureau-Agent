@@ -5,6 +5,7 @@ import { emettreFacturePlateforme } from "../services/platform-invoice-issue";
 import { generateMonthlyInvoices, getOrgBillingSummary } from "../services/billing-engine";
 import { logger } from "../lib/logger";
 import { apparier } from "../services/payment-matching";
+import { empreinte, lireCamt053, ReleveIllisible, texteRapprochement } from "../services/camt053";
 import { requireSuperAdmin } from "../middleware/auth";
 import { invalidateLicenseCache } from "../middleware/license-check";
 
@@ -154,6 +155,71 @@ router.post("/billing/upload-bank", async (req: Request, res: Response): Promise
   });
 });
 
+/**
+ * Import d'un releve bancaire ISO 20022 (camt.053).
+ *
+ * Remplace la saisie ligne a ligne de `/billing/upload-bank`, qui obligeait a
+ * recopier — donc a choisir, donc a perdre — les champs de reference. camt.053
+ * ne tronque pas l'information de remise et la range dans des champs distincts;
+ * c'est ce qui fait passer le rapprochement automatique de 50-60 % a 85-95 %.
+ *
+ * L'insertion est idempotente par CONTRAINTE, pas par verification: deux
+ * imports simultanes du meme fichier passeraient a travers un `SELECT` prealable.
+ */
+router.post("/billing/import-camt", async (req: Request, res: Response): Promise<void> => {
+  const xml = typeof req.body?.xml === "string" ? req.body.xml : null;
+  if (!xml || xml.trim().length === 0) {
+    res.status(400).json({ error: "Fichier camt.053 manquant (champ `xml`)." });
+    return;
+  }
+
+  let ecritures;
+  try {
+    ecritures = lireCamt053(xml);
+  } catch (err: unknown) {
+    if (err instanceof ReleveIllisible) {
+      // Entree invalide, pas panne: l'exploitant doit lire « ce fichier n'est
+      // pas un releve », pas « erreur interne ».
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    throw err;
+  }
+
+  let importes = 0;
+  let doublons = 0;
+
+  for (const e of ecritures) {
+    const [ligne] = await db
+      .insert(paymentsTable)
+      .values({
+        amount: String(e.montant),
+        currency: e.devise,
+        source: "camt053",
+        bankRef: texteRapprochement(e).slice(0, 200) || null,
+        bankDate: e.date,
+        payerName: e.payeur,
+        payerIban: e.payeurIban,
+        status: "pending",
+        rawLine: JSON.stringify(e),
+        bankFingerprint: empreinte(e),
+      })
+      .onConflictDoNothing({ target: paymentsTable.bankFingerprint })
+      .returning({ id: paymentsTable.id });
+
+    if (ligne) importes += 1;
+    else doublons += 1;
+  }
+
+  res.json({
+    message:
+      `${importes} ecriture(s) importee(s)` +
+      (doublons > 0 ? `, ${doublons} deja connue(s) et ignoree(s).` : "."),
+    imported: importes,
+    duplicates: doublons,
+    credits: ecritures.length,
+  });
+});
 router.post("/billing/match-payments", async (req: Request, res: Response): Promise<void> => {
   try {
     const pendingPayments = await db.select()
