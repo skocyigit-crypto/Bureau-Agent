@@ -2290,7 +2290,8 @@
       "s5": "Définissez la méthode sur",
       "s6": "Enregistrez. L'IA répondra automatiquement aux appels entrants."
     },
-    "voiceDefaultSuffix": " (défaut)"
+    "voiceDefaultSuffix": " (défaut)",
+    "fraudLabel": "Action en cas d'appel frauduleux"
   },
   "settingsIntelligenceArtificielle": {
     "loadError": "Impossible de charger les paramètres IA.",
@@ -3035,7 +3036,8 @@
       "password": "Mot de passe",
       "disableBtn": "Désactiver",
       "twoFactorDisabled": "Double authentification désactivée",
-      "disableFailed": "Désactivation impossible"
+      "disableFailed": "Désactivation impossible",
+      "totpLabel": "Code de verification a six chiffres"
     },
     "monitor": {
       "loading": "Chargement du moniteur de sécurité...",
@@ -7183,7 +7185,8 @@
       "autoPlaceholder": "Collez le contenu de l'interaction...",
       "extractBtn": "Extraire tâches & RDV",
       "createdTaskLine": "✓ Tâche : {{title}}",
-      "createdEventLine": "📅 RDV : {{title}}"
+      "createdEventLine": "📅 RDV : {{title}}",
+      "typeLabel": "Type d'interaction"
     },
     "finance": {
       "title": "Vue financière IA",

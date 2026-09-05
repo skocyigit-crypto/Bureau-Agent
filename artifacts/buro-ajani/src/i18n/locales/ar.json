@@ -2290,7 +2290,8 @@
       "s5": "عيّن الطريقة على",
       "s6": "احفظ. سيردّ الذكاء الاصطناعي على المكالمات الواردة تلقائياً."
     },
-    "voiceDefaultSuffix": " (افتراضي)"
+    "voiceDefaultSuffix": " (افتراضي)",
+    "fraudLabel": "الإجراء عند مكالمة احتيالية"
   },
   "settingsIntelligenceArtificielle": {
     "loadError": "تعذّر تحميل إعدادات الذكاء الاصطناعي.",
@@ -3035,7 +3036,8 @@
       "password": "كلمة المرور",
       "disableBtn": "إلغاء التفعيل",
       "twoFactorDisabled": "تم إلغاء تفعيل المصادقة الثنائية",
-      "disableFailed": "تعذّر إلغاء التفعيل"
+      "disableFailed": "تعذّر إلغاء التفعيل",
+      "totpLabel": "رمز تحقق من ستة أرقام"
     },
     "monitor": {
       "loading": "جارٍ تحميل مراقب الأمان...",
@@ -7183,7 +7185,8 @@
       "autoPlaceholder": "الصق محتوى التفاعل...",
       "extractBtn": "استخراج المهام والمواعيد",
       "createdTaskLine": "✓ مهمة: {{title}}",
-      "createdEventLine": "📅 موعد: {{title}}"
+      "createdEventLine": "📅 موعد: {{title}}",
+      "typeLabel": "نوع التفاعل"
     },
     "finance": {
       "title": "العرض المالي بالذكاء الاصطناعي",
