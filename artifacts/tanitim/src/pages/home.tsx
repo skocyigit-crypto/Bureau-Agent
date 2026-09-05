@@ -105,7 +105,7 @@ const FAQ_ITEMS: { q: string; a: string }[] = [
   },
   {
     q: "Que peut faire l'assistant IA?",
-    a: "L'assistant Sophie combine 7 agents IA spécialisés : analyse sentimentale des appels, prévisions d'activité, scoring clients, évaluation de performance, détection automatique de calculs mathématiques (15 types) et recommandations proactives. Il apprend de vos données pour proposer des actions concrètes."
+    a: "L'assistant Sophie s'appuie sur 10 agents IA spécialisés (appels, contacts, tâches, messages, facturation, stock, RH, pointage, performance, sécurité) : analyse sentimentale des appels, prévisions d'activité, scoring clients, évaluation de performance, détection automatique de calculs mathématiques (15 types) et recommandations proactives. Il apprend de vos données pour proposer des actions concrètes."
   },
   {
     q: "Comment fonctionne la facturation?",
@@ -475,8 +475,19 @@ export default function Home() {
                 },
                 {
                   icon: <Package className="w-7 h-7" />,
-                  title: "Gestion de stock",
-                  desc: "Inventaire complet avec scan QR/code-barres, import IA de factures et suivi automatique des niveaux."
+                  // Ce que le produit fait reellement, verifie dans le code:
+                  // les articles sont crees par l'import IA des documents
+                  // (`document-ai.ts`), le seuil bas (`minQuantity`) est calcule
+                  // et remonte par les agents, et des operations en lot
+                  // existent. Ce qui n'existe PAS: un ecran de gestion — le
+                  // backoffice de l'application marque lui-meme le module Stock
+                  // `enabled: false`, statut « a venir » — et le scan
+                  // QR/code-barres, qu'aucun code ne realise.
+                  // « Inventaire complet avec scan QR/code-barres » vendait donc
+                  // deux fonctions absentes, dont une que l'application annonce
+                  // elle-meme comme non livree.
+                  title: "Suivi de stock",
+                  desc: "Vos articles alimentés par l'import IA de vos factures et documents, avec alerte de seuil bas remontée par les agents. L'écran de gestion manuelle arrive."
                 },
                 {
                   icon: <Scale className="w-7 h-7" />,
@@ -790,7 +801,7 @@ export default function Home() {
                     "500 contacts & prospects",
                     "2 000 appels / mois",
                     "Devis & facturation",
-                    "Gestion de stock",
+                    "Suivi de stock (import IA)",
                     "Sauvegarde chiffrée",
                     "Support par email"
                   ].map((feature, i) => (
@@ -831,7 +842,10 @@ export default function Home() {
                     "Jusqu'à 15 utilisateurs",
                     "5 000 contacts & prospects",
                     "10 000 appels / mois",
-                    "Multi-Agent IA (7 agents)",
+                    // `routes/ai-agents.ts` en declare DIX. Sous-vendre est
+                    // moins grave que sur-vendre, mais c'est le meme defaut:
+                    // un chiffre qui ne vient pas de la source.
+                    "Multi-Agent IA (10 agents)",
                     "Moteur mathématique",
                     "Google Workspace Hub",
                     "Protection des données auto",
@@ -1027,7 +1041,13 @@ export default function Home() {
                 { icon: <Server className="w-7 h-7" />, label: "Hébergement France" },
                 { icon: <CloudUpload className="w-7 h-7" />, label: "Sauvegarde auto quotidienne" },
                 { icon: <Shield className="w-7 h-7" />, label: "Monitoring continu" },
-                { icon: <Scale className="w-7 h-7" />, label: "CGU/CGV/DPA/SLA" },
+                // « SLA » listait un document qui n'existe pas: il n'y a pas
+                // de route /sla, et l'article 6 des CGV pose au contraire que
+                // « l'editeur ne souscrit aucun engagement chiffre de
+                // disponibilite ». Annoncer un contrat de service parmi les
+                // documents fournis, c'est promettre une piece que le client
+                // ne trouvera nulle part.
+                { icon: <Scale className="w-7 h-7" />, label: "CGU/CGV/DPA" },
               ].map((item, i) => (
                 <div key={i} className="flex flex-col items-center gap-3 p-4 rounded-2xl bg-card border border-border text-center">
                   <div className="text-primary">{item.icon}</div>
