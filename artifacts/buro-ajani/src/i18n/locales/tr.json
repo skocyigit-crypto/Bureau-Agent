@@ -2290,7 +2290,8 @@
       "s5": "Yöntemi şöyle ayarlayın:",
       "s6": "Kaydedin. Yapay Zeka gelen çağrıları otomatik olarak yanıtlar."
     },
-    "voiceDefaultSuffix": " (varsayılan)"
+    "voiceDefaultSuffix": " (varsayılan)",
+    "fraudLabel": "Dolandırıcılık aramasında yapılacak işlem"
   },
   "settingsIntelligenceArtificielle": {
     "loadError": "Yapay Zeka ayarları yüklenemedi.",
@@ -3035,7 +3036,8 @@
       "password": "Parola",
       "disableBtn": "Devre dışı bırak",
       "twoFactorDisabled": "İki faktörlü doğrulama devre dışı bırakıldı",
-      "disableFailed": "Devre dışı bırakma başarısız"
+      "disableFailed": "Devre dışı bırakma başarısız",
+      "totpLabel": "Altı haneli doğrulama kodu"
     },
     "monitor": {
       "loading": "Güvenlik izleyicisi yükleniyor...",
@@ -7183,7 +7185,8 @@
       "autoPlaceholder": "Etkileşim içeriğini yapıştırın...",
       "extractBtn": "Görev ve randevu çıkar",
       "createdTaskLine": "✓ Görev: {{title}}",
-      "createdEventLine": "📅 Randevu: {{title}}"
+      "createdEventLine": "📅 Randevu: {{title}}",
+      "typeLabel": "Etkileşim türü"
     },
     "finance": {
       "title": "Yapay Zeka Finans Görünümü",

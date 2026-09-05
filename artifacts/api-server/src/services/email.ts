@@ -736,7 +736,11 @@ export async function sendTrialEndingEmail(params: {
 }): Promise<{ success: boolean; error?: string; preview?: string; provider?: string }> {
   const { to, orgName, daysLeft, trialEndsAt, expired } = params;
   const endStr = new Date(trialEndsAt).toLocaleDateString("fr-FR");
-  const portalUrl = `${APP_URL}/settings?tab=abonnement`;
+  // `/settings` n'existe pas dans le routeur: la seule route de reglages est
+  // `/parametres`, et elle lit bien `?tab=`. Le bouton « Voir les plans » du
+  // courriel de fin d'essai — celui qui porte la conversion — menait donc a une
+  // page introuvable. Le bandeau in-app, lui, pointait deja au bon endroit.
+  const portalUrl = `${APP_URL}/parametres?tab=abonnement`;
   const headerColor = expired ? "#7f1d1d" : daysLeft <= 1 ? "#9a3412" : "#92400e";
   const title = expired
     ? "Periode d'essai terminee"
