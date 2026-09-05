@@ -93,7 +93,14 @@ const staggerContainer = {
 const FAQ_ITEMS: { q: string; a: string }[] = [
   {
     q: "Combien de temps prend la mise en place?",
-    a: "L'inscription et la configuration initiale prennent moins de 5 minutes. Importez vos contacts, configurez votre pipeline commercial et commencez à créer des devis immédiatement. L'importation de vos lignes existantes (portabilité) peut prendre de 3 à 7 jours ouvrés."
+    // « L'importation de vos lignes existantes (portabilite) peut prendre de
+    // 3 a 7 jours ouvres » promettait une operation que le produit ne fait pas:
+    // aucun portage de numero n'existe dans le code, et la telephonie se
+    // raccorde avec les identifiants PROPRES du client — le DPA le pose
+    // explicitement (« ils contractent directement avec eux »). Annoncer un
+    // delai de portage contredisait donc un document contractuel, en plus de
+    // promettre un service inexistant.
+    a: "L'inscription et la configuration initiale prennent moins de 5 minutes. Importez vos contacts, configurez votre pipeline commercial et commencez à créer des devis immédiatement. Pour la téléphonie, vous raccordez votre compte opérateur existant (Twilio, Vonage, Telnyx, Plivo, Sinch ou Bandwidth) avec vos propres identifiants : vos numéros restent chez votre opérateur, il n'y a aucun portage à faire."
   },
   {
     q: "Comment fonctionne la période d'essai?",

@@ -1,9 +1,10 @@
 import { Router, type Request, type Response } from "express";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { db, invoicesTable, paymentsTable, organisationsTable } from "@workspace/db";
 import { emettreFacturePlateforme } from "../services/platform-invoice-issue";
 import { generateMonthlyInvoices, getOrgBillingSummary } from "../services/billing-engine";
 import { logger } from "../lib/logger";
+import { apparier } from "../services/payment-matching";
 import { requireSuperAdmin } from "../middleware/auth";
 import { invalidateLicenseCache } from "../middleware/license-check";
 
@@ -181,47 +182,53 @@ router.post("/billing/match-payments", async (req: Request, res: Response): Prom
     }
 
     let matched = 0;
+    let suggestionsCount = 0;
     const matchedInvoiceIds = new Set<number>();
 
     for (const payment of pendingPayments) {
-      let bestMatch: { invoiceId: number; orgId: number; confidence: number } | null = null;
+      // Le rapprochement ne fait plus la somme de signaux faibles. L'ancien
+      // calcul appliquait automatiquement des 50 points — c'est-a-dire sur le
+      // MONTANT SEUL — alors que tous les clients d'un meme forfait paient la
+      // meme somme au centime: deux abonnes a 29 EUR produisaient deux
+      // virements identiques, et le premier trouve fermait la facture de
+      // l'autre. L'erreur est silencieuse: le client credite a tort ne dit
+      // rien, et le vrai debiteur continue de recevoir des relances.
+      //
+      // Seule une REFERENCE de facture trouvee dans le libelle applique
+      // automatiquement. Le reste devient une suggestion, laissee en attente.
+      const resultat = apparier(
+        {
+          bankRef: payment.bankRef,
+          payerName: payment.payerName,
+          rawLine: payment.rawLine,
+          amount: Number(payment.amount),
+        },
+        pendingInvoices
+          .filter((inv) => !matchedInvoiceIds.has(inv.invoice.id))
+          .map((inv) => {
+            // Le client vire le TTC. Les factures anterieures a la TVA ont un
+            // `totalTtc` a zero: on retombe alors sur le HT, qui etait bien le
+            // montant reclame a l'epoque.
+            const ttc = Number(inv.invoice.totalTtc);
+            return {
+              id: inv.invoice.id,
+              organisationId: inv.invoice.organisationId,
+              reference: inv.invoice.reference,
+              duMontant: ttc > 0 ? ttc : Number(inv.invoice.totalAmount),
+              orgName: inv.orgName,
+            };
+          }),
+      );
 
-      for (const inv of pendingInvoices) {
-        if (matchedInvoiceIds.has(inv.invoice.id)) continue;
+      const bestMatch = resultat.automatique
+        ? {
+            invoiceId: resultat.automatique.factureId,
+            orgId: resultat.automatique.organisationId,
+            confidence: resultat.automatique.confiance,
+          }
+        : null;
 
-        let confidence = 0;
-        // Le client vire le montant TTC — c'est ce qui figure sur la facture.
-        // Comparer au HT ferait manquer chaque rapprochement d'un ecart
-        // exactement egal a la TVA, et le paiement resterait « en attente »
-        // alors qu'il est arrive. Les factures anterieures a la TVA ont un
-        // `totalTtc` a zero: on retombe alors sur le HT, qui etait bien le
-        // montant reclame a l'epoque.
-        const ttc = Number(inv.invoice.totalTtc);
-        const invoiceTotal = ttc > 0 ? ttc : Number(inv.invoice.totalAmount);
-        const paymentAmount = Number(payment.amount);
-
-        if (Math.abs(invoiceTotal - paymentAmount) < 0.01) {
-          confidence += 50;
-        } else if (Math.abs(invoiceTotal - paymentAmount) < 1) {
-          confidence += 30;
-        }
-
-        const payerName = (payment.payerName || "").toLowerCase();
-        const orgName = (inv.orgName || "").toLowerCase();
-        if (payerName && orgName && (payerName.includes(orgName) || orgName.includes(payerName))) {
-          confidence += 40;
-        }
-
-        const bankRef = (payment.bankRef || "").toLowerCase();
-        const periodLabel = inv.invoice.periodLabel || "";
-        if (bankRef && (bankRef.includes(periodLabel) || bankRef.includes(orgName))) {
-          confidence += 10;
-        }
-
-        if (confidence > (bestMatch?.confidence || 0) && confidence >= 50) {
-          bestMatch = { invoiceId: inv.invoice.id, orgId: inv.invoice.organisationId, confidence };
-        }
-      }
+      suggestionsCount += resultat.suggestions.length;
 
       if (bestMatch) {
         matchedInvoiceIds.add(bestMatch.invoiceId);
@@ -252,9 +259,18 @@ router.post("/billing/match-payments", async (req: Request, res: Response): Prom
       }
     }
 
+    // Les suggestions sont dites, pas cachees: un paiement qui n'a pas ete
+    // rapproche automatiquement n'est pas un paiement perdu, c'est un paiement
+    // qui attend une lecture. Sans ce compte, un exploitant croirait que le
+    // rapprochement n'a « rien trouve » alors qu'il a trouve trop de choses.
     res.json({
-      message: `Rapprochement termine: ${matched} paiement(s) rapproche(s) sur ${pendingPayments.length}.`,
+      message:
+        `Rapprochement termine: ${matched} paiement(s) rapproche(s) sur ${pendingPayments.length}` +
+        (suggestionsCount > 0
+          ? `, ${suggestionsCount} rapprochement(s) plausible(s) a valider a la main.`
+          : "."),
       matched,
+      suggestions: suggestionsCount,
       total: pendingPayments.length,
     });
   } catch (err: any) {
