@@ -218,7 +218,6 @@ export default function MoreScreen() {
           <MenuItem icon="message-circle" label={t("moreScreen.aiAssistant")} sublabel={t("moreScreen.aiAssistantSub")} color="#8b5cf6" onPress={() => nav("/ai-chat")} />
           <MenuItem icon="mic" label={t("moreScreen.voiceAssistant")} sublabel={t("moreScreen.voiceAssistantSub")} color="#ef4444" onPress={() => nav("/voice-assistant")} />
           <MenuItem icon="cpu" label={t("moreScreen.aiAgents")} sublabel={t("moreScreen.aiAgentsSub")} color="#6366f1" onPress={() => nav("/ai-agents")} />
-          <MenuItem icon="aperture" label={t("moreScreen.faceRecognition")} sublabel={t("moreScreen.faceRecognitionSub")} color="#ec4899" onPress={() => nav("/face-recognition")} />
           <MenuItem icon="zap" label={t("moreScreen.automations")} sublabel={t("moreScreen.automationsSub")} color="#f97316" onPress={() => nav("/automations")} />
         </View>
 
