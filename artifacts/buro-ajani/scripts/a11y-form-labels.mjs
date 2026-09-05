@@ -34,7 +34,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const SRC = path.join(here, "..", "src");
+// Dossier analyse. Surchargeable par `--src=<chemin>` pour pointer une AUTRE
+// application: la declaration d'accessibilite reconnaissait que « les pages du
+// site public ne sont pas couvertes par cette verification ». Un controle qui
+// ne regarde qu'une des deux interfaces laisse l'autre deriver sans que rien
+// ne le signale.
+const argSrc = process.argv.find((a) => a.startsWith("--src="));
+const SRC = argSrc
+  ? path.resolve(process.cwd(), argSrc.slice("--src=".length))
+  : path.join(here, "..", "src");
 
 /**
  * Plafond courant. Il ne doit JAMAIS remonter: une PR qui ajoute un champ sans

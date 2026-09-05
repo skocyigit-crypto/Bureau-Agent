@@ -65,12 +65,14 @@ export default function Accessibilite() {
                 identifiées peuvent subsister sur l'ensemble du parcours.
               </li>
               <li>
-                Le nom accessible des boutons porteurs d'une seule icône est
-                désormais vérifié automatiquement dans l'application cliente, et
-                aucun n'en est dépourvu. En revanche, le <em>rôle</em> et la
-                restitution de l'<em>état</em> des composants n'ont pas fait
-                l'objet d'un relevé équivalent, et les pages du site public ne
-                sont pas couvertes par cette vérification.
+                Le nom accessible des champs et des boutons porteurs d'une seule
+                icône est vérifié automatiquement, et aucun n'en est dépourvu.
+                Depuis septembre 2026, cette vérification couvre également les
+                pages de ce site public : elle n'y trouve plus de champ sans
+                nom, ni d'élément supprimant l'indicateur de focus sans le
+                remplacer. En revanche, le <em>rôle</em> et la restitution de
+                l'<em>état</em> des composants n'ont toujours pas fait l'objet
+                d'un relevé équivalent.
               </li>
               <li>
                 Les contrastes de couleur n'ont pas fait l'objet d'un relevé
