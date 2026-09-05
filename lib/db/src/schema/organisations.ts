@@ -52,6 +52,28 @@ export const organisationsTable = pgTable("organisations", {
   workingHoursEnd: varchar("working_hours_end", { length: 5 }).notNull().default("18:00"),
   appointmentTimezone: varchar("appointment_timezone", { length: 60 }).notNull().default("Europe/Paris"),
   appointmentDurationMinutes: integer("appointment_duration_minutes").notNull().default(30),
+  // Bornes du suivi de presence par geolocalisation.
+  //
+  // Colonnes DISTINCTES de `working_days` / `working_hours_*` juste au-dessus,
+  // et c'est deliberate: celles-la servent a proposer des creneaux de
+  // rendez-vous. Les brancher sur la geolocalisation ferait qu'elargir les
+  // horaires pour accepter un rendez-vous en soiree elargirait AUSSI la
+  // surveillance des salaries, sans que personne ne l'ait voulu ni vu.
+  //
+  // Le suivi tournait auparavant 24 h sur 24, y compris la nuit et le
+  // dimanche. La CNIL admet la geolocalisation d'un salarie quand elle est
+  // proportionnee au but poursuivi, mais pas comme moyen de le surveiller en
+  // dehors de son temps de travail. Savoir sur quel chantier se trouve une
+  // equipe a 10 h et savoir ou dort un salarie a 23 h ne relevent pas de la
+  // meme finalite.
+  //
+  // Defaut volontairement large pour le BTP — 07:00-20:00 du lundi au samedi —
+  // mais BORNE: il exclut les nuits et les dimanches, les deux cas ou aucune
+  // finalite professionnelle ne tient. Le fuseau est celui deja declare par
+  // l'organisation: un fuseau est un fait, pas un choix de politique.
+  locationTrackingDays: varchar("location_tracking_days", { length: 20 }).notNull().default("1,2,3,4,5,6"),
+  locationTrackingStart: varchar("location_tracking_start", { length: 5 }).notNull().default("07:00"),
+  locationTrackingEnd: varchar("location_tracking_end", { length: 5 }).notNull().default("20:00"),
   aiLearningLastRunAt: timestamp("ai_learning_last_run_at", { withTimezone: true }),
   reusedScanCount: integer("reused_scan_count").notNull().default(0),
   reusedScanSavedMs: bigint("reused_scan_saved_ms", { mode: "number" }).notNull().default(0),

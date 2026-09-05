@@ -106,7 +106,7 @@ if (Platform.OS !== "web") {
       if (!last?.coords) return;
 
       try {
-        await fetch(`${API_BASE}/api/location/ping`, {
+        const reponse = await fetch(`${API_BASE}/api/location/ping`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -121,6 +121,23 @@ if (Platform.OS !== "web") {
             isMoving: typeof last.coords.speed === "number" && last.coords.speed > 0.5,
           }),
         });
+
+        // Mesai dışıysa arka plan görevini kapat.
+        //
+        // Sunucu, çalışma saatleri penceresi dışında hiçbir konumu kaydetmiyor
+        // ve bunu `tracking: "hors-fenetre"` ile bildiriyor. Cihaz o bilgiyi
+        // dikkate almazsa gece boyunca GPS'i açık tutar: hiçbir veri
+        // yazılmadan pilin bitmesi ve bildirimin ekranda kalması. Görevi
+        // durdurmak hem doğru davranış hem de kullanıcıya gözle görünür bir
+        // kanıt: mesai dışında takip gerçekten çalışmıyor.
+        //
+        // Yeniden başlatma, uygulama bir sonraki açılışında ya da izin/oturum
+        // değiştiğinde tetiklenen etkiden gelir.
+        const corps = await reponse.json().catch(() => null);
+        if (corps?.tracking === "hors-fenetre") {
+          const actif = await Location.hasStartedLocationUpdatesAsync(BG_TASK).catch(() => false);
+          if (actif) await Location.stopLocationUpdatesAsync(BG_TASK).catch(() => {});
+        }
       } catch {
         // Ağ hatası — bir sonraki tetikte yeniden denenir, biriktirme yapmıyoruz
         // (eski konum patrona yarar sağlamaz).

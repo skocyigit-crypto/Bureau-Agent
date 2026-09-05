@@ -51,8 +51,15 @@ export default function Confidentialite() {
                 approximatives, horodatage, précision de la mesure et, le cas
                 échéant, niveau de batterie. La mesure a lieu au maximum toutes
                 les 60 secondes ou tous les 100 mètres, <strong>y compris
-                lorsque l'application est en arrière-plan</strong>, pendant que
-                vous êtes connecté(e).
+                lorsque l'application est en arrière-plan</strong>, mais
+                uniquement pendant les <strong>horaires de travail définis par
+                votre employeur</strong>.
+              </li>
+              <li>
+                <strong>Quand elle a lieu</strong> : uniquement pendant ces
+                horaires. En dehors — la nuit, les jours non travaillés —
+                aucune position n'est collectée ni enregistrée : le serveur
+                refuse de l'enregistrer, et l'application arrête la collecte.
               </li>
               <li>
                 <strong>Ce que votre employeur voit</strong> : uniquement la
@@ -80,10 +87,12 @@ export default function Confidentialite() {
               rappelle qu'elle doit être proportionnée à la finalité poursuivie,
               qu'elle ne peut pas servir à surveiller un salarié en dehors de son
               temps de travail, et que les représentants du personnel comme les
-              personnes concernées doivent en être informés préalablement. Il
-              revient à l'employeur qui active cette fonction de vérifier ces
-              conditions, de mener l'analyse d'impact lorsqu'elle est requise et
-              de permettre la désactivation en dehors du temps de travail.
+              personnes concernées doivent en être informés préalablement. Le
+              produit borne lui-même la collecte aux horaires de travail,
+              précisément pour que le suivi ne déborde pas sur la vie privée. Il
+              revient à l'employeur qui active cette fonction de définir des
+              horaires proportionnés, d'informer les représentants du personnel
+              et de mener l'analyse d'impact lorsqu'elle est requise.
             </p>
             <p className="mt-3 text-sm">
               Vous pouvez exercer vos droits d'accès, de rectification,

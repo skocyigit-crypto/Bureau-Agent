@@ -3288,7 +3288,7 @@
   },
   "locationConsentGate": {
     "kvkkTitle": "Anwesenheitsverfolgung — KVKK / DSGVO-Hinweis",
-    "kvkkIntro": "Um zu funktionieren, erfasst die Ajant Bureau-App kontinuierlich Ihren ungefähren Standort, während Sie angemeldet sind, auch im Hintergrund.",
+    "kvkkIntro": "Während Ihrer Arbeitszeit erfasst die Ajant Bureau-App Ihren ungefähren Standort, auch im Hintergrund. Außerhalb dieser Zeiten wird kein Standort erfasst oder gespeichert.",
     "sectionCollected": "Was erfasst wird",
     "bulletCollected1": "- Breiten-/Längengrad, an den Server Ihres Arbeitgebers übermittelt.",
     "bulletCollected2": "- Datum/Uhrzeit und Akkustand (optional) zum Zeitpunkt der Messung.",
@@ -3306,7 +3306,9 @@
     "openSettings": "Einstellungen öffnen",
     "retry": "Erneut versuchen",
     "requesting": "Anfrage läuft...",
-    "allowLocation": "Standort zulassen"
+    "allowLocation": "Standort zulassen",
+    "sectionHoraires": "Zeiten der Erfassung",
+    "bulletHoraires": "- Nur während der von Ihrem Arbeitgeber festgelegten Zeiten. Nachts und an arbeitsfreien Tagen ist die Verfolgung gestoppt."
   },
   "formModal": {
     "searchContact": "Kontakt suchen...",

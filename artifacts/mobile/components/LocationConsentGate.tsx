@@ -70,6 +70,12 @@ function KvkkScreen({ onAccept }: { onAccept: () => Promise<void> }) {
       <Text style={styles.sectionHeading}>{t("locationConsentGate.sectionCollected")}</Text>
       <Text style={styles.bullet}>{t("locationConsentGate.bulletCollected1")}</Text>
       <Text style={styles.bullet}>{t("locationConsentGate.bulletCollected2")}</Text>
+      {/* Quand la collecte a lieu — la premiere question que se pose un
+          salarie, et celle a laquelle cet ecran ne repondait pas. Le suivi
+          tournait 24 h sur 24; il est desormais borne aux horaires definis par
+          l'employeur, et le serveur refuse d'enregistrer en dehors. */}
+      <Text style={styles.sectionHeading}>{t("locationConsentGate.sectionHoraires")}</Text>
+      <Text style={styles.bullet}>{t("locationConsentGate.bulletHoraires")}</Text>
       <Text style={styles.sectionHeading}>{t("locationConsentGate.sectionVisible")}</Text>
       <Text style={styles.bullet}>{t("locationConsentGate.bulletVisible")}</Text>
       <Text style={styles.sectionHeading}>{t("locationConsentGate.sectionRetention")}</Text>
