@@ -21,9 +21,9 @@
           "location",
           "fetch"
         ],
-        "NSLocationWhenInUseUsageDescription": "Ajant Bureau utilise votre position pour signaler votre presence a votre employeur (zones definies).",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Ajant Bureau a besoin d'acceder a votre position en permanence, y compris en arriere-plan, pour suivre votre presence sur les sites de travail (zones definies). Conserve 30 jours.",
-        "NSLocationAlwaysUsageDescription": "Ajant Bureau a besoin d'acceder a votre position en permanence, y compris en arriere-plan, pour suivre votre presence sur les sites de travail (zones definies). Conserve 30 jours.",
+        "NSLocationWhenInUseUsageDescription": "Ajant Bureau utilise votre position pour signaler votre presence sur les sites de travail (zones definies par votre employeur), pendant les horaires de travail.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Ajant Bureau signale votre presence sur les sites de travail (zones definies par votre employeur). La position est relevee en arriere-plan UNIQUEMENT pendant les horaires de travail definis par votre employeur; en dehors, aucune position n'est collectee. Votre employeur voit la zone ou vous etes, pas vos coordonnees. Conserve 30 jours.",
+        "NSLocationAlwaysUsageDescription": "Ajant Bureau signale votre presence sur les sites de travail (zones definies par votre employeur). La position est relevee en arriere-plan UNIQUEMENT pendant les horaires de travail definis par votre employeur; en dehors, aucune position n'est collectee. Votre employeur voit la zone ou vous etes, pas vos coordonnees. Conserve 30 jours.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -40,12 +40,7 @@
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_LOCATION",
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_BACKGROUND_LOCATION",
-        "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_LOCATION"
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -67,9 +62,9 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Ajant Bureau utilise votre position en permanence (y compris en arriere-plan) pour signaler votre presence a votre employeur sur les zones definies. Donnees conservees 30 jours.",
-          "locationAlwaysPermission": "Ajant Bureau utilise votre position en permanence (y compris en arriere-plan) pour signaler votre presence a votre employeur sur les zones definies.",
-          "locationWhenInUsePermission": "Ajant Bureau utilise votre position pour signaler votre presence a votre employeur.",
+          "locationAlwaysAndWhenInUsePermission": "Ajant Bureau signale votre presence sur les sites de travail (zones definies par votre employeur). La position est relevee en arriere-plan UNIQUEMENT pendant les horaires de travail definis par votre employeur; en dehors, aucune position n'est collectee. Conserve 30 jours.",
+          "locationAlwaysPermission": "Ajant Bureau signale votre presence sur les sites de travail (zones definies par votre employeur). La position est relevee en arriere-plan UNIQUEMENT pendant les horaires de travail definis par votre employeur; en dehors, aucune position n'est collectee. Conserve 30 jours.",
+          "locationWhenInUsePermission": "Ajant Bureau utilise votre position pour signaler votre presence sur les sites de travail, pendant les horaires de travail definis par votre employeur.",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
