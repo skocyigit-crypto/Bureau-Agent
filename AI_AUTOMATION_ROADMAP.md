@@ -2680,3 +2680,25 @@ oyunu saymaması gerekir.
 
 PR #38. Test: `src/__tests__/pdf-text-extraction.test.ts`, 20 farklı belge,
 her biri belirli değerleri arıyor (boş değil demek yetmez).
+
+## Şema, birleştirmeden ÖNCE gönderilir — 2026-09-05
+
+`main`'e her push Cloud Build tetikleyicisini çalıştırıyor. Yani önce
+birleştirip sonra şema göndermek, olmayan kolonları bekleyen bir kodu üretime
+salmak demek.
+
+Ve hata eklenen özellikle sınırlı kalmıyor: `organisations` tablosu **23 yerde**
+tüm kolonlarıyla okunuyor, bunlardan biri `middleware/license-check.ts` — her
+kimlik doğrulamalı isteğin geçtiği yol. Eksik bir kolon bir işlevi bozmaz,
+**uygulamanın tamamını** durdurur.
+
+2026-09-05'te PR #49 birleştirildi, şema sonra gönderildi. Dağıtım şemadan önce
+canlıya çıktı. Hiçbir şey düşmedi — ama sebebi o saatte kimsenin uygulamayı
+kullanmaması; sıralamanın güvenli olması değil. Aynı gün PR #42'de doğru sıra
+uygulanmıştı (şema önce), sonra unutuldu.
+
+Kural: şema değişikliği içeren PR'da önce `bash deploy/gcp-schema-push.sh`,
+sonra merge. Betiğin başına da yazıldı.
+
+`verify-schema-sync.mjs` artık üç konum kolonunu da kontrol ediyor — üretim
+push'unun sonunda çalışıyor (PR #45).

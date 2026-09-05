@@ -8,6 +8,19 @@
 #   bash deploy/gcp-schema-push.sh
 set -euo pipefail
 
+# ORDRE: pousser le schema AVANT de fusionner, jamais apres.
+#
+# Le declencheur Cloud Build part sur chaque poussee vers `main`. Fusionner
+# d'abord, c'est donc lancer en production un code qui attend des colonnes
+# absentes. Et l'echec n'est pas circonscrit a la fonctionnalite ajoutee:
+# `organisations` est lu avec toutes ses colonnes en 23 endroits, dont
+# `middleware/license-check.ts`, sur le chemin de CHAQUE requete authentifiee.
+# Une colonne manquante arrete l'application entiere.
+#
+# Le 2026-09-05 la fusion a precede la poussee. Rien n'est tombe — parce que
+# personne n'utilisait le service a cette heure-la, pas parce que la sequence
+# etait sure.
+
 # Le projet est EPINGLE, pas lu dans la configuration active.
 #
 # Ce projet GCP heberge quatre applications: agent-de-bureau, assise,
