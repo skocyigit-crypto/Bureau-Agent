@@ -760,8 +760,21 @@ router.patch("/auth/users/:id", async (req: Request, res: Response): Promise<voi
   if (clean.prenom && clean.nom) updateData.avatar = `${clean.prenom[0]}${clean.nom[0]}`.toUpperCase();
 
   if (clean.password) {
-    if (clean.password.length < 8) {
-      res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caracteres." });
+    // Meme exigence que partout ailleurs.
+    //
+    // Cette voie-ci acceptait « 12345678 »: huit caracteres, aucune classe
+    // imposee, aucune liste de mots interdits — alors que l'inscription, le
+    // changement de mot de passe, la reinitialisation par courriel,
+    // l'acceptation d'invitation et la creation de compte par un
+    // administrateur passent tous par `validatePasswordStrength` (10
+    // caracteres, 3 classes, mots trop courants refuses).
+    //
+    // C'est la voie la plus exposee des six, pas la moins: un administrateur
+    // qui pose le mot de passe d'un employe pose CELUI QUE L'EMPLOYE GARDERA.
+    // Une politique ne vaut que par son point d'entree le plus faible.
+    const strength = validatePasswordStrength(String(clean.password));
+    if (!strength.ok) {
+      res.status(400).json({ error: strength.error });
       return;
     }
     updateData.passwordHash = await bcrypt.hash(clean.password, SALT_ROUNDS);
