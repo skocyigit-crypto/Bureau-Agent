@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 659,
+    "runtimeOperations": 660,
     "documentedOperations": 96,
-    "undocumentedOperations": 563
+    "undocumentedOperations": 564
   },
   "operations": [
     {
@@ -2148,6 +2148,14 @@
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/cron-tick.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/csp-report",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/csp-report.ts"
       ]
     },
     {

@@ -43,7 +43,7 @@
                 # defaut discret: elle casserait la page d un client qui paie.
                 # La valeur doit rester identique a deploy/csp.policy
                 # (verifie par csp-policy.test.ts).
-                Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https:; connect-src 'self'; frame-src 'none'; frame-ancestors 'none'; form-action 'self' https://checkout.stripe.com https://billing.stripe.com https://accounts.google.com; base-uri 'none'; object-src 'none'; upgrade-insecure-requests"
+                Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https:; connect-src 'self'; frame-src 'none'; frame-ancestors 'none'; form-action 'self' https://checkout.stripe.com https://billing.stripe.com https://accounts.google.com; base-uri 'none'; object-src 'none'; upgrade-insecure-requests; report-uri /api/csp-report"
         }
 
         # `handle` blocks are only mutually exclusive with OTHER `handle`/
