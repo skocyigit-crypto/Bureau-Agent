@@ -383,6 +383,22 @@ app.use("/api/security/scan-document", express.json({ limit: "25mb" }));
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
+// Rapports de violation CSP.
+//
+// Montes ICI, avant la protection CSRF et la detection de menaces: un
+// navigateur envoie un rapport SANS jeton CSRF et sans session, donc la
+// chaine habituelle le rejetterait — et la mesure qu'on cherche a faire
+// n'arriverait jamais. Meme raison que pour le webhook Stripe juste
+// au-dessus.
+//
+// Les deux types de contenu que les navigateurs emploient sont declares:
+// `application/csp-report` pour l'ancien `report-uri`, `application/reports+json`
+// pour l'API Reporting. Sans eux, `express.json` ne lit pas le corps et la
+// route recevrait des rapports vides.
+import cspReportRouter from "./routes/csp-report";
+app.use("/api", express.json({ type: ["application/csp-report", "application/reports+json"], limit: "64kb" }));
+app.use("/api", cspReportRouter);
+
 import { protoPollutionGuard } from "./middleware/proto-pollution";
 app.use(protoPollutionGuard);
 
