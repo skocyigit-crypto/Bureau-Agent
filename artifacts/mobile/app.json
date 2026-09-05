@@ -24,7 +24,9 @@
         "NSLocationWhenInUseUsageDescription": "Ajant Bureau utilise votre position pour signaler votre presence sur les sites de travail (zones definies par votre employeur), pendant les horaires de travail.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Ajant Bureau signale votre presence sur les sites de travail (zones definies par votre employeur). La position est relevee en arriere-plan UNIQUEMENT pendant les horaires de travail definis par votre employeur; en dehors, aucune position n'est collectee. Votre employeur voit la zone ou vous etes, pas vos coordonnees. Conserve 30 jours.",
         "NSLocationAlwaysUsageDescription": "Ajant Bureau signale votre presence sur les sites de travail (zones definies par votre employeur). La position est relevee en arriere-plan UNIQUEMENT pendant les horaires de travail definis par votre employeur; en dehors, aucune position n'est collectee. Votre employeur voit la zone ou vous etes, pas vos coordonnees. Conserve 30 jours.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Ajant Bureau utilise l'appareil photo pour photographier vos justificatifs et documents (notes de frais, factures) et les rattacher a votre dossier.",
+        "NSPhotoLibraryUsageDescription": "Ajant Bureau accede a vos photos pour joindre un justificatif ou un document existant a votre dossier."
       }
     },
     "android": {
@@ -51,12 +53,6 @@
         "expo-router",
         {
           "origin": "https://agentdebureau.fr/"
-        }
-      ],
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Ajant Bureau a besoin d'acceder a votre camera pour la reconnaissance faciale."
         }
       ],
       [
