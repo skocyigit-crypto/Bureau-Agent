@@ -16,6 +16,42 @@ export const facturesClientTable = pgTable("factures_client", {
   clientPhone: text("client_phone"),
   clientAddress: text("client_address"),
   clientCompany: text("client_company"),
+  /**
+   * Les quatre mentions rendues obligatoires par le decret n° 2022-1299, qui
+   * les insere a l'article 242 nonies A de l'annexe II au CGI. Elles sont
+   * exigees des PME sur les factures emises a partir du 1er septembre 2027;
+   * le defaut de mention est sanctionne par l'article 1737 du CGI — 15 € par
+   * mention manquante, dans la limite du quart du montant de la facture.
+   *
+   * Toutes nullables a dessein: les factures deja emises ne les portent pas et
+   * ne doivent pas etre reecrites — une facture emise est immuable. Elles se
+   * renseignent a l'emission des nouvelles.
+   */
+  /**
+   * SIREN ou SIRET du client. Ce n'est plus une donnee administrative parmi
+   * d'autres: dans la facturation electronique, c'est l'ADRESSE DE ROUTAGE
+   * dans l'annuaire central. Mal recopie, la facture n'est jamais delivree, et
+   * l'emetteur l'apprend par le retard de paiement. Voir `services/siren.ts`,
+   * qui arrete la faute de frappe avant l'emission.
+   */
+  clientSiren: text("client_siren"),
+  /**
+   * Adresse de livraison, quand elle differe de l'adresse de facturation.
+   * Nulle quand elle est identique — c'est le cas courant, et la dupliquer
+   * ferait diverger les deux copies a la premiere correction.
+   */
+  deliveryAddress: text("delivery_address"),
+  /**
+   * Categorie de l'operation: "biens" | "services" | "mixte". Elle determine
+   * l'exigibilite de la TVA, elle n'est pas decorative. Les libelles sont dans
+   * `services/siren.ts`: le texte reglementaire les fixe.
+   */
+  operationCategory: text("operation_category"),
+  /**
+   * Option pour le paiement de la TVA d'apres les debits. Vrai fait porter a
+   * la facture la mention exigee, recopiee a l'identique.
+   */
+  vatOnDebits: boolean("vat_on_debits").notNull().default(false),
   items: jsonb("items").$type<{
     description: string;
     quantity: number;

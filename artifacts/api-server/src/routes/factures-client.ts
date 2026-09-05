@@ -8,6 +8,7 @@ import { getOrgId } from "../middleware/tenant";
 import { deriveInvoiceStatus, overdueCondition } from "../services/invoice-status";
 import { buildInvoiceDocument, invoiceFileName, renderInvoicePdf } from "../services/invoice-pdf";
 import { buildFacturXXml } from "../services/facturx";
+import { LIBELLE_CATEGORIE, verifierIdentifiant } from "../services/siren";
 import { computeInvoiceTotals, isValidCurrency, parseUserDate, clampPagination, normalizePaidAmount } from "../services/invoice-totals";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
 
@@ -189,13 +190,24 @@ router.get("/factures-client/:id/facturx.xml", async (req: Request, res: Respons
 
 router.post("/factures-client", async (req: Request, res: Response): Promise<void> => {
   const targetOrg = getOrgId(req);
-  const { reference, title, clientName, clientEmail, clientPhone, clientAddress, clientCompany, items, subtotal, taxAmount, totalAmount, paidAmount, isAutoliquidation, currency = "EUR", status = "brouillon", dueDate, paymentMethod, notes, conditions, contactId, devisId } = req.body;
+  const { reference, title, clientName, clientEmail, clientPhone, clientAddress, clientCompany, clientSiren, deliveryAddress, operationCategory, vatOnDebits, items, subtotal, taxAmount, totalAmount, paidAmount, isAutoliquidation, currency = "EUR", status = "brouillon", dueDate, paymentMethod, notes, conditions, contactId, devisId } = req.body;
   if (!title?.trim()) { res.status(400).json({ error: "Le titre est obligatoire." }); return; }
   if (!clientName?.trim()) { res.status(400).json({ error: "Le client est obligatoire." }); return; }
   if (!STATUSES.includes(status)) { res.status(400).json({ error: "Statut invalide." }); return; }
   if (!isValidCurrency(currency)) { res.status(400).json({ error: "Devise invalide (code ISO 4217 attendu)." }); return; }
   const dueDateVal = parseUserDate(dueDate);
   if (dueDateVal === undefined) { res.status(400).json({ error: "Date d'échéance invalide." }); return; }
+  // Mentions du decret n° 2022-1299. On refuse a l'entree ce qu'on ne pourra
+  // pas emettre: un SIREN mal recopie routerait la facture vers une autre
+  // entreprise, et le decouvrir a l'emission serait trop tard.
+  const verdictSiren = verifierIdentifiant(clientSiren);
+  if (clientSiren != null && String(clientSiren).trim() !== "" && !verdictSiren.valide) {
+    res.status(400).json({ error: `SIREN/SIRET du client invalide : ${verdictSiren.motif}.` }); return;
+  }
+  if (operationCategory != null && operationCategory !== "" && !(operationCategory in LIBELLE_CATEGORIE)) {
+    res.status(400).json({ error: "Categorie d'operation invalide (biens, services ou mixte)." }); return;
+  }
+  const categorieValide = operationCategory ? String(operationCategory) : null;
   const totalsPre = computeInvoiceTotals(Array.isArray(items) ? items : [], { autoliquidation: !!isAutoliquidation });
   if (totalsPre.overflow) { res.status(400).json({ error: "Montant trop élevé (dépasse la limite autorisée)." }); return; }
   try {
@@ -237,6 +249,12 @@ router.post("/factures-client", async (req: Request, res: Response): Promise<voi
       clientPhone: clientPhone ?? null,
       clientAddress: clientAddress ?? null,
       clientCompany: clientCompany ?? null,
+      // Le SIREN est stocke normalise: il sert d'adresse de routage, et
+      // « 552 100 554 » doit valoir « 552100554 » pour l'annuaire.
+      clientSiren: verdictSiren.valeur,
+      deliveryAddress: deliveryAddress ?? null,
+      operationCategory: categorieValide,
+      vatOnDebits: !!vatOnDebits,
       // Totaux recalcules et valides ci-dessus; l'autoliquidation force TVA=0.
       items: totalsPre.lines,
       subtotal: String(totalsPre.subtotal),
@@ -293,10 +311,22 @@ router.patch("/factures-client/:id", async (req: Request, res: Response): Promis
     }
     if (b.status !== undefined && !STATUSES.includes(b.status)) { res.status(400).json({ error: "Statut invalide." }); return; }
     if (b.currency !== undefined && !isValidCurrency(b.currency)) { res.status(400).json({ error: "Devise invalide." }); return; }
+    // Mentions du decret n° 2022-1299: memes controles qu'a la creation. Un
+    // identifiant valide a l'insertion ne doit pas pouvoir etre casse ensuite.
+    if (b.clientSiren !== undefined && String(b.clientSiren ?? "").trim() !== "") {
+      const v = verifierIdentifiant(b.clientSiren);
+      if (!v.valide) { res.status(400).json({ error: `SIREN/SIRET du client invalide : ${v.motif}.` }); return; }
+      b.clientSiren = v.valeur;
+    }
+    if (b.operationCategory !== undefined && b.operationCategory !== null && b.operationCategory !== ""
+      && !(b.operationCategory in LIBELLE_CATEGORIE)) {
+      res.status(400).json({ error: "Categorie d'operation invalide (biens, services ou mixte)." }); return;
+    }
     const updates: any = { updatedAt: new Date() };
-    for (const k of ["title", "clientName", "clientEmail", "clientPhone", "clientAddress", "clientCompany", "currency", "status", "notes", "conditions", "paymentMethod"]) {
+    for (const k of ["title", "clientName", "clientEmail", "clientPhone", "clientAddress", "clientCompany", "currency", "status", "notes", "conditions", "paymentMethod", "clientSiren", "deliveryAddress", "operationCategory"]) {
       if (b[k] !== undefined) updates[k] = b[k];
     }
+    if (b.vatOnDebits !== undefined) updates.vatOnDebits = !!b.vatOnDebits;
     // Reference: unicite verifiee aussi en modification (une facture legale ne
     // peut pas partager son numero avec une autre — exigence Factur-X incluse).
     if (b.reference !== undefined && String(b.reference).trim()) {

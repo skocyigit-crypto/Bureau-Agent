@@ -5816,7 +5816,14 @@
       "dueDate": "Fälligkeit",
       "notes": "Notizen",
       "update": "Aktualisieren",
-      "create": "Erstellen"
+      "create": "Erstellen",
+      "siren": "SIREN / SIRET des Kunden",
+      "delivery": "Lieferadresse (falls abweichend)",
+      "category": "Art des Umsatzes",
+      "catBiens": "Lieferung von Gegenstanden",
+      "catServices": "Erbringung von Dienstleistungen",
+      "catMixte": "Lieferung und Dienstleistung",
+      "debits": "USt nach vereinbarten Entgelten"
     },
     "toast": {
       "error": "Fehler",

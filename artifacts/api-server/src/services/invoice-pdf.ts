@@ -24,6 +24,12 @@
  */
 
 import { computeInvoiceTotals, type InvoiceLine, type VatBreakdownEntry } from "./invoice-totals";
+import {
+  LIBELLE_CATEGORIE,
+  MENTION_TVA_DEBITS,
+  verifierIdentifiant,
+  type CategorieOperation,
+} from "./siren";
 
 /** Profil vendeur, tel que stocke sur `organisations`. */
 export interface InvoiceSeller {
@@ -49,6 +55,15 @@ export interface InvoiceRecord {
   clientCompany?: string | null;
   clientAddress?: string | null;
   clientEmail?: string | null;
+  /**
+   * Les quatre mentions du decret n° 2022-1299. Optionnelles ici parce que les
+   * factures deja emises ne les portent pas: le document reste produit, avec un
+   * avertissement plutot qu'une erreur.
+   */
+  clientSiren?: string | null;
+  deliveryAddress?: string | null;
+  operationCategory?: string | null;
+  vatOnDebits?: boolean | null;
   items?: Array<{ description?: string; quantity?: number | string; unitPrice?: number | string; taxRate?: number | string }> | null;
   paidAmount?: string | number | null;
   currency?: string | null;
@@ -177,6 +192,27 @@ export function buildInvoiceDocument(
   const buyerEmail = clean(invoice.clientEmail);
   if (buyerEmail) buyerLines.push(buyerEmail);
 
+  // Identifiant du client — mention obligatoire (decret n° 2022-1299), et
+  // adresse de routage de la facture electronique. On avertit sur un numero
+  // mal recopie plutot que de l'imprimer tel quel: une facture qui porte un
+  // mauvais SIREN n'atteint pas son destinataire.
+  const buyerId = verifierIdentifiant(invoice.clientSiren);
+  if (buyerId.valide && buyerId.valeur) {
+    buyerLines.push(`${buyerId.type === "siret" ? "SIRET" : "SIREN"} : ${buyerId.valeur}`);
+  } else if (clean(invoice.clientSiren)) {
+    warnings.push(`L'identifiant du client est invalide (${buyerId.motif}).`);
+  } else {
+    warnings.push("Le SIREN du client est absent (mention obligatoire).");
+  }
+
+  // Adresse de livraison, seulement si elle differe: la repeter a l'identique
+  // n'apporte rien et fait diverger les deux copies a la premiere correction.
+  const delivery = clean(invoice.deliveryAddress);
+  const billing = clean(invoice.clientAddress);
+  if (delivery && delivery !== billing) {
+    buyerLines.push("Livraison :", ...addressLines(delivery));
+  }
+
   // --- Reglement -----------------------------------------------------------
   const payment: string[] = [];
   if (dueDate) payment.push(`Date d'echeance : ${formatDate(dueDate)}`);
@@ -205,6 +241,17 @@ export function buildInvoiceDocument(
   if (!autoliquidation && !tvaNumber && totals.taxAmount > 0) {
     warnings.push("De la TVA est facturee sans numero de TVA intracommunautaire renseigne.");
   }
+  // Categorie de l'operation: elle determine l'exigibilite de la TVA, et se
+  // lit avec la mention des debits juste en dessous.
+  const categorie = clean(invoice.operationCategory) as CategorieOperation | null;
+  if (categorie && categorie in LIBELLE_CATEGORIE) {
+    legalMentions.push(`Categorie de l'operation : ${LIBELLE_CATEGORIE[categorie]}.`);
+  } else {
+    warnings.push("La categorie de l'operation est absente (mention obligatoire).");
+  }
+  // Recopiee a l'identique: le texte reglementaire fixe un libelle unique.
+  if (invoice.vatOnDebits) legalMentions.push(`${MENTION_TVA_DEBITS}.`);
+
   legalMentions.push(LATE_PENALTY_MENTION, RECOVERY_INDEMNITY_MENTION, NO_DISCOUNT_MENTION);
 
   if (totals.lines.length === 0) warnings.push("La facture ne comporte aucune ligne.");
