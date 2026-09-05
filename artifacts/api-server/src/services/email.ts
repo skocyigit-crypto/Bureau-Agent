@@ -752,7 +752,17 @@ export async function sendTrialEndingEmail(params: {
 <p style="color:#0f1729;font-size:15px;line-height:1.6;">Bonjour,</p>
 <p style="color:#0f1729;font-size:15px;line-height:1.6;">${intro}</p>
 <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px;margin:20px 0;">
-<p style="color:#92400e;font-size:13px;margin:0;line-height:1.6;">Choisissez un plan adapte a votre activite a partir de <strong>29 EUR / mois</strong>. Pas d'engagement, annulable a tout moment.</p>
+<p style="color:#92400e;font-size:13px;margin:0;line-height:1.6;">Choisissez un plan adapte a votre activite a partir de <strong>29 EUR HT / mois</strong>. Pas d'engagement, annulable a tout moment.</p>
+      <!-- Le prix etait annonce sans mention HT, alors que les CGV posent des
+           prix « exprimes en euros hors taxes »: un client comparait un montant
+           qui n'etait pas celui qu'il paierait.
+           La deuxieme phrase manquait entierement. Le message invitait a
+           « choisir un plan » sans dire comment on paie — or il n'y a pas de
+           paiement en ligne: le plan se demande depuis l'espace client, une
+           facture part, et l'acces s'etend au virement. Laisser croire a un
+           reglement immediat, c'est fabriquer une deception au moment precis
+           ou le client decide d'acheter. -->
+      <p style="color:#92400e;font-size:13px;margin:8px 0 0;line-height:1.6;">L'abonnement se met en place <strong>sur facture</strong>: indiquez le plan souhaite depuis votre espace, nous vous adressons la facture, et l'acces est etendu des reception du virement.</p>
 </div>
 <div style="text-align:center;margin:24px 0;">
 <a href="${portalUrl}" style="display:inline-block;background:#f59e0b;color:#0f1729;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:700;">Voir les plans</a>
@@ -761,7 +771,7 @@ export async function sendTrialEndingEmail(params: {
 <div style="background:#f8fafc;padding:20px 32px;text-align:center;border-top:1px solid #e2e8f0;">
 <p style="color:#94a3b8;font-size:11px;margin:0;">Support: <a href="mailto:support@agentdebureau.fr" style="color:#f59e0b;">support@agentdebureau.fr</a></p>
 </div></div></body></html>`;
-  const text = `${title} - Ajant Bureau\n\n${expired ? `La periode d'essai gratuit de ${orgName} est terminee.` : `Il vous reste ${daysLeft} jour(s) avant la fin de votre essai gratuit (${endStr}).`}\n\nVoir les plans: ${portalUrl}\n\nSupport: support@agentdebureau.fr`;
+  const text = `${title} - Ajant Bureau\n\n${expired ? `La periode d'essai gratuit de ${orgName} est terminee.` : `Il vous reste ${daysLeft} jour(s) avant la fin de votre essai gratuit (${endStr}).`}\n\nA partir de 29 EUR HT / mois. L'abonnement se met en place sur facture: indiquez le plan souhaite depuis votre espace, nous vous adressons la facture, et l'acces est etendu des reception du virement.\n\nVoir les plans: ${portalUrl}\n\nSupport: support@agentdebureau.fr`;
   return sendEmail(to, `[Ajant Bureau] ${title} - ${orgName}`, html, text);
 }
 
