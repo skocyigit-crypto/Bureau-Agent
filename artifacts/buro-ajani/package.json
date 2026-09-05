@@ -9,8 +9,9 @@
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --config vitest.config.ts",
-    "a11y:check": "node ./scripts/a11y-form-labels.mjs --check && node ./scripts/a11y-contrast.mjs --check && node ./scripts/a11y-hardcoded-contrast.mjs --check && node ./scripts/a11y-focus-visible.mjs --check && pnpm run a11y:check:vitrine",
-    "a11y:check:vitrine": "node ./scripts/a11y-form-labels.mjs --check --src=../tanitim/src && node ./scripts/a11y-focus-visible.mjs --check --src=../tanitim/src"
+    "a11y:check": "node ./scripts/a11y-form-labels.mjs --check && node ./scripts/a11y-contrast.mjs --check && node ./scripts/a11y-hardcoded-contrast.mjs --check && node ./scripts/a11y-focus-visible.mjs --check && pnpm run a11y:check:vitrine && pnpm run i18n:check",
+    "a11y:check:vitrine": "node ./scripts/a11y-form-labels.mjs --check --src=../tanitim/src && node ./scripts/a11y-focus-visible.mjs --check --src=../tanitim/src",
+    "i18n:check": "node ./scripts/i18n-cles-resolues.mjs --check && node ./scripts/i18n-cles-resolues.mjs --check --src=../mobile --locales=../mobile/lib/i18n/locales"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",
