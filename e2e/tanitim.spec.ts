@@ -24,12 +24,36 @@ function collectConsoleErrors(page: Page): string[] {
   return errors;
 }
 
+/**
+ * Violations de la politique de securite du contenu.
+ *
+ * Elles sont recueillies separement des erreurs ordinaires parce qu'elles ne
+ * se voient pas de la meme facon: une ressource bloquee par la CSP ne fait pas
+ * planter la page — elle la prive silencieusement d'une feuille de style,
+ * d'une image ou d'un appel reseau. Le visiteur voit une page qui « marche »,
+ * en moins bien, et personne ne l'apprend.
+ */
+function collectCspViolations(page: Page): string[] {
+  const violations: string[] = [];
+  page.on("console", (msg) => {
+    const texte = msg.text();
+    if (/Content Security Policy|Content-Security-Policy/i.test(texte)) violations.push(texte);
+  });
+  return violations;
+}
+
 test.describe("page d'accueil", () => {
   test("se rend avec du contenu, pas une page blanche", async ({ page }) => {
     const errors = collectConsoleErrors(page);
+    const violations = collectCspViolations(page);
     const response = await page.goto("/");
 
     expect(response?.status()).toBe(200);
+    // Les donnees structurees (JSON-LD) sont des blocs de DONNEES, que
+    // `script-src` ne gouverne pas. On le verifie plutot que de le supposer:
+    // une CSP qui les bloquerait ne se verrait pas — la page s'afficherait
+    // normalement et le referencement se degraderait en silence.
+    expect(violations, `violations CSP sur l'accueil: ${violations.join(" | ")}`).toEqual([]);
     // Une application React cassee rend un <div id="root"> vide et un 200
     // parfaitement convaincant. On regarde donc le contenu, pas le statut.
     await expect(page.locator("body")).toContainText(/\w{4,}/);
@@ -79,8 +103,13 @@ test.describe("pages obligatoires", () => {
 
   for (const { path, label, titre } of pages) {
     test(`${label} : accessible et non vide`, async ({ page }) => {
+      const violations = collectCspViolations(page);
       const response = await page.goto(path);
       expect(response?.status()).toBe(200);
+      // La politique s'applique a CHAQUE page, pas seulement a l'accueil: ces
+      // pages sont chargees a la demande, donc chacune demande son propre
+      // morceau de JavaScript.
+      expect(violations, `violations CSP sur ${path}`).toEqual([]);
 
       // Ces pages sont chargees a la demande (`lazy()`), derriere un Suspense
       // dont le repli est un div vide. Lire le texte juste apres `goto` ne

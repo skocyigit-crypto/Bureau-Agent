@@ -14,6 +14,22 @@
                 X-Content-Type-Options "nosniff"
                 X-Frame-Options "DENY"
                 Referrer-Policy "strict-origin-when-cross-origin"
+                # Permissions-Policy et CSP manquaient ICI, alors que
+                # l'application les avait toutes les deux — mesure du
+                # 2026-09-05 sur https://agentdebureau.fr/. Or c'est ce
+                # service qui sert la RACINE du domaine: le premier document
+                # que voit un visiteur, un robot d'indexation ou le
+                # questionnaire de securite d'un acheteur n'etait couvert par
+                # aucune des deux.
+                Permissions-Policy "accelerometer=(), autoplay=(), camera=(self), cross-origin-isolated=(), display-capture=(self), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), hid=(), identity-credentials-get=(), idle-detection=(), interest-cohort=(), keyboard-map=(), magnetometer=(), microphone=(self), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), sync-xhr=(), usb=(), xr-spatial-tracking=()"
+                # BLOQUANTE, et non Report-Only comme du cote application —
+                # voir deploy/csp.tanitim.policy.md. Ce site est statique et
+                # `e2e/tanitim.spec.ts` ouvre reellement chacune de ses pages
+                # sous cette politique: ce qui est verifie en entier peut etre
+                # applique en entier.
+                #
+                # La valeur doit rester identique a deploy/csp.tanitim.policy.
+                Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https:; connect-src 'self'; frame-src 'none'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'; object-src 'none'; upgrade-insecure-requests"
         }
 
         handle /api* {
