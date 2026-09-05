@@ -181,15 +181,39 @@ rm -f "${BUILD_CFG}"
 # Sans ce job, relances, digests et sauvegardes ne partent que si quelqu'un
 # utilise l'application au meme moment — une panne silencieuse.
 #
-# --no-cpu-throttling n'est PAS un reglage de confort:
-# toutes les taches planifiees (relances de paiement, digest quotidien, agents
-# IA, sauvegardes, agents de sante) reposent sur setInterval dans le processus.
-# Avec une instance minimum, le processus reste disponible et le temps
-# s'ecoule normalement; ces taches ne dependent plus du trafic utilisateur.
-# Avec le throttling CPU par defaut, le travail en arriere-plan n'obtenait
-# presque pas de CPU (latences
-# mesurees a 11 s sur un simple SELECT 1). Les repasser a 0/throttled remettrait
-# silencieusement les automatisations en panne.
+# Mise a l'echelle: min=0 et throttling CPU actif — et c'est VOULU.
+#
+# Ce bloc affirmait l'inverse: « --no-cpu-throttling n'est PAS un reglage de
+# confort », « les repasser a 0/throttled remettrait silencieusement les
+# automatisations en panne ». C'etait vrai quand les taches planifiees vivaient
+# uniquement dans des setInterval: une instance arretee emportait ses minuteries.
+#
+# L'architecture a change depuis. `withHeartbeat` inscrit chaque tache au
+# registre des crons declenchables de l'exterieur (health-agents.ts), et le job
+# Cloud Scheduler `agent-de-bureau-cron` appelle /api/cron/tick toutes les dix
+# minutes. Le travail de fond devient alors du travail DE REQUETE — et une
+# requete obtient tout le CPU, throttling ou non. C'est precisement ce qui rend
+# le throttling inoffensif ici.
+#
+# Mesure du 2026-09-05 en production (min=0, cpu-throttling=true): le job
+# Scheduler est ENABLED, les journaux montrent « [CronTick] Taches declenchees »,
+# « [ai-insights] cron cycle complete », « [billing-cron] ... skipping ». Les
+# vingt taches tournent.
+#
+# Laisser l'ancien commentaire coutait deux fois: il poussait a repayer une
+# instance permanente sans raison, et il apprenait a se mefier des invariants
+# ecrits dans ce depot.
+#
+# CE QUI COMPTE MAINTENANT, a la place: le job Cloud Scheduler est devenu le
+# point unique de defaillance. S'il est supprime ou desactive, plus rien ne
+# tourne — silencieusement. C'est l'agent de sante `scheduler` (« Crons vivants,
+# retards, erreurs repetees ») qui surveille cela, via les battements de coeur.
+# Le creer fait partie du deploiement, voir plus haut.
+#
+# Reserve honnete: un travail lance en « fire-and-forget » APRES l'envoi de la
+# reponse (un `void sendEmail(...)`) sort du temps de requete et peut etre
+# ralenti par le throttling. Ces appels sont courts et rien ne l'a signale en
+# production, mais c'est la seule zone ou le reglage se voit encore.
 echo "-- Deploying ${API_SERVICE} --"
 DATABASE_URL="postgresql://${SQL_USER}@/${SQL_DB}?host=/cloudsql/${SQL_CONNECTION_NAME}"
 # DB_PASSWORD n'est monte nulle part: aucun code ne le lit (lib/db/src/index.ts
@@ -256,7 +280,7 @@ gcloud run deploy "${API_SERVICE}" \
   --add-cloudsql-instances="${SQL_CONNECTION_NAME}" \
   --update-env-vars="${RUN_ENV_VARS}" \
   --update-secrets="${SECRET_REFS}" \
-  --min=1 --max-instances=3 --memory=1Gi --cpu=1 --no-cpu-throttling --cpu-boost \
+  --min=0 --max-instances=3 --memory=1Gi --cpu=1 --cpu-boost \
   --port=8080
 
 API_URL="$(gcloud run services describe "${API_SERVICE}" --region="${REGION}" --project "${PROJECT}" --format='value(status.url)')"
@@ -311,7 +335,11 @@ gcloud run deploy "${WEB_SERVICE}" \
   --platform=managed \
   --allow-unauthenticated \
   --update-env-vars="API_UPSTREAM=${API_HOST}:443" \
-  --min=1 --max-instances=3 --memory=256Mi --cpu=1 --cpu-boost \
+  # min=0 comme en production. Ce service ne fait que servir des fichiers
+  # statiques derriere Caddy: il n'a aucun travail de fond a maintenir en vie,
+  # et une instance permanente se paierait seulement pour epargner un demarrage
+  # a froid. `--cpu-boost` couvre deja ce demarrage.
+  --min=0 --max-instances=3 --memory=256Mi --cpu=1 --cpu-boost \
   --port=8080
 
 WEB_URL="$(gcloud run services describe "${WEB_SERVICE}" --region="${REGION}" --project "${PROJECT}" --format='value(status.url)')"
