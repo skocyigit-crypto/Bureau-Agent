@@ -212,7 +212,38 @@ router.use(licenseManagementRouter);
 router.use(aiCommandantRouter);
 router.use(aiUsageRouter);
 router.use(agentCollaborationRouter);
-router.use("/face", faceRecognitionRouter);
+// RECONNAISSANCE FACIALE — DEBRANCHEE. Ne pas remonter sans lire ceci.
+//
+// `/face/register` enregistrait un gabarit derive d'un visage
+// (`face_profiles.face_descriptor`) et `/face/recognize` identifiait une
+// personne a partir d'une photo, en journalisant le nom reconnu, l'indice de
+// confiance, la position et l'appareil.
+//
+// Un gabarit qui permet d'identifier quelqu'un de facon unique est une donnee
+// biometrique au sens de l'article 4(14) du RGPD, et l'article 9 en interdit
+// le traitement par principe. Or, mesure le 2026-09-05: le mot « biometrie »
+// n'apparaissait dans AUCUN document — ni politique de confidentialite
+// francaise, ni turque, ni DPA, ni CGU — et aucun ecran ne recueillait de
+// consentement avant l'enrolement. Le traitement etait actif et bloque nulle
+// part.
+//
+// Declarer ne suffirait pas: en contexte de travail, le consentement d'un
+// salarie n'est pas considere comme librement donne, et la CNIL a sanctionne
+// a plusieurs reprises la reconnaissance faciale utilisee pour le pointage.
+// Ecrire un paragraphe de politique aurait rendu la chose visible, pas licite.
+//
+// La route est donc debranchee plutot que documentee. Avant de la remonter, il
+// faut les quatre, pas trois:
+//   1. une base licite au titre de l'article 9(2), verifiee par un juriste;
+//   2. une analyse d'impact (AIPD), obligatoire ici — article 35(3)(b);
+//   3. un ecran de recueil et de retrait du consentement, avant tout enrolement;
+//   4. la declaration dans les quatre documents, et l'etiquette « donnees
+//      biometriques » sur les fiches App Store / Play Store.
+//
+// Le code du routeur et les tables restent en place: rien n'est perdu, et la
+// fonction repart le jour ou ces quatre conditions existent.
+// router.use("/face", faceRecognitionRouter);
+void faceRecognitionRouter;
 router.use(telephonyRouter);
 router.use(emailProvidersRouter);
 router.use(aiProvidersRouter);

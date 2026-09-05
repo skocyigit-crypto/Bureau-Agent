@@ -2290,7 +2290,8 @@
       "s5": "Set the method to",
       "s6": "Save. The AI will answer incoming calls automatically."
     },
-    "voiceDefaultSuffix": " (default)"
+    "voiceDefaultSuffix": " (default)",
+    "fraudLabel": "Action for fraudulent calls"
   },
   "settingsIntelligenceArtificielle": {
     "loadError": "Unable to load AI settings.",
@@ -3035,7 +3036,8 @@
       "password": "Password",
       "disableBtn": "Disable",
       "twoFactorDisabled": "Two-factor authentication disabled",
-      "disableFailed": "Disable failed"
+      "disableFailed": "Disable failed",
+      "totpLabel": "Six-digit verification code"
     },
     "monitor": {
       "loading": "Loading the security monitor...",
@@ -7183,7 +7185,8 @@
       "autoPlaceholder": "Paste the interaction content...",
       "extractBtn": "Extract tasks & appointments",
       "createdTaskLine": "✓ Task: {{title}}",
-      "createdEventLine": "📅 Appointment: {{title}}"
+      "createdEventLine": "📅 Appointment: {{title}}",
+      "typeLabel": "Interaction type"
     },
     "finance": {
       "title": "AI Financial view",

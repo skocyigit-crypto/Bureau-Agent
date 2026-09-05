@@ -2290,7 +2290,8 @@
       "s5": "Legen Sie die Methode fest auf",
       "s6": "Speichern. Die KI beantwortet eingehende Anrufe automatisch."
     },
-    "voiceDefaultSuffix": " (Standard)"
+    "voiceDefaultSuffix": " (Standard)",
+    "fraudLabel": "Aktion bei betrügerischen Anrufen"
   },
   "settingsIntelligenceArtificielle": {
     "loadError": "KI-Einstellungen konnten nicht geladen werden.",
@@ -3035,7 +3036,8 @@
       "password": "Passwort",
       "disableBtn": "Deaktivieren",
       "twoFactorDisabled": "Zwei-Faktor-Authentifizierung deaktiviert",
-      "disableFailed": "Deaktivierung nicht möglich"
+      "disableFailed": "Deaktivierung nicht möglich",
+      "totpLabel": "Sechsstelliger Bestätigungscode"
     },
     "monitor": {
       "loading": "Sicherheitsmonitor wird geladen...",
@@ -7183,7 +7185,8 @@
       "autoPlaceholder": "Fügen Sie den Inhalt der Interaktion ein...",
       "extractBtn": "Aufgaben & Termine extrahieren",
       "createdTaskLine": "✓ Aufgabe: {{title}}",
-      "createdEventLine": "📅 Termin: {{title}}"
+      "createdEventLine": "📅 Termin: {{title}}",
+      "typeLabel": "Interaktionstyp"
     },
     "finance": {
       "title": "KI-Finanzübersicht",
