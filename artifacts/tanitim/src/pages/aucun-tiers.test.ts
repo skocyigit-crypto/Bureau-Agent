@@ -75,3 +75,61 @@ describe("aucune ressource chargee depuis un tiers", () => {
     expect(deps["@fontsource/inter"], "la police doit etre une dependance declaree").toBeTruthy();
   });
 });
+
+/**
+ * Le code QR de la section « Ajant Bureau sur votre telephone ».
+ *
+ * La facon la plus rapide d'afficher un QR est d'appeler un service qui le
+ * dessine — `api.qrserver.com`, `chart.googleapis.com`, `quickchart.io`. Cela
+ * transmettrait a ce service l'adresse IP de chaque visiteur ET l'adresse
+ * encodee, sur la page d'accueil, avant tout consentement: exactement la fuite
+ * que ce site vient de fermer avec la police.
+ *
+ * Le QR est donc un fichier genere hors ligne et servi par nous. Ces tests
+ * empechent le retour en arriere, qui tiendrait en une ligne.
+ */
+const SERVICES_QR = [
+  "api.qrserver.com",
+  "chart.googleapis.com",
+  "quickchart.io",
+  "goqr.me",
+];
+
+describe("code QR de l'installation mobile", () => {
+  const composant = fs.readFileSync(
+    path.join(RACINE, "tanitim/src/components/MobileInstall.tsx"),
+    "utf8",
+  );
+
+  it("n'est dessine par aucun service tiers", () => {
+    const sansCommentaires = composant.replace(/\/\*[^]*?\*\//g, "").replace(/\/\/[^\n\r]*/g, "");
+    for (const service of SERVICES_QR) {
+      expect(
+        sansCommentaires.includes(service),
+        `le QR est demande a ${service}: adresse IP du visiteur transmise a un tiers`,
+      ).toBe(false);
+    }
+  });
+
+  it("est servi depuis notre domaine, et le fichier existe", () => {
+    expect(composant).toContain('src="/qr-application.svg"');
+    // Un `<img>` vers un fichier absent ne fait echouer aucun test de rendu:
+    // la page s'affiche, avec un cadre vide a la place du QR.
+    const svg = path.join(RACINE, "tanitim/public/qr-application.svg");
+    expect(fs.existsSync(svg), "le fichier du QR est absent de public/").toBe(true);
+    expect(fs.readFileSync(svg, "utf8")).toContain("<svg");
+  });
+
+  it("annonce l'installation depuis le navigateur, pas un magasin", () => {
+    // L'application native n'est publiee sur aucun magasin: elle demande un
+    // compte Apple Developer et un compte Play Console, tous deux au nom du
+    // proprietaire. Afficher des boutons « App Store » / « Google Play »
+    // promettrait un telechargement qui n'existe pas.
+    expect(composant).not.toMatch(/apps\.apple\.com|play\.google\.com/);
+    const aplati = composant.replace(/\s+/g, " ");
+    expect(
+      aplati,
+      "la section doit dire que l'application n'est pas encore sur les magasins",
+    ).toMatch(/pas encore publi[ée]e sur l'App Store/i);
+  });
+});

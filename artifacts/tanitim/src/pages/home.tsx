@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { AjanDemo } from "@/components/AjanDemo";
+import { MobileInstall } from "@/components/MobileInstall";
 import { REGISTER_URL, registerUrlForPlan } from "@/lib/app-url";
 
 // DemoModal n'est rendu que sur clic — chargement paresseux pour
@@ -381,6 +382,9 @@ export default function Home() {
 
         {/* 2.5 AJAN DEMO — public Gemini-powered live demo */}
         <AjanDemo />
+
+        {/* 2.6 INSTALLATION MOBILE — QR + ajout a l ecran d accueil */}
+        <MobileInstall />
 
         {/* Section "logos clients" retiree: elle affichait des marques
             inventees (Volantera, Zephira, Orbicorp...) sous un titre affirmant
