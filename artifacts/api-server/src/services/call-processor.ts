@@ -2,6 +2,7 @@ import { db, callsTable, tasksTable, calendarEventsTable, notificationsTable } f
 import { eq, and, sql } from "drizzle-orm";
 import { logAudit } from "../routes/audit";
 import { safeJsonParse, aiCallWithRetry, sanitizePromptInput, wrapUntrusted, recordAiUsage, extractGeminiTokens, geminiActualModel, GEMINI_PRO_MODEL } from "./ai-utils";
+import { AGENTS, creerTacheIa } from "./tache-ia";
 import { assertAiQuota, invalidateQuotaCache } from "./ai-quota";
 import { logger } from "../lib/logger";
 import { aiForOrg } from "./ai-client";
@@ -258,16 +259,21 @@ Reponds UNIQUEMENT en JSON avec cette structure:
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + (taskDef.dueInDays || 1));
 
-    const [task] = await db.insert(tasksTable).values({
+    // La mention « [Cree automatiquement] » quitte la description: c'etait une
+    // convention appliquee par deux agents sur neuf, invisible aux filtres et
+    // absente partout ailleurs. L'auteur est desormais porte par la colonne,
+    // donc filtrable, et repete en clair par la porte unique.
+    const task = await creerTacheIa({
       organisationId: call.organisationId!,
+      agent: AGENTS.analyseAppel,
+      nature: "commercial",
       title: taskDef.title,
-      description: `${taskDef.description}\n\n[Cree automatiquement - Appel #${callId} avec ${call.contactName || call.phoneNumber}]`,
-      status: "en_attente",
+      description: `${taskDef.description}\n\nAppel #${callId} avec ${call.contactName || call.phoneNumber}.`,
       priority: taskDef.priority || "moyenne",
       dueDate,
       relatedCallId: callId,
       relatedContactId: call.contactId,
-    }).returning();
+    });
 
     createdTasks.push(task);
   }
@@ -276,16 +282,17 @@ Reponds UNIQUEMENT en JSON avec cette structure:
     const followUpDue = new Date();
     followUpDue.setDate(followUpDue.getDate() + 1);
 
-    const [followUpTask] = await db.insert(tasksTable).values({
+    const followUpTask = await creerTacheIa({
       organisationId: call.organisationId!,
+      agent: AGENTS.analyseAppel,
+      nature: "commercial",
       title: `Suivi: ${call.contactName || call.phoneNumber}`,
-      description: `${analysis.followUpReason || "Suivi necessaire suite a l'appel."}\n\n[Cree automatiquement - Appel #${callId}]`,
-      status: "en_attente",
+      description: `${analysis.followUpReason || "Suivi necessaire suite a l'appel."}\n\nAppel #${callId}.`,
       priority: "haute",
       dueDate: followUpDue,
       relatedCallId: callId,
       relatedContactId: call.contactId,
-    }).returning();
+    });
 
     createdTasks.push(followUpTask);
   }

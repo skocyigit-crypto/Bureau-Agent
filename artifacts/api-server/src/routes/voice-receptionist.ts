@@ -28,6 +28,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import crypto from "crypto";
 import { and, eq, sql, desc, gte, lt, inArray, or, isNull } from "drizzle-orm";
+import { AGENTS, creerTacheIa } from "../services/tache-ia";
 import {
   db,
   telephonyProvidersTable,
@@ -1294,15 +1295,19 @@ async function persistOutcome(session: CallSession, result: ReceptionistResult):
         // Tache de suivi automatique (defaut ON): rappeler a l'equipe de
         // confirmer ce RDV pris par telephone (echeance = horaire du RDV).
         if (session.cfg.autoFollowupTask !== false) {
-          await db.insert(tasksTable).values({
+          // Personne n'a demande cette tache: la secretaire telephonique a
+          // pris un rendez-vous seule, pendant que le bureau etait ferme. Elle
+          // doit donc trouver un destinataire par elle-meme — et un rendez-vous
+          // a confirmer est un travail commercial.
+          await creerTacheIa({
             organisationId: session.orgId,
+            agent: AGENTS.secretaireAutonome,
+            nature: "commercial",
             title: `Confirmer le RDV telephonique: ${a.name || caller}`,
             description:
-              `RDV pris par la secretaire telephonique IA, a confirmer.\n` +
               `Motif: ${a.reason || "non precise"}\n` +
-              `Horaire: ${a.whenText || "—"}\n` +
+              `Horaire: ${a.whenText || "-"}\n` +
               `Telephone: ${caller}`,
-            status: "en_attente",
             priority: "haute",
             dueDate: validStart,
             relatedContactId: session.callerContactId,

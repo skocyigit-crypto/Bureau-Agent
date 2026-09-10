@@ -4,6 +4,7 @@ import {
   callsTable, messagesTable, facturesClientTable, projetsTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, gte, lte, sql, ilike, or, inArray } from "drizzle-orm";
+import { AGENTS, creerTacheIa } from "./tache-ia";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { prepareQuery, rankByRelevance } from "../helpers/relevance";
 import { scoreContact, scoreTask, scoreEvent, scoreCall, scoreProject } from "../helpers/tool-scorers";
@@ -476,14 +477,22 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
       if (due && Number.isNaN(due.getTime())) {
         return { success: false, error: "dueDate invalide (utilisez ISO 8601)." };
       }
-      const [row] = await db.insert(tasksTable).values({
+      // L'assistant redige, mais quelqu'un a demande. Les deux sont vrais et
+      // les deux sont enregistres: `createdBy` pour le demandeur, la colonne
+      // d'agent pour la machine qui a ecrit. La tache va dans la liste de
+      // celui qui l'a demandee — il la veut chez lui, pas chez le role
+      // competent.
+      const row = await creerTacheIa({
         organisationId: orgId,
+        agent: AGENTS.assistant,
+        nature: "administratif",
         title: a.title,
         description: a.description ?? null,
         priority: a.priority ?? "moyenne",
         dueDate: due,
-        createdBy: userId,
-      }).returning({ id: tasksTable.id });
+        demandePar: userId,
+        assignerA: userId,
+      });
       return { success: true, id: row.id, url: `/taches` };
     },
   },

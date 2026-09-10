@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, asc, ilike, or, sql, and, gte, lte } from "drizzle-orm";
 import { db, callsTable, contactsTable, tasksTable, calendarEventsTable, messagesTable, organisationsTable } from "@workspace/db";
+import { AGENTS, creerTacheIa } from "../services/tache-ia";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import {
   ListCallsQueryParams,
@@ -831,15 +832,24 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
         for (const action of suggestedActions) {
           if (action.type === "task" || action.type === "callback" || action.type === "devis" || action.type === "escalation" || action.type === "email") {
             const priorityMap: Record<string, string> = { critique: "haute", haute: "haute", moyenne: "moyenne", basse: "basse" };
-            await tx.insert(tasksTable).values({
-              title: action.type === "escalation" ? `[URGENT] ${action.description}` : action.type === "devis" ? `[DEVIS] ${action.description}` : action.type === "email" ? `[EMAIL] ${action.description}` : action.description || `Tache creee par ${saveAgentFirstName}`,
-              description: `Creee automatiquement par ${saveAgentFirstName} suite a l'appel de ${contactName || phoneNumber}.\nType: ${action.type}\nPriorite: ${action.priority || "moyenne"}\nDelai: ${action.dueInHours ? action.dueInHours + "h" : "non specifie"}\n\n${summary || ""}`,
-              status: "en_attente",
-              priority: priorityMap[action.priority] || "moyenne",
+            // Les prefixes « [URGENT] », « [DEVIS] », « [EMAIL] » quittent le
+            // titre. Ils melangeaient deux informations differentes — la
+            // NATURE de l'action et le fait qu'une machine l'a proposee — dans
+            // un texte que rien ne savait lire. La nature devient la priorite
+            // et la description; l'auteur devient une colonne.
+            //
+            // La transaction est transmise: ces taches naissent avec l'appel,
+            // et doivent disparaitre avec lui si son enregistrement echoue.
+            await creerTacheIa({
+              organisationId: orgId,
+              agent: AGENTS.analyseAppel,
+              nature: action.type === "devis" ? "commercial" : "administratif",
+              title: action.description || `Suite a l'appel de ${contactName || phoneNumber}`,
+              description: `Suite a l'appel de ${contactName || phoneNumber}.\nType: ${action.type}\nDelai: ${action.dueInHours ? action.dueInHours + "h" : "non specifie"}\n\n${summary || ""}`,
+              priority: action.type === "escalation" ? "haute" : priorityMap[action.priority] || "moyenne",
               relatedContactId: contactId || null,
               relatedCallId: call.id,
-              organisationId: orgId,
-            });
+            }, tx);
             tasksCreated++;
           }
           if (action.type === "appointment") {

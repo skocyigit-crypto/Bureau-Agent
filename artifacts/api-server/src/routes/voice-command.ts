@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import crypto from "crypto";
 import { db, callsTable, contactsTable, tasksTable, calendarEventsTable, projetsTable, messagesTable } from "@workspace/db";
+import { AGENTS, creerTacheIa } from "../services/tache-ia";
 import { eq, desc, and, sql, or } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
@@ -1038,14 +1039,19 @@ router.post("/voice/confirm", async (req: Request, res: Response): Promise<void>
     switch (payload.intent) {
       case "create_task": {
         const title = (params.title || "Nouvelle tache vocale").slice(0, 200);
-        const [row] = await db.insert(tasksTable).values({
+        // Quelqu'un a dicte cette tache: elle lui appartient et va dans SA
+        // liste. La machine n'a fait que transcrire — ce qui reste vrai, et
+        // reste inscrit.
+        const row = await creerTacheIa({
           organisationId: orgId,
+          agent: AGENTS.saisieVocale,
+          nature: "administratif",
           title,
-          description: `Cree par commande vocale: "${payload.raw || ""}"`,
-          status: "en_attente",
+          description: `Dictee a la voix: "${payload.raw || ""}"`,
           priority: "moyenne",
-          createdBy: userId || null,
-        }).returning({ id: tasksTable.id });
+          demandePar: userId || null,
+          assignerA: userId || null,
+        });
         await logAudit(userId, userEmail, "voice_create_task", "task", String(row?.id), { title, raw: payload.raw }, ip, ua, orgId);
         res.json({ success: true, action: "task_created", spoken: t(lang, "done_task", { title }), navigate: "/taches", id: row?.id });
         return;
