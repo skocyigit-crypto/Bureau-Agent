@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 661,
+    "runtimeOperations": 664,
     "documentedOperations": 96,
-    "undocumentedOperations": 565
+    "undocumentedOperations": 568
   },
   "operations": [
     {
@@ -2732,6 +2732,30 @@
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/email-providers.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/encaissements",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/encaissements.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/encaissements/annuler",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/encaissements.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/encaissements/verifier",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/encaissements.ts"
       ]
     },
     {

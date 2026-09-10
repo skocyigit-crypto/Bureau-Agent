@@ -1,0 +1,242 @@
+/**
+ * Journal des reglements: enregistrer, corriger, prouver.
+ *
+ * Trois routes, et la troisieme est celle qui compte lors d'un controle.
+ *
+ *   POST /encaissements            enregistre un reglement (ajout seul)
+ *   POST /encaissements/annuler    contre-passe une ecriture (ajout seul)
+ *   GET  /encaissements/verifier   refait tout le calcul et dit si la chaine tient
+ *
+ * Il n'existe deliberement NI PATCH NI DELETE. Ce n'est pas un oubli: le 3° bis
+ * du I de l'article 286 du CGI exige l'inalterabilite des donnees de reglement,
+ * et une route de modification la rendrait impossible a affirmer, quels que
+ * soient les controles poses autour. Une correction s'ecrit, elle ne s'efface
+ * pas.
+ */
+import { Router, type IRouter, type Request, type Response } from "express";
+import { and, desc, eq } from "drizzle-orm";
+import { db, encaissementsTable, facturesClientTable } from "@workspace/db";
+
+import { getOrgId } from "../middleware/tenant";
+import { logAudit } from "./audit";
+import {
+  preparerEcriture,
+  soldeFacture,
+  verifierChaine,
+  type EcritureChainee,
+} from "../services/chainage-encaissements";
+
+const router: IRouter = Router();
+
+const MOYENS = ["especes", "virement", "cheque", "carte", "prelevement", "autre"] as const;
+
+/** Convertit les lignes de la base en ecritures chainables. */
+function enEcritures(lignes: (typeof encaissementsTable.$inferSelect)[]): EcritureChainee[] {
+  return lignes.map((l) => ({
+    numero: l.numero,
+    organisationId: l.organisationId,
+    factureId: l.factureId,
+    montantCentimes: l.montantCentimes,
+    devise: l.devise,
+    moyen: l.moyen,
+    // L'horodatage entre dans l'empreinte: il doit ressortir de la base sous
+    // exactement la meme forme qu'a l'ecriture, sinon le recalcul echoue sur
+    // une difference de format et non sur une falsification.
+    dateEncaissement: l.dateEncaissement.toISOString(),
+    sens: l.sens as "encaissement" | "annulation",
+    annuleNumero: l.annuleNumero,
+    empreintePrecedente: l.empreintePrecedente,
+    empreinte: l.empreinte,
+  }));
+}
+
+/**
+ * Ce dont la fonction a besoin: lire et mettre a jour. Type STRUCTUREL, pour
+ * qu'une transaction Drizzle passe sans `as` — un `as` est un controle qu'on
+ * desactive, et il n'a rien a faire sur le chemin d'une ecriture comptable.
+ */
+type Executeur = Pick<typeof db, "select" | "update">;
+
+/** Le montant encaisse, recalcule depuis le journal et remis dans le cache d'affichage. */
+async function rafraichirCache(orgId: number, factureId: number, tx: Executeur = db) {
+  const lignes = await tx.select().from(encaissementsTable)
+    .where(and(eq(encaissementsTable.organisationId, orgId), eq(encaissementsTable.factureId, factureId)))
+    .orderBy(encaissementsTable.numero);
+  const centimes = soldeFacture(enEcritures(lignes), factureId);
+  await tx.update(facturesClientTable)
+    .set({ paidAmount: (centimes / 100).toFixed(2), updatedAt: new Date() })
+    .where(and(eq(facturesClientTable.id, factureId), eq(facturesClientTable.organisationId, orgId)));
+}
+
+router.post("/encaissements", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const { factureId, montant, moyen, dateEncaissement } = req.body ?? {};
+
+  const centimes = Math.round(Number(montant) * 100);
+  if (!Number.isFinite(centimes) || centimes <= 0) {
+    res.status(400).json({ error: "Montant invalide: un encaissement est strictement positif." });
+    return;
+  }
+  if (!MOYENS.includes(moyen)) {
+    res.status(400).json({ error: `Moyen de paiement invalide (${MOYENS.join(", ")}).` });
+    return;
+  }
+  const quand = dateEncaissement ? new Date(dateEncaissement) : new Date();
+  if (Number.isNaN(quand.getTime())) {
+    res.status(400).json({ error: "Date d'encaissement invalide." });
+    return;
+  }
+
+  try {
+    const resultat = await db.transaction(async (tx) => {
+      // La facture doit appartenir a l'organisation: un identifiant fourni par
+      // l'appelant n'est jamais fiable.
+      const [facture] = await tx.select({ id: facturesClientTable.id, devise: facturesClientTable.currency })
+        .from(facturesClientTable)
+        .where(and(eq(facturesClientTable.id, Number(factureId)), eq(facturesClientTable.organisationId, orgId)));
+      if (!facture) return { erreur: "Facture introuvable." as const };
+
+      const [derniere] = await tx.select().from(encaissementsTable)
+        .where(eq(encaissementsTable.organisationId, orgId))
+        .orderBy(desc(encaissementsTable.numero)).limit(1);
+
+      const ecriture = preparerEcriture({
+        organisationId: orgId,
+        factureId: facture.id,
+        montantCentimes: centimes,
+        devise: facture.devise ?? "EUR",
+        moyen,
+        dateEncaissement: quand.toISOString(),
+        sens: "encaissement",
+        annuleNumero: null,
+      }, derniere ? { numero: derniere.numero, empreinte: derniere.empreinte } : null);
+
+      const [ligne] = await tx.insert(encaissementsTable).values({
+        organisationId: ecriture.organisationId,
+        numero: ecriture.numero,
+        factureId: ecriture.factureId,
+        montantCentimes: ecriture.montantCentimes,
+        devise: ecriture.devise,
+        moyen: ecriture.moyen,
+        dateEncaissement: quand,
+        sens: ecriture.sens,
+        annuleNumero: ecriture.annuleNumero,
+        empreintePrecedente: ecriture.empreintePrecedente,
+        empreinte: ecriture.empreinte,
+        createdBy: req.session?.userId ?? null,
+      }).returning({ id: encaissementsTable.id, numero: encaissementsTable.numero });
+
+      await rafraichirCache(orgId, facture.id, tx);
+      return { ligne, empreinte: ecriture.empreinte };
+    });
+
+    if ("erreur" in resultat) { res.status(404).json({ error: resultat.erreur }); return; }
+
+    await logAudit(req.session?.userId, req.session?.userEmail, "encaissement_enregistre",
+      "encaissement", String(resultat.ligne.numero),
+      { factureId: Number(factureId), montantCentimes: centimes, moyen }, req.ip, req.get("user-agent"), orgId);
+
+    res.status(201).json({ numero: resultat.ligne.numero, empreinte: resultat.empreinte });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur enregistrement encaissement");
+    res.status(500).json({ error: "Erreur lors de l'enregistrement." });
+  }
+});
+
+router.post("/encaissements/annuler", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const numero = Number(req.body?.numero);
+  if (!Number.isInteger(numero) || numero < 1) {
+    res.status(400).json({ error: "Numero d'ecriture invalide." });
+    return;
+  }
+
+  try {
+    const resultat = await db.transaction(async (tx) => {
+      const [cible] = await tx.select().from(encaissementsTable)
+        .where(and(eq(encaissementsTable.organisationId, orgId), eq(encaissementsTable.numero, numero)));
+      if (!cible) return { erreur: "Ecriture introuvable." as const };
+      if (cible.sens === "annulation") return { erreur: "Une annulation ne s'annule pas." as const };
+
+      const [derniere] = await tx.select().from(encaissementsTable)
+        .where(eq(encaissementsTable.organisationId, orgId))
+        .orderBy(desc(encaissementsTable.numero)).limit(1);
+
+      const quand = new Date();
+      const ecriture = preparerEcriture({
+        organisationId: orgId,
+        factureId: cible.factureId,
+        // Le montant inverse: la contre-passation dit ce qu'elle retire.
+        montantCentimes: -cible.montantCentimes,
+        devise: cible.devise,
+        moyen: cible.moyen,
+        dateEncaissement: quand.toISOString(),
+        sens: "annulation",
+        annuleNumero: cible.numero,
+      }, derniere ? { numero: derniere.numero, empreinte: derniere.empreinte } : null);
+
+      await tx.insert(encaissementsTable).values({
+        organisationId: ecriture.organisationId,
+        numero: ecriture.numero,
+        factureId: ecriture.factureId,
+        montantCentimes: ecriture.montantCentimes,
+        devise: ecriture.devise,
+        moyen: ecriture.moyen,
+        dateEncaissement: quand,
+        sens: ecriture.sens,
+        annuleNumero: ecriture.annuleNumero,
+        empreintePrecedente: ecriture.empreintePrecedente,
+        empreinte: ecriture.empreinte,
+        createdBy: req.session?.userId ?? null,
+      });
+
+      if (cible.factureId) await rafraichirCache(orgId, cible.factureId, tx);
+      return { numero: ecriture.numero, annule: cible.numero };
+    });
+
+    if ("erreur" in resultat) { res.status(400).json({ error: resultat.erreur }); return; }
+
+    await logAudit(req.session?.userId, req.session?.userEmail, "encaissement_annule",
+      "encaissement", String(resultat.numero), { annuleNumero: resultat.annule },
+      req.ip, req.get("user-agent"), orgId);
+
+    res.status(201).json(resultat);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur annulation encaissement");
+    res.status(500).json({ error: "Erreur lors de l'annulation." });
+  }
+});
+
+/**
+ * Refait tout le calcul et dit si la chaine tient.
+ *
+ * C'est la route qu'on montre a un controleur, et celle qu'il faut pouvoir
+ * lancer soi-meme avant qu'il n'arrive. Elle ne prouve pas que les montants
+ * sont justes — elle prouve qu'ils n'ont pas ete modifies apres coup, ce qui
+ * est exactement ce que demande l'inalterabilite.
+ */
+router.get("/encaissements/verifier", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  try {
+    const lignes = await db.select().from(encaissementsTable)
+      .where(eq(encaissementsTable.organisationId, orgId))
+      .orderBy(encaissementsTable.numero);
+
+    const verdict = verifierChaine(enEcritures(lignes), orgId);
+
+    await logAudit(req.session?.userId, req.session?.userEmail, "journal_reglements_verifie",
+      "encaissement", undefined, { intacte: verdict.intacte, verifiees: verdict.verifiees },
+      req.ip, req.get("user-agent"), orgId);
+
+    res.json({
+      ...verdict,
+      total: lignes.length,
+      fondement: "Article 286-I-3° bis du CGI — inalterabilite des donnees de reglement.",
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur verification journal des reglements");
+    res.status(500).json({ error: "Erreur lors de la verification." });
+  }
+});
+
+export default router;
