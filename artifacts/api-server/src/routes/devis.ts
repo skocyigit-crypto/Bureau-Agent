@@ -213,12 +213,20 @@ router.post("/devis/:id/convert-to-facture", async (req: Request, res: Response)
     // La facture issue d'un devis entre dans la MEME sequence que les autres.
     // Le devis, lui, garde une reference libre: aucune regle fiscale ne lui
     // impose de suite continue.
-    const ref = await nextInvoiceNumber(db, orgId);
+    // Numero et ecriture dans UNE transaction: nextInvoiceNumber incremente le
+    // compteur, et si l'insertion tombe ensuite le numero doit revenir avec
+    // elle. Hors transaction le compteur avancait quand meme et la sequence
+    // gardait un trou, ce que l'article 242 nonies A ann. II CGI interdit.
+    // La mise a jour du devis entre dans la meme transaction: une facture
+    // creee sans que le devis soit marque converti autorisait une seconde
+    // conversion du meme devis.
+    const facture = await db.transaction(async (tx) => {
+    const ref = await nextInvoiceNumber(tx, orgId);
 
     // Echeance par defaut: 30 jours (delai de paiement usuel B2B en France).
     const dueDate = new Date(Date.now() + 30 * 86400000);
 
-    const [facture] = await db.insert(facturesClientTable).values({
+    const [creee] = await tx.insert(facturesClientTable).values({
       organisationId: orgId,
       contactId: devis.contactId ?? null,
       devisId: devis.id,
@@ -243,9 +251,12 @@ router.post("/devis/:id/convert-to-facture", async (req: Request, res: Response)
       notes: devis.notes ?? null,
     }).returning();
 
-    await db.update(devisTable)
-      .set({ convertedToInvoice: facture.id, status: devis.status === "brouillon" ? "accepte" : devis.status, acceptedAt: devis.acceptedAt ?? new Date(), updatedAt: new Date() })
+    await tx.update(devisTable)
+      .set({ convertedToInvoice: creee.id, status: devis.status === "brouillon" ? "accepte" : devis.status, acceptedAt: devis.acceptedAt ?? new Date(), updatedAt: new Date() })
       .where(and(eq(devisTable.id, id), eq(devisTable.organisationId, orgId)));
+
+      return creee;
+    });
 
     res.status(201).json({ facture });
   } catch (err: any) {

@@ -1,4 +1,4 @@
-import { Router, type Request, type Response } from "express";
+import { Router, type NextFunction, type Request, type Response } from "express";
 import crypto from "crypto";
 import multer from "multer";
 import { db, documentsTable, bulkScanJobsTable, organisationsTable } from "@workspace/db";
@@ -546,9 +546,13 @@ router.get("/documents/entity/:entityType/:entityId", requireMinAgent, async (re
   }
 });
 
-router.get("/documents/:id", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
+router.get("/documents/:id", requireMinAgent, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const orgId = getOrgId(req);
+    // Un segment non numerique n'est pas un identifiant: on passe la main aux
+    // routes litterales declarees plus bas (/documents/by-source), qu'un 400
+    // rendu ici masquerait completement.
+    if (!/^[0-9]+$/.test(String(req.params.id))) { next(); return; }
     const docId = parseInt(String(req.params.id));
     if (isNaN(docId)) { res.status(400).json({ error: "ID invalide" }); return; }
 

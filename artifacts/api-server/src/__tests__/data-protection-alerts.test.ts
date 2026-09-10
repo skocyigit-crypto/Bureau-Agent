@@ -35,7 +35,20 @@ describe("detection de donnees personnelles", () => {
     // Le total ne permet pas de savoir SI ces tables-la sont peuplees: c'est
     // ce qui rendait la verification impossible et le predicat creux.
     expect(source).toMatch(/tableCounts: Record<string, number>/);
-    expect(source).toMatch(/analyzeOrgBackupStatus\(org,[^)]*tableCounts\)/);
+    // L argument passe reste une carte de comptes PAR TABLE. Il ne s appelle
+    // plus `tableCounts` au point d appel: le total plateforme y a ete remplace
+    // par les comptes DE L ORGANISATION examinee (test suivant), ce qui garde
+    // la propriete verifiee ici et la renforce.
+    expect(source).toMatch(/analyzeOrgBackupStatus\(org,[^)]*comptesOrg\)/);
+  });
+
+  it("compte les lignes DE L ORGANISATION, pas celles de la plateforme", () => {
+    // `getTableRecordCounts` compte toutes les organisations confondues. Passe
+    // a une alerte adressee a UN client, il lui annoncait le volume du parc
+    // entier: faux pour lui, et divulgue aux autres.
+    expect(source).toMatch(/async function getRecordCountsByOrg\(\)/);
+    expect(source).toMatch(/GROUP BY organisation_id/);
+    expect(source).toMatch(/analyzeOrgBackupStatus\(org,[^)]*totalOrg,/);
   });
 
   it("n'a plus de predicat toujours vrai", () => {

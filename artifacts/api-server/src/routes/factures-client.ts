@@ -228,19 +228,24 @@ router.post("/factures-client", async (req: Request, res: Response): Promise<voi
     // d'un historique, import), mais elle n'entre plus dans la sequence: le
     // compteur ne sert qu'aux factures que CE logiciel emet, et c'est lui qui
     // doit rester continu.
-    let ref: string;
+    let refFournie: string | null = null;
     if (reference && String(reference).trim()) {
-      ref = String(reference).trim();
-      if (await checkExists(ref)) {
-        res.status(409).json({ error: `La reference "${ref}" existe deja pour cette organisation.` });
+      refFournie = String(reference).trim();
+      if (await checkExists(refFournie)) {
+        res.status(409).json({ error: `La reference "${refFournie}" existe deja pour cette organisation.` });
         return;
       }
-    } else {
-      // Sequence chronologique continue (art. 242 nonies A ann. II CGI), et non
-      // plus un identifiant aleatoire. Voir services/invoice-numbering.ts.
-      ref = await nextInvoiceNumber(db, targetOrg);
     }
-    const [row] = await db.insert(facturesClientTable).values({
+    // Sinon: sequence chronologique continue (art. 242 nonies A ann. II CGI),
+    // attribuee dans la transaction ci-dessous (services/invoice-numbering.ts).
+    // Le numero est pris DANS la transaction qui insere la facture: si
+    // l'insertion echoue, l'increment du compteur est annule avec elle. Hors
+    // transaction, un echec d'insertion laissait un numero consomme que
+    // aucune facture ne portait — un trou dans la sequence, que l'article
+    // 242 nonies A ann. II CGI interdit.
+    const row = await db.transaction(async (tx) => {
+    const ref = refFournie ?? await nextInvoiceNumber(tx, targetOrg);
+    const [cree] = await tx.insert(facturesClientTable).values({
       organisationId: targetOrg,
       reference: ref,
       title: title.trim(),
@@ -272,6 +277,8 @@ router.post("/factures-client", async (req: Request, res: Response): Promise<voi
       contactId: contactId ? Number(contactId) : null,
       devisId: linkedDevis,
     }).returning();
+      return cree;
+    });
     res.status(201).json(row);
   } catch (err: any) {
     req.log.error({ err }, "Erreur creation facture");

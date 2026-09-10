@@ -2591,8 +2591,13 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         // Meme sequence que les factures creees a la main: une facture emise par
         // l'agent IA ne doit pas porter un numero d'une autre nature, sinon la
         // suite chronologique de l'organisation comporte deux series.
-        const invoiceRef = await nextInvoiceNumber(db, orgId);
-        const [invoice] = await db.insert(facturesClientTable).values({
+        // Numero et insertion dans UNE transaction: si l'insertion echoue, le
+        // compteur revient en arriere avec elle. Sinon un numero est consomme
+        // sans facture — un trou dans la sequence continue exigee par
+        // l'article 242 nonies A ann. II CGI.
+        const { invoiceRef, invoice } = await db.transaction(async (tx) => {
+        const invoiceRef = await nextInvoiceNumber(tx, orgId);
+        const [invoice] = await tx.insert(facturesClientTable).values({
           organisationId: orgId,
           reference: invoiceRef,
           title: data.title || `Facture ${invoiceRef}`,
@@ -2607,6 +2612,8 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           dueDate: data.dueDate ? new Date(data.dueDate) : new Date(Date.now() + 30 * 86400000),
           paidAmount: "0",
         }).returning();
+        return { invoiceRef, invoice };
+        });
         result = { success: true, message: `Facture ${invoiceRef} creee pour ${data.clientName} — Total TTC: ${totalAmountCalc.toFixed(2)}€ (HT: ${subtotalCalc.toFixed(2)}€ + TVA: ${taxAmountCalc.toFixed(2)}€)`, entity: "invoice", id: invoice.id, data: { reference: invoiceRef, subtotal: subtotalCalc.toFixed(2), taxAmount: taxAmountCalc.toFixed(2), totalAmount: totalAmountCalc.toFixed(2) } };
         break;
       }
