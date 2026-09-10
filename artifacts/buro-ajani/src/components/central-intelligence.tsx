@@ -57,6 +57,10 @@ const VALID_ROUTES = [
   // Finances et exploitation.
   "/tresorerie", "/depenses", "/notes-internes", "/activite-recente",
   "/saisie-chantier", "/securite", "/protection-donnees",
+  // L assistant doit pouvoir y renvoyer quelqu un qui decrit un poste lent, un
+  // antivirus eteint ou une sauvegarde qui ne tourne plus: c est exactement la
+  // question a laquelle cette page repond.
+  "/diagnostic-poste",
   // Recuperation: l'assistant doit pouvoir y renvoyer quelqu'un qui vient de
   // supprimer par erreur — c'est le moment ou la page sert.
   "/corbeille",
