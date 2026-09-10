@@ -153,7 +153,8 @@
       "mobileApp": "Application mobile",
       "quotes": "Devis",
       "clientInvoices": "Factures clients",
-      "trash": "Corbeille"
+      "trash": "Corbeille",
+      "postDiagnostic": "Diagnostic du poste"
     }
   },
   "userMenu": {
@@ -9198,5 +9199,33 @@
       "notes_internes": "Note interne",
       "tasks": "Tâche"
     }
+  },
+  "diagnosticPoste": {
+    "titre": "Diagnostic du poste",
+    "sousTitre": "Savoir ce qui manque sur un poste de travail, et quoi faire.",
+    "commentTitre": "Comment ca marche",
+    "etape1": "Telechargez le script et enregistrez-le sur le poste a examiner.",
+    "etape2": "Clic droit sur le fichier, puis « Executer avec PowerShell ». Un rapport est ecrit sur le Bureau.",
+    "etape3": "Deposez ce rapport ici. Vous pouvez l ouvrir et le lire avant.",
+    "garantie": "Le script lit seulement : il ne modifie rien, n installe rien et ne se connecte a aucun serveur. Il ne collecte aucun document, aucun courriel, aucun historique de navigation — uniquement l etat technique du poste. Aucun logiciel ne reste installe.",
+    "telecharger": "Telecharger le script",
+    "deposer": "Deposer un rapport",
+    "note": "Etat general",
+    "rienASignaler": "Rien a signaler : ce poste est correctement tenu.",
+    "aFaire": "A faire :",
+    "nonMesureTitre": "Ce qui n a pas pu etre mesure",
+    "nonMesureDesc": "Ces points n ont pas pu etre lus, souvent faute de droits administrateur. Ils ne sont ni bons ni mauvais : ils sont inconnus.",
+    "toast": {
+      "fichierIllisible": "Fichier illisible",
+      "fichierIllisibleDesc": "Ce fichier n est pas un rapport valide. Verifiez qu il s agit bien de diagnostic-poste.json.",
+      "echec": "L analyse a echoue"
+    },
+    "remiseTitre": "Remise en etat — {{n}} action(s) automatisable(s)",
+    "remiseDesc": "Ce script corrige ce qui peut l etre sans risque. Lisez-le, puis lancez-le vous-meme sur le poste concerne : le produit ne peut pas l executer a votre place, et n a aucun moyen d atteindre la machine.",
+    "remiseAdmin": "Ouvrez PowerShell en tant qu administrateur avant de coller ce script.",
+    "remiseCopier": "Copier le script",
+    "remiseCopie": "Script copie",
+    "aLaMainTitre": "A faire a la main",
+    "aLaMainDesc": "Ces points ne sont volontairement pas automatises : ils suppriment des donnees, demandent un redemarrage choisi, ou produisent une cle a mettre a l abri. Un geste humain est ici la bonne reponse."
   }
 }

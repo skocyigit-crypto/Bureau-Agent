@@ -61,6 +61,7 @@ const Analytics = lazy(() => import("@/pages/analytics"));
 const SettingsPage = lazy(() => import("@/pages/settings"));
 const GuidePage = lazy(() => import("@/pages/guide"));
 const SanteTechniquePage = lazy(() => import("@/pages/sante-technique"));
+const DiagnosticPostePage = lazy(() => import("@/pages/diagnostic-poste"));
 const Reports = lazy(() => import("@/pages/reports"));
 const Software = lazy(() => import("@/pages/software"));
 const UsersPage = lazy(() => import("@/pages/users"));
@@ -368,6 +369,9 @@ function AppRoutes() {
         <Route path="/projets" component={withLicenseGate(ProjetsPage)} />
         <Route path="/saisie-chantier" component={withLicenseGate(VoiceSiteOpsPage)} />
         <Route path="/securite" component={withLicenseGate(SecuritePage)} />
+        {/* Diagnostic d un poste de travail: le client lance le script, depose
+            le rapport. Aucun acces a distance (voir services/diagnostic-poste). */}
+        <Route path="/diagnostic-poste" component={withLicenseGate(DiagnosticPostePage)} />
         <Route path="/assistant-proactif" component={withLicenseGate(AssistantProactifPage)} />
         <Route path="/ia-apprentissage" component={withLicenseGate(IaApprentissagePage)} />
         <Route path="/recherche-web" component={withLicenseGate(RechercheWebPage)} />

@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 660,
+    "runtimeOperations": 661,
     "documentedOperations": 96,
-    "undocumentedOperations": 564
+    "undocumentedOperations": 565
   },
   "operations": [
     {
@@ -2436,6 +2436,14 @@
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/devis.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/diagnostic-poste",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/diagnostic-poste.ts"
       ]
     },
     {

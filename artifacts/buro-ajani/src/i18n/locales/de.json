@@ -153,7 +153,8 @@
       "mobileApp": "Mobile App",
       "quotes": "Angebote",
       "clientInvoices": "Kundenrechnungen",
-      "trash": "Papierkorb"
+      "trash": "Papierkorb",
+      "postDiagnostic": "Arbeitsplatz-Diagnose"
     }
   },
   "userMenu": {
@@ -9198,5 +9199,33 @@
       "notes_internes": "Interne Notiz",
       "tasks": "Aufgabe"
     }
+  },
+  "diagnosticPoste": {
+    "titre": "Arbeitsplatz-Diagnose",
+    "sousTitre": "Sehen, was auf einem Rechner fehlt und was zu tun ist.",
+    "commentTitre": "So funktioniert es",
+    "etape1": "Skript herunterladen und auf dem zu prufenden Rechner speichern.",
+    "etape2": "Rechtsklick auf die Datei, dann \"Mit PowerShell ausfuhren\". Ein Bericht wird auf dem Desktop abgelegt.",
+    "etape3": "Diesen Bericht hier ablegen. Sie konnen ihn vorher offnen und lesen.",
+    "garantie": "Das Skript liest nur: es andert nichts, installiert nichts und verbindet sich mit keinem Server. Es erfasst keine Dokumente, keine E-Mails, keinen Browserverlauf — nur den technischen Zustand des Rechners. Es bleibt keine Software zuruck.",
+    "telecharger": "Skript herunterladen",
+    "deposer": "Bericht hochladen",
+    "note": "Gesamtzustand",
+    "rienASignaler": "Nichts zu melden: dieser Rechner ist gut gepflegt.",
+    "aFaire": "Zu tun:",
+    "nonMesureTitre": "Was nicht gemessen werden konnte",
+    "nonMesureDesc": "Diese Punkte konnten nicht gelesen werden, meist mangels Administratorrechten. Sie sind weder gut noch schlecht: sie sind unbekannt.",
+    "toast": {
+      "fichierIllisible": "Datei unlesbar",
+      "fichierIllisibleDesc": "Diese Datei ist kein gultiger Bericht. Prufen Sie, ob es diagnostic-poste.json ist.",
+      "echec": "Analyse fehlgeschlagen"
+    },
+    "remiseTitre": "Instandsetzung — {{n}} automatisierbare Aktion(en)",
+    "remiseDesc": "Dieses Skript behebt, was gefahrlos behoben werden kann. Lesen Sie es und fuhren Sie es selbst auf dem Rechner aus: das Produkt kann es nicht fur Sie ausfuhren und hat keinen Zugang zum Rechner.",
+    "remiseAdmin": "Offnen Sie PowerShell als Administrator, bevor Sie das Skript einfugen.",
+    "remiseCopier": "Skript kopieren",
+    "remiseCopie": "Skript kopiert",
+    "aLaMainTitre": "Von Hand zu erledigen",
+    "aLaMainDesc": "Diese Punkte sind bewusst nicht automatisiert: sie loschen Daten, erfordern einen selbst gewahlten Neustart oder erzeugen einen Schlussel, der sicher verwahrt werden muss."
   }
 }

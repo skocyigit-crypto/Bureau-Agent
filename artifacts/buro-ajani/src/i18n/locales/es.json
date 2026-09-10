@@ -153,7 +153,8 @@
       "mobileApp": "Aplicación móvil",
       "quotes": "Presupuestos",
       "clientInvoices": "Facturas de clientes",
-      "trash": "Papelera"
+      "trash": "Papelera",
+      "postDiagnostic": "Diagnostico del equipo"
     }
   },
   "userMenu": {
@@ -9198,5 +9199,33 @@
       "notes_internes": "Nota interna",
       "tasks": "Tarea"
     }
+  },
+  "diagnosticPoste": {
+    "titre": "Diagnostico del equipo",
+    "sousTitre": "Saber que falta en un equipo y que hacer.",
+    "commentTitre": "Como funciona",
+    "etape1": "Descargue el script y guardelo en el equipo a examinar.",
+    "etape2": "Clic derecho en el archivo y \"Ejecutar con PowerShell\". Se escribe un informe en el Escritorio.",
+    "etape3": "Deje ese informe aqui. Puede abrirlo y leerlo antes.",
+    "garantie": "El script solo lee: no modifica nada, no instala nada y no se conecta a ningun servidor. No recoge documentos, ni correos, ni historial de navegacion — solo el estado tecnico del equipo. No queda ningun programa instalado.",
+    "telecharger": "Descargar el script",
+    "deposer": "Subir un informe",
+    "note": "Estado general",
+    "rienASignaler": "Nada que senalar: este equipo esta bien mantenido.",
+    "aFaire": "Por hacer:",
+    "nonMesureTitre": "Lo que no se pudo medir",
+    "nonMesureDesc": "Estos puntos no se pudieron leer, normalmente por falta de permisos de administrador. Ni buenos ni malos: desconocidos.",
+    "toast": {
+      "fichierIllisible": "Archivo ilegible",
+      "fichierIllisibleDesc": "Este archivo no es un informe valido. Compruebe que sea diagnostic-poste.json.",
+      "echec": "El analisis fallo"
+    },
+    "remiseTitre": "Reparacion — {{n}} accion(es) automatizable(s)",
+    "remiseDesc": "Este script corrige lo que se puede corregir sin riesgo. Lealo y ejecutelo usted mismo en el equipo: el producto no puede ejecutarlo por usted ni tiene forma de acceder al equipo.",
+    "remiseAdmin": "Abra PowerShell como administrador antes de pegar este script.",
+    "remiseCopier": "Copiar el script",
+    "remiseCopie": "Script copiado",
+    "aLaMainTitre": "Por hacer a mano",
+    "aLaMainDesc": "Estos puntos no se automatizan a proposito: borran datos, requieren un reinicio elegido por usted, o generan una clave que debe guardarse a salvo."
   }
 }

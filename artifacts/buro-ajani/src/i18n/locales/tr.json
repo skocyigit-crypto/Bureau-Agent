@@ -153,7 +153,8 @@
       "mobileApp": "Mobil Uygulama",
       "quotes": "Teklifler",
       "clientInvoices": "Müşteri faturaları",
-      "trash": "Çöp kutusu"
+      "trash": "Çöp kutusu",
+      "postDiagnostic": "Bilgisayar kontrolu"
     }
   },
   "userMenu": {
@@ -9198,5 +9199,33 @@
       "notes_internes": "İç not",
       "tasks": "Görev"
     }
+  },
+  "diagnosticPoste": {
+    "titre": "Bilgisayar kontrolu",
+    "sousTitre": "Bir bilgisayarda ne eksik, ne yapilmali.",
+    "commentTitre": "Nasil calisir",
+    "etape1": "Betigi indirin ve incelenecek bilgisayara kaydedin.",
+    "etape2": "Dosyaya sag tiklayip \"PowerShell ile calistir\" deyin. Masaustune bir rapor yazilir.",
+    "etape3": "O raporu buraya birakin. Once acip okuyabilirsiniz.",
+    "garantie": "Betik yalnizca okur: hicbir sey degistirmez, hicbir sey kurmaz ve hicbir sunucuya baglanmaz. Belge, e-posta veya gezinti gecmisi toplamaz — sadece bilgisayarin teknik durumunu. Geride hicbir yazilim birakmaz.",
+    "telecharger": "Betigi indir",
+    "deposer": "Rapor yukle",
+    "note": "Genel durum",
+    "rienASignaler": "Bildirilecek bir sey yok: bu bilgisayar iyi durumda.",
+    "aFaire": "Yapilacak:",
+    "nonMesureTitre": "Olculemeyenler",
+    "nonMesureDesc": "Bu noktalar okunamadi, cogunlukla yonetici yetkisi olmadigi icin. Ne iyi ne kotu: bilinmiyor.",
+    "toast": {
+      "fichierIllisible": "Dosya okunamadi",
+      "fichierIllisibleDesc": "Bu dosya gecerli bir rapor degil. diagnostic-poste.json oldugundan emin olun.",
+      "echec": "Cozumleme basarisiz"
+    },
+    "remiseTitre": "Onarim — {{n}} islem otomatiklestirilebilir",
+    "remiseDesc": "Bu betik risksiz duzeltilebilecekleri duzeltir. Okuyun, sonra ilgili bilgisayarda kendiniz calistirin: urun sizin yerinize calistiramaz, makineye ulasma yolu da yoktur.",
+    "remiseAdmin": "Bu betigi yapistirmadan once PowerShell i yonetici olarak acin.",
+    "remiseCopier": "Betigi kopyala",
+    "remiseCopie": "Betik kopyalandi",
+    "aLaMainTitre": "Elle yapilacaklar",
+    "aLaMainDesc": "Bunlar bilerek otomatiklestirilmedi: veri siliyor, sizin secmeniz gereken bir yeniden baslatma istiyor ya da guvenle saklanmasi gereken bir anahtar uretiyor. Burada dogru cevap insan eli."
   }
 }
