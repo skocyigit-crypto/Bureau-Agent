@@ -27,8 +27,8 @@
  *     celui de finalite.
  *
  * D'ou cette forme: le client execute lui-meme un script de LECTURE SEULE
- * (`outils/diagnostic-poste.ps1`), lit ce qu'il envoie, et l'envoie s'il le
- * veut. Ce module ne fait qu'INTERPRETER ce rapport. Aucun canal entrant,
+ * (`artifacts/buro-ajani/public/outils/diagnostic-poste.ps1`, servi a la racine
+ * du site sous /outils/), lit ce qu'il envoie, et l'envoie s'il le veut. Ce module ne fait qu'INTERPRETER ce rapport. Aucun canal entrant,
  * aucune execution a distance, rien qui tourne en permanence.
  *
  * Ce que le produit gagne quand meme: le client sait ce qui ne va pas sur son

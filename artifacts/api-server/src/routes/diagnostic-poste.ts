@@ -1,7 +1,7 @@
 /**
  * Reception d'un rapport de diagnostic de poste.
  *
- * Le rapport est produit par `outils/diagnostic-poste.ps1`, que le client
+ * Le rapport est produit par `public/outils/diagnostic-poste.ps1`, que le client
  * execute LUI-MEME sur sa machine. Ce script ne communique avec personne: il
  * ecrit un fichier sur le Bureau. C'est le client qui decide ensuite de
  * l'envoyer, apres l'avoir lu s'il le souhaite.

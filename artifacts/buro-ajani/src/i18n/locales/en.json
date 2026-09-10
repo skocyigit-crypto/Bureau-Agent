@@ -153,7 +153,8 @@
       "mobileApp": "Mobile app",
       "quotes": "Quotes",
       "clientInvoices": "Client invoices",
-      "trash": "Trash"
+      "trash": "Trash",
+      "postDiagnostic": "Workstation check-up"
     }
   },
   "userMenu": {
@@ -9197,6 +9198,27 @@
       "projets": "Project",
       "notes_internes": "Internal note",
       "tasks": "Task"
+    }
+  },
+  "diagnosticPoste": {
+    "titre": "Workstation check-up",
+    "sousTitre": "See what a computer is missing, and what to do about it.",
+    "commentTitre": "How it works",
+    "etape1": "Download the script and save it on the computer to examine.",
+    "etape2": "Right-click the file, then \"Run with PowerShell\". A report is written to the Desktop.",
+    "etape3": "Drop that report here. You can open and read it first.",
+    "garantie": "The script only reads: it changes nothing, installs nothing and connects to no server. It collects no documents, no email, no browsing history — only the technical state of the machine. No software stays behind.",
+    "telecharger": "Download the script",
+    "deposer": "Upload a report",
+    "note": "Overall state",
+    "rienASignaler": "Nothing to report: this machine is well maintained.",
+    "aFaire": "To do:",
+    "nonMesureTitre": "What could not be measured",
+    "nonMesureDesc": "These points could not be read, usually for lack of administrator rights. They are neither good nor bad: they are unknown.",
+    "toast": {
+      "fichierIllisible": "Unreadable file",
+      "fichierIllisibleDesc": "This file is not a valid report. Check that it is diagnostic-poste.json.",
+      "echec": "Analysis failed"
     }
   }
 }
