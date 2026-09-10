@@ -9219,6 +9219,13 @@
       "fichierIllisible": "Unreadable file",
       "fichierIllisibleDesc": "This file is not a valid report. Check that it is diagnostic-poste.json.",
       "echec": "Analysis failed"
-    }
+    },
+    "remiseTitre": "Repair — {{n}} action(s) that can be automated",
+    "remiseDesc": "This script fixes what can be fixed safely. Read it, then run it yourself on the machine: the product cannot run it for you, and has no way to reach the machine.",
+    "remiseAdmin": "Open PowerShell as administrator before pasting this script.",
+    "remiseCopier": "Copy the script",
+    "remiseCopie": "Script copied",
+    "aLaMainTitre": "To do by hand",
+    "aLaMainDesc": "These are deliberately not automated: they delete data, need a reboot you choose, or produce a key that must be kept safe. A human step is the right answer here."
   }
 }

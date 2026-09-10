@@ -9219,6 +9219,13 @@
       "fichierIllisible": "Dosya okunamadi",
       "fichierIllisibleDesc": "Bu dosya gecerli bir rapor degil. diagnostic-poste.json oldugundan emin olun.",
       "echec": "Cozumleme basarisiz"
-    }
+    },
+    "remiseTitre": "Onarim — {{n}} islem otomatiklestirilebilir",
+    "remiseDesc": "Bu betik risksiz duzeltilebilecekleri duzeltir. Okuyun, sonra ilgili bilgisayarda kendiniz calistirin: urun sizin yerinize calistiramaz, makineye ulasma yolu da yoktur.",
+    "remiseAdmin": "Bu betigi yapistirmadan once PowerShell i yonetici olarak acin.",
+    "remiseCopier": "Betigi kopyala",
+    "remiseCopie": "Betik kopyalandi",
+    "aLaMainTitre": "Elle yapilacaklar",
+    "aLaMainDesc": "Bunlar bilerek otomatiklestirilmedi: veri siliyor, sizin secmeniz gereken bir yeniden baslatma istiyor ya da guvenle saklanmasi gereken bir anahtar uretiyor. Burada dogru cevap insan eli."
   }
 }

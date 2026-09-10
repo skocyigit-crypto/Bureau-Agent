@@ -30,6 +30,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { logAudit } from "./audit";
 import { getOrgId } from "../middleware/tenant";
 import { analyserPoste, type RapportPoste } from "../services/diagnostic-poste";
+import { construireRemise } from "../services/remise-en-etat";
 
 const router: IRouter = Router();
 
@@ -68,6 +69,10 @@ router.post("/diagnostic-poste", async (req: Request, res: Response): Promise<vo
   }
 
   const diagnostic = analyserPoste(rapport);
+  // Le plan de remise en etat accompagne le diagnostic: constater sans dire
+  // quoi faire laisse l utilisateur avec un probleme de plus. Le script est
+  // RENDU, jamais execute — voir services/remise-en-etat.ts.
+  const remise = construireRemise(diagnostic.constats);
 
   // Registre. On journalise ce qui a ete CONSTATE, pas le rapport: le detail
   // du poste appartient au client, et un journal d'audit se conserve
@@ -90,7 +95,7 @@ router.post("/diagnostic-poste", async (req: Request, res: Response): Promise<vo
     orgId,
   );
 
-  res.json(diagnostic);
+  res.json({ ...diagnostic, remise });
 });
 
 export default router;

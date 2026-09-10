@@ -9219,6 +9219,13 @@
       "fichierIllisible": "Archivo ilegible",
       "fichierIllisibleDesc": "Este archivo no es un informe valido. Compruebe que sea diagnostic-poste.json.",
       "echec": "El analisis fallo"
-    }
+    },
+    "remiseTitre": "Reparacion — {{n}} accion(es) automatizable(s)",
+    "remiseDesc": "Este script corrige lo que se puede corregir sin riesgo. Lealo y ejecutelo usted mismo en el equipo: el producto no puede ejecutarlo por usted ni tiene forma de acceder al equipo.",
+    "remiseAdmin": "Abra PowerShell como administrador antes de pegar este script.",
+    "remiseCopier": "Copiar el script",
+    "remiseCopie": "Script copiado",
+    "aLaMainTitre": "Por hacer a mano",
+    "aLaMainDesc": "Estos puntos no se automatizan a proposito: borran datos, requieren un reinicio elegido por usted, o generan una clave que debe guardarse a salvo."
   }
 }

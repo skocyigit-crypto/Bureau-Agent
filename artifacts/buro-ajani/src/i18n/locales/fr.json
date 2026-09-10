@@ -9219,6 +9219,13 @@
       "fichierIllisible": "Fichier illisible",
       "fichierIllisibleDesc": "Ce fichier n est pas un rapport valide. Verifiez qu il s agit bien de diagnostic-poste.json.",
       "echec": "L analyse a echoue"
-    }
+    },
+    "remiseTitre": "Remise en etat — {{n}} action(s) automatisable(s)",
+    "remiseDesc": "Ce script corrige ce qui peut l etre sans risque. Lisez-le, puis lancez-le vous-meme sur le poste concerne : le produit ne peut pas l executer a votre place, et n a aucun moyen d atteindre la machine.",
+    "remiseAdmin": "Ouvrez PowerShell en tant qu administrateur avant de coller ce script.",
+    "remiseCopier": "Copier le script",
+    "remiseCopie": "Script copie",
+    "aLaMainTitre": "A faire a la main",
+    "aLaMainDesc": "Ces points ne sont volontairement pas automatises : ils suppriment des donnees, demandent un redemarrage choisi, ou produisent une cle a mettre a l abri. Un geste humain est ici la bonne reponse."
   }
 }

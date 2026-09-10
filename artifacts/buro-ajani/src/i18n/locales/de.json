@@ -9219,6 +9219,13 @@
       "fichierIllisible": "Datei unlesbar",
       "fichierIllisibleDesc": "Diese Datei ist kein gultiger Bericht. Prufen Sie, ob es diagnostic-poste.json ist.",
       "echec": "Analyse fehlgeschlagen"
-    }
+    },
+    "remiseTitre": "Instandsetzung — {{n}} automatisierbare Aktion(en)",
+    "remiseDesc": "Dieses Skript behebt, was gefahrlos behoben werden kann. Lesen Sie es und fuhren Sie es selbst auf dem Rechner aus: das Produkt kann es nicht fur Sie ausfuhren und hat keinen Zugang zum Rechner.",
+    "remiseAdmin": "Offnen Sie PowerShell als Administrator, bevor Sie das Skript einfugen.",
+    "remiseCopier": "Skript kopieren",
+    "remiseCopie": "Skript kopiert",
+    "aLaMainTitre": "Von Hand zu erledigen",
+    "aLaMainDesc": "Diese Punkte sind bewusst nicht automatisiert: sie loschen Daten, erfordern einen selbst gewahlten Neustart oder erzeugen einen Schlussel, der sicher verwahrt werden muss."
   }
 }

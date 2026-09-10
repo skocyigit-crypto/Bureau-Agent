@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
-import { AlertTriangle, CheckCircle2, Download, FileUp, HelpCircle, Loader2, ShieldCheck } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ClipboardCopy, Download, FileUp, Hand, HelpCircle, Loader2, ShieldCheck, Wrench } from "lucide-react";
 import { useRef, useState } from "react";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
@@ -27,10 +27,19 @@ interface Constat {
   remede: string;
 }
 
+interface EtapeRemise { code: string; explication: string; commande: string | null; administrateur: boolean }
+interface Remise {
+  etapes: EtapeRemise[];
+  aLaMain: Array<{ code: string; consigne: string }>;
+  script: string | null;
+  administrateurRequis: boolean;
+}
+
 interface Diagnostic {
   constats: Constat[];
   nonMesure: string[];
   score: number;
+  remise: Remise;
 }
 
 const COULEUR: Record<Gravite, string> = {
@@ -178,6 +187,68 @@ export default function DiagnosticPostePage() {
               </CardContent>
             </Card>
           ))}
+
+          {/*
+            La remise en etat. Le script est MONTRE, en entier, avant d'etre
+            telecharge — c'est la seule facon honnete de demander a quelqu'un
+            de lancer quelque chose sur sa machine. Rien ici ne s'execute: le
+            produit n'a aucun moyen d'atteindre le poste.
+          */}
+          {diagnostic.remise?.script && (
+            <Card className="border-emerald-500 border-2">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Wrench className="h-4 w-4" />
+                  {t("diagnosticPoste.remiseTitre", { n: diagnostic.remise.etapes.length })}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <p className="text-muted-foreground">{t("diagnosticPoste.remiseDesc")}</p>
+                {diagnostic.remise.administrateurRequis && (
+                  <p className="text-xs border-l-2 border-amber-500 pl-3">
+                    {t("diagnosticPoste.remiseAdmin")}
+                  </p>
+                )}
+                <pre className="text-xs bg-muted p-3 rounded-lg overflow-x-auto max-h-80 whitespace-pre">
+                  {diagnostic.remise.script}
+                </pre>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    navigator.clipboard.writeText(diagnostic.remise.script!);
+                    toast({ title: t("diagnosticPoste.remiseCopie") });
+                  }}
+                >
+                  <ClipboardCopy className="h-4 w-4 mr-2" />
+                  {t("diagnosticPoste.remiseCopier")}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/*
+            Ce qui ne s'automatise pas n'est pas un echec: pour ces points-la,
+            le geste humain EST la bonne reponse.
+          */}
+          {diagnostic.remise?.aLaMain?.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Hand className="h-4 w-4" />
+                  {t("diagnosticPoste.aLaMainTitre")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <p className="text-muted-foreground">{t("diagnosticPoste.aLaMainDesc")}</p>
+                <ul className="space-y-2">
+                  {diagnostic.remise.aLaMain.map((a) => (
+                    <li key={a.code} className="border-l-2 pl-3">{a.consigne}</li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
 
           {/*
             Ce qui n'a pas pu etre mesure se montre au meme titre que le reste.
