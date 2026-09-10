@@ -1,0 +1,123 @@
+# Veille quotidienne.
+#
+# La CI (`ci.yml`) ne se declenche que sur `push` et `pull_request`. Elle
+# repond donc a « ce commit est-il bon ? », jamais a « les choses vont-elles
+# toujours bien ? ». Deux pannes reelles sont passees par ce trou:
+#
+#   - le 2026-09-08, deux avis de securite sont parus (nodemailer, multer).
+#     Personne ne poussant de code, rien ne l'a signale. Le defaut n'est
+#     apparu que deux jours plus tard, au premier deploiement — et par un
+#     echec de build, pas par une alerte;
+#
+#   - le meme jour, le premier deploiement a echoue pour cette raison. La
+#     production est restee sur le commit precedent: le site repondait 200,
+#     l'application fonctionnait, et RIEN ne disait que le code en ligne
+#     n'etait plus celui de `main`. Le 2026-09-02, la meme situation avait
+#     dure une journee entiere avant d'etre remarquee — c'est la duree qui
+#     fait le degat, et c'est elle que cette surveillance borne.
+#
+# D'ou ces deux surveillances. Elles ne testent pas le code: elles posent
+# chaque matin les deux questions auxquelles personne n'etait la pour repondre.
+#
+# L'echec envoie un courriel a l'auteur du depot — c'est le canal qui
+# fonctionne deja pour les echecs de CI.
+name: Veille
+
+on:
+  schedule:
+    # 07:00 UTC — 09:00 a Paris en ete, 08:00 en hiver. Avant la journee de
+    # travail: une alerte lue a midi a deja coute la matinee.
+    - cron: "0 7 * * *"
+  # Declenchable a la main, pour verifier la surveillance elle-meme.
+  workflow_dispatch:
+
+jobs:
+  audit-dependances:
+    name: Failles publiees depuis hier
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Enable corepack (pnpm)
+        run: corepack enable
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      # Le meme audit que la CI. La difference n'est pas ce qu'il regarde,
+      # c'est QUAND: une faille publiee un dimanche n'attend pas la prochaine
+      # poussee pour exister.
+      - name: Audit des dependances de production
+        run: pnpm run security:audit
+
+  deploiement-a-jour:
+    name: Le code en ligne est-il celui de main
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # L'historique complet: on doit pouvoir situer le commit en ligne,
+          # meme s'il date de plusieurs semaines.
+          fetch-depth: 0
+
+      - name: Comparer la production a main
+        env:
+          # `/healthz` est public et sans session: il repond « quel commit
+          # tourne ? » sans aucun identifiant. C'est ce qui rend cette
+          # verification possible depuis une action, sans cle GCP.
+          SANTE: https://agentdebureau.fr/api/healthz
+          # Delai tolere entre la fusion et la mise en ligne. Un deploiement
+          # normal prend une quinzaine de minutes, plus l'attente en file
+          # quand plusieurs applications partagent la region. Au-dela de 90
+          # minutes, ce n'est plus de la latence.
+          DELAI_MAX_MIN: 90
+        run: |
+          set -euo pipefail
+
+          reponse="$(curl -sS --max-time 20 "$SANTE")"
+          echo "Reponse de production: $reponse"
+
+          en_ligne="$(printf '%s' "$reponse" | sed -n 's/.*"build":"\([^"]*\)".*/\1/p')"
+          if [ -z "$en_ligne" ]; then
+            echo "::error::La production ne dit pas quel commit elle execute. Soit /healthz ne repond plus, soit BUILD_SHA n'est plus injecte au deploiement."
+            exit 1
+          fi
+          echo "Commit en ligne : $en_ligne"
+          echo "Commit de main  : $(git rev-parse --short=7 HEAD)"
+
+          # Un commit inconnu du depot n'est pas un retard: c'est une identite
+          # qu'on ne sait pas expliquer (reecriture d'historique, deploiement
+          # depuis une autre branche). Le dire plutot que de l'ignorer.
+          if ! git cat-file -e "${en_ligne}^{commit}" 2>/dev/null; then
+            echo "::error::Le commit en ligne ($en_ligne) n'existe pas dans ce depot."
+            exit 1
+          fi
+
+          if git merge-base --is-ancestor "$en_ligne" HEAD && [ "$(git rev-parse "$en_ligne")" = "$(git rev-parse HEAD)" ]; then
+            echo "La production execute exactement main."
+            exit 0
+          fi
+
+          if ! git merge-base --is-ancestor "$en_ligne" HEAD; then
+            echo "::error::Le commit en ligne ($en_ligne) n'est pas un ancetre de main. La production execute du code qui n'est pas sur main."
+            exit 1
+          fi
+
+          # Le plus ANCIEN commit non deploye: c'est lui qui mesure depuis
+          # combien de temps la production est en retard. Prendre le plus
+          # recent masquerait un blocage ancien derriere une fusion recente.
+          plus_ancien="$(git log --reverse --format='%H %ct' "${en_ligne}..HEAD" | head -1)"
+          sha_ancien="${plus_ancien%% *}"
+          date_ancien="${plus_ancien##* }"
+          retard_min=$(( ( $(date +%s) - date_ancien ) / 60 ))
+          nb="$(git rev-list --count "${en_ligne}..HEAD")"
+
+          echo "Commits non deployes : $nb"
+          echo "Le plus ancien       : $(git rev-parse --short=7 "$sha_ancien") — il y a ${retard_min} minutes"
+
+          if [ "$retard_min" -gt "$DELAI_MAX_MIN" ]; then
+            echo "::error::La production est en retard de ${nb} commit(s) depuis ${retard_min} minutes. Le deploiement a probablement echoue: verifier Cloud Build (declencheur deploy-on-main-push)."
+            exit 1
+          fi
+
+          echo "Retard de ${retard_min} min, sous le seuil de ${DELAI_MAX_MIN} min: deploiement probablement en cours."
