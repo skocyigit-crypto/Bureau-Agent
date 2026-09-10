@@ -3,6 +3,7 @@ import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable
 import { sql, eq, gte, lte, and, count, desc, lt, ne, isNull, isNotNull, or, sum, avg, inArray } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache, reserveAiCall } from "../services/ai-quota";
+import { AGENTS as AGENTS_IA, creerTacheIa } from "../services/tache-ia";
 import { extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL, GEMINI_FLASH_MODEL, ANTHROPIC_MODEL, sanitizePromptInput, sanitizeAiErrorMessage } from "../services/ai-utils";
 import { callOrgGemini, callOrgOpenAI, callOrgAnthropic } from "../services/ai-providers";
 import { withProviderTimeout, buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
@@ -2965,8 +2966,16 @@ export async function runSuperAgentCycle(orgId: number, userId: number) {
               for (const t of parsed.tasks) {
                 const dueDate = new Date(Date.now() + (t.dueInDays || 3) * 86400000);
                 try {
-                  await db.insert(tasksTable).values({
-                    organisationId: orgId, title: `[Email] ${t.title}`, description: `De: ${safeFrom}\nObjet: ${safeSubject}\n\n${t.description || parsed.summary || ""}`, priority: t.priority || "moyenne", status: "en_attente", dueDate,
+                  // Le prefixe « [Email] » etait la seule trace de l'auteur, et
+                  // seulement ici. Elle devient une colonne, posee partout.
+                  await creerTacheIa({
+                    organisationId: orgId,
+                    agent: AGENTS_IA.depouillementCourriel,
+                    nature: "administratif",
+                    title: t.title,
+                    description: `De: ${safeFrom}\nObjet: ${safeSubject}\n\n${t.description || parsed.summary || ""}`,
+                    priority: t.priority || "moyenne",
+                    dueDate,
                   });
                   emailTasksCreated++;
                   state.stats.tasksCreated++;
@@ -3008,7 +3017,14 @@ export async function runSuperAgentCycle(orgId: number, userId: number) {
       const recentTaskTitles = (await db.select({ title: tasksTable.title }).from(tasksTable)
         .where(and(orgTask, gte(tasksTable.createdAt, weekAgo))))
         .map(t => t.title.toLowerCase());
-      const newProjectTasks: (typeof tasksTable.$inferInsert)[] = [];
+      // Le type suit ce qui est reellement collecte: ces entrees ne portent
+      // plus `organisationId` ni `status`, puisque la porte unique les pose.
+      const newProjectTasks: Array<{
+        title: string;
+        description: string;
+        priority: string;
+        dueDate: Date;
+      }> = [];
       for (const p of projetsList) {
         const isLate = p.endDate && new Date(p.endDate) < now;
         if (isLate || (p.progress ?? 0) < 20) {
@@ -3017,16 +3033,36 @@ export async function runSuperAgentCycle(orgId: number, userId: number) {
           const hasExistingTask = recentTaskTitles.some(t => t.includes(needle));
           if (!hasExistingTask) {
             newProjectTasks.push({
-              organisationId: orgId, title: `[Chantier] Suivi: ${p.title}`, description: `Projet ${isLate ? "en RETARD" : "peu avancé"} (${p.progress ?? 0}%). Action requise.`, priority: isLate ? "haute" : "moyenne", status: "en_attente", dueDate: new Date(Date.now() + 2 * 86400000),
+              title: `Suivi chantier: ${p.title}`,
+              description: `Projet ${isLate ? "en RETARD" : "peu avance"} (${p.progress ?? 0}%). Action requise.`,
+              priority: isLate ? "haute" : "moyenne",
+              dueDate: new Date(Date.now() + 2 * 86400000),
             });
           }
         }
       }
       if (newProjectTasks.length > 0) {
-        const insertOk = await db.insert(tasksTable).values(newProjectTasks)
-          .then(() => true)
-          .catch((err) => { saLog(orgId, "warning", "chantier", "Échec de création des tâches de suivi", err?.message); return false; });
-        if (insertOk) state.stats.tasksCreated += newProjectTasks.length;
+        // Une par une plutot qu'en lot: chacune doit etre adressee a quelqu'un,
+        // et l'attribution depend de l'organisation, pas de la ligne. Le lot
+        // les creait toutes sans destinataire — c'est-a-dire pour personne.
+        let creees = 0;
+        for (const t of newProjectTasks) {
+          try {
+            await creerTacheIa({
+              organisationId: orgId,
+              agent: AGENTS_IA.secretaireAutonome,
+              nature: "terrain",
+              title: t.title,
+              description: t.description,
+              priority: t.priority,
+              dueDate: t.dueDate,
+            });
+            creees += 1;
+          } catch (err: any) {
+            saLog(orgId, "warning", "chantier", "Echec de creation d'une tache de suivi", err?.message);
+          }
+        }
+        state.stats.tasksCreated += creees;
       }
       if (overdueProjects > 0) saLog(orgId, "warning", "chantier", `${overdueProjects} projet(s) en retard`, "Tâches de suivi créées automatiquement");
       else saLog(orgId, "success", "chantier", `${projetsList.length} projet(s) en cours — tous dans les délais`);
@@ -3175,9 +3211,19 @@ router.post("/ai/super-agent/process-report", requireAdmin, async (req, res): Pr
     for (const t of (parsed.tasks ?? [])) {
       try {
         const dueDate = new Date(Date.now() + (t.dueInDays || 3) * 86400000);
-        const [inserted] = await db.insert(tasksTable).values({
-          organisationId: orgId, title: t.title, description: `${t.description || ""}\n\nSource: Rapport ${reportType}${t.assignedTo ? `\nAssigné à: ${t.assignedTo}` : ""}`.trim(), priority: t.priority || "moyenne", status: "en_attente", dueDate, relatedContactId: contactId || null,
-        }).returning();
+        // « Assigné à: <texte du modele> » disparait: c'etait une intention
+        // d'attribution que rien ne lisait, et qui pouvait nommer quelqu'un
+        // qui n'existe pas. La tache est desormais reellement adressee.
+        const inserted = await creerTacheIa({
+          organisationId: orgId,
+          agent: AGENTS_IA.rapport,
+          nature: "administratif",
+          title: t.title,
+          description: `${t.description || ""}\n\nSource: Rapport ${reportType}`.trim(),
+          priority: t.priority || "moyenne",
+          dueDate,
+          relatedContactId: contactId || null,
+        });
         createdTasks.push(inserted);
       } catch (err: any) {
         logger.warn({ err: err?.message, orgId, title: t?.title }, "[SuperAgent/ProcessReport] echec insertion tache extraite par IA");

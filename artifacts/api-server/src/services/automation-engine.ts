@@ -12,6 +12,7 @@ import {
   telephonyProvidersTable,
 } from "@workspace/db/schema";
 import { eq, lte, and, gte, lt, sql, desc, isNull, isNotNull, or } from "drizzle-orm";
+import { AGENTS, creerTacheIa } from "./tache-ia";
 import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
 import { sendEmail } from "./email";
@@ -582,11 +583,15 @@ async function executeAction(
     case "create_task": {
       if (!orgId) break;
       const dueDays: number = p.dueDays ?? 1;
-      await db.insert(tasksTable).values({
+      // Une regle d'automatisation creait une tache que personne ne recevait:
+      // pas d'assignataire, pas d'auteur. Elle s'ajoutait a la liste commune
+      // et y restait. La porte unique lui donne les deux.
+      await creerTacheIa({
         organisationId: orgId,
-        title: interpolate(p.title ?? `Tâche automatique: ${ruleName}`, context),
+        agent: AGENTS.automatisation,
+        nature: "administratif",
+        title: interpolate(p.title ?? `Tache automatique: ${ruleName}`, context),
         description: p.description ? interpolate(p.description, context) : null,
-        status: "en_attente",
         priority: p.priority ?? "moyenne",
         dueDate: new Date(Date.now() + dueDays * 24 * 60 * 60 * 1000),
       });

@@ -7,6 +7,7 @@ import {
   stockArticlesTable,
   stockMouvementsTable,
 } from "@workspace/db";
+import { AGENTS, creerTacheIa } from "../services/tache-ia";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import {
@@ -612,17 +613,18 @@ router.post("/voice/site-ops/confirm", async (req: Request, res: Response) => {
             orgId,
           );
         } else {
-          const [row] = await db
-            .insert(tasksTable)
-            .values({
-              organisationId: orgId,
-              title: a.title || "Tache chantier",
-              status: "en_attente",
-              projetId: a.projetId ?? null,
-              createdBy: userId ?? null,
-              updatedBy: userId ?? null,
-            })
-            .returning();
+          // Un ordre de travaux dicte sur le chantier: c'est un chef qui parle,
+          // mais le travail revient au terrain. On garde donc le demandeur, et
+          // on laisse le role choisir le destinataire — a la difference d'une
+          // tache que quelqu'un cree pour lui-meme.
+          const row = await creerTacheIa({
+            organisationId: orgId,
+            agent: AGENTS.saisieVocale,
+            nature: "terrain",
+            title: a.title || "Tache chantier",
+            projetId: a.projetId ?? null,
+            demandePar: userId ?? null,
+          });
           await logAudit(
             userId,
             userEmail,
