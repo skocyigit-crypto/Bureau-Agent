@@ -20,6 +20,16 @@ const BACKUP_STALE_HOURS = 48;
 const BACKUP_WARNING_HOURS = 24;
 const DATA_GROWTH_ALERT_PERCENT = 30;
 
+/**
+ * Tables de `getTableRecordCounts` qui portent `organisation_id`.
+ * `organisations` en est exclue: elle ne se compte pas par locataire.
+ */
+const ORG_SCOPED_TABLES = [
+  "users", "contacts", "calls", "tasks", "messages",
+  "prospects", "devis", "factures_client", "projets", "stock_articles",
+  "calendar_events", "invoices", "checkins",
+] as const;
+
 interface OrgBackupStatus {
   orgId: number;
   orgName: string;
@@ -108,11 +118,16 @@ async function runDataProtectionCheck() {
 
     const tableCounts = await getTableRecordCounts();
     const totalRecords = Object.values(tableCounts).reduce((sum, c) => sum + c, 0);
+    // Les alertes adressees a un client se calculent sur SES lignes; le total
+    // plateforme ne sert qu a la sante globale, plus bas.
+    const comptesParOrg = await getRecordCountsByOrg();
 
     let totalNotifications = 0;
 
     for (const org of orgsWithSubs) {
-      const orgStatus = await analyzeOrgBackupStatus(org, lastSuccessfulBackup, driveConfig, localConfig, totalRecords, tableCounts);
+      const comptesOrg = comptesParOrg.get(org.orgId) ?? {};
+      const totalOrg = Object.values(comptesOrg).reduce((sum, c) => sum + c, 0);
+      const orgStatus = await analyzeOrgBackupStatus(org, lastSuccessfulBackup, driveConfig, localConfig, totalOrg, comptesOrg);
 
       if (orgStatus.issues.length > 0) {
         totalNotifications += await createProtectionNotifications(orgStatus);
@@ -135,6 +150,46 @@ async function runDataProtectionCheck() {
     await logMonitorRun("error", { error: err.message }, performance.now() - start, err.message);
   }
 }
+
+/**
+ * Comptes de lignes PAR ORGANISATION.
+ *
+ * `getTableRecordCounts` compte la plateforme entiere, tous locataires
+ * confondus. C est la bonne mesure pour la sante globale, et la mauvaise pour
+ * une alerte adressee a UN client: le message « N enregistrements sans
+ * sauvegarde cloud » partait vers les administrateurs de chaque organisation
+ * avec le total de TOUTES les organisations. Un client a un seul contact se
+ * voyait annoncer des dizaines de milliers de lignes, et le volume commercial
+ * cumule du parc etait divulgue a chaque client.
+ *
+ * Une requete groupee par table (et non par organisation) garde le meme cout
+ * qu avant: le nombre d appels ne depend pas du nombre de locataires.
+ */
+async function getRecordCountsByOrg(): Promise<Map<number, Record<string, number>>> {
+  const parOrg = new Map<number, Record<string, number>>();
+  for (const table of ORG_SCOPED_TABLES) {
+    try {
+      const result = await withDbRetry(
+        () => db.execute(sql`SELECT organisation_id AS org, COUNT(*) AS cnt FROM ${sql.identifier(table)} GROUP BY organisation_id`),
+        { label: `data-protection:count-by-org-${table}` },
+      );
+      const rows: any[] = Array.isArray(result) ? result : (result as any)?.rows || [];
+      for (const r of rows) {
+        const orgId = parseInt(r.org ?? r.organisation_id, 10);
+        if (!Number.isFinite(orgId)) continue;
+        const courant = parOrg.get(orgId) ?? {};
+        courant[table] = parseInt(r.cnt ?? "0", 10);
+        parOrg.set(orgId, courant);
+      }
+    } catch (err: any) {
+      // Un comptage qui echoue ne doit pas passer pour un zero SANS QUE
+      // PERSONNE NE LE SACHE: le zero eteint l alerte de ce client.
+      logger.warn({ err: err?.message, table }, "[DataProtection] comptage par organisation indisponible");
+    }
+  }
+  return parOrg;
+}
+
 
 async function getTableRecordCounts(): Promise<Record<string, number>> {
   const tables = [
