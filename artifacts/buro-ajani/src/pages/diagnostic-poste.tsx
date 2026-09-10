@@ -59,7 +59,15 @@ export default function DiagnosticPostePage() {
   const envoyer = async (fichier: File) => {
     setEnCours(true);
     try {
-      const texte = await fichier.text();
+      // PowerShell ecrit un BOM en tete de ses fichiers UTF-8, et `JSON.parse`
+      // echoue dessus. Sans ce retrait, le client recevait « fichier
+      // illisible » et serait alle chercher un defaut dans un rapport
+      // parfaitement valide. Constate en lancant reellement le script sur une
+      // machine Windows — aucun test synthetique ne produisait ce BOM.
+      //
+      // L echappement est ecrit en clair (\uFEFF): le caractere lui-meme est
+      // invisible dans le code source, donc impossible a relire.
+      const texte = (await fichier.text()).replace(/^\uFEFF/, "");
       let rapport: unknown;
       try {
         rapport = JSON.parse(texte);
@@ -176,8 +184,10 @@ export default function DiagnosticPostePage() {
             </Card>
           )}
 
-          {diagnostic.constats.map((c) => (
-            <Card key={c.code} className={`border-l-4 ${COULEUR[c.gravite]}`}>
+          {/* La cle inclut l index: deux disques pleins produisent deux fois
+              le meme code, et React n accepte pas deux cles identiques. */}
+          {diagnostic.constats.map((c, i) => (
+            <Card key={`${c.code}-${i}`} className={`border-l-4 ${COULEUR[c.gravite]}`}>
               <CardContent className="pt-6 space-y-2">
                 <p className="font-semibold">{c.constat}</p>
                 <p className="text-sm text-muted-foreground">{c.pourquoi}</p>

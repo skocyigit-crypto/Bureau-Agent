@@ -149,3 +149,25 @@ describe("de bout en bout, depuis un vrai rapport", () => {
     expect(r.aLaMain).toEqual([]);
   });
 });
+
+describe("ce qu'un rapport reel a appris", () => {
+  it("ne repete pas la meme consigne pour deux disques pleins", () => {
+    // Trouve en lancant le script sur une vraie machine: elle avait DEUX
+    // disques a plus de 97 %, donc deux constats `disque_plein`. La liste
+    // affichait deux fois la meme phrase, et l'interface recevait deux cles
+    // React identiques. Aucune fixture ne le montrait: les machines de test
+    // n'ont qu'un disque.
+    const r = construireRemise([constat("disque_plein"), constat("disque_plein")]);
+    expect(r.aLaMain).toHaveLength(1);
+    expect(r.aLaMain[0].code).toBe("disque_plein");
+  });
+
+  it("garde une consigne par code, meme melangees", () => {
+    const r = construireRemise([
+      constat("disque_plein"),
+      constat("maj_anciennes"),
+      constat("disque_plein"),
+    ]);
+    expect(r.aLaMain.map((a) => a.code)).toEqual(["disque_plein", "maj_anciennes"]);
+  });
+});

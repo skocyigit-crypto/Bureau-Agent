@@ -1,5 +1,5 @@
 <#
-    diagnostic-poste.ps1 — etat de sante d'un poste Windows, pour Ajant Bureau.
+    diagnostic-poste.ps1 -- etat de sante d'un poste Windows, pour Ajant Bureau.
 
     CE QUE CE SCRIPT FAIT, ET CE QU'IL NE FAIT PAS
 
@@ -10,7 +10,7 @@
 
     Il ne lit AUCUN contenu: pas vos documents, pas vos courriels, pas votre
     historique de navigation, pas vos mots de passe. Uniquement l'etat
-    technique du poste — version du systeme, mises a jour, antivirus,
+    technique du poste -- version du systeme, mises a jour, antivirus,
     pare-feu, chiffrement, sauvegarde, espace disque, memoire, et la liste des
     logiciels installes avec leur version.
 
@@ -25,12 +25,12 @@
     La CNIL demande par ailleurs un accord prealable AVANT CHAQUE intervention
     a distance, et que la personne devant la machine puisse identifier ce qui
     a ete fait. Un script que vous lancez, dont vous lisez le resultat avant
-    de l'envoyer, respecte les deux — et ne laisse aucune porte ouverte
+    de l'envoyer, respecte les deux -- et ne laisse aucune porte ouverte
     derriere lui.
 
     UTILISATION
 
-        Clic droit sur le fichier > « Executer avec PowerShell »
+        Clic droit sur le fichier > "Executer avec PowerShell"
 
     ou, dans une fenetre PowerShell:
 
@@ -38,7 +38,7 @@
 
     Certaines mesures (chiffrement du disque) demandent les droits
     administrateur. Sans eux, le script fonctionne quand meme: la mesure est
-    simplement marquee comme non disponible, ce qui est honnete — l'absence
+    simplement marquee comme non disponible, ce qui est honnete -- l'absence
     de mesure n'est pas une bonne nouvelle.
 #>
 
@@ -50,7 +50,7 @@ function Get-ValeurOuNull {
 }
 
 Write-Host ""
-Write-Host "Diagnostic du poste — lecture seule, aucune modification." -ForegroundColor Cyan
+Write-Host "Diagnostic du poste -- lecture seule, aucune modification." -ForegroundColor Cyan
 Write-Host ""
 
 # --- Systeme -----------------------------------------------------------------
@@ -113,7 +113,7 @@ $chiffre = Get-ValeurOuNull {
 # --- Sauvegarde --------------------------------------------------------------
 # On regarde l'historique des fichiers de Windows. Une sauvegarde faite par un
 # autre outil (NAS, service en ligne) ne sera pas vue: le rapport dira alors
-# « non mesuree », jamais « absente ».
+# "non mesuree", jamais "absente".
 $sauvegardeConfiguree = Get-ValeurOuNull {
     $fh = Get-ItemProperty "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\FileHistory" -ErrorAction Stop
     $null -ne $fh

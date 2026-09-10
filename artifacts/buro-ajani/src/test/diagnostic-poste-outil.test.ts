@@ -112,3 +112,31 @@ describe("le script de diagnostic", () => {
     expect(entete).toMatch(/aucune connexion reseau/i);
   });
 });
+
+describe("le script doit s'executer sur un vrai Windows", () => {
+  const script = readFileSync(resolve(racine, CHEMIN), "utf8");
+
+  it("ne contient aucun caractere non-ASCII", () => {
+    // Ce n'est pas une preference de style, c'est une condition d'execution.
+    //
+    // Windows PowerShell 5.1 — celui installe par defaut — lit un fichier
+    // UTF-8 SANS BOM comme du Windows-1252. Le tiret cadratin « — » vaut
+    // E2 80 94 en UTF-8; le dernier octet, 0x94, est un guillemet fermant en
+    // CP1252. Il ouvre donc une chaine que rien ne ferme, et le script entier
+    // refuse de demarrer:
+    //
+    //     Le terminateur " est manquant dans la chaine.
+    //
+    // Constate en lancant reellement le fichier: aucune relecture ne montre un
+    // caractere qui change de sens selon l'encodage du lecteur, et aucun test
+    // de contenu ne l'aurait vu non plus.
+    const fautifs = [...script]
+      .map((c, i) => ({ c, i }))
+      .filter(({ c }) => c.charCodeAt(0) > 127);
+
+    expect(
+      fautifs.map(({ c, i }) => `${JSON.stringify(c)} (position ${i})`),
+      "ces caracteres empechent le script de demarrer sur Windows PowerShell 5.1",
+    ).toEqual([]);
+  });
+});

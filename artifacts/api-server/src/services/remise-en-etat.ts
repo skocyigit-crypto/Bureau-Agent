@@ -186,7 +186,13 @@ export function construireRemise(constats: Constat[]): Remise {
     }
     const consigne = A_LA_MAIN[c.code];
     if (consigne) {
-      aLaMain.push({ code: c.code, consigne });
+      // Une consigne par CODE, pas par constat. Un poste a deux disques pleins
+      // produit deux constats `disque_plein` — et afficherait deux fois la
+      // meme phrase. Constate sur un rapport reel, pas sur une fixture: les
+      // machines de test n'ont qu'un disque.
+      if (!aLaMain.some((a) => a.code === c.code)) {
+        aLaMain.push({ code: c.code, consigne });
+      }
     } else {
       // Un constat qu'on ne sait ni automatiser ni expliquer ne doit pas
       // disparaitre en silence: on renvoie le remede du diagnostic lui-meme.
