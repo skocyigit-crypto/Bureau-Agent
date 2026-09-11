@@ -36,24 +36,37 @@
                 # production, et le troisieme ne couvre que /api.
                 Permissions-Policy "accelerometer=(), autoplay=(), camera=(self), cross-origin-isolated=(), display-capture=(self), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), hid=(), identity-credentials-get=(), idle-detection=(), interest-cohort=(), keyboard-map=(), magnetometer=(), microphone=(self), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), sync-xhr=(), usb=(), xr-spatial-tracking=()"
                 # Content-Security-Policy — voir deploy/csp.policy.md.
-                # Report-Only pour l instant: la mesure a ete faite sur le
-                # build reel et ne signale zero violation, mais seul l ecran
-                # de connexion a pu etre ouvert (ni base ni API en local).
-                # Une CSP fausse sur une page interne ne produirait pas un
-                # defaut discret: elle casserait la page d un client qui paie.
+                # BLOQUANTE depuis le 2026-09-12, apres soixante jours
+                # d observation en Report-Only sur la production reelle.
+                #
+                # Ce que ces soixante jours ont montre: ONZE violations en
+                # tout. Dix venaient d un defaut a nous — une adresse
+                # construite en `//api/...`, que le navigateur lisait comme
+                # l hote `api` — corrige depuis. La onzieme etait une feuille
+                # de style injectee par la traduction automatique du
+                # navigateur, qui ne vient pas de notre page.
+                #
+                # Les parcours inhabituels ont ete verifies un par un plutot
+                # que supposes: le paiement Stripe part par REDIRECTION
+                # (window.location vers checkout.stripe.com), pas par iframe —
+                # `frame-src none` ne le gene donc pas; la connexion Google est
+                # une redirection, deja autorisee par `form-action`; le
+                # televersement et VoiceLive restent sur la meme origine, que
+                # `connect-src self` couvre, WebSocket compris.
+                #
+                # Ce qui est perdu, assume: la feuille de style de la
+                # traduction automatique sera bloquee. C est cosmetique, sur
+                # une page traduite par la machine, dans une application qui
+                # embarque ses propres traductions FR/TR/EN. Ajouter un hote
+                # tiers a la politique qui protege des donnees bancaires pour
+                # ce seul cas serait un mauvais echange.
+                #
+                # `report-uri` est conserve: bloquer et continuer a apprendre
+                # ne s excluent pas.
+                #
                 # La valeur doit rester identique a deploy/csp.policy
                 # (verifie par csp-policy.test.ts).
-                #
-                # `upgrade-insecure-requests` n'est PAS dans cette politique, et
-                # ce n'est pas un oubli: un navigateur IGNORE cette directive
-                # quand elle arrive en Report-Only, et le dit dans la console.
-                # Elle y a figure longtemps — la politique promettait donc une
-                # protection que rien n'appliquait. Elle est desormais servie
-                # dans un en-tete BLOQUANT a elle seule, juste en dessous: c'est
-                # la seule facon qu'elle protege reellement tant que le reste de
-                # la politique est encore en observation.
-                Content-Security-Policy "upgrade-insecure-requests"
-                Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https:; connect-src 'self'; frame-src 'none'; frame-ancestors 'none'; form-action 'self' https://checkout.stripe.com https://billing.stripe.com https://accounts.google.com; base-uri 'none'; object-src 'none'; report-uri /api/csp-report"
+                Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https:; connect-src 'self'; frame-src 'none'; frame-ancestors 'none'; form-action 'self' https://checkout.stripe.com https://billing.stripe.com https://accounts.google.com; base-uri 'none'; object-src 'none'; upgrade-insecure-requests; report-uri /api/csp-report"
         }
 
         # `handle` blocks are only mutually exclusive with OTHER `handle`/
