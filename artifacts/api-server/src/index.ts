@@ -13,6 +13,7 @@ import { startAiCachePurgeJob } from "./services/ai-cache";
 import { startBillingCron } from "./services/billing-cron";
 import { startQuotaWarningCron } from "./services/quota-warning-cron";
 import { startTrialWarningCron } from "./services/trial-warning-cron";
+import { startClotureCron } from "./services/cloture-cron";
 import { startAiInsightsCron } from "./services/ai-insights";
 import { startTenantBackupCron } from "./services/tenant-backup-cron";
 import { startLocationCleanupCron } from "./services/location-cleanup-cron";
@@ -147,6 +148,10 @@ async function startServer(): Promise<void> {
     startBillingCron();
     startQuotaWarningCron();
     startTrialWarningCron();
+    // Cloture comptable: la conservation exigee par l article 286-I-3 bis du
+    // CGI n est pas « le logiciel PEUT clore » mais « le logiciel clot ».
+    // Compter sur un artisan pour cliquer chaque soir n est pas un dispositif.
+    startClotureCron();
     startAiInsightsCron();
     startTenantBackupCron();
     startLocationCleanupCron();
