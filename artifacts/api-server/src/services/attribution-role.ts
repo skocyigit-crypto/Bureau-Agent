@@ -50,16 +50,39 @@ export type NatureTache =
   | "direction";     // decision, validation, litige
 
 /**
+ * Les seuls roles que le produit sait creer.
+ *
+ * `users.role` est un `varchar` libre, mais aucun chemin ne laisse passer
+ * autre chose: l'inscription et la modification de profil refusent en 400
+ * (`routes/auth.ts`), l'invitation retombe silencieusement sur `agent`
+ * (`routes/invitations.ts`). Un test structurel verifie que cette liste et
+ * celles des routes ne divergent pas.
+ */
+export const ROLES_REELS = ["super_admin", "administrateur", "agent", "lecture_seule"] as const;
+
+/**
  * Roles vises par nature, du plus specifique au plus general.
  *
  * La derniere entree de chaque liste est toujours un role de direction: c'est
  * la regle 2 (remonter plutot que descendre) rendue explicite plutot que
  * codee dans une suite de `if`.
+ *
+ * Ces listes ne nomment que des roles REELS. Elles ont nomme un temps
+ * « comptable », « commercial », « technicien », « chef_chantier » — des roles
+ * qu'aucune route n'accepte de creer. Les destinataires n'en etaient pas
+ * changes (on tombait sur le repli suivant), mais `parDefaut` etait vrai en
+ * permanence pour trois natures sur cinq: chaque tache commerciale ou de
+ * chantier portait « adressee au role « agent » faute de destinataire plus
+ * specifique », alors qu'`agent` etait le bon destinataire, et le seul.
+ *
+ * Une excuse permanente se lit comme une panne. Le jour ou le produit saura
+ * creer un role « technicien », il faudra l'ajouter ici ET dans les routes —
+ * le test structurel echouera tant que les deux ne concordent pas.
  */
 const PREFERENCES: Record<NatureTache, string[]> = {
-  comptabilite: ["comptable", "administrateur", "super_admin"],
-  commercial: ["commercial", "agent", "administrateur", "super_admin"],
-  terrain: ["technicien", "chef_chantier", "agent", "administrateur", "super_admin"],
+  comptabilite: ["administrateur", "super_admin"],
+  commercial: ["agent", "administrateur", "super_admin"],
+  terrain: ["agent", "administrateur", "super_admin"],
   administratif: ["agent", "administrateur", "super_admin"],
   direction: ["administrateur", "super_admin"],
 };
