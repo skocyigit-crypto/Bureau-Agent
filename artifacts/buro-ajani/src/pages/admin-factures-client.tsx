@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Edit,FileCode,FileDown,Loader2,Plus,Receipt,RefreshCw,Search,Send,Shield,Trash2 } from "lucide-react";
+import { Banknote,Edit,FileCode,FileDown,Loader2,Plus,Receipt,RefreshCw,Search,Send,Shield,Trash2 } from "lucide-react";
 import { useCallback,useEffect,useState } from "react";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
@@ -141,6 +141,67 @@ export default function AdminFacturesClientPage() {
     else toast({ title: t("adminFacturesClient.toast.error"), variant: "destructive" });
   };
 
+  /**
+   * Encaissement depuis la facture.
+   *
+   * L'ecran dedie existe, mais ce n'est pas la que l'utilisateur se trouve
+   * quand un client le paie: il regarde la facture. Lui demander de retenir un
+   * numero puis de changer d'ecran, c'est garantir qu'il retournera saisir le
+   * montant dans l'ancien champ modifiable — celui que la conformite doit
+   * justement remplacer.
+   */
+  const [encaissementFacture, setEncaissementFacture] = useState<FactureClient | null>(null);
+  const [encMontant, setEncMontant] = useState("");
+  const [encMoyen, setEncMoyen] = useState("virement");
+  const [encDate, setEncDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [encEnCours, setEncEnCours] = useState(false);
+
+  const ouvrirEncaissement = (f: FactureClient) => {
+    setEncaissementFacture(f);
+    // Le reste du, pre-rempli: c'est le montant attendu dans la grande
+    // majorite des cas, et le saisir a la main invite a la faute de frappe.
+    const reste = Math.max(0, Number(f.totalAmount ?? 0) - Number(f.paidAmount ?? 0));
+    setEncMontant(reste > 0 ? reste.toFixed(2) : "");
+    setEncMoyen("virement");
+    setEncDate(new Date().toISOString().slice(0, 10));
+  };
+
+  const enregistrerEncaissement = async () => {
+    if (!encaissementFacture || !encMontant.trim()) return;
+    setEncEnCours(true);
+    try {
+      const res = await fetch(`${BASE}/api/encaissements`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          factureId: encaissementFacture.id,
+          montant: Number(encMontant),
+          moyen: encMoyen,
+          dateEncaissement: new Date(`${encDate}T12:00:00`).toISOString(),
+        }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({
+          title: res.status === 409
+            ? t("encaissements.toast.periodeClose")
+            : t("encaissements.toast.echec"),
+          description: d.error,
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({ title: t("encaissements.toast.enregistre", { numero: d.numero }) });
+      setEncaissementFacture(null);
+      load();
+    } catch {
+      toast({ title: t("encaissements.toast.echec"), variant: "destructive" });
+    } finally {
+      setEncEnCours(false);
+    }
+  };
+
   const handleRemind = async (f: FactureClient) => {
     if (!(await confirmAction({
       title: t("adminFacturesClient.toast.remindConfirmTitle"),
@@ -222,6 +283,16 @@ export default function AdminFacturesClientPage() {
                     {remindingId === f.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
                   </Button>
                 )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-emerald-600"
+                  title={t("encaissements.saisie.titre")}
+                  aria-label={t("encaissements.saisie.titre")}
+                  onClick={() => ouvrirEncaissement(f)}
+                >
+                  <Banknote className="w-3 h-3" aria-hidden="true" />
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -324,6 +395,56 @@ export default function AdminFacturesClientPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.cancel")}</Button>
             <Button onClick={handleSave} disabled={saving}>{saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}{editingId ? t("adminFacturesClient.form.update") : t("adminFacturesClient.form.create")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/*
+        Encaissement depuis la facture. Le montant pre-rempli est le reste du:
+        c'est le cas le plus frequent, et le retaper invite a la faute de frappe.
+      */}
+      <Dialog open={!!encaissementFacture} onOpenChange={(o) => !o && setEncaissementFacture(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("encaissements.saisie.titre")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {encaissementFacture?.reference} — {encaissementFacture?.clientCompany || encaissementFacture?.clientName}
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="fc-enc-montant" className="text-xs">{t("encaissements.saisie.montant")}</Label>
+                <Input id="fc-enc-montant" type="number" step="0.01" min="0" value={encMontant} onChange={e => setEncMontant(e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="fc-enc-date" className="text-xs">{t("encaissements.saisie.date")}</Label>
+                <Input id="fc-enc-date" type="date" value={encDate} onChange={e => setEncDate(e.target.value)} />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="fc-enc-moyen" className="text-xs">{t("encaissements.saisie.moyen")}</Label>
+              <Select value={encMoyen} onValueChange={setEncMoyen}>
+                <SelectTrigger id="fc-enc-moyen" aria-label={t("encaissements.saisie.moyen")}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {["especes","virement","cheque","carte","prelevement","autre"].map(m => (
+                    <SelectItem key={m} value={m}>{t(`encaissements.moyens.${m}`)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {/* La regle est dite ici aussi: l'utilisateur qui encaisse depuis la
+                facture ne passera peut-etre jamais par l'ecran dedie. */}
+            <p className="text-xs text-muted-foreground border-l-2 pl-3">
+              {t("encaissements.saisie.avertissement")}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEncaissementFacture(null)}>{t("common.cancel")}</Button>
+            <Button onClick={enregistrerEncaissement} disabled={encEnCours}>
+              {encEnCours && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              {t("encaissements.saisie.enregistrer")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
