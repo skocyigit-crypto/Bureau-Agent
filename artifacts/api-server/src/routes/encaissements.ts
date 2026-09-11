@@ -26,6 +26,7 @@ import {
   type EcritureChainee,
 } from "../services/chainage-encaissements";
 import { calculerCloture, periodeClose, verifierConservation } from "../services/cloture-comptable";
+import { construireArchive, nomArchive } from "../services/archivage-comptable";
 
 const router: IRouter = Router();
 
@@ -402,6 +403,73 @@ router.get("/encaissements/conservation", async (req: Request, res: Response): P
   } catch (err: any) {
     req.log.error({ err }, "Erreur verification conservation");
     res.status(500).json({ error: "Erreur lors de la verification." });
+  }
+});
+
+/**
+ * Produit l'archive d'une periode et la remet en telechargement.
+ *
+ * Le fichier est autonome: il porte les ecritures, les clotures, son empreinte,
+ * et le MODE D'EMPLOI qui permet de tout recalculer a la main. Un controle peut
+ * survenir six ans plus tard (art. L102 B du LPF): a cette date, l'editeur peut
+ * avoir disparu. Une archive qui exigerait d'installer ce logiciel pour etre
+ * lue ne serait pas une archive, ce serait une dependance.
+ */
+router.get("/encaissements/archive", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const type = String(req.query.type ?? "annuelle") as "journaliere" | "mensuelle" | "annuelle";
+  const periode = String(req.query.periode ?? "");
+  if (!["journaliere", "mensuelle", "annuelle"].includes(type)) {
+    res.status(400).json({ error: "Type de periode invalide." });
+    return;
+  }
+  if (!/^d{4}(-d{2}(-d{2})?)?$/.test(periode)) {
+    res.status(400).json({ error: "Periode invalide (AAAA, AAAA-MM ou AAAA-MM-JJ)." });
+    return;
+  }
+
+  try {
+    const lignes = await db.select().from(encaissementsTable)
+      .where(eq(encaissementsTable.organisationId, orgId))
+      .orderBy(encaissementsTable.numero);
+    const clotures = await db.select().from(cloturesComptablesTable)
+      .where(and(eq(cloturesComptablesTable.organisationId, orgId), eq(cloturesComptablesTable.type, type)))
+      .orderBy(cloturesComptablesTable.periode);
+
+    const archive = construireArchive(
+      orgId, type, periode,
+      enEcritures(lignes),
+      clotures.map((c) => ({
+        organisationId: c.organisationId,
+        type: c.type as "journaliere" | "mensuelle" | "annuelle",
+        periode: c.periode,
+        premierNumero: c.premierNumero,
+        dernierNumero: c.dernierNumero,
+        nbEcritures: c.nbEcritures,
+        totalPeriodeCentimes: c.totalPeriodeCentimes,
+        totalCumuleCentimes: c.totalCumuleCentimes,
+        empreintePrecedente: c.empreintePrecedente,
+        empreinte: c.empreinte,
+      })),
+      new Date().toISOString(),
+    );
+
+    // L'empreinte est journalisee: elle permet, plus tard, de confirmer qu'un
+    // fichier presente est bien celui qui a ete produit ce jour-la.
+    await logAudit(req.session?.userId, req.session?.userEmail, "archive_reglements_produite",
+      "archive", `${type}:${periode}`,
+      { empreinte: archive.empreinte, nbEcritures: archive.nbEcritures, octets: archive.octets },
+      req.ip, req.get("user-agent"), orgId);
+
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${nomArchive(orgId, type, periode)}"`);
+    // L'empreinte voyage aussi en en-tete: on peut la noter sans ouvrir le
+    // fichier, et la comparer plus tard.
+    res.setHeader("X-Archive-Empreinte", archive.empreinte);
+    res.send(archive.contenu);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur production archive");
+    res.status(500).json({ error: "Erreur lors de la production de l'archive." });
   }
 });
 
