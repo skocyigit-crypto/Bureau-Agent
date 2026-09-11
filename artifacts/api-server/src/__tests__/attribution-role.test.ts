@@ -21,17 +21,19 @@ const equipe: Membre[] = [
 ];
 
 describe("le role decide", () => {
-  it("envoie le travail comptable au comptable quand il existe", () => {
-    const avecComptable = [...equipe, m(5, "comptable", true, "Anne", "Roy")];
-    const a = attribuer("comptabilite", avecComptable);
-    expect(a.membre?.id).toBe(5);
-    expect(a.roleRetenu).toBe("comptable");
-    expect(a.parDefaut).toBe(false);
+  it("garde la comptabilite pour la direction", () => {
+    // Le produit ne sait pas creer de role « comptable »: une relance de
+    // facture va donc a l'administrateur, et c'est le bon destinataire.
+    const a = attribuer("comptabilite", equipe);
+    expect(a.membre?.id).toBe(1);
+    expect(a.roleRetenu).toBe("administrateur");
+    expect(a.parDefaut, "c'est le premier choix, pas un repli").toBe(false);
   });
 
-  it("envoie le travail de terrain au technicien plutot qu'au patron", () => {
-    const avecTechnicien = [...equipe, m(6, "technicien", true, "Yanis", "Roche")];
-    expect(attribuer("terrain", avecTechnicien).membre?.id).toBe(6);
+  it("envoie le travail de terrain a l'agent plutot qu'au patron", () => {
+    const a = attribuer("terrain", equipe);
+    expect(a.membre?.role).toBe("agent");
+    expect(a.parDefaut).toBe(false);
   });
 
   it("garde les decisions pour la direction", () => {
@@ -43,21 +45,22 @@ describe("le role decide", () => {
 
 describe("quand le role vise n'existe pas", () => {
   it("remonte vers la direction plutot que de descendre", () => {
-    // Beaucoup de TPE n'ont pas de comptable. Une tache mal attribuee vers le
+    // Beaucoup de TPE n'ont qu'un patron. Une tache mal attribuee vers le
     // haut est redistribuee; vers le bas, elle est ignoree.
-    const a = attribuer("comptabilite", equipe);
-    expect(a.membre?.id).toBe(1);
+    const sansAgent = equipe.filter((x) => x.role !== "agent");
+    const a = attribuer("terrain", sansAgent);
     expect(a.roleRetenu).toBe("administrateur");
     expect(a.parDefaut, "le repli doit se voir, pour pouvoir etre dit").toBe(true);
   });
 
-  it("signale le repli meme quand le destinataire est correct", () => {
-    // `parDefaut` n'est pas « on s'est trompe »: c'est « ce n'etait pas le
-    // premier choix ». L'interface peut alors ecrire « faute de comptable »
-    // plutot que de laisser croire a une attribution deliberee.
-    const a = attribuer("terrain", equipe);
-    expect(a.membre?.role).toBe("agent");
-    expect(a.parDefaut).toBe(true);
+  it("ne signale un repli que lorsqu'il y en a vraiment un", () => {
+    // `parDefaut` declenche une phrase d'excuse dans la description de la
+    // tache. Tant que les preferences nommaient des roles que le produit ne
+    // sait pas creer, cette phrase apparaissait sur trois natures sur cinq,
+    // en permanence — une excuse permanente se lit comme une panne.
+    for (const nature of ["comptabilite", "commercial", "terrain", "administratif", "direction"] as const) {
+      expect(attribuer(nature, equipe).parDefaut, `${nature} ne devrait pas etre un repli`).toBe(false);
+    }
   });
 });
 
