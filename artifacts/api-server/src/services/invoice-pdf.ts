@@ -23,6 +23,8 @@
  * nonies du CGI) et franchise en base (art. 293 B du CGI).
  */
 
+import { createRequire } from "node:module";
+
 import { computeInvoiceTotals, type InvoiceLine, type VatBreakdownEntry } from "./invoice-totals";
 import {
   LIBELLE_CATEGORIE,
@@ -317,6 +319,34 @@ function formatRate(value: number): string {
   return `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 }).format(value)} %`;
 }
 
+/**
+ * Polices du document.
+ *
+ * DejaVu Sans plutot que l'Helvetica integre a pdfkit, pour une raison qui
+ * n'est pas esthetique: PDF/A exige que toute police utilisee soit INCORPOREE
+ * au fichier. Les polices standard d'un PDF ne le sont jamais — le lecteur est
+ * cense les avoir — et un document Factur-X qui s'en contente n'est pas
+ * conforme, meme s'il s'en reclame.
+ *
+ * DejaVu est libre (licence Bitstream Vera), donc incorporable sans droit a
+ * acquitter, et couvre le latin etendu: les accents francais, le « € », et les
+ * caracteres turcs des organisations qui utilisent l'application en turc.
+ */
+const POLICE = "DejaVuSans";
+const POLICE_GRASSE = "DejaVuSans-Bold";
+
+/**
+ * Chemin d'un fichier de police, resolu via le paquet plutot qu'en dur.
+ *
+ * `node_modules` n'est pas au meme endroit selon qu'on execute les sources, le
+ * build, ou l'image Docker (pnpm place les paquets dans un magasin et les relie
+ * par des liens). Un chemin ecrit en dur marcherait ici et casserait en
+ * production — a la generation d'une facture, c'est-a-dire au pire moment.
+ */
+function cheminPolice(fichier: string): string {
+  return createRequire(import.meta.url).resolve(`dejavu-fonts-ttf/ttf/${fichier}`);
+}
+
 /** Dessine le modele en PDF A4. Retourne le fichier complet en memoire. */
 export interface RenderInvoiceOptions {
   /**
@@ -327,19 +357,21 @@ export interface RenderInvoiceOptions {
    * electronique. Il rend donc le PDF LISIBLE PAR MACHINE, ce qui est l'objet
    * de la reforme.
    *
-   * Ce n'est PAS encore un Factur-X conforme, et le code ne le pretend pas:
-   * la specification impose en plus un PDF/A-3, dont une regle centrale est
-   * que toutes les polices soient incorporees. pdfkit sait produire un
-   * PDF/A-3b (`subset: "PDF/A-3b"`), mais avec les polices standard —
-   * Helvetica ici — il n'incorpore aucun fichier de police: le document
-   * DECLARERAIT une conformite qu'il viole. Mesure faite le 2026-09-03: en
-   * mode PDF/A-3b, aucun `/FontFile` n'apparait dans la sortie.
+   * Depuis le 11/09/2026, le PDF produit est aussi un PDF/A-3b — la seconde
+   * moitie de ce que la specification Factur-X exige.
    *
-   * Declarer la conformite serait donc le meme defaut que celui corrige le
-   * meme jour cote tests: une affirmation verte qui ne repose sur rien. Le pas
-   * qui reste est petit et identifie — livrer une police libre incorporable,
-   * puis activer `subset` — mais il ajoute un binaire au depot et change
-   * l'aspect d'un document legal: c'est une decision de l'editeur.
+   * Ce qui manquait: PDF/A impose que TOUTES les polices soient incorporees
+   * au fichier, pour qu'il reste lisible a l'identique dans dix ans sans
+   * dependre de ce qui est installe sur la machine qui l'ouvre. Avec les
+   * polices standard de pdfkit — Helvetica — aucun `/FontFile` n'apparait
+   * dans la sortie: activer `subset` aurait produit un document DECLARANT une
+   * conformite qu'il viole, ce qui est pire que de ne rien declarer.
+   *
+   * D'ou DejaVu Sans, incorporee ici (voir POLICE). Le pas etait identifie
+   * depuis le 03/09 et laisse a l'editeur parce qu'il change l'aspect d'un
+   * document legal. Il est franchi: une facture non conforme au moment ou la
+   * facturation electronique devient obligatoire coute plus cher qu'un
+   * changement de police.
    */
   facturXXml?: string;
 }
@@ -349,7 +381,23 @@ export async function renderInvoicePdf(
   options: RenderInvoiceOptions = {},
 ): Promise<Buffer> {
   const PDFDocument = (await import("pdfkit")).default;
-  const doc = new PDFDocument({ margin: 45, size: "A4" });
+
+  // PDF/A-3b uniquement quand un XML Factur-X est joint: c'est la seule
+  // situation ou la conformite est exigee, et le mode impose des contraintes
+  // (polices incorporees, pas de transparence) qu'il est inutile de faire
+  // porter a un simple PDF de courtoisie.
+  const doc = new PDFDocument(
+    options.facturXXml
+      ? { margin: 45, size: "A4", subset: "PDF/A-3b", pdfVersion: "1.7" }
+      : { margin: 45, size: "A4" },
+  );
+
+  // Les polices sont incorporees sous leurs noms d'origine plutot qu'en
+  // remplacant « Helvetica »: un fichier qui embarque DejaVu tout en l'appelant
+  // Helvetica mentirait sur son propre contenu, et c'est exactement ce qu'un
+  // controle de conformite va lire.
+  doc.registerFont(POLICE, cheminPolice("DejaVuSans.ttf"));
+  doc.registerFont(POLICE_GRASSE, cheminPolice("DejaVuSans-Bold.ttf"));
 
   if (options.facturXXml) {
     // Le nom de fichier n'est pas libre: un lecteur cherche exactement
@@ -390,15 +438,15 @@ export async function renderInvoicePdf(
 
   // --- En-tete: vendeur a gauche, facture a droite -------------------------
   const headerTop = doc.y;
-  doc.font("Helvetica-Bold").fontSize(14);
+  doc.font(POLICE_GRASSE).fontSize(14);
   drawText(model.seller.name, left, headerTop, { width: width * 0.55 });
-  doc.font("Helvetica").fontSize(9).fillColor("#444444");
+  doc.font(POLICE).fontSize(9).fillColor("#444444");
   for (const line of model.seller.lines) drawText(line, { width: width * 0.55 });
   const sellerBottom = doc.y;
 
-  doc.fillColor("#000000").font("Helvetica-Bold").fontSize(20);
+  doc.fillColor("#000000").font(POLICE_GRASSE).fontSize(20);
   drawText("FACTURE", left + width * 0.6, headerTop, { width: width * 0.4, align: "right" });
-  doc.font("Helvetica").fontSize(10);
+  doc.font(POLICE).fontSize(10);
   drawText(`N° ${model.reference}`, { width: width * 0.4, align: "right" });
   drawText(`Emise le ${formatDate(model.issueDate)}`, { width: width * 0.4, align: "right" });
   if (model.dueDate) {
@@ -408,11 +456,11 @@ export async function renderInvoicePdf(
   doc.y = Math.max(sellerBottom, doc.y) + 18;
 
   // --- Acheteur ------------------------------------------------------------
-  doc.font("Helvetica-Bold").fontSize(9).fillColor("#666666");
+  doc.font(POLICE_GRASSE).fontSize(9).fillColor("#666666");
   drawText("FACTURE A", left, doc.y);
-  doc.fillColor("#000000").font("Helvetica-Bold").fontSize(11);
+  doc.fillColor("#000000").font(POLICE_GRASSE).fontSize(11);
   drawText(model.buyer.name, left, doc.y + 2);
-  doc.font("Helvetica").fontSize(9).fillColor("#444444");
+  doc.font(POLICE).fontSize(9).fillColor("#444444");
   for (const line of model.buyer.lines) drawText(line);
   doc.fillColor("#000000");
   doc.y += 16;
@@ -429,7 +477,7 @@ export async function renderInvoicePdf(
   const drawHeaderRow = () => {
     const y = doc.y;
     doc.rect(left, y, width, 18).fill("#f1f5f9");
-    doc.fillColor("#0f172a").font("Helvetica-Bold").fontSize(9);
+    doc.fillColor("#0f172a").font(POLICE_GRASSE).fontSize(9);
     let x = left;
     for (const col of cols) {
       drawText(col.label, x + 4, y + 5, { width: col.width - 8, align: col.align });
@@ -440,7 +488,7 @@ export async function renderInvoicePdf(
   };
 
   drawHeaderRow();
-  doc.font("Helvetica").fontSize(9);
+  doc.font(POLICE).fontSize(9);
   for (const line of model.lines) {
     const cells = [
       line.description || "—",
@@ -454,7 +502,7 @@ export async function renderInvoicePdf(
     if (doc.y + rowHeight > bottom) {
       doc.addPage();
       drawHeaderRow();
-      doc.font("Helvetica").fontSize(9);
+      doc.font(POLICE).fontSize(9);
     }
     const y = doc.y;
     let x = left;
@@ -472,7 +520,7 @@ export async function renderInvoicePdf(
   const totalsLeft = left + width * 0.5;
   const totalsWidth = width * 0.5;
   const totalRow = (label: string, value: string, bold = false) => {
-    doc.font(bold ? "Helvetica-Bold" : "Helvetica").fontSize(bold ? 11 : 9);
+    doc.font(bold ? POLICE_GRASSE : POLICE).fontSize(bold ? 11 : 9);
     const y = doc.y;
     drawText(label, totalsLeft, y, { width: totalsWidth * 0.55 });
     drawText(value, totalsLeft + totalsWidth * 0.55, y, { width: totalsWidth * 0.45, align: "right" });
@@ -495,9 +543,9 @@ export async function renderInvoicePdf(
   const block = (title: string, lines: string[], size = 9) => {
     if (lines.length === 0) return;
     ensureSpace(18 + lines.length * 12);
-    doc.font("Helvetica-Bold").fontSize(9).fillColor("#666666");
+    doc.font(POLICE_GRASSE).fontSize(9).fillColor("#666666");
     drawText(title, left, doc.y, { width });
-    doc.font("Helvetica").fontSize(size).fillColor("#000000");
+    doc.font(POLICE).fontSize(size).fillColor("#000000");
     for (const line of lines) drawText(line, { width });
     doc.y += 8;
   };
@@ -508,7 +556,7 @@ export async function renderInvoicePdf(
 
   if (model.footer) {
     ensureSpace(30);
-    doc.font("Helvetica").fontSize(8).fillColor("#666666");
+    doc.font(POLICE).fontSize(8).fillColor("#666666");
     drawText(model.footer, left, doc.y, { width, align: "center" });
     doc.fillColor("#000000");
   }
