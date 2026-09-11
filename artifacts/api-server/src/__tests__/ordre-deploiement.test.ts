@@ -10,39 +10,78 @@
  * ils avaient raison de l'etre. Chacun avait fait son travail correctement.
  * C'est l'ORDRE entre eux qui etait faux, et l'ordre n'appartenait a personne.
  *
- * Le test s'appuie sur de VRAIS commits de ce depot plutot que sur des
- * identifiants inventes: la garde interroge git, donc la seule facon de
- * verifier qu'elle lit correctement une relation d'ascendance est de lui en
- * donner une vraie.
+ * Le test s'appuie sur de VRAIS commits plutot que sur des identifiants
+ * inventes: la garde interroge git, donc la seule facon de verifier qu'elle
+ * lit correctement une relation d'ascendance est de lui en donner une vraie.
+ * Ils sont fabriques dans un depot jetable — voir `depotJetable` pour
+ * pourquoi ce n'est pas l'historique de ce depot-ci.
  */
 import { execFileSync } from "node:child_process";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const RACINE = join(import.meta.dirname, "..", "..", "..", "..");
 const GARDE = join(RACINE, "deploy", "garde-ordre-deploiement.sh");
 
-/** Rend le code de sortie de la garde: 0 = deployer, 10 = s'abstenir. */
+/**
+ * Un depot jetable avec une vraie chaine de commits.
+ *
+ * Premiere version: on lisait `HEAD~1` et `HEAD~3` de CE depot. Vert en local,
+ * ROUGE en integration continue — la CI clone en profondeur 1, et `HEAD~1`
+ * n'existe pas la-bas. Le test dependait d'un historique que la machine qui le
+ * fait tourner n'a aucune raison d'avoir.
+ *
+ * Un depot construit ici est hermetique: il porte la relation d'ascendance
+ * qu'on veut eprouver, et rien d'autre. Ce sont toujours de vrais commits,
+ * interroges par un vrai `git merge-base` — un identifiant invente ne
+ * prouverait rien d'une ascendance.
+ */
+function depotJetable(): { dossier: string; commits: string[] } {
+  const dossier = mkdtempSync(join(tmpdir(), "ordre-"));
+  const git = (...args: string[]) =>
+    execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=test", ...args], {
+      cwd: dossier,
+      stdio: "pipe",
+    })
+      .toString()
+      .trim();
+
+  git("init", "-q");
+  const commits: string[] = [];
+  for (let i = 0; i < 4; i++) {
+    writeFileSync(join(dossier, "f.txt"), `revision ${i}`);
+    git("add", "f.txt");
+    git("commit", "-q", "-m", `c${i}`);
+    commits.push(git("rev-parse", "--short", "HEAD"));
+  }
+  return { dossier, commits };
+}
+
+const { dossier, commits } = depotJetable();
+
+/**
+ * Rend le code de sortie de la garde: 0 = deployer, 10 = s'abstenir.
+ *
+ * Executee DANS le depot jetable: la garde lit l'historique de son repertoire
+ * courant, exactement comme elle le fera dans le plan de travail de Cloud
+ * Build.
+ */
 function garde(notre: string, deploye: string): number {
   try {
-    execFileSync("bash", [GARDE, notre, deploye], { cwd: RACINE, stdio: "pipe" });
+    execFileSync("bash", [GARDE, notre, deploye], { cwd: dossier, stdio: "pipe" });
     return 0;
   } catch (e) {
     return (e as { status?: number }).status ?? -1;
   }
 }
 
-/** Un commit reel de l'historique, a `n` pas du sommet. */
-function commit(n: number): string {
-  return execFileSync("git", ["rev-parse", "--short", `HEAD~${n}`], { cwd: RACINE })
-    .toString()
-    .trim();
-}
-
 describe("la production ne recule pas", () => {
-  const sommet = commit(0);
-  const precedent = commit(1);
-  const anterieur = commit(3);
+  // commits[0] est le plus ancien, commits[3] le sommet.
+  const sommet = commits[3];
+  const precedent = commits[2];
+  const anterieur = commits[0];
 
   it("s'abstient quand notre commit est deja depasse par la production", () => {
     // Le cas exact du 11/09: un build en retard finit apres un plus recent.
