@@ -45,7 +45,7 @@ router.get("/audit/logs", async (req: Request, res: Response): Promise<void> => 
   const offset = (page - 1) * limit;
   const { action, resource, userId, from, to, userEmail } = req.query;
 
-  let conditions: any[] = [];
+  const conditions: any[] = [];
   const tenant = tenantCondition(req);
   if (tenant) conditions.push(tenant);
   if (action && typeof action === "string") conditions.push(eq(auditLogsTable.action, action));
