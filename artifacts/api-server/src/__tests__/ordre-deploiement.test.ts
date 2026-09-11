@@ -59,7 +59,52 @@ function depotJetable(): { dossier: string; commits: string[] } {
   return { dossier, commits };
 }
 
-const { dossier, commits } = depotJetable();
+/**
+ * `git` n'existe pas partout ou ces tests tournent.
+ *
+ * L'etape de test de Cloud Build utilise `node:24-bookworm-slim`, une image
+ * sans git: la premiere version de ce fichier y echouait sur `spawnSync git
+ * ENOENT` et FAISAIT ECHOUER LE DEPLOIEMENT. Un test cense proteger la mise en
+ * production l'empechait — le contraire exact de son objet.
+ *
+ * Sans git, on ne teste pas moins, on teste AUTRE CHOSE: precisement le
+ * comportement que la garde doit avoir dans cet environnement-la, c'est-a-dire
+ * laisser passer. Ce n'est pas un test desactive en silence.
+ */
+function gitDisponible(): boolean {
+  try {
+    // Le nom du binaire est injectable UNIQUEMENT pour pouvoir eprouver le
+    // chemin « sans git » sur une machine qui en a un. Sans cette couture, la
+    // branche qui protege le deploiement ne serait jamais executee avant
+    // d'atterrir dans le conteneur — c'est-a-dire jamais avant de casser.
+    execFileSync(process.env.ORDRE_TEST_GIT ?? "git", ["--version"], { stdio: "pipe" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Un depot utilisable, ou rien.
+ *
+ * `git` peut etre present mais inutilisable: pas de HOME, pas d'identite
+ * configuree, systeme de fichiers en lecture seule — autant de cas ordinaires
+ * dans un conteneur minimal. Echouer la ferait echouer le deploiement, donc on
+ * retombe sur le meme comportement que l'absence de git.
+ */
+function depotOuRien(): { dossier: string; commits: string[] } | null {
+  if (!gitDisponible()) return null;
+  try {
+    return depotJetable();
+  } catch {
+    return null;
+  }
+}
+
+const depot = depotOuRien();
+const GIT = depot !== null;
+const dossier = depot?.dossier ?? RACINE;
+const commits = depot?.commits ?? [];
 
 /**
  * Rend le code de sortie de la garde: 0 = deployer, 10 = s'abstenir.
@@ -77,7 +122,7 @@ function garde(notre: string, deploye: string): number {
   }
 }
 
-describe("la production ne recule pas", () => {
+describe.runIf(GIT)("la production ne recule pas", () => {
   // commits[0] est le plus ancien, commits[3] le sommet.
   const sommet = commits[3];
   const precedent = commits[2];
@@ -108,5 +153,36 @@ describe("la production ne recule pas", () => {
     expect(garde(sommet, ""), "rien en production").toBe(0);
     expect(garde("0000000", sommet), "commit inconnu de cet historique").toBe(0);
     expect(garde(sommet, "0000000")).toBe(0);
+  });
+});
+
+/**
+ * Ce qui reste verifiable partout, y compris sans git.
+ *
+ * C'est le comportement le plus important des deux: une garde qui bloque a
+ * tort empeche une correction d'arriver en production, alors qu'une garde qui
+ * laisse passer a tort ne coute qu'un redeploiement. Ces assertions tournent
+ * dans TOUS les environnements — dont l'etape de test de Cloud Build, ou
+ * l'absence de git est justement le cas de figure teste.
+ */
+describe("la garde laisse passer plutot que de bloquer", () => {
+  it("laisse passer quand il n'y a rien a comparer", () => {
+    expect(garde("", "abc1234"), "aucun repere fourni").toBe(0);
+    expect(garde("abc1234", ""), "rien en production").toBe(0);
+  });
+
+  it("laisse passer quand elle ne peut pas trancher", () => {
+    // Sans historique utilisable — pas de git, ou commits inconnus — la garde
+    // n'a aucune raison de retenir un deploiement.
+    expect(garde("0000000", "1111111")).toBe(0);
+  });
+
+  it("dit dans quel mode ce fichier vient de tourner", () => {
+    // Sans cette ligne, un environnement qui perdrait git verrait la moitie
+    // des tests disparaitre sans que personne ne le remarque.
+    console.log(GIT
+      ? "[ordre-deploiement] git present: ascendance reellement verifiee"
+      : "[ordre-deploiement] git absent: seul le comportement fail-open est verifie");
+    expect(typeof GIT).toBe("boolean");
   });
 });
