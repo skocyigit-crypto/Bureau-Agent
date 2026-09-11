@@ -27,6 +27,8 @@ export * from "./legal-agreements";
 export * from "./prospects";
 export * from "./devis";
 export * from "./factures-client";
+export * from "./encaissements";
+export * from "./clotures-comptables";
 export * from "./treasury-settings";
 export * from "./projets";
 export * from "./compte-client";

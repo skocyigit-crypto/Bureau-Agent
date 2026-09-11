@@ -16,6 +16,7 @@ import workspaceRouter from "./workspace";
 import integrationsRouter from "./integrations";
 import checkinsRouter from "./checkins";
 import diagnosticPosteRouter from "./diagnostic-poste";
+import encaissementsRouter from "./encaissements";
 import locationsRouter from "./locations";
 import pushRouter from "./push";
 import clientErrorsRouter from "./client-errors";
@@ -197,6 +198,8 @@ router.use(checkinsRouter);
 // Diagnostic de poste: le client execute le script, envoie le rapport, et
 // cette route l analyse. Aucun canal en sens inverse (voir le fichier).
 router.use(diagnosticPosteRouter);
+// Journal des reglements: ajout seul, chaine verifiable (art. 286-I-3 bis CGI).
+router.use(encaissementsRouter);
 router.use(locationsRouter);
 router.use(pushRouter);
 router.use(performanceRouter);
