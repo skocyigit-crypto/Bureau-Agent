@@ -62,6 +62,7 @@ const SettingsPage = lazy(() => import("@/pages/settings"));
 const GuidePage = lazy(() => import("@/pages/guide"));
 const SanteTechniquePage = lazy(() => import("@/pages/sante-technique"));
 const DiagnosticPostePage = lazy(() => import("@/pages/diagnostic-poste"));
+const EncaissementsPage = lazy(() => import("@/pages/encaissements"));
 const Reports = lazy(() => import("@/pages/reports"));
 const Software = lazy(() => import("@/pages/software"));
 const UsersPage = lazy(() => import("@/pages/users"));
@@ -372,6 +373,9 @@ function AppRoutes() {
         {/* Diagnostic d un poste de travail: le client lance le script, depose
             le rapport. Aucun acces a distance (voir services/diagnostic-poste). */}
         <Route path="/diagnostic-poste" component={withLicenseGate(DiagnosticPostePage)} />
+        {/* Journal des reglements: saisie, verification, archive, attestation.
+            C est l ecran qui rend utilisable la conformite 286-I-3 bis. */}
+        <Route path="/reglements" component={withLicenseGate(EncaissementsPage)} />
         <Route path="/assistant-proactif" component={withLicenseGate(AssistantProactifPage)} />
         <Route path="/ia-apprentissage" component={withLicenseGate(IaApprentissagePage)} />
         <Route path="/recherche-web" component={withLicenseGate(RechercheWebPage)} />

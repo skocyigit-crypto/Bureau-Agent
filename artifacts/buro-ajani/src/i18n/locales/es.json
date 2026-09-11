@@ -154,7 +154,8 @@
       "quotes": "Presupuestos",
       "clientInvoices": "Facturas de clientes",
       "trash": "Papelera",
-      "postDiagnostic": "Diagnostico del equipo"
+      "postDiagnostic": "Diagnostico del equipo",
+      "encaissements": "Cobros"
     }
   },
   "userMenu": {
@@ -9227,5 +9228,55 @@
     "remiseCopie": "Script copiado",
     "aLaMainTitre": "Por hacer a mano",
     "aLaMainDesc": "Estos puntos no se automatizan a proposito: borran datos, requieren un reinicio elegido por usted, o generan una clave que debe guardarse a salvo."
+  },
+  "encaissements": {
+    "titre": "Libro de cobros",
+    "sousTitre": "Registrar los cobros y poder demostrarlo.",
+    "etat": {
+      "titre": "Estado de conformidad",
+      "chaine": "Cadena",
+      "conservation": "Conservacion",
+      "intacte": "intacta",
+      "coherente": "coherente",
+      "aVerifier": "por comprobar",
+      "verifieLe": "Comprobado el {{quand}}",
+      "verifier": "Comprobar ahora",
+      "archive": "Archivo {{annee}}",
+      "attestation": "Certificado del editor",
+      "fondement": "Articulo 286-I-3 bis del codigo fiscal frances: los datos de cobro deben ser inalterables, seguros, conservados y archivados."
+    },
+    "saisie": {
+      "titre": "Registrar un cobro",
+      "facture": "Numero de factura",
+      "montant": "Importe (EUR)",
+      "moyen": "Forma de pago",
+      "date": "Fecha de cobro",
+      "enregistrer": "Registrar",
+      "avertissement": "Un cobro registrado no puede modificarse ni eliminarse. Un error se corrige con un asiento inverso, que se anade al libro y deja visible el original."
+    },
+    "moyens": {
+      "especes": "Efectivo",
+      "virement": "Transferencia",
+      "cheque": "Cheque",
+      "carte": "Tarjeta",
+      "prelevement": "Domiciliacion",
+      "autre": "Otro"
+    },
+    "reprise": {
+      "titre": "Saldos de apertura",
+      "desc": "Incorpora al libro los importes ya cobrados antes de su puesta en marcha: un asiento por factura, con fecha de hoy y forma « reprise ». No se inventa ninguna fecha ni forma de pago pasada.",
+      "bouton": "Ejecutar",
+      "confirmTitre": "Incorporar saldos de apertura?",
+      "confirmDesc": "Se anadira un asiento por cada factura con importe ya pagado. Las facturas ya incorporadas se omiten.",
+      "confirmBouton": "Ejecutar",
+      "faite": "{{n}} asientos de apertura creados"
+    },
+    "toast": {
+      "enregistre": "Cobro registrado (asiento n.o {{numero}})",
+      "echec": "No se pudo registrar",
+      "periodeClose": "Periodo cerrado",
+      "champsRequis": "Factura e importe son obligatorios",
+      "verificationEchouee": "No se pudo comprobar"
+    }
   }
 }
