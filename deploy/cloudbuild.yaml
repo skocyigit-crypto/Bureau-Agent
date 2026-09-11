@@ -107,38 +107,65 @@ steps:
 
   - id: deploy-api
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
+    entrypoint: bash
     args:
-      - run
-      - deploy
-      - '${_API_SERVICE}'
-      - '--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/api:${_TAG}'
-      - '--region=${_REGION}'
-      - '--platform=managed'
-      # Identite du build, lisible ensuite sur /api/healthz et /api/app-version.
-      # `--update-env-vars` et NON `--set-env-vars`: le second remplace toute la
-      # configuration du service et effacerait secrets et reglages en place.
-      # PUBLIC_URL construit TOUS les liens des courriels (activation de compte,
-      # reinitialisation de mot de passe, fin d'essai, abonnement) — dix-huit
-      # endroits dans email.ts. En production il valait
-      # `https://agent-de-bureau-web-...run.app`: chaque client recevait donc des
-      # liens vers un hote Cloud Run brut au lieu du domaine de la marque. Sur un
-      # lien de reinitialisation de mot de passe, cela apprend a l'utilisateur a
-      # cliquer sur un domaine qu'il ne reconnait pas — exactement ce qu'un
-      # hameconnage exploite — et le lien casserait si l'URL du service changeait.
-      # Declare ici plutot que pose a la main: une variable posee une fois ne se
-      # relit pas, et personne ne sait plus pourquoi elle vaut ce qu'elle vaut.
-      - '--update-env-vars=BUILD_SHA=${_TAG},BUILD_ID=${BUILD_ID},PUBLIC_URL=${_PUBLIC_URL}'
-      # Affinite de session. Le service tourne jusqu'a trois instances et
-      # certains etats ne peuvent PAS etre partages: le flux SSE d'un cycle
-      # d'agents porte un EventEmitter et un AbortController, qui n'existent
-      # que dans le processus qui a lance le travail. Sans affinite, le
-      # navigateur qui vient lire la progression tombe une fois sur deux sur
-      # une instance qui ne connait pas ce travail et voit un flux vide.
-      # L'affinite est « au mieux » cote Cloud Run: elle ne remplace pas un
-      # etat partage, elle enleve seulement le cas ou l'etat partageable ne
-      # l'est pas.
-      - '--session-affinity'
+      - -c
+      - |
+        set -uo pipefail
+
+        # Un build en retard ne doit pas ecraser un plus recent.
+        #
+        # Le 11/09/2026: le build de 57a4b87 (cree a 10:23) a fini a 10:48 et a
+        # deploye; celui de f92100f (cree a 10:08, donc PLUS ANCIEN) a fini a
+        # 10:55 et a deploye par-dessus. La production est restee cinq heures
+        # sur le commit precedent. Les deux builds etaient verts et avaient
+        # raison de l'etre: c'est l'ORDRE entre eux qui etait faux, et l'ordre
+        # n'appartenait a aucun des deux.
+        #
+        # On lit ce qui tourne par /api/healthz plutot qu'en fouillant les
+        # variables du service: c'est la meme source que celle sur laquelle la
+        # veille quotidienne s'appuie, et elle dit ce qui SERT vraiment, pas ce
+        # que la configuration promet. Si l'appel echoue, la variable reste
+        # vide et la garde laisse passer.
+        DEPLOYE="$$(curl -sf --max-time 20 '${_PUBLIC_URL}/api/healthz' 2>/dev/null | sed -n 's/.*"build":"\([^"]*\)".*/\1/p')"
+        bash deploy/garde-ordre-deploiement.sh '${_TAG}' "$$DEPLOYE"
+        if [ "$$?" = "10" ]; then
+          # Ni une panne ni un echec: ce build est simplement depasse. Les
+          # deploiements web et tanitim lisent ce temoin pour s'abstenir aussi,
+          # sinon l'interface partirait sans l'API qui va avec.
+          touch /workspace/.deploiement-depasse
+          exit 0
+        fi
+
+        # Identite du build, lisible ensuite sur /api/healthz et /api/app-version.
+        # `--update-env-vars` et NON `--set-env-vars`: le second remplace toute la
+        # configuration du service et effacerait secrets et reglages en place.
+        # PUBLIC_URL construit TOUS les liens des courriels (activation de compte,
+        # reinitialisation de mot de passe, fin d'essai, abonnement) — dix-huit
+        # endroits dans email.ts. En production il valait
+        # `https://agent-de-bureau-web-...run.app`: chaque client recevait donc des
+        # liens vers un hote Cloud Run brut au lieu du domaine de la marque. Sur un
+        # lien de reinitialisation de mot de passe, cela apprend a l'utilisateur a
+        # cliquer sur un domaine qu'il ne reconnait pas — exactement ce qu'un
+        # hameconnage exploite — et le lien casserait si l'URL du service changeait.
+        # Declare ici plutot que pose a la main: une variable posee une fois ne se
+        # relit pas, et personne ne sait plus pourquoi elle vaut ce qu'elle vaut.
+        #
+        # Affinite de session. Le service tourne jusqu'a trois instances et
+        # certains etats ne peuvent PAS etre partages: le flux SSE d'un cycle
+        # d'agents porte un EventEmitter et un AbortController, qui n'existent
+        # que dans le processus qui a lance le travail. Sans affinite, le
+        # navigateur qui vient lire la progression tombe une fois sur deux sur
+        # une instance qui ne connait pas ce travail et voit un flux vide.
+        # L'affinite est « au mieux » cote Cloud Run: elle ne remplace pas un
+        # etat partage, elle enleve seulement le cas ou l'etat partageable ne
+        # l'est pas.
+        exec gcloud run deploy '${_API_SERVICE}' \
+          --image='${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/api:${_TAG}' \
+          --region='${_REGION}' \
+          --platform=managed \
+          --update-env-vars=BUILD_SHA=${_TAG},BUILD_ID=${BUILD_ID},PUBLIC_URL=${_PUBLIC_URL} \
+          --session-affinity
     waitFor: ['push-api']
 
   - id: build-web
@@ -154,14 +181,23 @@ steps:
 
   - id: deploy-web
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
+    entrypoint: bash
     args:
-      - run
-      - deploy
-      - '${_WEB_SERVICE}'
-      - '--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/web:${_TAG}'
-      - '--region=${_REGION}'
-      - '--platform=managed'
+      - -c
+      - |
+        set -uo pipefail
+        # Si l'API s'est abstenue parce que ce build est depasse, l'interface
+        # doit s'abstenir aussi: une interface plus recente que son API est
+        # pire qu'une interface en retard — elle appelle des routes qui
+        # n'existent pas encore.
+        if [ -f /workspace/.deploiement-depasse ]; then
+          echo "deploiement ignore: build depasse par un commit plus recent"
+          exit 0
+        fi
+        exec gcloud run deploy '${_WEB_SERVICE}' \
+          --image='${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/web:${_TAG}' \
+          --region='${_REGION}' \
+          --platform=managed
     waitFor: ['push-web', 'deploy-api']
 
   - id: build-tanitim
@@ -177,15 +213,22 @@ steps:
 
   - id: deploy-tanitim
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
+    entrypoint: bash
     args:
-      - run
-      - deploy
-      - '${_TANITIM_SERVICE}'
-      - '--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/tanitim:${_TAG}'
-      - '--region=${_REGION}'
-      - '--platform=managed'
-      - '--allow-unauthenticated'
+      - -c
+      - |
+        set -uo pipefail
+        # Meme temoin que l'API et l'interface: les trois services avancent
+        # ensemble ou pas du tout.
+        if [ -f /workspace/.deploiement-depasse ]; then
+          echo "deploiement ignore: build depasse par un commit plus recent"
+          exit 0
+        fi
+        exec gcloud run deploy '${_TANITIM_SERVICE}' \
+          --image='${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/tanitim:${_TAG}' \
+          --region='${_REGION}' \
+          --platform=managed \
+          --allow-unauthenticated
     waitFor: ['push-tanitim', 'deploy-api']
 
 images:
