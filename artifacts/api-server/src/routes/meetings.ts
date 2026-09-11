@@ -1,11 +1,42 @@
 import { Router } from "express";
-import { db, projetsTable, tasksTable } from "@workspace/db";
+import { db, projetsTable, usersTable } from "@workspace/db";
 import { eq, and, isNotNull } from "drizzle-orm";
+import { AGENTS, creerTacheIa } from "../services/tache-ia";
 import { logger } from "../lib/logger";
 import { assertAiQuota, invalidateQuotaCache } from "../services/ai-quota";
 import { recordAiUsage, GEMINI_PRO_MODEL } from "../services/ai-utils";
 
 const router = Router();
+
+/**
+ * Retrouve un membre a partir du nom prononce en reunion.
+ *
+ * La comparaison ignore la casse et les accents: le modele transcrit
+ * « Stephane » la ou la fiche dit « Stéphane », et un rapprochement strict
+ * echouerait sur exactement les cas ou il servirait. On accepte le prenom
+ * seul, le nom seul, ou les deux — mais seulement si UN SEUL membre
+ * correspond: deux Pierre dans l'entreprise, et deviner serait pire que
+ * laisser la regle de role decider.
+ */
+function normaliser(v: string): string {
+  return v.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+}
+
+function trouverMembre(
+  membres: Array<{ id: number; nom: string | null; prenom: string | null }>,
+  suggere: string,
+): { id: number } | null {
+  const cible = normaliser(suggere);
+  if (!cible) return null;
+  const candidats = membres.filter((m) => {
+    const prenom = normaliser(m.prenom ?? "");
+    const nom = normaliser(m.nom ?? "");
+    const complet = `${prenom} ${nom}`.trim();
+    return cible === complet || (prenom !== "" && cible === prenom) || (nom !== "" && cible === nom);
+  });
+  return candidats.length === 1 ? { id: candidats[0].id } : null;
+}
+
 
 // ---------------------------------------------------------------------------
 // Haversine distance in km between two GPS points
@@ -149,6 +180,13 @@ Regles:
     // -----------------------------------------------------------------------
     const tasksCreated: { id: number; titre: string; priorite: string; echeance: string | null }[] = [];
 
+    // Charge une fois, pas par action: une reunion produit jusqu'a dix taches,
+    // et dix lectures de la meme liste seraient dix fois la meme reponse.
+    const membres = await db
+      .select({ id: usersTable.id, nom: usersTable.nom, prenom: usersTable.prenom })
+      .from(usersTable)
+      .where(and(eq(usersTable.organisationId, orgId), eq(usersTable.actif, true)));
+
     for (const item of actionItems) {
       if (!item.titre || typeof item.titre !== "string") continue;
       const title = item.titre.substring(0, 255);
@@ -157,26 +195,42 @@ Regles:
       const days = typeof item.echeanceJours === "number" && item.echeanceJours > 0 ? item.echeanceJours : 7;
       const dueDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 
+      // Le nom prononce en reunion n'est qu'une suggestion: on ne lui fait
+      // confiance que s'il designe quelqu'un de reel. Un nom libre stocke tel
+      // quel donnait une tache adressee a « Marie » — introuvable dans la
+      // liste de la vraie Marie, et invisible pour tous les autres.
+      const suggere = item.assigneA && item.assigneA !== "null" ? String(item.assigneA).trim() : "";
+      const reconnu = suggere ? trouverMembre(membres, suggere) : null;
+      const mentionNonReconnu = suggere && !reconnu
+        ? `
+
+Assignation proposee en reunion: « ${suggere.substring(0, 100)} » — aucun membre de ce nom, la tache a ete adressee selon le role.`
+        : "";
+
       try {
-        const [inserted] = await db.insert(tasksTable).values({
+        // Personne n'a ecrit cette tache: le modele l'a deduite du
+        // compte-rendu. `demandePar` garde l'humain qui a lance la
+        // compilation, la colonne d'agent dit que la redaction vient d'une
+        // machine. Le prefixe « [Réunion] » disparait: c'etait la convention
+        // a moitie appliquee que la porte unique remplace.
+        const creee = await creerTacheIa({
           organisationId: orgId,
-          title: `[Réunion] ${title}`,
-          description: description || `Tache issue du compte-rendu de reunion du ${new Date().toLocaleDateString("fr-FR")}`,
-          status: "en_attente",
+          agent: AGENTS.analyseReunion,
+          nature: "administratif",
+          title,
+          description: (description || `Tache issue du compte-rendu de reunion du ${new Date().toLocaleDateString("fr-FR")}`) + mentionNonReconnu,
           priority,
           dueDate,
-          assignedTo: item.assigneA && item.assigneA !== "null" ? String(item.assigneA).substring(0, 100) : null,
-          createdBy: userId,
-        }).returning({ id: tasksTable.id });
+          demandePar: userId,
+          assignerA: reconnu?.id ?? null,
+        });
 
-        if (inserted) {
-          tasksCreated.push({
-            id: inserted.id,
-            titre: title,
-            priorite: priority,
-            echeance: dueDate.toLocaleDateString("fr-FR"),
-          });
-        }
+        tasksCreated.push({
+          id: creee.id,
+          titre: title,
+          priorite: priority,
+          echeance: dueDate.toLocaleDateString("fr-FR"),
+        });
       } catch (err: any) {
         logger.warn({ err: err.message }, "[Meetings] Task creation failed:");
       }

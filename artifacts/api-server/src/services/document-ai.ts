@@ -1243,6 +1243,11 @@ export async function importRowsToModule(
         }
         case "taches": {
           const f = row.fields;
+          // tache-ia: SAISIE HUMAINE — import d'un tableau, ligne par ligne.
+          // Le modele a lu le fichier, mais c'est l'utilisateur qui coche ce
+          // qu'il importe (`selectedRows`), et il en reste l'auteur. Passer
+          // par creerTacheIa attribuerait ces taches par role, en ecrasant la
+          // colonne `assignedTo` que le fichier importe porte deja.
           const [created] = await db.insert(tasksTable).values({
             organisationId: orgId,
             title: f.title || "Tache importee",
