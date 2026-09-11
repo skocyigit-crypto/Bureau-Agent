@@ -101,7 +101,10 @@ export function AiDiscoveryPanel() {
     setLoading(true);
     setError(null);
     try {
-      const baseUrl = import.meta.env.BASE_URL || "/";
+      // Le slash final est retire: sans lui, `${baseUrl}/api/...` devient
+      // `//api/...`, qu'un navigateur lit comme l'hote `api` et non comme un
+      // chemin. Meme forme que partout ailleurs dans le depot.
+      const baseUrl = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
       const resp = await fetch(`${baseUrl}/api/ai/discovery`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
