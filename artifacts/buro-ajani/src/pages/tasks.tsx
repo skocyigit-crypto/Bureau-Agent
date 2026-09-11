@@ -63,6 +63,7 @@ const LIBELLE_AGENT: Record<string, string> = {
   "assistant": "Assistant",
   "saisie-vocale": "Saisie vocale",
   "analyse-rapport": "Analyse de rapport",
+  "analyse-reunion": "Compte-rendu de reunion",
   "moteur-automatisation": "Moteur d'automatisation",
 };
 
