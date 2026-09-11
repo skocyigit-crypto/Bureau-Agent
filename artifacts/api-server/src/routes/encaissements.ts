@@ -15,7 +15,7 @@
  */
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, desc, eq } from "drizzle-orm";
-import { db, cloturesComptablesTable, encaissementsTable, facturesClientTable } from "@workspace/db";
+import { db, cloturesComptablesTable, encaissementsTable, facturesClientTable, organisationsTable } from "@workspace/db";
 
 import { getOrgId } from "../middleware/tenant";
 import { logAudit } from "./audit";
@@ -27,6 +27,7 @@ import {
 } from "../services/chainage-encaissements";
 import { calculerCloture, periodeClose, verifierConservation } from "../services/cloture-comptable";
 import { construireArchive, nomArchive } from "../services/archivage-comptable";
+import { nomAttestation, redigerAttestation } from "../services/attestation-conformite";
 
 const router: IRouter = Router();
 
@@ -470,6 +471,54 @@ router.get("/encaissements/archive", async (req: Request, res: Response): Promis
   } catch (err: any) {
     req.log.error({ err }, "Erreur production archive");
     res.status(500).json({ error: "Erreur lors de la production de l'archive." });
+  }
+});
+
+/**
+ * Remet au client son attestation de conformite.
+ *
+ * C'est la piece qu'il devra produire en cas de controle, et celle qui le
+ * protege de l'amende de 7 500 € prevue pour l'usage d'un logiciel non
+ * conforme. Elle est nominative: une attestation generique ne prouverait rien
+ * sur l'exemplaire installe chez lui.
+ *
+ * Le texte est genere a partir de l'identite reelle de l'organisation, pas
+ * saisi a la main: une attestation dont le beneficiaire serait mal orthographie
+ * perdrait sa valeur au moment ou elle sert.
+ */
+router.get("/encaissements/attestation", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  try {
+    const [org] = await db.select({
+      name: organisationsTable.name,
+      siret: organisationsTable.siret,
+    }).from(organisationsTable).where(eq(organisationsTable.id, orgId));
+    if (!org) { res.status(404).json({ error: "Organisation introuvable." }); return; }
+
+    const emiseLe = new Date().toISOString();
+    const client = { raisonSociale: org.name ?? `Organisation ${orgId}`, siret: org.siret ?? null };
+    const texte = redigerAttestation({
+      editeur: {
+        raisonSociale: process.env.EDITEUR_RAISON_SOCIALE ?? "Ajant Bureau",
+        siret: process.env.EDITEUR_SIRET ?? null,
+        adresse: process.env.EDITEUR_ADRESSE ?? null,
+      },
+      client,
+      logiciel: "Ajant Bureau",
+      version: process.env.BUILD_SHA ?? "dev",
+      emiseLe,
+    });
+
+    await logAudit(req.session?.userId, req.session?.userEmail, "attestation_conformite_emise",
+      "attestation", emiseLe.slice(0, 10), { version: process.env.BUILD_SHA ?? "dev" },
+      req.ip, req.get("user-agent"), orgId);
+
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${nomAttestation(client, emiseLe)}"`);
+    res.send(texte);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur emission attestation");
+    res.status(500).json({ error: "Erreur lors de l'emission de l'attestation." });
   }
 });
 
