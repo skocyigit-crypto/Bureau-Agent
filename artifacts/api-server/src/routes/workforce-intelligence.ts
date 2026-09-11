@@ -19,16 +19,7 @@ import {
   notesInternesTable,
   auditLogsTable,
 } from "@workspace/db";
-import {
-  eq,
-  and,
-  gte,
-  count,
-  sql,
-  or,
-  desc,
-  inArray,
-} from "drizzle-orm";
+import { eq, and, gte, count, sql, or, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "../services/ai-quota";
 import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL } from "../services/ai-utils";

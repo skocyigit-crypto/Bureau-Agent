@@ -556,7 +556,7 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
         // "interrupted" et "canceled" sont normaux (notre cancel() ci-dessus
         // ou stopAllListeners). Les autres erreurs on log dans la console.
         if (ev?.error && ev.error !== "interrupted" && ev.error !== "canceled") {
-          // eslint-disable-next-line no-console
+           
           console.warn("[VoiceAssistant] TTS error:", ev.error);
         }
         setState("idle");
@@ -858,7 +858,7 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
   // Auto-demarrage du wake-word au montage si l'utilisateur l'avait laisse
   // actif (ou par defaut s'il n'a jamais touche au reglage). Permet de tenir
   // la promesse "agent toujours en eveil" sans clic manuel.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   useEffect(() => {
     if (!supported) return;
     if (wakeOn && !wakeActiveRef.current) {

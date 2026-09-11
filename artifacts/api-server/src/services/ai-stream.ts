@@ -13,7 +13,7 @@ import {
   OPENAI_MODEL,
   ANTHROPIC_MODEL,
 } from "./ai-utils";
-import { getOrgGeminiClient, getOrgOpenAIClient, getOrgAnthropicClient, callOrgOpenAI, isAiAuthKeyError } from "./ai-providers";
+import { getOrgGeminiClient, getOrgAnthropicClient, callOrgOpenAI, isAiAuthKeyError } from "./ai-providers";
 import { resolveClaudeModelId } from "@workspace/integrations-anthropic-ai";
 
 export interface SseStream {

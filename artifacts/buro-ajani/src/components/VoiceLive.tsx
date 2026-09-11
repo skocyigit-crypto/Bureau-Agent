@@ -993,7 +993,7 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
       setState("idle");
     }
     return () => teardown();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [open, teardown]);
 
   // Press Escape to close.

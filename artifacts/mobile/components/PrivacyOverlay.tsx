@@ -23,7 +23,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { usePrivacy } from "@/contexts/PrivacyContext";
-import { useColors } from "@/hooks/useColors";
+
 import { useTranslation } from "@/lib/i18n";
 
 const nativeDriver = Platform.OS !== "web";

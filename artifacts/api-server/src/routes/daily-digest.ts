@@ -19,9 +19,9 @@ import {
   agentProposalsTable,
 } from "@workspace/db";
 import { eq, and, gte, lte, count, sql, desc, or } from "drizzle-orm";
-import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "../services/ai-quota";
+import { AiQuotaExceededError } from "../services/ai-quota";
 import { buildLearnedContextBlock, fingerprintLearned } from "../services/ai-learning";
-import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_FLASH_MODEL } from "../services/ai-utils";
+import { GEMINI_FLASH_MODEL } from "../services/ai-utils";
 import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 import { logger } from "../lib/logger";
 

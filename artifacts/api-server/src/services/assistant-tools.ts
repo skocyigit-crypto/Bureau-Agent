@@ -3,7 +3,7 @@ import {
   contactsTable, tasksTable, prospectsTable, calendarEventsTable,
   callsTable, messagesTable, facturesClientTable, projetsTable,
 } from "@workspace/db/schema";
-import { eq, and, desc, gte, lte, sql, ilike, or, inArray } from "drizzle-orm";
+import { eq, and, desc, gte, lte, sql, or, inArray } from "drizzle-orm";
 import { AGENTS, creerTacheIa } from "./tache-ia";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { prepareQuery, rankByRelevance } from "../helpers/relevance";

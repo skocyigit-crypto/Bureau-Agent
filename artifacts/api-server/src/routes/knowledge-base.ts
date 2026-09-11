@@ -6,7 +6,7 @@ import {
   getKnowledgeStatus,
   indexOrganisation,
 } from "../services/knowledge-base";
-import { AiQuotaExceededError } from "../services/ai-quota";
+
 import { logger } from "../lib/logger";
 import { respondAiError } from "../services/ai-guard";
 

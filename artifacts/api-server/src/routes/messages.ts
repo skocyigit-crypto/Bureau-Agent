@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, asc, ilike, or, sql, and, lt } from "drizzle-orm";
+import { eq, desc, asc, or, sql, and, lt } from "drizzle-orm";
 import { db, messagesTable, contactsTable } from "@workspace/db";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { withDbRetry } from "../lib/db-retry";

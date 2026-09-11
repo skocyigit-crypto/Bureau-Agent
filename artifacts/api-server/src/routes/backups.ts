@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, autoBackupsTable, backupConfigTable } from "@workspace/db";
-import { eq, desc, sql, and, gte } from "drizzle-orm";
+import { eq, desc, sql, gte } from "drizzle-orm";
 import { performBackup } from "../services/auto-backup";
 import { logger } from "../lib/logger";
 import { requireRole } from "../middleware/auth";

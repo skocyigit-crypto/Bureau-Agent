@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
-import { HealthCheckResponse } from "@workspace/api-zod";
+
 import { db, callsTable, contactsTable, tasksTable, messagesTable, stockArticlesTable, calendarEventsTable, appReleasesTable, checkDbHealth } from "@workspace/db";
-import { sql, desc, eq, and } from "drizzle-orm";
+import { sql, desc, eq } from "drizzle-orm";
 import crypto from "crypto";
 import { requireAuth, requireRole } from "../middleware/auth";
 

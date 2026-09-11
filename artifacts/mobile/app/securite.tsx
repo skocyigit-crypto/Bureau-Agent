@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
-import { useTranslation, type TFunction } from "@/lib/i18n";
+import { useTranslation } from "@/lib/i18n";
 
 const SECURITY_API = `${API_BASE}/api/security`;
 

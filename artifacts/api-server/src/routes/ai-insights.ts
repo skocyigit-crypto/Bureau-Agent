@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { db, aiInsightsTable } from "@workspace/db";
-import { and, eq, desc, sql, gt, isNull, or } from "drizzle-orm";
+import { and, eq, desc, gt, isNull, or } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { generateInsightsForOrg } from "../services/ai-insights";
 import { bumpPreferenceFromFeedback } from "../services/ai-learning";

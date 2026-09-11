@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, subscriptionsTable, organisationsTable, PLANS, type PlanKey } from "@workspace/db";
-import { sql, and, eq, ne, isNull, isNotNull, lte, gte, lt } from "drizzle-orm";
+import { db, subscriptionsTable, PLANS, type PlanKey } from "@workspace/db";
+
 import { gatherSaasAttention } from "../services/saas-attention";
 
 const router: IRouter = Router();

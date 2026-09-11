@@ -183,7 +183,7 @@ export default function WhatsappThreadScreen() {
       } else {
         const err = await res.json().catch(() => ({}));
         if (Platform.OS === "web") {
-          // eslint-disable-next-line no-alert
+           
           window.alert(err.error || t("whatsappThreadScreen.sendFailed"));
         } else {
           Alert.alert(t("whatsappThreadScreen.sendImpossibleTitle"), err.error || t("whatsappThreadScreen.sendFailed"));

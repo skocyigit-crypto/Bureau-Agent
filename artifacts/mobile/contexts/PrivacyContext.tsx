@@ -270,13 +270,13 @@ export function PrivacyProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.setItem(STORAGE_PIN_KEY, hash);
     setPinHash(hash);
     await updateSettingsInternal({ hasPIN: true });
-  }, []); // eslint-disable-line
+  }, []);  
 
   const removePIN = useCallback(async (): Promise<void> => {
     await AsyncStorage.removeItem(STORAGE_PIN_KEY);
     setPinHash(null);
     await updateSettingsInternal({ hasPIN: false });
-  }, []); // eslint-disable-line
+  }, []);  
 
   const updateSettingsInternal = async (patch: Partial<PrivacySettings>) => {
     setSettings(prev => {

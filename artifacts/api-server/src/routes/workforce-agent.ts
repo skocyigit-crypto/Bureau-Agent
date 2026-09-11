@@ -24,23 +24,9 @@ import {
   auditLogsTable,
   aiAgentReportsTable,
 } from "@workspace/db";
-import {
-  eq,
-  and,
-  gte,
-  count,
-  sql,
-  or,
-  desc,
-  inArray,
-  lt,
-} from "drizzle-orm";
+import { eq, and, gte, count, sql, or, desc, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth";
-import {
-  assertAiQuota,
-  AiQuotaExceededError,
-  invalidateQuotaCache,
-} from "../services/ai-quota";
+import { assertAiQuota, invalidateQuotaCache } from "../services/ai-quota";
 import {
   extractGeminiTokens,
   recordAiUsage,

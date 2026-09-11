@@ -171,7 +171,7 @@ function deriveEncryptionKey(): Buffer {
     }
     if (!_devBackupKeyWarned) {
       _devBackupKeyWarned = true;
-      // eslint-disable-next-line no-console
+       
       console.warn("[Security] BACKUP_ENCRYPTION_KEY non defini — cle ephemere generee (dev uniquement). Les sauvegardes anciennes ne pourront pas etre dechiffrees apres redemarrage.");
     }
     secret = crypto.randomBytes(48).toString("hex");

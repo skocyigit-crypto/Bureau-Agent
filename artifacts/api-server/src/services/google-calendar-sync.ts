@@ -1,5 +1,5 @@
 import { db, checkinsTable, platformSyncLogsTable, calendarEventsTable } from "@workspace/db";
-import { eq, and, gte, lte, sql } from "drizzle-orm";
+import { eq, and, gte, lte } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { getCalendarForUser } from "../lib/google-auth";
 

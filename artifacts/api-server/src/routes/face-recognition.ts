@@ -1,11 +1,11 @@
 import { Router, type Request, type Response } from "express";
 import { db, faceProfilesTable, faceRecognitionLogsTable, contactsTable } from "@workspace/db";
-import { eq, sql, and, desc, ilike, or } from "drizzle-orm";
+import { eq, sql, and, desc, or } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { logger } from "../lib/logger";
 import { GEMINI_PRO_MODEL } from "../services/ai-utils";
-import { assertAiQuota, AiQuotaExceededError } from "../services/ai-quota";
+
 import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL, withProviderTimeout } from "../services/ai-cache";
 import crypto from "node:crypto";
 import { scanBase64Content } from "../middleware/security";

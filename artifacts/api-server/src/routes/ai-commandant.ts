@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
-import { db, callsTable, contactsTable, tasksTable, messagesTable, calendarEventsTable, facturesClientTable, compteClientTable, organisationsTable, prospectsTable, notificationsTable, paymentRemindersTable, licenseAuditLogTable, projetsTable, usersTable, checkinsTable, auditLogsTable, commandantConversationsTable, commandantMessagesTable, demoHandoffsTable } from "@workspace/db";
-import { eq, sql, and, desc, gte, lte, lt, ne, isNull, isNotNull, or, ilike, count, asc, inArray, type Column, type SQL } from "drizzle-orm";
+import { db, callsTable, contactsTable, tasksTable, messagesTable, calendarEventsTable, facturesClientTable, organisationsTable, prospectsTable, notificationsTable, projetsTable, usersTable, checkinsTable, auditLogsTable, commandantConversationsTable, commandantMessagesTable, demoHandoffsTable } from "@workspace/db";
+import { eq, sql, and, desc, gte, lte, lt, ne, isNull, isNotNull, or, count, asc, inArray, type Column, type SQL } from "drizzle-orm";
 import { AGENTS, creerTacheIa } from "../services/tache-ia";
 import { getOrgId } from "../middleware/tenant";
 import { stripAccents, ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";

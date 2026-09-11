@@ -24,7 +24,7 @@
  */
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db/schema";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { getSuperAdminOrgId } from "../lib/super-admin-org";
 import {

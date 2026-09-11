@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { db, aiAgentReportsTable, notificationsTable, tasksTable, callsTable, contactsTable, messagesTable, calendarEventsTable, facturesClientTable, projetsTable, usersTable } from "@workspace/db";
-import { eq, desc, and, gte, ne, lt, isNull, sql, or, count, inArray } from "drizzle-orm";
+import { eq, desc, and, gte, ne, lt, isNull, sql, or, inArray } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
 import { getOrgId } from "../middleware/tenant";
 import { logger } from "../lib/logger";

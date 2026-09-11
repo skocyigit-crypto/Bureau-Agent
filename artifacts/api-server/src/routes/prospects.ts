@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, desc, asc, ilike, or, sql, and, gte, lte, type Column, type SQL } from "drizzle-orm";
+import { eq, desc, asc, ilike, or, sql, and, type Column, type SQL } from "drizzle-orm";
 import { db, prospectsTable, contactsTable, devisTable, facturesClientTable, callsTable, tasksTable } from "@workspace/db";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { requireRole } from "../middleware/auth";
