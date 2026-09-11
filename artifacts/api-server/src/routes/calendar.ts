@@ -70,7 +70,7 @@ router.get("/calendar/events", async (req: Request, res: Response): Promise<void
   const orgId = getOrgId(req);
   const { start, end, type, search, q } = req.query;
 
-  let conditions: any[] = [eq(calendarEventsTable.organisationId, orgId)];
+  const conditions: any[] = [eq(calendarEventsTable.organisationId, orgId)];
   // Chevauchement (et non inclusion totale) : un evenement appartient a la
   // fenetre [start, end] s'il se termine APRES le debut de la fenetre ET
   // commence AVANT sa fin. L'ancienne logique (startDate >= start &&

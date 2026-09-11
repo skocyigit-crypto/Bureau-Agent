@@ -1462,7 +1462,7 @@ router.post("/ai/central-intelligence", async (req, res): Promise<void> => {
     const taskRate = completionTotal > 0 ? Math.round((completionDone / completionTotal) * 100) : 0;
     const todayCheckinCount = Number(todayCheckins[0]?.count ?? 0);
 
-    let scoreBase = 100;
+    const scoreBase = 100;
     let penalty = 0;
     penalty += missedCount * 3;
     penalty += overdueTasks.length * 4;
@@ -1899,7 +1899,7 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
     }));
 
     let stockData: any[] = [];
-    let anomalies: string[] = [];
+    const anomalies: string[] = [];
     try {
       const orgStock = eq(stockArticlesTable.organisationId, orgId);
       const [lowStockItems, stockStats] = await Promise.all([
@@ -2551,7 +2551,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
       case "export_data": {
         const dataType = String(target).trim();
         let exportData: any[] = [];
-        let exportLabel = dataType;
+        const exportLabel = dataType;
         switch (dataType) {
           case "contacts":
             exportData = await db.select({ id: contactsTable.id, prenom: contactsTable.firstName, nom: contactsTable.lastName, telephone: contactsTable.phone, email: contactsTable.email, entreprise: contactsTable.company, categorie: contactsTable.category }).from(contactsTable).where(eq(contactsTable.organisationId, orgId)).limit(100);
