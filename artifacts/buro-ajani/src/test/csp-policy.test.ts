@@ -55,25 +55,28 @@ describe("Content-Security-Policy du document", () => {
     expect(source).toContain(POLITIQUE);
   });
 
-  it("ne contient pas de directive que le mode Report-Only ignore", () => {
-    // En production, cette politique est servie en `Report-Only`. Un navigateur
-    // IGNORE `upgrade-insecure-requests` dans ce mode — et le dit dans la
-    // console. La directive y a figure longtemps: la politique promettait donc
-    // une protection que rien n'appliquait, ce qui est pire que de ne rien
-    // promettre. Elle est desormais servie a part, dans un en-tete bloquant.
-    expect(
-      POLITIQUE,
-      "directive ignoree en Report-Only: la servir ici ne protege rien",
-    ).not.toContain("upgrade-insecure-requests");
+  it("porte upgrade-insecure-requests, maintenant que la politique bloque", () => {
+    // Cette directive avait du etre sortie de la politique: un navigateur
+    // l'IGNORE en Report-Only, si bien que la politique promettait une
+    // protection que rien n'appliquait. La politique bloquant desormais, elle
+    // retrouve sa place — et l'en-tete separe qui la portait disparait.
+    expect(POLITIQUE).toContain("upgrade-insecure-requests");
   });
 
   it.each([
     "deploy/Caddyfile.cloudrun",
     "deploy/Caddyfile",
-  ])("sert quand meme upgrade-insecure-requests en mode bloquant dans %s", (chemin) => {
-    // La retirer de la politique ne doit pas revenir a l'abandonner: c'est le
-    // seul endroit ou elle protege pour de vrai aujourd'hui.
-    expect(lire(chemin)).toContain('Content-Security-Policy "upgrade-insecure-requests"');
+  ])("est servie en mode BLOQUANT dans %s", (chemin) => {
+    const source = lire(chemin);
+    // La difference entre observer et proteger tient a un mot dans le nom du
+    // header. Soixante jours d'observation en production ont montre onze
+    // violations, dont dix venaient d'un defaut a nous, corrige depuis.
+    expect(source, "la politique du document n'est plus en observation").not.toContain(
+      "Content-Security-Policy-Report-Only",
+    );
+    expect(source).toContain('Content-Security-Policy "default-src');
+    // Bloquer et continuer a apprendre ne s'excluent pas.
+    expect(source, "les violations doivent continuer d'etre signalees").toContain("report-uri /api/csp-report");
   });
 
   it("est servie par e2e/serve-app.mjs depuis la source unique", () => {
