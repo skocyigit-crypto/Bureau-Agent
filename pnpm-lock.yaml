@@ -143,6 +143,9 @@ importers:
       cors:
         specifier: ^2
         version: 2.8.6
+      dejavu-fonts-ttf:
+        specifier: 2.37.3
+        version: 2.37.3
       docx:
         specifier: ^9.7.1
         version: 9.7.1
@@ -5003,6 +5006,9 @@ packages:
   define-properties@1.2.1:
     resolution: {integrity: sha512-8QmQKqEASLd5nx0U1B1okLElbUuuttJ/AnYmRXbbbGDWh6uS208EjD4Xqq/I9wK7u0v6O08XhTWnt5XtEbR6Dg==}
     engines: {node: '>= 0.4'}
+
+  dejavu-fonts-ttf@2.37.3:
+    resolution: {integrity: sha512-f1hd7jJbeQa1VWcw+K2KrTXS50zTMaHpVC4XIKJpNcDeYR5ajMtj/iLlQDYNvLOKamUB3ARVVCf79lNwNVztSQ==}
 
   delayed-stream@1.0.0:
     resolution: {integrity: sha512-ZySD7Nf91aLB0RxL4KGrKHBXl7Eds1DAmEdcoVawXnLD7SDhpNgtuII2aAkg7a7QS41jxPSZ17p4VdGnMHk3MQ==}
@@ -13207,6 +13213,8 @@ snapshots:
       define-data-property: 1.1.4
       has-property-descriptors: 1.0.2
       object-keys: 1.1.1
+
+  dejavu-fonts-ttf@2.37.3: {}
 
   delayed-stream@1.0.0: {}
 
