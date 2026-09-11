@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, aiAgentReportsTable, stockArticlesTable, invoicesTable, paymentsTable, subscriptionsTable, usersTable, automationRulesTable, notificationsTable, auditLogsTable, calendarEventsTable, projetsTable, organisationsTable } from "@workspace/db";
-import { sql, eq, gte, lte, and, count, desc, lt, ne, isNull, isNotNull, or, sum, avg, inArray } from "drizzle-orm";
+import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, aiAgentReportsTable, stockArticlesTable, invoicesTable, paymentsTable, subscriptionsTable, usersTable, notificationsTable, auditLogsTable, calendarEventsTable, projetsTable, organisationsTable } from "@workspace/db";
+import { sql, eq, gte, and, count, desc, lt, ne, isNull, isNotNull, or, inArray } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache, reserveAiCall } from "../services/ai-quota";
 import { AGENTS as AGENTS_IA, creerTacheIa } from "../services/tache-ia";

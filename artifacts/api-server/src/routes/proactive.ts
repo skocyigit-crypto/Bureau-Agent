@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { db, proactiveSuggestionsTable, organisationsTable, facturesClientTable } from "@workspace/db";
-import { and, eq, inArray, desc, or, isNull, type SQL } from "drizzle-orm";
+import { and, eq, desc, or, isNull, type SQL } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
 import {

@@ -8,7 +8,7 @@ import {
   autoBackupsTable,
   backupConfigTable,
 } from "@workspace/db";
-import { eq, and, desc, sql, gte, lte, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, gte, inArray } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
 import { withHeartbeat } from "./health-agents";
@@ -189,7 +189,6 @@ async function getRecordCountsByOrg(): Promise<Map<number, Record<string, number
   }
   return parOrg;
 }
-
 
 async function getTableRecordCounts(): Promise<Record<string, number>> {
   const tables = [

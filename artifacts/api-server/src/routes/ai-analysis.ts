@@ -1,14 +1,14 @@
 import { Router } from "express";
-import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, platformConnectionsTable, notificationsTable, stockArticlesTable, calendarEventsTable, projetsTable, prospectsTable, automationRulesTable, facturesClientTable, compteClientTable, organisationsTable } from "@workspace/db";
+import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, platformConnectionsTable, notificationsTable, stockArticlesTable, calendarEventsTable, projetsTable, prospectsTable, facturesClientTable, compteClientTable, organisationsTable } from "@workspace/db";
 import { AGENTS, creerTacheIa } from "../services/tache-ia";
 import { sendEmail } from "../services/email";
 import { sql, eq, gte, lte, and, count, avg, desc, asc, lt, ne, isNull, isNotNull, or, not, inArray } from "drizzle-orm";
 import { NON_COLLECTIBLE_STATUSES } from "../services/payment-reminder";
 import { logger } from "../lib/logger";
 import { generateText } from "../services/ai-failover";
-import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
+import { AiQuotaExceededError } from "../services/ai-quota";
 import { buildLearnedContextBlock, fingerprintLearned } from "../services/ai-learning";
-import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL, ANTHROPIC_MODEL, sanitizePromptInput } from "../services/ai-utils";
+import { GEMINI_PRO_MODEL, ANTHROPIC_MODEL, sanitizePromptInput } from "../services/ai-utils";
 import { getAnthropicMode } from "@workspace/integrations-anthropic-ai";
 import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 import { nextInvoiceNumber } from "../services/invoice-numbering";

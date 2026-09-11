@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { resolveClientIp, rateLimitKey } from "../lib/request-ip";
+import { rateLimitKey } from "../lib/request-ip";
 import crypto from "crypto";
 import rateLimit from "express-rate-limit";
 import { db, demoHandoffsTable } from "@workspace/db";

@@ -24,13 +24,13 @@ import {
   contactsTable,
   type AgentProposal,
 } from "@workspace/db/schema";
-import { and, eq, gte, lte, desc, sql, inArray } from "drizzle-orm";
+import { and, eq, gte, lte, desc, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { getTool, validateArgs, executeTool, type ToolContext } from "./assistant-tools";
 import { isSaasTool, executeSaasTool } from "./saas-tools";
 import { enqueueProposals } from "./proposal-queue";
-import { assertAiQuota, invalidateQuotaCache } from "./ai-quota";
-import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_FLASH_MODEL, sanitizePromptInput } from "./ai-utils";
+
+import { GEMINI_FLASH_MODEL, sanitizePromptInput } from "./ai-utils";
 
 /** Outils que l'agent autonome a le droit de proposer. */
 const ALLOWED_TOOLS = ["create_task", "send_email", "send_sms", "create_calendar_event", "create_contact", "propose_appointment_slots"] as const;

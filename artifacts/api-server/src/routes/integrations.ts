@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, contactsTable, callsTable, tasksTable, usersTable, organisationsTable, integrationConnectionsTable } from "@workspace/db";
-import { eq, count, sql, and } from "drizzle-orm";
+import { eq, count, and } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { GEMINI_PRO_MODEL } from "../services/ai-utils";
 import { encryptSensitiveData } from "../lib/crypto";

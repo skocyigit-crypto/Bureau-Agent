@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, asc, ilike, or, sql, and, gte, lte } from "drizzle-orm";
+import { eq, desc, asc, or, sql, and, gte, lte } from "drizzle-orm";
 import { db, callsTable, contactsTable, tasksTable, calendarEventsTable, messagesTable, organisationsTable } from "@workspace/db";
 import { AGENTS, creerTacheIa } from "../services/tache-ia";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";

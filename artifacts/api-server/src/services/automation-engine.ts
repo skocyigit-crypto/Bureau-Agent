@@ -11,7 +11,7 @@ import {
   projetsTable,
   telephonyProvidersTable,
 } from "@workspace/db/schema";
-import { eq, lte, and, gte, lt, sql, desc, isNull, isNotNull, or } from "drizzle-orm";
+import { eq, lte, and, gte, sql, isNull, isNotNull, or } from "drizzle-orm";
 import { AGENTS, creerTacheIa } from "./tache-ia";
 import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";

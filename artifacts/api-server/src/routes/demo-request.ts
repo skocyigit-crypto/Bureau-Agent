@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { resolveClientIp, rateLimitKey } from "../lib/request-ip";
+import { rateLimitKey } from "../lib/request-ip";
 import rateLimit from "express-rate-limit";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { db, organisationsTable, prospectsTable } from "@workspace/db";

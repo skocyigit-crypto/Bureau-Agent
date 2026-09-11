@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { resolveClientIp, rateLimitKey } from "../lib/request-ip";
+import { rateLimitKey } from "../lib/request-ip";
 import rateLimit from "express-rate-limit";
 import { getPublicOffer, getPublicAvailableSlots, getPublicClosures, confirmOfferSelection, cancelOffer, rescheduleOffer } from "../services/appointment-offers";
 

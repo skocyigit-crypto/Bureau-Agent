@@ -38,14 +38,8 @@ import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
 import { broadcaster } from "./broadcaster";
 import { getGmailForUser } from "../lib/google-auth";
-import { assertAiQuota, invalidateQuotaCache } from "./ai-quota";
-import {
-  extractGeminiTokens,
-  recordAiUsage,
-  geminiActualModel,
-  GEMINI_FLASH_MODEL,
-  wrapUntrusted,
-} from "./ai-utils";
+
+import { GEMINI_FLASH_MODEL, wrapUntrusted } from "./ai-utils";
 import { getSuppressedSuggestionTypes } from "./ai-learning";
 import { generateText } from "./ai-failover";
 

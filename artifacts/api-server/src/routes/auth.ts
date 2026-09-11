@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { resolveClientIp, rateLimitKey } from "../lib/request-ip";
+import { rateLimitKey } from "../lib/request-ip";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import rateLimit from "express-rate-limit";
@@ -14,18 +14,7 @@ import { mintApiToken } from "../lib/api-token";
 import { clearTokenInvalidationCache, requireAuth } from "../middleware/auth";
 import { invalidateTenantIdentityCache, requireTenant } from "../middleware/tenant";
 import { checkLicense } from "../middleware/license-check";
-import {
-  isSuperAdmin,
-  assertRoleAllowed,
-  assertOrgOwnsUser,
-  assertTargetNotSuperAdmin,
-  assertCallerOutranks,
-  assertUserQuotaNotExceeded,
-  assertNotSelf,
-  sanitiseUserPatch,
-  logTenantViolation,
-  checkSensitiveRateLimit,
-} from "../middleware/tenant-guard";
+import { assertRoleAllowed, assertOrgOwnsUser, assertTargetNotSuperAdmin, assertCallerOutranks, assertUserQuotaNotExceeded, assertNotSelf, sanitiseUserPatch, checkSensitiveRateLimit } from "../middleware/tenant-guard";
 import { isUserQuotaDbError } from "../services/ensure-user-quota";
 
 const router: IRouter = Router();

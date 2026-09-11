@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Send, Mic, MicOff, ArrowRight, Search, Zap, Bot, User, Loader2, X, Volume2, VolumeX, RotateCcw, Square, Smartphone } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Sparkles, Send, Mic, MicOff, ArrowRight, Search, Zap, Bot, User, Loader2, Volume2, VolumeX, RotateCcw, Square, Smartphone } from "lucide-react";
+
 import { TalkingAvatar, type SpeechLang, type TalkingAvatarHandle } from "@workspace/ai-avatar";
 import { encodeHandoff, persistHandoff, slimHistory } from "@workspace/demo-handoff";
 import { APP_URL, REGISTER_URL } from "@/lib/app-url";

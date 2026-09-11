@@ -14,7 +14,7 @@
  * pour l'argent: on DEDUIT plutot que de faire confiance a une colonne qui a
  * pu deriver.
  */
-import { and, eq, gt, isNotNull, lt, ne, notInArray, sql, type SQL } from "drizzle-orm";
+import { and, gt, isNotNull, lt, ne, notInArray, sql, type SQL } from "drizzle-orm";
 import { facturesClientTable } from "@workspace/db";
 
 /** Statuts qui representent une facture encore due. */

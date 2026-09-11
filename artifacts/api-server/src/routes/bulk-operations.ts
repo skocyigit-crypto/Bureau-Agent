@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, prospectsTable, devisTable, facturesClientTable, commandesFournisseurTable, stockArticlesTable, checkinsTable, documentsTable, notesInternesTable, objectifsCommerciauxTable, projetsTable } from "@workspace/db";
-import { eq, sql, and, inArray } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
 import { logAudit } from "./audit";

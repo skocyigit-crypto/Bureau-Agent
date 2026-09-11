@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { getOrgId } from "../middleware/tenant";
-import { assertAiQuota, AiQuotaExceededError } from "../services/ai-quota";
+
 import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 import {
   searchWebWithSafety,

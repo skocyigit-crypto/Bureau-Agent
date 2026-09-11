@@ -177,7 +177,7 @@ export function requireRole(...roles: string[]) {
     const expectedSize = max - min + 1;
     const uniqueLevels = new Set(levels);
     if (uniqueLevels.size !== expectedSize) {
-      // eslint-disable-next-line no-console
+       
       console.warn(
         `[auth.requireRole] Non-contiguous role set detected: [${roles.join(", ")}]. ` +
         `Hierarchical semantics will allow ANY role between the lowest and highest entry. ` +

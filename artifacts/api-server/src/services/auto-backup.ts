@@ -1,5 +1,5 @@
 import { db, autoBackupsTable, backupConfigTable, callsTable, contactsTable, tasksTable, messagesTable, stockArticlesTable, platformConnectionsTable } from "@workspace/db";
-import { count, eq, desc } from "drizzle-orm";
+import { count } from "drizzle-orm";
 import crypto from "crypto";
 import { logger } from "../lib/logger";
 

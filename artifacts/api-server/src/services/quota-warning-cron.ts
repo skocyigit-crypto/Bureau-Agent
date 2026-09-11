@@ -1,5 +1,5 @@
 import { db, organisationsTable, subscriptionsTable, callsTable, contactsTable, usersTable } from "@workspace/db";
-import { and, eq, gte, sql, count as sqlCount } from "drizzle-orm";
+import { and, eq, gte, count as sqlCount } from "drizzle-orm";
 import { sendEmail } from "./email";
 import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";

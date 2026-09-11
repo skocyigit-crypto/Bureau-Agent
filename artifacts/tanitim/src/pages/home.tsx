@@ -29,41 +29,7 @@ const ShowcaseAvatar3D = lazy(() =>
 import { useDocumentMeta } from "@/hooks/use-document-meta";
 import { PAGE_META } from "@/lib/page-meta";
 import { AnimatedDashboardMock } from "@/components/AnimatedDashboardMock";
-import { 
-  PhoneCall, 
-  Users, 
-  CheckSquare, 
-  Voicemail, 
-  BarChart3, 
-  Globe, 
-  ArrowRight,
-  ShieldCheck,
-  Zap,
-  Building2,
-  CalendarCheck,
-  CheckCircle2,
-  ArrowUpRight,
-  Lock,
-  Server,
-  FileText,
-  Clock,
-  Briefcase,
-  Headset,
-  Package,
-  Bot,
-  Plug,
-  Brain,
-  Shield,
-  CloudUpload,
-  Calculator,
-  Receipt,
-  FolderKanban,
-  Scale,
-  Mail,
-  Database,
-  Workflow,
-  Gauge
-} from "lucide-react";
+import { PhoneCall, Users, CheckSquare, BarChart3, Globe, ArrowRight, ShieldCheck, Building2, CheckCircle2, Lock, Server, Clock, Briefcase, Headset, Package, Brain, Shield, CloudUpload, Calculator, Receipt, FolderKanban, Scale, Mail, Database, Workflow } from "lucide-react";
 import {
   Accordion,
   AccordionContent,

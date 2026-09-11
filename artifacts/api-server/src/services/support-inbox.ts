@@ -13,14 +13,7 @@
 import { and, eq } from "drizzle-orm";
 import { db, organisationsTable, agentProposalsTable } from "@workspace/db";
 import { assertAiQuota, invalidateQuotaCache } from "./ai-quota";
-import {
-  recordAiUsage,
-  extractGeminiTokens,
-  geminiActualModel,
-  GEMINI_FLASH_MODEL,
-  sanitizePromptInput,
-  wrapUntrusted,
-} from "./ai-utils";
+import { recordAiUsage, extractGeminiTokens, geminiActualModel, GEMINI_FLASH_MODEL, wrapUntrusted } from "./ai-utils";
 import { logger } from "../lib/logger";
 import { aiForOrg } from "./ai-client";
 

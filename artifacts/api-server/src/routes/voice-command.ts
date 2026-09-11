@@ -6,7 +6,7 @@ import { eq, desc, and, sql, or } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { safeJsonParse, aiCallWithRetry, sanitizePromptInput } from "../services/ai-utils";
-import { assertAiQuota, AiQuotaExceededError } from "../services/ai-quota";
+
 import { logger } from "../lib/logger";
 import { aiForOrg } from "../services/ai-client";
 import { logAudit } from "./audit";

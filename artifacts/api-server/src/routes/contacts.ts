@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, asc, ilike, or, sql, and, isNull, type Column, type SQL } from "drizzle-orm";
-import { db, contactsTable, callsTable, tasksTable, calendarEventsTable, usersTable, projetsTable, messagesTable } from "@workspace/db";
+import { db, contactsTable, callsTable, tasksTable, calendarEventsTable, projetsTable, messagesTable } from "@workspace/db";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import {
   ListContactsQueryParams,

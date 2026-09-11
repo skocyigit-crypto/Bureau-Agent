@@ -8,7 +8,7 @@ import {
   stockMouvementsTable,
 } from "@workspace/db";
 import { AGENTS, creerTacheIa } from "../services/tache-ia";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import {
   safeJsonParse,
@@ -16,7 +16,7 @@ import {
   sanitizePromptInput,
   GEMINI_FLASH_MODEL,
 } from "../services/ai-utils";
-import { assertAiQuota, AiQuotaExceededError } from "../services/ai-quota";
+
 import { logger } from "../lib/logger";
 import { aiForOrg } from "../services/ai-client";
 import { logAudit } from "./audit";

@@ -25,7 +25,7 @@
  *     une verification prealable. Deux instances Cloud Run peuvent lancer la
  *     tache a la meme seconde.
  */
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db, cloturesComptablesTable, encaissementsTable } from "@workspace/db";
 
 import { logger } from "../lib/logger";

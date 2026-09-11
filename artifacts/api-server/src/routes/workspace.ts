@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, dailyReportsTable, platformConnectionsTable, platformSyncLogsTable, projetsTable } from "@workspace/db";
-import { sql, eq, gte, lte, and, count, avg, desc, between, or } from "drizzle-orm";
+import { sql, eq, gte, lte, and, count, avg, desc, or } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { GEMINI_PRO_MODEL } from "../services/ai-utils";
 import { requireAuth, requireRole } from "../middleware/auth";

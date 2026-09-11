@@ -11,7 +11,7 @@
  *  - Suspicious action detection: rate-limits and logs security-sensitive operations
  */
 
-import type { Request, Response, NextFunction } from "express";
+import type { Request, Response } from "express";
 import { eq, and, count } from "drizzle-orm";
 import { db, usersTable, organisationsTable } from "@workspace/db";
 import { logger } from "../lib/logger";

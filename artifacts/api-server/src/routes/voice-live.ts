@@ -430,11 +430,11 @@ export function attachVoiceLiveWs(server: Server): void {
     // — la middleware n'ecrit rien tant qu'on n'envoie pas de header.
     const fakeReq = req as unknown as Request;
     const fakeRes = {
-      // eslint-disable-next-line @typescript-eslint/no-empty-function
+       
       end: () => {},
-      // eslint-disable-next-line @typescript-eslint/no-empty-function
+       
       setHeader: () => {},
-      // eslint-disable-next-line @typescript-eslint/no-empty-function
+       
       getHeader: () => undefined,
     } as unknown as Response;
 

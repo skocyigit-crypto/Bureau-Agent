@@ -1,4 +1,4 @@
-import { db, usersTable, auditLogsTable, checkinsTable, tasksTable, callsTable, messagesTable, calendarEventsTable, performanceReportsTable } from "@workspace/db";
+import { db, usersTable, auditLogsTable, checkinsTable, tasksTable, performanceReportsTable } from "@workspace/db";
 import { eq, sql, gte, lte, and, count, desc } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { GEMINI_PRO_MODEL, ANTHROPIC_MODEL } from "./ai-utils";

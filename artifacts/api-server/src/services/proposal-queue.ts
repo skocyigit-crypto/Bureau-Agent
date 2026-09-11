@@ -25,7 +25,7 @@
  */
 import { db } from "@workspace/db";
 import { agentProposalsTable } from "@workspace/db/schema";
-import { and, eq, inArray, lt, sql } from "drizzle-orm";
+import { and, eq, lt } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { broadcaster } from "./broadcaster";
 import { getTool, validateArgs } from "./assistant-tools";

@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { sendEmail } from "../services/email";
-import { eq, and, sql, desc } from "drizzle-orm";
+import { eq, sql, desc } from "drizzle-orm";
 import { db, organisationsTable, subscriptionsTable, usersTable, contactsTable, callsTable, invoicesTable } from "@workspace/db";
 import { PLANS, type PlanKey } from "@workspace/db/schema";
 import { checkLicense } from "../middleware/license-check";
