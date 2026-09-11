@@ -121,16 +121,37 @@ describe("le PDF et son XML disent la meme chose", () => {
   });
 });
 
-describe("ce qui n'est PAS revendique", () => {
-  it("ne declare pas une conformite PDF/A qu'il ne tient pas", async () => {
+describe("la conformite PDF/A-3, et pas seulement sa declaration", () => {
+  /*
+   * Ce bloc affirmait l'inverse jusqu'au 11/09/2026: le document N'ETAIT PAS
+   * un PDF/A et ne le declarait pas, ce qui etait honnete mais incomplet —
+   * Factur-X exige les deux moities, le XML joint ET le PDF/A-3.
+   *
+   * L'ordre des deux assertions ci-dessous est le point important. Declarer
+   * `pdfaid:part 3` est facile; l'incorporation des polices est ce qui rend la
+   * declaration vraie. Un test qui ne verifierait que la declaration validerait
+   * exactement le defaut d'origine — une affirmation verte qui ne repose sur
+   * rien.
+   */
+  it("incorpore reellement ses polices", async () => {
     const { raw } = await renderWithXml();
-    // Factur-X exige un PDF/A-3, dont une regle centrale est l'incorporation
-    // de toutes les polices. Le document utilise les polices standard, que
-    // pdfkit n'incorpore pas: aucun `/FontFile` n'est produit. Declarer
-    // `pdfaid:part 3` serait donc une affirmation fausse — exactement le
-    // defaut que ce depot corrige ailleurs. Tant que la police n'est pas
-    // livree, le PDF reste un PDF ordinaire portant le XML.
-    expect(raw).not.toContain("/FontFile");
-    expect(raw).not.toContain("pdfaid:part");
+    // `/FontFile2` est la cle d'un fichier TrueType embarque. Sans elle, le
+    // document depend des polices installees sur la machine qui l'ouvre — ce
+    // qu'un format d'archivage interdit par definition.
+    expect(raw, "aucune police incorporee: la declaration PDF/A serait fausse").toContain("/FontFile");
+  });
+
+  it("declare la conformite qu'il tient", async () => {
+    const { raw } = await renderWithXml();
+    expect(raw).toContain("pdfaid:part");
+  });
+
+  it("reste un PDF ordinaire quand aucun XML n'est joint", async () => {
+    // Le mode PDF/A impose des contraintes reelles; les faire porter a un PDF
+    // de courtoisie n'apporterait rien. La conformite n'est exigee que la ou
+    // la facture electronique l'est.
+    const model = buildInvoiceDocument(INVOICE as never, SELLER as never, NOW);
+    const pdf = await renderInvoicePdf(model);
+    expect(pdf.toString("latin1")).not.toContain("pdfaid:part");
   });
 });

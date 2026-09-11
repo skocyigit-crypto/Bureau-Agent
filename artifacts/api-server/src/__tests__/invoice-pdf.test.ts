@@ -26,17 +26,126 @@ import {
  * on recolle les fragments hexadecimaux emis par pdfkit. Verifier le modele ne
  * suffit pas — l encodage de la police peut encore abimer un montant.
  */
+/** Tous les flux du PDF, decompresses, dans l'ordre du fichier. */
+function fluxDecompresses(pdf: Buffer): string[] {
+  const flux: string[] = [];
+  let curseur = 0;
+  for (;;) {
+    // `endstream` contient `stream`: chercher naivement le mot suivant faisait
+    // repartir le balayage au milieu du marqueur de fin et decoupait des flux
+    // de treize octets qui n'existent pas. Le mot ne compte que s'il n'est pas
+    // precede de « end ».
+    let start = pdf.indexOf("stream", curseur);
+    while (start > 2 && pdf.subarray(start - 3, start).toString("latin1") === "end") {
+      start = pdf.indexOf("stream", start + 6);
+    }
+    if (start === -1) break;
+    const end = pdf.indexOf("endstream", start);
+    if (end === -1) break;
+    let from = start + "stream".length;
+    while (pdf[from] === 13 || pdf[from] === 10) from++;
+    let to = end;
+    while (pdf[to - 1] === 10 || pdf[to - 1] === 13) to--;
+    try {
+      flux.push(inflateSync(pdf.subarray(from, to)).toString("latin1"));
+    } catch {
+      // Flux non compresse (une police embarquee, par exemple): sans interet ici.
+    }
+    curseur = end + 1;
+  }
+  return flux;
+}
+
+/**
+ * Table `ToUnicode` du document: identifiant de glyphe -> caractere.
+ *
+ * Depuis que les polices sont incorporees (PDF/A-3b, voir facturx-pdf.test.ts),
+ * le texte n'est plus ecrit en clair dans la page: il est ecrit en NUMEROS DE
+ * GLYPHE, propres au sous-ensemble de police embarque. La table ToUnicode est
+ * ce qui permet de revenir au texte — c'est elle qu'un lecteur utilise pour le
+ * copier-coller et la recherche, et c'est donc elle qui decide si une facture
+ * est exploitable par l'administration ou seulement par l'oeil.
+ *
+ * La lire ici fait d'une pierre deux coups: le test retrouve le texte dessine,
+ * et il echoue si la table disparait — c'est-a-dire si les factures deviennent
+ * des images de texte sans le dire.
+ */
+function tablesToUnicode(pdf: Buffer): Map<number, string>[] {
+  const tables: Map<number, string>[] = [];
+  for (const flux of fluxDecompresses(pdf)) {
+    if (!flux.includes("beginbfchar") && !flux.includes("beginbfrange")) continue;
+    const table = new Map<number, string>();
+    tables.push(table);
+
+    for (const bloc of flux.split("beginbfchar").slice(1)) {
+      const corps = bloc.split("endbfchar")[0];
+      for (const [, glyphe, uni] of corps.matchAll(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/g)) {
+        table.set(parseInt(glyphe, 16), String.fromCodePoint(parseInt(uni.slice(0, 4), 16)));
+      }
+    }
+
+    // `bfrange` a deux formes, et pdfkit emploie la seconde:
+    //   <debut> <fin> <base>            — les codes se suivent
+    //   <debut> <fin> [<u1> <u2> ...]   — un code par glyphe, dans l'ordre
+    // Ne lire que la premiere rendait une table vide, donc un texte vide, donc
+    // un test qui ne verifiait plus rien.
+    for (const bloc of flux.split("beginbfrange").slice(1)) {
+      const corps = bloc.split("endbfrange")[0];
+
+      for (const [, debut, , liste] of corps.matchAll(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>\s*\[([^\]]*)\]/g)) {
+        const premier = parseInt(debut, 16);
+        const codes = [...liste.matchAll(/<([0-9a-fA-F]+)>/g)].map(([, u]) => u);
+        codes.forEach((u, i) => table.set(premier + i, String.fromCodePoint(parseInt(u.slice(0, 4), 16))));
+      }
+
+      for (const [, debut, fin, uni] of corps.matchAll(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/g)) {
+        const base = parseInt(uni.slice(0, 4), 16);
+        for (let g = parseInt(debut, 16); g <= parseInt(fin, 16); g++) {
+          if (!table.has(g)) table.set(g, String.fromCodePoint(base + g - parseInt(debut, 16)));
+        }
+      }
+    }
+  }
+  return tables;
+}
+
+/**
+ * Le texte dessine sur la page, police par police.
+ *
+ * Chaque police incorporee a SA propre numerotation de glyphes et donc sa
+ * propre table: le glyphe 3 n'est pas la meme lettre en romain et en gras.
+ * Fusionner les tables melangeait les deux et rendait le gras illisible —
+ * « Agent de Bureau SAS » ressortait en « SA —cap aitl 1ta0S0 ».
+ *
+ * Associer chaque `Tf` a son objet de police demanderait de reconstruire le
+ * graphe d'objets du PDF. On s'en passe: le texte est decode avec CHAQUE table,
+ * et les versions sont concatenees. Une assertion `toContain` retrouve donc sa
+ * phrase sous la bonne table, et les assertions negatives sont faites sur des
+ * motifs qu'aucun decodage errone ne peut produire.
+ */
 function drawnText(pdf: Buffer): string {
-  const start = pdf.indexOf("stream");
-  const end = pdf.indexOf("endstream", start);
-  let from = start + "stream".length;
-  while (pdf[from] === 13 || pdf[from] === 10) from++;
-  let to = end;
-  while (pdf[to - 1] === 10 || pdf[to - 1] === 13) to--;
-  const content = inflateSync(pdf.subarray(from, to)).toString("latin1");
-  return content
-    .split("Tm")
-    .map((segment) => [...segment.matchAll(/<([0-9a-f]+)>/g)].map((m) => Buffer.from(m[1], "hex").toString("latin1")).join(""))
+  const tables = tablesToUnicode(pdf);
+  const contenu = fluxDecompresses(pdf).find((f) => f.includes("Tm")) ?? "";
+
+  return tables
+    .map((table) =>
+      contenu
+        .split("Tm")
+        .map((segment) =>
+          [...segment.matchAll(/<([0-9a-fA-F]+)>/g)]
+            .map(([, hex]) => {
+              // Deux octets par glyphe: c'est ainsi que pdfkit ecrit une police
+              // TrueType incorporee.
+              let mot = "";
+              for (let i = 0; i + 4 <= hex.length; i += 4) {
+                mot += table.get(parseInt(hex.slice(i, i + 4), 16)) ?? "";
+              }
+              return mot;
+            })
+            .join(""),
+        )
+        .join("\n"),
+    )
     .join("\n");
 }
 
