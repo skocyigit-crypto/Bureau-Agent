@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, calendarEventsTable, facturesClientTable, compteClientTable, organisationsTable, prospectsTable, notificationsTable, paymentRemindersTable, licenseAuditLogTable, projetsTable, usersTable, checkinsTable, auditLogsTable, commandantConversationsTable, commandantMessagesTable, demoHandoffsTable } from "@workspace/db";
 import { eq, sql, and, desc, gte, lte, lt, ne, isNull, isNotNull, or, ilike, count, asc, inArray, type Column, type SQL } from "drizzle-orm";
+import { AGENTS, creerTacheIa } from "../services/tache-ia";
 import { getOrgId } from "../middleware/tenant";
 import { stripAccents, ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { sendEmail } from "../services/email";
@@ -628,9 +629,13 @@ JSON attendu:
       for (const task of parsed.tasksToCreate) {
         try {
           const dueDate = task.dueInDays ? new Date(Date.now() + task.dueInDays * 86400000) : new Date(Date.now() + 3 * 86400000);
-          const [t] = await db.insert(tasksTable).values({
-            organisationId: orgId, title: `[Appel] ${task.title}`, description: task.description || parsed.summary, priority: task.priority || "moyenne", status: "en_attente", dueDate,
-          }).returning();
+          // Le prefixe « [Appel] » quitte le titre: l'auteur est desormais une
+          // colonne, donc filtrable, et affiche partout de la meme facon.
+          const t = await creerTacheIa({
+            organisationId: orgId, agent: AGENTS.commandant, nature: "commercial",
+            title: task.title, description: task.description || parsed.summary,
+            priority: task.priority || "moyenne", dueDate,
+          });
           createdTasks.push(t);
         } catch (e) { logger.error({ err: e }, "[Commandant/CallCompile] task insert failed:"); }
       }
@@ -689,9 +694,11 @@ JSON attendu:
     for (const task of (parsed.tasks || [])) {
       try {
         const dueDate = new Date(Date.now() + (task.dueInDays || 3) * 86400000);
-        const [t] = await db.insert(tasksTable).values({
-          organisationId: orgId, title: task.title, description: task.description, priority: task.priority || "moyenne", status: "en_attente", dueDate, relatedContactId: contactId || null,
-        }).returning();
+        const t = await creerTacheIa({
+          organisationId: orgId, agent: AGENTS.commandant, nature: "commercial",
+          title: task.title, description: task.description,
+          priority: task.priority || "moyenne", dueDate, relatedContactId: contactId || null,
+        });
         createdTasks.push(t);
       } catch (e) { logger.error({ err: e }, "[Commandant/AutoCreate] task insert failed:"); }
     }
@@ -953,9 +960,15 @@ JSON attendu:
     for (const action of (parsed.actionItems || [])) {
       try {
         const dueDate = new Date(Date.now() + (action.dueInDays || 7) * 86400000);
-        const [t] = await db.insert(tasksTable).values({
-          organisationId: orgId, title: `[Reunion] ${action.title}`, description: `${action.description || ""}\nAssigne a: ${action.assignedTo || "Non assigne"}\nReunion: ${meetingTitle || ""}`, priority: action.priority || "moyenne", status: "en_attente", dueDate,
-        }).returning();
+        // « Assigne a: <texte libre> » disparait de la description: c'etait
+        // une intention d'attribution que rien ne lisait. La tache est
+        // desormais reellement adressee, par role.
+        const t = await creerTacheIa({
+          organisationId: orgId, agent: AGENTS.commandant, nature: "administratif",
+          title: action.title,
+          description: `${action.description || ""}\nReunion: ${meetingTitle || ""}`.trim(),
+          priority: action.priority || "moyenne", dueDate,
+        });
         createdTasks.push(t);
       } catch (e) { logger.error({ err: e }, "[Commandant/MeetingCompile] task insert failed:"); }
     }

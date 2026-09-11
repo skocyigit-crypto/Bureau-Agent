@@ -25,7 +25,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { getListTasksQueryKey,useCreateTask,useDeleteTask,useGetTask,useListContacts,useListTasks,useUpdateTask } from "@workspace/api-client-react";
 import { format,isPast,isToday } from "date-fns";
 import { fr } from "date-fns/locale";
-import { AlertCircle,AlertTriangle,ArrowDown,ArrowUp,ArrowUpDown,Calendar,CheckCheck,CheckSquare,ChevronLeft,ChevronRight,ChevronsLeft,ChevronsRight,Clock,Columns3,Copy,Download,Edit,Filter,FolderKanban,LayoutList,MoreHorizontal,Plus,Printer,Repeat,Search,Trash2,UserCheck,Users } from "lucide-react";
+import { AlertCircle,AlertTriangle,ArrowDown,ArrowUp,ArrowUpDown,Calendar,CheckCheck,CheckSquare,ChevronLeft,ChevronRight,ChevronsLeft,ChevronsRight,Clock,Columns3,Copy,Download,Edit,Filter,FolderKanban,LayoutList,MoreHorizontal,Plus,Printer,Repeat,Search,Sparkles,Trash2,UserCheck,Users } from "lucide-react";
 import { useEffect,useMemo,useRef,useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link,useLocation } from "wouter";
@@ -52,6 +52,42 @@ const KANBAN_COLUMNS = [
   { key: "termine", label: "Termine", color: "bg-emerald-500" },
   { key: "annule", label: "Annule", color: "bg-gray-400" },
 ] as const;
+
+/** Libelles des agents. L'identifiant est stable cote serveur, le libelle non. */
+const LIBELLE_AGENT: Record<string, string> = {
+  "secretaire-autonome": "Secretaire autonome",
+  "depouillement-courriel": "Depouillement des courriels",
+  "analyse-appel": "Analyse d'appel",
+  "analyse-document": "Analyse de document",
+  "commandant": "Commandant IA",
+  "assistant": "Assistant",
+  "saisie-vocale": "Saisie vocale",
+  "analyse-rapport": "Analyse de rapport",
+  "moteur-automatisation": "Moteur d'automatisation",
+};
+
+/**
+ * Marque une tache proposee par une machine.
+ *
+ * Avant, rien ne la distinguait d'une tache ecrite par un collegue: deux
+ * agents sur neuf prefixaient le titre, les autres non. Quelqu'un qui trouvait
+ * une tache a cote de la plaque ne pouvait ni savoir d'ou elle venait, ni
+ * couper la source.
+ */
+function BadgeAgent({ agent }: { agent?: string | null }) {
+  if (!agent) return null;
+  const libelle = LIBELLE_AGENT[agent] ?? agent;
+  return (
+    <Badge
+      variant="outline"
+      className="gap-1 text-[10px] font-normal border-violet-400/60 text-violet-700 dark:text-violet-300 shrink-0"
+      title={`Proposee par ${libelle} (IA)`}
+    >
+      <Sparkles className="w-2.5 h-2.5" aria-hidden="true" />
+      {libelle}
+    </Badge>
+  );
+}
 
 export default function Tasks() {
   const { t } = useTranslation();
@@ -693,6 +729,7 @@ export default function Tasks() {
                               <span className={`text-sm font-medium ${task.status === 'termine' ? 'line-through text-muted-foreground' : ''}`}>
                                 {task.title}
                               </span>
+                              <BadgeAgent agent={(task as any).createdByAgent} />
                             </div>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -808,6 +845,7 @@ export default function Tasks() {
                         <TableCell>
                           <div className={`font-medium flex items-center gap-2 ${task.status === 'termine' ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
                             {task.title}
+                            <BadgeAgent agent={(task as any).createdByAgent} />
                             {(task as any).isRecurring && <Repeat className="w-3 h-3 text-blue-500 shrink-0" aria-label={(task as any).recurrenceRule || t("tasks.kanban.recurring")} />}
                           </div>
                           <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">

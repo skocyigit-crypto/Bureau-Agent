@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, platformConnectionsTable, notificationsTable, stockArticlesTable, calendarEventsTable, projetsTable, prospectsTable, automationRulesTable, facturesClientTable, compteClientTable, organisationsTable } from "@workspace/db";
+import { AGENTS, creerTacheIa } from "../services/tache-ia";
 import { sendEmail } from "../services/email";
 import { sql, eq, gte, lte, and, count, avg, desc, asc, lt, ne, isNull, isNotNull, or, not, inArray } from "drizzle-orm";
 import { NON_COLLECTIBLE_STATUSES } from "../services/payment-reminder";
@@ -2197,17 +2198,21 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         let data: any;
         try { data = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Donnees de tache invalides." }); return; }
         if (!data.title) { res.status(400).json({ error: "Titre requis." }); return; }
-        const [task] = await db.insert(tasksTable).values({
+        // `assignedTo` venait du modele, en texte libre: un nom invente ou mal
+        // orthographe ne correspondait a personne, et la tache restait sans
+        // destinataire reel. Le role decide desormais, sur des comptes qui
+        // existent.
+        const task = await creerTacheIa({
           organisationId: orgId,
+          agent: AGENTS.commandant,
+          nature: "administratif",
           title: data.title,
           description: data.description || "",
-          status: data.status || "en_attente",
           priority: data.priority || "moyenne",
           dueDate: data.dueDate ? new Date(data.dueDate) : null,
-          assignedTo: data.assignedTo || null,
           relatedContactId: data.relatedContactId || null,
-        }).returning();
-        result = { success: true, message: `Tache "${task.title}" creee avec succes.`, entity: "task", id: task.id };
+        });
+        result = { success: true, message: `Tache "${data.title}" creee avec succes.`, entity: "task", id: task.id };
         break;
       }
       case "create_contact": {
@@ -2376,14 +2381,15 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         try { data = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Donnees invalides." }); return; }
         if (!data.contactName || !data.date) { res.status(400).json({ error: "Nom du contact et date requis." }); return; }
         const followDate = new Date(`${data.date}T${data.time || "10:00"}`);
-        const [task] = await db.insert(tasksTable).values({
+        const task = await creerTacheIa({
           organisationId: orgId,
-          title: `Suivi: ${data.contactName} — ${data.reason || "A contacter"}`,
+          agent: AGENTS.commandant,
+          nature: "commercial",
+          title: `Suivi: ${data.contactName} - ${data.reason || "A contacter"}`,
           description: `Suivi programme pour ${data.contactName}. Raison: ${data.reason || "Non specifiee"}`,
-          status: "en_attente",
           priority: "haute",
           dueDate: followDate,
-        }).returning();
+        });
         const [event] = await db.insert(calendarEventsTable).values({
           organisationId: orgId,
           title: `Suivi: ${data.contactName}`,

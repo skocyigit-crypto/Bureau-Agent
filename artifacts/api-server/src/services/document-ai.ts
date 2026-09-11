@@ -4,6 +4,7 @@ import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/acce
 import { logger } from "../lib/logger";
 import { safeJsonParse, aiCallWithRetry, GEMINI_PRO_MODEL, GEMINI_FLASH_MODEL, ANTHROPIC_MODEL, wrapUntrusted } from "./ai-utils";
 import { aiForOrg } from "./ai-client";
+import { AGENTS, creerTacheIa } from "./tache-ia";
 
 export type DocumentType =
   | "facture"
@@ -518,16 +519,20 @@ export async function executeDocumentAction(
             .limit(1);
           if (!owned[0]) relatedContactId = null;
         }
-        const [task] = await db.insert(tasksTable).values({
+        // La tache passe par la porte unique: elle portera l'agent qui l'a
+        // proposee, et sera adressee selon le ROLE plutot qu'a celui qui a
+        // depose le document. Deposer un document ne fait pas de vous le
+        // destinataire de tout ce qu'il contient.
+        const task = await creerTacheIa({
           organisationId: orgId,
+          agent: AGENTS.analyseDocument,
+          nature: "administratif",
           title: taskTitle,
           description: data.description || data.contenu_resume || action.description,
-          status: "en_attente",
           priority: action.priority === "haute" ? "haute" : action.priority === "basse" ? "basse" : "moyenne",
-          assignedTo: userId.toString(),
           dueDate,
           relatedContactId,
-        }).returning({ id: tasksTable.id });
+        });
         return {
           success: true,
           module: "taches",
