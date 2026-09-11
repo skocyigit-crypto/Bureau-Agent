@@ -17,7 +17,7 @@
     "e2e": "playwright test",
     "security:audit": "node ./scripts/security-audit.mjs",
     "lint": "eslint .",
-    "lint:ratchet": "eslint . --max-warnings 531"
+    "lint:ratchet": "eslint . --max-warnings 520"
   },
   "private": true,
   "devDependencies": {

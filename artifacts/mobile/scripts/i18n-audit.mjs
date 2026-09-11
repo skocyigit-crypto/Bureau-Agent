@@ -20,7 +20,7 @@ function has(k) { return k.split('.').reduce((o, p) => (o && typeof o === 'objec
 function walk(dir, acc = []) { for (const e of fs.readdirSync(dir, { withFileTypes: true })) { const p = path.join(dir, e.name); if (e.isDirectory()) walk(p, acc); else if (e.name.endsWith('.tsx') || e.name.endsWith('.ts')) acc.push(p); } return acc; }
 const files = [...walk(base + '/app'), ...walk(base + '/components')];
 const re = /\bt\(\s*(["'])((?:[^"'`\\])+?)\1/g;
-let miss = [];
+const miss = [];
 for (const f of files) { const s = fs.readFileSync(f, 'utf8'); const seen = new Set(); let m; while ((m = re.exec(s))) seen.add(m[2]); for (const k of seen) if (k.includes('.') && !k.endsWith('.') && !has(k)) miss.push(path.basename(f) + ' : ' + k); }
 console.log('taranan dosya: ' + files.length + ', cozulmeyen statik t() anahtari: ' + miss.length);
 miss.slice(0, 60).forEach(x => console.log('  ! ' + x));

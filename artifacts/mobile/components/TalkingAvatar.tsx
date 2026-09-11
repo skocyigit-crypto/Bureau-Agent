@@ -254,7 +254,7 @@ export const TalkingAvatar = forwardRef<TalkingAvatarHandle, TalkingAvatarProps>
     useEffect(() => {
       let raf = 0;
       let last = 0;
-      let t0 = Date.now();
+      const t0 = Date.now();
       const tick = () => {
         const now = Date.now();
         const frame = speakingRef.current ? FRAME_SPEAK_MS : FRAME_IDLE_MS;

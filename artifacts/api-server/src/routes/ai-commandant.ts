@@ -2844,7 +2844,7 @@ router.post("/commandant/conversations/:id/messages", async (req: Request, res: 
       .limit(MAX_HISTORY_MESSAGES + 1); // include the just-saved user msg
 
     // recent is desc; reverse to chronological, then trim from the oldest end if over char budget
-    let history = recent.slice().reverse();
+    const history = recent.slice().reverse();
     let totalChars = history.reduce((acc, m) => acc + (m.content?.length || 0), 0);
     while (history.length > 2 && totalChars > MAX_HISTORY_CHARS) {
       const dropped = history.shift();
