@@ -106,7 +106,59 @@ if (factureId) {
   await etape("attestation de conformite", () => appel("GET", "/encaissements/attestation"));
 }
 
-// --- 7. Verdict -------------------------------------------------------------
+// --- 7. La chaine de vente: devis, puis conversion en facture ---------------
+//
+// C'est le parcours qui rapporte de l'argent, et celui dont le depot garde la
+// trace d'une panne silencieuse (« Satis zinciri sessizce kapaliymis »,
+// 2026-09-02): personne ne s'en servait, donc personne ne voyait qu'il etait
+// ferme. Un parcours qu'on ne joue jamais finit toujours par ne plus marcher.
+const devis = await etape("etablir un devis", () =>
+  appel("POST", "/devis", {
+    title: `Devis de verification ${suffixe}`,
+    clientName: `Verification Parcours ${suffixe}`,
+    items: [{ description: "Renovation salle de bain", quantity: 1, unitPrice: 3200, taxRate: 10 }],
+    validUntil: new Date(Date.now() + 30 * 86400000).toISOString(),
+  }));
+const devisId = devis.donnees?.id ?? devis.donnees?.devis?.id;
+
+if (devisId) {
+  await etape("convertir le devis en facture", () =>
+    appel("POST", `/devis/${devisId}/convert-to-facture`, {}));
+}
+
+// --- 8. Chantier, depenses, notes -------------------------------------------
+const projet = await etape("ouvrir un chantier", () =>
+  appel("POST", "/projets", {
+    title: `Chantier de verification ${suffixe}`,
+    description: "Cree par la verification de parcours",
+    status: "en_cours",
+  }));
+const projetId = projet.donnees?.id ?? projet.donnees?.projet?.id;
+
+await etape("saisir une depense", () =>
+  appel("POST", "/depenses", {
+    vendor: `Fournisseur Test ${suffixe}`,
+    amountTtc: 149.9,
+    amountTva: 24.98,
+    category: "materiel",
+    date: new Date().toISOString(),
+    projetId: projetId ?? undefined,
+  }));
+
+await etape("ecrire une note interne", () =>
+  appel("POST", "/notes-internes", {
+    title: `Note de verification ${suffixe}`,
+    content: "Verification automatique du parcours metier.",
+  }));
+
+// --- 9. Ce que l'utilisateur consulte ensuite -------------------------------
+await etape("notifications", () => appel("GET", "/dashboard/notifications"));
+await etape("activite recente", () => appel("GET", "/dashboard/recent-activity"));
+await etape("liste des depenses", () => appel("GET", "/depenses"));
+await etape("liste des notes internes", () => appel("GET", "/notes-internes"));
+await etape("export CSV des taches", () => appel("GET", "/tasks/export/csv"));
+
+// --- 10. Verdict ------------------------------------------------------------
 console.log("\n" + "=".repeat(60));
 if (echecs.length === 0) {
   console.log("PARCOURS COMPLET: aucune etape en echec.");
