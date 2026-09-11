@@ -40,6 +40,22 @@ const ECRANS = [
   "/telecharger", "/telephonie", "/tresorerie", "/utilisateurs", "/whatsapp",
 ];
 
+/**
+ * Decoupage en lots.
+ *
+ * La limite de l'application porte sur un quart d'heure glissant. Soixante et
+ * un ecrans, dont chacun interroge `/auth/me` et plusieurs sondes de fond, la
+ * depassent d'un seul tenant QUELLE QUE SOIT la pause entre deux ecrans —
+ * ralentir ne fait que repartir le meme total sur plus longtemps.
+ *
+ * D'ou les lots: `DEBUT=0 FIN=20`, puis le lot suivant un quart d'heure plus
+ * tard. C'est la seule facon d'obtenir un verdict sur un ecran plutot qu'un
+ * constat sur notre propre cadence.
+ */
+const DEBUT = Number(process.env.DEBUT ?? 0);
+const FIN = Number(process.env.FIN ?? ECRANS.length);
+const A_VISITER = ECRANS.slice(DEBUT, FIN);
+
 const navigateur = await chromium.launch();
 const contexte = await navigateur.newContext();
 const page = await contexte.newPage();
@@ -63,6 +79,7 @@ if (!connecte) {
 
 // --- Parcours des ecrans -----------------------------------------------------
 const casses = [];
+const nonJuges = [];
 
 /**
  * Pause entre deux ecrans.
@@ -79,14 +96,28 @@ const casses = [];
  */
 const PAUSE_MS = Number(process.env.PAUSE_MS ?? 3000);
 
-for (const chemin of ECRANS) {
+for (const chemin of A_VISITER) {
   await page.waitForTimeout(PAUSE_MS);
   const erreurs = [];
   const reseau = [];
-  const onErr = (m) => { if (m.type() === "error") erreurs.push(m.text().slice(0, 160)); };
+  const limite = [];
+  const onErr = (m) => {
+    if (m.type() !== "error") return;
+    const t = m.text();
+    // Meme raison que pour le reseau: le message de console qui accompagne un
+    // 429 decrit notre propre cadence, pas l ecran.
+    if (t.includes("429")) return;
+    erreurs.push(t.slice(0, 160));
+  };
   const onPageErr = (e) => erreurs.push(`exception: ${String(e).slice(0, 160)}`);
   const onRep = (r) => {
-    if (r.status() >= 400) reseau.push(`${r.status()} ${new URL(r.url()).pathname}`);
+    const code = r.status();
+    if (code < 400) return;
+    // 429 = l'application nous limite. Ce n'est PAS un ecran casse, c'est une
+    // mesure qui n'a pas pu se faire — et confondre les deux est ce qui a
+    // produit le premier rapport, ou soixante ecrans etaient declares « en
+    // probleme » sans qu'aucun ne le soit.
+    (code === 429 ? limite : reseau).push(`${code} ${new URL(r.url()).pathname}`);
   };
 
   page.on("console", onErr);
@@ -119,12 +150,16 @@ for (const chemin of ECRANS) {
   if (probleme) {
     casses.push({ chemin, vide, erreurs, reseau, clesNues: [...new Set(clesNues)].slice(0, 3) });
   }
+  // Un ecran limite n'est ni bon ni mauvais: il n'a pas ete juge. Le dire
+  // separement est la seule facon d'avoir un rapport utilisable.
+  if (limite.length > 0) nonJuges.push({ chemin, limite: [...new Set(limite)] });
 
-  const etat = probleme ? "PROBLEME" : "OK      ";
+  const etat = probleme ? "PROBLEME" : limite.length > 0 ? "NON JUGE" : "OK      ";
   console.log(`${etat} ${chemin.padEnd(24)} ${texte.length} car.` +
     (vide ? " [VIDE]" : "") +
     (erreurs.length ? ` [${erreurs.length} err]` : "") +
-    (reseau.length ? ` [${reseau.length} x 5xx]` : "") +
+    (reseau.length ? ` [${reseau.length} x 4xx/5xx]` : "") +
+    (limite.length ? ` [${limite.length} x 429 — notre cadence]` : "") +
     (clesNues.length ? ` [cle nue: ${clesNues[0]}]` : ""));
 }
 
@@ -132,10 +167,19 @@ await navigateur.close();
 
 // --- Verdict -----------------------------------------------------------------
 console.log("\n" + "=".repeat(70));
+console.log(`${A_VISITER.length} ecrans ouverts · ${casses.length} en probleme · ${nonJuges.length} non juges (limite atteinte)\n`);
+
+if (nonJuges.length > 0) {
+  // Dit en clair, parce qu'un ecran non juge est une question ouverte et non
+  // une bonne nouvelle. Relancer par lots, ou espacer davantage (PAUSE_MS).
+  console.log(`Non juges — l'application nous a limites, ce n'est pas un defaut des ecrans:`);
+  console.log(`  ${nonJuges.map((n) => n.chemin).join(", ")}\n`);
+}
+
 if (casses.length === 0) {
-  console.log(`${ECRANS.length} ecrans ouverts, aucun probleme.`);
+  console.log(`Aucun probleme sur les ${A_VISITER.length - nonJuges.length} ecrans reellement juges.`);
 } else {
-  console.log(`${casses.length} ecran(s) sur ${ECRANS.length} a regarder:\n`);
+  console.log(`${casses.length} ecran(s) sur ${A_VISITER.length} a regarder:\n`);
   for (const c of casses) {
     console.log(`  ${c.chemin}`);
     if (c.vide) console.log("      page quasi vide");

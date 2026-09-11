@@ -41,7 +41,19 @@ describe("chiffrement des secrets clients", () => {
   it("refuse un contenu altere au lieu de renvoyer n'importe quoi", () => {
     const stored = encryptSecret("GOCSPX-integre");
     const [iv, tag, data] = stored.split(":");
-    const tampered = `${iv}:${tag}:${data.slice(0, -2)}00`;
+
+    // L'alteration doit etre GARANTIE differente. La version precedente
+    // remplacait les deux derniers caracteres par « 00 » — ce qui ne changeait
+    // rien lorsque le chiffre se terminait deja par « 00 », soit une execution
+    // sur 256. Le test passait donc presque toujours, et echouait au hasard:
+    // il a bloque une mise en production le 2026-09-11, sans rapport avec le
+    // code modifie.
+    //
+    // Un test intermittent est pire qu'un test absent: il apprend a relancer
+    // la CI au lieu de lire ce qu'elle dit.
+    const dernier = data.slice(-1);
+    const tampered = `${iv}:${tag}:${data.slice(0, -1)}${dernier === "0" ? "1" : "0"}`;
+    expect(tampered, "l'alteration doit reellement modifier le chiffre").not.toBe(stored);
 
     expect(() => decryptSecret(tampered)).toThrow();
   });
