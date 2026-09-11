@@ -154,7 +154,8 @@
       "quotes": "Teklifler",
       "clientInvoices": "Müşteri faturaları",
       "trash": "Çöp kutusu",
-      "postDiagnostic": "Bilgisayar kontrolu"
+      "postDiagnostic": "Bilgisayar kontrolu",
+      "encaissements": "Tahsilatlar"
     }
   },
   "userMenu": {
@@ -9227,5 +9228,55 @@
     "remiseCopie": "Betik kopyalandi",
     "aLaMainTitre": "Elle yapilacaklar",
     "aLaMainDesc": "Bunlar bilerek otomatiklestirilmedi: veri siliyor, sizin secmeniz gereken bir yeniden baslatma istiyor ya da guvenle saklanmasi gereken bir anahtar uretiyor. Burada dogru cevap insan eli."
+  },
+  "encaissements": {
+    "titre": "Tahsilat defteri",
+    "sousTitre": "Tahsilatlari kaydedin, ve kanitlayabilin.",
+    "etat": {
+      "titre": "Uyum durumu",
+      "chaine": "Zincir",
+      "conservation": "Saklama",
+      "intacte": "saglam",
+      "coherente": "tutarli",
+      "aVerifier": "kontrol edilmeli",
+      "verifieLe": "{{quand}} tarihinde kontrol edildi",
+      "verifier": "Simdi kontrol et",
+      "archive": "{{annee}} arsivi",
+      "attestation": "Yayinci belgesi",
+      "fondement": "Fransiz vergi kanunu md. 286-I-3 bis: tahsilat verileri degistirilemez, guvenli, saklanmis ve arsivlenmis olmali."
+    },
+    "saisie": {
+      "titre": "Tahsilat kaydet",
+      "facture": "Fatura numarasi",
+      "montant": "Tutar (EUR)",
+      "moyen": "Odeme sekli",
+      "date": "Tahsilat tarihi",
+      "enregistrer": "Kaydet",
+      "avertissement": "Kaydedilen bir tahsilat ne degistirilebilir ne silinebilir. Hata, deftere eklenen ve orijinal kaydi gorunur birakan ters kayitla duzeltilir. Kanun bunu sart kosuyor, ve defteri ileri surulebilir kilan da budur."
+    },
+    "moyens": {
+      "especes": "Nakit",
+      "virement": "Havale",
+      "cheque": "Cek",
+      "carte": "Kart",
+      "prelevement": "Otomatik odeme",
+      "autre": "Diger"
+    },
+    "reprise": {
+      "titre": "Devir kaydi",
+      "desc": "Defter kurulmadan once tahsil edilmis tutarlari deftere alir: fatura basina bir kayit, bugunun tarihiyle, « reprise » sekliyle. Gecmise ait hicbir tarih veya odeme sekli uydurulmaz.",
+      "bouton": "Devri baslat",
+      "confirmTitre": "Devir kaydi yapilsin mi?",
+      "confirmDesc": "Halihazirda odenmis tutar tasiyan her fatura icin bir devir kaydi eklenecek. Daha once devredilmis faturalar atlanir.",
+      "confirmBouton": "Baslat",
+      "faite": "{{n}} devir kaydi olusturuldu"
+    },
+    "toast": {
+      "enregistre": "Tahsilat kaydedildi (kayit no {{numero}})",
+      "echec": "Kaydedilemedi",
+      "periodeClose": "Donem kapali",
+      "champsRequis": "Fatura ve tutar zorunlu",
+      "verificationEchouee": "Kontrol edilemedi"
+    }
   }
 }

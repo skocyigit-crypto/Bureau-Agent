@@ -154,7 +154,8 @@
       "quotes": "Quotes",
       "clientInvoices": "Client invoices",
       "trash": "Trash",
-      "postDiagnostic": "Workstation check-up"
+      "postDiagnostic": "Workstation check-up",
+      "encaissements": "Payments"
     }
   },
   "userMenu": {
@@ -9227,5 +9228,55 @@
     "remiseCopie": "Script copied",
     "aLaMainTitre": "To do by hand",
     "aLaMainDesc": "These are deliberately not automated: they delete data, need a reboot you choose, or produce a key that must be kept safe. A human step is the right answer here."
+  },
+  "encaissements": {
+    "titre": "Payments ledger",
+    "sousTitre": "Record payments, and be able to prove it.",
+    "etat": {
+      "titre": "Compliance status",
+      "chaine": "Chain",
+      "conservation": "Retention",
+      "intacte": "intact",
+      "coherente": "consistent",
+      "aVerifier": "to check",
+      "verifieLe": "Checked on {{quand}}",
+      "verifier": "Check now",
+      "archive": "{{annee}} archive",
+      "attestation": "Publisher attestation",
+      "fondement": "Article 286-I-3 bis of the French tax code: payment data must be tamper-proof, secured, retained and archived."
+    },
+    "saisie": {
+      "titre": "Record a payment",
+      "facture": "Invoice number",
+      "montant": "Amount (EUR)",
+      "moyen": "Payment method",
+      "date": "Payment date",
+      "enregistrer": "Record",
+      "avertissement": "A recorded payment cannot be edited or deleted. A mistake is corrected by a reversing entry, appended to the ledger, leaving the original visible. The law requires this, and it is what makes the ledger hold up."
+    },
+    "moyens": {
+      "especes": "Cash",
+      "virement": "Transfer",
+      "cheque": "Cheque",
+      "carte": "Card",
+      "prelevement": "Direct debit",
+      "autre": "Other"
+    },
+    "reprise": {
+      "titre": "Opening balances",
+      "desc": "Brings amounts collected before the ledger existed into it: one entry per invoice, dated today, method \"reprise\". No past date or payment method is invented.",
+      "bouton": "Run",
+      "confirmTitre": "Bring in opening balances?",
+      "confirmDesc": "One entry will be added per invoice that already shows an amount paid. Invoices already carried over are skipped.",
+      "confirmBouton": "Run",
+      "faite": "{{n}} opening entries created"
+    },
+    "toast": {
+      "enregistre": "Payment recorded (entry no. {{numero}})",
+      "echec": "Could not record",
+      "periodeClose": "Period closed",
+      "champsRequis": "Invoice and amount are required",
+      "verificationEchouee": "Could not verify"
+    }
   }
 }

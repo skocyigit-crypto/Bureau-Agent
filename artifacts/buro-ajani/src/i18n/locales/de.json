@@ -154,7 +154,8 @@
       "quotes": "Angebote",
       "clientInvoices": "Kundenrechnungen",
       "trash": "Papierkorb",
-      "postDiagnostic": "Arbeitsplatz-Diagnose"
+      "postDiagnostic": "Arbeitsplatz-Diagnose",
+      "encaissements": "Zahlungen"
     }
   },
   "userMenu": {
@@ -9227,5 +9228,55 @@
     "remiseCopie": "Skript kopiert",
     "aLaMainTitre": "Von Hand zu erledigen",
     "aLaMainDesc": "Diese Punkte sind bewusst nicht automatisiert: sie loschen Daten, erfordern einen selbst gewahlten Neustart oder erzeugen einen Schlussel, der sicher verwahrt werden muss."
+  },
+  "encaissements": {
+    "titre": "Zahlungsjournal",
+    "sousTitre": "Zahlungen erfassen und nachweisen koennen.",
+    "etat": {
+      "titre": "Konformitaetsstatus",
+      "chaine": "Kette",
+      "conservation": "Aufbewahrung",
+      "intacte": "unversehrt",
+      "coherente": "stimmig",
+      "aVerifier": "zu pruefen",
+      "verifieLe": "Geprueft am {{quand}}",
+      "verifier": "Jetzt pruefen",
+      "archive": "Archiv {{annee}}",
+      "attestation": "Herstellerbescheinigung",
+      "fondement": "Art. 286-I-3 bis franzoesisches Steuergesetzbuch: Zahlungsdaten muessen unveraenderbar, gesichert, aufbewahrt und archiviert sein."
+    },
+    "saisie": {
+      "titre": "Zahlung erfassen",
+      "facture": "Rechnungsnummer",
+      "montant": "Betrag (EUR)",
+      "moyen": "Zahlungsart",
+      "date": "Zahlungsdatum",
+      "enregistrer": "Erfassen",
+      "avertissement": "Eine erfasste Zahlung kann weder geaendert noch geloescht werden. Ein Fehler wird durch eine Gegenbuchung korrigiert, die angehaengt wird und die urspruengliche Buchung sichtbar laesst."
+    },
+    "moyens": {
+      "especes": "Bar",
+      "virement": "Ueberweisung",
+      "cheque": "Scheck",
+      "carte": "Karte",
+      "prelevement": "Lastschrift",
+      "autre": "Sonstiges"
+    },
+    "reprise": {
+      "titre": "Eroeffnungssalden",
+      "desc": "Uebernimmt bereits vereinnahmte Betraege ins Journal: eine Buchung je Rechnung, mit heutigem Datum, Art « reprise ». Kein vergangenes Datum und keine Zahlungsart wird erfunden.",
+      "bouton": "Starten",
+      "confirmTitre": "Eroeffnungssalden uebernehmen?",
+      "confirmDesc": "Je Rechnung mit bereits gezahltem Betrag wird eine Buchung ergaenzt. Bereits uebernommene Rechnungen werden uebersprungen.",
+      "confirmBouton": "Starten",
+      "faite": "{{n}} Eroeffnungsbuchungen erstellt"
+    },
+    "toast": {
+      "enregistre": "Zahlung erfasst (Buchung Nr. {{numero}})",
+      "echec": "Erfassen nicht moeglich",
+      "periodeClose": "Periode geschlossen",
+      "champsRequis": "Rechnung und Betrag sind erforderlich",
+      "verificationEchouee": "Pruefung nicht moeglich"
+    }
   }
 }

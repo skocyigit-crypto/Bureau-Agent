@@ -33,6 +33,13 @@ const router: IRouter = Router();
 
 const MOYENS = ["especes", "virement", "cheque", "carte", "prelevement", "autre"] as const;
 
+/**
+ * Moyen reserve a la reprise d'anteriorite. Il ne figure pas dans MOYENS: on ne
+ * doit pas pouvoir le choisir a la saisie, sinon un encaissement ordinaire
+ * pourrait se deguiser en solde reporte.
+ */
+const MOYEN_REPRISE = "reprise";
+
 /** Convertit les lignes de la base en ecritures chainables. */
 function enEcritures(lignes: (typeof encaissementsTable.$inferSelect)[]): EcritureChainee[] {
   return lignes.map((l) => ({
@@ -519,6 +526,112 @@ router.get("/encaissements/attestation", async (req: Request, res: Response): Pr
   } catch (err: any) {
     req.log.error({ err }, "Erreur emission attestation");
     res.status(500).json({ error: "Erreur lors de l'emission de l'attestation." });
+  }
+});
+
+/**
+ * Reprise d'anteriorite: faire entrer dans le journal ce qui etait deja encaisse.
+ *
+ * Le journal commence vide, alors que des factures portent deja un montant
+ * regle dans l'ancienne colonne. Deux mauvaises reponses, et une bonne.
+ *
+ * MAUVAISE 1 — ne rien faire. Les soldes disparaitraient du journal, les
+ * factures apparaitraient impayees, et le cumul des clotures serait faux des
+ * le premier jour.
+ *
+ * MAUVAISE 2 — fabriquer une ecriture par paiement passe, avec une date et un
+ * moyen inventes. Un journal dont les premieres lignes sont de la fiction ne
+ * vaut rien: il affirmerait des faits qu'on ne connait pas, dans le document
+ * meme qui sert a prouver qu'on n'invente pas.
+ *
+ * BONNE — l'a-nouveau, comme en comptabilite: UNE ecriture par facture, datee
+ * du jour de la reprise, portant le moyen `reprise`, qui dit exactement ce
+ * qu'on sait — « a cette date, ce montant etait deja encaisse » — et rien de
+ * plus. Elle n'usurpe aucune date et ne pretend a aucun moyen de paiement.
+ *
+ * Idempotente: une facture deja reprise ne l'est pas deux fois.
+ */
+router.post("/encaissements/reprise", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  try {
+    const resultat = await db.transaction(async (tx) => {
+      // Factures portant un montant regle non nul.
+      const factures = await tx.select({
+        id: facturesClientTable.id,
+        paidAmount: facturesClientTable.paidAmount,
+        devise: facturesClientTable.currency,
+      }).from(facturesClientTable)
+        .where(eq(facturesClientTable.organisationId, orgId));
+
+      // Celles qui ont deja une ecriture de reprise: on ne reprend pas deux fois.
+      const dejaReprises = new Set(
+        (await tx.select({ factureId: encaissementsTable.factureId })
+          .from(encaissementsTable)
+          .where(and(
+            eq(encaissementsTable.organisationId, orgId),
+            eq(encaissementsTable.moyen, MOYEN_REPRISE),
+          ))).map((r) => r.factureId),
+      );
+
+      const [derniere] = await tx.select().from(encaissementsTable)
+        .where(eq(encaissementsTable.organisationId, orgId))
+        .orderBy(desc(encaissementsTable.numero)).limit(1);
+
+      let precedent = derniere ? { numero: derniere.numero, empreinte: derniere.empreinte } : null;
+      const quand = new Date();
+      let creees = 0;
+      let totalCentimes = 0;
+
+      for (const f of factures) {
+        if (dejaReprises.has(f.id)) continue;
+        const centimes = Math.round(Number(f.paidAmount ?? 0) * 100);
+        if (!Number.isFinite(centimes) || centimes <= 0) continue;
+
+        const ecriture = preparerEcriture({
+          organisationId: orgId,
+          factureId: f.id,
+          montantCentimes: centimes,
+          devise: f.devise ?? "EUR",
+          moyen: MOYEN_REPRISE,
+          dateEncaissement: quand.toISOString(),
+          sens: "encaissement",
+          annuleNumero: null,
+        }, precedent);
+
+        await tx.insert(encaissementsTable).values({
+          organisationId: ecriture.organisationId,
+          numero: ecriture.numero,
+          factureId: ecriture.factureId,
+          montantCentimes: ecriture.montantCentimes,
+          devise: ecriture.devise,
+          moyen: ecriture.moyen,
+          dateEncaissement: quand,
+          sens: ecriture.sens,
+          annuleNumero: ecriture.annuleNumero,
+          empreintePrecedente: ecriture.empreintePrecedente,
+          empreinte: ecriture.empreinte,
+          createdBy: req.session?.userId ?? null,
+        });
+
+        precedent = { numero: ecriture.numero, empreinte: ecriture.empreinte };
+        creees += 1;
+        totalCentimes += centimes;
+      }
+
+      return { creees, totalCentimes, facturesExaminees: factures.length };
+    });
+
+    await logAudit(req.session?.userId, req.session?.userEmail, "reprise_anteriorite",
+      "encaissement", undefined, resultat, req.ip, req.get("user-agent"), orgId);
+
+    res.json({
+      ...resultat,
+      note: "Une ecriture de reprise par facture, datee du jour, moyen « reprise ». " +
+        "Aucune date ni aucun moyen de paiement passe n'a ete invente.",
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur reprise d'anteriorite");
+    res.status(500).json({ error: "Erreur lors de la reprise." });
   }
 });
 
