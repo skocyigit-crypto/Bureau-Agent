@@ -154,7 +154,8 @@
       "quotes": "Devis",
       "clientInvoices": "Factures clients",
       "trash": "Corbeille",
-      "postDiagnostic": "Diagnostic du poste"
+      "postDiagnostic": "Diagnostic du poste",
+      "encaissements": "Reglements"
     }
   },
   "userMenu": {
@@ -9227,5 +9228,55 @@
     "remiseCopie": "Script copie",
     "aLaMainTitre": "A faire a la main",
     "aLaMainDesc": "Ces points ne sont volontairement pas automatises : ils suppriment des donnees, demandent un redemarrage choisi, ou produisent une cle a mettre a l abri. Un geste humain est ici la bonne reponse."
+  },
+  "encaissements": {
+    "titre": "Journal des reglements",
+    "sousTitre": "Enregistrer les encaissements, et pouvoir le prouver.",
+    "etat": {
+      "titre": "Etat de conformite",
+      "chaine": "Chaine",
+      "conservation": "Conservation",
+      "intacte": "intacte",
+      "coherente": "coherente",
+      "aVerifier": "a verifier",
+      "verifieLe": "Verifie le {{quand}}",
+      "verifier": "Verifier maintenant",
+      "archive": "Archive {{annee}}",
+      "attestation": "Attestation editeur",
+      "fondement": "Article 286-I-3 bis du CGI : inalterabilite, securisation, conservation et archivage des donnees de reglement."
+    },
+    "saisie": {
+      "titre": "Enregistrer un reglement",
+      "facture": "Numero de facture",
+      "montant": "Montant (EUR)",
+      "moyen": "Moyen de paiement",
+      "date": "Date d'encaissement",
+      "enregistrer": "Enregistrer",
+      "avertissement": "Un reglement enregistre ne peut etre ni modifie ni supprime. Une erreur se corrige par une ecriture inverse, qui s'ajoute au journal et laisse l'ecriture d'origine visible. C'est ce que la loi exige, et c'est ce qui rend le journal opposable."
+    },
+    "moyens": {
+      "especes": "Especes",
+      "virement": "Virement",
+      "cheque": "Cheque",
+      "carte": "Carte",
+      "prelevement": "Prelevement",
+      "autre": "Autre"
+    },
+    "reprise": {
+      "titre": "Reprise d'anteriorite",
+      "desc": "Fait entrer dans le journal les montants deja encaisses avant sa mise en service : une ecriture par facture, datee du jour, portant le moyen « reprise ». Aucune date ni aucun moyen de paiement passe n'est invente.",
+      "bouton": "Lancer la reprise",
+      "confirmTitre": "Lancer la reprise d'anteriorite ?",
+      "confirmDesc": "Une ecriture de reprise sera ajoutee pour chaque facture portant deja un montant regle. Les factures deja reprises sont ignorees.",
+      "confirmBouton": "Lancer",
+      "faite": "{{n}} ecriture(s) de reprise creee(s)"
+    },
+    "toast": {
+      "enregistre": "Reglement enregistre (ecriture n° {{numero}})",
+      "echec": "Enregistrement impossible",
+      "periodeClose": "Periode close",
+      "champsRequis": "Facture et montant sont obligatoires",
+      "verificationEchouee": "Verification impossible"
+    }
   }
 }

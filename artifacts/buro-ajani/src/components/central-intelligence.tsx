@@ -61,6 +61,9 @@ const VALID_ROUTES = [
   // antivirus eteint ou une sauvegarde qui ne tourne plus: c est exactement la
   // question a laquelle cette page repond.
   "/diagnostic-poste",
+  // L assistant doit pouvoir y renvoyer: « ou est-ce que j enregistre un
+  // cheque ? », « comment je prouve que mon journal est intact ? ».
+  "/reglements",
   // Recuperation: l'assistant doit pouvoir y renvoyer quelqu'un qui vient de
   // supprimer par erreur — c'est le moment ou la page sert.
   "/corbeille",

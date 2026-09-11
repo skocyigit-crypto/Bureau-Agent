@@ -315,6 +315,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           ...(canUseAi ? [{ name: t("sidebar.items.mailAgent"), href: "/gmail-agent", icon: Mail }] : []),
           { name: t("sidebar.items.securityCenter"), href: "/securite", icon: ShieldCheck },
           { name: t("sidebar.items.postDiagnostic"), href: "/diagnostic-poste", icon: Stethoscope },
+          { name: t("sidebar.items.encaissements"), href: "/reglements", icon: Receipt },
           ...(canUseAi ? [{ name: t("sidebar.items.webSearch"), href: "/recherche-web", icon: Search }] : []),
         ],
       },
