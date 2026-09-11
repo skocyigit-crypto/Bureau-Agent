@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 664,
+    "runtimeOperations": 666,
     "documentedOperations": 96,
-    "undocumentedOperations": 568
+    "undocumentedOperations": 570
   },
   "operations": [
     {
@@ -2745,6 +2745,22 @@
     {
       "method": "post",
       "path": "/encaissements/annuler",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/encaissements.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/encaissements/cloturer",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/encaissements.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/encaissements/conservation",
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/encaissements.ts"

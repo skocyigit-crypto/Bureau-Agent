@@ -58,6 +58,9 @@ export const TENANT_TABLES = [
   // Ajoutee apres que la porte de couverture l'a signalee: elle portait
   // `organisation_id` sans etre sauvegardee.
   "encaissements",
+  // Les clotures: sans elles, le journal restaure ne pourrait plus prouver
+  // qu aucune ecriture n a disparu.
+  "clotures_comptables",
   "user_location_state", "location_events", "messages", "notes_internes",
   "objectifs_commerciaux", "organisation_closures", "payment_reminders",
   "license_audit_log", "performance_reports", "platform_connections",

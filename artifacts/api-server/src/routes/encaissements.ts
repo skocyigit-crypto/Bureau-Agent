@@ -15,7 +15,7 @@
  */
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, desc, eq } from "drizzle-orm";
-import { db, encaissementsTable, facturesClientTable } from "@workspace/db";
+import { db, cloturesComptablesTable, encaissementsTable, facturesClientTable } from "@workspace/db";
 
 import { getOrgId } from "../middleware/tenant";
 import { logAudit } from "./audit";
@@ -25,6 +25,7 @@ import {
   verifierChaine,
   type EcritureChainee,
 } from "../services/chainage-encaissements";
+import { calculerCloture, periodeClose, verifierConservation } from "../services/cloture-comptable";
 
 const router: IRouter = Router();
 
@@ -96,6 +97,30 @@ router.post("/encaissements", async (req: Request, res: Response): Promise<void>
         .where(and(eq(facturesClientTable.id, Number(factureId)), eq(facturesClientTable.organisationId, orgId)));
       if (!facture) return { erreur: "Facture introuvable." as const };
 
+      // Anti-datation: on REFUSE une ecriture datee dans une periode deja
+      // close. Sans ce refus, l'anti-fraude serait contournable par le bas —
+      // il suffirait d'anti-dater pour glisser un encaissement sous un cumul
+      // deja fige. La verification le signalerait bien, mais apres coup, et
+      // sans pouvoir dire lequel des deux nombres est le bon.
+      const clotures = await tx.select().from(cloturesComptablesTable)
+        .where(eq(cloturesComptablesTable.organisationId, orgId));
+      const close = periodeClose(
+        quand.toISOString(),
+        clotures.map((c) => ({
+          organisationId: c.organisationId,
+          type: c.type as "journaliere" | "mensuelle" | "annuelle",
+          periode: c.periode,
+          premierNumero: c.premierNumero,
+          dernierNumero: c.dernierNumero,
+          nbEcritures: c.nbEcritures,
+          totalPeriodeCentimes: c.totalPeriodeCentimes,
+          totalCumuleCentimes: c.totalCumuleCentimes,
+          empreintePrecedente: c.empreintePrecedente,
+          empreinte: c.empreinte,
+        })),
+      );
+      if (close) return { erreurPeriode: close.periode as string };
+
       const [derniere] = await tx.select().from(encaissementsTable)
         .where(eq(encaissementsTable.organisationId, orgId))
         .orderBy(desc(encaissementsTable.numero)).limit(1);
@@ -131,6 +156,13 @@ router.post("/encaissements", async (req: Request, res: Response): Promise<void>
     });
 
     if ("erreur" in resultat) { res.status(404).json({ error: resultat.erreur }); return; }
+    if ("erreurPeriode" in resultat) {
+      res.status(409).json({
+        error: `La periode ${resultat.erreurPeriode} est close: aucun encaissement ne peut y etre ajoute.`,
+        remediation: "Enregistrez l'encaissement a sa date reelle, ou passez par une ecriture sur la periode ouverte.",
+      });
+      return;
+    }
 
     await logAudit(req.session?.userId, req.session?.userEmail, "encaissement_enregistre",
       "encaissement", String(resultat.ligne.numero),
@@ -235,6 +267,140 @@ router.get("/encaissements/verifier", async (req: Request, res: Response): Promi
     });
   } catch (err: any) {
     req.log.error({ err }, "Erreur verification journal des reglements");
+    res.status(500).json({ error: "Erreur lors de la verification." });
+  }
+});
+
+/**
+ * Clot une periode: fige le total cumule et scelle la cloture.
+ *
+ * Une cloture ne se defait pas. C'est le point: un cumul qu'on pourrait
+ * rouvrir ne fige rien, et la condition de conservation de l'article
+ * 286-I-3° bis ne serait plus satisfaite.
+ */
+router.post("/encaissements/cloturer", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const type = String(req.body?.type ?? "journaliere") as "journaliere" | "mensuelle" | "annuelle";
+  if (!["journaliere", "mensuelle", "annuelle"].includes(type)) {
+    res.status(400).json({ error: "Type de cloture invalide (journaliere, mensuelle, annuelle)." });
+    return;
+  }
+  const periode = String(req.body?.periode ?? "");
+  if (!/^d{4}(-d{2}(-d{2})?)?$/.test(periode)) {
+    res.status(400).json({ error: "Periode invalide (AAAA, AAAA-MM ou AAAA-MM-JJ)." });
+    return;
+  }
+
+  try {
+    const resultat = await db.transaction(async (tx) => {
+      const [existante] = await tx.select().from(cloturesComptablesTable)
+        .where(and(
+          eq(cloturesComptablesTable.organisationId, orgId),
+          eq(cloturesComptablesTable.type, type),
+          eq(cloturesComptablesTable.periode, periode),
+        ));
+      if (existante) return { deja: existante.empreinte as string };
+
+      const lignes = await tx.select().from(encaissementsTable)
+        .where(eq(encaissementsTable.organisationId, orgId))
+        .orderBy(encaissementsTable.numero);
+
+      const [precedente] = await tx.select().from(cloturesComptablesTable)
+        .where(and(eq(cloturesComptablesTable.organisationId, orgId), eq(cloturesComptablesTable.type, type)))
+        .orderBy(desc(cloturesComptablesTable.periode)).limit(1);
+
+      const cloture = calculerCloture(orgId, type, periode, enEcritures(lignes),
+        precedente ? {
+          organisationId: precedente.organisationId,
+          type: precedente.type as "journaliere" | "mensuelle" | "annuelle",
+          periode: precedente.periode,
+          premierNumero: precedente.premierNumero,
+          dernierNumero: precedente.dernierNumero,
+          nbEcritures: precedente.nbEcritures,
+          totalPeriodeCentimes: precedente.totalPeriodeCentimes,
+          totalCumuleCentimes: precedente.totalCumuleCentimes,
+          empreintePrecedente: precedente.empreintePrecedente,
+          empreinte: precedente.empreinte,
+        } : null);
+
+      await tx.insert(cloturesComptablesTable).values({
+        organisationId: cloture.organisationId,
+        type: cloture.type,
+        periode: cloture.periode,
+        premierNumero: cloture.premierNumero,
+        dernierNumero: cloture.dernierNumero,
+        nbEcritures: cloture.nbEcritures,
+        totalPeriodeCentimes: cloture.totalPeriodeCentimes,
+        totalCumuleCentimes: cloture.totalCumuleCentimes,
+        empreintePrecedente: cloture.empreintePrecedente,
+        empreinte: cloture.empreinte,
+        clotureePar: req.session?.userId ?? null,
+      });
+
+      return { cloture };
+    });
+
+    if ("deja" in resultat) {
+      // Une periode close le reste: on ne la reclot pas, et on ne renvoie pas
+      // d'erreur non plus — l'appelant voulait qu'elle soit close, elle l'est.
+      res.json({ deja: true, empreinte: resultat.deja });
+      return;
+    }
+
+    await logAudit(req.session?.userId, req.session?.userEmail, "cloture_comptable",
+      "cloture", `${type}:${periode}`,
+      { nbEcritures: resultat.cloture.nbEcritures, totalCumuleCentimes: resultat.cloture.totalCumuleCentimes },
+      req.ip, req.get("user-agent"), orgId);
+
+    res.status(201).json(resultat.cloture);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur cloture comptable");
+    res.status(500).json({ error: "Erreur lors de la cloture." });
+  }
+});
+
+/**
+ * Confronte les clotures au journal: detecte une SUPPRESSION d'ecriture.
+ *
+ * La verification de la chaine (/encaissements/verifier) detecte une
+ * modification. Celle-ci detecte ce qu'elle laisse passer: des ecritures
+ * retirees de la fin du journal, qui laissent une chaine parfaitement valide.
+ */
+router.get("/encaissements/conservation", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const type = String(req.query.type ?? "journaliere") as "journaliere" | "mensuelle" | "annuelle";
+  try {
+    const lignes = await db.select().from(encaissementsTable)
+      .where(eq(encaissementsTable.organisationId, orgId))
+      .orderBy(encaissementsTable.numero);
+    const clotures = await db.select().from(cloturesComptablesTable)
+      .where(and(eq(cloturesComptablesTable.organisationId, orgId), eq(cloturesComptablesTable.type, type)))
+      .orderBy(cloturesComptablesTable.periode);
+
+    const verdict = verifierConservation(
+      clotures.map((c) => ({
+        organisationId: c.organisationId,
+        type: c.type as "journaliere" | "mensuelle" | "annuelle",
+        periode: c.periode,
+        premierNumero: c.premierNumero,
+        dernierNumero: c.dernierNumero,
+        nbEcritures: c.nbEcritures,
+        totalPeriodeCentimes: c.totalPeriodeCentimes,
+        totalCumuleCentimes: c.totalCumuleCentimes,
+        empreintePrecedente: c.empreintePrecedente,
+        empreinte: c.empreinte,
+      })),
+      enEcritures(lignes),
+      orgId,
+    );
+
+    res.json({
+      ...verdict,
+      cloturesVerifiees: clotures.length,
+      fondement: "Article 286-I-3° bis du CGI — conservation des donnees de reglement.",
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur verification conservation");
     res.status(500).json({ error: "Erreur lors de la verification." });
   }
 });
