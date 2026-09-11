@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 667,
+    "runtimeOperations": 668,
     "documentedOperations": 96,
-    "undocumentedOperations": 571
+    "undocumentedOperations": 572
   },
   "operations": [
     {
@@ -2753,6 +2753,14 @@
     {
       "method": "get",
       "path": "/encaissements/archive",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/encaissements.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/encaissements/attestation",
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/encaissements.ts"
