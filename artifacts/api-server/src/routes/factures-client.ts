@@ -8,6 +8,7 @@ import { getOrgId } from "../middleware/tenant";
 import { deriveInvoiceStatus, overdueCondition } from "../services/invoice-status";
 import { buildInvoiceDocument, invoiceFileName, renderInvoicePdf } from "../services/invoice-pdf";
 import { buildFacturXXml } from "../services/facturx";
+import { verifierEn16931 } from "../services/conformite-en16931";
 import { LIBELLE_CATEGORIE, verifierIdentifiant } from "../services/siren";
 import { computeInvoiceTotals, isValidCurrency, parseUserDate, clampPagination, normalizePaidAmount } from "../services/invoice-totals";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
@@ -176,6 +177,21 @@ router.get("/factures-client/:id/facturx.xml", async (req: Request, res: Respons
       // arrivera plus tard et depuis l'exterieur.
       req.log.warn({ factureId: id, warnings: facturX.warnings }, "XML Factur-X emis avec des donnees manquantes");
       res.setHeader("X-Invoice-Warnings", encodeURIComponent(facturX.warnings.join(" | ")));
+    }
+
+    // Ce que la plateforme verifiera, verifie ici d'abord. Un XML refuse par
+    // une PDP ou par Chorus Pro, c'est un paiement qui n'arrive pas — et
+    // l'artisan l'apprend au pire moment, sans savoir quoi corriger.
+    const conformite = verifierEn16931(facturX.xml);
+    if (!conformite.conforme) {
+      req.log.warn(
+        { factureId: id, manquements: conformite.manquements },
+        "XML Factur-X non conforme a EN 16931: une plateforme le refuserait",
+      );
+      res.setHeader(
+        "X-Conformite-EN16931",
+        encodeURIComponent(conformite.manquements.map((m) => `${m.regle}: ${m.explication}`).join(" | ")),
+      );
     }
 
     res.setHeader("Content-Type", "application/xml; charset=utf-8");
