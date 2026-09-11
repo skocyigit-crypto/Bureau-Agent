@@ -36,19 +36,23 @@ const FICHIERS_IA = [
   "services/automation-engine.ts",
   "services/call-processor.ts",
   "services/document-ai.ts",
+  "routes/meetings.ts",
 ];
 
 /**
- * Fichiers autorises a inserer directement dans `tasks`: la porte elle-meme,
- * et les chemins ou c'est un HUMAIN qui cree la tache (l'ecran des taches,
- * la conversion d'une reunion en tache par son organisateur).
+ * Marqueur exige sur une insertion directe qui subsiste dans un fichier d'IA.
+ *
+ * Il en reste une, legitime: l'import d'un tableau, ou l'humain choisit ligne
+ * a ligne ce qu'il importe. Le modele a lu le fichier, mais c'est bien une
+ * personne qui a decide — l'attribution par role n'a rien a arbitrer.
+ *
+ * Le marqueur doit etre ECRIT, pas deduit. C'est la difference entre une
+ * exception assumee et un oubli: le controle precedent, par FICHIER, se
+ * contentait de trouver `creerTacheIa` quelque part dans le fichier — si bien
+ * qu'une seule insertion correcte couvrait toutes les autres. L'insertion
+ * d'import passait ainsi inapercue.
  */
-const INSERTION_DIRECTE_AUTORISEE = new Set([
-  "services/tache-ia.ts",
-  "routes/tasks.ts",
-  "routes/meetings.ts",
-  "routes/calls.ts",
-]);
+const MARQUEUR_SAISIE_HUMAINE = "tache-ia: SAISIE HUMAINE";
 
 function lire(rel: string): string {
   return readFileSync(join(SRC, rel), "utf8");
@@ -141,17 +145,28 @@ describe("toute tache dit qui l'a creee", () => {
     ).toEqual([]);
   });
 
-  it("les fichiers d'agents passent par la porte unique", () => {
-    // Un agent pourrait techniquement poser `createdByAgent` a la main et
-    // satisfaire l'invariant ci-dessus. Il perdrait alors l'attribution par
-    // role, qui est l'autre moitie du travail.
-    const contournements = FICHIERS_IA.filter((rel) => {
-      const source = lire(rel);
-      return source.includes("insert(tasksTable)") && !source.includes("creerTacheIa");
-    });
+  it("aucune insertion d'un fichier d'IA n'echappe a la porte unique", () => {
+    // Controle par INSERTION, et non par fichier. Un agent pourrait poser
+    // `createdByAgent` a la main et satisfaire l'invariant precedent: il
+    // perdrait l'attribution par role, qui est l'autre moitie du travail. Et
+    // un fichier qui appelle correctement la porte a un endroit peut tres
+    // bien inserer en direct a un autre — c'etait le cas de l'import.
+    const sources = new Map(FICHIERS_IA.map((rel) => [rel, lire(rel)]));
+    const contournements = insertionsDeTache()
+      .filter(({ fichier }) => sources.has(fichier))
+      .filter(({ fichier, bloc }) => {
+        const source = sources.get(fichier);
+        if (source === undefined) return false;
+        // Les lignes qui precedent immediatement l'insertion: le marqueur doit
+        // se trouver a cote de ce qu'il justifie, pas en haut du fichier.
+        const avant = source.split(bloc)[0].split("\n").slice(-8).join("\n");
+        return !avant.includes(MARQUEUR_SAISIE_HUMAINE);
+      })
+      .map(({ fichier, ligne }) => `${fichier}:${ligne}`);
+
     expect(
       contournements,
-      "ces agents inserent sans utiliser creerTacheIa: pas d'attribution par role",
+      "ces insertions contournent creerTacheIa sans porter le marqueur de saisie humaine: ni attribution par role, ni mention que l'IA a redige la tache",
     ).toEqual([]);
   });
 });

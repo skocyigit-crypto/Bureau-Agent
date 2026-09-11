@@ -39,6 +39,7 @@ export const AGENTS = {
   assistant: "assistant",
   saisieVocale: "saisie-vocale",
   rapport: "analyse-rapport",
+  analyseReunion: "analyse-reunion",
   automatisation: "moteur-automatisation",
 } as const;
 
@@ -54,6 +55,7 @@ export const LIBELLE_AGENT: Record<IdentifiantAgent, string> = {
   "assistant": "Assistant",
   "saisie-vocale": "Saisie vocale",
   "analyse-rapport": "Analyse de rapport",
+  "analyse-reunion": "Compte-rendu de reunion",
   "moteur-automatisation": "Moteur d'automatisation",
 };
 
