@@ -50,6 +50,14 @@ export const TENANT_TABLES = [
   // Le compteur de numerotation fait partie des donnees du client: restaurer
   // ses factures sans sa sequence rouvrirait des numeros deja utilises.
   "invoice_sequences",
+  // Le journal des reglements. Sa presence ici n'est pas un confort: le meme
+  // article qui exige son inalterabilite (286-I-3° bis du CGI) exige aussi sa
+  // CONSERVATION. Un journal qu'une restauration ne rendrait pas serait
+  // inalterable et perdu — ce qui ne vaut pas mieux qu'alterable.
+  //
+  // Ajoutee apres que la porte de couverture l'a signalee: elle portait
+  // `organisation_id` sans etre sauvegardee.
+  "encaissements",
   "user_location_state", "location_events", "messages", "notes_internes",
   "objectifs_commerciaux", "organisation_closures", "payment_reminders",
   "license_audit_log", "performance_reports", "platform_connections",
