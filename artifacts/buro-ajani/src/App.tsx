@@ -14,6 +14,7 @@ import { Route,Switch,useLocation,useRoute,Router as WouterRouter } from "wouter
 
 
 import { primeLicenseStatus,useLicenseCheck } from "@/hooks/use-license-check";
+import { refusTemporaire, sessionVraimentPerdue } from "@/lib/session-status";
 
 // Keep the public shell small, then prefetch the authenticated view in
 // parallel with /auth/me below.
@@ -445,7 +446,7 @@ function AppContent() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
 
-  const checkSession = useCallback(async () => {
+  const checkSession = useCallback(async (essai = 0) => {
     try {
       const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
       const res = await fetch(`${baseUrl}/api/auth/me`, {
@@ -458,7 +459,10 @@ function AppContent() {
         setCurrentUser(user);
         setAuthState("authenticated");
         setSessionExpired(false);
-      } else {
+        return;
+      }
+
+      if (sessionVraimentPerdue(res.status)) {
         setAuthState((prev) => {
           if (prev === "authenticated") {
             setSessionExpired(true);
@@ -466,7 +470,18 @@ function AppContent() {
           }
           return "login";
         });
+        return;
       }
+
+      // Refus temporaire. On reessaie, en espacant: au demarrage, l'ecran
+      // d'attente vaut mieux qu'un ecran de connexion affiche a tort. Apres
+      // trois essais on montre la connexion plutot que de laisser tourner
+      // indefiniment — se tromper dans ce sens est reparable par l'utilisateur.
+      if (refusTemporaire(res.status) && essai < 3) {
+        setTimeout(() => { void checkSession(essai + 1); }, 2000 * (essai + 1));
+        return;
+      }
+      setAuthState((prev) => (prev === "authenticated" ? prev : "login"));
     } catch {
       setAuthState((prev) => prev === "authenticated" ? prev : "login");
     }
@@ -490,7 +505,10 @@ function AppContent() {
       try {
         const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
         const res = await fetch(`${baseUrl}/api/auth/me`, { credentials: "include" });
-        if (!res.ok) setSessionExpired(true);
+        // Meme regle que dans checkSession: un 429 ou un 5xx n'est pas une
+        // session perdue, et jeter l'utilisateur dehors pour un refus
+        // temporaire lui fait perdre ce qu'il etait en train de saisir.
+        if (sessionVraimentPerdue(res.status)) setSessionExpired(true);
       } catch { /* hors ligne: on ne declare pas la session expiree */ }
     };
     // Verification suspendue quand l'onglet est masque: sonder la session d'un
