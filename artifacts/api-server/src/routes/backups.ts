@@ -14,7 +14,7 @@ router.get("/backups", async (req, res): Promise<void> => {
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
     const platform = req.query.platform as string | undefined;
 
-    let query = db.select().from(autoBackupsTable).orderBy(desc(autoBackupsTable.createdAt)).limit(limit);
+    const query = db.select().from(autoBackupsTable).orderBy(desc(autoBackupsTable.createdAt)).limit(limit);
 
     const backups = platform
       ? await db.select().from(autoBackupsTable).where(eq(autoBackupsTable.platform, platform)).orderBy(desc(autoBackupsTable.createdAt)).limit(limit)
