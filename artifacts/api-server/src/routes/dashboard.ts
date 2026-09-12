@@ -922,10 +922,32 @@ router.get("/dashboard/anomaly-stream", async (req, res): Promise<void> => {
       alerts.push({ id: `repeat-${caller.phone_number}`, type: "repeated_caller", severity: "alerte", title: `${caller.name || caller.phone_number} insiste`, description: `${caller.cnt} appels manques en 24h. Client potentiellement frustre.`, action: `Rappeler ${caller.phone_number} en priorite`, timestamp: ts });
     }
 
-    const overdueUrgent = await db.execute(sql`
-      SELECT count(*) as c, string_agg(title, ', ') as titles
-      FROM (SELECT title FROM tasks WHERE organisation_id = ${orgId} AND priority = 'haute' AND status = 'en_attente' AND due_date < ${now} ORDER BY due_date LIMIT 3) sub
-    `).then(r => ({ count: Number((r as any).rows?.[0]?.c ?? 0), titles: (r as any).rows?.[0]?.titles || "" }));
+    // Deux corrections dans cette alerte, qui se disait « urgente »:
+    //
+    //   - elle ne regardait que `priority = 'haute'` et laissait de cote
+    //     `urgente`, la priorite la PLUS forte. Le moteur d'automatisation
+    //     marque justement `urgente` une tache en retard de plus de trois
+    //     jours: les taches que le produit lui-meme juge les plus pressantes
+    //     etaient exactement celles que l'alerte ne voyait pas;
+    //
+    //   - le `LIMIT 3` etait DANS la sous-requete comptee, donc le compte
+    //     plafonnait a trois. Dix taches urgentes en retard s'annoncaient
+    //     « 3 tache(s) urgente(s) en retard ». La limite ne doit porter que
+    //     sur les titres cites en exemple, jamais sur le nombre.
+    const enRetardUrgentes = and(
+      eq(tasksTable.organisationId, orgId),
+      inArray(tasksTable.priority, ["haute", "urgente"]),
+      eq(tasksTable.status, "en_attente"),
+      lt(tasksTable.dueDate, now),
+    );
+    const [nbUrgentes, titresUrgents] = await Promise.all([
+      db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(enRetardUrgentes)
+        .then(r => Number(r[0]?.c ?? 0)),
+      db.select({ title: tasksTable.title }).from(tasksTable).where(enRetardUrgentes)
+        .orderBy(asc(tasksTable.dueDate)).limit(3)
+        .then(r => r.map(t => t.title).join(", ")),
+    ]);
+    const overdueUrgent = { count: nbUrgentes, titles: titresUrgents };
 
     if (overdueUrgent.count > 0) {
       alerts.push({ id: "urgent-overdue", type: "task_overdue", severity: "critique", title: `${overdueUrgent.count} tache(s) urgente(s) en retard`, description: overdueUrgent.titles || "Taches haute priorite non terminees", action: "Traiter immediatement", timestamp: ts });
