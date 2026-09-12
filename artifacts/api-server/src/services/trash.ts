@@ -76,8 +76,29 @@ export function deletionContext(
  * d'identifiants. On prend le premier champ parlant que la ligne possede;
  * aucune ligne n'est rejetee faute de libelle.
  */
+const CHAMPS_LIBELLE = [
+  "reference", "title", "titre", "name", "nom", "subject",
+  // Personnes et lignes qui n'ont ni titre ni reference. Sans elles, trois des
+  // quinze tables archivees ne rendaient JAMAIS de libelle: `contacts`
+  // (firstName/lastName/company), `calls` (contactName/phoneNumber) et
+  // `checkins` (employeeName). La corbeille affichait donc des identifiants
+  // nus pour ce qu'on supprime le plus souvent dans un CRM — exactement ce que
+  // cette fonction existe pour eviter.
+  "employeeName", "contactName", "clientName", "fileName", "company", "phoneNumber",
+  // En dernier: une description peut faire un paragraphe, elle identifie moins
+  // bien qu'un nom.
+  "description",
+] as const;
+
 function labelOf(row: Record<string, unknown>): string | null {
-  for (const key of ["reference", "title", "titre", "name", "nom", "subject", "description"]) {
+  // Un nom compose passe avant les champs uniques: « Marie Durand » identifie
+  // mieux que « Durand » seul.
+  const prenom = typeof row.firstName === "string" ? row.firstName.trim() : "";
+  const nom = typeof row.lastName === "string" ? row.lastName.trim() : "";
+  const complet = `${prenom} ${nom}`.trim();
+  if (complet) return complet.slice(0, 255);
+
+  for (const key of CHAMPS_LIBELLE) {
     const value = row[key];
     if (typeof value === "string" && value.trim()) return value.trim().slice(0, 255);
   }
