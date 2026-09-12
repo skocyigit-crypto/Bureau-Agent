@@ -103,7 +103,10 @@ describe("taches urgentes en retard", () => {
           ORDER BY due_date LIMIT 3
         ) sub
       `)
-      .then((r) => Number((r as { rows?: Array<{ c: string }> }).rows?.[0]?.c ?? 0));
+      // Le passage par `unknown` est exige par TypeScript: `QueryResult` et la
+      // forme qu'on en attend ne se recouvrent pas assez pour une conversion
+      // directe. Le reste du depot fait pareil sur `db.execute`.
+      .then((r) => Number((r as unknown as { rows?: Array<{ c: string }> }).rows?.[0]?.c ?? 0));
 
     expect(ancien, "l'ancienne requete plafonnait et ignorait « urgente »").toBe(3);
   });
