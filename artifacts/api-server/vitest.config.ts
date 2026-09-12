@@ -38,6 +38,12 @@ export default defineConfig({
     poolOptions: {
       forks: { singleFork: true },
     },
+    // Explicite, parce que `vitest.setup.ts` en DEPEND: l isolation donne a
+    // chaque fichier son propre pool, que le setup referme ensuite. Passer a
+    // `false` partagerait le module — et la premiere fermeture couperait la
+    // base sous les fichiers suivants.
+    isolate: true,
+    setupFiles: ["./vitest.setup.ts"],
     env,
   },
 });
