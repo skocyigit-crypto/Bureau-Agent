@@ -36,6 +36,23 @@ function affectees(resultat: unknown, demandes: unknown[]): number {
   return typeof n === "number" ? n : demandes.length;
 }
 
+/**
+ * Trace l'INTENTION, avant l'operation — et le dit.
+ *
+ * L'appel est volontairement place avant la suppression: si celle-ci echoue a
+ * mi-chemin, la tentative reste consignee. Un journal qui ne garde que les
+ * operations reussies ne sert a rien le jour ou l'on cherche ce qui a ete
+ * tente.
+ *
+ * Mais le champ s'appelait `count`, ce qui se lit comme un resultat. Il
+ * valait le nombre d'identifiants ENVOYES — or le filtre multi-tenant en
+ * ecarte une partie, et le journal pouvait donc affirmer « dix supprimees »
+ * la ou sept l'avaient ete. Sur un journal en ajout seul, invoque en cas de
+ * controle, un nombre qui exagere est pire qu'un nombre absent.
+ *
+ * `demandes` dit ce que c'est. Le nombre reellement touche est rendu a
+ * l'appelant dans la reponse (voir `affectees`).
+ */
 function auditBulk(req: Request, action: string, resource: string, ids: any[], extra?: any): void {
   void logAudit(
     req.session?.userId,
@@ -43,7 +60,7 @@ function auditBulk(req: Request, action: string, resource: string, ids: any[], e
     action,
     resource,
     undefined,
-    { count: ids.length, ids: ids.slice(0, 100), ...(extra || {}) },
+    { demandes: ids.length, ids: ids.slice(0, 100), ...(extra || {}) },
     req.ip,
     req.get("user-agent"),
     req.session?.organisationId,
