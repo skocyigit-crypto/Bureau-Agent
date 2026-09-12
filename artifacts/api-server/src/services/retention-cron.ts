@@ -1,6 +1,7 @@
 import { logger } from "../lib/logger";
 import { purgeOldSecurityScans } from "./security-scans";
 import { purgeExpiredTrash } from "./trash";
+import { recordCronHeartbeat } from "./health-agents";
 
 /**
  * Application effective des durees de conservation annoncees.
@@ -99,9 +100,26 @@ export async function startRetentionCron(): Promise<void> {
   started = true;
   const { registerRunnableCron } = await import("./cron-registry");
   registerRunnableCron(CRON_NAME, TICK_MS, async () => {
-    await purgeExpiredCallRecordings();
-    await purgeOldSecurityScans();
-    await purgeExpiredTrash();
+    // Le battement n'est pas de la comptabilite decorative: le declencheur
+    // externe decide qu'une tache est due en comparant `lastRunAt` a son
+    // intervalle, et traite une tache SANS battement comme jamais executee —
+    // donc due a chaque passage. Faute de l'ecrire, cette purge annoncee
+    // quotidienne tournait a CHAQUE tick, soit environ 144 fois par jour
+    // (mesure sur 24 h de journaux de production), et restait par ailleurs
+    // absente du diagnostic que ce cron existe justement pour alimenter.
+    try {
+      await purgeExpiredCallRecordings();
+      await purgeOldSecurityScans();
+      await purgeExpiredTrash();
+      await recordCronHeartbeat(CRON_NAME, TICK_MS / 1000);
+    } catch (err) {
+      logger.error({ err }, "[retention] cycle de purge echoue");
+      await recordCronHeartbeat(
+        CRON_NAME,
+        TICK_MS / 1000,
+        err instanceof Error ? err.message : "erreur inconnue",
+      ).catch(() => {});
+    }
   });
   logger.info(
     { retentionDays: RETENTION_DAYS },
