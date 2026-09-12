@@ -14,7 +14,7 @@
  *
  * D'ou ces deux verifications, qui se completent:
  *
- *   - le COMPORTEMENT: vingt demandes lancees ensemble contre une vraie base;
+ *   - le COMPORTEMENT: plusieurs demandes lancees ensemble contre une vraie base;
  *   - la FORME: l'incrementation tient en une seule instruction atomique.
  *
  * La seconde existe parce que la premiere pourrait passer par chance. Un
@@ -39,8 +39,8 @@ afterEach(async () => {
   }
 });
 
-describe("vingt factures demandees en meme temps", () => {
-  it("donnent vingt numeros distincts et consecutifs", async () => {
+describe("plusieurs factures demandees en meme temps", () => {
+  it("donnent autant de numeros distincts et consecutifs", async () => {
     const [org] = await db
       .insert(organisationsTable)
       .values({
@@ -53,7 +53,20 @@ describe("vingt factures demandees en meme temps", () => {
       .returning({ id: organisationsTable.id });
     orgId = org.id;
 
-    const COMBIEN = 20;
+    /*
+     * Huit, et pas vingt: c'est la taille du pool de connexions
+     * (`DB_POOL_MAX`, 8 par defaut). Vingt demandes simultanees en reclamaient
+     * douze de plus que le pool ne peut en donner, et vitest executant les
+     * fichiers dans des processus separes — chacun avec SON pool — la pression
+     * se multipliait: en integration continue, les connexions expiraient, et
+     * pas seulement pour ce test. Un test qui fait tomber les autres ne
+     * mesure plus rien, il ajoute du bruit.
+     *
+     * Huit suffit a la propriete: ce qui compte est que plusieurs demandes
+     * soient reellement EN VOL ensemble, pas leur nombre. Le vingtieme appel
+     * n'apportait aucune collision que le huitieme n'exposait deja.
+     */
+    const COMBIEN = 8;
     const numeros = await Promise.all(
       Array.from({ length: COMBIEN }, () =>
         nextInvoiceNumber(db as never, orgId, { year: 2026 }),
@@ -67,7 +80,7 @@ describe("vingt factures demandees en meme temps", () => {
     // Un trou l'est presque autant: il donne a penser qu'une facture a ete
     // emise puis retiree.
     const rangs = numeros.map((r) => Number(r.split("-").pop())).sort((a, b) => a - b);
-    expect(rangs, "la suite doit aller de 1 a 20 sans trou").toEqual(
+    expect(rangs, "la suite doit etre continue, sans trou").toEqual(
       Array.from({ length: COMBIEN }, (_, i) => i + 1),
     );
   });
