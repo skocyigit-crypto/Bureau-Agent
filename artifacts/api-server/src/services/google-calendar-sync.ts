@@ -26,33 +26,24 @@ function getLocalDateKey(dateTime: string, timeZone: string | undefined): string
   }
 }
 
-function dayBounds(dayKey: string, timeZone: string): { start: Date; end: Date } {
-  const base = new Date(dayKey + "T00:00:00");
-  try {
-    const formatter = new Intl.DateTimeFormat("en-US", {
-      timeZone,
-      year: "numeric", month: "2-digit", day: "2-digit",
-      hour: "2-digit", minute: "2-digit", second: "2-digit",
-      hour12: false,
-    });
-
-    const startLocal = new Date(dayKey + "T00:00:00");
-    const endLocal = new Date(dayKey + "T23:59:59.999");
-
-    const tzOffset = (date: Date) => {
-      const utcStr = date.toISOString();
-      const localStr = formatter.format(date);
-      return date;
-    };
-
-    const dayStart = new Date(dayKey + "T00:00:00");
-    const dayEnd = new Date(dayKey + "T23:59:59.999");
-
-    return { start: dayStart, end: dayEnd };
-  } catch {
-    return { start: base, end: new Date(base.getTime() + 86399999) };
-  }
-}
+/*
+ * `dayBounds(dayKey, timeZone)` a ete retiree ici le 2026-09-12.
+ *
+ * Elle n'etait appelee nulle part — mais ce n'est pas la raison principale.
+ * Elle PARAISSAIT gerer les fuseaux: elle en prenait un en parametre et
+ * construisait un `Intl.DateTimeFormat` avec. En realite elle rendait des
+ * bornes calculees par `new Date(dayKey + "T00:00:00")`, c'est-a-dire dans le
+ * fuseau du SERVEUR (UTC sur Cloud Run), et sa fonction interne `tzOffset`
+ * calculait deux chaines avant de rendre sa date d'entree inchangee.
+ *
+ * Du code mort se supprime sans discuter. Celui-ci meritait une explication
+ * parce qu'il etait piegeur: quelqu'un qui cherchera un jour un defaut de
+ * fuseau dans la synchronisation de l'agenda l'aurait trouve, aurait conclu
+ * que le sujet etait traite, et serait passe a cote.
+ *
+ * Le decoupage par jour est fait par `getLocalDateKey` juste au-dessus, qui
+ * lui applique reellement le fuseau via `Intl.DateTimeFormat`.
+ */
 
 export async function syncGoogleCalendarToCheckins(params: {
   userId: number;
