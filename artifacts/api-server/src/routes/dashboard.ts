@@ -1,11 +1,12 @@
 import { Router, type IRouter } from "express";
-import { eq, sql, desc, asc, gte, and, lt, or, lte, not, inArray } from "drizzle-orm";
+import { eq, sql, desc, asc, gt, gte, and, lt, or, lte, not, inArray } from "drizzle-orm";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, facturesClientTable, stockArticlesTable, projetsTable } from "@workspace/db";
 import {
   GetCallAnalyticsQueryParams,
   GetRecentActivityQueryParams,
   GetTopContactsQueryParams,
 } from "@workspace/api-zod";
+import { overdueCondition } from "../services/invoice-status";
 import { getOrgId } from "../middleware/tenant";
 import { logger } from "../lib/logger";
 import { zodErrorResponse } from "../lib/zod-error";
@@ -779,7 +780,8 @@ router.get("/dashboard/smart-pulse", async (req, res): Promise<void> => {
     const now = new Date();
     const todayStart = getStartOfDay();
     const weekStart = getStartOfWeek();
-    const monthStart = getStartOfMonth();
+    // `monthStart` a ete retire: aucune mesure de cet ecran ne porte sur le
+    // mois, et la variable ne servait qu'a le laisser croire.
     const prevWeekStart = getPreviousWeekStart();
     const oc = eq(callsTable.organisationId, orgId);
 
@@ -879,21 +881,32 @@ router.get("/dashboard/anomaly-stream", async (req, res): Promise<void> => {
     const last1h = new Date(now.getTime() - 60 * 60 * 1000);
     const oc = eq(callsTable.organisationId, orgId);
 
-    const [recentMissed, recentTotal, hourlyMissed, hourlyTotal, repeatedCallers] = await Promise.all([
+    // `manque` et non `missed`: c'est la valeur reellement stockee. L'API
+    // traduit le filtre public `missed` vers `manque` (routes/calls.ts), et
+    // tout le reste du depot interroge `manque` — y compris en SQL brut.
+    //
+    // Cette requete-ci disait `'missed'`. Elle ne renvoyait donc JAMAIS rien,
+    // et l'alerte « ce client insiste » ne s'est jamais declenchee: un client
+    // qui rappelle apres plusieurs appels manques est exactement celui qu'on
+    // risque de perdre, et c'est le seul cas que cette alerte existait pour
+    // attraper.
+    //
+    // Les deux comptages sur 24 h qui accompagnaient ce bloc ont ete retires:
+    // leurs resultats n'etaient lus nulle part. Deux requetes de comptage
+    // partaient a chaque rafraichissement du tableau de bord pour etre jetees.
+    const [recentMissed, recentTotal, repeatedCallers] = await Promise.all([
       db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, last1h), eq(callsTable.status, "manque"))).then(r => Number(r[0]?.c ?? 0)),
       db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, last1h))).then(r => Number(r[0]?.c ?? 0)),
-      db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, last24h), eq(callsTable.status, "manque"))).then(r => Number(r[0]?.c ?? 0)),
-      db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, last24h))).then(r => Number(r[0]?.c ?? 0)),
       db.execute(sql`
-        SELECT phone_number, count(*) as cnt, max(contact_name) as name 
-        FROM calls 
-        WHERE organisation_id = ${orgId} 
-          AND status = 'missed' 
+        SELECT phone_number, count(*) as cnt, max(contact_name) as name
+        FROM calls
+        WHERE organisation_id = ${orgId}
+          AND status = 'manque'
           AND created_at >= ${last24h}
           AND phone_number IS NOT NULL
-        GROUP BY phone_number 
-        HAVING count(*) >= 2 
-        ORDER BY cnt DESC 
+        GROUP BY phone_number
+        HAVING count(*) >= 2
+        ORDER BY cnt DESC
         LIMIT 5
       `).then(r => (r as any).rows ?? []),
     ]);
@@ -918,15 +931,34 @@ router.get("/dashboard/anomaly-stream", async (req, res): Promise<void> => {
       alerts.push({ id: "urgent-overdue", type: "task_overdue", severity: "critique", title: `${overdueUrgent.count} tache(s) urgente(s) en retard`, description: overdueUrgent.titles || "Taches haute priorite non terminees", action: "Traiter immediatement", timestamp: ts });
     }
 
-    const bigInvoices = await db.execute(sql`
-      SELECT reference, total_amount, client_name, due_date 
-      FROM factures_client 
-      WHERE organisation_id = ${orgId} 
-        AND status = 'en_retard' 
-        AND total_amount > 1000 
-      ORDER BY total_amount DESC 
-      LIMIT 3
-    `).then(r => (r as any).rows ?? []);
+    // Le retard se DEDUIT de l'echeance et du reste du, il ne se lit pas dans
+    // une colonne: `en_retard` n'est ecrit par aucun chemin de code — ni
+    // route, ni cron — comme le documente `services/invoice-status.ts`.
+    //
+    // Cette requete demandait pourtant `status = 'en_retard'`. Elle ne rendait
+    // donc jamais rien, et l'alerte « facture impayee de plus de 1000 EUR,
+    // relancer le client » ne s'est jamais affichee. Pour une entreprise du
+    // batiment, c'est exactement l'alerte qui compte: une grosse facture
+    // oubliee est une tresorerie qui manque.
+    //
+    // `overdueCondition()` est la definition unique, deja utilisee par la
+    // tresorerie, les relances et les insights — qui donnaient, eux, le bon
+    // chiffre. Deux definitions du retard coexistaient, dont une vide.
+    const bigInvoices = await db
+      .select({
+        reference: facturesClientTable.reference,
+        total_amount: facturesClientTable.totalAmount,
+        client_name: facturesClientTable.clientName,
+        due_date: facturesClientTable.dueDate,
+      })
+      .from(facturesClientTable)
+      .where(and(
+        eq(facturesClientTable.organisationId, orgId),
+        overdueCondition(now),
+        gt(sql`${facturesClientTable.totalAmount}::numeric`, sql`1000`),
+      ))
+      .orderBy(desc(facturesClientTable.totalAmount))
+      .limit(3);
 
     for (const inv of bigInvoices) {
       alerts.push({ id: `invoice-${inv.reference}`, type: "invoice_critical", severity: "alerte", title: `Facture ${inv.reference} impayee`, description: `${Number(inv.total_amount).toLocaleString("fr-FR")} EUR - ${inv.client_name || "Client"}`, action: "Relancer le client", timestamp: ts });
