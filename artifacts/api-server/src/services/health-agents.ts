@@ -119,7 +119,7 @@ async function safeCheck(
 const databaseAgent: HealthAgent = {
   id: "database",
   name: "Base de donnees",
-  domain: "Saturation du pool, latence des requetes, connexions Postgres",
+  domain: "Saturation du pool, latence des requetes, connexions Postgres, conformite du schema",
   run: async () => {
     const results: CheckResult[] = [];
 
@@ -208,6 +208,83 @@ const databaseAgent: HealthAgent = {
         summary: `${used}/${maxConn} connexions Postgres utilisees (${Math.round(pct * 100)}%).`,
         remediation: status === "ok" ? "" : "Proche de la limite: baisser DB_POOL_MAX ou augmenter max_connections. Au-dela, toutes les requetes echouent en 500.",
         metrics: { used, maxConnections: maxConn, usagePct: Math.round(pct * 100) },
+      };
+    }));
+
+    // Derive du schema: le code attend-il des colonnes que la base n'a pas ?
+    //
+    // Cette verification existe parce que le cas s'est produit, et qu'il est
+    // reste invisible trente-six heures. La poussee du schema en production
+    // est MANUELLE — la chaine de deploiement ne pousse que la base de CI —
+    // et une fusion est partie sans elle: `tasks.created_by_agent` manquait,
+    // le moteur d'automatisation echouait toutes les cinq minutes, et mille
+    // onze erreurs se sont accumulees dans les journaux sans que rien, dans
+    // le produit, ne le dise.
+    //
+    // Aucune autre sonde ne pouvait l'attraper: la base repondait, la latence
+    // etait bonne, le pool respirait. Tout allait bien, sauf la seule chose
+    // qui comptait. C'est le propre de cette panne-la — elle ne degrade rien,
+    // elle supprime une fonctionnalite, silencieusement.
+    //
+    // On compare donc ce que le code DECLARE a ce que la base EXPOSE, en une
+    // requete. La comparaison porte sur les colonnes: une table entierement
+    // absente ressort de la meme facon, toutes ses colonnes manquant a
+    // l'appel.
+    results.push(await safeCheck("schema_drift", async () => {
+      const { getTableConfig } = await import("drizzle-orm/pg-core");
+      const schemaModule = (await import("@workspace/db")) as Record<string, unknown>;
+
+      const attendues = new Set<string>();
+      for (const valeur of Object.values(schemaModule)) {
+        let config: { name: string; columns: Array<{ name: string }> };
+        try {
+          // Seuls les objets "table" de Drizzle repondent; le reste (fonctions,
+          // types, le pool lui-meme) leve, et on l'ignore.
+          config = getTableConfig(valeur as never);
+        } catch {
+          continue;
+        }
+        if (!config?.name || !Array.isArray(config.columns)) continue;
+        for (const colonne of config.columns) attendues.add(`${config.name}.${colonne.name}`);
+      }
+
+      const r = await db.execute<{ t: string; c: string }>(sql`
+        SELECT table_name AS t, column_name AS c
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+      `);
+      const presentes = new Set(
+        ((r as unknown as { rows: Array<{ t: string; c: string }> }).rows ?? [])
+          .map((ligne) => `${ligne.t}.${ligne.c}`),
+      );
+
+      const manquantes = [...attendues].filter((nom) => !presentes.has(nom)).sort();
+
+      // Garde-fou: si l'extraction ne trouve aucune table, la comparaison est
+      // vide et conclurait "tout va bien" — exactement le faux positif
+      // rassurant que cette sonde existe pour eviter.
+      if (attendues.size === 0) {
+        return {
+          check: "schema_drift",
+          status: "echec" as CheckStatus,
+          severity: "haute" as const,
+          summary: "Aucune table lue dans le schema du code: la comparaison n'a rien pu verifier.",
+          remediation: "Verifier l'export du schema depuis @workspace/db; tant que ce point n'est pas leve, cette sonde ne protege de rien.",
+        };
+      }
+
+      const status: CheckStatus = manquantes.length > 0 ? "echec" : "ok";
+      return {
+        check: "schema_drift",
+        status,
+        severity: manquantes.length > 0 ? "critique" : "basse",
+        summary: manquantes.length === 0
+          ? `Schema conforme: ${attendues.size} colonnes attendues, toutes presentes.`
+          : `${manquantes.length} colonne(s) attendues par le code sont absentes de la base: ${manquantes.slice(0, 10).join(", ")}${manquantes.length > 10 ? ", ..." : ""}.`,
+        remediation: status === "ok"
+          ? ""
+          : "Le schema de production n'a pas ete pousse. Lancer `bash deploy/gcp-schema-push.sh` depuis la racine du depot. Toute fonctionnalite qui lit ces colonnes echoue d'ici la.",
+        metrics: { attendues: attendues.size, manquantes: manquantes.length },
       };
     }));
 
