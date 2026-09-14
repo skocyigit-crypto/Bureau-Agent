@@ -36,7 +36,22 @@ router.get("/sync/events", (req, res): void => {
   // reconnecte tout seul (use-realtime-sync.tsx gere deja la reprise), donc le
   // temps reel n'est pas perdu — l'instance obtient juste une fenetre pour
   // s'eteindre si plus personne ne travaille.
-  const maxMs = Number(process.env.SSE_MAX_DURATION_MS || 30 * 60 * 1000);
+  // Le delai doit rester SOUS le delai de requete de Cloud Run (300 s par
+  // defaut, valeur effective du service). Il valait 30 minutes: la plateforme
+  // coupait donc le flux six fois plus tot que prevu, et la fermeture propre
+  // ci-dessous — la seule chose qui evite le reveil immediat — n'avait jamais
+  // lieu.
+  //
+  // Mesure sur sept jours de production: dix-sept flux termines a
+  // 300,99 s, tous a la seconde du plafond de la plateforme. Aucun a 1800 s.
+  //
+  // Le degat est exactement celui que le commentaire ci-dessus cherche a
+  // eviter: un onglet inactif se rebranche AUSSITOT, toutes les cinq minutes,
+  // et maintient une instance eveillee — ce qui annule l'interet de
+  // min-instances=0. Rien ne le signale: le temps reel fonctionne, le client
+  // se reconnecte, seule la facture en parle.
+  const MARGE_SOUS_LE_DELAI_PLATEFORME_MS = 240 * 1000;
+  const maxMs = Number(process.env.SSE_MAX_DURATION_MS || MARGE_SOUS_LE_DELAI_PLATEFORME_MS);
   const maxLifetime = setTimeout(() => {
     try {
       // `retry` indique au navigateur d'attendre avant de revenir: sur un
