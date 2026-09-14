@@ -9,6 +9,7 @@ import { resolveEmailLang } from "../i18n/email-i18n";
 import { generateUniqueLicenseKey } from "../services/license-key";
 import { logger } from "../lib/logger";
 import { requireSuperAdmin } from "../middleware/auth";
+import { cheminBaseApp } from "../lib/chemin-base-app";
 
 const SALT_ROUNDS = 12;
 
@@ -466,7 +467,7 @@ router.post("/organisations/:id/resend-license", async (req: Request, res: Respo
       || process.env.REPLIT_DEPLOYMENT_URL
       || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
       || "https://agentdebureau.fr";
-    const appBase = process.env.APP_BASE_PATH ?? "";
+    const appBase = cheminBaseApp();
     const resetLink = `${appUrl}${appBase}?reset_token=${resetToken}`;
 
     const plan = PLANS[sub.plan as PlanKey];
