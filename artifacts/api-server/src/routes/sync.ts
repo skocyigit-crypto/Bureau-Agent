@@ -74,11 +74,31 @@ router.post("/sync/broadcast", (req, res): void => {
   res.json({ ok: true, connections: broadcaster.connectionCount(orgId) });
 });
 
+/**
+ * Etat des connexions temps reel.
+ *
+ * Cette route ne demandait RIEN et rendait `totalConnections` — le nombre
+ * d'utilisateurs connectes sur TOUTE la plateforme, tous clients confondus.
+ * Verifie en production: 200 sans session.
+ *
+ * Ce n'est pas une fuite de donnees personnelles, et c'est pourquoi elle a
+ * dure: aucun nom, aucun identifiant. Mais interrogee chaque minute pendant un
+ * mois, elle trace la courbe d'activite de l'entreprise — les heures de
+ * travail de la clientele, les creux, la croissance. C'est une information
+ * commerciale, et elle etait offerte a qui la demandait.
+ *
+ * Deux changements: une session est desormais exigee, et le total de la
+ * plateforme n'est rendu qu'au super-administrateur. Un client n'a aucune
+ * raison de voir l'activite des autres clients.
+ */
 router.get("/sync/status", (req, res): void => {
   const orgId = req.session?.organisationId;
+  if (!orgId) { res.status(401).json({ error: "Non authentifie." }); return; }
+
+  const estSuperAdmin = req.session?.userRole === "super_admin";
   res.json({
-    orgConnections: orgId ? broadcaster.connectionCount(orgId) : 0,
-    totalConnections: broadcaster.totalConnections(),
+    orgConnections: broadcaster.connectionCount(orgId),
+    ...(estSuperAdmin ? { totalConnections: broadcaster.totalConnections() } : {}),
   });
 });
 
