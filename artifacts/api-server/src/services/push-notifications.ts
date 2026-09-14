@@ -152,7 +152,7 @@ async function sendChunk(tokens: string[], content: PushContent, resourceId?: nu
       if (ticket?.status === "error" && ticket.details?.error === "DeviceNotRegistered") {
         dead.push(tokens[i]);
       } else if (ticket?.status === "error") {
-        logger.warn({ err: ticket.message, code: ticket.details?.error }, "[push] ticket en erreur");
+        logger.warn({ err: ticket, code: ticket.details?.error }, "[push] ticket en erreur");
       }
     });
     return dead;

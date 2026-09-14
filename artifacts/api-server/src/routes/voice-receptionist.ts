@@ -458,7 +458,7 @@ async function transcribeVoicemail(orgId: number, recordingUrl: string, accountS
     logger.info({ ms: Date.now() - t0, len: transcript.length }, "[voice] Message vocal transcrit");
     return transcript;
   } catch (err) {
-    logger.warn({ err: (err as any)?.message || err }, "[voice] Transcription du message vocal echouee");
+    logger.warn({ err: err }, "[voice] Transcription du message vocal echouee");
     return null;
   }
 }

@@ -156,7 +156,7 @@ async function getOrgAiKeys(orgId: number): Promise<OrgAiKeys> {
       if (apiKey) keys[provider] = apiKey;
     }
   } catch (err: any) {
-    logger.error({ err: err?.message, orgId }, "[AiProviders] Echec resolution cles organisation");
+    logger.error({ err, orgId }, "[AiProviders] Echec resolution cles organisation");
     keysCache.set(orgId, { keys: EMPTY_KEYS, at: Date.now() });
     return EMPTY_KEYS;
   }
@@ -171,7 +171,7 @@ export async function getOrgGeminiClient(orgId?: number | null): Promise<any> {
     const { gemini } = await getOrgAiKeys(orgId);
     if (gemini) {
       try { return mod.createGeminiClient(gemini); }
-      catch (err: any) { logger.warn({ err: err?.message, orgId }, "[AiProviders] createGeminiClient echec, repli plateforme"); }
+      catch (err: any) { logger.warn({ err, orgId }, "[AiProviders] createGeminiClient echec, repli plateforme"); }
     }
   }
   return mod.ai;
@@ -184,7 +184,7 @@ export async function getOrgEmbeddingClient(orgId?: number | null): Promise<any>
     const { gemini } = await getOrgAiKeys(orgId);
     if (gemini) {
       try { return mod.createGeminiClient(gemini); }
-      catch (err: any) { logger.warn({ err: err?.message, orgId }, "[AiProviders] createGeminiClient (embed) echec, repli plateforme"); }
+      catch (err: any) { logger.warn({ err, orgId }, "[AiProviders] createGeminiClient (embed) echec, repli plateforme"); }
     }
   }
   return mod.embeddingAi;
@@ -197,7 +197,7 @@ export async function getOrgOpenAIClient(orgId?: number | null): Promise<any> {
     const { openai } = await getOrgAiKeys(orgId);
     if (openai) {
       try { return mod.createOpenAIClient(openai); }
-      catch (err: any) { logger.warn({ err: err?.message, orgId }, "[AiProviders] createOpenAIClient echec, repli plateforme"); }
+      catch (err: any) { logger.warn({ err, orgId }, "[AiProviders] createOpenAIClient echec, repli plateforme"); }
     }
   }
   return mod.openai;
@@ -210,7 +210,7 @@ export async function getOrgAnthropicClient(orgId?: number | null): Promise<any>
     const { anthropic } = await getOrgAiKeys(orgId);
     if (anthropic) {
       try { return mod.createAnthropicClient(anthropic); }
-      catch (err: any) { logger.warn({ err: err?.message, orgId }, "[AiProviders] createAnthropicClient echec, repli plateforme"); }
+      catch (err: any) { logger.warn({ err, orgId }, "[AiProviders] createAnthropicClient echec, repli plateforme"); }
     }
   }
   return mod.anthropic;
@@ -271,7 +271,7 @@ export async function callOrgGemini<T>(
     return await fn(client);
   } catch (err: any) {
     if (isAiAuthKeyError(err)) {
-      logger.warn({ orgId, err: err?.message }, "[AiProviders] cle Gemini org invalide a l'execution, repli plateforme");
+      logger.warn({ orgId, err: err }, "[AiProviders] cle Gemini org invalide a l'execution, repli plateforme");
       return fn(mod.ai);
     }
     throw err;
@@ -290,7 +290,7 @@ export async function callOrgEmbedding<T>(
     return await fn(client);
   } catch (err: any) {
     if (isAiAuthKeyError(err)) {
-      logger.warn({ orgId, err: err?.message }, "[AiProviders] cle Gemini org (embed) invalide a l'execution, repli plateforme");
+      logger.warn({ orgId, err: err }, "[AiProviders] cle Gemini org (embed) invalide a l'execution, repli plateforme");
       return fn(mod.embeddingAi);
     }
     throw err;
@@ -315,7 +315,7 @@ export async function callOrgOpenAI<T>(
     return await fn(client);
   } catch (err: any) {
     if (isAiAuthKeyError(err)) {
-      logger.warn({ orgId, err: err?.message }, "[AiProviders] cle OpenAI org invalide a l'execution, repli plateforme");
+      logger.warn({ orgId, err: err }, "[AiProviders] cle OpenAI org invalide a l'execution, repli plateforme");
       return fn(mod.openai);
     }
     throw err;
@@ -338,7 +338,7 @@ export async function callOrgAnthropic<T>(
     return await fn(client);
   } catch (err: any) {
     if (isAiAuthKeyError(err)) {
-      logger.warn({ orgId, err: err?.message }, "[AiProviders] cle Anthropic org invalide a l'execution, repli plateforme");
+      logger.warn({ orgId, err: err }, "[AiProviders] cle Anthropic org invalide a l'execution, repli plateforme");
       return fn(mod.anthropic);
     }
     throw err;

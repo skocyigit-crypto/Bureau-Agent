@@ -1160,7 +1160,7 @@ router.post("/voice/confirm", async (req: Request, res: Response): Promise<void>
     }
     res.status(400).json({ success: false, error: t(lang, "err_unsupported") });
   } catch (err: any) {
-    logger.error({ err: err?.message, intent: payload.intent }, "[VoiceCommand/confirm] Error:");
+    logger.error({ err, intent: payload.intent }, "[VoiceCommand/confirm] Error:");
     res.status(500).json({ success: false, error: t(lang, "err_exec") });
   }
 });

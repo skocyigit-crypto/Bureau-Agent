@@ -176,7 +176,7 @@ router.post("/public/demo-chat", demoChatLimiter, async (req: Request, res: Resp
       || "Je n'ai pas pu generer de reponse. Reessayez ou creez un compte pour la version complete.";
     res.json({ reply });
   } catch (err: any) {
-    logger.warn({ err: err?.message }, "[public-demo-chat] provider failed");
+    logger.warn({ err: err }, "[public-demo-chat] provider failed");
     // Always succeed with a friendly fallback so the demo never looks broken.
     res.json({
       reply: DEMO_FALLBACK_REPLY,
@@ -209,11 +209,11 @@ router.post("/public/demo-handoff", demoHandoffLimiter, async (req: Request, res
     const cutoff = new Date(Date.now() - HANDOFF_RETENTION_DAYS * 86400000);
     void db.delete(demoHandoffsTable)
       .where(or(isNotNull(demoHandoffsTable.consumedAt), lt(demoHandoffsTable.createdAt, cutoff)))
-      .catch((err) => logger.warn({ err: err?.message }, "[demo-handoff] purge failed"));
+      .catch((err) => logger.warn({ err: err }, "[demo-handoff] purge failed"));
 
     res.json({ token });
   } catch (err: any) {
-    logger.error({ err: err?.message }, "[demo-handoff] create failed");
+    logger.error({ err: err }, "[demo-handoff] create failed");
     res.status(500).json({ error: "Erreur interne." });
   }
 });

@@ -394,7 +394,7 @@ Reponds UNIQUEMENT en JSON:
     });
   } catch (err: any) {
     if (respondAiError(err, res)) return;
-    logger.error({ err: err?.message }, "[AI Briefing] Erreur:");
+    logger.error({ err: err }, "[AI Briefing] Erreur:");
     res.json({
       briefing: {
         relationSummary: "Informations non disponibles.",
@@ -473,7 +473,7 @@ Reponds UNIQUEMENT en JSON:
       res.status(429).json({ err: err, suggestions: [], detectedIntents: [], proposedResponse: "", actionItems: [], urgencyLevel: "normale", tips: "" });
       return;
     }
-    logger.error({ err: err?.message }, "[AI Coaching] Erreur:");
+    logger.error({ err: err }, "[AI Coaching] Erreur:");
     res.json({
       suggestions: ["Continuez la conversation normalement."],
       detectedIntents: [],
@@ -732,7 +732,7 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
         res.status(429).json({ error: (err as any).message, response: "Service IA temporairement indisponible (quota atteint).", conversationComplete: false });
         return;
       }
-      logger.error({ err: err?.message }, "[AI Agent Respond] Erreur:");
+      logger.error({ err: err }, "[AI Agent Respond] Erreur:");
       res.json({
         response: `Bonjour, je suis ${respondAgentFirstName} de l'accueil d'Ajant Bureau. Excusez-moi pour ce leger contretemps technique. Puis-je prendre votre nom et votre message ? Je m'assure personnellement qu'on vous rappelle dans les plus brefs delais.`,
         detectedIntent: "autre",
@@ -897,7 +897,7 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
       message: `Appel ${saveAgentFirstName} enregistre. ${result.tasksCreated} tache(s), ${result.appointmentCreated ? "1 RDV" : "0 RDV"}, ${result.messagesCreated} message(s) cree(s).`,
     });
   } catch (err: any) {
-    logger.error({ err: err?.message }, "[AI Agent Save] Erreur:");
+    logger.error({ err: err }, "[AI Agent Save] Erreur:");
     res.status(500).json({ error: "Erreur lors de l'enregistrement de l'appel IA." });
   }
 });

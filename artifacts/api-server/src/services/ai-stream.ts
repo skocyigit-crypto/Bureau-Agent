@@ -239,11 +239,11 @@ export async function multiAiGenerateStream(opts: StreamOptions): Promise<Stream
       if (err instanceof AiQuotaExceededError) throw err;
       if (signal.aborted) throw err;
       if (attempt === 0 && !geminiEmittedAny && isRetryableAiError(err)) {
-        logger.warn({ err: err?.message ?? err }, "[ai-stream] Gemini echec transitoire avant tout token — nouvelle tentative");
+        logger.warn({ err: err }, "[ai-stream] Gemini echec transitoire avant tout token — nouvelle tentative");
         continue;
       }
       errors.push("Gemini: " + (err?.message ?? err));
-      logger.warn({ err: err?.message ?? err }, "[ai-stream] Gemini stream failed, falling back");
+      logger.warn({ err: err }, "[ai-stream] Gemini stream failed, falling back");
       break;
     }
   }
@@ -318,7 +318,7 @@ export async function multiAiGenerateStream(opts: StreamOptions): Promise<Stream
     if (err instanceof AiQuotaExceededError) throw err;
     if (signal.aborted) throw err;
     errors.push("OpenAI: " + (err?.message ?? err));
-    logger.warn({ err: err?.message ?? err }, "[ai-stream] OpenAI stream failed, falling back");
+    logger.warn({ err: err }, "[ai-stream] OpenAI stream failed, falling back");
   }
 
   // ── Anthropic stream ──
@@ -380,7 +380,7 @@ export async function multiAiGenerateStream(opts: StreamOptions): Promise<Stream
         signal.removeEventListener("abort", onAbort);
         const mod = await import("@workspace/integrations-anthropic-ai");
         if (anthropic !== mod.anthropic) {
-          logger.warn({ organisationId, err: finalErr?.message }, "[ai-stream] cle Anthropic org invalide, repli plateforme");
+          logger.warn({ organisationId, err: finalErr }, "[ai-stream] cle Anthropic org invalide, repli plateforme");
           anthropic = mod.anthropic;
           startStream();
           try {

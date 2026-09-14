@@ -215,7 +215,7 @@ router.post("/ai-providers/:id/test", async (req, res): Promise<void> => {
     }
     res.status(400).json({ error: "Fournisseur IA inconnu." });
   } catch (err: any) {
-    req.log.error({ err: err?.message }, "Erreur test fournisseur IA");
+    req.log.error({ err: err }, "Erreur test fournisseur IA");
     res.status(400).json({ success: false, error: `Échec du test : ${err?.message || "clé invalide ou quota épuisé."}` });
   }
 });

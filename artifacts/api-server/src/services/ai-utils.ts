@@ -423,7 +423,7 @@ export async function aiCallWithRetry<T>(fn: () => Promise<T>, opts: AiRetryOpti
         throw err;
       }
       const delay = Math.min(maxDelayMs, baseDelayMs * Math.pow(2, attempt)) + Math.floor(Math.random() * 200);
-      logger.warn({ err: (err as any)?.message || err }, `[${label}] Tentative ${attempt + 1}/${maxRetries + 1} echouee, nouvelle tentative dans ${delay}ms:`);
+      logger.warn({ err: err }, `[${label}] Tentative ${attempt + 1}/${maxRetries + 1} echouee, nouvelle tentative dans ${delay}ms:`);
       await new Promise((r) => setTimeout(r, delay));
     }
   }
