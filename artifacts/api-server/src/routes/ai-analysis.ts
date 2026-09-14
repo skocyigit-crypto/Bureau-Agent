@@ -1,3 +1,4 @@
+import { computeInvoiceTotals } from "../services/invoice-totals";
 import { Router } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, platformConnectionsTable, notificationsTable, stockArticlesTable, calendarEventsTable, projetsTable, prospectsTable, facturesClientTable, compteClientTable, organisationsTable } from "@workspace/db";
 import { AGENTS, creerTacheIa } from "../services/tache-ia";
@@ -2585,15 +2586,41 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           const [contactCheck] = await db.select({ id: contactsTable.id }).from(contactsTable).where(and(eq(contactsTable.id, data.contactId), eq(contactsTable.organisationId, orgId)));
           if (!contactCheck) { res.status(400).json({ error: "Contact non trouve dans votre organisation." }); return; }
         }
-        const tvaRate = data.tvaRate ?? 20;
-        let subtotalCalc = 0;
-        const lines = data.items.map((item: any) => {
-          const lineTotal = (item.quantity || 1) * (item.unitPrice || 0);
-          subtotalCalc += lineTotal;
-          return { description: item.description, quantity: item.quantity || 1, unitPrice: item.unitPrice || 0, taxRate: tvaRate, total: lineTotal };
-        });
-        const taxAmountCalc = subtotalCalc * (tvaRate / 100);
-        const totalAmountCalc = subtotalCalc + taxAmountCalc;
+        // Le calcul passe par `computeInvoiceTotals`, comme toutes les autres
+        // voies d'emission. Il ne le faisait pas, et l'ecart n'etait pas
+        // theorique: la formule d'ici prenait UN taux (`data.tvaRate ?? 20`) et
+        // l'appliquait a chaque ligne, alors que le taux est une propriete de
+        // la LIGNE, pas de la facture.
+        //
+        // Mesure sur un chantier ordinaire — main d'oeuvre de renovation a 10 %
+        // (1350 EUR HT) plus materiaux a 20 % (1200 EUR HT):
+        //
+        //     moteur central : HT 2550   TVA 375,00   TTC 2925,00
+        //     formule d'ici  : HT 2550   TVA 255,00   TTC 2805,00
+        //
+        // Soit 120 EUR de TVA manquants sur une facture de 2550 EUR HT. Une
+        // facture sous-declarant la TVA n'est pas un defaut d'affichage: c'est
+        // une piece comptable fausse, opposable a son emetteur.
+        //
+        // Les factures a taux unique, elles, tombaient juste — c'est pourquoi le
+        // defaut a pu durer. Il n'apparait qu'en presence de taux MELANGES,
+        // c'est-a-dire dans le cas normal du batiment: 10 % en renovation,
+        // 5,5 % en amelioration energetique, 20 % sur le neuf et les
+        // fournitures.
+        const tauxParDefaut = data.tvaRate ?? 20;
+        const lignesSaisies = data.items.map((item: any) => ({
+          description: item.description,
+          quantity: item.quantity || 1,
+          unitPrice: item.unitPrice || 0,
+          // Le taux de la ligne prime; `data.tvaRate` n'est plus qu'un repli
+          // pour les lignes qui n'en portent pas.
+          taxRate: Number(item.taxRate ?? tauxParDefaut),
+        }));
+        const totaux = computeInvoiceTotals(lignesSaisies);
+        const lines = totaux.lines;
+        const subtotalCalc = totaux.subtotal;
+        const taxAmountCalc = totaux.taxAmount;
+        const totalAmountCalc = totaux.totalAmount;
         // Meme sequence que les factures creees a la main: une facture emise par
         // l'agent IA ne doit pas porter un numero d'une autre nature, sinon la
         // suite chronologique de l'organisation comporte deux series.
