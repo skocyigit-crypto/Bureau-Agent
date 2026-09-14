@@ -6135,6 +6135,7 @@
     "journalEmpty": "Kayıtlı yürütme yok",
     "logSuccess": "Başarılı",
     "logError": "Hata",
+    "logPartial": "Kısmi",
     "logItems": "{{count}} öğe",
     "timeAgo": {
       "never": "Hiç",

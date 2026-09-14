@@ -6135,6 +6135,7 @@
     "journalEmpty": "Ninguna ejecución registrada",
     "logSuccess": "Correcto",
     "logError": "Error",
+    "logPartial": "Parcial",
     "logItems": "{{count}} elemento(s)",
     "timeAgo": {
       "never": "Nunca",
