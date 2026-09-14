@@ -6,6 +6,7 @@ import rateLimit from "express-rate-limit";
 import { eq, and, inArray, ne, sql } from "drizzle-orm";
 import { db, usersTable, organisationsTable } from "@workspace/db";
 import { logAudit } from "./audit";
+import { diffAuditUtilisateur } from "../lib/diff-audit-utilisateur";
 import { sendCredentialsEmail, sendEmail } from "../services/email";
 import { emailT, resolveEmailLang, type EmailLang } from "../i18n/email-i18n";
 import { logger } from "../lib/logger";
@@ -798,7 +799,10 @@ router.patch("/auth/users/:id", async (req: Request, res: Response): Promise<voi
       catch (err: any) { req.log.error({ err, targetId: id }, "Echec invalidation sessions apres reset admin"); }
     }
 
-    logAudit(req.session?.userId, req.session?.userEmail, "update_user", "user", String(id), { fields: Object.keys(updateData) }, req.ip, req.get("user-agent"), req.session?.organisationId);
+    // Avant/apres pour les champs qui donnent ou retirent un pouvoir.
+    // « le champ role a change » ne tranche aucun litige; « agent -> administrateur »
+    // le tranche. La suppression consignait deja le role de la cible.
+    logAudit(req.session?.userId, req.session?.userEmail, "update_user", "user", String(id), diffAuditUtilisateur(targetUser, updateData), req.ip, req.get("user-agent"), req.session?.organisationId);
     res.json(updated);
   } catch (err: any) {
     req.log.error({ err }, "Erreur mise a jour utilisateur");
