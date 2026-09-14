@@ -6135,6 +6135,7 @@
     "journalEmpty": "لا توجد عمليات تنفيذ مسجلة",
     "logSuccess": "ناجح",
     "logError": "خطأ",
+    "logPartial": "جزئي",
     "logItems": "{{count}} عنصر",
     "timeAgo": {
       "never": "أبدًا",

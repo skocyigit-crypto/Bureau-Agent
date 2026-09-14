@@ -6135,6 +6135,7 @@
     "journalEmpty": "Keine Ausführung aufgezeichnet",
     "logSuccess": "Erfolgreich",
     "logError": "Fehler",
+    "logPartial": "Teilweise",
     "logItems": "{{count}} Element(e)",
     "timeAgo": {
       "never": "Nie",

@@ -6135,6 +6135,7 @@
     "journalEmpty": "No execution recorded",
     "logSuccess": "Success",
     "logError": "Error",
+    "logPartial": "Partial",
     "logItems": "{{count}} item(s)",
     "timeAgo": {
       "never": "Never",

@@ -61,7 +61,11 @@ describe("politique d'approbation des automatisations", () => {
     expect(guard).toMatch(/if\s*\(\s*!orgId\s*\)/);
     // Le refus precede l'appel a proposeAction et rend la main avant le switch.
     expect(guard.indexOf("!orgId")).toBeLessThan(guard.indexOf("proposeAction"));
-    expect(guard).toContain("return;");
+    // On verifie qu'il REND LA MAIN, pas la facon de l'ecrire. `executeAction`
+    // renvoie desormais un booleen disant si l'action a eu lieu — le refus
+    // s'ecrit donc `return false;`. Figer l'orthographe aurait fait echouer ce
+    // test sur un changement qui, justement, renforce la meme garantie.
+    expect(guard).toMatch(/return (?:false;|;)/);
     expect(guard).toMatch(/logger\.error/);
   });
 
