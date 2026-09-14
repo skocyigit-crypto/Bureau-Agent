@@ -152,7 +152,50 @@ export async function sendTestEmailWithKey(apiKey: string, fromEmail: string | n
   return r.success ? { success: true, from: picked.from } : { success: false, error: r.error };
 }
 
+/**
+ * Domaines que la norme reserve et qu'aucun serveur ne delivrera jamais.
+ *
+ * RFC 2606 et RFC 6761 mettent `example.com` (et `.example`, `.test`,
+ * `.invalid`, `.localhost`) hors du service de noms precisement pour qu'on
+ * puisse s'en servir dans la documentation sans jamais atteindre personne.
+ *
+ * Sans cette liste, chaque compte de demonstration reste dans le circuit
+ * d'envoi: mesure sur sept jours de production, le bilan quotidien partait
+ * chaque matin vers `diag...@example.com`, Resend le refusait, et le journal
+ * enregistrait « Aucun provider n'a pu envoyer le message » — quatorze fois.
+ *
+ * Le cout n'est pas l'appel perdu, c'est le bruit: quatorze echecs
+ * hebdomadaires dus a des adresses qui ne peuvent PAS fonctionner apprennent a
+ * ne plus lire cette ligne. Le jour ou un vrai envoi echoue, il arrive au
+ * milieu de ceux-la.
+ */
+const DOMAINES_NON_DELIVRABLES = [
+  "example.com",
+  "example.org",
+  "example.net",
+  ".example",
+  ".test",
+  ".invalid",
+  ".localhost",
+];
+
+/** Vrai si l'adresse vise un domaine que la norme rend non delivrable. */
+export function adresseNonDelivrable(adresse: string): boolean {
+  const domaine = adresse.toLowerCase().split("@").pop() ?? "";
+  if (!domaine) return false;
+  return DOMAINES_NON_DELIVRABLES.some(
+    (reserve) => domaine === reserve.replace(/^\./, "") || domaine.endsWith(reserve),
+  );
+}
+
 export async function sendEmail(to: string, subject: string, html: string, text: string, opts?: { orgId?: number }): Promise<{ success: boolean; error?: string; preview?: string; provider?: string }> {
+  // Ne pas tenter ce qui ne peut pas aboutir. On le dit une fois, en
+  // information: ce n'est pas une panne, c'est une adresse de demonstration.
+  if (adresseNonDelivrable(to)) {
+    logger.info({ to, subject }, "[Email] Adresse de domaine reserve: envoi ignore");
+    return { success: false, error: "Domaine reserve (RFC 2606): adresse non delivrable." };
+  }
+
   // On collecte la derniere erreur de chaque provider pour pouvoir la
   // remonter au frontend si TOUS les providers echouent. Sans ca, l'admin
   // voit "Envoi email echoue" sans aucun moyen de savoir pourquoi.
