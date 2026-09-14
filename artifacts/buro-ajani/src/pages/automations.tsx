@@ -884,14 +884,24 @@ export default function AutomationsPage() {
                 <div className="space-y-2">
                   {logs.map(log => (
                     <div key={log.id} className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-muted/40 transition-colors border-b last:border-b-0">
-                      <div className={`p-1.5 rounded-lg ${log.status === "success" ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"}`}>
+                      {/* Trois etats, pas deux. « partiel » signifie que la regle a
+                          bien tourne mais qu'une partie des actions n'a pas abouti
+                          (destinataire absent, fournisseur SMS non configure, type
+                          d'action inconnu). L'afficher en rouge « Erreur » ferait
+                          croire a une panne; en vert « Reussi », cela cacherait que
+                          rien n'est parti — ce qui etait le cas jusqu'ici. */}
+                      <div className={`p-1.5 rounded-lg ${log.status === "success" ? "bg-green-500/10 text-green-500" : log.status === "partial" ? "bg-amber-500/10 text-amber-600" : "bg-red-500/10 text-red-500"}`}>
                         {log.status === "success" ? <CheckCircle className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium truncate">{log.ruleName}</span>
-                          <Badge variant="outline" className={`text-[10px] shrink-0 ${log.status === "success" ? "text-green-600" : "text-red-600"}`}>
-                            {log.status === "success" ? t("automationsPage.logSuccess") : t("automationsPage.logError")}
+                          <Badge variant="outline" className={`text-[10px] shrink-0 ${log.status === "success" ? "text-green-600" : log.status === "partial" ? "text-amber-600" : "text-red-600"}`}>
+                            {log.status === "success"
+                              ? t("automationsPage.logSuccess")
+                              : log.status === "partial"
+                                ? t("automationsPage.logPartial")
+                                : t("automationsPage.logError")}
                           </Badge>
                         </div>
                         <div className="flex items-center gap-3 text-[10px] text-muted-foreground mt-0.5">

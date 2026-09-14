@@ -539,7 +539,23 @@ async function executeAction(
   context: Record<string, any>,
   ruleName: string,
   requiresApproval: boolean | null = null,
-): Promise<void> {
+  /**
+   * Vrai si l'action a REELLEMENT eu lieu.
+   *
+   * Elle renvoyait `void`, et l'appelant comptait donc toute execution qui
+   * ne levait pas d'exception. Or plusieurs chemins sortent en silence: pas de
+   * numero, pas de fournisseur SMS, envoi refuse par le fournisseur, adresse
+   * absente — et surtout un type d'action inconnu. Aucun ne leve.
+   *
+   * Consequence: l'historique affichait « Reussi — 12 actions executees »
+   * pendant que zero message partait. Le seul temoin etait un avertissement
+   * dans les journaux du serveur, que le client ne voit jamais.
+   *
+   * Compter l'intention plutot que l'effet est le defaut qui revient le plus
+   * souvent dans ce depot. Un compte qui ne peut pas se tromper vaut mieux
+   * qu'un compte flatteur.
+   */
+): Promise<boolean> {
   const p = action.params ?? {};
 
   // La decision d'approbation ne depend PAS de la presence de l'organisation.
@@ -559,10 +575,15 @@ async function executeAction(
         { actionType: action.type, rule: ruleName },
         "[Automation] Action sortante refusee: regle sans organisation, approbation impossible",
       );
-      return;
+      // Refus: rien n'a eu lieu, et rien n'aura lieu plus tard.
+      return false;
     }
     await proposeAction(orgId, action, context, ruleName);
-    return;
+    // Une action mise en attente d'approbation N'EST PAS un echec: la regle a
+    // fait ce qu'elle devait, et la proposition est visible dans la file. La
+    // compter comme « sans effet » ferait passer pour casse un fonctionnement
+    // voulu — l'inverse du defaut qu'on corrige, et tout aussi trompeur.
+    return true;
   }
 
   switch (action.type) {
@@ -577,11 +598,12 @@ async function executeAction(
         sourceType: "automation_rule",
         sourceId: `rule-${Date.now()}`,
       });
-      break;
+      return true;
     }
 
     case "create_task": {
-      if (!orgId) break;
+      // Sans organisation, la tache ne peut pas etre rattachee: rien n'est cree.
+      if (!orgId) return false;
       const dueDays: number = p.dueDays ?? 1;
       // Une regle d'automatisation creait une tache que personne ne recevait:
       // pas d'assignataire, pas d'auteur. Elle s'ajoutait a la liste commune
@@ -595,7 +617,7 @@ async function executeAction(
         priority: p.priority ?? "moyenne",
         dueDate: new Date(Date.now() + dueDays * 24 * 60 * 60 * 1000),
       });
-      break;
+      return true;
     }
 
     case "send_sms": {
@@ -604,7 +626,7 @@ async function executeAction(
 
       if (!orgId || !to) {
         logger.warn({ to, orgId }, "[Automation] send_sms: organisation ou numero cible absent");
-        break;
+        return false;
       }
 
       // BYOK: chaque tenant a son propre fournisseur SMS (config saisie via
@@ -623,7 +645,7 @@ async function executeAction(
 
       if (!provider) {
         logger.warn({ orgId, to }, "[Automation] send_sms: aucun fournisseur SMS configure pour cette organisation");
-        break;
+        return false;
       }
 
       try {
@@ -631,18 +653,20 @@ async function executeAction(
         const result = await sendSms(provider.provider, cfg, { to, body });
         if (!result.success) {
           logger.warn({ orgId, error: result.error }, "[Automation] send_sms: echec fournisseur");
+          return false;
         }
+        return true;
       } catch (err) {
         logger.warn({ orgId, err }, "[Automation] send_sms: exception fournisseur");
+        return false;
       }
-      break;
     }
 
     case "send_email": {
       const to: string = p.to ?? context.email ?? "";
       if (!to) {
         logger.warn({ to }, "[Automation] send_email: email cible absent");
-        break;
+        return false;
       }
       const subject = interpolate(p.subject ?? ruleName, context);
       const bodyText = interpolate(p.body ?? `Automatisation: ${ruleName}`, context);
@@ -650,12 +674,16 @@ async function executeAction(
       const result = await sendEmail(to, subject, html, bodyText, { orgId: orgId ?? undefined });
       if (!result.success) {
         logger.warn({ to, err: result.error }, "[Automation] send_email: echec envoi");
+        return false;
       }
-      break;
+      return true;
     }
 
     default:
+      // Une regle dont l'action porte un type inconnu ne fait RIEN. La
+      // compter comme executee est le mensonge le plus net de la serie.
       logger.warn({ actionType: action.type }, "[Automation] Type d'action inconnu");
+      return false;
   }
 }
 
@@ -781,13 +809,18 @@ async function executeRule(rule: any) {
       Array.isArray(rule.actions) ? rule.actions : [];
 
     let itemsProcessed = 0;
+    // Ce qui a ete tente et n'a pas abouti — sans exception, donc sans trace
+    // visible auparavant.
+    let sansEffet = 0;
 
     for (const item of items) {
       for (const action of actions) {
         try {
-          await executeAction(orgId, action, item, rule.name, rule.requiresApproval ?? null);
-          itemsProcessed++;
+          const effectuee = await executeAction(orgId, action, item, rule.name, rule.requiresApproval ?? null);
+          if (effectuee) itemsProcessed++;
+          else sansEffet++;
         } catch (actionErr: any) {
+          sansEffet++;
           logger.warn({ err: actionErr, action: action.type, rule: rule.name }, "[Automation] Echec action");
         }
       }
@@ -801,12 +834,24 @@ async function executeRule(rule: any) {
       })
       .where(eq(automationRulesTable.id, rule.id));
 
+    // « partiel » plutot que « reussi » des qu'une action n'a pas abouti: la
+    // regle a bien tourne, mais tout ne s'est pas produit, et c'est cela que
+    // l'utilisateur doit pouvoir lire.
     await logAutomationRun(
       rule.name,
-      "success",
-      { ruleId: rule.id, trigger: rule.trigger, itemsFound: items.length, actionsExecuted: itemsProcessed },
+      sansEffet > 0 ? "partial" : "success",
+      {
+        ruleId: rule.id,
+        trigger: rule.trigger,
+        itemsFound: items.length,
+        actionsExecuted: itemsProcessed,
+        actionsSansEffet: sansEffet,
+      },
       itemsProcessed,
       performance.now() - start,
+      sansEffet > 0
+        ? `${sansEffet} action(s) n'ont pas abouti (destinataire, fournisseur ou type d'action manquant).`
+        : undefined,
     );
   } catch (err: any) {
     await db.update(automationRulesTable)
