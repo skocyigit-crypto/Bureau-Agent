@@ -5,12 +5,25 @@ import { BarChart,BarChart3,Brain,Calendar,CheckSquare,Clock,FileText,FolderKanb
 import { useCallback,useEffect,useState } from "react";
 import { useLocation } from "wouter";
 
+import { useWorkspaceUser } from "@/components/workspace-user";
+
+/**
+ * Qui a le droit d'ouvrir la destination.
+ *
+ * "tous" par defaut. Les deux autres valeurs reprennent EXACTEMENT les gardes
+ * de `layout.tsx` — une porte ouverte ici et fermee la-bas n'est pas une
+ * nuance d'affichage: c'est une promesse que le serveur refuse ensuite.
+ */
+type Acces = "tous" | "admin" | "super_admin";
+
 type CommandItem = {
   id: string;
   icon: any;
   action: () => void;
   category: string;
   keywords?: string[];
+  /** Defaut: "tous". */
+  acces?: Acces;
 };
 
 export function CommandPalette() {
@@ -19,6 +32,9 @@ export function CommandPalette() {
   const [, navigate] = useLocation();
   const [selectedIndex, setSelectedIndex] = useState(0);
   const { t } = useTranslation();
+  const { user } = useWorkspaceUser();
+  const estSuperAdmin = user.role === "super_admin";
+  const estAdmin = estSuperAdmin || user.role === "administrateur";
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -47,17 +63,32 @@ export function CommandPalette() {
     { id: "checkins", icon: Clock, action: () => navigate("/pointage"), category: "navigation" },
     { id: "ai", icon: Brain, action: () => navigate("/agents-ia"), category: "navigation" },
     { id: "automations", icon: Zap, action: () => navigate("/automatisations"), category: "administration" },
-    { id: "users", icon: UserCog, action: () => navigate("/utilisateurs"), category: "administration" },
-    { id: "audit", icon: Shield, action: () => navigate("/gestion-licence"), category: "administration", keywords: ["audit", "log", "journal"] },
-    { id: "organisations", icon: KeyRound, action: () => navigate("/organisations"), category: "administration" },
-    { id: "abonnement", icon: KeyRound, action: () => navigate("/gestion-licence"), category: "navigation", keywords: ["licence", "plan", "subscription", "abonnement", "facturation"] },
+    { id: "users", icon: UserCog, action: () => navigate("/utilisateurs"), category: "administration", acces: "admin" },
+    { id: "audit", icon: Shield, action: () => navigate("/gestion-licence"), category: "administration", keywords: ["audit", "log", "journal"], acces: "admin" },
+    { id: "organisations", icon: KeyRound, action: () => navigate("/organisations"), category: "administration", acces: "super_admin" },
+    { id: "abonnement", icon: KeyRound, action: () => navigate("/gestion-licence"), category: "navigation", keywords: ["licence", "plan", "subscription", "abonnement", "facturation"], acces: "admin" },
     { id: "settings", icon: Settings, action: () => navigate("/parametres"), category: "administration" },
     { id: "notifications", icon: MessageSquare, action: () => navigate("/notifications"), category: "navigation" },
     { id: "projets", icon: FolderKanban, action: () => navigate("/projets"), category: "navigation", keywords: ["chantier", "project", "kanban"] },
     { id: "google-workspace", icon: Search, action: () => navigate("/google-workspace"), category: "navigation", keywords: ["gmail", "drive", "docs", "sheets", "calendar", "google"] },
   ];
 
-  const filtered = commands.filter(cmd => {
+  // Le filtre d'acces vient AVANT celui de la recherche: une commande
+  // interdite ne doit pas non plus se laisser trouver en tapant son nom.
+  //
+  // Ce n'est pas une protection — le serveur refuse deja en 403, et c'est lui
+  // qui protege. C'est une question de justesse: la barre laterale cache ces
+  // entrees, la palette les offrait a tout le monde. Un utilisateur en lecture
+  // seule y trouvait « Utilisateurs », « Licence », « Organisations », et
+  // tombait sur un refus a chaque fois. Un produit qui propose des portes
+  // qu'il claque ensuite se lit comme un produit casse.
+  const autorisees = commands.filter(cmd => {
+    if (cmd.acces === "super_admin") return estSuperAdmin;
+    if (cmd.acces === "admin") return estAdmin;
+    return true;
+  });
+
+  const filtered = autorisees.filter(cmd => {
     if (!search) return true;
     const s = search.toLowerCase();
     return t(`commandPalette.cmd.${cmd.id}`).toLowerCase().includes(s) || t(`commandPalette.category.${cmd.category}`).toLowerCase().includes(s) || cmd.keywords?.some(k => k.includes(s));
