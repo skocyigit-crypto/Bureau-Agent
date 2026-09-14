@@ -23,16 +23,48 @@ vi.mock("@workspace/db/schema", () => ({
   cronHeartbeatsTable: { name: "name", lastRunAt: "lastRunAt" },
 }));
 
-// Budget court et deterministe: le module le lit a l'import, donc avant.
-// Sans cela le test du report dependrait du budget de production (45 s).
-process.env.CRON_TICK_BUDGET_MS = "50";
-
 type CronRegistry = typeof import("../services/cron-registry");
 let registerRunnableCron: CronRegistry["registerRunnableCron"];
 let runDueCrons: CronRegistry["runDueCrons"];
 
+/**
+ * Charge le registre avec le budget que CE test exige.
+ *
+ * Le fichier fixait auparavant un budget unique de 50 ms pour les trois tests.
+ * Or ils ne demandent pas la meme chose, et demandent meme le contraire:
+ *
+ *   - l'enchainement veut un budget PLUS GRAND que le travail simule (30 ms),
+ *     sinon la derniere tache est reportee et le test echoue;
+ *   - le report veut un budget PLUS PETIT que la premiere tache (120 ms).
+ *
+ * A 50 ms, la premiere condition ne tenait qu'a vingt millisecondes de marge —
+ * c'est-a-dire au hasard de la charge de la machine. En integration continue,
+ * elle a fini par ceder: `gamma` reporte, `triggered` incomplet, et un
+ * echec sans rapport avec la modification proposee.
+ *
+ * Le commentaire de ce fichier disait deja pourquoi c'est grave: un test
+ * intermittent dans une porte de qualite bloque des deploiements au hasard et
+ * finit par etre ignore. Il l'etait pour une AUTRE cause; le voici pour
+ * celle-ci.
+ *
+ * Chaque test choisit donc son budget, avec une marge d'un ordre de grandeur
+ * de chaque cote. Plus rien ne depend de la vitesse de la machine.
+ */
+async function chargerLeRegistre(budgetMs: number): Promise<void> {
+  process.env.CRON_TICK_BUDGET_MS = String(budgetMs);
+  // Le module lit le budget A L'IMPORT: il faut donc le reimporter apres
+  // l'avoir pose, et non l'inverse.
+  vi.resetModules();
+  ({ registerRunnableCron, runDueCrons } = await import("../services/cron-registry"));
+}
+
+/** Confortable: le travail simule tient trente fois dedans. */
+const BUDGET_LARGE = 1000;
+/** Serre: la premiere tache (120 ms) le depasse a coup sur. */
+const BUDGET_SERRE = 20;
+
 describe("runDueCrons", () => {
-  beforeEach(async () => {
+  beforeEach(() => {
     heartbeats.length = 0;
     // Le registre est un Map de portee module, et rien ne le vide. Sans ce
     // reimport, les taches inscrites par un test restaient dues dans le
@@ -41,11 +73,10 @@ describe("runDueCrons", () => {
     // jamais executee. Selon la vitesse de la machine, ces tests passaient ou
     // echouaient — un test intermittent dans une porte de qualite bloque des
     // deploiements au hasard et finit par etre ignore.
-    vi.resetModules();
-    ({ registerRunnableCron, runDueCrons } = await import("../services/cron-registry"));
   });
 
   it("enchaine les taches dues au lieu de les lancer en parallele", async () => {
+    await chargerLeRegistre(BUDGET_LARGE);
     let concurrent = 0;
     let maxConcurrent = 0;
     const order: string[] = [];
@@ -77,6 +108,7 @@ describe("runDueCrons", () => {
   });
 
   it("n'echoue pas en chaine si une tache leve une erreur", async () => {
+    await chargerLeRegistre(BUDGET_LARGE);
     const done: string[] = [];
     registerRunnableCron("boom", 1000, async () => { throw new Error("panne"); });
     registerRunnableCron("apres", 1000, async () => { done.push("apres"); });
@@ -87,6 +119,7 @@ describe("runDueCrons", () => {
   });
 
   it("reporte les taches qui depassent le budget au lieu de faire expirer le declencheur", async () => {
+    await chargerLeRegistre(BUDGET_SERRE);
     const executed: string[] = [];
     registerRunnableCron("lente", 1000, async () => {
       executed.push("lente");
