@@ -57,7 +57,15 @@ export const EXTENSION_MIME_MAP: Record<string, string> = {
   ".zip": "application/zip",
 };
 
-export const MAX_FILE_SIZE_MB = 25;
+/**
+ * Taille de fichier maximale annoncee ET tenue.
+ *
+ * Elle valait 25, un nombre qu'aucun reglage ne pouvait honorer: en base64,
+ * 25 Mo produisent un corps de 33,4 Mo, au-dessus du plafond de requete de
+ * Cloud Run (32 Mio). La valeur vient desormais du plafond lui-meme.
+ */
+import { TAILLE_MAX_BASE64_MO } from "../lib/limites-televersement";
+export const MAX_FILE_SIZE_MB = TAILLE_MAX_BASE64_MO;
 
 export const VALID_ENTITY_TYPES = [
   "contact", "task", "message", "invoice", "devis", "prospect", "project", "stock", "event", "general",
