@@ -224,7 +224,7 @@ router.post("/calls/:id/process", async (req, res): Promise<void> => {
     });
   } catch (err: any) {
     if (err?.name === "AiQuotaExceededError") {
-      res.status(429).json({ error: err.message, quotaExceeded: true, reason: err.reason, current: err.current, limit: err.limit });
+      res.status(429).json({ err: err, quotaExceeded: true, reason: err.reason, current: err.current, limit: err.limit });
       return;
     }
     const msg = err?.message || "Erreur lors du traitement IA.";
@@ -470,7 +470,7 @@ Reponds UNIQUEMENT en JSON:
   } catch (err: any) {
     if (respondAiError(err, res)) return;
     if (err?.message?.includes("quota")) {
-      res.status(429).json({ error: err.message, suggestions: [], detectedIntents: [], proposedResponse: "", actionItems: [], urgencyLevel: "normale", tips: "" });
+      res.status(429).json({ err: err, suggestions: [], detectedIntents: [], proposedResponse: "", actionItems: [], urgencyLevel: "normale", tips: "" });
       return;
     }
     logger.error({ err: err?.message }, "[AI Coaching] Erreur:");

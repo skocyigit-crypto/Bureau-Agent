@@ -19,7 +19,7 @@ export function startGoogleAutoPointage() {
   // sans identifiants resolvables est simplement ignore dans doSync.
   logger.info("[GoogleAutoPointage] Demarrage - Intervalle: 30min (identifiants par organisation)");
 
-  setTimeout(() => runAutoSync().catch(err => logger.error({ err: err.message }, "[GoogleAutoPointage] Erreur initiale:")), 10000);
+  setTimeout(() => runAutoSync().catch(err => logger.error({ err: err }, "[GoogleAutoPointage] Erreur initiale:")), 10000);
 
   // `withHeartbeat` inscrit la tache au registre lu par le declencheur
   // externe (/api/cron/tick). Sans elle, avec min-instances=0, cette boucle
@@ -89,7 +89,7 @@ async function doSync() {
       totalErrors += result.errors;
     } catch (err: any) {
       totalErrors++;
-      logger.error({ err: err.message }, `[GoogleAutoPointage] Erreur user ${token.userId}:`);
+      logger.error({ err: err }, `[GoogleAutoPointage] Erreur user ${token.userId}:`);
     }
   }
 
@@ -140,7 +140,7 @@ async function syncUserToday(token: {
     const calInfo = await calendar.calendars.get({ calendarId: "primary" });
     calendarTimeZone = calInfo.data.timeZone || "Europe/Paris";
   } catch (err: any) {
-    logger.warn({ err: err.message }, `[GoogleAutoPointage] Calendrier inaccessible user ${token.userId}:`);
+    logger.warn({ err: err }, `[GoogleAutoPointage] Calendrier inaccessible user ${token.userId}:`);
     result.errors++;
     return result;
   }
@@ -165,7 +165,7 @@ async function syncUserToday(token: {
       pageToken = response.data.nextPageToken || undefined;
     } while (pageToken);
   } catch (err: any) {
-    logger.warn({ err: err.message }, `[GoogleAutoPointage] Evenements inaccessibles user ${token.userId}:`);
+    logger.warn({ err: err }, `[GoogleAutoPointage] Evenements inaccessibles user ${token.userId}:`);
     result.errors++;
     return result;
   }
@@ -241,7 +241,7 @@ async function syncUserToday(token: {
     result.imported++;
   } catch (err: any) {
     result.errors++;
-    logger.error({ err: err.message }, `[GoogleAutoPointage] Erreur creation pointage user ${token.userId}:`);
+    logger.error({ err: err }, `[GoogleAutoPointage] Erreur creation pointage user ${token.userId}:`);
   }
 
   return result;

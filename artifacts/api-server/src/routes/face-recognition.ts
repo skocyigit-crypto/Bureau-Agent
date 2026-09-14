@@ -82,7 +82,7 @@ router.get("/profiles", async (req: Request, res: Response): Promise<void> => {
       .orderBy(desc(faceProfilesTable.lastSeenAt));
     res.json({ success: true, profiles });
   } catch (err: any) {
-    logger.error({ err: err.message }, "[Face] profiles error:");
+    logger.error({ err: err }, "[Face] profiles error:");
     res.status(500).json({ success: false, error: "Erreur lors du chargement des profils" });
   }
 });
@@ -150,7 +150,7 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
 
     res.json({ success: true, profile, aiAnalysis });
   } catch (err: any) {
-    logger.error({ err: err.message }, "[Face] register error:");
+    logger.error({ err: err }, "[Face] register error:");
     res.status(500).json({ success: false, error: "Erreur lors de l'enregistrement" });
   }
 });
@@ -268,7 +268,7 @@ router.post("/recognize", async (req: Request, res: Response): Promise<void> => 
       reason: parsed.reason || null,
     });
   } catch (err: any) {
-    logger.error({ err: err.message }, "[Face] recognize error:");
+    logger.error({ err: err }, "[Face] recognize error:");
     res.status(500).json({ success: false, error: "Erreur lors de la reconnaissance" });
   }
 });
@@ -283,7 +283,7 @@ router.get("/logs", async (req: Request, res: Response): Promise<void> => {
       .limit(limit);
     res.json({ success: true, logs });
   } catch (err: any) {
-    logger.error({ err: err.message }, "[Face] logs error:");
+    logger.error({ err: err }, "[Face] logs error:");
     res.status(500).json({ success: false, error: "Erreur lors du chargement des logs" });
   }
 });
@@ -321,7 +321,7 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
       },
     });
   } catch (err: any) {
-    logger.error({ err: err.message }, "[Face] stats error:");
+    logger.error({ err: err }, "[Face] stats error:");
     res.status(500).json({ success: false, error: "Erreur lors du chargement des stats" });
   }
 });
@@ -338,7 +338,7 @@ router.delete("/profiles/:id", async (req: Request, res: Response): Promise<void
       .where(and(eq(faceProfilesTable.id, id), eq(faceProfilesTable.organisationId, orgId)));
     res.json({ success: true });
   } catch (err: any) {
-    logger.error({ err: err.message }, "[Face] delete error:");
+    logger.error({ err: err }, "[Face] delete error:");
     res.status(500).json({ success: false, error: "Erreur lors de la suppression" });
   }
 });
@@ -372,7 +372,7 @@ router.post("/search-contact", async (req: Request, res: Response): Promise<void
 
     res.json({ success: true, contacts });
   } catch (err: any) {
-    logger.error({ err: err.message }, "[Face] search-contact error:");
+    logger.error({ err: err }, "[Face] search-contact error:");
     res.status(500).json({ success: false, error: "Erreur lors de la recherche" });
   }
 });

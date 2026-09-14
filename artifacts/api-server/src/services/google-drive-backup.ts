@@ -28,7 +28,7 @@ async function getGoogleDriveAccessToken(): Promise<string | null> {
       const token = await auth.getAccessToken();
       if (token) return token;
     } catch (err: any) {
-      logger.warn({ err: err.message }, "[GoogleDriveBackup] Service account auth failed, trying OAuth fallback:");
+      logger.warn({ err: err }, "[GoogleDriveBackup] Service account auth failed, trying OAuth fallback:");
     }
   }
 
@@ -44,7 +44,7 @@ async function getGoogleDriveAccessToken(): Promise<string | null> {
       const token = await auth.getAccessToken();
       if (token) return token;
     } catch (err: any) {
-      logger.warn({ err: err.message }, "[GoogleDriveBackup] Service account (plain JSON) auth failed:");
+      logger.warn({ err: err }, "[GoogleDriveBackup] Service account (plain JSON) auth failed:");
     }
   }
 
@@ -92,7 +92,7 @@ async function getGoogleDriveAccessToken(): Promise<string | null> {
     const { token } = await oauth2Client.getAccessToken();
     return token || null;
   } catch (err: any) {
-    logger.warn({ err: err.message }, "[GoogleDriveBackup] OAuth token fallback failed:");
+    logger.warn({ err: err }, "[GoogleDriveBackup] OAuth token fallback failed:");
     return null;
   }
 }
@@ -327,7 +327,7 @@ async function cleanupOldDriveBackups(accessToken: string, folderId: string, ret
       logger.info(`[GoogleDriveBackup] ${oldFiles.length} ancienne(s) sauvegarde(s) nettoyee(s).`);
     }
   } catch (err: any) {
-    logger.error({ err: err.message }, "[GoogleDriveBackup] Erreur nettoyage:");
+    logger.error({ err: err }, "[GoogleDriveBackup] Erreur nettoyage:");
   }
 }
 

@@ -146,8 +146,8 @@ async function runDataProtectionCheck() {
     logger.info(`[DataProtection] Verification terminee: ${orgsWithSubs.length} organisations, ${totalNotifications} alertes envoyees`);
 
   } catch (err: any) {
-    logger.error({ err: err.message }, "[DataProtection] Erreur:");
-    await logMonitorRun("error", { error: err.message }, performance.now() - start, err.message);
+    logger.error({ err: err }, "[DataProtection] Erreur:");
+    await logMonitorRun("error", { err: err }, performance.now() - start, err.message);
   }
 }
 
