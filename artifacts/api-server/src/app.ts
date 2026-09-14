@@ -544,7 +544,7 @@ app.use("/api", router);
 
 app.use((err: Error & { status?: number; statusCode?: number; code?: string }, _req: Request, res: Response, _next: NextFunction) => {
   if (res.headersSent) {
-    logger.warn({ err: err.message }, "Error after headers sent");
+    logger.warn({ err: err }, "Error after headers sent");
     return;
   }
 
@@ -553,14 +553,20 @@ app.use((err: Error & { status?: number; statusCode?: number; code?: string }, _
 
   if (isServerError) {
     logger.error({
-      err: err.message,
+      // L'objet, pas seulement son message: pino le serialise avec son type,
+      // sa pile ET sa chaine de causes. C'est la cause qui porte l'information
+      // utile — un `Failed query: ...` ne dit pas pourquoi la requete a
+      // echoue; son `cause` dit « Connection terminated ». Ce gestionnaire
+      // voit TOUTES les 500 du service: ce qu'il perd ici n'est recuperable
+      // nulle part ailleurs.
+      err,
       stack: err.stack,
       code: err.code,
       method: _req.method,
       url: _req.originalUrl,
     }, "Server error");
   } else {
-    logger.warn({ err: err.message, status }, "Client error");
+    logger.warn({ err: err, status }, "Client error");
   }
 
   if (err.code === "EBADCSRFTOKEN") {
@@ -576,7 +582,7 @@ app.use((err: Error & { status?: number; statusCode?: number; code?: string }, _
   if (isProduction && isServerError) {
     res.status(status).json({ error: "Une erreur interne est survenue." });
   } else {
-    res.status(status).json({ error: err.message || "Erreur inconnue" });
+    res.status(status).json({ err: err || "Erreur inconnue" });
   }
 });
 

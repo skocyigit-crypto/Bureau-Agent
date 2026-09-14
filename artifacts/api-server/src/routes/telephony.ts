@@ -443,7 +443,7 @@ router.put("/telephony/ai-receptionist", async (req, res): Promise<void> => {
   } catch (err: any) {
     // Erreur de validation phone -> 400 clair; sinon 500.
     if (err instanceof Error && /numero valide/.test(err.message)) {
-      res.status(400).json({ error: err.message }); return;
+      res.status(400).json({ err: err }); return;
     }
     req.log.error({ err }, "Erreur mise a jour secretaire IA");
     res.status(500).json({ error: "Erreur lors de l'enregistrement du reglage." });

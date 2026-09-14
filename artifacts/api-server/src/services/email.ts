@@ -130,7 +130,7 @@ async function sendViaResend(
     logger.info(`[Email/Resend:${tag}] Envoye a ${mail.to}: ${result.data?.id} (from=${from})`);
     return { success: true, provider: `resend-${tag}` };
   } catch (err: any) {
-    logger.error({ err: err.message }, `[Email/Resend:${tag}] Exception envoi a ${mail.to}:`);
+    logger.error({ err: err }, `[Email/Resend:${tag}] Exception envoi a ${mail.to}:`);
     return { success: false, error: `Resend exception: ${err.message}` };
   }
 }
@@ -175,7 +175,7 @@ export async function sendEmail(to: string, subject: string, html: string, text:
       }
     } catch (err: any) {
       lastError = `Org email exception: ${err.message}`;
-      logger.error({ err: err.message, orgId: opts.orgId }, "[Email] Exception clé organisation, repli plateforme");
+      logger.error({ err: err, orgId: opts.orgId }, "[Email] Exception clé organisation, repli plateforme");
     }
   }
 
@@ -220,7 +220,7 @@ export async function sendEmail(to: string, subject: string, html: string, text:
         return { success: true, provider: "resend" };
       }
     } catch (err: any) {
-      logger.error({ err: err.message }, `[Email/Resend] Exception envoi a ${to}:`);
+      logger.error({ err: err }, `[Email/Resend] Exception envoi a ${to}:`);
       lastError = `Resend exception: ${err.message}`;
     }
   }
@@ -246,7 +246,7 @@ export async function sendEmail(to: string, subject: string, html: string, text:
       logger.info(`[Email/SMTP] Envoye a ${to}: ${info.messageId}`);
       return { success: true, provider: "smtp" };
     } catch (err: any) {
-      logger.error({ err: err.message }, `[Email/SMTP] Erreur envoi a ${to}:`);
+      logger.error({ err: err }, `[Email/SMTP] Erreur envoi a ${to}:`);
       lastError = `SMTP: ${err.message}`;
     }
   }

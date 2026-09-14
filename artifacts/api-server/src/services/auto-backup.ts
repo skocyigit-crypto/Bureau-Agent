@@ -112,7 +112,7 @@ async function scheduleNext() {
       const result = await performBackup();
       logger.info(`[AutoBackup] Sauvegarde auto: ${result.success ? "OK" : "ERREUR"} - ${new Date().toISOString()} (${result.duration}ms)`);
     } catch (err: any) {
-      logger.error({ err: err.message }, "[AutoBackup] Erreur non geree:");
+      logger.error({ err: err }, "[AutoBackup] Erreur non geree:");
     } finally {
       isRunning = false;
       scheduleNext();
