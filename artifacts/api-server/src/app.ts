@@ -14,6 +14,7 @@ import { hydrateFromBearer } from "./middleware/auth";
 import { guardian } from "./middleware/guardian";
 import { rateLimitKey } from "./lib/request-ip";
 import { recordHttpStatus } from "./services/health-agents-external";
+import { limiteCorpsBase64, TAILLE_MAX_BASE64_MO } from "./lib/limites-televersement";
 
 const app: Express = express();
 
@@ -375,8 +376,17 @@ function isTwilioWebhook(req: Request): boolean {
 import { stripeWebhookRouter } from "./routes/stripe";
 app.use(stripeWebhookRouter);
 
-app.use("/api/document-ai", express.json({ limit: "15mb" }));
-app.use("/api/documents", express.json({ limit: "40mb" }));
+// Les limites de corps DERIVENT de la taille de fichier annoncee, elles ne
+// sont plus choisies a cote. Le fichier voyage en base64 (inflation d'un
+// tiers): a 15mb de corps, seuls ~11 Mo de fichier passaient, alors que
+// l'application en annonce davantage — et le refus venait du lecteur de corps,
+// donc AVANT le message qui explique la limite. L'utilisateur voyait un echec
+// sans phrase sur un fichier que l'interface lui presentait comme acceptable.
+//
+// `/api/documents` demandait 40mb, au-dessus du plafond de requete de Cloud Run
+// (32 Mio): les huit derniers megaoctets n'ont jamais ete atteignables.
+app.use("/api/document-ai", express.json({ limit: limiteCorpsBase64(TAILLE_MAX_BASE64_MO) }));
+app.use("/api/documents", express.json({ limit: limiteCorpsBase64(TAILLE_MAX_BASE64_MO) }));
 // Scan antivirus cote client : le contenu est transmis en base64 (inflation
 // ~33%). On accorde une limite dediee superieure au plafond global de 1mb.
 app.use("/api/security/scan-document", express.json({ limit: "25mb" }));

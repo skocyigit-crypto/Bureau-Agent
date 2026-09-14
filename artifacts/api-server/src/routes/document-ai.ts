@@ -9,7 +9,9 @@ import { logger } from "../lib/logger";
 const router = Router();
 const requireMinAgent = requireRole("super_admin", "administrateur", "agent");
 
-const MAX_FILE_SIZE_MB = 25;
+// Meme source que le reste: annoncer un nombre que le transport ne peut pas
+// tenir revient a promettre au client un televersement qui echouera.
+import { TAILLE_MAX_BASE64_MO as MAX_FILE_SIZE_MB } from "../lib/limites-televersement";
 
 // Upload multipart/form-data pour l'analyse de documents (capture mobile).
 // On garde le fichier en memoire (pas de disque) car il est tout de suite
