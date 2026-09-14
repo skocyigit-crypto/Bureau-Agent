@@ -2,7 +2,20 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
+    <!-- Pas de maximum-scale/user-scalable : bloquer le zoom pince casse
+         l'accessibilite mobile (WCAG 2.2 - 1.4.4 Redimensionnement du texte,
+         niveau AA, repris par l'EN 301 549 et le RGAA).
+
+         Le site vitrine portait deja cette regle et ce commentaire; seule
+         l'application, celle que les clients ouvrent tous les jours, avait
+         garde `user-scalable=no`. Verifie en production sur
+         app.agentdebureau.fr avant correction.
+
+         Ce n'est pas qu'une case de conformite: les utilisateurs de ce
+         produit consultent leurs chantiers sur un telephone, dehors, en plein
+         soleil, souvent sans lunettes. Ne pas pouvoir agrandir un montant ou
+         une adresse est un obstacle reel, pas une gene theorique. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ajant Bureau - Solution Professionnelle</title>
     <meta name="description" content="Ajant Bureau - Solution professionnelle de gestion de bureau et centre d'appels. Tableau de bord, appels, contacts, taches, messages, analyse IA." />
     <!-- Admin / espace client: jamais indexer. Defense-en-profondeur en plus de robots.txt
