@@ -473,7 +473,7 @@ async function sendEmailViaResend(to: string, subject: string, html: string, org
     if (!result.success) { logger.info(`[Commandant/Email] Echec envoi a ${to}: ${result.error || "inconnu"}`); return false; }
     return true;
   } catch (err: any) {
-    logger.error({ err: err.message }, "[Commandant/Email] Erreur:");
+    logger.error({ err: err }, "[Commandant/Email] Erreur:");
     return false;
   }
 }
@@ -490,7 +490,7 @@ async function createNotification(orgId: number, userId: number | null, title: s
       actionUrl: actionUrl || null,
     });
   } catch (err: any) {
-    logger.error({ err: err.message }, "[Commandant/Notif]");
+    logger.error({ err: err }, "[Commandant/Notif]");
   }
 }
 
@@ -1578,7 +1578,7 @@ Resume:`;
     }
     if (stream.signal.aborted || err?.message === "aborted") { stream.send("aborted", {}); stream.end(); return; }
     if (err instanceof AiQuotaExceededError) {
-      stream.send("error", { error: err.message, quotaExceeded: true });
+      stream.send("error", { err: err, quotaExceeded: true });
     } else {
       logger.error({ err }, "[Commandant/SmartSearch/stream]");
       stream.send("error", { error: sanitizeAiErrorMessage(err?.message) || "Erreur lors de la recherche" });
@@ -1694,7 +1694,7 @@ router.post("/commandant/analyze-text/stream", async (req: Request, res: Respons
       return;
     }
     if (err instanceof AiQuotaExceededError) {
-      stream.send("error", { error: err.message, quotaExceeded: true });
+      stream.send("error", { err: err, quotaExceeded: true });
     } else {
       logger.error({ err }, "[Commandant/AnalyzeText/stream]");
       stream.send("error", { error: sanitizeAiErrorMessage(err?.message) || "Erreur lors de l'analyse" });
@@ -1890,7 +1890,7 @@ Reponds en JSON:
     }
     if (stream.signal.aborted || err?.message === "aborted") { stream.send("aborted", {}); stream.end(); return; }
     if (err instanceof AiQuotaExceededError) {
-      stream.send("error", { error: err.message, quotaExceeded: true });
+      stream.send("error", { err: err, quotaExceeded: true });
     } else {
       logger.error({ err }, "[Commandant/ExecuteCommand/stream]");
       stream.send("error", { error: sanitizeAiErrorMessage(err?.message) || "Erreur lors de l'execution" });
@@ -2130,7 +2130,7 @@ JSON attendu:
     }
     if (stream.signal.aborted || err?.message === "aborted") { stream.send("aborted", {}); stream.end(); return; }
     if (err instanceof AiQuotaExceededError) {
-      stream.send("error", { error: err.message, quotaExceeded: true });
+      stream.send("error", { err: err, quotaExceeded: true });
     } else {
       logger.error({ err }, "[Commandant/WeeklyDigest/stream]");
       stream.send("error", { error: sanitizeAiErrorMessage(err?.message) || "Erreur lors de la generation du digest" });

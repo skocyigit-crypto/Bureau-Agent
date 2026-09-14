@@ -42,7 +42,7 @@ async function logAudit(orgId: number, action: string, details: string, userId?:
   try {
     await db.insert(licenseAuditLogTable).values({ organisationId: orgId, action, details, performedBy: userId || null, metadata: metadata || null });
   } catch (err: any) {
-    logger.error({ err: err.message }, "[LicenseAudit] Erreur log audit:");
+    logger.error({ err: err }, "[LicenseAudit] Erreur log audit:");
   }
 }
 

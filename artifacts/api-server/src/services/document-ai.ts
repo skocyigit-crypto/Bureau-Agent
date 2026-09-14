@@ -617,7 +617,19 @@ export async function executeDocumentAction(
           dueDate: data.echeance ? new Date(data.echeance) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
           subtotal: data.montantHT || "0.00",
           taxAmount: data.montantTVA || "0.00",
-          totalAmount: data.montantTTC || data.montantHT || "0.00",
+          // Le repli valait `montantHT`: quand la lecture du document ne
+          // trouvait pas de TTC, la facture etait enregistree avec un total
+          // EGAL au montant hors taxes — une facture dont la TVA a disparu,
+          // sans que rien ne le signale. On additionne desormais ce qui a ete
+          // lu; le repli sur le seul HT ne subsiste que si la TVA non plus n'a
+          // pas ete trouvee, auquel cas les deux chiffres sont au moins
+          // coherents entre eux.
+          totalAmount:
+            data.montantTTC
+            || (data.montantHT && data.montantTVA
+              ? (Number(data.montantHT) + Number(data.montantTVA)).toFixed(2)
+              : data.montantHT)
+            || "0.00",
           items: data.lignes || [],
           notes: `Importee via Document IA`,
         }).returning({ id: facturesClientTable.id });
@@ -647,7 +659,16 @@ export async function executeDocumentAction(
           validUntil: data.validite ? new Date(data.validite) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
           subtotal: data.montantHT || "0.00",
           taxAmount: data.montantTVA || "0.00",
-          totalAmount: data.montantTTC || data.montantHT || "0.00",
+          // Meme repli fautif que pour les factures, et meme correction: sans
+          // TTC lu, le devis etait enregistre avec un total EGAL au hors
+          // taxes. Un devis dont le TTC vaut le HT annonce un prix que
+          // l'entreprise devra ensuite corriger devant le client.
+          totalAmount:
+            data.montantTTC
+            || (data.montantHT && data.montantTVA
+              ? (Number(data.montantHT) + Number(data.montantTVA)).toFixed(2)
+              : data.montantHT)
+            || "0.00",
           items: data.lignes || [],
           notes: `Importe via Document IA`,
         }).returning({ id: devisTable.id });
