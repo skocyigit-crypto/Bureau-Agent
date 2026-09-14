@@ -59,6 +59,21 @@ export const PAGE_META = {
   notFound: {
     title: "Page introuvable (404)",
     description: "La page que vous recherchez n'existe pas ou a été déplacée.",
+    /**
+     * Ce site est une application monopage: le serveur rend index.html pour
+     * TOUTE adresse, donc une adresse inexistante repond 200 et non 404.
+     * Verifie en production: /cette-page-nexiste-pas renvoie 200.
+     *
+     * Pour un moteur de recherche, c'est un « soft 404 »: il indexe une page
+     * d'erreur comme s'il s'agissait d'un contenu. Sur un site vitrine dont le
+     * referencement est l'unique fonction, cela remplit l'index d'adresses qui
+     * n'existent pas — n'importe quel lien casse pointant vers le domaine en
+     * cree une.
+     *
+     * Le code HTTP ne peut pas etre corrige cote client. noindex, si: c'est
+     * la reponse standard pour une page d'erreur d'application monopage.
+     */
+    noindex: true,
   },
 } satisfies Record<string, DocumentMeta>;
 
