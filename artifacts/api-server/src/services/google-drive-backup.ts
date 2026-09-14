@@ -461,7 +461,7 @@ export async function performGoogleDriveBackup(): Promise<{
     };
   } catch (error: any) {
     const duration = Date.now() - startTime;
-    logger.error({ err: error.message }, "[GoogleDriveBackup] Erreur:");
+    logger.error({ err: error }, "[GoogleDriveBackup] Erreur:");
 
     await db.insert(autoBackupsTable).values({
       type: "google_drive",

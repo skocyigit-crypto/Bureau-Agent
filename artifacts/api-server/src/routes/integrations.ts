@@ -686,7 +686,7 @@ Reponds en JSON:
       });
       aiInsights = response.text || "";
     } catch (err: any) {
-      logger.error({ err: err?.message }, "[Smart Discovery] AI error:");
+      logger.error({ err: err }, "[Smart Discovery] AI error:");
     }
     }
 
@@ -720,7 +720,7 @@ Reponds en JSON:
       discoveredAt: new Date().toISOString(),
     });
   } catch (err: any) {
-    logger.error({ err: err?.message }, "[Smart Discovery] Erreur:");
+    logger.error({ err: err }, "[Smart Discovery] Erreur:");
     res.status(500).json({ error: "Erreur lors de la decouverte intelligente." });
   }
 });

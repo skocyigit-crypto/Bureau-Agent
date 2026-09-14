@@ -788,7 +788,7 @@ async function executeRule(rule: any) {
           await executeAction(orgId, action, item, rule.name, rule.requiresApproval ?? null);
           itemsProcessed++;
         } catch (actionErr: any) {
-          logger.warn({ err: actionErr?.message, action: action.type, rule: rule.name }, "[Automation] Echec action");
+          logger.warn({ err: actionErr, action: action.type, rule: rule.name }, "[Automation] Echec action");
         }
       }
     }

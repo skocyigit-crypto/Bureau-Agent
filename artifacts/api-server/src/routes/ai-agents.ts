@@ -2980,7 +2980,7 @@ export async function runSuperAgentCycle(orgId: number, userId: number) {
                   emailTasksCreated++;
                   state.stats.tasksCreated++;
                 } catch (err: any) {
-                  logger.warn({ err: err?.message, orgId, title: t?.title }, "[SuperAgent/Email] echec insertion tache extraite par IA");
+                  logger.warn({ err, orgId, title: t?.title }, "[SuperAgent/Email] echec insertion tache extraite par IA");
                 }
               }
               saLog(orgId, "success", "email", `Email traité: "${subject}"`, `${parsed.tasks.length} tâche(s) créée(s) — Urgence: ${parsed.urgency || "normale"}`);
@@ -3226,7 +3226,7 @@ router.post("/ai/super-agent/process-report", requireAdmin, async (req, res): Pr
         });
         createdTasks.push(inserted);
       } catch (err: any) {
-        logger.warn({ err: err?.message, orgId, title: t?.title }, "[SuperAgent/ProcessReport] echec insertion tache extraite par IA");
+        logger.warn({ err, orgId, title: t?.title }, "[SuperAgent/ProcessReport] echec insertion tache extraite par IA");
       }
     }
 
@@ -3240,7 +3240,7 @@ router.post("/ai/super-agent/process-report", requireAdmin, async (req, res): Pr
         }).returning();
         createdEvents.push(inserted);
       } catch (err: any) {
-        logger.warn({ err: err?.message, orgId, title: a?.title }, "[SuperAgent/ProcessReport] echec insertion RDV extrait par IA");
+        logger.warn({ err, orgId, title: a?.title }, "[SuperAgent/ProcessReport] echec insertion RDV extrait par IA");
       }
     }
 

@@ -184,7 +184,7 @@ async function getRecordCountsByOrg(): Promise<Map<number, Record<string, number
     } catch (err: any) {
       // Un comptage qui echoue ne doit pas passer pour un zero SANS QUE
       // PERSONNE NE LE SACHE: le zero eteint l alerte de ce client.
-      logger.warn({ err: err?.message, table }, "[DataProtection] comptage par organisation indisponible");
+      logger.warn({ err, table }, "[DataProtection] comptage par organisation indisponible");
     }
   }
   return parOrg;

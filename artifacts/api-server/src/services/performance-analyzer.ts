@@ -320,7 +320,7 @@ async function analyzeWithGemini(metricsJSON: string, periodeStr: string, orgId:
     });
     return JSON.parse(response.text ?? "{}");
   } catch (error: any) {
-    logger.error({ err: error.message }, "[Performance] Gemini analysis error:");
+    logger.error({ err: error }, "[Performance] Gemini analysis error:");
     return null;
   }
 }
@@ -345,7 +345,7 @@ async function analyzeWithOpenAI(metricsJSON: string, periodeStr: string): Promi
     const text = response.choices[0]?.message?.content ?? "{}";
     return JSON.parse(text);
   } catch (error: any) {
-    logger.error({ err: error.message }, "[Performance] OpenAI analysis error:");
+    logger.error({ err: error }, "[Performance] OpenAI analysis error:");
     return null;
   }
 }
@@ -381,7 +381,7 @@ Fournis une analyse strategique en JSON:
     const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     return JSON.parse(cleaned);
   } catch (error: any) {
-    logger.error({ err: error.message }, "[Performance] Anthropic analysis error:");
+    logger.error({ err: error }, "[Performance] Anthropic analysis error:");
     return null;
   }
 }

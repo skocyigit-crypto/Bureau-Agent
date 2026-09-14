@@ -80,7 +80,7 @@ async function performBackup() {
 
     return { success: true, results: [{ platform: "local", status: "termine", id: backup.id }], duration: Date.now() - startTime };
   } catch (error: any) {
-    logger.error({ err: error.message }, "[AutoBackup] Erreur critique:");
+    logger.error({ err: error }, "[AutoBackup] Erreur critique:");
     return { success: false, error: error.message, duration: Date.now() - startTime };
   }
 }

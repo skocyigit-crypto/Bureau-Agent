@@ -112,7 +112,7 @@ export async function getOrgEmailSender(orgId: number): Promise<OrgEmailSender |
       if (apiKey) sender = { apiKey, fromEmail: (cfg.fromEmail as string) || null };
     }
   } catch (err: any) {
-    logger.error({ err: err?.message, orgId }, "[EmailProviders] Echec resolution cle organisation");
+    logger.error({ err, orgId }, "[EmailProviders] Echec resolution cle organisation");
     sender = null;
   }
   senderCache.set(orgId, { sender, at: Date.now() });

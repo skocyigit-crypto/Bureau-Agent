@@ -274,7 +274,7 @@ router.post("/ai/inline-suggest", async (req: Request, res: Response): Promise<v
     setCached(cacheKey, payload, AI_CACHE_TTL.SHORT);
     res.json({ ...payload, language, detected });
   } catch (err: any) {
-    logger.error({ err: err?.message }, "[ai/inline-suggest] error");
+    logger.error({ err: err }, "[ai/inline-suggest] error");
     // Always respond 200 with empty suggestion to keep ghost-text UX silent.
     res.json({ suggestion: "" });
   }
