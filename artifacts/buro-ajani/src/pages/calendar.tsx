@@ -17,6 +17,7 @@ Building,
 Calendar as CalendarIcon,
 CheckSquare,
 ChevronLeft,ChevronRight,
+AlertTriangle,
 Clock,
 Copy,
 DoorClosed,DoorOpen,
@@ -40,6 +41,7 @@ Users
 import { useEffect,useMemo,useRef,useState } from "react";
 
 import { useMutation,useQuery,useQueryClient } from "@tanstack/react-query";
+import { chevauchements, messageChevauchement } from "@/lib/chevauchement-agenda";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 // Cles stables (traduites au moment du rendu, jamais au niveau module).
@@ -199,6 +201,7 @@ function EventFormDialog({
   onSave,
   isPending,
   closureInfo,
+  evenementsExistants = [],
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -209,6 +212,8 @@ function EventFormDialog({
   onSave: (data: any) => void;
   isPending: boolean;
   closureInfo?: { label: string | null; id?: number; dateStart?: string; dateEnd?: string } | null;
+  /** Ce qui est deja pose ce jour-la, pour reperer un creneau pris. */
+  evenementsExistants?: any[];
 }) {
   const { t } = useTranslation();
   const [form, setForm] = useState(defaultEvent);
@@ -269,6 +274,31 @@ function EventFormDialog({
     }));
   };
 
+  /**
+   * Le creneau saisi croise-t-il quelque chose ?
+   *
+   * Calcule pendant la saisie, pas au moment d'enregistrer: un avertissement
+   * qui arrive apres coup oblige a defaire, et on ne defait pas un rendez-vous
+   * deja annonce au client. C'est le motif que toutes les revues d'agendas
+   * citent en premier — prevenir a l'instant ou les creneaux se croisent.
+   */
+  const conflit = useMemo(() => {
+    if (!selectedDate || !form.startTime || !form.endTime) return null;
+    const [sh, sm] = form.startTime.split(":").map(Number);
+    const [eh, em] = form.endTime.split(":").map(Number);
+    if ([sh, sm, eh, em].some((n) => !Number.isFinite(n))) return null;
+
+    const debut = new Date(selectedDate); debut.setHours(sh, sm, 0, 0);
+    const fin = new Date(selectedDate); fin.setHours(eh, em, 0, 0);
+
+    return messageChevauchement(
+      chevauchements(
+        { id: editEvent?.id, startDate: debut, endDate: fin },
+        evenementsExistants,
+      ),
+    );
+  }, [selectedDate, form.startTime, form.endTime, editEvent?.id, evenementsExistants]);
+
   const handleSave = () => {
     if (!selectedDate || !form.title.trim()) return;
     const [sh, sm] = form.startTime.split(":").map(Number);
@@ -296,6 +326,19 @@ function EventFormDialog({
       status: form.status,
     });
   };
+
+  // L'avertissement n'EMPECHE pas d'enregistrer. Un chevauchement est
+  // parfois voulu (deux equipes, un appel pendant un trajet), et un agenda qui
+  // interdit se contourne — apres quoi on cesse de s'y fier.
+  const blocConflit = conflit ? (
+    <div
+      role="status"
+      className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
+    >
+      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
+      <span>{conflit}</span>
+    </div>
+  ) : null;
 
   const dateLabel = selectedDate
     ? selectedDate.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
@@ -401,6 +444,8 @@ function EventFormDialog({
                 <Input aria-label={t("calendar.form.endTime")} type="time" value={form.endTime} onChange={e => update("endTime", e.target.value)} className="mt-1" />
               </div>
             </div>
+
+            {blocConflit}
 
             <div>
               <Label className="text-xs font-medium">{t("calendar.form.location")}</Label>
@@ -1741,6 +1786,7 @@ export default function CalendarPage() {
         editEvent={editingEvent}
         prefillSlot={prefillSlot}
         onSave={handleSaveEvent}
+        evenementsExistants={selectedDate ? getEventsForDate(selectedDate) : []}
         isPending={createMutation.isPending || updateMutation.isPending}
         closureInfo={selectedDate ? getClosureForDate(selectedDate) : null}
       />
