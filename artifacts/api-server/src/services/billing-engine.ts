@@ -160,7 +160,7 @@ export async function generateMonthlyInvoices(
       });
     } catch (err: any) {
       result.errors++;
-      logger.error({ err: err.message }, `[Billing] Erreur org ${org.id}:`);
+      logger.error({ err: err }, `[Billing] Erreur org ${org.id}:`);
     }
   }
 
