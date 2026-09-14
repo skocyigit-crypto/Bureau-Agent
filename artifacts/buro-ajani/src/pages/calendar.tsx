@@ -17,6 +17,7 @@ Building,
 Calendar as CalendarIcon,
 CheckSquare,
 ChevronLeft,ChevronRight,
+AlertTriangle,
 Clock,
 Copy,
 DoorClosed,DoorOpen,
@@ -40,6 +41,8 @@ Users
 import { useEffect,useMemo,useRef,useState } from "react";
 
 import { useMutation,useQuery,useQueryClient } from "@tanstack/react-query";
+import { chevauchements, messageChevauchement } from "@/lib/chevauchement-agenda";
+import { heureDOuverture, positionDansLHeure } from "@/lib/position-heure-courante";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 // Cles stables (traduites au moment du rendu, jamais au niveau module).
@@ -199,6 +202,7 @@ function EventFormDialog({
   onSave,
   isPending,
   closureInfo,
+  evenementsExistants = [],
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -209,6 +213,8 @@ function EventFormDialog({
   onSave: (data: any) => void;
   isPending: boolean;
   closureInfo?: { label: string | null; id?: number; dateStart?: string; dateEnd?: string } | null;
+  /** Ce qui est deja pose ce jour-la, pour reperer un creneau pris. */
+  evenementsExistants?: any[];
 }) {
   const { t } = useTranslation();
   const [form, setForm] = useState(defaultEvent);
@@ -269,6 +275,31 @@ function EventFormDialog({
     }));
   };
 
+  /**
+   * Le creneau saisi croise-t-il quelque chose ?
+   *
+   * Calcule pendant la saisie, pas au moment d'enregistrer: un avertissement
+   * qui arrive apres coup oblige a defaire, et on ne defait pas un rendez-vous
+   * deja annonce au client. C'est le motif que toutes les revues d'agendas
+   * citent en premier — prevenir a l'instant ou les creneaux se croisent.
+   */
+  const conflit = useMemo(() => {
+    if (!selectedDate || !form.startTime || !form.endTime) return null;
+    const [sh, sm] = form.startTime.split(":").map(Number);
+    const [eh, em] = form.endTime.split(":").map(Number);
+    if ([sh, sm, eh, em].some((n) => !Number.isFinite(n))) return null;
+
+    const debut = new Date(selectedDate); debut.setHours(sh, sm, 0, 0);
+    const fin = new Date(selectedDate); fin.setHours(eh, em, 0, 0);
+
+    return messageChevauchement(
+      chevauchements(
+        { id: editEvent?.id, startDate: debut, endDate: fin },
+        evenementsExistants,
+      ),
+    );
+  }, [selectedDate, form.startTime, form.endTime, editEvent?.id, evenementsExistants]);
+
   const handleSave = () => {
     if (!selectedDate || !form.title.trim()) return;
     const [sh, sm] = form.startTime.split(":").map(Number);
@@ -296,6 +327,19 @@ function EventFormDialog({
       status: form.status,
     });
   };
+
+  // L'avertissement n'EMPECHE pas d'enregistrer. Un chevauchement est
+  // parfois voulu (deux equipes, un appel pendant un trajet), et un agenda qui
+  // interdit se contourne — apres quoi on cesse de s'y fier.
+  const blocConflit = conflit ? (
+    <div
+      role="status"
+      className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
+    >
+      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
+      <span>{conflit}</span>
+    </div>
+  ) : null;
 
   const dateLabel = selectedDate
     ? selectedDate.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
@@ -401,6 +445,8 @@ function EventFormDialog({
                 <Input aria-label={t("calendar.form.endTime")} type="time" value={form.endTime} onChange={e => update("endTime", e.target.value)} className="mt-1" />
               </div>
             </div>
+
+            {blocConflit}
 
             <div>
               <Label className="text-xs font-medium">{t("calendar.form.location")}</Label>
@@ -1242,6 +1288,69 @@ export default function CalendarPage() {
   }, [weekStart]);
 
   const todayEvents = getEventsForDate(today);
+  /**
+   * Raccourcis clavier.
+   *
+   * C'est le socle des agendas modernes — J/S/M pour changer de vue, A pour
+   * revenir a aujourd'hui, N pour creer — et il manquait entierement ici. Un
+   * agenda se consulte des dizaines de fois par jour; chaque aller-retour vers
+   * la souris se paie a chaque consultation.
+   *
+   * Les lettres sont celles du francais (Jour, Semaine, Mois, Aujourd'hui,
+   * Nouveau), pas les initiales anglaises: l'interface est en francais, et un
+   * raccourci qu'il faut traduire mentalement n'est pas un raccourci.
+   *
+   * Rien ne se declenche pendant une saisie: taper « s » dans le titre d'un
+   * rendez-vous ne doit pas changer de vue. C'est la faute classique de ce
+   * genre d'ajout, et elle rend le formulaire inutilisable.
+   */
+  useEffect(() => {
+    const surTouche = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const cible = e.target as HTMLElement | null;
+      const balise = cible?.tagName?.toLowerCase();
+      if (balise === "input" || balise === "textarea" || balise === "select" || cible?.isContentEditable) return;
+
+      switch (e.key.toLowerCase()) {
+        case "j": setView("jour"); break;
+        case "s": setView("semaine"); break;
+        case "m": setView("mois"); break;
+        case "a": setCurrentDate(new Date()); break;
+        case "n":
+          e.preventDefault();
+          setSelectedDate(new Date());
+          setEditingEvent(null);
+          setShowEventForm(true);
+          break;
+        default: return;
+      }
+    };
+    window.addEventListener("keydown", surTouche);
+    return () => window.removeEventListener("keydown", surTouche);
+  }, []);
+
+  /**
+   * Ouvrir la grille sur l'heure courante, pas sur 7 h du matin.
+   *
+   * La plage affichee va de 7 h a 21 h et depasse la hauteur visible: a 16 h,
+   * la vue s'ouvrait au-dessus de la journee en cours et il fallait defiler
+   * avant de pouvoir lire quoi que ce soit. Chaque consultation, chaque jour.
+   *
+   * Les revues d'agendas en font une regle: la vue s'ouvre sur l'heure
+   * courante, ou sur le debut des heures ouvrees si la journee n'a pas
+   * commence.
+   */
+  const grilleRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const grille = grilleRef.current;
+    if (!grille) return;
+    if (view !== "semaine" && view !== "jour") return;
+    // `h-12` = 48 px par ligne d'heure.
+    const HAUTEUR_LIGNE = 48;
+    const rang = heureDOuverture(HOURS) - HOURS[0];
+    grille.scrollTop = Math.max(0, rang * HAUTEUR_LIGNE);
+  }, [view, currentDate]);
+
   const upcomingCount = allEvents.filter((e: any) => new Date(e.startDate) > today).length;
 
   return (
@@ -1434,7 +1543,7 @@ export default function CalendarPage() {
           )}
 
           {view === "semaine" && (
-            <div className="overflow-auto max-h-[650px]">
+            <div ref={grilleRef} className="overflow-auto max-h-[650px]">
               <div className="grid min-w-[700px]" style={{ gridTemplateColumns: "60px repeat(7, 1fr)" }}>
                 <div />
                 {weekDays.map((d, i) => {
@@ -1516,7 +1625,17 @@ export default function CalendarPage() {
                               {pad(new Date(e.startDate).getHours())}:{pad(new Date(e.startDate).getMinutes())} {e.title}
                             </div>
                           ))}
-                          {isNow && <div className="absolute left-0 right-0 top-1/2 h-[2px] bg-red-500 z-0 pointer-events-none"><div className="w-2 h-2 rounded-full bg-red-500 -mt-[3px] -ml-1" /></div>}
+                          {/* A la minute, comme la vue jour. `top-1/2` placait
+                              le trait au milieu de l'heure: a 10 h 05 il
+                              annoncait 10 h 30. */}
+                          {isNow && (
+                            <div
+                              className="absolute left-0 right-0 h-[2px] bg-red-500 z-0 pointer-events-none"
+                              style={{ top: `${positionDansLHeure(today)}%` }}
+                            >
+                              <div className="w-2 h-2 rounded-full bg-red-500 -mt-[3px] -ml-1" />
+                            </div>
+                          )}
                         </button>
                       );
                     })}
@@ -1527,7 +1646,7 @@ export default function CalendarPage() {
           )}
 
           {view === "jour" && (
-            <div className="overflow-auto max-h-[650px]">
+            <div ref={grilleRef} className="overflow-auto max-h-[650px]">
               {(() => {
                 const dayClosure = getClosureForDate(currentDate);
                 if (dayClosure) {
@@ -1643,7 +1762,7 @@ export default function CalendarPage() {
                           );
                         })}
                         {isNow && (
-                          <div className="absolute left-0 right-0 h-[2px] bg-red-500 z-0 pointer-events-none" style={{ top: `${(today.getMinutes() / 60) * 100}%` }}>
+                          <div className="absolute left-0 right-0 h-[2px] bg-red-500 z-0 pointer-events-none" style={{ top: `${positionDansLHeure(today)}%` }}>
                             <div className="w-2.5 h-2.5 rounded-full bg-red-500 -mt-[4px] -ml-1" />
                           </div>
                         )}
@@ -1741,6 +1860,7 @@ export default function CalendarPage() {
         editEvent={editingEvent}
         prefillSlot={prefillSlot}
         onSave={handleSaveEvent}
+        evenementsExistants={selectedDate ? getEventsForDate(selectedDate) : []}
         isPending={createMutation.isPending || updateMutation.isPending}
         closureInfo={selectedDate ? getClosureForDate(selectedDate) : null}
       />
