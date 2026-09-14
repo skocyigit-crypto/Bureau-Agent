@@ -227,6 +227,6 @@ export async function logAudit(
       userAgent: userAgent || null,
     });
   } catch (err: any) {
-    logger.error({ err: err.message, action, resource, resourceId }, "[AuditLog] Failed to write audit log");
+    logger.error({ err: err, action, resource, resourceId }, "[AuditLog] Failed to write audit log");
   }
 }

@@ -180,7 +180,7 @@ router.post("/billing/import-camt", async (req: Request, res: Response): Promise
     if (err instanceof ReleveIllisible) {
       // Entree invalide, pas panne: l'exploitant doit lire « ce fichier n'est
       // pas un releve », pas « erreur interne ».
-      res.status(400).json({ error: err.message });
+      res.status(400).json({ err: err });
       return;
     }
     throw err;

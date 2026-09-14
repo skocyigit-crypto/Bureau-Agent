@@ -232,7 +232,7 @@ Assignation proposee en reunion: « ${suggere.substring(0, 100)} » — aucun me
           echeance: dueDate.toLocaleDateString("fr-FR"),
         });
       } catch (err: any) {
-        logger.warn({ err: err.message }, "[Meetings] Task creation failed:");
+        logger.warn({ err: err }, "[Meetings] Task creation failed:");
       }
     }
 
