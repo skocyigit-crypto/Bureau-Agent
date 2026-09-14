@@ -42,6 +42,7 @@ import { useEffect,useMemo,useRef,useState } from "react";
 
 import { useMutation,useQuery,useQueryClient } from "@tanstack/react-query";
 import { chevauchements, messageChevauchement } from "@/lib/chevauchement-agenda";
+import { heureDOuverture, positionDansLHeure } from "@/lib/position-heure-courante";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 // Cles stables (traduites au moment du rendu, jamais au niveau module).
@@ -1287,6 +1288,69 @@ export default function CalendarPage() {
   }, [weekStart]);
 
   const todayEvents = getEventsForDate(today);
+  /**
+   * Raccourcis clavier.
+   *
+   * C'est le socle des agendas modernes — J/S/M pour changer de vue, A pour
+   * revenir a aujourd'hui, N pour creer — et il manquait entierement ici. Un
+   * agenda se consulte des dizaines de fois par jour; chaque aller-retour vers
+   * la souris se paie a chaque consultation.
+   *
+   * Les lettres sont celles du francais (Jour, Semaine, Mois, Aujourd'hui,
+   * Nouveau), pas les initiales anglaises: l'interface est en francais, et un
+   * raccourci qu'il faut traduire mentalement n'est pas un raccourci.
+   *
+   * Rien ne se declenche pendant une saisie: taper « s » dans le titre d'un
+   * rendez-vous ne doit pas changer de vue. C'est la faute classique de ce
+   * genre d'ajout, et elle rend le formulaire inutilisable.
+   */
+  useEffect(() => {
+    const surTouche = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const cible = e.target as HTMLElement | null;
+      const balise = cible?.tagName?.toLowerCase();
+      if (balise === "input" || balise === "textarea" || balise === "select" || cible?.isContentEditable) return;
+
+      switch (e.key.toLowerCase()) {
+        case "j": setView("jour"); break;
+        case "s": setView("semaine"); break;
+        case "m": setView("mois"); break;
+        case "a": setCurrentDate(new Date()); break;
+        case "n":
+          e.preventDefault();
+          setSelectedDate(new Date());
+          setEditingEvent(null);
+          setShowEventForm(true);
+          break;
+        default: return;
+      }
+    };
+    window.addEventListener("keydown", surTouche);
+    return () => window.removeEventListener("keydown", surTouche);
+  }, []);
+
+  /**
+   * Ouvrir la grille sur l'heure courante, pas sur 7 h du matin.
+   *
+   * La plage affichee va de 7 h a 21 h et depasse la hauteur visible: a 16 h,
+   * la vue s'ouvrait au-dessus de la journee en cours et il fallait defiler
+   * avant de pouvoir lire quoi que ce soit. Chaque consultation, chaque jour.
+   *
+   * Les revues d'agendas en font une regle: la vue s'ouvre sur l'heure
+   * courante, ou sur le debut des heures ouvrees si la journee n'a pas
+   * commence.
+   */
+  const grilleRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const grille = grilleRef.current;
+    if (!grille) return;
+    if (view !== "semaine" && view !== "jour") return;
+    // `h-12` = 48 px par ligne d'heure.
+    const HAUTEUR_LIGNE = 48;
+    const rang = heureDOuverture(HOURS) - HOURS[0];
+    grille.scrollTop = Math.max(0, rang * HAUTEUR_LIGNE);
+  }, [view, currentDate]);
+
   const upcomingCount = allEvents.filter((e: any) => new Date(e.startDate) > today).length;
 
   return (
@@ -1479,7 +1543,7 @@ export default function CalendarPage() {
           )}
 
           {view === "semaine" && (
-            <div className="overflow-auto max-h-[650px]">
+            <div ref={grilleRef} className="overflow-auto max-h-[650px]">
               <div className="grid min-w-[700px]" style={{ gridTemplateColumns: "60px repeat(7, 1fr)" }}>
                 <div />
                 {weekDays.map((d, i) => {
@@ -1561,7 +1625,17 @@ export default function CalendarPage() {
                               {pad(new Date(e.startDate).getHours())}:{pad(new Date(e.startDate).getMinutes())} {e.title}
                             </div>
                           ))}
-                          {isNow && <div className="absolute left-0 right-0 top-1/2 h-[2px] bg-red-500 z-0 pointer-events-none"><div className="w-2 h-2 rounded-full bg-red-500 -mt-[3px] -ml-1" /></div>}
+                          {/* A la minute, comme la vue jour. `top-1/2` placait
+                              le trait au milieu de l'heure: a 10 h 05 il
+                              annoncait 10 h 30. */}
+                          {isNow && (
+                            <div
+                              className="absolute left-0 right-0 h-[2px] bg-red-500 z-0 pointer-events-none"
+                              style={{ top: `${positionDansLHeure(today)}%` }}
+                            >
+                              <div className="w-2 h-2 rounded-full bg-red-500 -mt-[3px] -ml-1" />
+                            </div>
+                          )}
                         </button>
                       );
                     })}
@@ -1572,7 +1646,7 @@ export default function CalendarPage() {
           )}
 
           {view === "jour" && (
-            <div className="overflow-auto max-h-[650px]">
+            <div ref={grilleRef} className="overflow-auto max-h-[650px]">
               {(() => {
                 const dayClosure = getClosureForDate(currentDate);
                 if (dayClosure) {
@@ -1688,7 +1762,7 @@ export default function CalendarPage() {
                           );
                         })}
                         {isNow && (
-                          <div className="absolute left-0 right-0 h-[2px] bg-red-500 z-0 pointer-events-none" style={{ top: `${(today.getMinutes() / 60) * 100}%` }}>
+                          <div className="absolute left-0 right-0 h-[2px] bg-red-500 z-0 pointer-events-none" style={{ top: `${positionDansLHeure(today)}%` }}>
                             <div className="w-2.5 h-2.5 rounded-full bg-red-500 -mt-[4px] -ml-1" />
                           </div>
                         )}
