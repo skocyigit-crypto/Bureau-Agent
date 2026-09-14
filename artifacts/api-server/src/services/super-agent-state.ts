@@ -15,6 +15,7 @@
  */
 import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { db, superAgentLogsTable, superAgentStateTable } from "@workspace/db";
+import { withDbRetry } from "../lib/db-retry";
 import { logger } from "../lib/logger";
 
 export type SuperAgentLogLevel = "info" | "success" | "warning" | "error";
@@ -97,7 +98,23 @@ function isUndefinedTable(err: unknown): boolean {
  */
 async function withFallback<T>(fn: () => Promise<T>, onMissing: () => T): Promise<T> {
   try {
-    return await fn();
+    // Une coupure de connexion est REESSAYEE avant d'etre traitee comme une
+    // panne. Les dix requetes de ce module passent toutes par ici, et aucune
+    // n'etait protegee — alors que le cron qui les appelle enveloppe deja SES
+    // propres requetes. La protection s'arretait donc exactement a la
+    // frontiere du module, et la requete d'entree, celle par laquelle tout
+    // commence, etait du mauvais cote.
+    //
+    // Mesure sur sept jours de production: 42 cycles du super-agent morts sur
+    // la PREMIERE requete, toujours sur « Connection terminated ». Zero echec
+    // par organisation, zero identite manquante — le cycle n'atteignait donc
+    // jamais le travail qu'il est cense faire. Une panne etiquetee
+    // « transitoire » qui se produit un cycle sur deux n'est plus transitoire.
+    //
+    // `withDbRetry` ne reessaie que les erreurs de CONNEXION, jamais une
+    // erreur SQL: une contrainte violee echoue toujours du premier coup, et
+    // une table absente tombe dans le repli ci-dessous sans etre rejouee.
+    return await withDbRetry(() => fn());
   } catch (err) {
     if (!isUndefinedTable(err)) throw err;
     const now = Date.now();
