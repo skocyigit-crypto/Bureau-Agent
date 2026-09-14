@@ -8,6 +8,8 @@ export interface DocumentMeta {
   path?: string;
   ogTitle?: string;
   ogDescription?: string;
+  /** Demande aux moteurs de ne pas indexer cette page (cf. PAGE_META.notFound). */
+  noindex?: boolean;
 }
 
 function setMetaTag(attr: "name" | "property", key: string, content: string) {
@@ -42,10 +44,22 @@ export function useDocumentMeta({
   path,
   ogTitle,
   ogDescription,
+  noindex,
 }: DocumentMeta): void {
   useEffect(() => {
     const fullTitle = composePageTitle(title);
     document.title = fullTitle;
+
+    // La balise est posee ET retiree. Sur une application monopage, le
+    // `<head>` survit a la navigation: une balise `noindex` laissee derriere
+    // soi apres un passage par la page d'erreur desindexerait ensuite les
+    // vraies pages. Le defaut qu'on corrige ici est deja un defaut de
+    // referencement; en introduire un pire serait sans excuse.
+    if (noindex) {
+      setMetaTag("name", "robots", "noindex, follow");
+    } else {
+      document.head.querySelector('meta[name="robots"]')?.remove();
+    }
 
     setMetaTag("name", "description", description);
     setMetaTag("property", "og:title", ogTitle || fullTitle);
@@ -58,5 +72,5 @@ export function useDocumentMeta({
       setMetaTag("property", "og:url", canonical);
       setCanonical(canonical);
     }
-  }, [title, description, path, ogTitle, ogDescription]);
+  }, [title, description, path, ogTitle, ogDescription, noindex]);
 }

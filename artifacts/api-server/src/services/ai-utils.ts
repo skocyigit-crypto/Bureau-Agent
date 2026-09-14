@@ -50,7 +50,18 @@ export const GEMINI_PRO_FALLBACK_MODEL =
  * Utilises par le flux temps-reel (ai-stream) et le conseil IA (ai-commandant).
  */
 export const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5.2";
-export const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
+// Generation courante.
+//
+// Le defaut precedent, `claude-sonnet-4-6`, avait un tarif PLUS ELEVE que son
+// successeur: 3 $ / 15 $ le million de jetons, contre 2 $ / 10 $ pour
+// `claude-sonnet-5`. Rester sur l'ancien coutait donc un tiers de plus pour un
+// modele moins capable.
+//
+// C'est le genre d'ecart qui ne se signale jamais de lui-meme: rien n'echoue,
+// rien n'alerte, la facture est simplement plus lourde a chaque appel. Un
+// defaut de configuration ne se voit qu'en allant comparer la valeur retenue a
+// ce qui existe — jamais en lisant le code.
+export const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
 // Modele court/bon marche : ping de validation de cle BYOK, classifications.
 // NE JAMAIS y remettre un modele Claude 3.x : ils sont retires depuis le
 // 19/02/2026 et repondent 404, ce que l UI presentait comme "cle invalide".
