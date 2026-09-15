@@ -135,6 +135,17 @@ steps:
     args:
       - -ceu
       - |
+        # ── Certificats ───────────────────────────────────────────────────
+        # Le proxy Cloud SQL est un binaire Go: il verifie les certificats
+        # avec le MAGASIN DU SYSTEME, et l'image `slim` n'en contient aucun.
+        # Node embarque le sien — c'est pourquoi le telechargement ci-dessous
+        # reussissait alors que la connexion du proxy tombait sur
+        # « x509: certificate signed by unknown authority », mesure le 15/09.
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -qq
+        apt-get install -y -qq --no-install-recommends ca-certificates
+        update-ca-certificates
+
         # Le proxy Cloud SQL, en binaire pur: il s'authentifie seul avec le
         # compte de service du build (serveur de metadonnees), sans cle.
         node -e "
@@ -145,15 +156,15 @@ steps:
             .on('error', e => { console.error(e); process.exit(1); });
         "
         chmod +x /workspace/cloud-sql-proxy
+
+        # Les dependances AVANT le tunnel: la verification de disponibilite
+        # ci-dessous fait une vraie requete, et a donc besoin du pilote.
+        corepack enable
+        corepack prepare pnpm@9.15.0 --activate
+        pnpm install --frozen-lockfile
+
         /workspace/cloud-sql-proxy --port 5432 "$PROJECT_ID:${_SQL_REGION}:${_SQL_INSTANCE}" &
         PROXY=$$!
-
-        # Attendre le tunnel plutot que de dormir un temps arbitraire.
-        for i in $$(seq 1 30); do
-          if node -e "require('net').connect(5432,'127.0.0.1',()=>process.exit(0)).on('error',()=>process.exit(1))"; then break; fi
-          if [ "$$i" = 30 ]; then echo "Le proxy Cloud SQL n'a pas ouvert le tunnel."; exit 1; fi
-          sleep 1
-        done
 
         # L'URL du secret vise la socket Cloud SQL telle que Cloud Run la monte.
         # On garde l'utilisateur, le mot de passe et la base; seul le point de
@@ -167,11 +178,30 @@ steps:
           process.stdout.write(m[1] + '://' + m[2] + ':' + m[3] + '@127.0.0.1:5432/' + (base || 'agent_de_bureau'));
         ")"
 
-        corepack enable
-        corepack prepare pnpm@9.15.0 --activate
-        pnpm install --frozen-lockfile
-
+        # Attendre la BASE, pas le port. Le proxy ouvre son ecoute locale
+        # immediatement, avant meme de savoir s'il peut joindre l'instance:
+        # une simple connexion TCP reussit donc alors que rien ne fonctionne.
+        # C'est exactement ce qui s'est produit le 15/09 — l'attente est
+        # passee, et l'echec est apparu trois lignes plus loin, sur la
+        # premiere migration. Une vraie requete ne peut pas mentir.
         cd lib/db
+        for i in $$(seq 1 30); do
+          if node -e "
+            const { Client } = require('pg');
+            const c = new Client({ connectionString: process.env.DATABASE_URL });
+            c.connect()
+              .then(() => c.query('select 1'))
+              .then(() => c.end())
+              .then(() => process.exit(0))
+              .catch(() => process.exit(1));
+          "; then break; fi
+          if [ "$$i" = 30 ]; then
+            echo "La base de production reste injoignable a travers le proxy."
+            exit 1
+          fi
+          sleep 2
+        done
+
         node ./scripts/ensure-search-extensions.mjs
         node ./scripts/ensure-unique-constraint-names.mjs
         node ./scripts/ensure-automation-logs-rule-id.mjs
