@@ -10,6 +10,7 @@ import {
   userLocationStateTable, locationEventsTable, googleOAuthTokensTable,
   securityScansTable,
   aiAgentReportsTable,
+  performanceReportsTable,
 } from "@workspace/db";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
@@ -51,7 +52,7 @@ router.get("/data-protection/summary", async (req, res): Promise<void> => {
     const orgId = req.session?.organisationId;
     if (!userId || !orgId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
-    const [users, contacts, calls, tasks, prospects, checkins, notes, scans, evaluations] = await Promise.all([
+    const [users, contacts, calls, tasks, prospects, checkins, notes, scans, evaluations, rapportsPerf] = await Promise.all([
       db.select({ count: sql<number>`count(*)::int` }).from(usersTable).where(eq(usersTable.organisationId, orgId)),
       db.select({ count: sql<number>`count(*)::int` }).from(contactsTable).where(eq(contactsTable.organisationId, orgId)),
       db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(eq(callsTable.organisationId, orgId)),
@@ -61,6 +62,7 @@ router.get("/data-protection/summary", async (req, res): Promise<void> => {
       db.select({ count: sql<number>`count(*)::int` }).from(notesInternesTable).where(eq(notesInternesTable.organisationId, orgId)),
       db.select({ count: sql<number>`count(*)::int` }).from(securityScansTable).where(eq(securityScansTable.organisationId, orgId)),
       db.select({ count: sql<number>`count(*)::int` }).from(aiAgentReportsTable).where(eq(aiAgentReportsTable.organisationId, orgId)),
+      db.select({ count: sql<number>`count(*)::int` }).from(performanceReportsTable).where(eq(performanceReportsTable.organisationId, orgId)),
     ]);
 
     const agreements = await db.select().from(legalAgreementsTable)
@@ -128,7 +130,7 @@ router.get("/data-protection/summary", async (req, res): Promise<void> => {
         //     ou significatifs ne doit reposer sur le seul traitement
         //     automatise. Le rapport est une aide a la decision, jamais la
         //     decision.
-        { category: "Évaluations automatisées de salariés", description: "Nom, rôle, service, score d'activité et diagnostic individuel produits par l'agent d'analyse d'équipe", count: evaluations[0]?.count || 0, retention: "Durée du contrat", legalBasis: "Intérêt légitime (Art. 6(1)(f)) — sous réserve de consultation du CSE (L2312-38), d'information préalable des salariés (L1222-4) et d'une AIPD", sensitive: true },
+        { category: "Évaluations automatisées de salariés", description: "Nom, rôle, service, score d'activité, heures travaillées, minutes de pause et diagnostic individuel — produits par l'agent d'analyse d'équipe et par l'analyseur de performance", count: (evaluations[0]?.count || 0) + (rapportsPerf[0]?.count || 0), retention: "Durée du contrat", legalBasis: "Intérêt légitime (Art. 6(1)(f)) — sous réserve de consultation du CSE (L2312-38), d'information préalable des salariés (L1222-4) et d'une AIPD", sensitive: true },
       ],
       legalDocuments: Object.entries(LEGAL_DOCUMENTS).map(([code, doc]) => {
         const agreement = agreements.find(a => a.documentType === code);
