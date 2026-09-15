@@ -136,7 +136,7 @@ function buildGroundedPrompt(
 // Seuls les hotes de redirection du grounding Google sont contactes cote
 // serveur. On ne fait JAMAIS de requete sortante vers une URL arbitraire issue
 // du modele (protection anti-SSRF).
-function isAllowedRedirectHost(host: string): boolean {
+export function isAllowedRedirectHost(host: string): boolean {
   const h = host.toLowerCase();
   return h === "vertexaisearch.cloud.google.com" || h.endsWith(".cloud.google.com");
 }
@@ -147,7 +147,7 @@ function isAllowedRedirectHost(host: string): boolean {
  * / .internal). Defense en profondeur: on ne requete jamais la destination,
  * mais on evite aussi de l'afficher / la scanner si elle pointe en interne.
  */
-function isUnsafeDestinationHost(host: string): boolean {
+export function isUnsafeDestinationHost(host: string): boolean {
   const h = host.toLowerCase().replace(/^\[|\]$/g, "");
   if (
     h === "localhost" ||
