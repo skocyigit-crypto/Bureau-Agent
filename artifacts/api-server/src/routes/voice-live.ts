@@ -30,6 +30,7 @@ import type { Request, Response } from "express";
 import { WebSocketServer, WebSocket } from "ws";
 import { GoogleGenAI, Modality, MediaResolution, type Session, type LiveServerMessage } from "@google/genai";
 import { logger } from "../lib/logger";
+import { originesWebSocket, originWebSocketAutorisee } from "../lib/origines-autorisees";
 import { sessionMiddleware } from "../app";
 import {
   executeTool,
@@ -386,27 +387,19 @@ function bindResumeHandle(handle: string, userId: number, orgId: number): void {
 export function attachVoiceLiveWs(server: Server): void {
   const wss = new WebSocketServer({ noServer: true });
 
-  // Allowlist d'origines pour CSRF protection sur l'upgrade WS. La
-  // verification du cookie de session n'est PAS suffisante seule
-  // (cross-origin WS peut etre initie par un site malveillant).
-  const allowedOrigins = new Set<string>();
-  const replitDomains = process.env.REPLIT_DOMAINS?.split(",") ?? [];
-  for (const d of replitDomains) {
-    const trimmed = d.trim();
-    if (trimmed) {
-      allowedOrigins.add(`https://${trimmed}`);
-      allowedOrigins.add(`http://${trimmed}`);
-    }
-  }
-  // En dev, autoriser localhost via le proxy.
-  if (process.env.NODE_ENV !== "production") {
-    allowedOrigins.add("http://localhost");
-    allowedOrigins.add("http://localhost:80");
-  }
-  const replitDevDomain = process.env.REPLIT_DEV_DOMAIN;
-  if (replitDevDomain) {
-    allowedOrigins.add(`https://${replitDevDomain}`);
-  }
+  // Allowlist d'origines pour la protection CSRF de l'upgrade WS. La
+  // verification du cookie de session n'est PAS suffisante seule: un WS
+  // cross-origin peut etre initie par un site malveillant.
+  //
+  // Elle etait construite ici, a la main, a partir de `REPLIT_DOMAINS` et
+  // `REPLIT_DEV_DOMAIN` uniquement. Ces variables n'existent pas sur Cloud
+  // Run — verifie sur le service de production, ou seules `ALLOWED_ORIGINS`
+  // et `PUBLIC_URL` sont definies. La liste etait donc VIDE, et la condition
+  // « size > 0 » qui la gardait rendait ce controle inerte en production.
+  //
+  // Elle vient maintenant de la meme source que CORS et le CSRF HTTP, et le
+  // refus est ferme par defaut (`originWebSocketAutorisee`).
+  const allowedOrigins = originesWebSocket();
 
   // L'upgrade HTTP arrive ici. On valide origin + session avant d'accepter
   // la connexion WS.
@@ -416,10 +409,14 @@ export function attachVoiceLiveWs(server: Server): void {
     // etc.) sont ignores ici — d'autres handlers peuvent les capter.
     if (!url.startsWith("/api/voice/live")) return;
 
-    // 1. Verification Origin (anti-CSRF).
+    // 1. Verification Origin (anti-CSRF), FERMEE PAR DEFAUT.
     const origin = req.headers.origin;
-    if (origin && allowedOrigins.size > 0 && !allowedOrigins.has(origin)) {
-      logger.warn({ url, origin }, "[VoiceLive] Upgrade rejected — origin not allowed");
+    const verdict = originWebSocketAutorisee(origin, allowedOrigins);
+    if (!verdict.ok) {
+      logger.warn(
+        { url, origin: origin ?? null, raison: verdict.raison },
+        "[VoiceLive] Upgrade rejete — origine",
+      );
       socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
       socket.destroy();
       return;
