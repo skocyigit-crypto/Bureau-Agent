@@ -1533,7 +1533,28 @@ export default function CalendarPage() {
                             {e.title}
                           </div>
                         ))}
-                        {events.length > (closureInfo ? 2 : 3) && <div className="text-[10px] text-muted-foreground pl-1">+{events.length - (closureInfo ? 2 : 3)}</div>}
+                        {events.length > (closureInfo ? 2 : 3) && (() => {
+                          // « +2 » seul ne dit pas ce qui est cache: ni combien
+                          // d'evenements, ni lesquels, ni qu'on peut les voir.
+                          // Le titre liste les intitules masques, et le libelle
+                          // s'accorde selon la langue (voir `cleFlechie`).
+                          const caches = events.slice(closureInfo ? 2 : 3);
+                          return (
+                            <div
+                              className="text-[10px] text-muted-foreground pl-1"
+                              title={caches.map((e: any) => e.title).join("\n")}
+                            >
+                              <span aria-hidden>
+                                {t("calendar.density.more", { count: caches.length })}
+                              </span>
+                              {/* Un lecteur d'ecran annonce la phrase complete:
+                                  « +2 » ne se prononce pas. */}
+                              <span className="sr-only">
+                                {t("calendar.density.hidden", { count: caches.length })}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </button>
                   );

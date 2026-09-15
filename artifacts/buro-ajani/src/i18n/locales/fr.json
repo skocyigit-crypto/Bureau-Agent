@@ -1253,6 +1253,12 @@
       "closedLabelNoAppt": "{{label}} — aucun rendez-vous possible ce jour.",
       "closedNoAppt": "Fermeture exceptionnelle — aucun rendez-vous possible ce jour.",
       "openError": "Impossible d'ouvrir cet evenement."
+    },
+    "density": {
+      "more_one": "+{{count}} autre",
+      "more_other": "+{{count}} autres",
+      "hidden_one": "{{count}} autre evenement non affiche",
+      "hidden_other": "{{count}} autres evenements non affiches"
     }
   },
   "tresorerie": {
