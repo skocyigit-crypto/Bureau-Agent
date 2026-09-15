@@ -1253,6 +1253,12 @@
       "closedLabelNoAppt": "{{label}} — no es posible ninguna cita este día.",
       "closedNoAppt": "Cierre excepcional — no es posible ninguna cita este día.",
       "openError": "No se puede abrir este evento."
+    },
+    "density": {
+      "more_one": "+{{count}} mas",
+      "more_other": "+{{count}} mas",
+      "hidden_one": "{{count}} evento mas no mostrado",
+      "hidden_other": "{{count}} eventos mas no mostrados"
     }
   },
   "tresorerie": {

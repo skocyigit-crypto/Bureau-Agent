@@ -1253,6 +1253,12 @@
       "closedLabelNoAppt": "{{label}} — bu gün randevu mümkün değil.",
       "closedNoAppt": "İstisnai kapanış — bu gün randevu mümkün değil.",
       "openError": "Bu etkinlik açılamıyor."
+    },
+    "density": {
+      "more_one": "+{{count}} daha",
+      "more_other": "+{{count}} daha",
+      "hidden_one": "gosterilmeyen {{count}} etkinlik",
+      "hidden_other": "gosterilmeyen {{count}} etkinlik"
     }
   },
   "tresorerie": {

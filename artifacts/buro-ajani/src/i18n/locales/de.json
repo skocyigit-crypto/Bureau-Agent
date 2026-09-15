@@ -1253,6 +1253,12 @@
       "closedLabelNoAppt": "{{label}} — an diesem Tag ist kein Termin möglich.",
       "closedNoAppt": "Außerordentliche Schließung — an diesem Tag ist kein Termin möglich.",
       "openError": "Dieses Ereignis kann nicht geöffnet werden."
+    },
+    "density": {
+      "more_one": "+{{count}} weiterer",
+      "more_other": "+{{count}} weitere",
+      "hidden_one": "{{count}} weiterer Termin nicht angezeigt",
+      "hidden_other": "{{count}} weitere Termine nicht angezeigt"
     }
   },
   "tresorerie": {

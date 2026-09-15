@@ -1253,6 +1253,18 @@
       "closedLabelNoAppt": "{{label}} — لا يمكن حجز موعد في هذا اليوم.",
       "closedNoAppt": "إغلاق استثنائي — لا يمكن حجز موعد في هذا اليوم.",
       "openError": "تعذر فتح هذا الحدث."
+    },
+    "density": {
+      "more_one": "+{{count}} آخر",
+      "more_two": "+{{count}} آخران",
+      "more_few": "+{{count}} أخرى",
+      "more_many": "+{{count}} أخرى",
+      "more_other": "+{{count}} أخرى",
+      "hidden_one": "{{count}} حدث آخر غير معروض",
+      "hidden_two": "{{count}} حدثان آخران غير معروضين",
+      "hidden_few": "{{count}} أحداث أخرى غير معروضة",
+      "hidden_many": "{{count}} حدثا آخر غير معروض",
+      "hidden_other": "{{count}} حدث آخر غير معروض"
     }
   },
   "tresorerie": {
