@@ -651,7 +651,27 @@ export async function generateContentFallback(params: any): Promise<any> {
       const res = await callWithTimeout(name, () => CALLERS[name](opts, messages, null));
       if (!res.text.trim()) throw new EmptyResponseError(`${name}: reponse vide`);
       noteSuccess(name);
-      logger.warn({ provider: name, apres: failures.join(" | ") }, "[ai-failover] reponse servie par un autre fournisseur");
+      // Le champ existait et restait VIDE dans la quasi-totalite des cas: il ne
+      // recense que les echecs des fournisseurs essayes ICI, or la chaine est
+      // entree APRES que le principal a echoue, et elle le saute. Quand le
+      // premier remplacant repond — le cas courant — il n'y a donc rien a
+      // afficher, et la seule ligne qui temoigne d'une bascule ne dit pas ce
+      // qui est tombe.
+      //
+      // Mesure: 1249 bascules en sept jours, aucune ne nommant sa cause. La
+      // raison etait pourtant connue — l'appelant la transmet a
+      // `noteProviderFailure` — et conservee dans l'etat du fournisseur. Elle
+      // ne faisait simplement pas le dernier pas jusqu'au journal.
+      const principal = providerHealth().find((h) => h.provider === "gemini");
+      logger.warn(
+        {
+          provider: name,
+          apres: failures.join(" | "),
+          tombe: principal?.failing || principal?.tripped ? "gemini" : undefined,
+          cause: principal?.reason ?? undefined,
+        },
+        "[ai-failover] reponse servie par un autre fournisseur",
+      );
       const shaped: any = {
         text: res.text,
         usageMetadata: {
