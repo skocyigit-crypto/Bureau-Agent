@@ -232,6 +232,83 @@ describe("la sonde ne lave pas une panne qu'elle n'a pas reproduite", () => {
   });
 });
 
+describe("l'ecriture peut etre ATTENDUE", () => {
+  // POURQUOI CE GROUPE EXISTE
+  //
+  // Cloud Run n'alloue du CPU que pendant le traitement d'une requete
+  // (`cpu-throttling=true`, verifie sur le service). Une ecriture lancee sans
+  // etre attendue se planifie pendant la requete et s'execute APRES la
+  // reponse — c'est-a-dire au moment precis ou l'instance est gelee. La
+  // promesse ne se resout jamais: ni ligne ecrite, ni `catch` declenche, ni
+  // journal.
+  //
+  // C'est ce qui a rendu ce module inoperant en production sans produire la
+  // moindre erreur, et ce que trois deploiements ont cherche ailleurs. Le
+  // meme piege est deja documente dans `health-agents-cron.ts`, qui a renonce
+  // a son minuteur interne pour cette raison exacte.
+  //
+  // En test, rien ne gele: un `void` passerait inapercu ici aussi. Ces tests
+  // verrouillent donc la SIGNATURE — une promesse est rendue, et l'appelant
+  // peut l'attendre — parce que c'est la seule chose qu'un test local puisse
+  // reellement prouver.
+
+  it("rend une promesse, meme quand l'ecriture est etranglee", async () => {
+    enregistrerObservation(FOURNISSEUR, false, "panne", 1);
+    const seconde = enregistrerObservation(FOURNISSEUR, false, "panne", 1);
+    expect(seconde, "l'etranglement rend `undefined`: impossible a attendre").toBeInstanceOf(
+      Promise,
+    );
+    await expect(seconde).resolves.toBeUndefined();
+  });
+
+  it("la promesse n'est tenue qu'une fois la ligne ecrite", async () => {
+    // Sans cela, attendre ne servirait a rien: on attendrait une promesse
+    // deja resolue pendant que l'ecriture, elle, partirait a la derive.
+    await enregistrerObservation(FOURNISSEUR, false, "429 credits depleted", 2);
+    const ligne = await lireLigne();
+    expect(
+      ligne,
+      "la promesse s'est resolue avant que la ligne n'existe",
+    ).toBeDefined();
+    expect(ligne.failures).toBe(2);
+  });
+
+  it("aucune ecriture n'est lancee sans etre rendue", async () => {
+    // GARDE STATIQUE, ET ELLE EST ASSUMEE COMME TELLE.
+    //
+    // Mesure par mutation: en remettant `void db.insert(...)` et en rendant
+    // une promesse deja resolue, les vingt-deux tests de ce fichier restent
+    // VERTS. C'est normal et ce n'est pas rattrapable autrement: en test rien
+    // ne gele, donc l'ecriture aboutit quand meme. Le defaut n'existe que
+    // sous Cloud Run, apres la reponse.
+    //
+    // Un test local ne peut donc pas prouver le comportement; il peut
+    // seulement interdire la FORME qui l'a cause. C'est un garde-fou plus
+    // faible qu'une verification de comportement, et il vaut mieux l'ecrire
+    // que de croire les autres tests suffisants.
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const source = readFileSync(
+      join(import.meta.dirname, "..", "services", "ai-provider-observations.ts"),
+      "utf8",
+    );
+    expect(
+      /\bvoid\s+db\b/.test(source),
+      "une ecriture non attendue ne s'executera jamais sous Cloud Run: " +
+        "l'instance est gelee des la reponse envoyee.",
+    ).toBe(false);
+  });
+
+  it("le relai d'echec passe par la meme promesse", async () => {
+    // `noteFailure` rend desormais cette promesse, et les chemins de bascule
+    // l'attendent. Si la signature redevenait `void`, ce test tomberait.
+    const { noteProviderFailure } = await import("../services/ai-failover");
+    const rendu = noteProviderFailure("gemini", "429 test");
+    expect(rendu, "`noteProviderFailure` ne rend plus de promesse").toBeInstanceOf(Promise);
+    await rendu;
+  });
+});
+
 describe("l'ecriture est etranglee", () => {
   it("deux echecs d'affilee n'ecrivent qu'une fois", () => {
     // Ce relai est traverse a chaque appel d'IA. Sans etranglement, la

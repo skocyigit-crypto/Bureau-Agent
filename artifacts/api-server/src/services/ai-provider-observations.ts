@@ -106,7 +106,7 @@ export function enregistrerObservation(
   reason: string | null,
   failures: number,
   origine: Origine = "trafic",
-): void {
+): Promise<void> {
   // Une sonde qui passe n'est pas un succes: c'est un signe de vie.
   //
   // Elle demande quatre jetons de sortie et passe sur un compte sans credit
@@ -118,8 +118,8 @@ export function enregistrerObservation(
   const sondeQuiPasse = origine === "sonde" && ok;
 
   const etat: "ok" | "ko" = ok ? "ok" : "ko";
-  if (!sondeQuiPasse && !doitEcrire(provider, etat)) return;
-  if (sondeQuiPasse && !doitEcrire(provider, "sonde-ok")) return;
+  if (!sondeQuiPasse && !doitEcrire(provider, etat)) return Promise.resolve();
+  if (sondeQuiPasse && !doitEcrire(provider, "sonde-ok")) return Promise.resolve();
   derniereEcriture.set(provider, Date.now());
   dernierEtatEcrit.set(provider, sondeQuiPasse ? "sonde-ok" : etat);
   cache = null;
@@ -134,7 +134,24 @@ export function enregistrerObservation(
     failures: ok ? 0 : failures,
   };
 
-  void db
+  // LA PROMESSE EST RENDUE, PAS JETEE AU VENT.
+  //
+  // Elle etait precedee d'un `void`, et c'est ce qui a rendu tout ce module
+  // inoperant en production sans produire la moindre erreur.
+  //
+  // Cloud Run n'alloue du CPU que pendant le traitement d'une requete
+  // (`cpu-throttling=true`, verifie sur le service). Une ecriture lancee sans
+  // etre attendue se planifie pendant la requete et s'execute APRES la
+  // reponse — c'est-a-dire au moment precis ou l'instance est gelee. La
+  // promesse ne se resout jamais: ni ligne ecrite, ni `catch` declenche, ni
+  // journal. Trois deploiements ont cherche ailleurs.
+  //
+  // Le meme piege est deja documente dans `health-agents-cron.ts`, qui a
+  // renonce a son minuteur interne pour cette raison exacte.
+  //
+  // Le cout d'attendre reste borne par l'etranglement: au plus un `upsert`
+  // par fournisseur et par minute, sur une ligne unique.
+  return db
     .insert(aiProviderObservationsTable)
     .values(valeurs)
     .onConflictDoUpdate({
@@ -179,7 +196,10 @@ export function enregistrerObservation(
         { err: err instanceof Error ? err.message : String(err), provider },
         "[ai-observations] ecriture de l'observation impossible: la supervision est aveugle",
       );
-    });
+    })
+    // Le resultat de l'upsert n'interesse personne: seul compte le fait que
+    // l'ecriture soit TERMINEE avant que l'instance ne soit gelee.
+    .then(() => undefined);
 }
 
 /**
