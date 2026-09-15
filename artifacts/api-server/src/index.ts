@@ -130,49 +130,90 @@ async function startServer(): Promise<void> {
     onGeminiModelFallback((ev) => {
       void recordModelFallbackSuggestion({ from: ev.from, to: ev.to });
     });
-    ensureSuperAdmin().catch(err => logger.error({ err }, "Erreur seed admin"));
-    void ensureAuditAppendOnly();
-    void ensureUserQuotaTrigger();
-    startAutoBackup();
-    startAutomationEngine();
-    startGoogleAutoPointage();
-    // Sauvegarde automatique vers Google Drive desactivee explicitement (choix
-    // client) : les donnees plateforme ne doivent pas transiter par un compte
-    // Google externe. Ne pas reactiver sans consigne explicite du client.
-    startDataProtectionMonitor();
-    startAiUsagePurgeJob();
-    // Applique la duree de conservation annoncee pour les enregistrements
-    // d'appel: elle etait publiee sans qu'aucun traitement ne l'applique.
-    void startRetentionCron();
-    startAiCachePurgeJob();
-    startBillingCron();
-    startQuotaWarningCron();
-    startTrialWarningCron();
-    // Cloture comptable: la conservation exigee par l article 286-I-3 bis du
-    // CGI n est pas « le logiciel PEUT clore » mais « le logiciel clot ».
-    // Compter sur un artisan pour cliquer chaque soir n est pas un dispositif.
-    startClotureCron();
-    startAiInsightsCron();
-    startTenantBackupCron();
-    startLocationCleanupCron();
-    startAccountRetentionCron();
-    startPaymentMatchingCron();
-    startSecurityDigestCron();
-    startProactiveEngine();
-    startAiLearning();
-    startAutonomousSecretaryCron();
-    startSuperAgentCron();
-    startAutonomousInboxCron();
-    startDailyDigestCron();
-    startInvoiceReminderCron();
-    startSaasAgentCron();
-    startAppAuditCron();
-    startHealthAgentsCron();
-    startAgentAutoRunScheduler();
-    startWebhookEngine();
-    startPushNotifications();
-    startEventBus();
-    startAppointmentReminderCron();
+    // ── Amorcage base de donnees: EN SERIE, avant le reste ───────────────
+    //
+    // Ces trois taches etaient lancees en parallele, au milieu d'une
+    // trentaine d'autres demarrages qui touchent eux aussi la base. Le pool
+    // vaut HUIT connexions par instance (`DB_POOL_MAX`), avec une attente
+    // plafonnee a dix secondes: au-dela de huit demandeurs simultanes, les
+    // suivants font la queue puis abandonnent sur
+    // « timeout exceeded when trying to connect ».
+    //
+    // Mesure du 15/09, sur le demarrage de 15h54 — huit echecs etales sur
+    // soixante secondes, tous a la connexion:
+    //
+    //     15:54:27  [audit] failed to install append-only triggers
+    //     15:54:54  [security] failed to install user-quota trigger
+    //     15:55:06  [cloture] echec du passage
+    //     15:55:11  Erreur seed admin + [AutoBackup] Erreur critique
+    //     15:55:17  [ai-utils] Purge ai_usage failed
+    //     15:55:23  deux ticks de cron
+    //
+    // Ce n'est pas propre a ce demarrage: la meme rafale s'est produite a
+    // 12h42 (douze echecs). Elle est intermittente — elle depend de l'ordre
+    // d'arrivee — ce qui la rend invisible la plupart du temps.
+    //
+    // Les deux premieres posent du DDL, qui prend des verrous et dure: les
+    // laisser se battre avec vingt-cinq autres taches pour huit connexions
+    // etait le pire arrangement possible. En serie, elles prennent une
+    // connexion a la fois et liberent le pool pour la suite. Le serveur HTTP
+    // ecoute deja: ce sequencement ne retarde aucune requete utilisateur.
+    const amorcageBase = ensureSuperAdmin()
+      .catch((err: unknown) => logger.error({ err }, "Erreur seed admin"))
+      .then(() => ensureAuditAppendOnly())
+      .then(() => ensureUserQuotaTrigger())
+      .catch((err: unknown) =>
+        logger.error({ err }, "[demarrage] amorcage base incomplet"),
+      );
+
+    // Le RESTE attend cet amorcage. Sans cela, le sequencement ci-dessus ne
+    // servirait a rien: les vingt-cinq demarrages suivants se disputeraient
+    // les memes huit connexions pendant que le DDL les tient.
+    void amorcageBase.then(() => {
+      startAutoBackup();
+      startAutomationEngine();
+      startGoogleAutoPointage();
+      // Sauvegarde automatique vers Google Drive desactivee explicitement (choix
+      // client) : les donnees plateforme ne doivent pas transiter par un compte
+      // Google externe. Ne pas reactiver sans consigne explicite du client.
+      startDataProtectionMonitor();
+      startAiUsagePurgeJob();
+      // Applique la duree de conservation annoncee pour les enregistrements
+      // d'appel: elle etait publiee sans qu'aucun traitement ne l'applique.
+      void startRetentionCron();
+      startAiCachePurgeJob();
+      startBillingCron();
+      startQuotaWarningCron();
+      startTrialWarningCron();
+      // Cloture comptable: la conservation exigee par l article 286-I-3 bis du
+      // CGI n est pas « le logiciel PEUT clore » mais « le logiciel clot ».
+      // Compter sur un artisan pour cliquer chaque soir n est pas un dispositif.
+      startClotureCron();
+      startAiInsightsCron();
+      startTenantBackupCron();
+      startLocationCleanupCron();
+      startAccountRetentionCron();
+      startPaymentMatchingCron();
+      startSecurityDigestCron();
+      startProactiveEngine();
+      startAiLearning();
+      startAutonomousSecretaryCron();
+      startSuperAgentCron();
+      startAutonomousInboxCron();
+      startDailyDigestCron();
+      startInvoiceReminderCron();
+      startSaasAgentCron();
+      startAppAuditCron();
+      startHealthAgentsCron();
+      startAgentAutoRunScheduler();
+      startWebhookEngine();
+      startPushNotifications();
+      startEventBus();
+      startAppointmentReminderCron();
+    });
+
+    // Hors chaine: le point d entree WebSocket ne touche pas la base et ne
+    // doit pas attendre.
     attachVoiceLiveWs(server);
   });
 
