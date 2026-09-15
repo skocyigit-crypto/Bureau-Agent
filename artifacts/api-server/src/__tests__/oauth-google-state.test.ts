@@ -46,6 +46,7 @@ process.env.DATABASE_URL =
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import crypto from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -141,9 +142,15 @@ describe("la signature du state", () => {
       nonce: "abc",
     };
     const corps = Buffer.from(JSON.stringify(vieux)).toString("base64url");
-    const crypto = require("node:crypto");
+    // Le secret est pose en tete de fichier; on le lit dans une constante
+    // verifiee plutot que d'ecrire `process.env.SESSION_SECRET` directement.
+    // Un `require("node:crypto")` non type acceptait un `undefined` en
+    // silence: le test aurait alors signe avec « rien » et verifie « rien »,
+    // c'est-a-dire passe sans rien prouver.
+    const secret = process.env.SESSION_SECRET;
+    expect(secret, "SESSION_SECRET absent: le test ne prouverait rien").toBeTruthy();
     const sig = crypto
-      .createHmac("sha256", process.env.SESSION_SECRET)
+      .createHmac("sha256", secret!)
       .update(corps)
       .digest("base64url");
     expect(verifyOAuthState(`${corps}.${sig}`)).toBeNull();
