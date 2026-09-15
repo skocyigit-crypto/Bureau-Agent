@@ -1,9 +1,31 @@
 import { Router, type IRouter } from "express";
 import { generatePerformanceReport, getPerformanceHistory, gatherUserMetrics } from "../services/performance-analyzer";
+import { requireRole } from "../middleware/auth";
+import { logAudit } from "./audit";
 
 const router: IRouter = Router();
 
-router.get("/performance/metriques", async (req, res): Promise<void> => {
+/**
+ * Le rapport de performance porte sur des PERSONNES.
+ *
+ * Il agrege, pour chaque salarie de l organisation: actions, connexions,
+ * taches, appels, pointages, HEURES TRAVAILLEES et MINUTES DE PAUSE. C est
+ * une mesure de l activite individuelle, et la duree des pauses en fait une
+ * mesure du temps de travail.
+ *
+ * L interface reservait deja ces ecrans aux responsables — App.tsx:
+ * `withRoleGate(PerformancePage, ADMIN_ROLES)`. Le serveur, lui, ne
+ * verifiait que l authentification: n importe quel compte, y compris
+ * `lecture_seule`, pouvait appeler ces routes directement et obtenir les
+ * heures et les pauses de tous ses collegues — export CSV compris.
+ *
+ * Une regle appliquee d un seul cote n est pas une regle. C est meme le
+ * defaut le plus courant de ce depot: le garde-fou existe, il manque la ou
+ * il compte.
+ */
+const reserveAuxResponsables = requireRole("super_admin", "administrateur");
+
+router.get("/performance/metriques", reserveAuxResponsables, async (req, res): Promise<void> => {
   const userId = req.session?.userId;
   const orgId = req.session?.organisationId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
@@ -33,7 +55,7 @@ router.get("/performance/metriques", async (req, res): Promise<void> => {
   }
 });
 
-router.post("/performance/rapport", async (req, res): Promise<void> => {
+router.post("/performance/rapport", reserveAuxResponsables, async (req, res): Promise<void> => {
   const userId = req.session?.userId;
   const orgId = req.session?.organisationId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
@@ -45,6 +67,24 @@ router.post("/performance/rapport", async (req, res): Promise<void> => {
 
   try {
     const rapport = await generatePerformanceReport(p, orgId, employeId || undefined);
+
+    // Meme trace que l'agent d'equipe (#154), pour la meme raison: une
+    // evaluation nominative de salaries doit pouvoir etre expliquee — qui
+    // l'a demandee, quand, et sur qui. C'est l'article 5.2 du RGPD, et
+    // l'absence de reponse est elle-meme le manquement.
+    await logAudit(
+      userId,
+      req.session?.userEmail,
+      "performance_report_generated",
+      "evaluation_salaries",
+      String(orgId),
+      { periode: p, employeId: employeId || null },
+      req.ip,
+      req.get("user-agent"),
+    ).catch((err: unknown) => {
+      req.log.warn({ err }, "[performance] trace d'audit non ecrite");
+    });
+
     res.json(rapport);
   } catch (err: any) {
     req.log.error({ err }, "Erreur generation rapport performance");
@@ -52,7 +92,7 @@ router.post("/performance/rapport", async (req, res): Promise<void> => {
   }
 });
 
-router.get("/performance/historique", async (req, res): Promise<void> => {
+router.get("/performance/historique", reserveAuxResponsables, async (req, res): Promise<void> => {
   const userId = req.session?.userId;
   const orgId = req.session?.organisationId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
@@ -68,7 +108,7 @@ router.get("/performance/historique", async (req, res): Promise<void> => {
   }
 });
 
-router.get("/performance/metriques/export/csv", async (req, res): Promise<void> => {
+router.get("/performance/metriques/export/csv", reserveAuxResponsables, async (req, res): Promise<void> => {
   const orgId = req.session?.organisationId;
   const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
