@@ -33,6 +33,7 @@
  * n'aiderait pas, et avaler l'erreur cacherait un vrai defaut.
  */
 import { logger } from "../lib/logger";
+import { enregistrerObservation, lireObservationsPartagees } from "./ai-provider-observations";
 import { resolveAiAccess } from "./ai-key-policy";
 import { getOrgGeminiClient, getOrgOpenAIClient, getOrgAnthropicClient } from "./ai-providers";
 import { assertAiQuota, invalidateQuotaCache } from "./ai-quota";
@@ -164,6 +165,11 @@ function noteFailure(name: AiProviderName, reason: string): void {
   s.lastReason = reason.slice(0, 200);
   s.failures += 1;
   providerStates.set(name, s);
+  // Cette memoire est celle d'UNE instance. Sans ce relai, une panne vue ici
+  // reste invisible a l'instance qui fait tourner la supervision — mesure le
+  // 15/09: douze refus de Gemini, quatre passages de l'agent de sante, aucun
+  // constat. L'ecriture est etranglee et ne jette jamais.
+  enregistrerObservation(name, false, s.lastReason, s.failures);
 }
 
 function noteSuccess(name: AiProviderName): void {
@@ -174,6 +180,7 @@ function noteSuccess(name: AiProviderName): void {
   s.failures = 0;
   s.lastReason = null;
   providerStates.set(name, s);
+  enregistrerObservation(name, true, null, 0);
 }
 
 /**
@@ -328,6 +335,54 @@ export function providerHealth(): ProviderHealth[] {
       reason: failing ? (s?.lastReason ?? null) : null,
       failures: s?.failures ?? 0,
       lastSeenMs: lastSeen(s) === null ? null : Date.now() - lastSeen(s)!,
+    };
+  });
+}
+
+/**
+ * Etat de chaque fournisseur vu par TOUTES les instances.
+ *
+ * `providerHealth()` ne connait que la memoire de l'instance qui l'appelle.
+ * C'est suffisant pour decider d'une bascule — la decision se prend la ou
+ * l'appel a lieu — mais pas pour superviser: le 15/09, Gemini a refuse douze
+ * appels pendant que l'agent de sante, sur une autre instance, rapportait les
+ * fournisseurs comme disponibles.
+ *
+ * La regle de fusion est la plus recente observation: si la base dit qu'un
+ * echec est survenu apres le dernier succes connu localement, le fournisseur
+ * est en panne, meme si cette instance-ci n'a rien vu.
+ *
+ * Si la base est injoignable, on retombe sur la memoire locale — degradee,
+ * mais jamais faussement rassurante: `lireObservationsPartagees` renvoie une
+ * liste vide plutot qu'un etat sain invente.
+ */
+export async function providerHealthPartagee(): Promise<ProviderHealth[]> {
+  const local = providerHealth();
+  const partagees = await lireObservationsPartagees();
+  if (partagees.length === 0) return local;
+
+  const parNom = new Map(partagees.map((o) => [o.provider, o]));
+  const maintenant = Date.now();
+
+  return local.map((h) => {
+    const o = parNom.get(h.provider);
+    if (!o) return h;
+
+    const s = providerStates.get(h.provider);
+    const echecA = Math.max(s?.lastFailureAt ?? 0, o.lastFailureAt ?? 0) || null;
+    const succesA = Math.max(s?.lastSuccessAt ?? 0, o.lastSuccessAt ?? 0) || null;
+    const failing = !!echecA && (!succesA || succesA < echecA);
+    const vuA = Math.max(echecA ?? 0, succesA ?? 0) || null;
+
+    return {
+      ...h,
+      failing,
+      sinceMs: failing && echecA ? maintenant - echecA : null,
+      reason: failing ? (o.lastReason ?? h.reason) : null,
+      // Le compteur local l'emporte quand il est plus eleve: il reflete ce que
+      // cette instance a reellement encaisse.
+      failures: Math.max(h.failures, o.failures),
+      lastSeenMs: vuA === null ? null : maintenant - vuA,
     };
   });
 }

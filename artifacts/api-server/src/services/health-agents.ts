@@ -615,7 +615,7 @@ const aiProvidersAgent: HealthAgent = {
     const results: CheckResult[] = [];
 
     results.push(await safeCheck("ai_provider_availability", async () => {
-      const { providerHealth, probeStaleProviders } = await import("./ai-failover");
+      const { providerHealthPartagee, probeStaleProviders } = await import("./ai-failover");
 
       // Sonder AVANT de lire: la bascule s'arrete au premier fournisseur qui
       // repond, donc les recours suivants ne sont jamais appeles tant que le
@@ -624,7 +624,12 @@ const aiProvidersAgent: HealthAgent = {
       // verifiee.
       await probeStaleProviders();
 
-      const states = providerHealth();
+      // PARTAGEE, et non locale: la memoire de sante est propre a chaque
+      // instance Cloud Run, et celle qui fait tourner cet agent n'est pas
+      // forcement celle qui a encaisse les refus. Le 15/09, douze refus de
+      // Gemini et quatre passages de cet agent ont coexiste sans qu'un seul
+      // constat ne soit produit.
+      const states = await providerHealthPartagee();
       const failing = states.filter((s) => s.failing);
       const healthy = states.filter((s) => !s.failing && s.failures === 0);
 
