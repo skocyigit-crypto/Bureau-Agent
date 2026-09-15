@@ -50,18 +50,26 @@ export const GEMINI_PRO_FALLBACK_MODEL =
  * Utilises par le flux temps-reel (ai-stream) et le conseil IA (ai-commandant).
  */
 export const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5.2";
-// Generation courante.
+// Modele Anthropic.
 //
-// Le defaut precedent, `claude-sonnet-4-6`, avait un tarif PLUS ELEVE que son
-// successeur: 3 $ / 15 $ le million de jetons, contre 2 $ / 10 $ pour
-// `claude-sonnet-5`. Rester sur l'ancien coutait donc un tiers de plus pour un
-// modele moins capable.
+// NE PAS passer a `claude-sonnet-5` sans mesurer. Le changement a ete tente le
+// 14/09/2026 pour la raison qui parait imparable — la generation suivante est
+// MOINS CHERE (2 $ / 10 $ le million de jetons contre 3 $ / 15 $) autant que
+// plus capable.
 //
-// C'est le genre d'ecart qui ne se signale jamais de lui-meme: rien n'echoue,
-// rien n'alerte, la facture est simplement plus lourde a chaque appel. Un
-// defaut de configuration ne se voit qu'en allant comparer la valeur retenue a
-// ce qui existe — jamais en lisant le code.
-export const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
+// L'agent de sante a rapporte « anthropic indisponible » au cycle suivant, dix
+// minutes apres la bascule, et a chaque cycle ensuite; avant la bascule,
+// anthropic n'avait jamais ete signale. Les appels basculaient sur OpenAI. Le
+// produit continuait de repondre — c'est le repli qui a masque la panne — mais
+// la chaine avait perdu un maillon, et la depense s'etait deplacee vers le
+// fournisseur le plus cher.
+//
+// La lecon n'est pas « ce modele ne marche pas »: elle est qu'un tarif et un
+// numero de version ne disent RIEN de ce que cette cle, ce compte et cette
+// region servent reellement. Avant de rebasculer: changer, attendre deux
+// cycles de l'agent de sante (40 min), et verifier que ni « anthropic
+// indisponible » ni un repli vers OpenAI n'apparaissent.
+export const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
 // Modele court/bon marche : ping de validation de cle BYOK, classifications.
 // NE JAMAIS y remettre un modele Claude 3.x : ils sont retires depuis le
 // 19/02/2026 et repondent 404, ce que l UI presentait comme "cle invalide".
