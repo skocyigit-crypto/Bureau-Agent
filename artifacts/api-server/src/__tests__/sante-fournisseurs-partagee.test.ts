@@ -163,6 +163,75 @@ describe("une autre instance voit la panne", () => {
   });
 });
 
+describe("la sonde ne lave pas une panne qu'elle n'a pas reproduite", () => {
+  it("un succes de sonde n'efface pas l'echec du trafic reel", async () => {
+    // LE DEFAUT, MESURE APRES UNE PREMIERE CORRECTION INSUFFISANTE.
+    //
+    // Rendre l'observation partagee ne suffisait pas: l'agent de sante SONDE
+    // juste avant de lire. La sonde demande quatre jetons de sortie et passe
+    // sur un compte sans credit qui refuse tout appel utile — le 15/09, zero
+    // sonde en echec pour seize bascules reelles. Traitee comme un succes,
+    // elle effacait le compteur d'echecs quatre secondes avant la lecture: la
+    // supervision detruisait la preuve qu'elle allait rapporter.
+    enregistrerObservation(FOURNISSEUR, false, "429 credits depleted", 3);
+    await laisserEcrire();
+
+    enregistrerObservation(FOURNISSEUR, true, null, 0, "sonde");
+    await new Promise((r) => setTimeout(r, 250));
+
+    const ligne = await lireLigne();
+    expect(ligne.lastFailureAt, "l'echec reel a ete efface par une sonde").toBeTruthy();
+    expect(ligne.lastSuccessAt, "une sonde a ete comptee comme un appel reussi").toBeNull();
+    expect(ligne.failures, "le compteur d'echecs a ete remis a zero par une sonde").toBe(3);
+    expect(ligne.lastReason).toContain("credits");
+  });
+
+  it("elle laisse tout de meme un signe de vie", async () => {
+    // Sans cela, la sonde ne servirait plus a rien: un recours jamais appele
+    // resonderait a chaque cycle, et « jamais vu » resterait indiscernable de
+    // « vu et muet ».
+    enregistrerObservation(FOURNISSEUR, true, null, 0, "sonde");
+    await laisserEcrire();
+    const ligne = await lireLigne();
+    expect(ligne.lastProbeSuccessAt).toBeTruthy();
+  });
+
+  it("un vrai succes, lui, lave la panne", async () => {
+    // La symetrie compte: seul un appel UTILE prouve qu'un fournisseur sert.
+    enregistrerObservation(FOURNISSEUR, false, "429 credits depleted", 3);
+    await laisserEcrire();
+    enregistrerObservation(FOURNISSEUR, true, null, 0, "trafic");
+    await new Promise((r) => setTimeout(r, 250));
+
+    const ligne = await lireLigne();
+    expect(ligne.lastSuccessAt).toBeTruthy();
+    expect(ligne.failures).toBe(0);
+    expect(ligne.lastReason).toBeNull();
+  });
+
+  it("un echec de sonde compte comme un echec reel", async () => {
+    // L'invite de la sonde est fixe et connue pour valide: si elle echoue, la
+    // cause est du cote du fournisseur, quelle qu'elle soit.
+    //
+    // La ligne existe DEJA quand l'echec arrive, et ce detail est le test.
+    // Une premiere version partait d'une table vide: le chemin `INSERT`
+    // remplissait `lastFailureAt` a partir du seul booleen, si bien qu'un
+    // mutant confondant a nouveau sonde et trafic restait invisible. C'est le
+    // chemin `ON CONFLICT` qui porte la regle, donc c'est lui qu'il faut
+    // emprunter.
+    enregistrerObservation(FOURNISSEUR, true, null, 0, "sonde");
+    await laisserEcrire();
+
+    enregistrerObservation(FOURNISSEUR, false, "sonde: 503", 1, "sonde");
+    await new Promise((r) => setTimeout(r, 250));
+
+    const ligne = await lireLigne();
+    expect(ligne.lastFailureAt, "un echec de sonde a ete traite comme un signe de vie").toBeTruthy();
+    expect(ligne.failures).toBe(1);
+    expect(ligne.lastReason).toContain("503");
+  });
+});
+
 describe("l'ecriture est etranglee", () => {
   it("deux echecs d'affilee n'ecrivent qu'une fois", () => {
     // Ce relai est traverse a chaque appel d'IA. Sans etranglement, la
