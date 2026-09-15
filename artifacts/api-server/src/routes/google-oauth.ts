@@ -33,7 +33,7 @@ const router = Router();
  *
  * Duree de vie courte: un state ne doit servir qu'a un aller-retour immediat.
  */
-const OAUTH_STATE_TTL_MS = 15 * 60 * 1000;
+export const OAUTH_STATE_TTL_MS = 15 * 60 * 1000;
 
 function oauthStateSecret(): string {
   const secret = process.env.SESSION_SECRET || process.env.JWT_SECRET;
@@ -49,7 +49,7 @@ interface OAuthStatePayload {
   nonce: string;
 }
 
-function signOAuthState(input: { userId: number; orgId: number | null; services: string[] }): string {
+export function signOAuthState(input: { userId: number; orgId: number | null; services: string[] }): string {
   const payload: OAuthStatePayload = {
     userId: input.userId,
     orgId: input.orgId,
@@ -63,7 +63,7 @@ function signOAuthState(input: { userId: number; orgId: number | null; services:
 }
 
 /** Retourne le payload si la signature est valide et le state non expire, sinon null. */
-function verifyOAuthState(state: string): OAuthStatePayload | null {
+export function verifyOAuthState(state: string): OAuthStatePayload | null {
   try {
     const [body, sig] = state.split(".");
     if (!body || !sig) return null;
@@ -251,10 +251,41 @@ googleOAuthCallbackRouter.get("/callback", async (req, res): Promise<void> => {
       return;
     }
 
-    // La session reste prioritaire quand elle est presente (cas nominal), le
-    // state signe sert de repli fiable.
-    const userId = req.session?.userId ?? verified.userId;
-    const orgId = req.session?.organisationId ?? verified.orgId ?? null;
+    // LE STATE FAIT AUTORITE. La session ne peut que le CONFIRMER.
+    //
+    // L'ordre precedent etait `req.session?.userId ?? verified.userId`: la
+    // session primait, le state ne servait que de repli. Cela annulait la
+    // raison d'etre du state signe, qui est de lier ce retour a l'utilisateur
+    // qui a REELLEMENT lance l'autorisation.
+    //
+    // Le scenario, sur une route GET sans jeton CSRF:
+    //
+    //   1. l'attaquant lance le flux pour LUI, obtient un `code` Google
+    //      valide et un `state` signe a son nom;
+    //   2. il envoie a la victime un lien vers ce callback portant SES `code`
+    //      et `state`;
+    //   3. la victime est connectee, son cookie part avec la navigation;
+    //   4. `verified` designe l'attaquant, mais `req.session.userId` designe
+    //      la victime — et c'est la session qui gagnait.
+    //
+    // Les jetons Google de l'ATTAQUANT etaient alors enregistres sur le
+    // compte de la VICTIME. Tout ce que l'application pousse ensuite vers
+    // Google — sauvegardes Drive, evenements d'agenda, messages — partait
+    // vers le compte de l'attaquant. Rien n'apparaissait comme une erreur:
+    // la victime voyait « Google connecte ».
+    //
+    // Une session qui contredit le state n'est donc pas une preference a
+    // arbitrer, c'est un signe d'attaque: on refuse.
+    if (req.session?.userId && req.session.userId !== verified.userId) {
+      logger.warn(
+        { sessionUserId: req.session.userId, stateUserId: verified.userId },
+        "[google-oauth] callback refuse: la session ne correspond pas au state signe",
+      );
+      res.redirect(`${baseUrl}parametres?google_error=invalid_state`);
+      return;
+    }
+    const userId = verified.userId;
+    const orgId = verified.orgId ?? req.session?.organisationId ?? null;
     // Memes identifiants globaux que /auth-url.
     const oauth2Client = await getOAuth2ClientForOrg(orgId);
     if (!oauth2Client) {
