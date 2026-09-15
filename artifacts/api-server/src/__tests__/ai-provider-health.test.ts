@@ -30,10 +30,25 @@ import { selectAlertableChecks } from "../services/health-alert";
  * et cette alerte-la doit partir.
  */
 
-const health = vi.hoisted(() => ({ states: [] as any[] }));
+const health = vi.hoisted(() => ({ states: [] as any[], lecturesLocales: 0, lecturesPartagees: 0 }));
 
 vi.mock("../services/ai-failover", () => ({
-  providerHealth: () => health.states,
+  // L'agent doit lire la vue PARTAGEE, pas la memoire de son instance.
+  //
+  // La memoire de sante est propre a chaque instance Cloud Run, et celle qui
+  // fait tourner cet agent n'est pas forcement celle qui a encaisse les
+  // refus. Mesure du 15/09: douze refus de Gemini et quatre passages de cet
+  // agent ont coexiste sans qu'un seul constat ne soit produit. Les deux
+  // compteurs ci-dessous rendent ce choix verifiable au lieu de reposer sur
+  // le nom de la fonction appelee.
+  providerHealthPartagee: async () => {
+    health.lecturesPartagees += 1;
+    return health.states;
+  },
+  providerHealth: () => {
+    health.lecturesLocales += 1;
+    return health.states;
+  },
   // L'agent sonde avant de lire, sinon il affirmerait une disponibilite qu'il
   // n'a pas verifiee. Ici les etats sont fournis directement: la sonde n'a
   // rien a apprendre et ne doit surtout pas appeler de fournisseur.
@@ -125,5 +140,27 @@ describe("agent de sante des fournisseurs IA", () => {
     health.states = [state("gemini", true, "credits depleted"), state("anthropic", true, "quota"), state("openai", false)];
     const { result } = await runAndSelect();
     expect(result.remediation).toMatch(/recharger/i);
+  });
+
+  it("lit la vue partagee entre instances, pas sa memoire locale", async () => {
+    // La panne du 15/09 tient entierement dans cette ligne. L'agent lisait la
+    // `Map` de son propre processus; les refus avaient ete encaisses ailleurs.
+    // Il rapportait « fournisseurs disponibles » sans rien avoir vu — et il
+    // avait raison, de son point de vue, ce qui est precisement le probleme.
+    //
+    // Revenir a `providerHealth()` ferait tomber ce test, et lui seul: c'est
+    // un changement d'une ligne, qui ne casse rien d'autre et qui rouvrirait
+    // une cecite ayant deja coute une journee puis une matinee.
+    health.lecturesPartagees = 0;
+    health.lecturesLocales = 0;
+    health.states = [state("gemini", true, "credits depleted"), state("anthropic", false), state("openai", false)];
+
+    await runAndSelect();
+
+    expect(health.lecturesPartagees, "l'agent n'a pas consulte l'etat partage").toBeGreaterThan(0);
+    expect(
+      health.lecturesLocales,
+      "l'agent lit encore la memoire de sa seule instance",
+    ).toBe(0);
   });
 });
