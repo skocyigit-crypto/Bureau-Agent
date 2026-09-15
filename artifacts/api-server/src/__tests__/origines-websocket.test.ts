@@ -189,12 +189,14 @@ describe("le point d'entree WebSocket utilise bien cette source", () => {
     expect(source).toContain("originWebSocketAutorisee");
   });
 
-  it("la condition permissive `size > 0` a disparu", () => {
+  it("la condition permissive `size > 0` a disparu", async () => {
     // C'est elle qui rendait le controle inerte quand la liste etait vide.
-    const source = require("node:fs").readFileSync(
-      require("node:path").join(import.meta.dirname, "..", "routes", "voice-live.ts"),
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const source = readFileSync(
+      join(import.meta.dirname, "..", "routes", "voice-live.ts"),
       "utf8",
-    ) as string;
+    );
     expect(/allowedOrigins\.size\s*>\s*0/.test(source)).toBe(false);
   });
 });

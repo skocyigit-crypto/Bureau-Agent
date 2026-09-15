@@ -46,6 +46,7 @@ process.env.DATABASE_URL =
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import crypto from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -141,7 +142,6 @@ describe("la signature du state", () => {
       nonce: "abc",
     };
     const corps = Buffer.from(JSON.stringify(vieux)).toString("base64url");
-    const crypto = require("node:crypto");
     const sig = crypto
       .createHmac("sha256", process.env.SESSION_SECRET)
       .update(corps)

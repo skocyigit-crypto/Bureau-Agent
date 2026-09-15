@@ -138,17 +138,14 @@ describe("l'appelant ignore l'evenement au lieu de tout perdre", () => {
     expect(bloc).toContain("continue;");
   });
 
-  it("l'evenement ignore est explique dans le rapport de synchronisation", () => {
+  it("l'evenement ignore est explique dans le rapport de synchronisation", async () => {
     // Un compteur d'erreurs sans detail laisse l'exploitant deviner.
-    const source = require("node:fs").readFileSync(
-      require("node:path").join(
-        import.meta.dirname,
-        "..",
-        "services",
-        "google-calendar-sync.ts",
-      ),
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const source = readFileSync(
+      join(import.meta.dirname, "..", "services", "google-calendar-sync.ts"),
       "utf8",
-    ) as string;
+    );
     expect(source).toMatch(/date illisible/i);
   });
 });
