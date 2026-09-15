@@ -83,12 +83,12 @@ describe("les demarrages de fond attendent l'amorcage", () => {
     // Sans cela, la serialisation ci-dessus ne servirait a rien: les
     // vingt-cinq suivants se disputeraient les memes huit connexions pendant
     // que le DDL les tient.
-    expect(SOURCE).toContain("void amorcageBase.then(() => {");
+    expect(SOURCE).toContain("void amorcageBase.then(async () => {");
   });
 
   it("les taches les plus gourmandes sont bien dans le bloc differe", () => {
     // Nommees une a une: ce sont celles qui ont reellement echoue le 15/09.
-    const i = SOURCE.indexOf("void amorcageBase.then(() => {");
+    const i = SOURCE.indexOf("const demarrages: Array<[string, () => void]> = [");
     const j = SOURCE.indexOf("attachVoiceLiveWs(server)");
     expect(i).toBeGreaterThan(0);
     expect(j).toBeGreaterThan(i);
@@ -105,23 +105,84 @@ describe("les demarrages de fond attendent l'amorcage", () => {
     }
   });
 
-  it("le bloc differe contient l'essentiel des demarrages", () => {
-    // Garde-fou de comptage: si quelqu'un sort la moitie des taches du bloc,
-    // les tests nominatifs ci-dessus pourraient rester verts.
-    const i = SOURCE.indexOf("void amorcageBase.then(() => {");
+  it("la liste differee contient l'essentiel des demarrages", () => {
+    // Garde-fou de comptage: si quelqu'un sort la moitie des taches de la
+    // liste, les tests nominatifs ci-dessus pourraient rester verts.
+    const i = SOURCE.indexOf("const demarrages: Array<[string, () => void]> = [");
     const j = SOURCE.indexOf("attachVoiceLiveWs(server)");
     const bloc = SOURCE.slice(i, j);
-    const demarrages = (bloc.match(/\bstart[A-Z]\w*\(/g) ?? []).length;
-    expect(demarrages, "trop peu de demarrages dans le bloc differe").toBeGreaterThanOrEqual(20);
+    const entrees = (bloc.match(/\["[a-z0-9-]+",/g) ?? []).length;
+    expect(entrees, "trop peu de demarrages dans la liste differee").toBeGreaterThanOrEqual(25);
   });
 
   it("le WebSocket n'attend pas: il ne touche pas la base", () => {
     // Le retarder ferait echouer les connexions vocales pendant l'amorcage,
     // sans aucune contrepartie.
-    const i = SOURCE.indexOf("void amorcageBase.then(() => {");
+    const i = SOURCE.indexOf("const demarrages: Array<[string, () => void]> = [");
     const fin = SOURCE.indexOf("});", SOURCE.indexOf("startAppointmentReminderCron();", i));
     const j = SOURCE.indexOf("attachVoiceLiveWs(server)");
     expect(j, "attachVoiceLiveWs est entre dans le bloc differe").toBeGreaterThan(fin);
+  });
+});
+
+describe("les demarrages sont ETALES, pas seulement differes", () => {
+  // POURQUOI CE GROUPE A ETE AJOUTE APRES COUP
+  //
+  // Serialiser le seul amorcage ne suffisait pas. Mesure apres cette premiere
+  // correction, au demarrage de 17h04: cinq echecs, TOUS sur « timeout
+  // exceeded when trying to connect ». La rafale n'avait pas disparu, elle
+  // s'etait DEPLACEE — les vingt-cinq demarrages restants partaient toujours
+  // dans le meme tick, simplement deux secondes plus tard.
+  //
+  //     12h42  12 echecs   (avant toute correction)
+  //     15h54   8 echecs
+  //     17h04   5 echecs   (amorcage serialise seul)
+  //
+  // Une correction qui ameliore un chiffre sans supprimer la cause reste une
+  // correction incomplete, et c'est la mesure qui l'a dit.
+
+  it("la boucle attend entre chaque demarrage", () => {
+    expect(SOURCE).toContain("DELAI_ENTRE_DEMARRAGES_MS");
+    expect(
+      /await new Promise\(\(r\) => setTimeout\(r, DELAI_ENTRE_DEMARRAGES_MS\)\)/.test(SOURCE),
+      "les demarrages repartent tous dans le meme tick.",
+    ).toBe(true);
+  });
+
+  it("le delai est court, et le total borne", () => {
+    // Le serveur HTTP repond deja: ces secondes ne coutent rien a
+    // l'utilisateur. Mais un delai d'une seconde par tache mettrait une
+    // demi-minute avant que le premier cron ne tourne.
+    const m = SOURCE.match(/DELAI_ENTRE_DEMARRAGES_MS\s*=\s*(\d+)/);
+    expect(m, "le delai n'est plus une constante nommee").not.toBeNull();
+    const delai = Number(m![1]);
+    expect(delai).toBeGreaterThanOrEqual(50);
+    expect(delai).toBeLessThanOrEqual(300);
+    // 35 taches x 150 ms reste sous dix secondes.
+    expect(delai * 40).toBeLessThan(10_000);
+  });
+
+  it("un demarrage qui jette n'interrompt pas les suivants", () => {
+    // Sans ce `try`, une seule tache fragile priverait l'application de tous
+    // les crons places apres elle — une panne bien pire que la rafale.
+    const i = SOURCE.indexOf("for (const [nom, demarrer] of demarrages)");
+    expect(i).toBeGreaterThan(0);
+    const bloc = SOURCE.slice(i, i + 500);
+    expect(bloc).toContain("try {");
+    expect(bloc).toContain("catch");
+  });
+
+  it("l'echec nomme la tache concernee", () => {
+    // « une tache de fond a echoue » n'aide personne a 3 h du matin.
+    const i = SOURCE.indexOf("for (const [nom, demarrer] of demarrages)");
+    const bloc = SOURCE.slice(i, i + 500);
+    expect(bloc).toContain("tache: nom");
+  });
+
+  it("la fin du demarrage est journalisee", () => {
+    // Sans cette ligne, on ne peut pas distinguer « les crons ont demarre »
+    // de « la boucle s'est arretee au milieu ».
+    expect(SOURCE).toContain("taches de fond demarrees");
   });
 });
 

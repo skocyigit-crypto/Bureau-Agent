@@ -169,47 +169,85 @@ async function startServer(): Promise<void> {
     // Le RESTE attend cet amorcage. Sans cela, le sequencement ci-dessus ne
     // servirait a rien: les vingt-cinq demarrages suivants se disputeraient
     // les memes huit connexions pendant que le DDL les tient.
-    void amorcageBase.then(() => {
-      startAutoBackup();
-      startAutomationEngine();
-      startGoogleAutoPointage();
-      // Sauvegarde automatique vers Google Drive desactivee explicitement (choix
-      // client) : les donnees plateforme ne doivent pas transiter par un compte
-      // Google externe. Ne pas reactiver sans consigne explicite du client.
-      startDataProtectionMonitor();
-      startAiUsagePurgeJob();
+    // ── Demarrages de fond: ETALES, pas simultanes ──────────────────────
+    //
+    // Serialiser le seul amorcage ne suffisait pas. Mesure apres cette
+    // premiere correction, sur le demarrage de 17h04: cinq echecs, TOUS sur
+    // « timeout exceeded when trying to connect ». La rafale n'avait pas
+    // disparu, elle s'etait DEPLACEE — les vingt-cinq demarrages restants
+    // partaient toujours dans le meme tick, simplement plus tard.
+    //
+    // Progression mesuree sur trois demarrages comparables:
+    //
+    //     12h42  12 echecs   (avant toute correction)
+    //     15h54   8 echecs
+    //     17h04   5 echecs   (amorcage serialise seul)
+    //
+    // La plupart de ces `start*` inscrivent un minuteur ET font un premier
+    // passage immediat, qui touche la base. Vingt-cinq premiers passages
+    // pour huit connexions, c'est la meme famine, decalee de deux secondes.
+    //
+    // On les espace donc. Le delai est court et le total borne (environ
+    // quatre secondes pour la liste entiere), pendant lesquelles le serveur
+    // HTTP repond deja: aucune requete utilisateur n'attend. Un demarrage
+    // qui jette n'interrompt pas la suite — sinon une seule tache fragile
+    // priverait l'application de tous les crons suivants.
+    const DELAI_ENTRE_DEMARRAGES_MS = 150;
+
+    const demarrages: Array<[string, () => void]> = [
+      ["auto-backup", startAutoBackup],
+      ["automation-engine", startAutomationEngine],
+      ["google-auto-pointage", startGoogleAutoPointage],
+      // Sauvegarde automatique vers Google Drive desactivee explicitement
+      // (choix client): les donnees plateforme ne doivent pas transiter par
+      // un compte Google externe. Ne pas reactiver sans consigne explicite.
+      ["data-protection-monitor", startDataProtectionMonitor],
+      ["ai-usage-purge", startAiUsagePurgeJob],
       // Applique la duree de conservation annoncee pour les enregistrements
       // d'appel: elle etait publiee sans qu'aucun traitement ne l'applique.
-      void startRetentionCron();
-      startAiCachePurgeJob();
-      startBillingCron();
-      startQuotaWarningCron();
-      startTrialWarningCron();
-      // Cloture comptable: la conservation exigee par l article 286-I-3 bis du
-      // CGI n est pas « le logiciel PEUT clore » mais « le logiciel clot ».
-      // Compter sur un artisan pour cliquer chaque soir n est pas un dispositif.
-      startClotureCron();
-      startAiInsightsCron();
-      startTenantBackupCron();
-      startLocationCleanupCron();
-      startAccountRetentionCron();
-      startPaymentMatchingCron();
-      startSecurityDigestCron();
-      startProactiveEngine();
-      startAiLearning();
-      startAutonomousSecretaryCron();
-      startSuperAgentCron();
-      startAutonomousInboxCron();
-      startDailyDigestCron();
-      startInvoiceReminderCron();
-      startSaasAgentCron();
-      startAppAuditCron();
-      startHealthAgentsCron();
-      startAgentAutoRunScheduler();
-      startWebhookEngine();
-      startPushNotifications();
-      startEventBus();
-      startAppointmentReminderCron();
+      ["retention-cron", () => void startRetentionCron()],
+      ["ai-cache-purge", startAiCachePurgeJob],
+      ["billing-cron", startBillingCron],
+      ["quota-warning-cron", startQuotaWarningCron],
+      ["trial-warning-cron", startTrialWarningCron],
+      // Cloture comptable: la conservation exigee par l'article 286-I-3 bis
+      // du CGI n'est pas « le logiciel PEUT clore » mais « le logiciel
+      // clot ». Compter sur un artisan pour cliquer chaque soir n'est pas un
+      // dispositif.
+      ["cloture-cron", startClotureCron],
+      ["ai-insights-cron", startAiInsightsCron],
+      ["tenant-backup-cron", startTenantBackupCron],
+      ["location-cleanup-cron", startLocationCleanupCron],
+      ["account-retention-cron", startAccountRetentionCron],
+      ["payment-matching-cron", startPaymentMatchingCron],
+      ["security-digest-cron", startSecurityDigestCron],
+      ["proactive-engine", startProactiveEngine],
+      ["ai-learning", startAiLearning],
+      ["autonomous-secretary-cron", startAutonomousSecretaryCron],
+      ["super-agent-cron", startSuperAgentCron],
+      ["autonomous-inbox-cron", startAutonomousInboxCron],
+      ["daily-digest-cron", startDailyDigestCron],
+      ["invoice-reminder-cron", startInvoiceReminderCron],
+      ["saas-agent-cron", startSaasAgentCron],
+      ["app-audit-cron", startAppAuditCron],
+      ["health-agents-cron", startHealthAgentsCron],
+      ["agent-auto-run", startAgentAutoRunScheduler],
+      ["webhook-engine", startWebhookEngine],
+      ["push-notifications", startPushNotifications],
+      ["event-bus", startEventBus],
+      ["appointment-reminder-cron", startAppointmentReminderCron],
+    ];
+
+    void amorcageBase.then(async () => {
+      for (const [nom, demarrer] of demarrages) {
+        try {
+          demarrer();
+        } catch (err) {
+          logger.error({ err, tache: nom }, "[demarrage] tache de fond en echec");
+        }
+        await new Promise((r) => setTimeout(r, DELAI_ENTRE_DEMARRAGES_MS));
+      }
+      logger.info({ taches: demarrages.length }, "[demarrage] taches de fond demarrees");
     });
 
     // Hors chaine: le point d entree WebSocket ne touche pas la base et ne
