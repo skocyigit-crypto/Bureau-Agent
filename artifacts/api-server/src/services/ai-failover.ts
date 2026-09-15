@@ -496,6 +496,35 @@ export async function probeStaleProviders(): Promise<AiProviderName[]> {
         ),
       );
       if (!res.text.trim()) throw new EmptyResponseError(`${name}: reponse vide`);
+
+      // LA SONDE NE PEUT PAS ECHOUER, ET C'EST LE DEFAUT.
+      //
+      // `callGemini` passe par le client Gemini PARTAGE, qui est patche: quand
+      // Gemini refuse, le patch bascule sur un autre fournisseur et rend sa
+      // reponse. La sonde recoit donc du texte, et conclut que Gemini repond —
+      // alors que c'est Anthropic qui vient de parler.
+      //
+      // Mesure du 15/09, decisive: 13h00:26,7 une bascule « gemini -> autre »
+      // sur `429 credits are depleted`; 13h00:30,0 l'agent de sante lit
+      // « gemini enPanne: false, echecs: 0, vu il y a 3 296 ms ». Les 3,3 s
+      // sont exactement l'ecart entre les deux: la sonde de l'agent EST cette
+      // bascule. Sur la journee entiere: seize bascules reelles, zero sonde en
+      // echec. Une sonde qui ne peut pas echouer ne mesure rien.
+      //
+      // On ne retient donc un signe de vie que si le fournisseur interroge est
+      // bien celui qui a repondu.
+      // `res.provider` vaut toujours `name`: `callGemini` l'ecrit en dur. La
+      // verite est dans le modele, que le patch prefixe du fournisseur qui a
+      // reellement servi (`anthropic:claude-...`).
+      const aRepondu = res.model.includes(":") ? res.model.split(":")[0] : name;
+      if (aRepondu !== name) {
+        noteFailure(name, `sonde servie par ${aRepondu}: ${name} n'a pas repondu lui-meme`);
+        logger.warn(
+          { sonde: name, aRepondu, modele: res.model },
+          "[ai-failover] sonde: le fournisseur interroge n'a pas repondu lui-meme",
+        );
+        continue;
+      }
       // « sonde » et non « trafic »: voir `ProviderState.lastProbeSuccessAt`.
       // Cet appel-ci demande quatre jetons de sortie; il passe sur un compte
       // sans credit qui refuse tout appel utile. Le compter comme un succes
