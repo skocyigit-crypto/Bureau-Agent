@@ -36,6 +36,7 @@ import {
   GEMINI_PRO_MODEL,
 } from "../services/ai-utils";
 import { logger } from "../lib/logger";
+import { logAudit } from "./audit";
 import { aiForOrg } from "../services/ai-client";
 import { respondAiError } from "../services/ai-guard";
 
@@ -551,6 +552,35 @@ router.get(
 
     try {
       const result = await runAgentLoop(orgId, managerName);
+
+      // TRACE OBLIGATOIRE — art. 5.2 RGPD (responsabilite).
+      //
+      // Cet agent produit une evaluation automatisee NOMINATIVE de salaries:
+      // nom, role, service, score d'activite, « diagnostic » et
+      // « prescriptions » individuels. Rien n'en gardait trace: on ne pouvait
+      // ni dire qui l'avait declenchee, ni quand, ni sur combien de
+      // personnes. Or c'est exactement ce qu'un salarie — ou la CNIL — peut
+      // demander, et l'absence de reponse est elle-meme le manquement.
+      //
+      // La trace ne rend pas le traitement conforme. Les obligations qui
+      // restent sont organisationnelles et hors de portee du code:
+      // consultation du CSE (L2312-38), information prealable des salaries
+      // (L1222-4), AIPD, et l'interdiction de l'art. 22 de fonder une
+      // decision sur le seul traitement automatise.
+      await logAudit(
+        req.session?.userId,
+        req.session?.userEmail,
+        "workforce_evaluation_generated",
+        "evaluation_salaries",
+        String(orgId),
+        { employeeCount: result.employeeCount, teamScore: result.teamScore },
+        req.ip,
+        req.get("user-agent"),
+      ).catch((err: unknown) => {
+        // Une trace manquante doit se voir, mais ne doit pas priver
+        // l'exploitant du rapport qu'il vient de demander.
+        req.log?.warn({ err }, "[workforce-agent] trace d'audit non ecrite");
+      });
 
       res.json({
         agentId: "workforce-agent",

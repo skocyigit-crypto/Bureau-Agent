@@ -9,6 +9,7 @@ import {
   commandantConversationsTable, commandantMessagesTable,
   userLocationStateTable, locationEventsTable, googleOAuthTokensTable,
   securityScansTable,
+  aiAgentReportsTable,
 } from "@workspace/db";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
@@ -50,7 +51,7 @@ router.get("/data-protection/summary", async (req, res): Promise<void> => {
     const orgId = req.session?.organisationId;
     if (!userId || !orgId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
-    const [users, contacts, calls, tasks, prospects, checkins, notes, scans] = await Promise.all([
+    const [users, contacts, calls, tasks, prospects, checkins, notes, scans, evaluations] = await Promise.all([
       db.select({ count: sql<number>`count(*)::int` }).from(usersTable).where(eq(usersTable.organisationId, orgId)),
       db.select({ count: sql<number>`count(*)::int` }).from(contactsTable).where(eq(contactsTable.organisationId, orgId)),
       db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(eq(callsTable.organisationId, orgId)),
@@ -59,6 +60,7 @@ router.get("/data-protection/summary", async (req, res): Promise<void> => {
       db.select({ count: sql<number>`count(*)::int` }).from(checkinsTable).where(eq(checkinsTable.organisationId, orgId)),
       db.select({ count: sql<number>`count(*)::int` }).from(notesInternesTable).where(eq(notesInternesTable.organisationId, orgId)),
       db.select({ count: sql<number>`count(*)::int` }).from(securityScansTable).where(eq(securityScansTable.organisationId, orgId)),
+      db.select({ count: sql<number>`count(*)::int` }).from(aiAgentReportsTable).where(eq(aiAgentReportsTable.organisationId, orgId)),
     ]);
 
     const agreements = await db.select().from(legalAgreementsTable)
@@ -99,6 +101,34 @@ router.get("/data-protection/summary", async (req, res): Promise<void> => {
         // invisible — c'est exactement ce qui s'est produit ici, ou la purge
         // existait sans etre appelee.
         { category: "Analyses de sécurité", description: "Fichiers et messages analysés, verdicts, auteur de l'analyse", count: scans[0]?.count || 0, retention: `${SECURITY_SCAN_RETENTION_DAYS} jours`, legalBasis: "Intérêt légitime — sécurité des systèmes (Art. 6(1)(f), cons. 49)", sensitive: false },
+        // Categorie ajoutee le 2026-09-15, sur le meme constat que celle
+        // au-dessus: un traitement reel que l'inventaire ne declarait pas.
+        //
+        // `workforce-agent` envoie a un modele le NOM et le PRENOM de chaque
+        // salarie, son role, son service et un SCORE calcule a partir de son
+        // activite (appels, taches, notes, connexions), et en recoit un
+        // « diagnostic » et des « prescriptions » individuels, conserves dans
+        // `ai_agent_reports`. C'est une evaluation automatisee de salaries,
+        // pas une statistique d'equipe — et c'est la donnee la plus sensible
+        // que ce produit traite, au sens du risque pour la personne.
+        //
+        // `sensitive: true` ne dit pas « donnee sensible au sens de l'art. 9 »
+        // (ce n'en est pas une): il signale a l'exploitant que ce traitement
+        // demande plus qu'une mention d'inventaire. Les obligations qui
+        // l'accompagnent sont ORGANISATIONNELLES et ne peuvent pas etre
+        // remplies par du code:
+        //
+        //   - consultation prealable du CSE (Code du travail, art. L2312-38);
+        //   - information prealable des salaries (art. L1222-4): aucune
+        //     donnee ne peut etre collectee par un dispositif qui ne leur a
+        //     pas ete porte a connaissance;
+        //   - analyse d'impact (AIPD/DPIA), l'evaluation systematique
+        //     d'aspects personnels figurant sur la liste CNIL;
+        //   - art. 22 RGPD: aucune decision produisant des effets juridiques
+        //     ou significatifs ne doit reposer sur le seul traitement
+        //     automatise. Le rapport est une aide a la decision, jamais la
+        //     decision.
+        { category: "Évaluations automatisées de salariés", description: "Nom, rôle, service, score d'activité et diagnostic individuel produits par l'agent d'analyse d'équipe", count: evaluations[0]?.count || 0, retention: "Durée du contrat", legalBasis: "Intérêt légitime (Art. 6(1)(f)) — sous réserve de consultation du CSE (L2312-38), d'information préalable des salariés (L1222-4) et d'une AIPD", sensitive: true },
       ],
       legalDocuments: Object.entries(LEGAL_DOCUMENTS).map(([code, doc]) => {
         const agreement = agreements.find(a => a.documentType === code);
