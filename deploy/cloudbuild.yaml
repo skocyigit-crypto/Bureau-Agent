@@ -381,7 +381,7 @@ options:
   #
   # POUR REVENIR EN ARRIERE: remettre `E2_HIGHCPU_8` ici. Le seul effet est de
   # retomber a un build simultane pour l'ensemble des depots.
-  machineType: 'E2_HIGHCPU_4'
+  machineType: 'E2_HIGHCPU_8'
   logging: CLOUD_LOGGING_ONLY
 
 availableSecrets:
