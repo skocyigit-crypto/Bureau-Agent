@@ -154,6 +154,34 @@ describe("les references du pipeline sont toutes resolubles par Cloud Build", ()
     expect(anonymes.length).toBe(0);
   });
 
+  it("l'etape de migration installe les certificats du systeme", () => {
+    // Le proxy Cloud SQL est un binaire Go: il verifie les certificats avec le
+    // magasin DU SYSTEME. L'image `node:*-slim` n'en contient aucun. Node,
+    // lui, embarque le sien — d'ou une panne particulierement trompeuse,
+    // mesuree le 15/09: le telechargement du proxy (fait par Node) reussit, et
+    // c'est la connexion du proxy qui tombe sur
+    // « x509: certificate signed by unknown authority ».
+    const etape = PIPELINE.steps.find((e) => e.id === "migration-schema-prod");
+    const texte = (etape?.args ?? []).filter((a): a is string => typeof a === "string").join("\n");
+    expect(texte, "sans ca-certificates, le proxy ne peut joindre aucune instance").toContain(
+      "ca-certificates",
+    );
+  });
+
+  it("l'attente du tunnel verifie la base, pas seulement le port", () => {
+    // Le proxy ouvre son ecoute locale immediatement, avant de savoir s'il
+    // peut joindre l'instance: une connexion TCP reussit donc alors que rien
+    // ne fonctionne. Le 15/09, l'attente est passee et l'echec est apparu
+    // trois lignes plus loin, sur la premiere migration — au mauvais endroit,
+    // avec le mauvais message.
+    const etape = PIPELINE.steps.find((e) => e.id === "migration-schema-prod");
+    const texte = (etape?.args ?? []).filter((a): a is string => typeof a === "string").join("\n");
+    expect(
+      /select\s+1/i.test(texte),
+      "l'attente doit faire une vraie requete: un port ouvert ne prouve rien",
+    ).toBe(true);
+  });
+
   it("le fichier reste un YAML que l'outillage sait relire", () => {
     expect(Array.isArray(PIPELINE.steps)).toBe(true);
     expect(PIPELINE.steps.length).toBeGreaterThanOrEqual(8);
