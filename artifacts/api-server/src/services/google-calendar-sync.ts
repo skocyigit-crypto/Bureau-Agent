@@ -10,19 +10,55 @@ interface SyncResult {
   details: string[];
 }
 
-function getLocalDateKey(dateTime: string, timeZone: string | undefined): string {
-  try {
-    const d = new Date(dateTime);
-    const tz = timeZone || "Europe/Paris";
-    const parts = new Intl.DateTimeFormat("en-CA", {
+/** Fuseau retenu quand l evenement n en declare pas, ou en declare un invalide. */
+const FUSEAU_PAR_DEFAUT = "Europe/Paris";
+
+/**
+ * Jour LOCAL d un evenement — la date sous laquelle le pointage sera ecrit.
+ *
+ * Deux defauts mesures le 15/09, tous deux silencieux:
+ *
+ *   1. Un fuseau INVALIDE faisait retomber la fonction sur son bloc `catch`,
+ *      qui calculait la date en UTC. Pour `2026-03-10T23:30:00Z`, Paris dit
+ *      le 11 mars et UTC le 10: un jour d ecart, sans erreur, sur une donnee
+ *      qui finit en heures de travail. Un fuseau illisible ressemble bien
+ *      plus a un fuseau ABSENT qu a « UTC »: on retombe donc sur le meme
+ *      defaut que l absence, `Europe/Paris`.
+ *
+ *   2. Une date malformee faisait JETER la fonction — depuis le `catch`
+ *      lui-meme, qui rappelait `new Date(dateTime).toISOString()`. Or
+ *      l appelant boucle sur les evenements sans `try`: un seul evenement
+ *      aberrant rendu par l API Google faisait echouer la synchronisation
+ *      ENTIERE de l utilisateur, et aucun pointage n etait importe.
+ *
+ * Elle rend donc `null` sur une date inutilisable, a charge pour l appelant
+ * d ignorer cet evenement et de le compter comme erreur.
+ */
+export function getLocalDateKey(
+  dateTime: string,
+  timeZone: string | undefined,
+): string | null {
+  const d = new Date(dateTime);
+  if (Number.isNaN(d.getTime())) return null;
+
+  const formater = (tz: string): string =>
+    new Intl.DateTimeFormat("en-CA", {
       timeZone: tz,
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
     }).format(d);
-    return parts;
+
+  try {
+    return formater(timeZone || FUSEAU_PAR_DEFAUT);
   } catch {
-    return new Date(dateTime).toISOString().slice(0, 10);
+    // Fuseau refuse par l environnement: on retente avec le defaut plutot
+    // que de basculer en UTC, qui decalerait la journee.
+    try {
+      return formater(FUSEAU_PAR_DEFAUT);
+    } catch {
+      return null;
+    }
   }
 }
 
@@ -114,6 +150,16 @@ export async function syncGoogleCalendarToCheckins(params: {
     const end = new Date(event.end.dateTime);
     const eventTz = event.start.timeZone || calendarTimeZone;
     const dayKey = getLocalDateKey(event.start.dateTime, eventTz);
+    if (dayKey === null) {
+      // Un evenement dont la date est inexploitable est ignore, et compte
+      // comme une erreur. Avant, il faisait jeter la fonction et emportait
+      // TOUTE la synchronisation de l utilisateur avec lui.
+      result.errors++;
+      result.details.push(
+        `Evenement ignore: date illisible (${String(event.start.dateTime).slice(0, 40)}).`,
+      );
+      continue;
+    }
 
     if (!dayGroups[dayKey]) {
       dayGroups[dayKey] = { start, end, events: [], tz: eventTz };
