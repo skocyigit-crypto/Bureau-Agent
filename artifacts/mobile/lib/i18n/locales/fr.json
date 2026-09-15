@@ -1738,7 +1738,8 @@
     "period7": "7 jours",
     "period30": "30 jours",
     "period90": "90 jours",
-    "team": "Équipe"
+    "team": "Équipe",
+    "reserveResponsables": "Cet écran est réservé aux responsables."
   },
   "workforceAgentScreen": {
     "riskKirmizi": "RISQUE CRITIQUE",
