@@ -590,7 +590,13 @@ const PERIODES: { val: Periode; labelKey: string }[] = [
 export default function PerformanceScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { fetchAuth } = useAuth();
+  const { fetchAuth, user } = useAuth();
+  // Cet ecran montre les heures travaillees et les pauses de TOUS les
+  // collegues. Le serveur le reserve aux responsables (#160); sans le meme
+  // controle ici, un agent ouvrirait un ecran vide et illisible au lieu de ne
+  // pas le voir du tout.
+  const estResponsable =
+    user?.role === "super_admin" || user?.role === "administrateur";
   const { t } = useTranslation();
   const isWeb = Platform.OS === "web";
 
@@ -603,6 +609,7 @@ export default function PerformanceScreen() {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
 
   const load = useCallback(async (showAi = true) => {
+    if (!estResponsable) { setLoading(false); setRefreshing(false); return; }
     try {
       const res = await fetchAuth(`${API_BASE}/api/commandant/employee-quality?periode=${periode}`);
       if (res.ok) {
@@ -612,7 +619,7 @@ export default function PerformanceScreen() {
       }
     } catch {}
     finally { setLoading(false); setRefreshing(false); }
-  }, [fetchAuth, periode]);
+  }, [fetchAuth, periode, estResponsable]);
 
   useEffect(() => { setLoading(true); load(); }, [load]);
   function onRefresh() { setRefreshing(true); load(); }
@@ -623,6 +630,20 @@ export default function PerformanceScreen() {
   }
 
   const activeTab = TABS.find(tb => tb.key === tab)!;
+
+  // Un ecran refuse doit le DIRE. Sans ce retour, un agent voyait une page
+  // vide en chargement perpetuel — le pire des deux mondes: ni la donnee, ni
+  // l explication.
+  if (!estResponsable) {
+    return (
+      <View style={[pr.container, { backgroundColor: colors.background, justifyContent: "center", alignItems: "center", padding: 24 }]}>
+        <Feather name="lock" size={32} color={colors.mutedForeground} />
+        <Text style={{ color: colors.mutedForeground, textAlign: "center", marginTop: 12 }}>
+          {t("performanceScreen.reserveResponsables")}
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View style={[pr.container, { backgroundColor: colors.background }]}>

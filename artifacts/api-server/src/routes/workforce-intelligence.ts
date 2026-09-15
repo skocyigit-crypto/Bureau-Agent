@@ -21,6 +21,7 @@ import {
 } from "@workspace/db";
 import { eq, and, gte, count, sql, or, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth";
+import { logAudit } from "./audit";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "../services/ai-quota";
 import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL } from "../services/ai-utils";
 import { logger } from "../lib/logger";
@@ -414,6 +415,29 @@ Regles:
         logger.error({ err }, "[workforce-intelligence] AI failed");
       }
     }
+
+    // Meme trace que les deux autres surfaces d'evaluation (#154, #159).
+    //
+    // Celle-ci ne conserve rien en base — elle lit, analyse et rend. Mais le
+    // traitement a bien lieu: le nom, le prenom, le role et un score
+    // d'activite de chaque salarie partent vers un modele, qui rend des
+    // « top performeurs », des personnes « en difficulte » et des actions
+    // recommandees les concernant. Ne rien stocker ne dispense pas de savoir
+    // qui a declenche l'analyse, quand, et sur combien de personnes: c'est
+    // l'article 5.2 du RGPD, et il porte sur le TRAITEMENT, pas sur le
+    // stockage.
+    await logAudit(
+      req.session?.userId,
+      req.session?.userEmail,
+      "workforce_intelligence_generated",
+      "evaluation_salaries",
+      String(orgId),
+      { employeeCount: employees.length, avecIA: aiResult !== null },
+      req.ip,
+      req.get("user-agent"),
+    ).catch((err: unknown) => {
+      req.log?.warn({ err }, "[workforce-intelligence] trace d'audit non ecrite");
+    });
 
     res.json({
       date: today,

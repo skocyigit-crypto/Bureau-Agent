@@ -3,6 +3,8 @@ import { db, callsTable, contactsTable, tasksTable, messagesTable, calendarEvent
 import { eq, sql, and, desc, gte, lte, lt, ne, isNull, isNotNull, or, count, asc, inArray, type Column, type SQL } from "drizzle-orm";
 import { AGENTS, creerTacheIa } from "../services/tache-ia";
 import { getOrgId } from "../middleware/tenant";
+import { requireRole } from "../middleware/auth";
+import { logAudit } from "./audit";
 import { stripAccents, ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { sendEmail } from "../services/email";
 import { getContextForContact, getLatestAgentInsights, buildCommandantContextPrompt } from "./agent-collaboration";
@@ -2392,7 +2394,26 @@ Reponds UNIQUEMENT en JSON valide:
 // EMPLOYEE QUALITY & EFFICIENCY DEEP ANALYSIS
 // ═══════════════════════════════════════════════════════════════
 
-router.get("/commandant/employee-quality", async (req: Request, res: Response): Promise<void> => {
+/**
+ * Qualite par employe: une mesure de PERSONNES, reservee aux responsables.
+ *
+ * Cette route agrege, pour chaque salarie nomme de l organisation: taches
+ * assignees et en retard, actions journalisees, et surtout — via
+ * `checkins` — `totalMinutes` et `breakMinutes`, c est-a-dire le temps de
+ * travail et la duree des pauses.
+ *
+ * Elle n avait AUCUN controle de role. `requireMutationRole`, pose plus haut
+ * dans le routeur, ne couvre que les changements d etat: un GET passe a
+ * cote. N importe quel compte authentifie — `lecture_seule` compris —
+ * pouvait donc obtenir les heures et les pauses de tous ses collegues.
+ *
+ * C est le meme defaut que celui corrige sur `/performance` (#159), present
+ * une seconde fois dans un autre fichier. Il a ete trouve non pas en
+ * relisant ce fichier, mais parce qu un test transversal enumere desormais
+ * les surfaces qui evaluent des salaries et refuse celles qui manquent a
+ * l appel.
+ */
+router.get("/commandant/employee-quality", requireRole("super_admin", "administrateur"), async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
     const periode = (req.query.periode as string) || "mois";
@@ -2574,6 +2595,23 @@ Génère un rapport JSON complet:
       const m = aiResponse.match(/\{[\s\S]*\}/);
       analysis = m ? JSON.parse(m[0]) : { globalInsight: aiResponse };
     } catch { analysis = { globalInsight: aiResponse }; }
+
+    // Meme trace que les trois autres surfaces d evaluation (#154, #159, #160).
+    // L article 5.2 du RGPD porte sur le TRAITEMENT: cette route ne conserve
+    // rien, mais elle envoie nom, prenom, temps de travail et duree des pauses
+    // de chaque salarie a une analyse. Il faut pouvoir dire qui l a demandee.
+    await logAudit(
+      req.session?.userId,
+      req.session?.userEmail,
+      "employee_quality_generated",
+      "evaluation_salaries",
+      String(orgId),
+      { employeeCount: employees.length, periode },
+      req.ip,
+      req.get("user-agent"),
+    ).catch((err: unknown) => {
+      req.log?.warn({ err }, "[commandant] trace d audit non ecrite");
+    });
 
     res.json({ success: true, periode, teamScore, teamQuality, teamEfficiency, employees, analysis });
   } catch (err: any) {
