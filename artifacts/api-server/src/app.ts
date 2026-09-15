@@ -15,6 +15,7 @@ import { guardian } from "./middleware/guardian";
 import { rateLimitKey } from "./lib/request-ip";
 import { recordHttpStatus } from "./services/health-agents-external";
 import { limiteCorpsBase64, TAILLE_MAX_BASE64_MO } from "./lib/limites-televersement";
+import { resolveAllowedOrigins } from "./lib/origines-autorisees";
 
 const app: Express = express();
 
@@ -194,62 +195,14 @@ app.use(
 // echoant l'Origin du client) car associe a `credentials: true` il revient a
 // desactiver toute protection CORS. Donc une allowlist explicite est requise.
 //
-// Resolution dans cet ordre:
-//   1. ALLOWED_ORIGINS env (CSV) — override explicite par l'admin.
-//   2. REPLIT_DOMAINS env (CSV) — fournie automatiquement par la plateforme
-//      Replit en deploiement (custom domain ou .replit.app). On y ajoute le
-//      schema https:// et on dedupe.
-//   3. PUBLIC_URL / APP_URL — fallback final si l'admin n'a configure que ca.
-// Si APRES ces trois passes la liste reste vide en production, on hard-fail
-// pour eviter un deploiement accidentellement world-CORS.
-function resolveAllowedOrigins(): string[] {
-  const out = new Set<string>();
-  const explicit = process.env.ALLOWED_ORIGINS;
-  if (explicit) {
-    explicit.split(",").map(o => o.trim()).filter(Boolean).forEach(o => out.add(o));
-  }
-  const replitDomains = process.env.REPLIT_DOMAINS;
-  if (replitDomains) {
-    replitDomains.split(",").map(d => d.trim()).filter(Boolean).forEach(d => {
-      // REPLIT_DOMAINS vient sans schema -> on prefixe https.
-      const url = d.startsWith("http://") || d.startsWith("https://") ? d : `https://${d}`;
-      out.add(url);
-    });
-  }
-  for (const envName of ["PUBLIC_URL", "APP_URL", "REPLIT_DEPLOYMENT_URL"]) {
-    const v = process.env[envName];
-    if (v) {
-      try {
-        out.add(new URL(v).origin);
-      } catch { /* ignore malformed */ }
-    }
-  }
-  // Expo dev sert le bundle mobile depuis un sous-domaine distinct
-  // (`...expo.spock.replit.dev`). Sans cette entree, le preview web mobile
-  // recoit un preflight 204 sans Access-Control-Allow-Origin et le navigateur
-  // bloque silencieusement le POST de login (seul l'OPTIONS apparait dans
-  // les logs — symptome typique).
-  const expoDom = process.env.REPLIT_EXPO_DEV_DOMAIN;
-  if (expoDom && expoDom.trim() !== "") {
-    const url = expoDom.startsWith("http") ? expoDom : `https://${expoDom}`;
-    out.add(url.replace(/\/+$/, ""));
-  }
-  // Auto-deriver le sous-domaine Expo a partir de REPLIT_DOMAINS si
-  // REPLIT_EXPO_DEV_DOMAIN n'est pas defini (insertion de `.expo` avant
-  // `.spock.replit.dev` ou `.replit.dev`).
-  const replitDomainsForExpo = process.env.REPLIT_DOMAINS;
-  if (replitDomainsForExpo) {
-    replitDomainsForExpo.split(",").map(d => d.trim()).filter(Boolean).forEach(d => {
-      const expoVariant = d
-        .replace(/\.spock\.replit\.dev$/, ".expo.spock.replit.dev")
-        .replace(/^([^.]+)\.replit\.dev$/, "$1.expo.replit.dev");
-      if (expoVariant !== d) {
-        out.add(`https://${expoVariant}`);
-      }
-    });
-  }
-  return Array.from(out);
-}
+// La resolution vit desormais dans `lib/origines-autorisees`, parce qu'il en
+// existait une SECONDE, incomplete, dans le point d'entree WebSocket de la
+// voix — construite a partir des seules variables Replit, absentes de Cloud
+// Run, donc vide et sans effet en production. Deux listes pour la meme
+// question donnent tot ou tard deux reponses.
+//
+// Si la liste reste vide en production, on hard-fail plutot que de deployer
+// un service accidentellement ouvert a toutes les origines.
 
 const allowedOrigins = resolveAllowedOrigins();
 
