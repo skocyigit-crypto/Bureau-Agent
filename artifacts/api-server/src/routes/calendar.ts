@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { calendarEventsTable, insertCalendarEventSchema, tasksTable, projetsTable, organisationClosuresTable } from "@workspace/db/schema";
-import { eq, and, gte, lte, or, type Column, type SQL } from "drizzle-orm";
+import { eq, and, gte, lte, or, isNull, type Column, type SQL } from "drizzle-orm";
 import { logAudit } from "./audit";
 import { getOrgId } from "../middleware/tenant";
 import { resolveUserNames, enrichWithUserNames } from "../helpers/user-tracking";
@@ -139,30 +139,76 @@ router.get("/calendar/events", async (req: Request, res: Response): Promise<void
         status: t.status,
       }));
 
+    // ── Chantiers: une PERIODE, pas une date ────────────────────────────
+    //
+    // Un chantier a une date de debut et une date de fin. Il etait pourtant
+    // filtre ET affiche sur sa seule date de FIN, avec deux consequences que
+    // personne ne pouvait voir depuis l'ecran:
+    //
+    //   1. Un chantier qui TRAVERSE le mois affiche n'apparaissait pas du
+    //      tout. Une renovation de mai a aout etait absente du calendrier de
+    //      juin — le mois ou les equipes y sont. Le calendrier montrait donc
+    //      un mois libre pendant un chantier en cours.
+    //
+    //   2. Meme present, il se reduisait a un point le dernier jour. Rien ne
+    //      disait qu'il occupait les huit semaines precedentes, donc rien ne
+    //      pouvait signaler deux chantiers qui se chevauchent.
+    //
+    // La condition devient donc un CHEVAUCHEMENT: le chantier commence avant
+    // la fin de la fenetre et se termine apres son debut. Un chantier sans
+    // date de fin est en cours et compte aussi.
     const projetConditions: any[] = [
       eq(projetsTable.organisationId, orgId),
     ];
-    if (validStart) projetConditions.push(gte(projetsTable.endDate, validStart));
-    if (validEnd) projetConditions.push(lte(projetsTable.endDate, validEnd));
+    if (validEnd) {
+      projetConditions.push(
+        or(lte(projetsTable.startDate, validEnd), isNull(projetsTable.startDate)),
+      );
+    }
+    if (validStart) {
+      projetConditions.push(
+        or(gte(projetsTable.endDate, validStart), isNull(projetsTable.endDate)),
+      );
+    }
     const projets = await db
-      .select({ id: projetsTable.id, title: projetsTable.title, endDate: projetsTable.endDate, status: projetsTable.status, priority: projetsTable.priority, clientName: projetsTable.clientName, progress: projetsTable.progress })
+      .select({ id: projetsTable.id, title: projetsTable.title, startDate: projetsTable.startDate, endDate: projetsTable.endDate, status: projetsTable.status, priority: projetsTable.priority, clientName: projetsTable.clientName, progress: projetsTable.progress })
       .from(projetsTable)
       .where(and(...projetConditions))
       .limit(1000);
 
+    const maintenant = new Date();
     const projetEvents = projets
-      .filter(p => p.endDate && p.status !== "annule")
-      .map(p => ({
-        id: `projet-${p.id}`,
-        title: `📁 ${p.title}${p.clientName ? ` — ${p.clientName}` : ""}`,
-        description: `Projet · ${p.progress ?? 0}% avancé`,
-        type: "projet",
-        startDate: p.endDate,
-        endDate: p.endDate,
-        allDay: true,
-        color: p.status === "termine" ? "#22c55e" : p.priority === "haute" ? "#ef4444" : "#6366f1",
-        status: p.status,
-      }));
+      // Un chantier sans AUCUNE date n'est pas planifie: l'afficher
+      // reviendrait a inventer une periode.
+      .filter(p => (p.startDate || p.endDate) && p.status !== "annule")
+      .map(p => {
+        // Une seule des deux dates connue: la periode se reduit a ce jour-la,
+        // ce qui reste vrai — on n'extrapole pas une duree qu'on ignore.
+        const debut = p.startDate ?? p.endDate;
+        const fin = p.endDate ?? p.startDate;
+        const enRetard =
+          p.endDate != null &&
+          new Date(p.endDate) < maintenant &&
+          p.status !== "termine";
+        return {
+          id: `projet-${p.id}`,
+          title: `📁 ${p.title}${p.clientName ? ` — ${p.clientName}` : ""}`,
+          description: `Chantier · ${p.progress ?? 0}% avancé${enRetard ? " · ⚠ échéance dépassée" : ""}`,
+          type: "projet",
+          startDate: debut,
+          endDate: fin,
+          allDay: true,
+          // Le retard prime sur la priorite: c'est l'information qui appelle
+          // une decision aujourd'hui.
+          color: p.status === "termine"
+            ? "#22c55e"
+            : enRetard
+              ? "#dc2626"
+              : p.priority === "haute" ? "#ef4444" : "#6366f1",
+          status: p.status,
+          enRetard,
+        };
+      });
 
     // Evenements provenant de Google Agenda.
     //
