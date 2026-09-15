@@ -67,8 +67,12 @@ const INTERVALLE_ECRITURE_MS = 60 * 1000;
 /** Duree de vie du cache de lecture: la supervision passe toutes les 15 min. */
 const CACHE_LECTURE_MS = 15 * 1000;
 
+/** Une alerte d'ecriture impossible par fournisseur et par dix minutes. */
+const INTERVALLE_ALERTE_MS = 10 * 60 * 1000;
+
 const derniereEcriture = new Map<string, number>();
 const dernierEtatEcrit = new Map<string, EtatEcrit>();
+const derniereAlerte = new Map<string, number>();
 
 let cache: { a: number; lignes: ObservationPartagee[] } | null = null;
 
@@ -76,6 +80,7 @@ let cache: { a: number; lignes: ObservationPartagee[] } | null = null;
 export function reinitialiserObservations(): void {
   derniereEcriture.clear();
   dernierEtatEcrit.clear();
+  derniereAlerte.clear();
   cache = null;
 }
 
@@ -156,12 +161,23 @@ export function enregistrerObservation(
             },
     })
     .catch((err: unknown) => {
-      // Volontairement en `debug`: cette ecriture est un confort de
-      // supervision. La signaler en erreur a chaque appel d'IA noierait les
-      // journaux que l'on consulte justement pour diagnostiquer une panne.
-      logger.debug(
+      // `warn`, et non `debug`.
+      //
+      // La premiere version choisissait `debug` pour ne pas noyer les
+      // journaux. Le niveau de production etant `info`, cela rendait le relai
+      // capable de mourir SANS AUCUNE TRACE — exactement le mode de panne que
+      // ce module existe pour supprimer. Une supervision qui echoue en
+      // silence ne vaut pas mieux que pas de supervision, et on l'apprend
+      // toujours trop tard.
+      //
+      // Le bruit est ecarte autrement: une ligne par fournisseur et par
+      // `INTERVALLE_ALERTE_MS`, quel que soit le nombre d'appels.
+      const derniere = derniereAlerte.get(provider) ?? 0;
+      if (Date.now() - derniere < INTERVALLE_ALERTE_MS) return;
+      derniereAlerte.set(provider, Date.now());
+      logger.warn(
         { err: err instanceof Error ? err.message : String(err), provider },
-        "[ai-observations] ecriture de l'observation impossible",
+        "[ai-observations] ecriture de l'observation impossible: la supervision est aveugle",
       );
     });
 }

@@ -630,6 +630,26 @@ const aiProvidersAgent: HealthAgent = {
       // Gemini et quatre passages de cet agent ont coexiste sans qu'un seul
       // constat ne soit produit.
       const states = await providerHealthPartagee();
+
+      // Tracer CE QUE L'AGENT A VU, a chaque passage, meme quand tout va bien.
+      //
+      // Trois corrections successives ont ete necessaires le 15/09 pour que
+      // cet agent voie une panne de Gemini, et chacune s'est jugee sur une
+      // absence: aucun constat. Une absence ne dit pas si le mecanisme
+      // fonctionne et n'a rien vu, ou s'il ne fonctionne pas. Cette ligne
+      // tranche, et coute un enregistrement toutes les quinze minutes.
+      logger.info(
+        {
+          fournisseurs: states.map((s) => ({
+            nom: s.provider,
+            enPanne: s.failing,
+            echecs: s.failures,
+            vuIlYaMs: s.lastSeenMs,
+            cause: s.reason ?? undefined,
+          })),
+        },
+        "[Sante] Etat des fournisseurs IA tel que lu",
+      );
       const failing = states.filter((s) => s.failing);
       const healthy = states.filter((s) => !s.failing && s.failures === 0);
 
