@@ -186,7 +186,7 @@ const providerStates = new Map<AiProviderName, ProviderState>();
 /** D'ou vient l'observation: un appel utile, ou la sonde de disponibilite. */
 type Origine = "trafic" | "sonde";
 
-function noteFailure(name: AiProviderName, reason: string): void {
+function noteFailure(name: AiProviderName, reason: string): Promise<void> {
   const s = providerStates.get(name) ?? etatVierge();
   s.lastFailureAt = Date.now();
   s.lastReason = reason.slice(0, 200);
@@ -199,10 +199,10 @@ function noteFailure(name: AiProviderName, reason: string): void {
   //
   // Un echec de sonde compte comme un echec reel: l'invite est fixe et connue
   // pour valide, donc la cause est forcement du cote du fournisseur.
-  enregistrerObservation(name, false, s.lastReason, s.failures, "trafic");
+  return enregistrerObservation(name, false, s.lastReason, s.failures, "trafic");
 }
 
-function noteSuccess(name: AiProviderName, origine: Origine = "trafic"): void {
+function noteSuccess(name: AiProviderName, origine: Origine = "trafic"): Promise<void> {
   const s = providerStates.get(name) ?? etatVierge();
 
   if (origine === "sonde") {
@@ -212,8 +212,7 @@ function noteSuccess(name: AiProviderName, origine: Origine = "trafic"): void {
     // ce qui evite de resonder en boucle.
     s.lastProbeSuccessAt = Date.now();
     providerStates.set(name, s);
-    enregistrerObservation(name, true, null, 0, "sonde");
-    return;
+    return enregistrerObservation(name, true, null, 0, "sonde");
   }
 
   s.lastSuccessAt = Date.now();
@@ -222,7 +221,7 @@ function noteSuccess(name: AiProviderName, origine: Origine = "trafic"): void {
   s.failures = 0;
   s.lastReason = null;
   providerStates.set(name, s);
-  enregistrerObservation(name, true, null, 0, "trafic");
+  return enregistrerObservation(name, true, null, 0, "trafic");
 }
 
 /**
@@ -285,8 +284,8 @@ export function isProviderTripped(name: AiProviderName): boolean {
  * voyait Gemini en bonne sante pendant toute une journee de panne, donc
  * personne n'etait prevenu.
  */
-export function noteProviderFailure(name: AiProviderName, reason: string): void {
-  noteFailure(name, reason);
+export function noteProviderFailure(name: AiProviderName, reason: string): Promise<void> {
+  return noteFailure(name, reason);
 }
 
 /**
@@ -518,7 +517,7 @@ export async function probeStaleProviders(): Promise<AiProviderName[]> {
       // reellement servi (`anthropic:claude-...`).
       const aRepondu = res.model.includes(":") ? res.model.split(":")[0] : name;
       if (aRepondu !== name) {
-        noteFailure(name, `sonde servie par ${aRepondu}: ${name} n'a pas repondu lui-meme`);
+        await noteFailure(name, `sonde servie par ${aRepondu}: ${name} n'a pas repondu lui-meme`);
         logger.warn(
           { sonde: name, aRepondu, modele: res.model },
           "[ai-failover] sonde: le fournisseur interroge n'a pas repondu lui-meme",
@@ -530,7 +529,7 @@ export async function probeStaleProviders(): Promise<AiProviderName[]> {
       // sans credit qui refuse tout appel utile. Le compter comme un succes
       // reel effacait la preuve que l'agent de sante allait lire quatre
       // secondes plus tard.
-      noteSuccess(name, "sonde");
+      await noteSuccess(name, "sonde");
     } catch (err: any) {
       // TOUT echec compte ici, contrairement au trafic reel.
       //
@@ -545,7 +544,7 @@ export async function probeStaleProviders(): Promise<AiProviderName[]> {
       // tous deux mauvais: le fournisseur restait sans observation, donc
       // resonde a chaque cycle, et surtout il continuait de passer pour sain.
       const msg = String(err?.message ?? err);
-      noteFailure(name, msg);
+      await noteFailure(name, msg);
       logger.warn({ provider: name, err: msg.slice(0, 200) }, "[ai-failover] sonde: fournisseur en echec");
     }
   }
@@ -724,7 +723,7 @@ export async function generateText(opts: GenerateOptions): Promise<GenerateResul
         }).catch(() => {});
         invalidateQuotaCache(opts.orgId);
       }
-      noteSuccess(name);
+      await noteSuccess(name);
       if (name !== order[0]) {
         logger.warn(
           { route: opts.route, provider: name, apres: failures.join(" | ") },
@@ -738,7 +737,7 @@ export async function generateText(opts: GenerateOptions): Promise<GenerateResul
         // Erreur de requete: basculer n'aiderait pas et masquerait le defaut.
         throw err;
       }
-      noteFailure(name, msg);
+      await noteFailure(name, msg);
       failures.push(`${name}: ${msg.slice(0, 160)}`);
       logger.warn({ route: opts.route, provider: name, err: msg.slice(0, 200) }, "[ai-failover] fournisseur indisponible");
     }
@@ -784,7 +783,7 @@ export async function generateContentFallback(params: any): Promise<any> {
       // l'organisation, il n'y a donc personne a qui attribuer la bascule.
       const res = await callWithTimeout(name, () => CALLERS[name](opts, messages, null));
       if (!res.text.trim()) throw new EmptyResponseError(`${name}: reponse vide`);
-      noteSuccess(name);
+      await noteSuccess(name);
       // Le champ existait et restait VIDE dans la quasi-totalite des cas: il ne
       // recense que les echecs des fournisseurs essayes ICI, or la chaine est
       // entree APRES que le principal a echoue, et elle le saute. Quand le
@@ -818,7 +817,7 @@ export async function generateContentFallback(params: any): Promise<any> {
       return shaped;
     } catch (err: any) {
       if (!shouldFailover(err)) throw err;
-      noteFailure(name, String(err?.message ?? err));
+      await noteFailure(name, String(err?.message ?? err));
       failures.push(`${name}: ${String(err?.message ?? err).slice(0, 160)}`);
     }
   }

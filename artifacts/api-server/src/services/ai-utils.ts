@@ -284,7 +284,7 @@ export async function installGeminiModelFallback(): Promise<void> {
         // le disjoncteur ne se declenchait jamais et l'agent de sante a
         // affiche « Gemini en bonne sante » pendant toute une journee de
         // panne.
-        failover.noteProviderFailure("gemini", String((err as any)?.message ?? err));
+        await failover.noteProviderFailure("gemini", String((err as any)?.message ?? err));
         return failover.generateContentFallback(params);
       }
     };

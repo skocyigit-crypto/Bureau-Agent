@@ -39,11 +39,18 @@ vi.mock("@workspace/db", () => ({
         throw new Error("ECONNREFUSED 127.0.0.1:5432");
       },
     }),
+    // Une VRAIE promesse rejetee, pas un objet qui imite `.catch`.
+    //
+    // Le premier faux-semblant rendait `{ catch: () => undefined }`, ce qui
+    // suffisait tant que le code se contentait de `.catch(...)`. Le jour ou
+    // l'ecriture a du etre ATTENDUE — parce que Cloud Run gele l'instance
+    // apres la reponse et qu'une promesse non attendue ne s'execute jamais —
+    // le code a enchaine un `.then()`, et le faux-semblant a casse. Un double
+    // qui ne se comporte pas comme l'original ne teste que lui-meme.
     insert: () => ({
       values: () => ({
-        onConflictDoUpdate: () => ({
-          catch: () => undefined,
-        }),
+        onConflictDoUpdate: () =>
+          Promise.reject(new Error("ECONNREFUSED 127.0.0.1:5432")),
       }),
     }),
   },
@@ -75,14 +82,23 @@ describe("la base de donnees est injoignable", () => {
     await expect(lireObservationsPartagees()).resolves.toEqual([]);
   });
 
-  it("l'ecriture d'une observation ne jette pas non plus", async () => {
+  it("l'ecriture d'une observation ne jette pas, meme attendue", async () => {
     // Ce relai est traverse a chaque appel d'IA: une exception ici ferait
     // perdre des reponses utilisateur pour un probleme de supervision.
+    //
+    // Depuis que l'appelant ATTEND cette ecriture — obligatoire sous Cloud
+    // Run, qui gele l'instance apres la reponse — il ne suffit plus qu'elle
+    // ne jette pas de maniere synchrone: la promesse rendue ne doit pas
+    // rejeter non plus.
     const { enregistrerObservation, reinitialiserObservations } = await import(
       "../services/ai-provider-observations"
     );
     reinitialiserObservations();
     expect(() => enregistrerObservation("gemini", false, "429", 1)).not.toThrow();
+    reinitialiserObservations();
+    await expect(
+      enregistrerObservation("gemini", false, "429", 1),
+    ).resolves.toBeUndefined();
   });
 
   it("une base muette n'est pas mise en cache comme une reponse valable", async () => {
