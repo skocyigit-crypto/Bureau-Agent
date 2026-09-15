@@ -153,14 +153,41 @@ export function shouldFailover(err: any): boolean {
 interface ProviderState {
   lastFailureAt: number | null;
   lastSuccessAt: number | null;
+  /**
+   * Dernier succes de la SONDE, tenu a part du trafic reel.
+   *
+   * La sonde envoie une invite fixe de quatre jetons de sortie. Un compte sans
+   * credit peut tres bien y repondre alors qu'il refuse tout appel utile: c'est
+   * la situation observee toute la journee du 15/09 — zero sonde en echec,
+   * seize bascules reelles sur « prepayment credits are depleted ».
+   *
+   * Confondre les deux avait une consequence precise et retorse: l'agent de
+   * sante sonde JUSTE AVANT de lire. Le succes de la sonde effacait le
+   * compteur d'echecs, donc la supervision effacait la preuve qu'elle
+   * s'appretait a lire.
+   */
+  lastProbeSuccessAt: number | null;
   lastReason: string | null;
   failures: number;
 }
 
+function etatVierge(): ProviderState {
+  return {
+    lastFailureAt: null,
+    lastSuccessAt: null,
+    lastProbeSuccessAt: null,
+    lastReason: null,
+    failures: 0,
+  };
+}
+
 const providerStates = new Map<AiProviderName, ProviderState>();
 
+/** D'ou vient l'observation: un appel utile, ou la sonde de disponibilite. */
+type Origine = "trafic" | "sonde";
+
 function noteFailure(name: AiProviderName, reason: string): void {
-  const s = providerStates.get(name) ?? { lastFailureAt: null, lastSuccessAt: null, lastReason: null, failures: 0 };
+  const s = providerStates.get(name) ?? etatVierge();
   s.lastFailureAt = Date.now();
   s.lastReason = reason.slice(0, 200);
   s.failures += 1;
@@ -169,18 +196,33 @@ function noteFailure(name: AiProviderName, reason: string): void {
   // reste invisible a l'instance qui fait tourner la supervision — mesure le
   // 15/09: douze refus de Gemini, quatre passages de l'agent de sante, aucun
   // constat. L'ecriture est etranglee et ne jette jamais.
-  enregistrerObservation(name, false, s.lastReason, s.failures);
+  //
+  // Un echec de sonde compte comme un echec reel: l'invite est fixe et connue
+  // pour valide, donc la cause est forcement du cote du fournisseur.
+  enregistrerObservation(name, false, s.lastReason, s.failures, "trafic");
 }
 
-function noteSuccess(name: AiProviderName): void {
-  const s = providerStates.get(name) ?? { lastFailureAt: null, lastSuccessAt: null, lastReason: null, failures: 0 };
+function noteSuccess(name: AiProviderName, origine: Origine = "trafic"): void {
+  const s = providerStates.get(name) ?? etatVierge();
+
+  if (origine === "sonde") {
+    // Une sonde qui passe prouve que le fournisseur repond, pas qu'il peut
+    // servir. Elle ne lave donc RIEN: ni le compteur d'echecs, ni la cause du
+    // dernier refus. Elle marque seulement qu'on a une observation recente,
+    // ce qui evite de resonder en boucle.
+    s.lastProbeSuccessAt = Date.now();
+    providerStates.set(name, s);
+    enregistrerObservation(name, true, null, 0, "sonde");
+    return;
+  }
+
   s.lastSuccessAt = Date.now();
   // Un succes efface l'historique d'echec: seul l'etat courant interesse
   // l'exploitant, pas le total depuis le demarrage du processus.
   s.failures = 0;
   s.lastReason = null;
   providerStates.set(name, s);
-  enregistrerObservation(name, true, null, 0);
+  enregistrerObservation(name, true, null, 0, "trafic");
 }
 
 /**
@@ -390,7 +432,10 @@ export async function providerHealthPartagee(): Promise<ProviderHealth[]> {
 /** Derniere observation reelle, succes ou echec confondus. */
 function lastSeen(s: ProviderState | undefined): number | null {
   if (!s) return null;
-  const seen = Math.max(s.lastSuccessAt ?? 0, s.lastFailureAt ?? 0);
+  // La sonde compte ici, et seulement ici: elle ne prouve pas qu'un
+  // fournisseur peut servir, mais elle prouve qu'on a regarde recemment — ce
+  // qui suffit a ne pas resonder en boucle a chaque cycle.
+  const seen = Math.max(s.lastSuccessAt ?? 0, s.lastFailureAt ?? 0, s.lastProbeSuccessAt ?? 0);
   return seen > 0 ? seen : null;
 }
 
@@ -451,7 +496,12 @@ export async function probeStaleProviders(): Promise<AiProviderName[]> {
         ),
       );
       if (!res.text.trim()) throw new EmptyResponseError(`${name}: reponse vide`);
-      noteSuccess(name);
+      // « sonde » et non « trafic »: voir `ProviderState.lastProbeSuccessAt`.
+      // Cet appel-ci demande quatre jetons de sortie; il passe sur un compte
+      // sans credit qui refuse tout appel utile. Le compter comme un succes
+      // reel effacait la preuve que l'agent de sante allait lire quatre
+      // secondes plus tard.
+      noteSuccess(name, "sonde");
     } catch (err: any) {
       // TOUT echec compte ici, contrairement au trafic reel.
       //

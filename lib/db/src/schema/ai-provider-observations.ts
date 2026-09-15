@@ -29,7 +29,18 @@ export const aiProviderObservationsTable = pgTable(
   {
     /** `gemini`, `anthropic`, `openai`. Une seule ligne par fournisseur. */
     provider: text("provider").primaryKey(),
+    /** Dernier succes d'un appel UTILE. C'est lui qui lave une panne. */
     lastSuccessAt: timestamp("last_success_at", { withTimezone: true }),
+    /**
+     * Dernier succes de la SONDE de disponibilite, tenu a part.
+     *
+     * La sonde demande quatre jetons de sortie. Un compte sans credit y repond
+     * tres bien alors qu'il refuse tout appel utile: le 15/09, zero sonde en
+     * echec pour seize bascules reelles sur « prepayment credits are
+     * depleted ». Comme l'agent de sante sonde JUSTE AVANT de lire, confondre
+     * les deux revenait a effacer la preuve qu'on s'appretait a consulter.
+     */
+    lastProbeSuccessAt: timestamp("last_probe_success_at", { withTimezone: true }),
     lastFailureAt: timestamp("last_failure_at", { withTimezone: true }),
     /** Cause du dernier echec, tronquee: elle sert a diagnostiquer, pas a archiver. */
     lastReason: text("last_reason"),

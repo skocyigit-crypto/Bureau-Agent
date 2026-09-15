@@ -40,9 +40,22 @@ import { sql } from "drizzle-orm";
 
 import { logger } from "../lib/logger";
 
+/** D'ou vient une observation: un appel utile, ou la sonde de disponibilite. */
+export type Origine = "trafic" | "sonde";
+
+/**
+ * Dernier etat ecrit pour un fournisseur.
+ *
+ * `sonde-ok` est distinct de `ok` a dessein: il porte son propre etranglement,
+ * si bien qu'un signe de vie n'empeche jamais l'ecriture d'un vrai succes ni
+ * d'un vrai echec, et reciproquement.
+ */
+type EtatEcrit = "ok" | "ko" | "sonde-ok";
+
 export interface ObservationPartagee {
   provider: string;
   lastSuccessAt: number | null;
+  lastProbeSuccessAt: number | null;
   lastFailureAt: number | null;
   lastReason: string | null;
   failures: number;
@@ -55,7 +68,7 @@ const INTERVALLE_ECRITURE_MS = 60 * 1000;
 const CACHE_LECTURE_MS = 15 * 1000;
 
 const derniereEcriture = new Map<string, number>();
-const dernierEtatEcrit = new Map<string, "ok" | "ko">();
+const dernierEtatEcrit = new Map<string, EtatEcrit>();
 
 let cache: { a: number; lignes: ObservationPartagee[] } | null = null;
 
@@ -66,7 +79,7 @@ export function reinitialiserObservations(): void {
   cache = null;
 }
 
-function doitEcrire(provider: string, etat: "ok" | "ko"): boolean {
+function doitEcrire(provider: string, etat: EtatEcrit): boolean {
   // Une transition passe toujours: c'est l'information, le reste est du bruit.
   if (dernierEtatEcrit.get(provider) !== etat) return true;
   const derniere = derniereEcriture.get(provider);
@@ -87,17 +100,30 @@ export function enregistrerObservation(
   ok: boolean,
   reason: string | null,
   failures: number,
+  origine: Origine = "trafic",
 ): void {
+  // Une sonde qui passe n'est pas un succes: c'est un signe de vie.
+  //
+  // Elle demande quatre jetons de sortie et passe sur un compte sans credit
+  // qui refuse tout appel utile. Comme l'agent de sante sonde JUSTE AVANT de
+  // lire, la traiter comme un succes revenait a effacer, quatre secondes
+  // avant la lecture, la panne que la lecture devait rapporter. Mesure du
+  // 15/09: quatre bascules reelles, un passage de l'agent, toujours aucun
+  // constat — meme apres avoir rendu l'observation partagee.
+  const sondeQuiPasse = origine === "sonde" && ok;
+
   const etat: "ok" | "ko" = ok ? "ok" : "ko";
-  if (!doitEcrire(provider, etat)) return;
+  if (!sondeQuiPasse && !doitEcrire(provider, etat)) return;
+  if (sondeQuiPasse && !doitEcrire(provider, "sonde-ok")) return;
   derniereEcriture.set(provider, Date.now());
-  dernierEtatEcrit.set(provider, etat);
+  dernierEtatEcrit.set(provider, sondeQuiPasse ? "sonde-ok" : etat);
   cache = null;
 
   const maintenant = new Date();
   const valeurs = {
     provider,
-    lastSuccessAt: ok ? maintenant : null,
+    lastSuccessAt: ok && !sondeQuiPasse ? maintenant : null,
+    lastProbeSuccessAt: sondeQuiPasse ? maintenant : null,
     lastFailureAt: ok ? null : maintenant,
     lastReason: ok ? null : (reason ?? "").slice(0, 200) || null,
     failures: ok ? 0 : failures,
@@ -108,19 +134,26 @@ export function enregistrerObservation(
     .values(valeurs)
     .onConflictDoUpdate({
       target: aiProviderObservationsTable.provider,
-      set: ok
+      set: sondeQuiPasse
         ? {
-            lastSuccessAt: maintenant,
-            failures: 0,
-            lastReason: null,
+            // Rien d'autre. Surtout pas `failures` ni `lastReason`: une sonde
+            // ne lave pas une panne qu'elle n'a pas su reproduire.
+            lastProbeSuccessAt: maintenant,
             updatedAt: maintenant,
           }
-        : {
-            lastFailureAt: maintenant,
-            lastReason: valeurs.lastReason,
-            failures: valeurs.failures,
-            updatedAt: maintenant,
-          },
+        : ok
+          ? {
+              lastSuccessAt: maintenant,
+              failures: 0,
+              lastReason: null,
+              updatedAt: maintenant,
+            }
+          : {
+              lastFailureAt: maintenant,
+              lastReason: valeurs.lastReason,
+              failures: valeurs.failures,
+              updatedAt: maintenant,
+            },
     })
     .catch((err: unknown) => {
       // Volontairement en `debug`: cette ecriture est un confort de
@@ -146,6 +179,7 @@ export async function lireObservationsPartagees(): Promise<ObservationPartagee[]
     const lignes = rows.map((r) => ({
       provider: r.provider,
       lastSuccessAt: r.lastSuccessAt ? new Date(r.lastSuccessAt).getTime() : null,
+      lastProbeSuccessAt: r.lastProbeSuccessAt ? new Date(r.lastProbeSuccessAt).getTime() : null,
       lastFailureAt: r.lastFailureAt ? new Date(r.lastFailureAt).getTime() : null,
       lastReason: r.lastReason,
       failures: r.failures,
