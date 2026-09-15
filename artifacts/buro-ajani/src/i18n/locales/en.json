@@ -1253,6 +1253,12 @@
       "closedLabelNoAppt": "{{label}} — no appointment possible on this day.",
       "closedNoAppt": "Exceptional closure — no appointment possible on this day.",
       "openError": "Unable to open this event."
+    },
+    "density": {
+      "more_one": "+{{count}} more",
+      "more_other": "+{{count}} more",
+      "hidden_one": "{{count}} more event not shown",
+      "hidden_other": "{{count}} more events not shown"
     }
   },
   "tresorerie": {

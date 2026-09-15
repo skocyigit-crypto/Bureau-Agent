@@ -133,6 +133,45 @@ function interpolate(
   );
 }
 
+/**
+ * Choisit la forme grammaticale d'une cle selon un nombre.
+ *
+ * Pourquoi `Intl.PluralRules` plutot qu'un `n > 1 ? ... : ...` dans le
+ * composant. Les six langues livrees n'ont pas les memes regles: le francais
+ * met au singulier a zero (« 0 autre »), l'anglais au pluriel (« 0 more »), et
+ * l'arabe compte SIX formes, dont une propre au duel. Ecrire ce choix dans un
+ * composant, c'est le faire juste pour le francais et faux pour les cinq
+ * autres — une faute qui ne casse rien, ne leve aucune erreur, et se lit
+ * pourtant a chaque ouverture de l'ecran.
+ *
+ * Convention CLDR: `cle_one`, `cle_other`, et si besoin `cle_zero`, `cle_two`,
+ * `cle_few`, `cle_many`. `cle` seule reste valable quand la forme ne varie pas.
+ * Le nombre est passe dans `vars.count`.
+ */
+export function categoriePlurielle(lang: string, count: number): string {
+  try {
+    return new Intl.PluralRules(lang).select(count);
+  } catch {
+    // Environnement sans ICU complet: la forme « other » est la seule que
+    // toutes les langues possedent.
+    return count === 1 ? "one" : "other";
+  }
+}
+
+function cleFlechie(
+  dict: Record<string, unknown>,
+  key: string,
+  lang: string,
+  count: number,
+): string | undefined {
+  const categorie = categoriePlurielle(lang, count);
+  return (
+    lookup(dict, `${key}_${categorie}`) ??
+    lookup(dict, `${key}_other`) ??
+    lookup(dict, key)
+  );
+}
+
 export type TFunction = (
   key: string,
   vars?: Record<string, string | number>,
@@ -191,7 +230,23 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     (key, vars) => {
       const fallback = RESOURCES[DEFAULT_LANG]!;
       const active = RESOURCES[lang] ?? fallback;
-      const found = lookup(active, key) ?? lookup(fallback, key);
+      // `count` declenche l'accord grammatical; sans lui, rien ne change.
+      const count = vars && typeof vars.count === "number" ? vars.count : null;
+      // La langue des REGLES doit etre celle du DICTIONNAIRE consulte.
+      //
+      // Les traductions autres que le francais sont chargees a la demande:
+      // entre le choix d'une langue et son arrivee, `active` est deja le
+      // dictionnaire francais alors que `lang` vaut deja la nouvelle langue.
+      // Appliquer les regles anglaises a des libelles francais donnait
+      // « +0 autres » — correct en anglais, faux en francais — pendant toute
+      // la duree du chargement. Mesure faite en test, ou l'ecart est
+      // permanent: jsdom annonce l'anglais et aucune ressource n'est chargee.
+      const langueActive = RESOURCES[lang] ? lang : DEFAULT_LANG;
+      const found =
+        count === null
+          ? (lookup(active, key) ?? lookup(fallback, key))
+          : (cleFlechie(active, key, langueActive, count) ??
+            cleFlechie(fallback, key, DEFAULT_LANG, count));
       // Repli ultime: la cle elle-meme, pour reperer visuellement un trou de trad.
       return interpolate(found ?? key, vars);
     },

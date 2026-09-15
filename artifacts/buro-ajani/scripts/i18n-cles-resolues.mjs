@@ -92,6 +92,17 @@ for (const f of sources(SRC)) {
         vues += 1;
         const cle = m[2];
         const ou = `${path.relative(process.cwd(), f).split(path.sep).join("/")}:${i + 1}`;
+        // Une cle flechie ne resout pas vers du texte, et c'est NORMAL.
+        //
+        // Convention CLDR: `cle_one`, `cle_other`, et si besoin `_zero`,
+        // `_two`, `_few`, `_many`. `t("x.y", { count })` choisit la forme au
+        // moment du rendu, donc `x.y` est un objet dans le fichier de langue.
+        // Sans cette exception, ce controle refuse le seul mecanisme capable
+        // d'accorder correctement un libelle en arabe.
+        //
+        // La verification reste entiere: on exige `_other`, la seule categorie
+        // que TOUTES les langues possedent et sur laquelle le repli atterrit.
+        if (chaines.has(`${cle}_other`)) continue;
         if (objets.has(cle)) versObjet.push(`${ou}  ${cle}`);
         else if (!chaines.has(cle)) absentes.push(`${ou}  ${cle}`);
       }
