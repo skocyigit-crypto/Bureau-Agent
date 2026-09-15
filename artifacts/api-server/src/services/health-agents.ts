@@ -631,6 +631,35 @@ const aiProvidersAgent: HealthAgent = {
       // constat ne soit produit.
       const states = await providerHealthPartagee();
 
+      // Tracer aussi ce que la TABLE PARTAGEE contient, brut.
+      //
+      // Cinq hypotheses successives ont ete formulees le 15/09 sur la raison
+      // pour laquelle cet agent ne voyait pas la panne de Gemini, et chacune
+      // s'est jugee sur une deduction plutot que sur une observation: l'etat
+      // fusionne ne permet pas de distinguer « la ligne n'existe pas » de
+      // « la ligne existe et dit que tout va bien ». Les deux se lisent
+      // « enPanne: false ».
+      //
+      // Cette ligne tranche, definitivement et pour l'avenir. Elle coute une
+      // lecture deja faite et un enregistrement toutes les quinze minutes.
+      const { lireObservationsPartagees } = await import("./ai-provider-observations");
+      const partagees = await lireObservationsPartagees();
+      logger.info(
+        {
+          lignes: partagees.length,
+          observations: partagees.map((o) => ({
+            nom: o.provider,
+            echecA: o.lastFailureAt ? new Date(o.lastFailureAt).toISOString() : null,
+            succesA: o.lastSuccessAt ? new Date(o.lastSuccessAt).toISOString() : null,
+            sondeA: o.lastProbeSuccessAt
+              ? new Date(o.lastProbeSuccessAt).toISOString()
+              : null,
+            echecs: o.failures,
+          })),
+        },
+        "[Sante] Observations partagees lues en base",
+      );
+
       // Tracer CE QUE L'AGENT A VU, a chaque passage, meme quand tout va bien.
       //
       // Trois corrections successives ont ete necessaires le 15/09 pour que
