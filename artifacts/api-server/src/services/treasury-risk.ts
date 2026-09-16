@@ -33,6 +33,15 @@ const DELAY_STD = Number(process.env.TREASURY_DELAY_STD_DAYS ?? 5);
 const DEFAULT_TERMS_DAYS = Number(process.env.TREASURY_DEFAULT_TERMS_DAYS ?? 45);
 // Nombre de simulations (borné pour rester rapide même dans le cron).
 const DEFAULT_SIMULATIONS = Number(process.env.TREASURY_SIMULATIONS ?? 2000);
+
+/**
+ * Délai entre l'encaissement d'une facture et le reversement de sa TVA.
+ *
+ * Une CA3 mensuelle se paie entre le 15 et le 24 du mois suivant: l'écart
+ * réel va de ~20 à ~50 jours selon la date d'encaissement dans le mois. On
+ * retient 35 jours, le milieu de cette plage.
+ */
+const DELAI_REVERSEMENT_TVA_JOURS = Number(process.env.TREASURY_VAT_REMITTANCE_DAYS ?? 35);
 // Seuil d'alerte (haut) : au-delà, on remonte un avertissement "cash crunch".
 export const CASH_CRUNCH_THRESHOLD = Number(process.env.TREASURY_RISK_THRESHOLD ?? 0.15);
 // Seuil de résolution (bas) : une alerte déjà ouverte ne se résout qu'en
@@ -76,14 +85,57 @@ export interface TreasuryRiskResult {
   recommendation: string | null;
 }
 
-/** Échantillon N(mean, std) via Box-Muller (pas de dépendance numpy). */
-function sampleNormal(mean: number, std: number): number {
+
+/**
+ * Retard de paiement tire d'une loi LOGNORMALE de meme moyenne et de meme
+ * ecart-type que les parametres annonces.
+ *
+ * POURQUOI CHANGER DE LOI
+ *
+ * Le tirage etait `sampleNormal(12, 5)`. Deux consequences mesurees le 16/09,
+ * et les deux vont dans le meme sens — celui qui rassure :
+ *
+ *   - la loi normale n'a pratiquement pas de queue a droite. Avec 12 et 5,
+ *     P(retard > 30 j) = 0,016 % et P(retard > 45 j) = 0,000 %. Or ce modele
+ *     sert a estimer une probabilite de RUPTURE DE TRESORERIE, et ce sont
+ *     precisement les paiements tres tardifs qui la provoquent. Le modele
+ *     declarait donc quasi impossible le seul evenement qu'il devait
+ *     anticiper ;
+ *   - elle tire des retards NEGATIFS dans 0,82 % des cas — un client qui paie
+ *     avant l'echeance — que `if (day < 0) day = 0` ecretait ensuite en
+ *     silence, ce qui deplacait la moyenne effective vers le haut sans que
+ *     personne ne l'ait choisi.
+ *
+ * La lognormale est bornee a zero par construction et asymetrique a droite,
+ * ce qu'est un delai de paiement. A moyenne et ecart-type IDENTIQUES,
+ * P(retard > 30 j) passe de 0,016 % a 0,64 % — quarante fois plus de queue,
+ * sans qu'aucun chiffre annonce ne change.
+ *
+ * Les deux moments restent pilotes par TREASURY_DELAY_MEAN_DAYS et
+ * TREASURY_DELAY_STD_DAYS : augmenter l'ecart-type epaissit la queue.
+ *
+ * CE QUI N'EST PAS FAIT ICI, ET POURQUOI
+ *
+ * Les sources publiques 2026 se contredisent : Altares situe le retard moyen
+ * du batiment a 8 jours, et d'autres publications avancent que 47 % des
+ * factures du secteur sont reglees avec plus de 30 jours de retard. Les deux
+ * ne peuvent pas etre vraies ensemble — 47 % au-dela de 30 jours imposerait
+ * une moyenne d'au moins 14 jours. On ne calibre donc rien sur ces chiffres :
+ * on corrige la FAMILLE de loi, qui est defendable independamment, et on
+ * laisse la calibration a l'exploitant.
+ */
+function sampleDelayDays(mean: number, std: number): number {
+  if (!(mean > 0)) return 0;
+  const variance = std * std;
+  const sigma2 = Math.log(1 + variance / (mean * mean));
+  const sigma = Math.sqrt(sigma2);
+  const mu = Math.log(mean) - sigma2 / 2;
   let u = 0;
   let v = 0;
   while (u === 0) u = Math.random();
   while (v === 0) v = Math.random();
   const z = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
-  return mean + std * z;
+  return Math.exp(mu + sigma * z);
 }
 
 function percentile(sorted: number[], p: number): number {
@@ -95,6 +147,12 @@ function percentile(sorted: number[], p: number): number {
 interface CollectibleInvoice {
   remaining: number; // reste à payer (TTC), > 0
   collectible: number; // montant réellement encaissé (HT si autoliquidation, sinon TTC)
+  /**
+   * TVA contenue dans l'encaissement, et donc DUE AU TRESOR.
+   *
+   * Zero en autoliquidation (aucune TVA facturée) et zéro en franchise.
+   */
+  vatCollected: number;
   daysUntilDue: number; // jours jusqu'à l'échéance (négatif si déjà dépassée)
 }
 
@@ -140,7 +198,14 @@ async function loadCollectibles(
       ? Math.round((due.getTime() - now.getTime()) / DAY_MS)
       : DEFAULT_TERMS_DAYS;
 
-    collectibles.push({ remaining, collectible, daysUntilDue });
+    // TVA encaissée = part de TVA du reste à payer. Elle transite par la
+    // trésorerie de l'entreprise mais ne lui appartient pas : elle est
+    // reversée au Trésor le mois suivant.
+    const taxAmount = Number(r.taxAmount ?? 0);
+    const vatRatio = total > 0 ? Math.max(0, Math.min(1, taxAmount / total)) : 0;
+    const vatCollected = autoliq ? 0 : remaining * vatRatio;
+
+    collectibles.push({ remaining, collectible, daysUntilDue, vatCollected });
 
     if (due && due.getTime() < now.getTime()) {
       overdue.push({
@@ -204,10 +269,15 @@ async function loadPayableExpenses(
  */
 export async function analyzeTreasuryRisk(
   orgId: number,
-  opts: { simulations?: number } = {},
+  opts: { simulations?: number; vatRemittanceDays?: number } = {},
 ): Promise<TreasuryRiskResult> {
   const now = new Date();
   const simulations = Math.max(100, Math.min(20000, opts.simulations ?? DEFAULT_SIMULATIONS));
+  // Surchargeable pour que l'effet du reversement soit MESURABLE: comparer la
+  // meme organisation avec la TVA qui sort dans l'horizon puis au-dela est la
+  // seule facon de prouver que la correction change le resultat, et pas
+  // seulement le texte du module.
+  const delaiTva = Math.max(0, opts.vatRemittanceDays ?? DELAI_REVERSEMENT_TVA_JOURS);
 
   const [settings] = await db
     .select()
@@ -283,9 +353,27 @@ export async function analyzeTreasuryRisk(
     // Buckets d'encaissement par jour (0..horizon) pour cette simulation.
     const inflow = new Float64Array(HORIZON_DAYS + 1);
     for (const inv of collectibles) {
-      let day = Math.round(inv.daysUntilDue + sampleNormal(DELAY_MEAN, DELAY_STD));
+      let day = Math.round(inv.daysUntilDue + sampleDelayDays(DELAY_MEAN, DELAY_STD));
       if (day < 0) day = 0; // facture en retard : encaissement imminent, jamais avant aujourd'hui
-      if (day <= HORIZON_DAYS) inflow[day] += inv.collectible;
+      if (day <= HORIZON_DAYS) {
+        inflow[day] += inv.collectible;
+        // LA TVA N'EST PAS DE LA TRESORERIE DISPONIBLE.
+        //
+        // Elle était comptée comme telle: une facture encaissée TTC entrait
+        // en entier, et rien ne la faisait ressortir. Or la TVA collectée est
+        // reversée au Trésor le mois suivant l'encaissement (virement entre
+        // le 15 et le 24 pour une CA3 mensuelle). Sur une activité au taux
+        // normal, c'était donc un cinquième de chaque encaissement compté
+        // comme disponible alors qu'il ne l'était pas — et toujours dans le
+        // sens rassurant, sur un modèle dont l'objet est justement d'annoncer
+        // une rupture.
+        //
+        // Approximation assumée: on reverse JOUR_REVERSEMENT_TVA jours après
+        // l'encaissement plutôt qu'à la date exacte de la CA3. L'écart est de
+        // quelques jours; l'omission valait des dizaines de milliers d'euros.
+        const jourTva = day + delaiTva;
+        if (jourTva <= HORIZON_DAYS) inflow[jourTva] -= inv.vatCollected;
+      }
     }
 
     let cash = currentCash + inflow[0] - expenseOutflowByDay[0];
