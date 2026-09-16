@@ -67,6 +67,29 @@ export const facturesClientTable = pgTable("factures_client", {
   // Autoliquidation de TVA (sous-traitance BTP) : si vrai, la trésorerie
   // encaisse le HT (subtotal) et non le TTC (totalAmount). Pilier risque.
   isAutoliquidation: boolean("is_autoliquidation").notNull().default(false),
+
+  // --- Retenue de garantie (loi n° 71-584 du 16 juillet 1971) --------------
+  //
+  // Le maitre d'ouvrage retient une part du prix pour couvrir les reserves,
+  // et la loi qui l'encadre est D'ORDRE PUBLIC : le taux ne peut depasser
+  // 5 %, la somme doit etre CONSIGNEE entre les mains d'un consignataire —
+  // pas simplement gardee par le client — et elle est versee a l'entrepreneur
+  // un an apres la reception, meme sans mainlevee, faute d'opposition motivee.
+  //
+  // Le taux est stocke, jamais le montant : le montant se deduit du total, et
+  // deux valeurs pour une meme grandeur finissent toujours par diverger.
+  //
+  // Un taux SUPERIEUR a 5 % est enregistre quand meme. La retenue est imposee
+  // par le client, pas choisie par l'utilisateur : refuser la saisie
+  // reviendrait a lui interdire de decrire son propre chantier. L'exces est
+  // signale comme recuperable.
+  retenueGarantieRate: numeric("retenue_garantie_rate", { precision: 5, scale: 2 }).notNull().default("0"),
+
+  // La retenue n'est PAS pratiquee lorsque l'entrepreneur fournit une caution
+  // personnelle et solidaire d'un etablissement financier (art. 2 de la loi).
+  // Dans ce cas la somme reste due immediatement, et c'est la banque qui porte
+  // le risque.
+  cautionBancaire: boolean("caution_bancaire").notNull().default(false),
   status: text("status").notNull().default("brouillon"),
   dueDate: timestamp("due_date", { withTimezone: true }),
   paidAt: timestamp("paid_at", { withTimezone: true }),

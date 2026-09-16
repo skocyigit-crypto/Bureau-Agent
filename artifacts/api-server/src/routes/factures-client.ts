@@ -223,7 +223,7 @@ router.get("/factures-client/:id/facturx.xml", async (req: Request, res: Respons
 
 router.post("/factures-client", async (req: Request, res: Response): Promise<void> => {
   const targetOrg = getOrgId(req);
-  const { reference, title, clientName, clientEmail, clientPhone, clientAddress, clientCompany, clientSiren, deliveryAddress, operationCategory, vatOnDebits, items, subtotal, taxAmount, totalAmount, paidAmount, isAutoliquidation, currency = "EUR", status = "brouillon", dueDate, paymentMethod, notes, conditions, contactId, devisId } = req.body;
+  const { reference, title, clientName, clientEmail, clientPhone, clientAddress, clientCompany, clientSiren, deliveryAddress, operationCategory, vatOnDebits, items, subtotal, taxAmount, totalAmount, paidAmount, isAutoliquidation, currency = "EUR", status = "brouillon", dueDate, paymentMethod, notes, conditions, contactId, devisId, retenueGarantieRate, cautionBancaire } = req.body;
   if (!title?.trim()) { res.status(400).json({ error: "Le titre est obligatoire." }); return; }
   if (!clientName?.trim()) { res.status(400).json({ error: "Le client est obligatoire." }); return; }
   if (!STATUSES.includes(status)) { res.status(400).json({ error: "Statut invalide." }); return; }
@@ -299,6 +299,15 @@ router.post("/factures-client", async (req: Request, res: Response): Promise<voi
       taxAmount: String(totalsPre.taxAmount),
       totalAmount: String(totalsPre.totalAmount),
       isAutoliquidation: !!isAutoliquidation,
+      // Retenue de garantie (loi n° 71-584). Un taux superieur a 5 % est
+      // ACCEPTE: la retenue est imposee par le client, et refuser la saisie
+      // empecherait l'utilisateur de decrire son propre chantier. L'exces est
+      // signale sur le document comme recuperable.
+      retenueGarantieRate: (() => {
+        const t = Number(retenueGarantieRate);
+        return Number.isFinite(t) && t > 0 ? Math.min(100, t).toFixed(2) : "0";
+      })(),
+      cautionBancaire: !!cautionBancaire,
       // paidAmount borne: jamais negatif, jamais au-dessus du plafond, jamais null.
       paidAmount: normalizePaidAmount(paidAmount),
       currency,
@@ -380,6 +389,11 @@ router.patch("/factures-client/:id", async (req: Request, res: Response): Promis
     // totaux sont TOUJOURS derives des lignes, jamais du client.
     if (b.paidAmount !== undefined) updates.paidAmount = normalizePaidAmount(b.paidAmount);
     if (b.isAutoliquidation !== undefined) updates.isAutoliquidation = !!b.isAutoliquidation;
+    if (b.retenueGarantieRate !== undefined) {
+      const t = Number(b.retenueGarantieRate);
+      updates.retenueGarantieRate = Number.isFinite(t) && t > 0 ? Math.min(100, t).toFixed(2) : "0";
+    }
+    if (b.cautionBancaire !== undefined) updates.cautionBancaire = !!b.cautionBancaire;
     if (b.items !== undefined || b.isAutoliquidation !== undefined) {
       const [cur] = await db.select({ items: facturesClientTable.items, isAutoliquidation: facturesClientTable.isAutoliquidation })
         .from(facturesClientTable).where(scoped);

@@ -25,6 +25,7 @@
 
 import { createRequire } from "node:module";
 
+import { appliquerRetenue, exigibiliteRetenue } from "./retenue-garantie";
 import { computeInvoiceTotals, type InvoiceLine, type VatBreakdownEntry } from "./invoice-totals";
 import {
   LIBELLE_CATEGORIE,
@@ -87,6 +88,12 @@ export interface InvoiceRecord {
   conditions?: string | null;
   /** Devis uniquement: date de fin de validite de l'offre. */
   validUntil?: Date | string | null;
+  /** Retenue de garantie (loi n° 71-584), en pourcentage du total TTC. */
+  retenueGarantieRate?: number | string | null;
+  /** Une caution bancaire remplace la retenue: rien n'est retenu. */
+  cautionBancaire?: boolean | null;
+  /** Date de reception des travaux du chantier rattache, si connue. */
+  receptionDate?: Date | string | null;
 }
 
 /**
@@ -118,6 +125,18 @@ export interface InvoiceDocument {
   legalMentions: string[];
   notes: string[];
   footer: string | null;
+  /**
+   * Retenue de garantie appliquee, si le marche en prevoit une.
+   *
+   * `null` quand il n'y en a pas: une facture ordinaire ne doit pas afficher
+   * une ligne « retenue : 0 EUR », qui inviterait a en pratiquer une.
+   */
+  retenue: {
+    taux: number;
+    montant: number;
+    netAPayer: number;
+    exigibleLe: Date | null;
+  } | null;
   /** Donnees obligatoires absentes: la facture reste emise, mais non conforme. */
   warnings: string[];
 }
@@ -340,6 +359,45 @@ export function buildInvoiceDocument(
     legalMentions.push(LATE_PENALTY_MENTION, RECOVERY_INDEMNITY_MENTION, NO_DISCOUNT_MENTION);
   }
 
+  // RETENUE DE GARANTIE (loi n° 71-584 du 16 juillet 1971).
+  //
+  // Elle porte sur ce que le client VERSE, pas sur l'assiette de TVA: la TVA
+  // reste due sur la totalite. La calculer sur le net a payer est l'erreur la
+  // plus courante, et elle fausse la declaration.
+  //
+  // Un devis n'en porte pas: la retenue s'applique aux paiements, et il n'y a
+  // pas encore de paiement.
+  const tauxRetenue = estDevis ? 0 : Number(invoice.retenueGarantieRate ?? 0);
+  const retenueCalculee = tauxRetenue > 0 || (!estDevis && invoice.cautionBancaire)
+    ? appliquerRetenue(totals.totalAmount, tauxRetenue, { cautionBancaire: !!invoice.cautionBancaire })
+    : null;
+  let retenue: InvoiceDocument["retenue"] = null;
+  if (retenueCalculee && retenueCalculee.montant > 0) {
+    const exigibleLe = exigibiliteRetenue(invoice.receptionDate ?? null);
+    retenue = {
+      taux: retenueCalculee.taux,
+      montant: retenueCalculee.montant,
+      netAPayer: retenueCalculee.netAPayer,
+      exigibleLe,
+    };
+    legalMentions.push(
+      `Retenue de garantie de ${retenueCalculee.taux} % : ` +
+        `${formatMoney(retenueCalculee.montant, currency)} retenus, ` +
+        `net a payer ${formatMoney(retenueCalculee.netAPayer, currency)} ` +
+        "(loi n° 71-584 du 16 juillet 1971).",
+    );
+    if (!exigibleLe) {
+      // Sans reception, le delai d'un an n'a pas commence: afficher une
+      // echeance calculee depuis la facture ferait reclamer trop tot.
+      warnings.push(
+        "Une retenue de garantie est appliquee mais la date de reception des " +
+          "travaux n'est pas connue : son echeance de restitution ne peut pas " +
+          "etre calculee.",
+      );
+    }
+  }
+  if (retenueCalculee) warnings.push(...retenueCalculee.avertissements);
+
   // Assurance professionnelle: obligatoire sur devis ET facture pour tout
   // professionnel du batiment (loi Pinel). Le produit s'adresse a des PME du
   // BTP: l'absence est signalee, jamais silencieuse.
@@ -394,6 +452,7 @@ export function buildInvoiceDocument(
     remaining,
     payment,
     legalMentions,
+    retenue,
     notes,
     footer: clean(seller.invoiceFooter),
     warnings,
