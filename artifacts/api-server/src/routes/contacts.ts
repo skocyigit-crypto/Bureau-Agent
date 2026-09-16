@@ -13,6 +13,7 @@ import {
 import { getOrgId } from "../middleware/tenant";
 import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
 import { zodErrorResponse } from "../lib/zod-error";
+import { evaluerDemarchage } from "../services/demarchage";
 
 const router: IRouter = Router();
 
@@ -172,7 +173,21 @@ router.get("/contacts/:id", async (req, res): Promise<void> => {
     }
 
     const userMap = await resolveUserNames([contact.createdBy, contact.updatedBy]);
-    res.json(enrichSingle(contact, userMap));
+    // DEMARCHAGE: depuis le 11 aout 2026 (loi n° 2025-594), appeler un
+    // consommateur sans son consentement prealable est interdit — Bloctel n'a
+    // plus d'objet. Ni `contacts` ni `prospects` ne portaient la moindre
+    // notion de consentement, et le produit compte pourtant les appels.
+    //
+    // Le verdict est calcule a la lecture, jamais stocke: la regle a change en
+    // aout et changera encore. Le figer par contact ferait repondre aux
+    // anciennes fiches selon l'ancien droit.
+    res.json({
+      ...enrichSingle(contact, userMap),
+      demarchage: {
+        telephone: evaluerDemarchage(contact, "telephone"),
+        email: evaluerDemarchage(contact, "email"),
+      },
+    });
   } catch (err: any) {
     req.log.error({ err }, "Erreur recuperation contact");
     res.status(500).json({ error: "Erreur lors de la recuperation du contact." });
@@ -246,6 +261,83 @@ router.patch("/contacts/:id", async (req, res): Promise<void> => {
   } catch (err: any) {
     req.log.error({ err }, "Erreur mise a jour contact");
     res.status(500).json({ error: "Erreur lors de la mise a jour du contact." });
+  }
+});
+
+/**
+ * Consentement et opposition a la prospection.
+ *
+ * Route DEDIEE, et non un champ de plus dans la mise a jour generique. Trois
+ * raisons :
+ *
+ *   - le schema du PATCH generique est genere a partir du contrat d'API; y
+ *     ajouter ces champs a la main dans le fichier genere serait efface a la
+ *     prochaine generation ;
+ *   - un consentement est un ACTE, date, dont la preuve incombe au
+ *     responsable de traitement (RGPD art. 7.1). Il merite une trace propre,
+ *     pas une modification noyee parmi un changement d'adresse ;
+ *   - l'opposition doit pouvoir etre enregistree meme par quelqu'un qui n'a
+ *     pas le droit de modifier le reste de la fiche.
+ */
+router.patch("/contacts/:id/demarchage", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(400).json({ error: "ID invalide." });
+    return;
+  }
+
+  const { typePersonne, prospectionConsent, opposition } = req.body ?? {};
+  const updates: Record<string, unknown> = { updatedBy: req.session?.userId };
+
+  if (typePersonne !== undefined) {
+    if (!["particulier", "professionnel", "inconnu"].includes(typePersonne)) {
+      res.status(400).json({ error: "typePersonne doit valoir particulier, professionnel ou inconnu." });
+      return;
+    }
+    updates.typePersonne = typePersonne;
+  }
+
+  if (prospectionConsent !== undefined) {
+    if (!["accorde", "refuse", "inconnu"].includes(prospectionConsent)) {
+      res.status(400).json({ error: "prospectionConsent doit valoir accorde, refuse ou inconnu." });
+      return;
+    }
+    updates.prospectionConsent = prospectionConsent;
+    // La DATE fait la preuve: un consentement sans date ne se demontre pas.
+    updates.prospectionConsentAt = prospectionConsent === "accorde" ? new Date() : null;
+  }
+
+  if (opposition !== undefined) {
+    // Une opposition ne se retire pas d'un trait de plume: la lever suppose
+    // un nouveau consentement, qui passe par le champ ci-dessus.
+    updates.prospectionOppositionAt = opposition ? new Date() : null;
+  }
+
+  if (Object.keys(updates).length <= 1) {
+    res.status(400).json({ error: "Aucun champ de demarchage fourni." });
+    return;
+  }
+
+  try {
+    const [contact] = await db.update(contactsTable)
+      .set(updates)
+      .where(and(eq(contactsTable.id, id), eq(contactsTable.organisationId, orgId)))
+      .returning();
+    if (!contact) {
+      res.status(404).json({ error: "Contact not found" });
+      return;
+    }
+    res.json({
+      ...contact,
+      demarchage: {
+        telephone: evaluerDemarchage(contact, "telephone"),
+        email: evaluerDemarchage(contact, "email"),
+      },
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur mise a jour demarchage");
+    res.status(500).json({ error: "Erreur lors de la mise a jour." });
   }
 });
 
