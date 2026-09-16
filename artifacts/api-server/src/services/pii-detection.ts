@@ -218,12 +218,32 @@ export function looksLikeText(buffer: Buffer): boolean {
   }
   // Trop d'octets de controle => binaire.
   if (control / sample.length > 0.05) return false;
-  // Exiger un decodage UTF-8 valide (rejette le binaire a octets hauts).
+  // Un decodage UTF-8 valide suffit a conclure.
   try {
     new TextDecoder("utf-8", { fatal: true }).decode(sample);
     return true;
   } catch {
-    // Fallback latin-1 tolere si peu d'octets de controle (deja verifie).
+    // CE `catch` RENDAIT `true`, EXACTEMENT COMME SON `try`.
+    //
+    // Le `fatal: true` au-dessus levait bien l'exception, puis elle etait
+    // ignoree : la garde annoncee par le commentaire d'origine — « rejette le
+    // binaire a octets hauts » — ne s'executait jamais. Mesure du 16/09 : 204
+    // octets hauts sans aucun octet de controle, invalides en UTF-8, etaient
+    // rendus a `detectPii` via `buffer.toString("utf8")`.
+    //
+    // On ne peut pas pour autant rejeter tout ce qui n'est pas de l'UTF-8 :
+    // un export comptable en ISO-8859-1 est du texte legitime, et le refuser
+    // reviendrait a ne plus JAMAIS y chercher de donnees personnelles. Ce que
+    // l'on distingue, c'est la FORME des octets hauts :
+    //
+    //   - en latin-1, ils sont des lettres accentuees (>= 0xA0) et restent
+    //     minoritaires — meme un texte tres accentue depasse rarement 15 % ;
+    //   - dans du binaire, ils sont denses et occupent la plage 0x80-0x9F,
+    //     qui ne porte aucun caractere imprimable en latin-1.
+    const c1 = sample.reduce((n, b) => n + (b >= 0x80 && b <= 0x9f ? 1 : 0), 0);
+    const hauts = sample.reduce((n, b) => n + (b >= 0x80 ? 1 : 0), 0);
+    if (c1 / sample.length > 0.02) return false;
+    if (hauts / sample.length > 0.3) return false;
     return true;
   }
 }
