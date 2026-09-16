@@ -15,6 +15,7 @@ import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/
 import { zodErrorResponse } from "../lib/zod-error";
 import { sendWhatsAppNotification } from "../services/whatsapp-notify";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
+import { planifierProchaine } from "../services/taches-recurrentes";
 
 const router: IRouter = Router();
 
@@ -198,7 +199,50 @@ router.patch("/tasks/:id", async (req, res): Promise<void> => {
       return;
     }
 
-    res.json(task);
+    // UNE TACHE RECURRENTE QUI NE REVENAIT JAMAIS.
+    //
+    // `isRecurring`, `recurrenceRule` et `recurrenceEndDate` existaient, et
+    // l'interface offre six frequences plus une date de fin. Dans tout le
+    // serveur, ces colonnes n'etaient lues qu'a UN endroit: l'export CSV,
+    // pour ecrire « Oui » ou « Non ». L'utilisateur cochait « chaque lundi »,
+    // terminait la tache, et elle ne revenait pas.
+    //
+    // On regenere a l'ACHEVEMENT plutot que par un cron: exactement une
+    // occurrence suivante, au moment ou elle a un sens, sans tache de fond a
+    // surveiller ni risque de doublon si la precedente traine.
+    let prochaine = null;
+    if (parsed.data.status === "termine") {
+      const plan = planifierProchaine(task);
+      if (plan.regenerer && plan.prochaineEcheance) {
+        try {
+          const [creee] = await db.insert(tasksTable).values({
+            organisationId: orgId,
+            title: task.title,
+            description: task.description,
+            priority: task.priority,
+            status: "en_attente",
+            dueDate: plan.prochaineEcheance,
+            assignedTo: task.assignedTo,
+            relatedContactId: task.relatedContactId,
+            isRecurring: true,
+            recurrenceRule: task.recurrenceRule,
+            recurrenceEndDate: task.recurrenceEndDate,
+            createdBy: userId,
+          } as never).returning();
+          prochaine = creee ?? null;
+          req.log.info(
+            { taskId: task.id, prochaineId: creee?.id, echeance: plan.prochaineEcheance },
+            "[taches] occurrence suivante creee",
+          );
+        } catch (err) {
+          // La tache vient d'etre terminee: echouer ici annulerait un
+          // achevement legitime pour un probleme de planification.
+          req.log.error({ err, taskId: task.id }, "[taches] occurrence suivante non creee");
+        }
+      }
+    }
+
+    res.json(prochaine ? { ...task, prochaineOccurrence: prochaine } : task);
   } catch (err: any) {
     req.log.error({ err }, "Erreur mise a jour tache");
     res.status(500).json({ error: "Erreur lors de la mise a jour de la tache." });
