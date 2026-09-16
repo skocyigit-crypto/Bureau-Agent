@@ -12,6 +12,7 @@ import { verifierEn16931 } from "../services/conformite-en16931";
 import { LIBELLE_CATEGORIE, verifierIdentifiant } from "../services/siren";
 import { computeInvoiceTotals, isValidCurrency, parseUserDate, clampPagination, normalizePaidAmount } from "../services/invoice-totals";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
+import { supprimerFactureAutorisee } from "../services/facture-suppression";
 
 const router: IRouter = Router();
 
@@ -110,6 +111,14 @@ router.get("/factures-client/:id/pdf", async (req: Request, res: Response): Prom
       bankIban: organisationsTable.bankIban,
       bankBic: organisationsTable.bankBic,
       invoiceFooter: organisationsTable.invoiceFooter,
+      assuranceNom: organisationsTable.assuranceNom,
+      assuranceAdresse: organisationsTable.assuranceAdresse,
+      assuranceContrat: organisationsTable.assuranceContrat,
+      assuranceActivites: organisationsTable.assuranceActivites,
+      assuranceZone: organisationsTable.assuranceZone,
+      mediateurNom: organisationsTable.mediateurNom,
+      mediateurAdresse: organisationsTable.mediateurAdresse,
+      mediateurUrl: organisationsTable.mediateurUrl,
     }).from(organisationsTable).where(eq(organisationsTable.id, orgId));
 
     const model = buildInvoiceDocument(facture, org ?? {});
@@ -168,6 +177,14 @@ router.get("/factures-client/:id/facturx.xml", async (req: Request, res: Respons
       bankIban: organisationsTable.bankIban,
       bankBic: organisationsTable.bankBic,
       invoiceFooter: organisationsTable.invoiceFooter,
+      assuranceNom: organisationsTable.assuranceNom,
+      assuranceAdresse: organisationsTable.assuranceAdresse,
+      assuranceContrat: organisationsTable.assuranceContrat,
+      assuranceActivites: organisationsTable.assuranceActivites,
+      assuranceZone: organisationsTable.assuranceZone,
+      mediateurNom: organisationsTable.mediateurNom,
+      mediateurAdresse: organisationsTable.mediateurAdresse,
+      mediateurUrl: organisationsTable.mediateurUrl,
     }).from(organisationsTable).where(eq(organisationsTable.id, orgId));
 
     const facturX = buildFacturXXml(facture, org ?? {});
@@ -523,6 +540,21 @@ router.delete("/factures-client/:id", async (req: Request, res: Response): Promi
       });
       return;
     }
+    // Le refus ci-dessus porte sur le STATUT. Il laissait passer le seul cas
+    // ou la cle etrangere `onDelete: "set null"` peut se declencher: un
+    // BROUILLON auquel un reglement a ete rattache — la route des
+    // encaissements ne verifie pas le statut de la facture. L'ecriture
+    // survivait alors dans le journal inalterable, sans piece justificative.
+    const verdict = await supprimerFactureAutorisee(orgId, id);
+    if (verdict.introuvable) { res.status(404).json({ error: "Facture non trouvee." }); return; }
+    if (!verdict.autorise) {
+      res.status(409).json({
+        error: verdict.raison,
+        remediation: "Passez-la au statut \"annulee\", ou contre-passez les reglements.",
+      });
+      return;
+    }
+
     const result = await db.delete(facturesClientTable)
       .where(and(eq(facturesClientTable.id, id), eq(facturesClientTable.organisationId, orgId)))
       .returning();

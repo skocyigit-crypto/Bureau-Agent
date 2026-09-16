@@ -18,6 +18,36 @@ export const organisationsTable = pgTable("organisations", {
   legalForm: varchar("legal_form", { length: 100 }),
   capital: varchar("capital", { length: 50 }),
   invoiceFooter: text("invoice_footer"),
+
+  // --- Assurance professionnelle (loi n 2014-626, dite loi Pinel) ---------
+  //
+  // Six informations doivent figurer sur CHAQUE devis et CHAQUE facture d'un
+  // professionnel du batiment soumis a la responsabilite civile decennale :
+  // la mention « Assurance professionnelle », le nom de l'assureur, son
+  // adresse, le numero de contrat, les activites garanties et la zone
+  // geographique couverte.
+  //
+  // L'omission d'UNE SEULE suffit a caracteriser le manquement : amende
+  // administrative DGCCRF jusqu'a 3 000 EUR (personne physique) et 15 000 EUR
+  // (personne morale), par infraction constatee. Le public de ce produit —
+  // des PME du BTP — y est integralement soumis.
+  assuranceNom: text("assurance_nom"),
+  assuranceAdresse: text("assurance_adresse"),
+  assuranceContrat: text("assurance_contrat"),
+  assuranceActivites: text("assurance_activites"),
+  assuranceZone: text("assurance_zone"),
+
+  // --- Mediateur de la consommation (C. conso. art. L616-1 et L641-1) ------
+  //
+  // Tout professionnel vendant a des consommateurs doit adherer a un mediateur
+  // agree et en indiquer les coordonnees sur ses devis, factures et CGV. Meme
+  // bareme de sanction : 3 000 EUR / 15 000 EUR.
+  //
+  // Un artisan du batiment travaille couramment pour des particuliers : ce
+  // n'est pas un cas marginal pour ce produit.
+  mediateurNom: text("mediateur_nom"),
+  mediateurAdresse: text("mediateur_adresse"),
+  mediateurUrl: text("mediateur_url"),
   autoInvoiceEnabled: boolean("auto_invoice_enabled").notNull().default(true),
   autoEmailInvoice: boolean("auto_email_invoice").notNull().default(true),
   weeklySecurityEmail: boolean("weekly_security_email").notNull().default(false),
