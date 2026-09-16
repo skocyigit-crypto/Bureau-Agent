@@ -11,6 +11,91 @@ let isRunning = false;
 const SYNC_INTERVAL_MS = 30 * 60 * 1000;
 const SYNC_TAG = "[google-auto]";
 
+const FUSEAU_PAR_DEFAUT = "Europe/Paris";
+
+/**
+ * Decalage entre l'heure murale d'un fuseau et l'instant reel, en ms.
+ */
+function decalageMs(instant: Date, timeZone: string): number {
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone, hour12: false,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+  });
+  const p: Record<string, string> = {};
+  for (const { type, value } of dtf.formatToParts(instant)) p[type] = value;
+  const murale = Date.UTC(
+    Number(p.year), Number(p.month) - 1, Number(p.day),
+    Number(p.hour) % 24, Number(p.minute), Number(p.second),
+  );
+  return murale - (instant.getTime() - instant.getMilliseconds());
+}
+
+/** Instant UTC correspondant a une heure murale donnee dans un fuseau. */
+function instantDe(
+  y: number, mo: number, d: number, h: number, mi: number, sec: number, ms: number,
+  timeZone: string,
+): Date {
+  const cible = Date.UTC(y, mo - 1, d, h, mi, sec, ms);
+  let t = cible;
+  // Deux passes suffisent : la premiere corrige le decalage, la seconde le
+  // reevalue au bon instant (indispensable les jours de bascule d'heure).
+  for (let i = 0; i < 2; i++) t = cible - decalageMs(new Date(t), timeZone);
+  return new Date(t);
+}
+
+/**
+ * Bornes de la journee EN COURS dans le fuseau de l'agenda.
+ *
+ * LE DEFAUT CORRIGE (mesure le 16/09)
+ *
+ * Ces bornes etaient calculees ainsi :
+ *
+ *     const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+ *     const todayEnd   = new Date(now); todayEnd.setHours(23, 59, 59, 999);
+ *
+ * `setHours` travaille dans le fuseau du SERVEUR. Sur Cloud Run, c'est UTC —
+ * alors que le fuseau de l'agenda etait lu juste apres, dans
+ * `calendarTimeZone`, et transmis a l'API Google. La fenetre interrogee et
+ * les evenements rendus n'etaient donc pas dans le meme referentiel.
+ *
+ * En ete a Paris (UTC+2), « aujourd'hui » couvrait en realite de 02h00
+ * aujourd'hui a 01h59 demain : les evenements de 00h00 a 02h00 du jour
+ * etaient perdus, et ceux du lendemain matin comptes dans la journee.
+ *
+ * Les memes bornes servent a la requete anti-doublon sur `checkInAt` : une
+ * fenetre decalee pouvait donc aussi manquer le pointage existant et en creer
+ * un second pour la meme journee.
+ *
+ * C'est la meme famille que #161, corrige le meme jour dans la
+ * synchronisation manuelle (`google-calendar-sync.ts`) : la regle n'avait ete
+ * appliquee que d'un cote.
+ */
+export function bornesDuJourLocal(
+  now: Date,
+  timeZone: string | null | undefined,
+): { debut: Date; fin: Date; fuseau: string } {
+  const essayer = (tz: string) => {
+    const f = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
+    });
+    const [y, mo, d] = f.format(now).split("-").map(Number);
+    return {
+      debut: instantDe(y, mo, d, 0, 0, 0, 0, tz),
+      fin: instantDe(y, mo, d, 23, 59, 59, 999, tz),
+      fuseau: tz,
+    };
+  };
+  try {
+    return essayer(timeZone || FUSEAU_PAR_DEFAUT);
+  } catch {
+    // Un fuseau illisible ne doit pas faire retomber sur UTC : le produit
+    // s'adresse a des PME francaises, et un repli UTC deplacerait la journee
+    // d'une a deux heures sans aucune erreur visible.
+    return essayer(FUSEAU_PAR_DEFAUT);
+  }
+}
+
 export function startGoogleAutoPointage() {
   if (intervalHandle) return;
 
@@ -130,20 +215,21 @@ async function syncUserToday(token: {
   if (!calendar) return result;
 
   const now = new Date();
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0);
-  const todayEnd = new Date(now);
-  todayEnd.setHours(23, 59, 59, 999);
 
-  let calendarTimeZone = "Europe/Paris";
+  let calendarTimeZone = FUSEAU_PAR_DEFAUT;
   try {
     const calInfo = await calendar.calendars.get({ calendarId: "primary" });
-    calendarTimeZone = calInfo.data.timeZone || "Europe/Paris";
+    calendarTimeZone = calInfo.data.timeZone || FUSEAU_PAR_DEFAUT;
   } catch (err: any) {
     logger.warn({ err: err }, `[GoogleAutoPointage] Calendrier inaccessible user ${token.userId}:`);
     result.errors++;
     return result;
   }
+
+  // Les bornes ne peuvent etre calculees qu'APRES la lecture du fuseau de
+  // l'agenda : c'est lui qui definit ce que « aujourd'hui » veut dire pour ce
+  // salarie, pas le fuseau du serveur.
+  const { debut: todayStart, fin: todayEnd } = bornesDuJourLocal(now, calendarTimeZone);
 
   let allEvents: any[] = [];
   let pageToken: string | undefined;
