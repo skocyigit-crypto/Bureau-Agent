@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, asc, and, gte, lte, sql } from "drizzle-orm";
+import { eq, desc, asc, and, gte, lte, lt, sql } from "drizzle-orm";
 import { db, checkinsTable, usersTable, userLocationStateTable } from "@workspace/db";
 import {
   ListCheckinsQueryParams,
@@ -19,6 +19,65 @@ import {
   constaterPresence,
   type ConstatPointage,
 } from "../services/checkin-verification";
+
+import {
+  verifierEnchainement,
+  verifierJournee,
+  type Constat,
+  type Journee,
+} from "../services/conformite-temps-travail";
+
+/**
+ * Constats de conformite pour un pointage qui vient d'etre cloture.
+ *
+ * Les seuils du Code du travail ne sont pas dans la table: `totalMinutes`
+ * etait calcule et confronte a rien. Une journee de 13 heures sans pause
+ * partait en paie et en evaluation de performance sans un mot.
+ *
+ * Le repos quotidien (11 h) ne se lit sur AUCUNE ligne prise seule: il est
+ * dans l'intervalle avec le pointage precedent du meme salarie. D'ou la
+ * seconde lecture ci-dessous.
+ *
+ * Rien n'est refuse: un pointage rejete parce qu'il depasse un seuil serait
+ * un pointage FAUX, et le registre sert precisement a prouver ce qui a eu
+ * lieu. On enregistre la realite, et on la signale.
+ */
+async function constatsPour(
+  orgId: number,
+  employeeName: string,
+  ligne: { checkInAt: Date; checkOutAt: Date | null; breakMinutes: number | null },
+): Promise<Constat[]> {
+  const journee: Journee = {
+    debut: ligne.checkInAt,
+    fin: ligne.checkOutAt,
+    pauseMinutes: ligne.breakMinutes ?? 0,
+  };
+  const constats = verifierJournee(journee);
+  if (!ligne.checkOutAt) return constats;
+
+  const [precedent] = await db
+    .select({
+      checkInAt: checkinsTable.checkInAt,
+      checkOutAt: checkinsTable.checkOutAt,
+      breakMinutes: checkinsTable.breakMinutes,
+    })
+    .from(checkinsTable)
+    .where(and(
+      eq(checkinsTable.organisationId, orgId),
+      eq(checkinsTable.employeeName, employeeName),
+      lt(checkinsTable.checkInAt, ligne.checkInAt),
+    ))
+    .orderBy(desc(checkinsTable.checkInAt))
+    .limit(1);
+
+  if (precedent?.checkOutAt) {
+    constats.push(...verifierEnchainement(
+      { debut: precedent.checkInAt, fin: precedent.checkOutAt, pauseMinutes: precedent.breakMinutes ?? 0 },
+      journee,
+    ));
+  }
+  return constats;
+}
 
 const router: IRouter = Router();
 
@@ -271,7 +330,11 @@ router.patch("/checkins/:id", async (req, res): Promise<void> => {
       res.status(404).json({ error: "Pointage introuvable" });
       return;
     }
-    res.json(updated);
+    const constats = await constatsPour(orgId, updated.employeeName, updated);
+    if (constats.length > 0) {
+      req.log.warn({ checkinId: updated.id, constats: constats.map((c) => c.code) }, "[pointage] seuils du Code du travail depasses");
+    }
+    res.json({ ...updated, conformite: constats });
   } catch (err: any) {
     req.log.error({ err }, "Erreur mise a jour pointage");
     res.status(500).json({ error: "Erreur lors de la mise a jour du pointage." });
