@@ -609,12 +609,56 @@ router.get("/documents/:id/download", requireMinAgent, async (req: Request, res:
       originalName: documentsTable.originalName,
       mimeType: documentsTable.mimeType,
       organisationId: documentsTable.organisationId,
+      // Le verdict etait ecrit, compte dans un tableau de bord... et jamais
+      // relu ici. Cette requete ne le SELECTIONNAIT meme pas.
+      scanVerdict: documentsTable.scanVerdict,
+      scanEngine: documentsTable.scanEngine,
+      scanDetail: documentsTable.scanDetail,
     }).from(documentsTable)
       .where(and(eq(documentsTable.id, docId), eq(documentsTable.organisationId, orgId)));
 
     if (!doc || !doc.fileContent) {
       res.status(404).json({ error: "Document introuvable ou contenu manquant" });
       return;
+    }
+
+    // UN FICHIER QUE LE PRODUIT A LUI-MEME JUGE DANGEREUX.
+    //
+    // L'ingestion bloque les menaces evidentes par une garde heuristique
+    // SYNCHRONE, puis insere, puis lance l'antivirus complet EN ARRIERE-PLAN.
+    // Un fichier qui passe l'heuristique et echoue au scan complet est donc
+    // deja stocke, et se voit poser `scanVerdict = 'dangerous'`.
+    //
+    // Ce verdict etait compte dans un tableau de bord — le produit SAIT — et
+    // le telechargement le servait exactement comme un fichier sain.
+    //
+    // On ne le supprime pas et on n'interdit pas definitivement : le fichier
+    // appartient au client, un faux positif est possible, et il peut avoir
+    // besoin de le recuperer pour le transmettre a son propre antivirus.
+    // Mais le produit ne le remet plus sans un mot : le refus est leve par
+    // une confirmation explicite, et cette levee est journalisee.
+    const confirme = String(req.query.confirme ?? "") === "1";
+    if (doc.scanVerdict === "dangerous" && !confirme) {
+      req.log.warn(
+        { orgId, docId, engine: doc.scanEngine },
+        "[documents] telechargement refuse: fichier juge dangereux",
+      );
+      res.status(409).json({
+        error: "Ce fichier a ete juge dangereux par l'analyse antivirus.",
+        verdict: doc.scanVerdict,
+        moteur: doc.scanEngine,
+        detail: doc.scanDetail,
+        remediation: "Ajoutez ?confirme=1 pour le telecharger malgre tout. Cette action est journalisee.",
+      });
+      return;
+    }
+    if (doc.scanVerdict === "dangerous" && confirme) {
+      // La trace compte autant que le refus: c'est elle qui permet de
+      // savoir, apres coup, qui a sorti quoi du coffre.
+      req.log.warn(
+        { orgId, docId, userId: req.session?.userId, engine: doc.scanEngine },
+        "[documents] telechargement d'un fichier dangereux confirme par l'utilisateur",
+      );
     }
 
     const buffer = Buffer.from(doc.fileContent, "base64");
