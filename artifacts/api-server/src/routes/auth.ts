@@ -1080,8 +1080,29 @@ router.post("/auth/users/bulk/deactivate", async (req: Request, res: Response): 
   try {
     const conditions = [inArray(usersTable.id, safeIds), ne(usersTable.role, "super_admin")];
     if (organisationId) conditions.push(eq(usersTable.organisationId, organisationId));
-    await db.update(usersTable).set({ actif: false }).where(and(...conditions));
+    // DESACTIVER, C'EST RETIRER L'ACCES — PAS SEULEMENT LE DROIT D'EN OUVRIR UN.
+    //
+    // `actif: false` fait rejeter les Bearer tokens: le middleware traite un
+    // compte inactif comme une invalidation infinie. Mais ce controle vit
+    // dans `hydrateFromBearer`, qui sort immediatement si une session cookie
+    // existe deja — la session de navigateur ouverte continuait donc de
+    // fonctionner jusqu'a sa propre expiration.
+    //
+    // Un administrateur qui desactive un compte croit avoir coupe l'acces.
+    // Le commentaire du changement de mot de passe nomme pourtant la paire:
+    // `tokenInvalidatedAt` est « le pendant stateless de
+    // `invalidateUserSessions` (cookie/web) ». La moitie cookie manquait ici.
+    //
+    // `tokenInvalidatedAt` est pose EN PLUS: il rend la revocation
+    // independante du cache d'invalidation et survit a une reactivation.
+    await db.update(usersTable)
+      .set({ actif: false, tokenInvalidatedAt: new Date() })
+      .where(and(...conditions));
     safeIds.forEach(invalidateTenantIdentityCache);
+    safeIds.forEach(clearTokenInvalidationCache);
+    await Promise.all(safeIds.map((id) => invalidateUserSessions(id).catch((err) => {
+      logger.error({ err, userId: id }, "[auth] sessions non invalidees apres desactivation");
+    })));
     res.json({ success: true, updated: safeIds.length });
   } catch (err: any) {
     logger.error({ err }, "Bulk deactivate users error");
@@ -1103,6 +1124,17 @@ router.post("/auth/users/bulk/delete", async (req: Request, res: Response): Prom
     if (organisationId) conditions.push(eq(usersTable.organisationId, organisationId));
     const result = await db.delete(usersTable).where(and(...conditions));
     safeIds.forEach(invalidateTenantIdentityCache);
+    // La ligne utilisateur a disparu, mais la session cookie porte encore
+    // `userId`, `userRole` et `organisationId` dans son propre magasin: les
+    // routes les lisent sans relire la table. Un compte SUPPRIME restait donc
+    // utilisable jusqu'a l'expiration de sa session.
+    //
+    // Les sessions sont detruites APRES la suppression: l'inverse laisserait
+    // une fenetre ou la session est detruite et le compte encore actif, donc
+    // reconnectable.
+    await Promise.all(safeIds.map((id) => invalidateUserSessions(id).catch((err) => {
+      logger.error({ err, userId: id }, "[auth] sessions non invalidees apres suppression");
+    })));
     res.json({ deleted: result.rowCount ?? safeIds.length });
   } catch (err: any) {
     logger.error({ err }, "Bulk delete users error");
