@@ -24,7 +24,7 @@ import {
   REDACTED_COLUMNS,
   TENANT_TABLES,
 } from "../services/tenant-backup";
-import { planRestore, restoreMissingRows, RESTORABLE_TABLES } from "../services/tenant-restore";
+import { planRestore, restoreMissingRows, restaurerSequencesFactures, RESTORABLE_TABLES } from "../services/tenant-restore";
 
 const router: IRouter = Router();
 
@@ -193,8 +193,24 @@ router.post("/my-backups/:id/restore", requireRole("administrateur", "super_admi
     if (loaded.error === "corrupt") { res.status(500).json({ error: "Sauvegarde corrompue: empreinte invalide." }); return; }
 
     const result = await restoreMissingRows(loaded.content, orgId, { tables });
-    req.log.info({ orgId, backupId: id, restored: result.restored, failed: result.failed }, "[my-backups] restauration");
-    res.json({ result });
+
+    // LE COMPTEUR DE NUMEROTATION, APRES LES FACTURES.
+    //
+    // Il ne se restaure pas comme une table ordinaire: le cas dangereux est
+    // celui ou la ligne existe mais a RECULE, et « inserer ce qui manque »
+    // n'y change rien. Sans cette etape, les factures reviennent et la
+    // suivante reprend un numero deja attribue — ce que l'article
+    // 242 nonies A interdit.
+    //
+    // Apres la restauration des factures, jamais avant: avancer le compteur
+    // d'abord puis echouer sur les factures laisserait un trou.
+    const sequences = await restaurerSequencesFactures(loaded.content, orgId);
+
+    req.log.info(
+      { orgId, backupId: id, restored: result.restored, failed: result.failed, sequences },
+      "[my-backups] restauration",
+    );
+    res.json({ result, sequences });
   } catch (err: any) {
     req.log.error({ err }, "[my-backups] restauration impossible");
     res.status(500).json({ error: "Erreur lors de la restauration." });

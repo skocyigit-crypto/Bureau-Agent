@@ -60,6 +60,26 @@ export const RESTORABLE_TABLES = [
   "treasury_settings",
   "whatsapp_conversations",
   "whatsapp_messages",
+
+  // LE JOURNAL DES REGLEMENTS ET SES CLOTURES.
+  //
+  // Ils etaient sauvegardes et PAS restaurables. Le module de sauvegarde
+  // dit pourtant, a leur sujet : « Un journal qu'une restauration ne
+  // rendrait pas serait inalterable et perdu — ce qui ne vaut pas mieux
+  // qu'alterable », et « sans les clotures, le journal restaure ne pourrait
+  // plus prouver qu'aucune ecriture n'a disparu ».
+  //
+  // La regle etait donc ecrite d'un cote et contredite de l'autre.
+  //
+  // La restauration par insertion des lignes MANQUANTES convient ici : les
+  // ecritures reviennent avec leur `numero`, leur `empreinte` et leur
+  // `empreinte_precedente` d'origine, donc la chaine se reconstitue a
+  // l'identique. Recalculer les empreintes serait au contraire une
+  // falsification.
+  //
+  // Places apres `factures_client` : une ecriture reference sa facture.
+  "encaissements",
+  "clotures_comptables",
 ] as const;
 
 export interface RestorePlanEntry {
@@ -111,6 +131,75 @@ export async function planRestore(content: BackupContent, orgId: number): Promis
  * `organisation_id = orgId`: meme si un contenu venait d'ailleurs, il ne
  * pourrait pas atterrir dans une autre organisation.
  */
+/**
+ * Le compteur de numerotation des factures.
+ *
+ * IL NE SE RESTAURE PAS COMME LES AUTRES TABLES.
+ *
+ * Le module de sauvegarde l'avait vu et l'ecrit noir sur blanc : « restaurer
+ * ses factures sans sa sequence rouvrirait des numeros deja utilises ». Il
+ * etait pourtant sauvegarde et absent des tables restaurables, tandis que
+ * `factures_client` et `invoices`, eux, se restauraient. La restauration
+ * faisait donc exactement ce que la sauvegarde annoncait comme a eviter.
+ *
+ * Ce que cela produit : le client restaure, ses factures reviennent, et la
+ * facture suivante reprend un numero deja attribue. Deux pieces portent le
+ * meme numero — ce que l'article 242 nonies A interdit, et qu'un controle
+ * lit comme une sequence falsifiee.
+ *
+ * POURQUOI « INSERER CE QUI MANQUE » NE SUFFIT PAS
+ *
+ * La regle generale de ce module n'ajoute que les lignes absentes. Or le cas
+ * dangereux est celui ou la ligne EXISTE mais a recule — une base restauree
+ * partiellement, un compteur remis a zero. Inserer ne ferait alors rien, et
+ * le defaut resterait entier.
+ *
+ * D'ou une semantique propre : le compteur est porte au MAXIMUM entre sa
+ * valeur actuelle et celle de la sauvegarde. Il n'est jamais abaisse — un
+ * compteur qui recule est precisement le probleme, et une sauvegarde plus
+ * ancienne que la base ne doit pas rouvrir des numeros deja emis depuis.
+ */
+export async function restaurerSequencesFactures(
+  content: BackupContent,
+  orgId: number,
+): Promise<{ avancees: number; inchangees: number }> {
+  const rows = rowsOf(content, "invoice_sequences");
+  let avancees = 0;
+  let inchangees = 0;
+
+  for (const row of rows) {
+    // `Number(null)` vaut ZERO, et `Number.isInteger(0)` est vrai: un test a
+    // montre qu'une annee nulle passait le controle et creait une ligne pour
+    // « l'annee 0 ». On refuse donc l'absence AVANT de convertir.
+    if (row.year === null || row.year === undefined || row.year === "") continue;
+    if (row.last_number === null || row.last_number === undefined || row.last_number === "") continue;
+    const annee = Number(row.year);
+    const dernier = Number(row.last_number);
+    if (!Number.isInteger(annee) || annee < 2000 || annee > 2200) continue;
+    if (!Number.isInteger(dernier) || dernier < 0) continue;
+
+    try {
+      const res = await withDbRetry(
+        () => db.execute(sql`
+          INSERT INTO invoice_sequences (organisation_id, year, last_number)
+          VALUES (${orgId}, ${annee}, ${dernier})
+          ON CONFLICT (organisation_id, year) DO UPDATE
+            SET last_number = GREATEST(invoice_sequences.last_number, EXCLUDED.last_number)
+          WHERE invoice_sequences.last_number < EXCLUDED.last_number
+          RETURNING last_number
+        `),
+        { label: "tenant-restore:invoice-sequences" },
+      );
+      const touchees = Array.isArray(res) ? res.length : ((res as { rowCount?: number }).rowCount ?? 0);
+      if (touchees > 0) avancees++;
+      else inchangees++;
+    } catch (err) {
+      logger.warn({ err, orgId, annee }, "[tenant-restore] sequence de facture non restauree");
+    }
+  }
+
+  return { avancees, inchangees };
+}
 export async function restoreMissingRows(
   content: BackupContent,
   orgId: number,
