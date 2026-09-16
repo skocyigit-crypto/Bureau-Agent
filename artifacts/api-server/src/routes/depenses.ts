@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import { deductibiliteTva, totalDeductible } from "../services/tva-deductible";
 import {
   db,
   depensesTable,
@@ -19,6 +20,7 @@ const requireMinAgent = requireRole("super_admin", "administrateur", "agent");
 const STATUS_SET = new Set<string>(EXPENSE_STATUSES);
 const PAYMENT_SET = new Set<string>(EXPENSE_PAYMENT_STATUSES);
 const CATEGORY_SET = new Set<string>(EXPENSE_CATEGORIES);
+
 
 function num(raw: unknown): number {
   const n = typeof raw === "number" ? raw : Number(raw);
@@ -110,12 +112,37 @@ router.get("/depenses", async (req: Request, res: Response): Promise<void> => {
         ),
       );
 
+    // LA TVA FACTUREE N'EST PAS LA TVA RECUPERABLE.
+    //
+    // `amountTva` etait rendu tel quel, et rien ne distinguait la part
+    // effectivement deductible. Une entreprise qui reprend ce total dans sa
+    // CA3 sur-deduit sur au moins trois postes courants — carburant de
+    // vehicule de tourisme (20 % de trop), entretien de ce meme vehicule et
+    // hebergement (100 % de trop chacun). Une sur-deduction se paie d'un
+    // rappel assorti d'interets.
+    //
+    // Rien n'est ecrit en base: c'est une lecture, et les lignes dont la
+    // reponse depend d'une information absente (nature du vehicule, alcool)
+    // sont comptees a part plutot que tranchees d'office.
+    const avecDeduction = rows.map((r: Record<string, unknown>) => ({
+      ...r,
+      tvaDeductible: deductibiliteTva(String(r.category ?? "autre"), Number(r.amountTva ?? 0)),
+    }));
+    const deduction = totalDeductible(
+      rows.map((r: Record<string, unknown>) => ({
+        category: String(r.category ?? "autre"),
+        montantTva: Number(r.amountTva ?? 0),
+      })),
+    );
+
     res.json({
-      depenses: rows,
+      depenses: avecDeduction,
       summary: {
         ...summary,
         payableCount: payable?.count ?? 0,
         payableTotal: payable?.total ?? 0,
+        tvaDeductibleTotal: deduction.total,
+        tvaDeductibleAConfirmer: deduction.aConfirmer,
       },
       categories: EXPENSE_CATEGORIES,
     });
