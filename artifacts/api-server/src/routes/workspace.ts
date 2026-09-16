@@ -11,7 +11,7 @@ const router = Router();
 router.use(requireAuth);
 
 const GOOGLE_SERVICES = [
-  { id: "gmail", name: "Gmail", scope: "https://www.googleapis.com/auth/gmail.modify" },
+  { id: "gmail", name: "Gmail", scope: "https://www.googleapis.com/auth/gmail.readonly" },
   { id: "calendar", name: "Google Calendar", scope: "https://www.googleapis.com/auth/calendar" },
   { id: "drive", name: "Google Drive", scope: "https://www.googleapis.com/auth/drive" },
   { id: "docs", name: "Google Docs", scope: "https://www.googleapis.com/auth/documents" },
