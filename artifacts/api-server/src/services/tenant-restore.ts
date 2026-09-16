@@ -80,6 +80,11 @@ export const RESTORABLE_TABLES = [
   // Places apres `factures_client` : une ecriture reference sa facture.
   "encaissements",
   "clotures_comptables",
+
+  // Le registre des violations : c'est la preuve que le client a ete
+  // prevenu et dans quel delai. Un registre qu'une restauration ne rendrait
+  // pas laisserait le client sans moyen de demontrer sa propre diligence.
+  "violations_donnees",
 ] as const;
 
 export interface RestorePlanEntry {
