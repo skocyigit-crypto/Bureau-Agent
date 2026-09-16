@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, timestamp, numeric, jsonb, index, doublePrecision } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, numeric, jsonb, index, doublePrecision, boolean } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { organisationsTable } from "./organisations";
 import { contactsTable } from "./contacts";
@@ -23,6 +23,30 @@ export const projetsTable = pgTable("projets", {
   startDate: timestamp("start_date", { withTimezone: true }),
   endDate: timestamp("end_date", { withTimezone: true }),
   actualEndDate: timestamp("actual_end_date", { withTimezone: true }),
+
+  // --- Reception des travaux ----------------------------------------------
+  //
+  // `actualEndDate` dit quand le chantier s'est arrete. La RECEPTION est autre
+  // chose: un acte juridique, constate par un proces-verbal, qui transfere la
+  // garde de l'ouvrage et fait partir TOUTES les garanties legales — parfait
+  // achevement (1 an), bon fonctionnement (2 ans), decennale (10 ans) — ainsi
+  // que le delai de restitution de la retenue de garantie (12 mois).
+  //
+  // Sans cette date, aucune de ces echeances n'est calculable. Avant cette
+  // colonne, le vocabulaire du chantier n'existait dans tout le depot que
+  // sous forme de chaine dans la fixture d'un test d'extraction PDF.
+  receptionDate: timestamp("reception_date", { withTimezone: true }),
+
+  // Une reception PEUT etre prononcee avec reserves, et elle fait quand meme
+  // partir la decennale. Les reserves sont couvertes par la garantie de
+  // parfait achevement, c'est-a-dire un regime et un delai differents: les
+  // confondre avec un refus de reception est l'erreur classique.
+  receptionWithReserves: boolean("reception_with_reserves").notNull().default(false),
+  receptionReserves: text("reception_reserves"),
+
+  // Date de levee des reserves. Elle ne deplace AUCUNE des garanties: leur
+  // point de depart reste la reception.
+  reservesLiftedAt: timestamp("reserves_lifted_at", { withTimezone: true }),
   assignedTo: text("assigned_to"),
   teamMembers: text("team_members").array(),
   milestones: jsonb("milestones").$type<{
