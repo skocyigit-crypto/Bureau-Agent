@@ -15,6 +15,7 @@ import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/
 import { zodErrorResponse } from "../lib/zod-error";
 import { evaluerDemarchage } from "../services/demarchage";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
+import { cleEmail, cleTelephone, lireLigneContact } from "../services/import-contacts";
 import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
 
 const router: IRouter = Router();
@@ -130,28 +131,31 @@ router.post("/contacts/import", async (req, res): Promise<void> => {
   let imported = 0, skipped = 0;
   const errors: string[] = [];
 
+  // Doublons : contre le carnet existant ET a l'interieur du fichier (un
+  // meme fichier importe deux fois doublait tout le carnet).
+  const existants = await db.select({ phone: contactsTable.phone, email: contactsTable.email })
+    .from(contactsTable).where(eq(contactsTable.organisationId, orgId));
+  const telephonesVus = new Set(existants.map((c) => cleTelephone(c.phone)).filter(Boolean));
+  const emailsVus = new Set(existants.map((c) => cleEmail(c.email)).filter(Boolean));
+
   for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    const firstName = String(row.firstName || row.prenom || row["Prénom"] || row["Prenom"] || "").trim();
-    const lastName = String(row.lastName || row.nom || row["Nom"] || "").trim();
-    if (!firstName && !lastName) { skipped++; errors.push(`Ligne ${i + 2}: prénom et nom vides`); continue; }
+    const lue = lireLigneContact(rows[i]);
+    if (!lue.ok) { skipped++; errors.push(`Ligne ${i + 2}: ${lue.erreur}`); continue; }
+    const v = lue.valeurs;
+    const nom = `${v.firstName} ${v.lastName}`.trim();
+    if (telephonesVus.has(cleTelephone(v.phone)) || (v.email && emailsVus.has(cleEmail(v.email)))) {
+      skipped++; errors.push(`Ligne ${i + 2}: ${nom} — déjà présent (même téléphone ou email)`); continue;
+    }
     try {
-      await db.insert(contactsTable).values({
-        organisationId: orgId,
-        createdBy: userId,
-        updatedBy: userId,
-        firstName: firstName || "-",
-        lastName: lastName || "-",
-        email: String(row.email || row.Email || "").trim() || null,
-        phone: String(row.phone || row.telephone || row.Téléphone || row.Tel || "").trim() || null,
-        company: String(row.company || row.entreprise || row.Entreprise || "").trim() || null,
-        notes: String(row.notes || row.Notes || "").trim() || null,
-        category: String(row.category || row.categorie || row.Catégorie || "client").toLowerCase() || "client",
-      } as any);
+      await db.insert(contactsTable).values({ organisationId: orgId, createdBy: userId, updatedBy: userId, ...v } as any);
       imported++;
-    } catch {
+      telephonesVus.add(cleTelephone(v.phone));
+      if (v.email) emailsVus.add(cleEmail(v.email));
+      for (const avert of lue.avertissements) errors.push(`Ligne ${i + 2}: ${avert}`);
+    } catch (err) {
+      req.log.warn({ err, ligne: i + 2 }, "[contacts/import] insertion refusee");
       skipped++;
-      errors.push(`Ligne ${i + 2}: ${firstName} ${lastName} — doublon ou erreur`);
+      errors.push(`Ligne ${i + 2}: ${nom} — enregistrement refusé`);
     }
   }
 
