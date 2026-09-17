@@ -95,7 +95,10 @@ describe("l'ordre des deploiements est garde", () => {
     const api = scriptDe("deploy-api");
     expect(api).toContain("garde-ordre-deploiement.sh");
     // La garde doit etre consultee AVANT le deploiement, pas apres.
-    expect(api.indexOf("garde-ordre-deploiement.sh")).toBeLessThan(api.indexOf("gcloud run deploy"));
+    // Le deploiement passe par le canari depuis le 17/09 : c'est lui l'acte de deploiement.
+    const deploiement = api.indexOf("deploiement-canari.sh");
+    expect(deploiement).toBeGreaterThan(0);
+    expect(api.indexOf("garde-ordre-deploiement.sh")).toBeLessThan(deploiement);
   });
 
   it("l'interface et la vitrine s'abstiennent avec l'API", () => {
@@ -104,7 +107,9 @@ describe("l'ordre des deploiements est garde", () => {
     for (const id of ["deploy-web", "deploy-tanitim"]) {
       const s = scriptDe(id);
       expect(s, `${id} ne lit pas le temoin`).toContain(".deploiement-depasse");
-      expect(s.indexOf(".deploiement-depasse")).toBeLessThan(s.indexOf("gcloud run deploy"));
+      const deploiement = s.indexOf("deploiement-canari.sh");
+      expect(deploiement, `${id} ne deploie plus par le canari`).toBeGreaterThan(0);
+      expect(s.indexOf(".deploiement-depasse")).toBeLessThan(deploiement);
     }
   });
 
