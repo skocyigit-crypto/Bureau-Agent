@@ -176,6 +176,7 @@ router.post("/appointments/offer/:token/cancel", async (req: Request, res: Respo
       const statusByCode: Record<string, number> = {
         not_found: 404,
         not_confirmed: 409,
+        already_past: 409,
       };
       res.status(statusByCode[result.code] ?? 400).json({ error: result.message, code: result.code });
       return;
