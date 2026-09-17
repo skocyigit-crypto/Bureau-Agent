@@ -2418,7 +2418,11 @@
       "administrateur": "Admin",
       "agent": "Agent",
       "lecture_seule": "Lecture"
-    }
+    },
+    "sentTitle": "Rapport transmis au support",
+    "sentBody": "La réponse vous sera envoyée par e-mail à {{email}}.",
+    "sentNoEmail": "Rapport enregistré, mais aucune adresse e-mail n'est associée à votre compte : écrivez à support@agentdebureau.fr.",
+    "sendFailed": "Envoi impossible"
   },
   "reportsScreen": {
     "headerTitle": "Rapports & Tickets",

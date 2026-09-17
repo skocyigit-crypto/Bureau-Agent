@@ -1,15 +1,19 @@
 import { Router, type Request, type Response } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, prospectsTable, calendarEventsTable, projetsTable } from "@workspace/db";
-import { eq, sql, and, gte, lte, desc } from "drizzle-orm";
+import { eq, sql, and, gte, lt, lte, desc } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { logger } from "../lib/logger";
+import {
+  bornerJours, derniersJours, ecart, FUSEAU, heureLocale, libelleJour,
+  pourcent, rangSeverite, scoreGlobal, tauxDeGain, tendance,
+} from "../services/rapport-executif";
 
 const router = Router();
 
 router.get("/smart-reports/executive-summary", async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
-    const periodDays = parseInt(req.query.days as string) || 30;
+    const periodDays = bornerJours(req.query.days, 30);
 
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - periodDays);
@@ -41,7 +45,7 @@ router.get("/smart-reports/executive-summary", async (req: Request, res: Respons
       db.select({
         total: sql<number>`count(*)::int`,
         answered: sql<number>`count(*) filter (where ${callsTable.status} = 'repondu')::int`,
-      }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), gte(callsTable.createdAt, prevStart), lte(callsTable.createdAt, startDate))),
+      }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), gte(callsTable.createdAt, prevStart), lt(callsTable.createdAt, startDate))),
 
       db.select({
         total: sql<number>`count(*)::int`,
@@ -59,7 +63,7 @@ router.get("/smart-reports/executive-summary", async (req: Request, res: Respons
       db.select({
         total: sql<number>`count(*)::int`,
         completed: sql<number>`count(*) filter (where ${tasksTable.status} = 'termine')::int`,
-      }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), gte(tasksTable.createdAt, prevStart), lte(tasksTable.createdAt, startDate))),
+      }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), gte(tasksTable.createdAt, prevStart), lt(tasksTable.createdAt, startDate))),
 
       db.select({
         total: sql<number>`count(*)::int`,
@@ -78,7 +82,8 @@ router.get("/smart-reports/executive-summary", async (req: Request, res: Respons
       db.select({
         total: sql<number>`count(*)::int`,
         won: sql<number>`count(*) filter (where ${prospectsTable.stage} = 'gagne')::int`,
-      }).from(prospectsTable).where(and(eq(prospectsTable.organisationId, orgId), gte(prospectsTable.createdAt, prevStart), lte(prospectsTable.createdAt, startDate))),
+        lost: sql<number>`count(*) filter (where ${prospectsTable.stage} = 'perdu')::int`,
+      }).from(prospectsTable).where(and(eq(prospectsTable.organisationId, orgId), gte(prospectsTable.createdAt, prevStart), lt(prospectsTable.createdAt, startDate))),
 
       db.select({
         total: sql<number>`count(*)::int`,
@@ -102,31 +107,29 @@ router.get("/smart-reports/executive-summary", async (req: Request, res: Respons
     const pps = prevProspectStats[0];
     const proj = projetsStats[0] ?? { total: 0, active: 0, termine: 0, overdue: 0, avgProgress: 0 };
 
-    const callTrend = pcs.total > 0 ? Math.round(((cs.total - pcs.total) / pcs.total) * 100) : 0;
-    const responseRate = cs.total > 0 ? Math.round((cs.answered / cs.total) * 100) : 0;
-    const prevResponseRate = pcs.total > 0 ? Math.round((pcs.answered / pcs.total) * 100) : 0;
-    const taskCompletionRate = ts.total > 0 ? Math.round((ts.completed / ts.total) * 100) : 0;
-    const prevTaskCompletionRate = pts.total > 0 ? Math.round((pts.completed / pts.total) * 100) : 0;
-    const winRate = ps.total > 0 ? Math.round((ps.won / ps.total) * 100) : 0;
-    const prevWinRate = pps.total > 0 ? Math.round((pps.won / pps.total) * 100) : 0;
+    // `null` = on ne sait pas. Voir services/rapport-executif.ts.
+    const callTrend = tendance(cs.total, pcs.total);
+    const responseRate = pourcent(cs.answered, cs.total);
+    const prevResponseRate = pourcent(pcs.answered, pcs.total);
+    const taskCompletionRate = pourcent(ts.completed, ts.total);
+    const prevTaskCompletionRate = pourcent(pts.completed, pts.total);
+    const winRate = tauxDeGain(ps.won, ps.lost);
+    const prevWinRate = tauxDeGain(pps.won, pps.lost);
 
-    const overallScore = Math.round(
-      (responseRate * 0.25) +
-      (taskCompletionRate * 0.25) +
-      (winRate * 0.25) +
-      (Math.min(100, (contactStats[0].newThisPeriod / Math.max(1, periodDays)) * 100) * 0.25)
-    );
+    const overallScore = scoreGlobal([responseRate, taskCompletionRate, winRate]);
 
     const insights: Array<{ type: string; severity: string; message: string; metric?: string }> = [];
 
-    if (responseRate < 70) insights.push({ type: "appels", severity: "critique", message: `Taux de reponse faible: ${responseRate}%. Objectif: 85%+`, metric: `${responseRate}%` });
-    else if (responseRate > prevResponseRate) insights.push({ type: "appels", severity: "positif", message: `Taux de reponse en hausse: ${responseRate}% (+${responseRate - prevResponseRate}%)`, metric: `+${responseRate - prevResponseRate}%` });
+    const ecartReponse = ecart(responseRate, prevResponseRate);
+    if (responseRate !== null && responseRate < 70) insights.push({ type: "appels", severity: "critique", message: `Taux de reponse faible: ${responseRate}%. Objectif: 85%+`, metric: `${responseRate}%` });
+    else if (ecartReponse !== null && ecartReponse > 0) insights.push({ type: "appels", severity: "positif", message: `Taux de reponse en hausse: ${responseRate}% (+${ecartReponse} pts)`, metric: `+${ecartReponse} pts` });
 
     if (ts.overdue > 5) insights.push({ type: "taches", severity: "alerte", message: `${ts.overdue} taches en retard necessitent attention`, metric: `${ts.overdue}` });
-    if (taskCompletionRate > prevTaskCompletionRate + 5) insights.push({ type: "taches", severity: "positif", message: `Productivite en hausse: ${taskCompletionRate}% de completion (+${taskCompletionRate - prevTaskCompletionRate}%)`, metric: `+${taskCompletionRate - prevTaskCompletionRate}%` });
+    const ecartTaches = ecart(taskCompletionRate, prevTaskCompletionRate);
+    if (ecartTaches !== null && ecartTaches > 5) insights.push({ type: "taches", severity: "positif", message: `Productivite en hausse: ${taskCompletionRate}% de completion (+${ecartTaches} pts)`, metric: `+${ecartTaches} pts` });
 
     if (Number(ps.wonValue) > 0) insights.push({ type: "prospects", severity: "positif", message: `${ps.won} prospects gagnes pour ${Number(ps.wonValue).toLocaleString("fr-FR")} EUR`, metric: `${Number(ps.wonValue).toLocaleString("fr-FR")} EUR` });
-    if (ps.lost > ps.won && ps.total > 5) insights.push({ type: "prospects", severity: "alerte", message: `Plus de prospects perdus (${ps.lost}) que gagnes (${ps.won})`, metric: `${winRate}%` });
+    if (ps.lost > ps.won && ps.won + ps.lost > 5) insights.push({ type: "prospects", severity: "alerte", message: `Plus de prospects perdus (${ps.lost}) que gagnes (${ps.won})`, metric: winRate === null ? "—" : `${winRate}%` });
 
     if (messageStats[0].unread > 20) insights.push({ type: "messages", severity: "alerte", message: `${messageStats[0].unread} messages non lus en attente`, metric: `${messageStats[0].unread}` });
     if (proj.overdue > 0) insights.push({ type: "projets", severity: proj.overdue > 3 ? "critique" : "alerte", message: `${proj.overdue} projet${proj.overdue > 1 ? "s" : ""} en retard sur planning`, metric: `${proj.overdue}` });
@@ -145,9 +148,9 @@ router.get("/smart-reports/executive-summary", async (req: Request, res: Respons
       insights,
       trends: {
         callTrend,
-        taskTrend: prevTaskCompletionRate > 0 ? taskCompletionRate - prevTaskCompletionRate : 0,
-        prospectTrend: prevWinRate > 0 ? winRate - prevWinRate : 0,
-        responseTrend: responseRate - prevResponseRate,
+        taskTrend: ecartTaches,
+        prospectTrend: ecart(winRate, prevWinRate),
+        responseTrend: ecartReponse,
       },
     });
   } catch (err: any) {
@@ -159,31 +162,32 @@ router.get("/smart-reports/executive-summary", async (req: Request, res: Respons
 router.get("/smart-reports/daily-timeline", async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
-    const days = parseInt(req.query.days as string) || 14;
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
+    const days = bornerJours(req.query.days, 14);
+    const jours = derniersJours(days);
+    // Debut du premier jour local, avec marge d'un jour : le filtre fin se fait par date locale.
+    const debut = new Date(Date.parse(`${jours[0]}T00:00:00Z`) - 86400000);
+    const fin = new Date(Date.parse(`${jours[jours.length - 1]}T00:00:00Z`) + 2 * 86400000);
 
-    const timeline: Array<{ date: string; calls: number; tasks: number; prospects: number; messages: number; events: number }> = [];
-
-    for (let i = 0; i < days; i++) {
-      const day = new Date(startDate);
-      day.setDate(day.getDate() + i);
-      const dayStart = new Date(day); dayStart.setHours(0, 0, 0, 0);
-      const dayEnd = new Date(day); dayEnd.setHours(23, 59, 59, 999);
-
-      const [calls, tasks, prospects, messages, events] = await Promise.all([
-        db.select({ c: sql<number>`count(*)::int` }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd))),
-        db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), gte(tasksTable.createdAt, dayStart), lte(tasksTable.createdAt, dayEnd))),
-        db.select({ c: sql<number>`count(*)::int` }).from(prospectsTable).where(and(eq(prospectsTable.organisationId, orgId), gte(prospectsTable.createdAt, dayStart), lte(prospectsTable.createdAt, dayEnd))),
-        db.select({ c: sql<number>`count(*)::int` }).from(messagesTable).where(and(eq(messagesTable.organisationId, orgId), gte(messagesTable.createdAt, dayStart), lte(messagesTable.createdAt, dayEnd))),
-        db.select({ c: sql<number>`count(*)::int` }).from(calendarEventsTable).where(and(eq(calendarEventsTable.organisationId, orgId), gte(calendarEventsTable.startDate, dayStart), lte(calendarEventsTable.startDate, dayEnd))),
-      ]);
-
-      timeline.push({
-        date: dayStart.toISOString().slice(0, 10),
-        calls: calls[0].c, tasks: tasks[0].c, prospects: prospects[0].c, messages: messages[0].c, events: events[0].c,
-      });
-    }
+    // Cinq requetes groupees par jour LOCAL (il y en avait cinq PAR JOUR).
+    const parJour = async (table: any, colonne: any) => {
+      const expr = sql<string>`to_char(${colonne} at time zone ${FUSEAU}, 'YYYY-MM-DD')`;
+      const lignes = await db.select({ d: expr, c: sql<number>`count(*)::int` }).from(table)
+        .where(and(eq(table.organisationId, orgId), gte(colonne, debut), lt(colonne, fin)))
+        .groupBy(sql`1`);
+      return new Map(lignes.map((l: any) => [String(l.d), Number(l.c)]));
+    };
+    const [calls, tasks, prospects, messages, events] = await Promise.all([
+      parJour(callsTable, callsTable.createdAt),
+      parJour(tasksTable, tasksTable.createdAt),
+      parJour(prospectsTable, prospectsTable.createdAt),
+      parJour(messagesTable, messagesTable.createdAt),
+      parJour(calendarEventsTable, calendarEventsTable.startDate),
+    ]);
+    const timeline = jours.map((date) => ({
+      date,
+      calls: calls.get(date) ?? 0, tasks: tasks.get(date) ?? 0, prospects: prospects.get(date) ?? 0,
+      messages: messages.get(date) ?? 0, events: events.get(date) ?? 0,
+    }));
 
     res.json({ timeline });
   } catch (err: any) {
@@ -256,7 +260,7 @@ router.get("/smart-reports/reminders", async (req: Request, res: Response): Prom
         id: `event_${e.id}`, type: "evenement",
         severity: minutesUntil <= 30 ? "urgent" : minutesUntil <= 120 ? "alerte" : "info",
         title: e.title,
-        description: minutesUntil <= 60 ? `Dans ${minutesUntil} minutes` : `Aujourd'hui a ${new Date(e.startDate).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`,
+        description: minutesUntil <= 60 ? `Dans ${minutesUntil} minutes` : `${libelleJour(new Date(e.startDate), now)} a ${heureLocale(new Date(e.startDate))}`,
         time: e.startDate.toISOString(), actionUrl: "/calendrier",
       });
     }
@@ -265,7 +269,7 @@ router.get("/smart-reports/reminders", async (req: Request, res: Response): Prom
       reminders.push({
         id: `prospect_${p.id}`, type: "prospect", severity: "alerte",
         title: `Prospect a conclure: ${p.title}`,
-        description: `Date de cloture prevue: ${p.expectedCloseDate ? new Date(p.expectedCloseDate).toLocaleDateString("fr-FR") : "bientot"} - Valeur: ${Number(p.value || 0).toLocaleString("fr-FR")} EUR`,
+        description: `Date de cloture prevue: ${p.expectedCloseDate ? new Date(p.expectedCloseDate).toLocaleDateString("fr-FR", { timeZone: FUSEAU }) : "bientot"} - Valeur: ${Number(p.value || 0).toLocaleString("fr-FR")} EUR`,
         time: p.expectedCloseDate?.toISOString() || "", actionUrl: "/prospects",
       });
     }
@@ -274,7 +278,7 @@ router.get("/smart-reports/reminders", async (req: Request, res: Response): Prom
       reminders.push({
         id: `call_${c.id}`, type: "appel", severity: "alerte",
         title: `Appel manque: ${c.contactName || c.phoneNumber || "Inconnu"}`,
-        description: `A ${new Date(c.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`,
+        description: `A ${heureLocale(new Date(c.createdAt))}`,
         time: c.createdAt.toISOString(), actionUrl: "/appels",
       });
     }
@@ -291,8 +295,7 @@ router.get("/smart-reports/reminders", async (req: Request, res: Response): Prom
     }
 
     reminders.sort((a, b) => {
-      const severityOrder: Record<string, number> = { critique: 0, urgent: 1, alerte: 2, info: 3 };
-      return (severityOrder[a.severity] || 3) - (severityOrder[b.severity] || 3);
+      return rangSeverite(a.severity) - rangSeverite(b.severity);
     });
 
     res.json({ reminders, counts: { overdue: overdueTasks.length, upcoming: upcomingEvents.length, urgentProspects: urgentProspects.length, missedCalls: missedCalls.length, overdueProjects: overdueProjects.length } });

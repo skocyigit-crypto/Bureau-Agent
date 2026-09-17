@@ -4,7 +4,9 @@ import { db, notesInternesTable } from "@workspace/db";
 import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
 import { rowId } from "../lib/request-params";
+import { validerNote } from "../services/note-interne";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
+import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
 
 const router: IRouter = Router();
 
@@ -24,17 +26,18 @@ router.get("/notes-internes", requireRole("agent"), async (req: Request, res: Re
 router.post("/notes-internes", requireRole("agent"), async (req: Request, res: Response) => {
   try {
     const orgId = getOrgId(req);
-    const userId = (req as any).user?.id || null;
-    const { title, content, color = "default", pinned = false, tags } = req.body;
-    if (!content?.trim()) { res.status(400).json({ error: "Le contenu est obligatoire." }); return; }
+    // `req.user` n'est alimente nulle part : l'auteur etait toujours NULL.
+    const userId = req.session?.userId ?? null;
+    const v = validerNote(req.body, false);
+    if (!v.ok) { res.status(400).json({ error: v.erreur }); return; }
     const [row] = await db.insert(notesInternesTable).values({
       organisationId: orgId,
       userId,
-      title: title?.trim() || null,
-      content: content.trim(),
-      color,
-      pinned: !!pinned,
-      tags: Array.isArray(tags) ? tags : [],
+      title: v.champs.title ?? null,
+      content: v.champs.content!,
+      color: v.champs.color!,
+      pinned: v.champs.pinned!,
+      tags: v.champs.tags!,
     }).returning();
     res.status(201).json(row);
   } catch (err) {
@@ -51,13 +54,9 @@ router.put("/notes-internes/:id", requireRole("agent"), async (req: Request, res
     const [existing] = await db.select().from(notesInternesTable)
       .where(and(eq(notesInternesTable.id, id), eq(notesInternesTable.organisationId, orgId)));
     if (!existing) { res.status(404).json({ error: "Note introuvable" }); return; }
-    const { title, content, color, pinned, tags } = req.body;
-    const updates: any = { updatedAt: new Date() };
-    if (title !== undefined) updates.title = title?.trim() || null;
-    if (content !== undefined) updates.content = content.trim();
-    if (color !== undefined) updates.color = color;
-    if (pinned !== undefined) updates.pinned = !!pinned;
-    if (tags !== undefined) updates.tags = Array.isArray(tags) ? tags : [];
+    const v = validerNote(req.body, true);
+    if (!v.ok) { res.status(400).json({ error: v.erreur }); return; }
+    const updates = { ...v.champs, updatedAt: new Date() };
     const [row] = await db.update(notesInternesTable).set(updates).where(and(eq(notesInternesTable.id, id), eq(notesInternesTable.organisationId, orgId))).returning();
     res.json(row);
   } catch (err) {
@@ -71,7 +70,6 @@ router.delete("/notes-internes/:id", requireRole("agent"), async (req: Request, 
     const orgId = getOrgId(req);
     const id = rowId(req.params.id);
     if (id === null) { res.status(400).json({ error: "Identifiant invalide." }); return; }
-    if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
     const deleted = await db.delete(notesInternesTable)
       .where(and(eq(notesInternesTable.id, id), eq(notesInternesTable.organisationId, orgId)))
       .returning();
@@ -87,7 +85,8 @@ router.delete("/notes-internes/:id", requireRole("agent"), async (req: Request, 
 router.post("/notes-internes/:id/duplicate", requireRole("agent"), async (req: Request, res: Response) => {
   try {
     const orgId = getOrgId(req);
-    const userId = (req as any).user?.id || null;
+    // `req.user` n'est alimente nulle part : l'auteur etait toujours NULL.
+    const userId = req.session?.userId ?? null;
     const id = rowId(req.params.id);
     if (id === null) { res.status(400).json({ error: "Identifiant invalide." }); return; }
     const [existing] = await db.select().from(notesInternesTable)
@@ -116,17 +115,13 @@ router.get("/notes-internes/export/csv", requireRole("agent"), async (req: Reque
       .where(eq(notesInternesTable.organisationId, orgId))
       .orderBy(desc(notesInternesTable.updatedAt));
     const headers = ["Titre", "Contenu", "Couleur", "Épinglé", "Tags", "Créé le", "Modifié le"];
-    const escape = (v: any) => {
-      if (v == null) return "";
-      const s = String(v).replace(/"/g, '""');
-      return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s;
-    };
-    const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString("fr-FR") : "";
-    const lines = [headers.join(","), ...rows.map(r => [
+    const escape = celluleCsv;
+    const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" }) : "";
+    const lines = [headers.map(celluleCsv).join(SEPARATEUR_CSV), ...rows.map(r => [
       escape(r.title), escape(r.content), escape(r.color),
       r.pinned ? "Oui" : "Non", escape(Array.isArray(r.tags) ? r.tags.join(";") : ""),
       escape(fmtDate(r.createdAt)), escape(fmtDate(r.updatedAt)),
-    ].join(","))];
+    ].join(SEPARATEUR_CSV))];
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="notes_${Date.now()}.csv"`);
     res.send("\uFEFF" + lines.join("\n"));

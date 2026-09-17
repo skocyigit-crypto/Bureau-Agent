@@ -11,6 +11,7 @@ import { getOrgId } from "../middleware/tenant";
 import { logger } from "../lib/logger";
 import { zodErrorResponse } from "../lib/zod-error";
 import { ecartPoints, moyenneOuNull, taux, variationPourcent } from "../services/comparaison-hebdo";
+import { heureDePointe, repartirParHeure } from "../services/repartition-horaire";
 
 const router: IRouter = Router();
 
@@ -149,23 +150,23 @@ router.get("/dashboard/call-analytics", async (req, res): Promise<void> => {
   switch (period) {
     case "today":
       startDate = getStartOfDay();
-      groupExpr = sql`to_char(${callsTable.createdAt}, 'HH24:00')`;
+      groupExpr = sql`to_char(${callsTable.createdAt} at time zone 'Europe/Paris', 'HH24:00')`;
       break;
     case "week":
       startDate = getStartOfWeek();
-      groupExpr = sql`to_char(${callsTable.createdAt}, 'Dy')`;
+      groupExpr = sql`to_char(${callsTable.createdAt} at time zone 'Europe/Paris', 'Dy')`;
       break;
     case "month":
       startDate = getStartOfMonth();
-      groupExpr = sql`to_char(${callsTable.createdAt}, 'DD/MM')`;
+      groupExpr = sql`to_char(${callsTable.createdAt} at time zone 'Europe/Paris', 'DD/MM')`;
       break;
     case "year":
       startDate = getStartOfYear();
-      groupExpr = sql`to_char(${callsTable.createdAt}, 'Mon')`;
+      groupExpr = sql`to_char(${callsTable.createdAt} at time zone 'Europe/Paris', 'Mon')`;
       break;
     default:
       startDate = getStartOfWeek();
-      groupExpr = sql`to_char(${callsTable.createdAt}, 'Dy')`;
+      groupExpr = sql`to_char(${callsTable.createdAt} at time zone 'Europe/Paris', 'Dy')`;
   }
 
   try {
@@ -344,24 +345,20 @@ router.get("/dashboard/hourly-performance", async (req, res): Promise<void> => {
   const oc = eq(callsTable.organisationId, orgId);
 
   try {
-    const hours = [];
-    for (let h = 0; h < 24; h++) {
-      const result = await db
-        .select({
-          total: sql<number>`count(*)::int`,
-          answered: sql<number>`count(*) filter (where ${callsTable.status} = 'repondu')::int`,
-          missed: sql<number>`count(*) filter (where ${callsTable.status} = 'manque')::int`,
-        })
-        .from(callsTable)
-        .where(and(oc, sql`extract(hour from ${callsTable.createdAt}) = ${h}`));
-
-      hours.push({
-        hour: h,
-        total: result[0]?.total ?? 0,
-        answered: result[0]?.answered ?? 0,
-        missed: result[0]?.missed ?? 0,
-      });
-    }
+    // Une seule requete groupee (il y en avait 24, en serie), heures en
+    // Europe/Paris : `extract(hour)` sur un timestamptz suit le fuseau de la
+    // SESSION, UTC en production — le pic de 10h s'affichait a 8h l'ete.
+    const lignes = await db
+      .select({
+        hour: sql<number>`extract(hour from ${callsTable.createdAt} at time zone 'Europe/Paris')::int`,
+        total: sql<number>`count(*)::int`,
+        answered: sql<number>`count(*) filter (where ${callsTable.status} = 'repondu')::int`,
+        missed: sql<number>`count(*) filter (where ${callsTable.status} = 'manque')::int`,
+      })
+      .from(callsTable)
+      .where(oc)
+      .groupBy(sql`1`);
+    const hours = repartirParHeure(lignes);
 
     res.json({ hours });
   } catch (err: any) {
@@ -439,8 +436,8 @@ router.get("/dashboard/weekly-report", async (req, res): Promise<void> => {
       db.select({ count: sql<number>`count(*)::int` }).from(contactsTable).where(and(oContact, gte(contactsTable.createdAt, weekStart))),
       db.select({ count: sql<number>`count(*)::int` }).from(tasksTable).where(and(oTask, gte(tasksTable.updatedAt, weekStart), eq(tasksTable.status, "termine"))),
       db.select({ count: sql<number>`count(*)::int` }).from(messagesTable).where(and(oMsg, gte(messagesTable.createdAt, weekStart))),
-      db.select({ hour: sql<number>`extract(hour from ${callsTable.createdAt})::int`, count: sql<number>`count(*)::int` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, weekStart))).groupBy(sql`extract(hour from ${callsTable.createdAt})`).orderBy(sql`count(*) desc`).limit(1),
-      db.select({ day: sql<string>`to_char(${callsTable.createdAt}, 'Dy')`, count: sql<number>`count(*)::int` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, weekStart))).groupBy(sql`to_char(${callsTable.createdAt}, 'Dy')`).orderBy(sql`count(*) desc`).limit(1),
+      db.select({ hour: sql<number>`extract(hour from ${callsTable.createdAt} at time zone 'Europe/Paris')::int`, count: sql<number>`count(*)::int` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, weekStart))).groupBy(sql`extract(hour from ${callsTable.createdAt} at time zone 'Europe/Paris')`).orderBy(sql`count(*) desc`).limit(1),
+      db.select({ day: sql<string>`to_char(${callsTable.createdAt} at time zone 'Europe/Paris', 'Dy')`, count: sql<number>`count(*)::int` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, weekStart))).groupBy(sql`to_char(${callsTable.createdAt} at time zone 'Europe/Paris', 'Dy')`).orderBy(sql`count(*) desc`).limit(1),
     ]);
 
     const twc = thisWeekCalls[0]?.count ?? 0;
@@ -664,13 +661,13 @@ router.get("/dashboard/week-comparison", async (req, res): Promise<void> => {
     lastWeekStart.setDate(lastWeekStart.getDate() - 7);
 
     const thisWeekCalls = await db.execute(sql`
-      SELECT EXTRACT(DOW FROM created_at) as dow, COUNT(*)::int as cnt
+      SELECT EXTRACT(DOW FROM created_at AT TIME ZONE 'Europe/Paris') as dow, COUNT(*)::int as cnt
       FROM calls WHERE organisation_id = ${orgId} AND created_at >= ${thisWeekStart}
       GROUP BY dow ORDER BY dow
     `);
 
     const lastWeekCalls = await db.execute(sql`
-      SELECT EXTRACT(DOW FROM created_at) as dow, COUNT(*)::int as cnt
+      SELECT EXTRACT(DOW FROM created_at AT TIME ZONE 'Europe/Paris') as dow, COUNT(*)::int as cnt
       FROM calls WHERE organisation_id = ${orgId} 
         AND created_at >= ${lastWeekStart} AND created_at < ${thisWeekStart}
       GROUP BY dow ORDER BY dow
@@ -847,16 +844,20 @@ router.get("/dashboard/smart-pulse", async (req, res): Promise<void> => {
     const hourlyDistribution: number[] = [];
     try {
       const hourly = await db.select({
-        h: sql<number>`extract(hour from ${callsTable.createdAt})`,
+        h: sql<number>`extract(hour from ${callsTable.createdAt} at time zone 'Europe/Paris')`,
         c: sql<number>`count(*)`,
-      }).from(callsTable).where(and(oc, gte(callsTable.createdAt, todayStart))).groupBy(sql`extract(hour from ${callsTable.createdAt})`);
+      }).from(callsTable).where(and(oc, gte(callsTable.createdAt, todayStart))).groupBy(sql`extract(hour from ${callsTable.createdAt} at time zone 'Europe/Paris')`);
       for (let i = 0; i < 24; i++) {
         const found = hourly.find((h: any) => Number(h.h) === i);
         hourlyDistribution.push(found ? Number(found.c) : 0);
       }
-    } catch { for (let i = 0; i < 24; i++) hourlyDistribution.push(0); }
+    } catch (err) {
+      req.log.warn({ err }, "pulse: distribution horaire indisponible");
+    }
 
-    const peakHour = hourlyDistribution.indexOf(Math.max(...hourlyDistribution));
+    // -1 = pas de pic : l'ecran le masque deja. Sans appel, `indexOf(max)`
+    // rendait 0 et affichait « pic : 0h00 ».
+    const peakHour = heureDePointe(hourlyDistribution);
 
     res.json({
       timestamp: now.toISOString(),
