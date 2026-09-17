@@ -11,6 +11,7 @@ import { resolveEmailLang } from "../i18n/email-i18n";
 import { generateUniqueLicenseKey, isUniqueViolation } from "../services/license-key";
 import { logLicenseEvent } from "../services/license-audit";
 import { logger } from "../lib/logger";
+import { contrainteUniciteViolee, lireInscription, slugOrganisation } from "../services/inscription-saisie";
 
 const router = Router();
 
@@ -46,23 +47,13 @@ const registerLimiter = rateLimit({
 });
 
 router.post("/auth/register", registerLimiter, async (req: Request, res: Response): Promise<void> => {
-  const { orgName, firstName, lastName, email, password, phone, plan, acceptedTerms } = req.body;
-
-
-  if (!orgName || orgName.trim().length < 2) {
-    res.status(400).json({ error: "Le nom de l'organisation est requis (minimum 2 caracteres)." });
+  const { password, plan, acceptedTerms } = req.body ?? {};
+  const saisie = lireInscription(req.body ?? {});
+  if (!saisie.ok) {
+    res.status(400).json({ error: saisie.erreur, champ: saisie.champ });
     return;
   }
-
-  if (!firstName || !lastName) {
-    res.status(400).json({ error: "Le prenom et le nom sont requis." });
-    return;
-  }
-
-  if (!email || !email.includes("@")) {
-    res.status(400).json({ error: "Une adresse email valide est requise." });
-    return;
-  }
+  const { orgName, firstName, lastName, email: emailLower, phone } = saisie;
 
 // Acceptation des CGV/CGU au moment de la commande.
   //
@@ -90,7 +81,6 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
     return;
   }
 
-  const emailLower = email.toLowerCase().trim();
   const [existingUser] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, emailLower));
   if (existingUser) {
     res.status(409).json({ error: "Un compte avec cet email existe deja. Connectez-vous ou utilisez un autre email." });
@@ -112,14 +102,10 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
       ? (plan as PlanKey)
       : null;
 
-  const slug = orgName.trim().toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .substring(0, 100);
+  const slug = slugOrganisation(orgName);
 
   const [existingSlug] = await db.select({ id: organisationsTable.id }).from(organisationsTable).where(eq(organisationsTable.slug, slug));
-  const finalSlug = existingSlug ? `${slug}-${Date.now()}` : slug;
+  let finalSlug = existingSlug ? `${slug}-${Date.now()}` : slug;
 
   let licenseKey = await generateUniqueLicenseKey("essai");
 
@@ -132,7 +118,7 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
       const trialEnd = new Date(Date.now() + (planConfig.trialDays || 14) * 86400000);
 
       const [org] = await tx.insert(organisationsTable).values({
-        name: orgName.trim(),
+        name: orgName,
         slug: finalSlug,
         email: emailLower,
         phone: phone || null,
@@ -163,11 +149,11 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
       const [user] = await tx.insert(usersTable).values({
         email: emailLower,
         passwordHash,
-        nom: lastName.trim(),
-        prenom: firstName.trim(),
+        nom: lastName,
+        prenom: firstName,
         role: "administrateur",
         departement: "Direction",
-        organisation: orgName.trim(),
+        organisation: orgName,
         organisationId: org.id,
         telephone: phone || null,
         avatar,
@@ -203,9 +189,17 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
     });
         break;
       } catch (e) {
+        // Distinguer la contrainte : un email deja pris (inscription
+        // simultanee) n'est pas une collision de cle de licence.
+        const contrainte = contrainteUniciteViolee(e) ?? "";
+        if (contrainte.includes("email")) {
+          res.status(409).json({ error: "Un compte avec cet email existe deja. Connectez-vous ou utilisez un autre email." });
+          return;
+        }
         if (isUniqueViolation(e) && attempt < 4) {
           attempt++;
-          licenseKey = await generateUniqueLicenseKey("essai");
+          if (contrainte.includes("slug")) finalSlug = `${slug}-${Date.now()}-${attempt}`;
+          else licenseKey = await generateUniqueLicenseKey("essai");
           continue;
         }
         throw e;
@@ -225,18 +219,18 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
     // Email verification: cree et envoie un lien (gate de connexion s'active si REQUIRE_EMAIL_VERIFICATION=1).
     try {
       const { issueAndSendEmailVerification } = await import("./auth");
-      await issueAndSendEmailVerification(result.user.id, emailLower, firstName.trim(), resolveEmailLang(req));
+      await issueAndSendEmailVerification(result.user.id, emailLower, firstName, resolveEmailLang(req));
     } catch (verifyErr) {
       logger.error({ err: verifyErr }, "[Register] Erreur envoi email verification (non bloquant)");
     }
 
     const emailResult = await sendWelcomeEmail({
       to: emailLower,
-      orgName: orgName.trim(),
+      orgName: orgName,
       plan: planConfig.name,
       licenseKey,
       loginEmail: emailLower,
-      adminName: `${firstName.trim()} ${lastName.trim()}`,
+      adminName: `${firstName} ${lastName}`,
       trialEndsAt: result.subscription.trialEndsAt,
     }, resolveEmailLang(req));
 
@@ -268,7 +262,7 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
       },
       licenseKey,
       emailSent: emailResult.success,
-      emailNote: emailResult.preview || (emailResult.success ? "Email de bienvenue envoye." : `Erreur: ${emailResult.error}`),
+      emailNote: emailResult.preview || (emailResult.success ? "Email de bienvenue envoye." : "L'email de bienvenue n'a pas pu etre envoye."),
     });
   } catch (err: any) {
     logger.error({ err: err }, "[Register] Erreur:");
