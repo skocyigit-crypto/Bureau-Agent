@@ -28,6 +28,7 @@ interface KbStatus {
   embeddedChunks: number;
   searchMode: "semantic" | "lexical";
   lastIndexedAt: string | null;
+  publicDocuments?: number;
 }
 
 interface KbSource {
@@ -213,6 +214,11 @@ export default function KnowledgeBasePage() {
             <p className="mt-1 text-xs text-muted-foreground">
               {t("knowledgeBase.publicScopeNotice")}
             </p>
+            {status?.publicDocuments === 0 && (
+              <p role="status" className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                {t("knowledgeBase.noPublicDocuments")}
+              </p>
+            )}
           </div>
         </div>
         {isAdmin && (
