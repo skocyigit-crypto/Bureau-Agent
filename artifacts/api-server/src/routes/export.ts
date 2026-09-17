@@ -4,20 +4,12 @@ import { contactsTable, callsTable, tasksTable, messagesTable, prospectsTable, d
 import { desc, eq } from "drizzle-orm";
 import { logAudit } from "./audit";
 import { getOrgId } from "../middleware/tenant";
+import { documentCsv } from "../lib/csv";
 
 const router = Router();
 
 function toCsv(data: any[], columns: { key: string; label: string }[]): string {
-  const header = columns.map(c => c.label).join(";");
-  const rows = data.map(row =>
-    columns.map(c => {
-      const val = row[c.key];
-      if (val === null || val === undefined) return "";
-      const str = String(val).replace(/"/g, '""');
-      return `"${str}"`;
-    }).join(";")
-  );
-  return [header, ...rows].join("\n");
+  return documentCsv(columns.map(c => c.label), data.map(row => columns.map(c => row[c.key])));
 }
 
 const VALID_ENTITIES = ["contacts", "appels", "taches", "messages", "prospects", "devis", "factures", "stock", "commandes-fournisseur", "projets"] as const;
@@ -228,7 +220,7 @@ router.get("/export/:entity", async (req: Request, res: Response): Promise<void>
   const date = new Date().toISOString().split("T")[0];
   res.setHeader("Content-Type", "text/csv; charset=utf-8");
   res.setHeader("Content-Disposition", `attachment; filename="${filename}_${date}.csv"`);
-  res.send("\uFEFF" + csv);
+  res.send(csv);
   } catch (err: any) {
     req.log.error({ err }, "Erreur export CSV");
     res.status(500).json({ error: "Erreur lors de l'export." });
