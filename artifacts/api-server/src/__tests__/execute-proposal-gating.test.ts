@@ -83,6 +83,25 @@ describe("executeProposal — garde d'execution", () => {
     expect(executeToolSpy).not.toHaveBeenCalled();
   });
 
+  it("refuse une proposition expiree sans executer", async () => {
+    // expireStaleProposals passe a `expiree` ce qui dort depuis 14 jours,
+    // parce que l'action n'est plus pertinente. L'approuver ensuite relancait
+    // une facture deja reglee ou rappelait un rendez-vous passe.
+    currentRow = { id: 13, organisationId: 1, status: "expiree", toolName: "send_email", args: {}, result: null };
+    const r = await executeProposal(13, CTX);
+    expect(r.ok).toBe(false);
+    expect(r.status).toBe("expiree");
+    expect(r.error).toMatch(/expir/i);
+    expect(executeToolSpy).not.toHaveBeenCalled();
+  });
+
+  it("une proposition echouee reste rejouable (reprise apres panne)", async () => {
+    currentRow = { id: 14, organisationId: 1, status: "echouee", toolName: "send_email", args: {}, result: null };
+    const r = await executeProposal(14, CTX);
+    expect(r.status).toBe("executee");
+    expect(executeToolSpy).toHaveBeenCalledTimes(1);
+  });
+
   it("renvoie introuvable si la proposition n'existe pas dans l'organisation", async () => {
     currentRow = null;
     const r = await executeProposal(999, CTX);
