@@ -1,0 +1,8 @@
+#!/bin/sh
+# Porte locale avant chaque push : toutes les etapes du CI (voir scripts/kapi-locale.mjs),
+# sans s'arreter au premier rouge, et scan de secrets du diff depuis origin/main.
+#
+# Le job `test` ne tourne que si KAPI_DATABASE_URL vise une base locale.
+# Contourner (a eviter, et a dire) : git push --no-verify
+echo "[pre-push] porte locale : pnpm run kapi (typecheck, lint, audit, routes, isolation, a11y, build, secrets)"
+KAPI_JOBS="${KAPI_JOBS:-typecheck-and-build}" pnpm run kapi
