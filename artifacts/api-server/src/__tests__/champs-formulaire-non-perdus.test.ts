@@ -40,7 +40,7 @@ function clesZod(nom: string): string[] {
 
 describe("chaque champ modifiable a l'ecran est accepte par l'API de modification", () => {
   // Pages dont la modification envoie le formulaire entier (`data: values`).
-  for (const [page, schema] of [["calls", "UpdateCallBody"], ["tasks", "UpdateTaskBody"], ["contacts", "UpdateContactBody"]] as const) {
+  for (const [page, schema] of [["calls", "UpdateCallBody"], ["tasks", "UpdateTaskBody"], ["contacts", "UpdateContactBody"], ["messages", "UpdateMessageBody"]] as const) {
     it(`${page} -> ${schema}`, () => {
       const source = readFileSync(join(RACINE, "artifacts", "buro-ajani", "src", "pages", `${page}.tsx`), "utf8");
       expect(source, `${page} n'envoie plus le formulaire entier : revoir ce test`).toMatch(/\.mutate\(\{ id: [a-zA-Z.]+, data: values \}/);

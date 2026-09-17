@@ -257,6 +257,7 @@ export * from "./updateContactBody";
 export * from "./updateContactBodyCategory";
 export * from "./updateMessageBody";
 export * from "./updateMessageBodyPriority";
+export * from "./updateMessageBodyType";
 export * from "./updateProjetBody";
 export * from "./updateProjetBodyStatus";
 export * from "./updateStockArticleBody";
