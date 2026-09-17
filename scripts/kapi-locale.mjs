@@ -51,5 +51,12 @@ console.log("\n" + "=".repeat(70));
 for (const r of resultats) console.log(`${r.statut.padEnd(8)} [${r.job}] ${r.nom || r.run}${r.duree != null ? ` (${r.duree}s)` : ""}${r.note ? ` — ${r.note}` : ""}`);
 console.log(secrets.length ? `ROUGE    secrets dans le diff : ${secrets.join(", ")}` : "OK       aucun secret dans le diff depuis origin/main");
 const rouges = resultats.filter((r) => r.statut === "ROUGE").length + (secrets.length ? 1 : 0);
-console.log(rouges ? `\n${rouges} rouge(s).` : "\nPorte locale : tout est vert.");
-process.exit(rouges ? 1 : 0);
+// Une etape ignoree n'est pas une etape reussie (constat du 17/09 : la porte
+// affichait « tout est vert » avec les six etapes de test ignorees, code 0).
+// Code 2, distinct d'un rouge ; KAPI_IGNOREES_TOLEREES=1 pour l'accepter.
+const ignorees = resultats.filter((r) => r.statut === "IGNOREE").length;
+const tolerees = process.env.KAPI_IGNOREES_TOLEREES === "1";
+if (rouges) console.log(`\n${rouges} rouge(s).`);
+else if (ignorees && !tolerees) console.log(`\nPas de rouge, mais ${ignorees} etape(s) ignoree(s) : porte NON franchie.`);
+else console.log(ignorees ? `\nPorte locale : vert (${ignorees} etape(s) ignoree(s), tolerees explicitement).` : "\nPorte locale : tout est vert.");
+process.exit(rouges ? 1 : ignorees && !tolerees ? 2 : 0);

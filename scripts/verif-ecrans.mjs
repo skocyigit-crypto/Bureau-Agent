@@ -145,7 +145,10 @@ for (const chemin of A_VISITER) {
     .filter((c) => !c.includes("..") && !/\.(js|ts|tsx|json|png|svg|fr|com|io)$/.test(c));
 
   const vide = texte.length < 60;
-  const probleme = vide || erreurs.length > 0 || reseau.length > 0 || clesNues.length > 0;
+  // Un ecran qui a recu des 429 n'est PAS jugeable : une page vide ou un appel en
+  // echec peut venir de la limite elle-meme. Constat du 17/09 : /base-connaissances
+  // declare « VIDE » avec deux 429 — ce que l'outil mesurait, c'etait sa cadence.
+  const probleme = limite.length === 0 && (vide || erreurs.length > 0 || reseau.length > 0 || clesNues.length > 0);
 
   if (probleme) {
     casses.push({ chemin, vide, erreurs, reseau, clesNues: [...new Set(clesNues)].slice(0, 3) });
@@ -188,4 +191,14 @@ if (casses.length === 0) {
     for (const k of c.clesNues) console.log(`      cle de traduction nue: ${k}`);
   }
   process.exitCode = 1;
+}
+
+// Un ecran non juge n'est pas un ecran vert (retour inter-sessions du 17/09 :
+// une porte sautee est un constat). Code 2, distinct d'un defaut (1), pour que
+// le rouge ne se confonde pas avec un ecran casse. NON_JUGES_TOLERES=1 pour
+// l'accepter explicitement.
+if (nonJuges.length > 0 && process.exitCode !== 1 && process.env.NON_JUGES_TOLERES !== "1") {
+  console.log(`
+Porte NON franchie : ${nonJuges.length} ecran(s) non juges ne comptent pas comme reussis.`);
+  process.exitCode = 2;
 }
