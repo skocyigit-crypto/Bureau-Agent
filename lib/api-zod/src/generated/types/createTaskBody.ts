@@ -17,4 +17,7 @@ export interface CreateTaskBody {
   assignedTo?: string | null;
   relatedContactId?: number | null;
   relatedCallId?: number | null;
+  isRecurring?: boolean;
+  recurrenceRule?: string | null;
+  recurrenceEndDate?: string | null;
 }

@@ -109,6 +109,8 @@ export const UpdateCallParams = zod.object({
 
 export const UpdateCallBody = zod.object({
   contactId: zod.number().nullish(),
+  phoneNumber: zod.string().optional(),
+  direction: zod.enum(["entrant", "sortant"]).optional(),
   status: zod.enum(["repondu", "manque", "messagerie", "en_cours"]).optional(),
   duration: zod.number().optional(),
   notes: zod.string().nullish(),
@@ -348,6 +350,9 @@ export const CreateTaskBody = zod.object({
   assignedTo: zod.string().nullish(),
   relatedContactId: zod.number().nullish(),
   relatedCallId: zod.number().nullish(),
+  isRecurring: zod.boolean().optional(),
+  recurrenceRule: zod.string().nullish(),
+  recurrenceEndDate: zod.string().nullish(),
 });
 
 /**
@@ -387,6 +392,9 @@ export const UpdateTaskBody = zod.object({
   assignedTo: zod.string().nullish(),
   relatedContactId: zod.number().nullish(),
   relatedCallId: zod.number().nullish(),
+  isRecurring: zod.boolean().optional(),
+  recurrenceRule: zod.string().nullish(),
+  recurrenceEndDate: zod.string().nullish(),
 });
 
 export const UpdateTaskResponse = zod.object({

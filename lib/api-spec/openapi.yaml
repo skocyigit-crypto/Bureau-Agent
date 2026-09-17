@@ -3282,10 +3282,18 @@ components:
 
     UpdateCallBody:
       type: object
+      # phoneNumber et direction manquaient : le formulaire de modification les
+      # envoie, zod les retirait sans erreur, la reponse etait 200 et l'ecran
+      # annoncait « modifie » (mesure le 17/09).
       properties:
         contactId:
           type: integer
           nullable: true
+        phoneNumber:
+          type: string
+        direction:
+          type: string
+          enum: [entrant, sortant]
         status:
           type: string
           enum: [repondu, manque, messagerie, en_cours]
@@ -3467,6 +3475,17 @@ components:
         relatedCallId:
           type: integer
           nullable: true
+        isRecurring:
+          type: boolean
+        # Chaine libre : l'ecran envoie "" quand la recurrence est decochee.
+        # La regle est validee cote serveur (services/taches-recurrentes.ts).
+        recurrenceRule:
+          type: string
+          nullable: true
+        # AAAA-MM-JJ depuis le formulaire, ou date-time.
+        recurrenceEndDate:
+          type: string
+          nullable: true
       required: [title, status, priority]
 
     UpdateTaskBody:
@@ -3495,6 +3514,17 @@ components:
           nullable: true
         relatedCallId:
           type: integer
+          nullable: true
+        isRecurring:
+          type: boolean
+        # Chaine libre : l'ecran envoie "" quand la recurrence est decochee.
+        # La regle est validee cote serveur (services/taches-recurrentes.ts).
+        recurrenceRule:
+          type: string
+          nullable: true
+        # AAAA-MM-JJ depuis le formulaire, ou date-time.
+        recurrenceEndDate:
+          type: string
           nullable: true
 
     Message:

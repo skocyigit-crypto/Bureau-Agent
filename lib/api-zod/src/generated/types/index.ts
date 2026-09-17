@@ -247,6 +247,7 @@ export * from "./taskStatus";
 export * from "./testIntegration200";
 export * from "./topContact";
 export * from "./updateCallBody";
+export * from "./updateCallBodyDirection";
 export * from "./updateCallBodySentiment";
 export * from "./updateCallBodyStatus";
 export * from "./updateCheckinBody";

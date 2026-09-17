@@ -15,7 +15,7 @@ import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/
 import { zodErrorResponse } from "../lib/zod-error";
 import { sendWhatsAppNotification } from "../services/whatsapp-notify";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
-import { planifierProchaine } from "../services/taches-recurrentes";
+import { normaliserRecurrence, planifierProchaine } from "../services/taches-recurrentes";
 import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
 
 const router: IRouter = Router();
@@ -98,7 +98,11 @@ router.post("/tasks", async (req, res): Promise<void> => {
   const userId = req.session?.userId;
 
   try {
-    const [task] = await db.insert(tasksTable).values({ ...parsed.data, organisationId: orgId, createdBy: userId, updatedBy: userId }).returning();
+    const recurrence = normaliserRecurrence(parsed.data, false);
+    if (!recurrence.ok) { res.status(400).json({ error: recurrence.erreur }); return; }
+    const { isRecurring: _ir, recurrenceRule: _rr, recurrenceEndDate: _re, ...donnees } = parsed.data;
+    void _ir; void _rr; void _re;
+    const [task] = await db.insert(tasksTable).values({ ...donnees, ...recurrence.champs, organisationId: orgId, createdBy: userId, updatedBy: userId }).returning();
 
     // Notification WhatsApp non bloquante a l'assignataire (opt-in via
     // preferences.whatsappNotifications.task). `assignedTo` est un champ
@@ -185,13 +189,17 @@ router.patch("/tasks/:id", async (req, res): Promise<void> => {
     res.status(400).json(zodErrorResponse(parsed.error));
     return;
   }
+  const recurrenceMaj = normaliserRecurrence(parsed.data, true);
+  if (!recurrenceMaj.ok) { res.status(400).json({ error: recurrenceMaj.erreur }); return; }
+  const { isRecurring: _irm, recurrenceRule: _rrm, recurrenceEndDate: _rem, ...donneesMaj } = parsed.data;
+  void _irm; void _rrm; void _rem;
 
   const orgId = getOrgId(req);
   const userId = req.session?.userId;
 
   try {
     const [task] = await db.update(tasksTable)
-      .set({ ...parsed.data, updatedBy: userId })
+      .set({ ...donneesMaj, ...recurrenceMaj.champs, updatedBy: userId })
       .where(and(eq(tasksTable.id, params.data.id), eq(tasksTable.organisationId, orgId)))
       .returning();
 
