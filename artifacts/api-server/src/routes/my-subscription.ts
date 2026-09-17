@@ -4,6 +4,8 @@ import { eq, sql, desc } from "drizzle-orm";
 import { db, organisationsTable, subscriptionsTable, usersTable, contactsTable, callsTable, invoicesTable } from "@workspace/db";
 import { PLANS, type PlanKey } from "@workspace/db/schema";
 import { checkLicense } from "../middleware/license-check";
+import { requireRole } from "../middleware/auth";
+import { escapeHtml } from "../lib/html-escape";
 
 const router = Router();
 
@@ -100,11 +102,15 @@ router.get("/my-subscription", async (req: Request, res: Response): Promise<void
   }
 });
 
-router.post("/my-subscription/upgrade-request", async (req: Request, res: Response): Promise<void> => {
+// Engager l'entreprise sur un plan payant : responsable seulement (un agent ou
+// un compte lecture seule ne signe pas pour la societe).
+router.post("/my-subscription/upgrade-request", requireRole("administrateur"), async (req: Request, res: Response): Promise<void> => {
   const { orgId, userId } = getSession(req);
   if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
 
-  const { targetPlan, message } = req.body;
+  const { targetPlan } = req.body;
+  // Texte libre borne : il part par e-mail aux administrateurs de la plateforme.
+  const message = typeof req.body.message === "string" ? req.body.message.slice(0, 1000) : "";
   if (!targetPlan || !PLANS[targetPlan as PlanKey]) {
     res.status(400).json({ error: "Plan cible invalide." }); return;
   }
@@ -151,7 +157,7 @@ router.post("/my-subscription/upgrade-request", async (req: Request, res: Respon
       void sendEmail(
         admin.email,
         sujet,
-        `<p>${corps.split("\n").join("<br>")}</p>`,
+        `<p>${corps.split("\n").map(escapeHtml).join("<br>")}</p>`,
         corps,
       ).then((r) => {
         if (!r.success) {
