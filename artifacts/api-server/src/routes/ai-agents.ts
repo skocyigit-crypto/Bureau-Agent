@@ -25,6 +25,7 @@ import {
   type SuperAgentLogSource,
   type SuperAgentStats,
 } from "../services/super-agent-state";
+import { jourLocal } from "../lib/jour-local";
 
 const router = Router();
 
@@ -1046,7 +1047,7 @@ Utilise cette veille pour contextualiser tes alertes et suggestions avec l'actua
 
 async function runSingleAgent(agent: typeof AGENTS[0], orgId: number, signal?: AbortSignal, goal?: string, userId?: number): Promise<any> {
   const startTime = Date.now();
-  const today = new Date().toISOString().split("T")[0];
+  const today = jourLocal();
   const checkAbort = () => { if (signal?.aborted) throw new Error("aborted"); };
 
   // Reservation IA en vol: ferme la course TOCTOU quand plusieurs agents
@@ -1259,7 +1260,7 @@ Rapports:\n${JSON.stringify(reportsSummary, null, 2)}`,
 
 async function runSuperAgent(childReports: any[], orgId: number): Promise<any> {
   const startTime = Date.now();
-  const today = new Date().toISOString().split("T")[0];
+  const today = jourLocal();
 
   try {
     await assertAiQuota(orgId);
@@ -1689,7 +1690,7 @@ router.post("/ai/agents/run/:agentId/stream", requireAdmin, async (req, res) => 
 
   const stream = openSseStream(res);
   const startTime = Date.now();
-  const today = new Date().toISOString().split("T")[0];
+  const today = jourLocal();
 
   try {
     stream.send("status", { phase: "gathering", agentId, agentName: agent.name });
@@ -1842,7 +1843,7 @@ router.post("/ai/agents/super", requireAdmin, async (req, res) => {
   try {
     const orgId = req.session?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
-    const today = new Date().toISOString().split("T")[0];
+    const today = jourLocal();
     const todayReports = await db.select().from(aiAgentReportsTable)
       .where(and(eq(aiAgentReportsTable.reportDate, today), eq(aiAgentReportsTable.isSuperReport, false), eq(aiAgentReportsTable.organisationId, orgId)))
       .orderBy(desc(aiAgentReportsTable.createdAt))

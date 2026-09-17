@@ -29,6 +29,7 @@ import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useCalendarEvents } from "@/contexts/CalendarEventsContext";
 import { useColors } from "@/hooks/useColors";
 import { useTranslation } from "@/lib/i18n";
+import { jourLocal } from "@/lib/jour-local";
 
 interface CalendarEvent {
   id: number | string;
@@ -73,7 +74,9 @@ function findClosureForDate(dateStr: string, closures: OrgClosure[]): OrgClosure
 function buildGrid(year: number, month: number, events: CalendarEvent[], closures: OrgClosure[]) {
   const eventMap: Record<string, string[]> = {};
   events.forEach((ev) => {
-    const key = new Date(ev.startDate).toISOString().slice(0, 10);
+    // Les cases de la grille sont en date LOCALE : la cle aussi, sinon un
+    // evenement a 00h30 s'affichait la veille.
+    const key = jourLocal(new Date(ev.startDate));
     if (!eventMap[key]) eventMap[key] = [];
     const color = ev.color || TYPE_COLORS[ev.type] || "#64748b";
     if (!eventMap[key].includes(color) && eventMap[key].length < 3) {
@@ -321,7 +324,7 @@ export default function CalendarScreen() {
   function orgHhmmToLocalHour(hhMM: string, orgTz: string): number {
     const [hh, mm] = hhMM.split(":").map(Number);
     const now = new Date();
-    const [yr, mo, dy] = now.toISOString().slice(0, 10).split("-").map(Number);
+    const [yr, mo, dy] = jourLocal(now).split("-").map(Number);
     const midnightUtc = new Date(Date.UTC(yr, mo - 1, dy, 0, 0, 0));
     try {
       const fmt = new Intl.DateTimeFormat("en-US", {
@@ -383,7 +386,7 @@ export default function CalendarScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDateStr, setSelectedDateStr] = useState<string | null>(
-    new Date().toISOString().slice(0, 10)
+    jourLocal()
   );
   const [showForm, setShowForm] = useState(false);
   const [formValues, setFormValues] = useState<Record<string, string>>({ type: "rendez_vous" });
@@ -433,7 +436,7 @@ export default function CalendarScreen() {
     if (match) {
       const d = new Date(match.startDate);
       setCurrentDate(d);
-      setSelectedDateStr(d.toISOString().slice(0, 10));
+      setSelectedDateStr(jourLocal(d));
       setSelected(match);
       setFocusedEventId(null);
       return;
@@ -447,7 +450,7 @@ export default function CalendarScreen() {
         if (cancelled || !ev?.startDate) return;
         const d = new Date(ev.startDate);
         setCurrentDate(d);
-        setSelectedDateStr(d.toISOString().slice(0, 10));
+        setSelectedDateStr(jourLocal(d));
         setSelected(ev);
         setFocusedEventId(null);
       } catch {
@@ -468,17 +471,17 @@ export default function CalendarScreen() {
 
   function goToday() {
     setCurrentDate(new Date());
-    setSelectedDateStr(new Date().toISOString().slice(0, 10));
+    setSelectedDateStr(jourLocal());
   }
 
   const grid = useMemo(() => buildGrid(year, month, events, closures), [year, month, events, closures]);
 
   const filteredEvents = useMemo(() => {
     if (!selectedDateStr) return events;
-    return events.filter((ev) => ev.startDate.slice(0, 10) === selectedDateStr);
+    return events.filter((ev) => jourLocal(new Date(ev.startDate)) === selectedDateStr);
   }, [events, selectedDateStr]);
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = jourLocal();
   const monthLabel = currentDate.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 
   function formatEventTime(ev: CalendarEvent) {
@@ -1113,7 +1116,7 @@ export default function CalendarScreen() {
                     <Text style={[styles.sheetFieldLabel, { color: colors.mutedForeground }]}>{t("calendarScreen.endDateOptional")}</Text>
                     <TouchableOpacity accessibilityRole="button"
                       onPress={() => {
-                        const base = closureEndDate ?? closureSheetDate ?? new Date().toISOString().slice(0, 10);
+                        const base = closureEndDate ?? closureSheetDate ?? jourLocal();
                         const [y, m] = base.split("-").map(Number);
                         setDatePickerMonth(new Date(y, m - 1, 1));
                         setShowDatePicker("create");
@@ -1123,7 +1126,7 @@ export default function CalendarScreen() {
                     >
                       <Feather name="calendar" size={16} color={colors.primary} />
                       <Text style={[styles.datePickerBtnText, { color: colors.foreground }]}>
-                        {formatDateFr(closureEndDate ?? closureSheetDate ?? new Date().toISOString().slice(0, 10))}
+                        {formatDateFr(closureEndDate ?? closureSheetDate ?? jourLocal())}
                       </Text>
                       <Feather name="chevron-down" size={14} color={colors.mutedForeground} />
                     </TouchableOpacity>

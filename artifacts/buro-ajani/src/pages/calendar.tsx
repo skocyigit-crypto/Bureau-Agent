@@ -43,6 +43,7 @@ import { useEffect,useMemo,useRef,useState } from "react";
 import { useMutation,useQuery,useQueryClient } from "@tanstack/react-query";
 import { chevauchements, messageChevauchement } from "@/lib/chevauchement-agenda";
 import { heureDOuverture, positionDansLHeure } from "@/lib/position-heure-courante";
+import { jourLocal } from "@/lib/jour-local";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 // Cles stables (traduites au moment du rendu, jamais au niveau module).
@@ -1005,7 +1006,7 @@ export default function CalendarPage() {
   function orgHhmmToLocalHour(hhMM: string, orgTz: string): number {
     const [hh, mm] = hhMM.split(":").map(Number);
     const now = new Date();
-    const [yr, mo, dy] = now.toISOString().slice(0, 10).split("-").map(Number);
+    const [yr, mo, dy] = jourLocal(now).split("-").map(Number);
     const midnightUtc = new Date(Date.UTC(yr, mo - 1, dy, 0, 0, 0));
     try {
       const parts = new Intl.DateTimeFormat("en-US", {
