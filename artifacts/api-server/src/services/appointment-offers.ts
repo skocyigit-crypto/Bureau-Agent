@@ -11,6 +11,7 @@ import {
   updateAppointmentInGoogleCalendar,
   deleteAppointmentFromGoogleCalendar,
 } from "./google-calendar-sync";
+import { creneauEncoreReservable, dansLHorizon, rendezVousDejaPasse } from "./garde-rendez-vous";
 
 /**
  * Flux "propose-confirm" de rendez-vous.
@@ -303,7 +304,7 @@ export type ConfirmResult =
 
 export type CancelResult =
   | { ok: true }
-  | { ok: false; code: "not_found" | "not_confirmed"; message: string };
+  | { ok: false; code: "not_found" | "not_confirmed" | "already_past"; message: string };
 
 /**
  * Confirme la selection d'un creneau par le client.
@@ -333,6 +334,9 @@ export async function confirmOfferSelection(token: string, slotIndex: number): P
   const slot = slots[slotIndex];
   const start = new Date(slot.start);
   const end = new Date(slot.end);
+  if (!Number.isFinite(start.getTime()) || !creneauEncoreReservable(start)) {
+    return { ok: false, code: "invalid_slot", message: "Ce creneau est deja passe. Merci d'en choisir un autre." };
+  }
 
   // Reservation sous verrou avisoire par organisation (pg_advisory_xact_lock,
   // auto-libere a la fin de la transaction). Sans ce verrou, deux offres
@@ -453,6 +457,9 @@ export async function cancelOffer(token: string): Promise<CancelResult> {
   if (offer.status !== "confirme") {
     return { ok: false, code: "not_confirmed", message: "Aucun rendez-vous confirme a annuler." };
   }
+  if (rendezVousDejaPasse(offer.selectedStart)) {
+    return { ok: false, code: "already_past", message: "Ce rendez-vous a deja eu lieu : il ne peut plus etre annule en ligne." };
+  }
 
   // Transition atomique: seule confirme -> annule reussit.
   const claimed = await db
@@ -540,6 +547,9 @@ export async function rescheduleOffer(token: string, slotRef: number | TimeSlot)
   if (offer.status !== "confirme") {
     return { ok: false, code: "not_confirmed", message: "Aucun rendez-vous a reprogrammer." };
   }
+  if (rendezVousDejaPasse(offer.selectedStart)) {
+    return { ok: false, code: "expired", message: "Ce rendez-vous a deja eu lieu : contactez directement l'entreprise." };
+  }
 
   let slot: TimeSlot;
   let resolvedIndex: number | null = null;
@@ -560,6 +570,12 @@ export async function rescheduleOffer(token: string, slotRef: number | TimeSlot)
   const end = new Date(slot.end);
   if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start) {
     return { ok: false, code: "invalid_slot", message: "Creneau invalide." };
+  }
+  if (!creneauEncoreReservable(start)) {
+    return { ok: false, code: "invalid_slot", message: "Ce creneau est deja passe. Merci d'en choisir un autre." };
+  }
+  if (resolvedIndex === null && !dansLHorizon(start)) {
+    return { ok: false, code: "invalid_slot", message: "Ce creneau est trop eloigne. Merci d'en choisir un dans les prochaines semaines." };
   }
 
   // Pour un creneau fourni par le client (non issu des slots d'offre originaux),
