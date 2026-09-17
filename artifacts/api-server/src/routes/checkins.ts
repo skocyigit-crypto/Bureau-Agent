@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, asc, and, gte, lte, lt, sql } from "drizzle-orm";
+import { eq, desc, asc, and, gte, lte, lt, sql, or, isNull } from "drizzle-orm";
 import { db, checkinsTable, usersTable, userLocationStateTable } from "@workspace/db";
 import {
   ListCheckinsQueryParams,
@@ -27,6 +27,8 @@ import {
   type Journee,
 } from "../services/conformite-temps-travail";
 import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
+import { appartient, porteePointage, type Portee } from "../services/portee-pointage";
+import { requireRole } from "../middleware/auth";
 
 /**
  * Constats de conformite pour un pointage qui vient d'etre cloture.
@@ -82,6 +84,17 @@ async function constatsPour(
 
 const router: IRouter = Router();
 
+/** Condition SQL de portee (voir services/portee-pointage.ts). null = refuser. */
+function conditionPortee(portee: Portee | null) {
+  if (!portee) return null;
+  if (portee.type === "organisation") return undefined;
+  const siens = eq(checkinsTable.createdBy, portee.userId);
+  if (!portee.nomComplet) return siens;
+  return or(siens, and(isNull(checkinsTable.createdBy),
+    // `\\s` : dans un gabarit JS, `\s` seul devient la lettre « s ».
+    sql`lower(regexp_replace(trim(${checkinsTable.employeeName}), '\\s+', ' ', 'g')) = ${portee.nomComplet}`));
+}
+
 const checkinSortColumns: Record<string, any> = {
   checkInAt: checkinsTable.checkInAt,
   employeeName: checkinsTable.employeeName,
@@ -100,6 +113,9 @@ router.get("/checkins", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
   const { status, type, employeeName, limit, offset, sortBy, sortOrder, dateFrom, dateTo } = query.data;
   const conditions: any[] = [eq(checkinsTable.organisationId, orgId)];
+  const portee = conditionPortee(porteePointage(req.session));
+  if (portee === null) { res.status(401).json({ error: "Non authentifie." }); return; }
+  if (portee) conditions.push(portee);
 
   if (status) conditions.push(eq(checkinsTable.status, status));
   if (type) conditions.push(eq(checkinsTable.type, type));
@@ -188,6 +204,9 @@ router.get("/checkins/stats", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
   const { employeeName, dateFrom, dateTo } = req.query as Record<string, string>;
   const conditions: any[] = [eq(checkinsTable.organisationId, orgId)];
+  const portee = conditionPortee(porteePointage(req.session));
+  if (portee === null) { res.status(401).json({ error: "Non authentifie." }); return; }
+  if (portee) conditions.push(portee);
 
   if (employeeName) conditions.push(eq(checkinsTable.employeeName, String(employeeName)));
   if (dateFrom) {
@@ -229,6 +248,9 @@ router.get("/checkins/current", async (req, res): Promise<void> => {
     eq(checkinsTable.organisationId, orgId),
     eq(checkinsTable.status, "present"),
   ];
+  const portee = conditionPortee(porteePointage(req.session));
+  if (portee === null) { res.status(401).json({ error: "Non authentifie." }); return; }
+  if (portee) conditions.push(portee);
   if (employeeName) conditions.push(eq(checkinsTable.employeeName, employeeName));
 
   try {
@@ -239,6 +261,7 @@ router.get("/checkins/current", async (req, res): Promise<void> => {
       .limit(10);
 
     const pauseConditions: any[] = [eq(checkinsTable.organisationId, orgId), eq(checkinsTable.status, "en_pause")];
+    if (portee) pauseConditions.push(portee);
     if (employeeName) pauseConditions.push(eq(checkinsTable.employeeName, employeeName));
 
     const pausedCheckins = await db.select()
@@ -268,7 +291,9 @@ router.get("/checkins/:id", async (req, res): Promise<void> => {
 
   try {
     const [checkin] = await db.select().from(checkinsTable).where(and(eq(checkinsTable.id, params.data.id), eq(checkinsTable.organisationId, orgId)));
-    if (!checkin) {
+    const portee = porteePointage(req.session);
+    // 404 et non 403 : ne pas confirmer l'existence du pointage d'un collegue.
+    if (!checkin || !portee || !appartient(checkin, portee)) {
       res.status(404).json({ error: "Pointage introuvable" });
       return;
     }
@@ -297,7 +322,9 @@ router.patch("/checkins/:id", async (req, res): Promise<void> => {
 
   try {
     const [existing] = await db.select().from(checkinsTable).where(and(eq(checkinsTable.id, params.data.id), eq(checkinsTable.organisationId, orgId)));
-    if (!existing) {
+    const portee = porteePointage(req.session);
+    // Un pointage a des consequences de paie : on ne modifie que le sien.
+    if (!existing || !portee || !appartient(existing, portee)) {
       res.status(404).json({ error: "Pointage introuvable" });
       return;
     }
@@ -350,7 +377,8 @@ router.post("/checkins/:id/duplicate", async (req, res): Promise<void> => {
   const userId = req.session?.userId;
   try {
     const [original] = await db.select().from(checkinsTable).where(and(eq(checkinsTable.id, id), eq(checkinsTable.organisationId, orgId)));
-    if (!original) { res.status(404).json({ error: "Pointage non trouve." }); return; }
+    const portee = porteePointage(req.session);
+    if (!original || !portee || !appartient(original, portee)) { res.status(404).json({ error: "Pointage non trouve." }); return; }
     const [copy] = await db.insert(checkinsTable).values({
       organisationId: orgId,
       employeeName: original.employeeName,
@@ -379,6 +407,12 @@ router.delete("/checkins/:id", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
 
   try {
+    const [cible] = await db.select().from(checkinsTable).where(and(eq(checkinsTable.id, params.data.id), eq(checkinsTable.organisationId, orgId)));
+    const portee = porteePointage(req.session);
+    if (!cible || !portee || !appartient(cible, portee)) {
+      res.status(404).json({ error: "Pointage introuvable" });
+      return;
+    }
     const [deleted] = await db.delete(checkinsTable).where(and(eq(checkinsTable.id, params.data.id), eq(checkinsTable.organisationId, orgId))).returning();
     await archiveDeletedRows(checkinsTable, deleted ? [deleted] : [], deletionContext(req, orgId));
     if (!deleted) {
@@ -463,7 +497,8 @@ router.post("/checkins/sync-google", async (req, res): Promise<void> => {
   }
 });
 
-router.get("/checkins/export/csv", async (req, res): Promise<void> => {
+// Export des pointages de TOUTE l'equipe : responsables uniquement.
+router.get("/checkins/export/csv", requireRole("administrateur"), async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
   try {
     const rows = await db.select({
