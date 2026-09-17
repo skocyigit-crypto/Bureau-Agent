@@ -12,7 +12,7 @@ import { logger } from "./lib/logger";
 import { ipProtection, threatDetection, csrfProtection } from "./middleware/security";
 import { hydrateFromBearer } from "./middleware/auth";
 import { guardian } from "./middleware/guardian";
-import { rateLimitKey } from "./lib/request-ip";
+import { cleLimiteApplicative, rateLimitKey } from "./lib/request-ip";
 import { recordHttpStatus } from "./services/health-agents-external";
 import { limiteCorpsBase64, TAILLE_MAX_BASE64_MO } from "./lib/limites-televersement";
 import { resolveAllowedOrigins } from "./lib/origines-autorisees";
@@ -231,7 +231,7 @@ app.use(cors({
 }));
 
 const generalLimiter = rateLimit({
-  keyGenerator: rateLimitKey,
+  keyGenerator: cleLimiteApplicative,
   windowMs: 15 * 60 * 1000,
   max: 1000,
   standardHeaders: true,
@@ -241,7 +241,7 @@ const generalLimiter = rateLimit({
 });
 
 const aiLimiter = rateLimit({
-  keyGenerator: rateLimitKey,
+  keyGenerator: cleLimiteApplicative,
   windowMs: 60 * 1000,
   max: 15,
   standardHeaders: true,
@@ -251,7 +251,7 @@ const aiLimiter = rateLimit({
 });
 
 const strictLimiter = rateLimit({
-  keyGenerator: rateLimitKey,
+  keyGenerator: cleLimiteApplicative,
   windowMs: 15 * 60 * 1000,
   max: 200,
   standardHeaders: true,
