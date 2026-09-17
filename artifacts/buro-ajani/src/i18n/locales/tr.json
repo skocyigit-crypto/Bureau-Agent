@@ -4353,7 +4353,8 @@
       "searchError": "Arama yapılamadı",
       "unknownError": "Bilinmeyen hata"
     },
-    "publicScopeNotice": "Yapay zekâ telefon santrali yalnızca «Herkese açık» olarak sınıflandırılan belgeleri (fiyatlar, SSS, çalışma saatleri) kullanır. Faturalar, sözleşmeler ve diğer belgeler yalnızca iç aramada kalır."
+    "publicScopeNotice": "Yapay zekâ telefon santrali yalnızca «Herkese açık» olarak sınıflandırılan belgeleri (fiyatlar, SSS, çalışma saatleri) kullanır. Faturalar, sözleşmeler ve diğer belgeler yalnızca iç aramada kalır.",
+    "noPublicDocuments": "«Herkese açık» belge yok: yapay zekâ telefon santraliniz hiçbir belgeye dayanamaz. Fiyatlarınızı, SSS'nizi ve çalışma saatlerinizi Belgeler sekmesinden «Herkese açık» kategorisine taşıyın."
   },
   "contactsImport": {
     "title": "CSV İçe Aktarma — Kişiler",

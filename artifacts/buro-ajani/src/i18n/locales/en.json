@@ -4353,7 +4353,8 @@
       "searchError": "Search not possible",
       "unknownError": "Unknown error"
     },
-    "publicScopeNotice": "The AI phone receptionist only uses documents filed as “Public” (pricing, FAQ, opening hours). Invoices, contracts and other documents stay limited to internal search."
+    "publicScopeNotice": "The AI phone receptionist only uses documents filed as “Public” (pricing, FAQ, opening hours). Invoices, contracts and other documents stay limited to internal search.",
+    "noPublicDocuments": "No “Public” documents: your AI phone receptionist cannot rely on any document. File your pricing, FAQ and opening hours under “Public” from the Documents tab."
   },
   "contactsImport": {
     "title": "CSV Import — Contacts",

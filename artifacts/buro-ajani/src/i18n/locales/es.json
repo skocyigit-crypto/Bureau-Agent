@@ -4353,7 +4353,8 @@
       "searchError": "Búsqueda imposible",
       "unknownError": "Error desconocido"
     },
-    "publicScopeNotice": "La centralita telefónica IA solo usa los documentos clasificados como «Público» (tarifas, FAQ, horarios). Facturas, contratos y demás documentos quedan reservados a la búsqueda interna."
+    "publicScopeNotice": "La centralita telefónica IA solo usa los documentos clasificados como «Público» (tarifas, FAQ, horarios). Facturas, contratos y demás documentos quedan reservados a la búsqueda interna.",
+    "noPublicDocuments": "Ningún documento «Público»: su centralita IA no puede apoyarse en ningún documento. Clasifique sus tarifas, FAQ y horarios en la categoría «Público» desde la pestaña Documentos."
   },
   "contactsImport": {
     "title": "Importar CSV — Contactos",
