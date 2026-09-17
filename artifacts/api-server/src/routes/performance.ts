@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { generatePerformanceReport, getPerformanceHistory, gatherUserMetrics } from "../services/performance-analyzer";
 import { requireRole } from "../middleware/auth";
 import { logAudit } from "./audit";
+import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
 
 const router: IRouter = Router();
 
@@ -121,12 +122,12 @@ router.get("/performance/metriques/export/csv", reserveAuxResponsables, async (r
     else if (periode === "mois") dateDebut.setMonth(now.getMonth() - 1);
     else dateDebut.setDate(now.getDate() - 7);
     const metriques = await gatherUserMetrics(dateDebut, now, orgId);
-    const escape = (v: any) => { if (v == null) return ""; const s = String(v).replace(/"/g, '""'); return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s; };
+    const escape = celluleCsv;
     const headers = ["Employé", "Appels", "Durée moy. (min)", "Taux réponse (%)", "Tâches terminées", "Score performance", "Niveau"];
-    const lines = [headers.join(","), ...metriques.map((m: any) => [
+    const lines = [headers.map(celluleCsv).join(SEPARATEUR_CSV), ...metriques.map((m: any) => [
       escape(m.userName || m.userEmail), escape(m.callCount), escape(m.avgDuration),
       escape(m.answerRate), escape(m.tasksCompleted), escape(m.performanceScore), escape(m.performanceLevel),
-    ].join(","))];
+    ].join(SEPARATEUR_CSV))];
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="performance_${periode}_${Date.now()}.csv"`);
     res.send("\uFEFF" + lines.join("\n"));

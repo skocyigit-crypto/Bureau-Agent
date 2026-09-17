@@ -18,10 +18,8 @@ const MOTIF = /(new Date\(\)|\bnow|Date\.now\(\)[^)]*\)|startDate\)?)\.(toISOStr
 const CONTEXTE_OK = /filename|download|fileName|Content-Disposition|runId|dayBucket|stamp|rate[,:]|json\.date|cutoff|projet\.(start|end)Date/;
 // Corriges dans une PR ouverte (#173). Le test echoue quand la ligne disparait :
 // l'exception se retire alors d'ici, elle ne reste pas en place par oubli.
-const EN_COURS_AILLEURS = [
-  ["api-server/src/routes/workspace.ts", 'const reportDate = date || new Date().toISOString().split("T")[0];'],
-  ["api-server/src/routes/workspace.ts", 'const todayStr = now.toISOString().split("T")[0];'],
-  ["buro-ajani/src/pages/reports.tsx", 'useState(new Date().toISOString().split("T")[0]);'],
+const EN_COURS_AILLEURS: ReadonlyArray<readonly [string, string]> = [
+  // Vide depuis la fusion de #173 (17/09) : ses trois lignes ont disparu, le test l'a signale.
 ] as const;
 
 function fichiers(dir: string): string[] {

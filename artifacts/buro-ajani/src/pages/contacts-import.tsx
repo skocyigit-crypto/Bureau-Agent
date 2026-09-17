@@ -6,21 +6,12 @@ import { useTranslation } from "@/i18n";
 import { AlertCircle,ArrowLeft,CheckCircle,Download,FileText,RefreshCw,Upload,X } from "lucide-react";
 import { useCallback,useRef,useState } from "react";
 import { Link } from "wouter";
+import { lireCsvObjets } from "@/lib/lecture-csv";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
-function parseCsv(text: string): Record<string, string>[] {
-  const lines = text.trim().split(/\r?\n/);
-  if (lines.length < 2) return [];
-  const sep = lines[0].includes(";") ? ";" : ",";
-  const headers = lines[0].split(sep).map(h => h.replace(/^"|"$/g, "").trim());
-  return lines.slice(1).map(line => {
-    const vals = line.split(sep).map(v => v.replace(/^"|"$/g, "").trim());
-    const obj: Record<string, string> = {};
-    headers.forEach((h, i) => { obj[h] = vals[i] || ""; });
-    return obj;
-  }).filter(row => Object.values(row).some(v => v));
-}
+// Lecture RFC 4180 : BOM, guillemets et separateur geres (voir lib/lecture-csv).
+const parseCsv = lireCsvObjets;
 
 const SAMPLE_CSV = `Prénom,Nom,Email,Téléphone,Entreprise,Catégorie,Notes
 Jean,Dupont,jean.dupont@exemple.fr,0612345678,Dupont SARL,client,Client VIP

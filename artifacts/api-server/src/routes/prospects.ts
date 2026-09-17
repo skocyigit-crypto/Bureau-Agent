@@ -7,6 +7,7 @@ import { generateUniqueReference } from "../lib/unique-reference";
 import { getOrgId } from "../middleware/tenant";
 import { computeInvoiceTotals } from "../services/invoice-totals";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
+import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
 
 const router: IRouter = Router();
 
@@ -192,17 +193,13 @@ router.get("/prospects/export/csv", async (req: Request, res: Response): Promise
       .where(eq(prospectsTable.organisationId, orgId))
       .orderBy(desc(prospectsTable.createdAt));
     const headers = ["Titre", "Contact", "Entreprise", "Email", "Téléphone", "Étape", "Priorité", "Valeur", "Probabilité", "Source", "Clôture prévue", "Créé le"];
-    const escape = (v: any) => {
-      if (v == null) return "";
-      const s = String(v).replace(/"/g, '""');
-      return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s;
-    };
+    const escape = celluleCsv;
     const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString("fr-FR") : "";
-    const lines = [headers.join(","), ...rows.map(r => [
+    const lines = [headers.map(celluleCsv).join(SEPARATEUR_CSV), ...rows.map(r => [
       escape(r.title), escape(r.contactName), escape(r.company), escape(r.email), escape(r.phone),
       escape(r.stage), escape(r.priority), escape(r.value), escape(r.probability),
       escape(r.source), escape(fmtDate(r.expectedCloseDate)), escape(fmtDate(r.createdAt)),
-    ].join(","))];
+    ].join(SEPARATEUR_CSV))];
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="prospects_${Date.now()}.csv"`);
     res.send("\uFEFF" + lines.join("\n"));

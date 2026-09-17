@@ -2418,7 +2418,11 @@
       "administrateur": "مشرف",
       "agent": "وكيل",
       "lecture_seule": "قراءة"
-    }
+    },
+    "sentTitle": "تم إرسال التقرير إلى الدعم",
+    "sentBody": "سيتم إرسال الرد عبر البريد الإلكتروني إلى {{email}}.",
+    "sentNoEmail": "تم حفظ التقرير، لكن لا يوجد بريد إلكتروني مرتبط بحسابك: راسل support@agentdebureau.fr.",
+    "sendFailed": "تعذر الإرسال"
   },
   "reportsScreen": {
     "headerTitle": "التقارير والتذاكر",

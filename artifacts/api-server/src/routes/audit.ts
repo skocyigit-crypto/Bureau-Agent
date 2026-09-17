@@ -6,6 +6,7 @@ import { logger } from "../lib/logger";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { withDbRetry } from "../lib/db-retry";
 import { safeInt } from "../lib/request-params";
+import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
 
 const router = Router();
 
@@ -155,7 +156,7 @@ router.get("/audit/export/csv", async (req: Request, res: Response): Promise<voi
       if (!isNaN(d.getTime())) conditions.push(lte(auditLogsTable.createdAt, d));
     }
     const baseClause = conditions.length > 0 ? and(...conditions) : undefined;
-    const escape = (v: any) => { if (v == null) return ""; const s = String(v).replace(/"/g, '""'); return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s; };
+    const escape = celluleCsv;
     const headers = ["Date", "Utilisateur", "Action", "Ressource", "ID Ressource", "IP"];
     // Export en STREAMING par lots (pagination keyset sur l'id decroissant) au
     // lieu d'un plafond de 10000 lignes charge d'un coup: pas de troncature
@@ -175,7 +176,7 @@ router.get("/audit/export/csv", async (req: Request, res: Response): Promise<voi
       if (!wroteHeader) {
         res.setHeader("Content-Type", "text/csv; charset=utf-8");
         res.setHeader("Content-Disposition", `attachment; filename="audit_${Date.now()}.csv"`);
-        res.write("\uFEFF" + headers.join(",") + "\n");
+        res.write("\uFEFF" + headers.join(SEPARATEUR_CSV) + "\n");
         wroteHeader = true;
       }
       if (rows.length === 0) break;
@@ -183,7 +184,7 @@ router.get("/audit/export/csv", async (req: Request, res: Response): Promise<voi
         escape(r.createdAt ? new Date(r.createdAt).toLocaleString("fr-FR") : ""),
         escape(r.userEmail), escape(r.action), escape(r.resource),
         escape(r.resourceId), escape(r.ipAddress),
-      ].join(",")).join("\n");
+      ].join(SEPARATEUR_CSV)).join("\n");
       res.write(chunk + "\n");
       lastId = rows[rows.length - 1].id;
       if (rows.length < AUDIT_EXPORT_BATCH) break;
