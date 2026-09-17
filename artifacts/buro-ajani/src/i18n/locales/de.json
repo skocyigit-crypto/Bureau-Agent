@@ -4353,7 +4353,8 @@
       "searchError": "Suche nicht möglich",
       "unknownError": "Unbekannter Fehler"
     },
-    "publicScopeNotice": "Die KI-Telefonzentrale nutzt nur Dokumente der Kategorie „Öffentlich“ (Preise, FAQ, Öffnungszeiten). Rechnungen, Verträge und andere Dokumente bleiben der internen Suche vorbehalten."
+    "publicScopeNotice": "Die KI-Telefonzentrale nutzt nur Dokumente der Kategorie „Öffentlich“ (Preise, FAQ, Öffnungszeiten). Rechnungen, Verträge und andere Dokumente bleiben der internen Suche vorbehalten.",
+    "noPublicDocuments": "Keine „öffentlichen“ Dokumente: Ihre KI-Telefonzentrale kann sich auf kein Dokument stützen. Ordnen Sie Preise, FAQ und Öffnungszeiten im Reiter Dokumente der Kategorie „Öffentlich“ zu."
   },
   "contactsImport": {
     "title": "CSV-Import — Kontakte",

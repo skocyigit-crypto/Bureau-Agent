@@ -772,11 +772,18 @@ export interface KbStatus {
    *  "lexical" (mots-clés/BM25). */
   searchMode: "semantic" | "lexical";
   lastIndexedAt: string | null;
+  /**
+   * Documents que le standard telephonique peut utiliser (categorie publique,
+   * texte extrait, non dangereux). A zero, le standard ne s'appuie sur AUCUN
+   * document — depuis la fermeture du canal public (#175) c'est l'etat de
+   * depart de tout client, et il doit le voir.
+   */
+  publicDocuments: number;
 }
 
 /** État de la base de connaissances pour une organisation. */
 export async function getKnowledgeStatus(orgId: number): Promise<KbStatus> {
-  const [[totals], [indexable], chunkAgg, perDoc] = await Promise.all([
+  const [[totals], [indexable], chunkAgg, perDoc, [publics]] = await Promise.all([
     db
       .select({ n: sql<number>`count(*)::int` })
       .from(documentsTable)
@@ -816,6 +823,18 @@ export async function getKnowledgeStatus(orgId: number): Promise<KbStatus> {
         ),
       )
       .groupBy(documentsTable.id, documentsTable.updatedAt),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(documentsTable)
+      .where(
+        and(
+          eq(documentsTable.organisationId, orgId),
+          inArray(documentsTable.category, [...KB_CATEGORIES_PUBLIQUES]),
+          isNotNull(documentsTable.extractedText),
+          sql`length(trim(${documentsTable.extractedText})) > 0`,
+          sql`coalesce(${documentsTable.scanVerdict}, '') <> 'dangerous'`,
+        ),
+      ),
   ]);
 
   let indexedDocuments = 0;
@@ -839,5 +858,6 @@ export async function getKnowledgeStatus(orgId: number): Promise<KbStatus> {
     embeddedChunks,
     searchMode: embeddedChunks > 0 ? "semantic" : "lexical",
     lastIndexedAt: chunkAgg[0]?.last ?? null,
+    publicDocuments: publics?.n ?? 0,
   };
 }

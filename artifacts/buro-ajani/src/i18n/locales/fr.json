@@ -4353,7 +4353,8 @@
       "searchError": "Recherche impossible",
       "unknownError": "Erreur inconnue"
     },
-    "publicScopeNotice": "Le standard téléphonique IA ne s'appuie que sur les documents classés « Public » (tarifs, FAQ, horaires). Vos factures, contrats et autres documents restent réservés à la recherche interne."
+    "publicScopeNotice": "Le standard téléphonique IA ne s'appuie que sur les documents classés « Public » (tarifs, FAQ, horaires). Vos factures, contrats et autres documents restent réservés à la recherche interne.",
+    "noPublicDocuments": "Aucun document « Public » : votre standard téléphonique IA ne peut s'appuyer sur aucun document. Classez vos tarifs, FAQ et horaires dans la catégorie « Public » depuis l'onglet Documents."
   },
   "contactsImport": {
     "title": "Import CSV — Contacts",
