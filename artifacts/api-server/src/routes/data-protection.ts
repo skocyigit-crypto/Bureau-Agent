@@ -17,6 +17,8 @@ import { requireRole } from "../middleware/auth";
 import { logger } from "../lib/logger";
 import { getDataProtectionStatus } from "../services/data-protection-monitor";
 import { SECURITY_SCAN_RETENTION_DAYS } from "../services/security-scans";
+import { violationsDonneesTable } from "@workspace/db/schema";
+import { ELEMENTS_REQUIS, echeanceCnilDuClient, etatViolation } from "../services/violation-donnees";
 
 const router = Router();
 
@@ -308,6 +310,135 @@ router.post("/data-protection/accept-legal", async (req, res): Promise<void> => 
   }
 });
 
+/**
+ * Registre des violations de donnees (RGPD art. 33).
+ *
+ * Le contrat de sous-traitance promet au client une notification « au plus
+ * tard 72 heures » avec les elements necessaires a sa propre declaration a
+ * la CNIL. Aucun mecanisme ne le tenait : ni table, ni delai, ni liste des
+ * elements. Un engagement contractuel sans mecanisme est une promesse qu'on
+ * decouvre intenable le jour ou elle se declenche.
+ *
+ * Reserve aux administrateurs : une violation en cours de qualification est
+ * une information sensible, et sa divulgation prematuree nuit autant a sa
+ * gestion qu'a la confiance.
+ */
+router.post("/data-protection/violations", requireRole("super_admin", "administrateur"), async (req, res): Promise<void> => {
+  try {
+    const orgId = req.session?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
+
+    const { decouverteLe, nature, personnesConcernees, consequences, mesures } = req.body ?? {};
+    // La prise de connaissance fait courir tous les delais. Sans elle, il n'y
+    // a rien a calculer, et une date inventee masquerait le retard.
+    const decouverte = decouverteLe ? new Date(decouverteLe) : new Date();
+    if (Number.isNaN(decouverte.getTime())) {
+      res.status(400).json({ error: "Date de prise de connaissance invalide." });
+      return;
+    }
+    if (typeof nature !== "string" || nature.trim().length === 0) {
+      res.status(400).json({
+        error: "La nature de la violation est requise (art. 33.3).",
+        elementsRequis: ELEMENTS_REQUIS,
+      });
+      return;
+    }
+
+    const [row] = await db.insert(violationsDonneesTable).values({
+      organisationId: orgId,
+      decouverteLe: decouverte,
+      nature: String(nature),
+      personnesConcernees: personnesConcernees ? String(personnesConcernees) : null,
+      consequences: consequences ? String(consequences) : null,
+      mesures: mesures ? String(mesures) : null,
+    }).returning();
+
+    logger.warn(
+      { orgId, violationId: row!.id, decouverteLe: decouverte.toISOString() },
+      "[protection-donnees] violation de donnees enregistree",
+    );
+    res.status(201).json({ violation: row, etat: etatViolation(row!) });
+  } catch (err: any) {
+    logger.error({ err }, "[protection-donnees] enregistrement de violation impossible");
+    res.status(500).json({ error: "Erreur lors de l'enregistrement." });
+  }
+});
+
+/** Registre, avec l'etat des delais calcule a la lecture. */
+router.get("/data-protection/violations", requireRole("super_admin", "administrateur"), async (req, res): Promise<void> => {
+  try {
+    const orgId = req.session?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
+    const rows = await db.select().from(violationsDonneesTable)
+      .where(eq(violationsDonneesTable.organisationId, orgId))
+      .orderBy(desc(violationsDonneesTable.decouverteLe));
+    // Calcule a la lecture, jamais stocke: un etat fige afficherait « dans
+    // les delais » sur une violation qui ne l'est plus depuis des heures.
+    res.json({
+      violations: rows.map((v) => ({
+        ...v,
+        etat: etatViolation(v),
+        echeanceCnilDuClient: echeanceCnilDuClient(v),
+      })),
+    });
+  } catch (err: any) {
+    logger.error({ err }, "[protection-donnees] lecture du registre impossible");
+    res.status(500).json({ error: "Erreur lors de la lecture." });
+  }
+});
+
+/** Consigne la notification effective du client. */
+router.post("/data-protection/violations/:id/notifier", requireRole("super_admin", "administrateur"), async (req, res): Promise<void> => {
+  try {
+    const orgId = req.session?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+
+    const [avant] = await db.select().from(violationsDonneesTable)
+      .where(and(eq(violationsDonneesTable.id, id), eq(violationsDonneesTable.organisationId, orgId)));
+    if (!avant) { res.status(404).json({ error: "Violation introuvable." }); return; }
+
+    // REFUS SI LA NOTIFICATION SERAIT INCOMPLETE.
+    //
+    // Une notification amputee d'un des quatre elements du 33.3 est un
+    // manquement distinct du retard. Laisser consigner « client notifie »
+    // sur un dossier incomplet ferait croire l'obligation tenue.
+    const etat = etatViolation(avant);
+    if (etat.elementsManquants.length > 0) {
+      res.status(409).json({
+        error: "La notification serait incomplete au sens de l'article 33.3.",
+        elementsManquants: etat.elementsManquants,
+      });
+      return;
+    }
+
+    const motifRetard = req.body?.motifRetard ? String(req.body.motifRetard) : null;
+    if (etat.cibleDepassee && !motifRetard) {
+      res.status(409).json({
+        error: "Le delai est depasse : l'article 33.1 exige d'en donner les motifs.",
+      });
+      return;
+    }
+
+    const [row] = await db.update(violationsDonneesTable)
+      .set({
+        clientNotifieLe: new Date(),
+        notifiePar: req.session?.userId ?? null,
+        statut: "client_notifie",
+        motifRetard: motifRetard ?? avant.motifRetard,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(violationsDonneesTable.id, id), eq(violationsDonneesTable.organisationId, orgId)))
+      .returning();
+
+    logger.warn({ orgId, violationId: id }, "[protection-donnees] client notifie");
+    res.json({ violation: row, etat: etatViolation(row!), echeanceCnilDuClient: echeanceCnilDuClient(row!) });
+  } catch (err: any) {
+    logger.error({ err }, "[protection-donnees] notification impossible");
+    res.status(500).json({ error: "Erreur lors de la notification." });
+  }
+});
 router.get("/data-protection/requests", requireRole("super_admin", "administrateur"), async (req, res): Promise<void> => {
   try {
     const orgId = req.session?.organisationId;

@@ -18,6 +18,60 @@ export const organisationsTable = pgTable("organisations", {
   legalForm: varchar("legal_form", { length: 100 }),
   capital: varchar("capital", { length: 50 }),
   invoiceFooter: text("invoice_footer"),
+
+  // --- Assurance professionnelle (loi n 2014-626, dite loi Pinel) ---------
+  //
+  // Six informations doivent figurer sur CHAQUE devis et CHAQUE facture d'un
+  // professionnel du batiment soumis a la responsabilite civile decennale :
+  // la mention « Assurance professionnelle », le nom de l'assureur, son
+  // adresse, le numero de contrat, les activites garanties et la zone
+  // geographique couverte.
+  //
+  // L'omission d'UNE SEULE suffit a caracteriser le manquement : amende
+  // administrative DGCCRF jusqu'a 3 000 EUR (personne physique) et 15 000 EUR
+  // (personne morale), par infraction constatee. Le public de ce produit —
+  // des PME du BTP — y est integralement soumis.
+  assuranceNom: text("assurance_nom"),
+  assuranceAdresse: text("assurance_adresse"),
+  assuranceContrat: text("assurance_contrat"),
+  assuranceActivites: text("assurance_activites"),
+  assuranceZone: text("assurance_zone"),
+
+  // --- Mediateur de la consommation (C. conso. art. L616-1 et L641-1) ------
+  //
+  // Tout professionnel vendant a des consommateurs doit adherer a un mediateur
+  // agree et en indiquer les coordonnees sur ses devis, factures et CGV. Meme
+  // bareme de sanction : 3 000 EUR / 15 000 EUR.
+  //
+  // Un artisan du batiment travaille couramment pour des particuliers : ce
+  // n'est pas un cas marginal pour ce produit.
+  mediateurNom: text("mediateur_nom"),
+  mediateurAdresse: text("mediateur_adresse"),
+  mediateurUrl: text("mediateur_url"),
+
+  // --- Enregistrement des appels -------------------------------------------
+  //
+  // Le produit DECLENCHE lui-meme l'enregistrement (`Record: "true"` chez
+  // Twilio, `record-from-answer` ailleurs). Trois conditions doivent etre
+  // reunies avant qu'il le fasse :
+  //
+  //   - une annonce previent l'interlocuteur. Le consentement n'est presume
+  //     que si la personne a ete REELLEMENT informee et est restee en ligne
+  //     alors qu'elle pouvait s'y opposer ;
+  //   - les salaries sont informes prealablement (C. trav. art. L1222-4) ;
+  //   - le CSE a ete informe et consulte avant la mise en service.
+  //
+  // Le produit ne peut verifier aucune des trois: l'annonce vit chez
+  // l'operateur, l'information et la consultation sont des actes de
+  // l'entreprise. Ce qu'il peut faire, c'est REFUSER de declencher tant que
+  // le responsable ne les a pas attestees, et garder de cette attestation une
+  // trace datee et nominative — ce que l'article 5.2 du RGPD appelle
+  // l'accountability.
+  //
+  // Attester ne rend pas conforme. Cela rend la responsabilite explicite, et
+  // remplace un declenchement silencieux par une decision assumee.
+  enregistrementAppelsAtteste: timestamp("enregistrement_appels_atteste", { withTimezone: true }),
+  enregistrementAppelsAttestePar: integer("enregistrement_appels_atteste_par"),
   autoInvoiceEnabled: boolean("auto_invoice_enabled").notNull().default(true),
   autoEmailInvoice: boolean("auto_email_invoice").notNull().default(true),
   weeklySecurityEmail: boolean("weekly_security_email").notNull().default(false),

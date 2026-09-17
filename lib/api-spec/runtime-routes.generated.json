@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 669,
+    "runtimeOperations": 675,
     "documentedOperations": 96,
-    "undocumentedOperations": 573
+    "undocumentedOperations": 579
   },
   "operations": [
     {
@@ -2063,6 +2063,14 @@
       ]
     },
     {
+      "method": "patch",
+      "path": "/contacts/{id}/demarchage",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/contacts.ts"
+      ]
+    },
+    {
       "method": "get",
       "path": "/contacts/{id}/devis",
       "documented": false,
@@ -2320,6 +2328,30 @@
     },
     {
       "method": "get",
+      "path": "/data-protection/violations",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/data-protection.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/data-protection/violations",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/data-protection.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/data-protection/violations/{id}/notifier",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/data-protection.ts"
+      ]
+    },
+    {
+      "method": "get",
       "path": "/data-version",
       "documented": false,
       "sources": [
@@ -2433,6 +2465,14 @@
     {
       "method": "post",
       "path": "/devis/{id}/convert-to-facture",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/devis.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/devis/{id}/pdf",
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/devis.ts"
@@ -4844,6 +4884,14 @@
     {
       "method": "get",
       "path": "/telephony/call-logs",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/telephony.ts"
+      ]
+    },
+    {
+      "method": "put",
+      "path": "/telephony/enregistrement-atteste",
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/telephony.ts"

@@ -16,6 +16,32 @@ export const contactsTable = pgTable("contacts", {
   phone: text("phone").notNull(),
   mobile: text("mobile"),
   category: text("category").notNull().default("autre"),
+
+  // --- Demarchage commercial -----------------------------------------------
+  //
+  // Loi n 2025-594 du 30 juin 2025, en vigueur depuis le 11 AOUT 2026 :
+  // appeler un CONSOMMATEUR a des fins de prospection sans son consentement
+  // prealable, libre, specifique, eclaire et univoque est desormais interdit.
+  // Bloctel, dont la concession s'achevait a cette date, n'a plus d'objet.
+  // L'amende atteint 375 000 EUR pour une personne morale.
+  //
+  // Le B2B echappe a cet opt-in : la prospection d'un professionnel reste
+  // fondee sur l'interet legitime, sous reserve d'information et du droit
+  // d'opposition. D'ou la necessite de SAVOIR a qui l'on parle — ce que la
+  // colonne `category`, texte libre par defaut « autre », ne dit pas.
+  //
+  // Une PME du BTP travaille couramment pour des particuliers : ce n'est pas
+  // un cas marginal ici.
+  typePersonne: text("type_personne").notNull().default("inconnu"),
+
+  // "accorde" | "refuse" | "inconnu". Un consentement INCONNU n'est pas un
+  // consentement : il vaut refus pour un consommateur.
+  prospectionConsent: text("prospection_consent").notNull().default("inconnu"),
+  prospectionConsentAt: timestamp("prospection_consent_at", { withTimezone: true }),
+
+  // Droit d'opposition (RGPD art. 21). Il s'exerce a tout moment et prime
+  // sur tout le reste, y compris en B2B.
+  prospectionOppositionAt: timestamp("prospection_opposition_at", { withTimezone: true }),
   address: text("address"),
   notes: text("notes"),
   totalCalls: integer("total_calls").notNull().default(0),

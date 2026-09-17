@@ -41,7 +41,7 @@ export default function DPA() {
       <Navbar onDemoClick={() => setDemoOpen(true)} />
       <main id="contenu" className="container mx-auto px-4 pt-32 pb-20 max-w-3xl">
         <h1 className="text-3xl font-bold mb-2">Accord de sous-traitance (DPA)</h1>
-        <p className="text-muted-foreground mb-10">Dernière mise à jour : 3 septembre 2026</p>
+        <p className="text-muted-foreground mb-10">Dernière mise à jour : 17 septembre 2026</p>
 
         <section className="space-y-8 text-sm leading-relaxed text-foreground/80">
           <div>
@@ -150,9 +150,15 @@ export default function DPA() {
             </p>
             <p className="mt-2">
               <strong>Violation de données :</strong> l'éditeur notifie le client
-              dans les meilleurs délais et au plus tard soixante-douze (72)
-              heures après en avoir pris connaissance, en lui communiquant les
-              éléments nécessaires à sa propre notification à la CNIL.
+              dans les meilleurs délais et au plus tard vingt-quatre (24) heures
+              après en avoir pris connaissance, afin de lui laisser le temps de
+              procéder à sa propre notification à la CNIL dans le délai de
+              soixante-douze (72) heures prévu à l'article 33 du RGPD. Il lui
+              communique les éléments dont il dispose (nature de la violation,
+              catégories et nombre approximatif de personnes et
+              d'enregistrements concernés, conséquences probables, mesures prises
+              ou envisagées) et les complète au fur et à mesure qu'ils sont
+              connus.
             </p>
             <p className="mt-2">
               L'éditeur assiste également le client, compte tenu des informations
