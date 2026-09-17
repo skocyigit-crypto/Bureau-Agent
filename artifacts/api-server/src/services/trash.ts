@@ -203,7 +203,7 @@ export async function listTrash(orgId: number, limit = 100): Promise<TrashEntry[
 
 export type RestoreOutcome =
   | { ok: true }
-  | { ok: false; reason: "not_found" | "table_not_restorable" | "insert_failed" };
+  | { ok: false; reason: "not_found" | "table_not_restorable" | "insert_failed" | "conflict" };
 
 /**
  * Remet une ligne en place, puis retire son entree de la corbeille.
@@ -232,15 +232,29 @@ export async function restoreFromTrash(orgId: number, entryId: number): Promise<
   const identifiers = sql.join(columns.map((c) => sql.identifier(c)), sql`, `);
   const values = sql.join(columns.map((c) => sql`${payload[c] as never}`), sql`, `);
 
+  let inserees: number;
   try {
-    await db.execute(sql`
+    const r = await db.execute(sql`
       INSERT INTO ${sql.identifier(entry.tableName)} (${identifiers})
       VALUES (${values})
       ON CONFLICT DO NOTHING
+      RETURNING 1
     `);
+    inserees = (r as { rows?: unknown[] }).rows?.length ?? 0;
   } catch (err) {
     logger.warn({ err, orgId, entryId, table: entry.tableName }, "[trash] restauration impossible");
     return { ok: false, reason: "insert_failed" };
+  }
+
+  // MESURE LE 17/09 : `ON CONFLICT DO NOTHING` ne leve pas — il n'insere rien.
+  // Une facture dont le numero a ete repris par une nouvelle, un contact au
+  // meme identifiant : l'INSERT « reussissait » sans rien remettre, la route
+  // repondait « restaure », et l'entree etait SUPPRIMEE de la corbeille. La
+  // donnee etait perdue une seconde fois, avec un message de succes. On garde
+  // l'entree et on le dit.
+  if (inserees === 0) {
+    logger.warn({ orgId, entryId, table: entry.tableName }, "[trash] restauration sans effet (conflit)");
+    return { ok: false, reason: "conflict" };
   }
 
   await db.delete(deletedRowsTable).where(eq(deletedRowsTable.id, entryId));

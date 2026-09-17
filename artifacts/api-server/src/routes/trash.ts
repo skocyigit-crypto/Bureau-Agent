@@ -1,6 +1,8 @@
 import { Router, type Request, type Response } from "express";
 import { getOrgId } from "../middleware/tenant";
 import { logger } from "../lib/logger";
+import { requireRole } from "../middleware/auth";
+import { logAudit } from "./audit";
 import {
   TRASH_RETENTION_DAYS,
   listTrash,
@@ -34,7 +36,10 @@ router.get("/trash", async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-router.post("/trash/:id/restore", async (req: Request, res: Response): Promise<void> => {
+// Remettre une ligne en base est une ECRITURE : un compte `lecture_seule` ne le
+// peut pas plus qu'il ne peut creer la ligne. Tout role qui ecrit, lui, le peut —
+// c'est la personne qui s'est trompee (voir plus haut).
+router.post("/trash/:id/restore", requireRole("agent"), async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
     const id = Number(req.params.id);
@@ -43,7 +48,22 @@ router.post("/trash/:id/restore", async (req: Request, res: Response): Promise<v
     }
 
     const outcome = await restoreFromTrash(orgId, id);
-    if (outcome.ok) { res.json({ success: true }); return; }
+    if (outcome.ok) {
+      // Remettre une facture ou un contact supprime doit pouvoir s'expliquer : qui, quand.
+      await logAudit(req.session?.userId, req.session?.userEmail, "trash_restore", "deleted_rows", String(id),
+        undefined, req.ip, req.get("user-agent"), orgId,
+      ).catch((err: unknown) => logger.warn({ err }, "[trash] trace d'audit non ecrite"));
+      res.json({ success: true });
+      return;
+    }
+    if (outcome.reason === "conflict") {
+      res.status(409).json({
+        error:
+          "Restauration impossible : un element identique existe deja (meme identifiant ou meme " +
+          "numero). L'entree reste dans la corbeille.",
+      });
+      return;
+    }
 
     if (outcome.reason === "not_found") {
       res.status(404).json({ error: "Entree introuvable ou deja restauree." }); return;

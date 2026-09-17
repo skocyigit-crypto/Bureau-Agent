@@ -87,9 +87,19 @@ describe("la protection doit etre atteignable", () => {
     // Un garde de role ici raterait la cible: la restauration de sauvegarde
     // est deja reservee aux administrateurs, et c'est precisement pourquoi
     // elle n'aide pas celui qui vient de se tromper.
-    for (const [method, path] of [["get", "/trash"], ["post", "/trash/:id/restore"]] as const) {
-      expect(routeFor(method, path).stack.length, `${path} porte un garde de role`).toBe(1);
-    }
+    expect(routeFor("get", "/trash").stack.length, "/trash porte un garde de role").toBe(1);
+  });
+
+  it("restaurer est ouvert a tout role qui ECRIT, pas aux administrateurs seuls", () => {
+    // Revu le 17/09. Restaurer est une ecriture : un compte `lecture_seule`,
+    // qui ne peut ni creer ni supprimer, pouvait remettre des lignes en base.
+    // Le garde est au niveau `agent` — le role de la personne ordinaire qui
+    // s'est trompee — et JAMAIS au niveau administrateur, ce qui trahirait la
+    // raison d'etre de la corbeille (voir ci-dessus).
+    expect(routeFor("post", "/trash/:id/restore").stack.length).toBe(2);
+    const source = readFileSync(join(SRC, "routes", "trash.ts"), "utf8");
+    expect(source).toContain('router.post("/trash/:id/restore", requireRole("agent")');
+    expect(source).not.toMatch(/restore",\s*requireRole\("(administrateur|super_admin)"/);
   });
 
   it("borne la corbeille au locataire de la session", () => {

@@ -13,6 +13,7 @@ import { requireRole } from "../middleware/auth";
 import { computeDedupeHash, parseDocumentDate } from "../services/expense-capture";
 import { withDbRetry } from "../lib/db-retry";
 import { logger } from "../lib/logger";
+import { archiveDeletedRows, deletionContext } from "../services/trash";
 import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
 
 const router = Router();
@@ -492,11 +493,14 @@ router.delete(
       const deleted = await db
         .delete(depensesTable)
         .where(and(eq(depensesTable.id, id), eq(depensesTable.organisationId, orgId)))
-        .returning({ id: depensesTable.id });
+        .returning();
       if (deleted.length === 0) {
         res.status(404).json({ error: "Dépense introuvable." });
         return;
       }
+      // `depenses` figure dans les tables restaurables, mais sa suppression
+      // n'etait jamais archivee : la corbeille ne la voyait pas.
+      await archiveDeletedRows(depensesTable, deleted, deletionContext(req, orgId));
       res.json({ success: true });
     } catch (err) {
       logger.error({ err }, "[depenses] delete failed");
