@@ -196,7 +196,9 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
           res.status(409).json({ error: "Un compte avec cet email existe deja. Connectez-vous ou utilisez un autre email." });
           return;
         }
-        if (isUniqueViolation(e) && attempt < 4) {
+        // `isUniqueViolation` ne lit que le premier niveau : l'erreur drizzle
+        // (cause pg) n'etait pas reconnue et la collision de slug finissait en 500.
+        if ((contrainteUniciteViolee(e) !== null || isUniqueViolation(e)) && attempt < 4) {
           attempt++;
           if (contrainte.includes("slug")) finalSlug = `${slug}-${Date.now()}-${attempt}`;
           else licenseKey = await generateUniqueLicenseKey("essai");

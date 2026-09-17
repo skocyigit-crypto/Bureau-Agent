@@ -73,4 +73,16 @@ describe("inscriptions simultanees avec le meme email", () => {
     const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, users[0]!.organisationId!));
     expect(org!.slug.startsWith("electricite-simultanee")).toBe(true);
   }, 60_000);
+
+  it("meme nom d'entreprise en simultane (emails differents) : deux comptes, slugs distincts", async () => {
+    const nom = `Plomberie Jumelle ${stamp}`;
+    const [a, b] = await Promise.all([
+      inscrire({ ...base, orgName: nom, email: `ins-acc-${stamp}@example.test`.replace("acc", "j1") }),
+      inscrire({ ...base, orgName: nom, email: `ins-acc-${stamp}@example.test`.replace("acc", "j2") }),
+    ]);
+    expect([a.status, b.status], JSON.stringify([a.body, b.body])).toEqual([201, 201]);
+    const [oa] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, a.body.organisation.id));
+    const [ob] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, b.body.organisation.id));
+    expect(oa!.slug).not.toBe(ob!.slug);
+  }, 60_000);
 });
