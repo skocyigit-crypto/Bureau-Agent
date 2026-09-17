@@ -155,3 +155,57 @@ export function planifierProchaine(
 
   return { regenerer: true, prochaineEcheance: suivante, raison: null };
 }
+
+export interface RecurrenceSaisie {
+  isRecurring?: boolean;
+  recurrenceRule?: string | null;
+  recurrenceEndDate?: string | null;
+}
+export type RecurrenceNormalisee =
+  | { ok: true; champs: { isRecurring?: boolean; recurrenceRule?: string | null; recurrenceEndDate?: Date | null } }
+  | { ok: false; erreur: string };
+
+/**
+ * Recurrence telle que le formulaire l'envoie -> colonnes de `tasks`.
+ *
+ * MESURE LE 17/09 : ces trois champs n'etaient declares ni dans CreateTaskBody
+ * ni dans UpdateTaskBody. zod les retirait en silence : cocher « tache
+ * recurrente » ne l'enregistrait jamais, et la regeneration a la completion
+ * (planifierProchaine) ne pouvait donc jamais se declencher depuis l'ecran.
+ *
+ * Le formulaire envoie "" quand la recurrence est decochee et AAAA-MM-JJ pour
+ * la date de fin. `partiel` : en modification, un champ absent n'est pas touche.
+ */
+export function normaliserRecurrence(saisie: RecurrenceSaisie, partiel: boolean): RecurrenceNormalisee {
+  const champs: { isRecurring?: boolean; recurrenceRule?: string | null; recurrenceEndDate?: Date | null } = {};
+  const regleBrute = typeof saisie.recurrenceRule === "string" ? saisie.recurrenceRule.trim() : saisie.recurrenceRule;
+  const finBrute = typeof saisie.recurrenceEndDate === "string" ? saisie.recurrenceEndDate.trim() : saisie.recurrenceEndDate;
+
+  if (saisie.isRecurring === false) {
+    // Decocher efface la regle et la fin : sinon une tache « non recurrente »
+    // garderait une regle que rien n'affiche plus.
+    return { ok: true, champs: { isRecurring: false, recurrenceRule: null, recurrenceEndDate: null } };
+  }
+  if (saisie.isRecurring === true) {
+    if (!regleBrute || !FREQUENCES.includes(regleBrute as Frequence)) {
+      return { ok: false, erreur: `Frequence de recurrence invalide. Valeurs admises : ${FREQUENCES.join(", ")}.` };
+    }
+    champs.isRecurring = true;
+  } else if (!partiel) {
+    champs.isRecurring = false;
+  }
+  if (regleBrute !== undefined) {
+    if (regleBrute === null || regleBrute === "") champs.recurrenceRule = null;
+    else if (FREQUENCES.includes(regleBrute as Frequence)) champs.recurrenceRule = regleBrute;
+    else return { ok: false, erreur: `Frequence de recurrence invalide. Valeurs admises : ${FREQUENCES.join(", ")}.` };
+  }
+  if (finBrute !== undefined) {
+    if (finBrute === null || finBrute === "") champs.recurrenceEndDate = null;
+    else {
+      const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(finBrute) ? `${finBrute}T23:59:59` : finBrute);
+      if (Number.isNaN(d.getTime())) return { ok: false, erreur: "Date de fin de recurrence invalide." };
+      champs.recurrenceEndDate = d;
+    }
+  }
+  return { ok: true, champs };
+}

@@ -388,6 +388,14 @@ export interface CreateCallBody {
   tags?: string[];
 }
 
+export type UpdateCallBodyDirection =
+  (typeof UpdateCallBodyDirection)[keyof typeof UpdateCallBodyDirection];
+
+export const UpdateCallBodyDirection = {
+  entrant: "entrant",
+  sortant: "sortant",
+} as const;
+
 export type UpdateCallBodyStatus =
   (typeof UpdateCallBodyStatus)[keyof typeof UpdateCallBodyStatus];
 
@@ -412,6 +420,8 @@ export const UpdateCallBodySentiment = {
 
 export interface UpdateCallBody {
   contactId?: number | null;
+  phoneNumber?: string;
+  direction?: UpdateCallBodyDirection;
   status?: UpdateCallBodyStatus;
   duration?: number;
   notes?: string | null;
@@ -552,6 +562,9 @@ export interface CreateTaskBody {
   assignedTo?: string | null;
   relatedContactId?: number | null;
   relatedCallId?: number | null;
+  isRecurring?: boolean;
+  recurrenceRule?: string | null;
+  recurrenceEndDate?: string | null;
 }
 
 export type UpdateTaskBodyStatus =
@@ -582,6 +595,9 @@ export interface UpdateTaskBody {
   assignedTo?: string | null;
   relatedContactId?: number | null;
   relatedCallId?: number | null;
+  isRecurring?: boolean;
+  recurrenceRule?: string | null;
+  recurrenceEndDate?: string | null;
 }
 
 export type MessageType = (typeof MessageType)[keyof typeof MessageType];

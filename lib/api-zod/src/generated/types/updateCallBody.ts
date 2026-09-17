@@ -5,11 +5,14 @@
  * Bureau Agent API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { UpdateCallBodyDirection } from "./updateCallBodyDirection";
 import type { UpdateCallBodySentiment } from "./updateCallBodySentiment";
 import type { UpdateCallBodyStatus } from "./updateCallBodyStatus";
 
 export interface UpdateCallBody {
   contactId?: number | null;
+  phoneNumber?: string;
+  direction?: UpdateCallBodyDirection;
   status?: UpdateCallBodyStatus;
   duration?: number;
   notes?: string | null;
