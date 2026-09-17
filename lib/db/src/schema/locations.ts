@@ -78,8 +78,12 @@ export const locationEventsTable = pgTable("location_events", {
   userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   geofenceId: integer("geofence_id").references(() => geofencesTable.id, { onDelete: "set null" }),
   event: text("event").notNull(), // "enter" | "exit" | "ping"
-  lat: doublePrecision("lat").notNull(),
-  lng: doublePrecision("lng").notNull(),
+  // Plus alimentees depuis le 17/09 (minimisation, art. 5.1.c) : les coordonnees
+  // servent a calculer la zone au moment du releve, puis sont jetees. Aucune
+  // lecture ne les utilisait. Colonnes gardees NULLABLES pour la compatibilite
+  // de deploiement (l'ancien code les remplit encore pendant la bascule).
+  lat: doublePrecision("lat"),
+  lng: doublePrecision("lng"),
   accuracyM: doublePrecision("accuracy_m"),
   at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [

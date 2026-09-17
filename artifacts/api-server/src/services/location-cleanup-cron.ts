@@ -14,9 +14,31 @@ import { db, locationEventsTable, userLocationStateTable } from "@workspace/db";
 import { logger } from "../lib/logger";
 import { withHeartbeat } from "./health-agents";
 
-const RETENTION_DAYS = 30;
+/** Lue aussi par l'inventaire RGPD : une duree annoncee doit etre celle appliquee. */
+export const RETENTION_DAYS = 30;
 const TICK_MS = 6 * 60 * 60 * 1000; // 6 saatte bir
 let timer: NodeJS.Timeout | null = null;
+
+/**
+ * Minimisation (17/09) : efface les coordonnees encore presentes. Depuis cette
+ * date plus aucune n'est ecrite ; ce passage retire celles d'avant. Idempotent.
+ */
+export async function effacerCoordonnees(): Promise<{ evenements: number; etats: number }> {
+  const evenements = await db
+    .update(locationEventsTable)
+    .set({ lat: null, lng: null, accuracyM: null })
+    .where(sql`${locationEventsTable.lat} is not null or ${locationEventsTable.lng} is not null`)
+    .returning({ id: locationEventsTable.id });
+  const etats = await db
+    .update(userLocationStateTable)
+    .set({ lastLat: null, lastLng: null, lastAccuracyM: null })
+    .where(sql`${userLocationStateTable.lastLat} is not null or ${userLocationStateTable.lastLng} is not null`)
+    .returning({ userId: userLocationStateTable.userId });
+  if (evenements.length > 0 || etats.length > 0) {
+    logger.info({ evenements: evenements.length, etats: etats.length }, "[location-cleanup-cron] coordonnees effacees");
+  }
+  return { evenements: evenements.length, etats: etats.length };
+}
 
 async function tick(): Promise<void> {
   try {
@@ -33,6 +55,7 @@ async function tick(): Promise<void> {
       .delete(userLocationStateTable)
       .where(lt(userLocationStateTable.lastAt, cutoff))
       .returning({ userId: userLocationStateTable.userId });
+    await effacerCoordonnees();
     if (eventsRes.length > 0 || stateRes.length > 0) {
       logger.info(
         { events: eventsRes.length, states: stateRes.length, retentionDays: RETENTION_DAYS },
