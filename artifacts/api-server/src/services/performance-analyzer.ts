@@ -3,6 +3,7 @@ import { eq, sql, gte, lte, and, count, desc } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { GEMINI_PRO_MODEL, ANTHROPIC_MODEL } from "./ai-utils";
 import { aiForOrg } from "./ai-client";
+import { debutPeriode, normaliserNom, pseudonymiser, reidentifier, scoreSalarie } from "./performance-garde-fous";
 
 interface UserMetrics {
   userId: number;
@@ -65,8 +66,11 @@ export async function gatherUserMetrics(dateDebut: Date, dateFin: Date, orgId: n
         lte(auditLogsTable.createdAt, dateFin)
       ));
 
+    // Egalite normalisee, pas sous-chaine : `%Jean Martin%` attrapait « Jean Martinez ».
+    const nomNormalise = normaliserNom(fullName);
     const taskConditions: any[] = [
-      sql`${tasksTable.assignedTo} ILIKE ${`%${fullName}%`}`,
+      // `\\s` : dans un gabarit JS, `\s` seul devient la lettre « s ».
+      sql`lower(regexp_replace(trim(${tasksTable.assignedTo}), '\\s+', ' ', 'g')) = ${nomNormalise}`,
       eq(tasksTable.status, "termine"),
       gte(tasksTable.updatedAt, dateDebut),
       lte(tasksTable.updatedAt, dateFin),
@@ -123,7 +127,7 @@ export async function gatherUserMetrics(dateDebut: Date, dateFin: Date, orgId: n
       ));
 
     const checkinConditions: any[] = [
-      sql`${checkinsTable.employeeName} ILIKE ${`%${fullName}%`}`,
+      sql`lower(regexp_replace(trim(${checkinsTable.employeeName}), '\\s+', ' ', 'g')) = ${nomNormalise}`,
       gte(checkinsTable.checkInAt, dateDebut),
       lte(checkinsTable.checkInAt, dateFin),
     ];
@@ -175,18 +179,7 @@ export async function generatePerformanceReport(
   userId?: number
 ): Promise<any> {
   const now = new Date();
-  let dateDebut: Date;
-
-  if (periode === "jour") {
-    dateDebut = new Date(now);
-    dateDebut.setHours(0, 0, 0, 0);
-  } else if (periode === "semaine") {
-    dateDebut = new Date(now);
-    dateDebut.setDate(dateDebut.getDate() - 7);
-  } else {
-    dateDebut = new Date(now);
-    dateDebut.setMonth(dateDebut.getMonth() - 1);
-  }
+  const dateDebut = debutPeriode(periode, now);
 
   let allMetrics = await gatherUserMetrics(dateDebut, now, orgId);
 
@@ -205,14 +198,16 @@ export async function generatePerformanceReport(
     };
   }
 
-  const metricsJSON = JSON.stringify(allMetrics, null, 2);
-  const periodeStr = `${dateDebut.toLocaleDateString("fr-FR")} au ${now.toLocaleDateString("fr-FR")}`;
+  // Les modeles recoivent des chiffres, pas des identites (voir performance-garde-fous).
+  const { donnees, table } = pseudonymiser(allMetrics);
+  const metricsJSON = JSON.stringify(donnees, null, 2);
+  const periodeStr = `${dateDebut.toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" })} au ${now.toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" })}`;
 
   const [geminiResult, openaiResult, anthropicResult] = await Promise.all([
     analyzeWithGemini(metricsJSON, periodeStr, orgId),
     analyzeWithOpenAI(metricsJSON, periodeStr),
     analyzeWithAnthropic(metricsJSON, periodeStr),
-  ]);
+  ]).then((r) => r.map((x) => (x ? reidentifier(x, table) : x)) as typeof r);
 
   const sourcesUtilisees: string[] = [];
   if (geminiResult) sourcesUtilisees.push("Gemini");
@@ -222,8 +217,14 @@ export async function generatePerformanceReport(
   const analyseIA = fusionnerAnalyses(geminiResult, openaiResult, anthropicResult, sourcesUtilisees);
 
   for (const empAnalysis of (analyseIA.employes || [])) {
-    const empMetrics = allMetrics.find(m => m.userId === empAnalysis.userId);
+    // `userId` du modele = rang pseudonyme ; on repasse a l'identifiant reel.
+    const empMetrics = table.get(Number(empAnalysis.userId));
     if (!empMetrics) continue;
+    empAnalysis.userId = empMetrics.userId;
+    const score = scoreSalarie(empAnalysis.score);
+    // Pas de score lisible : on n'enregistre pas un 0 attribue a une personne.
+    if (score === null) continue;
+    empAnalysis.score = score;
 
     await db.insert(performanceReportsTable).values({
       userId: empMetrics.userId,
@@ -233,7 +234,7 @@ export async function generatePerformanceReport(
       periode,
       dateDebut,
       dateFin: now,
-      scoreGlobal: empAnalysis.score || 0,
+      scoreGlobal: score,
       metriques: empMetrics as any,
       analyseIA: empAnalysis.recommandation || "",
       pointsForts: empAnalysis.pointsForts || [],
@@ -282,7 +283,8 @@ ANALYSE DEMANDEE:
 
 5. Genere un resume executif de 3-4 phrases sur l'etat general de l'equipe.
 
-6. Ajoute une petite blague legere et bienveillante en rapport avec le travail de bureau pour detendre l'atmosphere.
+Les salaries sont designes par "Salarie-N" : garde exactement ces libelles, n'invente aucun nom.
+Ce rapport est une AIDE a la decision d'un responsable, pas une decision : reste factuel, fonde sur les chiffres fournis.
 
 Reponds UNIQUEMENT en JSON:
 {
@@ -290,7 +292,7 @@ Reponds UNIQUEMENT en JSON:
   "employes": [
     {
       "userId": number,
-      "nom": "string",
+      "nom": "string (le libelle Salarie-N)",
       "score": number,
       "niveau": "excellent|bon|moyen|insuffisant",
       "pointsForts": ["string"],
@@ -306,8 +308,7 @@ Reponds UNIQUEMENT en JSON:
     "plusAssidu": "string",
     "meilleurScore": "string"
   },
-  "tendances": ["string"],
-  "blague": "string"
+  "tendances": ["string"]
 }`;
 
 async function analyzeWithGemini(metricsJSON: string, periodeStr: string, orgId: number): Promise<any | null> {
@@ -367,12 +368,12 @@ ${metricsJSON}
 Fournis une analyse strategique en JSON:
 {
   "perspectiveAnthropic": "string (vision strategique en 3-4 phrases)",
-  "profilsComportementaux": [{"employe": "string", "profil": "string", "motivation": "string", "conseil": "string"}],
   "dynamiqueEquipe": {"cohesion": "forte|moyenne|faible", "analyse": "string", "recommandations": ["string"]},
   "planAction30Jours": [{"semaine": number, "action": "string", "responsable": "string", "objectif": "string"}],
-  "benchmarkSectoriel": "string",
-  "citationMotivante": "string"
-}`,
+  "benchmarkSectoriel": "string"
+}
+
+Les salaries sont designes par "Salarie-N" : garde ces libelles. Pas de profil psychologique ou comportemental individuel.`,
         },
       ],
     });
@@ -398,8 +399,9 @@ function fusionnerAnalyses(
     recommandationsEquipe: [],
     comparaison: null,
     tendances: [],
-    blague: null,
   };
+  // Un modele peut encore renvoyer ces champs : ils ne sortent pas.
+  delete base.blague;
 
   base.sourcesIA = sources;
   base.analyseMultiIA = sources.length > 1;
@@ -415,11 +417,9 @@ function fusionnerAnalyses(
 
   if (anthropic) {
     base.perspectiveAnthropic = anthropic.perspectiveAnthropic || null;
-    base.profilsComportementaux = anthropic.profilsComportementaux || [];
     base.dynamiqueEquipe = anthropic.dynamiqueEquipe || null;
     base.planAction30Jours = anthropic.planAction30Jours || [];
     base.benchmarkSectoriel = anthropic.benchmarkSectoriel || null;
-    base.citationMotivante = anthropic.citationMotivante || null;
   }
 
   return base;
