@@ -305,6 +305,17 @@ export async function executeProposal(proposalId: number, ctx: ToolContext): Pro
     if (!proposal) return { ok: false, status: "echouee", error: "Proposition introuvable" };
     if (proposal.status === "executee") return { ok: true, status: "executee", result: proposal.result };
     if (proposal.status === "rejetee") return { ok: false, status: "rejetee", error: "Proposition déjà rejetée" };
+    // Une proposition expiree ne s'execute plus.
+    //
+    // `expireStaleProposals` (services/proposal-queue.ts) passe a `expiree` ce
+    // qui dort depuis 14 jours, precisement parce que « l'action proposee il y
+    // a trois semaines n'est de toute facon plus pertinente ». Rien n'empechait
+    // pourtant de l'approuver ensuite : la relance d'une facture deja reglee,
+    // le rappel d'un rendez-vous passe, le SMS d'un chantier termine partaient
+    // quand meme. L'agent doit reproposer avec un contexte a jour.
+    if (proposal.status === "expiree") {
+      return { ok: false, status: "expiree", error: "Cette proposition a expiré : relancez l'agent pour en obtenir une à jour." };
+    }
 
     // Les propositions SaaS (cross-organisation) passent par un executeur
     // distinct qui applique sa propre garde super-admin. Le chemin org-scoped
