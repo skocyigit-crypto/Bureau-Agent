@@ -9,21 +9,9 @@ import { computeInvoiceTotals } from "../services/invoice-totals";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
 import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
 import { datesEtape, pagination, validerSaisieProspect } from "../services/prospect-saisie";
+import { contactDeLOrganisation } from "../services/contact-organisation";
 
 const router: IRouter = Router();
-
-/**
- * Un prospect ne peut etre lie qu'a un contact de SA organisation : sinon le
- * devis cree depuis le prospect reprenait le contact d'un autre client.
- */
-async function contactDeLOrganisation(contactId: unknown, orgId: number): Promise<number | null | false> {
-  if (contactId === null || contactId === undefined || contactId === "") return null;
-  const id = Number(contactId);
-  if (!Number.isInteger(id) || id <= 0) return false;
-  const [c] = await db.select({ id: contactsTable.id }).from(contactsTable)
-    .where(and(eq(contactsTable.id, id), eq(contactsTable.organisationId, orgId)));
-  return c ? c.id : false;
-}
 
 // Ressource TENANT: le prospect appartient au client. Chaque requete est
 // bornee a l'organisation de la session (`getOrgId`); aucun appelant ne choisit
