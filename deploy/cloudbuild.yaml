@@ -282,10 +282,12 @@ steps:
         # L'affinite est « au mieux » cote Cloud Run: elle ne remplace pas un
         # etat partage, elle enleve seulement le cas ou l'etat partageable ne
         # l'est pas.
-        exec gcloud run deploy '${_API_SERVICE}' \
-          --image='${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/api:${_TAG}' \
-          --region='${_REGION}' \
-          --platform=managed \
+        # Canari (17/09) : sans trafic d'abord ; la revision doit prouver sur son
+        # URL etiquetee qu'elle sert CE build avec une base connectee, sinon le
+        # trafic reste sur la precedente. Voir deploy/deploiement-canari.sh.
+        exec bash deploy/deploiement-canari.sh '${_API_SERVICE}' \
+          '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/api:${_TAG}' \
+          '${_REGION}' /api/healthz '"build":"${_TAG}"' '"db":"connected"' -- \
           --update-env-vars=BUILD_SHA=${_TAG},BUILD_ID=${BUILD_ID},PUBLIC_URL=${_PUBLIC_URL} \
           --session-affinity
     waitFor: ['migration-schema-prod']
@@ -316,10 +318,9 @@ steps:
           echo "deploiement ignore: build depasse par un commit plus recent"
           exit 0
         fi
-        exec gcloud run deploy '${_WEB_SERVICE}' \
-          --image='${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/web:${_TAG}' \
-          --region='${_REGION}' \
-          --platform=managed
+        exec bash deploy/deploiement-canari.sh '${_WEB_SERVICE}' \
+          '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/web:${_TAG}' \
+          '${_REGION}' / '<div id="root"></div>' --
     waitFor: ['push-web', 'deploy-api']
 
   - id: build-tanitim
@@ -346,10 +347,9 @@ steps:
           echo "deploiement ignore: build depasse par un commit plus recent"
           exit 0
         fi
-        exec gcloud run deploy '${_TANITIM_SERVICE}' \
-          --image='${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/tanitim:${_TAG}' \
-          --region='${_REGION}' \
-          --platform=managed \
+        exec bash deploy/deploiement-canari.sh '${_TANITIM_SERVICE}' \
+          '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/tanitim:${_TAG}' \
+          '${_REGION}' / '<div id="root"></div>' -- \
           --allow-unauthenticated
     waitFor: ['push-tanitim', 'deploy-api']
 
