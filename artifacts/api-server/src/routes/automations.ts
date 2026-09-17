@@ -11,6 +11,21 @@ import { documentCsv } from "../lib/csv";
 
 const router = Router();
 
+/**
+ * Notifications d'equipe : beaucoup de producteurs (secretaire IA, taches en
+ * retard, quota IA, appels manques) ecrivent sans userId, pour toute
+ * l'organisation. Le filtre ne retenait que `userId = moi` : ces alertes
+ * etaient enregistrees et jamais montrees a personne.
+ * Lecture : partagee (une alerte traitee l'est pour l'equipe).
+ * Suppression d'une alerte d'equipe : responsables seulement ; « tout supprimer »
+ * ne touche que les notifications personnelles.
+ */
+const ROLES_RESPONSABLES = new Set(["administrateur", "super_admin"]);
+function visiblesPour(userId: number, organisationId: number | undefined) {
+  if (!organisationId) return eq(notificationsTable.userId, userId);
+  return sql`(${notificationsTable.userId} = ${userId} OR (${notificationsTable.userId} IS NULL AND ${notificationsTable.organisationId} = ${organisationId}))`;
+}
+
 router.get("/notifications", async (req: Request, res: Response): Promise<void> => {
   const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
@@ -22,7 +37,7 @@ router.get("/notifications", async (req: Request, res: Response): Promise<void> 
   const sinceHours = parseInt(req.query.sinceHours as string);
 
   try {
-    const userFilter = eq(notificationsTable.userId, userId);
+    const userFilter = visiblesPour(userId, req.session?.organisationId);
     const unreadFilter = eq(notificationsTable.read, false);
     const filters = [userFilter];
     if (unreadOnly) filters.push(unreadFilter);
@@ -32,7 +47,7 @@ router.get("/notifications", async (req: Request, res: Response): Promise<void> 
       const since = new Date(Date.now() - sinceHours * 3600 * 1000);
       filters.push(gte(notificationsTable.createdAt, since));
     }
-    const whereClause = filters.length === 1 ? userFilter : and(...filters);
+    const whereClause = and(...filters);
 
     const notifications = await db
       .select()
@@ -62,7 +77,7 @@ router.patch("/notifications/:id/read", async (req: Request, res: Response): Pro
 
   try {
     await db.update(notificationsTable).set({ read: true })
-      .where(and(eq(notificationsTable.id, id), eq(notificationsTable.userId, userId)));
+      .where(and(eq(notificationsTable.id, id), visiblesPour(userId, req.session?.organisationId)));
     res.json({ success: true });
   } catch (err: any) {
     req.log.error({ err }, "Erreur marquer notification lue");
@@ -76,7 +91,7 @@ router.post("/notifications/read-all", async (req: Request, res: Response): Prom
 
   try {
     await db.update(notificationsTable).set({ read: true })
-      .where(and(eq(notificationsTable.userId, userId), eq(notificationsTable.read, false)));
+      .where(and(visiblesPour(userId, req.session?.organisationId), eq(notificationsTable.read, false)));
     res.json({ success: true });
   } catch (err: any) {
     req.log.error({ err }, "Erreur marquer toutes notifications lues");
@@ -92,8 +107,13 @@ router.delete("/notifications/:id", async (req: Request, res: Response): Promise
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
   try {
-    await db.delete(notificationsTable)
-      .where(and(eq(notificationsTable.id, id), eq(notificationsTable.userId, userId)));
+    const portee = ROLES_RESPONSABLES.has(req.session?.userRole ?? "")
+      ? visiblesPour(userId, req.session?.organisationId)
+      : eq(notificationsTable.userId, userId);
+    const supprimees = await db.delete(notificationsTable)
+      .where(and(eq(notificationsTable.id, id), portee))
+      .returning({ id: notificationsTable.id });
+    if (supprimees.length === 0) { res.status(404).json({ error: "Notification introuvable ou alerte d'equipe (reservee aux responsables)." }); return; }
     res.json({ success: true });
   } catch (err: any) {
     req.log.error({ err }, "Erreur suppression notification");

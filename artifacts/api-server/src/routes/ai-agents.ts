@@ -379,7 +379,7 @@ async function gatherAgentData(agentId: string, orgId: number) {
         db.select({ count: count() }).from(usersTable).where(and(orgUserSec, sql`${usersTable.tentativesEchouees} > 0`)),
         db.select({ count: count() }).from(usersTable).where(orgUserSec),
         db.select({ count: count() }).from(usersTable).where(and(orgUserSec, eq(usersTable.mfaActif, true))),
-        db.select({ count: count() }).from(notificationsTable).where(and(eq(notificationsTable.read, false), sql`${notificationsTable.userId} IN (SELECT id FROM users WHERE organisation_id = ${orgId})`)),
+        db.select({ count: count() }).from(notificationsTable).where(and(eq(notificationsTable.read, false), sql`(${notificationsTable.userId} IN (SELECT id FROM users WHERE organisation_id = ${orgId}) OR (${notificationsTable.userId} IS NULL AND ${notificationsTable.organisationId} = ${orgId}))`)),
         db.select({ count: count() }).from(auditLogsTable).where(and(gte(auditLogsTable.createdAt, twoWeeksAgo), lt(auditLogsTable.createdAt, weekAgo), sql`${auditLogsTable.userId} IN (SELECT id FROM users WHERE organisation_id = ${orgId})`)),
         db.select({ action: auditLogsTable.action, cnt: count() }).from(auditLogsTable).where(and(gte(auditLogsTable.createdAt, weekAgo), sql`${auditLogsTable.userId} IN (SELECT id FROM users WHERE organisation_id = ${orgId})`)).groupBy(auditLogsTable.action),
         db.select({ count: count() }).from(auditLogsTable).where(and(gte(auditLogsTable.createdAt, weekAgo), sql`${auditLogsTable.action} IN ('delete', 'export', 'role_change', 'password_change')`, sql`${auditLogsTable.userId} IN (SELECT id FROM users WHERE organisation_id = ${orgId})`)),
