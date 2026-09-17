@@ -5,6 +5,8 @@ import { logger } from "../lib/logger";
 import { safeJsonParse, aiCallWithRetry, GEMINI_PRO_MODEL, GEMINI_FLASH_MODEL, ANTHROPIC_MODEL, wrapUntrusted } from "./ai-utils";
 import { aiForOrg } from "./ai-client";
 import { AGENTS, creerTacheIa } from "./tache-ia";
+import { cleEmail, cleTelephone } from "./import-contacts";
+import { lireLigneContactDocument, lireLigneTache } from "./import-document-lignes";
 
 export type DocumentType =
   | "facture"
@@ -1227,6 +1229,19 @@ export async function importRowsToModule(
     ? rows.filter(r => selectedRows.includes(r.rowIndex))
     : rows;
 
+  // Doublons verifies ICI, contre la base et dans le lot : `duplicateOf` vient
+  // du navigateur et ne voyait ni les ajouts recents ni les lignes du lot.
+  const telephonesVus = new Set<string>();
+  const emailsVus = new Set<string>();
+  if (targetModule === "contacts" && skipDuplicates) {
+    const existants = await db.select({ phone: contactsTable.phone, email: contactsTable.email })
+      .from(contactsTable).where(eq(contactsTable.organisationId, orgId));
+    for (const c of existants) {
+      if (cleTelephone(c.phone)) telephonesVus.add(cleTelephone(c.phone));
+      if (cleEmail(c.email)) emailsVus.add(cleEmail(c.email));
+    }
+  }
+
   for (const row of rowsToImport) {
     if (row.errors.length > 0) {
       result.skipped.push({ rowIndex: row.rowIndex, reason: `Erreurs: ${row.errors.join(", ")}` });
@@ -1245,25 +1260,35 @@ export async function importRowsToModule(
 
       switch (targetModule) {
         case "contacts": {
-          const f = row.fields;
+          const lue = lireLigneContactDocument(row.fields);
+          if (!lue.ok) {
+            result.skipped.push({ rowIndex: row.rowIndex, reason: lue.erreur });
+            result.totalSkipped++;
+            continue;
+          }
+          const v = lue.valeurs;
+          if (skipDuplicates && (telephonesVus.has(cleTelephone(v.phone)) || (v.email && emailsVus.has(cleEmail(v.email))))) {
+            result.skipped.push({ rowIndex: row.rowIndex, reason: `${v.firstName} ${v.lastName} : déjà présent (même téléphone ou email)` });
+            result.totalSkipped++;
+            continue;
+          }
           const [created] = await db.insert(contactsTable).values({
             organisationId: orgId,
-            firstName: f.firstName || "",
-            lastName: f.lastName || f.name || "",
-            email: f.email || null,
-            phone: f.phone || "",
-            mobile: f.mobile || null,
-            company: f.company || null,
-            category: f.category || "autre",
-            address: f.address || null,
-            notes: f.notes || null,
+            ...v,
             createdBy: userId,
           }).returning({ id: contactsTable.id });
+          telephonesVus.add(cleTelephone(v.phone));
+          if (v.email) emailsVus.add(cleEmail(v.email));
           createdId = created.id;
           break;
         }
         case "taches": {
-          const f = row.fields;
+          const lue = lireLigneTache(row.fields);
+          if (!lue.ok) {
+            result.skipped.push({ rowIndex: row.rowIndex, reason: lue.erreur });
+            result.totalSkipped++;
+            continue;
+          }
           // tache-ia: SAISIE HUMAINE — import d'un tableau, ligne par ligne.
           // Le modele a lu le fichier, mais c'est l'utilisateur qui coche ce
           // qu'il importe (`selectedRows`), et il en reste l'auteur. Passer
@@ -1271,12 +1296,7 @@ export async function importRowsToModule(
           // colonne `assignedTo` que le fichier importe porte deja.
           const [created] = await db.insert(tasksTable).values({
             organisationId: orgId,
-            title: f.title || "Tache importee",
-            description: f.description || null,
-            status: f.status || "en_attente",
-            priority: f.priority || "moyenne",
-            dueDate: f.dueDate ? new Date(f.dueDate) : null,
-            assignedTo: f.assignedTo || null,
+            ...lue.valeurs,
             createdBy: userId,
           }).returning({ id: tasksTable.id });
           createdId = created.id;
@@ -1295,7 +1315,8 @@ export async function importRowsToModule(
       }
     } catch (err: any) {
       logger.error({ err, rowIndex: row.rowIndex }, "Import row error");
-      result.errors.push({ rowIndex: row.rowIndex, error: err.message });
+      // Jamais le message SQL brut a l'ecran (il cite tables et colonnes).
+      result.errors.push({ rowIndex: row.rowIndex, error: "Enregistrement refusé par la base." });
       result.totalErrors++;
     }
   }
