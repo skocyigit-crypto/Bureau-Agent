@@ -5,6 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/i18n";
+import { affichageVariation, valeurOuTiret } from "@/lib/variation";
 import {
 Activity,
 AlertCircle,
@@ -34,16 +35,17 @@ const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 interface ExecutiveData {
   period: { days: number; start: string; end: string };
-  score: number;
-  calls: { total: number; answered: number; missed: number; avgDuration: number; totalDuration: number; trend: number; responseRate: number; prevResponseRate: number };
+  // `null` : pas de donnee sur la periode (voir services/rapport-executif.ts).
+  score: number | null;
+  calls: { total: number; answered: number; missed: number; avgDuration: number; totalDuration: number; trend: number | null; responseRate: number | null; prevResponseRate: number | null };
   contacts: { total: number; newThisPeriod: number };
-  tasks: { total: number; completed: number; inProgress: number; overdue: number; highPriority: number; completionRate: number; prevCompletionRate: number };
+  tasks: { total: number; completed: number; inProgress: number; overdue: number; highPriority: number; completionRate: number | null; prevCompletionRate: number | null };
   messages: { total: number; unread: number };
-  prospects: { total: number; won: number; lost: number; totalValue: number; wonValue: number; avgProbability: number; winRate: number; prevWinRate: number };
+  prospects: { total: number; won: number; lost: number; totalValue: number; wonValue: number; avgProbability: number; winRate: number | null; prevWinRate: number | null };
   events: { total: number; upcoming: number };
   projets?: { total: number; active: number; termine: number; overdue: number; avgProgress: number };
   insights: Array<{ type: string; severity: string; message: string; metric?: string }>;
-  trends: { callTrend: number; taskTrend: number; prospectTrend: number; responseTrend: number };
+  trends: { callTrend: number | null; taskTrend: number | null; prospectTrend: number | null; responseTrend: number | null };
 }
 
 interface TimelinePoint {
@@ -106,6 +108,10 @@ export default function ExecutiveReport() {
   const getSeverityColor = (s: string) => ({ critique: "bg-red-100 text-red-700 border-red-200", urgent: "bg-orange-100 text-orange-700 border-orange-200", alerte: "bg-yellow-100 text-yellow-700 border-yellow-200", positif: "bg-green-100 text-green-700 border-green-200", info: "bg-blue-100 text-blue-700 border-blue-200" }[s] || "bg-gray-100 text-gray-700");
   const getSeverityIcon = (s: string) => ({ critique: AlertCircle, urgent: AlertTriangle, alerte: Clock, positif: CheckCircle, info: Eye }[s] || Eye);
 
+  // « {{rate}}% » avec un taux inconnu donnerait « null% » : on affiche un tiret seul.
+  const avecTaux = (cle: string, rate: number | null) =>
+    rate === null ? t(cle, { rate: "—" }).replace("—%", "—") : t(cle, { rate });
+
   const formatDate = (d: string) => {
     const date = new Date(d);
     return date.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
@@ -154,19 +160,19 @@ export default function ExecutiveReport() {
 
       <div className="grid grid-cols-5 gap-4">
         <Card className="col-span-1 border-2 border-primary/20 relative overflow-hidden">
-          <div className={`absolute top-0 left-0 right-0 h-1 ${getScoreBg(data.score)}`} />
+          <div className={`absolute top-0 left-0 right-0 h-1 ${data.score === null ? "bg-muted" : getScoreBg(data.score)}`} />
           <CardContent className="p-4 text-center">
             <div className="text-xs text-muted-foreground font-medium mb-1">{t("executiveReport.globalScore")}</div>
-            <div className={`text-4xl font-bold ${getScoreColor(data.score)}`}>{data.score}</div>
+            <div className={`text-4xl font-bold ${data.score === null ? "text-muted-foreground" : getScoreColor(data.score)}`}>{valeurOuTiret(data.score)}</div>
             <div className="text-xs text-muted-foreground">/100</div>
-            <Progress value={data.score} className="mt-2 h-1.5" />
+            <Progress value={data.score ?? 0} className="mt-2 h-1.5" />
           </CardContent>
         </Card>
 
         {[
-          { label: t("executiveReport.kpiCalls"), value: data.calls.total, icon: Phone, trend: data.trends.callTrend, sub: t("executiveReport.callsResponse", { rate: data.calls.responseRate }), color: "text-blue-600" },
-          { label: t("executiveReport.kpiTasks"), value: data.tasks.total, icon: CheckSquare, trend: data.trends.taskTrend, sub: t("executiveReport.tasksCompleted", { rate: data.tasks.completionRate }), color: "text-green-600" },
-          { label: t("executiveReport.kpiProspects"), value: data.prospects.total, icon: Target, trend: data.trends.prospectTrend, sub: t("executiveReport.prospectsWon", { rate: data.prospects.winRate }), color: "text-purple-600" },
+          { label: t("executiveReport.kpiCalls"), value: data.calls.total, icon: Phone, trend: data.trends.callTrend, unite: "%", sub: avecTaux("executiveReport.callsResponse", data.calls.responseRate), color: "text-blue-600" },
+          { label: t("executiveReport.kpiTasks"), value: data.tasks.total, icon: CheckSquare, trend: data.trends.taskTrend, unite: " pts", sub: avecTaux("executiveReport.tasksCompleted", data.tasks.completionRate), color: "text-green-600" },
+          { label: t("executiveReport.kpiProspects"), value: data.prospects.total, icon: Target, trend: data.trends.prospectTrend, unite: " pts", sub: avecTaux("executiveReport.prospectsWon", data.prospects.winRate), color: "text-purple-600" },
           { label: t("executiveReport.kpiMessages"), value: data.messages.total, icon: MessageSquare, sub: t("executiveReport.messagesUnread", { count: data.messages.unread }), color: "text-orange-600" },
         ].map((kpi) => (
           <Card key={kpi.label} className="relative overflow-hidden">
@@ -178,12 +184,19 @@ export default function ExecutiveReport() {
               <div className="text-2xl font-bold">{kpi.value}</div>
               <div className="flex items-center justify-between mt-1">
                 <span className="text-xs text-muted-foreground">{kpi.sub}</span>
-                {kpi.trend !== undefined && (
-                  <Badge variant="outline" className={`text-[10px] px-1 ${kpi.trend >= 0 ? "text-green-600 border-green-200" : "text-red-600 border-red-200"}`}>
-                    {kpi.trend >= 0 ? <ArrowUpRight className="h-3 w-3 mr-0.5" /> : <ArrowDownRight className="h-3 w-3 mr-0.5" />}
-                    {Math.abs(kpi.trend)}%
-                  </Badge>
-                )}
+                {kpi.trend !== undefined && (() => {
+                  // Sans reference, pas de fleche : « 0 % » rouge n'etait pas une baisse.
+                  const v = affichageVariation(kpi.trend, kpi.unite);
+                  if (v.sens === "inconnu") return null;
+                  const classe = v.sens === "hausse" ? "text-green-600 border-green-200" : v.sens === "baisse" ? "text-red-600 border-red-200" : "text-muted-foreground";
+                  return (
+                    <Badge variant="outline" className={`text-[10px] px-1 ${classe}`}>
+                      {v.sens === "hausse" && <ArrowUpRight className="h-3 w-3 mr-0.5" />}
+                      {v.sens === "baisse" && <ArrowDownRight className="h-3 w-3 mr-0.5" />}
+                      {v.texte}
+                    </Badge>
+                  );
+                })()}
               </div>
             </CardContent>
           </Card>
@@ -262,7 +275,7 @@ export default function ExecutiveReport() {
             <div className="border-t pt-2">
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">{t("executiveReport.conversionRate")}</span>
-                <span className="font-bold text-purple-600">{data.prospects.winRate}%</span>
+                <span className="font-bold text-purple-600">{valeurOuTiret(data.prospects.winRate, "%")}</span>
               </div>
               <div className="flex justify-between text-xs mt-1">
                 <span className="text-muted-foreground">{t("executiveReport.totalPipelineValue")}</span>
@@ -296,14 +309,15 @@ export default function ExecutiveReport() {
             <div>
               <div className="flex justify-between text-xs mb-1">
                 <span>{t("executiveReport.responseRate")}</span>
-                <span className="font-bold">{data.calls.responseRate}%</span>
+                <span className="font-bold">{valeurOuTiret(data.calls.responseRate, "%")}</span>
               </div>
-              <Progress value={data.calls.responseRate} className="h-2" />
+              <Progress value={data.calls.responseRate ?? 0} className="h-2" />
               <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
-                <span>{t("executiveReport.prevPeriod", { rate: data.calls.prevResponseRate })}</span>
-                <span className={data.calls.responseRate >= data.calls.prevResponseRate ? "text-green-600" : "text-red-600"}>
-                  {data.calls.responseRate >= data.calls.prevResponseRate ? "+" : ""}{data.calls.responseRate - data.calls.prevResponseRate}%
-                </span>
+                <span>{avecTaux("executiveReport.prevPeriod", data.calls.prevResponseRate)}</span>
+                {(() => {
+                  const v = affichageVariation(data.trends.responseTrend, " pts");
+                  return <span className={v.sens === "hausse" ? "text-green-600" : v.sens === "baisse" ? "text-red-600" : ""}>{v.texte}</span>;
+                })()}
               </div>
             </div>
           </CardContent>
@@ -335,9 +349,9 @@ export default function ExecutiveReport() {
             <div>
               <div className="flex justify-between text-xs mb-1">
                 <span>{t("executiveReport.completionRate")}</span>
-                <span className="font-bold">{data.tasks.completionRate}%</span>
+                <span className="font-bold">{valeurOuTiret(data.tasks.completionRate, "%")}</span>
               </div>
-              <Progress value={data.tasks.completionRate} className="h-2" />
+              <Progress value={data.tasks.completionRate ?? 0} className="h-2" />
             </div>
             {data.tasks.highPriority > 0 && (
               <div className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 p-2 rounded">
