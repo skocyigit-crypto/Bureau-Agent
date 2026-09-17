@@ -5,6 +5,22 @@ import { getOrgId } from "../middleware/tenant";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
 import { etatReception } from "../services/garanties-chantier";
+import { contactDeLOrganisation } from "../services/contact-organisation";
+import { montantValide, pagination } from "../services/prospect-saisie";
+
+/** Avancement entier 0-100 ; `null` si la saisie n'est pas un nombre. */
+function avancementValide(saisie: unknown): number | null {
+  if (saisie === "" || saisie === null || typeof saisie === "boolean") return null;
+  const n = Number(saisie);
+  return Number.isFinite(n) ? Math.min(100, Math.max(0, Math.round(n))) : null;
+}
+
+/** Date optionnelle : `null` si vide, `undefined` si illisible. */
+function dateOptionnelle(saisie: unknown): Date | null | undefined {
+  if (saisie === null || saisie === undefined || saisie === "") return null;
+  const d = new Date(String(saisie));
+  return Number.isNaN(d.getTime()) ? undefined : d;
+}
 
 const router: IRouter = Router();
 
@@ -23,7 +39,8 @@ const sortCols: Record<string, any> = {
 
 router.get("/projets", async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
-  const { search, status, priority, assignedTo, contactId: contactIdQ, limit = "50", offset = "0", sortBy = "createdAt", sortOrder = "desc" } = req.query as any;
+  const { search, status, priority, assignedTo, contactId: contactIdQ, sortBy = "createdAt", sortOrder = "desc" } = req.query as any;
+  const { limit, offset } = pagination(req.query.limit, req.query.offset);
 
   const conditions = [eq(projetsTable.organisationId, orgId)];
   if (status && status !== "all") conditions.push(eq(projetsTable.status, status));
@@ -51,7 +68,7 @@ router.get("/projets", async (req: Request, res: Response): Promise<void> => {
 
   try {
     const [rows, countRes] = await Promise.all([
-      db.select().from(projetsTable).where(where).orderBy(orderFn(col)).limit(Number(limit)).offset(Number(offset)),
+      db.select().from(projetsTable).where(where).orderBy(orderFn(col)).limit(limit).offset(offset),
       db.select({ count: sql<number>`count(*)::int` }).from(projetsTable).where(where),
     ]);
     res.json({ projets: rows, total: countRes[0]?.count ?? 0 });
@@ -122,10 +139,21 @@ router.post("/projets", async (req: Request, res: Response): Promise<void> => {
     milestones, tags, notes, contactId,
   } = req.body;
 
-  if (!title?.trim()) { res.status(400).json({ error: "Le titre est obligatoire." }); return; }
+  if (typeof title !== "string" || !title.trim()) { res.status(400).json({ error: "Le titre est obligatoire." }); return; }
   if (!STATUSES.includes(status)) { res.status(400).json({ error: "Statut invalide." }); return; }
+  if (!(PRIORITIES as readonly unknown[]).includes(priority)) { res.status(400).json({ error: "Priorite invalide." }); return; }
+  const avancement = avancementValide(progress);
+  if (avancement === null) { res.status(400).json({ error: "L'avancement doit etre un nombre entre 0 et 100." }); return; }
+  const budgetSaisi = montantValide(budget);
+  if (budgetSaisi === undefined) { res.status(400).json({ error: "Budget invalide." }); return; }
+  const debut = dateOptionnelle(startDate);
+  const fin = dateOptionnelle(endDate);
+  if (debut === undefined || fin === undefined) { res.status(400).json({ error: "Date invalide." }); return; }
+  if (debut && fin && fin < debut) { res.status(400).json({ error: "La date de fin precede la date de debut." }); return; }
 
   try {
+    const contactLie = await contactDeLOrganisation(contactId, orgId);
+    if (contactLie === false) { res.status(400).json({ error: "Contact introuvable." }); return; }
     const [row] = await db.insert(projetsTable).values({
       organisationId: orgId,
       title: title.trim(),
@@ -135,17 +163,18 @@ router.post("/projets", async (req: Request, res: Response): Promise<void> => {
       clientName,
       clientCompany,
       address,
-      budget: budget ? String(budget) : null,
+      budget: budgetSaisi,
       currency,
-      progress: Number(progress) || 0,
-      startDate: startDate ? new Date(startDate) : null,
-      endDate: endDate ? new Date(endDate) : null,
+      progress: avancement,
+      startDate: debut,
+      endDate: fin,
+      actualEndDate: status === "termine" ? new Date() : null,
       assignedTo,
       teamMembers: teamMembers || [],
       milestones: milestones || [],
       tags: tags || [],
       notes,
-      contactId: contactId ? Number(contactId) : null,
+      contactId: contactLie,
     }).returning();
     res.status(201).json(row);
   } catch (err: any) {
@@ -160,7 +189,7 @@ router.patch("/projets/:id", async (req: Request, res: Response): Promise<void> 
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
   try {
-    const [existing] = await db.select({ id: projetsTable.id }).from(projetsTable).where(and(eq(projetsTable.id, id), eq(projetsTable.organisationId, orgId)));
+    const [existing] = await db.select({ id: projetsTable.id, status: projetsTable.status }).from(projetsTable).where(and(eq(projetsTable.id, id), eq(projetsTable.organisationId, orgId)));
     if (!existing) { res.status(404).json({ error: "Projet non trouve." }); return; }
 
     const {
@@ -171,24 +200,51 @@ router.patch("/projets/:id", async (req: Request, res: Response): Promise<void> 
     } = req.body;
 
     const updates: any = { updatedAt: new Date() };
-    if (title !== undefined) updates.title = title.trim();
+    if (title !== undefined) {
+      if (typeof title !== "string" || !title.trim()) { res.status(400).json({ error: "Le titre est obligatoire." }); return; }
+      updates.title = title.trim();
+    }
     if (description !== undefined) updates.description = description;
     if (status !== undefined) {
       if (!STATUSES.includes(status)) { res.status(400).json({ error: "Statut invalide." }); return; }
       updates.status = status;
-      if (status === "termine" && !actualEndDate) updates.actualEndDate = new Date();
+      // La fin reelle se pose quand le chantier PASSE a « termine » (pas a
+      // chaque re-enregistrement du formulaire), et s'efface s'il reprend.
+      if (status !== existing.status) {
+        if (status === "termine" && !actualEndDate) updates.actualEndDate = new Date();
+        if (existing.status === "termine" && !actualEndDate) updates.actualEndDate = null;
+      }
     }
-    if (priority !== undefined) updates.priority = priority;
+    if (priority !== undefined) {
+      if (!(PRIORITIES as readonly unknown[]).includes(priority)) { res.status(400).json({ error: "Priorite invalide." }); return; }
+      updates.priority = priority;
+    }
     if (clientName !== undefined) updates.clientName = clientName;
     if (clientCompany !== undefined) updates.clientCompany = clientCompany;
     if (address !== undefined) updates.address = address;
-    if (budget !== undefined) updates.budget = budget ? String(budget) : null;
-    if (spent !== undefined) updates.spent = String(spent);
+    if (budget !== undefined) {
+      const m = montantValide(budget);
+      if (m === undefined) { res.status(400).json({ error: "Budget invalide." }); return; }
+      updates.budget = m;
+    }
+    if (spent !== undefined) {
+      // `String(null)` enregistrait « null » : erreur SQL, donc 500.
+      const m = montantValide(spent);
+      if (m === undefined) { res.status(400).json({ error: "Depense invalide." }); return; }
+      updates.spent = m ?? "0";
+    }
     if (currency !== undefined) updates.currency = currency;
-    if (progress !== undefined) updates.progress = Math.min(100, Math.max(0, Number(progress)));
-    if (startDate !== undefined) updates.startDate = startDate ? new Date(startDate) : null;
-    if (endDate !== undefined) updates.endDate = endDate ? new Date(endDate) : null;
-    if (actualEndDate !== undefined) updates.actualEndDate = actualEndDate ? new Date(actualEndDate) : null;
+    if (progress !== undefined) {
+      const p = avancementValide(progress);
+      if (p === null) { res.status(400).json({ error: "L'avancement doit etre un nombre entre 0 et 100." }); return; }
+      updates.progress = p;
+    }
+    for (const [cle, saisie] of [["startDate", startDate], ["endDate", endDate], ["actualEndDate", actualEndDate]] as const) {
+      if (saisie === undefined) continue;
+      const d = dateOptionnelle(saisie);
+      if (d === undefined) { res.status(400).json({ error: "Date invalide." }); return; }
+      updates[cle] = d;
+    }
     // Reception des travaux. Une date illisible est REFUSEE plutot que
     // convertie en `Invalid Date`: elle ferait partir dix ans de garantie
     // decennale depuis un instant indefini, et l'erreur ne se verrait qu'au
@@ -224,7 +280,11 @@ router.patch("/projets/:id", async (req: Request, res: Response): Promise<void> 
     if (milestones !== undefined) updates.milestones = milestones;
     if (tags !== undefined) updates.tags = tags;
     if (notes !== undefined) updates.notes = notes;
-    if (contactId !== undefined) updates.contactId = contactId ? Number(contactId) : null;
+    if (contactId !== undefined) {
+      const contactLie = await contactDeLOrganisation(contactId, orgId);
+      if (contactLie === false) { res.status(400).json({ error: "Contact introuvable." }); return; }
+      updates.contactId = contactLie;
+    }
 
     const [updated] = await db.update(projetsTable).set(updates).where(and(eq(projetsTable.id, id), eq(projetsTable.organisationId, orgId))).returning();
     res.json(updated);
@@ -242,7 +302,21 @@ router.post("/projets/:id/duplicate", async (req: Request, res: Response): Promi
     const [src] = await db.select().from(projetsTable).where(and(eq(projetsTable.id, id), eq(projetsTable.organisationId, orgId)));
     if (!src) { res.status(404).json({ error: "Projet non trouve." }); return; }
     const { id: _id, createdAt: _ca, updatedAt: _ua, ...rest } = src as any;
-    const [dup] = await db.insert(projetsTable).values({ ...rest, title: `${src.title} (copie)`, status: "planifie", progress: 0, actualEndDate: null }).returning();
+    // Une copie est un NOUVEAU chantier : ni depense, ni reception. Copier la
+    // date de reception faisait partir les garanties legales (parfait
+    // achevement, biennale, decennale) de la reception de l'ancien chantier.
+    const [dup] = await db.insert(projetsTable).values({
+      ...rest,
+      title: `${src.title} (copie)`,
+      status: "planifie",
+      progress: 0,
+      spent: "0",
+      actualEndDate: null,
+      receptionDate: null,
+      receptionWithReserves: false,
+      receptionReserves: null,
+      reservesLiftedAt: null,
+    }).returning();
     res.status(201).json(dup);
   } catch (err: any) {
     req.log.error({ err }, "Erreur duplication projet");
