@@ -26,6 +26,7 @@ import { broadcaster } from "../services/broadcaster";
 import { generateDraftInBackground } from "../services/whatsapp-inbox";
 import { sendWhatsApp, decryptProviderConfig, type TelephonyProviderConfig } from "../services/telephony-providers";
 import { logger } from "../lib/logger";
+import { etatFenetre, messageFenetreFermee } from "../services/whatsapp-fenetre";
 
 const router: IRouter = Router();
 
@@ -217,6 +218,23 @@ router.post("/whatsapp/conversations/:id/send", async (req, res) => {
     );
   if (!conv) {
     res.status(404).json({ error: "Conversation introuvable" });
+    return;
+  }
+
+  // Regle Meta des 24 heures : verifier AVANT d'appeler Twilio.
+  const [dernierRecu] = await db
+    .select({ at: sql<Date | null>`max(${whatsappMessagesTable.createdAt})` })
+    .from(whatsappMessagesTable)
+    .where(
+      and(
+        eq(whatsappMessagesTable.conversationId, id),
+        eq(whatsappMessagesTable.organisationId, orgId),
+        eq(whatsappMessagesTable.direction, "inbound"),
+      ),
+    );
+  const fenetre = etatFenetre(dernierRecu?.at ? new Date(dernierRecu.at) : null);
+  if (!fenetre.ouverte) {
+    res.status(409).json({ error: messageFenetreFermee(fenetre), code: "whatsapp_fenetre_24h" });
     return;
   }
 
