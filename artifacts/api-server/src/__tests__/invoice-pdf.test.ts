@@ -164,6 +164,17 @@ const SELLER: InvoiceSeller = {
   bankIban: "FR7616798000010000123456789",
   bankBic: "QNTOFRP1XXX",
   invoiceFooter: "Merci de votre confiance.",
+  // Les six informations d'assurance (loi Pinel) et le mediateur de la
+  // consommation font partie de ce qu'un vendeur COMPLET doit porter: sans
+  // elles, `warnings` n'est plus vide, et c'est bien le sens du test.
+  assuranceNom: "AXA France IARD",
+  assuranceAdresse: "313 Terrasses de l'Arche, 92727 Nanterre",
+  assuranceContrat: "RCD-2026-889041",
+  assuranceActivites: "Maconnerie, platrerie, carrelage",
+  assuranceZone: "France metropolitaine et DOM",
+  mediateurNom: "CNPM — Mediation de la consommation",
+  mediateurAdresse: "27 avenue de la Liberte, 97200 Fort-de-France",
+  mediateurUrl: "https://cnpm-mediation-consommation.eu",
 };
 
 const INVOICE: InvoiceRecord = {

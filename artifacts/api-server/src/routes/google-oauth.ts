@@ -9,6 +9,7 @@ import { eq, and } from "drizzle-orm";
 import crypto from "crypto";
 import { logger } from "../lib/logger";
 import { getOrgId } from "../middleware/tenant";
+import { SCOPE_GMAIL_READONLY, SCOPE_GMAIL_SEND, serviceConnecte } from "../services/google-scopes";
 import {
   createOAuthClient,
   getGoogleRedirectUri,
@@ -82,21 +83,36 @@ export function verifyOAuthState(state: string): OAuthStatePayload | null {
   }
 }
 
-const GOOGLE_SCOPES_MAP: Record<string, string> = {
-  gmail: "https://www.googleapis.com/auth/gmail.modify",
-  calendar: "https://www.googleapis.com/auth/calendar",
-  drive: "https://www.googleapis.com/auth/drive",
-  docs: "https://www.googleapis.com/auth/documents",
-  sheets: "https://www.googleapis.com/auth/spreadsheets",
-  slides: "https://www.googleapis.com/auth/presentations",
-  contacts: "https://www.googleapis.com/auth/contacts",
-  tasks: "https://www.googleapis.com/auth/tasks",
-  keep: "https://www.googleapis.com/auth/keep",
-  photos: "https://www.googleapis.com/auth/photoslibrary",
-  youtube: "https://www.googleapis.com/auth/youtube.readonly",
-  meet: "https://www.googleapis.com/auth/calendar.events",
-  chat: "https://www.googleapis.com/auth/chat.spaces.readonly",
-  forms: "https://www.googleapis.com/auth/forms.body.readonly",
+/**
+ * Scopes demandes par service.
+ *
+ * Gmail demandait `gmail.modify`, qui autorise a LIRE, MODIFIER et SUPPRIMER
+ * le courrier. Inventaire de ce que le produit en fait, sur tout le depot :
+ * getProfile, labels.list, messages.list/get/attachments, messages.send,
+ * threads.get — aucun `modify`, aucun changement d'etiquette, aucune mise a
+ * la corbeille, ni via la bibliotheque cliente ni en REST brut.
+ *
+ * Le droit d'ecriture n'etait utilise nulle part. Les deux scopes sont
+ * « restricted » chez Google, donc l'evaluation CASA reste due dans les deux
+ * cas : ce que le resserrement change, c'est que l'ecran de consentement cesse
+ * de demander le droit de supprimer le courrier, et qu'un jeton compromis ne
+ * permet plus de le faire.
+ */
+const GOOGLE_SCOPES_MAP: Record<string, string[]> = {
+  gmail: [SCOPE_GMAIL_READONLY, SCOPE_GMAIL_SEND],
+  calendar: ["https://www.googleapis.com/auth/calendar"],
+  drive: ["https://www.googleapis.com/auth/drive"],
+  docs: ["https://www.googleapis.com/auth/documents"],
+  sheets: ["https://www.googleapis.com/auth/spreadsheets"],
+  slides: ["https://www.googleapis.com/auth/presentations"],
+  contacts: ["https://www.googleapis.com/auth/contacts"],
+  tasks: ["https://www.googleapis.com/auth/tasks"],
+  keep: ["https://www.googleapis.com/auth/keep"],
+  photos: ["https://www.googleapis.com/auth/photoslibrary"],
+  youtube: ["https://www.googleapis.com/auth/youtube.readonly"],
+  meet: ["https://www.googleapis.com/auth/calendar.events"],
+  chat: ["https://www.googleapis.com/auth/chat.spaces.readonly"],
+  forms: ["https://www.googleapis.com/auth/forms.body.readonly"],
 };
 
 const CORE_SCOPES = [
@@ -176,8 +192,8 @@ router.post("/auth-url", async (req, res): Promise<void> => {
     const effectiveServices =
       Array.isArray(services) && services.length > 0 ? services : DEFAULT_SERVICES;
     for (const svcId of effectiveServices) {
-      const scope = GOOGLE_SCOPES_MAP[svcId];
-      if (scope) requestedScopes.push(scope);
+      const scopes = GOOGLE_SCOPES_MAP[svcId];
+      if (scopes) requestedScopes.push(...scopes);
     }
 
     // State SIGNE portant l'utilisateur, au lieu d'un aleatoire stocke en session.
@@ -326,10 +342,15 @@ googleOAuthCallbackRouter.get("/callback", async (req, res): Promise<void> => {
     const grantedScopes = (tokens.scope || "").split(" ");
 
     for (const svcId of services) {
-      const requiredScope = GOOGLE_SCOPES_MAP[svcId];
-      if (!requiredScope) continue;
-      const isGranted = grantedScopes.includes(requiredScope);
-      if (!isGranted) continue;
+      const requiredScopes = GOOGLE_SCOPES_MAP[svcId];
+      if (!requiredScopes) continue;
+      // ENGLOBEMENT, et non egalite stricte.
+      //
+      // Les utilisateurs deja connectes ont accorde `gmail.modify`. Comparer
+      // le scope demande au scope accorde par egalite aurait affiche « Gmail
+      // non connecte » a tous ceux-la, dont le jeton fonctionne parfaitement.
+      // Un scope accorde satisfait un scope requis s'il le contient.
+      if (!serviceConnecte(requiredScopes, grantedScopes)) continue;
 
       const existingConn = await db.select().from(platformConnectionsTable)
         .where(and(
