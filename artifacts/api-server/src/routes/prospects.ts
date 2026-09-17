@@ -8,11 +8,22 @@ import { getOrgId } from "../middleware/tenant";
 import { computeInvoiceTotals } from "../services/invoice-totals";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
 import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
+import { datesEtape, pagination, validerSaisieProspect } from "../services/prospect-saisie";
 
 const router: IRouter = Router();
 
-const STAGES = ["nouveau", "contact", "qualification", "proposition", "negociation", "gagne", "perdu"] as const;
-const PRIORITIES = ["haute", "moyenne", "basse"] as const;
+/**
+ * Un prospect ne peut etre lie qu'a un contact de SA organisation : sinon le
+ * devis cree depuis le prospect reprenait le contact d'un autre client.
+ */
+async function contactDeLOrganisation(contactId: unknown, orgId: number): Promise<number | null | false> {
+  if (contactId === null || contactId === undefined || contactId === "") return null;
+  const id = Number(contactId);
+  if (!Number.isInteger(id) || id <= 0) return false;
+  const [c] = await db.select({ id: contactsTable.id }).from(contactsTable)
+    .where(and(eq(contactsTable.id, id), eq(contactsTable.organisationId, orgId)));
+  return c ? c.id : false;
+}
 
 // Ressource TENANT: le prospect appartient au client. Chaque requete est
 // bornee a l'organisation de la session (`getOrgId`); aucun appelant ne choisit
@@ -34,7 +45,8 @@ const sortCols: Record<string, any> = {
 
 router.get("/prospects", async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
-  const { search, stage, priority, assignedTo, limit = "50", offset = "0", sortBy = "createdAt", sortOrder = "desc" } = req.query as any;
+  const { search, stage, priority, assignedTo, sortBy = "createdAt", sortOrder = "desc" } = req.query as any;
+  const { limit, offset } = pagination(req.query.limit, req.query.offset);
 
   const conditions: SQL[] = [eq(prospectsTable.organisationId, orgId)];
   if (stage && stage !== "all") conditions.push(eq(prospectsTable.stage, stage));
@@ -61,7 +73,7 @@ router.get("/prospects", async (req: Request, res: Response): Promise<void> => {
   try {
     const [rows, countRes] = await Promise.all([
       db.select().from(prospectsTable).where(where)
-        .orderBy(orderFn(col)).limit(Number(limit)).offset(Number(offset)),
+        .orderBy(orderFn(col)).limit(limit).offset(offset),
       db.select({ count: sql<number>`count(*)::int` }).from(prospectsTable).where(where),
     ]);
     res.json({ prospects: rows, total: countRes[0]?.count ?? 0 });
@@ -113,12 +125,16 @@ router.get("/prospects/:id", async (req: Request, res: Response): Promise<void> 
 
 router.post("/prospects", async (req: Request, res: Response): Promise<void> => {
   const targetOrg = getOrgId(req);
-  const { title, description, contactName, company, email, phone, stage = "nouveau", priority = "moyenne", value, currency = "EUR", probability = 50, source, assignedTo, expectedCloseDate, notes, tags, contactId } = req.body;
+  const { title, description, contactName, company, email, phone, currency = "EUR", source, assignedTo, expectedCloseDate, notes, tags, contactId } = req.body;
 
-  if (!title?.trim()) { res.status(400).json({ error: "Le titre est obligatoire." }); return; }
-  if (!STAGES.includes(stage)) { res.status(400).json({ error: "Etape invalide." }); return; }
+  if (typeof title !== "string" || !title.trim()) { res.status(400).json({ error: "Le titre est obligatoire." }); return; }
+  const saisie = validerSaisieProspect(req.body ?? {}, false);
+  if (!saisie.ok) { res.status(400).json({ error: saisie.erreur }); return; }
+  const { stage, priority, probability } = saisie.valeurs as { stage: string; priority: string; probability: number };
 
   try {
+    const contactLie = await contactDeLOrganisation(contactId, targetOrg);
+    if (contactLie === false) { res.status(400).json({ error: "Contact introuvable." }); return; }
     const [row] = await db.insert(prospectsTable).values({
       organisationId: targetOrg,
       title: title.trim(),
@@ -129,15 +145,16 @@ router.post("/prospects", async (req: Request, res: Response): Promise<void> => 
       phone,
       stage,
       priority,
-      value: value ? String(value) : null,
+      value: (saisie.valeurs.value as string | null | undefined) ?? null,
       currency,
-      probability: Number(probability),
+      probability,
       source,
       assignedTo,
       expectedCloseDate: expectedCloseDate ? new Date(expectedCloseDate) : null,
       notes,
       tags: tags || [],
-      contactId: contactId ? Number(contactId) : null,
+      contactId: contactLie,
+      ...datesEtape(stage),
     }).returning();
     res.status(201).json(row);
   } catch (err: any) {
@@ -153,29 +170,34 @@ router.patch("/prospects/:id", async (req: Request, res: Response): Promise<void
   const owned = ownedById(id, orgId);
 
   try {
-    const [existing] = await db.select({ id: prospectsTable.id }).from(prospectsTable).where(owned);
+    const [existing] = await db.select({ id: prospectsTable.id, stage: prospectsTable.stage }).from(prospectsTable).where(owned);
     if (!existing) { res.status(404).json({ error: "Prospect non trouve." }); return; }
 
-    const { title, description, contactName, company, email, phone, stage, priority, value, currency, probability, source, assignedTo, expectedCloseDate, notes, tags, contactId, lostReason } = req.body;
+    const saisie = validerSaisieProspect(req.body ?? {}, true);
+    if (!saisie.ok) { res.status(400).json({ error: saisie.erreur }); return; }
+    const { title, description, contactName, company, email, phone, currency, source, assignedTo, expectedCloseDate, notes, tags, contactId, lostReason } = req.body;
 
-    const updates: any = { updatedAt: new Date() };
+    const updates: any = { updatedAt: new Date(), ...saisie.valeurs };
+    // Les dates de gain/perte ne bougent que si l'etape change vraiment : un
+    // formulaire re-enregistre avec « gagne » ne doit pas redater la victoire.
+    if (typeof updates.stage === "string" && updates.stage !== existing.stage) Object.assign(updates, datesEtape(updates.stage));
     if (title !== undefined) updates.title = title.trim();
     if (description !== undefined) updates.description = description;
     if (contactName !== undefined) updates.contactName = contactName;
     if (company !== undefined) updates.company = company;
     if (email !== undefined) updates.email = email;
     if (phone !== undefined) updates.phone = phone;
-    if (stage !== undefined) { updates.stage = stage; if (stage === "gagne") updates.wonAt = new Date(); if (stage === "perdu") updates.lostAt = new Date(); }
-    if (priority !== undefined) updates.priority = priority;
-    if (value !== undefined) updates.value = value ? String(value) : null;
     if (currency !== undefined) updates.currency = currency;
-    if (probability !== undefined) updates.probability = Number(probability);
     if (source !== undefined) updates.source = source;
     if (assignedTo !== undefined) updates.assignedTo = assignedTo;
     if (expectedCloseDate !== undefined) updates.expectedCloseDate = expectedCloseDate ? new Date(expectedCloseDate) : null;
     if (notes !== undefined) updates.notes = notes;
     if (tags !== undefined) updates.tags = tags;
-    if (contactId !== undefined) updates.contactId = contactId ? Number(contactId) : null;
+    if (contactId !== undefined) {
+      const contactLie = await contactDeLOrganisation(contactId, orgId);
+      if (contactLie === false) { res.status(400).json({ error: "Contact introuvable." }); return; }
+      updates.contactId = contactLie;
+    }
     if (lostReason !== undefined) updates.lostReason = lostReason;
 
     const [row] = await db.update(prospectsTable).set(updates).where(owned).returning();
@@ -217,7 +239,14 @@ router.post("/prospects/:id/convert", requireRole("agent"), async (req: Request,
     const [prospect] = await db.select().from(prospectsTable).where(ownedById(id, orgId));
     if (!prospect) { res.status(404).json({ error: "Prospect non trouvé." }); return; }
 
-    const nameParts = (prospect.contactName || "").trim().split(" ");
+    // Deja converti (ou lie a un contact) : chaque clic creait un doublon.
+    if (prospect.contactId) {
+      const [lie] = await db.select().from(contactsTable)
+        .where(and(eq(contactsTable.id, prospect.contactId), eq(contactsTable.organisationId, orgId)));
+      if (lie) { res.status(409).json({ contact: lie, error: "Ce prospect est deja lie a un contact." }); return; }
+    }
+
+    const nameParts = (prospect.contactName || "").trim().split(/\s+/);
     const firstName = nameParts[0] || prospect.title || "";
     const lastName = nameParts.slice(1).join(" ") || "";
 
@@ -232,8 +261,12 @@ router.post("/prospects/:id/convert", requireRole("agent"), async (req: Request,
       category: "autre",
     } as any).returning();
 
-    await db.update(prospectsTable).set({ stage: "gagne", updatedAt: new Date() } as any)
-      .where(ownedById(id, orgId));
+    await db.update(prospectsTable).set({
+      contactId: contact.id,
+      stage: "gagne",
+      ...(prospect.stage === "gagne" ? {} : datesEtape("gagne")),
+      updatedAt: new Date(),
+    }).where(ownedById(id, orgId));
 
     res.status(201).json({ contact, message: "Prospect converti en contact avec succès." });
   } catch (err: any) {
