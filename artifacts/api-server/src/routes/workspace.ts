@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, dailyReportsTable, platformConnectionsTable, platformSyncLogsTable, projetsTable } from "@workspace/db";
-import { sql, eq, gte, lte, and, count, avg, desc, or } from "drizzle-orm";
+import { sql, eq, gte, lt, lte, and, count, avg, desc, or } from "drizzle-orm";
+import {
+  activitesReelles, bornesJour, dateDuRapport, jourLocal, ligneRepondus, scoreBorne,
+} from "../services/rapport-journalier";
 import { logger } from "../lib/logger";
 import { GEMINI_PRO_MODEL } from "../services/ai-utils";
 import { requireAuth, requireRole } from "../middleware/auth";
@@ -402,8 +405,8 @@ router.get("/sync-logs/:platform", async (req, res): Promise<void> => {
 });
 
 async function gatherDailyData(dateStr: string, orgId: number) {
-  const dayStart = new Date(`${dateStr}T00:00:00.000Z`);
-  const dayEnd = new Date(`${dateStr}T23:59:59.999Z`);
+  // Journee LOCALE [debut, fin[ — et non de minuit a minuit UTC.
+  const { debut: dayStart, fin: dayEnd } = bornesJour(dateStr);
 
   const orgCall = eq(callsTable.organisationId, orgId);
   const orgTask = eq(tasksTable.organisationId, orgId);
@@ -435,21 +438,21 @@ async function gatherDailyData(dateStr: string, orgId: number) {
     sentimentNegative,
     sentimentNeutral,
   ] = await Promise.all([
-    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd))),
-    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), eq(callsTable.status, "repondu"))),
-    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), eq(callsTable.status, "manque"))),
-    db.select({ avg: avg(callsTable.duration) }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), eq(callsTable.status, "repondu"))),
-    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), eq(callsTable.direction, "entrant"))),
-    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), eq(callsTable.direction, "sortant"))),
-    db.select({ count: count() }).from(tasksTable).where(and(orgTask, gte(tasksTable.updatedAt, dayStart), lte(tasksTable.updatedAt, dayEnd), eq(tasksTable.status, "termine"))),
-    db.select({ count: count() }).from(tasksTable).where(and(orgTask, gte(tasksTable.createdAt, dayStart), lte(tasksTable.createdAt, dayEnd))),
+    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lt(callsTable.createdAt, dayEnd))),
+    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lt(callsTable.createdAt, dayEnd), eq(callsTable.status, "repondu"))),
+    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lt(callsTable.createdAt, dayEnd), eq(callsTable.status, "manque"))),
+    db.select({ avg: avg(callsTable.duration) }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lt(callsTable.createdAt, dayEnd), eq(callsTable.status, "repondu"))),
+    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lt(callsTable.createdAt, dayEnd), eq(callsTable.direction, "entrant"))),
+    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lt(callsTable.createdAt, dayEnd), eq(callsTable.direction, "sortant"))),
+    db.select({ count: count() }).from(tasksTable).where(and(orgTask, gte(tasksTable.updatedAt, dayStart), lt(tasksTable.updatedAt, dayEnd), eq(tasksTable.status, "termine"))),
+    db.select({ count: count() }).from(tasksTable).where(and(orgTask, gte(tasksTable.createdAt, dayStart), lt(tasksTable.createdAt, dayEnd))),
     db.select({ count: count() }).from(tasksTable).where(and(orgTask, eq(tasksTable.status, "en_attente"), eq(tasksTable.priority, "haute"))),
-    db.select({ count: count() }).from(tasksTable).where(and(orgTask, gte(tasksTable.createdAt, dayStart), lte(tasksTable.createdAt, dayEnd), eq(tasksTable.priority, "haute"))),
-    db.select({ count: count() }).from(messagesTable).where(and(orgMsg, gte(messagesTable.createdAt, dayStart), lte(messagesTable.createdAt, dayEnd))),
-    db.select({ count: count() }).from(messagesTable).where(and(orgMsg, gte(messagesTable.createdAt, dayStart), lte(messagesTable.createdAt, dayEnd), eq(messagesTable.isRead, false))),
-    db.select({ count: count() }).from(messagesTable).where(and(orgMsg, gte(messagesTable.createdAt, dayStart), lte(messagesTable.createdAt, dayEnd), eq(messagesTable.priority, "haute"))),
-    db.select({ count: count() }).from(contactsTable).where(and(orgContact, gte(contactsTable.createdAt, dayStart), lte(contactsTable.createdAt, dayEnd))),
-    db.select({ count: count() }).from(projetsTable).where(and(eq(projetsTable.organisationId, orgId), gte(projetsTable.createdAt, dayStart), lte(projetsTable.createdAt, dayEnd))),
+    db.select({ count: count() }).from(tasksTable).where(and(orgTask, gte(tasksTable.createdAt, dayStart), lt(tasksTable.createdAt, dayEnd), eq(tasksTable.priority, "haute"))),
+    db.select({ count: count() }).from(messagesTable).where(and(orgMsg, gte(messagesTable.createdAt, dayStart), lt(messagesTable.createdAt, dayEnd))),
+    db.select({ count: count() }).from(messagesTable).where(and(orgMsg, gte(messagesTable.createdAt, dayStart), lt(messagesTable.createdAt, dayEnd), eq(messagesTable.isRead, false))),
+    db.select({ count: count() }).from(messagesTable).where(and(orgMsg, gte(messagesTable.createdAt, dayStart), lt(messagesTable.createdAt, dayEnd), eq(messagesTable.priority, "haute"))),
+    db.select({ count: count() }).from(contactsTable).where(and(orgContact, gte(contactsTable.createdAt, dayStart), lt(contactsTable.createdAt, dayEnd))),
+    db.select({ count: count() }).from(projetsTable).where(and(eq(projetsTable.organisationId, orgId), gte(projetsTable.createdAt, dayStart), lt(projetsTable.createdAt, dayEnd))),
     db.select({ count: count() }).from(projetsTable).where(and(eq(projetsTable.organisationId, orgId), lte(projetsTable.endDate, new Date()), sql`${projetsTable.status} NOT IN ('termine', 'annule')`)),
     db.select({ count: count() }).from(projetsTable).where(and(eq(projetsTable.organisationId, orgId), sql`${projetsTable.status} NOT IN ('termine', 'annule')`)),
     db.select({
@@ -460,21 +463,24 @@ async function gatherDailyData(dateStr: string, orgId: number) {
       duration: callsTable.duration,
       sentiment: callsTable.sentiment,
       notes: callsTable.notes,
-    }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd))).orderBy(desc(callsTable.createdAt)).limit(15),
+      createdAt: callsTable.createdAt,
+    }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lt(callsTable.createdAt, dayEnd))).orderBy(desc(callsTable.createdAt)).limit(15),
     db.select({
       title: tasksTable.title,
       status: tasksTable.status,
       priority: tasksTable.priority,
-    }).from(tasksTable).where(and(orgTask, gte(tasksTable.createdAt, dayStart), lte(tasksTable.createdAt, dayEnd))).orderBy(desc(tasksTable.createdAt)).limit(15),
+      createdAt: tasksTable.createdAt,
+    }).from(tasksTable).where(and(orgTask, gte(tasksTable.createdAt, dayStart), lt(tasksTable.createdAt, dayEnd))).orderBy(desc(tasksTable.createdAt)).limit(15),
     db.select({
       content: messagesTable.content,
       type: messagesTable.type,
       priority: messagesTable.priority,
       contactName: messagesTable.contactName,
-    }).from(messagesTable).where(and(orgMsg, gte(messagesTable.createdAt, dayStart), lte(messagesTable.createdAt, dayEnd))).orderBy(desc(messagesTable.createdAt)).limit(15),
-    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), or(eq(callsTable.sentiment, "positif"), eq(callsTable.sentiment, "tres_positif")))),
-    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), or(eq(callsTable.sentiment, "negatif"), eq(callsTable.sentiment, "tres_negatif")))),
-    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), eq(callsTable.sentiment, "neutre"))),
+      createdAt: messagesTable.createdAt,
+    }).from(messagesTable).where(and(orgMsg, gte(messagesTable.createdAt, dayStart), lt(messagesTable.createdAt, dayEnd))).orderBy(desc(messagesTable.createdAt)).limit(15),
+    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lt(callsTable.createdAt, dayEnd), or(eq(callsTable.sentiment, "positif"), eq(callsTable.sentiment, "tres_positif")))),
+    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lt(callsTable.createdAt, dayEnd), or(eq(callsTable.sentiment, "negatif"), eq(callsTable.sentiment, "tres_negatif")))),
+    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lt(callsTable.createdAt, dayEnd), eq(callsTable.sentiment, "neutre"))),
   ]);
 
   const totalCalls = Number(callsResult[0]?.count ?? 0);
@@ -544,14 +550,9 @@ router.post("/daily-report", async (req, res): Promise<void> => {
     const orgId = req.session?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     const body = req.body || {};
-    const date = typeof body.date === "string" ? body.date.trim() : "";
-    const reportDate = date || new Date().toISOString().split("T")[0];
-
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(reportDate)) {
-      res.status(400).json({ error: "Format de date invalide. Utilisez AAAA-MM-JJ." });
-      return;
-    }
+    const verdict = dateDuRapport(body.date);
+    if (!verdict.ok) { res.status(400).json({ error: verdict.erreur }); return; }
+    const reportDate = verdict.date;
 
     const dailyData = await gatherDailyData(reportDate, orgId);
 
@@ -568,7 +569,7 @@ Voici les donnees de la journee:
 
 APPELS:
 - Total: ${dailyData.calls.total} appels
-- Repondus: ${dailyData.calls.answered} (${dailyData.calls.answerRate}%)
+${ligneRepondus(dailyData.calls.total, dailyData.calls.answered)}
 - Manques: ${dailyData.calls.missed}
 - Entrants: ${dailyData.calls.inbound}, Sortants: ${dailyData.calls.outbound}
 - Duree moyenne: ${dailyData.calls.avgDuration} secondes
@@ -606,6 +607,7 @@ IMPORTANT:
 - N'utilise JAMAIS de noms de personnes reelles
 - Sois precis et actionnable dans tes recommandations
 - Donne un score de performance global de 0 a 100
+- N'invente AUCUNE heure ni aucun evenement : tu ne connais que les chiffres ci-dessus
 
 Reponds en JSON avec cette structure exacte:
 {
@@ -620,13 +622,6 @@ Reponds en JSON avec cette structure exacte:
       "categorie": "appels|taches|messages|contacts|general"
     }
   ],
-  "activites": [
-    {
-      "heure": "string (plage horaire estimee)",
-      "description": "string (activite realisee)",
-      "categorie": "appel|tache|message|contact"
-    }
-  ],
   "scorePerformance": number,
   "tendance": "hausse|stable|baisse",
   "prochainePriorite": "string (action prioritaire pour demain)"
@@ -639,25 +634,32 @@ Reponds en JSON avec cette structure exacte:
       },
     });
 
-    const text = response.text ?? "{}";
-    let parsed;
+    const text = response.text ?? "";
+    let parsed: any = null;
     try {
       parsed = JSON.parse(text);
     } catch (parseErr) {
-      logger.warn({ err: parseErr }, "[DailyReport] AI returned invalid JSON, using fallback:");
-      parsed = {
-        resume: text,
-        pointsForts: [],
-        pointsAttention: [],
-        recommandations: [],
-        activites: [],
-        scorePerformance: 0,
-        tendance: "stable",
-        prochainePriorite: "",
-      };
+      logger.warn({ err: parseErr }, "[DailyReport] JSON IA illisible");
+    }
+    const score = scoreBorne(parsed?.scorePerformance);
+    // Reponse IA inexploitable : on n'enregistre RIEN. Avant, un rapport a
+    // score 0 etait sauve et tirait la moyenne de la semaine vers le bas.
+    if (!parsed || typeof parsed.resume !== "string" || score === null) {
+      res.status(502).json({ error: "L'analyse IA est incomplete. Aucun rapport n'a ete enregistre ; reessayez." });
+      return;
     }
 
-    const [savedReport] = await db.insert(dailyReportsTable).values({
+    // Chronologie issue des enregistrements reels, pas d'une estimation de l'IA.
+    const activites = activitesReelles([
+      ...dailyData.details.recentCalls.map((c) => ({ createdAt: c.createdAt, categorie: "appel" as const, description: `Appel ${c.direction} ${c.status}${c.duration ? ` (${c.duration} s)` : ""}` })),
+      ...dailyData.details.recentTasks.map((t) => ({ createdAt: t.createdAt, categorie: "tache" as const, description: `Tache creee : ${t.title}` })),
+      ...dailyData.details.recentMessages.map((m) => ({ createdAt: m.createdAt, categorie: "message" as const, description: `Message ${m.type}` })),
+    ]);
+
+    // Regenerer une date REMPLACE son rapport : la semaine ne compte plus deux fois le meme jour.
+    const [savedReport] = await db.transaction(async (tx) => {
+      await tx.delete(dailyReportsTable).where(and(eq(dailyReportsTable.organisationId, orgId), eq(dailyReportsTable.reportDate, reportDate)));
+      return tx.insert(dailyReportsTable).values({
       organisationId: orgId,
       reportDate,
       summary: parsed.resume || "",
@@ -670,7 +672,7 @@ Reponds en JSON avec cette structure exacte:
         pointsAttention: parsed.pointsAttention || [],
         tendance: parsed.tendance || "stable",
         prochainePriorite: parsed.prochainePriorite || "",
-        activites: parsed.activites || [],
+        activites,
       },
       aiInsights: parsed.resume || "",
       aiRecommendations: parsed.recommandations || [],
@@ -681,13 +683,14 @@ Reponds en JSON avec cette structure exacte:
       contactsAdded: dailyData.contacts.added,
       avgCallDuration: dailyData.calls.avgDuration,
       answerRate: dailyData.calls.answerRate,
-      score: parsed.scorePerformance || 0,
+      score,
       status: "genere",
     }).returning();
+    });
 
     res.json({
       report: savedReport,
-      aiAnalysis: parsed,
+      aiAnalysis: { ...parsed, activites },
       rawData: dailyData,
     });
   } catch (error: any) {
@@ -785,16 +788,17 @@ router.delete("/daily-reports/:id", async (req, res): Promise<void> => {
 router.get("/activity-summary", async (req, res): Promise<void> => {
   try {
     const now = new Date();
-    const todayStr = now.toISOString().split("T")[0];
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const todayStr = jourLocal(now);
+    const weekAgoStr = jourLocal(new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000));
 
     const orgId = req.session?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     const dailyData = await gatherDailyData(todayStr, orgId);
 
     const weekReports = await db.select().from(dailyReportsTable)
-      .where(and(eq(dailyReportsTable.organisationId, orgId), gte(dailyReportsTable.createdAt, weekAgo)))
-      .orderBy(desc(dailyReportsTable.createdAt));
+      .where(and(eq(dailyReportsTable.organisationId, orgId), gte(dailyReportsTable.reportDate, weekAgoStr)))
+      // Par date DU RAPPORT : un bilan d'il y a un mois genere hier n'est pas « cette semaine ».
+      .orderBy(desc(dailyReportsTable.reportDate));
 
     const weekScores = weekReports.map(r => r.score);
     const avgScore = weekScores.length > 0 ? Math.round(weekScores.reduce((a, b) => a + b, 0) / weekScores.length) : 0;

@@ -1567,7 +1567,8 @@
       "correspondance": "Correspondencia",
       "technique": "Técnico",
       "juridique": "Jurídico",
-      "comptabilite": "Contabilidad"
+      "comptabilite": "Contabilidad",
+      "public": "Público (centralita)"
     },
     "parts": {
       "safe": "{{count}} seguro(s)",
@@ -4351,7 +4352,8 @@
       "searchFailed": "Fallo en la búsqueda",
       "searchError": "Búsqueda imposible",
       "unknownError": "Error desconocido"
-    }
+    },
+    "publicScopeNotice": "La centralita telefónica IA solo usa los documentos clasificados como «Público» (tarifas, FAQ, horarios). Facturas, contratos y demás documentos quedan reservados a la búsqueda interna."
   },
   "contactsImport": {
     "title": "Importar CSV — Contactos",

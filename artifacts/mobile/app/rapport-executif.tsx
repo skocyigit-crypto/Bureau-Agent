@@ -20,28 +20,29 @@ import { useTranslation, type TFunction } from "@/lib/i18n";
 
 interface ExecutiveSummary {
   period: { days: number; start: string; end: string };
-  score: number;
+  // `null` : aucune donnee sur la periode. Zero serait une mesure.
+  score: number | null;
   calls: {
     total: number; answered: number; missed: number;
     avgDuration: number; totalDuration: number;
-    trend: number; responseRate: number; prevResponseRate: number;
+    trend: number | null; responseRate: number | null; prevResponseRate: number | null;
   };
   contacts: { total: number; newThisPeriod: number };
   tasks: {
     total: number; completed: number; inProgress: number;
     overdue: number; highPriority: number;
-    completionRate: number; prevCompletionRate: number;
+    completionRate: number | null; prevCompletionRate: number | null;
   };
   messages: { total: number; unread: number };
   prospects: {
     total: number; won: number; lost: number;
     totalValue: number; wonValue: number;
-    winRate: number; prevWinRate: number; avgProbability: number;
+    winRate: number | null; prevWinRate: number | null; avgProbability: number;
   };
   events: { total: number; upcoming: number };
   projets: { total: number; active: number; termine: number; overdue: number; avgProgress: number };
   insights: Array<{ type: string; severity: string; message: string; metric?: string }>;
-  trends: { callTrend: number; taskTrend: number; prospectTrend: number; responseTrend: number };
+  trends: { callTrend: number | null; taskTrend: number | null; prospectTrend: number | null; responseTrend: number | null };
 }
 
 const PERIOD_OPTIONS = [7, 30, 90];
@@ -73,24 +74,28 @@ function fmtDuration(sec: number): string {
   return m > 0 ? `${m}m ${s > 0 ? s + "s" : ""}` : `${s}s`;
 }
 
-function TrendBadge({ val, colors }: { val: number; colors: ReturnType<typeof import("@/hooks/useColors").useColors> }) {
-  if (val === 0) return null;
+const taux = (v: number | null): string => (v === null ? "—" : `${v}%`);
+
+function TrendBadge({ val, unite, colors }: { val: number | null; unite: string; colors: ReturnType<typeof import("@/hooks/useColors").useColors> }) {
+  // Sans reference (null), pas de fleche : ce n'est ni une hausse ni une baisse.
+  if (val === null || val === 0) return null;
   const up = val > 0;
   return (
     <View style={[styles.trendBadge, { backgroundColor: up ? "#22c55e18" : "#ef444418" }]}>
       <Feather name={up ? "trending-up" : "trending-down"} size={10} color={up ? "#22c55e" : "#ef4444"} />
-      <Text style={[styles.trendText, { color: up ? "#22c55e" : "#ef4444" }]}>{up ? "+" : ""}{val}%</Text>
+      <Text style={[styles.trendText, { color: up ? "#22c55e" : "#ef4444" }]}>{up ? "+" : ""}{val}{unite}</Text>
     </View>
   );
 }
 
-function KpiCard({ icon, iconColor, label, value, sub, trend, colors }: {
+function KpiCard({ icon, iconColor, label, value, sub, trend, unite = "%", colors }: {
   icon: keyof typeof Feather.glyphMap;
   iconColor: string;
   label: string;
   value: string | number;
   sub?: string;
-  trend?: number;
+  trend?: number | null;
+  unite?: string;
   colors: ReturnType<typeof import("@/hooks/useColors").useColors>;
 }) {
   return (
@@ -101,7 +106,7 @@ function KpiCard({ icon, iconColor, label, value, sub, trend, colors }: {
       <Text style={[styles.kpiLabel, { color: colors.mutedForeground }]}>{label}</Text>
       <View style={styles.kpiValueRow}>
         <Text style={[styles.kpiValue, { color: colors.foreground }]}>{value}</Text>
-        {trend !== undefined && <TrendBadge val={trend} colors={colors} />}
+        {trend !== undefined && <TrendBadge val={trend} unite={unite} colors={colors} />}
       </View>
       {sub && <Text style={[styles.kpiSub, { color: colors.mutedForeground }]}>{sub}</Text>}
     </View>
@@ -144,7 +149,7 @@ export default function RapportExecutifScreen() {
   useEffect(() => { setLoading(true); load(); }, [load]);
   function onRefresh() { setRefreshing(true); load(); }
 
-  const sc = data ? scoreColor(data.score) : "#6b7280";
+  const sc = data && data.score !== null ? scoreColor(data.score) : "#6b7280";
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -174,11 +179,11 @@ export default function RapportExecutifScreen() {
         {data && (
           <View style={[styles.scoreStrip, { backgroundColor: "rgba(255,255,255,0.1)" }]}>
             <View style={[styles.scoreDial, { borderColor: sc }]}>
-              <Text style={[styles.scoreNum, { color: sc }]}>{data.score}</Text>
+              <Text style={[styles.scoreNum, { color: sc }]}>{data.score ?? "—"}</Text>
               <Text style={[styles.scoreMax, { color: "rgba(255,255,255,0.5)" }]}>/100</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.scoreLabel, { color: sc }]}>{scoreLabel(data.score, t)}</Text>
+              <Text style={[styles.scoreLabel, { color: sc }]}>{data.score === null ? t("rapportExecutifScreen.noData") : scoreLabel(data.score, t)}</Text>
               <Text style={styles.scoreSub}>{t("rapportExecutifScreen.scoreSubtitle")}</Text>
             </View>
           </View>
@@ -220,7 +225,7 @@ export default function RapportExecutifScreen() {
             <SectionTitle title={t("rapportExecutifScreen.secCalls")} icon="phone" color="#22c55e" colors={colors} />
             <View style={styles.kpiGrid}>
               <KpiCard icon="phone" iconColor="#22c55e" label={t("rapportExecutifScreen.kpiTotalCalls")} value={data.calls.total} trend={data.calls.trend} colors={colors} />
-              <KpiCard icon="check-circle" iconColor="#3b82f6" label={t("rapportExecutifScreen.kpiResponseRate")} value={`${data.calls.responseRate}%`} trend={data.trends.responseTrend} colors={colors} />
+              <KpiCard icon="check-circle" iconColor="#3b82f6" label={t("rapportExecutifScreen.kpiResponseRate")} value={taux(data.calls.responseRate)} trend={data.trends.responseTrend} unite=" pts" colors={colors} />
               <KpiCard icon="phone-missed" iconColor="#ef4444" label={t("rapportExecutifScreen.kpiMissedCalls")} value={data.calls.missed} colors={colors} />
               <KpiCard icon="clock" iconColor="#f59e0b" label={t("rapportExecutifScreen.kpiAvgDuration")} value={fmtDuration(data.calls.avgDuration)} colors={colors} />
             </View>
@@ -231,7 +236,7 @@ export default function RapportExecutifScreen() {
             <SectionTitle title={t("rapportExecutifScreen.secTasks")} icon="check-square" color="#3b82f6" colors={colors} />
             <View style={styles.kpiGrid}>
               <KpiCard icon="check-square" iconColor="#3b82f6" label={t("rapportExecutifScreen.kpiTotalTasks")} value={data.tasks.total} colors={colors} />
-              <KpiCard icon="check-circle" iconColor="#22c55e" label={t("rapportExecutifScreen.kpiCompletionRate")} value={`${data.tasks.completionRate}%`} trend={data.trends.taskTrend} colors={colors} />
+              <KpiCard icon="check-circle" iconColor="#22c55e" label={t("rapportExecutifScreen.kpiCompletionRate")} value={taux(data.tasks.completionRate)} trend={data.trends.taskTrend} unite=" pts" colors={colors} />
               <KpiCard icon="alert-triangle" iconColor="#ef4444" label={t("rapportExecutifScreen.kpiOverdue")} value={data.tasks.overdue} colors={colors} />
               <KpiCard icon="zap" iconColor="#f59e0b" label={t("rapportExecutifScreen.kpiHighPriority")} value={data.tasks.highPriority} colors={colors} />
             </View>
@@ -242,7 +247,7 @@ export default function RapportExecutifScreen() {
             <SectionTitle title={t("rapportExecutifScreen.secProspects")} icon="target" color="#8b5cf6" colors={colors} />
             <View style={styles.kpiGrid}>
               <KpiCard icon="users" iconColor="#8b5cf6" label={t("rapportExecutifScreen.kpiTotalProspects")} value={data.prospects.total} colors={colors} />
-              <KpiCard icon="trending-up" iconColor="#22c55e" label={t("rapportExecutifScreen.kpiWinRate")} value={`${data.prospects.winRate}%`} trend={data.trends.prospectTrend} colors={colors} />
+              <KpiCard icon="trending-up" iconColor="#22c55e" label={t("rapportExecutifScreen.kpiWinRate")} value={taux(data.prospects.winRate)} trend={data.trends.prospectTrend} unite=" pts" colors={colors} />
               <KpiCard icon="dollar-sign" iconColor="#f59e0b" label={t("rapportExecutifScreen.kpiWonValue")} value={`${Number(data.prospects.wonValue).toLocaleString("fr-FR")} €`} colors={colors} />
               <KpiCard icon="x-circle" iconColor="#ef4444" label={t("rapportExecutifScreen.kpiLost")} value={data.prospects.lost} colors={colors} />
             </View>

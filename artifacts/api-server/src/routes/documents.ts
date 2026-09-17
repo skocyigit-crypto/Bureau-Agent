@@ -22,6 +22,7 @@ import { startBulkScan, getBulkScanStatus, cancelBulkScan } from "../services/do
 import { respondAiError } from "../services/ai-guard";
 import { pageLimit } from "../lib/request-params";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
+import { documentCsv } from "../lib/csv";
 
 const router = Router();
 const requireMinAgent = requireRole("super_admin", "administrateur", "agent");
@@ -1582,20 +1583,12 @@ router.get("/documents/export/csv", requireMinAgent, async (req: Request, res: R
       createdAt: documentsTable.createdAt,
     }).from(documentsTable).where(eq(documentsTable.organisationId, orgId));
 
-    if (docs.length === 0) { res.set("Content-Type", "text/csv").send("id,fileName,originalName,mimeType,fileSize,category,entityType,status,createdAt\n"); return; }
     const headers = ["id", "fileName", "originalName", "mimeType", "fileSize", "category", "entityType", "status", "createdAt"];
-    const csvRows = [
-      headers.join(","),
-      ...docs.map(d => headers.map(h => {
-        const val = (d as any)[h];
-        if (val === null || val === undefined) return "";
-        const str = String(val instanceof Date ? val.toISOString() : val);
-        return str.includes(",") || str.includes('"') || str.includes("\n") ? `"${str.replace(/"/g, '""')}"` : str;
-      }).join(","))
-    ];
+    // Le nom d'origine vient de l'utilisateur : « =cmd|... .pdf » est un nom de fichier valide.
+    const csv = documentCsv(headers, docs.map(d => headers.map(h => (d as any)[h])));
     res.set("Content-Type", "text/csv; charset=utf-8");
     res.set("Content-Disposition", `attachment; filename="documents_${new Date().toISOString().slice(0,10)}.csv"`);
-    res.send(csvRows.join("\n"));
+    res.send(csv);
   } catch (err: any) {
     logger.error({ err }, "Documents export CSV error");
     res.status(500).json({ error: "Erreur export" });

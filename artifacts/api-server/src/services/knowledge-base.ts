@@ -1,6 +1,6 @@
 import { db } from "@workspace/db";
 import { documentsTable, documentChunksTable } from "@workspace/db/schema";
-import { and, eq, isNotNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { callOrgGemini, callOrgEmbedding } from "./ai-providers";
 import { withProviderTimeout } from "./ai-cache";
 import { assertAiQuota, reserveAiCall } from "./ai-quota";
@@ -14,6 +14,24 @@ import { logger } from "../lib/logger";
 
 // Base de connaissances (RAG). Voir lib/db/src/schema/knowledge-base.ts pour le
 // choix "real[] + cosinus en mémoire" (pas de pgvector) et la voie d'échelle.
+
+/**
+ * Categories de documents qu'un canal PUBLIC (standard telephonique IA) peut
+ * utiliser.
+ *
+ * MESURE LE 17/09 : le standard telephonique — qui repond a N'IMPORTE QUEL
+ * appelant — recevait dans son prompt des extraits de TOUS les documents de
+ * l'entreprise : factures, contrats, CV, comptabilite, correspondance. La
+ * seule barriere etait une consigne au modele (« n'en revele rien qui ne
+ * reponde pas a la question »). Un appelant qui demande « quel est le montant
+ * de la facture Dupont ? » pose precisement une question a laquelle l'extrait
+ * repond. Une consigne n'est pas un controle d'acces (OWASP LLM02).
+ *
+ * Regle : refus par defaut. Seuls les documents que l'entreprise a classes
+ * « Public » (tarifs, FAQ, horaires, presentation) alimentent le standard. La
+ * recherche interne, reservee aux utilisateurs connectes, garde tout.
+ */
+export const KB_CATEGORIES_PUBLIQUES = ["public"] as const;
 
 export const KB_EMBED_MODEL = process.env.KB_EMBED_MODEL || "text-embedding-004";
 const KB_CHUNK_CHARS = Number(process.env.KB_CHUNK_CHARS ?? 1100);
@@ -474,7 +492,7 @@ export interface KbSearchHit {
 export async function searchKnowledge(
   orgId: number,
   query: string,
-  opts: { topK?: number; userId?: number | null; minScore?: number } = {},
+  opts: { topK?: number; userId?: number | null; minScore?: number; categories?: readonly string[] } = {},
 ): Promise<KbSearchHit[]> {
   const q = String(query ?? "").trim();
   if (!q) return [];
@@ -493,7 +511,13 @@ export async function searchKnowledge(
     })
     .from(documentChunksTable)
     .innerJoin(documentsTable, eq(documentsTable.id, documentChunksTable.documentId))
-    .where(eq(documentChunksTable.organisationId, orgId))
+    .where(and(
+      eq(documentChunksTable.organisationId, orgId),
+      // Un fichier juge dangereux par l'antivirus ne nourrit pas l'IA : c'est le
+      // vecteur type d'injection indirecte (OWASP LLM01).
+      sql`coalesce(${documentsTable.scanVerdict}, '') <> 'dangerous'`,
+      opts.categories ? inArray(documentsTable.category, [...opts.categories]) : undefined,
+    ))
     .limit(KB_SEARCH_MAX_CHUNKS);
 
   if (rows.length === 0) return [];

@@ -15,6 +15,7 @@ import {
   deleteAppointmentFromGoogleCalendar,
   listGoogleEvents,
 } from "../services/google-calendar-sync";
+import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
 
 const router = Router();
 
@@ -574,17 +575,13 @@ router.get("/calendar/events/export/csv", async (req: Request, res: Response): P
   try {
     const rows = await db.select().from(calendarEventsTable).where(eq(calendarEventsTable.organisationId, orgId)).limit(5000);
     const headers = ["Titre", "Type", "Statut", "Début", "Fin", "Lieu", "Contact", "Priorité", "Créé le"];
-    const escape = (v: any) => {
-      if (v == null) return "";
-      const s = String(v).replace(/"/g, '""');
-      return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s;
-    };
+    const escape = celluleCsv;
     const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString("fr-FR") : "";
-    const lines = [headers.join(","), ...rows.map(r => [
+    const lines = [headers.map(celluleCsv).join(SEPARATEUR_CSV), ...rows.map(r => [
       escape(r.title), escape(r.type), escape(r.status),
       escape(fmtDate(r.startDate)), escape(fmtDate(r.endDate)), escape(r.location),
       escape(r.contactName), escape(r.priority), escape(fmtDate(r.createdAt)),
-    ].join(","))];
+    ].join(SEPARATEUR_CSV))];
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="evenements_${Date.now()}.csv"`);
     res.send("\uFEFF" + lines.join("\n"));

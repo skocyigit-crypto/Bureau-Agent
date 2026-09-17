@@ -938,7 +938,8 @@
     "cmpContacts": "Contactos",
     "cmpPrev": "vs {{prev}}",
     "newProjectTitle": "Proyecto analítico",
-    "newProjectNote": "Creado desde la página de Analítica móvil"
+    "newProjectNote": "Creado desde la página de Analítica móvil",
+    "noData": "Sin datos para este período"
   },
   "activiteRecenteScreen": {
     "header": "Actividad Reciente",
@@ -2417,7 +2418,11 @@
       "administrateur": "Admin",
       "agent": "Agente",
       "lecture_seule": "Lectura"
-    }
+    },
+    "sentTitle": "Informe enviado al soporte",
+    "sentBody": "La respuesta se enviará por correo a {{email}}.",
+    "sentNoEmail": "Informe guardado, pero su cuenta no tiene correo electrónico: escriba a support@agentdebureau.fr.",
+    "sendFailed": "No se pudo enviar"
   },
   "reportsScreen": {
     "headerTitle": "Informes y Tickets",

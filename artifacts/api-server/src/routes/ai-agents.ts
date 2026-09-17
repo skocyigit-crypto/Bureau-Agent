@@ -25,6 +25,7 @@ import {
   type SuperAgentLogSource,
   type SuperAgentStats,
 } from "../services/super-agent-state";
+import { jourLocal } from "../lib/jour-local";
 
 const router = Router();
 
@@ -84,7 +85,7 @@ async function gatherAgentData(agentId: string, orgId: number) {
         db.select({ count: count() }).from(callsTable).where(and(orgCall, or(eq(callsTable.sentiment, "negatif"), eq(callsTable.sentiment, "tres_negatif")), gte(callsTable.createdAt, twoWeeksAgo), lt(callsTable.createdAt, weekAgo))),
         db.select({ avg: sql<number>`coalesce(avg(${callsTable.duration}), 0)::int` }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, twoWeeksAgo), lt(callsTable.createdAt, weekAgo), eq(callsTable.status, "repondu"))),
         db.select({ sentiment: callsTable.sentiment, cnt: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo))).groupBy(callsTable.sentiment),
-        db.select({ hour: sql<number>`extract(hour from ${callsTable.createdAt})::int`, cnt: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo))).groupBy(sql`extract(hour from ${callsTable.createdAt})`),
+        db.select({ hour: sql<number>`extract(hour from ${callsTable.createdAt} at time zone 'Europe/Paris')::int`, cnt: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo))).groupBy(sql`extract(hour from ${callsTable.createdAt} at time zone 'Europe/Paris')`),
         db.select({ phone: callsTable.phoneNumber, cnt: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo), eq(callsTable.status, "manque"))).groupBy(callsTable.phoneNumber).having(sql`count(*) >= 2`),
       ]);
       const totalW = total[0]?.count ?? 0;
@@ -205,7 +206,7 @@ async function gatherAgentData(agentId: string, orgId: number) {
         db.select({ count: count() }).from(messagesTable).where(and(orgMsg, gte(messagesTable.createdAt, weekAgo))),
         db.select({ count: count() }).from(messagesTable).where(and(orgMsg, gte(messagesTable.createdAt, twoWeeksAgo), lt(messagesTable.createdAt, weekAgo))),
         db.select({ count: count() }).from(messagesTable).where(and(orgMsg, eq(messagesTable.isRead, false), gte(messagesTable.createdAt, twoWeeksAgo), lt(messagesTable.createdAt, weekAgo))),
-        db.select({ day: sql<string>`to_char(${messagesTable.createdAt}, 'Dy')`, cnt: count() }).from(messagesTable).where(and(orgMsg, gte(messagesTable.createdAt, weekAgo))).groupBy(sql`to_char(${messagesTable.createdAt}, 'Dy')`),
+        db.select({ day: sql<string>`to_char(${messagesTable.createdAt} at time zone 'Europe/Paris', 'Dy')`, cnt: count() }).from(messagesTable).where(and(orgMsg, gte(messagesTable.createdAt, weekAgo))).groupBy(sql`to_char(${messagesTable.createdAt} at time zone 'Europe/Paris', 'Dy')`),
       ]);
       const tW = totalThisWeek[0]?.count ?? 0;
       const pW = totalPrevWeek[0]?.count ?? 0;
@@ -229,15 +230,15 @@ async function gatherAgentData(agentId: string, orgId: number) {
         db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, gte(checkinsTable.checkInAt, weekAgo))),
         db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, or(eq(checkinsTable.status, "present"), eq(checkinsTable.status, "en_pause")))),
         db.select({ avg: sql<number>`coalesce(avg(${checkinsTable.totalMinutes}), 0)::int` }).from(checkinsTable).where(and(orgCheckin, eq(checkinsTable.status, "termine"), gte(checkinsTable.checkInAt, weekAgo))),
-        db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, gte(checkinsTable.checkInAt, weekAgo), sql`extract(hour from ${checkinsTable.checkInAt}) >= 10`)),
+        db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, gte(checkinsTable.checkInAt, weekAgo), sql`extract(hour from ${checkinsTable.checkInAt} at time zone 'Europe/Paris') >= 10`)),
         db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, eq(checkinsTable.type, "bureau"), gte(checkinsTable.checkInAt, weekAgo))),
         db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, eq(checkinsTable.type, "distance"), gte(checkinsTable.checkInAt, weekAgo))),
         db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, eq(checkinsTable.type, "terrain"), gte(checkinsTable.checkInAt, weekAgo))),
         db.select({ total: sql<number>`coalesce(sum(${checkinsTable.breakMinutes}), 0)::int` }).from(checkinsTable).where(and(orgCheckin, gte(checkinsTable.checkInAt, weekAgo))),
         db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, gte(checkinsTable.checkInAt, twoWeeksAgo), lt(checkinsTable.checkInAt, weekAgo))),
-        db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, gte(checkinsTable.checkInAt, twoWeeksAgo), lt(checkinsTable.checkInAt, weekAgo), sql`extract(hour from ${checkinsTable.checkInAt}) >= 10`)),
+        db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, gte(checkinsTable.checkInAt, twoWeeksAgo), lt(checkinsTable.checkInAt, weekAgo), sql`extract(hour from ${checkinsTable.checkInAt} at time zone 'Europe/Paris') >= 10`)),
         db.select({ avg: sql<number>`coalesce(avg(${checkinsTable.totalMinutes}), 0)::int` }).from(checkinsTable).where(and(orgCheckin, eq(checkinsTable.status, "termine"), gte(checkinsTable.checkInAt, twoWeeksAgo), lt(checkinsTable.checkInAt, weekAgo))),
-        db.select({ day: sql<string>`to_char(${checkinsTable.checkInAt}, 'Dy')`, cnt: count() }).from(checkinsTable).where(and(orgCheckin, gte(checkinsTable.checkInAt, weekAgo))).groupBy(sql`to_char(${checkinsTable.checkInAt}, 'Dy')`),
+        db.select({ day: sql<string>`to_char(${checkinsTable.checkInAt} at time zone 'Europe/Paris', 'Dy')`, cnt: count() }).from(checkinsTable).where(and(orgCheckin, gte(checkinsTable.checkInAt, weekAgo))).groupBy(sql`to_char(${checkinsTable.checkInAt} at time zone 'Europe/Paris', 'Dy')`),
       ]);
       const sessW = totalSessions[0]?.count ?? 0;
       const prevSessW = prevSessions[0]?.count ?? 0;
@@ -1046,7 +1047,7 @@ Utilise cette veille pour contextualiser tes alertes et suggestions avec l'actua
 
 async function runSingleAgent(agent: typeof AGENTS[0], orgId: number, signal?: AbortSignal, goal?: string, userId?: number): Promise<any> {
   const startTime = Date.now();
-  const today = new Date().toISOString().split("T")[0];
+  const today = jourLocal();
   const checkAbort = () => { if (signal?.aborted) throw new Error("aborted"); };
 
   // Reservation IA en vol: ferme la course TOCTOU quand plusieurs agents
@@ -1259,7 +1260,7 @@ Rapports:\n${JSON.stringify(reportsSummary, null, 2)}`,
 
 async function runSuperAgent(childReports: any[], orgId: number): Promise<any> {
   const startTime = Date.now();
-  const today = new Date().toISOString().split("T")[0];
+  const today = jourLocal();
 
   try {
     await assertAiQuota(orgId);
@@ -1689,7 +1690,7 @@ router.post("/ai/agents/run/:agentId/stream", requireAdmin, async (req, res) => 
 
   const stream = openSseStream(res);
   const startTime = Date.now();
-  const today = new Date().toISOString().split("T")[0];
+  const today = jourLocal();
 
   try {
     stream.send("status", { phase: "gathering", agentId, agentName: agent.name });
@@ -1842,7 +1843,7 @@ router.post("/ai/agents/super", requireAdmin, async (req, res) => {
   try {
     const orgId = req.session?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
-    const today = new Date().toISOString().split("T")[0];
+    const today = jourLocal();
     const todayReports = await db.select().from(aiAgentReportsTable)
       .where(and(eq(aiAgentReportsTable.reportDate, today), eq(aiAgentReportsTable.isSuperReport, false), eq(aiAgentReportsTable.organisationId, orgId)))
       .orderBy(desc(aiAgentReportsTable.createdAt))

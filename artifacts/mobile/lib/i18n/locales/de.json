@@ -938,7 +938,8 @@
     "cmpContacts": "Kontakte",
     "cmpPrev": "vs {{prev}}",
     "newProjectTitle": "Analytik-Projekt",
-    "newProjectNote": "Erstellt über die mobile Analytik-Seite"
+    "newProjectNote": "Erstellt über die mobile Analytik-Seite",
+    "noData": "Keine Daten für diesen Zeitraum"
   },
   "activiteRecenteScreen": {
     "header": "Letzte Aktivität",
@@ -2417,7 +2418,11 @@
       "administrateur": "Admin",
       "agent": "Agent",
       "lecture_seule": "Lesen"
-    }
+    },
+    "sentTitle": "Bericht an den Support übermittelt",
+    "sentBody": "Die Antwort wird per E-Mail an {{email}} gesendet.",
+    "sentNoEmail": "Bericht gespeichert, aber Ihrem Konto ist keine E-Mail-Adresse zugeordnet: Schreiben Sie an support@agentdebureau.fr.",
+    "sendFailed": "Senden fehlgeschlagen"
   },
   "reportsScreen": {
     "headerTitle": "Berichte & Tickets",

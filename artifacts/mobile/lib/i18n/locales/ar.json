@@ -938,7 +938,8 @@
     "cmpContacts": "جهات الاتصال",
     "cmpPrev": "مقابل {{prev}}",
     "newProjectTitle": "مشروع تحليلي",
-    "newProjectNote": "أُنشئ من صفحة التحليلات على الجوال"
+    "newProjectNote": "أُنشئ من صفحة التحليلات على الجوال",
+    "noData": "لا توجد بيانات لهذه الفترة"
   },
   "activiteRecenteScreen": {
     "header": "النشاط الأخير",
@@ -2417,7 +2418,11 @@
       "administrateur": "مشرف",
       "agent": "وكيل",
       "lecture_seule": "قراءة"
-    }
+    },
+    "sentTitle": "تم إرسال التقرير إلى الدعم",
+    "sentBody": "سيتم إرسال الرد عبر البريد الإلكتروني إلى {{email}}.",
+    "sentNoEmail": "تم حفظ التقرير، لكن لا يوجد بريد إلكتروني مرتبط بحسابك: راسل support@agentdebureau.fr.",
+    "sendFailed": "تعذر الإرسال"
   },
   "reportsScreen": {
     "headerTitle": "التقارير والتذاكر",

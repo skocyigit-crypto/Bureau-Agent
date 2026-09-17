@@ -21,6 +21,8 @@ import { logger } from "../lib/logger";
 import { zodErrorResponse } from "../lib/zod-error";
 import { aiForOrg } from "../services/ai-client";
 import { respondAiError } from "../services/ai-guard";
+import { archiveDeletedRows, deletionContext } from "../services/trash";
+import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
 
 const router: IRouter = Router();
 
@@ -494,16 +496,12 @@ router.get("/calls/export/csv", async (req, res): Promise<void> => {
       notes: callsTable.notes, createdAt: callsTable.createdAt,
     }).from(callsTable).where(eq(callsTable.organisationId, orgId)).orderBy(desc(callsTable.createdAt)).limit(5000);
     const headers = ["Contact", "Numéro", "Direction", "Statut", "Durée (s)", "Notes", "Date"];
-    const escape = (v: any) => {
-      if (v == null) return "";
-      const s = String(v).replace(/"/g, '""');
-      return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s;
-    };
+    const escape = celluleCsv;
     const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString("fr-FR") : "";
-    const lines = [headers.join(","), ...rows.map(r => [
+    const lines = [headers.map(celluleCsv).join(SEPARATEUR_CSV), ...rows.map(r => [
       escape(r.contactName), escape(r.phoneNumber), escape(r.direction),
       escape(r.status), escape(r.duration), escape(r.notes), escape(fmtDate(r.createdAt)),
-    ].join(","))];
+    ].join(SEPARATEUR_CSV))];
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="appels_${Date.now()}.csv"`);
     res.send("\uFEFF" + lines.join("\n"));
@@ -553,13 +551,17 @@ router.delete("/calls/:id", async (req, res): Promise<void> => {
     const call = await db.transaction(async (tx) => {
       const [deleted] = await tx.delete(callsTable).where(and(eq(callsTable.id, params.data.id), eq(callsTable.organisationId, orgId))).returning();
       if (!deleted) return null;
-      await tx.delete(tasksTable).where(and(eq(tasksTable.relatedCallId, params.data.id), eq(tasksTable.organisationId, orgId)));
-      return deleted;
+      const taches = await tx.delete(tasksTable).where(and(eq(tasksTable.relatedCallId, params.data.id), eq(tasksTable.organisationId, orgId))).returning();
+      return { deleted, taches };
     });
     if (!call) {
       res.status(404).json({ error: "Call not found" });
       return;
     }
+    // Supprimer un appel emportait aussi ses TACHES, sans corbeille ni pour
+    // l'un ni pour les autres. Les deux sont desormais recuperables.
+    await archiveDeletedRows(callsTable, [call.deleted], deletionContext(req, orgId));
+    await archiveDeletedRows(tasksTable, call.taches, deletionContext(req, orgId));
 
     res.sendStatus(204);
   } catch (err: any) {
