@@ -268,7 +268,9 @@ router.post("/location/ping", pingLimiter, async (req: Request, res: Response): 
       return;
     }
 
-    const { lat, lng, accuracyM, battery, isMoving } = parsed.data;
+    // `accuracyM` est accepte (compatibilite des clients) mais plus lu : rien
+    // n'en depend depuis que la position n'est plus conservee.
+    const { lat, lng, battery, isMoving } = parsed.data;
 
     // 1) Calculer les zones contenant ce point (parmi les zones actives de l'org).
     const activeGeofences = await db
@@ -311,7 +313,9 @@ router.post("/location/ping", pingLimiter, async (req: Request, res: Response): 
         .insert(userLocationStateTable)
         .values({
           organisationId: orgId, userId,
-          lastLat: lat, lastLng: lng, lastAccuracyM: accuracyM ?? null, lastAt: at,
+          // Coordonnees NON conservees : elles servent au calcul de zone ci-dessus
+          // et ne sont relues nulle part (minimisation, voir location-cleanup-cron).
+          lastLat: null, lastLng: null, lastAccuracyM: null, lastAt: at,
           currentGeofenceIds: insideNow,
           battery: battery ?? null,
           isMoving: isMoving ?? false,
@@ -320,7 +324,7 @@ router.post("/location/ping", pingLimiter, async (req: Request, res: Response): 
           target: userLocationStateTable.userId,
           set: {
             organisationId: orgId,
-            lastLat: lat, lastLng: lng, lastAccuracyM: accuracyM ?? null, lastAt: at,
+            lastLat: null, lastLng: null, lastAccuracyM: null, lastAt: at,
             currentGeofenceIds: insideNow,
             battery: battery ?? null,
             isMoving: isMoving ?? false,
@@ -331,7 +335,7 @@ router.post("/location/ping", pingLimiter, async (req: Request, res: Response): 
           organisationId: orgId, userId,
           geofenceId: e.geofenceId,
           event: e.event,
-          lat, lng, accuracyM: accuracyM ?? null, at,
+          lat: null, lng: null, accuracyM: null, at,
         })),
       );
     });
