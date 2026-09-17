@@ -499,6 +499,10 @@ export const UpdateMessageParams = zod.object({
 });
 
 export const UpdateMessageBody = zod.object({
+  contactId: zod.number().nullish(),
+  contactName: zod.string().nullish(),
+  phoneNumber: zod.string().optional(),
+  type: zod.enum(["messagerie_vocale", "note", "rappel"]).optional(),
   isRead: zod.boolean().optional(),
   content: zod.string().optional(),
   priority: zod.enum(["haute", "moyenne", "basse"]).optional(),

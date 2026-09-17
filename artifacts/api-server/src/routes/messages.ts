@@ -17,6 +17,16 @@ import { zodErrorResponse } from "../lib/zod-error";
 import { notifyOrgUsers, maskPhone } from "../services/whatsapp-notify";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
 import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
+import { contactDeLOrganisation } from "../services/contact-organisation";
+
+/** Nom d'affichage d'un contact de l'organisation (`null` si inconnu). */
+async function nomDuContact(contactId: number, orgId: number): Promise<string | null> {
+  const [c] = await db
+    .select({ firstName: contactsTable.firstName, lastName: contactsTable.lastName })
+    .from(contactsTable)
+    .where(and(eq(contactsTable.id, contactId), eq(contactsTable.organisationId, orgId)));
+  return c ? `${c.firstName} ${c.lastName}`.trim() || null : null;
+}
 
 const router: IRouter = Router();
 
@@ -102,15 +112,13 @@ router.post("/messages", async (req, res): Promise<void> => {
     // saisi, on resout le nom d'affichage depuis le contact (scope a l'org)
     // pour eviter d'afficher "Inconnu" cote web et mobile.
     const values = { ...parsed.data, organisationId: orgId, createdBy: userId, updatedBy: userId };
+    // Contact d'une autre organisation : refuse (l'identifiant etait stocke tel quel).
+    const contactLie = await contactDeLOrganisation(values.contactId, orgId);
+    if (contactLie === false) { res.status(400).json({ error: "Contact introuvable." }); return; }
+    values.contactId = contactLie;
     if (values.contactId && !values.contactName?.trim()) {
-      const [contact] = await db
-        .select({ firstName: contactsTable.firstName, lastName: contactsTable.lastName })
-        .from(contactsTable)
-        .where(and(eq(contactsTable.id, values.contactId), eq(contactsTable.organisationId, orgId)));
-      if (contact) {
-        const displayName = `${contact.firstName} ${contact.lastName}`.trim();
-        if (displayName) values.contactName = displayName;
-      }
+      const displayName = await nomDuContact(values.contactId, orgId);
+      if (displayName) values.contactName = displayName;
     }
 
     const [message] = await db.insert(messagesTable).values(values).returning();
@@ -184,8 +192,17 @@ router.patch("/messages/:id", async (req, res): Promise<void> => {
   const userId = req.session?.userId;
 
   try {
+    const modifs: Record<string, unknown> = { ...parsed.data, updatedBy: userId };
+    // Changer de contact depuis le formulaire change aussi le nom affiche
+    // (sinon la liste montrait l'ancien interlocuteur).
+    if (parsed.data.contactId !== undefined) {
+      const contactLie = await contactDeLOrganisation(parsed.data.contactId, orgId);
+      if (contactLie === false) { res.status(400).json({ error: "Contact introuvable." }); return; }
+      modifs.contactId = contactLie;
+      if (contactLie && !parsed.data.contactName?.trim()) modifs.contactName = await nomDuContact(contactLie, orgId);
+    }
     const [message] = await db.update(messagesTable)
-      .set({ ...parsed.data, updatedBy: userId })
+      .set(modifs)
       .where(and(eq(messagesTable.id, params.data.id), eq(messagesTable.organisationId, orgId)))
       .returning();
 

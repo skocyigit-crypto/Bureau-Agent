@@ -657,6 +657,15 @@ export interface CreateMessageBody {
   priority: CreateMessageBodyPriority;
 }
 
+export type UpdateMessageBodyType =
+  (typeof UpdateMessageBodyType)[keyof typeof UpdateMessageBodyType];
+
+export const UpdateMessageBodyType = {
+  messagerie_vocale: "messagerie_vocale",
+  note: "note",
+  rappel: "rappel",
+} as const;
+
 export type UpdateMessageBodyPriority =
   (typeof UpdateMessageBodyPriority)[keyof typeof UpdateMessageBodyPriority];
 
@@ -667,6 +676,10 @@ export const UpdateMessageBodyPriority = {
 } as const;
 
 export interface UpdateMessageBody {
+  contactId?: number | null;
+  contactName?: string | null;
+  phoneNumber?: string;
+  type?: UpdateMessageBodyType;
   isRead?: boolean;
   content?: string;
   priority?: UpdateMessageBodyPriority;

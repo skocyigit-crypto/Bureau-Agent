@@ -6,8 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { UpdateMessageBodyPriority } from "./updateMessageBodyPriority";
+import type { UpdateMessageBodyType } from "./updateMessageBodyType";
 
 export interface UpdateMessageBody {
+  contactId?: number | null;
+  contactName?: string | null;
+  phoneNumber?: string;
+  type?: UpdateMessageBodyType;
   isRead?: boolean;
   content?: string;
   priority?: UpdateMessageBodyPriority;
