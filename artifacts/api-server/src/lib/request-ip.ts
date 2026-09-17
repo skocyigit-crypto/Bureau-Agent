@@ -98,3 +98,30 @@ export function resolveClientIp(req: Request): string {
 export function rateLimitKey(req: Request): string {
   return ipKeyGenerator(resolveClientIp(req));
 }
+
+/**
+ * Cle des limiteurs APPLICATIFS (general, ecritures, IA) : l'utilisateur connecte,
+ * sinon l'IP.
+ *
+ * MESURE LE 17/09 : l'accueil, laisse ouvert sans rien toucher, emet 13 appels
+ * /api par minute (sondes de fond), soit ~195 par quart d'heure. Le limiteur
+ * general autorise 1000 requetes par quart d'heure PAR IP. Cinq salaries d'un
+ * meme bureau — une seule IP publique derriere la box — epuisaient donc le
+ * quota a eux seuls, sans naviguer ; et le 4G passe par du NAT operateur
+ * (CGNAT) qui partage une IP entre abonnes. Un client de 5 a 10 personnes
+ * recevait « Trop de requetes » en usage normal.
+ *
+ * Pourquoi SEULEMENT la session, jamais un en-tete fourni par l'appelant :
+ * une cle qu'on peut choisir se renouvelle a chaque requete et annule la limite.
+ * La session est verifiee par le serveur (cookie signe) ; sans elle, on retombe
+ * sur l'IP. Connexion, inscription, formulaires publics et webhooks gardent
+ * `rateLimitKey` (IP) : ils sont par definition non authentifies.
+ *
+ * Limite connue : le jeton Bearer du mobile est hydrate APRES les limiteurs
+ * (app.ts), il est donc encore compte par IP.
+ */
+export function cleLimiteApplicative(req: Request): string {
+  const userId = (req as Request & { session?: { userId?: unknown } }).session?.userId;
+  if (typeof userId === "number" && Number.isInteger(userId) && userId > 0) return `utilisateur:${userId}`;
+  return rateLimitKey(req);
+}
