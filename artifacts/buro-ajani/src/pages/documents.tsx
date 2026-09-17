@@ -76,6 +76,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   technique: "Technique",
   juridique: "Juridique",
   comptabilite: "Comptabilité",
+  // Seule categorie lue par le standard telephonique IA (voir KB_CATEGORIES_PUBLIQUES).
+  public: "Public",
 };
 
 function getFileIcon(mimeType: string) {

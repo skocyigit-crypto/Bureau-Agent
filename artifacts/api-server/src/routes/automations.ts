@@ -7,6 +7,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, desc, and, sql, gte, inArray } from "drizzle-orm";
 import { logAudit } from "./audit";
+import { documentCsv } from "../lib/csv";
 
 const router = Router();
 
@@ -448,16 +449,15 @@ router.get("/automations/export/csv", async (req: Request, res: Response): Promi
   try {
     const rules = await db.select().from(automationRulesTable)
       .where(eq(automationRulesTable.organisationId, orgId));
-    const header = "ID,Nom,Type,Declencheur,Frequence,Actif,Executions,Derniere execution,Date creation\n";
+    const header = ["ID", "Nom", "Type", "Declencheur", "Frequence", "Actif", "Executions", "Derniere execution", "Date creation"];
     const rows = rules.map(r =>
       [r.id, r.name, r.type, r.trigger, r.schedule || "", r.enabled ? "oui" : "non",
         r.runCount, r.lastRun ? new Date(r.lastRun).toLocaleDateString("fr-FR") : "",
         r.createdAt ? new Date(r.createdAt).toLocaleDateString("fr-FR") : ""]
-        .map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")
-    ).join("\n");
+    );
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="automations_${Date.now()}.csv"`);
-    res.send("\uFEFF" + header + rows);
+    res.send(documentCsv(header, rows));
   } catch (err: any) {
     req.log.error({ err }, "Erreur export automations CSV");
     res.status(500).json({ error: "Erreur lors de l'export." });

@@ -1,6 +1,10 @@
 import { Router, type IRouter } from "express";
 import { db, adminReportsTable, organisationsTable, usersTable } from "@workspace/db";
 import { eq, desc, and, count, sql } from "drizzle-orm";
+import { processIncomingSupportEmail } from "../services/support-inbox";
+import {
+  LONGUEUR_MAX_MESSAGE, LONGUEUR_MAX_SUJET, prioriteSupport, versEmailSupport,
+} from "../services/transfert-rapport-admin";
 
 const router: IRouter = Router();
 
@@ -72,8 +76,11 @@ router.post("/admin-reports", async (req, res): Promise<void> => {
   if (!organisationId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
 
   const { subject, message, category, priority } = req.body || {};
-  if (!subject?.trim() || !message?.trim()) {
+  if (typeof subject !== "string" || typeof message !== "string" || !subject.trim() || !message.trim()) {
     res.status(400).json({ error: "Sujet et message requis." }); return;
+  }
+  if (subject.trim().length > LONGUEUR_MAX_SUJET || message.trim().length > LONGUEUR_MAX_MESSAGE) {
+    res.status(400).json({ error: `Sujet limite a ${LONGUEUR_MAX_SUJET} caracteres, message a ${LONGUEUR_MAX_MESSAGE}.` }); return;
   }
   const validCategories = ["general", "technique", "facturation", "securite", "autre"];
   const validPriorities = ["basse", "normal", "haute", "urgente"];
@@ -103,7 +110,21 @@ router.post("/admin-reports", async (req, res): Promise<void> => {
       status: "nouveau",
     }).returning();
 
-    res.status(201).json({ report });
+    // Transmission au support : sans elle, le rapport n'arrivait nulle part.
+    // En arriere-plan (l'IA de tri peut prendre plusieurs secondes) ; le
+    // service journalise lui-meme ses echecs.
+    if (report.userEmail) {
+      void processIncomingSupportEmail(versEmailSupport({
+        id: report.id, userEmail: report.userEmail, userName: report.userName ?? "",
+        orgName: report.orgName ?? "", subject: report.subject, message: report.message,
+        category: report.category, priority: report.priority,
+      }), { authentifie: { priorite: prioriteSupport(report.category, report.priority) } });
+    } else {
+      req.log.warn({ reportId: report.id }, "admin-report sans e-mail d'auteur : non transmis au support");
+    }
+
+    // Dire ou arrivera la reponse, plutot que laisser attendre dans l'ecran.
+    res.status(201).json({ report, transmisAuSupport: Boolean(report.userEmail), reponseParEmailA: report.userEmail || null });
   } catch (err: any) {
     req.log.error({ err }, "Erreur admin-reports");
     res.status(500).json({ error: "Erreur serveur." });
@@ -173,10 +194,11 @@ router.get("/admin-reports/stats", async (req, res): Promise<void> => {
 
     const stats = await db.select({
       total: count(),
-      nouveau: sql<number>`count(*) filter (where ${adminReportsTable.status} = 'nouveau')`,
-      en_cours: sql<number>`count(*) filter (where ${adminReportsTable.status} = 'en_cours')`,
-      resolu: sql<number>`count(*) filter (where ${adminReportsTable.status} = 'resolu')`,
-      repondu: sql<number>`count(*) filter (where ${adminReportsTable.adminResponse} is not null)`,
+      // ::int : sans lui, le pilote rend des chaines, et « 1 » + « 2 » affichait « 12 ».
+      nouveau: sql<number>`count(*) filter (where ${adminReportsTable.status} = 'nouveau')::int`,
+      en_cours: sql<number>`count(*) filter (where ${adminReportsTable.status} = 'en_cours')::int`,
+      resolu: sql<number>`count(*) filter (where ${adminReportsTable.status} = 'resolu')::int`,
+      repondu: sql<number>`count(*) filter (where ${adminReportsTable.adminResponse} is not null)::int`,
     }).from(adminReportsTable).where(where);
 
     res.json(stats[0] || { total: 0, nouveau: 0, en_cours: 0, resolu: 0, repondu: 0 });

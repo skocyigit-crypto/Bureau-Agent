@@ -15,6 +15,7 @@ import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/
 import { zodErrorResponse } from "../lib/zod-error";
 import { sendWhatsAppNotification } from "../services/whatsapp-notify";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
+import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
 
 const router: IRouter = Router();
 
@@ -210,17 +211,13 @@ router.get("/tasks/export/csv", async (req, res): Promise<void> => {
   try {
     const rows = await db.select().from(tasksTable).where(eq(tasksTable.organisationId, orgId)).orderBy(desc(tasksTable.createdAt));
     const headers = ["Titre", "Statut", "Priorité", "Description", "Date d'échéance", "Récurrent", "Règle", "Créé le"];
-    const escape = (v: any) => {
-      if (v == null) return "";
-      const s = String(v).replace(/"/g, '""');
-      return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s;
-    };
+    const escape = celluleCsv;
     const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString("fr-FR") : "";
-    const lines = [headers.join(","), ...rows.map(r => [
+    const lines = [headers.map(celluleCsv).join(SEPARATEUR_CSV), ...rows.map(r => [
       escape(r.title), escape(r.status), escape(r.priority), escape(r.description),
       escape(fmtDate(r.dueDate)), escape(r.isRecurring ? "Oui" : "Non"),
       escape(r.recurrenceRule), escape(fmtDate(r.createdAt)),
-    ].join(","))];
+    ].join(SEPARATEUR_CSV))];
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="taches_${Date.now()}.csv"`);
     res.send("\uFEFF" + lines.join("\n"));

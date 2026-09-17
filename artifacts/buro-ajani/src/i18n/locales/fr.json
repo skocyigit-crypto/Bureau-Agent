@@ -1567,7 +1567,8 @@
       "correspondance": "Correspondance",
       "technique": "Technique",
       "juridique": "Juridique",
-      "comptabilite": "Comptabilité"
+      "comptabilite": "Comptabilité",
+      "public": "Public (standard téléphonique)"
     },
     "parts": {
       "safe": "{{count}} sain(s)",
@@ -4351,7 +4352,8 @@
       "searchFailed": "Échec de la recherche",
       "searchError": "Recherche impossible",
       "unknownError": "Erreur inconnue"
-    }
+    },
+    "publicScopeNotice": "Le standard téléphonique IA ne s'appuie que sur les documents classés « Public » (tarifs, FAQ, horaires). Vos factures, contrats et autres documents restent réservés à la recherche interne."
   },
   "contactsImport": {
     "title": "Import CSV — Contacts",
