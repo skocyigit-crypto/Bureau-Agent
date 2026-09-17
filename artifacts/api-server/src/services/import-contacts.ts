@@ -17,7 +17,8 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function champ(ligne: Record<string, unknown>, cles: string[]): string {
   for (const cle of cles) {
     const v = ligne[cle];
-    if (v !== undefined && v !== null && String(v).trim() !== "") return String(v).trim();
+    // Texte ou nombre seulement : un objet donnait « [object Object] ».
+    if ((typeof v === "string" || typeof v === "number") && String(v).trim() !== "") return String(v).trim().slice(0, 1000);
   }
   return "";
 }
