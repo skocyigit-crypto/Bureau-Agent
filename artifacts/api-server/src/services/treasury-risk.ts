@@ -191,7 +191,28 @@ async function loadCollectibles(
     const subtotal = Number(r.subtotal ?? 0);
     const htRatio = total > 0 ? Math.min(1, subtotal / total) : 1;
     const autoliq = r.isAutoliquidation || defaultAutoliq;
-    const collectible = autoliq ? remaining * htRatio : remaining;
+    let collectible = autoliq ? remaining * htRatio : remaining;
+
+    // RETENUE DE GARANTIE (loi n° 71-584): elle n'arrive pas dans l'horizon.
+    //
+    // Le client retient jusqu'a 5 % et ne les verse qu'un an APRES la
+    // reception des travaux. Sur un horizon de 90 jours, cette part
+    // n'arrivera donc pratiquement jamais — et elle etait comptee comme un
+    // encaissement ordinaire.
+    //
+    // Simplification assumee: on la retire purement et simplement au lieu de
+    // la replacer a sa date d'exigibilite. La facture ne porte pas de lien
+    // vers le chantier, donc la date de reception n'est pas accessible ici; et
+    // meme connue, une reception recente placerait l'echeance au-dela des
+    // 90 jours dans la quasi-totalite des cas. La retirer est l'approximation
+    // PRUDENTE; la compter etait l'approximation rassurante.
+    //
+    // Une caution bancaire remplace la retenue: la somme reste alors due
+    // immediatement et rien n'est retire.
+    const tauxRetenue = Number(r.retenueGarantieRate ?? 0);
+    if (!r.cautionBancaire && Number.isFinite(tauxRetenue) && tauxRetenue > 0) {
+      collectible = Math.max(0, collectible * (1 - Math.min(100, tauxRetenue) / 100));
+    }
 
     const due = r.dueDate ? new Date(r.dueDate) : null;
     const daysUntilDue = due

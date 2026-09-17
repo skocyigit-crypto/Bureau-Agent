@@ -16,6 +16,8 @@ import {
 } from "../services/telephony-providers";
 import { requireRole } from "../middleware/auth";
 import { rowId, pageLimit } from "../lib/request-params";
+import { CONDITIONS_ENREGISTREMENT, verifierEnregistrement } from "../services/enregistrement-appels";
+import { organisationsTable } from "@workspace/db";
 
 const router: IRouter = Router();
 export const telephonyWebhookRouter: IRouter = Router();
@@ -656,6 +658,54 @@ router.post("/telephony/providers/:id/test", async (req, res): Promise<void> => 
   }
 });
 
+/**
+ * Attestation des conditions prealables a l'enregistrement des appels.
+ *
+ * Le produit ne peut verifier aucune des trois conditions : l'annonce vit dans
+ * l'IVR de l'operateur, l'information des salaries et la consultation du CSE
+ * sont des actes de l'entreprise. Pretendre les controler serait mentir.
+ *
+ * Ce qu'il enregistre, c'est QUI a atteste et QUAND. Attester ne rend pas
+ * conforme; cela rend la responsabilite explicite.
+ */
+router.put("/telephony/enregistrement-atteste", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  const userId = req.session?.userId ?? null;
+  const { atteste } = req.body ?? {};
+
+  if (typeof atteste !== "boolean") {
+    res.status(400).json({
+      error: "Le champ \"atteste\" est requis (booleen).",
+      conditions: CONDITIONS_ENREGISTREMENT,
+    });
+    return;
+  }
+
+  try {
+    const [org] = await db.update(organisationsTable)
+      .set({
+        // Retirer l'attestation efface aussi son auteur: une attestation
+        // revoquee dont le nom subsiste laisserait croire qu'elle tient.
+        enregistrementAppelsAtteste: atteste ? new Date() : null,
+        enregistrementAppelsAttestePar: atteste ? userId : null,
+      })
+      .where(eq(organisationsTable.id, orgId))
+      .returning({
+        enregistrementAppelsAtteste: organisationsTable.enregistrementAppelsAtteste,
+        enregistrementAppelsAttestePar: organisationsTable.enregistrementAppelsAttestePar,
+      });
+    if (!org) {
+      res.status(404).json({ error: "Organisation introuvable." });
+      return;
+    }
+    req.log.info({ orgId, userId, atteste }, "[telephonie] attestation d'enregistrement modifiee");
+    res.json({ ...org, verdict: verifierEnregistrement(org) });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur attestation enregistrement");
+    res.status(500).json({ error: "Erreur lors de l'enregistrement de l'attestation." });
+  }
+});
+
 router.post("/telephony/call", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
   const { to, providerId, record, contactId } = req.body;
@@ -678,6 +728,35 @@ router.post("/telephony/call", async (req, res): Promise<void> => {
     if (!provider) {
       res.status(400).json({ error: "Aucun fournisseur telephonique configure. Ajoutez un fournisseur dans les parametres." });
       return;
+    }
+
+    // ENREGISTRER UN APPEL N'EST PAS UNE OPTION DE PLUS.
+    //
+    // `record` etait lu dans le corps de la requete et passe tel quel au
+    // fournisseur, ce qui se traduit par `Record: "true"` chez Twilio. Le
+    // produit DECLENCHE donc la captation — et il n'existait dans tout le
+    // depot aucune annonce, aucune information des salaries, aucune trace de
+    // consultation du CSE.
+    //
+    // C'est le seul module de conformite de ce lot qui REFUSE au lieu
+    // d'avertir. Les autres decrivent ce qui a eu lieu, et un registre faux
+    // serait pire que le manquement qu'il consigne. Ici le produit n'enregistre
+    // pas un fait : il accomplit un acte. Le refus est leve par une
+    // attestation unique, datee et nominative.
+    if (record === true) {
+      const [org] = await db.select({
+        enregistrementAppelsAtteste: organisationsTable.enregistrementAppelsAtteste,
+        enregistrementAppelsAttestePar: organisationsTable.enregistrementAppelsAttestePar,
+      }).from(organisationsTable).where(eq(organisationsTable.id, orgId));
+      const verdict = verifierEnregistrement(org ?? {});
+      if (!verdict.autorise) {
+        res.status(409).json({
+          error: verdict.motif,
+          conditions: verdict.conditions,
+          remediation: "Attestez les conditions via PUT /telephony/enregistrement-atteste.",
+        });
+        return;
+      }
     }
 
     const config = decryptProviderConfig(provider.provider, provider.config as Record<string, any>);

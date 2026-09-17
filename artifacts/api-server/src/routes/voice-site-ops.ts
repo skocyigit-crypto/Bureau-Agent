@@ -21,6 +21,7 @@ import { logger } from "../lib/logger";
 import { aiForOrg } from "../services/ai-client";
 import { logAudit } from "./audit";
 import { assertAiUsable, respondAiError } from "../services/ai-guard";
+import { calculerSortieStock } from "../services/sortie-stock";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Voice Site Operations (saisie vocale chantier) — premier pilier BTP.
@@ -530,13 +531,20 @@ router.post("/voice/site-ops/confirm", async (req: Request, res: Response) => {
   const ip = req.ip;
   const ua = req.get("user-agent") || undefined;
 
-  const results: { index: number; kind: string; ok: boolean; message: string }[] = [];
+  // `manque` n'existe que sur une sortie de stock ecretee : le rendre
+  // facultatif evite de le simuler a zero partout, ce qui ferait croire
+  // qu'un manque a ete calcule pour chaque action.
+  const results: { index: number; kind: string; ok: boolean; message: string; manque?: number }[] = [];
 
   for (let i = 0; i < actions.length; i++) {
     if (accept && !accept.includes(i)) continue;
     const a = actions[i];
     try {
       if (a.kind === "stock_deduction") {
+        // Declares hors de la transaction: le resultat rendu a l'appelant
+        // est construit apres, et doit pouvoir nommer l'ecart.
+        let sortieStock = 0;
+        let manqueStock = 0;
         await db.transaction(async (tx) => {
           const [article] = await tx
             .select()
@@ -547,7 +555,21 @@ router.post("/voice/site-ops/confirm", async (req: Request, res: Response) => {
           if (!article) throw new Error("article introuvable");
           const before = article.quantity;
           const qty = a.quantity ?? 0;
-          const after = Math.max(0, before - qty);
+          // LE MANQUE NE DOIT PAS DISPARAITRE DANS UN `Math.max`.
+          //
+          // L'ecretage a zero est juste : un stock negatif n'a pas de sens
+          // physique. Mais il etait SILENCIEUX — l'ouvrier declare dix sacs,
+          // il en reste trois, le systeme en sortait trois et repondait
+          // « ok » avec le resume d'origine (« 10 sacs de ciment »).
+          //
+          // Sur un chantier, l'ecart n'est pas une erreur de saisie : la
+          // matiere a bien ete consommee. Elle sort d'un stock qui ne la
+          // connaissait pas, et la valorisation derive sans que personne ne
+          // voie ou. On ecrete quand meme, et on NOMME le manque.
+          const calcul = calculerSortieStock(before, qty);
+          const after = calcul.apres;
+          sortieStock = calcul.sortie;
+          manqueStock = calcul.manque;
           await tx
             .update(stockArticlesTable)
             .set({ quantity: after, updatedAt: new Date() })
@@ -577,7 +599,16 @@ router.post("/voice/site-ops/confirm", async (req: Request, res: Response) => {
           ua,
           orgId,
         );
-        results.push({ index: i, kind: a.kind, ok: true, message: a.summary });
+        // Le resume vient de l'IA et decrit ce que l'ouvrier a DIT. Le
+        // renvoyer tel quel apres un ecretage ferait croire l'operation
+        // conforme a la declaration.
+        results.push(manqueStock > 0
+          ? {
+              index: i, kind: a.kind, ok: true,
+              message: `${a.summary} — seulement ${sortieStock} sortie(s) : il en manquait ${manqueStock} en stock.`,
+              manque: manqueStock,
+            }
+          : { index: i, kind: a.kind, ok: true, message: a.summary });
         continue;
       }
 

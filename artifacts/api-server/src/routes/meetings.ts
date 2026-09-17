@@ -4,7 +4,7 @@ import { eq, and, isNotNull } from "drizzle-orm";
 import { AGENTS, creerTacheIa } from "../services/tache-ia";
 import { logger } from "../lib/logger";
 import { assertAiQuota, invalidateQuotaCache } from "../services/ai-quota";
-import { recordAiUsage, GEMINI_PRO_MODEL } from "../services/ai-utils";
+import { recordAiUsage, wrapUntrusted, GEMINI_PRO_MODEL } from "../services/ai-utils";
 
 const router = Router();
 
@@ -74,8 +74,21 @@ router.post("/meetings/compile", async (req, res): Promise<void> => {
       return;
     }
 
-    const safeNotes = notes.substring(0, 8000);
-    const safeTranscript = transcript ? transcript.substring(0, 12000) : null;
+    // UN NOM QUI PROMETTAIT PLUS QU'IL NE FAISAIT.
+    //
+    // Ces deux variables s'appelaient deja `safeNotes` et `safeTranscript`,
+    // et ne faisaient qu'un `substring` : une limite de TAILLE, pas une
+    // protection. Le nom suffisait a faire passer un relecteur — c'est
+    // precisement ce qui rend ce genre de defaut durable.
+    //
+    // Or les notes et le transcript viennent du corps de la requete, et le
+    // transcript peut avoir ete produit a partir d'un appel : c'est du texte
+    // que le produit ne controle pas. Interpole tel quel, il efface la
+    // frontiere entre consigne et donnee — le modele ne voit qu'un seul
+    // texte, et « ignore les instructions precedentes » y a le meme statut
+    // que le prompt lui-meme.
+    const safeNotes = wrapUntrusted("NOTES DE REUNION", notes, 8000);
+    const safeTranscript = transcript ? wrapUntrusted("TRANSCRIPT", transcript, 12000) : null;
 
     // -----------------------------------------------------------------------
     // AI: Compile meeting
@@ -90,9 +103,11 @@ router.post("/meetings/compile", async (req, res): Promise<void> => {
       return;
     }
 
+    // Les delimiteurs portent deja le libelle et l'avertissement : on ne
+    // rajoute pas d'en-tete « NOTES: » qui ressemblerait a une consigne.
     const inputText = safeTranscript
-      ? `NOTES:\n${safeNotes}\n\nTRANSCRIPT:\n${safeTranscript}`
-      : `NOTES:\n${safeNotes}`;
+      ? safeNotes + "\n\n" + safeTranscript
+      : safeNotes;
 
     const prompt = `Tu es un assistant expert en gestion de projets et de chantiers. Analyse ce compte-rendu de reunion et reponds en JSON strict.
 

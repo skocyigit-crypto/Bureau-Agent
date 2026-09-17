@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, desc, or, sql, and, type Column, type SQL } from "drizzle-orm";
-import { db, devisTable, facturesClientTable } from "@workspace/db";
+import { db, devisTable, facturesClientTable, organisationsTable } from "@workspace/db";
+import { buildDevisDocument, devisFileName, renderDevisPdf } from "../services/devis-pdf";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { generateUniqueReference } from "../lib/unique-reference";
 import { nextInvoiceNumber } from "../services/invoice-numbering";
@@ -62,6 +63,73 @@ router.get("/devis/:id", async (req: Request, res: Response): Promise<void> => {
   } catch (err: any) {
     req.log.error({ err }, "Erreur get devis");
     res.status(500).json({ error: "Erreur lors de la recuperation." });
+  }
+});
+
+/**
+ * Le devis en PDF.
+ *
+ * Il n'en existait aucun: six routes de donnees, et rien pour produire le
+ * document. Le statut « envoye » etait declaratif — l'artisan redigeait son
+ * devis ailleurs, puis venait cocher la case ici.
+ *
+ * Le document porte les mentions que la loi impose au batiment: la validite
+ * de l'offre (arrete du 24 janvier 2017), les six informations d'assurance
+ * professionnelle (loi n° 2014-626) et les coordonnees du mediateur de la
+ * consommation (C. conso. L616-1). Leur absence n'empeche pas la production —
+ * un devis qu'on ne peut pas sortir est pire qu'un devis incomplet — mais
+ * elle est signalee dans l'en-tete `X-Mentions-Manquantes`, comme pour la
+ * facture.
+ */
+router.get("/devis/:id/pdf", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const id = parseInt(req.params.id as string);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  try {
+    const [devis] = await db.select().from(devisTable)
+      .where(and(eq(devisTable.id, id), eq(devisTable.organisationId, orgId)));
+    if (!devis) { res.status(404).json({ error: "Devis non trouve." }); return; }
+
+    const [org] = await db.select({
+      name: organisationsTable.name,
+      legalForm: organisationsTable.legalForm,
+      capital: organisationsTable.capital,
+      address: organisationsTable.address,
+      siret: organisationsTable.siret,
+      tvaNumber: organisationsTable.tvaNumber,
+      email: organisationsTable.email,
+      phone: organisationsTable.phone,
+      bankName: organisationsTable.bankName,
+      bankIban: organisationsTable.bankIban,
+      bankBic: organisationsTable.bankBic,
+      invoiceFooter: organisationsTable.invoiceFooter,
+      assuranceNom: organisationsTable.assuranceNom,
+      assuranceAdresse: organisationsTable.assuranceAdresse,
+      assuranceContrat: organisationsTable.assuranceContrat,
+      assuranceActivites: organisationsTable.assuranceActivites,
+      assuranceZone: organisationsTable.assuranceZone,
+      mediateurNom: organisationsTable.mediateurNom,
+      mediateurAdresse: organisationsTable.mediateurAdresse,
+      mediateurUrl: organisationsTable.mediateurUrl,
+    }).from(organisationsTable).where(eq(organisationsTable.id, orgId));
+
+    const model = buildDevisDocument(devis as never, org ?? {});
+    if (model.warnings.length > 0) {
+      req.log.warn({ devisId: id, warnings: model.warnings }, "Devis PDF emis avec des mentions obligatoires manquantes");
+      // En-tete ASCII: un en-tete HTTP n'accepte pas d'accent brut.
+      res.setHeader(
+        "X-Mentions-Manquantes",
+        encodeURIComponent(model.warnings.join(" | ")),
+      );
+    }
+
+    const pdf = await renderDevisPdf(model);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${devisFileName(devis.reference)}"`);
+    res.send(pdf);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur PDF devis");
+    res.status(500).json({ error: "Erreur lors de la generation du PDF." });
   }
 });
 

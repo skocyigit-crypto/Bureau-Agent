@@ -61,6 +61,10 @@ export const TENANT_TABLES = [
   // Les clotures: sans elles, le journal restaure ne pourrait plus prouver
   // qu aucune ecriture n a disparu.
   "clotures_comptables",
+  // Le registre des violations de donnees. Il documente ce que l'editeur
+  // doit au client (art. 33.2) et ce que le client devra a la CNIL : le
+  // perdre, c'est perdre la preuve que l'obligation a ete tenue.
+  "violations_donnees",
   "user_location_state", "location_events", "messages", "notes_internes",
   "objectifs_commerciaux", "organisation_closures", "payment_reminders",
   "license_audit_log", "performance_reports", "platform_connections",

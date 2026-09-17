@@ -12,6 +12,7 @@ import { verifierEn16931 } from "../services/conformite-en16931";
 import { LIBELLE_CATEGORIE, verifierIdentifiant } from "../services/siren";
 import { computeInvoiceTotals, isValidCurrency, parseUserDate, clampPagination, normalizePaidAmount } from "../services/invoice-totals";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
+import { supprimerFactureAutorisee } from "../services/facture-suppression";
 
 const router: IRouter = Router();
 
@@ -110,6 +111,14 @@ router.get("/factures-client/:id/pdf", async (req: Request, res: Response): Prom
       bankIban: organisationsTable.bankIban,
       bankBic: organisationsTable.bankBic,
       invoiceFooter: organisationsTable.invoiceFooter,
+      assuranceNom: organisationsTable.assuranceNom,
+      assuranceAdresse: organisationsTable.assuranceAdresse,
+      assuranceContrat: organisationsTable.assuranceContrat,
+      assuranceActivites: organisationsTable.assuranceActivites,
+      assuranceZone: organisationsTable.assuranceZone,
+      mediateurNom: organisationsTable.mediateurNom,
+      mediateurAdresse: organisationsTable.mediateurAdresse,
+      mediateurUrl: organisationsTable.mediateurUrl,
     }).from(organisationsTable).where(eq(organisationsTable.id, orgId));
 
     const model = buildInvoiceDocument(facture, org ?? {});
@@ -168,6 +177,14 @@ router.get("/factures-client/:id/facturx.xml", async (req: Request, res: Respons
       bankIban: organisationsTable.bankIban,
       bankBic: organisationsTable.bankBic,
       invoiceFooter: organisationsTable.invoiceFooter,
+      assuranceNom: organisationsTable.assuranceNom,
+      assuranceAdresse: organisationsTable.assuranceAdresse,
+      assuranceContrat: organisationsTable.assuranceContrat,
+      assuranceActivites: organisationsTable.assuranceActivites,
+      assuranceZone: organisationsTable.assuranceZone,
+      mediateurNom: organisationsTable.mediateurNom,
+      mediateurAdresse: organisationsTable.mediateurAdresse,
+      mediateurUrl: organisationsTable.mediateurUrl,
     }).from(organisationsTable).where(eq(organisationsTable.id, orgId));
 
     const facturX = buildFacturXXml(facture, org ?? {});
@@ -206,7 +223,7 @@ router.get("/factures-client/:id/facturx.xml", async (req: Request, res: Respons
 
 router.post("/factures-client", async (req: Request, res: Response): Promise<void> => {
   const targetOrg = getOrgId(req);
-  const { reference, title, clientName, clientEmail, clientPhone, clientAddress, clientCompany, clientSiren, deliveryAddress, operationCategory, vatOnDebits, items, subtotal, taxAmount, totalAmount, paidAmount, isAutoliquidation, currency = "EUR", status = "brouillon", dueDate, paymentMethod, notes, conditions, contactId, devisId } = req.body;
+  const { reference, title, clientName, clientEmail, clientPhone, clientAddress, clientCompany, clientSiren, deliveryAddress, operationCategory, vatOnDebits, items, subtotal, taxAmount, totalAmount, paidAmount, isAutoliquidation, currency = "EUR", status = "brouillon", dueDate, paymentMethod, notes, conditions, contactId, devisId, retenueGarantieRate, cautionBancaire } = req.body;
   if (!title?.trim()) { res.status(400).json({ error: "Le titre est obligatoire." }); return; }
   if (!clientName?.trim()) { res.status(400).json({ error: "Le client est obligatoire." }); return; }
   if (!STATUSES.includes(status)) { res.status(400).json({ error: "Statut invalide." }); return; }
@@ -282,6 +299,15 @@ router.post("/factures-client", async (req: Request, res: Response): Promise<voi
       taxAmount: String(totalsPre.taxAmount),
       totalAmount: String(totalsPre.totalAmount),
       isAutoliquidation: !!isAutoliquidation,
+      // Retenue de garantie (loi n° 71-584). Un taux superieur a 5 % est
+      // ACCEPTE: la retenue est imposee par le client, et refuser la saisie
+      // empecherait l'utilisateur de decrire son propre chantier. L'exces est
+      // signale sur le document comme recuperable.
+      retenueGarantieRate: (() => {
+        const t = Number(retenueGarantieRate);
+        return Number.isFinite(t) && t > 0 ? Math.min(100, t).toFixed(2) : "0";
+      })(),
+      cautionBancaire: !!cautionBancaire,
       // paidAmount borne: jamais negatif, jamais au-dessus du plafond, jamais null.
       paidAmount: normalizePaidAmount(paidAmount),
       currency,
@@ -363,6 +389,11 @@ router.patch("/factures-client/:id", async (req: Request, res: Response): Promis
     // totaux sont TOUJOURS derives des lignes, jamais du client.
     if (b.paidAmount !== undefined) updates.paidAmount = normalizePaidAmount(b.paidAmount);
     if (b.isAutoliquidation !== undefined) updates.isAutoliquidation = !!b.isAutoliquidation;
+    if (b.retenueGarantieRate !== undefined) {
+      const t = Number(b.retenueGarantieRate);
+      updates.retenueGarantieRate = Number.isFinite(t) && t > 0 ? Math.min(100, t).toFixed(2) : "0";
+    }
+    if (b.cautionBancaire !== undefined) updates.cautionBancaire = !!b.cautionBancaire;
     if (b.items !== undefined || b.isAutoliquidation !== undefined) {
       const [cur] = await db.select({ items: facturesClientTable.items, isAutoliquidation: facturesClientTable.isAutoliquidation })
         .from(facturesClientTable).where(scoped);
@@ -523,6 +554,21 @@ router.delete("/factures-client/:id", async (req: Request, res: Response): Promi
       });
       return;
     }
+    // Le refus ci-dessus porte sur le STATUT. Il laissait passer le seul cas
+    // ou la cle etrangere `onDelete: "set null"` peut se declencher: un
+    // BROUILLON auquel un reglement a ete rattache — la route des
+    // encaissements ne verifie pas le statut de la facture. L'ecriture
+    // survivait alors dans le journal inalterable, sans piece justificative.
+    const verdict = await supprimerFactureAutorisee(orgId, id);
+    if (verdict.introuvable) { res.status(404).json({ error: "Facture non trouvee." }); return; }
+    if (!verdict.autorise) {
+      res.status(409).json({
+        error: verdict.raison,
+        remediation: "Passez-la au statut \"annulee\", ou contre-passez les reglements.",
+      });
+      return;
+    }
+
     const result = await db.delete(facturesClientTable)
       .where(and(eq(facturesClientTable.id, id), eq(facturesClientTable.organisationId, orgId)))
       .returning();

@@ -4,6 +4,7 @@ import { db, projetsTable } from "@workspace/db";
 import { getOrgId } from "../middleware/tenant";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
+import { etatReception } from "../services/garanties-chantier";
 
 const router: IRouter = Router();
 
@@ -96,7 +97,16 @@ router.get("/projets/:id", async (req: Request, res: Response): Promise<void> =>
   try {
     const [row] = await db.select().from(projetsTable).where(and(eq(projetsTable.id, id), eq(projetsTable.organisationId, orgId)));
     if (!row) { res.status(404).json({ error: "Projet non trouve." }); return; }
-    res.json(row);
+    // La reception des travaux est la date dont dependent les quatre
+    // echeances legales du chantier — parfait achevement, bon fonctionnement,
+    // decennale, restitution de la retenue de garantie. Elle n'existait pas
+    // dans ce produit: le vocabulaire du chantier n'y figurait que dans la
+    // fixture d'un test d'extraction PDF.
+    //
+    // Calcule a la lecture, jamais stocke: les durees sont des regles de
+    // droit, pas des donnees du projet. Les figer en base ferait diverger les
+    // chantiers anciens des nouveaux le jour ou une duree change.
+    res.json({ ...row, chantier: etatReception(row) });
   } catch (err: any) {
     req.log.error({ err }, "Erreur get projet");
     res.status(500).json({ error: "Erreur lors de la recuperation." });
@@ -157,6 +167,7 @@ router.patch("/projets/:id", async (req: Request, res: Response): Promise<void> 
       title, description, status, priority, clientName, clientCompany,
       address, budget, spent, currency, progress, startDate, endDate,
       actualEndDate, assignedTo, teamMembers, milestones, tags, notes, contactId,
+      receptionDate, receptionWithReserves, receptionReserves, reservesLiftedAt,
     } = req.body;
 
     const updates: any = { updatedAt: new Date() };
@@ -178,6 +189,36 @@ router.patch("/projets/:id", async (req: Request, res: Response): Promise<void> 
     if (startDate !== undefined) updates.startDate = startDate ? new Date(startDate) : null;
     if (endDate !== undefined) updates.endDate = endDate ? new Date(endDate) : null;
     if (actualEndDate !== undefined) updates.actualEndDate = actualEndDate ? new Date(actualEndDate) : null;
+    // Reception des travaux. Une date illisible est REFUSEE plutot que
+    // convertie en `Invalid Date`: elle ferait partir dix ans de garantie
+    // decennale depuis un instant indefini, et l'erreur ne se verrait qu'au
+    // sinistre.
+    if (receptionDate !== undefined) {
+      if (receptionDate === null || receptionDate === "") {
+        updates.receptionDate = null;
+      } else {
+        const d = new Date(receptionDate);
+        if (Number.isNaN(d.getTime())) {
+          res.status(400).json({ error: "Date de reception invalide." });
+          return;
+        }
+        updates.receptionDate = d;
+      }
+    }
+    if (receptionWithReserves !== undefined) updates.receptionWithReserves = !!receptionWithReserves;
+    if (receptionReserves !== undefined) updates.receptionReserves = receptionReserves || null;
+    if (reservesLiftedAt !== undefined) {
+      if (reservesLiftedAt === null || reservesLiftedAt === "") {
+        updates.reservesLiftedAt = null;
+      } else {
+        const d = new Date(reservesLiftedAt);
+        if (Number.isNaN(d.getTime())) {
+          res.status(400).json({ error: "Date de levee des reserves invalide." });
+          return;
+        }
+        updates.reservesLiftedAt = d;
+      }
+    }
     if (assignedTo !== undefined) updates.assignedTo = assignedTo;
     if (teamMembers !== undefined) updates.teamMembers = teamMembers;
     if (milestones !== undefined) updates.milestones = milestones;

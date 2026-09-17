@@ -25,6 +25,7 @@
 
 import { createRequire } from "node:module";
 
+import { appliquerRetenue, exigibiliteRetenue } from "./retenue-garantie";
 import { computeInvoiceTotals, type InvoiceLine, type VatBreakdownEntry } from "./invoice-totals";
 import {
   LIBELLE_CATEGORIE,
@@ -47,6 +48,16 @@ export interface InvoiceSeller {
   bankIban?: string | null;
   bankBic?: string | null;
   invoiceFooter?: string | null;
+  /** Les six informations d'assurance imposees par la loi Pinel (2014-626). */
+  assuranceNom?: string | null;
+  assuranceAdresse?: string | null;
+  assuranceContrat?: string | null;
+  assuranceActivites?: string | null;
+  assuranceZone?: string | null;
+  /** Mediateur de la consommation (C. conso. L616-1). */
+  mediateurNom?: string | null;
+  mediateurAdresse?: string | null;
+  mediateurUrl?: string | null;
 }
 
 /** Facture, telle que stockee sur `factures_client`. */
@@ -75,7 +86,26 @@ export interface InvoiceRecord {
   paymentMethod?: string | null;
   notes?: string | null;
   conditions?: string | null;
+  /** Devis uniquement: date de fin de validite de l'offre. */
+  validUntil?: Date | string | null;
+  /** Retenue de garantie (loi n° 71-584), en pourcentage du total TTC. */
+  retenueGarantieRate?: number | string | null;
+  /** Une caution bancaire remplace la retenue: rien n'est retenu. */
+  cautionBancaire?: boolean | null;
+  /** Date de reception des travaux du chantier rattache, si connue. */
+  receptionDate?: Date | string | null;
 }
+
+/**
+ * Facture ou devis.
+ *
+ * Les deux documents partagent l'essentiel — vendeur, acheteur, lignes,
+ * ventilation de TVA, assurance professionnelle, mediateur — et different sur
+ * quelques points precis. Un second constructeur les aurait dupliques, et ces
+ * deux copies auraient diverge: c'est exactement le mode de panne corrige
+ * plusieurs fois dans cet audit. Un seul chemin, un parametre.
+ */
+export type TypeDocument = "facture" | "devis";
 
 export interface InvoiceDocument {
   reference: string;
@@ -95,6 +125,18 @@ export interface InvoiceDocument {
   legalMentions: string[];
   notes: string[];
   footer: string | null;
+  /**
+   * Retenue de garantie appliquee, si le marche en prevoit une.
+   *
+   * `null` quand il n'y en a pas: une facture ordinaire ne doit pas afficher
+   * une ligne « retenue : 0 EUR », qui inviterait a en pratiquer une.
+   */
+  retenue: {
+    taux: number;
+    montant: number;
+    netAPayer: number;
+    exigibleLe: Date | null;
+  } | null;
   /** Donnees obligatoires absentes: la facture reste emise, mais non conforme. */
   warnings: string[];
 }
@@ -109,6 +151,47 @@ export const NO_DISCOUNT_MENTION =
   "Escompte pour paiement anticipe : neant.";
 export const AUTOLIQUIDATION_MENTION =
   "Autoliquidation — art. 283-2 nonies du CGI : la TVA est due par le preneur, aucune TVA n'est facturee.";
+/**
+ * Plafond legal du delai de paiement entre professionnels (C. com. L441-10).
+ *
+ * 60 jours date d'emission, ou 45 jours fin de mois si le contrat le stipule.
+ * On retient la borne la plus permissive des deux — 45 jours fin de mois peut
+ * depasser 60 jours calendaires — pour ne signaler que ce qui est certainement
+ * hors des clous, et non les cas discutables.
+ */
+export const PLAFOND_DELAI_PAIEMENT_JOURS = 60;
+
+/**
+ * Assemble la mention d'assurance professionnelle.
+ *
+ * Les six informations sont exigees ENSEMBLE : la DGCCRF caracterise le
+ * manquement des qu'une seule manque. On rend donc `null` — donc un
+ * avertissement — plutot qu'une mention partielle qui donnerait l'illusion
+ * d'etre en regle.
+ */
+export function mentionAssurance(seller: InvoiceSeller): string | null {
+  const champs = [
+    seller.assuranceNom, seller.assuranceAdresse, seller.assuranceContrat,
+    seller.assuranceActivites, seller.assuranceZone,
+  ].map((v) => (typeof v === "string" ? v.trim() : ""));
+  if (champs.some((v) => v.length === 0)) return null;
+  const [nom, adresse, contrat, activites, zone] = champs;
+  return `Assurance professionnelle : ${nom}, ${adresse} — contrat n° ${contrat} — ` +
+    `activites garanties : ${activites} — couverture geographique : ${zone}.`;
+}
+
+/** Mention du mediateur de la consommation (C. conso. L616-1). */
+export function mentionMediateur(seller: InvoiceSeller): string | null {
+  const nom = typeof seller.mediateurNom === "string" ? seller.mediateurNom.trim() : "";
+  if (!nom) return null;
+  const suite = [
+    typeof seller.mediateurAdresse === "string" ? seller.mediateurAdresse.trim() : "",
+    typeof seller.mediateurUrl === "string" ? seller.mediateurUrl.trim() : "",
+  ].filter((v) => v.length > 0);
+  return `Mediateur de la consommation : ${nom}${suite.length ? ` — ${suite.join(" — ")}` : ""}. ` +
+    "En cas de litige non resolu, le client consommateur peut le saisir gratuitement.";
+}
+
 export const VAT_EXEMPT_MENTION =
   "TVA non applicable, art. 293 B du CGI.";
 
@@ -147,7 +230,9 @@ export function buildInvoiceDocument(
   invoice: InvoiceRecord,
   seller: InvoiceSeller,
   now: Date = new Date(),
+  typeDocument: TypeDocument = "facture",
 ): InvoiceDocument {
+  const estDevis = typeDocument === "devis";
   const autoliquidation = !!invoice.isAutoliquidation;
   const totals = computeInvoiceTotals(invoice.items ?? [], { autoliquidation });
   const currency = clean(invoice.currency) ?? "EUR";
@@ -203,7 +288,11 @@ export function buildInvoiceDocument(
     buyerLines.push(`${buyerId.type === "siret" ? "SIRET" : "SIREN"} : ${buyerId.valeur}`);
   } else if (clean(invoice.clientSiren)) {
     warnings.push(`L'identifiant du client est invalide (${buyerId.motif}).`);
-  } else {
+  } else if (!estDevis) {
+    // Mention imposee a la FACTURE par la reforme 2026. Un devis s'adresse
+    // couramment a un particulier, qui n'a pas de SIREN : l'exiger ici
+    // produirait un reproche impossible a satisfaire sur la moitie des devis
+    // d'un artisan, et les avertissements cesseraient d'etre lus.
     warnings.push("Le SIREN du client est absent (mention obligatoire).");
   }
 
@@ -217,8 +306,18 @@ export function buildInvoiceDocument(
 
   // --- Reglement -----------------------------------------------------------
   const payment: string[] = [];
-  if (dueDate) payment.push(`Date d'echeance : ${formatDate(dueDate)}`);
-  else warnings.push("La date d'echeance de reglement est absente (mention obligatoire).");
+  if (estDevis) {
+    // La duree de validite est une mention obligatoire du devis dans le
+    // batiment (arrete du 24 janvier 2017): passe ce delai, le professionnel
+    // n'est plus engage par les prix annonces.
+    const validite = toDate(invoice.validUntil);
+    if (validite) payment.push(`Validite de l'offre : jusqu'au ${formatDate(validite)}`);
+    else warnings.push("La duree de validite du devis est absente (mention obligatoire).");
+  } else if (dueDate) {
+    payment.push(`Date d'echeance : ${formatDate(dueDate)}`);
+  } else {
+    warnings.push("La date d'echeance de reglement est absente (mention obligatoire).");
+  }
   const method = clean(invoice.paymentMethod);
   if (method) payment.push(`Moyen de paiement : ${method}`);
   const iban = clean(seller.bankIban);
@@ -248,15 +347,92 @@ export function buildInvoiceDocument(
   const categorie = clean(invoice.operationCategory) as CategorieOperation | null;
   if (categorie && categorie in LIBELLE_CATEGORIE) {
     legalMentions.push(`Categorie de l'operation : ${LIBELLE_CATEGORIE[categorie]}.`);
-  } else {
+  } else if (!estDevis) {
+    // Mention du decret 2022-1299, exigee sur la FACTURE. L'exiger sur un
+    // devis ferait crier au loup sur un document qui n'y est pas soumis.
     warnings.push("La categorie de l'operation est absente (mention obligatoire).");
   }
   // Recopiee a l'identique: le texte reglementaire fixe un libelle unique.
   if (invoice.vatOnDebits) legalMentions.push(`${MENTION_TVA_DEBITS}.`);
 
-  legalMentions.push(LATE_PENALTY_MENTION, RECOVERY_INDEMNITY_MENTION, NO_DISCOUNT_MENTION);
+  if (!estDevis) {
+    legalMentions.push(LATE_PENALTY_MENTION, RECOVERY_INDEMNITY_MENTION, NO_DISCOUNT_MENTION);
+  }
 
-  if (totals.lines.length === 0) warnings.push("La facture ne comporte aucune ligne.");
+  // RETENUE DE GARANTIE (loi n° 71-584 du 16 juillet 1971).
+  //
+  // Elle porte sur ce que le client VERSE, pas sur l'assiette de TVA: la TVA
+  // reste due sur la totalite. La calculer sur le net a payer est l'erreur la
+  // plus courante, et elle fausse la declaration.
+  //
+  // Un devis n'en porte pas: la retenue s'applique aux paiements, et il n'y a
+  // pas encore de paiement.
+  const tauxRetenue = estDevis ? 0 : Number(invoice.retenueGarantieRate ?? 0);
+  const retenueCalculee = tauxRetenue > 0 || (!estDevis && invoice.cautionBancaire)
+    ? appliquerRetenue(totals.totalAmount, tauxRetenue, { cautionBancaire: !!invoice.cautionBancaire })
+    : null;
+  let retenue: InvoiceDocument["retenue"] = null;
+  if (retenueCalculee && retenueCalculee.montant > 0) {
+    const exigibleLe = exigibiliteRetenue(invoice.receptionDate ?? null);
+    retenue = {
+      taux: retenueCalculee.taux,
+      montant: retenueCalculee.montant,
+      netAPayer: retenueCalculee.netAPayer,
+      exigibleLe,
+    };
+    legalMentions.push(
+      `Retenue de garantie de ${retenueCalculee.taux} % : ` +
+        `${formatMoney(retenueCalculee.montant, currency)} retenus, ` +
+        `net a payer ${formatMoney(retenueCalculee.netAPayer, currency)} ` +
+        "(loi n° 71-584 du 16 juillet 1971).",
+    );
+    if (!exigibleLe) {
+      // Sans reception, le delai d'un an n'a pas commence: afficher une
+      // echeance calculee depuis la facture ferait reclamer trop tot.
+      warnings.push(
+        "Une retenue de garantie est appliquee mais la date de reception des " +
+          "travaux n'est pas connue : son echeance de restitution ne peut pas " +
+          "etre calculee.",
+      );
+    }
+  }
+  if (retenueCalculee) warnings.push(...retenueCalculee.avertissements);
+
+  // Assurance professionnelle: obligatoire sur devis ET facture pour tout
+  // professionnel du batiment (loi Pinel). Le produit s'adresse a des PME du
+  // BTP: l'absence est signalee, jamais silencieuse.
+  const assurance = mentionAssurance(seller);
+  if (assurance) legalMentions.push(assurance);
+  else warnings.push(
+    "La mention d'assurance professionnelle est incomplete ou absente " +
+    "(nom, adresse, n° de contrat, activites garanties et zone geographique " +
+    "sont exiges ensemble — loi n° 2014-626).",
+  );
+
+  const mediateur = mentionMediateur(seller);
+  if (mediateur) legalMentions.push(mediateur);
+  else warnings.push(
+    "Les coordonnees du mediateur de la consommation sont absentes " +
+    "(obligatoire des lors que le client peut etre un particulier — C. conso. L616-1).",
+  );
+
+  // Delai de paiement: le plafond est imperatif, et son depassement est
+  // sanctionne par une amende administrative pouvant atteindre 2 000 000 EUR
+  // pour une personne morale. Le document reste produit — c'est un contrat
+  // qui peut avoir ete signe ainsi — mais l'ecart est nomme.
+  if (!estDevis && dueDate) {
+    const jours = Math.round((dueDate.getTime() - issueDate.getTime()) / 86400000);
+    if (jours > PLAFOND_DELAI_PAIEMENT_JOURS) {
+      warnings.push(
+        `Le delai de paiement accorde (${jours} jours) depasse le plafond legal de ` +
+        `${PLAFOND_DELAI_PAIEMENT_JOURS} jours entre professionnels (C. com. L441-10).`,
+      );
+    }
+  }
+
+  if (totals.lines.length === 0) {
+    warnings.push(`${estDevis ? "Le devis" : "La facture"} ne comporte aucune ligne.`);
+  }
 
   const notes = [clean(invoice.conditions), clean(invoice.notes)].filter((v): v is string => v != null);
 
@@ -276,6 +452,7 @@ export function buildInvoiceDocument(
     remaining,
     payment,
     legalMentions,
+    retenue,
     notes,
     footer: clean(seller.invoiceFooter),
     warnings,
@@ -374,12 +551,19 @@ export interface RenderInvoiceOptions {
    * changement de police.
    */
   facturXXml?: string;
+  /**
+   * Facture (defaut) ou devis. Change les intitules du document — et rien
+   * d'autre: la mise en page, les polices incorporees et la conformite PDF/A
+   * sont les memes pour les deux.
+   */
+  documentType?: TypeDocument;
 }
 
 export async function renderInvoicePdf(
   model: InvoiceDocument,
   options: RenderInvoiceOptions = {},
 ): Promise<Buffer> {
+  const estDevisRendu = options.documentType === "devis";
   const PDFDocument = (await import("pdfkit")).default;
 
   // PDF/A-3b uniquement quand un XML Factur-X est joint: c'est la seule
@@ -445,7 +629,7 @@ export async function renderInvoicePdf(
   const sellerBottom = doc.y;
 
   doc.fillColor("#000000").font(POLICE_GRASSE).fontSize(20);
-  drawText("FACTURE", left + width * 0.6, headerTop, { width: width * 0.4, align: "right" });
+  drawText(estDevisRendu ? "DEVIS" : "FACTURE", left + width * 0.6, headerTop, { width: width * 0.4, align: "right" });
   doc.font(POLICE).fontSize(10);
   drawText(`N° ${model.reference}`, { width: width * 0.4, align: "right" });
   drawText(`Emise le ${formatDate(model.issueDate)}`, { width: width * 0.4, align: "right" });
@@ -457,7 +641,7 @@ export async function renderInvoicePdf(
 
   // --- Acheteur ------------------------------------------------------------
   doc.font(POLICE_GRASSE).fontSize(9).fillColor("#666666");
-  drawText("FACTURE A", left, doc.y);
+  drawText(estDevisRendu ? "DEVIS POUR" : "FACTURE A", left, doc.y);
   doc.fillColor("#000000").font(POLICE_GRASSE).fontSize(11);
   drawText(model.buyer.name, left, doc.y + 2);
   doc.font(POLICE).fontSize(9).fillColor("#444444");
