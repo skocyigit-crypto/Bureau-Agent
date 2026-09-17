@@ -16,6 +16,13 @@ import { getGetActivitySummaryQueryKey,getListDailyReportsQueryKey,useDeleteDail
 import { AlertTriangle,ArrowDown,ArrowUp,Award,BarChart3,CheckSquare,ChevronRight,Clock,Eye,FileText,FolderKanban,Loader2,MessageSquare,Minus,Phone,Printer,Sparkles,Trash2,TrendingUp,Users } from "lucide-react";
 import { useState } from "react";
 
+// Date du jour dans le fuseau de l'utilisateur. `toISOString()` rendait la date UTC :
+// entre minuit et 2h a Paris, le formulaire proposait la veille.
+function jourLocalNavigateur(maintenant = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${maintenant.getFullYear()}-${p(maintenant.getMonth() + 1)}-${p(maintenant.getDate())}`;
+}
+
 type Metrics = {
   calls?: { total?: number; answered?: number; missed?: number; avgDuration?: number; inbound?: number; outbound?: number; answerRate?: number; sentiment?: { tres_positif?: number; positif?: number; negatif?: number; tres_negatif?: number; neutre?: number } };
   tasks?: { completed?: number; created?: number; overdue?: number; highPriority?: number };
@@ -138,7 +145,7 @@ export default function Reports() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+  const [selectedDate, setSelectedDate] = useState(() => jourLocalNavigateur());
   const [viewingReport, setViewingReport] = useState<Report | null>(null);
   const [activeTab, setActiveTab] = useState("generer");
 
@@ -192,6 +199,7 @@ export default function Reports() {
             aria-label={t("common.filterPeriod")}
             type="date"
             value={selectedDate}
+            max={jourLocalNavigateur()}
             onChange={(e) => setSelectedDate(e.target.value)}
             className="w-44"
           />

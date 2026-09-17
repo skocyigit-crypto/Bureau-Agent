@@ -26,6 +26,7 @@ import {
   type Constat,
   type Journee,
 } from "../services/conformite-temps-travail";
+import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
 
 /**
  * Constats de conformite pour un pointage qui vient d'etre cloture.
@@ -471,17 +472,13 @@ router.get("/checkins/export/csv", async (req, res): Promise<void> => {
       location: checkinsTable.location, notes: checkinsTable.notes,
     }).from(checkinsTable).where(eq(checkinsTable.organisationId, orgId)).orderBy(desc(checkinsTable.checkInAt)).limit(5000);
     const headers = ["Employé", "Type", "Arrivée", "Départ", "Lieu", "Notes"];
-    const escape = (v: any) => {
-      if (v == null) return "";
-      const s = String(v).replace(/"/g, '""');
-      return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s;
-    };
+    const escape = celluleCsv;
     const fmtDate = (d: any) => d ? new Date(d).toLocaleString("fr-FR") : "";
-    const lines = [headers.join(","), ...rows.map(r => [
+    const lines = [headers.map(celluleCsv).join(SEPARATEUR_CSV), ...rows.map(r => [
       escape(r.employeeName), escape(r.type),
       escape(fmtDate(r.checkInAt)), escape(fmtDate(r.checkOutAt)),
       escape(r.location), escape(r.notes),
-    ].join(","))];
+    ].join(SEPARATEUR_CSV))];
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="pointages_${Date.now()}.csv"`);
     res.send("\uFEFF" + lines.join("\n"));

@@ -1567,7 +1567,8 @@
       "correspondance": "Correspondence",
       "technique": "Technical",
       "juridique": "Legal",
-      "comptabilite": "Accounting"
+      "comptabilite": "Accounting",
+      "public": "Public (phone receptionist)"
     },
     "parts": {
       "safe": "{{count}} safe",
@@ -4351,7 +4352,8 @@
       "searchFailed": "Search failed",
       "searchError": "Search not possible",
       "unknownError": "Unknown error"
-    }
+    },
+    "publicScopeNotice": "The AI phone receptionist only uses documents filed as “Public” (pricing, FAQ, opening hours). Invoices, contracts and other documents stay limited to internal search."
   },
   "contactsImport": {
     "title": "CSV Import — Contacts",

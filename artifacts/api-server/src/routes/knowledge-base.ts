@@ -28,7 +28,8 @@ router.get("/knowledge-base/status", async (req: Request, res: Response): Promis
 router.post("/knowledge-base/ask", async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
-    const userId = (req as { user?: { id?: number } }).user?.id ?? null;
+    // `req.user` n'est alimente nulle part : l'usage IA etait impute a personne.
+    const userId = req.session?.userId ?? null;
     const question = String((req.body as { question?: unknown })?.question ?? "").trim();
     if (!question) {
       res.status(400).json({ error: "La question est obligatoire." });
@@ -66,7 +67,7 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const orgId = getOrgId(req);
-      const userId = (req as { user?: { id?: number } }).user?.id ?? null;
+      const userId = req.session?.userId ?? null;
       const now = Date.now();
       const last = lastReindexByOrg.get(orgId) ?? 0;
       if (now - last < REINDEX_COOLDOWN_MS) {

@@ -17,6 +17,7 @@ import { invalidateTenantIdentityCache, requireTenant } from "../middleware/tena
 import { checkLicense } from "../middleware/license-check";
 import { assertRoleAllowed, assertOrgOwnsUser, assertTargetNotSuperAdmin, assertCallerOutranks, assertUserQuotaNotExceeded, assertNotSelf, sanitiseUserPatch, checkSensitiveRateLimit } from "../middleware/tenant-guard";
 import { isUserQuotaDbError } from "../services/ensure-user-quota";
+import { documentCsv } from "../lib/csv";
 
 const router: IRouter = Router();
 
@@ -1159,14 +1160,14 @@ router.get("/auth/users/export/csv", async (req: Request, res: Response): Promis
       createdAt: usersTable.createdAt,
     }).from(usersTable).where(conditions.length > 0 ? and(...conditions) : undefined);
 
-    const header = "ID,Email,Prenom,Nom,Role,Departement,Actif,Date creation\n";
+    const header = ["ID", "Email", "Prenom", "Nom", "Role", "Departement", "Actif", "Date creation"];
     const rows = users.map(u =>
       [u.id, u.email, u.prenom || "", u.nom || "", u.role, u.departement || "", u.actif ? "oui" : "non",
-        u.createdAt ? new Date(u.createdAt).toLocaleDateString("fr-FR") : ""].map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")
-    ).join("\n");
+        u.createdAt ? new Date(u.createdAt).toLocaleDateString("fr-FR") : ""]
+    );
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="utilisateurs_${Date.now()}.csv"`);
-    res.send("\uFEFF" + header + rows);
+    res.send(documentCsv(header, rows));
   } catch (err: any) {
     req.log.error({ err }, "Erreur export users CSV");
     res.status(500).json({ error: "Erreur lors de l'export." });

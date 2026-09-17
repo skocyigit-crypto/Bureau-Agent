@@ -88,9 +88,9 @@ async function gatherAnalyticsData(orgId: number) {
       createdAt: callsTable.createdAt,
     }).from(callsTable).where(orgCall).orderBy(desc(callsTable.createdAt)).limit(20),
     db.select({
-      hour: sql<string>`extract(hour from ${callsTable.createdAt})`.as("hour"),
+      hour: sql<string>`extract(hour from ${callsTable.createdAt} at time zone 'Europe/Paris')`.as("hour"),
       count: count(),
-    }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo))).groupBy(sql`extract(hour from ${callsTable.createdAt})`),
+    }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo))).groupBy(sql`extract(hour from ${callsTable.createdAt} at time zone 'Europe/Paris')`),
     db.select({
       firstName: contactsTable.firstName,
       lastName: contactsTable.lastName,
@@ -329,7 +329,7 @@ async function gatherContextForPage(page: string, orgId: number) {
         db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, gte(checkinsTable.checkInAt, weekAgo))),
         db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, eq(checkinsTable.status, "present"))),
         db.select({ avg: sql<number>`coalesce(avg(${checkinsTable.totalMinutes}), 0)::int` }).from(checkinsTable).where(and(orgCheckin, eq(checkinsTable.status, "termine"), gte(checkinsTable.checkInAt, weekAgo))),
-        db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, gte(checkinsTable.checkInAt, weekAgo), sql`extract(hour from ${checkinsTable.checkInAt}) >= 10`)),
+        db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, gte(checkinsTable.checkInAt, weekAgo), sql`extract(hour from ${checkinsTable.checkInAt} at time zone 'Europe/Paris') >= 10`)),
       ]);
       return { sessionsThisWeek: totalSessions[0]?.count ?? 0, currentlyActive: activeSessions[0]?.count ?? 0, avgSessionMinutes: avgMinutes[0]?.avg ?? 0, lateArrivalsThisWeek: lateArrivals[0]?.count ?? 0 };
     }
@@ -771,9 +771,9 @@ router.post("/ai/recognize", async (req, res): Promise<void> => {
         callCount: sql<number>`(SELECT COUNT(*) FROM calls WHERE calls.contact_id = ${contactsTable.id} AND calls.organisation_id = ${orgId})`.as("cc"),
       }).from(contactsTable).where(orgContact).orderBy(desc(sql`(SELECT COUNT(*) FROM calls WHERE calls.contact_id = ${contactsTable.id} AND calls.organisation_id = ${orgId})`)).limit(3),
       db.select({
-        hour: sql<string>`extract(hour from ${callsTable.createdAt})`.as("hour"),
+        hour: sql<string>`extract(hour from ${callsTable.createdAt} at time zone 'Europe/Paris')`.as("hour"),
         count: count(),
-      }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, threeDaysAgo))).groupBy(sql`extract(hour from ${callsTable.createdAt})`).orderBy(desc(count())).limit(3),
+      }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, threeDaysAgo))).groupBy(sql`extract(hour from ${callsTable.createdAt} at time zone 'Europe/Paris')`).orderBy(desc(count())).limit(3),
       db.select({
         total: count(),
         completed: sql<number>`SUM(CASE WHEN status = 'termine' THEN 1 ELSE 0 END)`,
@@ -1442,9 +1442,9 @@ router.post("/ai/central-intelligence", async (req, res): Promise<void> => {
       db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, gte(checkinsTable.checkInAt, todayStart))),
 
       db.select({
-        hour: sql<string>`extract(hour from ${callsTable.createdAt})`.as("hour"),
+        hour: sql<string>`extract(hour from ${callsTable.createdAt} at time zone 'Europe/Paris')`.as("hour"),
         callCount: count(),
-      }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo))).groupBy(sql`extract(hour from ${callsTable.createdAt})`).orderBy(desc(count())).limit(5),
+      }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo))).groupBy(sql`extract(hour from ${callsTable.createdAt} at time zone 'Europe/Paris')`).orderBy(desc(count())).limit(5),
       db.select({
         total: count(),
         completed: sql<number>`SUM(CASE WHEN status = 'termine' THEN 1 ELSE 0 END)`,
@@ -2866,7 +2866,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
       case "revenue_forecast": {
         const revAi = await aiForOrg(orgId);
         const [paidLast90, pipeline, prospects90] = await Promise.all([
-          db.select({ month: sql<string>`to_char(${facturesClientTable.paidAt}, 'YYYY-MM')`, total: sql<number>`coalesce(sum(${facturesClientTable.totalAmount}::numeric), 0)::numeric` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), eq(facturesClientTable.status, "payee"), gte(facturesClientTable.paidAt, new Date(Date.now() - 90 * 86400000)))).groupBy(sql`to_char(${facturesClientTable.paidAt}, 'YYYY-MM')`),
+          db.select({ month: sql<string>`to_char(${facturesClientTable.paidAt} at time zone 'Europe/Paris', 'YYYY-MM')`, total: sql<number>`coalesce(sum(${facturesClientTable.totalAmount}::numeric), 0)::numeric` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), eq(facturesClientTable.status, "payee"), gte(facturesClientTable.paidAt, new Date(Date.now() - 90 * 86400000)))).groupBy(sql`to_char(${facturesClientTable.paidAt} at time zone 'Europe/Paris', 'YYYY-MM')`),
           db.select({ total: sql<number>`coalesce(sum(${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0)), 0)::numeric`, count: count() }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), sql`${facturesClientTable.status} not in ('payee','annulee')`)),
           db.select({ total: sql<number>`coalesce(sum(${prospectsTable.value}::numeric * ${prospectsTable.probability} / 100), 0)::numeric`, count: count() }).from(prospectsTable).where(and(eq(prospectsTable.organisationId, orgId), ne(prospectsTable.stage, "perdu"), ne(prospectsTable.stage, "gagne"))),
         ]);
@@ -3048,8 +3048,8 @@ router.get("/ai/predictions", async (req, res): Promise<void> => {
       db.select({ count: count() }).from(contactsTable).where(and(orgContact, gte(contactsTable.createdAt, twoWeeksAgo), lt(contactsTable.createdAt, weekAgo))),
       db.select({ count: count() }).from(contactsTable).where(and(orgContact, gte(contactsTable.createdAt, threeWeeksAgo), lt(contactsTable.createdAt, twoWeeksAgo))),
       db.select({ count: count() }).from(contactsTable).where(and(orgContact, gte(contactsTable.createdAt, fourWeeksAgo), lt(contactsTable.createdAt, threeWeeksAgo))),
-      db.select({ day: sql<string>`to_char(${callsTable.createdAt}, 'Dy')`, cnt: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, fourWeeksAgo))).groupBy(sql`to_char(${callsTable.createdAt}, 'Dy')`),
-      db.select({ hour: sql<string>`extract(hour from ${callsTable.createdAt})::int`, cnt: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, fourWeeksAgo))).groupBy(sql`extract(hour from ${callsTable.createdAt})::int`),
+      db.select({ day: sql<string>`to_char(${callsTable.createdAt} at time zone 'Europe/Paris', 'Dy')`, cnt: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, fourWeeksAgo))).groupBy(sql`to_char(${callsTable.createdAt} at time zone 'Europe/Paris', 'Dy')`),
+      db.select({ hour: sql<string>`extract(hour from ${callsTable.createdAt} at time zone 'Europe/Paris')::int`, cnt: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, fourWeeksAgo))).groupBy(sql`extract(hour from ${callsTable.createdAt} at time zone 'Europe/Paris')::int`),
       db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))),
       db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.status, "manque"), gte(callsTable.createdAt, twoWeeksAgo), lt(callsTable.createdAt, weekAgo))),
       db.select({ count: count() }).from(callsTable).where(and(orgCall, or(eq(callsTable.sentiment, "positif"), eq(callsTable.sentiment, "tres_positif")), gte(callsTable.createdAt, fourWeeksAgo))),

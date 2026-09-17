@@ -143,7 +143,28 @@ RÈGLES STRICTES pour draftReply:
  * retente l'envoi). Fail-soft: toute erreur est journalisée, jamais levée —
  * appelé en fire-and-forget depuis la route webhook.
  */
-export async function processIncomingSupportEmail(email: IncomingSupportEmail): Promise<void> {
+export interface OptionsTraitementSupport {
+  /**
+   * Message emis par un utilisateur AUTHENTIFIE depuis l'application : il n'est
+   * jamais ecarte comme spam, et sa priorite n'est jamais abaissee par l'IA.
+   */
+  authentifie?: { priorite: (typeof PRIORITIES)[number] };
+}
+
+/** Un message authentifie n'est ni ecarte comme spam, ni abaisse par l'IA. */
+export function appliquerAuthentification<C extends { category: string; priority: (typeof PRIORITIES)[number] }>(
+  classification: C,
+  options: OptionsTraitementSupport,
+): C {
+  if (!options.authentifie) return classification;
+  let c = classification;
+  if (c.category === "spam") c = { ...c, category: "support" };
+  const rang = { haute: 0, moyenne: 1, basse: 2 } as const;
+  if (rang[options.authentifie.priorite] < rang[c.priority]) c = { ...c, priority: options.authentifie.priorite };
+  return c;
+}
+
+export async function processIncomingSupportEmail(email: IncomingSupportEmail, options: OptionsTraitementSupport = {}): Promise<void> {
   try {
     const orgId = await getSuperAdminOrgId();
     if (!orgId) {
@@ -167,6 +188,8 @@ export async function processIncomingSupportEmail(email: IncomingSupportEmail): 
       classification = fallbackClassification(email);
     }
 
+    classification = appliquerAuthentification(classification, options);
+
     if (classification.category === "spam") {
       logger.info({ from: email.from, subject: email.subject }, "[support-inbox] e-mail classé spam, ignoré");
       return;
@@ -180,7 +203,9 @@ export async function processIncomingSupportEmail(email: IncomingSupportEmail): 
       toolName: "send_email",
       title: `Répondre à ${email.fromName || email.from}`,
       summary: classification.summary,
-      reason: `E-mail entrant (${classification.category}) via support@agentdebureau.fr`,
+      reason: options.authentifie
+        ? `Rapport envoye depuis l'application (${classification.category})`
+        : `E-mail entrant (${classification.category}) via support@agentdebureau.fr`,
       args: {
         to: email.from,
         subject: replySubject,
