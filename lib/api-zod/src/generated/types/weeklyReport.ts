@@ -12,12 +12,16 @@ export interface WeeklyReport {
   totalCalls: number;
   answeredCalls: number;
   missedCalls: number;
-  answerRate: number;
-  avgDuration: number;
+  /** @nullable */
+  answerRate: number | null;
+  /** @nullable */
+  avgDuration: number | null;
   newContacts: number;
   completedTasks: number;
   messagesReceived: number;
-  peakHour: number;
-  peakDay: string;
+  /** @nullable */
+  peakHour: number | null;
+  /** @nullable */
+  peakDay: string | null;
   comparisonPrevWeek: WeeklyReportComparisonPrevWeek;
 }

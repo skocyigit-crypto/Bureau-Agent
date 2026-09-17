@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { useTranslation } from "@/lib/i18n";
+import { serieHebdomadaire, serieHoraire } from "@/lib/analytics-series";
 
 interface AnalyticsData {
   totalCalls: number;
@@ -161,21 +162,13 @@ export default function AnalyticsScreen() {
   useEffect(() => { fetchAnalytics(); }, [fetchAnalytics]);
   function onRefresh() { setRefreshing(true); fetchAnalytics(); }
 
-  const weeklyChartData = (() => {
-    if (weekly?.days) {
-      return weekly.days.map((d) => ({ label: d.label.slice(0, 3), value: period === "semaine" ? d.calls : d.tasks }));
-    }
-    const DOW = ["L", "M", "M", "J", "V", "S", "D"];
-    return DOW.map((l) => ({ label: l, value: 0 }));
-  })();
-
-  const hourlyChartData = (() => {
-    if (hourly?.hours) {
-      return hourly.hours.map((h) => ({ label: h.hour.replace(":00", "h"), value: h.calls }));
-    }
-    const hours = ["8h", "9h", "10h", "11h", "12h", "13h", "14h", "15h", "16h", "17h", "18h"];
-    return hours.map((l) => ({ label: l, value: 0 }));
-  })();
+  // Les deux series passent par `lib/analytics-series`. L'ecran lisait des
+  // formes que l'API ne rend pas : un remplacement de texte sur une heure NUMERIQUE faisait
+  // tomber le rendu des qu'il y avait des appels, et le graphique hebdomadaire
+  // retombait sur sept barres a zero presentees comme une mesure. Sans donnee,
+  // ces fonctions rendent `null` et l'ecran l'annonce.
+  const weeklyChartData = serieHebdomadaire(weekly, period === "semaine" ? "calls" : "tasks");
+  const hourlyChartData = serieHoraire(hourly);
 
   const answeredCalls = data ? data.totalCalls - data.missedCalls : 0;
   const totalTasks = data ? data.pendingTasks + data.completedTasks : 0;
@@ -273,11 +266,23 @@ export default function AnalyticsScreen() {
                   {period === "jour" ? t("analyticsScreen.activityByHour") : t("analyticsScreen.activityByDay")}
                 </Text>
               </View>
-              {period === "jour" ? (
-                <VerticalBarChart data={hourlyChartData} color="#3b82f6" height={80} />
-              ) : (
-                <VerticalBarChart data={weeklyChartData} color={period === "semaine" ? "#3b82f6" : "#8b5cf6"} height={80} />
-              )}
+              {(() => {
+                const serie = period === "jour" ? hourlyChartData : weeklyChartData;
+                if (!serie) {
+                  return (
+                    <Text style={{ color: colors.mutedForeground, fontSize: 13, paddingVertical: 24, textAlign: "center" }}>
+                      {t("analyticsScreen.noData")}
+                    </Text>
+                  );
+                }
+                return (
+                  <VerticalBarChart
+                    data={serie}
+                    color={period === "mois" ? "#8b5cf6" : "#3b82f6"}
+                    height={80}
+                  />
+                );
+              })()}
             </View>
 
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>

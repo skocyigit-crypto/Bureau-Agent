@@ -27,6 +27,7 @@ import { Activity,ArrowDownRight,ArrowUpRight,BarChart3,Brain,CheckSquare,Circle
 import { useEffect,useState } from "react";
 import { Bar,BarChart,CartesianGrid,Cell,Legend,Line,LineChart,Tooltip as RechartsTooltip,ResponsiveContainer,XAxis,YAxis } from "recharts";
 import { Link,useLocation } from "wouter";
+import { affichageVariation, valeurOuTiret } from "@/lib/variation";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -748,24 +749,24 @@ export default function Dashboard() {
           <Card className="bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/10 border-blue-200/50 dark:border-blue-800/30">
             <CardContent className="p-4">
               <div className="text-sm text-blue-600 dark:text-blue-400 font-medium">{t("dashboard.weekly.answerRate")}</div>
-              <div className="text-2xl font-bold mt-1">{weeklyReport.answerRate}%</div>
-              <Progress value={weeklyReport.answerRate} className="h-1.5 mt-2" />
+              <div className="text-2xl font-bold mt-1">{valeurOuTiret(weeklyReport.answerRate, "%")}</div>
+              <Progress value={weeklyReport.answerRate ?? 0} className="h-1.5 mt-2" />
             </CardContent>
           </Card>
           <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-950/30 dark:to-emerald-900/10 border-emerald-200/50 dark:border-emerald-800/30">
             <CardContent className="p-4">
               <div className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">{t("dashboard.weekly.avgDuration")}</div>
-              <div className="text-2xl font-bold mt-1">{formatDuration(weeklyReport.avgDuration)}</div>
+              <div className="text-2xl font-bold mt-1">{weeklyReport.avgDuration === null ? "—" : formatDuration(weeklyReport.avgDuration)}</div>
               <div className="text-xs text-muted-foreground mt-1">
-                {weeklyReport.comparisonPrevWeek.durationDiff > 0 ? '+' : ''}{weeklyReport.comparisonPrevWeek.durationDiff}% {t("dashboard.weekly.vsPrevWeek")}
+                {affichageVariation(weeklyReport.comparisonPrevWeek.durationDiff).texte} {t("dashboard.weekly.vsPrevWeek")}
               </div>
             </CardContent>
           </Card>
           <Card className="bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/10 border-amber-200/50 dark:border-amber-800/30">
             <CardContent className="p-4">
               <div className="text-sm text-amber-600 dark:text-amber-400 font-medium">{t("dashboard.weekly.peakHour")}</div>
-              <div className="text-2xl font-bold mt-1">{t("dashboard.weekly.hourValue", { hour: weeklyReport.peakHour })}</div>
-              <div className="text-xs text-muted-foreground mt-1 capitalize">{t("dashboard.weekly.peakDay", { day: weeklyReport.peakDay })}</div>
+              <div className="text-2xl font-bold mt-1">{weeklyReport.peakHour === null ? "—" : t("dashboard.weekly.hourValue", { hour: weeklyReport.peakHour })}</div>
+              <div className="text-xs text-muted-foreground mt-1 capitalize">{weeklyReport.peakDay === null ? "" : t("dashboard.weekly.peakDay", { day: weeklyReport.peakDay })}</div>
             </CardContent>
           </Card>
           <Card className="bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-950/30 dark:to-purple-900/10 border-purple-200/50 dark:border-purple-800/30">
@@ -773,9 +774,11 @@ export default function Dashboard() {
               <div className="text-sm text-purple-600 dark:text-purple-400 font-medium">{t("dashboard.weekly.callsThisWeek")}</div>
               <div className="text-2xl font-bold mt-1">{weeklyReport.totalCalls}</div>
               <div className="text-xs mt-1">
-                <span className={weeklyReport.comparisonPrevWeek.callsDiff > 0 ? "text-emerald-500" : "text-destructive"}>
-                  {weeklyReport.comparisonPrevWeek.callsDiff > 0 ? '+' : ''}{weeklyReport.comparisonPrevWeek.callsDiff}%
-                </span> {t("dashboard.weekly.vsPrevWeek")}
+                {(() => { const v = affichageVariation(weeklyReport.comparisonPrevWeek.callsDiff); return (
+                <span className={v.sens === "hausse" ? "text-emerald-500" : v.sens === "baisse" ? "text-destructive" : "text-muted-foreground"}>
+                  {v.texte}
+                </span>
+                ); })()} {t("dashboard.weekly.vsPrevWeek")}
               </div>
             </CardContent>
           </Card>

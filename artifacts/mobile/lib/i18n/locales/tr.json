@@ -938,7 +938,8 @@
     "cmpContacts": "Kişiler",
     "cmpPrev": "vs {{prev}}",
     "newProjectTitle": "Analitik projesi",
-    "newProjectNote": "Mobil Analitik sayfasından oluşturuldu"
+    "newProjectNote": "Mobil Analitik sayfasından oluşturuldu",
+    "noData": "Bu dönem için veri yok"
   },
   "activiteRecenteScreen": {
     "header": "Son Etkinlik",

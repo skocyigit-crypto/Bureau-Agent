@@ -938,7 +938,8 @@
     "cmpContacts": "جهات الاتصال",
     "cmpPrev": "مقابل {{prev}}",
     "newProjectTitle": "مشروع تحليلي",
-    "newProjectNote": "أُنشئ من صفحة التحليلات على الجوال"
+    "newProjectNote": "أُنشئ من صفحة التحليلات على الجوال",
+    "noData": "لا توجد بيانات لهذه الفترة"
   },
   "activiteRecenteScreen": {
     "header": "النشاط الأخير",

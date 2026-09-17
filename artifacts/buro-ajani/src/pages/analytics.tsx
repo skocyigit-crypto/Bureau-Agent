@@ -30,6 +30,7 @@ Voicemail,
 Zap
 } from "lucide-react";
 import { useCallback,useEffect,useState } from "react";
+import { affichageVariation, valeurOuTiret } from "@/lib/variation";
 import {
 Area,
 AreaChart,
@@ -529,10 +530,13 @@ export default function Analytics() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="font-bold">{weeklyReport.totalCalls}</span>
-                    <Badge variant={weeklyReport.comparisonPrevWeek.callsDiff > 0 ? "default" : "destructive"} className="gap-1">
-                      {weeklyReport.comparisonPrevWeek.callsDiff > 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                      {weeklyReport.comparisonPrevWeek.callsDiff > 0 ? '+' : ''}{weeklyReport.comparisonPrevWeek.callsDiff}%
+                    {(() => { const v = affichageVariation(weeklyReport.comparisonPrevWeek.callsDiff); return (
+                    <Badge variant={v.sens === "hausse" ? "default" : v.sens === "baisse" ? "destructive" : "secondary"} className="gap-1">
+                      {v.sens === "hausse" && <ArrowUpRight className="h-3 w-3" />}
+                      {v.sens === "baisse" && <ArrowDownRight className="h-3 w-3" />}
+                      {v.texte}
                     </Badge>
+                    ); })()}
                   </div>
                 </div>
                 <Separator />
@@ -542,11 +546,14 @@ export default function Analytics() {
                     <span className="text-sm text-muted-foreground">{t("analyticsPage.kpi.answerRate")}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold">{weeklyReport.answerRate}%</span>
-                    <Badge variant={weeklyReport.comparisonPrevWeek.answerRateDiff > 0 ? "default" : "destructive"} className="gap-1">
-                      {weeklyReport.comparisonPrevWeek.answerRateDiff > 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                      {weeklyReport.comparisonPrevWeek.answerRateDiff > 0 ? '+' : ''}{weeklyReport.comparisonPrevWeek.answerRateDiff}%
+                    <span className="font-bold">{valeurOuTiret(weeklyReport.answerRate, "%")}</span>
+                    {(() => { const v = affichageVariation(weeklyReport.comparisonPrevWeek.answerRateDiff, " pts"); return (
+                    <Badge variant={v.sens === "hausse" ? "default" : v.sens === "baisse" ? "destructive" : "secondary"} className="gap-1">
+                      {v.sens === "hausse" && <ArrowUpRight className="h-3 w-3" />}
+                      {v.sens === "baisse" && <ArrowDownRight className="h-3 w-3" />}
+                      {v.texte}
                     </Badge>
+                    ); })()}
                   </div>
                 </div>
                 <Separator />
@@ -556,11 +563,14 @@ export default function Analytics() {
                     <span className="text-sm text-muted-foreground">{t("analyticsPage.avgDuration")}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold">{Math.floor(weeklyReport.avgDuration / 60)}m {weeklyReport.avgDuration % 60}s</span>
-                    <Badge variant={weeklyReport.comparisonPrevWeek.durationDiff > 0 ? "default" : "destructive"} className="gap-1">
-                      {weeklyReport.comparisonPrevWeek.durationDiff > 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                      {weeklyReport.comparisonPrevWeek.durationDiff > 0 ? '+' : ''}{weeklyReport.comparisonPrevWeek.durationDiff}%
+                    <span className="font-bold">{weeklyReport.avgDuration === null ? "—" : `${Math.floor(weeklyReport.avgDuration / 60)}m ${weeklyReport.avgDuration % 60}s`}</span>
+                    {(() => { const v = affichageVariation(weeklyReport.comparisonPrevWeek.durationDiff); return (
+                    <Badge variant={v.sens === "hausse" ? "default" : v.sens === "baisse" ? "destructive" : "secondary"} className="gap-1">
+                      {v.sens === "hausse" && <ArrowUpRight className="h-3 w-3" />}
+                      {v.sens === "baisse" && <ArrowDownRight className="h-3 w-3" />}
+                      {v.texte}
                     </Badge>
+                    ); })()}
                   </div>
                 </div>
               </div>

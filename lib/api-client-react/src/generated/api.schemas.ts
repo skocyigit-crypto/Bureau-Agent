@@ -772,9 +772,12 @@ export interface TaskStats {
 }
 
 export type WeeklyReportComparisonPrevWeek = {
-  callsDiff: number;
-  answerRateDiff: number;
-  durationDiff: number;
+  /** @nullable */
+  callsDiff: number | null;
+  /** @nullable */
+  answerRateDiff: number | null;
+  /** @nullable */
+  durationDiff: number | null;
 };
 
 export interface WeeklyReport {
@@ -782,13 +785,17 @@ export interface WeeklyReport {
   totalCalls: number;
   answeredCalls: number;
   missedCalls: number;
-  answerRate: number;
-  avgDuration: number;
+  /** @nullable */
+  answerRate: number | null;
+  /** @nullable */
+  avgDuration: number | null;
   newContacts: number;
   completedTasks: number;
   messagesReceived: number;
-  peakHour: number;
-  peakDay: string;
+  /** @nullable */
+  peakHour: number | null;
+  /** @nullable */
+  peakDay: string | null;
   comparisonPrevWeek: WeeklyReportComparisonPrevWeek;
 }
 

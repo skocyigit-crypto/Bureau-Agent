@@ -10,6 +10,7 @@ import { overdueCondition } from "../services/invoice-status";
 import { getOrgId } from "../middleware/tenant";
 import { logger } from "../lib/logger";
 import { zodErrorResponse } from "../lib/zod-error";
+import { ecartPoints, moyenneOuNull, taux, variationPourcent } from "../services/comparaison-hebdo";
 
 const router: IRouter = Router();
 
@@ -446,11 +447,17 @@ router.get("/dashboard/weekly-report", async (req, res): Promise<void> => {
     const twa = thisWeekAnswered[0]?.count ?? 0;
     const pwc = prevWeekCalls[0]?.count ?? 0;
     const pwa = prevWeekAnswered[0]?.count ?? 0;
-    const twAvg = thisWeekDuration[0]?.avg ?? 0;
-    const pwAvg = prevWeekDuration[0]?.avg ?? 0;
+    // ZERO N'EST PAS « INCONNU ».
+    //
+    // Pour une semaine sans appel, ce rapport rendait un taux de reponse de
+    // 0 % (le chiffre d'une equipe qui ne decroche jamais), une duree moyenne
+    // de 0 s, et une variation de 0 % — que l'ecran d'analyse colorait en
+    // rouge, fleche vers le bas. Sans donnee, on rend `null`.
+    const twAvg = moyenneOuNull(thisWeekDuration[0]?.avg, twc);
+    const pwAvg = moyenneOuNull(prevWeekDuration[0]?.avg, pwc);
 
-    const answerRate = twc > 0 ? Math.round((twa / twc) * 1000) / 10 : 0;
-    const prevAnswerRate = pwc > 0 ? Math.round((pwa / pwc) * 1000) / 10 : 0;
+    const answerRate = taux(twa, twc);
+    const prevAnswerRate = taux(pwa, pwc);
 
     const weekLabel = `Semaine du ${weekStart.toLocaleDateString("fr-FR")}`;
 
@@ -460,16 +467,18 @@ router.get("/dashboard/weekly-report", async (req, res): Promise<void> => {
       answeredCalls: twa,
       missedCalls: thisWeekMissed[0]?.count ?? 0,
       answerRate,
-      avgDuration: Math.round(twAvg),
+      avgDuration: twAvg === null ? null : Math.round(twAvg),
       newContacts: newContacts[0]?.count ?? 0,
       completedTasks: completedTasks[0]?.count ?? 0,
       messagesReceived: messagesReceived[0]?.count ?? 0,
-      peakHour: peakHourResult[0]?.hour ?? 9,
-      peakDay: peakDayResult[0]?.day ?? "Lun",
+      // Sans appel, il n'y a pas de pic. « 9 h, lundi » etait une valeur de
+      // repli qui s'affichait sur le tableau de bord comme un fait mesure.
+      peakHour: peakHourResult[0]?.hour ?? null,
+      peakDay: peakDayResult[0]?.day ?? null,
       comparisonPrevWeek: {
-        callsDiff: pwc === 0 ? 0 : Math.round(((twc - pwc) / pwc) * 1000) / 10,
-        answerRateDiff: Math.round((answerRate - prevAnswerRate) * 10) / 10,
-        durationDiff: pwAvg === 0 ? 0 : Math.round(((twAvg - pwAvg) / pwAvg) * 1000) / 10,
+        callsDiff: variationPourcent(twc, pwc),
+        answerRateDiff: ecartPoints(answerRate, prevAnswerRate),
+        durationDiff: variationPourcent(twAvg, pwAvg),
       },
     });
   } catch (err: any) {
