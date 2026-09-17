@@ -6,6 +6,7 @@ import { requireRole } from "../middleware/auth";
 import { logAudit } from "./audit";
 import { logger } from "../lib/logger";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
+import { BOM_CSV, documentCsv } from "../lib/csv";
 
 const router = Router();
 
@@ -365,22 +366,14 @@ router.get("/export/:entity", requireMinAdmin, async (req: Request, res: Respons
     }
 
     if (format === "csv") {
-      if (data.length === 0) { res.set("Content-Type", "text/csv").send(""); return; }
+      if (data.length === 0) { res.set("Content-Type", "text/csv; charset=utf-8").send(BOM_CSV); return; }
       const headers = Object.keys(data[0]);
-      const csvRows = [
-        headers.join(","),
-        ...data.map(row => headers.map(h => {
-          const val = (row as any)[h];
-          if (val === null || val === undefined) return "";
-          const str = String(val);
-          return str.includes(",") || str.includes('"') || str.includes("\n") ? `"${str.replace(/"/g, '""')}"` : str;
-        }).join(","))
-      ];
+      const csv = documentCsv(headers, data.map(row => headers.map(h => (row as any)[h])));
       res.set({
         "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition": `attachment; filename="${entity}_export_${new Date().toISOString().slice(0,10)}.csv"`,
       });
-      res.send(csvRows.join("\n"));
+      res.send(csv);
     } else {
       res.set({
         "Content-Type": "application/json",

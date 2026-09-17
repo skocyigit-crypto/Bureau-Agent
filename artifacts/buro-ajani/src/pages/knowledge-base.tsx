@@ -210,6 +210,9 @@ export default function KnowledgeBasePage() {
             <p className="text-sm text-muted-foreground">
               {t("knowledgeBase.subtitle")}
             </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t("knowledgeBase.publicScopeNotice")}
+            </p>
           </div>
         </div>
         {isAdmin && (

@@ -16,6 +16,7 @@ import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/
 import { zodErrorResponse } from "../lib/zod-error";
 import { notifyOrgUsers, maskPhone } from "../services/whatsapp-notify";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
+import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
 
 const router: IRouter = Router();
 
@@ -211,11 +212,7 @@ const MESSAGES_EXPORT_BATCH = 1000;
 router.get("/messages/export/csv", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
   const headers = ["Type", "Contact", "Numéro", "Contenu", "Priorité", "Lu", "Date"];
-  const escape = (v: any) => {
-    if (v == null) return "";
-    const s = String(v).replace(/"/g, '""');
-    return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s;
-  };
+  const escape = celluleCsv;
   const fmtDate = (d: any) => (d ? new Date(d).toLocaleDateString("fr-FR") : "");
   try {
     let lastId = Number.MAX_SAFE_INTEGER;
@@ -238,14 +235,14 @@ router.get("/messages/export/csv", async (req, res): Promise<void> => {
       if (!wroteHeader) {
         res.setHeader("Content-Type", "text/csv; charset=utf-8");
         res.setHeader("Content-Disposition", `attachment; filename="messages_${Date.now()}.csv"`);
-        res.write("\uFEFF" + headers.join(",") + "\n");
+        res.write("\uFEFF" + headers.join(SEPARATEUR_CSV) + "\n");
         wroteHeader = true;
       }
       if (rows.length === 0) break;
       const chunk = rows.map((r) => [
         escape(r.type), escape(r.contactName), escape(r.phoneNumber),
         escape(r.content), escape(r.priority), r.isRead ? "Oui" : "Non", escape(fmtDate(r.createdAt)),
-      ].join(",")).join("\n");
+      ].join(SEPARATEUR_CSV)).join("\n");
       res.write(chunk + "\n");
       lastId = rows[rows.length - 1].id;
       if (rows.length < MESSAGES_EXPORT_BATCH) break;

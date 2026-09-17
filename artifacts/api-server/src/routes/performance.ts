@@ -2,6 +2,8 @@ import { Router, type IRouter } from "express";
 import { generatePerformanceReport, getPerformanceHistory, gatherUserMetrics } from "../services/performance-analyzer";
 import { requireRole } from "../middleware/auth";
 import { logAudit } from "./audit";
+import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
+import { debutPeriode, idEmploye, periodeValide } from "../services/performance-garde-fous";
 
 const router: IRouter = Router();
 
@@ -31,20 +33,9 @@ router.get("/performance/metriques", reserveAuxResponsables, async (req, res): P
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
   if (!orgId) { res.status(403).json({ error: "Organisation non definie." }); return; }
 
-  const periode = (req.query.periode as string) || "semaine";
+  const periode = periodeValide(req.query.periode);
   const now = new Date();
-  let dateDebut: Date;
-
-  if (periode === "jour") {
-    dateDebut = new Date(now);
-    dateDebut.setHours(0, 0, 0, 0);
-  } else if (periode === "mois") {
-    dateDebut = new Date(now);
-    dateDebut.setMonth(dateDebut.getMonth() - 1);
-  } else {
-    dateDebut = new Date(now);
-    dateDebut.setDate(dateDebut.getDate() - 7);
-  }
+  const dateDebut = debutPeriode(periode, now);
 
   try {
     const metriques = await gatherUserMetrics(dateDebut, now, orgId);
@@ -61,12 +52,12 @@ router.post("/performance/rapport", reserveAuxResponsables, async (req, res): Pr
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
   if (!orgId) { res.status(403).json({ error: "Organisation non definie." }); return; }
 
-  const { periode, employeId } = req.body || {};
-  const validPeriodes = ["jour", "semaine", "mois"];
-  const p = validPeriodes.includes(periode) ? periode : "semaine";
+  const p = periodeValide(req.body?.periode);
+  // `"12" === 12` est faux : le rapport d'un salarie precis revenait vide.
+  const employeId = idEmploye(req.body?.employeId);
 
   try {
-    const rapport = await generatePerformanceReport(p, orgId, employeId || undefined);
+    const rapport = await generatePerformanceReport(p, orgId, employeId);
 
     // Meme trace que l'agent d'equipe (#154), pour la meme raison: une
     // evaluation nominative de salaries doit pouvoir etre expliquee — qui
@@ -113,20 +104,25 @@ router.get("/performance/metriques/export/csv", reserveAuxResponsables, async (r
   const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
   if (!orgId) { res.status(403).json({ error: "Organisation non definie." }); return; }
-  const periode = (req.query.periode as string) || "semaine";
+  const periode = periodeValide(req.query.periode);
   try {
     const now = new Date();
-    const dateDebut = new Date(now);
-    if (periode === "jour") dateDebut.setDate(now.getDate() - 1);
-    else if (periode === "mois") dateDebut.setMonth(now.getMonth() - 1);
-    else dateDebut.setDate(now.getDate() - 7);
+    // Meme definition que l'ecran : « jour » = depuis minuit, pas les dernieres 24 h.
+    const dateDebut = debutPeriode(periode, now);
     const metriques = await gatherUserMetrics(dateDebut, now, orgId);
-    const escape = (v: any) => { if (v == null) return ""; const s = String(v).replace(/"/g, '""'); return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s; };
-    const headers = ["Employé", "Appels", "Durée moy. (min)", "Taux réponse (%)", "Tâches terminées", "Score performance", "Niveau"];
-    const lines = [headers.join(","), ...metriques.map((m: any) => [
-      escape(m.userName || m.userEmail), escape(m.callCount), escape(m.avgDuration),
-      escape(m.answerRate), escape(m.tasksCompleted), escape(m.performanceScore), escape(m.performanceLevel),
-    ].join(","))];
+    // Les colonnes lisaient des champs inexistants (userName, callCount,
+    // performanceScore...) : chaque ligne sortait vide, nom compris.
+    const escape = celluleCsv;
+    const headers = ["Employé", "Email", "Actions", "Connexions", "Appels saisis", "Tâches terminées", "Pointages", "Heures travaillées", "Pauses (min)"];
+    const lines = [headers.map(celluleCsv).join(SEPARATEUR_CSV), ...metriques.map((m) => [
+      escape(`${m.prenom} ${m.nom}`), escape(m.email), escape(m.actionsTotal), escape(m.connexions),
+      escape(m.appelsTraites), escape(m.tachesTerminees), escape(m.pointages), escape(m.heuresTravaillees), escape(m.pausesMinutes),
+    ].join(SEPARATEUR_CSV))];
+    // Exporter les heures et pauses nominatives est une extraction de donnees de
+    // salaries : tracee comme le rapport (RGPD art. 5.2).
+    await logAudit(userId, req.session?.userEmail, "performance_export_csv", "evaluation_salaries", String(orgId),
+      { periode, lignes: metriques.length }, req.ip, req.get("user-agent"),
+    ).catch((err: unknown) => { req.log.warn({ err }, "[performance] trace d'audit export non ecrite"); });
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="performance_${periode}_${Date.now()}.csv"`);
     res.send("\uFEFF" + lines.join("\n"));

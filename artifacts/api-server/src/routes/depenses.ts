@@ -13,6 +13,8 @@ import { requireRole } from "../middleware/auth";
 import { computeDedupeHash, parseDocumentDate } from "../services/expense-capture";
 import { withDbRetry } from "../lib/db-retry";
 import { logger } from "../lib/logger";
+import { archiveDeletedRows, deletionContext } from "../services/trash";
+import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
 
 const router = Router();
 const requireMinAgent = requireRole("super_admin", "administrateur", "agent");
@@ -220,11 +222,7 @@ router.get("/depenses/export", async (req: Request, res: Response): Promise<void
     if (!hasStatus) conds.push(eq(depensesTable.status, "approuve"));
     const baseClause = and(...conds);
 
-    const escape = (v: unknown): string => {
-      if (v == null) return "";
-      const s = String(v).replace(/"/g, '""');
-      return /[";\n]/.test(s) ? `"${s}"` : s;
-    };
+    const escape = celluleCsv;
     const fmtDate = (d: Date | string | null): string => {
       if (!d) return "";
       const dt = d instanceof Date ? d : new Date(d);
@@ -263,7 +261,7 @@ router.get("/depenses/export", async (req: Request, res: Response): Promise<void
       if (!wroteHeader) {
         res.setHeader("Content-Type", "text/csv; charset=utf-8");
         res.setHeader("Content-Disposition", `attachment; filename="depenses_${Date.now()}.csv"`);
-        res.write("\uFEFF" + headers.join(";") + "\n");
+        res.write("\uFEFF" + headers.join(SEPARATEUR_CSV) + "\n");
         wroteHeader = true;
       }
       if (rows.length === 0) break;
@@ -495,11 +493,14 @@ router.delete(
       const deleted = await db
         .delete(depensesTable)
         .where(and(eq(depensesTable.id, id), eq(depensesTable.organisationId, orgId)))
-        .returning({ id: depensesTable.id });
+        .returning();
       if (deleted.length === 0) {
         res.status(404).json({ error: "Dépense introuvable." });
         return;
       }
+      // `depenses` figure dans les tables restaurables, mais sa suppression
+      // n'etait jamais archivee : la corbeille ne la voyait pas.
+      await archiveDeletedRows(depensesTable, deleted, deletionContext(req, orgId));
       res.json({ success: true });
     } catch (err) {
       logger.error({ err }, "[depenses] delete failed");

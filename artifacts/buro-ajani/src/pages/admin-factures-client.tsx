@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Banknote,Edit,FileCode,FileDown,Loader2,Plus,Receipt,RefreshCw,Search,Send,Shield,Trash2 } from "lucide-react";
 import { useCallback,useEffect,useState } from "react";
+import { jourLocal } from "@/lib/jour-local";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 const PAGE_SIZE = 20;
@@ -153,7 +154,7 @@ export default function AdminFacturesClientPage() {
   const [encaissementFacture, setEncaissementFacture] = useState<FactureClient | null>(null);
   const [encMontant, setEncMontant] = useState("");
   const [encMoyen, setEncMoyen] = useState("virement");
-  const [encDate, setEncDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [encDate, setEncDate] = useState(() => jourLocal());
   const [encEnCours, setEncEnCours] = useState(false);
 
   const ouvrirEncaissement = (f: FactureClient) => {
@@ -163,7 +164,7 @@ export default function AdminFacturesClientPage() {
     const reste = Math.max(0, Number(f.totalAmount ?? 0) - Number(f.paidAmount ?? 0));
     setEncMontant(reste > 0 ? reste.toFixed(2) : "");
     setEncMoyen("virement");
-    setEncDate(new Date().toISOString().slice(0, 10));
+    setEncDate(jourLocal());
   };
 
   const enregistrerEncaissement = async () => {
