@@ -14,6 +14,7 @@
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
     "test": "pnpm -r --if-present --workspace-concurrency=1 run test",
     "test:local": "node ./scripts/run-tests-local.mjs",
+    "kapi": "node ./scripts/kapi-locale.mjs",
     "e2e": "playwright test",
     "security:audit": "node ./scripts/security-audit.mjs",
     "lint": "eslint .",

@@ -21,6 +21,7 @@ import { logger } from "../lib/logger";
 import { zodErrorResponse } from "../lib/zod-error";
 import { aiForOrg } from "../services/ai-client";
 import { respondAiError } from "../services/ai-guard";
+import { archiveDeletedRows, deletionContext } from "../services/trash";
 import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
 
 const router: IRouter = Router();
@@ -550,13 +551,17 @@ router.delete("/calls/:id", async (req, res): Promise<void> => {
     const call = await db.transaction(async (tx) => {
       const [deleted] = await tx.delete(callsTable).where(and(eq(callsTable.id, params.data.id), eq(callsTable.organisationId, orgId))).returning();
       if (!deleted) return null;
-      await tx.delete(tasksTable).where(and(eq(tasksTable.relatedCallId, params.data.id), eq(tasksTable.organisationId, orgId)));
-      return deleted;
+      const taches = await tx.delete(tasksTable).where(and(eq(tasksTable.relatedCallId, params.data.id), eq(tasksTable.organisationId, orgId))).returning();
+      return { deleted, taches };
     });
     if (!call) {
       res.status(404).json({ error: "Call not found" });
       return;
     }
+    // Supprimer un appel emportait aussi ses TACHES, sans corbeille ni pour
+    // l'un ni pour les autres. Les deux sont desormais recuperables.
+    await archiveDeletedRows(callsTable, [call.deleted], deletionContext(req, orgId));
+    await archiveDeletedRows(tasksTable, call.taches, deletionContext(req, orgId));
 
     res.sendStatus(204);
   } catch (err: any) {

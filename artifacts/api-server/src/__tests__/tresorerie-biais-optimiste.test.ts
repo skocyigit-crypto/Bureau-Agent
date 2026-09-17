@@ -180,14 +180,38 @@ describe("la TVA ressort de la tresorerie", () => {
   });
 });
 
-describe("ce qui reste a faire est nomme", () => {
-  it("la retenue de garantie n'est toujours pas modelisee", () => {
-    // Troisieme biais mesure, et le seul qui demande une colonne en base: en
-    // BTP, 5 % de chaque facture sont retenus douze mois. Le modele compte
-    // donc 5 % d'encaissements qui n'arriveront pas dans l'horizon.
+describe("la retenue de garantie est desormais retiree des encaissements", () => {
+  it("le troisieme biais est corrige, et ce test a ete ecrit pour le rappeler", () => {
+    // CE TEST ECHOUAIT DELIBEREMENT A L'ENVERS.
     //
-    // Ce test ECHOUERA quand la fonctionnalite sera ajoutee. C'est voulu: il
-    // force a revenir ici plutot qu'a laisser le commentaire mentir.
-    expect(/retenueGarantie|retenue_garantie|holdback/i.test(SOURCE)).toBe(false);
+    // Dans sa version precedente il verifiait que `retenueGarantie` etait
+    // ABSENT du module, pour forcer quelqu'un a revenir ici le jour ou la
+    // fonctionnalite arriverait — plutot que de laisser un commentaire
+    // affirmer un manque qui n'existait plus.
+    //
+    // Ce jour est arrive. Le client retient jusqu'a 5 % et ne les verse qu'un
+    // an apres la reception des travaux: sur un horizon de 90 jours, cette
+    // part n'arrive pratiquement jamais, et elle etait comptee comme un
+    // encaissement ordinaire.
+    expect(SOURCE).toContain("retenueGarantieRate");
+    expect(SOURCE).toContain("cautionBancaire");
+  });
+
+  it("la part retenue est SOUSTRAITE, pas ajoutee", () => {
+    // Le sens est tout: se tromper ici gonflerait les encaissements au lieu
+    // de les reduire, et le modele redeviendrait rassurant.
+    expect(SOURCE).toContain("collectible * (1 - Math.min(100, tauxRetenue) / 100)");
+  });
+
+  it("une caution bancaire annule le retrait", () => {
+    // Art. 2 de la loi: avec une caution, rien n'est retenu et la somme reste
+    // due immediatement. La retirer quand meme rendrait le modele pessimiste
+    // a tort.
+    expect(SOURCE).toContain("if (!r.cautionBancaire &&");
+  });
+
+  it("le taux est borne, un taux aberrant ne peut pas rendre l'encaissement negatif", () => {
+    expect(SOURCE).toContain("Math.max(0, collectible *");
+    expect(SOURCE).toContain("Math.min(100, tauxRetenue)");
   });
 });

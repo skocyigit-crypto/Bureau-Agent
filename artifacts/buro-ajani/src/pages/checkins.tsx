@@ -62,6 +62,7 @@ Wifi
 } from "lucide-react";
 import { useEffect,useMemo,useState } from "react";
 import { useLocation } from "wouter";
+import { jourLocal } from "@/lib/jour-local";
 
 const PAGE_SIZE = 15;
 
@@ -146,8 +147,8 @@ export default function CheckinsPage() {
     notes: "",
   });
   const [googleSync, setGoogleSync] = useState({
-    dateFrom: new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10),
-    dateTo: new Date().toISOString().slice(0, 10),
+    dateFrom: jourLocal(new Date(Date.now() - 7 * 86400000)),
+    dateTo: jourLocal(),
     loading: false,
     result: null as null | { message: string; imported: number; skipped: number; errors: number; details: string[] },
     error: null as string | null,
@@ -939,7 +940,7 @@ export default function CheckinsPage() {
                   value={googleSync.dateTo}
                   onChange={e => setGoogleSync(p => ({ ...p, dateTo: e.target.value }))}
                   min={googleSync.dateFrom}
-                  max={new Date().toISOString().slice(0, 10)}
+                  max={jourLocal()}
                 />
               </div>
             </div>

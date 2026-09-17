@@ -4,6 +4,7 @@ import { contactsTable, callsTable, tasksTable, messagesTable, prospectsTable, d
 import { desc, eq } from "drizzle-orm";
 import { logAudit } from "./audit";
 import { getOrgId } from "../middleware/tenant";
+import { jourLocal } from "../lib/jour-local";
 import { documentCsv } from "../lib/csv";
 
 const router = Router();
@@ -217,7 +218,7 @@ router.get("/export/:entity", async (req: Request, res: Response): Promise<void>
   logAudit(userId, req.session?.userEmail, "export", entity, undefined, { count: data.length }, req.ip, req.get("user-agent"), req.session?.organisationId);
 
   const csv = toCsv(data, columns);
-  const date = new Date().toISOString().split("T")[0];
+  const date = jourLocal(); // date du jour dans le nom de fichier, a Paris
   res.setHeader("Content-Type", "text/csv; charset=utf-8");
   res.setHeader("Content-Disposition", `attachment; filename="${filename}_${date}.csv"`);
   res.send(csv);
