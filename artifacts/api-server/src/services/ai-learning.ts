@@ -328,12 +328,12 @@ export async function mineRecurringPatterns(orgId: number): Promise<number> {
   // Heures de pointe (histogramme par heure locale des appels).
   const hours = await db
     .select({
-      hour: sql<number>`extract(hour from ${callsTable.createdAt})::int`,
+      hour: sql<number>`extract(hour from ${callsTable.createdAt} at time zone 'Europe/Paris')::int`,
       occ: sql<number>`count(*)`,
     })
     .from(callsTable)
     .where(and(eq(callsTable.organisationId, orgId), gte(callsTable.createdAt, since)))
-    .groupBy(sql`extract(hour from ${callsTable.createdAt})::int`)
+    .groupBy(sql`extract(hour from ${callsTable.createdAt} at time zone 'Europe/Paris')::int`)
     .orderBy(desc(sql`count(*)`))
     .limit(TOP_HOURS);
   for (const h of hours) {
@@ -464,7 +464,7 @@ export async function recomputeUserProfile(orgId: number, userId: number): Promi
   // 1) Heures d'activité de l'employé (toute action consignée au journal).
   const hours = await db
     .select({
-      hour: sql<number>`extract(hour from ${auditLogsTable.createdAt})::int`,
+      hour: sql<number>`extract(hour from ${auditLogsTable.createdAt} at time zone 'Europe/Paris')::int`,
       occ: sql<number>`count(*)`,
     })
     .from(auditLogsTable)
@@ -473,7 +473,7 @@ export async function recomputeUserProfile(orgId: number, userId: number): Promi
       eq(auditLogsTable.userId, userId),
       gte(auditLogsTable.createdAt, since),
     ))
-    .groupBy(sql`extract(hour from ${auditLogsTable.createdAt})::int`)
+    .groupBy(sql`extract(hour from ${auditLogsTable.createdAt} at time zone 'Europe/Paris')::int`)
     .orderBy(desc(sql`count(*)`))
     .limit(USER_TOP_HOURS);
   for (const h of hours) {

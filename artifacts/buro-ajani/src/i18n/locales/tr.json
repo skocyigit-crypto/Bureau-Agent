@@ -1567,7 +1567,8 @@
       "correspondance": "Yazışma",
       "technique": "Teknik",
       "juridique": "Hukuki",
-      "comptabilite": "Muhasebe"
+      "comptabilite": "Muhasebe",
+      "public": "Herkese açık (telefon santrali)"
     },
     "parts": {
       "safe": "{{count}} temiz",
@@ -4351,7 +4352,8 @@
       "searchFailed": "Arama başarısız",
       "searchError": "Arama yapılamadı",
       "unknownError": "Bilinmeyen hata"
-    }
+    },
+    "publicScopeNotice": "Yapay zekâ telefon santrali yalnızca «Herkese açık» olarak sınıflandırılan belgeleri (fiyatlar, SSS, çalışma saatleri) kullanır. Faturalar, sözleşmeler ve diğer belgeler yalnızca iç aramada kalır."
   },
   "contactsImport": {
     "title": "CSV İçe Aktarma — Kişiler",

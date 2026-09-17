@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, FlatList, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/components/EmptyState";
@@ -164,11 +164,25 @@ export default function AdminReportsScreen() {
         }),
       });
       if (res.ok) {
+        const data = await res.json().catch(() => ({}));
         setShowForm(false);
         setFormValues({ category: "general", priority: "normal" });
         fetchReports();
+        // Dire ou arrivera la reponse : le formulaire se fermait sans un mot.
+        Alert.alert(
+          t("adminReportsScreen.sentTitle"),
+          data?.reponseParEmailA
+            ? t("adminReportsScreen.sentBody", { email: data.reponseParEmailA })
+            : t("adminReportsScreen.sentNoEmail"),
+        );
+      } else {
+        const data = await res.json().catch(() => ({}));
+        Alert.alert(t("adminReportsScreen.sendFailed"), data?.error ?? String(res.status));
       }
-    } catch (err) { console.warn("[AdminReports] submit failed:", err); } finally { setFormLoading(false); }
+    } catch (err) {
+      console.warn("[AdminReports] submit failed:", err);
+      Alert.alert(t("adminReportsScreen.sendFailed"));
+    } finally { setFormLoading(false); }
   }
 
   async function handleAddUser() {
@@ -192,17 +206,6 @@ export default function AdminReportsScreen() {
         fetchTeam();
       }
     } catch (err) { console.warn("[AdminReports] user submit failed:", err); } finally { setUserFormLoading(false); }
-  }
-
-  async function updateReportStatus(reportId: number, status: string) {
-    try {
-      const res = await fetchAuth(`${API_BASE}/api/admin-reports/${reportId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
-      if (res.ok) fetchReports();
-    } catch (err) { console.warn("[AdminReports] status update failed:", err); }
   }
 
   const ROLE_MAP: Record<string, { label: string; color: string }> = {
@@ -378,20 +381,6 @@ export default function AdminReportsScreen() {
                                 {new Date(item.respondedAt).toLocaleString("fr-FR")}
                               </Text>
                             )}
-                          </View>
-                        )}
-                        {isSuperAdmin && item.status !== "resolu" && (
-                          <View style={styles.adminActions}>
-                            {item.status === "nouveau" && (
-                              <Pressable accessibilityRole="button" onPress={() => updateReportStatus(item.id, "en_cours")} style={[styles.actionBtn, { backgroundColor: "#f59e0b18" }]}>
-                                <Feather name="clock" size={14} color="#f59e0b" />
-                                <Text style={[styles.actionBtnText, { color: "#f59e0b" }]}>{t("adminReportsScreen.actionEnCours")}</Text>
-                              </Pressable>
-                            )}
-                            <Pressable accessibilityRole="button" onPress={() => updateReportStatus(item.id, "resolu")} style={[styles.actionBtn, { backgroundColor: "#22c55e18" }]}>
-                              <Feather name="check" size={14} color="#22c55e" />
-                              <Text style={[styles.actionBtnText, { color: "#22c55e" }]}>{t("adminReportsScreen.actionResoudre")}</Text>
-                            </Pressable>
                           </View>
                         )}
                       </View>

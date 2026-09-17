@@ -1567,7 +1567,8 @@
       "correspondance": "Korrespondenz",
       "technique": "Technisch",
       "juridique": "Rechtlich",
-      "comptabilite": "Buchhaltung"
+      "comptabilite": "Buchhaltung",
+      "public": "Öffentlich (Telefonzentrale)"
     },
     "parts": {
       "safe": "{{count}} sicher",
@@ -4351,7 +4352,8 @@
       "searchFailed": "Suche fehlgeschlagen",
       "searchError": "Suche nicht möglich",
       "unknownError": "Unbekannter Fehler"
-    }
+    },
+    "publicScopeNotice": "Die KI-Telefonzentrale nutzt nur Dokumente der Kategorie „Öffentlich“ (Preise, FAQ, Öffnungszeiten). Rechnungen, Verträge und andere Dokumente bleiben der internen Suche vorbehalten."
   },
   "contactsImport": {
     "title": "CSV-Import — Kontakte",
