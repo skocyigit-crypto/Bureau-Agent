@@ -13,6 +13,7 @@ import {
 import { getOrgId } from "../middleware/tenant";
 import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
 import { zodErrorResponse } from "../lib/zod-error";
+import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
 
 const router: IRouter = Router();
 
@@ -373,16 +374,12 @@ router.get("/contacts/export/csv", async (req, res): Promise<void> => {
       .where(eq(contactsTable.organisationId, orgId))
       .orderBy(asc(contactsTable.lastName));
     const headers = ["Prénom", "Nom", "Email", "Téléphone", "Mobile", "Entreprise", "Catégorie", "Adresse", "Notes", "Créé le"];
-    const escape = (v: any) => {
-      if (v == null) return "";
-      const s = String(v).replace(/"/g, '""');
-      return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s;
-    };
-    const lines = [headers.join(","), ...rows.map(r => [
+    const escape = celluleCsv;
+    const lines = [headers.map(celluleCsv).join(SEPARATEUR_CSV), ...rows.map(r => [
       escape(r.firstName), escape(r.lastName), escape(r.email), escape(r.phone),
       escape(r.mobile), escape(r.company), escape(r.category), escape(r.address),
       escape(r.notes), escape(r.createdAt ? new Date(r.createdAt).toLocaleDateString("fr-FR") : ""),
-    ].join(","))];
+    ].join(SEPARATEUR_CSV))];
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="contacts_${Date.now()}.csv"`);
     res.send("\uFEFF" + lines.join("\n"));
