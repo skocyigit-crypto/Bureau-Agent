@@ -13,6 +13,7 @@ import {
 import { getOrgId } from "../middleware/tenant";
 import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
 import { zodErrorResponse } from "../lib/zod-error";
+import { archiveDeletedRows, deletionContext } from "../services/trash";
 
 const router: IRouter = Router();
 
@@ -323,6 +324,9 @@ router.delete("/contacts/:id", async (req, res): Promise<void> => {
       res.status(404).json({ error: "Contact not found" });
       return;
     }
+    // La suppression GROUPEE passait par la corbeille, la suppression d'UN
+    // contact non : le cas le plus frequent etait le seul irrattrapable.
+    await archiveDeletedRows(contactsTable, [contact], deletionContext(req, orgId));
 
     res.sendStatus(204);
   } catch (err: any) {
