@@ -71,7 +71,7 @@ const FAQ_ITEMS: { q: string; a: string }[] = [
   },
   {
     q: "Comment fonctionne la période d'essai?",
-    a: "Vous disposez de 14 jours d'essai gratuit sur le plan Professionnel, avec toutes les fonctionnalités débloquées : IA, devis, facturation, sauvegarde cloud, conformité juridique. Aucune carte bancaire n'est requise pour commencer."
+    a: "L'essai dure 14 jours, sans carte bancaire. Il ouvre le plan Essai : jusqu'à 3 utilisateurs, 100 contacts et 500 appels, avec les devis, la facturation, l'agenda, la sauvegarde chiffrée et les pages de conformité. Les fonctions d'intelligence artificielle, le suivi de stock et les automatisations appartiennent aux plans payants : vous les activez en choisissant votre plan, pendant ou après l'essai."
   },
   {
     q: "Mes données sont-elles sécurisées?",

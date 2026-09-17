@@ -121,8 +121,13 @@ const router: Router = Router();
 const requireTenantAdmin = requireRole("super_admin", "administrateur");
 
 router.get("/stripe/status", async (_req: Request, res: Response) => {
+  // Sans Stripe Tax, le paiement par carte est refuse (voir
+  // create-checkout-session) : l'annoncer ici evite a l'ecran de proposer un
+  // bouton qui echouera, et le renvoie vers la demande de plan par e-mail.
+  const tvaCalculeeParStripe = process.env.STRIPE_AUTOMATIC_TAX === "1";
   res.json({
-    configured: await isStripeConfigured(),
+    configured: (await isStripeConfigured()) && tvaCalculeeParStripe,
+    tvaCalculeeParStripe,
     prices: {
       starter: Boolean(process.env.STRIPE_PRICE_STARTER),
       professionnel: Boolean(process.env.STRIPE_PRICE_PROFESSIONNEL),
@@ -151,6 +156,23 @@ router.post("/stripe/create-checkout-session", requireTenantAdmin, async (req: R
   const priceId = getPriceIdForPlan(plan);
   if (!priceId) {
     res.status(400).json({ error: `Prix Stripe non configure pour le plan ${plan}` });
+    return;
+  }
+  // TVA : le paiement et la facture doivent porter le MEME montant.
+  //
+  // Les tarifs sont annonces hors taxes, « TVA en sus », et la facture de la
+  // plateforme (services/platform-invoice-issue.ts) ajoute 20 % sans condition.
+  // Si Stripe Tax n'est pas active, Stripe encaisse 29 € et la facture reclame
+  // 34,80 € : le document ne decrit pas la transaction, et la TVA mentionnee
+  // reste due au Tresor meme non encaissee (CGI art. 283-3). On refuse donc de
+  // vendre plutot que d'emettre une facture fausse — c'est une variable
+  // d'environnement a poser, pas un defaut a contourner.
+  if (process.env.STRIPE_AUTOMATIC_TAX !== "1") {
+    logger.error({ orgId, plan }, "[stripe] checkout refuse: STRIPE_AUTOMATIC_TAX absent (TVA non calculee par Stripe)");
+    res.status(503).json({
+      error: "Le paiement par carte est momentanement indisponible. Contactez-nous pour finaliser votre abonnement.",
+      code: "tva_non_configuree",
+    });
     return;
   }
   try {

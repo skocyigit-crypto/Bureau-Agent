@@ -160,9 +160,18 @@ router.get("/data-protection/summary", async (req, res): Promise<void> => {
       },
       myRequests,
       requestTypes: DATA_REQUEST_TYPES,
+      // Pas de « DPO » tant qu'aucun delegue n'est designe aupres de la CNIL.
+      //
+      // L'article 37.7 du RGPD impose, lorsqu'un delegue est designe, de
+      // publier ses coordonnees ET de les communiquer a l'autorite de
+      // controle. Afficher « dpo@ » et « Delegue a la Protection des Donnees »
+      // sans cette designation cree une non-conformite a soi tout seul, et
+      // trompe le client qui croit s'adresser a un delegue. Le point de
+      // contact reste le meme que celui publie sur la politique de
+      // confidentialite : une seule adresse, pas deux.
       dpo: {
-        email: "dpo@agentdebureau.fr",
-        name: "Délégué à la Protection des Données",
+        email: "privacy@agentdebureau.fr",
+        name: "Contact protection des données",
         address: "SK GROUP, 17 rue Saint-Exupéry, 67500 Haguenau, France",
         supervisoryAuthority: { name: "CNIL", url: "https://www.cnil.fr", phone: "+33 1 53 73 22 22" },
       },
