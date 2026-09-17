@@ -220,9 +220,16 @@ A remplir lors de la soumission. Reponses recommandees :
 | Identifiants utilisateur | Oui | Oui | Non |
 | Localisation precise (GPS) | Oui | Oui | Non |
 | Contacts (carnet d'adresses) | Non | - | - |
-| Photos/medias | Non | - | - |
+| Photos/medias | Oui | Oui | Non |
 | Donnees d'utilisation (analytics) | Oui | Non | Non |
 | Diagnostics (crash logs) | Oui | Non | Non |
+
+Justification photos : les justificatifs de depenses et les documents
+sont photographies (NSCameraUsageDescription) ou choisis dans la
+phototheque (NSPhotoLibraryUsageDescription), puis televerses et rattaches
+au dossier du client — donc collectes et lies a l identite, pas seulement
+lus sur l appareil. Ecrans concernes : depenses, document-ai,
+document-import, smart-capture.
 
 Justification GPS : pointage de presence sur sites de travail, decrit
 dans `app.json` (NSLocationAlwaysAndWhenInUseUsageDescription).

@@ -195,11 +195,26 @@ export default function Confidentialite() {
 
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-3">8. Transferts hors UE</h2>
-            <p>Certains sous-traitants (hébergement, email transactionnel) peuvent être situés hors de l'UE. Ces transferts sont encadrés par des garanties appropriées (Clauses Contractuelles Types de la Commission européenne).</p>
+            {/* L'article 13.1(f) du RGPD demande d'identifier le transfert, la
+                garantie invoquee et comment en obtenir copie. « Certains
+                sous-traitants » ne repondait a aucun des trois, alors que
+                l'annexe du DPA nommait deja chaque destinataire : le DPO d'un
+                prospect lit cette page, pas l'annexe. */}
+            <p>Nos sous-traitants et le pays depuis lequel ils traitent vos données&nbsp;:</p>
+            <ul className="list-disc pl-5 space-y-1 mt-2">
+              <li><strong>Google Cloud EMEA Limited</strong> — hébergement, base de données et sauvegardes. Union européenne.</li>
+              <li><strong>Resend</strong> — e-mails transactionnels. États-Unis, sous Clauses Contractuelles Types.</li>
+              <li><strong>Cloudflare</strong> — DNS et acheminement des e-mails entrants. Réseau mondial, sous Clauses Contractuelles Types.</li>
+              <li><strong>Google, Anthropic, OpenAI</strong> — fonctions d'intelligence artificielle, selon la configuration. États-Unis, sous Clauses Contractuelles Types. Lorsque vous renseignez vos propres clés, vous contractez directement avec le fournisseur choisi.</li>
+            </ul>
+            <p className="mt-2">Une copie des garanties (Clauses Contractuelles Types) peut être demandée à <a href="mailto:privacy@agentdebureau.fr" className="text-primary underline">privacy@agentdebureau.fr</a>. La liste complète, avec les finalités, figure à l'annexe 2 du <a href="/dpa" className="text-primary underline">DPA</a>.</p>
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold text-foreground mb-3">9. Contact DPO</h2>
+            {/* « Contact protection des donnees », pas « DPO » : aucun delegue
+                n'est designe aupres de la CNIL, et l'article 37.7 du RGPD lie
+                les deux. */}
+            <h2 className="text-lg font-semibold text-foreground mb-3">9. Contact protection des données</h2>
             <p>Pour toute question relative à la protection de vos données : <a href="mailto:privacy@agentdebureau.fr" className="text-primary underline">privacy@agentdebureau.fr</a></p>
           </div>
         </section>
