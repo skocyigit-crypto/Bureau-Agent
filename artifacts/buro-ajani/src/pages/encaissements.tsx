@@ -29,6 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
 import { AlertTriangle, CheckCircle2, Download, FileCheck2, Loader2, RotateCcw, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { jourLocal } from "@/lib/jour-local";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -52,7 +53,7 @@ export default function EncaissementsPage() {
   const [factureId, setFactureId] = useState("");
   const [montant, setMontant] = useState("");
   const [moyen, setMoyen] = useState<string>("virement");
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => jourLocal());
   const [enregistre, setEnregistre] = useState(false);
 
   const [chaine, setChaine] = useState<Verdict | null>(null);

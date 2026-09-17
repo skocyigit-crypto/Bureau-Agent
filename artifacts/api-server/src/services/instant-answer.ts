@@ -1,4 +1,5 @@
 import { logger } from "../lib/logger";
+import { jourLocal } from "../lib/jour-local";
 
 // ---------------------------------------------------------------------------
 // "Anlık cevap" / boîtes de réponse instantanée (comme Google) : calculatrice,
@@ -1057,7 +1058,7 @@ async function tryPublicHolidays(query: string): Promise<InstantAnswer | null> {
       }).format(new Date(`${iso}T00:00:00`)),
     );
 
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayIso = jourLocal();
   const upcoming = holidays.find((h) => h.date >= todayIso);
 
   if (upcoming && upcoming.date.startsWith(String(year))) {

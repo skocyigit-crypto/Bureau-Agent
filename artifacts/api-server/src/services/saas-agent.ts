@@ -28,6 +28,7 @@ import { logger } from "../lib/logger";
 import { getSuperAdminOrgId } from "../lib/super-admin-org";
 import { gatherSaasAttention, type AttentionItem } from "./saas-attention";
 import { enqueueProposal } from "./proposal-queue";
+import { jourLocal } from "../lib/jour-local";
 
 const TRIAL_GRACE_DAYS = 7;
 
@@ -99,7 +100,7 @@ export async function runSaasAgent(): Promise<SaasAgentRunResult> {
   }
 
   const attention = await gatherSaasAttention();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = jourLocal();
 
   let proposed = 0;
   let duplicates = 0;
