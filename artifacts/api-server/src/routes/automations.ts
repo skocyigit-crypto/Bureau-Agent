@@ -8,6 +8,7 @@ import {
 import { eq, desc, and, sql, gte, inArray } from "drizzle-orm";
 import { logAudit } from "./audit";
 import { documentCsv } from "../lib/csv";
+import { CADENCES, DECLENCHEURS, cadenceConnue, declencheurConnu, lireActions } from "../services/automation-declencheurs";
 
 const router = Router();
 
@@ -239,21 +240,41 @@ router.post("/automations", async (req: Request, res: Response): Promise<void> =
     res.status(403).json({ error: "Acces refuse." }); return;
   }
 
-  const { name, description, type, trigger, conditions, actions, schedule } = req.body;
-  if (!name || !type || !trigger || !actions) {
+  const { name, description, type, trigger, conditions, actions, schedule } = req.body ?? {};
+  if (typeof name !== "string" || !name.trim() || !type || !trigger) {
     res.status(400).json({ error: "Champs obligatoires manquants (name, type, trigger, actions)." });
+    return;
+  }
+  if (name.trim().length > 200) {
+    res.status(400).json({ error: "Nom de regle : 200 caracteres au maximum." });
+    return;
+  }
+  // Une regle avec un declencheur ou une cadence inconnus ne se declenche
+  // jamais correctement : elle doit etre refusee a la saisie, pas acceptee
+  // puis silencieuse (ou pire, declenchee a chaque passage).
+  if (!declencheurConnu(trigger)) {
+    res.status(400).json({ error: "Declencheur inconnu.", declencheurs: [...DECLENCHEURS] });
+    return;
+  }
+  if (schedule !== undefined && schedule !== null && schedule !== "" && !cadenceConnue(schedule)) {
+    res.status(400).json({ error: "Cadence inconnue.", cadences: [...CADENCES] });
+    return;
+  }
+  const actionsLues = lireActions(actions);
+  if (!actionsLues.ok) {
+    res.status(400).json({ error: actionsLues.erreur });
     return;
   }
 
   try {
     const [rule] = await db.insert(automationRulesTable).values({
       organisationId: orgId,
-      name,
-      description: description || null,
+      name: name.trim(),
+      description: typeof description === "string" ? description.slice(0, 2000) : null,
       type,
       trigger,
-      conditions: conditions || null,
-      actions,
+      conditions: conditions && typeof conditions === "object" && !Array.isArray(conditions) ? conditions : null,
+      actions: actionsLues.actions,
       schedule: schedule || null,
       nextRun: schedule ? new Date() : null,
       createdBy: userId,
@@ -283,9 +304,15 @@ router.patch("/automations/:id", async (req: Request, res: Response): Promise<vo
   const { enabled, name, description, schedule, requiresApproval } = req.body;
   const updateData: Record<string, any> = {};
   if (typeof enabled === "boolean") updateData.enabled = enabled;
-  if (typeof name === "string") updateData.name = name;
-  if (typeof description === "string") updateData.description = description;
-  if (typeof schedule === "string") updateData.schedule = schedule;
+  if (typeof name === "string") {
+    if (!name.trim() || name.trim().length > 200) { res.status(400).json({ error: "Nom de regle : 1 a 200 caracteres." }); return; }
+    updateData.name = name.trim();
+  }
+  if (typeof description === "string") updateData.description = description.slice(0, 2000);
+  if (typeof schedule === "string") {
+    if (!cadenceConnue(schedule)) { res.status(400).json({ error: "Cadence inconnue.", cadences: [...CADENCES] }); return; }
+    updateData.schedule = schedule;
+  }
   // null est une valeur SIGNIFIANTE ici (= politique par defaut: les actions
   // sortantes passent par la file, les internes non), pas une absence.
   if (typeof requiresApproval === "boolean" || requiresApproval === null) {

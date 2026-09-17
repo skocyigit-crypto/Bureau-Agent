@@ -439,7 +439,8 @@ async function checkMissedCalls() {
 // Custom rule execution — evaluates trigger + executes actions
 // ---------------------------------------------------------------------------
 
-async function getTriggerItems(rule: any): Promise<any[]> {
+/** Exporte pour les tests : c'est ici que se decide ce qui declenche une regle. */
+export async function getTriggerItems(rule: any): Promise<any[]> {
   const orgId: number | null = rule.organisationId ?? null;
   const conditions = rule.conditions ?? {};
 
@@ -512,8 +513,29 @@ async function getTriggerItems(rule: any): Promise<any[]> {
       );
     }
 
+    case "projet_created": {
+      // Projets crees depuis le dernier passage (2x l'intervalle pour ne rien
+      // rater entre deux executions, comme pour les appels manques).
+      const intervalMs = scheduleToMs(rule.schedule) || 60 * 60 * 1000;
+      const since = new Date(Date.now() - intervalMs * 2);
+      return await withDbRetry(
+        () => db
+          .select({ id: projetsTable.id, title: projetsTable.title, clientName: projetsTable.clientName, createdAt: projetsTable.createdAt })
+          .from(projetsTable)
+          .where(and(
+            gte(projetsTable.createdAt, since),
+            ...(orgId ? [eq(projetsTable.organisationId, orgId)] : []),
+          ))
+          .limit(20),
+        { label: "automation:getTriggerItems:projet_created" },
+      );
+    }
+
     default:
-      return [{ type: rule.trigger }];
+      // Declencheur inconnu : ne RIEN declencher. Le `default` renvoyait un
+      // element factice, donc la regle executait ses actions a chaque passage.
+      logger.warn({ trigger: rule.trigger, rule: rule.name }, "[Automation] Declencheur inconnu: regle ignoree");
+      return [];
   }
 }
 
