@@ -2418,7 +2418,11 @@
       "administrateur": "Admin",
       "agent": "Agente",
       "lecture_seule": "Lectura"
-    }
+    },
+    "sentTitle": "Informe enviado al soporte",
+    "sentBody": "La respuesta se enviará por correo a {{email}}.",
+    "sentNoEmail": "Informe guardado, pero su cuenta no tiene correo electrónico: escriba a support@agentdebureau.fr.",
+    "sendFailed": "No se pudo enviar"
   },
   "reportsScreen": {
     "headerTitle": "Informes y Tickets",

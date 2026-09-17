@@ -2418,7 +2418,11 @@
       "administrateur": "Admin",
       "agent": "Agent",
       "lecture_seule": "Read"
-    }
+    },
+    "sentTitle": "Report sent to support",
+    "sentBody": "The reply will be emailed to {{email}}.",
+    "sentNoEmail": "Report saved, but your account has no email address: please write to support@agentdebureau.fr.",
+    "sendFailed": "Could not send"
   },
   "reportsScreen": {
     "headerTitle": "Reports & Tickets",
