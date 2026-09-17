@@ -7,7 +7,10 @@
  */
 
 export type WeeklyReportComparisonPrevWeek = {
-  callsDiff: number;
-  answerRateDiff: number;
-  durationDiff: number;
+  /** @nullable */
+  callsDiff: number | null;
+  /** @nullable */
+  answerRateDiff: number | null;
+  /** @nullable */
+  durationDiff: number | null;
 };

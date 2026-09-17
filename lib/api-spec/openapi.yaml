@@ -3748,6 +3748,10 @@ components:
       required: [totalTasks, completedTasks, inProgressTasks, pendingTasks, cancelledTasks, completionRate, overdueTasks, highPriorityPending, byPriority]
 
     WeeklyReport:
+      # Les indicateurs derives sont NULLABLES. Pour une semaine sans appel, ce
+      # rapport rendait peakHour=9, peakDay="Lun", answerRate=0 et des variations
+      # a 0 % — des valeurs de repli affichees comme des faits mesures. Zero
+      # n'est pas « inconnu » : sans donnee, le serveur rend null.
       type: object
       properties:
         weekLabel:
@@ -3759,9 +3763,9 @@ components:
         missedCalls:
           type: integer
         answerRate:
-          type: number
+          type: ["number", "null"]
         avgDuration:
-          type: number
+          type: ["number", "null"]
         newContacts:
           type: integer
         completedTasks:
@@ -3769,18 +3773,18 @@ components:
         messagesReceived:
           type: integer
         peakHour:
-          type: integer
+          type: ["integer", "null"]
         peakDay:
-          type: string
+          type: ["string", "null"]
         comparisonPrevWeek:
           type: object
           properties:
             callsDiff:
-              type: number
+              type: ["number", "null"]
             answerRateDiff:
-              type: number
+              type: ["number", "null"]
             durationDiff:
-              type: number
+              type: ["number", "null"]
           required: [callsDiff, answerRateDiff, durationDiff]
       required: [weekLabel, totalCalls, answeredCalls, missedCalls, answerRate, avgDuration, newContacts, completedTasks, messagesReceived, peakHour, peakDay, comparisonPrevWeek]
 

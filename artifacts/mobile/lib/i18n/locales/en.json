@@ -938,7 +938,8 @@
     "cmpContacts": "Contacts",
     "cmpPrev": "vs {{prev}}",
     "newProjectTitle": "Analytics project",
-    "newProjectNote": "Created from the mobile Analytics page"
+    "newProjectNote": "Created from the mobile Analytics page",
+    "noData": "No data for this period"
   },
   "activiteRecenteScreen": {
     "header": "Recent Activity",
