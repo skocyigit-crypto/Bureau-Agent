@@ -433,9 +433,17 @@ router.get("/invitations/verify/:token", async (req: Request, res: Response): Pr
 router.post("/invitations/accept/:token", async (req: Request, res: Response): Promise<void> => {
   const rawToken = String(req.params.token);
   const tokenHash = hashToken(rawToken);
-  const { nom, prenom, password } = req.body;
+  // Noms bornes a la colonne (varchar 100) : au-dela l'insertion faisait un
+  // 500 ; un nombre donnait l'avatar « UNDEFINED ».
+  const nom = typeof req.body?.nom === "string" ? req.body.nom.trim().replace(/s+/g, " ") : "";
+  const prenom = typeof req.body?.prenom === "string" ? req.body.prenom.trim().replace(/s+/g, " ") : "";
+  const password = req.body?.password;
 
-  if (!nom || !prenom || !password) {
+  if (nom.length > 100 || prenom.length > 100) {
+    res.status(400).json({ error: "Nom et prenom : 100 caracteres au maximum." });
+    return;
+  }
+  if (!nom || !prenom || !password || typeof password !== "string") {
     res.status(400).json({ error: "Nom, prenom et mot de passe sont obligatoires." });
     return;
   }
@@ -471,19 +479,38 @@ router.post("/invitations/accept/:token", async (req: Request, res: Response): P
       return;
     }
 
-    const [org] = await db.select({ name: organisationsTable.name })
+    const [org] = await db.select({ name: organisationsTable.name, actif: organisationsTable.actif })
       .from(organisationsTable).where(eq(organisationsTable.id, invitation.organisationId));
+    if (!org || !org.actif) {
+      res.status(410).json({ error: "L'organisation qui vous a invite n'est plus active." });
+      return;
+    }
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-    const avatar = `${(prenom as string)[0]}${(nom as string)[0]}`.toUpperCase();
+    const avatar = `${prenom[0]}${nom[0]}`.toUpperCase();
 
-    const [newUser] = await db.insert(usersTable).values({
+    // Transaction : l'invitation est reclamee atomiquement (status pending ->
+    // accepted) AVANT de creer le compte. Deux clics « Creer mon compte »
+    // passaient tous deux le controle ci-dessus ; le second tombait sur la
+    // contrainte d'unicite de l'email et repondait 500.
+    const cree = await db.transaction(async (tx) => {
+      const reclamee = await tx.update(invitationsTable).set({
+        status: "accepted",
+        acceptedAt: new Date(),
+      }).where(and(
+        eq(invitationsTable.id, invitation.id),
+        eq(invitationsTable.status, "pending"),
+        sql`${invitationsTable.expiresAt} > NOW()`,
+      )).returning({ id: invitationsTable.id });
+      if (reclamee.length === 0) return null;
+
+      const [u] = await tx.insert(usersTable).values({
       email: invitation.email,
       passwordHash,
       nom,
       prenom,
       role: invitation.role,
-      organisation: org?.name || "Ajant Bureau",
+      organisation: org.name || "Ajant Bureau",
       organisationId: invitation.organisationId,
       avatar,
     }).returning({
@@ -493,11 +520,13 @@ router.post("/invitations/accept/:token", async (req: Request, res: Response): P
       prenom: usersTable.prenom,
       role: usersTable.role,
     });
-
-    await db.update(invitationsTable).set({
-      status: "accepted",
-      acceptedAt: new Date(),
-    }).where(eq(invitationsTable.id, invitation.id));
+      return u;
+    });
+    if (!cree) {
+      res.status(410).json({ error: "Cette invitation a deja ete utilisee." });
+      return;
+    }
+    const newUser = cree;
 
     // Prevention de la fixation de session avant d'attacher l'identite.
     await new Promise<void>((resolve, reject) => req.session.regenerate((e) => e ? reject(e) : resolve()));
