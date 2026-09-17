@@ -12,6 +12,7 @@ import { triggerExpenseCapture } from "../services/expense-capture";
 import { getGmailForUser, handleGoogleApiError } from "../lib/google-auth";
 import { dlpBlocksOutgoing } from "../services/outgoing-dlp";
 import { aiForOrg } from "../services/ai-client";
+import { adresseSure, enteteSure, objetEncode } from "../services/entetes-courriel";
 
 const router = Router();
 
@@ -248,12 +249,24 @@ router.post("/gmail/send", async (req: Request, res: Response): Promise<void> =>
     const gmail = await getGmailForUser(userId);
     if (!gmail) { res.status(403).json({ error: "non_connecte" }); return; }
 
-    const { to, subject, body, cc, bcc, isHtml = true } = req.body;
+    const { to, subject, body, cc, bcc, isHtml = true } = req.body ?? {};
     if (!to || !subject || !body) {
       res.status(400).json({ error: "Destinataire, objet et corps requis." }); return;
     }
 
-    if (dlpBlocksOutgoing(req, res, userId, to, subject, body)) return;
+    // Entetes : refuser avant toute chose ce qui pourrait en ajouter un autre
+    // (un « \r\nBcc: » dans le destinataire ajoutait une copie cachee que ni
+    // l'ecran ni le controle DLP ne voyaient).
+    const destinataires = adresseSure(to);
+    const copie = cc === undefined || cc === null || cc === "" ? "" : adresseSure(cc);
+    const copieCachee = bcc === undefined || bcc === null || bcc === "" ? "" : adresseSure(bcc);
+    const objet = objetEncode(subject);
+    if (destinataires === null || copie === null || copieCachee === null || objet === null) {
+      res.status(400).json({ error: "Destinataire ou objet invalide." }); return;
+    }
+    if (typeof body !== "string") { res.status(400).json({ error: "Corps du message invalide." }); return; }
+
+    if (dlpBlocksOutgoing(req, res, userId, destinataires, subject, body)) return;
 
     const profile = await gmail.users.getProfile({ userId: "me" });
     const fromEmail = profile.data.emailAddress;
@@ -261,10 +274,10 @@ router.post("/gmail/send", async (req: Request, res: Response): Promise<void> =>
 
     const emailLines = [
       `From: ${fromEmail}`,
-      `To: ${to}`,
-      ...(cc ? [`Cc: ${cc}`] : []),
-      ...(bcc ? [`Bcc: ${bcc}`] : []),
-      `Subject: =?utf-8?B?${Buffer.from(subject).toString("base64")}?=`,
+      `To: ${destinataires}`,
+      ...(copie ? [`Cc: ${copie}`] : []),
+      ...(copieCachee ? [`Bcc: ${copieCachee}`] : []),
+      `Subject: ${objet}`,
       `Content-Type: ${contentType}; charset=utf-8`,
       `MIME-Version: 1.0`,
       "",
@@ -287,12 +300,22 @@ router.post("/gmail/reply", async (req: Request, res: Response): Promise<void> =
     const gmail = await getGmailForUser(userId);
     if (!gmail) { res.status(403).json({ error: "non_connecte" }); return; }
 
-    const { messageId, threadId, to, subject, body, cc } = req.body;
+    const { messageId, threadId, to, subject, body, cc } = req.body ?? {};
     if (!to || !body) {
       res.status(400).json({ error: "Destinataire et corps requis." }); return;
     }
 
-    if (dlpBlocksOutgoing(req, res, userId, to, subject || "", body)) return;
+    const destinataires = adresseSure(to);
+    const copie = cc === undefined || cc === null || cc === "" ? "" : adresseSure(cc);
+    // `In-Reply-To` et `References` viennent aussi de la requete : un
+    // identifiant de message avec saut de ligne ajouterait un entete.
+    const idMessage = messageId === undefined || messageId === null || messageId === "" ? "" : enteteSure(messageId, 250);
+    if (destinataires === null || copie === null || idMessage === null) {
+      res.status(400).json({ error: "Destinataire ou message cite invalide." }); return;
+    }
+    if (typeof body !== "string") { res.status(400).json({ error: "Corps du message invalide." }); return; }
+
+    if (dlpBlocksOutgoing(req, res, userId, destinataires, subject || "", body)) return;
 
     const profile = await gmail.users.getProfile({ userId: "me" });
     const fromEmail = profile.data.emailAddress;
@@ -300,10 +323,10 @@ router.post("/gmail/reply", async (req: Request, res: Response): Promise<void> =
 
     const emailLines = [
       `From: ${fromEmail}`,
-      `To: ${to}`,
-      ...(cc ? [`Cc: ${cc}`] : []),
-      `Subject: =?utf-8?B?${Buffer.from(replySubject).toString("base64")}?=`,
-      ...(messageId ? [`In-Reply-To: ${messageId}`, `References: ${messageId}`] : []),
+      `To: ${destinataires}`,
+      ...(copie ? [`Cc: ${copie}`] : []),
+      `Subject: ${objetEncode(replySubject) ?? objetEncode("Re:")}`,
+      ...(idMessage ? [`In-Reply-To: ${idMessage}`, `References: ${idMessage}`] : []),
       `Content-Type: text/html; charset=utf-8`,
       `MIME-Version: 1.0`,
       "",
