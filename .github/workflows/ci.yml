@@ -322,12 +322,14 @@ jobs:
       - name: Install Chromium
         run: pnpm exec playwright install --with-deps chromium
 
+      # Meme chaine que le job « test » et que deploy/cloudbuild.yaml, dans le
+      # meme ordre. La premiere version sautait ensure-search-extensions: sans
+      # la fonction f_unaccent, la recherche insensible aux accents echoue et
+      # le tableau de bord repond 500 — le job l a vu des son premier passage.
       - name: Push DB schema
         working-directory: lib/db
         run: |
-          pnpm exec drizzle-kit push --force --config ./drizzle.config.ts
-          node ./scripts/ensure-user-quota.mjs
-          node ./scripts/ensure-user-sessions.mjs
+          pnpm run push-force
 
       - name: Build API
         run: pnpm --filter @workspace/api-server run build
