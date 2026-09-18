@@ -25,7 +25,8 @@ import {
   verifierChaine,
   type EcritureChainee,
 } from "../services/chainage-encaissements";
-import { calculerCloture, periodeClose, verifierConservation } from "../services/cloture-comptable";
+import { calculerCloture, verifierConservation } from "../services/cloture-comptable";
+import { enregistrerEncaissement } from "../services/encaissement-enregistrement";
 import { construireArchive, nomArchive } from "../services/archivage-comptable";
 import { nomAttestation, redigerAttestation } from "../services/attestation-conformite";
 
@@ -111,114 +112,51 @@ router.post("/encaissements", async (req: Request, res: Response): Promise<void>
   const forcer = req.body?.forcer === true;
 
   try {
-    const resultat = await db.transaction(async (tx) => {
-      // La facture doit appartenir a l'organisation: un identifiant fourni par
-      // l'appelant n'est jamais fiable.
-      const [facture] = await tx.select({ id: facturesClientTable.id, devise: facturesClientTable.currency, total: facturesClientTable.totalAmount })
-        .from(facturesClientTable)
-        .where(and(eq(facturesClientTable.id, Number(factureId)), eq(facturesClientTable.organisationId, orgId)));
-      if (!facture) return { erreur: "Facture introuvable." as const };
-
-      if (!forcer) {
-        // Le reste du se lit dans les ECRITURES, pas dans le cache `paidAmount`:
-        // c'est la chaine d'encaissements qui fait foi (annulations comprises).
-        const lignes = await tx.select().from(encaissementsTable)
-          .where(and(eq(encaissementsTable.organisationId, orgId), eq(encaissementsTable.factureId, facture.id)))
-          .orderBy(encaissementsTable.numero);
-        const dejaRegle = soldeFacture(enEcritures(lignes), facture.id);
-        const totalCentimes = Math.round(Number(facture.total ?? 0) * 100);
-        if (totalCentimes > 0 && dejaRegle + centimes > totalCentimes) {
-          return { erreurTrop: { resteCentimes: Math.max(0, totalCentimes - dejaRegle), totalCentimes, dejaRegle } };
-        }
-      }
-
-      // Anti-datation: on REFUSE une ecriture datee dans une periode deja
-      // close. Sans ce refus, l'anti-fraude serait contournable par le bas —
-      // il suffirait d'anti-dater pour glisser un encaissement sous un cumul
-      // deja fige. La verification le signalerait bien, mais apres coup, et
-      // sans pouvoir dire lequel des deux nombres est le bon.
-      const clotures = await tx.select().from(cloturesComptablesTable)
-        .where(eq(cloturesComptablesTable.organisationId, orgId));
-      const close = periodeClose(
-        quand.toISOString(),
-        clotures.map((c) => ({
-          organisationId: c.organisationId,
-          type: c.type as "journaliere" | "mensuelle" | "annuelle",
-          periode: c.periode,
-          premierNumero: c.premierNumero,
-          dernierNumero: c.dernierNumero,
-          nbEcritures: c.nbEcritures,
-          totalPeriodeCentimes: c.totalPeriodeCentimes,
-          totalCumuleCentimes: c.totalCumuleCentimes,
-          empreintePrecedente: c.empreintePrecedente,
-          empreinte: c.empreinte,
-        })),
-      );
-      if (close) return { erreurPeriode: close.periode as string };
-
-      const [derniere] = await tx.select().from(encaissementsTable)
-        .where(eq(encaissementsTable.organisationId, orgId))
-        .orderBy(desc(encaissementsTable.numero)).limit(1);
-
-      const ecriture = preparerEcriture({
-        organisationId: orgId,
-        factureId: facture.id,
-        montantCentimes: centimes,
-        devise: facture.devise ?? "EUR",
-        moyen,
-        dateEncaissement: quand.toISOString(),
-        sens: "encaissement",
-        annuleNumero: null,
-      }, derniere ? { numero: derniere.numero, empreinte: derniere.empreinte } : null);
-
-      const [ligne] = await tx.insert(encaissementsTable).values({
-        organisationId: ecriture.organisationId,
-        numero: ecriture.numero,
-        factureId: ecriture.factureId,
-        montantCentimes: ecriture.montantCentimes,
-        devise: ecriture.devise,
-        moyen: ecriture.moyen,
-        dateEncaissement: quand,
-        sens: ecriture.sens,
-        annuleNumero: ecriture.annuleNumero,
-        empreintePrecedente: ecriture.empreintePrecedente,
-        empreinte: ecriture.empreinte,
-        createdBy: req.session?.userId ?? null,
-      }).returning({ id: encaissementsTable.id, numero: encaissementsTable.numero });
-
-      await rafraichirCache(orgId, facture.id, tx);
-      return { ligne, empreinte: ecriture.empreinte };
+    // L ECRITURE VIT DANS UN SERVICE (services/encaissement-enregistrement.ts).
+    //
+    // Elle etait ecrite ici, et les routes d administration ecrivaient de leur
+    // cote le cache paidAmount sans creer aucune ecriture — donc un reglement
+    // que la chaine ignorait, et que le prochain encaissement effacait. Une
+    // seule facon d encaisser, pour toutes les portes.
+    const resultat = await enregistrerEncaissement({
+      organisationId: orgId,
+      factureId: Number(factureId),
+      montantCentimes: centimes,
+      moyen,
+      quand,
+      forcer,
+      createdBy: req.session?.userId ?? null,
     });
 
-    if ("erreur" in resultat) { res.status(404).json({ error: resultat.erreur }); return; }
-    if ("erreurTrop" in resultat) {
-      const resteCentimes = resultat.erreurTrop?.resteCentimes ?? 0;
+    if (!resultat.ok && resultat.code === "facture_introuvable") { res.status(404).json({ error: "Facture introuvable." }); return; }
+    if (!resultat.ok && resultat.code === "depasse_reste_a_payer") {
+      const resteCentimes = resultat.resteCentimes;
       res.status(409).json({
         error: resteCentimes === 0
           ? "Cette facture est deja entierement reglee."
           : `Ce montant depasse le reste a payer (${(resteCentimes / 100).toFixed(2)}).`,
         resteAPayer: (resteCentimes / 100).toFixed(2),
         code: "depasse_reste_a_payer",
-        remediation: "Corrigez le montant, ou renvoyez la demande avec `forcer: true` s'il s'agit reellement d'un trop-percu.",
+        remediation: "Corrigez le montant, ou renvoyez la demande avec `forcer: true` s il s agit reellement d un trop-percu.",
       });
       return;
     }
-    if ("erreurPeriode" in resultat) {
+    if (!resultat.ok) {
       res.status(409).json({
-        error: `La periode ${resultat.erreurPeriode} est close: aucun encaissement ne peut y etre ajoute.`,
-        remediation: "Enregistrez l'encaissement a sa date reelle, ou passez par une ecriture sur la periode ouverte.",
+        error: `La periode ${resultat.periode} est close: aucun encaissement ne peut y etre ajoute.`,
+        remediation: "Enregistrez l encaissement a sa date reelle, ou passez par une ecriture sur la periode ouverte.",
       });
       return;
     }
 
     await logAudit(req.session?.userId, req.session?.userEmail, "encaissement_enregistre",
-      "encaissement", String(resultat.ligne.numero),
+      "encaissement", String(resultat.numero),
       { factureId: Number(factureId), montantCentimes: centimes, moyen }, req.ip, req.get("user-agent"), orgId);
 
-    res.status(201).json({ numero: resultat.ligne.numero, empreinte: resultat.empreinte });
+    res.status(201).json({ numero: resultat.numero, empreinte: resultat.empreinte });
   } catch (err: any) {
     req.log.error({ err }, "Erreur enregistrement encaissement");
-    res.status(500).json({ error: "Erreur lors de l'enregistrement." });
+    res.status(500).json({ error: "Erreur lors de l enregistrement." });
   }
 });
 

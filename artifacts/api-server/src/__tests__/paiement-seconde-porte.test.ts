@@ -280,3 +280,50 @@ describe("un reglement laisse une ecriture dans le journal", () => {
     expect(ligne.moyen).toBe("virement");
   });
 });
+
+/**
+ * Une seule ecriture possible, pour toutes les portes.
+ *
+ * La regle (numero continu, empreinte chainee, refus d'une periode close,
+ * refus d'un montant superieur au reste du) etait ecrite dans la route
+ * `/api/encaissements`. Les routes d'administration, elles, ecrivaient le
+ * cache. Tant que la regle vit dans une route, une autre route peut la
+ * contourner sans que rien ne le signale.
+ */
+describe("l'ecriture de caisse vit dans un service", () => {
+  const encaissements = readFileSync(
+    join(import.meta.dirname, "..", "routes", "encaissements.ts"), "utf8",
+  );
+  const licence = readFileSync(
+    join(import.meta.dirname, "..", "routes", "license-management.ts"), "utf8",
+  );
+
+  it("la route /encaissements passe par le service", () => {
+    expect(encaissements).toMatch(/enregistrerEncaissement\(\{/);
+  });
+
+  it("les routes d'administration aussi", () => {
+    const appels = licence.match(/await enregistrerEncaissement\(\{/g) ?? [];
+    expect(appels.length, "record-payment et mark-invoice-paid doivent l'appeler").toBe(2);
+  });
+
+  it("le cache n'est jamais ecrit depuis une valeur qui ne vient pas de la chaine", () => {
+    // La regle n'est pas « ne jamais ecrire paidAmount » — il FAUT l'ecrire,
+    // c'est un cache. C'est sa SOURCE qui compte: seul un recalcul par
+    // `soldeFacture` sur les ecritures peut l'alimenter. Une valeur calculee
+    // a partir du cache precedent, ou fournie par l'appelant, est le defaut
+    // qu'on vient de retirer.
+    // On ne regarde que les ECRITURES: un `paidAmount` dans un SELECT ou dans
+    // une reponse JSON est une lecture, elle ne pose aucun probleme.
+    for (const [nom, source] of [["encaissements", encaissements], ["license-management", licence]] as const) {
+      for (const bloc of source.matchAll(/\.set\(\{[\s\S]{0,400}?\}\)/g)) {
+        if (!/paidAmount:/.test(bloc[0])) continue;
+        const avant = source.slice(Math.max(0, bloc.index - 600), bloc.index);
+        expect(
+          /soldeFacture\(/.test(avant),
+          `${nom}: paidAmount ecrit sans recalcul de la chaine — « ${bloc[0].replace(/\s+/g, " ").slice(0, 90)} »`,
+        ).toBe(true);
+      }
+    }
+  });
+});
