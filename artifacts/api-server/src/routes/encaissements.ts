@@ -96,15 +96,41 @@ router.post("/encaissements", async (req: Request, res: Response): Promise<void>
     res.status(400).json({ error: "Date d'encaissement invalide." });
     return;
   }
+  // Un encaissement est un fait CONSTATE: il ne se date pas dans l'avenir.
+  // Mesure du 18/09 sur le banc: une date en 2090 etait acceptee, et entrait
+  // dans la chaine d'empreintes — donc impossible a corriger autrement que par
+  // une ecriture d'annulation. La tolerance d'un jour absorbe les decalages de
+  // fuseau d'un client qui saisit « aujourd'hui » depuis un autre continent.
+  if (quand.getTime() > Date.now() + 24 * 60 * 60 * 1000) {
+    res.status(400).json({ error: "Date d'encaissement dans le futur: un encaissement se constate, il ne s'annonce pas." });
+    return;
+  }
+  // Un encaissement superieur au reste a payer est presque toujours une faute
+  // de frappe (1000 pour 100). Il reste possible — un client paie parfois trop
+  // — mais il doit etre VOULU: sans `forcer`, on refuse en disant le reste du.
+  const forcer = req.body?.forcer === true;
 
   try {
     const resultat = await db.transaction(async (tx) => {
       // La facture doit appartenir a l'organisation: un identifiant fourni par
       // l'appelant n'est jamais fiable.
-      const [facture] = await tx.select({ id: facturesClientTable.id, devise: facturesClientTable.currency })
+      const [facture] = await tx.select({ id: facturesClientTable.id, devise: facturesClientTable.currency, total: facturesClientTable.totalAmount })
         .from(facturesClientTable)
         .where(and(eq(facturesClientTable.id, Number(factureId)), eq(facturesClientTable.organisationId, orgId)));
       if (!facture) return { erreur: "Facture introuvable." as const };
+
+      if (!forcer) {
+        // Le reste du se lit dans les ECRITURES, pas dans le cache `paidAmount`:
+        // c'est la chaine d'encaissements qui fait foi (annulations comprises).
+        const lignes = await tx.select().from(encaissementsTable)
+          .where(and(eq(encaissementsTable.organisationId, orgId), eq(encaissementsTable.factureId, facture.id)))
+          .orderBy(encaissementsTable.numero);
+        const dejaRegle = soldeFacture(enEcritures(lignes), facture.id);
+        const totalCentimes = Math.round(Number(facture.total ?? 0) * 100);
+        if (totalCentimes > 0 && dejaRegle + centimes > totalCentimes) {
+          return { erreurTrop: { resteCentimes: Math.max(0, totalCentimes - dejaRegle), totalCentimes, dejaRegle } };
+        }
+      }
 
       // Anti-datation: on REFUSE une ecriture datee dans une periode deja
       // close. Sans ce refus, l'anti-fraude serait contournable par le bas —
@@ -165,6 +191,18 @@ router.post("/encaissements", async (req: Request, res: Response): Promise<void>
     });
 
     if ("erreur" in resultat) { res.status(404).json({ error: resultat.erreur }); return; }
+    if ("erreurTrop" in resultat) {
+      const resteCentimes = resultat.erreurTrop?.resteCentimes ?? 0;
+      res.status(409).json({
+        error: resteCentimes === 0
+          ? "Cette facture est deja entierement reglee."
+          : `Ce montant depasse le reste a payer (${(resteCentimes / 100).toFixed(2)}).`,
+        resteAPayer: (resteCentimes / 100).toFixed(2),
+        code: "depasse_reste_a_payer",
+        remediation: "Corrigez le montant, ou renvoyez la demande avec `forcer: true` s'il s'agit reellement d'un trop-percu.",
+      });
+      return;
+    }
     if ("erreurPeriode" in resultat) {
       res.status(409).json({
         error: `La periode ${resultat.erreurPeriode} est close: aucun encaissement ne peut y etre ajoute.`,
