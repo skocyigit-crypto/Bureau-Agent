@@ -15,6 +15,7 @@ import { guardian } from "./middleware/guardian";
 import { cleLimiteApplicative, rateLimitKey } from "./lib/request-ip";
 import { recordHttpStatus } from "./services/health-agents-external";
 import { limiteCorpsBase64, TAILLE_MAX_BASE64_MO } from "./lib/limites-televersement";
+import { consommeBudgetIa } from "./services/limite-ia-chemins";
 import { resolveAllowedOrigins } from "./lib/origines-autorisees";
 
 const app: Express = express();
@@ -452,7 +453,13 @@ app.use(sessionMiddleware);
 app.use(guardian);
 app.use(ipProtection);
 
-app.use("/api/ai", aiLimiter);
+// Le budget IA (15 appels/minute) ne doit etre consomme que par ce qui
+// appelle un modele : voir services/limite-ia-chemins.ts. Les lectures d etat
+// restent bornees par le limiteur general.
+app.use("/api/ai", (req: Request, res: Response, next: NextFunction) => {
+  if (!consommeBudgetIa(req.method, req.path)) return next();
+  return aiLimiter(req, res, next);
+});
 // /api/voice englobe les webhooks voix Twilio (/api/voice/twilio/*). Ceux-ci
 // NE doivent PAS passer par aiLimiter (base sur l'IP) sinon tous les tenants
 // partageant les IPs sortantes de Twilio s'etranglent mutuellement — c'est
