@@ -122,3 +122,73 @@ describe("approbation", () => {
     try { await db.delete(organisationsTable).where(eq(organisationsTable.id, autre!.id)); } catch { /* best-effort */ }
   });
 });
+
+/**
+ * Modifier ce qui a ete approuve rouvre l'approbation.
+ *
+ * Mesure le 18/09 sur le banc: une depense approuvee a 250 EUR passait a
+ * 5 000 EUR et restait « approuvee », avec le nom du responsable encore inscrit
+ * comme relecteur. L'approbation couvrait un montant que personne n'avait
+ * valide, et l'operation ne demandait aucun privilege.
+ */
+describe("modification apres approbation", () => {
+  async function approuvee(corps: Record<string, unknown> = {}) {
+    const r = await creer(agent(), corps);
+    await request(admin()).post(`/api/depenses/${r.body.depense.id}/approve`);
+    return r.body.depense.id as number;
+  }
+
+  it("changer le montant repasse la depense en attente", async () => {
+    const id = await approuvee();
+    const rep = await request(agent()).patch(`/api/depenses/${id}`).send({ amountTtc: 5000 });
+    expect(rep.status).toBe(200);
+    const d = await lire(id);
+    expect([d.status, d.reviewedBy, d.reviewedAt]).toEqual(["en_attente", null, null]);
+  });
+
+  it("… et la reponse le dit, pour que l'ecran ne mente pas", async () => {
+    const id = await approuvee();
+    const rep = await request(agent()).patch(`/api/depenses/${id}`).send({ amountTtc: 900 });
+    expect(rep.body.approbationReouverte).toBe(true);
+  });
+
+  it("changer le fournisseur aussi", async () => {
+    const id = await approuvee();
+    await request(agent()).patch(`/api/depenses/${id}`).send({ vendor: "Un autre" });
+    expect((await lire(id)).status).toBe("en_attente");
+  });
+
+  it("changer la date aussi", async () => {
+    const id = await approuvee();
+    await request(agent()).patch(`/api/depenses/${id}`).send({ expenseDate: "2026-01-15" });
+    expect((await lire(id)).status).toBe("en_attente");
+  });
+
+  it("corriger une note ne rouvre rien", async () => {
+    const id = await approuvee();
+    const rep = await request(agent()).patch(`/api/depenses/${id}`).send({ notes: "facture recue par courrier" });
+    expect(rep.body.approbationReouverte).toBe(false);
+    expect((await lire(id)).status).toBe("approuve");
+  });
+
+  it("renvoyer le MEME montant ne rouvre rien", async () => {
+    const id = await approuvee({ amountTtc: 250 });
+    const rep = await request(agent()).patch(`/api/depenses/${id}`).send({ amountTtc: 250, notes: "re-enregistre" });
+    expect(rep.body.approbationReouverte).toBe(false);
+    expect((await lire(id)).status).toBe("approuve");
+  });
+
+  it("une depense en attente reste en attente (rien a rouvrir)", async () => {
+    const r = await creer(agent());
+    await request(agent()).patch(`/api/depenses/${r.body.depense.id}`).send({ amountTtc: 400 });
+    expect((await lire(r.body.depense.id)).status).toBe("en_attente");
+  });
+
+  it("apres correction, un responsable peut re-approuver", async () => {
+    const id = await approuvee();
+    await request(agent()).patch(`/api/depenses/${id}`).send({ amountTtc: 300 });
+    expect((await request(admin()).post(`/api/depenses/${id}/approve`)).status).toBe(200);
+    const d = await lire(id);
+    expect([d.status, d.reviewedBy]).toEqual(["approuve", adminId]);
+  });
+});
