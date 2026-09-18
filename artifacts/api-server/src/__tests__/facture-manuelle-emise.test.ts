@@ -23,7 +23,7 @@ process.env.SESSION_SECRET = process.env.SESSION_SECRET ?? "test-session-secret-
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import express, { type NextFunction, type Request, type Response } from "express";
 import request from "supertest";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { db, invoicesTable, organisationsTable, subscriptionsTable, usersTable, OVERAGE_RATES } from "@workspace/db";
@@ -175,5 +175,71 @@ describe("les tarifs ne sont pas recopies", () => {
 
   it("le courriel n'annonce plus une reference fabriquee", () => {
     expect(source, "le client recevait un identifiant inconnu du vendeur").not.toContain("INV-${monthLabel}-${tgtOrg}");
+  });
+});
+
+/**
+ * La numerotation des factures client, par l'autre porte.
+ *
+ * `/license-management/create-client-invoice` calculait son numero par
+ * `count(*) + 1` sur les factures de l'organisation, alors que
+ * `/api/factures-client` tient une sequence dediee
+ * (services/invoice-numbering.ts). Trois consequences, toutes contraires a
+ * l'article 242 nonies A de l'annexe II au CGI :
+ *
+ *  - deux creations simultanees comptaient la meme valeur et produisaient le
+ *    MEME numero ;
+ *  - la suppression d'une facture faisait reutiliser un numero deja emis ;
+ *  - les deux portes numerotaient chacune de son cote, sur les memes factures,
+ *    donc la sequence ne pouvait pas etre continue.
+ */
+describe("numerotation des factures client creees depuis l'administration", () => {
+  const creer = (corps: Record<string, unknown>) =>
+    request(appli()).post("/api/license-management/create-client-invoice").send(corps);
+
+  const corpsType = {
+    clientName: "Client", title: "Travaux",
+    items: [{ description: "Pose", quantity: 1, unitPrice: 100, taxRate: 20 }],
+  };
+
+  it("attribue un numero de la sequence dediee", async () => {
+    const r = await creer(corpsType);
+    expect(r.status).toBe(201);
+    expect(r.body.facture.reference, "numero absent").toBeTruthy();
+  });
+
+  it("deux factures ne portent jamais le meme numero", async () => {
+    const [a, b] = await Promise.all([creer(corpsType), creer(corpsType)]);
+    expect(
+      a.body.facture.reference,
+      "deux creations simultanees comptaient la meme valeur",
+    ).not.toBe(b.body.facture.reference);
+  });
+
+  it("dix creations simultanees donnent dix numeros distincts", async () => {
+    const lot = await Promise.all(Array.from({ length: 10 }, () => creer(corpsType)));
+    const refs = lot.map(r => r.body.facture?.reference);
+    expect(new Set(refs).size, `doublons: ${refs.join(", ")}`).toBe(10);
+  });
+
+  it("le numero ne depend plus du nombre de factures existantes", () => {
+    const source = readFileSync(
+      join(import.meta.dirname, "..", "routes", "license-management.ts"), "utf8",
+    );
+    const bloc = source.slice(source.indexOf(`"/license-management/create-client-invoice"`));
+    expect(bloc.slice(0, 4000), "compteur par count(*): une suppression reutilise un numero").not.toMatch(/count\(\*\)::int`\s*\}\)\.from\(facturesClientTable\)/);
+    expect(bloc.slice(0, 4000)).toMatch(/nextInvoiceNumber\(tx, orgId\)/);
+  });
+
+  it("le numero est pris dans la transaction d'insertion", () => {
+    const source = readFileSync(
+      join(import.meta.dirname, "..", "routes", "license-management.ts"), "utf8",
+    );
+    const bloc = source.slice(source.indexOf(`"/license-management/create-client-invoice"`));
+    // On compare les positions des APPELS, pas des mentions en commentaire.
+    const iTx = bloc.indexOf("await db.transaction(");
+    const iNum = bloc.indexOf("nextInvoiceNumber(tx, orgId)");
+    expect(iTx, "numero hors transaction: un echec laisse un trou dans la sequence").toBeGreaterThan(-1);
+    expect(iNum).toBeGreaterThan(iTx);
   });
 });

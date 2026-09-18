@@ -6,6 +6,7 @@ import { sendEmail } from "../services/email";
 import { logger } from "../lib/logger";
 
 import { emettreFacturePlateforme } from "../services/platform-invoice-issue";
+import { nextInvoiceNumber } from "../services/invoice-numbering";
 import { OVERAGE_RATES } from "@workspace/db";
 
 const router = Router();
@@ -614,11 +615,25 @@ router.post("/license-management/create-client-invoice", async (req: Request, re
     const taxAmount = processedItems.reduce((s, i) => s + i.quantity * i.unitPrice * i.taxRate / 100, 0);
     const totalAmount = subtotal + taxAmount;
 
-    const [seqRes] = await db.select({ c: sql<number>`count(*)::int` }).from(facturesClientTable).where(eq(facturesClientTable.organisationId, orgId));
-    const now = new Date();
-    const reference = `FAC-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String((seqRes?.c || 0) + 1).padStart(4, "0")}`;
-
-    const [facture] = await db.insert(facturesClientTable).values({
+    // Numerotation: la MEME sequence que l'autre porte.
+    //
+    // Le numero etait calcule ici par `count(*) + 1` sur les factures de
+    // l'organisation. Trois consequences, toutes contraires a l'article 242
+    // nonies A de l'annexe II au CGI, qui exige une sequence continue et sans
+    // doublon:
+    //  - deux creations simultanees comptaient la meme valeur et produisaient
+    //    le MEME numero;
+    //  - la suppression d'une facture faisait reutiliser un numero deja emis;
+    //  - surtout, ce compteur ignorait la sequence tenue par
+    //    services/invoice-numbering.ts, qu'utilise /api/factures-client — les
+    //    deux portes numerotaient chacune de son cote, sur les memes factures.
+    //
+    // `nextInvoiceNumber` est pris DANS la transaction d'insertion: si
+    // l'insertion echoue, l'increment est annule avec elle et la sequence ne
+    // garde pas de trou.
+    const facture = await db.transaction(async (tx) => {
+    const reference = await nextInvoiceNumber(tx, orgId);
+    const [cree] = await tx.insert(facturesClientTable).values({
       organisationId: orgId,
       reference,
       title,
@@ -637,8 +652,10 @@ router.post("/license-management/create-client-invoice", async (req: Request, re
       notes: notes || null,
       conditions: conditions || null,
     }).returning();
+      return cree;
+    });
 
-    await logAudit(orgId, "client_invoice_created", `Facture ${reference} creee pour ${clientName}: ${totalAmount.toFixed(2)} EUR`, userId, { invoiceId: facture.id, amount: totalAmount });
+    await logAudit(orgId, "client_invoice_created", `Facture ${facture.reference} creee pour ${clientName}: ${totalAmount.toFixed(2)} EUR`, userId, { invoiceId: facture.id, amount: totalAmount });
     res.status(201).json({ success: true, facture: { ...facture, totalAmount: Number(facture.totalAmount), paidAmount: Number(facture.paidAmount), subtotal: Number(facture.subtotal), taxAmount: Number(facture.taxAmount) } });
   } catch (err: any) {
     logger.error({ err }, "Erreur creation facture client:");
