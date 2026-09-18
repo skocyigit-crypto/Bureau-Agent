@@ -6,6 +6,20 @@ import { db, organisationsTable, prospectsTable } from "@workspace/db";
 import { sendEmail } from "../services/email";
 import { broadcaster } from "../services/broadcaster";
 import { logger } from "../lib/logger";
+
+/**
+ * Lien ABSOLU vers l inscription.
+ *
+ * Les deux courriels de bienvenue portaient `href="/register"`. Dans un
+ * navigateur, un chemin relatif se resout contre la page courante; dans un
+ * client de messagerie, il n y a pas de page courante — le lien ne mene nulle
+ * part. Le bouton « Demarrer l essai gratuit » etait donc mort dans le seul
+ * message ou un prospect a envie de cliquer.
+ *
+ * Meme source que les autres liens sortants (services/email.ts): PUBLIC_URL,
+ * pose au deploiement.
+ */
+const LIEN_INSCRIPTION = `${(process.env.PUBLIC_URL || process.env.APP_URL || "https://agentdebureau.fr").replace(/[/]$/, "")}/register`;
 import { escapeHtml, escapeAttr } from "../lib/html-escape";
 
 const SUPER_ADMIN_ORG_SLUG = "agent-de-bureau-sas";
@@ -161,8 +175,8 @@ router.post("/public/demo-request", demoLimiter, async (req: Request, res: Respo
         </p>
         <div style="background: #f9fafb; border-radius: 12px; padding: 24px; margin: 24px 0;">
           <h3 style="color: #1a2744; margin: 0 0 12px;">En attendant, démarrez votre essai gratuit</h3>
-          <p style="color: #6b7280; margin: 0 0 16px; font-size: 14px;">14 jours d'accès complet, sans carte bancaire.</p>
-          <a href="/register" style="display: inline-block; background: #f59e0b; color: #1a2744; font-weight: bold; padding: 12px 24px; border-radius: 8px; text-decoration: none;">
+          <p style="color: #6b7280; margin: 0 0 16px; font-size: 14px;">14 jours, sans carte bancaire. Devis, facturation, agenda et sauvegarde chiffrée inclus.</p>
+          <a href="${LIEN_INSCRIPTION}" style="display: inline-block; background: #f59e0b; color: #1a2744; font-weight: bold; padding: 12px 24px; border-radius: 8px; text-decoration: none;">
             Démarrer l'essai gratuit →
           </a>
         </div>
