@@ -85,6 +85,23 @@ export async function generateMonthlyInvoices(
           return;
         }
 
+        // Un abonnement SUSPENDU place le client en lecture seule
+        // (middleware/license-check.ts): il ne peut plus rien creer. Lui
+        // envoyer le 1er du mois une facture au tarif plein, depassements
+        // compris, revient a lui facturer un mois qu'on l'a empeche
+        // d'utiliser — et la suspension vient de la plateforme elle-meme
+        // (impaye, decision manuelle). Mesure du 18/09: aucune ligne du
+        // moteur ne lisait `status`.
+        //
+        // La reprise se fait a la reactivation: le mois suivant repart
+        // normalement. Rattraper les mois suspendus demanderait une regle
+        // commerciale (prorata? gel?) qui n'appartient pas a ce fichier.
+        if (sub.status !== "active") {
+          logger.info({ orgId: org.id, statut: sub.status, periode: periodLabel }, "[Billing] abonnement non actif: aucune facture");
+          result.skipped++;
+          return;
+        }
+
         const [userCount] = await db.select({ count: sql<number>`count(*)::int` })
           .from(usersTable)
           .where(eq(usersTable.organisationId, org.id));
