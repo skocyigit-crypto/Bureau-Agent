@@ -271,3 +271,104 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+
+  ecrans-connectes:
+    name: Ecrans connectes (navigateur)
+    runs-on: ubuntu-latest
+    # Les tests « Browser smoke » ci-dessus s'arretent a la porte: formulaire de
+    # connexion, route inconnue, CSP, manifeste. Tout ce que le client PAIE est
+    # derriere cette porte, et rien ne l'ouvrait automatiquement.
+    #
+    # Le 18/09/2026, ouvrir ces ecrans a la main a trouve un defaut qu'aucune
+    # suite ne voyait: l'ecran « Utilisateurs » affichait un plafond invente de
+    # 5 comptes parce qu'il avalait un 404. Un ecran peut mentir en silence
+    # pendant que 2 500 tests unitaires restent verts.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: agent_de_bureau_ecrans
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/agent_de_bureau_ecrans
+      SESSION_SECRET: ci-ecrans-session-secret-aaaaaaaaaaaaaaaa
+      # Aucune de ces cles n'est appelee: les ecrans sont ouverts, pas exerces.
+      # Elles satisfont les gardes d'import (meme raison que dans le job test).
+      AI_INTEGRATIONS_GEMINI_BASE_URL: http://localhost:9/unused
+      AI_INTEGRATIONS_GEMINI_API_KEY: ci-placeholder
+      AI_INTEGRATIONS_OPENAI_BASE_URL: http://localhost:9/unused
+      AI_INTEGRATIONS_OPENAI_API_KEY: ci-placeholder
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Enable corepack (pnpm)
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      # Meme chaine que le job « test » et que deploy/cloudbuild.yaml, dans le
+      # meme ordre. La premiere version sautait ensure-search-extensions: sans
+      # la fonction f_unaccent, la recherche insensible aux accents echoue et
+      # le tableau de bord repond 500 — le job l a vu des son premier passage.
+      - name: Push DB schema
+        working-directory: lib/db
+        run: |
+          pnpm run push-force
+
+      - name: Build API
+        run: pnpm --filter @workspace/api-server run build
+
+      - name: Start API
+        run: |
+          PORT=8080 NODE_ENV=development \
+          ALLOWED_ORIGINS=http://127.0.0.1:5173,http://127.0.0.1:8080 \
+          PUBLIC_URL=http://127.0.0.1:5173 \
+          node artifacts/api-server/dist/index.mjs > /tmp/api.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -sf http://127.0.0.1:8080/api/healthz > /dev/null; then echo "API prete"; exit 0; fi
+            sleep 2
+          done
+          echo "::error::L'API n'a pas demarre"; tail -50 /tmp/api.log; exit 1
+
+      # Le compte est cree par l'INSCRIPTION publique, pas par un INSERT: un
+      # semis qui ecrit en base peut produire un etat qu'aucun client n'aurait.
+      - name: Semer le compte de verification
+        run: BASE=http://127.0.0.1:8080 node scripts/semer-verif.mjs
+
+      - name: Start web
+        working-directory: artifacts/buro-ajani
+        run: |
+          BASE_PATH=/ npx vite --host 127.0.0.1 --port 5173 --strictPort > /tmp/vite.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -sf http://127.0.0.1:5173/ > /dev/null; then echo "Web pret"; exit 0; fi
+            sleep 2
+          done
+          echo "::error::Vite n'a pas demarre"; tail -50 /tmp/vite.log; exit 1
+
+      # Un lot, pas les 63 ecrans: au-dela, le limiteur applicatif (1000
+      # requetes / 15 min) rendrait le resultat « non juge », ce qui ne prouve
+      # rien et ferait echouer la porte pour une mauvaise raison.
+      - name: Ouvrir les ecrans
+        run: APP=http://127.0.0.1:5173 DEBUT=0 FIN=24 node scripts/verif-ecrans.mjs
+
+      - name: Journaux en cas d'echec
+        if: failure()
+        run: |
+          echo "--- API ---"; tail -100 /tmp/api.log || true
+          echo "--- WEB ---"; tail -50 /tmp/vite.log || true

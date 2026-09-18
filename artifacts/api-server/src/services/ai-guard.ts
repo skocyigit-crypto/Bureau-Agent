@@ -59,5 +59,44 @@ export function respondAiError(err: unknown, res: Response): boolean {
     });
     return true;
   }
+  if (fournisseurInjoignable(err)) {
+    // Le fournisseur de modeles ne repond pas: credit epuise, cle revoquee,
+    // panne chez lui, ou reseau sortant coupe. Ce n'est pas une panne DE CE
+    // SERVEUR, et le 500 le faisait croire — mesure le 18/09, l'ecran
+    // d'accueil affichait « erreur serveur » alors que tout le reste
+    // fonctionnait. 503 dit la verite: le service est indisponible
+    // TEMPORAIREMENT, et l'ecran peut le presenter sans alarmer.
+    res.status(503).json({
+      error: "L'assistance par intelligence artificielle est momentanement indisponible. Le reste de l'application fonctionne normalement.",
+      code: "ia_injoignable",
+      iaIndisponible: true,
+    });
+    return true;
+  }
+  return false;
+}
+
+/**
+ * L'erreur dit-elle « je n'ai pas pu joindre le fournisseur » ?
+ *
+ * On ne regarde QUE les signes d'un echec de transport: un modele qui repond
+ * une betise, un JSON invalide ou un refus applicatif ne sont pas de ce
+ * ressort et doivent rester des 500 — les masquer derriere « indisponible »
+ * cacherait un vrai defaut du produit.
+ */
+export function fournisseurInjoignable(err: unknown): boolean {
+  const codesReseau = new Set([
+    "ECONNREFUSED", "ECONNRESET", "ENOTFOUND", "ETIMEDOUT", "EAI_AGAIN",
+    "EPIPE", "EHOSTUNREACH", "ENETUNREACH", "UND_ERR_CONNECT_TIMEOUT",
+    "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_SOCKET",
+  ]);
+  for (let e: unknown = err, i = 0; e && i < 5; e = (e as { cause?: unknown }).cause, i++) {
+    const o = e as { name?: string; code?: string; message?: string };
+    if (typeof o.code === "string" && codesReseau.has(o.code)) return true;
+    if (o.name === "AbortError" || o.name === "TimeoutError") return true;
+    // `fetch failed` est le message d'undici quand la connexion n'aboutit pas;
+    // la cause porte le code, mais elle est parfois perdue en chemin.
+    if (typeof o.message === "string" && /^fetch failed$/i.test(o.message.trim())) return true;
+  }
   return false;
 }

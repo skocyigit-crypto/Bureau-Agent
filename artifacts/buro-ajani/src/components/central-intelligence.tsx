@@ -314,6 +314,15 @@ export function CentralIntelligence() {
         throw new Error(t("centralIntelligence.serverError"));
       }
       const result = await resp.json();
+      // Le serveur a repondu, mais le fournisseur de modeles est injoignable
+      // (credit epuise, panne chez lui): il n y a pas d analyse a montrer. On
+      // affiche la carte « momentanement indisponible » plutot que de garder
+      // une analyse perimee en cache.
+      if (result?.iaIndisponible) {
+        sessionStorage.removeItem("adb_ci_data");
+        setError(t("centralIntelligence.unavailable"));
+        return;
+      }
       setData(result);
       sessionStorage.setItem("adb_ci_data", JSON.stringify(result));
       sessionStorage.setItem("adb_ci_ts", Date.now().toString());
