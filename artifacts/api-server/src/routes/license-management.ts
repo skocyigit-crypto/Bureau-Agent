@@ -415,7 +415,22 @@ router.post("/license-management/send-invoice-email", async (req: Request, res: 
       await db.update(facturesClientTable).set({ status: "envoyee" }).where(eq(facturesClientTable.id, facture.id));
     }
 
-    await logAudit(orgId, "invoice_email_sent", `Facture ${facture.reference} envoyee a ${facture.clientEmail}`, req.session?.userId);
+    // La trace doit dire ce qui s'est passe, pas ce qu'on esperait.
+    //
+    // `invoice_email_sent` etait ecrit meme quand `sent` valait false — la
+    // reponse disait « Echec de l'envoi » a l'ecran pendant que le journal
+    // affirmait l'inverse. Or c'est ce journal qu'on produit le jour ou le
+    // client conteste avoir recu la facture, et ou les penalites de retard se
+    // comptent depuis cette date (C. com. L441-10). Un envoi echoue doit
+    // laisser une trace d'ECHEC, qui appelle une relance.
+    await logAudit(
+      orgId,
+      sent ? "invoice_email_sent" : "invoice_email_failed",
+      sent
+        ? `Facture ${facture.reference} envoyee a ${facture.clientEmail}`
+        : `Echec d'envoi de la facture ${facture.reference} a ${facture.clientEmail}`,
+      req.session?.userId,
+    );
 
     res.json({ success: sent, message: sent ? `Facture envoyee a ${facture.clientEmail}` : "Echec de l'envoi" });
   } catch (err: any) {

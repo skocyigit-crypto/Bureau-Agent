@@ -22,6 +22,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import express, { type NextFunction, type Request, type Response } from "express";
 import request from "supertest";
 import { eq } from "drizzle-orm";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { db, facturesClientTable, organisationsTable, usersTable } from "@workspace/db";
 import router from "../routes/license-management";
 
@@ -158,5 +160,39 @@ describe("les reglements legitimes passent toujours", () => {
     } as any).returning({ id: facturesClientTable.id });
     expect((await enregistrer({ factureClientId: f!.id, amount: 5 })).status).toBe(404);
     try { await db.delete(organisationsTable).where(eq(organisationsTable.id, autre!.id)); } catch { /* journaux */ }
+  });
+});
+
+/**
+ * Le journal doit dire ce qui s'est passe, pas ce qu'on esperait.
+ *
+ * `/license-management/send-invoice-email` ecrivait `invoice_email_sent` meme
+ * quand l'envoi avait echoue : l'ecran affichait « Echec de l'envoi » pendant
+ * que le journal affirmait l'inverse. Or c'est ce journal qu'on produit le
+ * jour ou le client conteste avoir recu la facture — et les penalites de
+ * retard se comptent depuis cette date (C. com. L441-10).
+ */
+describe("la trace d'envoi de facture", () => {
+  const source = readFileSync(
+    join(import.meta.dirname, "..", "routes", "license-management.ts"), "utf8",
+  );
+  const bloc = source.slice(source.indexOf(`"/license-management/send-invoice-email"`));
+
+  it("depend du resultat de l'envoi", () => {
+    expect(
+      bloc.slice(0, 12000),
+      "trace d'envoi ecrite sans regarder si l'envoi a eu lieu",
+    ).toMatch(/sent \? "invoice_email_sent" : "invoice_email_failed"/);
+  });
+
+  it("l'echec a son propre libelle dans le journal", () => {
+    const audit = readFileSync(
+      join(import.meta.dirname, "..", "services", "license-audit.ts"), "utf8",
+    );
+    expect(audit).toContain(`"invoice_email_failed"`);
+  });
+
+  it("le message d'echec nomme la facture et le destinataire", () => {
+    expect(bloc.slice(0, 12000)).toMatch(/Echec d'envoi de la facture \$\{facture\.reference\} a \$\{facture\.clientEmail\}/);
   });
 });
