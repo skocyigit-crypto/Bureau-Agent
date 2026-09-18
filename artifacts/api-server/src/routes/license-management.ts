@@ -5,6 +5,9 @@ import { getOrgId } from "../middleware/tenant";
 import { sendEmail } from "../services/email";
 import { logger } from "../lib/logger";
 
+import { emettreFacturePlateforme } from "../services/platform-invoice-issue";
+import { OVERAGE_RATES } from "@workspace/db";
+
 const router = Router();
 
 import { escapeHtml } from "../lib/html-escape";
@@ -258,6 +261,14 @@ router.post("/license-management/auto-generate-invoice", async (req: Request, re
 
     if (!org || !sub) { res.status(404).json({ error: "Organisation ou abonnement introuvable" }); return; }
 
+    // Memes regles que le moteur mensuel (services/billing-engine.ts) : un
+    // essai ne se facture pas, et un abonnement suspendu place le client en
+    // lecture seule — lui adresser une facture au tarif plein revient a lui
+    // facturer un mois qu'on l'a empeche d'utiliser. Ce bouton produisait des
+    // factures que le cron se serait refuse a produire.
+    if (sub.plan === "essai") { res.status(400).json({ error: "Une periode d'essai ne se facture pas." }); return; }
+    if (sub.status !== "active") { res.status(400).json({ error: `Abonnement non actif (${sub.status}) : aucune facture.` }); return; }
+
     const now = new Date();
     const monthLabel = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
@@ -279,9 +290,12 @@ router.post("/license-management/auto-generate-invoice", async (req: Request, re
     const extraContacts = Math.max(0, (contactCount?.c || 0) - (planConfig?.maxContacts || sub.maxContacts));
     const extraCalls = Math.max(0, (callCount?.c || 0) - (planConfig?.maxCallsPerMonth || sub.maxCallsPerMonth));
 
-    const extraUsersAmount = extraUsers * 10;
-    const extraContactsAmount = Math.ceil(extraContacts / 100) * 2;
-    const extraCallsAmount = Math.ceil(extraCalls / 100) * 3;
+    // Tarifs de depassement PARTAGES avec le moteur mensuel. Ils etaient
+    // recopies en durs (10 / 2 / 3) : une revision des tarifs publies aurait
+    // laisse ce bouton facturer les anciens prix, sans que rien ne le signale.
+    const extraUsersAmount = extraUsers * OVERAGE_RATES.extraUserPerMonth;
+    const extraContactsAmount = Math.ceil(extraContacts / 100) * OVERAGE_RATES.extraContactsPer100;
+    const extraCallsAmount = Math.ceil(extraCalls / 100) * OVERAGE_RATES.extraCallsPer100;
     const overageAmount = extraUsersAmount + extraContactsAmount + extraCallsAmount;
     const totalAmount = baseAmount + overageAmount;
 
@@ -303,9 +317,25 @@ router.post("/license-management/auto-generate-invoice", async (req: Request, re
       },
     }).returning();
 
+    // Numero, date d'emission, TVA et identite de l'acheteur.
+    //
+    // Cette route inserait une facture en « en_attente » — donc exigible, et
+    // envoyee par courriel juste apres — sans jamais appeler l'emission. Le
+    // document partait sans numero, sans date d'emission et sans ligne de TVA,
+    // c'est-a-dire sans les mentions que l'article 242 nonies A de l'annexe II
+    // au CGI rend obligatoires. Le courriel affichait meme une reference
+    // fabriquee (« INV-mois-orgId ») qui ne correspondait a aucune donnee
+    // stockee: le client recevait un identifiant que le vendeur ne connaissait
+    // pas.
+    //
+    // Le moteur mensuel appelle deja `emettreFacturePlateforme` pour cela;
+    // c'est la meme sequence numerotee, donc sans trou.
+    const emission = await emettreFacturePlateforme(invoice.id);
+    const reference = emission.reference;
+
     if (org.autoEmailInvoice && org.email) {
       const invoiceBody = `
-        <h2 style="color:#0f1729;font-size:20px;margin:0 0 8px;">Facture mensuelle - ${monthLabel}</h2>
+        <h2 style="color:#0f1729;font-size:20px;margin:0 0 8px;">Facture ${escapeHtml(reference)}</h2>
         <p style="color:#64748b;font-size:15px;">Bonjour,</p>
         <p style="color:#64748b;font-size:14px;">Votre facture Ajant Bureau pour la periode du ${periodStart.toLocaleDateString("fr-FR")} au ${periodEnd.toLocaleDateString("fr-FR")} a ete generee.</p>
         <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:24px;margin:24px 0;">
@@ -324,7 +354,7 @@ router.post("/license-management/auto-generate-invoice", async (req: Request, re
           <table style="width:100%;border-collapse:collapse;">
             <tr><td style="padding:4px 0;color:#166534;font-size:12px;width:80px;">IBAN</td><td style="font-family:monospace;font-size:12px;">${escapeHtml(org.bankIban)}</td></tr>
             ${org.bankBic ? `<tr><td style="padding:4px 0;color:#166534;font-size:12px;">BIC</td><td style="font-family:monospace;font-size:12px;">${escapeHtml(org.bankBic)}</td></tr>` : ""}
-            <tr><td style="padding:4px 0;color:#166534;font-size:12px;">Reference</td><td style="font-family:monospace;font-weight:700;font-size:12px;">INV-${monthLabel}-${tgtOrg}</td></tr>
+            <tr><td style="padding:4px 0;color:#166534;font-size:12px;">Reference</td><td style="font-family:monospace;font-weight:700;font-size:12px;">${escapeHtml(reference)}</td></tr>
           </table>
         </div>` : ""}
         <div style="text-align:center;margin:24px 0;">
