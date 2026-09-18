@@ -14,7 +14,9 @@ import app from "../app";
 import { contrainteUniciteViolee, lireInscription, slugOrganisation } from "../services/inscription-saisie";
 
 const stamp = Date.now();
-const base = { orgName: "Durand BTP", firstName: "Jean", lastName: "Durand", email: `ins-${stamp}@example.test`, password: "Kestrel7Vagon", acceptedTerms: true };
+// Le service est reserve aux professionnels: l inscription exige un identifiant
+// valide (services/inscription-saisie.ts). 552100554 est un SIREN a cle juste.
+const base = { orgName: "Durand BTP", firstName: "Jean", lastName: "Durand", email: `ins-${stamp}@example.test`, password: "Kestrel7Vagon", acceptedTerms: true, siret: "552100554" };
 const inscrire = (corps: Record<string, unknown>) => request(app).post("/api/auth/register").set("Origin", "http://localhost").send(corps);
 
 afterAll(async () => {

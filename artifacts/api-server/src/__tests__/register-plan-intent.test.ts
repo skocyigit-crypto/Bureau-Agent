@@ -53,6 +53,9 @@ async function inscrire(suffix: string, plan?: unknown) {
       email: `plan-${suffix}@example.test`,
       password: "Kestrel7Vagon",
       acceptedTerms: true,
+      // Le service est reserve aux professionnels: l inscription exige un
+      // identifiant valide (services/inscription-saisie.ts).
+      siret: "552100554",
       ...(plan === undefined ? {} : { plan }),
     });
   expect(res.status, JSON.stringify(res.body)).toBe(201);

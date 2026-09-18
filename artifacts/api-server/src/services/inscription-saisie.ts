@@ -11,10 +11,12 @@
  *   etait prise pour une collision de cle de licence, retentee 4 fois, puis 500.
  */
 
+import { verifierIdentifiant } from "./siren";
+
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export type SaisieInscription =
-  | { ok: true; orgName: string; firstName: string; lastName: string; email: string; phone: string | null }
+  | { ok: true; orgName: string; firstName: string; lastName: string; email: string; phone: string | null; siret: string }
   | { ok: false; erreur: string; champ: string };
 
 function texte(v: unknown): string {
@@ -33,7 +35,32 @@ export function lireInscription(corps: Record<string, unknown>): SaisieInscripti
   if (!EMAIL.test(email) || email.length > 255) return { ok: false, champ: "email", erreur: "Une adresse email valide est requise." };
   const phone = texte(corps.phone);
   if (phone.length > 30) return { ok: false, champ: "phone", erreur: "Numero de telephone trop long." };
-  return { ok: true, orgName, firstName, lastName, email, phone: phone || null };
+
+  // SIRET (ou SIREN) EXIGE.
+  //
+  // Les CGV posent que « le service est destine a des professionnels agissant
+  // dans le cadre de leur activite », et ecartent le droit de retractation sur
+  // ce fondement. Rien ne le verifiait: n'importe quel particulier pouvait
+  // souscrire, et gardait alors ses quatorze jours de retractation
+  // (C. conso. L221-18) quelle que soit la clause — une clause que le parcours
+  // dement ne protege personne, et l'editeur decouvre la difference au premier
+  // litige.
+  //
+  // Le controle est ARITHMETIQUE (cle de Luhn), pas declaratif: il refuse un
+  // numero invente. Il ne prouve pas que l'entreprise existe — cela demanderait
+  // l'annuaire officiel, donc un appel reseau au milieu d'une inscription, avec
+  // sa panne et sa latence. Il ecarte la saisie au hasard, qui est le cas reel.
+  const verdict = verifierIdentifiant(texte(corps.siret));
+  if (!verdict.valide || !verdict.valeur) {
+    const motif = verdict.motif ?? "identifiant invalide";
+    return {
+      ok: false,
+      champ: "siret",
+      erreur: "SIRET ou SIREN requis (" + motif + "). Ajant Bureau est reserve aux professionnels.",
+    };
+  }
+
+  return { ok: true, orgName, firstName, lastName, email, phone: phone || null, siret: verdict.valeur };
 }
 
 /** Slug lisible : accents translitteres, repli « organisation » si rien ne reste. */

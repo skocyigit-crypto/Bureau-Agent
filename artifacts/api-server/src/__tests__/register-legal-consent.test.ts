@@ -44,6 +44,8 @@ afterAll(async () => {
 
 function payload(suffix: string, extra: Record<string, unknown> = {}) {
   return {
+  // Identifiant professionnel exige a l inscription (SIREN a cle juste).
+  siret: "552100554",
     orgName: `Org consent ${suffix}`,
     firstName: "Jean",
     lastName: "Dupont",
@@ -111,7 +113,10 @@ describe("acceptation des conditions a l'inscription", () => {
     await request(app)
       .post("/api/auth/register")
       .set("Origin", "http://localhost")
-      .send(payload(`echec-${stamp}`, { acceptedTerms: true, email: "pas-un-email" }));
+      .send(payload(`echec-${stamp}`, { acceptedTerms: true,
+      // Le service est reserve aux professionnels: l inscription exige un
+      // identifiant valide (services/inscription-saisie.ts).
+      siret: "552100554", email: "pas-un-email" }));
 
     const orphelins = await db.select({ id: legalAgreementsTable.id })
       .from(legalAgreementsTable)

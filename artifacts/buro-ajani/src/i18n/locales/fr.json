@@ -1723,7 +1723,10 @@
       "starter": "Vous avez choisi le plan Starter. Votre compte demarre par 14 jours d'essai; vous choisirez votre abonnement a la fin.",
       "professionnel": "Vous avez choisi le plan Professionnel. Votre compte demarre par 14 jours d'essai; vous choisirez votre abonnement a la fin.",
       "entreprise": "Vous avez choisi l'offre Entreprise. Votre compte demarre par 14 jours d'essai; nous revenons vers vous pour l'offre sur mesure."
-    }
+    },
+    "siretLabel": "SIRET ou SIREN",
+    "siretPlaceholder": "14 chiffres (SIRET) ou 9 (SIREN)",
+    "siretHint": "Ajant Bureau est reserve aux professionnels."
   },
   "invitation": {
     "roles": {

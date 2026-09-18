@@ -1729,7 +1729,10 @@
       "starter": "لقد اخترت باقة Starter. يبدأ حسابك بفترة تجريبية مدتها ١٤ يوماً؛ ستختار اشتراكك في نهايتها.",
       "professionnel": "لقد اخترت باقة Professionnel. يبدأ حسابك بفترة تجريبية مدتها ١٤ يوماً؛ ستختار اشتراكك في نهايتها.",
       "entreprise": "لقد اخترت عرض Entreprise. يبدأ حسابك بفترة تجريبية مدتها ١٤ يوماً؛ وسنتواصل معك بشأن العرض المخصص."
-    }
+    },
+    "siretLabel": "SIRET أو SIREN",
+    "siretPlaceholder": "14 رقمًا (SIRET) أو 9 (SIREN)",
+    "siretHint": "Ajant Bureau مخصص للمهنيين فقط."
   },
   "invitation": {
     "roles": {

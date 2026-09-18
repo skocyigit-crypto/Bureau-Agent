@@ -1723,7 +1723,10 @@
       "starter": "Sie haben den Starter-Tarif gewaehlt. Ihr Konto beginnt mit 14 Testtagen; Ihr Abonnement waehlen Sie am Ende.",
       "professionnel": "Sie haben den Professionnel-Tarif gewaehlt. Ihr Konto beginnt mit 14 Testtagen; Ihr Abonnement waehlen Sie am Ende.",
       "entreprise": "Sie haben das Entreprise-Angebot gewaehlt. Ihr Konto beginnt mit 14 Testtagen; wir melden uns zum massgeschneiderten Angebot."
-    }
+    },
+    "siretLabel": "SIRET oder SIREN",
+    "siretPlaceholder": "14 Ziffern (SIRET) oder 9 (SIREN)",
+    "siretHint": "Ajant Bureau ist ausschliesslich fuer Unternehmen."
   },
   "invitation": {
     "roles": {
