@@ -29,6 +29,24 @@ const LECTURES_SANS_MODELE: readonly RegExp[] = [
 ];
 
 /**
+ * Meme defaut sous /api/voice : la liste des phrases d exemple (un tableau
+ * constant, sans base ni modele) et l annulation d une commande passaient par
+ * le limiteur IA. L assistant vocal recharge cette liste a chaque montage et a
+ * chaque changement de langue : vingt lectures suffisaient a refuser la
+ * commande vocale suivante.
+ */
+const VOIX_SANS_MODELE: readonly RegExp[] = [
+  /^\/commands\/?$/,
+  /^\/cancel\/?$/,
+];
+
+/** Vrai si le chemin (sous /api/voice) appelle un modele. */
+export function voixConsommeBudgetIa(methode: string, chemin: string): boolean {
+  if (methode === "OPTIONS" || methode === "HEAD") return false;
+  return !VOIX_SANS_MODELE.some((motif) => motif.test(chemin));
+}
+
+/**
  * Vrai si le chemin appelle un modele et doit donc passer par le limiteur IA.
  * `chemin` est relatif au point de montage (`req.path` sous /api/ai).
  */

@@ -15,7 +15,7 @@ import { guardian } from "./middleware/guardian";
 import { cleLimiteApplicative, rateLimitKey } from "./lib/request-ip";
 import { recordHttpStatus } from "./services/health-agents-external";
 import { limiteCorpsBase64, TAILLE_MAX_BASE64_MO } from "./lib/limites-televersement";
-import { consommeBudgetIa } from "./services/limite-ia-chemins";
+import { consommeBudgetIa, voixConsommeBudgetIa } from "./services/limite-ia-chemins";
 import { resolveAllowedOrigins } from "./lib/origines-autorisees";
 
 const app: Express = express();
@@ -467,6 +467,7 @@ app.use("/api/ai", (req: Request, res: Response, next: NextFunction) => {
 // exclut donc ici; ils sont limites plus bas par webhookLimiter.
 app.use("/api/voice", (req: Request, res: Response, next: NextFunction) => {
   if (isTwilioWebhook(req)) return next();
+  if (!voixConsommeBudgetIa(req.method, req.path)) return next();
   return aiLimiter(req, res, next);
 });
 app.use("/api/document-ai", aiLimiter);
