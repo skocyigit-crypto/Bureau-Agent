@@ -17,7 +17,7 @@
  * pourquoi ce n'est pas l'historique de ce depot-ci.
  */
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -113,9 +113,10 @@ const commits = depot?.commits ?? [];
  * courant, exactement comme elle le fera dans le plan de travail de Cloud
  * Build.
  */
-function garde(notre: string, deploye: string): number {
+function garde(notre: string, deploye: string, notreDate?: string, deployeeDate?: string): number {
   try {
-    execFileSync("bash", [GARDE, notre, deploye], { cwd: dossier, stdio: "pipe" });
+    const args = [GARDE, notre, deploye, ...(notreDate === undefined ? [] : [notreDate, deployeeDate ?? ""])];
+    execFileSync("bash", args, { cwd: dossier, stdio: "pipe" });
     return 0;
   } catch (e) {
     return (e as { status?: number }).status ?? -1;
@@ -184,5 +185,89 @@ describe("la garde laisse passer plutot que de bloquer", () => {
       ? "[ordre-deploiement] git present: ascendance reellement verifiee"
       : "[ordre-deploiement] git absent: seul le comportement fail-open est verifie");
     expect(typeof GIT).toBe("boolean");
+  });
+});
+/**
+ * Le cas du 18/09/2026 : la garde raisonnait juste et laissait quand meme
+ * passer.
+ *
+ * #207 (11b8bbc) etait en production depuis 09:55 quand le build de #206
+ * (0e1357d, plus ancien) a fini a 10:03 et a deploye par-dessus. La garde
+ * n avait pas echoue : Cloud Build clone en profondeur 1, le commit d en face
+ * lui etait INCONNU, et une garde qui doute laisse passer. Le doute etait
+ * structurel — il se reproduirait a chaque fois.
+ *
+ * La date du commit, elle, voyage avec le build (BUILD_COMMIT_TIME) et ne
+ * demande aucun historique. Ces cas tournent PARTOUT, git ou non : ils
+ * n interrogent que des dates.
+ */
+describe("sans historique git, la date du commit tranche", () => {
+  const INCONNU_A = "0000000";
+  const INCONNU_B = "1111111";
+
+  it("un commit plus ancien que la production s abstient", () => {
+    expect(garde(INCONNU_A, INCONNU_B, "1000", "2000")).toBe(10);
+  });
+
+  it("un commit plus recent deploie", () => {
+    expect(garde(INCONNU_A, INCONNU_B, "3000", "2000")).toBe(0);
+  });
+
+  it("deux commits de la meme seconde deploient (l egalite ne prouve rien)", () => {
+    expect(garde(INCONNU_A, INCONNU_B, "2000", "2000")).toBe(0);
+  });
+
+  it("une date manquante ne bloque rien", () => {
+    expect(garde(INCONNU_A, INCONNU_B, "", "2000")).toBe(0);
+    expect(garde(INCONNU_A, INCONNU_B, "1000", "")).toBe(0);
+  });
+
+  it("une date illisible ne bloque rien", () => {
+    expect(garde(INCONNU_A, INCONNU_B, "hier", "2000")).toBe(0);
+    expect(garde(INCONNU_A, INCONNU_B, "1000", "il y a longtemps")).toBe(0);
+  });
+
+  it("le meme commit deploie, quelles que soient les dates", () => {
+    expect(garde(INCONNU_A, INCONNU_A, "1000", "2000")).toBe(0);
+  });
+});
+
+describe("le pipeline transporte vraiment cette date", () => {
+  const CLOUDBUILD = readFileSync(join(RACINE, "deploy", "cloudbuild.yaml"), "utf8");
+
+  it("la date du commit est lue depuis la production", () => {
+    expect(CLOUDBUILD).toContain("commitTime");
+  });
+
+  it("… et notre propre date vient du commit, pas de l horloge du build", () => {
+    expect(CLOUDBUILD).toMatch(/git show -s --format=%ct HEAD/);
+  });
+
+  it("… et elle est posee sur le service pour le build suivant", () => {
+    expect(CLOUDBUILD).toMatch(/BUILD_COMMIT_TIME=/);
+  });
+
+  it("la garde recoit bien les quatre arguments", () => {
+    expect(CLOUDBUILD).toMatch(/garde-ordre-deploiement.sh .*NOTRE_TS.*DEPLOYE_TS/);
+  });
+});
+
+/**
+ * /api/healthz doit publier cette date, sinon le build suivant ne peut pas la
+ * lire et la garde retombe dans le doute qui a laisse la production reculer.
+ */
+describe("la production publie la date de son commit", () => {
+  const SANTE = readFileSync(join(RACINE, "artifacts", "api-server", "src", "routes", "health.ts"), "utf8");
+
+  it("healthz lit BUILD_COMMIT_TIME", () => {
+    expect(SANTE).toContain("BUILD_COMMIT_TIME");
+  });
+
+  it("… et l'expose sous le nom que le pipeline cherche", () => {
+    expect(SANTE).toContain("commitTime");
+  });
+
+  it("… sans inventer de valeur quand la variable est absente (developpement local)", () => {
+    expect(SANTE).toMatch(/APP_COMMIT_TIME \? \{ commitTime: APP_COMMIT_TIME \} : \{\}/);
   });
 });

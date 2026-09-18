@@ -35,6 +35,17 @@ const router: IRouter = Router();
 const APP_BUILD_HASH = process.env.BUILD_SHA
   || `dev-${crypto.createHash("md5").update(new Date().toISOString().slice(0, 16)).digest("hex").substring(0, 8)}`;
 const APP_BUILD_TIME = process.env.BUILD_TIME || new Date().toISOString();
+/**
+ * Date du commit deploye, en secondes Unix (`BUILD_COMMIT_TIME`).
+ *
+ * Sert a UNE chose: empecher un build en retard d ecraser un plus recent.
+ * La garde de deploiement comparait les commits avec git, mais Cloud Build
+ * clone en profondeur 1 — le commit d en face lui est inconnu, la garde doute,
+ * et par principe elle laisse passer. Le 18/09/2026 la production est donc
+ * revenue d un commit en arriere. Une date de commit voyage, elle, avec le
+ * build: elle repond meme sans historique.
+ */
+const APP_COMMIT_TIME = process.env.BUILD_COMMIT_TIME || "";
 const startedAt = new Date().toISOString();
 
 router.get("/healthz", async (_req, res) => {
@@ -51,6 +62,8 @@ router.get("/healthz", async (_req, res) => {
     // question qu'on ne pouvait pas poser le jour ou le deploiement etait
     // casse. Un SHA court de depot prive n'apprend rien a un attaquant.
     build: APP_BUILD_HASH,
+    // Lu par deploy/garde-ordre-deploiement.sh avant chaque mise en service.
+    ...(APP_COMMIT_TIME ? { commitTime: APP_COMMIT_TIME } : {}),
     memory: {
       rss: Math.round(process.memoryUsage().rss / 1024 / 1024),
       heap: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),

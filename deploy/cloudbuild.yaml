@@ -249,8 +249,15 @@ steps:
         # veille quotidienne s'appuie, et elle dit ce qui SERT vraiment, pas ce
         # que la configuration promet. Si l'appel echoue, la variable reste
         # vide et la garde laisse passer.
-        DEPLOYE="$$(curl -sf --max-time 20 '${_PUBLIC_URL}/api/healthz' 2>/dev/null | sed -n 's/.*"build":"\([^"]*\)".*/\1/p')"
-        bash deploy/garde-ordre-deploiement.sh '${_TAG}' "$$DEPLOYE"
+        SANTE="$$(curl -sf --max-time 20 '${_PUBLIC_URL}/api/healthz' 2>/dev/null)"
+        DEPLOYE="$$(printf '%s' "$$SANTE" | sed -n 's/.*"build":"\([^"]*\)".*/\1/p')"
+        # Date du commit deja en production. Cloud Build clone en profondeur 1:
+        # le commit d'en face est inconnu de git, la garde doutait et laissait
+        # passer — c'est ainsi que la production a recule le 18/09. La date, elle,
+        # voyage avec le build (BUILD_COMMIT_TIME, publie par /api/healthz).
+        DEPLOYE_TS="$$(printf '%s' "$$SANTE" | sed -n 's/.*"commitTime":"\([0-9]*\)".*/\1/p')"
+        NOTRE_TS="$$(git show -s --format=%ct HEAD 2>/dev/null || true)"
+        bash deploy/garde-ordre-deploiement.sh '${_TAG}' "$$DEPLOYE" "$$NOTRE_TS" "$$DEPLOYE_TS"
         if [ "$$?" = "10" ]; then
           # Ni une panne ni un echec: ce build est simplement depasse. Les
           # deploiements web et tanitim lisent ce temoin pour s'abstenir aussi,
@@ -288,7 +295,7 @@ steps:
         exec bash deploy/deploiement-canari.sh '${_API_SERVICE}' \
           '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/api:${_TAG}' \
           '${_REGION}' /api/healthz '"build":"${_TAG}"' '"db":"connected"' -- \
-          --update-env-vars=BUILD_SHA=${_TAG},BUILD_ID=${BUILD_ID},PUBLIC_URL=${_PUBLIC_URL} \
+          --update-env-vars=BUILD_SHA=${_TAG},BUILD_ID=${BUILD_ID},BUILD_COMMIT_TIME=$$NOTRE_TS,PUBLIC_URL=${_PUBLIC_URL} \
           --session-affinity
     waitFor: ['migration-schema-prod']
 
