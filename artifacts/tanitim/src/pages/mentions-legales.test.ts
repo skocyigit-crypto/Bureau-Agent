@@ -266,3 +266,49 @@ describe("dette de mentions legales obligatoires", () => {
     expect(valeur("capitalSocial")).not.toBe("");
   });
 });
+
+/**
+ * Les durees de conservation annoncees doivent etre celles qui sont appliquees.
+ *
+ * Mesure le 18/09: la politique annoncait « Enregistrements d'appels : selon
+ * parametrage client (max. 12 mois par defaut) ». Aucun reglage par client
+ * n'existe — `services/retention-cron.ts` applique une duree unique pour toute
+ * la plateforme. Annoncer un choix qu'on ne propose pas, c'est promettre une
+ * maitrise que le client n'a pas, alors que l'article 13 du RGPD demande
+ * d'indiquer la duree exacte.
+ *
+ * Ce test lit la duree DANS LE CODE qui l'applique: recopier la valeur ne
+ * verifierait que la copie.
+ */
+describe("durees de conservation: annoncees = appliquees", () => {
+  const POLITIQUE = readPage("confidentialite.tsx");
+  const CRON = read(path.resolve(PAGES_DIR, "..", "..", "..", "api-server", "src", "services", "retention-cron.ts"));
+
+  /** La duree appliquee aux enregistrements d'appel, en jours. */
+  function joursAppliques(): number {
+    const m = CRON.match(/RETENTION_DAYS = Number\(process\.env\.CALL_RECORDING_RETENTION_DAYS \?\? (\d+)\)/);
+    expect(m, "duree de retention introuvable dans retention-cron.ts").not.toBeNull();
+    return Number(m![1]);
+  }
+
+  it("la politique annonce la duree reellement appliquee", () => {
+    const mois = Math.round(joursAppliques() / 30.44);
+    expect(POLITIQUE, `le cron efface a ${joursAppliques()} jours (~${mois} mois)`).toContain(`${mois} mois`);
+  });
+
+  it("elle n'annonce plus un reglage par client qui n'existe pas", () => {
+    const parametrable = /Enregistrements d'appels[^<]*param[eé]trage client/i.test(POLITIQUE);
+    const reglageExiste = /organisationId|orgId/.test(CRON.split("RETENTION_DAYS")[1] ?? "");
+    expect(parametrable && !reglageExiste, "reglage annonce mais absent du code").toBe(false);
+  });
+
+  it("elle dit ce qui se passe au terme du delai", () => {
+    expect(POLITIQUE).toMatch(/effac[eé]s? automatiquement|supprim[eé]s? automatiquement/i);
+  });
+
+  it("la purge efface bien l'enregistrement ET sa transcription", () => {
+    // Effacer l'URL en gardant le texte integral de l'appel ne conserverait
+    // rien de moins: la transcription est la meme donnee, ecrite autrement.
+    expect(CRON).toMatch(/recordingUrl: null, transcription: null/);
+  });
+});
