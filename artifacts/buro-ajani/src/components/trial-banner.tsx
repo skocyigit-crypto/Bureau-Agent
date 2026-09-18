@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/i18n";
 import { AlertTriangle,X,Zap } from "lucide-react";
 import { useEffect,useState } from "react";
+import { lecturePartagee } from "@/lib/lecture-partagee";
 import { Link } from "wouter";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
@@ -19,9 +20,9 @@ export function TrialBanner() {
       return;
     }
 
-    fetch(`${BASE}/api/my-subscription`, { credentials: "include" })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
+    lecturePartagee("my-subscription", () =>
+      fetch(`${BASE}/api/my-subscription`, { credentials: "include" }).then(r => (r.ok ? r.json() : null)))
+      .then((data: any) => {
         const sub = data?.subscription;
         if (!sub) return;
         if (sub.plan === "essai" && sub.daysRemaining !== null && sub.daysRemaining <= 7) {

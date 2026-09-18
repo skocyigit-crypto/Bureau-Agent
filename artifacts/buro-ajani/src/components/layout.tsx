@@ -27,6 +27,7 @@ import { getGetMyPreferencesQueryKey,useGetMyPreferences,type BadgeMuteFlags } f
 import { motion } from "framer-motion";
 import { Activity,BarChart,BarChart3,Bell,BookOpen,Bot,Brain,Briefcase,Building2,Calendar,CheckSquare,ClipboardCheck,ClipboardList,Clock,CreditCard,Crown,Download,FileSignature,FileText,Globe,GraduationCap,HardHat,Inbox,KeyRound,LayoutDashboard,Mail,MapPin,MessageCircle,MessageSquare,Monitor,Phone,PhoneCall,PhoneIncoming,Plug,Plus,Puzzle,Radar,Receipt,ReceiptText,Rocket,ScanSearch,Search,Settings,Shield,ShieldCheck,Smartphone,Sparkles,StickyNote,Tablet,Trophy,UserCog,Users,Wallet,Wifi,WifiOff,Zap,Trash2,Stethoscope} from "lucide-react";
 import { createContext,useContext,useEffect,useMemo,useRef,useState } from "react";
+import { lecturePartagee } from "@/lib/lecture-partagee";
 import { Link,useLocation } from "wouter";
 
 type IncomingCallContextType = { simulateIncomingCall: (phone?: string) => void };
@@ -249,9 +250,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
-    fetch(`${BASE}/api/org-profile`, { credentials: "include" })
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => {
+    // Le logo et le nom de l organisation changent une fois par an: une lecture
+    // partagee evite de les redemander a chaque montage de la mise en page.
+    lecturePartagee("org-profile", () =>
+      fetch(`${BASE}/api/org-profile`, { credentials: "include" }).then((r) => (r.ok ? r.json() : null)), 5 * 60_000)
+      .then((data: any) => {
         if (data) {
           setOrgLogo(data.logo || null);
           setOrgName(data.name || null);
