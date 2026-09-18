@@ -24,7 +24,11 @@ export type AgentRunState = {
 // repos. À la fin d'un run observé, on garde la pastille quelques secondes
 // (état « terminé ») puis on la masque.
 const ACTIVE_INTERVAL_MS = 2500;
-const IDLE_INTERVAL_MS = 20000;
+// Au REPOS (aucune analyse en cours), une minute suffit: personne n attend
+// rien, et ce sondage represente a lui seul trois requetes par minute dans un
+// onglet immobile — mesure du 18/09. Des qu une analyse tourne, la cadence
+// active reprend (2,5 s), donc la progression reste fluide.
+const IDLE_INTERVAL_MS = 60000;
 const FINISH_GRACE_MS = 4000;
 
 const INITIAL: AgentRunState = {

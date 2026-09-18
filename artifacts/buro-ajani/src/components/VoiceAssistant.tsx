@@ -1,5 +1,6 @@
 import { useTranslation } from "@/i18n";
 import { Brain,Check,Globe,HelpCircle,LayoutGrid,MessageCircle,MessagesSquare,Mic,MicOff,Radio,Send,Sparkles,Volume2,X,XCircle,Zap } from "lucide-react";
+import { lecturePartagee } from "@/lib/lecture-partagee";
 import { useCallback,useEffect,useRef,useState } from "react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -501,9 +502,11 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
 
   // Recharge la liste de commandes a chaque changement de langue.
   useEffect(() => {
-    fetch(`${BASE}/api/voice/commands?lang=${lang}`, { credentials: "include" })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.commands) setCommands(d.commands); })
+    // Liste constante cote serveur: une lecture partagee de cinq minutes evite
+    // qu un remontage (changement d ecran) la redemande a chaque fois.
+    lecturePartagee(`voice-commands:${lang}`, () =>
+      fetch(`${BASE}/api/voice/commands?lang=${lang}`, { credentials: "include" }).then(r => (r.ok ? r.json() : null)), 5 * 60_000)
+      .then((d: any) => { if (d?.commands) setCommands(d.commands); })
       .catch(() => {});
   }, [lang]);
 

@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/i18n";
 import { AlertTriangle,Clock,Lock } from "lucide-react";
 import { useEffect,useState } from "react";
+import { lecturePartagee } from "@/lib/lecture-partagee";
 import { Link } from "wouter";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
@@ -13,9 +14,11 @@ export function LicenseStatusBanner() {
   const [sub, setSub] = useState<SubInfo | null>(null);
 
   useEffect(() => {
-    fetch(`${BASE}/api/my-subscription`, { credentials: "include" })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => d?.subscription && setSub(d.subscription))
+    // Lecture partagee: trois composants montes en permanence demandaient
+    // le meme abonnement chacun de son cote (voir lib/lecture-partagee).
+    lecturePartagee("my-subscription", () =>
+      fetch(`${BASE}/api/my-subscription`, { credentials: "include" }).then(r => (r.ok ? r.json() : null)))
+      .then((d: any) => d?.subscription && setSub(d.subscription))
       .catch(() => {});
   }, []);
 
