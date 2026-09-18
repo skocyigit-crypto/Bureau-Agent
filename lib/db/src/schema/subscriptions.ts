@@ -36,9 +36,22 @@ export const PLANS = {
     maxUsers: 3,
     maxContacts: 100,
     maxCallsPerMonth: 500,
-    aiEnabled: false,
-    stockEnabled: false,
-    automationEnabled: false,
+    // L'essai MONTRE le produit.
+    //
+    // Toute inscription passe par ici, et chaque carte de tarifs porte le
+    // meme bouton « Essai gratuit 14 jours »: l'essai est donc la seule
+    // demonstration que le visiteur obtienne. Il etait declare sans IA, sans
+    // stock et sans automatisations — c'est-a-dire sans ce que la vitrine
+    // vend. Tant que les droits n'etaient appliques nulle part, la
+    // contradiction restait invisible; en les appliquant, elle serait devenue
+    // un essai ampute qui ne convertit personne.
+    //
+    // Ce sont les VOLUMES qui bornent l'essai (3 utilisateurs, 100 contacts,
+    // 500 appels), pas les fonctions: on limite l'usage, on ne cache pas le
+    // produit.
+    aiEnabled: true,
+    stockEnabled: true,
+    automationEnabled: true,
     price: 0,
     trialDays: 14,
   },

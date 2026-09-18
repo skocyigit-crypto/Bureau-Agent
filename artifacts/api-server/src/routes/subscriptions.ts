@@ -135,15 +135,21 @@ router.get("/subscription/usage", async (req: Request, res: Response): Promise<v
       ? [null]
       : await db.select({ maxUsers: organisationsTable.maxUsers }).from(organisationsTable).where(eq(organisationsTable.id, orgId));
     const plafondUtilisateurs = subscription?.maxUsers ?? organisation?.maxUsers ?? 0;
+    const fonctionsDuPlan = subscription ? PLANS[subscription.plan as PlanKey] : null;
 
     res.json({
       users: { current: userCount?.count ?? 0, max: plafondUtilisateurs },
       contacts: { current: contactCount?.count ?? 0, max: subscription?.maxContacts ?? null },
       callsThisMonth: { current: callCount?.count ?? 0, max: subscription?.maxCallsPerMonth ?? null },
+      // Le PLAN fait foi, comme pour l'acces lui-meme
+      // (services/droits-plan.ts). Les colonnes sont une photographie prise a
+      // la souscription et que rien ne met a jour: les lire ferait diverger ce
+      // que l'ecran annonce de ce que le serveur autorise. Sans abonnement,
+      // rien n'est ouvert.
       features: {
-        aiEnabled: subscription?.aiEnabled ?? false,
-        stockEnabled: subscription?.stockEnabled ?? false,
-        automationEnabled: subscription?.automationEnabled ?? false,
+        aiEnabled: fonctionsDuPlan?.aiEnabled ?? false,
+        stockEnabled: fonctionsDuPlan?.stockEnabled ?? false,
+        automationEnabled: fonctionsDuPlan?.automationEnabled ?? false,
       },
       ...(subscription ? {} : { sansAbonnement: true }),
     });
