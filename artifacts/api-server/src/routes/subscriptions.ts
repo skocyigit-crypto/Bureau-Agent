@@ -113,10 +113,6 @@ router.get("/subscription/usage", async (req: Request, res: Response): Promise<v
 
   try {
     const [subscription] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, orgId));
-    if (!subscription) {
-      res.status(404).json({ error: "Aucun abonnement trouve." });
-      return;
-    }
 
     const { usersTable, contactsTable, callsTable } = await import("@workspace/db");
     const { sql, and, gte } = await import("drizzle-orm");
@@ -129,15 +125,27 @@ router.get("/subscription/usage", async (req: Request, res: Response): Promise<v
     monthStart.setHours(0, 0, 0, 0);
     const [callCount] = await db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), gte(callsTable.createdAt, monthStart)));
 
+    // Organisation sans ligne d'abonnement (creee a la main, migration, ligne
+    // supprimee): l'usage reste une information VRAIE et utile. On repondait
+    // 404, et l'ecran « Utilisateurs » retombait en silence sur un plafond
+    // invente de 5 utilisateurs — alors que le plafond reellement applique est
+    // `organisations.max_users` (le declencheur de quota s'appuie dessus).
+    // Mieux vaut dire le vrai plafond et le signaler.
+    const [organisation] = subscription
+      ? [null]
+      : await db.select({ maxUsers: organisationsTable.maxUsers }).from(organisationsTable).where(eq(organisationsTable.id, orgId));
+    const plafondUtilisateurs = subscription?.maxUsers ?? organisation?.maxUsers ?? 0;
+
     res.json({
-      users: { current: userCount?.count ?? 0, max: subscription.maxUsers },
-      contacts: { current: contactCount?.count ?? 0, max: subscription.maxContacts },
-      callsThisMonth: { current: callCount?.count ?? 0, max: subscription.maxCallsPerMonth },
+      users: { current: userCount?.count ?? 0, max: plafondUtilisateurs },
+      contacts: { current: contactCount?.count ?? 0, max: subscription?.maxContacts ?? null },
+      callsThisMonth: { current: callCount?.count ?? 0, max: subscription?.maxCallsPerMonth ?? null },
       features: {
-        aiEnabled: subscription.aiEnabled,
-        stockEnabled: subscription.stockEnabled,
-        automationEnabled: subscription.automationEnabled,
+        aiEnabled: subscription?.aiEnabled ?? false,
+        stockEnabled: subscription?.stockEnabled ?? false,
+        automationEnabled: subscription?.automationEnabled ?? false,
       },
+      ...(subscription ? {} : { sansAbonnement: true }),
     });
   } catch (err: any) {
     req.log.error({ err }, "Erreur usage abonnement");
