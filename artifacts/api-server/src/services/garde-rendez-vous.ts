@@ -19,6 +19,20 @@ export function dansLHorizon(debut: Date, maintenant = new Date()): boolean {
   return debut.getTime() <= maintenant.getTime() + HORIZON_REPROGRAMMATION_JOURS * 86_400_000;
 }
 
+/**
+ * Un horaire propose par la secretaire telephonique IA est-il inscriptible ?
+ *
+ * Mesure le 18/09 : `isSlotFree` ne verifie que le chevauchement et les
+ * fermetures. Quand le modele lisait mal l'intention de l'appelant (« mardi »
+ * de la semaine passee, une annee erronee), le rendez-vous s'inscrivait dans
+ * le passe ou en 2090 : il n'apparaissait jamais dans l'agenda du client, et
+ * l'appelant repartait en croyant avoir un creneau. Memes bornes que le lien
+ * public de rendez-vous : elles decrivent la meme regle metier.
+ */
+export function horaireInscriptibleParIa(debut: Date, maintenant = new Date()): boolean {
+  return Number.isFinite(debut.getTime()) && creneauEncoreReservable(debut, maintenant) && dansLHorizon(debut, maintenant);
+}
+
 /** Un rendez-vous dont l'heure est passee ne se modifie plus depuis le lien. */
 export function rendezVousDejaPasse(debut: Date | null | undefined, maintenant = new Date()): boolean {
   return !!debut && debut.getTime() <= maintenant.getTime();

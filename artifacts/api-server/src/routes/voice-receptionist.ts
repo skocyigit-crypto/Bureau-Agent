@@ -1,4 +1,5 @@
 // Secretaire telephonique IA (entrante) via Twilio Voice.
+import { horaireInscriptibleParIa } from "../services/garde-rendez-vous";
 //
 // Flux:
 //   - Twilio appelle POST /api/voice/twilio/incoming quand un client appelle le
@@ -1219,7 +1220,8 @@ function smsConfirmText(
 // bloquer la reponse de l'appelant sur un aller-retour d'API SMS ajoutait de la
 // latence et risquait un timeout Twilio. Le SMS part en arriere-plan; son echec
 // eventuel n'interrompt pas la conversation.
-async function persistOutcome(session: CallSession, result: ReceptionistResult): Promise<void> {
+/** Exporte pour les tests : c'est ici que l'appel devient un rendez-vous. */
+export async function persistOutcome(session: CallSession, result: ReceptionistResult): Promise<void> {
   if (session.fulfilled || session.persisting || !result.outcome) return;
   // Pose synchrone AVANT tout `await`: en JS single-thread, aucun autre appel
   // concurrent a persistOutcome() ne peut s'intercaler entre ce check et cette
@@ -1235,7 +1237,12 @@ async function persistOutcome(session: CallSession, result: ReceptionistResult):
     if (result.outcome === "appointment" && result.appointment) {
       const a = result.appointment;
       const start = a.startIso ? new Date(a.startIso) : null;
-      const validStart = start && !Number.isNaN(start.getTime()) ? start : null;
+      // Un horaire passe, imminent (moins d'une heure) ou trop lointain n'est
+      // pas inscriptible : le modele lit parfois mal l'intention de l'appelant
+      // (« mardi » de la semaine passee, annee erronee). On bascule alors sur
+      // le chemin « demande a planifier », comme pour un conflit d'agenda —
+      // l'equipe rappelle, au lieu d'un rendez-vous que personne ne verra.
+      const validStart = start && horaireInscriptibleParIa(start) ? start : null;
 
       // Garde-fou anti-chevauchement: meme si l'IA a propose un horaire libre,
       // on revalide AVANT d'ecrire (l'agenda a pu bouger pendant l'appel). En
