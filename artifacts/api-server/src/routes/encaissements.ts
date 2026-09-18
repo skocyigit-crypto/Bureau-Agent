@@ -271,7 +271,13 @@ router.post("/encaissements/cloturer", async (req: Request, res: Response): Prom
     return;
   }
   const periode = String(req.body?.periode ?? "");
-  if (!/^d{4}(-d{2}(-d{2})?)?$/.test(periode)) {
+  // `\d`, pas `d`: les antislashs avaient disparu de ces deux expressions, qui
+  // ne reconnaissaient donc plus que les chaines litterales « dddd »,
+  // « dddd-dd » et « dddd-dd-dd ». Mesure du 18/09: « 2026-09 » etait refuse.
+  // Autrement dit, AUCUNE periode reelle ne pouvait etre close — la cloture,
+  // qui est la condition de conservation de l'article 286-I-3° bis du CGI,
+  // etait injoignable, et le seul message rendu disait « Periode invalide ».
+  if (!/^\d{4}(-\d{2}(-\d{2})?)?$/.test(periode)) {
     res.status(400).json({ error: "Periode invalide (AAAA, AAAA-MM ou AAAA-MM-JJ)." });
     return;
   }
@@ -407,7 +413,9 @@ router.get("/encaissements/archive", async (req: Request, res: Response): Promis
     res.status(400).json({ error: "Type de periode invalide." });
     return;
   }
-  if (!/^d{4}(-d{2}(-d{2})?)?$/.test(periode)) {
+  // Meme antislash perdu qu'a la cloture: l'archive comptable — celle qu'on
+  // remet a un controleur — etait tout aussi injoignable.
+  if (!/^\d{4}(-\d{2}(-\d{2})?)?$/.test(periode)) {
     res.status(400).json({ error: "Periode invalide (AAAA, AAAA-MM ou AAAA-MM-JJ)." });
     return;
   }
