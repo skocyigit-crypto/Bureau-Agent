@@ -6511,7 +6511,9 @@
       "ipLabel": "IP adresi: {{ip}}",
       "notesLabel": "Notlar: {{notes}}",
       "revoke": "İptal et",
-      "accept": "Kabul et"
+      "accept": "Kabul et",
+      "outdated": "Eski surum",
+      "outdatedNotice": "Kabul {{version}} surumune ait; yururlukteki surum {{courante}}."
     },
     "billingDialog": {
       "title": "Faturalandırma: {{name}}",

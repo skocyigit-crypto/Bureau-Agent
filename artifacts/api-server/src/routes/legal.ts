@@ -4,6 +4,7 @@ import { legalAgreementsTable, LEGAL_DOCUMENTS, type LegalDocumentCode } from "@
 import { organisationsTable } from "@workspace/db";
 import { eq, sql, and } from "drizzle-orm";
 import { requireSuperAdmin } from "../middleware/auth";
+import { etatConformite } from "../services/conformite-juridique";
 
 const router = Router();
 
@@ -32,10 +33,12 @@ router.get("/legal/compliance", async (req: Request, res: Response): Promise<voi
 
     const compliance = orgs.map(org => {
       const orgAgreements = agreements.filter(a => a.organisationId === org.id);
-      const accepted = orgAgreements.map(a => a.documentType);
-      const missing = mandatoryDocs.filter(doc => !accepted.includes(doc));
+      // La regle vit dans services/conformite-juridique.ts: une acceptation
+      // vaut pour la VERSION qu elle porte, pas pour le document.
+      const etat = etatConformite(LEGAL_DOCUMENTS, orgAgreements);
+      const missing = etat.manquants.filter((c) => mandatoryDocs.includes(c));
       const total = Object.keys(LEGAL_DOCUMENTS).length;
-      const acceptedCount = orgAgreements.length;
+      const acceptedCount = etat.aJour;
       const isCompliant = missing.length === 0;
 
       return {
@@ -87,11 +90,17 @@ router.get("/legal/org/:orgId", async (req: Request, res: Response): Promise<voi
       .where(and(eq(legalAgreementsTable.organisationId, orgId), eq(legalAgreementsTable.revoked, false)));
 
     const allDocs = Object.entries(LEGAL_DOCUMENTS).map(([code, doc]) => {
-      const agreement = agreements.find(a => a.documentType === code);
+      // La version compte: une acceptation des CGV 1.0 ne vaut pas pour 1.1.
+      // On garde la trace de lancienne (elle a existe) mais le statut dit
+      // « a renouveler », faute de quoi lecran affirmerait un consentement au
+      // texte actuel qui na jamais ete donne.
+      const agreement = agreements.find(a => a.documentType === code && a.documentVersion === (doc as any).version)
+        ?? agreements.find(a => a.documentType === code);
+      const aJour = agreement?.documentVersion === (doc as any).version;
       return {
         ...(doc as any),
         code,
-        status: agreement ? "accepted" as const : "pending" as const,
+        status: aJour ? "accepted" as const : (agreement ? "outdated" as const : "pending" as const),
         agreement: agreement ? {
           id: agreement.id,
           acceptedAt: agreement.acceptedAt,
@@ -106,11 +115,12 @@ router.get("/legal/org/:orgId", async (req: Request, res: Response): Promise<voi
 
     const mandatoryDocs = allDocs.filter(d => d.mandatory);
     const acceptedMandatory = mandatoryDocs.filter(d => d.status === "accepted");
+    const aJourCount = allDocs.filter(d => d.status === "accepted").length;
 
     res.json({
       documents: allDocs,
       isCompliant: acceptedMandatory.length === mandatoryDocs.length,
-      compliancePercent: Math.round((agreements.length / allDocs.length) * 100),
+      compliancePercent: Math.round((aJourCount / allDocs.length) * 100),
       mandatoryAccepted: acceptedMandatory.length,
       mandatoryTotal: mandatoryDocs.length,
     });
@@ -140,6 +150,11 @@ router.post("/legal/accept", async (req: Request, res: Response): Promise<void> 
         eq(legalAgreementsTable.organisationId, organisationId),
         eq(legalAgreementsTable.documentType, documentType),
         eq(legalAgreementsTable.revoked, false),
+        // Seule une acceptation de la version EN VIGUEUR fait obstacle.
+        // Sans ce critere, publier une nouvelle version rendait cette version
+        // inacceptable: la route repondait « deja accepte » en visant le texte
+        // precedent, et lacceptation du texte nouveau devenait impossible.
+        eq(legalAgreementsTable.documentVersion, docDef.version),
       ));
 
     if (existing.length > 0) {
@@ -182,8 +197,10 @@ router.post("/legal/accept-all", async (req: Request, res: Response): Promise<vo
     const existing = await db.select().from(legalAgreementsTable)
       .where(and(eq(legalAgreementsTable.organisationId, organisationId), eq(legalAgreementsTable.revoked, false)));
 
-    const existingTypes = existing.map(e => e.documentType);
-    const missingDocs = Object.entries(LEGAL_DOCUMENTS).filter(([code]) => !existingTypes.includes(code));
+    // Compare (type, version): un document accepte dans une version anterieure
+    // fait partie de ce qui reste a accepter.
+    const dejaAJour = new Set(existing.map(e => `${e.documentType}@${e.documentVersion}`));
+    const missingDocs = Object.entries(LEGAL_DOCUMENTS).filter(([code, doc]) => !dejaAJour.has(`${code}@${(doc as any).version}`));
 
     if (missingDocs.length === 0) {
       res.json({ message: "Tous les documents sont deja acceptes.", accepted: 0 });

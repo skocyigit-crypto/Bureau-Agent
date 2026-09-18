@@ -6511,7 +6511,9 @@
       "ipLabel": "IP-Adresse: {{ip}}",
       "notesLabel": "Notizen: {{notes}}",
       "revoke": "Widerrufen",
-      "accept": "Akzeptieren"
+      "accept": "Akzeptieren",
+      "outdated": "Veraltete Fassung",
+      "outdatedNotice": "Die Zustimmung betrifft Fassung {{version}}; in Kraft ist Fassung {{courante}}."
     },
     "billingDialog": {
       "title": "Abrechnung: {{name}}",
