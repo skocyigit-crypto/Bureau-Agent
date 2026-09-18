@@ -450,13 +450,33 @@ router.patch("/depenses/:id", requireMinAgent, async (req: Request, res: Respons
       update.duplicateOfId = dup?.id ?? null;
     }
 
+    // Modifier ce qui a ete approuve REOUVRE l'approbation.
+    //
+    // Mesure du 18/09: une depense approuvee a 250 EUR pouvait passer a
+    // 5 000 EUR et rester « approuvee », avec le nom du responsable encore
+    // inscrit comme relecteur. L'approbation couvrait alors un montant que
+    // personne n'avait valide — c'est le detournement classique, et il ne
+    // demandait aucun privilege particulier.
+    //
+    // Ne rouvrent QUE les champs qui changent la nature de la depense: qui est
+    // paye, combien, quand, a quel titre. Corriger une note ou un libelle ne
+    // fait pas repasser par la case approbation.
+    const CHAMPS_ENGAGEANTS = ["vendor", "amountHt", "amountTva", "amountTtc", "category", "expenseDate"] as const;
+    const reouvre = current.status === "approuve"
+      && CHAMPS_ENGAGEANTS.some((c) => update[c] !== undefined && String(update[c]) !== String(current[c as keyof typeof current]));
+    if (reouvre) {
+      update.status = "en_attente";
+      update.reviewedBy = null;
+      update.reviewedAt = null;
+    }
+
     const [updated] = await db
       .update(depensesTable)
       .set(update)
       .where(and(eq(depensesTable.id, id), eq(depensesTable.organisationId, orgId)))
       .returning();
 
-    res.json({ success: true, depense: updated, duplicate: !!updated?.duplicateOfId });
+    res.json({ success: true, depense: updated, duplicate: !!updated?.duplicateOfId, approbationReouverte: reouvre });
   } catch (err) {
     logger.error({ err }, "[depenses] patch failed");
     res.status(500).json({ error: "Erreur lors de la mise à jour de la dépense." });
