@@ -124,7 +124,14 @@ export default function Confidentialite() {
               <li><strong>Données de compte</strong> : durée de l'abonnement + 3 ans après résiliation</li>
               <li><strong>Données de facturation</strong> : 10 ans (obligation légale comptable)</li>
               <li><strong>Journaux techniques</strong> : 12 mois maximum</li>
-              <li><strong>Enregistrements d'appels</strong> : selon paramétrage client (max. 12 mois par défaut)</li>
+              {/* « Selon parametrage client » decrivait un reglage qui n'existe
+                  pas: la duree est unique pour toute la plateforme
+                  (services/retention-cron.ts, 365 jours). Annoncer un choix
+                  qu'on ne propose pas, c'est promettre une maitrise que le
+                  client n'a pas — et sur une duree de conservation, c'est
+                  precisement ce que l'article 13 du RGPD demande d'indiquer
+                  exactement. */}
+              <li><strong>Enregistrements d'appels</strong> : 12 mois. Passé ce délai, l'enregistrement et sa transcription sont effacés automatiquement.</li>
               {/* Cette ligne manquait, et son absence etait le vrai probleme:
                   les journaux d'audit sont rendus non modifiables et non
                   supprimables par des declencheurs PostgreSQL
