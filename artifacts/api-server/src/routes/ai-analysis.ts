@@ -15,7 +15,7 @@ import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services
 import { nextInvoiceNumber } from "../services/invoice-numbering";
 import { overdueCondition } from "../services/invoice-status";
 import { aiForOrg } from "../services/ai-client";
-import { assertAiUsable, respondAiError } from "../services/ai-guard";
+import { assertAiUsable, fournisseurInjoignable, respondAiError } from "../services/ai-guard";
 
 const router = Router();
 
@@ -217,6 +217,8 @@ Reponds en JSON avec cette structure exacte:
     setCached(cacheKey, parsed, AI_CACHE_TTL.LONG);
     res.json(parsed);
   } catch (error: any) {
+    // Fournisseur de modeles injoignable: 503, pas 500 — ce serveur va bien.
+    if (respondAiError(error, res)) return;
     logger.error({ err: error }, "AI Analysis error:");
     const isProduction = process.env.NODE_ENV === "production";
     res.status(500).json({
@@ -437,6 +439,8 @@ Donnees:\n${JSON.stringify(contextData, null, 2)}`
     setCached(suggestKey, parsed, AI_CACHE_TTL.MEDIUM);
     res.json(parsed);
   } catch (error: any) {
+    // Fournisseur de modeles injoignable: 503, pas 500 — ce serveur va bien.
+    if (respondAiError(error, res)) return;
     logger.error({ err: error }, "AI Suggest error:");
     const isProduction = process.env.NODE_ENV === "production";
     res.status(500).json({
@@ -540,6 +544,8 @@ Si tout est correct, errors et warnings seront vides. Sois utile mais pas trop s
     setCached(validateKey, parsed, AI_CACHE_TTL.SHORT);
     res.json(parsed);
   } catch (error: any) {
+    // Fournisseur de modeles injoignable: 503, pas 500 — ce serveur va bien.
+    if (respondAiError(error, res)) return;
     logger.error({ err: error }, "AI Validate error:");
     const isProduction = process.env.NODE_ENV === "production";
     res.status(500).json({
@@ -703,6 +709,8 @@ Sois precis, base-toi sur les donnees reelles. Pour les calculs mathematiques, u
 
     res.json(parsed);
   } catch (error: any) {
+    // Fournisseur de modeles injoignable: 503, pas 500 — ce serveur va bien.
+    if (respondAiError(error, res)) return;
     logger.error({ err: error }, "AI Assistant error:");
     const isProduction = process.env.NODE_ENV === "production";
     res.status(500).json({
@@ -912,6 +920,8 @@ router.post("/ai/recognize", async (req, res): Promise<void> => {
 
     res.json({ resume, detections });
   } catch (error: any) {
+    // Fournisseur de modeles injoignable: 503, pas 500 — ce serveur va bien.
+    if (respondAiError(error, res)) return;
     logger.error({ err: error }, "AI Recognize error:");
     const isProduction = process.env.NODE_ENV === "production";
     res.status(500).json({
@@ -1054,6 +1064,8 @@ Reponds en JSON avec cette structure exacte:
 
     res.json(parsed);
   } catch (error: any) {
+    // Fournisseur de modeles injoignable: 503, pas 500 — ce serveur va bien.
+    if (respondAiError(error, res)) return;
     logger.error({ err: error }, "AI Draft Email error:");
     const isProduction = process.env.NODE_ENV === "production";
     res.status(500).json({
@@ -1295,6 +1307,8 @@ Sois concret, personnalise, et adapte tes recommandations au role (${userProfile
 
     res.json(parsed);
   } catch (error: any) {
+    // Fournisseur de modeles injoignable: 503, pas 500 — ce serveur va bien.
+    if (respondAiError(error, res)) return;
     logger.error({ err: error }, "AI Discovery error:");
     const isProduction = process.env.NODE_ENV === "production";
     res.status(500).json({
@@ -1852,6 +1866,20 @@ IMPORTANT: Tu ES l'assistant d'Aurelie. Agis, ne suggere pas. Chaque resolution 
 
     res.json(parsed);
   } catch (error: any) {
+    // Cet ecran est la PAGE D'ACCUEIL. Quand le fournisseur de modeles ne
+    // repond pas (credit epuise, cle revoquee, panne chez lui), la demande a
+    // bien ete traitee: il n'y a simplement pas d'analyse a montrer. On repond
+    // donc 200 avec un drapeau explicite, et la carte « momentanement
+    // indisponible » s'affiche — au lieu d'une erreur rouge sur le premier
+    // ecran que voit le client, alors que tout le reste fonctionne.
+    // Les autres routes IA gardent un 503: quand on attend un brouillon
+    // d'e-mail, un « tout va bien » serait un mensonge.
+    if (fournisseurInjoignable(error)) {
+      logger.warn({ err: error }, "[AI] Intelligence Centrale: fournisseur injoignable");
+      res.json({ iaIndisponible: true, code: "ia_injoignable", insights: [], actions: [], resume: null });
+      return;
+    }
+    if (respondAiError(error, res)) return;
     logger.error({ err: error }, "AI Central Intelligence error:");
     const isProduction = process.env.NODE_ENV === "production";
     res.status(500).json({
@@ -2176,6 +2204,8 @@ FORMAT DE REPONSE JSON:
       },
     });
   } catch (error: any) {
+    // Fournisseur de modeles injoignable: 503, pas 500 — ce serveur va bien.
+    if (respondAiError(error, res)) return;
     logger.error({ err: error }, "AI Chat error:");
     const isProduction = process.env.NODE_ENV === "production";
     res.status(500).json({ error: "Erreur du chat IA", ...(isProduction ? {} : { details: error.message }) });
@@ -3004,6 +3034,8 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
 
     res.json(result);
   } catch (error: any) {
+    // Fournisseur de modeles injoignable: 503, pas 500 — ce serveur va bien.
+    if (respondAiError(error, res)) return;
     logger.error({ err: error }, "AI Execute error:");
     res.status(500).json({ error: "Erreur d'execution", success: false });
   }
@@ -3105,6 +3137,8 @@ Sois PRECIS et base-toi sur les tendances reelles. Chaque prediction doit etre J
 
     res.json({ predictions: parsed, historicalData, generatedAt: new Date().toISOString() });
   } catch (error: any) {
+    // Fournisseur de modeles injoignable: 503, pas 500 — ce serveur va bien.
+    if (respondAiError(error, res)) return;
     logger.error({ err: error }, "AI Predictions error:");
     res.status(500).json({ error: "Erreur des predictions IA" });
   }
