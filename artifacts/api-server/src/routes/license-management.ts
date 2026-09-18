@@ -643,8 +643,32 @@ router.post("/license-management/record-payment", async (req: Request, res: Resp
     const [facture] = await db.select().from(facturesClientTable).where(and(eq(facturesClientTable.id, factureClientId), eq(facturesClientTable.organisationId, orgId)));
     if (!facture) { res.status(404).json({ error: "Facture introuvable" }); return; }
 
-    const newPaid = Math.min(Number(facture.paidAmount) + amountNum, Number(facture.totalAmount));
-    const isFullyPaid = newPaid >= Number(facture.totalAmount);
+    // Un trop-percu ne se tronque pas en silence.
+    //
+    // `Math.min` ramenait le cumul au total de la facture: saisir 1 000 sur une
+    // facture de 500 enregistrait 500 et repondait « soldee ». Le surplus
+    // disparaissait sans trace — les livres cessaient de correspondre a la
+    // banque, et la faute de frappe restait invisible.
+    //
+    // La route /encaissements refuse deja ce cas (409 depasse_reste_a_payer);
+    // celle-ci menait au meme fait comptable par une autre porte, non gardee.
+    const dejaPaye = Number(facture.paidAmount);
+    const total = Number(facture.totalAmount);
+    const reste = Math.round((total - dejaPaye) * 100) / 100;
+    if (amountNum > reste + 0.005) {
+      res.status(409).json({
+        error: reste <= 0
+          ? "Cette facture est deja entierement reglee."
+          : `Ce montant depasse le reste a payer (${reste.toFixed(2)} EUR).`,
+        resteAPayer: reste.toFixed(2),
+        code: "depasse_reste_a_payer",
+        remediation: "Corrigez le montant. S'il s'agit d'un trop-percu reel, il se constate par un avoir, pas par une facture surpayee.",
+      });
+      return;
+    }
+
+    const newPaid = Math.round((dejaPaye + amountNum) * 100) / 100;
+    const isFullyPaid = newPaid >= total;
 
     await db.update(facturesClientTable).set({
       paidAmount: newPaid.toFixed(2),
