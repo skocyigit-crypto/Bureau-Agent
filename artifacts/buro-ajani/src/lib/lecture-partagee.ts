@@ -1,27 +1,35 @@
 /**
- * Une meme lecture demandee par plusieurs composants ne doit partir qu'une fois.
+ * Une meme lecture demandee par plusieurs composants ne doit partir qu une fois.
  *
- * Mesure le 18/09 (onglet ouvert, immobile, 60 secondes): 33 requetes vers
- * l'API, dont QUATRE vers `/api/my-subscription`. Trois composants montes en
- * permanence l'appellent chacun de leur cote — la banniere de licence, la
- * banniere d'essai, et la verification d'acces — sans savoir que les autres
- * viennent de le faire.
+ * CE QUI A ETE MESURE, ET CE QUE LA PREMIERE MESURE DISAIT DE TROP
  *
- * Ce n'est pas qu'un gaspillage: le limiteur applicatif borne un utilisateur a
- * 1 000 requetes par quart d'heure. A 33 requetes/minute au repos, deux
- * onglets ouverts suffisent a l'epuiser, et l'application repond alors
- * « Trop de requetes » a son propre utilisateur — y compris sur `/auth/me`,
- * ce qui la fait passer pour deconnectee.
+ * Le 18/09, un onglet immobile sur le SERVEUR DE DEVELOPPEMENT emettait 33
+ * requetes par minute, dont quatre vers `/api/my-subscription`. J en ai conclu
+ * que deux onglets suffisaient a epuiser le quota applicatif (1 000 requetes
+ * par quart d heure) — et c etait faux.
  *
- * Deux garanties, et la seconde compte autant que la premiere:
+ * Reprise sur le BUILD DE PRODUCTION, celui que le client execute: UNE requete
+ * par minute au repos. L essentiel des 33 venait du mode developpement (double
+ * rendu de React en mode strict, rechargement a chaud). Le quota n a jamais ete
+ * menace, et l affirmation inverse ne tenait qu a l endroit ou j avais regarde.
+ *
+ * CE QUI RESTE VRAI, ET POURQUOI CE FICHIER EXISTE QUAND MEME
+ *
+ * Trois composants montes en permanence — banniere de licence, banniere
+ * d essai, verification d acces — demandent le meme abonnement chacun de son
+ * cote, en production aussi. Le profil de l organisation et la liste (constante)
+ * des phrases vocales sont redemandes a chaque montage. Ce sont des lectures
+ * dupliquees: peu nombreuses, mais inutiles, et elles se multiplient a chaque
+ * ecran ouvert.
+ *
+ * Deux garanties:
  *   - MEME VOL: deux appels simultanes partagent la meme promesse;
- *   - MEMOIRE COURTE: le resultat est reutilise pendant `dureeMs`, puis
- *     oublie. Un abonnement suspendu doit se voir vite; on ne met donc pas en
- *     cache pour la session, seulement le temps d'un rendu.
+ *   - MEMOIRE COURTE: le resultat est reutilise pendant `dureeMs`, puis oublie.
+ *     Un abonnement suspendu doit se voir vite.
  *
- * Volontairement en memoire du module et non dans `sessionStorage`: ce qui est
- * partage ici est la REQUETE, pas la donnee. Un onglet qui se recharge doit
- * relire, et rien ne doit survivre a une deconnexion.
+ * En memoire du module et non dans `sessionStorage`: ce qui est partage est la
+ * REQUETE, pas la donnee. Un onglet qui se recharge relit, et rien ne survit a
+ * une deconnexion.
  */
 
 type Entree = { expireA: number; promesse: Promise<unknown> };

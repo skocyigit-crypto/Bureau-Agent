@@ -1,12 +1,15 @@
 /**
- * Une meme lecture demandee par plusieurs composants ne doit partir qu'une fois.
+ * Une meme lecture demandee par plusieurs composants ne doit partir qu une fois.
  *
- * Mesure le 18/09 (onglet ouvert, immobile, 60 secondes): 33 requetes vers
- * l'API, dont quatre vers `/api/my-subscription` — trois composants montes en
- * permanence l'appelaient chacun de leur cote. Le limiteur applicatif borne un
- * utilisateur a 1 000 requetes par quart d'heure: a ce rythme, deux onglets
- * suffisent a l'epuiser, et l'application repond « Trop de requetes » a son
- * propre utilisateur.
+ * La premiere mesure (33 requetes/minute au repos) venait du serveur de
+ * DEVELOPPEMENT; reprise sur le build de production, le repos tient en UNE
+ * requete par minute. Le quota applicatif n etait donc pas menace — voir
+ * lecture-partagee.ts, ou l erreur est consignee.
+ *
+ * Ce que ces tests tiennent est ce qui reste vrai en production: trois
+ * composants montes en permanence demandent le meme abonnement, et deux
+ * lectures constantes (profil de l organisation, phrases de l assistant vocal)
+ * repartent a chaque montage.
  */
 import { describe, expect, it, vi } from "vitest";
 import { lecturePartagee, oublierLecturesPartagees } from "./lecture-partagee";
