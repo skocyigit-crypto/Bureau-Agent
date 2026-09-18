@@ -181,3 +181,88 @@ describe("declaration d'accessibilite", () => {
     expect(page).toContain("Défenseur des droits");
   });
 });
+
+/**
+ * La dette de mentions obligatoires, comptee plutot qu'oubliee.
+ *
+ * Le 18/09/2026, `hebergeurTelephone` etait vide depuis des semaines. La page
+ * se comportait correctement — elle masque la ligne au lieu d'inventer un
+ * numero — et c'est precisement pourquoi le manque etait invisible: rien ne
+ * distinguait « pas encore renseigne » de « rien a renseigner ».
+ *
+ * Ce test ne bloque pas les deploiements: il fige le NOMBRE de mentions
+ * obligatoires encore vides. Remplir la valeur fait echouer le test, qui
+ * demande alors de baisser le compteur — c'est le seul moment ou une dette
+ * legale doit interrompre quelqu'un. L'augmenter exige la meme décision
+ * explicite.
+ *
+ * Reference: LCEN art. 6-III (identification de l'hebergeur: nom, adresse ET
+ * telephone), C. com. R123-237 (RCS, capital). Le defaut de mentions legales
+ * est puni d'un an d'emprisonnement et 75 000 € d'amende (LCEN art. 6-VI).
+ */
+describe("dette de mentions legales obligatoires", () => {
+  const INFOS = read(path.join(SRC, "lib", "legal-info.ts"));
+
+  /**
+   * Valeur litterale d'un champ de LEGAL_INFO, ou null s'il n'existe pas.
+   *
+   * Lecture ligne a ligne plutot qu'une expression reguliere multiligne: le
+   * fichier est en CRLF sous Windows et en LF ailleurs, et une expression qui
+   * depend du saut de ligne ne mesurerait plus la meme chose selon la machine.
+   */
+  function valeur(champ: string): string | null {
+    for (const ligne of INFOS.split("\n")) {
+      const debut = ligne.trim();
+      if (!debut.startsWith(`${champ}:`)) continue;
+      const guillemets = debut.match(/"([^"]*)"/);
+      if (guillemets) return guillemets[1]!;
+    }
+    return null;
+  }
+
+  const OBLIGATOIRES = ["rcs", "capitalSocial", "hebergeurTelephone"] as const;
+
+  /**
+   * Mentions obligatoires encore vides. A BAISSER des qu'une valeur est
+   * obtenue — c'est le but de ce compteur.
+   *
+   * 18/09/2026: 1 — le telephone de l'hebergeur (contrat Google Cloud EMEA).
+   */
+  const DETTE_ATTENDUE = 1;
+
+  it("chaque mention obligatoire existe dans le fichier", () => {
+    for (const champ of OBLIGATOIRES) {
+      expect(valeur(champ), `champ absent de legal-info.ts: ${champ}`).not.toBeNull();
+    }
+  });
+
+  it("le nombre de mentions obligatoires vides est celui qu'on a decide", () => {
+    const vides = OBLIGATOIRES.filter((c) => (valeur(c) ?? "").trim() === "");
+    expect(
+      vides.length,
+      vides.length < DETTE_ATTENDUE
+        ? `Bonne nouvelle: ${vides.join(", ") || "plus rien"} — baissez DETTE_ATTENDUE a ${vides.length}.`
+        : `Mentions obligatoires vides: ${vides.join(", ")}. Les remplir, ou assumer la hausse explicitement.`,
+    ).toBe(DETTE_ATTENDUE);
+  });
+
+  it("la dette restante est nommee, pas anonyme", () => {
+    // Un compteur sans nom ne dit pas quoi aller chercher ni aupres de qui.
+    const vides = OBLIGATOIRES.filter((c) => (valeur(c) ?? "").trim() === "");
+    for (const champ of vides) {
+      // La valeur manquante doit etre accompagnee, quelque part dans le
+      // fichier, de l'endroit ou aller la chercher.
+      const indexChamp = INFOS.indexOf(`${champ}:`);
+      const contexte = INFOS.slice(Math.max(0, indexChamp - 600), indexChamp);
+      expect(
+        /Source|COMMENT COMPLETER/.test(contexte),
+        `${champ} est vide sans indiquer ou trouver la valeur`,
+      ).toBe(true);
+    }
+  });
+
+  it("une mention obligatoire deja obtenue ne redevient pas vide en silence", () => {
+    expect(valeur("rcs")).not.toBe("");
+    expect(valeur("capitalSocial")).not.toBe("");
+  });
+});
