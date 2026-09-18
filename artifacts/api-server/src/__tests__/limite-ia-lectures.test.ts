@@ -15,7 +15,7 @@ process.env.ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS ?? "http://localhost";
 import { describe, expect, it } from "vitest";
 import request from "supertest";
 import app from "../app";
-import { consommeBudgetIa } from "../services/limite-ia-chemins";
+import { consommeBudgetIa, voixConsommeBudgetIa } from "../services/limite-ia-chemins";
 
 /** Combien de 429 sur N appels identiques, sans session (le limiteur agit avant la route). */
 async function refus(methode: "get" | "post", chemin: string, n: number): Promise<number> {
@@ -58,6 +58,26 @@ describe("quels chemins consomment le budget IA", () => {
   it("une requete de decouverte CORS ne consomme rien", () => {
     expect(consommeBudgetIa("OPTIONS", "/analyse")).toBe(false);
   });
+});
+
+describe("assistant vocal : la liste des phrases n'est pas un appel IA", () => {
+  it("la liste des commandes : ne consomme pas", () => {
+    expect(voixConsommeBudgetIa("GET", "/commands")).toBe(false);
+  });
+  it("annuler une commande : ne consomme pas", () => {
+    expect(voixConsommeBudgetIa("POST", "/cancel")).toBe(false);
+  });
+  it("dicter une commande ou discuter : OUI", () => {
+    expect(voixConsommeBudgetIa("POST", "/command")).toBe(true);
+    expect(voixConsommeBudgetIa("POST", "/chat")).toBe(true);
+    expect(voixConsommeBudgetIa("POST", "/site-ops")).toBe(true);
+  });
+  it("vingt lectures de la liste ne declenchent aucun refus", async () => {
+    expect(await refus("get", "/api/voice/commands?lang=fr", 20)).toBe(0);
+  }, 60_000);
+  it("les commandes vocales restent bornees", async () => {
+    expect(await refus("post", "/api/voice/command", 20)).toBeGreaterThan(0);
+  }, 60_000);
 });
 
 describe("comportement de l'application", () => {
