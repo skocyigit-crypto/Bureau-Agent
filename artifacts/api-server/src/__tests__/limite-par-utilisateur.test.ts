@@ -73,7 +73,10 @@ describe("branchement", () => {
     }
   });
   it("la session est montee AVANT les limiteurs", () => {
-    expect(APP.indexOf("app.use(sessionMiddleware);")).toBeLessThan(APP.indexOf('app.use("/api/ai", aiLimiter);'));
+    // Le montage IA est desormais conditionnel (services/limite-ia-chemins.ts) :
+    // on repere le prefixe, pas la ligne exacte, pour que le test continue de
+    // mesurer l'ORDRE et non la forme du code.
+    expect(APP.indexOf("app.use(sessionMiddleware);")).toBeLessThan(APP.indexOf('app.use("/api/ai"'));
   });
   it("connexion et reinitialisation restent par IP", () => {
     expect(AUTH).not.toContain("cleLimiteApplicative");
