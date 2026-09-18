@@ -38,6 +38,9 @@ const reponse = await fetch(`${BASE}/api/auth/register`, {
     lastName: "Locale",
     email: EMAIL,
     password: MOTDEPASSE,
+    // Exige depuis que la reserve aux professionnels est verifiee
+    // (services/inscription-saisie.ts). Numero a cle de Luhn valide.
+    siret: "552100554",
     acceptedTerms: true,
   }),
 });

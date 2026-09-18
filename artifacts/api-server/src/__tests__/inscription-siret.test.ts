@@ -104,3 +104,29 @@ describe("le parcours complet demande cet identifiant", () => {
     expect(cgv, "si la reserve disparait des CGV, ce controle n'a plus de fondement").toMatch(/professionnels/i);
   });
 });
+
+/**
+ * Le compte de verification se cree par l'API PUBLIQUE, donc il subit la meme
+ * exigence. Mesure du 18/09 : le job « Ecrans connectes » de la CI est tombe
+ * des la premiere execution apres ce changement — semer-verif.mjs n'envoyait
+ * pas de SIRET, le 400 ne creait aucun compte, et les 25 ecrans se sont
+ * evalues sur une session absente. Ce controle relie les deux fichiers : qui
+ * durcit l'inscription voit ici ce qu'il doit suivre.
+ */
+describe("l'amorce de verification suit la meme regle", () => {
+  const semeur = readFileSync(join(RACINE, "scripts", "semer-verif.mjs"), "utf8");
+
+  it("envoie un identifiant", () => {
+    expect(semeur, "sans siret, le seed rend 400 et la CI juge des ecrans deconnectes").toMatch(/siret:/);
+  });
+
+  it("envoie un identifiant que le serveur accepte vraiment", () => {
+    const m = semeur.match(/siret:\s*"([^"]+)"/);
+    expect(m, "identifiant introuvable dans le seed").not.toBeNull();
+    const verdict = lireInscription({
+      orgName: "Verif", firstName: "V", lastName: "L",
+      email: "v@example.com", siret: m![1],
+    });
+    expect(verdict.ok, "le seed porte un numero que l'inscription refuse").toBe(true);
+  });
+});
