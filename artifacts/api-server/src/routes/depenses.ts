@@ -18,6 +18,11 @@ import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
 
 const router = Router();
 const requireMinAgent = requireRole("super_admin", "administrateur", "agent");
+/**
+ * Valider une depense engage l argent de l entreprise: c est un acte de
+ * direction, pas de saisie. Un agent saisit, un responsable approuve.
+ */
+const requireResponsable = requireRole("super_admin", "administrateur");
 
 const STATUS_SET = new Set<string>(EXPENSE_STATUSES);
 const PAYMENT_SET = new Set<string>(EXPENSE_PAYMENT_STATUSES);
@@ -328,7 +333,14 @@ router.post("/depenses", requireMinAgent, async (req: Request, res: Response): P
     const category = typeof body.category === "string" && CATEGORY_SET.has(body.category) ? body.category : "autre";
     const paymentStatus =
       typeof body.paymentStatus === "string" && PAYMENT_SET.has(body.paymentStatus) ? body.paymentStatus : "a_payer";
-    const status = body.status === "approuve" ? "approuve" : "en_attente";
+    // Une depense NAIT en attente, toujours.
+    //
+    // La ligne precedente lisait `body.status`: il suffisait d envoyer
+    // `status: "approuve"` a la creation pour que la depense entre au registre
+    // sans qu aucun responsable ne l ait vue. L ecran d approbation existait,
+    // mais rien n obligeait a y passer — mesure du 18/09 sur le banc, avec un
+    // simple appel HTTP.
+    const status = "en_attente";
     const expenseDate = parseDocumentDate(body.expenseDate);
     const dueDate = parseDocumentDate(body.dueDate);
     const dedupeHash = computeDedupeHash(vendor, ttc, expenseDate);
@@ -359,8 +371,10 @@ router.post("/depenses", requireMinAgent, async (req: Request, res: Response): P
         dedupeHash,
         duplicateOfId: dup?.id ?? null,
         createdBy: userId,
-        reviewedBy: status === "approuve" ? userId : null,
-        reviewedAt: status === "approuve" ? new Date() : null,
+        // Personne n a encore relu: ces deux colonnes se remplissent a
+        // l approbation, par celui qui approuve.
+        reviewedBy: null,
+        reviewedAt: null,
       })
       .returning();
 
@@ -474,9 +488,9 @@ async function setStatus(req: Request, res: Response, status: "approuve" | "reje
 }
 
 // POST /depenses/:id/approve — valide la dépense (entre au registre).
-router.post("/depenses/:id/approve", requireMinAgent, (req, res) => setStatus(req, res, "approuve"));
+router.post("/depenses/:id/approve", requireResponsable, (req, res) => setStatus(req, res, "approuve"));
 // POST /depenses/:id/reject — écarte la dépense.
-router.post("/depenses/:id/reject", requireMinAgent, (req, res) => setStatus(req, res, "rejete"));
+router.post("/depenses/:id/reject", requireResponsable, (req, res) => setStatus(req, res, "rejete"));
 
 // DELETE /depenses/:id — suppression définitive (responsables uniquement).
 router.delete(
