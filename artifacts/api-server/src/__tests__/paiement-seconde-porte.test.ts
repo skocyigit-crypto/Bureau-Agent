@@ -24,7 +24,7 @@ import request from "supertest";
 import { eq } from "drizzle-orm";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { db, facturesClientTable, organisationsTable, usersTable } from "@workspace/db";
+import { db, encaissementsTable, facturesClientTable, organisationsTable, usersTable } from "@workspace/db";
 import router from "../routes/license-management";
 
 const stamp = Date.now();
@@ -92,13 +92,15 @@ describe("un montant superieur au reste a payer", () => {
   });
 
   it("dit ce qui reste du, pour que la saisie soit corrigeable", async () => {
-    const id = await facture("120.00", "20.00");
+    const id = await facture("120.00");
+    await enregistrer({ factureClientId: id, amount: 20 });
     const r = await enregistrer({ factureClientId: id, amount: 500 });
     expect(r.body.resteAPayer).toBe("100.00");
   });
 
   it("le dit autrement quand la facture est deja soldee", async () => {
-    const id = await facture("120.00", "120.00");
+    const id = await facture("120.00");
+    await enregistrer({ factureClientId: id, amount: 120 });
     const r = await enregistrer({ factureClientId: id, amount: 10 });
     expect(r.body.error).toMatch(/deja entierement reglee/i);
   });
@@ -120,7 +122,11 @@ describe("les reglements legitimes passent toujours", () => {
   });
 
   it("le solde exact clot la facture", async () => {
-    const id = await facture("120.00", "100.00");
+    // L acompte prealable passe par la ROUTE: depuis que la chaine fait foi,
+    // semer paidAmount en base decrirait un etat que le produit ne peut plus
+    // atteindre — et le test ne mesurerait plus rien de reel.
+    const id = await facture("120.00");
+    await enregistrer({ factureClientId: id, amount: 100 });
     const r = await enregistrer({ factureClientId: id, amount: 20 });
     expect(r.body.isFullyPaid).toBe(true);
     expect((await lire(id)).status).toBe("payee");
@@ -137,7 +143,8 @@ describe("les reglements legitimes passent toujours", () => {
   });
 
   it("le paiement au centime pres du reste est accepte", async () => {
-    const id = await facture("120.00", "119.99");
+    const id = await facture("120.00");
+    await enregistrer({ factureClientId: id, amount: 119.99 });
     const r = await enregistrer({ factureClientId: id, amount: 0.01 });
     expect(r.status, "arrondi trop strict: le dernier centime deviendrait impayable").toBe(200);
     expect(r.body.isFullyPaid).toBe(true);
@@ -194,5 +201,82 @@ describe("la trace d'envoi de facture", () => {
 
   it("le message d'echec nomme la facture et le destinataire", () => {
     expect(bloc.slice(0, 12000)).toMatch(/Echec d'envoi de la facture \$\{facture\.reference\} a \$\{facture\.clientEmail\}/);
+  });
+});
+
+/**
+ * Le defaut le plus grave : un paiement qui s'efface tout seul.
+ *
+ * `facturesClient.paidAmount` n'est pas une donnee, c'est un CACHE recalcule
+ * depuis la chaine d'encaissements. Les deux routes d'administration
+ * l'ecrivaient directement, sans creer la moindre ecriture. Consequence :
+ *
+ *  - le journal de caisse — chaine, horodate, verifiable — ignorait ces
+ *    reglements ; la facture se disait payee et rien ne disait par quoi ;
+ *  - le PREMIER encaissement enregistre ensuite sur la meme facture
+ *    declenchait le recalcul du cache depuis les seules ecritures, et le
+ *    reglement saisi par l'administration DISPARAISSAIT.
+ *
+ * Les deux routes passent desormais par la meme ecriture que
+ * `/api/encaissements`.
+ */
+describe("un reglement laisse une ecriture dans le journal", () => {
+  it("record-payment cree une ligne d'encaissement", async () => {
+    const id = await facture("120.00");
+    await enregistrer({ factureClientId: id, amount: 50 });
+    const lignes = await db.select().from(encaissementsTable).where(eq(encaissementsTable.factureId, id));
+    expect(lignes, "reglement absent du journal de caisse").toHaveLength(1);
+    expect(lignes[0].montantCentimes).toBe(5000);
+  });
+
+  it("la ligne est chainee sur la precedente", async () => {
+    const id = await facture("120.00");
+    await enregistrer({ factureClientId: id, amount: 10 });
+    await enregistrer({ factureClientId: id, amount: 20 });
+    const lignes = await db.select().from(encaissementsTable)
+      .where(eq(encaissementsTable.factureId, id)).orderBy(encaissementsTable.numero);
+    expect(lignes[1].empreintePrecedente, "chaine rompue").toBe(lignes[0].empreinte);
+  });
+
+  it("le montant paye ne disparait pas quand la chaine est recalculee", async () => {
+    const id = await facture("120.00");
+    await enregistrer({ factureClientId: id, amount: 40 });
+    // Recalcul du cache a partir des seules ecritures: c'est ce que fait
+    // rafraichirCache au prochain encaissement.
+    const lignes = await db.select().from(encaissementsTable).where(eq(encaissementsTable.factureId, id));
+    const sommeEcritures = lignes.reduce((s, l) => s + l.montantCentimes, 0);
+    expect(
+      sommeEcritures,
+      "le cache affichait un paiement que la chaine ignorait: il s'effacerait au prochain encaissement",
+    ).toBe(Math.round(Number((await lire(id)).paidAmount) * 100));
+  });
+
+  it("mark-invoice-paid encaisse le reste du, par une ecriture", async () => {
+    const id = await facture("120.00", "20.00");
+    // Le reste se lit dans la chaine: on part d'une facture sans ecriture,
+    // donc le reste vaut le total.
+    const r = await request(appli()).post("/api/license-management/mark-invoice-paid")
+      .send({ factureClientId: id });
+    expect(r.status).toBe(200);
+    const lignes = await db.select().from(encaissementsTable).where(eq(encaissementsTable.factureId, id));
+    expect(lignes.length, "facture soldee sans aucune ecriture").toBeGreaterThan(0);
+  });
+
+  it("apres « marquer payee », la chaine et la facture s'accordent", async () => {
+    const id = await facture("60.00");
+    await request(appli()).post("/api/license-management/mark-invoice-paid").send({ factureClientId: id });
+    const lignes = await db.select().from(encaissementsTable).where(eq(encaissementsTable.factureId, id));
+    const somme = lignes.reduce((s, l) => s + l.montantCentimes, 0);
+    const f = await lire(id);
+    expect(f.status).toBe("payee");
+    expect(somme).toBe(Math.round(Number(f.totalAmount) * 100));
+  });
+
+  it("le moyen de paiement inconnu retombe sur le virement, sans casser l'ecriture", async () => {
+    const id = await facture("120.00");
+    const r = await enregistrer({ factureClientId: id, amount: 10, paymentMethod: "bitcoin" });
+    expect(r.status).toBe(200);
+    const [ligne] = await db.select().from(encaissementsTable).where(eq(encaissementsTable.factureId, id));
+    expect(ligne.moyen).toBe("virement");
   });
 });

@@ -7,6 +7,7 @@ import { logger } from "../lib/logger";
 
 import { emettreFacturePlateforme } from "../services/platform-invoice-issue";
 import { nextInvoiceNumber } from "../services/invoice-numbering";
+import { enregistrerEncaissement, MOYENS_ENCAISSEMENT } from "../services/encaissement-enregistrement";
 import { OVERAGE_RATES } from "@workspace/db";
 
 const router = Router();
@@ -676,9 +677,36 @@ router.post("/license-management/mark-invoice-paid", async (req: Request, res: R
     if (!facture) { res.status(404).json({ error: "Facture introuvable" }); return; }
     if (facture.status === "payee") { res.status(400).json({ error: "Facture deja marquee comme payee" }); return; }
 
+    // « Marquer payee » = encaisser le reste du, par une vraie ecriture.
+    //
+    // Cette route ecrivait `paidAmount = totalAmount` sans creer d'ecriture:
+    // le journal de caisse n'en savait rien, et le premier encaissement saisi
+    // ensuite recalculait le cache depuis les seules ecritures, effacant ce
+    // reglement. Le solde restant se lit dans la chaine, pas dans le cache.
+    const resteCentimes = Math.round((Number(facture.totalAmount) - Number(facture.paidAmount)) * 100);
+    if (resteCentimes > 0) {
+      const ecriture = await enregistrerEncaissement({
+        organisationId: orgId,
+        factureId: facture.id,
+        montantCentimes: resteCentimes,
+        moyen: (MOYENS_ENCAISSEMENT as readonly string[]).includes(String(paymentMethod))
+          ? (paymentMethod as (typeof MOYENS_ENCAISSEMENT)[number])
+          : "virement",
+        createdBy: userId ?? null,
+      });
+      if (!ecriture.ok) {
+        res.status(409).json({
+          error: ecriture.code === "periode_close"
+            ? "La periode comptable est close: le reglement ne peut pas y etre inscrit."
+            : "Le reglement n'a pas pu etre enregistre.",
+          code: ecriture.code,
+        });
+        return;
+      }
+    }
+
     await db.update(facturesClientTable).set({
       status: "payee",
-      paidAmount: facture.totalAmount,
       paidAt: new Date(),
       paymentMethod: paymentMethod || "virement",
     }).where(eq(facturesClientTable.id, facture.id));
@@ -729,11 +757,35 @@ router.post("/license-management/record-payment", async (req: Request, res: Resp
       return;
     }
 
-    const newPaid = Math.round((dejaPaye + amountNum) * 100) / 100;
-    const isFullyPaid = newPaid >= total;
+    // `paidAmount` n'est pas une donnee, c'est un CACHE de la chaine
+    // d'encaissements. Cette route l'ecrivait directement, sans creer
+    // d'ecriture: le journal de caisse ignorait le reglement, et surtout le
+    // PREMIER encaissement saisi ensuite sur la meme facture recalculait le
+    // cache depuis les seules ecritures — faisant DISPARAITRE ce paiement.
+    // On passe donc par la meme ecriture que /api/encaissements.
+    const ecriture = await enregistrerEncaissement({
+      organisationId: orgId,
+      factureId: facture.id,
+      montantCentimes: Math.round(amountNum * 100),
+      moyen: (MOYENS_ENCAISSEMENT as readonly string[]).includes(String(paymentMethod))
+        ? (paymentMethod as (typeof MOYENS_ENCAISSEMENT)[number])
+        : "virement",
+      createdBy: userId ?? null,
+    });
+    if (!ecriture.ok) {
+      const messages: Record<string, string> = {
+        facture_introuvable: "Facture introuvable",
+        depasse_reste_a_payer: "Ce montant depasse le reste a payer.",
+        periode_close: "La periode comptable de cette date est close.",
+      };
+      res.status(ecriture.code === "facture_introuvable" ? 404 : 409).json({ error: messages[ecriture.code], code: ecriture.code });
+      return;
+    }
+
+    const newPaid = ecriture.payeCentimes / 100;
+    const isFullyPaid = ecriture.soldee;
 
     await db.update(facturesClientTable).set({
-      paidAmount: newPaid.toFixed(2),
       status: isFullyPaid ? "payee" : facture.status !== "brouillon" ? facture.status : "envoyee",
       paidAt: isFullyPaid ? new Date() : facture.paidAt,
       paymentMethod: paymentMethod || facture.paymentMethod || null,
