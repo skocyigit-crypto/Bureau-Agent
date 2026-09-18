@@ -27,7 +27,14 @@ on:
   schedule:
     # 07:00 UTC — 09:00 a Paris en ete, 08:00 en hiver. Avant la journee de
     # travail: une alerte lue a midi a deja coute la matinee.
-    - cron: "0 7 * * *"
+    #
+    # Puis toutes les trois heures pendant la journee. Le 18/09/2026, le
+    # declencheur Cloud Build n a PAS demarre sur deux fusions (#212 et #216):
+    # le code etait sur main, la production restait en arriere, et aucune etape
+    # n etait rouge — la premiere fois, la fusion suivante a masque le trou; la
+    # seconde, il a fallu lancer le build a la main. Une seule ronde par jour
+    # laissait donc passer une journee entiere de production decalee.
+    - cron: "0 7,10,13,16,19 * * *"
   # Declenchable a la main, pour verifier la surveillance elle-meme.
   workflow_dispatch:
 
@@ -70,7 +77,11 @@ jobs:
           # normal prend une quinzaine de minutes, plus l'attente en file
           # quand plusieurs applications partagent la region. Au-dela de 90
           # minutes, ce n'est plus de la latence.
-          DELAI_MAX_MIN: 90
+          # 45 minutes: un deploiement normal prend une quinzaine de minutes,
+          # file d attente comprise. Au-dela, ce n est plus de la latence —
+          # c est un declencheur qui n a pas demarre (mesure du 18/09: 41 et
+          # 45 minutes de retard reels, que le seuil de 90 laissait passer).
+          DELAI_MAX_MIN: 45
         run: |
           set -euo pipefail
 
@@ -116,7 +127,10 @@ jobs:
           echo "Le plus ancien       : $(git rev-parse --short=7 "$sha_ancien") — il y a ${retard_min} minutes"
 
           if [ "$retard_min" -gt "$DELAI_MAX_MIN" ]; then
-            echo "::error::La production est en retard de ${nb} commit(s) depuis ${retard_min} minutes. Le deploiement a probablement echoue: verifier Cloud Build (declencheur deploy-on-main-push)."
+            echo "::error::La production est en retard de ${nb} commit(s) depuis ${retard_min} minutes."
+            echo "::error::Deux causes vues en production: le build a echoue, OU le declencheur n a jamais demarre (aucun build pour ce commit)."
+            echo "::error::Verifier: gcloud builds list --region europe-west9 --filter=substitutions.REPO_NAME=Bureau-Agent"
+            echo "::error::Si aucun build ne porte ce commit: gcloud builds triggers run deploy-on-main-push --region europe-west9 --branch main"
             exit 1
           fi
 
