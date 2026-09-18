@@ -53,7 +53,7 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
     res.status(400).json({ error: saisie.erreur, champ: saisie.champ });
     return;
   }
-  const { orgName, firstName, lastName, email: emailLower, phone } = saisie;
+  const { orgName, firstName, lastName, email: emailLower, phone, siret } = saisie;
 
 // Acceptation des CGV/CGU au moment de la commande.
   //
@@ -122,6 +122,10 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
         slug: finalSlug,
         email: emailLower,
         phone: phone || null,
+        // Exige a l'inscription: les CGV reservent le service aux
+        // professionnels, et c'est le seul endroit ou cette reserve peut
+        // devenir vraie (cf. services/inscription-saisie.ts).
+        siret,
         maxUsers: planConfig.maxUsers,
         actif: true,
       }).returning();

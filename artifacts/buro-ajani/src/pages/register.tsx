@@ -45,6 +45,9 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
   // Volontairement non cochee au depart: un consentement pre-coche n'en est pas un.
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [orgName, setOrgName] = useState("");
+  // Reserve aux professionnels: le serveur exige un SIRET/SIREN valide
+  // (services/inscription-saisie.ts). Le demander ici evite un aller-retour.
+  const [siret, setSiret] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -104,6 +107,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
         credentials: "include",
         body: JSON.stringify({
           orgName: orgName.trim(),
+          siret: siret.trim(),
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           email: email.trim(),
@@ -283,6 +287,23 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
                   autoFocus
                 />
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="siret" className="text-sm font-medium">{t("register.siretLabel")}</Label>
+              <div className="relative">
+                <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input aria-label={t("register.siretPlaceholder")}
+                  id="siret"
+                  placeholder={t("register.siretPlaceholder")}
+                  value={siret}
+                  onChange={e => setSiret(e.target.value)}
+                  className="pl-10"
+                  inputMode="numeric"
+                  required
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">{t("register.siretHint")}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">

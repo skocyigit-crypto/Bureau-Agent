@@ -1723,7 +1723,10 @@
       "starter": "You chose the Starter plan. Your account starts with a 14-day trial; you will pick your subscription at the end.",
       "professionnel": "You chose the Professional plan. Your account starts with a 14-day trial; you will pick your subscription at the end.",
       "entreprise": "You chose the Enterprise offer. Your account starts with a 14-day trial; we will contact you about the tailored offer."
-    }
+    },
+    "siretLabel": "SIRET or SIREN",
+    "siretPlaceholder": "14 digits (SIRET) or 9 (SIREN)",
+    "siretHint": "Ajant Bureau is for registered businesses only."
   },
   "invitation": {
     "roles": {

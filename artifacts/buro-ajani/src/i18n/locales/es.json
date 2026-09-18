@@ -1723,7 +1723,10 @@
       "starter": "Ha elegido el plan Starter. Su cuenta empieza con 14 dias de prueba; elegira su suscripcion al final.",
       "professionnel": "Ha elegido el plan Professionnel. Su cuenta empieza con 14 dias de prueba; elegira su suscripcion al final.",
       "entreprise": "Ha elegido la oferta Entreprise. Su cuenta empieza con 14 dias de prueba; le contactaremos para la oferta a medida."
-    }
+    },
+    "siretLabel": "SIRET o SIREN",
+    "siretPlaceholder": "14 digitos (SIRET) o 9 (SIREN)",
+    "siretHint": "Ajant Bureau es solo para profesionales."
   },
   "invitation": {
     "roles": {

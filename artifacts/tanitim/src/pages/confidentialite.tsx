@@ -123,7 +123,16 @@ export default function Confidentialite() {
             <ul className="mt-2 space-y-1 pl-4 list-disc">
               <li><strong>Données de compte</strong> : durée de l'abonnement + 3 ans après résiliation</li>
               <li><strong>Données de facturation</strong> : 10 ans (obligation légale comptable)</li>
-              <li><strong>Journaux techniques</strong> : 12 mois maximum</li>
+              {/* Mesure le 18/09/2026 sur le projet Google Cloud qui heberge la
+                  production: le bucket `_Default`, ou vont les journaux de
+                  l'application, est configure a 30 jours. « 12 mois maximum »
+                  etait donc vrai mais tres au-dessus du reel, et une duree
+                  annoncee doit etre celle qu'on applique (RGPD art. 13).
+                  Le bucket `_Required` (400 jours) ne contient pas de journaux
+                  applicatifs: ce sont les journaux d'activite d'administration
+                  de Google Cloud, dont la duree est fixee par Google et ne peut
+                  pas etre modifiee. */}
+              <li><strong>Journaux techniques</strong> : 30 jours</li>
               {/* « Selon parametrage client » decrivait un reglage qui n'existe
                   pas: la duree est unique pour toute la plateforme
                   (services/retention-cron.ts, 365 jours). Annoncer un choix
