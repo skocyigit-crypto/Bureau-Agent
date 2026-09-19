@@ -314,6 +314,9 @@ export default function ProspectsScreen() {
         setFormValues({ stage: "nouveau", priority: "moyenne", probability: "50" });
         fetchProspects();
       }
+      // Le `catch` prevenait deja sur une erreur reseau; un REFUS du serveur,
+      // lui, fermait le formulaire comme si la fiche etait enregistree.
+      else if (Platform.OS !== "web") Alert.alert(t("prospectsScreen.errorTitle"), t("prospectsScreen.saveError"));
     } catch {
       if (Platform.OS !== "web") Alert.alert(t("prospectsScreen.errorTitle"), t("prospectsScreen.saveError"));
     } finally { setFormLoading(false); }

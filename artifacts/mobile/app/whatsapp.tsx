@@ -77,6 +77,9 @@ export default function WhatsappInboxScreen() {
         setConversations(list);
         updateCache(list);
       }
+      // Meme repli que sur une erreur reseau: une liste vide se lit « aucune
+      // conversation » alors que le cache hors-ligne en contient.
+      else if (cached && conversations.length === 0) setConversations(cached);
     } catch {
       if (cached && conversations.length === 0) setConversations(cached);
     } finally {
