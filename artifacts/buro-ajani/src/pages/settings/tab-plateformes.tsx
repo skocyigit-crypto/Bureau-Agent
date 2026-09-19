@@ -264,6 +264,11 @@ export function TabPlateformes() {
   const [totalConnected, setTotalConnected] = useState(0);
 
   const [googleOAuthConfigured, setGoogleOAuthConfigured] = useState(false);
+  // Une lecture d'etat qui echoue laissait `configured` a false — et le bloc
+  // de connexion Google disparaissait purement et simplement. L'utilisateur ne
+  // voyait donc PAS que Google est configurable, sans savoir que la question
+  // n'avait pas pu etre posee.
+  const [googleStatutIllisible, setGoogleStatutIllisible] = useState(false);
   const [googleOAuthAuthenticated, setGoogleOAuthAuthenticated] = useState(false);
   const [googleConnecting, setGoogleConnecting] = useState(false);
   const [googleRedirectUri, setGoogleRedirectUri] = useState("");
@@ -280,8 +285,14 @@ export function TabPlateformes() {
         setGoogleOAuthConfigured(data.configured);
         setGoogleOAuthAuthenticated(data.authenticated && data.tokenValid);
         setGoogleRedirectUri(data.redirectUri || "");
+        setGoogleStatutIllisible(false);
+      } else {
+        setGoogleStatutIllisible(true);
       }
-    } catch (err) { console.error("[Plateformes] Google OAuth status check failed:", err); }
+    } catch (err) {
+      console.error("[Plateformes] Google OAuth status check failed:", err);
+      setGoogleStatutIllisible(true);
+    }
   }, []);
 
   const fetchPlatforms = useCallback(async () => {
@@ -526,6 +537,11 @@ export function TabPlateformes() {
           )}
         </CardHeader>
         <CardContent className="space-y-4">
+          {activePlatform === "google" && googleStatutIllisible && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50/50 dark:border-amber-900/40 dark:bg-amber-950/20 p-3 text-xs">
+              {t("settingsPlateformes.google.statutIllisible")}
+            </div>
+          )}
           {activePlatform === "google" && googleOAuthConfigured && !googleOAuthAuthenticated && (
             <div className="rounded-lg border border-blue-200 bg-blue-50/50 dark:border-blue-900/40 dark:bg-blue-950/20">
               <div className="p-3 flex items-center justify-between gap-3">

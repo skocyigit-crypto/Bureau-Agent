@@ -2635,7 +2635,8 @@
       "openConsole": "Ouvrir Google Cloud Console",
       "accountConnected": "Compte Google connecté",
       "servicesActive": "Les services Google Workspace sont actifs et synchronisés.",
-      "connectedBadge": "Connecté"
+      "connectedBadge": "Connecté",
+      "statutIllisible": "L'état de la connexion Google n'a pas pu être lu. Rechargez la page : tant que cette vérification échoue, l'application ne peut pas dire si Google est configuré."
     },
     "searchPlaceholder": "Rechercher une application {{platform}}...",
     "filterAll": "Tous ({{count}})",

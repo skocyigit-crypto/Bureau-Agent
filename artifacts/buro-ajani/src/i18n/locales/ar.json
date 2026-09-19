@@ -2641,7 +2641,8 @@
       "openConsole": "فتح Google Cloud Console",
       "accountConnected": "تم توصيل حساب Google",
       "servicesActive": "خدمات Google Workspace نشطة ومتزامنة.",
-      "connectedBadge": "متصل"
+      "connectedBadge": "متصل",
+      "statutIllisible": "تعذّرت قراءة حالة الاتصال بجوجل. أعد تحميل الصفحة: ما دام هذا الفحص يفشل، لا يمكن للتطبيق معرفة ما إذا كان جوجل مُهيّأً."
     },
     "searchPlaceholder": "ابحث عن تطبيق {{platform}}...",
     "filterAll": "الكل ({{count}})",
