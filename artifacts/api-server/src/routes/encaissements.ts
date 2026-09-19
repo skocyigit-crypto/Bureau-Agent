@@ -37,10 +37,13 @@ const router: IRouter = Router();
 /**
  * Qui peut toucher au journal de caisse.
  *
- * Mesure du 19/09: AUCUNE garde de role. Le role `lecture_seule` — dont le
- * nom dit l inverse — pouvait enregistrer un reglement, le contre-passer,
- * CLOTURER une periode (operation irreversible par construction) et
- * telecharger l archive comptable de toute l organisation.
+ * Mesure du 19/09: aucune garde de role propre. Le plancher global
+ * (`requireMutationRole`, routes/index.ts) empechait bien `lecture_seule`
+ * d ECRIRE, mais il laisse passer GET par construction: n importe quel compte
+ * de l organisation pouvait telecharger l archive comptable et l attestation,
+ * c est-a-dire l integralite des reglements. Et le plancher s arretant a
+ * « agent ou plus », un agent pouvait contre-passer une ecriture et CLOTURER
+ * une periode — operation irreversible par construction.
  *
  * L encaissement reste ouvert aux agents: constater un reglement sur un
  * chantier fait partie de leur travail. Tout le reste remonte au

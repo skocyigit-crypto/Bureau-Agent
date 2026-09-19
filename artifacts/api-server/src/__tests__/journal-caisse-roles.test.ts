@@ -1,21 +1,31 @@
 /**
  * Qui peut toucher au journal de caisse.
  *
- * Mesure du 19/09 : les huit routes du journal des reglements n'avaient
- * AUCUNE garde de role. Le role `lecture_seule` — dont le nom dit l'inverse —
- * pouvait donc :
+ * Mesure du 19/09 : les huit routes du journal n'avaient aucune garde de role
+ * propre. Ce qui en decoulait REELLEMENT, apres verification de la pile
+ * complete — et non du routeur monte seul, ce qui aurait fait dire n'importe
+ * quoi a la mesure :
  *
- *  - enregistrer un reglement ;
- *  - le contre-passer ;
- *  - CLOTURER une periode, operation irreversible par construction (« une
- *    cloture ne se defait pas », routes/encaissements.ts) ;
- *  - telecharger l'archive comptable et l'attestation de conformite,
- *    c'est-a-dire l'integralite des reglements de l'organisation.
+ *  - LES LECTURES N'ETAIENT PAS COUVERTES. Le plancher global
+ *    (`requireMutationRole`, routes/index.ts) laisse passer GET par
+ *    construction. N'importe quel compte de l'organisation, `lecture_seule`
+ *    compris, pouvait donc telecharger l'ARCHIVE COMPTABLE et l'ATTESTATION
+ *    de conformite — l'integralite des reglements — et verifier la chaine.
+ *  - LES MUTATIONS ETAIENT OUVERTES A L'AGENT. Le plancher s'arrete a « agent
+ *    ou plus ». Un agent pouvait contre-passer une ecriture et surtout
+ *    CLOTURER une periode, operation irreversible par construction (« une
+ *    cloture ne se defait pas », routes/encaissements.ts).
  *
- * Le defaut n'etait pas visible : chaque route verifie soigneusement
- * l'organisation de l'appelant (`getOrgId`), ce qui donne l'impression d'un
- * controle d'acces. Mais le cloisonnement entre clients n'est pas le
- * cloisonnement entre collegues, et c'est le second qui manquait.
+ * En revanche `lecture_seule` n'ECRIVAIT PAS : le plancher global l'en
+ * empechait deja. Je l'avais d'abord ecrit, sur la foi d'un test qui montait
+ * le routeur sans la pile — un assemblage qui n'existe pas. Les controles
+ * correspondants verrouillent donc ce plancher, et le test monte desormais la
+ * meme pile qu'en production.
+ *
+ * Ce qui restait vrai tient a une confusion utile a nommer : chaque route
+ * verifie soigneusement l'organisation de l'appelant (`getOrgId`), ce qui
+ * donne l'apparence d'un controle d'acces. Mais le cloisonnement entre
+ * CLIENTS n'est pas le cloisonnement entre COLLEGUES.
  *
  * Repartition retenue : l'encaissement reste ouvert aux agents — constater un
  * reglement sur un chantier fait partie de leur travail — et tout le reste
@@ -30,6 +40,7 @@ import request from "supertest";
 import { eq } from "drizzle-orm";
 import { db, encaissementsTable, facturesClientTable, organisationsTable, usersTable } from "@workspace/db";
 import router from "../routes/encaissements";
+import { requireMutationRole } from "../middleware/auth";
 
 const stamp = Date.now();
 let orgId = 0, userId = 0;
@@ -43,6 +54,11 @@ function appli(role: string) {
     (req as any).log = { info() {}, warn() {}, error() {} };
     next();
   });
+  // MEME PILE QU EN PRODUCTION. Le plancher global (routes/index.ts) refuse
+  // deja toute mutation a lecture_seule; monter le routeur seul mesurerait un
+  // assemblage qui n existe pas, et attribuerait au fichier des refus qui
+  // viennent d ailleurs.
+  a.use(requireMutationRole("super_admin", "administrateur", "agent"));
   a.use("/api", router);
   return a;
 }
