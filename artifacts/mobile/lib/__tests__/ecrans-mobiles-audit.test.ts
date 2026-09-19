@@ -101,7 +101,7 @@ describe("une liste vide et une lecture ratee ne se confondent plus", () => {
     expect(composant).toMatch(/erreur \? "alert-circle" : icon/);
   });
 
-  for (const ecran of ["audit-log.tsx", "integrations.tsx", "users.tsx"]) {
+  for (const ecran of ["audit-log.tsx", "integrations.tsx", "users.tsx", "calendar.tsx", "rappels.tsx"]) {
     it(`${ecran} le signale`, () => {
       const source = readFileSync(join(APP, ecran), "utf8");
       expect(source, `${ecran}: le drapeau n'est pas transmis`).toMatch(/erreur=\{lectureEchouee\}/);

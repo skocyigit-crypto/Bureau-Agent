@@ -58,9 +58,12 @@ export default function RappelsScreen() {
   const [items, setItems] = useState<RappelItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  // Une liste vide et une lecture qui a echoue se ressemblent a l'ecran.
+  const [lectureEchouee, setLectureEchouee] = useState(false);
 
   const load = useCallback(async () => {
     try {
+      setLectureEchouee(false);
       const res = await fetchAuth(
         `${API_BASE}/api/notifications?sourceType=calendar_reminder&type=rappel&sinceHours=24&limit=100`
       );
@@ -81,8 +84,8 @@ export default function RappelsScreen() {
           return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         });
         setItems(list);
-      }
-    } catch {
+      } else { setLectureEchouee(true); }
+    } catch { setLectureEchouee(true);
       // silencieux
     } finally {
       setLoading(false);
@@ -193,6 +196,7 @@ export default function RappelsScreen() {
               icon="bell-off"
               title={t("rappelsScreen.emptyTitle")}
               subtitle={t("rappelsScreen.emptySubtitle")}
+              erreur={lectureEchouee}
             />
           }
           renderItem={({ item }) => {
