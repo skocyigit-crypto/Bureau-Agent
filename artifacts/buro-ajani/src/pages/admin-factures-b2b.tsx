@@ -33,7 +33,7 @@ interface Facture {
   id: number; reference: string; title: string; clientName: string; clientEmail?: string;
   clientCompany?: string; status: string; totalAmount?: string; paidAmount?: string;
   currency: string; dueDate?: string; createdAt: string; organisationId?: number | null;
-  reminderCount?: number; lastReminderAt?: string | null;
+  reminderCount?: number; lastReminderAt?: string | null; notes?: string | null;
 }
 
 interface OrgOption { id: number; name: string }
@@ -116,7 +116,9 @@ function AdminFacturesB2BContent() {
       clientEmail: f.clientEmail || "", clientCompany: f.clientCompany || "",
       totalAmount: f.totalAmount || "", paidAmount: f.paidAmount || "",
       currency: f.currency || "EUR", status: f.status,
-      dueDate: f.dueDate ? f.dueDate.substring(0, 10) : "", notes: "",
+      dueDate: f.dueDate ? f.dueDate.substring(0, 10) : "",
+      // Meme defaut que pour les devis: modifier une facture effacait ses notes.
+      notes: f.notes ?? "",
       organisationId: f.organisationId != null ? String(f.organisationId) : "",
     });
     setDialogOpen(true);

@@ -30,7 +30,7 @@ const STATUSES = [
 interface Devis {
   id: number; reference: string; title: string; clientName: string; clientEmail?: string;
   clientCompany?: string; status: string; totalAmount?: string; currency: string;
-  validUntil?: string; createdAt: string;
+  validUntil?: string; createdAt: string; notes?: string | null;
 }
 
 const EMPTY_FORM = {
@@ -95,7 +95,11 @@ export default function AdminDevisPage() {
       reference: d.reference || "", title: d.title, clientName: d.clientName || "",
       clientEmail: d.clientEmail || "", clientCompany: d.clientCompany || "",
       items: Array.isArray((d as any).items) ? (d as any).items : [], currency: d.currency || "EUR", status: d.status,
-      validUntil: d.validUntil ? d.validUntil.substring(0, 10) : "", notes: "",
+      validUntil: d.validUntil ? d.validUntil.substring(0, 10) : "",
+      // Initialise a « », ce champ etait envoye vide a chaque enregistrement,
+      // et le serveur applique tout champ different de `undefined`: modifier
+      // un devis EFFACAIT ses notes, sans que rien ne le dise.
+      notes: d.notes ?? "",
     });
     setDialogOpen(true);
   };

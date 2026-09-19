@@ -1,4 +1,5 @@
 import { EmptyOnboardingHint } from "@/components/empty-onboarding-hint";
+import { useSelectionVisibleListe } from "@/lib/selection-visible";
 import { GhostTextarea } from "@/components/ghost-textarea";
 import { Icon3D } from "@/components/icon-3d";
 import { Badge } from "@/components/ui/badge";
@@ -198,6 +199,11 @@ export default function ProspectsPage() {
     }
   };
 
+
+  // Une selection ne porte que sur ce qui est a l'ecran: changer de page ou
+  // de filtre laissait des lignes invisibles cochees, et la suppression en
+  // lot portait alors sur l'ancien contenu. Voir `useSelectionVisibleListe`.
+  useSelectionVisibleListe(prospects?.map((p: any) => p.id), selectedIds, setSelectedIds);
 
   const toggleSelect = (id: number) => setSelectedIds(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
   const toggleAll = () => setSelectedIds(selectedIds.length === prospects.length ? [] : prospects.map(p => p.id));

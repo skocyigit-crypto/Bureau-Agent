@@ -1,4 +1,5 @@
 import receptionImg from "@/assets/images/reception-desk.webp";
+import { useSelectionVisible } from "@/lib/selection-visible";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import { AiValidationFeedback } from "@/components/ai-validation-feedback";
 import { EmailComposer } from "@/components/email-composer";
@@ -136,6 +137,11 @@ export default function Contacts() {
       return next;
     });
   };
+
+  // Une selection ne porte que sur ce qui est a l'ecran: changer de page ou
+  // de filtre laissait des lignes invisibles cochees, et « Supprimer (10) »
+  // portait alors sur l'ancien contenu. Voir `useSelectionVisible`.
+  useSelectionVisible(data?.contacts?.map((c: any) => c.id), selectedIds, setSelectedIds);
 
   const toggleSelectAll = () => {
     if (!data?.contacts) return;

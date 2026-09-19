@@ -1,4 +1,5 @@
 import { GhostTextarea } from "@/components/ghost-textarea";
+import { useSelectionVisible } from "@/lib/selection-visible";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu,DropdownMenuContent,DropdownMenuItem,DropdownMenuLabel,DropdownMenuSeparator,DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -177,6 +178,11 @@ export default function NotesInternesPage() {
     const q = search.toLowerCase();
     return (n.title?.toLowerCase().includes(q) || n.content.toLowerCase().includes(q) || (n.tags || []).some(tg => tg.toLowerCase().includes(q)));
   });
+
+  // Une selection ne porte que sur ce qui est a l'ecran: changer de page ou
+  // de filtre laissait des lignes invisibles cochees, et « Supprimer (10) »
+  // portait alors sur l'ancien contenu. Voir `useSelectionVisible`.
+  useSelectionVisible(filtered?.map((n: any) => n.id), selectedIds, setSelectedIds);
 
   const pinned = filtered.filter(n => n.pinned);
   const unpinned = filtered.filter(n => !n.pinned);

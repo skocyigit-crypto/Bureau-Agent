@@ -115,3 +115,73 @@ describe("le montant d'une facture est celui qui est reclame", () => {
     expect(organisations).toMatch(/totalTtc\?: string;/);
   });
 });
+
+describe("modifier ne vide plus les champs qu'on n'a pas touches", () => {
+  const devis = readFileSync(join(src, "pages", "admin-devis.tsx"), "utf8");
+  const facturesB2b = readFileSync(join(src, "pages", "admin-factures-b2b.tsx"), "utf8");
+
+  /** Le corps de `openEdit`, la ou les champs sont pre-remplis. */
+  function ouvertureEdition(source: string): string {
+    const debut = source.indexOf("const openEdit = ");
+    return source.slice(debut, source.indexOf("setDialogOpen(true);", debut));
+  }
+
+  it("les notes d'un devis sont reprises, pas remises a zero", () => {
+    expect(
+      ouvertureEdition(devis),
+      "envoyees vides, elles etaient appliquees: modifier un devis effacait ses notes",
+    ).toMatch(/notes: d\.notes \?\? ""/);
+  });
+
+  it("celles d'une facture B2B aussi", () => {
+    expect(ouvertureEdition(facturesB2b)).toMatch(/notes: f\.notes \?\? ""/);
+  });
+
+  it("plus aucune de ces deux ouvertures ne met un champ a « » sans raison", () => {
+    for (const [nom, source] of [["devis", devis], ["factures B2B", facturesB2b]] as const) {
+      expect(ouvertureEdition(source), `${nom}: un champ remis a zero a l'ouverture`)
+        .not.toMatch(/notes: "",/);
+    }
+  });
+
+  it("les types portent le champ, sinon il n'y aurait rien a reprendre", () => {
+    expect(devis).toMatch(/notes\?: string \| null;/);
+    expect(facturesB2b).toMatch(/notes\?: string \| null;/);
+  });
+
+  it("et le serveur applique bien ce champ — c'est ce qui rendait l'oubli couteux", () => {
+    const routeDevis = readFileSync(
+      join(src, "..", "..", "api-server", "src", "routes", "devis.ts"), "utf8",
+    );
+    expect(routeDevis).toMatch(/"notes"/);
+    expect(routeDevis).toMatch(/if \(b\[k\] !== undefined\) updates\[k\] = b\[k\];/);
+  });
+});
+
+describe("le hook de selection est appele inconditionnellement", () => {
+  /**
+   * Premiere version cablee apres le retour anticipe de deux ecrans.
+   *
+   * React exige le MEME ordre de hooks a chaque rendu : appele apres un
+   * `if (loading) return ...`, `useSelectionVisible` n'existait pas pendant le
+   * chargement puis apparaissait ensuite, ce qui decale tous les hooks suivants
+   * — etats melanges, effets rejoues. ESLint l'a vu (`rules-of-hooks`) avant
+   * que le symptome n'apparaisse ; ce controle garde le point acquis.
+   */
+  const ECRANS = ["automations", "users", "contacts", "messages", "calls", "tasks", "projets"];
+
+  for (const nom of ECRANS) {
+    it(`${nom}: l'appel precede tout retour anticipe`, () => {
+      const source = readFileSync(join(src, "pages", `${nom}.tsx`), "utf8");
+      const appel = source.indexOf("useSelectionVisible(");
+      expect(appel, `${nom} n'appelle pas le hook`).toBeGreaterThan(0);
+
+      const retourAnticipe = source.search(/^\s{2}if \([^)]*\) \{\r?\n\s+return \(/m);
+      if (retourAnticipe < 0) return; // pas de retour anticipe: rien a garder
+      expect(
+        appel,
+        `${nom}: hook appele apres un retour anticipe — React exige le meme ordre a chaque rendu`,
+      ).toBeLessThan(retourAnticipe);
+    });
+  }
+});
