@@ -155,3 +155,32 @@ describe("la file d'approbation ne dit pas « rien a valider » sans avoir lu", 
     expect(source).toMatch(/setLectureEchouee\(false\)/);
   });
 });
+
+describe("trois ecrans de plus distinguent le vide de l'illisible", () => {
+  /**
+   * Chacun disait quelque chose de faux quand la lecture echouait :
+   *  - la performance, « aucun collaborateur » — un constat sur l'equipe, dont
+   *    un responsable tire des conclusions ;
+   *  - l'historique de l'agent RH, « aucun rapport » — « rien n'a jamais ete
+   *    produit » ;
+   *  - le fil WhatsApp, un fil vide — « ce client ne m'a jamais ecrit », apres
+   *    quoi on repond a cote, ou on ne repond pas.
+   */
+  const cas = [
+    ["performance.tsx", "setLectureEchouee", "lectureEchouee ? ("],
+    ["workforce-agent.tsx", "setHistoriqueIllisible", "historiqueIllisible ? ("],
+    ["whatsapp-thread.tsx", "setLectureEchouee", "lectureEchouee ? "],
+  ] as const;
+
+  for (const [ecran, setter, marqueur] of cas) {
+    it(`${ecran} retient l'echec sur les deux chemins`, () => {
+      const source = readFileSync(join(APP, ecran), "utf8");
+      const compter = (suffixe: string) =>
+        source.split(`${setter}(${suffixe})`).length - 1;
+      expect(compter("true"),
+        `${ecran}: refus du serveur et erreur reseau doivent tous deux le lever`).toBe(2);
+      expect(source, `${ecran}: l'echec n'est pas affiche`).toContain(marqueur);
+      expect(compter("false"), `${ecran}: l'avertissement n'est jamais efface`).toBe(1);
+    });
+  }
+});

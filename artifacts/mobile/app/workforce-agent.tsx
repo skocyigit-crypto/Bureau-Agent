@@ -218,6 +218,7 @@ export default function WorkforceAgentScreen() {
 
   const [data, setData] = useState<AgentResponse | null>(null);
   const [history, setHistory] = useState<HistoryReport[]>([]);
+  const [historiqueIllisible, setHistoriqueIllisible] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -245,12 +246,16 @@ export default function WorkforceAgentScreen() {
 
   const loadHistory = useCallback(async () => {
     try {
+      setHistoriqueIllisible(false);
       const res = await fetchAuth(`${API_BASE}/api/workforce-agent/history`);
       if (res.ok) {
         const json = await res.json();
         setHistory(json.reports ?? []);
+      } else {
+        // « Aucun rapport » se lit « rien n'a jamais ete produit ».
+        setHistoriqueIllisible(true);
       }
-    } catch {}
+    } catch { setHistoriqueIllisible(true); }
   }, [fetchAuth]);
 
   const load = useCallback(async (silent = false) => {
@@ -644,7 +649,13 @@ export default function WorkforceAgentScreen() {
           {/* ── TAB: HISTORIQUE ── */}
           {activeTab === "historique" && (
             <>
-              {history.length === 0 ? (
+              {historiqueIllisible ? (
+                <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <Feather name="alert-circle" size={32} color={colors.mutedForeground} />
+                  <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("common.lectureEchoueeTitre")}</Text>
+                  <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>{t("common.lectureEchoueeAide")}</Text>
+                </View>
+              ) : history.length === 0 ? (
                 <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <Feather name="clock" size={32} color={colors.mutedForeground} />
                   <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("workforceAgentScreen.noHistory")}</Text>

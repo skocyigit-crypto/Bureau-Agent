@@ -52,6 +52,8 @@ export default function WhatsappThreadScreen() {
   const [conv, setConv] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [lectureEchouee, setLectureEchouee] = useState(false);
   const [composer, setComposer] = useState("");
   const [sending, setSending] = useState(false);
   const [drafting, setDrafting] = useState(false);
@@ -65,14 +67,19 @@ export default function WhatsappThreadScreen() {
   const fetchDetail = useCallback(async () => {
     if (!Number.isFinite(conversationId)) return;
     try {
+      setLectureEchouee(false);
       const res = await fetchAuth(`${API_BASE}/api/whatsapp/conversations/${conversationId}`);
       if (res.ok) {
         const data = await res.json();
         setConv(data.conversation ?? null);
         setMessages(data.messages ?? []);
+      } else {
+        // Un fil vide se lit « ce client ne m'a jamais ecrit ». On repond
+        // ensuite a cote, ou on n'y repond pas du tout.
+        setLectureEchouee(true);
       }
     } catch {
-      // Silencieux : l'utilisateur peut réessayer via le bouton retour/entrée.
+      setLectureEchouee(true);
     } finally {
       setLoading(false);
     }
@@ -264,8 +271,10 @@ export default function WhatsappThreadScreen() {
             onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
             ListEmptyComponent={
               <View style={styles.emptyThread}>
-                <Feather name="message-circle" size={36} color={colors.mutedForeground} />
-                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("whatsappThreadScreen.emptyThread")}</Text>
+                <Feather name={lectureEchouee ? "alert-circle" : "message-circle"} size={36} color={colors.mutedForeground} />
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                  {lectureEchouee ? t("common.lectureEchoueeTitre") : t("whatsappThreadScreen.emptyThread")}
+                </Text>
               </View>
             }
             renderItem={({ item }) => {
