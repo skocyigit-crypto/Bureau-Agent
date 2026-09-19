@@ -48,3 +48,27 @@ export function normaliserAnalyse(brut: unknown): AnalyseCommandant {
     eventReminders: liste(o.eventReminders),
   };
 }
+
+/**
+ * Meme precaution pour l'assistance en appel.
+ *
+ * Le repli de `safeJsonParse` fournit bien `suggestedResponses: []` — mais il
+ * ne sert QUE si le JSON est illisible. Un modele qui rend un JSON valide en
+ * oubliant la cle passe a travers, et l'ecran fait alors
+ * `data.aiResponse.suggestedResponses.map(...)` sur `undefined`.
+ */
+export interface ReponseAppel {
+  greeting: string;
+  suggestedResponses: string[];
+  recommendedActions: unknown[];
+}
+
+export function normaliserReponseAppel(brut: unknown): ReponseAppel {
+  const o = (brut && typeof brut === "object" ? brut : {}) as Record<string, unknown>;
+  return {
+    greeting: typeof o.greeting === "string" ? o.greeting : "",
+    // Affichees telles quelles: ce qui n'est pas du texte n'a rien a y faire.
+    suggestedResponses: alertes(o.suggestedResponses),
+    recommendedActions: liste(o.recommendedActions),
+  };
+}

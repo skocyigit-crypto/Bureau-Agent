@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { normaliserAnalyse } from "../services/analyse-commandant";
+import { normaliserAnalyse, normaliserReponseAppel } from "../services/analyse-commandant";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, calendarEventsTable, facturesClientTable, organisationsTable, prospectsTable, notificationsTable, projetsTable, usersTable, checkinsTable, auditLogsTable, commandantConversationsTable, commandantMessagesTable, demoHandoffsTable } from "@workspace/db";
 import { eq, sql, and, desc, gte, lte, lt, ne, isNull, isNotNull, or, count, asc, inArray, type Column, type SQL } from "drizzle-orm";
 import { AGENTS, creerTacheIa } from "../services/tache-ia";
@@ -568,7 +568,9 @@ Genere un JSON avec:
     res.json({
       success: true,
       contact: contact ? { id: contact.id, name: `${contact.firstName} ${contact.lastName}`, company: contact.company, category: contact.category, totalCalls: contact.totalCalls, email: contact.email } : null,
-      aiResponse: parsed,
+      // Le repli de safeJsonParse ne sert que si le JSON est illisible: un
+      // JSON valide sans la cle passait a travers. Voir normaliserReponseAppel.
+      aiResponse: normaliserReponseAppel(parsed),
       context: {
         recentCallsCount: recentCalls.length,
         openTasksCount: openTasks.length,

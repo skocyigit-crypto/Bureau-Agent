@@ -18,7 +18,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { normaliserAnalyse } from "../services/analyse-commandant";
+import { normaliserAnalyse, normaliserReponseAppel } from "../services/analyse-commandant";
 
 /** Ce que les ecrans parcourent sans jamais verifier. */
 const LISTES = ["criticalAlerts", "taskReminders", "invoiceReminders", "eventReminders"] as const;
@@ -118,5 +118,35 @@ describe("la route passe bien par la", () => {
 
   it("le chemin de repli existe toujours: c'est lui qu'on protege", () => {
     expect(route).toMatch(/parsed = \{ dailySummary: aiResponse \}/);
+  });
+});
+
+describe("l'assistance en appel: un JSON valide mais incomplet", () => {
+  it("une reponse sans `suggestedResponses` en rend une liste vide", () => {
+    // Le repli de `safeJsonParse` fournit bien la cle — mais il ne sert QUE si
+    // le JSON est illisible. Un JSON valide qui l'oublie passait a travers, et
+    // l'ecran faisait `.map()` sur `undefined`.
+    const r = normaliserReponseAppel({ greeting: "Bonjour Monsieur Dupont" });
+    expect(Array.isArray(r.suggestedResponses)).toBe(true);
+    expect(r.suggestedResponses).toHaveLength(0);
+  });
+
+  it("le salut est conserve", () => {
+    expect(normaliserReponseAppel({ greeting: "Bonjour" }).greeting).toBe("Bonjour");
+  });
+
+  it("les reponses proposees le sont aussi", () => {
+    const r = normaliserReponseAppel({ suggestedResponses: ["Je vous rappelle demain", "Je verifie"] });
+    expect(r.suggestedResponses).toHaveLength(2);
+  });
+
+  it("les actions recommandees restent une liste", () => {
+    expect(normaliserReponseAppel({ recommendedActions: null }).recommendedActions).toEqual([]);
+  });
+
+  it("la route passe par la", () => {
+    const route = readFileSync(join(import.meta.dirname, "..", "routes", "ai-commandant.ts"), "utf8");
+    expect(route).not.toMatch(/aiResponse: parsed,/);
+    expect(route).toMatch(/aiResponse: normaliserReponseAppel\(parsed\)/);
   });
 });
