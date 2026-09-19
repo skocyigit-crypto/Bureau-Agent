@@ -13,25 +13,28 @@
  *  - les factures d'une autre organisation restaient affichees sous le nom de
  *    celle qu'on venait d'ouvrir.
  *
- * Ce controle est un CLIQUET, pas une interdiction. Corriger 97 endroits d'un
- * coup serait une modification massive et peu sure ; empecher le nombre de
- * monter, lui, est immediat. Chaque correction fait baisser le plafond
- * ci-dessous, et il ne remonte jamais.
+ * Ce controle a d'abord ete un CLIQUET : corriger 87 endroits d'un coup aurait
+ * ete une modification massive et peu sure, alors qu'empecher le nombre de
+ * monter etait immediat. Le stock etant resorbe, il est devenu une LISTE
+ * d'exceptions nommees — plus stricte, puisqu'un silence ajoute ailleurs
+ * echoue meme si le total ne bouge pas.
  */
 import { describe, expect, it } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * Plafond courant. A BAISSER a chaque correction — jamais a monter.
+ * Histoire du compteur, pour qui reprend ce fichier.
  *
- * 19/09 : 87 au premier comptage, puis 23. Corriges d'abord « Creer un projet »
- * sur quatre ecrans, puis les quatorze ECRITURES muettes de call-detail,
- * ia-apprentissage, call-assistant et commandant-ia — la ou un echec ne
- * produisait rien du tout : le chargement s'arretait, rien n'apparaissait, et
- * l'utilisateur ne pouvait qu'appuyer a nouveau.
+ * 19/09 : 87 au premier comptage. Corriges dans l'ordre « Creer un projet »
+ * (quatre ecrans), les quatorze ecritures muettes de call-detail,
+ * ia-apprentissage, call-assistant et commandant-ia, puis, ecran par ecran,
+ * toutes celles qui AFFIRMAIENT quelque chose de faux. Reste 10, tous
+ * examines et nommes dans `EXCEPTIONS` ci-dessous.
+ *
+ * Le plafond chiffre a ete retire en meme temps : une liste exacte est plus
+ * stricte, et elle dit pourquoi.
  */
-const PLAFOND = 13;
 
 const RACINES = [
   join(import.meta.dirname, "..", "pages"),
@@ -46,59 +49,89 @@ function fichiers(dir: string): string[] {
   });
 }
 
+
 /**
- * Les `if (res.ok)` sans `else` a portee de vue.
+ * Les silences qui SUBSISTENT, chacun examine et justifie.
  *
- * La fenetre de 40 lignes est volontairement large : un `else` plus loin que
- * cela n'est plus le traitement de CET echec. Trop etroite, la mesure
- * compterait des endroits corrects — et un controle qui crie au loup finit
- * desactive.
+ * Le cliquet a fait son travail : de 87 a 10. Ce qui reste n'est plus un stock
+ * a resorber, c'est une liste d'exceptions — et une exception qui n'est pas
+ * nommee redevient un oubli a la relecture suivante.
+ *
+ * Le controle ne porte donc plus sur un NOMBRE mais sur cette liste exacte.
+ * Ajouter un silence ailleurs echoue, meme si le total ne bouge pas ; corriger
+ * l'un de ceux-ci echoue aussi, et demande de le retirer d'ici. C'est plus
+ * strict qu'un plafond, et ca dit pourquoi.
+ *
+ * Le critere commun : aucun de ces dix n'AFFIRME quelque chose de faux. Ils
+ * laissent une carte absente, ou proposent un bouton « Charger ». Les silences
+ * corriges, eux, affirmaient — « aucune facture », « aucune alerte de
+ * securite », « aucun collaborateur ».
  */
-function silences(): Array<{ fichier: string; nombre: number }> {
-  const out: Array<{ fichier: string; nombre: number }> = [];
-  for (const racine of RACINES) {
-    for (const f of fichiers(racine)) {
-      const lignes = readFileSync(f, "utf8").split(/\r?\n/);
-      let n = 0;
-      lignes.forEach((l, i) => {
-        if (!/if\s*\(\s*(?:!!)?res(?:ponse)?\d?\.ok\s*\)/.test(l)) return;
-        // On cherche un `else`, pas « `}` immediatement suivi de `else` » : un
-        // commentaire entre les deux est frequent, et une detection aussi
-        // litterale compterait du code correct. Un controle qui crie au loup
-        // finit desactive, et c'est le vrai defaut qui passe ensuite.
-        if (!/\belse\b/.test(lignes.slice(i, i + 40).join("\n"))) n++;
-      });
-      if (n > 0) out.push({ fichier: f, nombre: n });
-    }
-  }
-  return out;
-}
+const EXCEPTIONS = [
+  // Recherche d'entreprise a la frappe: la saisie manuelle reste possible, et
+  // la raison est ecrite sur place. Avertir a chaque frappe serait du bruit.
+  "organisations.tsx:246",
+  // Brouillons de facture: « la section reste vide, sans message trompeur »,
+  // dit le commentaire d'origine — c'est exactement le bon arbitrage.
+  "organisations.tsx:762",
+  // Consommation d'IA: la carte ne s'affiche pas. Une carte absente ne dit
+  // rien de faux.
+  "tab-intelligence-artificielle.tsx:145",
+  // Plateformes connectees et journal de synchronisation: meme cas, le resume
+  // ne s'affiche pas. L'etat Google, lui, AFFIRMAIT et a ete corrige.
+  "tab-plateformes.tsx:301",
+  "tab-plateformes.tsx:316",
+  // Sante d'un contact, statistiques d'equipe, apercu des paiements, briefing
+  // du jour: ces quatre ecrans montrent un bouton « Charger » et invitent a
+  // reessayer. C'est deja la bonne reponse a un echec.
+  "call-assistant.tsx:585",
+  "commandant-ia.tsx:692",
+  "commandant-ia.tsx:814",
+  "commandant-ia.tsx:884",
+  // Statut de la base de connaissances: non bloquant, documente comme tel.
+  "knowledge-base.tsx:67",
+] as const;
 
 describe("les echecs silencieux ne se multiplient plus", () => {
-  const releve = silences();
-  const total = releve.reduce((s, r) => s + r.nombre, 0);
+  /** Chaque silence, sous la forme `fichier.tsx:ligne`. */
+  function releve(): string[] {
+    const out: string[] = [];
+    for (const racine of RACINES) {
+      for (const f of fichiers(racine)) {
+        const lignes = readFileSync(f, "utf8").split(/\r?\n/);
+        lignes.forEach((l, i) => {
+          if (!/if\s*\(\s*(?:!!)?res(?:ponse)?\d?\.ok\s*\)/.test(l)) return;
+          if (/\belse\b/.test(lignes.slice(i, i + 40).join("\n"))) return;
+          out.push(`${f.split(/[\\/]/).slice(-1)[0]}:${i + 1}`);
+        });
+      }
+    }
+    return out.sort();
+  }
 
   it("le comptage trouve bien quelque chose a compter", () => {
     // Garde-fou du controle: une detection tombee a zero par accident ferait
-    // passer l'assertion suivante sans rien garantir.
-    expect(releve.length, "plus aucun fichier detecte: la detection est cassee").toBeGreaterThan(5);
+    // passer les assertions suivantes sans rien garantir.
+    expect(releve().length, "plus rien de detecte: la detection est cassee").toBeGreaterThan(5);
   });
 
-  it("leur nombre ne depasse pas le plafond", () => {
-    const pires = [...releve].sort((a, b) => b.nombre - a.nombre).slice(0, 5)
-      .map((r) => `${r.nombre} × ${r.fichier}`).join(", ");
+  it("aucun silence en dehors des exceptions examinees", () => {
+    const nouveaux = releve().filter((e) => !(EXCEPTIONS as readonly string[]).includes(e));
     expect(
-      total,
-      `un nouvel echec silencieux a ete ajoute. Les plus charges: ${pires}`,
-    ).toBeLessThanOrEqual(PLAFOND);
+      nouveaux,
+      `un echec silencieux a ete ajoute ailleurs: ${nouveaux.join(", ")}`,
+    ).toEqual([]);
   });
 
-  it("le plafond suit la realite: il doit etre baisse quand on corrige", () => {
-    // Un plafond qui reste loin au-dessus du reel ne protege plus de rien.
+  it("et aucune exception qui n'existe plus", () => {
+    // Corriger l'un d'eux est une bonne nouvelle — mais il faut alors le
+    // retirer d'ici, sinon la liste se met a decrire un passe.
+    const actuels = releve();
+    const disparues = EXCEPTIONS.filter((e) => !actuels.includes(e));
     expect(
-      PLAFOND - total,
-      `${total} echecs silencieux pour un plafond de ${PLAFOND}: abaisser PLAFOND a ${total}`,
-    ).toBeLessThanOrEqual(3);
+      disparues,
+      `ces exceptions n'ont plus lieu d'etre, les retirer de EXCEPTIONS: ${disparues.join(", ")}`,
+    ).toEqual([]);
   });
 });
 
@@ -108,8 +141,9 @@ describe("plus aucune ECRITURE ne passe sous silence", () => {
    * liste vide, qui se voit ; une ecriture muette laisse croire que c'est
    * enregistre, ce qui ne se voit pas.
    *
-   * Les lectures restantes sont tenues par le plafond ci-dessus. Les ecritures,
-   * elles, sont a zero — et ce controle interdit d'en rajouter une seule.
+   * Les lectures restantes sont tenues par la liste d'exceptions ci-dessus.
+   * Les ecritures, elles, sont a zero — et ce controle interdit d'en rajouter
+   * une seule.
    */
   it("aucune", () => {
     const restantes: string[] = [];
