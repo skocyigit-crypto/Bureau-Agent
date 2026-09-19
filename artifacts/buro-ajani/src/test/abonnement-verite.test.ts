@@ -83,3 +83,27 @@ describe("le montant affiche est celui qui a ete preleve", () => {
     expect(ecran).toMatch(/ttc > 0 \? ttc : Number\(inv\.totalAmount\)/);
   });
 });
+
+describe("les compteurs d'usage lisent les cles que le serveur emet", () => {
+  it("le quota d'appels ne se lit plus sous une cle inexistante", () => {
+    expect(
+      ecran,
+      "`usage.calls` n'existe pas: l'ecran affichait « 0/0 » pour toute organisation",
+    ).not.toMatch(/usage\.calls\?\./);
+  });
+
+  it("il se lit sous `callsThisMonth`", () => {
+    expect(ecran).toMatch(/usage\.callsThisMonth/);
+  });
+
+  it("un plafond absent n'est plus rendu par `|| 0`", () => {
+    // `max: null` veut dire « pas de plafond »: le rendre « 0 » affichait
+    // illimite comme interdit.
+    expect(ecran).not.toMatch(/\?\.max \|\| 0/);
+  });
+
+  it("l'affichage passe par les fonctions qui portent ces deux regles", () => {
+    expect(ecran).toMatch(/plafondAffiche\(/);
+    expect(ecran).toMatch(/courantAffiche\(/);
+  });
+});

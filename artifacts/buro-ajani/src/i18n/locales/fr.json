@@ -6628,7 +6628,8 @@
       "descAfter": "? Cette action est irréversible et supprimera toutes les données associées.",
       "cancel": "Annuler",
       "delete": "Supprimer"
-    }
+    },
+    "chargementEchoue": "Le chargement a échoué. Fermez puis rouvrez cette fenêtre."
   },
   "aiAgents": {
     "title": "Agents IA",

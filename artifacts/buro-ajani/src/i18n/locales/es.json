@@ -6628,7 +6628,8 @@
       "descAfter": "? Esta acción es irreversible y eliminará todos los datos asociados.",
       "cancel": "Cancelar",
       "delete": "Eliminar"
-    }
+    },
+    "chargementEchoue": "Error al cargar. Cierre y vuelva a abrir esta ventana."
   },
   "aiAgents": {
     "title": "Agentes IA",

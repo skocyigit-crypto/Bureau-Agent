@@ -6628,7 +6628,8 @@
       "descAfter": "löschen möchten? Diese Aktion ist unwiderruflich und löscht alle zugehörigen Daten.",
       "cancel": "Abbrechen",
       "delete": "Löschen"
-    }
+    },
+    "chargementEchoue": "Laden fehlgeschlagen. Schließen Sie dieses Fenster und öffnen Sie es erneut."
   },
   "aiAgents": {
     "title": "KI-Agenten",

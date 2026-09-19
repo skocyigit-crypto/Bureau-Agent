@@ -6628,7 +6628,8 @@
       "descAfter": "? This action is irreversible and will delete all associated data.",
       "cancel": "Cancel",
       "delete": "Delete"
-    }
+    },
+    "chargementEchoue": "Loading failed. Close and reopen this window."
   },
   "aiAgents": {
     "title": "AI Agents",

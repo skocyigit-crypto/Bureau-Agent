@@ -6628,7 +6628,8 @@
       "descAfter": "? Bu işlem geri alınamaz ve ilişkili tüm verileri siler.",
       "cancel": "İptal",
       "delete": "Sil"
-    }
+    },
+    "chargementEchoue": "Yükleme başarısız oldu. Bu pencereyi kapatıp yeniden açın."
   },
   "aiAgents": {
     "title": "Yapay Zeka Ajanları",

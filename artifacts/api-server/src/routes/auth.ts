@@ -556,6 +556,9 @@ router.get("/auth/users", async (req: Request, res: Response): Promise<void> => 
       departement: usersTable.departement,
       organisation: usersTable.organisation,
       organisationId: usersTable.organisationId,
+      // Absent de cette liste, le telephone ne pouvait pas etre pre-rempli par
+      // l'ecran d'edition — qui l'envoyait donc vide, et l'effacait.
+      telephone: usersTable.telephone,
       actif: usersTable.actif,
       mfaActif: usersTable.mfaActif,
       dernierAcces: usersTable.dernierAcces,
