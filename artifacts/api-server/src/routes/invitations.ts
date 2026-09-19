@@ -435,8 +435,8 @@ router.post("/invitations/accept/:token", async (req: Request, res: Response): P
   const tokenHash = hashToken(rawToken);
   // Noms bornes a la colonne (varchar 100) : au-dela l'insertion faisait un
   // 500 ; un nombre donnait l'avatar « UNDEFINED ».
-  const nom = typeof req.body?.nom === "string" ? req.body.nom.trim().replace(/s+/g, " ") : "";
-  const prenom = typeof req.body?.prenom === "string" ? req.body.prenom.trim().replace(/s+/g, " ") : "";
+  const nom = typeof req.body?.nom === "string" ? req.body.nom.trim().replace(/\s+/g, " ") : "";
+  const prenom = typeof req.body?.prenom === "string" ? req.body.prenom.trim().replace(/\s+/g, " ") : "";
   const password = req.body?.password;
 
   if (nom.length > 100 || prenom.length > 100) {

@@ -146,7 +146,17 @@ router.use(requireAuth);
 // tenant suivantes (calls, contacts, tasks, ...) pour les comptes non
 // super-admin. On scope donc la garde au prefixe exact de chaque router
 // (les routers declarent leur chemin complet en interne, ex. `/prospects`).
+// Le routeur declare DEUX chemins: `/admin/saas-dashboard` et
+// `/admin/saas-attention`. La garde ne couvrait que le premier, et le second
+// lit `organisations` et `subscriptions` SANS filtre d'organisation
+// (services/saas-attention.ts): n'importe quel compte authentifie — y compris
+// `lecture_seule`, puisque le plancher de mutation laisse passer les GET —
+// obtenait la liste de TOUS les clients de la plateforme, leur plan, leur prix
+// et leurs impayes. Une garde par chemin doit couvrir chaque chemin du
+// routeur qu'elle protege, sans quoi elle protege une porte et laisse
+// l'autre ouverte.
 router.use("/admin/saas-dashboard", requireSuperAdmin);
+router.use("/admin/saas-attention", requireSuperAdmin);
 router.use(adminSaasDashboardRouter);
 // Prospects, devis et factures client sont du contenu CLIENT: ils sont montes
 // plus bas, derriere `requireTenant`, et chaque handler borne ses requetes a
