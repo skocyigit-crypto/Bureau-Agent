@@ -31,7 +31,7 @@ import { join } from "node:path";
  * produisait rien du tout : le chargement s'arretait, rien n'apparaissait, et
  * l'utilisateur ne pouvait qu'appuyer a nouveau.
  */
-const PLAFOND = 15;
+const PLAFOND = 13;
 
 const RACINES = [
   join(import.meta.dirname, "..", "pages"),
@@ -120,12 +120,17 @@ describe("plus aucune ECRITURE ne passe sous silence", () => {
           if (!/if\s*\(\s*(?:!!)?res(?:ponse)?\d?\.ok\s*\)/.test(l)) return;
           if (/\belse\b/.test(lignes.slice(i, i + 40).join("\n"))) return;
           const avant = lignes.slice(Math.max(0, i - 15), i).join("\n");
-          // La detection inclut `method: verbe` et `method,` : une ecriture
-          // dont le verbe est une VARIABLE — le cas d'un formulaire qui cree
-          // ou modifie selon le contexte — passait sinon pour une lecture.
-          // C'est exactement celle de `prospects.tsx` qui m'avait echappe, et
-          // que j'avais donc comptee a tort comme corrigee.
-          if (!/method:\s*"(POST|PUT|PATCH|DELETE)"|method:\s*\w+|^\s*method,\s*$/m.test(avant)) return;
+          // La detection inclut le verbe passe par une VARIABLE — le cas d'un
+          // formulaire qui cree ou modifie selon le contexte — sous ses trois
+          // ecritures : `method: verbe`, `method,` seul sur sa ligne, et
+          // `{ method, headers... }` en ligne.
+          //
+          // Chacune de ces formes m'a echappe une fois, et chaque fois j'avais
+          // compte l'ecriture correspondante comme une lecture : d'abord
+          // `prospects.tsx`, puis l'enregistrement d'un evenement d'agenda.
+          // Une detection incomplete ne produit pas une alerte manquante mais
+          // une FAUSSE tranquillite, ce qui est pire.
+          if (!/method:\s*"(POST|PUT|PATCH|DELETE)"|method:\s*\w+|[{,]\s*method\s*,|^\s*method,\s*$/m.test(avant)) return;
           restantes.push(`${f.split(/[\\/]/).slice(-1)[0]}:${i + 1}`);
         });
       }
