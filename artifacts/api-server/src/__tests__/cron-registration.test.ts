@@ -17,6 +17,17 @@ import { describe, expect, it } from "vitest";
 const SERVICES = join(import.meta.dirname, "..", "services");
 
 /**
+ * Les boucles planifiees ne vivent pas toutes dans `services/`.
+ *
+ * Ce controle ne regardait que ce dossier. `routes/ai-agents.ts` portait deux
+ * planificateurs — l'autonomie des agents et l'Oto-Pilot — qui passaient donc
+ * a cote : inscrits au demarrage de l'instance, mais pas au declencheur
+ * externe. Avec min-instances=0, ils ne tournaient que pendant qu'un
+ * utilisateur etait en ligne.
+ */
+const ROUTES = join(import.meta.dirname, "..", "routes");
+
+/**
  * Boucles volontairement hors registre: elles ne touchent QUE la memoire du
  * processus. Les faire declencher de l'exterieur n'aurait pas de sens — il n'y
  * a rien a rattraper quand l'instance a ete recyclee, le cache est parti avec
@@ -37,18 +48,20 @@ const NEVER_STARTED = new Set(["google-drive-backup.ts"]);
 
 /** Modules qui pilotent une boucle planifiee (hors registre lui-meme). */
 function schedulerModules(): Array<{ name: string; source: string }> {
-  return readdirSync(SERVICES)
-    .filter((f) => f.endsWith(".ts") && !f.includes(".test."))
-    .map((f) => ({ name: f, source: readFileSync(join(SERVICES, f), "utf8") }))
-    .filter(({ name, source }) =>
-      name !== "cron-registry.ts" &&
-      name !== "health-agents.ts" &&
-      !IN_MEMORY_ONLY.has(name) &&
-      !NEVER_STARTED.has(name) &&
-      /setInterval\(/.test(source) &&
-      // `async` inclus: sans lui, ce test ne voyait pas
-      // `export async function startGoogleDriveBackupScheduler`.
-      /export\s+(?:async\s+)?function\s+start\w+/.test(source));
+  const fichiers = [SERVICES, ROUTES].flatMap((dir) =>
+    readdirSync(dir)
+      .filter((f) => f.endsWith(".ts") && !f.includes(".test."))
+      .map((f) => ({ name: f, source: readFileSync(join(dir, f), "utf8") })));
+
+  return fichiers.filter(({ name, source }) =>
+    name !== "cron-registry.ts" &&
+    name !== "health-agents.ts" &&
+    !IN_MEMORY_ONLY.has(name) &&
+    !NEVER_STARTED.has(name) &&
+    /setInterval\(/.test(source) &&
+    // `async` inclus: sans lui, ce test ne voyait pas
+    // `export async function startGoogleDriveBackupScheduler`.
+    /export\s+(?:async\s+)?function\s+start\w+/.test(source));
 }
 
 describe("taches planifiees", () => {
