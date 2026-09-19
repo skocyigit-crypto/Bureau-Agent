@@ -3666,7 +3666,8 @@
     "alerts": {
       "title": "Güvenlik uyarıları",
       "desc": "Gerçek zamanlı olarak tespit edilen tehlikeli tehditler. Ayrıca WhatsApp üzerinden de bilgilendirilirsiniz.",
-      "empty": "Uyarı yok. Tehlikeli tehdit tespit edilmedi."
+      "empty": "Uyarı yok. Tehlikeli tehdit tespit edilmedi.",
+      "illisibles": "Güvenlik uyarıları okunamadı. Sayfayı yenileyin."
     },
     "recent": {
       "title": "Son güvenlik etkinliği",

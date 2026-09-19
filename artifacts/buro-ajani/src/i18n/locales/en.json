@@ -3666,7 +3666,8 @@
     "alerts": {
       "title": "Security alerts",
       "desc": "Dangerous threats detected in real time. You are also notified on WhatsApp.",
-      "empty": "No alerts. No dangerous threat detected."
+      "empty": "No alerts. No dangerous threat detected.",
+      "illisibles": "Security alerts could not be read. Reload the page."
     },
     "recent": {
       "title": "Recent security activity",

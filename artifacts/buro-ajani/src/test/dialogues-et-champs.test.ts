@@ -322,3 +322,29 @@ describe("une liste vide n'est pas une reponse", () => {
     expect(orgs).toMatch(/setSaasErreur\(false\)/);
   });
 });
+
+describe("« aucune alerte » n'est pas dit a la legere", () => {
+  const securite = readFileSync(join(src, "pages", "securite.tsx"), "utf8");
+
+  it("une lecture ratee ne devient pas « aucune alerte de securite »", () => {
+    expect(
+      securite,
+      "sur un ecran de securite, cette affirmation se croit — et on cesse de chercher",
+    ).toMatch(/alertesIllisibles \? \(/);
+  });
+
+  it("les deux chemins d'echec la produisent", () => {
+    expect((securite.match(/setAlertesIllisibles\(true\)/g) ?? []).length).toBe(2);
+  });
+
+  it("une lecture reussie l'efface", () => {
+    expect(securite).toMatch(/setAlertesIllisibles\(false\)/);
+  });
+
+  it("ouvrir une fiche document dit quand ca echoue", () => {
+    // Rien ne s'ouvrait: le clic semblait simplement ne pas avoir ete pris.
+    const documents = readFileSync(join(src, "pages", "documents.tsx"), "utf8");
+    const bloc = documents.slice(documents.indexOf("const viewDetail"), documents.indexOf("const viewDetail") + 900);
+    expect(bloc).toMatch(/else \{[\s\S]*?toast\(\{/);
+  });
+});

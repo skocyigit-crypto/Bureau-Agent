@@ -3666,7 +3666,8 @@
     "alerts": {
       "title": "Sicherheitswarnungen",
       "desc": "In Echtzeit erkannte gefährliche Bedrohungen. Sie werden auch über WhatsApp benachrichtigt.",
-      "empty": "Keine Warnungen. Keine gefährliche Bedrohung erkannt."
+      "empty": "Keine Warnungen. Keine gefährliche Bedrohung erkannt.",
+      "illisibles": "Sicherheitswarnungen konnten nicht gelesen werden. Laden Sie die Seite neu."
     },
     "recent": {
       "title": "Aktuelle Sicherheitsaktivität",
