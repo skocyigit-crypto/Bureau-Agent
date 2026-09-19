@@ -606,18 +606,25 @@ export default function PerformanceScreen() {
   const [loading, setLoading] = useState(true);
   const [aiLoading, setAiLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  const [lectureEchouee, setLectureEchouee] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
 
   const load = useCallback(async (showAi = true) => {
     if (!estResponsable) { setLoading(false); setRefreshing(false); return; }
     try {
+      setLectureEchouee(false);
       const res = await fetchAuth(`${API_BASE}/api/commandant/employee-quality?periode=${periode}`);
       if (res.ok) {
         const d = await res.json();
         setData(d);
         if (d.employees?.length > 0 && !selectedEmployee) setSelectedEmployee(d.employees[0]);
+      } else {
+        // « Aucun collaborateur » se lit comme un constat sur l'equipe, pas
+        // comme une panne. Un responsable en tire des conclusions.
+        setLectureEchouee(true);
       }
-    } catch {}
+    } catch { setLectureEchouee(true); }
     finally { setLoading(false); setRefreshing(false); }
   }, [fetchAuth, periode, estResponsable]);
 
@@ -711,6 +718,12 @@ export default function PerformanceScreen() {
         <View style={pr.center}>
           <ActivityIndicator size="large" color="#0f4c81" />
           <Text style={[{ fontSize: 13, fontFamily: "Inter_400Regular", color: colors.mutedForeground, marginTop: 10 }]}>{t("performanceScreen.analyzing")}</Text>
+        </View>
+      ) : lectureEchouee ? (
+        <View style={pr.center}>
+          <Feather name="alert-circle" size={48} color={colors.mutedForeground} />
+          <Text style={[{ fontSize: 16, fontFamily: "Inter_600SemiBold", color: colors.foreground, marginTop: 12 }]}>{t("common.lectureEchoueeTitre")}</Text>
+          <Text style={[{ fontSize: 13, fontFamily: "Inter_400Regular", color: colors.mutedForeground, marginTop: 4, textAlign: "center" }]}>{t("common.lectureEchoueeAide")}</Text>
         </View>
       ) : !data || data.employees.length === 0 ? (
         <View style={pr.center}>
