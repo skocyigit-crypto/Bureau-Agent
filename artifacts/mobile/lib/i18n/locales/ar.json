@@ -43,7 +43,9 @@
     "error": "خطأ",
     "projectCreateFailed": "تعذر إنشاء المشروع. حاول مرة أخرى.",
     "actionFailed": "فشلت العملية. حاول مرة أخرى.",
-    "success": "نجاح"
+    "success": "نجاح",
+    "lectureEchoueeTitre": "تعذّر العرض",
+    "lectureEchoueeAide": "تعذّرت قراءة هذه البيانات. اسحب للأسفل لإعادة المحاولة."
   },
   "tabs": {
     "home": "الرئيسية",

@@ -43,7 +43,9 @@
     "error": "Hata",
     "projectCreateFailed": "Proje oluşturulamadı. Tekrar deneyin.",
     "actionFailed": "İşlem başarısız oldu. Tekrar deneyin.",
-    "success": "Başarılı"
+    "success": "Başarılı",
+    "lectureEchoueeTitre": "Görüntülenemiyor",
+    "lectureEchoueeAide": "Bu veriler okunamadı. Yeniden denemek için aşağı çekin."
   },
   "tabs": {
     "home": "Ana Sayfa",

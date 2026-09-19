@@ -43,7 +43,9 @@
     "error": "Error",
     "projectCreateFailed": "No se pudo crear el proyecto. Inténtelo de nuevo.",
     "actionFailed": "La operación ha fallado. Inténtelo de nuevo.",
-    "success": "Éxito"
+    "success": "Éxito",
+    "lectureEchoueeTitre": "No se puede mostrar",
+    "lectureEchoueeAide": "No se pudieron leer estos datos. Deslice hacia abajo para reintentar."
   },
   "tabs": {
     "home": "Inicio",

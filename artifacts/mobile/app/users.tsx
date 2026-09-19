@@ -63,6 +63,10 @@ export default function UsersScreen() {
   const isWeb = Platform.OS === "web";
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Une liste vide et une lecture qui a echoue se ressemblent a l'ecran.
+
+  const [lectureEchouee, setLectureEchouee] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -75,6 +79,7 @@ export default function UsersScreen() {
 
   const fetchUsers = useCallback(async () => {
     try {
+      setLectureEchouee(false);
       const res = await fetchAuth(`${API_BASE}/api/auth/users`);
       if (res.ok) {
         const data = await res.json();
@@ -85,8 +90,8 @@ export default function UsersScreen() {
           dernierAcces: u.dernierAcces || null,
           mfaActif: u.mfaActif ?? false,
         })));
-      }
-    } catch (err) { console.warn("[Users] fetch failed:", err); } finally {
+      } else { setLectureEchouee(true); }
+    } catch (err) { setLectureEchouee(true); console.warn("[Users] fetch failed:", err); } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -257,7 +262,7 @@ export default function UsersScreen() {
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={[styles.listContent, { paddingBottom: isWeb ? 118 : 40 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
-          ListEmptyComponent={<EmptyState icon="users" title={t("usersScreen.emptyTitle")} subtitle={t("usersScreen.emptySubtitle")} />}
+          ListEmptyComponent={<EmptyState icon="users" title={t("usersScreen.emptyTitle")} subtitle={t("usersScreen.emptySubtitle")} erreur={lectureEchouee} />}
           renderItem={({ item }) => {
             const meta = ROLE_META[item.role];
             const role = { label: meta ? t(meta.labelKey) : item.role, color: meta?.color || "#64748b" };

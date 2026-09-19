@@ -43,7 +43,9 @@
     "error": "Error",
     "projectCreateFailed": "The project could not be created. Please try again.",
     "actionFailed": "The operation failed. Please try again.",
-    "success": "Success"
+    "success": "Success",
+    "lectureEchoueeTitre": "Cannot display",
+    "lectureEchoueeAide": "This data could not be read. Pull down to try again."
   },
   "tabs": {
     "home": "Home",

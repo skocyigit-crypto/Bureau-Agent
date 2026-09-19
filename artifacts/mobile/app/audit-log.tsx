@@ -62,6 +62,8 @@ export default function AuditLogScreen() {
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  // Une liste vide et une lecture qui a echoue se ressemblent a l'ecran.
+  const [lectureEchouee, setLectureEchouee] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [actionFilter, setActionFilter] = useState("all");
 
@@ -69,13 +71,14 @@ export default function AuditLogScreen() {
     try {
       const params = new URLSearchParams({ limit: "50", page: "1" });
       if (actionFilter !== "all") params.set("action", actionFilter);
+      setLectureEchouee(false);
       const res = await fetchAuth(`${API_BASE}/api/audit/logs?${params}`);
       if (res.ok) {
         const data = await res.json();
         setEntries(data.logs ?? []);
         setTotalCount(data.total ?? 0);
-      }
-    } catch (err) { console.warn("[AuditLog] fetch failed:", err); } finally {
+      } else { setLectureEchouee(true); }
+    } catch (err) { setLectureEchouee(true); console.warn("[AuditLog] fetch failed:", err); } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -165,7 +168,7 @@ export default function AuditLogScreen() {
               </View>
             </View>
           }
-          ListEmptyComponent={<EmptyState icon="shield" title={t("auditLogScreen.emptyTitle")} subtitle={t("auditLogScreen.emptySubtitle")} />}
+          ListEmptyComponent={<EmptyState icon="shield" title={t("auditLogScreen.emptyTitle")} subtitle={t("auditLogScreen.emptySubtitle")} erreur={lectureEchouee} />}
           renderItem={({ item }) => {
             const action = ACTION_MAP[item.action];
             const actionLabel = action ? t(action.label) : item.action;

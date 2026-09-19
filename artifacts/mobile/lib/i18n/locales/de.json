@@ -43,7 +43,9 @@
     "error": "Fehler",
     "projectCreateFailed": "Das Projekt konnte nicht erstellt werden. Bitte erneut versuchen.",
     "actionFailed": "Der Vorgang ist fehlgeschlagen. Bitte erneut versuchen.",
-    "success": "Erfolg"
+    "success": "Erfolg",
+    "lectureEchoueeTitre": "Anzeige nicht möglich",
+    "lectureEchoueeAide": "Diese Daten konnten nicht gelesen werden. Zum erneuten Versuch nach unten ziehen."
   },
   "tabs": {
     "home": "Start",
