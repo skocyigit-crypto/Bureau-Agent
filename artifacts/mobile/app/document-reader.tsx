@@ -3,6 +3,7 @@ import * as Linking from "expo-linking";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  Alert,
   ActivityIndicator,
   Image,
   KeyboardAvoidingView,
@@ -516,6 +517,7 @@ function AnalyseTab({ doc, docId, onReloadDoc }: { doc: DocPreview; docId: numbe
         headers: { "Content-Type": "application/json" },
       });
       if (res.ok) onReloadDoc();
+      else Alert.alert(t("common.error"), t("common.actionFailed"));
     } catch {}
     finally { setAnalyzing(false); }
   }
@@ -882,6 +884,7 @@ export default function DocumentReaderScreen() {
     try {
       const res = await fetchAuth(`${API_BASE}/api/documents/${doc.id}`, { method: "DELETE" });
       if (res.ok) router.back();
+      else Alert.alert(t("common.error"), t("common.actionFailed"));
     } catch {}
   }
 

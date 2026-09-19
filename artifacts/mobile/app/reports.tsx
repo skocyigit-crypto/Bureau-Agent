@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
+  Alert,
   ActivityIndicator,
   FlatList,
   Platform,
@@ -152,7 +153,7 @@ export default function ReportsScreen() {
         setShowForm(false);
         setFormValues({ category: "bug", priority: "normale" });
         load();
-      }
+      } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } finally { setFormLoading(false); }
   }
 

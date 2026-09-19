@@ -298,6 +298,7 @@ function ChantierTab() {
         body: JSON.stringify({ report, reportType }),
       });
       if (res.ok) { const d = await res.json(); setResult(d); }
+      else Alert.alert(t("common.error"), t("common.actionFailed"));
     } catch {} finally { setLoading(false); }
   }
 
