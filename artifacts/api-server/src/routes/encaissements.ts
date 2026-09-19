@@ -25,7 +25,7 @@ import {
   verifierChaine,
   type EcritureChainee,
 } from "../services/chainage-encaissements";
-import { calculerCloture, verifierConservation } from "../services/cloture-comptable";
+import { calculerCloture, periodeClose, verifierConservation } from "../services/cloture-comptable";
 import { enregistrerEncaissement } from "../services/encaissement-enregistrement";
 import { construireArchive, nomArchive } from "../services/archivage-comptable";
 import { nomAttestation, redigerAttestation } from "../services/attestation-conformite";
@@ -175,6 +175,49 @@ router.post("/encaissements/annuler", async (req: Request, res: Response): Promi
       if (!cible) return { erreur: "Ecriture introuvable." as const };
       if (cible.sens === "annulation") return { erreur: "Une annulation ne s'annule pas." as const };
 
+      // Une ecriture ne se contre-passe qu'UNE fois.
+      //
+      // Rien ne l'empechait. Le solde, lui, ne bougeait pas — `soldeFacture`
+      // ecarte les numeros annules par un ensemble, donc annuler deux fois
+      // donne le meme montant qu'annuler une fois. C'est precisement ce qui
+      // rendait le defaut invisible: aucun total ne s'en plaignait.
+      //
+      // Le journal, lui, gardait deux contre-passations pour un seul
+      // reglement. Il est en AJOUT SEUL et chaine: ces lignes ne se retirent
+      // pas, elles consomment des numeros de sequence, et l'archive remise a
+      // un controleur montre deux annulations du meme encaissement — ce qui
+      // ressemble exactement a ce que l'inalterabilite est censee empecher.
+      const [dejaAnnulee] = await tx.select({ numero: encaissementsTable.numero })
+        .from(encaissementsTable)
+        .where(and(
+          eq(encaissementsTable.organisationId, orgId),
+          eq(encaissementsTable.sens, "annulation"),
+          eq(encaissementsTable.annuleNumero, cible.numero),
+        )).limit(1);
+      if (dejaAnnulee) return { erreur: "Cette ecriture est deja annulee." as const };
+
+      // Une periode close refuse la contre-passation comme elle refuse
+      // l'encaissement: une cloture qui fige un cumul que l'on peut encore
+      // diminuer ne fige rien, et l'anti-fraude redeviendrait contournable.
+      const cloturesConnues = await tx.select().from(cloturesComptablesTable)
+        .where(eq(cloturesComptablesTable.organisationId, orgId));
+      const periodeFermee = periodeClose(
+        new Date().toISOString(),
+        cloturesConnues.map((c) => ({
+          organisationId: c.organisationId,
+          type: c.type as "journaliere" | "mensuelle" | "annuelle",
+          periode: c.periode,
+          premierNumero: c.premierNumero,
+          dernierNumero: c.dernierNumero,
+          nbEcritures: c.nbEcritures,
+          totalPeriodeCentimes: c.totalPeriodeCentimes,
+          totalCumuleCentimes: c.totalCumuleCentimes,
+          empreintePrecedente: c.empreintePrecedente,
+          empreinte: c.empreinte,
+        })),
+      );
+      if (periodeFermee) return { erreurPeriode: String(periodeFermee.periode) };
+
       const [derniere] = await tx.select().from(encaissementsTable)
         .where(eq(encaissementsTable.organisationId, orgId))
         .orderBy(desc(encaissementsTable.numero)).limit(1);
@@ -212,6 +255,13 @@ router.post("/encaissements/annuler", async (req: Request, res: Response): Promi
     });
 
     if ("erreur" in resultat) { res.status(400).json({ error: resultat.erreur }); return; }
+    if ("erreurPeriode" in resultat) {
+      res.status(409).json({
+        error: `La periode ${resultat.erreurPeriode} est close: aucune contre-passation ne peut y etre ajoutee.`,
+        remediation: "Corrigez par une ecriture sur la periode ouverte.",
+      });
+      return;
+    }
 
     await logAudit(req.session?.userId, req.session?.userEmail, "encaissement_annule",
       "encaissement", String(resultat.numero), { annuleNumero: resultat.annule },
