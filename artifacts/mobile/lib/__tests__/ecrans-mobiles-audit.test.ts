@@ -82,3 +82,33 @@ describe("le mobile appelle la methode que le serveur expose", () => {
     }
   });
 });
+
+describe("une liste vide et une lecture ratee ne se confondent plus", () => {
+  /**
+   * Les deux se ressemblent a l'ecran — une liste vide — mais ne disent pas la
+   * meme chose : « vous n'avez aucun utilisateur » est une information, « je
+   * n'ai pas pu lire » est une panne. Confondre les deux amene a conclure
+   * qu'il n'y a rien a faire.
+   */
+  const composant = readFileSync(join(APP, "..", "components", "EmptyState.tsx"), "utf8");
+
+  it("l'etat vide sait dire qu'il s'agit d'un echec", () => {
+    expect(composant).toMatch(/erreur\?: boolean;/);
+    expect(composant).toMatch(/common\.lectureEchoueeTitre/);
+  });
+
+  it("il change aussi d'icone, pour que la difference se voie", () => {
+    expect(composant).toMatch(/erreur \? "alert-circle" : icon/);
+  });
+
+  for (const ecran of ["audit-log.tsx", "integrations.tsx", "users.tsx"]) {
+    it(`${ecran} le signale`, () => {
+      const source = readFileSync(join(APP, ecran), "utf8");
+      expect(source, `${ecran}: le drapeau n'est pas transmis`).toMatch(/erreur=\{lectureEchouee\}/);
+      // Les DEUX chemins d'echec, et la remise a zero avant la lecture.
+      expect((source.match(/setLectureEchouee\(true\)/g) ?? []).length,
+        `${ecran}: refus du serveur et erreur reseau doivent tous deux le lever`).toBe(2);
+      expect(source).toMatch(/setLectureEchouee\(false\)/);
+    });
+  }
+});

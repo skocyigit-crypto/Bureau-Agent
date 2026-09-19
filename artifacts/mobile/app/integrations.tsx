@@ -56,19 +56,24 @@ export default function IntegrationsScreen() {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [categories, setCategories] = useState<ApiCategory[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Une liste vide et une lecture qui a echoue se ressemblent a l'ecran.
+
+  const [lectureEchouee, setLectureEchouee] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
 
   const fetchData = useCallback(async () => {
     try {
+      setLectureEchouee(false);
       const res = await fetchAuth(`${API_BASE}/api/integrations/catalog`);
       if (res.ok) {
         const data = await res.json();
         setIntegrations(data.integrations ?? []);
         setCategories(data.categories ?? []);
-      }
-    } catch (err) { console.warn("[Integrations] fetch failed:", err); } finally {
+      } else { setLectureEchouee(true); }
+    } catch (err) { setLectureEchouee(true); console.warn("[Integrations] fetch failed:", err); } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -195,7 +200,7 @@ export default function IntegrationsScreen() {
               </View>
             </>
           }
-          ListEmptyComponent={<EmptyState icon="grid" title={t("integrationsScreen.emptyTitle")} subtitle={t("integrationsScreen.emptySubtitle")} />}
+          ListEmptyComponent={<EmptyState icon="grid" title={t("integrationsScreen.emptyTitle")} subtitle={t("integrationsScreen.emptySubtitle")} erreur={lectureEchouee} />}
           renderItem={({ item }) => {
             const catColor = CATEGORY_COLORS[item.category]?.color || "#64748b";
             const iconName = getIntegrationIcon(item);
