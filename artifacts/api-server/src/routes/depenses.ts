@@ -10,6 +10,7 @@ import {
 import { and, eq, gte, lte, lt, desc, sql, type SQL } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
+import { CURSEUR_EXPORT_DEBUT } from "../lib/curseur-export";
 import { computeDedupeHash, parseDocumentDate } from "../services/expense-capture";
 import { withDbRetry } from "../lib/db-retry";
 import { logger } from "../lib/logger";
@@ -250,7 +251,8 @@ router.get("/depenses/export", async (req: Request, res: Response): Promise<void
       "Notes",
     ];
 
-    let lastId = Number.MAX_SAFE_INTEGER;
+    // Voir CURSEUR_EXPORT_DEBUT: MAX_SAFE_INTEGER depasse un `integer` Postgres.
+    let lastId = CURSEUR_EXPORT_DEBUT;
     let wroteHeader = false;
     for (;;) {
       const rows = await withDbRetry(

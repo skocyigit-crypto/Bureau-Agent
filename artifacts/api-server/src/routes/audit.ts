@@ -7,6 +7,7 @@ import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/acce
 import { withDbRetry } from "../lib/db-retry";
 import { safeInt } from "../lib/request-params";
 import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
+import { CURSEUR_EXPORT_DEBUT } from "../lib/curseur-export";
 
 const router = Router();
 
@@ -162,7 +163,8 @@ router.get("/audit/export/csv", async (req: Request, res: Response): Promise<voi
     // lieu d'un plafond de 10000 lignes charge d'un coup: pas de troncature
     // silencieuse, memoire bornee. 500 propre uniquement si la 1re requete echoue
     // avant tout envoi.
-    let lastId = Number.MAX_SAFE_INTEGER;
+    // Voir CURSEUR_EXPORT_DEBUT: MAX_SAFE_INTEGER depasse un `integer` Postgres.
+    let lastId = CURSEUR_EXPORT_DEBUT;
     let wroteHeader = false;
     for (;;) {
       const rows = await withDbRetry(
