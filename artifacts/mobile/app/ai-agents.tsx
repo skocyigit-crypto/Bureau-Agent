@@ -595,18 +595,25 @@ function AnomaliesTab() {
   const colors = useColors();
   const { t } = useTranslation();
   const { fetchAuth } = useAuth();
-  const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
+  const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
+
+  const [anomaliesIllisibles, setAnomaliesIllisibles] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     try {
+      setAnomaliesIllisibles(false);
       const res = await fetchAuth(`${API_BASE}/api/ai/anomalies`);
       if (res.ok) {
         const d = await res.json();
         setAnomalies(d.anomalies ?? []);
+      } else {
+        // « Aucune anomalie detectee » est une reassurance. On ne rassure
+        // pas quelqu'un sur la foi d'une question qu'on n'a pas pu poser.
+        setAnomaliesIllisibles(true);
       }
-    } catch {} finally { setLoading(false); setRefreshing(false); }
+    } catch { setAnomaliesIllisibles(true); } finally { setLoading(false); setRefreshing(false); }
   }, [fetchAuth]);
 
   useEffect(() => { load(); }, [load]);
@@ -653,10 +660,14 @@ function AnomaliesTab() {
       ) : (
         <View style={[styles.card, { backgroundColor: "#22c55e10", borderColor: "#22c55e40" }]}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-            <Feather name="check-circle" size={20} color="#22c55e" />
+            <Feather name={anomaliesIllisibles ? "alert-circle" : "check-circle"} size={20} color={anomaliesIllisibles ? "#f59e0b" : "#22c55e"} />
             <View>
-              <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("aiAgentsScreen.noAnomaly")}</Text>
-              <Text style={[styles.cardSubtitle, { color: colors.mutedForeground }]}>{t("aiAgentsScreen.allNormal")}</Text>
+              <Text style={[styles.cardTitle, { color: colors.foreground }]}>
+                {anomaliesIllisibles ? t("common.lectureEchoueeTitre") : t("aiAgentsScreen.noAnomaly")}
+              </Text>
+              <Text style={[styles.cardSubtitle, { color: colors.mutedForeground }]}>
+                {anomaliesIllisibles ? t("common.lectureEchoueeAide") : t("aiAgentsScreen.allNormal")}
+              </Text>
             </View>
           </View>
         </View>

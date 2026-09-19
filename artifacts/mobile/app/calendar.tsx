@@ -518,8 +518,12 @@ export default function CalendarScreen() {
         setFormValues({ type: "rendez_vous" });
         fetchEvents();
         refreshSharedCalendar();
+      } else {
+        // Le formulaire se fermait et le rendez-vous n'existait pas. On le
+        // decouvre le jour ou le client attend.
+        Alert.alert(t("common.error"), t("common.actionFailed"));
       }
-    } catch {} finally { setFormLoading(false); }
+    } catch { Alert.alert(t("common.error"), t("common.actionFailed")); } finally { setFormLoading(false); }
   }
 
   function openEdit(ev: CalendarEvent) {

@@ -184,3 +184,22 @@ describe("trois ecrans de plus distinguent le vide de l'illisible", () => {
     });
   }
 });
+
+describe("l'agenda et les anomalies", () => {
+  it("enregistrer un evenement dit quand ca echoue", () => {
+    // Le formulaire se fermait et le rendez-vous n'existait pas. On le
+    // decouvre le jour ou le client attend.
+    const source = readFileSync(join(APP, "calendar.tsx"), "utf8");
+    const bloc = source.slice(source.indexOf("const method = editId"), source.indexOf("const method = editId") + 1400);
+    expect(bloc).toMatch(/\} else \{[\s\S]*?Alert\.alert/);
+  });
+
+  it("« aucune anomalie » n'est pas dit sans avoir lu", () => {
+    // C'est une reassurance: on ne rassure pas quelqu'un sur la foi d'une
+    // question qu'on n'a pas pu poser.
+    const source = readFileSync(join(APP, "ai-agents.tsx"), "utf8");
+    expect(source).toMatch(/anomaliesIllisibles \? t\("common\.lectureEchoueeTitre"\)/);
+    expect(source.split("setAnomaliesIllisibles(true)").length - 1).toBe(2);
+    expect(source.split("setAnomaliesIllisibles(false)").length - 1).toBe(1);
+  });
+});
