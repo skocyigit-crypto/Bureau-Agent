@@ -42,7 +42,8 @@
     "markDone": "Als erledigt markieren",
     "error": "Fehler",
     "projectCreateFailed": "Das Projekt konnte nicht erstellt werden. Bitte erneut versuchen.",
-    "actionFailed": "Der Vorgang ist fehlgeschlagen. Bitte erneut versuchen."
+    "actionFailed": "Der Vorgang ist fehlgeschlagen. Bitte erneut versuchen.",
+    "success": "Erfolg"
   },
   "tabs": {
     "home": "Start",
@@ -2986,7 +2987,8 @@
     "fieldEmail": "E-Mail",
     "fieldRole": "Rolle",
     "fieldDepartment": "Abteilung",
-    "fieldPassword": "Passwort (leer = automatisch generiert)"
+    "fieldPassword": "Passwort (leer = automatisch generiert)",
+    "credentialsSent": "Zugangsdaten per E-Mail gesendet."
   },
   "fileApprobationScreen": {
     "title": "Genehmigungswarteschlange",

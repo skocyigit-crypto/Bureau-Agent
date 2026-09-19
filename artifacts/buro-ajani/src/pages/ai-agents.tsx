@@ -1420,7 +1420,15 @@ function AutopilotPanel() {
   const stopAutopilot = async () => {
     setStopping(true);
     try {
-      await fetch(`${baseUrl}/api/ai/autopilot/stop`, { method: "POST", credentials: "include" });
+      // Le refus du serveur n'etait pas lu: l'ecran annoncait « Oto-Pilot
+      // desactive » meme quand il ne l'etait pas. Une fausse confirmation est
+      // pire qu'un silence — l'utilisateur ferme la page en croyant la chose
+      // faite, et les cycles continuent de tourner (et d'etre factures).
+      const r = await fetch(`${baseUrl}/api/ai/autopilot/stop`, { method: "POST", credentials: "include" });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.error || t("aiAgents.toast.error"));
+      }
       toast({ title: t("aiAgents.auto.deactivated") });
       try { const r2 = await fetch(`${baseUrl}/api/ai/autopilot/status`, { credentials: "include" }); if (r2.ok) setStatus(await r2.json()); } catch {}
     } catch (e: any) {

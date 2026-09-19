@@ -535,7 +535,14 @@ export default function CalendarScreen() {
   async function handleDelete(id: number | string) {
     if (typeof id === "string") return;
     try {
-      await fetchAuth(`${API_BASE}/api/calendar/events/${id}`, { method: "DELETE" });
+      // `fetchAuth` ne leve PAS sur un refus du serveur: il rend la reponse.
+      // Sans cette lecture, un 403 ou un 404 fermait la fiche et rechargeait la
+      // liste — ou l'evenement etait toujours la, sans un mot.
+      const r = await fetchAuth(`${API_BASE}/api/calendar/events/${id}`, { method: "DELETE" });
+      if (!r.ok) {
+        Alert.alert(t("common.error"), t("common.actionFailed"));
+        return;
+      }
       setSelected(null);
       fetchEvents();
       refreshSharedCalendar();

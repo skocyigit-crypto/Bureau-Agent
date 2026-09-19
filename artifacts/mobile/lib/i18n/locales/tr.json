@@ -42,7 +42,8 @@
     "markDone": "Tamamlandı olarak işaretle",
     "error": "Hata",
     "projectCreateFailed": "Proje oluşturulamadı. Tekrar deneyin.",
-    "actionFailed": "İşlem başarısız oldu. Tekrar deneyin."
+    "actionFailed": "İşlem başarısız oldu. Tekrar deneyin.",
+    "success": "Başarılı"
   },
   "tabs": {
     "home": "Ana Sayfa",
@@ -2986,7 +2987,8 @@
     "fieldEmail": "E-posta",
     "fieldRole": "Rol",
     "fieldDepartment": "Departman",
-    "fieldPassword": "Şifre (boş = otomatik oluşturulur)"
+    "fieldPassword": "Şifre (boş = otomatik oluşturulur)",
+    "credentialsSent": "Kimlik bilgileri e-posta ile gönderildi."
   },
   "fileApprobationScreen": {
     "title": "Onay kuyruğu",

@@ -109,3 +109,56 @@ describe("une saisie perdue ne doit plus l'etre en silence", () => {
     }
   });
 });
+
+/**
+ * Troisieme forme, propre au mobile : la reponse n'est simplement pas lue.
+ *
+ * `fetchAuth` ne leve PAS sur un refus du serveur — il rend la reponse, comme
+ * `fetch`. Un `await fetchAuth(..., { method: "POST" })` dont on ignore le
+ * resultat traite donc un 403, un 404 ou un 409 comme une reussite : l'ecran
+ * se ferme, la liste se recharge, et l'utilisateur en conclut que c'est fait.
+ *
+ * C'est la forme la plus trompeuse des trois, parce qu'elle produit une fausse
+ * CONFIRMATION la ou les deux autres ne produisent rien.
+ */
+describe("une ecriture mobile lit la reponse du serveur", () => {
+  /** Plafond courant. A BAISSER a chaque correction — jamais a monter. */
+  const PLAFOND_REPONSES = 8;
+
+  function ignorees(): string[] {
+    const out: string[] = [];
+    for (const f of fichiers(RACINES[0]!)) {
+      const lignes = readFileSync(f, "utf8").split(/\r?\n/);
+      lignes.forEach((l, i) => {
+        // `await fetchAuth(...)` dont le resultat n'est affecte a rien.
+        if (!/^\s*await fetchAuth\(/.test(l)) return;
+        if (!/method:\s*"(POST|PUT|PATCH|DELETE)"/.test(lignes.slice(i, i + 5).join("\n"))) return;
+        out.push(`${f.split(/[\\/]/).slice(-1)[0]}:${i + 1}`);
+      });
+    }
+    return out;
+  }
+
+  it("le comptage trouve bien quelque chose a compter", () => {
+    expect(ignorees().length, "detection cassee").toBeGreaterThan(0);
+  });
+
+  it("leur nombre ne depasse pas le plafond", () => {
+    const liste = ignorees();
+    expect(
+      liste.length,
+      `une ecriture ignore a nouveau la reponse du serveur: ${liste.join(", ")}`,
+    ).toBeLessThanOrEqual(PLAFOND_REPONSES);
+  });
+
+  it("les ecrans deja traites n'y reviennent pas", () => {
+    // Assertion sur le COMPTE de ces fichiers, et non sur la simple presence
+    // d'un `if (!r.ok)` quelque part: en retirer un sur trois passerait
+    // inapercu, et c'est exactement la regression qu'on veut voir.
+    const liste = ignorees();
+    for (const nom of ["notes-internes.tsx", "users.tsx", "calendar.tsx"]) {
+      const restantes = liste.filter((e) => e.startsWith(`${nom}:`));
+      expect(restantes, `${nom}: une ecriture y ignore a nouveau la reponse`).toEqual([]);
+    }
+  });
+});
