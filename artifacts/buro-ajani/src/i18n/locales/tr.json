@@ -2635,7 +2635,8 @@
       "openConsole": "Google Cloud Console'u aç",
       "accountConnected": "Google hesabı bağlandı",
       "servicesActive": "Google Workspace hizmetleri etkin ve eşitlenmiş.",
-      "connectedBadge": "Bağlandı"
+      "connectedBadge": "Bağlandı",
+      "statutIllisible": "Google bağlantı durumu okunamadı. Sayfayı yenileyin: bu kontrol başarısızken uygulama Google'ın yapılandırılıp yapılandırılmadığını söyleyemez."
     },
     "searchPlaceholder": "{{platform}} uygulaması ara...",
     "filterAll": "Tümü ({{count}})",

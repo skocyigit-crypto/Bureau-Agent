@@ -269,3 +269,27 @@ describe("le regime de prospection est enfin renseignable", () => {
     expect(envois.length, "un appel par champ multiplierait les traces").toBe(1);
   });
 });
+
+describe("un etat qu'on n'a pas pu lire n'est pas un etat connu", () => {
+  const plateformes = readFileSync(join(src, "pages", "settings", "tab-plateformes.tsx"), "utf8");
+
+  it("l'echec de la lecture est retenu", () => {
+    // `configured` restait a false quand la lecture echouait, et tout le bloc
+    // de connexion Google disparaissait: l'utilisateur ne voyait meme pas que
+    // Google est configurable.
+    expect(plateformes).toMatch(/setGoogleStatutIllisible\(true\)/);
+  });
+
+  it("aussi bien sur un refus du serveur que sur une erreur reseau", () => {
+    const occurrences = plateformes.match(/setGoogleStatutIllisible\(true\)/g) ?? [];
+    expect(occurrences.length, "les deux chemins d'echec doivent le dire").toBe(2);
+  });
+
+  it("une lecture reussie efface l'avertissement", () => {
+    expect(plateformes).toMatch(/setGoogleStatutIllisible\(false\)/);
+  });
+
+  it("l'ecran a de quoi l'afficher", () => {
+    expect(plateformes).toMatch(/settingsPlateformes\.google\.statutIllisible/);
+  });
+});
