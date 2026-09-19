@@ -221,6 +221,21 @@ export default function UsersPage() {
 
   const pendingInvitations = invitations.filter(i => i.status === "pending" && !i.expired);
 
+  // Calcule AVANT le retour anticipe: un hook ne peut pas etre appele
+  // conditionnellement, et `useSelectionVisible` en depend.
+  const filteredUsers = users
+    .filter(u => roleFilter === "tous" || u.role === roleFilter)
+    .filter(u => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return u.prenom.toLowerCase().includes(q) || u.nom.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || (u.departement || "").toLowerCase().includes(q);
+    });
+
+  // Une selection ne porte que sur ce qui est a l ecran: changer de filtre ou
+  // de recherche laissait des lignes invisibles cochees, et la suppression en
+  // lot portait alors sur l ancien contenu. Voir `useSelectionVisible`.
+  useSelectionVisible(filteredUsers?.map((u: any) => u.id), selectedIds, setSelectedIds);
+
   if (!canManageUsers) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center">
@@ -237,14 +252,6 @@ export default function UsersPage() {
 
   const activeUsers = users.filter(u => u.actif).length;
   const siegesRestants = maxUsers - activeUsers;
-
-  const filteredUsers = users
-    .filter(u => roleFilter === "tous" || u.role === roleFilter)
-    .filter(u => {
-      if (!searchQuery) return true;
-      const q = searchQuery.toLowerCase();
-      return u.prenom.toLowerCase().includes(q) || u.nom.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || (u.departement || "").toLowerCase().includes(q);
-    });
 
   const handleAddUser = async () => {
     if (!newUser.prenom || !newUser.nom || !newUser.email || !newUser.password) {
@@ -446,10 +453,6 @@ export default function UsersPage() {
 
   const toggleSelectMode = () => { setSelectMode(v => !v); setSelectedIds(new Set()); };
   const toggleId = (id: number) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  // Une selection ne porte que sur ce qui est a l'ecran: changer de page ou
-  // de filtre laissait des lignes invisibles cochees, et « Supprimer (10) »
-  // portait alors sur l'ancien contenu. Voir `useSelectionVisible`.
-  useSelectionVisible(filteredUsers?.map((u: any) => u.id), selectedIds, setSelectedIds);
 
   const toggleAll = () => {
     const eligible = filteredUsers.filter(u => u.role !== "super_admin" && u.id !== workspaceUser?.id);

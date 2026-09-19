@@ -608,6 +608,16 @@ export default function AutomationsPage() {
     return t("automationsPage.timeAgo.days", { n: Math.floor(hours / 24) });
   }
 
+  // Calcules AVANT le retour anticipe: un hook ne peut pas etre appele
+  // conditionnellement, et `useSelectionVisible` depend de `customRules`.
+  const builtInRules = rules.filter(r => r.builtIn);
+  const customRules = rules.filter(r => !r.builtIn);
+
+  // Une selection ne porte que sur ce qui est a l ecran: changer de filtre
+  // laissait des lignes invisibles cochees, et la suppression en lot portait
+  // alors sur l ancien contenu. Voir `useSelectionVisible`.
+  useSelectionVisible(customRules?.map((r: any) => r.id), selectedIds, setSelectedIds);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -616,13 +626,7 @@ export default function AutomationsPage() {
     );
   }
 
-  const builtInRules = rules.filter(r => r.builtIn);
-  const customRules = rules.filter(r => !r.builtIn);
 
-  // Une selection ne porte que sur ce qui est a l'ecran: changer de page ou
-  // de filtre laissait des lignes invisibles cochees, et « Supprimer (10) »
-  // portait alors sur l'ancien contenu. Voir `useSelectionVisible`.
-  useSelectionVisible(customRules?.map((r: any) => r.id), selectedIds, setSelectedIds);
   const successRate = stats ? (stats.totalToday > 0 ? Math.round((stats.successToday / stats.totalToday) * 100) : 100) : 0;
 
   return (

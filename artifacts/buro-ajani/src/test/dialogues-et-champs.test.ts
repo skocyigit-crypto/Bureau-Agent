@@ -157,3 +157,31 @@ describe("modifier ne vide plus les champs qu'on n'a pas touches", () => {
     expect(routeDevis).toMatch(/if \(b\[k\] !== undefined\) updates\[k\] = b\[k\];/);
   });
 });
+
+describe("le hook de selection est appele inconditionnellement", () => {
+  /**
+   * Premiere version cablee apres le retour anticipe de deux ecrans.
+   *
+   * React exige le MEME ordre de hooks a chaque rendu : appele apres un
+   * `if (loading) return ...`, `useSelectionVisible` n'existait pas pendant le
+   * chargement puis apparaissait ensuite, ce qui decale tous les hooks suivants
+   * — etats melanges, effets rejoues. ESLint l'a vu (`rules-of-hooks`) avant
+   * que le symptome n'apparaisse ; ce controle garde le point acquis.
+   */
+  const ECRANS = ["automations", "users", "contacts", "messages", "calls", "tasks", "projets"];
+
+  for (const nom of ECRANS) {
+    it(`${nom}: l'appel precede tout retour anticipe`, () => {
+      const source = readFileSync(join(src, "pages", `${nom}.tsx`), "utf8");
+      const appel = source.indexOf("useSelectionVisible(");
+      expect(appel, `${nom} n'appelle pas le hook`).toBeGreaterThan(0);
+
+      const retourAnticipe = source.search(/^\s{2}if \([^)]*\) \{\r?\n\s+return \(/m);
+      if (retourAnticipe < 0) return; // pas de retour anticipe: rien a garder
+      expect(
+        appel,
+        `${nom}: hook appele apres un retour anticipe — React exige le meme ordre a chaque rendu`,
+      ).toBeLessThan(retourAnticipe);
+    });
+  }
+});
