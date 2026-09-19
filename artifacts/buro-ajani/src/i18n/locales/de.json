@@ -1394,7 +1394,8 @@
       "tva": "USt. (€)",
       "ttc": "Brutto (€)",
       "paymentStatus": "Zahlungsstatus",
-      "notes": "Notizen"
+      "notes": "Notizen",
+      "tauxTva": "MwSt.-Satz"
     },
     "categories": {
       "carburant": "Kraftstoff",

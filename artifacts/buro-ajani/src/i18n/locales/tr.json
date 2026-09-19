@@ -1394,7 +1394,8 @@
       "tva": "KDV (€)",
       "ttc": "KDV dahil (€)",
       "paymentStatus": "Ödeme durumu",
-      "notes": "Notlar"
+      "notes": "Notlar",
+      "tauxTva": "KDV oranı"
     },
     "categories": {
       "carburant": "Yakıt",

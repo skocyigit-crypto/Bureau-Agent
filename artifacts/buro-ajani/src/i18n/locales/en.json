@@ -1394,7 +1394,8 @@
       "tva": "VAT (€)",
       "ttc": "Gross (€)",
       "paymentStatus": "Payment status",
-      "notes": "Notes"
+      "notes": "Notes",
+      "tauxTva": "VAT rate"
     },
     "categories": {
       "carburant": "Fuel",

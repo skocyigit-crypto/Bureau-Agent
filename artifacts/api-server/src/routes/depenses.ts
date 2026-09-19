@@ -11,6 +11,7 @@ import { and, eq, gte, lte, lt, desc, sql, type SQL } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
 import { CURSEUR_EXPORT_DEBUT } from "../lib/curseur-export";
+import { montantsDepense, TAUX_TVA_CONNUS } from "../services/montants-depense";
 import { computeDedupeHash, parseDocumentDate } from "../services/expense-capture";
 import { withDbRetry } from "../lib/db-retry";
 import { logger } from "../lib/logger";
@@ -322,16 +323,37 @@ router.post("/depenses", requireMinAgent, async (req: Request, res: Response): P
     }
 
     const amountTtc = num(body.amountTtc);
-    let amountHt = num(body.amountHt);
-    let amountTva = num(body.amountTva);
-    if (amountTtc <= 0 && amountHt <= 0) {
+    if (amountTtc <= 0 && num(body.amountHt) <= 0) {
       res.status(400).json({ error: "Un montant (HT ou TTC) est requis." });
       return;
     }
-    const ttc = amountTtc > 0 ? amountTtc : amountHt + Math.max(0, amountTva);
-    if (amountHt <= 0) amountHt = Math.max(0, ttc - Math.max(0, amountTva));
-    if (amountTva <= 0) amountTva = Math.max(0, ttc - amountHt);
 
+    // Les trois montants sont reconstitues ensemble. Le calcul precedent
+    // mettait le TTC dans la colonne HT des qu'aucune TVA n'etait saisie —
+    // voir `montantsDepense`.
+    const montants = montantsDepense({
+      ht: num(body.amountHt),
+      tva: num(body.amountTva),
+      ttc: amountTtc,
+      tauxTva: body.tauxTva === undefined ? null : num(body.tauxTva),
+    });
+
+    // Saisie manuelle: l'utilisateur a le justificatif sous les yeux. Lui
+    // demander le taux coute une seconde; ecrire une TVA nulle a sa place lui
+    // coute la TVA, et fausse sa charge du meme montant.
+    if (montants.tvaInconnue) {
+      res.status(400).json({
+        error: "Indiquez le montant HT, le montant de TVA, ou le taux de TVA.",
+        code: "tva_indeterminee",
+        remediation: "Avec le seul TTC, la TVA deductible serait enregistree a zero et la charge surevaluee d'autant.",
+        tauxCourants: TAUX_TVA_CONNUS,
+      });
+      return;
+    }
+
+    const amountHt = montants.ht;
+    const amountTva = montants.tva;
+    const ttc = montants.ttc;
     const category = typeof body.category === "string" && CATEGORY_SET.has(body.category) ? body.category : "autre";
     const paymentStatus =
       typeof body.paymentStatus === "string" && PAYMENT_SET.has(body.paymentStatus) ? body.paymentStatus : "a_payer";

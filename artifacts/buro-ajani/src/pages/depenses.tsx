@@ -90,6 +90,7 @@ interface Depense {
   amountHt: string;
   amountTva: string;
   amountTtc: string;
+  tauxTva: string;
   currency: string;
   status: string;
   paymentStatus: string;
@@ -186,6 +187,7 @@ interface EditForm {
   amountHt: string;
   amountTva: string;
   amountTtc: string;
+  tauxTva: string;
   paymentStatus: string;
   notes: string;
 }
@@ -201,6 +203,7 @@ function depenseToForm(d: Depense): EditForm {
     amountHt: d.amountHt || "0",
     amountTva: d.amountTva || "0",
     amountTtc: d.amountTtc || "0",
+    tauxTva: "20",
     paymentStatus: d.paymentStatus || "a_payer",
     notes: d.notes || "",
   };
@@ -216,6 +219,7 @@ const EMPTY_FORM: EditForm = {
   amountHt: "0",
   amountTva: "0",
   amountTtc: "0",
+  tauxTva: "20",
   paymentStatus: "a_payer",
   notes: "",
 };
@@ -427,6 +431,31 @@ export default function DepensesPage() {
       setSaving(false);
     }
   }, [form, creating, editing, closeDialog, load, toast]);
+
+  // Repartit un TTC entre HT et TVA au taux choisi.
+  //
+  // Saisir le seul TTC — le cas le plus courant, un ticket qu'on recopie —
+  // enregistrait auparavant le TTC dans la colonne HT et une TVA nulle: TVA
+  // deductible perdue, charge surevaluee d'autant. Le serveur refuse
+  // desormais ce cas; c'est ici qu'on evite a l'utilisateur de le rencontrer.
+  //
+  // Calcul en centimes: 120 / 1,2 ne rend pas 100 en flottant.
+  const onTtcTaux = useCallback((ttc: string, taux: string) => {
+    const ttcC = Math.round((Number(ttc) || 0) * 100);
+    const t = Number(taux);
+    if (ttcC <= 0 || !Number.isFinite(t)) {
+      setForm((f) => ({ ...f, amountTtc: ttc, tauxTva: taux }));
+      return;
+    }
+    const htC = Math.round(ttcC / (1 + t / 100));
+    setForm((f) => ({
+      ...f,
+      amountTtc: ttc,
+      tauxTva: taux,
+      amountHt: (htC / 100).toFixed(2),
+      amountTva: ((ttcC - htC) / 100).toFixed(2),
+    }));
+  }, []);
 
   // Recalcule le TTC quand HT/TVA changent (aide à la saisie).
   const onHtTva = useCallback((ht: string, tva: string) => {
@@ -866,9 +895,22 @@ export default function DepensesPage() {
                   type="number"
                   step="0.01"
                   value={form.amountTtc}
-                  onChange={(e) => setForm((f) => ({ ...f, amountTtc: e.target.value }))}
+                  onChange={(e) => onTtcTaux(e.target.value, form.tauxTva)}
                 />
               </div>
+            </div>
+            <div className="grid gap-1">
+              <Label>{t("depenses.form.tauxTva")}</Label>
+              <Select value={form.tauxTva} onValueChange={(v) => onTtcTaux(form.amountTtc, v)}>
+                <SelectTrigger aria-label={t("depenses.form.tauxTva")}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="20">20 %</SelectItem>
+                  <SelectItem value="10">10 %</SelectItem>
+                  <SelectItem value="5.5">5,5 %</SelectItem>
+                  <SelectItem value="2.1">2,1 %</SelectItem>
+                  <SelectItem value="0">0 %</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-1">
               <Label>{t("depenses.form.paymentStatus")}</Label>

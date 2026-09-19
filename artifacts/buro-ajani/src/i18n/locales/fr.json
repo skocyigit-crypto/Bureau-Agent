@@ -1394,7 +1394,8 @@
       "tva": "TVA (€)",
       "ttc": "TTC (€)",
       "paymentStatus": "Statut de paiement",
-      "notes": "Notes"
+      "notes": "Notes",
+      "tauxTva": "Taux de TVA"
     },
     "categories": {
       "carburant": "Carburant",
