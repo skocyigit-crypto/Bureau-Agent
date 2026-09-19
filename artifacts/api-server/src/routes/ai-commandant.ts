@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import { normaliserAnalyse } from "../services/analyse-commandant";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, calendarEventsTable, facturesClientTable, organisationsTable, prospectsTable, notificationsTable, projetsTable, usersTable, checkinsTable, auditLogsTable, commandantConversationsTable, commandantMessagesTable, demoHandoffsTable } from "@workspace/db";
 import { eq, sql, and, desc, gte, lte, lt, ne, isNull, isNotNull, or, count, asc, inArray, type Column, type SQL } from "drizzle-orm";
 import { AGENTS, creerTacheIa } from "../services/tache-ia";
@@ -915,7 +916,9 @@ JSON attendu:
     res.json({
       success: true,
       overdue: { tasks: overdueTasks.length, invoices: overdueInvoices.length, events: upcomingEvents.length },
-      aiAnalysis: parsed,
+      // Normalise: un modele n est pas une source de donnees de confiance, et
+      // le repli ne portait que `dailySummary`. Voir `normaliserAnalyse`.
+      aiAnalysis: normaliserAnalyse(parsed),
       emailsSent,
     });
   } catch (err: any) {
