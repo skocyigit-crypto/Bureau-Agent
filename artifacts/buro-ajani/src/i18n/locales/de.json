@@ -400,7 +400,9 @@
       "company": "Firma",
       "category": "Kategorie",
       "phone": "Telefon",
-      "email": "E-Mail"
+      "email": "E-Mail",
+      "relancesRefusees": "Keine automatischen Mahnungen",
+      "relancesRefuseesAide": "Dieser Kunde hat um den Verzicht auf automatische Zahlungserinnerungen gebeten. Manuelle Erinnerungen bleiben möglich."
     },
     "categories": {
       "client": "Kunde",
@@ -457,7 +459,8 @@
       "createError": "Kontakt kann nicht erstellt werden",
       "projectCreated": "Projekt erstellt",
       "deleted": "Kontakt gelöscht",
-      "deleteError": "Löschen nicht möglich"
+      "deleteError": "Löschen nicht möglich",
+      "relancesError": "Die Mahnungseinstellung konnte nicht gespeichert werden."
     },
     "projectDefaultName": "Kontakt",
     "projectTitle": "Projekt - {{name}}",

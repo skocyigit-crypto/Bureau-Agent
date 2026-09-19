@@ -400,7 +400,9 @@
       "company": "Entreprise",
       "category": "Catégorie",
       "phone": "Téléphone",
-      "email": "Email"
+      "email": "Email",
+      "relancesRefusees": "Ne pas relancer automatiquement",
+      "relancesRefuseesAide": "Ce client a demandé à ne plus recevoir de relances de paiement automatiques. Les relances manuelles restent possibles."
     },
     "categories": {
       "client": "Client",
@@ -457,7 +459,8 @@
       "createError": "Impossible de créer le contact",
       "projectCreated": "Projet créé",
       "deleted": "Contact supprimé",
-      "deleteError": "Impossible de supprimer"
+      "deleteError": "Impossible de supprimer",
+      "relancesError": "Le réglage des relances n'a pas pu être enregistré."
     },
     "projectDefaultName": "Contact",
     "projectTitle": "Projet - {{name}}",

@@ -400,7 +400,9 @@
       "company": "Şirket",
       "category": "Kategori",
       "phone": "Telefon",
-      "email": "E-posta"
+      "email": "E-posta",
+      "relancesRefusees": "Otomatik hatırlatma gönderme",
+      "relancesRefuseesAide": "Bu müşteri otomatik ödeme hatırlatmaları almak istemediğini bildirdi. Elle gönderim yine mümkün."
     },
     "categories": {
       "client": "Müşteri",
@@ -457,7 +459,8 @@
       "createError": "Kişi oluşturulamadı",
       "projectCreated": "Proje oluşturuldu",
       "deleted": "Kişi silindi",
-      "deleteError": "Silinemedi"
+      "deleteError": "Silinemedi",
+      "relancesError": "Hatırlatma ayarı kaydedilemedi."
     },
     "projectDefaultName": "Kişi",
     "projectTitle": "Proje - {{name}}",

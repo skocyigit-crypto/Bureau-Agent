@@ -400,7 +400,9 @@
       "company": "الشركة",
       "category": "الفئة",
       "phone": "الهاتف",
-      "email": "البريد الإلكتروني"
+      "email": "البريد الإلكتروني",
+      "relancesRefusees": "عدم إرسال تذكيرات تلقائية",
+      "relancesRefuseesAide": "طلب هذا العميل عدم تلقي تذكيرات دفع تلقائية. تبقى التذكيرات اليدوية ممكنة."
     },
     "categories": {
       "client": "عميل",
@@ -457,7 +459,8 @@
       "createError": "تعذّر إنشاء جهة الاتصال",
       "projectCreated": "تم إنشاء المشروع",
       "deleted": "تم حذف جهة الاتصال",
-      "deleteError": "تعذّر الحذف"
+      "deleteError": "تعذّر الحذف",
+      "relancesError": "تعذر حفظ إعداد التذكيرات."
     },
     "projectDefaultName": "جهة اتصال",
     "projectTitle": "مشروع - {{name}}",

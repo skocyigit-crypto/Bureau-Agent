@@ -31,7 +31,7 @@
 import {
   db,
   facturesClientTable,
-  compteClientTable,
+  contactsTable,
   proactiveSuggestionsTable,
 } from "@workspace/db";
 import { and, eq, gt, inArray } from "drizzle-orm";
@@ -293,25 +293,31 @@ export async function runPaymentReminderScanForOrg(orgId: number): Promise<Payme
     recent.map((r) => r.relatedEntityId).filter((x): x is number => typeof x === "number"),
   );
 
-  // Comptes clients ayant DÉSACTIVÉ les relances auto (par contact).
+  // Clients ayant demande a ne PAS etre relances automatiquement.
+  //
+  // Cette garde interrogeait `compte_client.auto_reminder_enabled`. Rien n a
+  // jamais rempli cette table et aucun ecran ne proposait le reglage: le
+  // filtre etait toujours vide, et un client qui avait demande qu on cesse
+  // les relances en recevait quand meme. Une garde qui ne garde rien est pire
+  // qu une garde absente: on croit le sujet traite.
   const optedOut = new Set<number>();
   const contactIds = overdue.map((f) => f.contactId).filter((x): x is number => typeof x === "number");
   if (contactIds.length > 0) {
-    const accounts = await withDbRetry(
+    const refus = await withDbRetry(
       () =>
         db
-          .select({ contactId: compteClientTable.contactId, autoReminderEnabled: compteClientTable.autoReminderEnabled })
-          .from(compteClientTable)
+          .select({ id: contactsTable.id })
+          .from(contactsTable)
           .where(
             and(
-              eq(compteClientTable.organisationId, orgId),
-              eq(compteClientTable.autoReminderEnabled, false),
-              inArray(compteClientTable.contactId, Array.from(new Set(contactIds))),
+              eq(contactsTable.organisationId, orgId),
+              eq(contactsTable.relancesAutoDesactivees, true),
+              inArray(contactsTable.id, Array.from(new Set(contactIds))),
             ),
           ),
       { label: "payment-reminder:opted-out" },
     );
-    for (const a of accounts) if (a.contactId != null) optedOut.add(a.contactId);
+    for (const c of refus) optedOut.add(c.id);
   }
 
   // Construction des candidats à créer.

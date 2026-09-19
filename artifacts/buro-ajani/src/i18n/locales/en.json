@@ -400,7 +400,9 @@
       "company": "Company",
       "category": "Category",
       "phone": "Phone",
-      "email": "Email"
+      "email": "Email",
+      "relancesRefusees": "Do not send automatic reminders",
+      "relancesRefuseesAide": "This client asked not to receive automatic payment reminders. Manual reminders are still possible."
     },
     "categories": {
       "client": "Client",
@@ -457,7 +459,8 @@
       "createError": "Unable to create the contact",
       "projectCreated": "Project created",
       "deleted": "Contact deleted",
-      "deleteError": "Unable to delete"
+      "deleteError": "Unable to delete",
+      "relancesError": "The reminder setting could not be saved."
     },
     "projectDefaultName": "Contact",
     "projectTitle": "Project - {{name}}",

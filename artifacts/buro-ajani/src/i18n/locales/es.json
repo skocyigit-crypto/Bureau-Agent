@@ -400,7 +400,9 @@
       "company": "Empresa",
       "category": "Categoría",
       "phone": "Teléfono",
-      "email": "Correo"
+      "email": "Correo",
+      "relancesRefusees": "No enviar recordatorios automáticos",
+      "relancesRefuseesAide": "Este cliente pidió no recibir recordatorios de pago automáticos. Los recordatorios manuales siguen siendo posibles."
     },
     "categories": {
       "client": "Cliente",
@@ -457,7 +459,8 @@
       "createError": "No se puede crear el contacto",
       "projectCreated": "Proyecto creado",
       "deleted": "Contacto eliminado",
-      "deleteError": "No se puede eliminar"
+      "deleteError": "No se puede eliminar",
+      "relancesError": "No se pudo guardar el ajuste de recordatorios."
     },
     "projectDefaultName": "Contacto",
     "projectTitle": "Proyecto - {{name}}",
