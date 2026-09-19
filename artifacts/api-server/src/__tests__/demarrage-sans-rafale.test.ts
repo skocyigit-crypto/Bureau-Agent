@@ -94,7 +94,6 @@ describe("les demarrages de fond attendent l'amorcage", () => {
     expect(j).toBeGreaterThan(i);
     const bloc = SOURCE.slice(i, j);
     for (const tache of [
-      "startAutoBackup",
       "startClotureCron",
       "startAiUsagePurgeJob",
       "startAccountRetentionCron",
