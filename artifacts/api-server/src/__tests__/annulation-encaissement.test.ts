@@ -171,6 +171,66 @@ describe("annuler deux fois la meme ecriture", () => {
   });
 });
 
+/**
+ * Une facture soldee par le journal de caisse doit le dire.
+ *
+ * `enregistrerEncaissement` n'ecrivait que `paidAmount`, et
+ * `deriveInvoiceStatus` n'etait appele que depuis
+ * `PATCH /factures-client/:id`. Une facture reglee par POST /encaissements —
+ * la porte officielle, celle qui produit l'ecriture opposable — restait donc
+ * « envoyee » : absente du filtre « payee », comptee comme due par les
+ * tableaux de bord, et toujours relancable. Le client recevait une relance
+ * pour une facture qu'il venait de payer.
+ *
+ * Ces controles passent par la ROUTE du journal, pas par
+ * `/license-management/record-payment` : cette derniere ecrit le statut
+ * elle-meme, et l'utiliser ici aurait mesure la route au lieu du service —
+ * verifie en sabotant, les controles restaient verts.
+ */
+describe("le statut de la facture suit l'encaissement", () => {
+  it("un acompte la laisse ouverte", async () => {
+    const id = await facture("120.00");
+    await encaisser({ factureId: id, montant: 50, moyen: "virement" });
+    expect((await lireFacture(id)).status).not.toBe("payee");
+  });
+
+  it("le solde la marque payee", async () => {
+    const id = await facture("120.00");
+    await encaisser({ factureId: id, montant: 120, moyen: "virement" });
+    expect(
+      (await lireFacture(id)).status,
+      "soldee par le journal, mais toujours annoncee comme due",
+    ).toBe("payee");
+  });
+
+  it("et pose la date de reglement", async () => {
+    const id = await facture("120.00");
+    await encaisser({ factureId: id, montant: 120, moyen: "virement" });
+    expect((await lireFacture(id)).paidAt).toBeTruthy();
+  });
+
+  it("en deux versements aussi", async () => {
+    const id = await facture("120.00");
+    await encaisser({ factureId: id, montant: 70, moyen: "virement" });
+    expect((await lireFacture(id)).status).not.toBe("payee");
+    await encaisser({ factureId: id, montant: 50, moyen: "virement" });
+    expect((await lireFacture(id)).status).toBe("payee");
+  });
+
+  it("une contre-passation rouvre la facture", async () => {
+    // Le statut suit la chaine dans les deux sens: sinon une facture annulee
+    // resterait « payee » alors que le journal dit le contraire.
+    const id = await facture("120.00");
+    const e = await encaisser({ factureId: id, montant: 120, moyen: "virement" });
+    expect((await lireFacture(id)).status).toBe("payee");
+    await annuler(e.body.numero);
+    expect(
+      (await lireFacture(id)).status,
+      "la facture reste payee apres annulation du seul reglement",
+    ).not.toBe("payee");
+  });
+});
+
 describe("une periode close", () => {
   it("refuse la contre-passation, comme elle refuse l'encaissement", async () => {
     const id = await facture();
@@ -202,3 +262,4 @@ describe("une periode close", () => {
     expect(apres, "une ligne s'est ajoutee apres la cloture").toBe(avant);
   });
 });
+

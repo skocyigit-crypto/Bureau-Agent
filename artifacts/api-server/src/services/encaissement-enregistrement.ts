@@ -29,6 +29,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { db, cloturesComptablesTable, encaissementsTable, facturesClientTable } from "@workspace/db";
 import { preparerEcriture, soldeFacture, type EcritureChainee } from "./chainage-encaissements";
 import { periodeClose } from "./cloture-comptable";
+import { deriveInvoiceStatus } from "./invoice-status";
 
 /** Lignes de la base -> ecritures chainees (l horodatage doit ressortir tel qu ecrit). */
 function enEcritures(lignes: (typeof encaissementsTable.$inferSelect)[]): EcritureChainee[] {
@@ -149,8 +150,40 @@ export async function enregistrerEncaissement(demande: DemandeEncaissement): Pro
       .where(and(eq(encaissementsTable.organisationId, orgId), eq(encaissementsTable.factureId, facture.id)))
       .orderBy(encaissementsTable.numero);
     const paye = soldeFacture(enEcritures(lignesApres), facture.id);
+
+    // LE STATUT SUIT LE REGLEMENT.
+    //
+    // Seul `paidAmount` etait ecrit ici, et `deriveInvoiceStatus` n'etait
+    // appele que depuis `PATCH /factures-client/:id`. Une facture soldee par
+    // la porte officielle du journal de caisse restait donc « envoyee »: elle
+    // n'apparaissait pas dans le filtre « payee », continuait d'etre comptee
+    // comme due par les tableaux de bord, et le bouton de relance restait
+    // propose — l'utilisateur ne decouvrait l'incoherence qu'au refus du
+    // serveur. Le client, lui, recevait une relance pour une facture qu'il
+    // venait de regler.
+    const statutActuel = await tx.select({
+      status: facturesClientTable.status,
+      totalAmount: facturesClientTable.totalAmount,
+      dueDate: facturesClientTable.dueDate,
+    }).from(facturesClientTable).where(eq(facturesClientTable.id, facture.id));
+
+    const nouveauStatut = statutActuel[0]
+      ? deriveInvoiceStatus({
+        status: statutActuel[0].status,
+        totalAmount: statutActuel[0].totalAmount,
+        paidAmount: (paye / 100).toFixed(2),
+        dueDate: statutActuel[0].dueDate,
+      })
+      : null;
+
     await tx.update(facturesClientTable)
-      .set({ paidAmount: (paye / 100).toFixed(2), updatedAt: new Date() })
+      .set({
+        paidAmount: (paye / 100).toFixed(2),
+        ...(nouveauStatut ? { status: nouveauStatut } : {}),
+        // `paidAt` ne se pose qu'au solde, et une seule fois.
+        ...(nouveauStatut === "payee" ? { paidAt: new Date() } : {}),
+        updatedAt: new Date(),
+      })
       .where(and(eq(facturesClientTable.id, facture.id), eq(facturesClientTable.organisationId, orgId)));
 
     return {

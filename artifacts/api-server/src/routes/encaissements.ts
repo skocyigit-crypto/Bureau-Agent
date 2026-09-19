@@ -28,6 +28,7 @@ import {
 } from "../services/chainage-encaissements";
 import { calculerCloture, periodeClose, verifierConservation } from "../services/cloture-comptable";
 import { enregistrerEncaissement } from "../services/encaissement-enregistrement";
+import { deriveInvoiceStatus } from "../services/invoice-status";
 import { construireArchive, nomArchive } from "../services/archivage-comptable";
 import { nomAttestation, redigerAttestation } from "../services/attestation-conformite";
 
@@ -97,8 +98,45 @@ async function rafraichirCache(orgId: number, factureId: number, tx: Executeur =
     .where(and(eq(encaissementsTable.organisationId, orgId), eq(encaissementsTable.factureId, factureId)))
     .orderBy(encaissementsTable.numero);
   const centimes = soldeFacture(enEcritures(lignes), factureId);
+
+  // Le STATUT suit lui aussi la chaine, et dans les deux sens.
+  //
+  // Seul `paidAmount` etait reecrit ici. Apres une contre-passation, la
+  // facture restait donc « payee » alors que le journal ne portait plus aucun
+  // reglement: elle sortait du filtre des impayes, cessait d'etre relancee, et
+  // le montant disparaissait des tableaux de bord — le contraire exact de ce
+  // qu'une annulation est censee produire.
+  const [avant] = await tx.select({
+    status: facturesClientTable.status,
+    totalAmount: facturesClientTable.totalAmount,
+    dueDate: facturesClientTable.dueDate,
+  }).from(facturesClientTable)
+    .where(and(eq(facturesClientTable.id, factureId), eq(facturesClientTable.organisationId, orgId)));
+
+  const paye = (centimes / 100).toFixed(2);
+  let statut: string | null = null;
+  if (avant) {
+    statut = deriveInvoiceStatus({
+      status: avant.status,
+      totalAmount: avant.totalAmount,
+      paidAmount: paye,
+      dueDate: avant.dueDate,
+    });
+    // `deriveInvoiceStatus` ne rend rien quand le reglement ne dicte plus le
+    // statut. Une facture « payee » qui ne l'est plus doit pourtant repartir:
+    // on la remet a l'etat emis, que l'echeance pourra rebasculer.
+    if (!statut && avant.status === "payee" && Number(paye) < Number(avant.totalAmount)) {
+      statut = "envoyee";
+    }
+  }
+
   await tx.update(facturesClientTable)
-    .set({ paidAmount: (centimes / 100).toFixed(2), updatedAt: new Date() })
+    .set({
+      paidAmount: paye,
+      ...(statut ? { status: statut } : {}),
+      ...(statut && statut !== "payee" ? { paidAt: null } : {}),
+      updatedAt: new Date(),
+    })
     .where(and(eq(facturesClientTable.id, factureId), eq(facturesClientTable.organisationId, orgId)));
 }
 
