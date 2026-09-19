@@ -18,6 +18,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { db, cloturesComptablesTable, encaissementsTable, facturesClientTable, organisationsTable } from "@workspace/db";
 
 import { getOrgId } from "../middleware/tenant";
+import { requireRole } from "../middleware/auth";
 import { logAudit } from "./audit";
 import {
   preparerEcriture,
@@ -31,6 +32,25 @@ import { construireArchive, nomArchive } from "../services/archivage-comptable";
 import { nomAttestation, redigerAttestation } from "../services/attestation-conformite";
 
 const router: IRouter = Router();
+
+
+/**
+ * Qui peut toucher au journal de caisse.
+ *
+ * Mesure du 19/09: AUCUNE garde de role. Le role `lecture_seule` — dont le
+ * nom dit l inverse — pouvait enregistrer un reglement, le contre-passer,
+ * CLOTURER une periode (operation irreversible par construction) et
+ * telecharger l archive comptable de toute l organisation.
+ *
+ * L encaissement reste ouvert aux agents: constater un reglement sur un
+ * chantier fait partie de leur travail. Tout le reste remonte au
+ * responsable: une contre-passation marque le journal de facon definitive,
+ * une cloture ne se defait pas, et l archive comme l attestation sont les
+ * pieces qu on remet a un controleur — elles contiennent l integralite des
+ * reglements de l organisation.
+ */
+const encaisseur = requireRole("super_admin", "administrateur", "agent");
+const responsableComptable = requireRole("super_admin", "administrateur");
 
 const MOYENS = ["especes", "virement", "cheque", "carte", "prelevement", "autre"] as const;
 
@@ -79,7 +99,7 @@ async function rafraichirCache(orgId: number, factureId: number, tx: Executeur =
     .where(and(eq(facturesClientTable.id, factureId), eq(facturesClientTable.organisationId, orgId)));
 }
 
-router.post("/encaissements", async (req: Request, res: Response): Promise<void> => {
+router.post("/encaissements", encaisseur, async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
   const { factureId, montant, moyen, dateEncaissement } = req.body ?? {};
 
@@ -160,7 +180,7 @@ router.post("/encaissements", async (req: Request, res: Response): Promise<void>
   }
 });
 
-router.post("/encaissements/annuler", async (req: Request, res: Response): Promise<void> => {
+router.post("/encaissements/annuler", responsableComptable, async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
   const numero = Number(req.body?.numero);
   if (!Number.isInteger(numero) || numero < 1) {
@@ -282,7 +302,7 @@ router.post("/encaissements/annuler", async (req: Request, res: Response): Promi
  * sont justes — elle prouve qu'ils n'ont pas ete modifies apres coup, ce qui
  * est exactement ce que demande l'inalterabilite.
  */
-router.get("/encaissements/verifier", async (req: Request, res: Response): Promise<void> => {
+router.get("/encaissements/verifier", responsableComptable, async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
   try {
     const lignes = await db.select().from(encaissementsTable)
@@ -313,7 +333,7 @@ router.get("/encaissements/verifier", async (req: Request, res: Response): Promi
  * rouvrir ne fige rien, et la condition de conservation de l'article
  * 286-I-3° bis ne serait plus satisfaite.
  */
-router.post("/encaissements/cloturer", async (req: Request, res: Response): Promise<void> => {
+router.post("/encaissements/cloturer", responsableComptable, async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
   const type = String(req.body?.type ?? "journaliere") as "journaliere" | "mensuelle" | "annuelle";
   if (!["journaliere", "mensuelle", "annuelle"].includes(type)) {
@@ -407,7 +427,7 @@ router.post("/encaissements/cloturer", async (req: Request, res: Response): Prom
  * modification. Celle-ci detecte ce qu'elle laisse passer: des ecritures
  * retirees de la fin du journal, qui laissent une chaine parfaitement valide.
  */
-router.get("/encaissements/conservation", async (req: Request, res: Response): Promise<void> => {
+router.get("/encaissements/conservation", responsableComptable, async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
   const type = String(req.query.type ?? "journaliere") as "journaliere" | "mensuelle" | "annuelle";
   try {
@@ -455,7 +475,7 @@ router.get("/encaissements/conservation", async (req: Request, res: Response): P
  * avoir disparu. Une archive qui exigerait d'installer ce logiciel pour etre
  * lue ne serait pas une archive, ce serait une dependance.
  */
-router.get("/encaissements/archive", async (req: Request, res: Response): Promise<void> => {
+router.get("/encaissements/archive", responsableComptable, async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
   const type = String(req.query.type ?? "annuelle") as "journaliere" | "mensuelle" | "annuelle";
   const periode = String(req.query.periode ?? "");
@@ -527,7 +547,7 @@ router.get("/encaissements/archive", async (req: Request, res: Response): Promis
  * saisi a la main: une attestation dont le beneficiaire serait mal orthographie
  * perdrait sa valeur au moment ou elle sert.
  */
-router.get("/encaissements/attestation", async (req: Request, res: Response): Promise<void> => {
+router.get("/encaissements/attestation", responsableComptable, async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
   try {
     const [org] = await db.select({
@@ -585,7 +605,7 @@ router.get("/encaissements/attestation", async (req: Request, res: Response): Pr
  *
  * Idempotente: une facture deja reprise ne l'est pas deux fois.
  */
-router.post("/encaissements/reprise", async (req: Request, res: Response): Promise<void> => {
+router.post("/encaissements/reprise", responsableComptable, async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
   try {
     const resultat = await db.transaction(async (tx) => {
