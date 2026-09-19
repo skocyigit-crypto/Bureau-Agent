@@ -258,7 +258,7 @@ export default function MessagesScreen() {
       setEditId(null);
       setFormValues({ type: "note", priority: "moyenne", phoneNumber: "" });
       fetchMessages();
-    } catch {} finally { setFormLoading(false); }
+    } catch { Alert.alert(t("common.error"), t("common.actionFailed")); } finally { setFormLoading(false); }
   }
 
   function openEdit(msg: Message) {
@@ -517,7 +517,11 @@ export default function MessagesScreen() {
               try {
                 const res = await fetchAuth(`${API_BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: t("messagesScreen.projectTitle", { name: selected.contactName || selected.phoneNumber }), status: "planifie", priority: selected.priority || "moyenne", progress: 0, notes: t("messagesScreen.projectNote") }) });
                 if (res.ok) { setSelected(null); router.push("/projets" as any); }
-              } catch {}
+                // Sans ce message, un echec ne produisait RIEN a l'ecran: la fiche
+                // restait ouverte, aucun projet n'apparaissait, et l'utilisateur
+                // appuyait a nouveau — en creant parfois plusieurs projets.
+                else Alert.alert(t("common.error"), t("common.actionFailed"));
+              } catch { Alert.alert(t("common.error"), t("common.actionFailed")); }
             },
           }]}
         />

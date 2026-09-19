@@ -22,11 +22,15 @@ import { join } from "node:path";
 /**
  * Plafond courant. A BAISSER a chaque correction — jamais a monter.
  *
- * 19/09 : 43 au premier comptage, ramene a 39 en traitant les quatre
- * enregistrements de formulaire ou la saisie etait perdue sans un mot
- * (contacts, appels, agenda).
+ * 19/09 : 43 au premier comptage, puis 34. Traites les enregistrements de
+ * formulaire ou la saisie etait perdue sans un mot (contacts, appels, agenda,
+ * messages) et les trois actions de pointage.
+ *
+ * `messages.tsx:283` reste volontairement muet : il marque un message comme lu
+ * en arriere-plan, sans que l utilisateur ait rien demande. Un avertissement y
+ * serait du bruit, et l operation se refait au prochain affichage.
  */
-const PLAFOND = 39;
+const PLAFOND = 34;
 
 const RACINES = [
   join(import.meta.dirname, "..", "..", "..", "mobile", "app"),
