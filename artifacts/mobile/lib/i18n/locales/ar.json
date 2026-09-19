@@ -2656,7 +2656,10 @@
       "expiree": "منتهية",
       "suspendu": "موقوف",
       "essai": "تجربة"
-    }
+    },
+    "featureAi": "مساعد الذكاء الاصطناعي",
+    "featureStock": "إدارة المخزون",
+    "featureAutomation": "الأتمتة"
   },
   "dailyDigestScreen": {
     "headerTitle": "ملخصي اليومي",

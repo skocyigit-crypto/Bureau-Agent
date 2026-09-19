@@ -2656,7 +2656,10 @@
       "expiree": "Abgelaufen",
       "suspendu": "Ausgesetzt",
       "essai": "Test"
-    }
+    },
+    "featureAi": "KI-Assistent",
+    "featureStock": "Lagerverwaltung",
+    "featureAutomation": "Automatisierungen"
   },
   "dailyDigestScreen": {
     "headerTitle": "Meine Tagesbilanz",

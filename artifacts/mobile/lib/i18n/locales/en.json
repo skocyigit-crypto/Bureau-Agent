@@ -2656,7 +2656,10 @@
       "expiree": "Expired",
       "suspendu": "Suspended",
       "essai": "Trial"
-    }
+    },
+    "featureAi": "AI assistant",
+    "featureStock": "Stock management",
+    "featureAutomation": "Automations"
   },
   "dailyDigestScreen": {
     "headerTitle": "My Daily Digest",

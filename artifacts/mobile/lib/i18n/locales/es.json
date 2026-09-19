@@ -2656,7 +2656,10 @@
       "expiree": "Caducado",
       "suspendu": "Suspendido",
       "essai": "Prueba"
-    }
+    },
+    "featureAi": "Asistente de IA",
+    "featureStock": "Gestión de stock",
+    "featureAutomation": "Automatizaciones"
   },
   "dailyDigestScreen": {
     "headerTitle": "Mi Resumen Diario",

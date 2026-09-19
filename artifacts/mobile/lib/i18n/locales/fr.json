@@ -2656,7 +2656,10 @@
       "expiree": "Expirée",
       "suspendu": "Suspendu",
       "essai": "Essai"
-    }
+    },
+    "featureAi": "Assistant IA",
+    "featureStock": "Gestion de stock",
+    "featureAutomation": "Automatisations"
   },
   "dailyDigestScreen": {
     "headerTitle": "Mon Bilan du Jour",

@@ -2656,7 +2656,10 @@
       "expiree": "Süresi doldu",
       "suspendu": "Askıya alındı",
       "essai": "Deneme"
-    }
+    },
+    "featureAi": "Yapay zeka asistanı",
+    "featureStock": "Stok yönetimi",
+    "featureAutomation": "Otomasyonlar"
   },
   "dailyDigestScreen": {
     "headerTitle": "Günlük Özetim",
