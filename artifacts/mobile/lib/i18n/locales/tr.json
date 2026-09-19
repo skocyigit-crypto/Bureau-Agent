@@ -39,7 +39,9 @@
     "library": "Kitaplık",
     "commands": "Komutlar",
     "reopen": "Yeniden aç",
-    "markDone": "Tamamlandı olarak işaretle"
+    "markDone": "Tamamlandı olarak işaretle",
+    "error": "Hata",
+    "projectCreateFailed": "Proje oluşturulamadı. Tekrar deneyin."
   },
   "tabs": {
     "home": "Ana Sayfa",

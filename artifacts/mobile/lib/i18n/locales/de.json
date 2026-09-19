@@ -39,7 +39,9 @@
     "library": "Bibliothek",
     "commands": "Befehle",
     "reopen": "Wieder öffnen",
-    "markDone": "Als erledigt markieren"
+    "markDone": "Als erledigt markieren",
+    "error": "Fehler",
+    "projectCreateFailed": "Das Projekt konnte nicht erstellt werden. Bitte erneut versuchen."
   },
   "tabs": {
     "home": "Start",

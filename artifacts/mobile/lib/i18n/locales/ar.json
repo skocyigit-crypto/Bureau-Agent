@@ -39,7 +39,9 @@
     "library": "المكتبة",
     "commands": "الأوامر",
     "reopen": "إعادة فتح",
-    "markDone": "وضع علامة مكتمل"
+    "markDone": "وضع علامة مكتمل",
+    "error": "خطأ",
+    "projectCreateFailed": "تعذر إنشاء المشروع. حاول مرة أخرى."
   },
   "tabs": {
     "home": "الرئيسية",

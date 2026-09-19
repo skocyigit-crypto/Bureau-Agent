@@ -516,7 +516,11 @@ export default function CallsScreen() {
                 try {
                   const res = await fetchAuth(`${API_BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: t("callsScreen.projectTitle", { name: selected.contactName || selected.phoneNumber }), status: "planifie", priority: "moyenne", progress: 0, notes: t("callsScreen.projectNotes", { name: selected.contactName || selected.phoneNumber }) }) });
                   if (res.ok) { setSelected(null); router.push("/projets" as any); }
-                } catch {}
+                  // Sans ce message, un echec ne produisait RIEN a l'ecran: la fiche
+                  // restait ouverte, aucun projet n'apparaissait, et l'utilisateur
+                  // appuyait a nouveau — en creant parfois plusieurs projets.
+                  else Alert.alert(t("common.error"), t("common.projectCreateFailed"));
+                } catch { Alert.alert(t("common.error"), t("common.projectCreateFailed")); }
               },
             },
           ]}

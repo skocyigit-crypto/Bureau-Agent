@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
   ActivityIndicator,
   FlatList,
   Linking,
@@ -464,7 +465,11 @@ export default function ContactsScreen() {
                 const name = `${selected.firstName} ${selected.lastName}`.trim() || selected.company || t("contactsScreen.contactFallback");
                 const res = await fetchAuth(`${API_BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: t("contactsScreen.projectTitle", { name }), clientName: name, contactId: selected.id, status: "planifie", priority: "moyenne", progress: 0, notes: t("contactsScreen.projectNotes") }) });
                 if (res.ok) { setSelected(null); router.push("/projets" as any); }
-              } catch {}
+                // Sans ce message, un echec ne produisait RIEN a l'ecran: la fiche
+                // restait ouverte, aucun projet n'apparaissait, et l'utilisateur
+                // appuyait a nouveau — en creant parfois plusieurs projets.
+                else Alert.alert(t("common.error"), t("common.projectCreateFailed"));
+              } catch { Alert.alert(t("common.error"), t("common.projectCreateFailed")); }
             },
           }]}
         />
