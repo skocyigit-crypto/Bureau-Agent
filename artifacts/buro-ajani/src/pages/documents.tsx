@@ -572,6 +572,11 @@ export default function DocumentsPage() {
       if (res.ok) {
         setSelectedDoc(await res.json());
         setDetailOpen(true);
+      } else {
+        // Ouvrir une fiche est une action DEMANDEE: en cas de refus, rien ne
+        // s'ouvrait et rien ne le disait — le clic semblait simplement ne pas
+        // avoir ete pris en compte.
+        toast({ title: t("documents.toast.error"), variant: "destructive" });
       }
     } catch (err) {
       console.error("[Documents] view detail failed:", err);

@@ -663,7 +663,7 @@ function TextScannerCard() {
 }
 
 // ── Alertes temps réel ────────────────────────────────────────────────────────
-function AlertsCard({ alerts }: { alerts: SecurityAlert[] }) {
+function AlertsCard({ alerts, illisibles }: { alerts: SecurityAlert[]; illisibles: boolean }) {
   const { t } = useTranslation();
   return (
     <Card className={alerts.length > 0 ? "border-red-200 dark:border-red-900/50" : undefined}>
@@ -682,7 +682,12 @@ function AlertsCard({ alerts }: { alerts: SecurityAlert[] }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {alerts.length === 0 ? (
+        {illisibles ? (
+          <div className="border rounded-lg p-6 text-center">
+            <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">{t("securitePage.alerts.illisibles")}</p>
+          </div>
+        ) : alerts.length === 0 ? (
           <div className="border rounded-lg p-6 text-center">
             <ShieldCheck className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">{t("securitePage.alerts.empty")}</p>
@@ -1108,6 +1113,9 @@ function PartnersCard() {
 export default function SecuritePage() {
   const [status, setStatus] = useState<ProtectionStatus | null>(null);
   const [alerts, setAlerts] = useState<SecurityAlert[]>([]);
+  // « Aucune alerte » est une affirmation forte: on ne la fait pas quand la
+  // question na pas pu etre posee.
+  const [alertesIllisibles, setAlertesIllisibles] = useState(false);
   const [score, setScore] = useState<SecurityScore | null>(null);
   const [scoreLoading, setScoreLoading] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -1136,12 +1144,17 @@ export default function SecuritePage() {
 
   const fetchAlerts = useCallback(async () => {
     try {
+      setAlertesIllisibles(false);
       const res = await fetch(`${SECURITY_API}/alerts`, { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
         setAlerts(Array.isArray(data.alerts) ? data.alerts : []);
+      } else {
+        // « Aucune alerte de securite » est une affirmation forte: on ne la
+        // fait pas quand la question n'a pas pu etre posee.
+        setAlertesIllisibles(true);
       }
-    } catch { /* ignore */ }
+    } catch { setAlertesIllisibles(true); }
   }, []);
 
   useEffect(() => { fetchStatus(); fetchAlerts(); fetchScore(); }, [fetchStatus, fetchAlerts, fetchScore]);
@@ -1184,7 +1197,7 @@ export default function SecuritePage() {
 
       <ProtectionStatusCard status={status} loading={loading} onRefresh={fetchStatus} />
 
-      <AlertsCard alerts={alerts} />
+      <AlertsCard alerts={alerts} illisibles={alertesIllisibles} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <LinkScannerCard onScanned={fetchStatus} />
