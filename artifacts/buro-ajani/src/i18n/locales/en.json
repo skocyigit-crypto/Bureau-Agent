@@ -3068,7 +3068,8 @@
       "disableBtn": "Disable",
       "twoFactorDisabled": "Two-factor authentication disabled",
       "disableFailed": "Disable failed",
-      "totpLabel": "Six-digit verification code"
+      "totpLabel": "Six-digit verification code",
+      "mfaStatusUnknown": "Status unknown — retry"
     },
     "monitor": {
       "loading": "Loading the security monitor...",

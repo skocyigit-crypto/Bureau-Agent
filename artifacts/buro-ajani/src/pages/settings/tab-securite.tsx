@@ -70,12 +70,21 @@ function AccountSecurityPanel() {
   const [disablePassword, setDisablePassword] = useState("");
   const [mfaBusy, setMfaBusy] = useState(false);
 
+  // L'etat inconnu n'affirme rien — c'etait deja le cas — mais il ne se taisait
+  // pas non plus a moitie: le bandeau disparaissait entierement, et avec lui le
+  // bouton « Activer ». L'utilisateur ne voyait ni son etat, ni de quoi agir, ni
+  // qu'il s'etait passe quelque chose, et concluait que la double authentification
+  // n'existe pas dans le produit.
+  const [mfaEtatInconnu, setMfaEtatInconnu] = useState(false);
+
   const loadMfaStatus = useCallback(async () => {
     try {
+      setMfaEtatInconnu(false);
       const res = await fetch(`${AUTH_API}/mfa/status`, { credentials: "include" });
       if (res.ok) setMfa(await res.json());
+      else setMfaEtatInconnu(true);
     } catch {
-      /* l'etat reste inconnu: on n'affiche alors aucune affirmation */
+      setMfaEtatInconnu(true);
     }
   }, []);
 
@@ -184,6 +193,11 @@ function AccountSecurityPanel() {
               <Badge className={mfa.mfaActif ? "bg-emerald-100 text-emerald-700 border-0" : "bg-gray-100 text-gray-600 border-0"}>
                 {mfa.mfaActif ? t("settingsSecurite.account.enabled") : t("settingsSecurite.account.disabled")}
               </Badge>
+            )}
+            {!mfa && mfaEtatInconnu && (
+              <Button size="sm" variant="outline" onClick={loadMfaStatus}>
+                {t("settingsSecurite.account.mfaStatusUnknown")}
+              </Button>
             )}
           </div>
 

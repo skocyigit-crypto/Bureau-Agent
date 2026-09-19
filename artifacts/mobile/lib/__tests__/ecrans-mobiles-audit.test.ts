@@ -203,3 +203,41 @@ describe("l'agenda et les anomalies", () => {
     expect(source.split("setAnomaliesIllisibles(false)").length - 1).toBe(1);
   });
 });
+
+describe("le rapport executif et l'abonnement ne concluent pas a vide", () => {
+  /**
+   * Deux ecrans que leur lecteur prend au mot :
+   *  - le rapport executif, « pas encore de donnees » — un dirigeant en conclut
+   *    que sa periode a ete vide, et decide la-dessus ;
+   *  - l'abonnement, « aucun abonnement actif » — dit a un client qui paie que
+   *    son abonnement n'existe pas. Il appelle le support, ou il repaie.
+   */
+  it("le rapport executif retient l'echec sur les deux chemins et l'affiche", () => {
+    const source = readFileSync(join(APP, "rapport-executif.tsx"), "utf8");
+    expect(source.split("setLectureEchouee(true)").length - 1,
+      "refus du serveur et erreur reseau doivent tous deux le lever").toBe(2);
+    expect(source.split("setLectureEchouee(false)").length - 1,
+      "l'avertissement n'est jamais efface avant une nouvelle lecture").toBe(1);
+    expect(source, "l'echec n'est pas affiche").toContain("lectureEchouee ? (");
+  });
+
+  it("et son conseil « tirez vers le bas » fonctionne la ou il s'affiche", () => {
+    // Un ecran d'erreur qui donne un geste inoperant ajoute une deuxieme
+    // deception a la premiere.
+    const source = readFileSync(join(APP, "rapport-executif.tsx"), "utf8");
+    const bloc = source.slice(source.indexOf("lectureEchouee ? ("), source.indexOf("lectureEchouee ? (") + 600);
+    expect(bloc).toContain("RefreshControl");
+    expect(bloc).toContain("common.lectureEchoueeTitre");
+  });
+
+  it("l'abonnement distingue « pas d'abonnement » de « pas pu lire »", () => {
+    const source = readFileSync(join(APP, "settings.tsx"), "utf8");
+    expect(source.split("setLectureEchouee(true)").length - 1).toBe(2);
+    expect(source.split("setLectureEchouee(false)").length - 1).toBe(1);
+    const bloc = source.slice(source.indexOf("lectureEchouee ? ("), source.indexOf("lectureEchouee ? (") + 800);
+    expect(bloc, "« aucun abonnement » reste affiche a la place de l'echec").toContain("common.lectureEchoueeTitre");
+    // Cette carte n'a pas de rafraichissement au geste: il lui faut un bouton,
+    // sinon l'ecran constate la panne sans offrir d'en sortir.
+    expect(bloc, "aucun moyen de reessayer").toContain("onPress={chargerAbonnement}");
+  });
+});
