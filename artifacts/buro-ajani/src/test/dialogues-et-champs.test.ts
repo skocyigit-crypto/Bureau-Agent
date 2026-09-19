@@ -348,3 +348,21 @@ describe("« aucune alerte » n'est pas dit a la legere", () => {
     expect(bloc).toMatch(/else \{[\s\S]*?toast\(\{/);
   });
 });
+
+describe("ce qui touche a l'argent et aux jours de fermeture ne s'affirme pas sans lecture", () => {
+  it("« aucune facture » n'est pas dit quand la lecture a echoue", () => {
+    // Ce serait « on ne m'a jamais facture » : une affirmation sur de l'argent.
+    const source = readFileSync(join(src, "pages", "settings", "tab-abonnement.tsx"), "utf8");
+    expect(source).toMatch(/facturesIllisibles \? \(/);
+    expect((source.match(/setFacturesIllisibles\(true\)/g) ?? []).length).toBe(2);
+    expect(source).toMatch(/setFacturesIllisibles\(false\)/);
+  });
+
+  it("« aucune fermeture » non plus", () => {
+    // Ce serait poser un rendez-vous un jour ou l'entreprise est fermee.
+    const source = readFileSync(join(src, "pages", "settings", "tab-profil-org.tsx"), "utf8");
+    expect(source).toMatch(/fermeturesIllisibles \? \(/);
+    expect((source.match(/setFermeturesIllisibles\(true\)/g) ?? []).length).toBe(2);
+    expect(source).toMatch(/setFermeturesIllisibles\(false\)/);
+  });
+});

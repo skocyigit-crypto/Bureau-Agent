@@ -113,6 +113,7 @@ export function TabProfilOrg() {
   const [profile, setProfile] = useState<OrgProfile | null>(null);
   const [closures, setClosures] = useState<OrgClosure[]>([]);
   const [closuresLoading, setClosuresLoading] = useState(false);
+  const [fermeturesIllisibles, setFermeturesIllisibles] = useState(false);
   const [newClosure, setNewClosure] = useState({ dateStart: "", dateEnd: "", label: "" });
   const [addingClosure, setAddingClosure] = useState(false);
   const [showClosureForm, setShowClosureForm] = useState(false);
@@ -146,13 +147,18 @@ export function TabProfilOrg() {
   const loadClosures = async () => {
     setClosuresLoading(true);
     try {
+      setFermeturesIllisibles(false);
       const res = await fetch(`${BASE}/api/org-closures`, { credentials: "include" });
       if (res.ok) {
         const data: OrgClosure[] = await res.json();
         setClosures(data);
+      } else {
+        // « Aucune fermeture » amene a poser un rendez-vous un jour ou
+        // l'entreprise est fermee. On ne l'affirme pas sans l'avoir lu.
+        setFermeturesIllisibles(true);
       }
     } catch {
-      // best-effort — silencieux
+      setFermeturesIllisibles(true);
     } finally {
       setClosuresLoading(false);
     }
@@ -637,6 +643,8 @@ export function TabProfilOrg() {
               <Loader2 className="h-4 w-4 animate-spin" />
               {t("settingsProfilOrg.closures.loading")}
             </div>
+          ) : fermeturesIllisibles ? (
+            <p className="text-sm text-muted-foreground">{t("settingsProfilOrg.closures.illisibles")}</p>
           ) : closures.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t("settingsProfilOrg.closures.empty")}</p>
           ) : (

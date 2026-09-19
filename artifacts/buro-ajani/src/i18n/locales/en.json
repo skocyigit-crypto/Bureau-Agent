@@ -2218,7 +2218,8 @@
       "cancelFailed": "Cancellation failed.",
       "resumed": "Subscription reactivated",
       "resumeFailed": "Reactivation failed."
-    }
+    },
+    "facturesIllisibles": "Your invoices could not be read. Reload the page."
   },
   "settingsAppels": {
     "recept": {
@@ -2868,7 +2869,8 @@
       "description": "Description",
       "labelPlaceholder": "E.g. National holiday, Summer leave...",
       "import": "Import {{year}} public holidays",
-      "importAria": "Public holidays year"
+      "importAria": "Public holidays year",
+      "illisibles": "Closures could not be read. Reload the page before scheduling."
     },
     "legal": {
       "title": "Legal information",

@@ -114,6 +114,8 @@ export default function FileApprobationScreen() {
 
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [lectureEchouee, setLectureEchouee] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [tab, setTab] = useState<"en_attente" | "all">("en_attente");
   const [edits, setEdits] = useState<Record<number, Record<string, string>>>({});
@@ -121,13 +123,20 @@ export default function FileApprobationScreen() {
   const load = useCallback(async (status: string) => {
     setLoading(true);
     try {
+      setLectureEchouee(false);
       const res = await fetchAuth(`${QUEUE_API}?status=${status}`);
       if (res.ok) {
         const data = await res.json();
         setProposals(data.proposals ?? []);
+      } else {
+        // « Rien a approuver » est ce qu'on lit avant de fermer l'ecran. Or
+        // cette file contient des envois vers les CLIENTS — relances,
+        // factures — qui attendent une validation humaine. Les croire
+        // absents, c'est les laisser en plan.
+        setLectureEchouee(true);
       }
     } catch {
-      /* fail-soft: l'écran reste utilisable, le pull-to-refresh réessaie */
+      setLectureEchouee(true);
     } finally {
       setLoading(false);
     }
@@ -258,6 +267,16 @@ export default function FileApprobationScreen() {
 
         {loading ? (
           <ActivityIndicator style={{ marginTop: 48 }} size="large" color={colors.primary} />
+        ) : lectureEchouee ? (
+          <View style={styles.empty}>
+            <Feather name="alert-circle" size={48} color={colors.mutedForeground} />
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+              {t("common.lectureEchoueeTitre")}
+            </Text>
+            <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
+              {t("common.lectureEchoueeAide")}
+            </Text>
+          </View>
         ) : proposals.length === 0 ? (
           <View style={styles.empty}>
             <Feather name="check-circle" size={48} color={colors.mutedForeground} />

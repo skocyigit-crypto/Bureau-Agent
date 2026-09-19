@@ -2218,7 +2218,8 @@
       "cancelFailed": "İptal başarısız.",
       "resumed": "Abonelik yeniden etkinleştirildi",
       "resumeFailed": "Yeniden etkinleştirme başarısız."
-    }
+    },
+    "facturesIllisibles": "Faturalarınız okunamadı. Sayfayı yenileyin."
   },
   "settingsAppels": {
     "recept": {
@@ -2868,7 +2869,8 @@
       "description": "Açıklama",
       "labelPlaceholder": "Örn.: Milli bayram, Yaz tatili...",
       "import": "{{year}} resmi tatillerini içe aktar",
-      "importAria": "Resmi tatil yılı"
+      "importAria": "Resmi tatil yılı",
+      "illisibles": "Kapalı günler okunamadı. Planlama yapmadan önce sayfayı yenileyin."
     },
     "legal": {
       "title": "Yasal bilgiler",
