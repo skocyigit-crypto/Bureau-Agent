@@ -135,3 +135,23 @@ describe("un interrupteur ne ment pas sur un reglage qu'on n'a pas lu", () => {
     expect(securite).toMatch(/setReglageIllisible\(false\)/);
   });
 });
+
+describe("la file d'approbation ne dit pas « rien a valider » sans avoir lu", () => {
+  const source = readFileSync(join(APP, "file-approbation.tsx"), "utf8");
+
+  it("l'echec de lecture est retenu, sur les deux chemins", () => {
+    // Cette file contient des envois vers les CLIENTS — relances, factures —
+    // qui attendent une validation humaine. Les croire absents, c'est les
+    // laisser en plan.
+    expect((source.match(/setLectureEchouee\(true\)/g) ?? []).length).toBe(2);
+  });
+
+  it("et il est affiche a la place de « rien a approuver »", () => {
+    expect(source).toMatch(/lectureEchouee \? \(/);
+    expect(source).toMatch(/common\.lectureEchoueeTitre/);
+  });
+
+  it("une lecture reussie l'efface", () => {
+    expect(source).toMatch(/setLectureEchouee\(false\)/);
+  });
+});

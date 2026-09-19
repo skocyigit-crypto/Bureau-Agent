@@ -2218,7 +2218,8 @@
       "cancelFailed": "La cancelación falló.",
       "resumed": "Suscripción reactivada",
       "resumeFailed": "La reactivación falló."
-    }
+    },
+    "facturesIllisibles": "No se pudieron leer sus facturas. Recargue la página."
   },
   "settingsAppels": {
     "recept": {
@@ -2868,7 +2869,8 @@
       "description": "Descripción",
       "labelPlaceholder": "Ej.: Fiesta nacional, Vacaciones de verano...",
       "import": "Importar días festivos {{year}}",
-      "importAria": "Año de los días festivos"
+      "importAria": "Año de los días festivos",
+      "illisibles": "No se pudieron leer los cierres. Recargue la página antes de planificar."
     },
     "legal": {
       "title": "Información legal",

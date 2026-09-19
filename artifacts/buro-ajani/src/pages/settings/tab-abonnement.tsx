@@ -63,6 +63,7 @@ export function TabAbonnement() {
   const [upgrading, setUpgrading] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [invoicesLoading, setInvoicesLoading] = useState(false);
+  const [facturesIllisibles, setFacturesIllisibles] = useState(false);
   const [showAllInvoices, setShowAllInvoices] = useState(false);
   const [stripeStatus, setStripeStatus] = useState<{ configured: boolean; prices: Record<string, boolean> } | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
@@ -112,12 +113,19 @@ export function TabAbonnement() {
     const loadInvoices = async () => {
       setInvoicesLoading(true);
       try {
+        setFacturesIllisibles(false);
         const res = await fetch(`${BASE}/api/my-subscription/invoices`, { credentials: "include" });
         if (res.ok) {
           const data = await res.json();
           setInvoices(data.invoices || []);
+        } else {
+          // « Aucune facture » se lit « on ne m'a jamais facture ». C'est
+          // une affirmation sur de l'argent: on ne la fait pas quand la
+          // question n'a pas pu etre posee.
+          setFacturesIllisibles(true);
         }
       } catch {
+        setFacturesIllisibles(true);
       } finally {
         setInvoicesLoading(false);
       }
@@ -441,6 +449,11 @@ export function TabAbonnement() {
             {invoicesLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : facturesIllisibles ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center gap-2">
+                <FileText className="w-10 h-10 text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">{t("settingsAbonnement.facturesIllisibles")}</p>
               </div>
             ) : invoices.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-center gap-2">

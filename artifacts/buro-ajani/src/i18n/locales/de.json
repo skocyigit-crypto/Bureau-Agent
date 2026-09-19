@@ -2218,7 +2218,8 @@
       "cancelFailed": "Kündigung fehlgeschlagen.",
       "resumed": "Abonnement reaktiviert",
       "resumeFailed": "Reaktivierung fehlgeschlagen."
-    }
+    },
+    "facturesIllisibles": "Ihre Rechnungen konnten nicht gelesen werden. Laden Sie die Seite neu."
   },
   "settingsAppels": {
     "recept": {
@@ -2868,7 +2869,8 @@
       "description": "Beschreibung",
       "labelPlaceholder": "Z. B. Nationalfeiertag, Sommerurlaub...",
       "import": "Feiertage {{year}} importieren",
-      "importAria": "Jahr der Feiertage"
+      "importAria": "Jahr der Feiertage",
+      "illisibles": "Schließzeiten konnten nicht gelesen werden. Laden Sie die Seite vor der Planung neu."
     },
     "legal": {
       "title": "Rechtliche Angaben",

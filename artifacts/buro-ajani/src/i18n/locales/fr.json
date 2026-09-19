@@ -2218,7 +2218,8 @@
       "cancelFailed": "Annulation échouée.",
       "resumed": "Abonnement réactivé",
       "resumeFailed": "Réactivation échouée."
-    }
+    },
+    "facturesIllisibles": "Vos factures n'ont pas pu être lues. Rechargez la page."
   },
   "settingsAppels": {
     "recept": {
@@ -2868,7 +2869,8 @@
       "description": "Description",
       "labelPlaceholder": "Ex : Fête nationale, Congés été...",
       "import": "Importer jours fériés {{year}}",
-      "importAria": "Année des jours fériés"
+      "importAria": "Année des jours fériés",
+      "illisibles": "Les fermetures n'ont pas pu être lues. Rechargez la page avant de planifier."
     },
     "legal": {
       "title": "Informations légales",
