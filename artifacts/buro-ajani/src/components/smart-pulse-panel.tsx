@@ -137,6 +137,9 @@ export function SmartPulsePanel() {
   const [refreshing, setRefreshing] = useState(false);
   const [showAllAnomalies, setShowAllAnomalies] = useState(false);
   const [alertSummary, setAlertSummary] = useState({ critical: 0, warning: 0, total: 0 });
+  // Le bouclier vert est une REASSURANCE. Tant que le flux d'anomalies n'a pas
+  // repondu, on ne rassure personne: on dit qu'on n'a pas pu regarder.
+  const [alertesIllisibles, setAlertesIllisibles] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -149,9 +152,13 @@ export function SmartPulsePanel() {
         const ad = await alertRes.json();
         setAlerts(ad.alerts || []);
         setAlertSummary(ad.summary || { critical: 0, warning: 0, total: 0 });
+        setAlertesIllisibles(false);
+      } else {
+        setAlertesIllisibles(true);
       }
     } catch (err) {
       console.error("[SmartPulse] fetch error:", err);
+      setAlertesIllisibles(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -195,8 +202,8 @@ export function SmartPulsePanel() {
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-xl ${hasCritical ? "bg-red-500/20 animate-pulse" : "bg-emerald-500/20"}`}>
-                  <ShieldAlert className={`w-5 h-5 ${hasCritical ? "text-red-400" : "text-emerald-400"}`} />
+                <div className={`p-2 rounded-xl ${hasCritical ? "bg-red-500/20 animate-pulse" : alertesIllisibles ? "bg-white/10" : "bg-emerald-500/20"}`}>
+                  <ShieldAlert className={`w-5 h-5 ${hasCritical ? "text-red-400" : alertesIllisibles ? "text-white/50" : "text-emerald-400"}`} />
                 </div>
                 <div>
                   <CardTitle className="text-white text-lg">{t("smartPulsePanel.title")}</CardTitle>
@@ -204,6 +211,11 @@ export function SmartPulsePanel() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {alertesIllisibles && (
+                  <Badge className="bg-white/10 text-white/70 border-white/20 text-xs">
+                    {t("smartPulsePanel.alertesIllisibles")}
+                  </Badge>
+                )}
                 {alertSummary.critical > 0 && (
                   <Badge variant="destructive" className="animate-pulse text-xs">
                     {t("smartPulsePanel.criticalCount", { count: alertSummary.critical })}

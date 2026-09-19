@@ -8742,7 +8742,8 @@
       "alerte": "Alerta",
       "attention": "Atención",
       "info": "Info"
-    }
+    },
+    "alertesIllisibles": "Estado de alertas desconocido"
   },
   "aiSuggestionsCard": {
     "available": "Inteligencia IA disponible",
