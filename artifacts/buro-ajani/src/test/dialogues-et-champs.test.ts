@@ -330,7 +330,7 @@ describe("« aucune alerte » n'est pas dit a la legere", () => {
     expect(
       securite,
       "sur un ecran de securite, cette affirmation se croit — et on cesse de chercher",
-    ).toMatch(/alertesIllisibles \? \(/);
+    ).toMatch(/illisibles \? \(/);
   });
 
   it("les deux chemins d'echec la produisent", () => {

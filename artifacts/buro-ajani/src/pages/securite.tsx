@@ -663,7 +663,7 @@ function TextScannerCard() {
 }
 
 // ── Alertes temps réel ────────────────────────────────────────────────────────
-function AlertsCard({ alerts }: { alerts: SecurityAlert[] }) {
+function AlertsCard({ alerts, illisibles }: { alerts: SecurityAlert[]; illisibles: boolean }) {
   const { t } = useTranslation();
   return (
     <Card className={alerts.length > 0 ? "border-red-200 dark:border-red-900/50" : undefined}>
@@ -682,7 +682,7 @@ function AlertsCard({ alerts }: { alerts: SecurityAlert[] }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {alertesIllisibles ? (
+        {illisibles ? (
           <div className="border rounded-lg p-6 text-center">
             <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">{t("securitePage.alerts.illisibles")}</p>
@@ -1197,7 +1197,7 @@ export default function SecuritePage() {
 
       <ProtectionStatusCard status={status} loading={loading} onRefresh={fetchStatus} />
 
-      <AlertsCard alerts={alerts} />
+      <AlertsCard alerts={alerts} illisibles={alertesIllisibles} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <LinkScannerCard onScanned={fetchStatus} />
