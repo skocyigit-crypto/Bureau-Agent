@@ -384,6 +384,10 @@ export default function CalendarScreen() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Une liste vide et une lecture qui a echoue se ressemblent a l'ecran.
+
+  const [lectureEchouee, setLectureEchouee] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDateStr, setSelectedDateStr] = useState<string | null>(
     jourLocal()
@@ -403,14 +407,15 @@ export default function CalendarScreen() {
       const end = new Date(year, month + 1, 0);
       end.setHours(23, 59, 59);
       const params = new URLSearchParams({ start: start.toISOString(), end: end.toISOString() });
+      setLectureEchouee(false);
       const res = await fetchAuth(`${API_BASE}/api/calendar/events?${params}`);
       if (res.ok) {
         const data = await res.json();
         const all = [...(data.events ?? []), ...(data.taskEvents ?? [])];
         all.sort((a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
         setEvents(all);
-      }
-    } catch {} finally {
+      } else { setLectureEchouee(true); }
+    } catch { setLectureEchouee(true); } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -787,6 +792,7 @@ export default function CalendarScreen() {
               icon="calendar"
               title={t("calendarScreen.emptyTitle")}
               subtitle={selectedDateStr ? t("calendarScreen.emptySubtitleDay") : t("calendarScreen.emptySubtitleMonth")}
+              erreur={lectureEchouee}
             />
           }
           renderItem={({ item: ev }) => {

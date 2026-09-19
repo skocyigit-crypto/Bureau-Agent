@@ -31,7 +31,7 @@ import { join } from "node:path";
  * produisait rien du tout : le chargement s'arretait, rien n'apparaissait, et
  * l'utilisateur ne pouvait qu'appuyer a nouveau.
  */
-const PLAFOND = 29;
+const PLAFOND = 27;
 
 const RACINES = [
   join(import.meta.dirname, "..", "pages"),
