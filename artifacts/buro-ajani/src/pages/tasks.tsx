@@ -1,4 +1,5 @@
 import taskManagementImg from "@/assets/images/task-management.webp";
+import { useSelectionVisible } from "@/lib/selection-visible";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import { AiValidationFeedback } from "@/components/ai-validation-feedback";
 import { EmptyOnboardingHint } from "@/components/empty-onboarding-hint";
@@ -272,6 +273,11 @@ export default function Tasks() {
       toast({ title: t("tasks.toast.networkError"), description: t("tasks.toast.duplicateFailed"), variant: "destructive" });
     }
   };
+
+  // Une selection ne porte que sur ce qui est a l'ecran: changer de page ou
+  // de filtre laissait des lignes invisibles cochees, et « Supprimer (10) »
+  // portait alors sur l'ancien contenu. Voir `useSelectionVisible`.
+  useSelectionVisible(data?.tasks?.map((t: any) => t.id), selectedIds, setSelectedIds);
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;

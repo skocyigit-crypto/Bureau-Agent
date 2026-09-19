@@ -1,4 +1,5 @@
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
+import { useSelectionVisible } from "@/lib/selection-visible";
 import { GhostTextarea } from "@/components/ghost-textarea";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -594,6 +595,11 @@ export default function ProjetsPage() {
 
   const toggleSelectMode = () => { setSelectMode(v => !v); setSelectedIds(new Set()); };
   const toggleId = (id: number) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  // Une selection ne porte que sur ce qui est a l'ecran: changer de page ou
+  // de filtre laissait des lignes invisibles cochees, et « Supprimer (10) »
+  // portait alors sur l'ancien contenu. Voir `useSelectionVisible`.
+  useSelectionVisible(projets?.map((p: any) => p.id), selectedIds, setSelectedIds);
+
   const toggleAll = () => {
     if (selectedIds.size === projets.length && projets.length > 0) setSelectedIds(new Set());
     else setSelectedIds(new Set(projets.map(p => p.id)));

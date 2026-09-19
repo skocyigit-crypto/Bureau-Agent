@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { useSelectionVisible } from "@/lib/selection-visible";
 import { Button } from "@/components/ui/button";
 import { Card,CardContent,CardHeader,CardTitle } from "@/components/ui/card";
 import {
@@ -617,6 +618,11 @@ export default function AutomationsPage() {
 
   const builtInRules = rules.filter(r => r.builtIn);
   const customRules = rules.filter(r => !r.builtIn);
+
+  // Une selection ne porte que sur ce qui est a l'ecran: changer de page ou
+  // de filtre laissait des lignes invisibles cochees, et « Supprimer (10) »
+  // portait alors sur l'ancien contenu. Voir `useSelectionVisible`.
+  useSelectionVisible(customRules?.map((r: any) => r.id), selectedIds, setSelectedIds);
   const successRate = stats ? (stats.totalToday > 0 ? Math.round((stats.successToday / stats.totalToday) * 100) : 100) : 0;
 
   return (

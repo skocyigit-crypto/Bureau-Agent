@@ -1,4 +1,5 @@
 import officeTeamImg from "@/assets/images/office-team.webp";
+import { useSelectionVisible } from "@/lib/selection-visible";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import { Icon3D } from "@/components/icon-3d";
 import { Badge } from "@/components/ui/badge";
@@ -445,6 +446,11 @@ export default function UsersPage() {
 
   const toggleSelectMode = () => { setSelectMode(v => !v); setSelectedIds(new Set()); };
   const toggleId = (id: number) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  // Une selection ne porte que sur ce qui est a l'ecran: changer de page ou
+  // de filtre laissait des lignes invisibles cochees, et « Supprimer (10) »
+  // portait alors sur l'ancien contenu. Voir `useSelectionVisible`.
+  useSelectionVisible(filteredUsers?.map((u: any) => u.id), selectedIds, setSelectedIds);
+
   const toggleAll = () => {
     const eligible = filteredUsers.filter(u => u.role !== "super_admin" && u.id !== workspaceUser?.id);
     if (selectedIds.size === eligible.length) { setSelectedIds(new Set()); }
