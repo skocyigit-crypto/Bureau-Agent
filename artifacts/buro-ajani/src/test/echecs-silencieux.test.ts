@@ -175,3 +175,52 @@ describe("plus aucune ECRITURE ne passe sous silence", () => {
     ).toEqual([]);
   });
 });
+
+describe("le bouclier vert n'est pas affiche sans avoir regarde", () => {
+  /**
+   * Le panneau « pouls » du tableau de bord montre un bouclier vert et, a
+   * cote, le nombre d'alertes critiques. Quand le flux d'anomalies ne
+   * repondait pas, il affichait le bouclier vert et « 0 » — une reassurance
+   * fabriquee a partir d'une panne, rafraichie toutes les 60 secondes.
+   *
+   * Le serveur y a sa part et elle est corrigee separement
+   * (`api-server/src/__tests__/reponses-vides-apres-panne.test.ts`) : il
+   * repondait 200 avec un resumé a zero, ce qui rendait inatteignable le
+   * `if (alertRes.ok)` pourtant ecrit ici.
+   */
+  const panneau = readFileSync(
+    join(import.meta.dirname, "..", "components", "smart-pulse-panel.tsx"),
+    "utf8",
+  );
+
+  it("l'echec est retenu sur les deux chemins", () => {
+    expect(
+      panneau.split("setAlertesIllisibles(true)").length - 1,
+      "refus du serveur et erreur reseau doivent tous deux le lever",
+    ).toBe(2);
+  });
+
+  it("une lecture reussie l'efface", () => {
+    expect(panneau.split("setAlertesIllisibles(false)").length - 1).toBe(1);
+  });
+
+  it("et le bouclier cesse d'etre vert", () => {
+    // C'est le vert qui rassure, plus encore que le chiffre.
+    expect(panneau, "le bouclier reste vert malgre l'etat inconnu").toMatch(
+      /alertesIllisibles \? "bg-white\/10" : "bg-emerald-500\/20"/,
+    );
+    expect(panneau).toContain("smartPulsePanel.alertesIllisibles");
+  });
+
+  it("le libelle existe dans les six langues", () => {
+    for (const langue of ["fr", "en", "es", "de", "tr", "ar"]) {
+      const json = JSON.parse(
+        readFileSync(join(import.meta.dirname, "..", "i18n", "locales", `${langue}.json`), "utf8"),
+      );
+      expect(
+        json.smartPulsePanel?.alertesIllisibles,
+        `libelle manquant en ${langue}: la cle brute s'afficherait telle quelle`,
+      ).toBeTruthy();
+    }
+  });
+});

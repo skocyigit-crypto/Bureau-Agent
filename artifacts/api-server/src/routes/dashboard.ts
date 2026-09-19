@@ -648,7 +648,11 @@ router.get("/team-status", async (req, res): Promise<void> => {
     `);
     res.json({ members: users.rows });
   } catch (err) {
-    res.json({ members: [] });
+    // Une equipe vide est un constat sur l'organisation, pas une panne — et
+    // l'erreur n'etait meme pas journalisee: rien, nulle part, ne disait que
+    // la lecture avait echoue.
+    logger.error({ err }, "[Dashboard] membres d'equipe illisibles");
+    res.status(500).json({ error: "Erreur membres d'equipe" });
   }
 });
 
@@ -686,7 +690,12 @@ router.get("/dashboard/week-comparison", async (req, res): Promise<void> => {
 
     res.json({ comparison });
   } catch (err) {
-    res.json({ comparison: [] });
+    // L'ecran, lui, traite DEJA le cas: `dashboard.tsx` pose `setError(true)`
+    // sur une reponse non-ok. Ce 200 vide rendait ce traitement inatteignable,
+    // et le graphique montrait une semaine a plat — lue comme « il ne s'est
+    // rien passe », alors que personne n'avait pu compter.
+    logger.error({ err }, "[Dashboard] comparaison hebdomadaire illisible");
+    res.status(500).json({ error: "Erreur comparaison hebdomadaire" });
   }
 });
 
@@ -776,7 +785,8 @@ router.get("/dashboard/predictions", async (req, res): Promise<void> => {
 
     res.json({ predictions, insights });
   } catch (err) {
-    res.json({ predictions: null, insights: [] });
+    logger.error({ err }, "[Dashboard] previsions illisibles");
+    res.status(500).json({ error: "Erreur previsions" });
   }
 });
 
@@ -1008,8 +1018,13 @@ router.get("/dashboard/anomaly-stream", async (req, res): Promise<void> => {
       },
     });
   } catch (err) {
+    // « 0 critique, 0 alerte » est une REASSURANCE, fabriquee ici a partir
+    // d'une panne. Le tableau de bord se rafraichit toutes les 60 secondes et
+    // affiche ce chiffre en grand: quelqu'un le regarde et passe a autre
+    // chose. `/dashboard/smart-pulse`, quinze lignes plus haut, repond deja
+    // 500 dans le meme cas — c'est le bon arbitrage.
     logger.error({ err: err }, "[AnomalyStream] error:");
-    res.json({ alerts: [], summary: { critical: 0, warning: 0, total: 0 } });
+    res.status(500).json({ error: "Erreur flux d'anomalies" });
   }
 });
 

@@ -8748,7 +8748,8 @@
       "alerte": "تنبيه",
       "attention": "انتباه",
       "info": "معلومة"
-    }
+    },
+    "alertesIllisibles": "حالة التنبيهات غير معروفة"
   },
   "aiSuggestionsCard": {
     "available": "ذكاء اصطناعي متاح",
