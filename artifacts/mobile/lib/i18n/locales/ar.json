@@ -42,7 +42,8 @@
     "markDone": "وضع علامة مكتمل",
     "error": "خطأ",
     "projectCreateFailed": "تعذر إنشاء المشروع. حاول مرة أخرى.",
-    "actionFailed": "فشلت العملية. حاول مرة أخرى."
+    "actionFailed": "فشلت العملية. حاول مرة أخرى.",
+    "success": "نجاح"
   },
   "tabs": {
     "home": "الرئيسية",
@@ -2986,7 +2987,8 @@
     "fieldEmail": "البريد الإلكتروني",
     "fieldRole": "الدور",
     "fieldDepartment": "القسم",
-    "fieldPassword": "كلمة المرور (فارغة = تُنشأ تلقائيًا)"
+    "fieldPassword": "كلمة المرور (فارغة = تُنشأ تلقائيًا)",
+    "credentialsSent": "تم إرسال بيانات الدخول بالبريد الإلكتروني."
   },
   "fileApprobationScreen": {
     "title": "قائمة الموافقة",

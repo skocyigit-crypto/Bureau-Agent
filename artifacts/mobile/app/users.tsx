@@ -188,21 +188,38 @@ export default function UsersScreen() {
   async function sendCredentials(userId: number) {
     setSendingCreds(userId);
     try {
-      await fetchAuth(`${API_BASE}/api/auth/users/${userId}/send-credentials`, {
+      // `fetchAuth` ne leve PAS sur un refus: il rend la reponse. Ici le
+      // silence est couteux — l'administrateur croit avoir envoye ses
+      // identifiants a un collaborateur qui attendra en vain, et le mot de
+      // passe a pourtant ete regenere cote serveur en cas de succes partiel.
+      const r = await fetchAuth(`${API_BASE}/api/auth/users/${userId}/send-credentials`, {
         method: "POST",
       });
-    } catch (err) { console.warn("[Users] sendCredentials failed:", err); } finally { setSendingCreds(null); }
+      Alert.alert(
+        r.ok ? t("common.success") : t("common.error"),
+        r.ok ? t("usersScreen.credentialsSent") : t("common.actionFailed"),
+      );
+    } catch (err) {
+      console.warn("[Users] sendCredentials failed:", err);
+      Alert.alert(t("common.error"), t("common.actionFailed"));
+    } finally { setSendingCreds(null); }
   }
 
   async function toggleActive(user: User) {
     try {
-      await fetchAuth(`${API_BASE}/api/auth/users/${user.id}`, {
+      const r = await fetchAuth(`${API_BASE}/api/auth/users/${user.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ actif: !user.actif }),
       });
+      // Desactiver un compte est une mesure de securite: croire l'avoir fait
+      // alors que le serveur a refuse laisse un acces ouvert.
+      if (!r.ok) Alert.alert(t("common.error"), t("common.actionFailed"));
       fetchUsers();
-    } catch (err) { console.warn("[Users] toggleActive failed:", err); }
+    } catch (err) {
+      console.warn("[Users] toggleActive failed:", err);
+      Alert.alert(t("common.error"), t("common.actionFailed"));
+    }
   }
 
   return (

@@ -42,7 +42,8 @@
     "markDone": "Marcar como hecho",
     "error": "Error",
     "projectCreateFailed": "No se pudo crear el proyecto. Inténtelo de nuevo.",
-    "actionFailed": "La operación ha fallado. Inténtelo de nuevo."
+    "actionFailed": "La operación ha fallado. Inténtelo de nuevo.",
+    "success": "Éxito"
   },
   "tabs": {
     "home": "Inicio",
@@ -2986,7 +2987,8 @@
     "fieldEmail": "Correo",
     "fieldRole": "Rol",
     "fieldDepartment": "Departamento",
-    "fieldPassword": "Contraseña (vacío = generada automáticamente)"
+    "fieldPassword": "Contraseña (vacío = generada automáticamente)",
+    "credentialsSent": "Credenciales enviadas por correo."
   },
   "fileApprobationScreen": {
     "title": "Cola de aprobación",

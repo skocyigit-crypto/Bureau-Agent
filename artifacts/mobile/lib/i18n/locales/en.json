@@ -42,7 +42,8 @@
     "markDone": "Mark as done",
     "error": "Error",
     "projectCreateFailed": "The project could not be created. Please try again.",
-    "actionFailed": "The operation failed. Please try again."
+    "actionFailed": "The operation failed. Please try again.",
+    "success": "Success"
   },
   "tabs": {
     "home": "Home",
@@ -2986,7 +2987,8 @@
     "fieldEmail": "Email",
     "fieldRole": "Role",
     "fieldDepartment": "Department",
-    "fieldPassword": "Password (empty = auto-generated)"
+    "fieldPassword": "Password (empty = auto-generated)",
+    "credentialsSent": "Credentials sent by email."
   },
   "fileApprobationScreen": {
     "title": "Approval queue",

@@ -290,6 +290,11 @@ export default function NotesInternesScreen() {
         const list: Note[] = await res.json();
         setNotes(list);
         updateCache(list);
+      } else if (cached.length > 0 && notes.length === 0) {
+        // Meme repli que sur une erreur reseau: une lecture refusee laissait
+        // une liste vide, qui se lit comme « vous n'avez aucune note » alors
+        // que le cache hors-ligne en contient.
+        setNotes(cached);
       }
     } catch {
       if (cached.length > 0 && notes.length === 0) setNotes(cached);
@@ -317,18 +322,24 @@ export default function NotesInternesScreen() {
         color: data.color,
         tags: data.tags ? data.tags.split(",").map(t => t.trim()).filter(Boolean) : [],
       };
-      if (editing) {
-        await fetchAuth(`${API_BASE}/api/notes-internes/${editing.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-      } else {
-        await fetchAuth(`${API_BASE}/api/notes-internes`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
+      // `fetchAuth` ne leve PAS sur un refus du serveur: il rend la reponse.
+      // Sans cette lecture, l'editeur se fermait et la note etait perdue, sans
+      // un mot — exactement ce qui se passait deja quand cet ecran envoyait un
+      // PATCH que le serveur n'expose pas.
+      const r = editing
+        ? await fetchAuth(`${API_BASE}/api/notes-internes/${editing.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          })
+        : await fetchAuth(`${API_BASE}/api/notes-internes`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+      if (!r.ok) {
+        Alert.alert(t("common.error"), t("common.actionFailed"));
+        return;
       }
       setEditing(null);
       setCreating(false);
@@ -340,11 +351,12 @@ export default function NotesInternesScreen() {
 
   async function handlePin(note: Note) {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await fetchAuth(`${API_BASE}/api/notes-internes/${note.id}`, {
+    const r = await fetchAuth(`${API_BASE}/api/notes-internes/${note.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pinned: !note.pinned }),
     });
+    if (!r.ok) Alert.alert(t("common.error"), t("common.actionFailed"));
     load();
   }
 
@@ -363,9 +375,13 @@ export default function NotesInternesScreen() {
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     setNotes(prev => prev.filter(n => n.id !== note.id));
     try {
-      await fetchAuth(`${API_BASE}/api/notes-internes/${note.id}`, { method: "DELETE" });
+      const r = await fetchAuth(`${API_BASE}/api/notes-internes/${note.id}`, { method: "DELETE" });
+      // La note a ete retiree de l'ecran AVANT l'appel. Sur un refus, le
+      // rechargement la fait reapparaitre: sans ce message, cela ressemble a
+      // un bogue d'affichage plutot qu'a une suppression refusee.
+      if (!r.ok) Alert.alert(t("common.error"), t("common.actionFailed"));
       load();
-    } catch { load(); }
+    } catch { Alert.alert(t("common.error"), t("common.actionFailed")); load(); }
   }
 
   const filtered = notes.filter(n => {
