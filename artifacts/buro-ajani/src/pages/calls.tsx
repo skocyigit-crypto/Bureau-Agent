@@ -636,6 +636,7 @@ export default function Calls() {
                           const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
                           const res = await fetch(`${base}/api/calls/${call.id}`, { method: "DELETE", credentials: "include" });
                           if (res.ok) { toast({ title: t("calls.toast.deleted") }); queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() }); }
+                          else toast({ title: t("calls.toast.error"), variant: "destructive" });
                         }}><Trash2 className="w-4 h-4 mr-2" />{t("calls.rowActions.delete")}</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

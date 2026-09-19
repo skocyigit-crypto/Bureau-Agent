@@ -861,6 +861,7 @@ export default function AutomationsPage() {
                         <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" title={t("automationsPage.duplicateTitle")} onClick={async () => {
                           const res = await fetch(`${baseUrl}/api/automations/${rule.id}/duplicate`, { method: "POST", credentials: "include" });
                           if (res.ok) { toast({ title: t("automationsPage.toast.duplicated") }); fetchData(); }
+                          else toast({ title: t("automationsPage.toast.error"), variant: "destructive" });
                         }}>
                           <Copy className="w-3.5 h-3.5" />
                         </Button>
