@@ -435,7 +435,7 @@ function TachesSection() {
         if (d.success) setData(d);
       } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } catch {} finally { setLoading(false); setSendingEmails(false); }
-  }, [fetchAuth]);
+  }, [fetchAuth, t]);
 
   useEffect(() => { load(); }, [load]);
 

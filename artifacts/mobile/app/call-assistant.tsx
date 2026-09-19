@@ -115,7 +115,7 @@ function PreparerTab({ phone, name, direction, callId }: { phone: string; name: 
         if (d.success) setData(d);
       } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } catch {} finally { setLoading(false); }
-  }, [fetchAuth, phone, name, direction, callId, callNotes]);
+  }, [fetchAuth, phone, name, direction, callId, callNotes, t]);
 
   useEffect(() => { if (phone || name) prepare(); }, []);
 
