@@ -122,6 +122,11 @@ export default function SecuriteScreen() {
   const [score, setScore] = useState<SecurityScore | null>(null);
   const [weeklyEmail, setWeeklyEmail] = useState(false);
   const [weeklyEmailSaving, setWeeklyEmailSaving] = useState(false);
+  // Une lecture ratee laissait l'interrupteur sur sa valeur par defaut —
+  // c'est-a-dire ETEINT. L'utilisateur lisait donc « le rapport hebdomadaire
+  // est desactive », ce qui est une affirmation, alors que la question n'avait
+  // pas pu etre posee. Tant qu'on ne sait pas, on ne laisse pas toucher.
+  const [reglageIllisible, setReglageIllisible] = useState(false);
   const [nextdnsId, setNextdnsId] = useState("");
 
   // Vérification RGPD (texte libre)
@@ -199,12 +204,15 @@ export default function SecuriteScreen() {
 
   const fetchSettings = useCallback(async () => {
     try {
+      setReglageIllisible(false);
       const res = await fetchAuth(`${SECURITY_API}/settings`);
       if (res.ok) {
         const data = await res.json();
         setWeeklyEmail(Boolean(data.weeklySecurityEmail));
+      } else {
+        setReglageIllisible(true);
       }
-    } catch { /* ignore */ }
+    } catch { setReglageIllisible(true); }
   }, [fetchAuth]);
 
   const toggleWeeklyEmail = useCallback(async (next: boolean) => {
@@ -690,12 +698,12 @@ export default function SecuriteScreen() {
                 {t("securiteScreen.weeklyEnable")}
               </Text>
               <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 2 }}>
-                {t("securiteScreen.weeklyDesc")}
+                {reglageIllisible ? t("common.lectureEchoueeAide") : t("securiteScreen.weeklyDesc")}
               </Text>
             </View>
             <Switch
               value={weeklyEmail}
-              disabled={weeklyEmailSaving}
+              disabled={weeklyEmailSaving || reglageIllisible}
               onValueChange={toggleWeeklyEmail}
               trackColor={{ true: colors.success }}
             />
