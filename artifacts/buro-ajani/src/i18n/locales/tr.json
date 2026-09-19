@@ -402,7 +402,19 @@
       "phone": "Telefon",
       "email": "E-posta",
       "relancesRefusees": "Otomatik hatırlatma gönderme",
-      "relancesRefuseesAide": "Bu müşteri otomatik ödeme hatırlatmaları almak istemediğini bildirdi. Elle gönderim yine mümkün."
+      "relancesRefuseesAide": "Bu müşteri otomatik ödeme hatırlatmaları almak istemediğini bildirdi. Elle gönderim yine mümkün.",
+      "demarchageTitre": "Ticari arama",
+      "demarchageAide": "11 Ağustos 2026'dan beri, bir tüketiciyi önceden rızası olmadan ticari amaçla aramak yasaktır (Fransız kanunu 2025-594). Belirtilmemiş tip tüketici sayılır.",
+      "typePersonne": "Kişi tipi",
+      "typeParticulier": "Tüketici",
+      "typeProfessionnel": "Kurumsal",
+      "typeInconnu": "Belirtilmemiş",
+      "consentement": "Arama rızası",
+      "consentementAccorde": "Verildi",
+      "consentementRefuse": "Reddedildi",
+      "consentementInconnu": "Belirtilmemiş",
+      "opposition": "Aranmaya itiraz etti",
+      "oppositionAide": "İtiraz (GDPR md. 21) önceki her rızanın üstündedir, kurumsal müşteriler dahil."
     },
     "categories": {
       "client": "Müşteri",

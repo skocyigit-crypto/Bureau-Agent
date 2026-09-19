@@ -402,7 +402,19 @@
       "phone": "Phone",
       "email": "Email",
       "relancesRefusees": "Do not send automatic reminders",
-      "relancesRefuseesAide": "This client asked not to receive automatic payment reminders. Manual reminders are still possible."
+      "relancesRefuseesAide": "This client asked not to receive automatic payment reminders. Manual reminders are still possible.",
+      "demarchageTitre": "Commercial prospecting",
+      "demarchageAide": "Since 11 August 2026, calling a consumer for prospecting without prior consent is prohibited (French law 2025-594). An unspecified type is treated as a consumer.",
+      "typePersonne": "Person type",
+      "typeParticulier": "Consumer",
+      "typeProfessionnel": "Business",
+      "typeInconnu": "Not specified",
+      "consentement": "Prospecting consent",
+      "consentementAccorde": "Granted",
+      "consentementRefuse": "Refused",
+      "consentementInconnu": "Not specified",
+      "opposition": "Objected to prospecting",
+      "oppositionAide": "An objection (GDPR art. 21) overrides any earlier consent, including business to business."
     },
     "categories": {
       "client": "Client",

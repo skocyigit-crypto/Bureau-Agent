@@ -402,7 +402,19 @@
       "phone": "Teléfono",
       "email": "Correo",
       "relancesRefusees": "No enviar recordatorios automáticos",
-      "relancesRefuseesAide": "Este cliente pidió no recibir recordatorios de pago automáticos. Los recordatorios manuales siguen siendo posibles."
+      "relancesRefuseesAide": "Este cliente pidió no recibir recordatorios de pago automáticos. Los recordatorios manuales siguen siendo posibles.",
+      "demarchageTitre": "Prospección comercial",
+      "demarchageAide": "Desde el 11 de agosto de 2026, llamar a un consumidor con fines de prospección sin consentimiento previo está prohibido (ley francesa 2025-594). Un tipo no indicado se trata como consumidor.",
+      "typePersonne": "Tipo de persona",
+      "typeParticulier": "Consumidor",
+      "typeProfessionnel": "Empresa",
+      "typeInconnu": "Sin indicar",
+      "consentement": "Consentimiento de prospección",
+      "consentementAccorde": "Concedido",
+      "consentementRefuse": "Denegado",
+      "consentementInconnu": "Sin indicar",
+      "opposition": "Se opuso a la prospección",
+      "oppositionAide": "La oposición (RGPD art. 21) prevalece sobre cualquier consentimiento anterior, incluso entre empresas."
     },
     "categories": {
       "client": "Cliente",
