@@ -1,4 +1,5 @@
 import receptionImg from "@/assets/images/reception-desk.webp";
+import { useSelectionVisibleListe } from "@/lib/selection-visible";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import { Icon3D } from "@/components/icon-3d";
 import { Badge } from "@/components/ui/badge";
@@ -271,6 +272,11 @@ export default function CheckinsPage() {
   };
 
   const checkinsList = listData?.checkins ?? [];
+  // Une selection ne porte que sur ce qui est a l'ecran: changer de page ou
+  // de filtre laissait des lignes invisibles cochees, et la suppression en
+  // lot portait alors sur l'ancien contenu. Voir `useSelectionVisibleListe`.
+  useSelectionVisibleListe(checkinsList?.map((c: any) => c.id), selectedIds, setSelectedIds);
+
   const toggleSelect = (id: number) => setSelectedIds(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
   const toggleAll = () => setSelectedIds(selectedIds.length === checkinsList.length ? [] : checkinsList.map((c: any) => c.id));
   const handleBulkStatus = async (status: string) => {

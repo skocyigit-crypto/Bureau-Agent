@@ -1,4 +1,5 @@
 import { FileUpload } from "@/components/file-upload";
+import { useSelectionVisibleListe } from "@/lib/selection-visible";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
@@ -586,6 +587,11 @@ export default function DocumentsPage() {
       ),
     [documents, debouncedSearch]
   );
+
+  // Une selection ne porte que sur ce qui est a l'ecran: changer de page ou
+  // de filtre laissait des lignes invisibles cochees, et la suppression en
+  // lot portait alors sur l'ancien contenu. Voir `useSelectionVisibleListe`.
+  useSelectionVisibleListe(filtered?.map((d: any) => d.id), selectedIds, setSelectedIds);
 
   const docTotalPages = Math.max(1, Math.ceil(filtered.length / DOCS_PAGE_SIZE));
   const pagedDocs = useMemo(

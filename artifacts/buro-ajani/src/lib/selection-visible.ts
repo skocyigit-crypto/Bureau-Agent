@@ -52,3 +52,28 @@ export function useSelectionVisible<T>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [empreinte]);
 }
+
+/**
+ * Meme regle, pour les ecrans qui gardent leur selection dans un tableau.
+ *
+ * Trois listes (documents, prospects, pointages) n'utilisent pas un `Set`.
+ * Leur donner une variante plutot que les convertir evite de toucher a leur
+ * logique de bascule — et le defaut, lui, est exactement le meme.
+ */
+export function useSelectionVisibleListe<T>(
+  visibles: readonly T[] | undefined,
+  selection: readonly T[],
+  setSelection: (s: T[]) => void,
+): void {
+  const empreinte = visibles === undefined ? null : visibles.join("|");
+
+  useEffect(() => {
+    if (visibles === undefined) return;
+    if (selection.length === 0) return;
+    const affichees = new Set(visibles);
+    const restantes = selection.filter((id) => affichees.has(id));
+    if (restantes.length === selection.length) return;
+    setSelection(restantes);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [empreinte]);
+}

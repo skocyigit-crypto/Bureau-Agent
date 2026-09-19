@@ -15,7 +15,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { renderHook } from "@testing-library/react";
-import { useSelectionVisible } from "./selection-visible";
+import { useSelectionVisible, useSelectionVisibleListe } from "./selection-visible";
 
 /** Monte le hook et rend la selection telle qu'elle est apres l'effet. */
 function monter(visiblesInitiales: number[] | undefined, selectionInitiale: number[]) {
@@ -107,5 +107,45 @@ describe("le cas complet du defaut", () => {
     e.changerPage([3, 4]);
     e.changerPage([1, 2]);
     expect(e.selection).toEqual([]);
+  });
+});
+
+describe("la variante pour les selections rangees dans un tableau", () => {
+  /** Trois ecrans (documents, prospects, pointages) n'utilisent pas de `Set`. */
+  function monterListe(visiblesInitiales: number[] | undefined, selectionInitiale: number[]) {
+    let selection = selectionInitiale;
+    const rendu = renderHook(
+      ({ visibles }: { visibles: number[] | undefined }) =>
+        useSelectionVisibleListe(visibles, selection, (s) => { selection = s; }),
+      { initialProps: { visibles: visiblesInitiales } },
+    );
+    return {
+      get selection() { return [...selection].sort((a, b) => a - b); },
+      changerPage(visibles: number[] | undefined) { rendu.rerender({ visibles }); },
+    };
+  }
+
+  it("changer de page vide la selection d'avant", () => {
+    const e = monterListe([1, 2, 3], [1, 2, 3]);
+    e.changerPage([4, 5, 6]);
+    expect(e.selection).toEqual([]);
+  });
+
+  it("un filtre ne garde que ce qui reste affiche", () => {
+    const e = monterListe([1, 2, 3], [1, 2, 3]);
+    e.changerPage([2]);
+    expect(e.selection).toEqual([2]);
+  });
+
+  it("un rendu identique ne touche a rien", () => {
+    const e = monterListe([1, 2], [1]);
+    e.changerPage([1, 2]);
+    expect(e.selection).toEqual([1]);
+  });
+
+  it("un chargement en cours non plus", () => {
+    const e = monterListe([1, 2], [1]);
+    e.changerPage(undefined);
+    expect(e.selection).toEqual([1]);
   });
 });
