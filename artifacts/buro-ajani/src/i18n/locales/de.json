@@ -3068,7 +3068,8 @@
       "disableBtn": "Deaktivieren",
       "twoFactorDisabled": "Zwei-Faktor-Authentifizierung deaktiviert",
       "disableFailed": "Deaktivierung nicht möglich",
-      "totpLabel": "Sechsstelliger Bestätigungscode"
+      "totpLabel": "Sechsstelliger Bestätigungscode",
+      "mfaStatusUnknown": "Status unbekannt — erneut versuchen"
     },
     "monitor": {
       "loading": "Sicherheitsmonitor wird geladen...",

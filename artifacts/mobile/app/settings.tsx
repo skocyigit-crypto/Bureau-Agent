@@ -73,15 +73,21 @@ export default function SettingsScreen() {
   const isWeb = Platform.OS === "web";
   const [sub, setSub] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
+  const [lectureEchouee, setLectureEchouee] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetchAuth(`${API_BASE}/api/subscription`);
-        if (res.ok) { const data = await res.json(); setSub(data.subscription ?? data); }
-      } catch (err) { console.warn("[Settings] fetch failed:", err); } finally { setLoading(false); }
-    })();
+  const chargerAbonnement = useCallback(async () => {
+    setLoading(true);
+    try {
+      setLectureEchouee(false);
+      const res = await fetchAuth(`${API_BASE}/api/subscription`);
+      // « Aucun abonnement actif » dit a un client qui paie que son
+      // abonnement n'existe pas. Il appelle le support, ou il repaie.
+      if (res.ok) { const data = await res.json(); setSub(data.subscription ?? data); }
+      else setLectureEchouee(true);
+    } catch (err) { console.warn("[Settings] fetch failed:", err); setLectureEchouee(true); } finally { setLoading(false); }
   }, [fetchAuth]);
+
+  useEffect(() => { chargerAbonnement(); }, [chargerAbonnement]);
 
   function InfoRow({ icon, label, value, color }: { icon: keyof typeof Feather.glyphMap; label: string; value: string; color?: string }) {
     return (
@@ -145,6 +151,16 @@ export default function SettingsScreen() {
               <InfoRow icon="tag" label={t("settingsScreen.price")} value={t("settingsScreen.priceValue", { price: sub.price, cycle: sub.billingCycle === "monthly" ? t("settingsScreen.cycleMonth") : t("settingsScreen.cycleYear") })} />
               {sub.trialEndsAt ? <InfoRow icon="clock" label={t("settingsScreen.trialEnd")} value={new Date(sub.trialEndsAt).toLocaleDateString("fr-FR")} color="#f59e0b" /> : null}
               {sub.currentPeriodEnd ? <InfoRow icon="calendar" label={t("settingsScreen.nextRenewal")} value={new Date(sub.currentPeriodEnd).toLocaleDateString("fr-FR")} /> : null}
+            </>
+          ) : lectureEchouee ? (
+            // Un bouton, pas « tirez vers le bas »: cette carte n'a pas de
+            // rafraichissement au geste, le conseil serait faux.
+            <>
+              <Text style={[styles.noSub, { color: colors.mutedForeground }]}>{t("common.lectureEchoueeTitre")}</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel={t("common.retry")} onPress={chargerAbonnement} style={styles.subRetry}>
+                <Feather name="refresh-cw" size={14} color={colors.primary} />
+                <Text style={{ color: colors.primary, fontSize: 13, marginLeft: 6 }}>{t("common.retry")}</Text>
+              </Pressable>
             </>
           ) : (
             <Text style={[styles.noSub, { color: colors.mutedForeground }]}>{t("settingsScreen.noSubscription")}</Text>
@@ -1347,6 +1363,7 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   subLoading: { padding: 20 },
   noSub: { padding: 16, textAlign: "center", fontSize: 14, fontFamily: "Inter_400Regular" },
+  subRetry: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingBottom: 16 },
   themeRow: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingBottom: 16 },
   themeBtn: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 12, borderRadius: 10, borderWidth: 1.5, gap: 4 },
   themeBtnLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold" },

@@ -3068,7 +3068,8 @@
       "disableBtn": "Devre dışı bırak",
       "twoFactorDisabled": "İki faktörlü doğrulama devre dışı bırakıldı",
       "disableFailed": "Devre dışı bırakma başarısız",
-      "totpLabel": "Altı haneli doğrulama kodu"
+      "totpLabel": "Altı haneli doğrulama kodu",
+      "mfaStatusUnknown": "Durum bilinmiyor — yeniden dene"
     },
     "monitor": {
       "loading": "Güvenlik izleyicisi yükleniyor...",

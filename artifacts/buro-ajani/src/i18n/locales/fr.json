@@ -3068,7 +3068,8 @@
       "disableBtn": "Désactiver",
       "twoFactorDisabled": "Double authentification désactivée",
       "disableFailed": "Désactivation impossible",
-      "totpLabel": "Code de verification a six chiffres"
+      "totpLabel": "Code de verification a six chiffres",
+      "mfaStatusUnknown": "État inconnu — réessayer"
     },
     "monitor": {
       "loading": "Chargement du moniteur de sécurité...",

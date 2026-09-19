@@ -139,11 +139,18 @@ export default function RapportExecutifScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [days, setDays] = useState(30);
 
+  const [lectureEchouee, setLectureEchouee] = useState(false);
+
   const load = useCallback(async () => {
     try {
+      setLectureEchouee(false);
       const res = await fetchAuth(`${API_BASE}/api/smart-reports/executive-summary?days=${days}`);
+      // « Pas encore de donnees » se lit comme un constat sur l'activite de
+      // l'entreprise, dont un dirigeant tire des conclusions sur sa periode,
+      // alors que la lecture n'a simplement pas abouti.
       if (res.ok) setData(await res.json());
-    } catch {} finally { setLoading(false); setRefreshing(false); }
+      else setLectureEchouee(true);
+    } catch { setLectureEchouee(true); } finally { setLoading(false); setRefreshing(false); }
   }, [fetchAuth, days]);
 
   useEffect(() => { setLoading(true); load(); }, [load]);
@@ -192,6 +199,15 @@ export default function RapportExecutifScreen() {
 
       {loading ? (
         <View style={styles.center}><ActivityIndicator size="large" color="#1e293b" /></View>
+      ) : lectureEchouee ? (
+        // Dans un ScrollView pour que « tirez vers le bas » soit vrai: le
+        // conseil donne a l'ecran d'erreur doit fonctionner la ou il s'affiche.
+        <ScrollView
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1e293b" />}
+          contentContainerStyle={{ flexGrow: 1 }}
+        >
+          <EmptyState icon="alert-circle" title={t("common.lectureEchoueeTitre")} subtitle={t("common.lectureEchoueeAide")} />
+        </ScrollView>
       ) : !data ? (
         <EmptyState icon="bar-chart" title={t("rapportExecutifScreen.noData")} subtitle={t("rapportExecutifScreen.noDataSub")} />
       ) : (
