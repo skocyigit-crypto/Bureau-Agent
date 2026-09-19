@@ -289,6 +289,7 @@ export default function OrganisationsPage() {
   const [saasMetrics, setSaasMetrics] = useState<any>(null);
   const [attention, setAttention] = useState<any>(null);
   const [saasLoading, setSaasLoading] = useState(false);
+  const [saasErreur, setSaasErreur] = useState(false);
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [licenseDialog, setLicenseDialog] = useState<{ org: Organisation; action: "extend-trial" | "suspend" | "reactivate" | "regenerate-key" } | null>(null);
   const [confirmOrgName, setConfirmOrgName] = useState("");
@@ -447,9 +448,13 @@ export default function OrganisationsPage() {
 
   const loadSaasMetrics = useCallback(async () => {
     setSaasLoading(true);
+    setSaasErreur(false);
     try {
       const res = await fetch(`${BASE}api/billing/saas-metrics`, { credentials: "include" });
+      // Un refus laissait les chiffres precedents a l'ecran — ou des zeros au
+      // premier chargement — sans rien qui distingue « zero » de « pas lu ».
       if (res.ok) setSaasMetrics(await res.json());
+      else setSaasErreur(true);
       // Vue "ce qui demande une action" — chargee en parallele, tolerante a
       // l'echec (l'un ne doit pas faire disparaitre l'autre).
       fetch(`${BASE}api/admin/saas-attention`, { credentials: "include" })
@@ -1028,6 +1033,9 @@ export default function OrganisationsPage() {
           )}
           {saasLoading ? (
             <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div>
+          ) : saasErreur ? (
+            // Rien ne distinguait « zero » de « pas lu ».
+            <p className="py-20 text-center text-sm text-muted-foreground">{t("organisationsPage.chargementEchoue")}</p>
           ) : saasMetrics ? (
             <>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

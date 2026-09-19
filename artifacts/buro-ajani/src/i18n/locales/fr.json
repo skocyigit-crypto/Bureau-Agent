@@ -3811,7 +3811,8 @@
     "generalNotesDesc": "Informations supplémentaires sur le contact",
     "saving": "Enregistrement...",
     "notesPlaceholder": "Entrez des notes sur ce contact...",
-    "noNotes": "Aucune note. Cliquez sur Modifier pour en ajouter."
+    "noNotes": "Aucune note. Cliquez sur Modifier pour en ajouter.",
+    "projetsIllisibles": "Les projets liés n'ont pas pu être lus. Rechargez la page."
   },
   "prospectDetail": {
     "stage": {

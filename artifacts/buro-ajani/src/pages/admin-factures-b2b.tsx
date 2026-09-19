@@ -94,6 +94,9 @@ function AdminFacturesB2BContent() {
       if (orgFilter !== "all") params.set("organisationId", orgFilter);
       const res = await fetch(`${BASE}/api/factures-client?${params}`, { credentials: "include" });
       if (res.ok) { const d = await res.json(); setItems(d.factures || []); setTotal(d.total || 0); }
+      // Le `catch` prevenait deja sur une erreur reseau; un REFUS du serveur,
+      // lui, laissait une liste vide qui se lit « aucune facture ».
+      else toast({ title: t("adminFacturesB2b.toast.error"), description: t("adminFacturesB2b.toast.loadFailed"), variant: "destructive" });
     } catch { toast({ title: t("adminFacturesB2b.toast.error"), description: t("adminFacturesB2b.toast.loadFailed"), variant: "destructive" }); }
     finally { setLoading(false); }
   }, [page, search, statusFilter, orgFilter, toast, t]);
