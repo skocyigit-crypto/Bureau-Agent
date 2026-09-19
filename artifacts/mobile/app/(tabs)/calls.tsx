@@ -247,7 +247,7 @@ export default function CallsScreen() {
       setEditId(null);
       setFormValues({ direction: "entrant", status: "repondu" });
       fetchCalls();
-    } catch {} finally { setFormLoading(false); }
+    } catch { Alert.alert(t("common.error"), t("common.actionFailed")); } finally { setFormLoading(false); }
   }
 
   async function handleDelete(id: number) {
