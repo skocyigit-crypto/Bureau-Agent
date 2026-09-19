@@ -69,6 +69,7 @@ interface ApiUser {
   departement: string | null;
   organisation: string | null;
   organisationId: number | null;
+  telephone: string | null;
   actif: boolean;
   mfaActif: boolean;
   dernierAcces: string | null;
@@ -687,7 +688,7 @@ export default function UsersPage() {
                             <DropdownMenuContent align="end" className="w-48">
                               <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => {
                                 setSelectedUser(user);
-                                setEditUserForm({ prenom: user.prenom || "", nom: user.nom || "", departement: user.departement || "", telephone: "" });
+                                setEditUserForm({ prenom: user.prenom || "", nom: user.nom || "", departement: user.departement || "", telephone: user.telephone || "" });
                                 setShowEditUser(true);
                               }}>
                                 <Edit className="w-4 h-4" />
@@ -755,7 +756,7 @@ export default function UsersPage() {
                         <DropdownMenuContent align="end" className="w-48">
                           <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => {
                             setSelectedUser(user);
-                            setEditUserForm({ prenom: user.prenom || "", nom: user.nom || "", departement: user.departement || "", telephone: "" });
+                            setEditUserForm({ prenom: user.prenom || "", nom: user.nom || "", departement: user.departement || "", telephone: user.telephone || "" });
                             setShowEditUser(true);
                           }}>
                             <Edit className="w-4 h-4" />

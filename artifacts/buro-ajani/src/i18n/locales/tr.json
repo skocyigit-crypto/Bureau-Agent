@@ -1394,7 +1394,8 @@
       "tva": "KDV (€)",
       "ttc": "KDV dahil (€)",
       "paymentStatus": "Ödeme durumu",
-      "notes": "Notlar"
+      "notes": "Notlar",
+      "tauxTva": "KDV oranı"
     },
     "categories": {
       "carburant": "Yakıt",
@@ -6627,7 +6628,8 @@
       "descAfter": "? Bu işlem geri alınamaz ve ilişkili tüm verileri siler.",
       "cancel": "İptal",
       "delete": "Sil"
-    }
+    },
+    "chargementEchoue": "Yükleme başarısız oldu. Bu pencereyi kapatıp yeniden açın."
   },
   "aiAgents": {
     "title": "Yapay Zeka Ajanları",

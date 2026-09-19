@@ -147,8 +147,7 @@ export function calculerCloture(
 export type MotifIncoherence =
   | "chainon_cloture_rompu"
   | "empreinte_cloture_incorrecte"
-  | "cumul_ne_correspond_pas"
-  | "cumul_regresse";
+  | "cumul_ne_correspond_pas";
 
 export interface VerdictConservation {
   coherent: boolean;
@@ -198,19 +197,18 @@ export function verifierConservation(
       };
     }
 
-    // Un cumul ne peut que croitre ou rester egal: il additionne des montants
-    // dont les annulations sont deja signees. Une baisse signale un cumul
-    // reecrit a la main.
-    if (cumulPrecedent !== null && c.totalCumuleCentimes < cumulPrecedent) {
-      return {
-        coherent: false,
-        motif: "cumul_regresse",
-        periode: c.periode,
-        ecartCentimes: c.totalCumuleCentimes - cumulPrecedent,
-        explication:
-          `Le total cumule diminue a la cloture ${c.periode}: un cumul ne recule jamais.`,
-      };
-    }
+    // NOTE. Il y avait ici une regle « un cumul ne recule jamais ». Elle etait
+    // fausse: une contre-passation est enregistree avec un montant NEGATIF
+    // (routes/encaissements.ts), precisement pour que la somme reste juste
+    // sans jamais effacer de ligne. Une annulation parfaitement legitime —
+    // un reglement saisi deux fois, un cheque rejete — faisait donc declarer
+    // le journal incoherent, et l'attestation de conformite refusait de
+    // s'emettre.
+    //
+    // Ce qu'elle cherchait a attraper — un cumul reecrit a la main — l'est
+    // deja, et mieux, par le recompte ci-dessous et par le chainage des
+    // empreintes. Une regle qui crie au loup finit desactivee, et c'est le
+    // vrai defaut qui passe.
 
     // Le coeur: on recompte le journal tel qu'il est AUJOURD'HUI, et on le
     // compare au cumul fige a l'epoque.

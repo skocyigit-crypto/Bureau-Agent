@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, desc, or, sql, and, type Column, type SQL } from "drizzle-orm";
-import { db, devisTable, facturesClientTable, organisationsTable } from "@workspace/db";
+import { db, pool, devisTable, facturesClientTable, organisationsTable } from "@workspace/db";
+import { devisExpire } from "../services/devis-expires";
 import { buildDevisDocument, devisFileName, renderDevisPdf } from "../services/devis-pdf";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { generateUniqueReference } from "../lib/unique-reference";
@@ -259,11 +260,51 @@ router.post("/devis/:id/convert-to-facture", async (req: Request, res: Response)
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
-  await db.execute(sql`SELECT pg_advisory_lock(${DEVIS_CONVERT_LOCK_NAMESPACE}, ${id})`);
+  // UNE connexion dediee, gardee pour toute la duree du verrou.
+  //
+  // Un `pg_advisory_lock` appartient a la SESSION, c'est-a-dire a la connexion
+  // qui l'a pris. `db` est un pool: la prise et la liberation partaient donc
+  // sur deux connexions differentes. Postgres refusait la liberation (« you
+  // don't own a lock of this type »), le `.catch(() => {})` avalait ce retour,
+  // et le verrou restait detenu par la premiere connexion.
+  //
+  // La suite est pire ici que pour un cron: `pg_advisory_lock` ATTEND, il ne
+  // renonce pas. La conversion suivante du MEME devis se bloquait donc
+  // indefiniment — la requete HTTP ne repondait plus, l'utilisateur voyait
+  // « Convertir en facture » tourner sans fin, sans erreur.
+  //
+  // `lib/cron-lock.ts` documente ce piege et le resout ainsi depuis
+  // longtemps; cette route ne l'avait pas suivi.
+  const client = await pool.connect();
+  try {
+    await client.query("SELECT pg_advisory_lock($1, $2)", [DEVIS_CONVERT_LOCK_NAMESPACE, id]);
+  } catch (err) {
+    client.release();
+    req.log.error({ err }, "Verrou de conversion indisponible");
+    res.status(503).json({ error: "Conversion momentanement indisponible. Reessayez." });
+    return;
+  }
   try {
     const [devis] = await db.select().from(devisTable)
       .where(and(eq(devisTable.id, id), eq(devisTable.organisationId, orgId)));
     if (!devis) { res.status(404).json({ error: "Devis non trouve." }); return; }
+
+    // Un devis dont la validite est depassee ne se convertit pas en silence.
+    //
+    // La duree de validite est precisement ce qui protege l'entreprise contre
+    // la hausse du cout des materiaux: convertir un devis de l'an dernier
+    // creerait une facture a l'ancien prix, et l'engagerait dessus. On refuse
+    // en nommant l'action qui debloque — prolonger la validite — plutot que
+    // de decider a sa place.
+    if (devisExpire(devis.status, devis.validUntil) || devis.status === "expire") {
+      res.status(409).json({
+        error: "La validite de ce devis est depassee.",
+        code: "devis_expire",
+        validUntil: devis.validUntil,
+        remediation: "Prolongez la date de validite du devis si le prix tient toujours, puis convertissez-le.",
+      });
+      return;
+    }
 
     // Deja converti: on renvoie la facture liee plutot que d'en creer une autre.
     if (devis.convertedToInvoice) {
@@ -331,7 +372,16 @@ router.post("/devis/:id/convert-to-facture", async (req: Request, res: Response)
     req.log.error({ err }, "Erreur conversion devis->facture");
     res.status(500).json({ error: "Erreur lors de la conversion." });
   } finally {
-    await db.execute(sql`SELECT pg_advisory_unlock(${DEVIS_CONVERT_LOCK_NAMESPACE}, ${id})`).catch(() => {});
+    // Liberation sur LA MEME connexion, puis restitution au pool. Le
+    // `release()` est dans son propre `finally`: une liberation refusee ne
+    // doit pas retenir la connexion en plus du verrou.
+    try {
+      await client.query("SELECT pg_advisory_unlock($1, $2)", [DEVIS_CONVERT_LOCK_NAMESPACE, id]);
+    } catch (err) {
+      req.log.error({ err }, "Liberation du verrou de conversion refusee");
+    } finally {
+      client.release();
+    }
   }
 });
 

@@ -3,6 +3,7 @@ import { eq, desc, asc, or, sql, and, lt } from "drizzle-orm";
 import { db, messagesTable, contactsTable } from "@workspace/db";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { withDbRetry } from "../lib/db-retry";
+import { CURSEUR_EXPORT_DEBUT } from "../lib/curseur-export";
 import {
   ListMessagesQueryParams,
   CreateMessageBody,
@@ -232,7 +233,8 @@ router.get("/messages/export/csv", async (req, res): Promise<void> => {
   const escape = celluleCsv;
   const fmtDate = (d: any) => (d ? new Date(d).toLocaleDateString("fr-FR") : "");
   try {
-    let lastId = Number.MAX_SAFE_INTEGER;
+    // Voir CURSEUR_EXPORT_DEBUT: MAX_SAFE_INTEGER depasse un `integer` Postgres.
+    let lastId = CURSEUR_EXPORT_DEBUT;
     let wroteHeader = false;
     for (;;) {
       const rows = await withDbRetry(

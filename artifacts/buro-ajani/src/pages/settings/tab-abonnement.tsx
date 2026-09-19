@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { courantAffiche, plafondAffiche } from "@/lib/quota-affiche";
 import { Button } from "@/components/ui/button";
 import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
 import { confirmAction } from "@/hooks/use-confirm";
@@ -301,15 +302,16 @@ export function TabAbonnement() {
             {usage && (
               <div className="grid grid-cols-3 gap-3">
                 <div className="text-center p-3 bg-muted/30 rounded-lg">
-                  <p className="text-2xl font-bold">{usage.users?.current || 0}<span className="text-sm text-muted-foreground">/{usage.users?.max || 0}</span></p>
+                  <p className="text-2xl font-bold">{courantAffiche(usage.users)}<span className="text-sm text-muted-foreground">/{plafondAffiche(usage.users)}</span></p>
                   <p className="text-xs text-muted-foreground">{t("settingsAbonnement.users")}</p>
                 </div>
                 <div className="text-center p-3 bg-muted/30 rounded-lg">
-                  <p className="text-2xl font-bold">{usage.contacts?.current || 0}<span className="text-sm text-muted-foreground">/{usage.contacts?.max || 0}</span></p>
+                  <p className="text-2xl font-bold">{courantAffiche(usage.contacts)}<span className="text-sm text-muted-foreground">/{plafondAffiche(usage.contacts)}</span></p>
                   <p className="text-xs text-muted-foreground">{t("settingsAbonnement.contacts")}</p>
                 </div>
                 <div className="text-center p-3 bg-muted/30 rounded-lg">
-                  <p className="text-2xl font-bold">{usage.calls?.current || 0}<span className="text-sm text-muted-foreground">/{usage.calls?.max || 0}</span></p>
+                  {/* Le serveur emet `callsThisMonth`; l'ecran lisait `calls`, qui n'existe pas — d'ou « 0/0 » partout. */}
+                  <p className="text-2xl font-bold">{courantAffiche(usage.callsThisMonth)}<span className="text-sm text-muted-foreground">/{plafondAffiche(usage.callsThisMonth)}</span></p>
                   <p className="text-xs text-muted-foreground">{t("settingsAbonnement.callsPerMonth")}</p>
                 </div>
               </div>

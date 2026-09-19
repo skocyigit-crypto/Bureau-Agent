@@ -4,6 +4,8 @@ import { eq, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
 import { withHeartbeat } from "./health-agents";
+import { basculerFacturesEnRetard } from "./factures-en-retard";
+import { basculerDevisExpires } from "./devis-expires";
 
 let lastRunMonth: string | null = null;
 let timer: NodeJS.Timeout | null = null;
@@ -41,6 +43,33 @@ async function runForMonth(year: number, month: number): Promise<void> {
 
 async function tick(): Promise<void> {
   const now = new Date();
+
+  // Le statut « retard » etait lu partout et ecrit nulle part: le montant en
+  // retard du tableau de bord valait toujours zero. Voir
+  // `basculerFacturesEnRetard`. Fait a chaque passage, pas seulement le 1er du
+  // mois: une facture echoit le jour ou elle echoit.
+  try {
+    const bascules = await basculerFacturesEnRetard(now);
+    if (bascules.length > 0) {
+      logger.info({ factures: bascules.length }, "[billing-cron] factures passees en retard");
+    }
+  } catch (err) {
+    // Une erreur ici ne doit pas empecher la generation mensuelle.
+    logger.error({ err }, "[billing-cron] bascule des factures en retard en echec");
+  }
+
+  // Meme oubli cote devis: `expire` etait un statut reconnu, `valid_until`
+  // une colonne remplie, et rien ne rapprochait les deux. Un devis de l'an
+  // dernier restait convertible en facture, a son ancien prix.
+  try {
+    const expires = await basculerDevisExpires(now);
+    if (expires.length > 0) {
+      logger.info({ devis: expires.length }, "[billing-cron] devis passes en expire");
+    }
+  } catch (err) {
+    logger.error({ err }, "[billing-cron] bascule des devis expires en echec");
+  }
+
   // Generate for previous month if we are in current month and haven't run yet
   // Triggers any time after day 1 02:00 UTC
   if (now.getUTCDate() === 1 && now.getUTCHours() < 2) return;

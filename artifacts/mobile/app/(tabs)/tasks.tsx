@@ -538,7 +538,11 @@ export default function TasksScreen() {
               try {
                 const res = await fetchAuth(`${API_BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: selected.title, status: "planifie", priority: selected.priority || "moyenne", progress: 0, notes: t("tasksScreen.projectNotes") }) });
                 if (res.ok) { setSelected(null); router.push("/projets" as any); }
-              } catch {}
+                // Sans ce message, un echec ne produisait RIEN a l'ecran: la fiche
+                // restait ouverte, aucun projet n'apparaissait, et l'utilisateur
+                // appuyait a nouveau — en creant parfois plusieurs projets.
+                else Alert.alert(t("common.error"), t("common.projectCreateFailed"));
+              } catch { Alert.alert(t("common.error"), t("common.projectCreateFailed")); }
             },
           }]}
         />

@@ -39,7 +39,9 @@
     "library": "Bibliothèque",
     "commands": "Commandes",
     "reopen": "Rouvrir",
-    "markDone": "Marquer comme terminé"
+    "markDone": "Marquer comme terminé",
+    "error": "Erreur",
+    "projectCreateFailed": "Le projet n'a pas pu être créé. Réessayez."
   },
   "tabs": {
     "home": "Accueil",
@@ -2656,7 +2658,10 @@
       "expiree": "Expirée",
       "suspendu": "Suspendu",
       "essai": "Essai"
-    }
+    },
+    "featureAi": "Assistant IA",
+    "featureStock": "Gestion de stock",
+    "featureAutomation": "Automatisations"
   },
   "dailyDigestScreen": {
     "headerTitle": "Mon Bilan du Jour",

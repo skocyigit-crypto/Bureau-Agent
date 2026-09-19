@@ -141,9 +141,38 @@ describe("les clotures sont elles-memes chainees", () => {
     expect(v.motif).toBe("chainon_cloture_rompu");
   });
 
-  it("refusent un cumul qui recule", () => {
-    // Meme si les empreintes etaient refaites proprement, un cumul ne recule
-    // jamais: il additionne des montants dont les annulations sont signees.
+  it("acceptent un cumul qui recule apres une contre-passation", () => {
+    // Il y avait ici la regle inverse — « un cumul ne recule jamais ». Elle
+    // etait fausse: une contre-passation porte un montant NEGATIF
+    // (routes/encaissements.ts), pour que la somme reste juste sans jamais
+    // effacer de ligne. Une annulation legitime — un reglement saisi deux
+    // fois, un cheque rejete — faisait donc declarer le journal incoherent,
+    // et l'attestation de conformite refusait de s'emettre.
+    // Journal reduit au 9: ainsi le SEUL evenement du 10 est la
+    // contre-passation, et le recul du cumul ne peut venir que d'elle.
+    const j = journal(JOURNEE.slice(0, 2));
+    const c9 = calculerCloture(ORG, "journaliere", "2026-09-09", j, null);
+
+    const cible = j[0]!;
+    const contrePassation = preparerEcriture({
+      organisationId: ORG, factureId: cible.factureId, montantCentimes: -cible.montantCentimes,
+      devise: "EUR", moyen: cible.moyen, dateEncaissement: "2026-09-10T10:00:00.000Z",
+      sens: "annulation", annuleNumero: cible.numero,
+    } as any, j[j.length - 1]!);
+    const apres = [...j, contrePassation];
+
+    const c10 = calculerCloture(ORG, "journaliere", "2026-09-10", apres, c9);
+    expect(c10.totalCumuleCentimes, "la contre-passation fait bien reculer le cumul")
+      .toBeLessThan(c9.totalCumuleCentimes);
+
+    const v = verifierConservation([c9, c10], apres, ORG);
+    expect(v.coherent, "une annulation legitime n'est pas une incoherence").toBe(true);
+  });
+
+  it("voient toujours un cumul reecrit a la main", () => {
+    // Ce que la regle retiree cherchait a attraper reste attrape — par le
+    // recompte du journal, qui ne depend d'aucune hypothese sur le sens de
+    // variation du cumul.
     const j = journal(JOURNEE);
     const c9 = calculerCloture(ORG, "journaliere", "2026-09-09", j, null);
     const faux = { ...c9, periode: "2026-09-10", totalCumuleCentimes: 100, empreintePrecedente: c9.empreinte };
@@ -151,7 +180,7 @@ describe("les clotures sont elles-memes chainees", () => {
 
     const v = verifierConservation([c9, scelle], j, ORG);
     expect(v.coherent).toBe(false);
-    expect(v.motif).toBe("cumul_regresse");
+    expect(v.motif).toBe("cumul_ne_correspond_pas");
   });
 });
 

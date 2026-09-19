@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, asc, ilike, or, sql, and, isNull, type Column, type SQL } from "drizzle-orm";
+import { motifDeRapprochement } from "../lib/rapprochement-contact";
 import { db, contactsTable, callsTable, tasksTable, calendarEventsTable, projetsTable, messagesTable } from "@workspace/db";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import {
@@ -552,12 +553,26 @@ router.get("/contacts/:id/devis", async (req, res): Promise<void> => {
   try {
     const contact = await db.select({ email: contactsTable.email, firstName: contactsTable.firstName, lastName: contactsTable.lastName, company: contactsTable.company }).from(contactsTable).where(and(eq(contactsTable.id, id), eq(contactsTable.organisationId, orgId))).limit(1);
     if (!contact[0]) { res.status(404).json({ error: "Contact not found" }); return; }
-    const name = `${contact[0].firstName} ${contact[0].lastName}`.trim();
     const { devisTable, facturesClientTable } = await import("@workspace/db");
     const useUnaccent = await ensureUnaccentExtension();
-    const namePattern = `%${name}%`;
-    const devisWhere = and(eq(devisTable.organisationId, orgId), or(ilike(devisTable.clientEmail, contact[0].email || "__none__"), accentInsensitiveIlike(devisTable.clientName, namePattern, useUnaccent)));
-    const facturesWhere = and(eq(facturesClientTable.organisationId, orgId), or(ilike(facturesClientTable.clientEmail, contact[0].email || "__none__"), accentInsensitiveIlike(facturesClientTable.clientName, namePattern, useUnaccent)));
+    // Un nom vide donnait `%%`, que TOUTE chaine satisfait: la fiche affichait
+    // alors les devis et factures de tous les clients de l'organisation. Voir
+    // `motifDeRapprochement`.
+    const namePattern = motifDeRapprochement(contact[0].firstName, contact[0].lastName);
+    const courriel = contact[0].email?.trim() || null;
+
+    const ressemble = (colonneEmail: any, colonneNom: any) => {
+      const pistes = [];
+      if (courriel) pistes.push(ilike(colonneEmail, courriel));
+      if (namePattern) pistes.push(accentInsensitiveIlike(colonneNom, namePattern, useUnaccent));
+      // Aucune piste: ni e-mail, ni nom exploitable. On ne rapproche rien —
+      // `sql`false`` dit cela sans ambiguite, la ou un OR vide s'effondrerait
+      // en « tout ».
+      return pistes.length === 0 ? sql`false` : or(...pistes);
+    };
+
+    const devisWhere = and(eq(devisTable.organisationId, orgId), ressemble(devisTable.clientEmail, devisTable.clientName));
+    const facturesWhere = and(eq(facturesClientTable.organisationId, orgId), ressemble(facturesClientTable.clientEmail, facturesClientTable.clientName));
     const [devisList, facturesList, devisCount, facturesCount] = await Promise.all([
       db.select({ id: devisTable.id, reference: devisTable.reference, status: devisTable.status, totalAmount: devisTable.totalAmount, createdAt: devisTable.createdAt }).from(devisTable)
         .where(devisWhere).orderBy(desc(devisTable.createdAt)).limit(limit).offset(offset),

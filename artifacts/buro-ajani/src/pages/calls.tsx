@@ -26,6 +26,7 @@ import { getListCallsQueryKey,useCreateCall,useListCalls,useListContacts,useUpda
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ArrowDown,ArrowUp,ArrowUpDown,CalendarIcon,Check,ChevronLeft,ChevronRight,ChevronsLeft,ChevronsRight,Clock,Copy,Download,FolderKanban,MoreHorizontal,Phone,PhoneIncoming,PhoneMissed,PhoneOutgoing,Plus,Printer,Search,Trash2,Voicemail } from "lucide-react";
+import { intentionAppel } from "@/lib/intention-appel";
 import { useEffect,useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link,useLocation } from "wouter";
@@ -86,15 +87,15 @@ export default function Calls() {
   const { data: contactsData } = useListContacts({ limit: 100 }, { query: { queryKey: ["contacts", "all"] } });
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const cId = params.get("contactId");
-    if (cId) {
-      form.setValue("contactId", cId as any);
-      const matchedContact = contactsData?.contacts?.find((c: any) => String(c.id) === cId);
-      if (matchedContact?.phone) {
-        form.setValue("phoneNumber", matchedContact.phone);
-      }
-      setIsDialogOpen(true);
+    // Deux boutons menent ici et n'envoient pas le meme parametre. Ce que
+    // l'URL demande, et le moment ou elle a fini de servir, sont decides par
+    // `intentionAppel` — voir le commentaire de cette fonction.
+    const intention = intentionAppel(window.location.search, contactsData?.contacts as any);
+    if (!intention.ouvrir) return;
+    if (intention.contactId) form.setValue("contactId", intention.contactId as any);
+    if (intention.phoneNumber) form.setValue("phoneNumber", intention.phoneNumber);
+    setIsDialogOpen(true);
+    if (intention.urlConsommee) {
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, [contactsData]);

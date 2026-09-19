@@ -118,7 +118,10 @@ interface Invoice {
   plan: string;
   baseAmount: string;
   overageAmount: string;
+  /** Total HORS TAXES (voir le schema): ce n'est pas ce que le client doit. */
   totalAmount: string;
+  /** Total toutes taxes comprises: la somme reellement reclamee. */
+  totalTtc?: string;
   status: string;
   usageSnapshot: {
     users: { current: number; max: number; overage: number };
@@ -263,6 +266,7 @@ export default function OrganisationsPage() {
   const [showBilling, setShowBilling] = useState(false);
   const [billingOrg, setBillingOrg] = useState<Organisation | null>(null);
   const [orgBilling, setOrgBilling] = useState<OrgBilling | null>(null);
+  const [billingErreur, setBillingErreur] = useState(false);
   const [billingLoading, setBillingLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
@@ -278,6 +282,7 @@ export default function OrganisationsPage() {
   const [legalDetailOrg, setLegalDetailOrg] = useState<LegalCompliance | null>(null);
   const [legalDetailDocs, setLegalDetailDocs] = useState<LegalDocument[]>([]);
   const [legalDetailLoading, setLegalDetailLoading] = useState(false);
+  const [legalDetailErreur, setLegalDetailErreur] = useState(false);
   const [acceptingLegal, setAcceptingLegal] = useState<string | null>(null);
   const [acceptingAll, setAcceptingAll] = useState(false);
 
@@ -343,6 +348,12 @@ export default function OrganisationsPage() {
 
   const openLegalDetail = async (org: LegalCompliance) => {
     setLegalDetailOrg(org);
+    // Les documents de l'organisation PRECEDENTE sont effaces avant tout.
+    // Sans cela, une lecture qui echoue laissait la liste d'avant sous le nom
+    // de la nouvelle — et « Accepter » portait alors sur les documents d'une
+    // autre entreprise.
+    setLegalDetailDocs([]);
+    setLegalDetailErreur(false);
     setShowLegalDetail(true);
     setLegalDetailLoading(true);
     try {
@@ -350,8 +361,13 @@ export default function OrganisationsPage() {
       if (res.ok) {
         const data = await res.json();
         setLegalDetailDocs(data.documents || []);
+      } else {
+        setLegalDetailErreur(true);
       }
-    } catch (err) { console.error("[Organisations] openLegalDetail failed:", err); } finally {
+    } catch (err) {
+      console.error("[Organisations] openLegalDetail failed:", err);
+      setLegalDetailErreur(true);
+    } finally {
       setLegalDetailLoading(false);
     }
   };
@@ -545,14 +561,24 @@ export default function OrganisationsPage() {
 
   const openBilling = async (org: Organisation) => {
     setBillingOrg(org);
+    // Meme raison que pour le dossier juridique: les factures de
+    // l'organisation precedente s'affichaient sous le nom de la nouvelle
+    // quand la lecture echouait, et les actions portaient sur elles.
+    setOrgBilling(null);
+    setBillingErreur(false);
     setShowBilling(true);
     setBillingLoading(true);
     try {
       const res = await fetch(`${BASE}api/billing/invoices/${org.id}`, { credentials: "include" });
       if (res.ok) {
         setOrgBilling(await res.json());
+      } else {
+        setBillingErreur(true);
       }
-    } catch (err) { console.error("[Organisations] openBilling failed:", err); } finally {
+    } catch (err) {
+      console.error("[Organisations] openBilling failed:", err);
+      setBillingErreur(true);
+    } finally {
       setBillingLoading(false);
     }
   };
@@ -1859,6 +1885,12 @@ export default function OrganisationsPage() {
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
+          ) : legalDetailErreur ? (
+            // Dire que la lecture a echoue, plutot que de laisser un ecran
+            // vide passer pour « rien a afficher ».
+            <div className="py-12 text-center text-sm text-muted-foreground">
+              {t("organisationsPage.chargementEchoue")}
+            </div>
           ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
@@ -1968,6 +2000,12 @@ export default function OrganisationsPage() {
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
+          ) : billingErreur ? (
+            // Dire que la lecture a echoue, plutot que de laisser un ecran
+            // vide passer pour « rien a afficher ».
+            <div className="py-12 text-center text-sm text-muted-foreground">
+              {t("organisationsPage.chargementEchoue")}
+            </div>
           ) : orgBilling ? (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
@@ -2000,7 +2038,12 @@ export default function OrganisationsPage() {
                           <Badge className={INVOICE_STATUS_COLORS[inv.status] || ""}>
                             {["en_attente", "payee", "partiel", "retard", "annulee"].includes(inv.status) ? t("organisationsPage.invoiceStatus." + inv.status) : inv.status}
                           </Badge>
-                          <p className="font-bold text-lg">{Number(inv.totalAmount).toFixed(2)} EUR</p>
+                          {/* Le montant en tete est ce que le client DOIT, donc le TTC.
+                              `totalAmount` est le hors taxes; l'afficher ici montrait
+                              20 % de moins que la somme reclamee. Les factures anterieures
+                              a la TVA portent un totalTtc nul: leur HT etait alors bien le
+                              montant du. */}
+                          <p className="font-bold text-lg">{(Number(inv.totalTtc ?? 0) > 0 ? Number(inv.totalTtc) : Number(inv.totalAmount)).toFixed(2)} EUR</p>
                         </div>
                       </div>
 

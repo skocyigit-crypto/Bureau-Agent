@@ -14,6 +14,7 @@ import { EventEmitter } from "events";
 import { aiForOrg } from "../services/ai-client";
 import { respondAiError } from "../services/ai-guard";
 import { CRON_LOCK_NAMESPACE, tryWithLock } from "../lib/cron-lock";
+import { withHeartbeat } from "../services/health-agents";
 import {
   appendSuperAgentLog,
   bumpSuperAgentStats,
@@ -2011,9 +2012,12 @@ export function startAgentAutoRunScheduler(): void {
       logger.error({ err }, "[AI Agents] Erreur planificateur auto-run");
     }
   };
-  autoRunTicker = setInterval(tick, AUTO_RUN_TICK_MS);
+  // Meme raison que ci-dessous pour l'Oto-Pilot: sans inscription au
+  // declencheur externe, cette boucle s'eteint avec l'instance.
+  const battuAutoRun = withHeartbeat("agent-auto-run", AUTO_RUN_TICK_MS, tick);
+  autoRunTicker = setInterval(battuAutoRun, AUTO_RUN_TICK_MS);
   autoRunTicker.unref?.();
-  setTimeout(tick, 60 * 1000); // premier passage ~60s apres le boot
+  setTimeout(battuAutoRun, 60 * 1000); // premier passage ~60s apres le boot
   logger.info("[AI Agents] planificateur auto-run demarre — verification 10min, cadence 2h, etat durable (DB)");
 }
 
@@ -2051,7 +2055,9 @@ router.post("/ai/agents/auto-stop", requireAdmin, async (_req, res) => {
 });
 
 const autopilotState = new Map<number, {
-  interval: ReturnType<typeof setInterval> | null;
+  // Plus de minuteur ici: il ne survivait pas au recyclage de l'instance,
+  // et deux instances en creaient deux. Ne reste que le journal, qui est
+  // un confort d'affichage.
   running: boolean;
   log: Array<{ timestamp: string; type: string; message: string; provider?: string; severity?: string }>;
   status: { active: boolean; lastRun?: string; cycleCount: number; fixesApplied: number; issuesFound: number };
@@ -2060,7 +2066,6 @@ const autopilotState = new Map<number, {
 function getOrgAutopilot(orgId: number) {
   if (!autopilotState.has(orgId)) {
     autopilotState.set(orgId, {
-      interval: null,
       running: false,
       log: [],
       status: { active: false, cycleCount: 0, fixesApplied: 0, issuesFound: 0 },
@@ -2383,6 +2388,84 @@ Reponds en JSON:
   }
 }
 
+const AUTOPILOT_INTERVAL_MS = 30 * 60 * 1000;
+const AUTOPILOT_TICK_MS = 5 * 60 * 1000;
+let autopilotTicker: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Planificateur global de l'Oto-Pilot. Demarre au boot (index.ts).
+ *
+ * Avant, chaque activation creait un `setInterval` dans l'instance qui avait
+ * recu la requete. Sur Cloud Run, une instance est recyclee sans preavis et le
+ * service tourne a maxScale=3 : le minuteur disparaissait avec son instance —
+ * plus aucun cycle, alors que l'ecran annoncait « actif » — ou bien deux
+ * instances en portaient chacune un, et deux cycles tournaient en meme temps
+ * pour la meme organisation, sans verrou, alors que le declenchement manuel,
+ * lui, en prend un.
+ *
+ * L'etat vient donc de la base, la selection est atomique (`UPDATE ...
+ * RETURNING` avance l'horodatage au moment de reclamer), et le cycle lui-meme
+ * reste protege par le verrou consultatif partage.
+ */
+export function startAutopilotScheduler(): void {
+  if (autopilotTicker) return;
+  const tick = async () => {
+    try {
+      for (const orgId of await reclamerAutopilot()) {
+        void tryWithLock(CRON_LOCK_NAMESPACE.autopilot, orgId, async () => {
+          await runAutopilotCycle(orgId);
+        }).catch((err) => {
+          logger.error({ err, orgId }, "[Autopilot] Erreur cycle planifie");
+          addAutopilotLog(orgId, "error", `Cycle automatique echoue: ${err?.message}`, "system", "haute");
+        });
+      }
+    } catch (err) {
+      logger.error({ err }, "[Autopilot] Erreur planificateur");
+    }
+  };
+  // Inscription au declencheur EXTERNE. Le service tourne avec
+  // min-instances=0: Cloud Run eteint l'instance des que le trafic cesse, et
+  // le `setInterval` s'eteint avec elle. Sans cette inscription, les cycles
+  // planifies ne partaient que si quelqu'un utilisait l'application au meme
+  // moment — c'est-a-dire jamais la nuit, precisement quand on attend d'une
+  // surveillance continue qu'elle serve.
+  const battu = withHeartbeat("autopilot", AUTOPILOT_TICK_MS, tick);
+  autopilotTicker = setInterval(battu, AUTOPILOT_TICK_MS);
+  autopilotTicker.unref?.();
+  logger.info("[Autopilot] planificateur demarre — verification 5min, cadence 30min, etat durable (DB)");
+}
+
+/**
+ * Reclame les organisations dont le prochain cycle est du, et renvoie leurs
+ * identifiants.
+ *
+ * L'horodatage est AVANCE au moment de la reclamation, pas a la fin du cycle:
+ * `UPDATE ... RETURNING` est atomique cote Postgres, donc deux instances qui
+ * verifient en meme temps ne peuvent pas reclamer la meme organisation — la
+ * seconde ne matche plus le filtre de cadence. Le verrou consultatif reste la
+ * pour le cas du declenchement manuel pendant un cycle planifie.
+ *
+ * Exportee pour que cette regle soit verifiable contre une vraie base.
+ */
+export async function reclamerAutopilot(maintenant: Date = new Date()): Promise<number[]> {
+  const cutoff = new Date(maintenant.getTime() - AUTOPILOT_INTERVAL_MS);
+  const claimed = await db
+    .update(organisationsTable)
+    .set({ autopilotLastRunAt: maintenant })
+    .where(
+      and(
+        eq(organisationsTable.autopilotEnabled, true),
+        eq(organisationsTable.actif, true),
+        or(
+          isNull(organisationsTable.autopilotLastRunAt),
+          lt(organisationsTable.autopilotLastRunAt, cutoff),
+        ),
+      ),
+    )
+    .returning({ id: organisationsTable.id });
+  return claimed.map((o) => o.id);
+}
+
 router.post("/ai/autopilot/run", requireAdmin, async (req, res): Promise<void> => {
   const orgId = req.session?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
@@ -2425,12 +2508,17 @@ router.post("/ai/autopilot/start", requireAdmin, async (req, res): Promise<void>
   const orgId = req.session?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
 
-  const state = getOrgAutopilot(orgId);
-  if (state.interval) {
-    res.json({ status: "active", message: "Oto-Pilot deja actif", ...state.status });
-    return;
-  }
+  // L'activation est ECRITE, pas tenue en memoire: c'est le planificateur
+  // global qui declenchera les cycles suivants, sur l'instance qui obtiendra
+  // le verrou. Voir `startAutopilotScheduler`.
+  const [org] = await db
+    .update(organisationsTable)
+    .set({ autopilotEnabled: true })
+    .where(eq(organisationsTable.id, orgId))
+    .returning({ id: organisationsTable.id });
+  if (!org) { res.status(404).json({ error: "Organisation introuvable." }); return; }
 
+  const state = getOrgAutopilot(orgId);
   state.status.active = true;
   addAutopilotLog(orgId, "system", "Oto-Pilot active - mode surveillance continue");
 
@@ -2439,19 +2527,6 @@ router.post("/ai/autopilot/start", requireAdmin, async (req, res): Promise<void>
     return null;
   });
 
-  state.interval = setInterval(async () => {
-    const s = getOrgAutopilot(orgId);
-    if (s.running) return;
-    s.running = true;
-    try {
-      await runAutopilotCycle(orgId);
-    } catch (e: any) {
-      addAutopilotLog(orgId, "error", `Cycle automatique echoue: ${e.message}`, "system", "haute");
-    } finally {
-      s.running = false;
-    }
-  }, 30 * 60 * 1000);
-
   res.json({
     status: "active",
     message: "Oto-Pilot active - cycles toutes les 30 minutes",
@@ -2459,32 +2534,41 @@ router.post("/ai/autopilot/start", requireAdmin, async (req, res): Promise<void>
     firstCycle: firstResult,
   });
 });
-
 router.post("/ai/autopilot/stop", requireAdmin, async (req, res): Promise<void> => {
   const orgId = req.session?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
 
+  await db
+    .update(organisationsTable)
+    .set({ autopilotEnabled: false })
+    .where(eq(organisationsTable.id, orgId));
+
   const state = getOrgAutopilot(orgId);
-  if (state.interval) {
-    clearInterval(state.interval);
-    state.interval = null;
-  }
   state.status.active = false;
   addAutopilotLog(orgId, "system", "Oto-Pilot desactive");
   res.json({ status: "inactive", message: "Oto-Pilot desactive", ...state.status });
 });
-
 router.get("/ai/autopilot/status", requireMinAgent, async (req, res): Promise<void> => {
   const orgId = req.session?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
 
+  // `active` vient de la BASE. Lu en memoire, il annoncait « actif » sur une
+  // instance qui n'avait jamais recu le /start — et « inactif » sur celle qui
+  // venait d'etre recyclee, alors que l'organisation l'avait bien active.
+  const [org] = await db
+    .select({ actif: organisationsTable.autopilotEnabled, dernier: organisationsTable.autopilotLastRunAt })
+    .from(organisationsTable)
+    .where(eq(organisationsTable.id, orgId))
+    .limit(1);
+
   const state = getOrgAutopilot(orgId);
   res.json({
     ...state.status,
+    active: org?.actif ?? false,
+    lastRun: org?.dernier?.toISOString() ?? state.status.lastRun,
     recentLogs: state.log.slice(-30),
   });
 });
-
 router.get("/ai/autopilot/logs", requireMinAgent, async (req, res): Promise<void> => {
   const orgId = req.session?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }

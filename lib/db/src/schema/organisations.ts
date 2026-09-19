@@ -98,6 +98,15 @@ export const organisationsTable = pgTable("organisations", {
   billingRequiresApproval: boolean("billing_requires_approval").notNull().default(true),
   agentAutoRunEnabled: boolean("agent_auto_run_enabled").notNull().default(false),
   agentAutoRunLastRunAt: timestamp("agent_auto_run_last_run_at", { withTimezone: true }),
+  // Oto-Pilot. Son etat vivait dans une Map en memoire, alimentee par un
+  // `setInterval` cree par la route /ai/autopilot/start. Sur Cloud Run
+  // (maxScale=3, instances recyclees) cela donnait deux defauts opposes :
+  // l'instance qui portait le minuteur disparaissait et plus aucun cycle ne
+  // tournait, alors que l'ecran continuait d'afficher « actif » ; et deux
+  // instances ayant chacune recu un /start faisaient tourner deux cycles
+  // concurrents sans verrou. L'etat vit donc en base, comme pour l'auto-run.
+  autopilotEnabled: boolean("autopilot_enabled").notNull().default(false),
+  autopilotLastRunAt: timestamp("autopilot_last_run_at", { withTimezone: true }),
   // Horaires d'ouverture utilises par le service de disponibilites (creneaux
   // de rendez-vous). Jours = numeros ISO (1=lundi .. 7=dimanche) separes par
   // des virgules. Heures = "HH:MM" 24h. Fuseau IANA. Duree par defaut d'un RDV.

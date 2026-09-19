@@ -39,7 +39,9 @@
     "library": "Kitaplık",
     "commands": "Komutlar",
     "reopen": "Yeniden aç",
-    "markDone": "Tamamlandı olarak işaretle"
+    "markDone": "Tamamlandı olarak işaretle",
+    "error": "Hata",
+    "projectCreateFailed": "Proje oluşturulamadı. Tekrar deneyin."
   },
   "tabs": {
     "home": "Ana Sayfa",
@@ -2656,7 +2658,10 @@
       "expiree": "Süresi doldu",
       "suspendu": "Askıya alındı",
       "essai": "Deneme"
-    }
+    },
+    "featureAi": "Yapay zeka asistanı",
+    "featureStock": "Stok yönetimi",
+    "featureAutomation": "Otomasyonlar"
   },
   "dailyDigestScreen": {
     "headerTitle": "Günlük Özetim",

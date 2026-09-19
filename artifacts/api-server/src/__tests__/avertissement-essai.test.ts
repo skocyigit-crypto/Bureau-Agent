@@ -96,9 +96,10 @@ describe("un envoi echoue est retente", () => {
     const orgId = await semer("echec", dans(12));
     echoue = true;
     await tick();
-    // La base de test est partagee: d'autres suites y laissent des essais.
-    // On ne compte donc que les envois destines a CETTE organisation.
-    expect(envois.filter(e => e.to.includes("echec")), "l'email aurait du etre tente").toHaveLength(1);
+    // La base de test est partagee, ET ce fichier laisse ses propres essais
+    // d une execution a l autre: filtrer sur « echec » seul comptait aussi
+    // ceux du run precedent. Le marqueur du run est donc dans le filtre.
+    expect(envois.filter(e => e.to.includes(`echec-${marque}`)), "l'email aurait du etre tente").toHaveLength(1);
     expect(
       await traces(orgId),
       "trace ecrite malgre l'echec: la deduplication condamne le client au silence",
@@ -109,12 +110,12 @@ describe("un envoi echoue est retente", () => {
     const orgId = await semer("reprise", dans(12));
     echoue = true;
     await tick();
-    expect(envois.filter(e => e.to.includes("reprise"))).toHaveLength(1);
+    expect(envois.filter(e => e.to.includes(`reprise-${marque}`))).toHaveLength(1);
 
     envois.length = 0;
     echoue = false;
     await tick();
-    expect(envois.filter(e => e.to.includes("reprise")), "aucune seconde tentative").toHaveLength(1);
+    expect(envois.filter(e => e.to.includes(`reprise-${marque}`)), "aucune seconde tentative").toHaveLength(1);
     const t = await traces(orgId);
     expect(t).toHaveLength(1);
     expect(t[0].action).toBe("trial_ending_warning");

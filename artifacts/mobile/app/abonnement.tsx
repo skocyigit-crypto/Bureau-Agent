@@ -19,53 +19,63 @@ import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { useTranslation } from "@/lib/i18n";
 
+/**
+ * La forme REELLE de `GET /api/my-subscription`.
+ *
+ * L'ecran decrivait une autre reponse: `organisation.maxUsers`,
+ * `organisation.currentUsers`, `usage.tasks`, `usage.messages`,
+ * `usage.documents`, `features`, `subscription.amount`. Aucun de ces champs
+ * n'est emis. Consequences mesurees le 19/09 :
+ *
+ *  - `UsageBar` appelait `used.toLocaleString()` sur `undefined` — une
+ *    TypeError, donc l'ecran entier en erreur des qu'il chargeait ;
+ *  - la barre de licences calculait `undefined / undefined`, soit une largeur
+ *    « NaN% » ;
+ *  - le montant de l'abonnement s'affichait « — » pour tout le monde, le
+ *    serveur emettant `price`.
+ */
 interface SubscriptionData {
   organisation: {
+    id: number;
     name: string;
-    email: string;
-    plan: string;
-    maxUsers: number;
-    currentUsers: number;
-    storageUsed?: number;
-    storageLimit?: number;
-    trialEndsAt?: string;
-    createdAt?: string;
+    actif: boolean;
   };
   subscription?: {
     plan: string;
+    planName?: string;
     status: string;
-    startDate?: string;
-    endDate?: string;
+    price?: number | string;
+    currency?: string;
     billingCycle?: string;
-    amount?: number;
+    trialEndsAt?: string;
+    currentPeriodEnd?: string;
+    createdAt?: string;
+  } | null;
+  limits?: {
+    maxUsers: number;
+    maxContacts: number;
+    maxCallsPerMonth: number;
+    aiEnabled?: boolean;
+    stockEnabled?: boolean;
+    automationEnabled?: boolean;
   };
   usage?: {
+    users: number;
     contacts: number;
     calls: number;
-    tasks: number;
-    messages: number;
-    documents: number;
-    aiTokensUsed?: number;
-    aiTokensLimit?: number;
   };
-  features?: string[];
-  invoices?: Array<{
-    id: number;
-    reference: string;
-    amount: number;
-    status: string;
-    date: string;
-  }>;
+  isActive?: boolean;
 }
 
+// Les cles sont celles des PLANS du produit (lib/db, schema/subscriptions).
+// Elles etaient inventees — « pro », « business », « enterprise », « trial » —
+// donc aucune ne correspondait: tout abonnement retombait sur « Starter »,
+// gris, quel que soit le plan reellement souscrit.
 const PLAN_COLORS: Record<string, { color: string; bg: string; labelKey: string; icon: keyof typeof Feather.glyphMap }> = {
-  starter:      { color: "#64748b", bg: "#f1f5f9", labelKey: "abonnementScreen.plan.starter",     icon: "box" },
-  pro:          { color: "#3b82f6", bg: "#eff6ff", labelKey: "abonnementScreen.plan.pro",         icon: "trending-up" },
-  business:     { color: "#8b5cf6", bg: "#f5f3ff", labelKey: "abonnementScreen.plan.business",    icon: "briefcase" },
-  enterprise:   { color: "#f59e0b", bg: "#fffbeb", labelKey: "abonnementScreen.plan.enterprise",  icon: "star" },
-  super_admin:  { color: "#ef4444", bg: "#fef2f2", labelKey: "abonnementScreen.plan.super_admin", icon: "shield" },
-  gratuit:      { color: "#22c55e", bg: "#f0fdf4", labelKey: "abonnementScreen.plan.gratuit",     icon: "gift" },
-  trial:        { color: "#0891b2", bg: "#f0f9ff", labelKey: "abonnementScreen.plan.trial",       icon: "clock" },
+  essai:         { color: "#0891b2", bg: "#f0f9ff", labelKey: "abonnementScreen.plan.essai",         icon: "clock" },
+  starter:       { color: "#64748b", bg: "#f1f5f9", labelKey: "abonnementScreen.plan.starter",       icon: "box" },
+  professionnel: { color: "#3b82f6", bg: "#eff6ff", labelKey: "abonnementScreen.plan.professionnel", icon: "trending-up" },
+  entreprise:    { color: "#f59e0b", bg: "#fffbeb", labelKey: "abonnementScreen.plan.entreprise",    icon: "star" },
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -94,13 +104,18 @@ function fmtEur(v: number | undefined) {
 
 function UsageBar({ label, used, total, color }: { label: string; used: number; total?: number; color: string }) {
   const colors = useColors();
-  const pct = total && total > 0 ? Math.min(100, (used / total) * 100) : null;
+  // `used` arrivait `undefined` quand l'ecran demandait un compteur que le
+  // serveur n'emet pas: `undefined.toLocaleString()` mettait tout l'ecran en
+  // erreur. Un compteur absent vaut zero, il ne fait pas tomber la page.
+  const consomme = Number.isFinite(Number(used)) ? Number(used) : 0;
+  const plafond = Number.isFinite(Number(total)) && Number(total) > 0 ? Number(total) : null;
+  const pct = plafond !== null ? Math.min(100, (consomme / plafond) * 100) : null;
   return (
     <View style={usageStyles.row}>
       <View style={usageStyles.rowTop}>
         <Text style={[usageStyles.label, { color: colors.foreground }]}>{label}</Text>
         <Text style={[usageStyles.value, { color: colors.mutedForeground }]}>
-          {used.toLocaleString("fr-FR")}{total ? ` / ${total.toLocaleString("fr-FR")}` : ""}
+          {consomme.toLocaleString("fr-FR")}{plafond !== null ? ` / ${plafond.toLocaleString("fr-FR")}` : ""}
         </Text>
       </View>
       {pct !== null && (
@@ -176,8 +191,8 @@ export default function AbonnementScreen() {
     } finally { setUpgradeLoading(false); }
   }
 
-  const plan = data?.organisation?.plan ?? "starter";
-  const planCfg = PLAN_COLORS[plan] ?? PLAN_COLORS.starter;
+  const plan = data?.subscription?.plan ?? "essai";
+  const planCfg = PLAN_COLORS[plan] ?? PLAN_COLORS.essai;
   const subStatus = data?.subscription?.status ?? "actif";
   const statusColor = STATUS_COLORS[subStatus] ?? "#64748b";
   const statusLabel = STATUS_LABEL_KEYS[subStatus] ? t(STATUS_LABEL_KEYS[subStatus]) : subStatus;
@@ -232,9 +247,9 @@ export default function AbonnementScreen() {
                 { key: "plan", label: t("abonnementScreen.rowPlan"), value: t(planCfg.labelKey) },
                 { key: "statut", label: t("abonnementScreen.rowStatut"), value: statusLabel, color: statusColor },
                 { key: "billing", label: t("abonnementScreen.rowBillingCycle"), value: data.subscription.billingCycle === "mensuel" ? t("abonnementScreen.billingMensuel") : data.subscription.billingCycle === "annuel" ? t("abonnementScreen.billingAnnuel") : data.subscription.billingCycle ?? "—" },
-                { key: "montant", label: t("abonnementScreen.rowMontant"), value: data.subscription.amount ? fmtEur(data.subscription.amount) : "—" },
-                { key: "start", label: t("abonnementScreen.rowStart"), value: fmtDate(data.subscription.startDate) },
-                { key: "renewal", label: t("abonnementScreen.rowRenewal"), value: fmtDate(data.subscription.endDate) },
+                { key: "montant", label: t("abonnementScreen.rowMontant"), value: data.subscription.price != null ? fmtEur(Number(data.subscription.price)) : "—" },
+                { key: "start", label: t("abonnementScreen.rowStart"), value: fmtDate(data.subscription.createdAt) },
+                { key: "renewal", label: t("abonnementScreen.rowRenewal"), value: fmtDate(data.subscription.currentPeriodEnd ?? data.subscription.trialEndsAt) },
               ].map(r => (
                 <View key={r.key} style={[styles.detailRow, { borderColor: colors.border }]}>
                   <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>{r.label}</Text>
@@ -250,24 +265,26 @@ export default function AbonnementScreen() {
               <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("abonnementScreen.licencesTitle")}</Text>
               <View style={styles.licenceRow}>
                 <View style={styles.licenceItem}>
-                  <Text style={[styles.licenceNum, { color: planCfg.color }]}>{data.organisation.currentUsers}</Text>
+                  <Text style={[styles.licenceNum, { color: planCfg.color }]}>{(data.usage?.users ?? 0)}</Text>
                   <Text style={[styles.licenceLbl, { color: colors.mutedForeground }]}>{t("abonnementScreen.licenceUsed")}</Text>
                 </View>
                 <View style={[styles.licenceDivider, { backgroundColor: colors.border }]} />
                 <View style={styles.licenceItem}>
-                  <Text style={[styles.licenceNum, { color: colors.foreground }]}>{data.organisation.maxUsers}</Text>
+                  <Text style={[styles.licenceNum, { color: colors.foreground }]}>{(data.limits?.maxUsers ?? 0)}</Text>
                   <Text style={[styles.licenceLbl, { color: colors.mutedForeground }]}>{t("abonnementScreen.licenceMax")}</Text>
                 </View>
                 <View style={[styles.licenceDivider, { backgroundColor: colors.border }]} />
                 <View style={styles.licenceItem}>
-                  <Text style={[styles.licenceNum, { color: "#22c55e" }]}>{Math.max(0, data.organisation.maxUsers - data.organisation.currentUsers)}</Text>
+                  <Text style={[styles.licenceNum, { color: "#22c55e" }]}>{Math.max(0, (data.limits?.maxUsers ?? 0) - (data.usage?.users ?? 0))}</Text>
                   <Text style={[styles.licenceLbl, { color: colors.mutedForeground }]}>{t("abonnementScreen.licenceAvailable")}</Text>
                 </View>
               </View>
               <View style={[styles.licenceBar, { backgroundColor: colors.muted }]}>
                 <View style={[styles.licenceBarFill, {
-                  width: `${Math.min(100, (data.organisation.currentUsers / data.organisation.maxUsers) * 100)}%` as any,
-                  backgroundColor: data.organisation.currentUsers >= data.organisation.maxUsers ? "#ef4444" : planCfg.color,
+                  // Un plafond a zero donnerait « NaN% », que la mise en page
+                  // refuse. Sans plafond connu, la barre reste vide.
+                  width: `${(data.limits?.maxUsers ?? 0) > 0 ? Math.min(100, ((data.usage?.users ?? 0) / (data.limits!.maxUsers)) * 100) : 0}%` as any,
+                  backgroundColor: (data.usage?.users ?? 0) >= (data.limits?.maxUsers ?? 0) ? "#ef4444" : planCfg.color,
                 }]} />
               </View>
             </View>
@@ -277,25 +294,29 @@ export default function AbonnementScreen() {
           {data?.usage && (
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("abonnementScreen.usageTitle")}</Text>
-              <UsageBar label={t("abonnementScreen.usageContacts")} used={data.usage.contacts} color={planCfg.color} />
-              <UsageBar label={t("abonnementScreen.usageCalls")} used={data.usage.calls} color={planCfg.color} />
-              <UsageBar label={t("abonnementScreen.usageTasks")} used={data.usage.tasks} color={planCfg.color} />
-              <UsageBar label={t("abonnementScreen.usageMessages")} used={data.usage.messages} color={planCfg.color} />
-              <UsageBar label={t("abonnementScreen.usageDocuments")} used={data.usage.documents} color={planCfg.color} />
-              {data.usage.aiTokensLimit && (
-                <UsageBar label={t("abonnementScreen.usageAiTokens")} used={data.usage.aiTokensUsed ?? 0} total={data.usage.aiTokensLimit} color="#8b5cf6" />
-              )}
+              {/* Le serveur n'emet que les compteurs qu'il sait compter:
+                  utilisateurs, contacts, appels. Les barres « taches »,
+                  « messages », « documents » et « jetons IA » portaient sur des
+                  champs inexistants — c'est ce qui mettait l'ecran en erreur. */}
+              <UsageBar label={t("abonnementScreen.usageContacts")} used={data.usage.contacts} total={data.limits?.maxContacts} color={planCfg.color} />
+              <UsageBar label={t("abonnementScreen.usageCalls")} used={data.usage.calls} total={data.limits?.maxCallsPerMonth} color={planCfg.color} />
             </View>
           )}
 
-          {/* Features */}
-          {data?.features && data.features.length > 0 && (
+          {/* Ce que le plan ouvre. `data.features` n'existe pas cote serveur:
+              ce bloc ne s'affichait jamais. Les drapeaux, eux, sont emis, et
+              c'est le PLAN qui fait foi (services/droits-plan.ts). */}
+          {data?.limits && (
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t("abonnementScreen.featuresTitle")}</Text>
-              {data.features.map((f, i) => (
-                <View key={i} style={styles.featureRow}>
-                  <Feather name="check" size={14} color={planCfg.color} />
-                  <Text style={[styles.featureText, { color: colors.foreground }]}>{f}</Text>
+              {([
+                ["abonnementScreen.featureAi", data.limits.aiEnabled],
+                ["abonnementScreen.featureStock", data.limits.stockEnabled],
+                ["abonnementScreen.featureAutomation", data.limits.automationEnabled],
+              ] as Array<[string, boolean | undefined]>).map(([cle, ouvert]) => (
+                <View key={cle} style={styles.featureRow}>
+                  <Feather name={ouvert ? "check" : "x"} size={14} color={ouvert ? planCfg.color : colors.mutedForeground} />
+                  <Text style={[styles.featureText, { color: ouvert ? colors.foreground : colors.mutedForeground }]}>{t(cle)}</Text>
                 </View>
               ))}
             </View>
@@ -309,10 +330,10 @@ export default function AbonnementScreen() {
                 <View key={i} style={[styles.invoiceRow, { borderColor: colors.border }]}>
                   <View>
                     <Text style={[styles.invoiceRef, { color: colors.foreground }]}>{inv.reference || t("abonnementScreen.invoiceFallback", { id: inv.id })}</Text>
-                    <Text style={[styles.invoiceDate, { color: colors.mutedForeground }]}>{fmtDate(inv.date)}</Text>
+                    <Text style={[styles.invoiceDate, { color: colors.mutedForeground }]}>{fmtDate(inv.createdAt ?? inv.periodEnd)}</Text>
                   </View>
                   <View style={{ alignItems: "flex-end" }}>
-                    <Text style={[styles.invoiceAmount, { color: colors.foreground }]}>{fmtEur(inv.amount)}</Text>
+                    <Text style={[styles.invoiceAmount, { color: colors.foreground }]}>{fmtEur(Number(inv.totalTtc ?? 0) > 0 ? Number(inv.totalTtc) : Number(inv.totalAmount ?? 0))}</Text>
                     <View style={[styles.invoiceStatus, { backgroundColor: inv.status === "payee" ? "#22c55e18" : "#f59e0b18" }]}>
                       <Text style={{ fontSize: 10, fontFamily: "Inter_600SemiBold", color: inv.status === "payee" ? "#22c55e" : "#f59e0b" }}>
                         {inv.status === "payee" ? t("abonnementScreen.invoicePaid") : t("abonnementScreen.invoicePending")}

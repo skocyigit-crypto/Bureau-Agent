@@ -7,6 +7,7 @@ import { logger } from "../lib/logger";
 
 import { emettreFacturePlateforme } from "../services/platform-invoice-issue";
 import { nextInvoiceNumber } from "../services/invoice-numbering";
+import { computeInvoiceTotals } from "../services/invoice-totals";
 import { enregistrerEncaissement, MOYENS_ENCAISSEMENT } from "../services/encaissement-enregistrement";
 import { OVERAGE_RATES } from "@workspace/db";
 
@@ -603,19 +604,26 @@ router.post("/license-management/create-client-invoice", async (req: Request, re
     const { clientName, clientEmail, clientPhone, clientAddress, clientCompany, title, items, dueDate, notes, conditions } = req.body;
     if (!clientName || !title) { res.status(400).json({ error: "clientName et title sont obligatoires" }); return; }
 
-    const invoiceItems = (items || []) as Array<{ description: string; quantity: number; unitPrice: number; taxRate: number }>;
-    const processedItems = invoiceItems.map(item => ({
-      description: item.description,
-      quantity: Number(item.quantity || 1),
-      unitPrice: Number(item.unitPrice || 0),
-      taxRate: Number(item.taxRate ?? 20),
-      total: Number(item.quantity || 1) * Number(item.unitPrice || 0) * (1 + Number(item.taxRate ?? 20) / 100),
-    }));
-
-    const subtotal = processedItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
-    const taxAmount = processedItems.reduce((s, i) => s + i.quantity * i.unitPrice * i.taxRate / 100, 0);
-    const totalAmount = subtotal + taxAmount;
-
+    // Les totaux passent par la SEULE source de verite (services/
+    // invoice-totals.ts), comme /api/factures-client.
+    //
+    // Cette route recalculait tout de son cote, et differemment:
+    //  - aucun arrondi au centime, donc des totaux a 14 decimales en base
+    //    et un TTC qui ne retombait pas sur la somme des lignes;
+    //  - aucune ventilation de la TVA par taux, alors qu'une facture peut
+    //    mixer 20 %, 10 % et 5,5 % et que la ventilation est obligatoire;
+    //  - l'autoliquidation (art. 283-2 nonies du CGI) etait ignoree;
+    //  - le `total` de chaque ligne etait stocke TTC, alors que l'autre
+    //    porte y range le HT — les memes factures se lisaient de deux
+    //    facons dans la meme table.
+    const totaux = computeInvoiceTotals(Array.isArray(items) ? items : [], {
+      autoliquidation: !!req.body.isAutoliquidation,
+    });
+    if (totaux.overflow) { res.status(400).json({ error: "Montant trop eleve (depasse la limite autorisee)." }); return; }
+    const processedItems = totaux.lines;
+    const subtotal = totaux.subtotal;
+    const taxAmount = totaux.taxAmount;
+    const totalAmount = totaux.totalAmount;
     // Numerotation: la MEME sequence que l'autre porte.
     //
     // Le numero etait calcule ici par `count(*) + 1` sur les factures de
@@ -644,6 +652,7 @@ router.post("/license-management/create-client-invoice", async (req: Request, re
       clientAddress: clientAddress || null,
       clientCompany: clientCompany || null,
       items: processedItems,
+      isAutoliquidation: totaux.autoliquidation,
       subtotal: subtotal.toFixed(2),
       taxAmount: taxAmount.toFixed(2),
       totalAmount: totalAmount.toFixed(2),

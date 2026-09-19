@@ -19,6 +19,7 @@ import { db, depensesTable, organisationsTable, EXPENSE_CATEGORIES } from "@work
 import { and, eq } from "drizzle-orm";
 import { analyzeDocument } from "./document-ai";
 import { logger } from "../lib/logger";
+import { montantsDepense, NOTE_TVA_NON_LUE } from "./montants-depense";
 
 // Types MIME pour lesquels une capture de dépense est tentée. Aligné sur les
 // formats que Document IA sait lire pour un justificatif.
@@ -182,16 +183,30 @@ export async function captureExpenseFromDocument(params: {
   let amountHt = parseAmount(firstValue(f, ["montantHT", "montant_ht", "totalHT", "sousTotal", "subtotal"]));
   let amountTva = parseAmount(firstValue(f, ["tva", "montantTVA", "montant_tva", "tvaAmount"]));
 
-  // Cohérence des montants : reconstruit les valeurs manquantes quand possible.
-  if (amountTtc <= 0 && amountHt > 0) amountTtc = amountHt + Math.max(0, amountTva);
-  if (amountHt <= 0 && amountTtc > 0) amountHt = Math.max(0, amountTtc - Math.max(0, amountTva));
-  if (amountTva <= 0 && amountTtc > 0 && amountHt > 0) amountTva = Math.max(0, amountTtc - amountHt);
-
   if (amountTtc <= 0 && amountHt <= 0) {
     return { status: "skipped", reason: "no_amount" };
   }
-  if (amountTtc <= 0) amountTtc = amountHt;
 
+  // Reconstitution commune avec la saisie manuelle (`montantsDepense`). La
+  // version precedente rangeait le TTC dans la colonne HT des que la TVA
+  // n'avait pas ete lue sur le justificatif — TVA deductible perdue, charge
+  // surevaluee d'autant.
+  //
+  // Ici, contrairement a la saisie manuelle, on ne peut RIEN demander: le
+  // document est deja la et personne n'attend devant l'ecran. On enregistre
+  // donc la ligne, mais l'ignorance est ecrite dans les notes, la ou le
+  // responsable la verra au moment d'approuver — une depense nait toujours
+  // « en attente ».
+  const montants = montantsDepense({
+    ht: amountHt,
+    tva: amountTva,
+    ttc: amountTtc,
+    tauxTva: parseAmount(firstValue(f, ["tauxTVA", "taux_tva", "vatRate"])) || null,
+  });
+  amountHt = montants.ht;
+  amountTva = montants.tva;
+  amountTtc = montants.ttc;
+  const tvaALire = montants.tvaInconnue;
   const expenseDate = parseDocumentDate(firstValue(f, ["date", "dateFacture", "date_facture", "dateEmission"]));
   const dueDate = parseDocumentDate(firstValue(f, ["echeance", "dateEcheance", "date_echeance", "dueDate"]));
   const category = guessExpenseCategory(vendor, analysis.title, reference);
@@ -228,6 +243,10 @@ export async function captureExpenseFromDocument(params: {
       source,
       extractedFields: f,
       aiConfidence: confidence,
+      // Visible par celui qui approuve: une TVA a zero parce qu'elle vaut
+      // zero et une TVA a zero parce qu'on ne l'a pas lue se ressemblent
+      // trop pour qu'on laisse deviner.
+      notes: tvaALire ? NOTE_TVA_NON_LUE : null,
       dedupeHash,
       duplicateOfId,
       createdBy: userId,
