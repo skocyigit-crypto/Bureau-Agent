@@ -41,7 +41,8 @@
     "reopen": "Yeniden aç",
     "markDone": "Tamamlandı olarak işaretle",
     "error": "Hata",
-    "projectCreateFailed": "Proje oluşturulamadı. Tekrar deneyin."
+    "projectCreateFailed": "Proje oluşturulamadı. Tekrar deneyin.",
+    "actionFailed": "İşlem başarısız oldu. Tekrar deneyin."
   },
   "tabs": {
     "home": "Ana Sayfa",

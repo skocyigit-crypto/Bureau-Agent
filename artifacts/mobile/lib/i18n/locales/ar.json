@@ -41,7 +41,8 @@
     "reopen": "إعادة فتح",
     "markDone": "وضع علامة مكتمل",
     "error": "خطأ",
-    "projectCreateFailed": "تعذر إنشاء المشروع. حاول مرة أخرى."
+    "projectCreateFailed": "تعذر إنشاء المشروع. حاول مرة أخرى.",
+    "actionFailed": "فشلت العملية. حاول مرة أخرى."
   },
   "tabs": {
     "home": "الرئيسية",

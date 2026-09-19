@@ -41,7 +41,8 @@
     "reopen": "Reopen",
     "markDone": "Mark as done",
     "error": "Error",
-    "projectCreateFailed": "The project could not be created. Please try again."
+    "projectCreateFailed": "The project could not be created. Please try again.",
+    "actionFailed": "The operation failed. Please try again."
   },
   "tabs": {
     "home": "Home",

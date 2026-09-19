@@ -41,7 +41,8 @@
     "reopen": "Reabrir",
     "markDone": "Marcar como hecho",
     "error": "Error",
-    "projectCreateFailed": "No se pudo crear el proyecto. Inténtelo de nuevo."
+    "projectCreateFailed": "No se pudo crear el proyecto. Inténtelo de nuevo.",
+    "actionFailed": "La operación ha fallado. Inténtelo de nuevo."
   },
   "tabs": {
     "home": "Inicio",

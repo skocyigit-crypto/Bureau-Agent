@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
+  Alert,
   ActivityIndicator,
   Pressable,
   RefreshControl,
@@ -181,7 +182,7 @@ export default function IaApprentissageScreen() {
       if (res.ok) {
         const data = await res.json().catch(() => ({}));
         setUserProfile({ userId: data.profile?.userId ?? selectedUserId, computedAt: data.profile?.computedAt ?? null, facts: data.profile?.facts ?? [] });
-      }
+      } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } catch {
       /* fail-soft */
     } finally {
@@ -231,7 +232,7 @@ export default function IaApprentissageScreen() {
         setPreferences(data.profile?.preferences ?? []);
         setPatterns(data.profile?.patterns ?? []);
         setCorrections(data.profile?.corrections ?? []);
-      }
+      } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } catch {
       /* fail-soft */
     } finally {
@@ -252,7 +253,7 @@ export default function IaApprentissageScreen() {
         setPreferences(data.profile?.preferences ?? []);
         setPatterns(data.profile?.patterns ?? []);
         setCorrections(data.profile?.corrections ?? []);
-      }
+      } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } catch {
       /* fail-soft */
     } finally {
