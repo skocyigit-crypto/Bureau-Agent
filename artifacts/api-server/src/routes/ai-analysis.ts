@@ -6,6 +6,7 @@ import { sendEmail } from "../services/email";
 import { sql, eq, gte, lte, and, count, avg, desc, asc, lt, ne, isNull, isNotNull, or, not, inArray } from "drizzle-orm";
 import { NON_COLLECTIBLE_STATUSES } from "../services/payment-reminder";
 import { logger } from "../lib/logger";
+import { calculerComptesClients, chargerComptesClients, compteDuContact } from "../services/sante-comptes-clients";
 import { generateText } from "../services/ai-failover";
 import { AiQuotaExceededError } from "../services/ai-quota";
 import { buildLearnedContextBlock, fingerprintLearned } from "../services/ai-learning";
@@ -1965,10 +1966,9 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
     let accountHealthData: any[] = [];
     try {
       const orgInvoice = eq(facturesClientTable.organisationId, orgId);
-      const orgAccount = eq(compteClientTable.organisationId, orgId);
       const [
         invoiceStats, recentInvoices, overdueInvoices,
-        accountStats, criticalAccounts, orgInfo,
+        facturesOuvertes, orgInfo,
       ] = await Promise.all([
         db.select({
           total: count(),
@@ -1982,25 +1982,51 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
         }).from(facturesClientTable).where(orgInvoice),
         db.select({ id: facturesClientTable.id, invoiceNumber: facturesClientTable.reference, clientName: facturesClientTable.clientName, totalTTC: facturesClientTable.totalAmount, status: facturesClientTable.status, dueDate: facturesClientTable.dueDate, paidAmount: facturesClientTable.paidAmount }).from(facturesClientTable).where(orgInvoice).orderBy(desc(facturesClientTable.createdAt)).limit(10),
         db.select({ id: facturesClientTable.id, invoiceNumber: facturesClientTable.reference, clientName: facturesClientTable.clientName, totalTTC: facturesClientTable.totalAmount, dueDate: facturesClientTable.dueDate, paidAmount: facturesClientTable.paidAmount }).from(facturesClientTable).where(and(orgInvoice, overdueCondition())).orderBy(asc(facturesClientTable.dueDate)).limit(10),
+        // Les factures OUVERTES: c'est d'elles que se deduit la sante des
+        // comptes (cf. services/sante-comptes-clients.ts). La table
+        // `compte_client` que ces deux requetes interrogeaient n'est remplie
+        // par aucun code du depot — encours, montant en retard, comptes
+        // critiques et score moyen sortaient donc tous a zero, presentes
+        // comme des chiffres calcules.
         db.select({
-          totalAccounts: count(),
-          avgHealth: sql<number>`coalesce(avg(${compteClientTable.healthScore}), 0)::int`,
-          critical: sql<number>`count(*) filter (where ${compteClientTable.riskLevel} = 'critique')`,
-          high: sql<number>`count(*) filter (where ${compteClientTable.riskLevel} = 'eleve')`,
-          blocked: sql<number>`count(*) filter (where ${compteClientTable.status} = 'bloque')`,
-          totalOutstanding: sql<number>`coalesce(sum(${compteClientTable.solde}::numeric), 0)::numeric`,
-          totalOverdue: sql<number>`coalesce(sum(${compteClientTable.montantEnRetard}::numeric), 0)::numeric`,
-        }).from(compteClientTable).where(orgAccount),
-        db.select({ id: compteClientTable.id, contactName: compteClientTable.clientName, healthScore: compteClientTable.healthScore, riskLevel: compteClientTable.riskLevel, totalUnpaid: compteClientTable.solde, overdueAmount: compteClientTable.montantEnRetard, accountStatus: compteClientTable.status }).from(compteClientTable).where(and(orgAccount, or(eq(compteClientTable.riskLevel, "critique"), eq(compteClientTable.riskLevel, "eleve")))).orderBy(asc(compteClientTable.healthScore)).limit(10),
+          clientName: facturesClientTable.clientName,
+          contactId: facturesClientTable.contactId,
+          totalAmount: facturesClientTable.totalAmount,
+          paidAmount: facturesClientTable.paidAmount,
+          status: facturesClientTable.status,
+          dueDate: facturesClientTable.dueDate,
+        }).from(facturesClientTable).where(orgInvoice),
         db.select({ name: organisationsTable.name, siret: organisationsTable.siret, tvaNumber: organisationsTable.tvaNumber, iban: organisationsTable.bankIban }).from(organisationsTable).where(eq(organisationsTable.id, orgId)).limit(1),
       ]);
-      financialData = { invoiceStats: invoiceStats[0], accountStats: accountStats[0], orgInfo: orgInfo[0] };
+      const sante = calculerComptesClients(facturesOuvertes);
+      const accountStats = {
+        totalAccounts: sante.comptes.length,
+        avgHealth: sante.avgHealth,
+        critical: sante.critical,
+        high: sante.high,
+        totalOutstanding: sante.totalOutstanding,
+        totalOverdue: sante.totalOverdue,
+      };
+      financialData = { invoiceStats: invoiceStats[0], accountStats, orgInfo: orgInfo[0] };
       invoicesData = recentInvoices;
-      accountHealthData = criticalAccounts;
+      accountHealthData = sante.comptes
+        .filter((c) => c.riskLevel === "critique" || c.riskLevel === "eleve")
+        .slice(0, 10)
+        .map((c) => ({
+          contactName: c.clientName,
+          healthScore: c.healthScore,
+          riskLevel: c.riskLevel,
+          totalUnpaid: c.solde,
+          overdueAmount: c.montantEnRetard,
+          joursRetardMax: c.joursRetardMax,
+        }));
       if ((invoiceStats[0]?.overdue ?? 0) > 0) anomalies.push(`${invoiceStats[0]?.overdue} factures en retard — tresorerie en danger!`);
-      if ((accountStats[0]?.critical ?? 0) > 0) anomalies.push(`${accountStats[0]?.critical} comptes clients CRITIQUES necessitent une action immediate!`);
-      if ((accountStats[0]?.blocked ?? 0) > 0) anomalies.push(`${accountStats[0]?.blocked} comptes clients BLOQUES — depassement de limite de credit!`);
-      if (Number(accountStats[0]?.totalOverdue ?? 0) > 10000) anomalies.push(`Montant total en retard: ${Number(accountStats[0]?.totalOverdue ?? 0).toLocaleString("fr-FR")}€ — CRITIQUE!`);
+      if (accountStats.critical > 0) anomalies.push(`${accountStats.critical} comptes clients CRITIQUES necessitent une action immediate!`);
+      // L'alerte « comptes bloques » reposait sur `compte_client.status`, une
+      // colonne qu'aucun code n'ecrit: elle ne s'est jamais declenchee. Une
+      // limite de credit n'existe nulle part dans le produit — on ne remplace
+      // donc pas l'alerte par une approximation, on la retire.
+      if (accountStats.totalOverdue > 10000) anomalies.push(`Montant total en retard: ${accountStats.totalOverdue.toLocaleString("fr-FR")}€ — CRITIQUE!`);
     } catch (e) { logger.warn({ err: e }, "[AIAnalysis] financial data unavailable"); }
 
     const safeRecentCalls = recentCalls.map(c => ({ ...c, notes: c.notes ? sanitizePromptInput(c.notes, 1000) : c.notes }));
@@ -2600,7 +2626,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
             exportData = await db.select({ id: facturesClientTable.id, numero: facturesClientTable.reference, client: facturesClientTable.clientName, totalTTC: facturesClientTable.totalAmount, statut: facturesClientTable.status, echeance: facturesClientTable.dueDate, paye: facturesClientTable.paidAmount }).from(facturesClientTable).where(eq(facturesClientTable.organisationId, orgId)).limit(100);
             break;
           case "comptes_clients":
-            exportData = await db.select({ id: compteClientTable.id, contact: compteClientTable.clientName, sante: compteClientTable.healthScore, risque: compteClientTable.riskLevel, impaye: compteClientTable.solde, retard: compteClientTable.montantEnRetard, statut: compteClientTable.status }).from(compteClientTable).where(eq(compteClientTable.organisationId, orgId)).limit(100);
+            exportData = (await chargerComptesClients(orgId)).comptes.slice(0, 100).map((c) => ({ contact: c.clientName, sante: c.healthScore, risque: c.riskLevel, impaye: c.solde, retard: c.montantEnRetard, joursRetardMax: c.joursRetardMax }));
             break;
           default:
             exportData = [];
@@ -2718,7 +2744,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
       case "send_payment_reminder": {
         const accountId = parseInt(String(target), 10);
         if (!accountId) { res.status(400).json({ error: "ID compte client requis." }); return; }
-        const [acct] = await db.select().from(compteClientTable).where(and(eq(compteClientTable.id, accountId), eq(compteClientTable.organisationId, orgId)));
+        const acct = await compteDuContact(orgId, accountId);
         if (!acct) { result = { success: false, message: "Compte client non trouve." }; break; }
         const contactForAcct = acct.contactId ? (await db.select().from(contactsTable).where(and(eq(contactsTable.id, acct.contactId), eq(contactsTable.organisationId, orgId))))[0] : null;
         const acctEmail = contactForAcct?.email;
@@ -2729,7 +2755,12 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           const sendRes3 = await sendEmail(acctEmail, `Rappel de paiement — ${Number(acct.montantEnRetard || 0).toFixed(2)}€ en retard`, remHtml, remText, { orgId });
           if (!sendRes3.success) { result = { success: false, message: sendRes3.error || "Service email non configure." }; break; }
           const remindedAt = new Date();
-          await db.update(compteClientTable).set({ lastReminderAt: remindedAt, reminderCount: (acct.reminderCount || 0) + 1 }).where(eq(compteClientTable.id, accountId));
+          // L'ecriture qui se trouvait ici visait `compte_client`, une table
+          // qu'aucun code ne remplit: elle ne touchait donc JAMAIS une ligne.
+          // Le compteur de relances et la date du dernier rappel n'ont jamais
+          // ete conserves de ce cote. Ce qui suit — le marquage des factures
+          // echues — est la seule trace qui ait jamais eu un effet, et c'est
+          // aussi celle que lit l'anti-spam.
           // Marque aussi les factures echues du client comme relancees.
           //
           // Sans cela, cette relance restait invisible pour le detecteur de
@@ -2766,9 +2797,9 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         const searchId = parseInt(searchName, 10);
         let accounts: any[];
         if (searchId && !isNaN(searchId)) {
-          accounts = await db.select().from(compteClientTable).where(and(eq(compteClientTable.organisationId, orgId), or(eq(compteClientTable.contactId, searchId), eq(compteClientTable.id, searchId)))).limit(5);
+          accounts = (await chargerComptesClients(orgId)).comptes.filter((c) => c.contactId === searchId).slice(0, 5);
         } else {
-          accounts = await db.select().from(compteClientTable).where(and(eq(compteClientTable.organisationId, orgId), sql`${compteClientTable.clientName} ilike ${'%' + searchName + '%'}` )).limit(5);
+          accounts = (await chargerComptesClients(orgId)).comptes.filter((c) => c.clientName.toLowerCase().includes(searchName.toLowerCase())).slice(0, 5);
         }
         if (accounts.length === 0) { result = { success: true, message: `Aucun compte client trouve pour "${searchName}".`, data: [] }; break; }
         const healthReport = accounts.map(a => ({
@@ -2787,7 +2818,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           db.select({ total: sql<number>`coalesce(sum(${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0)), 0)::numeric` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), sql`${facturesClientTable.status} in ('envoyee')`, lte(facturesClientTable.dueDate, futureDate))),
           db.select({ total: sql<number>`coalesce(sum(${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0)), 0)::numeric`, overdue: sql<number>`coalesce(sum(case when ${facturesClientTable.dueDate} is not null and ${facturesClientTable.dueDate} < now() and ${facturesClientTable.status} not in ('payee','annulee','brouillon') then ${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0) else 0 end), 0)::numeric`, count: count() }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), sql`${facturesClientTable.status} not in ('payee','annulee')`)),
         ]);
-        const avgHealthRes = await db.select({ avg: sql<number>`coalesce(avg(${compteClientTable.healthScore}), 50)::int` }).from(compteClientTable).where(eq(compteClientTable.organisationId, orgId));
+        const avgHealthRes = [{ avg: (await chargerComptesClients(orgId)).avgHealth }];
         const avgHealth = avgHealthRes[0]?.avg ?? 50;
         const collectionRate = avgHealth / 100;
         const expectedIncoming = Number(incoming[0]?.total ?? 0) * collectionRate;
@@ -2815,7 +2846,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           db.select({ id: facturesClientTable.id, invoiceNumber: facturesClientTable.reference, totalTTC: facturesClientTable.totalAmount, status: facturesClientTable.status, paidAmount: facturesClientTable.paidAmount }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), eq(facturesClientTable.contactId, c360.id))).orderBy(desc(facturesClientTable.createdAt)).limit(10),
           db.select({ id: prospectsTable.id, title: prospectsTable.title, stage: prospectsTable.stage, value: prospectsTable.value }).from(prospectsTable).where(and(eq(prospectsTable.organisationId, orgId), sql`${prospectsTable.contactName} ilike ${'%' + c360.firstName + '%' + c360.lastName + '%'}`)).limit(5),
           db.select({ id: projetsTable.id, title: projetsTable.title, status: projetsTable.status, progress: projetsTable.progress }).from(projetsTable).where(and(eq(projetsTable.organisationId, orgId), sql`${projetsTable.clientName} ilike ${'%' + (c360.company || c360.lastName) + '%'}`)).limit(5),
-          db.select().from(compteClientTable).where(and(eq(compteClientTable.organisationId, orgId), eq(compteClientTable.contactId, c360.id))).limit(1),
+          compteDuContact(orgId, c360.id).then((c) => (c ? [c] : [])),
         ]);
         result = {
           success: true,
@@ -2834,7 +2865,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           db.select({ count: count() }).from(messagesTable).where(and(eq(messagesTable.organisationId, orgId), eq(messagesTable.isRead, false))),
           db.select({ title: calendarEventsTable.title, startDate: calendarEventsTable.startDate, contactName: calendarEventsTable.contactName }).from(calendarEventsTable).where(and(eq(calendarEventsTable.organisationId, orgId), gte(calendarEventsTable.startDate, nowBrief), lte(calendarEventsTable.startDate, new Date(nowBrief.getTime() + 86400000)))).orderBy(asc(calendarEventsTable.startDate)).limit(10),
           db.select({ count: count(), total: sql<number>`coalesce(sum(${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0)), 0)::numeric` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), overdueCondition())),
-          db.select({ count: count() }).from(compteClientTable).where(and(eq(compteClientTable.organisationId, orgId), eq(compteClientTable.riskLevel, "critique"))),
+          chargerComptesClients(orgId).then((sc) => [{ count: sc.critical }]),
         ]);
         const briefingContext = `Date: ${todayStr}\nTaches en retard: ${overdueCount[0]?.count ?? 0}\nTaches urgentes: ${urgentCount[0]?.count ?? 0}\nMessages non lus: ${unreadCount[0]?.count ?? 0}\nEvenements aujourd'hui: ${todayEvents.length} — ${todayEvents.map(e => `${e.title}${e.contactName ? ` (${e.contactName})` : ""} a ${new Date(e.startDate).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`).join(", ")}\nFactures en retard: ${invoiceOverdue[0]?.count ?? 0} pour ${Number(invoiceOverdue[0]?.total ?? 0).toFixed(2)}€\nComptes critiques: ${criticalAccounts[0]?.count ?? 0}`;
         const briefResponse = await briefAi.models.generateContent({
@@ -2858,7 +2889,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           const [mcCalls, mcInvoices, mcAccount] = await Promise.all([
             db.select({ status: callsTable.status, sentiment: callsTable.sentiment, createdAt: callsTable.createdAt, notes: callsTable.notes }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), eq(callsTable.contactId, mc.id))).orderBy(desc(callsTable.createdAt)).limit(5),
             db.select({ invoiceNumber: facturesClientTable.reference, totalTTC: facturesClientTable.totalAmount, status: facturesClientTable.status, paidAmount: facturesClientTable.paidAmount }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), eq(facturesClientTable.contactId, mc.id))).limit(5),
-            db.select().from(compteClientTable).where(and(eq(compteClientTable.organisationId, orgId), eq(compteClientTable.contactId, mc.id))).limit(1),
+            compteDuContact(orgId, mc.id).then((c) => (c ? [c] : [])),
           ]);
           meetingData = { contact: mc, calls: mcCalls, invoices: mcInvoices, account: mcAccount[0] || null };
         }
@@ -2877,7 +2908,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         const riskAi = await aiForOrg(orgId);
         const [rOverdue, rCritical, rStock, rMissed, rOverBudget] = await Promise.all([
           db.select({ count: count(), total: sql<number>`coalesce(sum(${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0)), 0)::numeric` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), overdueCondition())),
-          db.select({ count: count() }).from(compteClientTable).where(and(eq(compteClientTable.organisationId, orgId), or(eq(compteClientTable.riskLevel, "critique"), eq(compteClientTable.riskLevel, "eleve")))),
+          chargerComptesClients(orgId).then((sc) => [{ count: sc.critical + sc.high }]),
           db.select({ count: count() }).from(stockArticlesTable).where(and(eq(stockArticlesTable.organisationId, orgId), sql`${stockArticlesTable.quantity} <= ${stockArticlesTable.minQuantity}`)),
           db.select({ count: count() }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), eq(callsTable.status, "manque"), gte(callsTable.createdAt, new Date(Date.now() - 7 * 86400000)))),
           db.select({ count: count() }).from(projetsTable).where(and(eq(projetsTable.organisationId, orgId), sql`${projetsTable.spent}::numeric > ${projetsTable.budget}::numeric and ${projetsTable.budget}::numeric > 0`)),
@@ -2944,7 +2975,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           db.select({ total: count(), completed: sql<number>`count(*) filter (where ${tasksTable.status} = 'termine')`, overdue: sql<number>`count(*) filter (where ${tasksTable.dueDate} < now() and ${tasksTable.status} not in ('termine','annule'))` }).from(tasksTable).where(eq(tasksTable.organisationId, orgId)),
           db.select({ total: count(), paid: sql<number>`count(*) filter (where ${facturesClientTable.status} = 'payee')`, overdue: sql<number>`count(*) filter (where ${facturesClientTable.dueDate} is not null and ${facturesClientTable.dueDate} < now() and ${facturesClientTable.status} not in ('payee','annulee','brouillon') and ${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0) > 0)`, ca: sql<number>`coalesce(sum(case when ${facturesClientTable.status} = 'payee' then ${facturesClientTable.totalAmount}::numeric else 0 end), 0)::numeric` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), gte(facturesClientTable.createdAt, monthAgoAudit))),
           db.select({ total: count(), won: sql<number>`count(*) filter (where ${prospectsTable.stage} = 'gagne')`, lost: sql<number>`count(*) filter (where ${prospectsTable.stage} = 'perdu')`, pipeline: sql<number>`coalesce(sum(${prospectsTable.value}::numeric), 0)::numeric` }).from(prospectsTable).where(eq(prospectsTable.organisationId, orgId)),
-          db.select({ avgHealth: sql<number>`coalesce(avg(${compteClientTable.healthScore}), 0)::int`, critical: sql<number>`count(*) filter (where ${compteClientTable.riskLevel} = 'critique')` }).from(compteClientTable).where(eq(compteClientTable.organisationId, orgId)),
+          chargerComptesClients(orgId).then((sc) => [{ avgHealth: sc.avgHealth, critical: sc.critical }]),
         ]);
         const auditData = `Type: ${auditType}\nAppels (30j): ${JSON.stringify(aCalls[0])}\nTaches: ${JSON.stringify(aTasks[0])}\nFactures (30j): ${JSON.stringify(aInvoices[0])}\nProspects: ${JSON.stringify(aProspects[0])}\nSante clients: ${JSON.stringify(aAccounts[0])}`;
         const auditResponse = await auditAi.models.generateContent({
