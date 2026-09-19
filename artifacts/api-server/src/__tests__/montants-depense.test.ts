@@ -155,17 +155,23 @@ afterAll(async () => {
 });
 
 describe("la porte de saisie applique bien la regle", () => {
-  it("un TTC seul est refuse, avec ce qu'il faut fournir", async () => {
+  it("un TTC seul est accepte, mais l'ignorance est ecrite au dossier", async () => {
+    // J'avais d'abord refuse ce cas en 400. Mesure faite: ce refus casse tous
+    // les appelants qui n'envoient qu'un TTC, imports compris. Ce qu'on
+    // corrige n'est pas le zero, c'est le SILENCE.
     const r = await supertest(appli()).post("/api/depenses")
       .send({ vendor: `Materiaux ${stamp}`, amountTtc: 120 });
-    expect(r.status, "la depense entrait avec 120 EUR de HT et 0 EUR de TVA").toBe(400);
-    expect(r.body.code).toBe("tva_indeterminee");
+    expect(r.status).toBe(201);
+    const [d] = await db.select().from(depensesTable).where(eq(depensesTable.id, r.body.depense?.id ?? r.body.id));
+    expect(d!.notes, "une TVA a zero non etablie doit se voir a l'approbation").toBe(NOTE_TVA_NON_LUE);
   });
 
-  it("le refus propose les taux courants", async () => {
+  it("la mention ne remplace pas les notes de l'utilisateur", async () => {
     const r = await supertest(appli()).post("/api/depenses")
-      .send({ vendor: `Materiaux ${stamp}`, amountTtc: 120 });
-    expect(r.body.tauxCourants).toContain(10);
+      .send({ vendor: `Materiaux ${stamp}`, amountTtc: 120, notes: "Chantier Dupont" });
+    const [d] = await db.select().from(depensesTable).where(eq(depensesTable.id, r.body.depense?.id ?? r.body.id));
+    expect(d!.notes).toContain("Chantier Dupont");
+    expect(d!.notes).toContain("TVA");
   });
 
   it("avec le taux, la depense est enregistree en HT et TVA justes", async () => {
@@ -178,15 +184,21 @@ describe("la porte de saisie applique bien la regle", () => {
     expect(Number(d!.amountTtc)).toBe(120);
   });
 
+  it("et sans mention: rien n'est indetermine", async () => {
+    const r = await supertest(appli()).post("/api/depenses")
+      .send({ vendor: `Ciment ${stamp}`, amountTtc: 120, tauxTva: 20 });
+    const [d] = await db.select().from(depensesTable).where(eq(depensesTable.id, r.body.depense?.id ?? r.body.id));
+    expect(d!.notes ?? "").not.toContain("TVA non lue");
+  });
+
   it("une saisie HT + TVA passe comme avant", async () => {
     const r = await supertest(appli()).post("/api/depenses")
       .send({ vendor: `Sable ${stamp}`, amountHt: 100, amountTva: 20 });
-    expect(r.status, "le correctif ne doit pas fermer la saisie normale").toBe(201);
+    expect(r.status, "le correctif ne doit fermer aucune saisie existante").toBe(201);
   });
 
-  it("aucun montant reste refuse pour la raison d'avant", async () => {
+  it("aucun montant reste refuse", async () => {
     const r = await supertest(appli()).post("/api/depenses").send({ vendor: `Rien ${stamp}` });
     expect(r.status).toBe(400);
-    expect(r.body.code).not.toBe("tva_indeterminee");
   });
 });

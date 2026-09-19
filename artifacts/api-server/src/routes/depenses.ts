@@ -11,7 +11,7 @@ import { and, eq, gte, lte, lt, desc, sql, type SQL } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
 import { CURSEUR_EXPORT_DEBUT } from "../lib/curseur-export";
-import { montantsDepense, TAUX_TVA_CONNUS } from "../services/montants-depense";
+import { montantsDepense, NOTE_TVA_NON_LUE } from "../services/montants-depense";
 import { computeDedupeHash, parseDocumentDate } from "../services/expense-capture";
 import { withDbRetry } from "../lib/db-retry";
 import { logger } from "../lib/logger";
@@ -338,18 +338,22 @@ router.post("/depenses", requireMinAgent, async (req: Request, res: Response): P
       tauxTva: body.tauxTva === undefined ? null : num(body.tauxTva),
     });
 
-    // Saisie manuelle: l'utilisateur a le justificatif sous les yeux. Lui
-    // demander le taux coute une seconde; ecrire une TVA nulle a sa place lui
-    // coute la TVA, et fausse sa charge du meme montant.
-    if (montants.tvaInconnue) {
-      res.status(400).json({
-        error: "Indiquez le montant HT, le montant de TVA, ou le taux de TVA.",
-        code: "tva_indeterminee",
-        remediation: "Avec le seul TTC, la TVA deductible serait enregistree a zero et la charge surevaluee d'autant.",
-        tauxCourants: TAUX_TVA_CONNUS,
-      });
-      return;
-    }
+    // Une TVA indeterminee ne fait pas echouer la saisie — elle se DIT.
+    //
+    // J'avais d'abord refuse ce cas en 400: l'utilisateur a le justificatif
+    // sous les yeux, lui demander le taux coute une seconde. Mesure faite: ce
+    // refus casse tous les appelants existants qui n'envoient qu'un TTC, y
+    // compris des imports. Or ce qu'on corrige ici n'est pas le zero, c'est le
+    // SILENCE — une TVA nulle parce qu'elle vaut zero et une TVA nulle parce
+    // qu'on ne l'a pas etablie se ressemblent trop pour qu'on laisse deviner.
+    //
+    // La depense nait de toute facon « en attente »: la mention s'adresse a
+    // celui qui approuve. Meme traitement que la lecture automatique d'un
+    // justificatif (services/expense-capture.ts).
+    const notesSaisies = typeof body.notes === "string" ? body.notes.trim() : "";
+    const notesFinales = montants.tvaInconnue
+      ? [notesSaisies, NOTE_TVA_NON_LUE].filter(Boolean).join(" — ")
+      : notesSaisies;
 
     const amountHt = montants.ht;
     const amountTva = montants.tva;
@@ -391,7 +395,7 @@ router.post("/depenses", requireMinAgent, async (req: Request, res: Response): P
         status,
         paymentStatus,
         source: "manuel",
-        notes: typeof body.notes === "string" ? body.notes.trim() || null : null,
+        notes: notesFinales || null,
         dedupeHash,
         duplicateOfId: dup?.id ?? null,
         createdBy: userId,
