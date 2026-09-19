@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { confirmAction } from "@/hooks/use-confirm";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import { useSelectionVisibleListe } from "@/lib/selection-visible";
 import { useMutation,useQuery,useQueryClient } from "@tanstack/react-query";
 import {
 AlertCircle,
@@ -157,6 +158,16 @@ export default function FileApprobationPage() {
    * rend supportable une file de dix relances du meme genre.
    */
   const [selected, setSelected] = useState<number[]>([]);
+
+  // La selection est ramenee a ce qui est AFFICHE. Cette file se rafraichit
+  // toute seule toutes les 60 secondes, et elle a deux onglets: on pouvait
+  // cocher trois propositions, voir la liste changer sous ses yeux — un
+  // collegue a tranche, de nouvelles sont arrivees — puis cliquer
+  // « Approuver » sur des identifiants qui n'etaient plus a l'ecran. C'est
+  // exactement ce que la regle d'or ci-dessus interdit: l'humain doit avoir
+  // vu ce qu'il valide. Voir `useSelectionVisibleListe`.
+  useSelectionVisibleListe(proposals.map((p) => p.id), selected, setSelected);
+
   const toggleSelected = (id: number) =>
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
 

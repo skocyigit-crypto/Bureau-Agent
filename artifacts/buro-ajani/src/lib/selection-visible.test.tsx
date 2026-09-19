@@ -15,6 +15,8 @@
  */
 import { describe, expect, it } from "vitest";
 import { renderHook } from "@testing-library/react";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { useSelectionVisible, useSelectionVisibleListe } from "./selection-visible";
 
 /** Monte le hook et rend la selection telle qu'elle est apres l'effet. */
@@ -147,5 +149,56 @@ describe("la variante pour les selections rangees dans un tableau", () => {
     const e = monterListe([1, 2], [1]);
     e.changerPage(undefined);
     expect(e.selection).toEqual([1]);
+  });
+});
+
+describe("aucune liste a selection multiple n'echappe a la regle", () => {
+  /**
+   * Corriger les ecrans un par un laisse toujours le suivant. Ce controle
+   * cherche le MOTIF — une selection multiple plus une action groupee — et
+   * exige le garde-fou partout ou il apparait, y compris sur un ecran ecrit
+   * demain.
+   *
+   * `file-approbation.tsx` est celui qui a echappe au premier passage, et
+   * c'etait le pire des trois : sa file se rafraichit toute seule toutes les
+   * 60 secondes et elle a deux onglets, si bien que la liste change sous les
+   * yeux de celui qui coche. Le fichier ecrit lui-meme sa regle d'or —
+   * « l'humain doit avoir vu ce qu'il valide » — et la selection conservee la
+   * contredisait.
+   */
+  const ecransConcernes = (): string[] => {
+    const pages = join(import.meta.dirname, "..", "pages");
+    const parcourir = (d: string): string[] =>
+      readdirSync(d, { withFileTypes: true }).flatMap((e) => {
+        const p = join(d, e.name);
+        if (e.isDirectory()) return parcourir(p);
+        return p.endsWith(".tsx") && !p.includes(".test.") ? [p] : [];
+      });
+    return parcourir(pages).filter((p) => {
+      const s = readFileSync(p, "utf8");
+      // Une selection MULTIPLE: un `Set` ou un tableau. `useState<X | null>`
+      // est un choix unique (un fournisseur d'IA, par exemple) et ne compte
+      // pas — le compter ferait crier au loup, et un controle qui crie au
+      // loup finit desactive.
+      if (!/const \[selected\w*\s*,\s*setSelected\w*\]\s*=\s*useState<(?:Set<|\w+\[\])/.test(s)) return false;
+      // Et une action GROUPEE: c'est elle qui rend la selection dangereuse.
+      return /bulk|Promise\.all\(/.test(s);
+    });
+  };
+
+  it("le releve trouve bien des ecrans a controler", () => {
+    // Sans ce garde-fou, un motif devenu introuvable ferait passer
+    // l'assertion suivante sans rien garantir.
+    expect(ecransConcernes().length, "plus aucun ecran detecte: la detection est cassee").toBeGreaterThan(5);
+  });
+
+  it("chacun ramene sa selection a ce qui est affiche", () => {
+    const sansGardeFou = ecransConcernes()
+      .filter((p) => !/useSelectionVisible(Liste)?\s*\(/.test(readFileSync(p, "utf8")))
+      .map((p) => p.split(/[\\/]/).slice(-1)[0]);
+    expect(
+      sansGardeFou,
+      `selection multiple + action groupee sans useSelectionVisible: ${sansGardeFou.join(", ")}`,
+    ).toEqual([]);
   });
 });
