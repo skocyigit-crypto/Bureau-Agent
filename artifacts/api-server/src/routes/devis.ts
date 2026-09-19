@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, desc, or, sql, and, type Column, type SQL } from "drizzle-orm";
 import { db, pool, devisTable, facturesClientTable, organisationsTable } from "@workspace/db";
+import { devisExpire } from "../services/devis-expires";
 import { buildDevisDocument, devisFileName, renderDevisPdf } from "../services/devis-pdf";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { generateUniqueReference } from "../lib/unique-reference";
@@ -287,6 +288,23 @@ router.post("/devis/:id/convert-to-facture", async (req: Request, res: Response)
     const [devis] = await db.select().from(devisTable)
       .where(and(eq(devisTable.id, id), eq(devisTable.organisationId, orgId)));
     if (!devis) { res.status(404).json({ error: "Devis non trouve." }); return; }
+
+    // Un devis dont la validite est depassee ne se convertit pas en silence.
+    //
+    // La duree de validite est precisement ce qui protege l'entreprise contre
+    // la hausse du cout des materiaux: convertir un devis de l'an dernier
+    // creerait une facture a l'ancien prix, et l'engagerait dessus. On refuse
+    // en nommant l'action qui debloque — prolonger la validite — plutot que
+    // de decider a sa place.
+    if (devisExpire(devis.status, devis.validUntil) || devis.status === "expire") {
+      res.status(409).json({
+        error: "La validite de ce devis est depassee.",
+        code: "devis_expire",
+        validUntil: devis.validUntil,
+        remediation: "Prolongez la date de validite du devis si le prix tient toujours, puis convertissez-le.",
+      });
+      return;
+    }
 
     // Deja converti: on renvoie la facture liee plutot que d'en creer une autre.
     if (devis.convertedToInvoice) {
