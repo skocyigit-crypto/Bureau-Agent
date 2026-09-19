@@ -41,7 +41,8 @@
     "reopen": "Rouvrir",
     "markDone": "Marquer comme terminé",
     "error": "Erreur",
-    "projectCreateFailed": "Le projet n'a pas pu être créé. Réessayez."
+    "projectCreateFailed": "Le projet n'a pas pu être créé. Réessayez.",
+    "actionFailed": "L'opération a échoué. Réessayez."
   },
   "tabs": {
     "home": "Accueil",

@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Linking from "expo-linking";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
@@ -96,7 +96,7 @@ export default function CallDetailScreen() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notes }),
       });
-      if (res.ok) { setEditingNotes(false); load(); }
+      if (res.ok) { setEditingNotes(false); load(); } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } finally { setSavingNotes(false); }
   }
 
@@ -113,7 +113,7 @@ export default function CallDetailScreen() {
       if (res.ok) {
         const d = await res.json();
         setAiResult(d.briefing ?? d.summary ?? d.result ?? t("callDetailScreen.aiAnalysisGenerated"));
-      }
+      } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } finally { setAiLoading(null); }
   }
 
@@ -130,7 +130,7 @@ export default function CallDetailScreen() {
       if (res.ok) {
         const d = await res.json();
         setAiResult(d.coaching ?? d.tips ?? d.result ?? t("callDetailScreen.aiCoachingGenerated"));
-      }
+      } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } finally { setAiLoading(null); }
   }
 

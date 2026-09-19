@@ -130,6 +130,10 @@ export function TabEquipe() {
       if (res.ok) {
         toast({ title: t("settingsEquipe.toast.invitationCancelled") });
         load();
+      } else {
+        // Sans ce message, l invitation restait affichee sans explication et
+        // l utilisateur cliquait a nouveau sur « Annuler ».
+        toast({ title: t("settingsEquipe.toast.error"), description: t("settingsEquipe.toast.cancelError"), variant: "destructive" });
       }
     } catch {
       toast({ title: t("settingsEquipe.toast.error"), description: t("settingsEquipe.toast.cancelError"), variant: "destructive" });

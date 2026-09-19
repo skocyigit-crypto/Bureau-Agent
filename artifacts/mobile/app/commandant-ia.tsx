@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
+  Alert,
   ActivityIndicator,
   FlatList,
   Platform,
@@ -301,7 +302,7 @@ function SearchSection() {
           setAiSummary(d.aiSummary ?? "");
           setTotal(d.totalResults ?? flatResults.length);
         }
-      }
+      } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } catch {} finally { setSearching(false); }
   }
 
@@ -381,7 +382,7 @@ function EmailSection() {
       if (res.ok) {
         const d = await res.json();
         if (d.success) setResult(d.emailContent ?? d.email ?? "");
-      }
+      } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } catch {} finally { setLoading(false); }
   }
 
@@ -432,9 +433,9 @@ function TachesSection() {
       if (res.ok) {
         const d = await res.json();
         if (d.success) setData(d);
-      }
+      } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } catch {} finally { setLoading(false); setSendingEmails(false); }
-  }, [fetchAuth]);
+  }, [fetchAuth, t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -579,7 +580,7 @@ function ReunionsSection() {
       if (res.ok) {
         const d = await res.json();
         if (d.success) setResult(d);
-      }
+      } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } catch {} finally { setLoading(false); }
   }
 

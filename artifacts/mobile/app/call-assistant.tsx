@@ -3,6 +3,7 @@ import * as Linking from "expo-linking";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
+  Alert,
   ActivityIndicator,
   Platform,
   Pressable,
@@ -112,9 +113,9 @@ function PreparerTab({ phone, name, direction, callId }: { phone: string; name: 
       if (res.ok) {
         const d = await res.json();
         if (d.success) setData(d);
-      }
+      } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } catch {} finally { setLoading(false); }
-  }, [fetchAuth, phone, name, direction, callId, callNotes]);
+  }, [fetchAuth, phone, name, direction, callId, callNotes, t]);
 
   useEffect(() => { if (phone || name) prepare(); }, []);
 
@@ -307,7 +308,7 @@ function ScriptTab({ phone, name, direction }: { phone: string; name: string; di
           callNotes: `Scénario: ${scenario}`,
         }),
       });
-      if (res.ok) { const d = await res.json(); if (d.success) setData(d); }
+      if (res.ok) { const d = await res.json(); if (d.success) setData(d); } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } catch {} finally { setLoading(false); }
   }
 
@@ -412,7 +413,7 @@ function CompilerTab({ phone, name, callId, contactId }: { phone: string; name: 
           duration: parseInt(duration) || undefined,
         }),
       });
-      if (res.ok) { const d = await res.json(); if (d.success) setResult(d); }
+      if (res.ok) { const d = await res.json(); if (d.success) setResult(d); } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } catch {} finally { setLoading(false); }
   }
 
@@ -429,7 +430,7 @@ function CompilerTab({ phone, name, callId, contactId }: { phone: string; name: 
           contactName: name,
         }),
       });
-      if (res.ok) { const d = await res.json(); if (d.success) setAutoResult(d); }
+      if (res.ok) { const d = await res.json(); if (d.success) setAutoResult(d); } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } catch {} finally { setAutoLoading(false); }
   }
 

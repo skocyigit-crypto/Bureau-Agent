@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
+  Alert,
   ActivityIndicator,
   Pressable,
   RefreshControl,
@@ -181,13 +182,13 @@ export default function IaApprentissageScreen() {
       if (res.ok) {
         const data = await res.json().catch(() => ({}));
         setUserProfile({ userId: data.profile?.userId ?? selectedUserId, computedAt: data.profile?.computedAt ?? null, facts: data.profile?.facts ?? [] });
-      }
+      } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } catch {
       /* fail-soft */
     } finally {
       setUserRecomputing(false);
     }
-  }, [fetchAuth, selectedUserId]);
+  }, [fetchAuth, selectedUserId, t]);
 
   useEffect(() => {
     if (!isManager) return;
@@ -231,13 +232,13 @@ export default function IaApprentissageScreen() {
         setPreferences(data.profile?.preferences ?? []);
         setPatterns(data.profile?.patterns ?? []);
         setCorrections(data.profile?.corrections ?? []);
-      }
+      } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } catch {
       /* fail-soft */
     } finally {
       setRecomputing(false);
     }
-  }, [fetchAuth]);
+  }, [fetchAuth, t]);
 
   const reactivate = useCallback(async (type: string) => {
     setReactivating(type);
@@ -252,13 +253,13 @@ export default function IaApprentissageScreen() {
         setPreferences(data.profile?.preferences ?? []);
         setPatterns(data.profile?.patterns ?? []);
         setCorrections(data.profile?.corrections ?? []);
-      }
+      } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } catch {
       /* fail-soft */
     } finally {
       setReactivating(null);
     }
-  }, [fetchAuth]);
+  }, [fetchAuth, t]);
 
   const liked = preferences.filter((p) => p.score >= 0.34 && p.upCount + p.downCount >= 1);
   // Types mis en sourdine (le moteur n'en produit plus) — affichés à part avec
