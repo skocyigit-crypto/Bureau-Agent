@@ -185,3 +185,41 @@ describe("le hook de selection est appele inconditionnellement", () => {
     });
   }
 });
+
+describe("« ne pas relancer ce client » est enfin atteignable", () => {
+  const contacts = readFileSync(join(src, "pages", "contacts.tsx"), "utf8");
+
+  it("la case existe dans la fiche", () => {
+    expect(
+      contacts,
+      "la garde existait cote serveur, mais aucun ecran ne permettait de l'activer",
+    ).toMatch(/contacts\.form\.relancesRefusees/);
+  });
+
+  it("elle est pre-remplie depuis le contact", () => {
+    expect(contacts).toMatch(/setRelancesRefusees\(!!contact\.relancesAutoDesactivees\)/);
+  });
+
+  it("elle passe par la route dediee, pas par le formulaire", () => {
+    // Une volonte exprimee par un client se consigne par un acte explicite,
+    // pas au detour d'un changement d'adresse.
+    expect(contacts).toMatch(/\/demarchage/);
+    expect(contacts).toMatch(/relancesAuto: !relancesRefusees/);
+  });
+
+  it("elle n'est envoyee que si elle a change", () => {
+    // La route refuse un corps vide, et l'ecrire a chaque enregistrement
+    // brouillerait la trace.
+    expect(contacts).toMatch(/!!editingContact\.relancesAutoDesactivees !== relancesRefusees/);
+  });
+
+  it("un echec d'enregistrement est dit", () => {
+    expect(contacts).toMatch(/contacts\.toast\.relancesError/);
+  });
+
+  it("la case n'apparait qu'en modification", () => {
+    // A la creation, le contact n'existe pas encore: la route dediee n'aurait
+    // rien a modifier.
+    expect(contacts).toMatch(/\{editingContact && \(/);
+  });
+});

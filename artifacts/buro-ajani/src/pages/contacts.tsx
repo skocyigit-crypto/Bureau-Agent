@@ -62,6 +62,11 @@ export default function Contacts() {
   const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
   const [emailComposerContactId, setEmailComposerContactId] = useState<number | undefined>(undefined);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  // Le refus des relances automatiques n'entre PAS dans le formulaire: il
+  // s'enregistre par `PATCH /contacts/:id/demarchage`, la route dediee aux
+  // volontes exprimees par le client. Une volonte se consigne par un acte
+  // explicite, pas au detour d'un changement d'adresse.
+  const [relancesRefusees, setRelancesRefusees] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -209,13 +214,32 @@ export default function Contacts() {
       address: contact.address || "",
       notes: contact.notes || "",
     });
+    setRelancesRefusees(!!contact.relancesAutoDesactivees);
     setIsDialogOpen(true);
   };
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     if (editingContact) {
       updateContact.mutate({ id: editingContact.id, data: values }, {
-        onSuccess: () => {
+        onSuccess: async () => {
+          // Envoye seulement s'il a change: la route refuse un corps vide, et
+          // l'ecrire a chaque enregistrement brouillerait la trace.
+          if (!!editingContact.relancesAutoDesactivees !== relancesRefusees) {
+            const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+            try {
+              const r = await fetch(`${BASE}/api/contacts/${editingContact.id}/demarchage`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ relancesAuto: !relancesRefusees }),
+              });
+              if (!r.ok) {
+                toast({ title: t("contacts.toast.error"), description: t("contacts.toast.relancesError"), variant: "destructive" });
+              }
+            } catch {
+              toast({ title: t("contacts.toast.error"), description: t("contacts.toast.relancesError"), variant: "destructive" });
+            }
+          }
           toast({ title: t("contacts.toast.updated") });
           setIsDialogOpen(false);
           setEditingContact(null);
@@ -345,6 +369,19 @@ export default function Contacts() {
                       <FormItem><FormLabel>{t("contacts.form.email")}</FormLabel><FormControl><Input type="email" {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
                     )} />
                   </div>
+                  {editingContact && (
+                    <label className="flex items-start gap-3 rounded-lg border p-3 text-sm">
+                      <Checkbox
+                        checked={relancesRefusees}
+                        onCheckedChange={(v) => setRelancesRefusees(v === true)}
+                        aria-label={t("contacts.form.relancesRefusees")}
+                      />
+                      <span>
+                        <span className="font-medium">{t("contacts.form.relancesRefusees")}</span>
+                        <span className="block text-xs text-muted-foreground">{t("contacts.form.relancesRefuseesAide")}</span>
+                      </span>
+                    </label>
+                  )}
                   <AiValidationFeedback result={aiValidation.result} isValidating={aiValidation.isValidating} />
                   <DialogFooter>
                     <Button type="button" variant="outline" onClick={() => aiValidation.validate(form.getValues())} disabled={aiValidation.isValidating} className="mr-auto">{t("contacts.verifyAi")}</Button>

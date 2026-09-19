@@ -294,7 +294,7 @@ router.patch("/contacts/:id/demarchage", async (req, res): Promise<void> => {
     return;
   }
 
-  const { typePersonne, prospectionConsent, opposition } = req.body ?? {};
+  const { typePersonne, prospectionConsent, opposition, relancesAuto } = req.body ?? {};
   const updates: Record<string, unknown> = { updatedBy: req.session?.userId };
 
   if (typePersonne !== undefined) {
@@ -319,6 +319,15 @@ router.patch("/contacts/:id/demarchage", async (req, res): Promise<void> => {
     // Une opposition ne se retire pas d'un trait de plume: la lever suppose
     // un nouveau consentement, qui passe par le champ ci-dessus.
     updates.prospectionOppositionAt = opposition ? new Date() : null;
+  }
+
+  if (relancesAuto !== undefined) {
+    // Le refus des relances AUTOMATIQUES de paiement. Il se range ici pour la
+    // meme raison que le reste: c est une volonte exprimee par le client, elle
+    // se consigne par un acte explicite et non au detour d un changement
+    // d adresse. La garde existait deja cote relances, mais elle interrogeait
+    // une table que rien ne remplit: aucun client ne pouvait etre exclu.
+    updates.relancesAutoDesactivees = relancesAuto === false;
   }
 
   if (Object.keys(updates).length <= 1) {

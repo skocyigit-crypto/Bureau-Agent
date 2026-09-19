@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, index, boolean } from "drizzle-orm/pg-core";
 // @ts-ignore - postgres text array
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
@@ -42,6 +42,22 @@ export const contactsTable = pgTable("contacts", {
   // Droit d'opposition (RGPD art. 21). Il s'exerce a tout moment et prime
   // sur tout le reste, y compris en B2B.
   prospectionOppositionAt: timestamp("prospection_opposition_at", { withTimezone: true }),
+  /**
+   * Ce client a demande a ne PAS etre relance automatiquement.
+   *
+   * La garde existait deja dans le code des relances — elle interrogeait
+   * `compte_client.auto_reminder_enabled`. Mais rien n'a jamais rempli cette
+   * table, et aucun ecran ne proposait le reglage : le filtre etait toujours
+   * vide, et un client qui avait demande qu'on cesse les relances automatiques
+   * en recevait quand meme. Une garde qui ne garde rien est pire qu'une garde
+   * absente : on croit le sujet traite.
+   *
+   * Le reglage vit ici, sur le CONTACT, qui est la chose que l'utilisateur
+   * ouvre et modifie. Les relances partent vers les clients de
+   * l'organisation : un envoi non voulu est un incident commercial, pas un
+   * detail d'affichage.
+   */
+  relancesAutoDesactivees: boolean("relances_auto_desactivees").notNull().default(false),
   address: text("address"),
   notes: text("notes"),
   totalCalls: integer("total_calls").notNull().default(0),
