@@ -100,10 +100,70 @@ export const FROZEN_FIELDS = [
 ] as const;
 
 /**
- * Renvoie les champs geles qu'une requete tente de modifier, ou un tableau
+ * Renvoie les champs geles qu'une requete MODIFIE reellement, ou un tableau
  * vide. Le message d'erreur nomme les champs: « facture verrouillee » sans
  * dire lequel oblige a deviner.
+ *
+ * Le controle portait sur la PRESENCE du champ, pas sur sa modification. Or
+ * les ecrans envoient le formulaire complet : changer le seul statut d'une
+ * facture emise renvoyait donc 409, et la remediation proposee par le serveur
+ * — « annulez la facture » — etait elle-meme impossible, puisqu'elle passe par
+ * le meme PATCH. Aucune facture emise ne pouvait plus etre ni annulee ni
+ * changee de statut depuis le produit.
+ *
+ * Une valeur identique n'est pas une reecriture : la comparaison se fait donc
+ * avec l'etat actuel. Comparaison en CHAINE parce que les deux cotes n'ont pas
+ * le meme type — `numeric` revient en chaine, le corps JSON porte des nombres,
+ * et « 120 » vaut « 120.00 » pour cette question. Les valeurs structurees
+ * (lignes de facture) sont comparees sur leur forme JSON.
  */
-export function frozenFieldsTouched(body: Record<string, unknown>): string[] {
-  return FROZEN_FIELDS.filter((f) => body[f] !== undefined);
+export function frozenFieldsTouched(
+  body: Record<string, unknown>,
+  actuel: Record<string, unknown> = {},
+): string[] {
+  return FROZEN_FIELDS.filter((f) => {
+    if (body[f] === undefined) return false;
+    if (!(f in actuel)) return true;
+    return !memeValeur(body[f], actuel[f]);
+  });
+}
+
+function memeValeur(propose: unknown, actuel: unknown): boolean {
+  if (propose === actuel) return true;
+  if (propose == null || actuel == null) return propose == actuel;
+
+  // Une date arrive en `Date` depuis la base et en chaine depuis le corps
+  // JSON. Les deux cotes sont donc ramenes a un instant AVANT comparaison —
+  // les comparer sous leur forme rendue faisait echouer l'egalite sur les
+  // guillemets que JSON ajoute a une chaine.
+  const instantPropose = enInstant(propose);
+  const instantActuel = enInstant(actuel);
+  if (instantPropose !== null && instantActuel !== null) {
+    return instantPropose === instantActuel;
+  }
+
+  if (typeof propose === "object" || typeof actuel === "object") {
+    return JSON.stringify(propose) === JSON.stringify(actuel);
+  }
+  const a = String(propose).trim();
+  const b = String(actuel).trim();
+  if (a === b) return true;
+  // « 120 » et « 120.00 » designent le meme montant.
+  const na = Number(a);
+  const nb = Number(b);
+  return Number.isFinite(na) && Number.isFinite(nb) && na === nb;
+}
+
+/**
+ * L'instant que designe une valeur, ou `null` si ce n'en est pas une.
+ *
+ * Volontairement etroit: un nombre nu n'est PAS traite comme un horodatage,
+ * sinon un montant et une date se compareraient sur la meme echelle.
+ */
+function enInstant(v: unknown): number | null {
+  if (v instanceof Date) return Number.isNaN(v.getTime()) ? null : v.getTime();
+  if (typeof v !== "string") return null;
+  if (!/^\d{4}-\d{2}-\d{2}/.test(v)) return null;
+  const t = new Date(v).getTime();
+  return Number.isNaN(t) ? null : t;
 }

@@ -348,7 +348,7 @@ router.patch("/factures-client/:id", async (req: Request, res: Response): Promis
     // Les champs de SUIVI (statut, encaissement, relances, notes internes)
     // restent modifiables: ils decrivent la vie de la facture, pas son contenu.
     if (isIssued(existing.status)) {
-      const frozen = frozenFieldsTouched(b);
+      const frozen = frozenFieldsTouched(b, existing as unknown as Record<string, unknown>);
       if (frozen.length > 0) {
         res.status(409).json({
           error: "Facture emise: son contenu ne peut plus etre modifie.",
