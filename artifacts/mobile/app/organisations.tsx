@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
+  Alert,
   ActivityIndicator,
   FlatList,
   Platform,
@@ -156,21 +157,27 @@ export default function OrganisationsScreen() {
   async function resendLicense(orgId: number, resetPassword = false) {
     setSendingEmail(orgId);
     try {
-      await fetchAuth(`${API_BASE}/api/organisations/${orgId}/resend-license`, {
+      // Un refus non lu annonce un envoi qui n'a pas eu lieu — et le mot de
+      // passe a pu etre regenere au passage.
+      const r = await fetchAuth(`${API_BASE}/api/organisations/${orgId}/resend-license`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ resetPassword }),
       });
+      if (!r.ok) Alert.alert(t("common.error"), t("common.actionFailed"));
     } finally { setSendingEmail(null); }
   }
 
   async function toggleActive(org: Organisation) {
     try {
-      await fetchAuth(`${API_BASE}/api/organisations/${org.id}/toggle-status`, {
+      // Suspendre une organisation est une mesure de gestion: la croire faite
+      // alors que le serveur a refuse laisse son acces ouvert.
+      const r = await fetchAuth(`${API_BASE}/api/organisations/${org.id}/toggle-status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ actif: !org.actif }),
       });
+      if (!r.ok) Alert.alert(t("common.error"), t("common.actionFailed"));
       fetchOrgs();
     } catch {}
   }

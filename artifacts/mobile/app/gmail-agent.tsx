@@ -500,7 +500,8 @@ export default function GmailAgentScreen() {
   async function handleStar(msg: GmailMessage) {
     setActionLoading("star-" + msg.id);
     try {
-      await fetchAuth(`${API_BASE}/api/gmail/message/${msg.id}/star`, { method: "PATCH" });
+      const r = await fetchAuth(`${API_BASE}/api/gmail/message/${msg.id}/star`, { method: "PATCH" });
+      if (!r.ok) { Alert.alert(t("common.error"), t("common.actionFailed")); return; }
       const next = !msg.starred;
       setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, starred: next } : m));
       if (selected?.id === msg.id) setSelected(prev => prev ? { ...prev, starred: next } : prev);
@@ -519,7 +520,10 @@ export default function GmailAgentScreen() {
     const doTrash = async () => {
       setActionLoading("trash-" + msg.id);
       try {
-        await fetchAuth(`${API_BASE}/api/gmail/message/${msg.id}/trash`, { method: "DELETE" });
+        const r = await fetchAuth(`${API_BASE}/api/gmail/message/${msg.id}/trash`, { method: "DELETE" });
+        // Sans cette lecture, le message disparaissait de la liste meme quand
+        // le serveur refusait: il revenait au rafraichissement suivant.
+        if (!r.ok) { Alert.alert(t("common.error"), t("common.actionFailed")); return; }
         setMessages(prev => prev.filter(m => m.id !== msg.id));
         setSelected(null); setScanReport(null);
       } finally { setActionLoading(null); }

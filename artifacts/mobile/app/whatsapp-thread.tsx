@@ -205,11 +205,13 @@ export default function WhatsappThreadScreen() {
     const next = conv.status === "closed" ? "open" : "closed";
     setConv((prev) => (prev ? { ...prev, status: next } : prev));
     try {
-      await fetchAuth(`${API_BASE}/api/whatsapp/conversations/${conv.id}`, {
+      const r = await fetchAuth(`${API_BASE}/api/whatsapp/conversations/${conv.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: next }),
       });
+      // Le statut a deja change a l'ecran: un refus non dit le laisse faux.
+      if (!r.ok) Alert.alert(t("common.error"), t("common.actionFailed"));
     } catch {
       fetchDetail();
     }
