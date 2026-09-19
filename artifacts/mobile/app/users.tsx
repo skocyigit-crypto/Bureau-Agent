@@ -145,7 +145,7 @@ export default function UsersScreen() {
           setShowForm(false);
           setFormValues({ role: "agent" });
           fetchUsers();
-        }
+        } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
       }
     } catch (err) { console.warn("[Users] submit failed:", err); } finally { setFormLoading(false); }
   }

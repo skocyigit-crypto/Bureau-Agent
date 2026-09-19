@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
+  Alert,
   ActivityIndicator,
   Pressable,
   RefreshControl,
@@ -123,6 +124,7 @@ export default function AssistantProactifScreen() {
     try {
       const res = await fetchAuth(`${PROACTIVE_API}/suggestions/${id}/${action}`, { method: "POST" });
       if (res.ok) setSuggestions((prev) => prev.filter((s) => s.id !== id));
+      else Alert.alert(t("common.error"), t("common.actionFailed"));
     } catch {
       /* fail-soft */
     }
@@ -136,6 +138,7 @@ export default function AssistantProactifScreen() {
         body: JSON.stringify({ value }),
       });
       if (res.ok) setSuggestions((prev) => prev.map((s) => (s.id === id ? { ...s, feedback: value } : s)));
+      else Alert.alert(t("common.error"), t("common.actionFailed"));
     } catch {
       /* fail-soft */
     }

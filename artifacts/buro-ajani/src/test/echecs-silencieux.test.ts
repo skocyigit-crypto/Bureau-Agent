@@ -25,13 +25,13 @@ import { join } from "node:path";
 /**
  * Plafond courant. A BAISSER a chaque correction — jamais a monter.
  *
- * 19/09 : 87 au premier comptage, puis 60. Corriges d'abord « Creer un projet »
+ * 19/09 : 87 au premier comptage, puis 46. Corriges d'abord « Creer un projet »
  * sur quatre ecrans, puis les quatorze ECRITURES muettes de call-detail,
  * ia-apprentissage, call-assistant et commandant-ia — la ou un echec ne
  * produisait rien du tout : le chargement s'arretait, rien n'apparaissait, et
  * l'utilisateur ne pouvait qu'appuyer a nouveau.
  */
-const PLAFOND = 60;
+const PLAFOND = 46;
 
 const RACINES = [
   join(import.meta.dirname, "..", "pages"),

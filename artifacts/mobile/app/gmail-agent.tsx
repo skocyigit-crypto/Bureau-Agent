@@ -513,6 +513,7 @@ export default function GmailAgentScreen() {
     try {
       const res = await fetchAuth(`${API_BASE}/api/gmail/message/${msg.id}/archive`, { method: "POST" });
       if (res.ok) { setMessages(prev => prev.filter(m => m.id !== msg.id)); setSelected(null); setScanReport(null); }
+      else Alert.alert(t("common.error"), t("common.actionFailed"));
     } finally { setActionLoading(null); }
   }
 
@@ -547,6 +548,7 @@ export default function GmailAgentScreen() {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
       });
       if (res.ok) { setShowCompose(false); setCompose({ to: "", subject: "", body: "" }); load(); }
+      else Alert.alert(t("common.error"), t("common.actionFailed"));
     } finally { setSendLoading(false); }
   }
 
@@ -603,7 +605,7 @@ export default function GmailAgentScreen() {
         const report: EmailScanReport = await res.json();
         setScanReport(report);
         setScannedIds(prev => ({ ...prev, [selected.id]: report }));
-      }
+      } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } catch {}
     finally { setScanning(false); }
   }

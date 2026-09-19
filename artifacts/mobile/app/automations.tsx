@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
+  Alert,
   ActivityIndicator,
   Platform,
   Pressable,
@@ -99,7 +100,7 @@ export default function AutomationsScreen() {
       });
       if (res.ok) {
         setRules(prev => prev.map(r => r.id === rule.id ? { ...r, enabled: !r.enabled } : r));
-      }
+      } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } catch (err) { console.warn("[Automations] toggleRule failed:", err); }
   }
 

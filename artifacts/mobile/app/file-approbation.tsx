@@ -208,7 +208,7 @@ export default function FileApprobationScreen() {
       if (res.ok) {
         setProposals((prev) => prev.filter((x) => x.id !== p.id));
         notifyApprovalsChanged();
-      }
+      } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } catch {
       Alert.alert(t("fileApprobationScreen.errorTitle"), t("fileApprobationScreen.rejectErrorMsg"));
     } finally {
