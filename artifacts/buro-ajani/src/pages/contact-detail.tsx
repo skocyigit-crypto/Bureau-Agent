@@ -52,6 +52,7 @@ export default function ContactDetail() {
   const [isSavingTags, setIsSavingTags] = useState(false);
   const [projetsData, setProjetsData] = useState<any[]>([]);
   const [isProjetsLoading, setIsProjetsLoading] = useState(false);
+  const [projetsErreur, setProjetsErreur] = useState(false);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notesValue, setNotesValue] = useState("");
   const [isSavingNotes, setIsSavingNotes] = useState(false);
@@ -96,10 +97,15 @@ export default function ContactDetail() {
     if (!contactId) return;
     const reqId = contactId;
     setIsProjetsLoading(true);
+    setProjetsErreur(false);
     try {
       const res = await fetch(`${BASE}/api/projets?contactId=${contactId}&limit=20`, { credentials: "include" });
       if (activeContactIdRef.current !== reqId) return;
       if (res.ok) { const d = await res.json(); setProjetsData(d.projets || []); }
+      // Sans cela, une lecture refusee affiche « aucun projet » sur la fiche
+      // d'un client qui en a — et la personne conclut qu'il n'y a rien a
+      // facturer.
+      else setProjetsErreur(true);
     } catch {}
     finally { if (activeContactIdRef.current === reqId) setIsProjetsLoading(false); }
   }, [contactId, BASE]);
@@ -505,6 +511,10 @@ export default function ContactDetail() {
                 <CardContent>
                   {isProjetsLoading ? (
                     <div className="space-y-3">{[1,2].map(i => <Skeleton key={i} className="h-14 w-full" />)}</div>
+                  ) : projetsErreur ? (
+                    // « Aucun projet » sur la fiche d'un client qui en a mene la
+                    // personne a conclure qu'il n'y a rien a facturer.
+                    <p className="text-sm text-muted-foreground py-4">{t("contactDetail.projetsIllisibles")}</p>
                   ) : projetsData.length > 0 ? (
                     <div className="space-y-2">
                       {projetsData.map((p: any) => {

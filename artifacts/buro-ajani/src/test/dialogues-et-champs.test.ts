@@ -293,3 +293,32 @@ describe("un etat qu'on n'a pas pu lire n'est pas un etat connu", () => {
     expect(plateformes).toMatch(/settingsPlateformes\.google\.statutIllisible/);
   });
 });
+
+describe("une liste vide n'est pas une reponse", () => {
+  it("les projets d'un contact disent quand ils n'ont pas pu etre lus", () => {
+    const source = readFileSync(join(src, "pages", "contact-detail.tsx"), "utf8");
+    expect(
+      source,
+      "« aucun projet » sur la fiche d'un client qui en a mene a conclure qu'il n'y a rien a facturer",
+    ).toMatch(/projetsErreur \? \(/);
+  });
+
+  it("les metriques SaaS distinguent « zero » de « pas lu »", () => {
+    const source = readFileSync(join(src, "pages", "organisations.tsx"), "utf8");
+    expect(source).toMatch(/saasErreur \? \(/);
+  });
+
+  it("les factures B2B previennent aussi sur un refus, pas seulement sur le reseau", () => {
+    const source = readFileSync(join(src, "pages", "admin-factures-b2b.tsx"), "utf8");
+    const bloc = source.slice(source.indexOf("setItems(d.factures"), source.indexOf("finally { setLoading(false); }"));
+    expect(bloc).toMatch(/else toast\(/);
+  });
+
+  it("les deux erreurs sont remises a zero avant chaque lecture", () => {
+    // Sinon l'avertissement resterait affiche apres un rechargement reussi.
+    const contact = readFileSync(join(src, "pages", "contact-detail.tsx"), "utf8");
+    const orgs = readFileSync(join(src, "pages", "organisations.tsx"), "utf8");
+    expect(contact).toMatch(/setProjetsErreur\(false\)/);
+    expect(orgs).toMatch(/setSaasErreur\(false\)/);
+  });
+});

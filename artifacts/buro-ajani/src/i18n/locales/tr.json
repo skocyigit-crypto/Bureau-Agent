@@ -3811,7 +3811,8 @@
     "generalNotesDesc": "Kişi hakkında ek bilgiler",
     "saving": "Kaydediliyor...",
     "notesPlaceholder": "Bu kişi hakkında notlar girin...",
-    "noNotes": "Not yok. Eklemek için Düzenle'ye tıklayın."
+    "noNotes": "Not yok. Eklemek için Düzenle'ye tıklayın.",
+    "projetsIllisibles": "Bağlı projeler okunamadı. Sayfayı yenileyin."
   },
   "prospectDetail": {
     "stage": {
