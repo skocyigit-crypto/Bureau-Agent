@@ -1,6 +1,6 @@
 import { computeInvoiceTotals } from "../services/invoice-totals";
 import { Router } from "express";
-import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, platformConnectionsTable, notificationsTable, stockArticlesTable, calendarEventsTable, projetsTable, prospectsTable, facturesClientTable, compteClientTable, organisationsTable } from "@workspace/db";
+import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, platformConnectionsTable, notificationsTable, stockArticlesTable, calendarEventsTable, projetsTable, prospectsTable, facturesClientTable, organisationsTable } from "@workspace/db";
 import { AGENTS, creerTacheIa } from "../services/tache-ia";
 import { sendEmail } from "../services/email";
 import { sql, eq, gte, lte, and, count, avg, desc, asc, lt, ne, isNull, isNotNull, or, not, inArray } from "drizzle-orm";

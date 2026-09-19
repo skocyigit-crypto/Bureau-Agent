@@ -22,7 +22,7 @@ process.env.NODE_ENV = process.env.NODE_ENV ?? "test";
 process.env.SESSION_SECRET = process.env.SESSION_SECRET ?? "test-session-secret-please-change-aaaaaaaa";
 
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { calculerComptesClients, niveauRisque, scoreSante, type FactureSante } from "../services/sante-comptes-clients";
 
@@ -194,5 +194,43 @@ describe("le tableau de bord ne lit plus la table vide", () => {
     // dans le produit, l'alerte ne s'est jamais declenchee. On ne la remplace
     // pas par une approximation.
     expect(route).not.toMatch(/comptes clients BLOQUES/);
+  });
+});
+
+describe("plus aucun code de production ne touche a cette table", () => {
+  /**
+   * `compte_client` n'est ECRITE nulle part. Toute lecture en produit donc des
+   * zeros presentes comme des chiffres, ou — pire — une garde qui ne garde
+   * rien : la liste des clients exclus des relances automatiques etait
+   * toujours vide, et un client qui avait demande qu'on cesse en recevait quand
+   * meme.
+   *
+   * Ce controle balaie l'arborescence plutot qu'un fichier : les trois
+   * lectures trouvees pendant l'audit etaient dans trois fichiers differents,
+   * et une quatrieme ailleurs passerait inapercue.
+   */
+  function sources(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+      const p = join(dir, e.name);
+      if (e.isDirectory()) return e.name === "__tests__" ? [] : sources(p);
+      return p.endsWith(".ts") && !p.includes(".test.") ? [p] : [];
+    });
+  }
+
+  it("aucune lecture, aucun import", () => {
+    const coupables = sources(join(import.meta.dirname, ".."))
+      .filter((f) => /compteClientTable/.test(readFileSync(f, "utf8")))
+      .map((f) => f.split(/[\\/]/).slice(-2).join("/"));
+
+    expect(
+      coupables,
+      `cette table n'est jamais ecrite: ce qu'on en lit est faux — ${coupables.join(", ")}`,
+    ).toEqual([]);
+  });
+
+  it("le balayage trouve bien des fichiers a examiner", () => {
+    // Garde-fou du controle: une arborescence vide ferait passer l'assertion
+    // precedente sans rien garantir.
+    expect(sources(join(import.meta.dirname, "..")).length).toBeGreaterThan(50);
   });
 });
