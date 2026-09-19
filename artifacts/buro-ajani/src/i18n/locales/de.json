@@ -402,7 +402,19 @@
       "phone": "Telefon",
       "email": "E-Mail",
       "relancesRefusees": "Keine automatischen Mahnungen",
-      "relancesRefuseesAide": "Dieser Kunde hat um den Verzicht auf automatische Zahlungserinnerungen gebeten. Manuelle Erinnerungen bleiben möglich."
+      "relancesRefuseesAide": "Dieser Kunde hat um den Verzicht auf automatische Zahlungserinnerungen gebeten. Manuelle Erinnerungen bleiben möglich.",
+      "demarchageTitre": "Kommerzielle Akquise",
+      "demarchageAide": "Seit dem 11. August 2026 ist der Anruf bei Verbrauchern zu Akquisezwecken ohne vorherige Einwilligung verboten (frz. Gesetz 2025-594). Ein nicht angegebener Typ gilt als Verbraucher.",
+      "typePersonne": "Personentyp",
+      "typeParticulier": "Verbraucher",
+      "typeProfessionnel": "Unternehmen",
+      "typeInconnu": "Nicht angegeben",
+      "consentement": "Einwilligung zur Akquise",
+      "consentementAccorde": "Erteilt",
+      "consentementRefuse": "Verweigert",
+      "consentementInconnu": "Nicht angegeben",
+      "opposition": "Hat der Akquise widersprochen",
+      "oppositionAide": "Ein Widerspruch (DSGVO Art. 21) hat Vorrang vor jeder früheren Einwilligung, auch zwischen Unternehmen."
     },
     "categories": {
       "client": "Kunde",

@@ -67,6 +67,15 @@ export default function Contacts() {
   // volontes exprimees par le client. Une volonte se consigne par un acte
   // explicite, pas au detour d'un changement d'adresse.
   const [relancesRefusees, setRelancesRefusees] = useState(false);
+  // Le regime de prospection (loi n° 2025-594, en vigueur depuis le 11 aout
+  // 2026) etait entierement implemente cote serveur — quatre regimes, defaut
+  // prudent, verdict calcule a la lecture — mais AUCUN ecran ne permettait de
+  // renseigner le type de personne ni le consentement. Chaque fiche restait
+  // donc « inconnu », c'est-a-dire traitee comme un particulier sans
+  // consentement : la regle etait juste et inapplicable.
+  const [typePersonne, setTypePersonne] = useState("inconnu");
+  const [consentement, setConsentement] = useState("inconnu");
+  const [opposition, setOpposition] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -215,6 +224,9 @@ export default function Contacts() {
       notes: contact.notes || "",
     });
     setRelancesRefusees(!!contact.relancesAutoDesactivees);
+    setTypePersonne(contact.typePersonne || "inconnu");
+    setConsentement(contact.prospectionConsent || "inconnu");
+    setOpposition(!!contact.prospectionOppositionAt);
     setIsDialogOpen(true);
   };
 
@@ -222,16 +234,23 @@ export default function Contacts() {
     if (editingContact) {
       updateContact.mutate({ id: editingContact.id, data: values }, {
         onSuccess: async () => {
-          // Envoye seulement s'il a change: la route refuse un corps vide, et
-          // l'ecrire a chaque enregistrement brouillerait la trace.
-          if (!!editingContact.relancesAutoDesactivees !== relancesRefusees) {
+          // Un seul appel pour tout ce qui releve du demarchage, avec les
+          // seuls champs qui ont change: la route refuse un corps vide, et
+          // reecrire un consentement inchange remettrait sa DATE a jour —
+          // or c'est la date qui fait la preuve.
+          const corps: Record<string, unknown> = {};
+          if (!!editingContact.relancesAutoDesactivees !== relancesRefusees) corps.relancesAuto = !relancesRefusees;
+          if ((editingContact.typePersonne || "inconnu") !== typePersonne) corps.typePersonne = typePersonne;
+          if ((editingContact.prospectionConsent || "inconnu") !== consentement) corps.prospectionConsent = consentement;
+          if (!!editingContact.prospectionOppositionAt !== opposition) corps.opposition = opposition;
+          if (Object.keys(corps).length > 0) {
             const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
             try {
               const r = await fetch(`${BASE}/api/contacts/${editingContact.id}/demarchage`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",
-                body: JSON.stringify({ relancesAuto: !relancesRefusees }),
+                body: JSON.stringify(corps),
               });
               if (!r.ok) {
                 toast({ title: t("contacts.toast.error"), description: t("contacts.toast.relancesError"), variant: "destructive" });
@@ -369,6 +388,47 @@ export default function Contacts() {
                       <FormItem><FormLabel>{t("contacts.form.email")}</FormLabel><FormControl><Input type="email" {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
                     )} />
                   </div>
+                  {editingContact && (
+                    <div className="rounded-lg border p-3 space-y-3">
+                      <p className="text-sm font-medium">{t("contacts.form.demarchageTitre")}</p>
+                      <p className="text-xs text-muted-foreground">{t("contacts.form.demarchageAide")}</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="grid gap-1">
+                          <label className="text-xs text-muted-foreground">{t("contacts.form.typePersonne")}</label>
+                          <Select value={typePersonne} onValueChange={setTypePersonne}>
+                            <SelectTrigger aria-label={t("contacts.form.typePersonne")}><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="particulier">{t("contacts.form.typeParticulier")}</SelectItem>
+                              <SelectItem value="professionnel">{t("contacts.form.typeProfessionnel")}</SelectItem>
+                              <SelectItem value="inconnu">{t("contacts.form.typeInconnu")}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-1">
+                          <label className="text-xs text-muted-foreground">{t("contacts.form.consentement")}</label>
+                          <Select value={consentement} onValueChange={setConsentement}>
+                            <SelectTrigger aria-label={t("contacts.form.consentement")}><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="accorde">{t("contacts.form.consentementAccorde")}</SelectItem>
+                              <SelectItem value="refuse">{t("contacts.form.consentementRefuse")}</SelectItem>
+                              <SelectItem value="inconnu">{t("contacts.form.consentementInconnu")}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <label className="flex items-start gap-3 text-sm">
+                        <Checkbox
+                          checked={opposition}
+                          onCheckedChange={(v) => setOpposition(v === true)}
+                          aria-label={t("contacts.form.opposition")}
+                        />
+                        <span>
+                          <span className="font-medium">{t("contacts.form.opposition")}</span>
+                          <span className="block text-xs text-muted-foreground">{t("contacts.form.oppositionAide")}</span>
+                        </span>
+                      </label>
+                    </div>
+                  )}
                   {editingContact && (
                     <label className="flex items-start gap-3 rounded-lg border p-3 text-sm">
                       <Checkbox

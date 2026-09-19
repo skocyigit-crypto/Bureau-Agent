@@ -204,7 +204,7 @@ describe("« ne pas relancer ce client » est enfin atteignable", () => {
     // Une volonte exprimee par un client se consigne par un acte explicite,
     // pas au detour d'un changement d'adresse.
     expect(contacts).toMatch(/\/demarchage/);
-    expect(contacts).toMatch(/relancesAuto: !relancesRefusees/);
+    expect(contacts).toMatch(/corps.relancesAuto = !relancesRefusees/);
   });
 
   it("elle n'est envoyee que si elle a change", () => {
@@ -221,5 +221,51 @@ describe("« ne pas relancer ce client » est enfin atteignable", () => {
     // A la creation, le contact n'existe pas encore: la route dediee n'aurait
     // rien a modifier.
     expect(contacts).toMatch(/\{editingContact && \(/);
+  });
+});
+
+describe("le regime de prospection est enfin renseignable", () => {
+  const contacts = readFileSync(join(src, "pages", "contacts.tsx"), "utf8");
+  const service = readFileSync(
+    join(src, "..", "..", "api-server", "src", "services", "demarchage.ts"), "utf8",
+  );
+
+  it("la regle existe bien cote serveur — c'est son entree qui manquait", () => {
+    expect(service, "si la regle disparaissait, cet ecran n'aurait plus d'objet")
+      .toMatch(/2025-594/);
+  });
+
+  it("le type de personne se choisit", () => {
+    // Sans lui, chaque fiche restait « inconnu », donc traitee comme un
+    // particulier sans consentement: la regle etait juste et inapplicable.
+    expect(contacts).toMatch(/contacts\.form\.typePersonne/);
+    expect(contacts).toMatch(/value="professionnel"/);
+  });
+
+  it("le consentement aussi", () => {
+    expect(contacts).toMatch(/contacts\.form\.consentement/);
+    expect(contacts).toMatch(/value="accorde"/);
+  });
+
+  it("l'opposition aussi", () => {
+    expect(contacts).toMatch(/contacts\.form\.opposition/);
+  });
+
+  it("les trois champs sont pre-remplis depuis la fiche", () => {
+    expect(contacts).toMatch(/setTypePersonne\(contact\.typePersonne \|\| "inconnu"\)/);
+    expect(contacts).toMatch(/setConsentement\(contact\.prospectionConsent \|\| "inconnu"\)/);
+    expect(contacts).toMatch(/setOpposition\(!!contact\.prospectionOppositionAt\)/);
+  });
+
+  it("seuls les champs modifies sont envoyes", () => {
+    // Reecrire un consentement inchange remettrait sa DATE a jour — or c'est
+    // la date qui fait la preuve.
+    expect(contacts).toMatch(/if \(\(editingContact\.prospectionConsent \|\| "inconnu"\) !== consentement\)/);
+    expect(contacts).toMatch(/if \(Object\.keys\(corps\)\.length > 0\)/);
+  });
+
+  it("tout passe par la route dediee, en un seul appel", () => {
+    const envois = contacts.match(/await fetch\([^)]*\/demarchage/g) ?? [];
+    expect(envois.length, "un appel par champ multiplierait les traces").toBe(1);
   });
 });
