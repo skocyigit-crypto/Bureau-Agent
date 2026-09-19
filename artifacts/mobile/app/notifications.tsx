@@ -115,15 +115,22 @@ export default function NotificationsScreen() {
       if (tasksRes?.ok) {
         const data = await tasksRes.json();
         const now = new Date();
-        (data.tasks || []).forEach((t: any) => {
-          if (t.dueDate && new Date(t.dueDate) < now && t.status !== "termine") {
-            if (items.some((i) => i.id === `task_${t.id}`)) return;
+        // Le parametre s'appelait `t`, comme la fonction de traduction : il la
+        // MASQUAIT. `t("notificationsScreen.overdueTask")` appelait donc la
+        // tache comme une fonction, et la TypeError etait avalee par le
+        // `catch {}` plus bas — `setNotifications` n'etait jamais atteint.
+        // Resultat : des qu'UNE tache etait en retard, l'ecran affichait
+        // « aucune notification », et jetait au passage les appels manques et
+        // les messages deja collectes.
+        (data.tasks || []).forEach((tache: any) => {
+          if (tache.dueDate && new Date(tache.dueDate) < now && tache.status !== "termine") {
+            if (items.some((i) => i.id === `task_${tache.id}`)) return;
             items.push({
-              id: `task_${t.id}`,
+              id: `task_${tache.id}`,
               type: "overdue_task",
               title: t("notificationsScreen.overdueTask"),
-              body: t.title,
-              time: t.dueDate,
+              body: tache.title,
+              time: tache.dueDate,
               read: false,
               route: "/(tabs)/tasks",
               ...TYPE_CONFIG.overdue_task,

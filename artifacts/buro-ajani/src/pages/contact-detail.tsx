@@ -464,7 +464,23 @@ export default function ContactDetail() {
                               )}
                             </div>
                           </div>
-                          <Button variant="ghost" size="icon" aria-label={t("common.edit")}><Edit className="w-4 h-4" aria-hidden="true" /></Button>
+                          {/*
+                            Ce crayon n'etait relie a rien: pas d'onClick, pas
+                            de lien. Il s'annoncait « Modifier » au lecteur
+                            d'ecran, prenait le focus au clavier, et ne faisait
+                            rien — le pire etat pour une commande, puisqu'elle
+                            promet une action qui n'existe pas.
+                            La page des taches sait deja ouvrir une tache par
+                            `?id=` (deepLinkTaskId, pages/tasks.tsx).
+                          */}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={t("common.edit")}
+                            onClick={() => navigate(`/taches?id=${task.id}`)}
+                          >
+                            <Edit className="w-4 h-4" aria-hidden="true" />
+                          </Button>
                         </div>
                       ))}
                     </div>

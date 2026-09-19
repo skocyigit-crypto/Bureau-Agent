@@ -54,7 +54,22 @@ describe("aucune classe de caracteres n'a perdu son antislash", () => {
           // Les classes explicites [abc] peuvent contenir d, w ou s: on les
           // retire avant de juger.
           const corps = m[0].replace(/\[[^\]]*\]/g, "");
-          if (/(^|[^\\])\b[dws]\{\d/.test(corps)) {
+          // Quantificateurs retenus: `{n}` et `+`, pas `?`.
+          //
+          // Premiere version: seul `{n}` etait cherche. Elle a laisse passer
+          // `replace(/s+/g, " ")` dans l'acceptation d'invitation, qui
+          // remplacait la lettre « s » par une espace — tout invite nomme
+          // « Dupuis » etait enregistre « Dupui ». Un detecteur trop etroit
+          // rassure sans proteger.
+          //
+          // En elargissant, `?` a fait crier au loup sur `what'?s?\s+date`
+          // (instant-answer.ts), ou le `s?` est une LETTRE optionnelle, pas
+          // une classe estropiee — c'est la forme courante d'un pluriel
+          // facultatif. Une classe de caracteres est presque toujours ecrite
+          // avec `+` ou `{n}`; un `?` sur une lettre nue est presque toujours
+          // voulu. Le detecteur garde donc les deux premiers: il vaut mieux
+          // qu'il dise vrai a chaque fois, sans quoi on cesse de le lire.
+          if (/(^|[^\\])\b[dwsDWS][{+]/.test(corps)) {
             coupables.push(`${fichier.replace(RACINE, "")}:${i + 1} — ${ligne.trim().slice(0, 100)}`);
           }
         }
@@ -81,6 +96,22 @@ describe("aucune classe de caracteres n'a perdu son antislash", () => {
     const casse = `if (!/^d{4}(-d{2})?$/.test(p)) {`;
     const corps = (casse.match(/\/[^/\n]*\/[gimsuy]*/g) ?? [""])[0].replace(/\[[^\]]*\]/g, "");
     expect(/(^|[^\\])\b[dws]\{\d/.test(corps)).toBe(true);
+  });
+
+  it("il reconnait aussi le quantificateur « + », celui de l'invitation", () => {
+    // `replace(/s+/g, " ")` remplacait la LETTRE « s » par une espace: tout
+    // invite nomme « Dupuis » etait enregistre « Dupui ». La premiere version
+    // du detecteur ne cherchait que `{n}` et laissait passer cette forme.
+    const casse = `nom.trim().replace(/s+/g, " ")`;
+    const corps = (casse.match(/\/[^/\n]*\/[gimsuy]*/g) ?? [""])[0].replace(/\[[^\]]*\]/g, "");
+    expect(/(^|[^\\])\b[dwsDWS][{+]/.test(corps)).toBe(true);
+  });
+
+  it("mais pas une lettre optionnelle, qui est une forme voulue", () => {
+    // `what'?s?\s+date` (instant-answer.ts): le `s?` est un pluriel
+    // facultatif, pas une classe estropiee.
+    const sain = `/what'?s?\\s+date/`;
+    expect(/(^|[^\\])\b[dwsDWS][{+]/.test(sain)).toBe(false);
   });
 
   it("et il ne signale pas la forme correcte", () => {

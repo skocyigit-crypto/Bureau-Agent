@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { db, autoBackupsTable, backupConfigTable } from "@workspace/db";
 import { eq, desc, sql, gte } from "drizzle-orm";
-import { performBackup } from "../services/auto-backup";
 import { logger } from "../lib/logger";
 import { requireRole } from "../middleware/auth";
 
@@ -119,22 +118,30 @@ router.post("/backups/config/:platform", async (req, res): Promise<void> => {
   }
 });
 
+/**
+ * Cette route declenchait `performBackup()` (services/auto-backup.ts), qui ne
+ * sauvegardait RIEN : il comptait des lignes, hachait le resume, et inscrivait
+ * une ligne `status: "termine"` portant `chiffrement: "AES-256-GCM"` et une
+ * `sizeBytes` — celle du JSON de comptage. Aucune donnee restaurable, et les
+ * comptages n'etaient meme pas bornes a une organisation : dans un produit
+ * multi-locataire, la « sauvegarde » de A comptait les lignes de tous.
+ *
+ * Une trace qui dit « fait » pour quelque chose qui n'a pas eu lieu est pire
+ * que l'absence de trace : elle empeche de s'inquieter. Sur une promesse de
+ * sauvegarde vendue a des clients, c'est le defaut le plus lourd du lot.
+ *
+ * La vraie sauvegarde existe : `services/tenant-backup.ts` exporte toutes les
+ * lignes d'UNE organisation en JSON gzip, secrets retires, et son cron
+ * quotidien la produit sous verrou (`tenant-backup-cron.ts`). Le client la
+ * telecharge depuis son espace. Le faux module est donc retire plutot que
+ * repare : deux systemes de sauvegarde dont un ment valent moins qu'un seul
+ * qui tient.
+ */
 router.post("/backups/manual", async (_req, res) => {
-  try {
-    const result = await performBackup();
-    if (!result.success) {
-      logger.warn({ err: result.error }, "Sauvegarde manuelle echouee");
-      res.status(500).json({ error: "Erreur lors de la sauvegarde manuelle." });
-      return;
-    }
-    res.json({
-      ...result,
-      message: `Sauvegarde manuelle terminee en ${result.duration}ms.`,
-    });
-  } catch (error: any) {
-    logger.error({ err: error }, "Manual backup error:");
-    res.status(500).json({ error: "Erreur lors de la sauvegarde manuelle." });
-  }
+  res.status(410).json({
+    error: "Cette sauvegarde n'en etait pas une: elle ne conservait aucune donnee restaurable.",
+    remediation: "Les sauvegardes par organisation sont produites chaque jour et telechargeables depuis l'espace client (/api/my-backups).",
+  });
 });
 
 router.get("/backups/latest", async (_req, res) => {

@@ -23,11 +23,32 @@ interface Invoice {
   plan: string;
   baseAmount: string;
   overageAmount: string;
+  /** Total HORS TAXES: c est ce que porte la colonne (lib/db/src/schema/invoices.ts). */
   totalAmount: string;
+  /** Ce que le client a reellement paye. */
+  totalTtc: string | null;
+  vatAmount: string | null;
   currency: string;
   status: string;
   paidAt: string | null;
   createdAt: string;
+}
+
+/**
+ * Ce que le client a paye, pas ce qui a ete calcule avant taxes.
+ *
+ * La liste affichait `totalAmount`, dont le schema dit explicitement qu'il
+ * porte le total HORS TAXES (lib/db/src/schema/invoices.ts) — `totalTtc` etant
+ * « la somme reellement due ». Le client lisait donc un montant inferieur de
+ * 20 % a ce qui avait ete preleve sur sa carte, sans la mention « HT » qui
+ * l'aurait averti.
+ *
+ * Repli sur le HT pour les lignes anterieures a la TVA, qui portent un
+ * `totalTtc` a zero : c'etait alors bien le montant reclame.
+ */
+function montantDu(inv: Invoice): string {
+  const ttc = Number(inv.totalTtc ?? 0);
+  return (ttc > 0 ? ttc : Number(inv.totalAmount)).toFixed(2);
 }
 
 export function TabAbonnement() {
@@ -56,7 +77,17 @@ export function TabAbonnement() {
           fetch(`${BASE}/api/subscription/plans`, { credentials: "include" }),
         ]);
         if (subRes.ok) {
-          setSubscription(await subRes.json());
+          // Le serveur repond `{ subscription: {...}, organisation }`
+          // (routes/subscriptions.ts). L'ecran stockait l'ENVELOPPE : tous les
+          // champs lus ensuite — plan, statut, fin d'essai, cle de licence et
+          // surtout `stripeSubscriptionId` — valaient donc `undefined`.
+          //
+          // Consequence : la condition qui affiche « Gerer mon abonnement »,
+          // « Annuler » et « Reprendre » etait TOUJOURS fausse. Aucun client
+          // ne pouvait gerer ni resilier son abonnement depuis le produit.
+          // On tolere les deux formes pour ne pas dependre de l'enveloppe.
+          const corps = await subRes.json();
+          setSubscription(corps?.subscription ?? corps);
         } else if (subRes.status === 403) {
           setSubError(t("settingsAbonnement.errNoOrg"));
         } else if (subRes.status === 404) {
@@ -432,7 +463,7 @@ export function TabAbonnement() {
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="text-sm font-bold">{parseFloat(inv.totalAmount).toFixed(2)} {inv.currency}</span>
+                          <span className="text-sm font-bold">{montantDu(inv)} {inv.currency}</span>
                           <Badge className={st ? st.className : "bg-slate-100 text-slate-600 border-0"}>{st ? t(st.labelKey) : inv.status}</Badge>
                         </div>
                       </div>

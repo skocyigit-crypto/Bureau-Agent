@@ -319,7 +319,7 @@ export default function NotesInternesScreen() {
       };
       if (editing) {
         await fetchAuth(`${API_BASE}/api/notes-internes/${editing.id}`, {
-          method: "PATCH",
+          method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
@@ -341,7 +341,7 @@ export default function NotesInternesScreen() {
   async function handlePin(note: Note) {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await fetchAuth(`${API_BASE}/api/notes-internes/${note.id}`, {
-      method: "PATCH",
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pinned: !note.pinned }),
     });

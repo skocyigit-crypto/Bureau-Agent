@@ -4,6 +4,7 @@ import { contactsTable, callsTable, tasksTable, messagesTable, prospectsTable, d
 import { desc, eq } from "drizzle-orm";
 import { logAudit } from "./audit";
 import { getOrgId } from "../middleware/tenant";
+import { requireRole } from "../middleware/auth";
 import { jourLocal } from "../lib/jour-local";
 import { documentCsv } from "../lib/csv";
 
@@ -15,7 +16,23 @@ function toCsv(data: any[], columns: { key: string; label: string }[]): string {
 
 const VALID_ENTITIES = ["contacts", "appels", "taches", "messages", "prospects", "devis", "factures", "stock", "commandes-fournisseur", "projets"] as const;
 
-router.get("/export/:entity", async (req: Request, res: Response): Promise<void> => {
+/**
+ * L'export du CRM est reserve au responsable.
+ *
+ * Le seul filtre etait « etre authentifie ». Le plancher global
+ * `requireMutationRole` (routes/index.ts) ne protegeait rien ici, puisqu'il
+ * laisse passer GET par construction : un compte `lecture_seule` — un
+ * stagiaire, un poste partage, une session volee — obtenait le fichier client
+ * complet en une requete, `GET /api/export/contacts`, et de meme pour les
+ * prospects, les devis et les factures.
+ *
+ * C'est exactement le trou que `__tests__/data-protection-export-access.test.ts`
+ * a ferme pour `/data-protection/export` (« une exfiltration complete du CRM
+ * tenait en une requete »). La meme porte restait ouverte a cote.
+ */
+const exportReserveAuResponsable = requireRole("super_admin", "administrateur");
+
+router.get("/export/:entity", exportReserveAuResponsable, async (req: Request, res: Response): Promise<void> => {
   const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 

@@ -1,6 +1,5 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { startAutoBackup } from "./services/auto-backup";
 import { startAutomationEngine } from "./services/automation-engine";
 import { ensureSuperAdmin } from "./services/ensure-admin";
 import { ensureAuditAppendOnly } from "./services/ensure-audit-append-only";
@@ -195,7 +194,6 @@ async function startServer(): Promise<void> {
     const DELAI_ENTRE_DEMARRAGES_MS = 150;
 
     const demarrages: Array<[string, () => void]> = [
-      ["auto-backup", startAutoBackup],
       ["automation-engine", startAutomationEngine],
       ["google-auto-pointage", startGoogleAutoPointage],
       // Sauvegarde automatique vers Google Drive desactivee explicitement

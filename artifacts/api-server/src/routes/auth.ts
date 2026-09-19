@@ -899,15 +899,41 @@ router.post("/auth/users/:id/send-credentials", adminEmailLimiter, async (req: R
     const [user] = await db.select({ id: usersTable.id, email: usersTable.email, nom: usersTable.nom, prenom: usersTable.prenom, role: usersTable.role, organisation: usersTable.organisation, organisationId: usersTable.organisationId }).from(usersTable).where(and(...conditions));
     if (!user) { res.status(404).json({ error: "Utilisateur non trouve." }); return; }
 
+    // CETTE ROUTE ECRASE `passwordHash`. Elle doit donc porter les memes
+    // gardes que PATCH et DELETE /auth/users/:id, qui les portent depuis
+    // toujours — elles manquaient ici, et c'etait un oubli, pas un choix.
+    //
+    // Sans elles, un `administrateur` compromis choisissait l'identifiant
+    // d'un PAIR, ou d'un `super_admin` rattache a l'organisation, recevait
+    // 200, et le mot de passe de la cible etait remplace par un code qu'il
+    // venait lui-meme de declencher. Prise de controle laterale et verticale.
+    if (!assertTargetNotSuperAdmin(req, res, user)) return;
+    if (!assertCallerOutranks(req, res, user.role)) return;
+
     const tempCode = generateTempCode();
     const passwordHash = await bcrypt.hash(tempCode, SALT_ROUNDS);
 
+    // Un reset administratif doit REVOQUER, sinon il ne reprend rien.
+    //
+    // Cette route ne posait ni `tokenInvalidatedAt`, ni l'invalidation des
+    // sessions cookie — alors que PATCH /auth/users/:id fait les deux, et que
+    // son commentaire dit pourquoi. L'administrateur croyait reprendre la main
+    // sur un compte compromis; le jeton Bearer vole (30 jours) et la session
+    // du voleur continuaient de fonctionner. Le reset servait surtout a
+    // rassurer.
     await db.update(usersTable).set({
       passwordHash,
       tentativesEchouees: 0,
       verrouilleJusqua: null,
+      tokenInvalidatedAt: new Date(),
       updatedAt: new Date(),
     }).where(eq(usersTable.id, id));
+    clearTokenInvalidationCache(id);
+    try {
+      await invalidateUserSessions(id);
+    } catch (err) {
+      req.log?.warn({ err, cible: id }, "[auth] sessions cookie non invalidees apres reset administratif");
+    }
 
     let orgName = user.organisation || "Ajant Bureau";
     if (user.organisationId) {

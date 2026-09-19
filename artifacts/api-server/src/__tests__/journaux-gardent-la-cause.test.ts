@@ -23,7 +23,7 @@
  * qui la fait. Ce test, lui, ne se lasse pas: il compte, et le compte doit
  * rester a zero.
  */
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -75,10 +75,18 @@ describe("les journaux d'erreur", () => {
     ).toEqual([]);
   });
 
-  it("la ligne qui avait motive la correction porte bien l'objet", () => {
-    // Nommement, parce que c'est celle que la premiere passe avait manquee.
-    const source = readFileSync(join(SRC, "services", "auto-backup.ts"), "utf8");
-    expect(source).toContain('logger.error({ err: error }, "[AutoBackup] Erreur critique:")');
+  it("le fichier qui avait motive la correction n'existe plus, et c'est voulu", () => {
+    // `services/auto-backup.ts` portait la ligne citee en exemple. Il a ete
+    // retire le 19/09: il n'exportait aucune donnee restaurable et inscrivait
+    // pourtant `status: "termine"` avec une mention de chiffrement. La vraie
+    // sauvegarde par organisation vit dans services/tenant-backup.ts.
+    //
+    // On verrouille le fait qu'il ne revienne pas: ressusciter ce module
+    // remettrait en place la fausse assurance, pas seulement une ligne de
+    // journal.
+    expect(existsSync(join(SRC, "services", "auto-backup.ts"))).toBe(false);
+    const vraie = readFileSync(join(SRC, "services", "tenant-backup.ts"), "utf8");
+    expect(vraie, "la vraie sauvegarde doit rester celle qui exporte des donnees").toMatch(/organisation/i);
   });
 });
 

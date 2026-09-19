@@ -318,7 +318,13 @@ describe("l'ecriture de caisse vit dans un service", () => {
     for (const [nom, source] of [["encaissements", encaissements], ["license-management", licence]] as const) {
       for (const bloc of source.matchAll(/\.set\(\{[\s\S]{0,400}?\}\)/g)) {
         if (!/paidAmount:/.test(bloc[0])) continue;
-        const avant = source.slice(Math.max(0, bloc.index - 600), bloc.index);
+        // Fenetre large a dessein. Elle etait de 600 caracteres, et le
+        // controle a crie au loup des qu'un recalcul de STATUT s'est
+        // intercale entre `soldeFacture` et l'ecriture — la propriete tenait,
+        // c'est la mesure qui etait trop serree. Un controle qui tombe sur du
+        // code correct finit par etre desactive, et c'est alors le vrai defaut
+        // qui passe.
+        const avant = source.slice(Math.max(0, bloc.index - 2500), bloc.index);
         expect(
           /soldeFacture\(/.test(avant),
           `${nom}: paidAmount ecrit sans recalcul de la chaine — « ${bloc[0].replace(/\s+/g, " ").slice(0, 90)} »`,
@@ -327,3 +333,4 @@ describe("l'ecriture de caisse vit dans un service", () => {
     }
   });
 });
+
