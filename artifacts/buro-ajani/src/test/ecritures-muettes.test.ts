@@ -123,7 +123,14 @@ describe("une saisie perdue ne doit plus l'etre en silence", () => {
  */
 describe("une ecriture mobile lit la reponse du serveur", () => {
   /** Plafond courant. A BAISSER a chaque correction — jamais a monter. */
-  const PLAFOND_REPONSES = 8;
+  //
+  // 19/09 : 14 au premier comptage, puis 2. Les deux qui restent sont des
+  // choix, ecrits sur place :
+  //   - `documents.tsx`, l arret d un scan groupe — le serveur s arrete de
+  //     toute facon ;
+  //   - `rappels.tsx`, « tout marquer comme lu » en arriere-plan — un
+  //     avertissement y serait du bruit, et l operation se refait.
+  const PLAFOND_REPONSES = 2;
 
   function ignorees(): string[] {
     const out: string[] = [];
@@ -156,9 +163,28 @@ describe("une ecriture mobile lit la reponse du serveur", () => {
     // d'un `if (!r.ok)` quelque part: en retirer un sur trois passerait
     // inapercu, et c'est exactement la regression qu'on veut voir.
     const liste = ignorees();
-    for (const nom of ["notes-internes.tsx", "users.tsx", "calendar.tsx"]) {
+    for (const nom of ["notes-internes.tsx", "users.tsx", "calendar.tsx", "gmail-agent.tsx", "organisations.tsx", "prospects.tsx", "whatsapp-thread.tsx"]) {
       const restantes = liste.filter((e) => e.startsWith(`${nom}:`));
       expect(restantes, `${nom}: une ecriture y ignore a nouveau la reponse`).toEqual([]);
     }
+  });
+});
+
+describe("les deux exceptions restantes sont des choix, pas des oublis", () => {
+  /**
+   * Une exception qui n'est pas justifiee sur place redevient un oubli a la
+   * relecture suivante. Ces deux-la portent leur raison dans le fichier ; ce
+   * controle verifie qu'elle y reste, et qu'on ne l'etend pas en silence.
+   */
+  it("l'arret d'un scan groupe explique pourquoi il n'attend rien", () => {
+    const source = readFileSync(join(RACINES[0]!, "documents.tsx"), "utf8");
+    expect(source).toMatch(/Le serveur s'arrêtera de toute façon/);
+  });
+
+  it("« tout marquer comme lu » ne bloque pas sur un echec", () => {
+    // Optimiste et repetable: l'operation se refait au prochain affichage.
+    const source = readFileSync(join(RACINES[0]!, "rappels.tsx"), "utf8");
+    expect(source).toMatch(/notifications\/read-all/);
+    expect(source).toMatch(/\.catch\(\(\) => null\)/);
   });
 });

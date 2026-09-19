@@ -289,7 +289,10 @@ export default function ProspectsScreen() {
   async function handleDelete(id: number) {
     setProspects(prev => prev.filter(p => p.id !== id));
     try {
-      await fetchAuth(`${API_BASE}/api/prospects/${id}`, { method: "DELETE" });
+      // La ligne a deja ete retiree de l'ecran. Sur un refus, elle revient au
+      // rechargement: sans ce message, cela ressemble a un bogue d'affichage.
+      const r = await fetchAuth(`${API_BASE}/api/prospects/${id}`, { method: "DELETE" });
+      if (!r.ok) Alert.alert(t("common.error"), t("common.actionFailed"));
       setSelected(null);
       fetchProspects();
     } catch { fetchProspects(); }
