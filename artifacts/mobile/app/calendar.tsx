@@ -539,7 +539,7 @@ export default function CalendarScreen() {
       setSelected(null);
       fetchEvents();
       refreshSharedCalendar();
-    } catch {}
+    } catch { Alert.alert(t("common.error"), t("common.actionFailed")); }
   }
 
   const selectedDayLabel = selectedDateStr

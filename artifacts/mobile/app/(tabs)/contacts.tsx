@@ -244,7 +244,7 @@ export default function ContactsScreen() {
       setEditId(null);
       setFormValues({ category: "client" });
       fetchContacts();
-    } catch {} finally { setFormLoading(false); }
+    } catch { Alert.alert(t("common.error"), t("common.actionFailed")); } finally { setFormLoading(false); }
   }
 
   async function handleDelete(id: number) {
@@ -252,7 +252,7 @@ export default function ContactsScreen() {
       await deleteContact(id);
       setSelected(null);
       fetchContacts();
-    } catch {}
+    } catch { Alert.alert(t("common.error"), t("common.actionFailed")); }
   }
 
   function openEdit(contact: Contact) {
