@@ -73,9 +73,14 @@ router.get("/my-subscription", async (req: Request, res: Response): Promise<void
       maxUsers: sub?.maxUsers || planDetails.maxUsers,
       maxContacts: sub?.maxContacts || planDetails.maxContacts,
       maxCallsPerMonth: sub?.maxCallsPerMonth || planDetails.maxCallsPerMonth,
-      aiEnabled: sub?.aiEnabled ?? planDetails.aiEnabled,
-      stockEnabled: sub?.stockEnabled ?? planDetails.stockEnabled,
-      automationEnabled: sub?.automationEnabled ?? planDetails.automationEnabled,
+      // Le PLAN fait foi, comme pour l'acces lui-meme
+      // (services/droits-plan.ts). Les colonnes ne sont qu'une photographie
+      // prise a la souscription: s'y fier ici ferait dire a l'ecran « IA
+      // inactive » a quelqu'un a qui le serveur ouvre l'IA — un logiciel qui
+      // se decrit mal lui-meme, et un client qui n'utilise pas ce qu'il paie.
+      aiEnabled: planDetails.aiEnabled,
+      stockEnabled: planDetails.stockEnabled,
+      automationEnabled: planDetails.automationEnabled,
     },
     usage: {
       users: userCount?.count || 0,

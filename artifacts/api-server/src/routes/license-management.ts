@@ -5,6 +5,11 @@ import { getOrgId } from "../middleware/tenant";
 import { sendEmail } from "../services/email";
 import { logger } from "../lib/logger";
 
+import { emettreFacturePlateforme } from "../services/platform-invoice-issue";
+import { nextInvoiceNumber } from "../services/invoice-numbering";
+import { enregistrerEncaissement, MOYENS_ENCAISSEMENT } from "../services/encaissement-enregistrement";
+import { OVERAGE_RATES } from "@workspace/db";
+
 const router = Router();
 
 import { escapeHtml } from "../lib/html-escape";
@@ -258,6 +263,14 @@ router.post("/license-management/auto-generate-invoice", async (req: Request, re
 
     if (!org || !sub) { res.status(404).json({ error: "Organisation ou abonnement introuvable" }); return; }
 
+    // Memes regles que le moteur mensuel (services/billing-engine.ts) : un
+    // essai ne se facture pas, et un abonnement suspendu place le client en
+    // lecture seule — lui adresser une facture au tarif plein revient a lui
+    // facturer un mois qu'on l'a empeche d'utiliser. Ce bouton produisait des
+    // factures que le cron se serait refuse a produire.
+    if (sub.plan === "essai") { res.status(400).json({ error: "Une periode d'essai ne se facture pas." }); return; }
+    if (sub.status !== "active") { res.status(400).json({ error: `Abonnement non actif (${sub.status}) : aucune facture.` }); return; }
+
     const now = new Date();
     const monthLabel = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
@@ -279,9 +292,12 @@ router.post("/license-management/auto-generate-invoice", async (req: Request, re
     const extraContacts = Math.max(0, (contactCount?.c || 0) - (planConfig?.maxContacts || sub.maxContacts));
     const extraCalls = Math.max(0, (callCount?.c || 0) - (planConfig?.maxCallsPerMonth || sub.maxCallsPerMonth));
 
-    const extraUsersAmount = extraUsers * 10;
-    const extraContactsAmount = Math.ceil(extraContacts / 100) * 2;
-    const extraCallsAmount = Math.ceil(extraCalls / 100) * 3;
+    // Tarifs de depassement PARTAGES avec le moteur mensuel. Ils etaient
+    // recopies en durs (10 / 2 / 3) : une revision des tarifs publies aurait
+    // laisse ce bouton facturer les anciens prix, sans que rien ne le signale.
+    const extraUsersAmount = extraUsers * OVERAGE_RATES.extraUserPerMonth;
+    const extraContactsAmount = Math.ceil(extraContacts / 100) * OVERAGE_RATES.extraContactsPer100;
+    const extraCallsAmount = Math.ceil(extraCalls / 100) * OVERAGE_RATES.extraCallsPer100;
     const overageAmount = extraUsersAmount + extraContactsAmount + extraCallsAmount;
     const totalAmount = baseAmount + overageAmount;
 
@@ -303,9 +319,25 @@ router.post("/license-management/auto-generate-invoice", async (req: Request, re
       },
     }).returning();
 
+    // Numero, date d'emission, TVA et identite de l'acheteur.
+    //
+    // Cette route inserait une facture en « en_attente » — donc exigible, et
+    // envoyee par courriel juste apres — sans jamais appeler l'emission. Le
+    // document partait sans numero, sans date d'emission et sans ligne de TVA,
+    // c'est-a-dire sans les mentions que l'article 242 nonies A de l'annexe II
+    // au CGI rend obligatoires. Le courriel affichait meme une reference
+    // fabriquee (« INV-mois-orgId ») qui ne correspondait a aucune donnee
+    // stockee: le client recevait un identifiant que le vendeur ne connaissait
+    // pas.
+    //
+    // Le moteur mensuel appelle deja `emettreFacturePlateforme` pour cela;
+    // c'est la meme sequence numerotee, donc sans trou.
+    const emission = await emettreFacturePlateforme(invoice.id);
+    const reference = emission.reference;
+
     if (org.autoEmailInvoice && org.email) {
       const invoiceBody = `
-        <h2 style="color:#0f1729;font-size:20px;margin:0 0 8px;">Facture mensuelle - ${monthLabel}</h2>
+        <h2 style="color:#0f1729;font-size:20px;margin:0 0 8px;">Facture ${escapeHtml(reference)}</h2>
         <p style="color:#64748b;font-size:15px;">Bonjour,</p>
         <p style="color:#64748b;font-size:14px;">Votre facture Ajant Bureau pour la periode du ${periodStart.toLocaleDateString("fr-FR")} au ${periodEnd.toLocaleDateString("fr-FR")} a ete generee.</p>
         <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:24px;margin:24px 0;">
@@ -324,7 +356,7 @@ router.post("/license-management/auto-generate-invoice", async (req: Request, re
           <table style="width:100%;border-collapse:collapse;">
             <tr><td style="padding:4px 0;color:#166534;font-size:12px;width:80px;">IBAN</td><td style="font-family:monospace;font-size:12px;">${escapeHtml(org.bankIban)}</td></tr>
             ${org.bankBic ? `<tr><td style="padding:4px 0;color:#166534;font-size:12px;">BIC</td><td style="font-family:monospace;font-size:12px;">${escapeHtml(org.bankBic)}</td></tr>` : ""}
-            <tr><td style="padding:4px 0;color:#166534;font-size:12px;">Reference</td><td style="font-family:monospace;font-weight:700;font-size:12px;">INV-${monthLabel}-${tgtOrg}</td></tr>
+            <tr><td style="padding:4px 0;color:#166534;font-size:12px;">Reference</td><td style="font-family:monospace;font-weight:700;font-size:12px;">${escapeHtml(reference)}</td></tr>
           </table>
         </div>` : ""}
         <div style="text-align:center;margin:24px 0;">
@@ -415,7 +447,22 @@ router.post("/license-management/send-invoice-email", async (req: Request, res: 
       await db.update(facturesClientTable).set({ status: "envoyee" }).where(eq(facturesClientTable.id, facture.id));
     }
 
-    await logAudit(orgId, "invoice_email_sent", `Facture ${facture.reference} envoyee a ${facture.clientEmail}`, req.session?.userId);
+    // La trace doit dire ce qui s'est passe, pas ce qu'on esperait.
+    //
+    // `invoice_email_sent` etait ecrit meme quand `sent` valait false — la
+    // reponse disait « Echec de l'envoi » a l'ecran pendant que le journal
+    // affirmait l'inverse. Or c'est ce journal qu'on produit le jour ou le
+    // client conteste avoir recu la facture, et ou les penalites de retard se
+    // comptent depuis cette date (C. com. L441-10). Un envoi echoue doit
+    // laisser une trace d'ECHEC, qui appelle une relance.
+    await logAudit(
+      orgId,
+      sent ? "invoice_email_sent" : "invoice_email_failed",
+      sent
+        ? `Facture ${facture.reference} envoyee a ${facture.clientEmail}`
+        : `Echec d'envoi de la facture ${facture.reference} a ${facture.clientEmail}`,
+      req.session?.userId,
+    );
 
     res.json({ success: sent, message: sent ? `Facture envoyee a ${facture.clientEmail}` : "Echec de l'envoi" });
   } catch (err: any) {
@@ -569,11 +616,25 @@ router.post("/license-management/create-client-invoice", async (req: Request, re
     const taxAmount = processedItems.reduce((s, i) => s + i.quantity * i.unitPrice * i.taxRate / 100, 0);
     const totalAmount = subtotal + taxAmount;
 
-    const [seqRes] = await db.select({ c: sql<number>`count(*)::int` }).from(facturesClientTable).where(eq(facturesClientTable.organisationId, orgId));
-    const now = new Date();
-    const reference = `FAC-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String((seqRes?.c || 0) + 1).padStart(4, "0")}`;
-
-    const [facture] = await db.insert(facturesClientTable).values({
+    // Numerotation: la MEME sequence que l'autre porte.
+    //
+    // Le numero etait calcule ici par `count(*) + 1` sur les factures de
+    // l'organisation. Trois consequences, toutes contraires a l'article 242
+    // nonies A de l'annexe II au CGI, qui exige une sequence continue et sans
+    // doublon:
+    //  - deux creations simultanees comptaient la meme valeur et produisaient
+    //    le MEME numero;
+    //  - la suppression d'une facture faisait reutiliser un numero deja emis;
+    //  - surtout, ce compteur ignorait la sequence tenue par
+    //    services/invoice-numbering.ts, qu'utilise /api/factures-client — les
+    //    deux portes numerotaient chacune de son cote, sur les memes factures.
+    //
+    // `nextInvoiceNumber` est pris DANS la transaction d'insertion: si
+    // l'insertion echoue, l'increment est annule avec elle et la sequence ne
+    // garde pas de trou.
+    const facture = await db.transaction(async (tx) => {
+    const reference = await nextInvoiceNumber(tx, orgId);
+    const [cree] = await tx.insert(facturesClientTable).values({
       organisationId: orgId,
       reference,
       title,
@@ -592,8 +653,10 @@ router.post("/license-management/create-client-invoice", async (req: Request, re
       notes: notes || null,
       conditions: conditions || null,
     }).returning();
+      return cree;
+    });
 
-    await logAudit(orgId, "client_invoice_created", `Facture ${reference} creee pour ${clientName}: ${totalAmount.toFixed(2)} EUR`, userId, { invoiceId: facture.id, amount: totalAmount });
+    await logAudit(orgId, "client_invoice_created", `Facture ${facture.reference} creee pour ${clientName}: ${totalAmount.toFixed(2)} EUR`, userId, { invoiceId: facture.id, amount: totalAmount });
     res.status(201).json({ success: true, facture: { ...facture, totalAmount: Number(facture.totalAmount), paidAmount: Number(facture.paidAmount), subtotal: Number(facture.subtotal), taxAmount: Number(facture.taxAmount) } });
   } catch (err: any) {
     logger.error({ err }, "Erreur creation facture client:");
@@ -614,9 +677,36 @@ router.post("/license-management/mark-invoice-paid", async (req: Request, res: R
     if (!facture) { res.status(404).json({ error: "Facture introuvable" }); return; }
     if (facture.status === "payee") { res.status(400).json({ error: "Facture deja marquee comme payee" }); return; }
 
+    // « Marquer payee » = encaisser le reste du, par une vraie ecriture.
+    //
+    // Cette route ecrivait `paidAmount = totalAmount` sans creer d'ecriture:
+    // le journal de caisse n'en savait rien, et le premier encaissement saisi
+    // ensuite recalculait le cache depuis les seules ecritures, effacant ce
+    // reglement. Le solde restant se lit dans la chaine, pas dans le cache.
+    const resteCentimes = Math.round((Number(facture.totalAmount) - Number(facture.paidAmount)) * 100);
+    if (resteCentimes > 0) {
+      const ecriture = await enregistrerEncaissement({
+        organisationId: orgId,
+        factureId: facture.id,
+        montantCentimes: resteCentimes,
+        moyen: (MOYENS_ENCAISSEMENT as readonly string[]).includes(String(paymentMethod))
+          ? (paymentMethod as (typeof MOYENS_ENCAISSEMENT)[number])
+          : "virement",
+        createdBy: userId ?? null,
+      });
+      if (!ecriture.ok) {
+        res.status(409).json({
+          error: ecriture.code === "periode_close"
+            ? "La periode comptable est close: le reglement ne peut pas y etre inscrit."
+            : "Le reglement n'a pas pu etre enregistre.",
+          code: ecriture.code,
+        });
+        return;
+      }
+    }
+
     await db.update(facturesClientTable).set({
       status: "payee",
-      paidAmount: facture.totalAmount,
       paidAt: new Date(),
       paymentMethod: paymentMethod || "virement",
     }).where(eq(facturesClientTable.id, facture.id));
@@ -643,11 +733,59 @@ router.post("/license-management/record-payment", async (req: Request, res: Resp
     const [facture] = await db.select().from(facturesClientTable).where(and(eq(facturesClientTable.id, factureClientId), eq(facturesClientTable.organisationId, orgId)));
     if (!facture) { res.status(404).json({ error: "Facture introuvable" }); return; }
 
-    const newPaid = Math.min(Number(facture.paidAmount) + amountNum, Number(facture.totalAmount));
-    const isFullyPaid = newPaid >= Number(facture.totalAmount);
+    // Un trop-percu ne se tronque pas en silence.
+    //
+    // `Math.min` ramenait le cumul au total de la facture: saisir 1 000 sur une
+    // facture de 500 enregistrait 500 et repondait « soldee ». Le surplus
+    // disparaissait sans trace — les livres cessaient de correspondre a la
+    // banque, et la faute de frappe restait invisible.
+    //
+    // La route /encaissements refuse deja ce cas (409 depasse_reste_a_payer);
+    // celle-ci menait au meme fait comptable par une autre porte, non gardee.
+    const dejaPaye = Number(facture.paidAmount);
+    const total = Number(facture.totalAmount);
+    const reste = Math.round((total - dejaPaye) * 100) / 100;
+    if (amountNum > reste + 0.005) {
+      res.status(409).json({
+        error: reste <= 0
+          ? "Cette facture est deja entierement reglee."
+          : `Ce montant depasse le reste a payer (${reste.toFixed(2)} EUR).`,
+        resteAPayer: reste.toFixed(2),
+        code: "depasse_reste_a_payer",
+        remediation: "Corrigez le montant. S'il s'agit d'un trop-percu reel, il se constate par un avoir, pas par une facture surpayee.",
+      });
+      return;
+    }
+
+    // `paidAmount` n'est pas une donnee, c'est un CACHE de la chaine
+    // d'encaissements. Cette route l'ecrivait directement, sans creer
+    // d'ecriture: le journal de caisse ignorait le reglement, et surtout le
+    // PREMIER encaissement saisi ensuite sur la meme facture recalculait le
+    // cache depuis les seules ecritures — faisant DISPARAITRE ce paiement.
+    // On passe donc par la meme ecriture que /api/encaissements.
+    const ecriture = await enregistrerEncaissement({
+      organisationId: orgId,
+      factureId: facture.id,
+      montantCentimes: Math.round(amountNum * 100),
+      moyen: (MOYENS_ENCAISSEMENT as readonly string[]).includes(String(paymentMethod))
+        ? (paymentMethod as (typeof MOYENS_ENCAISSEMENT)[number])
+        : "virement",
+      createdBy: userId ?? null,
+    });
+    if (!ecriture.ok) {
+      const messages: Record<string, string> = {
+        facture_introuvable: "Facture introuvable",
+        depasse_reste_a_payer: "Ce montant depasse le reste a payer.",
+        periode_close: "La periode comptable de cette date est close.",
+      };
+      res.status(ecriture.code === "facture_introuvable" ? 404 : 409).json({ error: messages[ecriture.code], code: ecriture.code });
+      return;
+    }
+
+    const newPaid = ecriture.payeCentimes / 100;
+    const isFullyPaid = ecriture.soldee;
 
     await db.update(facturesClientTable).set({
-      paidAmount: newPaid.toFixed(2),
       status: isFullyPaid ? "payee" : facture.status !== "brouillon" ? facture.status : "envoyee",
       paidAt: isFullyPaid ? new Date() : facture.paidAt,
       paymentMethod: paymentMethod || facture.paymentMethod || null,

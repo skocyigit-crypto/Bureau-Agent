@@ -20,6 +20,9 @@ export type LicenseAuditAction =
   | "downgrade_quota_breach"
   | "invoice_generated"
   | "invoice_email_sent"
+  // Un envoi rate laisse sa propre trace: le journal sert de preuve d envoi,
+  // et affirmer un envoi qui n a pas eu lieu se retourne contre l emetteur.
+  | "invoice_email_failed"
   | "payment_reminder_sent"
   | "payment_recorded"
   | "client_invoice_created"

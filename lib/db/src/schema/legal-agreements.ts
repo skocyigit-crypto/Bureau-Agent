@@ -33,7 +33,13 @@ export const LEGAL_DOCUMENTS = {
     code: "cgv",
     title: "Conditions Generales de Vente",
     description: "Modalites commerciales : tarification, facturation, paiement, remboursement, duree d'engagement et renouvellement automatique.",
-    version: "1.0",
+    // 1.1 (18/09/2026) : ajout de l'article 8, facturation electronique — ce
+    // que le service produit (Factur-X) et ce qui reste au client (le depot
+    // sur une plateforme agreee). Une clause nouvelle qui restreint la portee
+    // de l'obligation de l'editeur doit porter un numero de version distinct :
+    // sinon les acceptations enregistrees avant ce jour attesteraient d'un
+    // texte que leurs signataires n'ont jamais lu.
+    version: "1.1",
     mandatory: true,
     category: "commercial",
   },

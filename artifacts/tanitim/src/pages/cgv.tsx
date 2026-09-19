@@ -25,7 +25,7 @@ export default function CGV() {
       <Navbar onDemoClick={() => setDemoOpen(true)} />
       <main id="contenu" className="container mx-auto px-4 pt-32 pb-20 max-w-3xl">
         <h1 className="text-3xl font-bold mb-2">Conditions Générales de Vente</h1>
-        <p className="text-muted-foreground mb-10">Dernière mise à jour : 3 septembre 2026</p>
+        <p className="text-muted-foreground mb-10">Dernière mise à jour : 18 septembre 2026</p>
 
         <section className="space-y-8 text-sm leading-relaxed text-foreground/80">
           <div>
@@ -167,8 +167,57 @@ export default function CGV() {
             </p>
           </div>
 
+          {/*
+            Facturation electronique : dire ou s'arrete le service.
+
+            La reforme (art. 289 bis et 290 CGI, ordonnance 2021-1190) est
+            entree en vigueur le 1er septembre 2026. Depuis cette date, toute
+            entreprise assujettie doit POUVOIR RECEVOIR une facture
+            electronique, et l'emission devient obligatoire par paliers. Une
+            facture ne circule plus par courriel : elle transite par une
+            plateforme agreee.
+
+            Le produit genere un PDF Factur-X profil BASIC, XML CII attache,
+            controle contre le noyau EN 16931 avant emission
+            (services/facturx.ts, services/conformite-en16931.ts). Il ne
+            TRANSMET pas : il n'est pas immatricule comme plateforme agreee,
+            et le devenir suppose un dossier et un agrement, non du code.
+
+            Le silence etait le risque : un client pouvait croire que
+            s'abonner suffisait a etre en regle, decouvrir le contraire a la
+            premiere facture rejetee, et se retourner vers l'editeur. Cette
+            clause dit ce qui est fourni et ce qui reste au client, avant la
+            commande — c'est la seule facon pour l'editeur de ne pas repondre
+            d'une obligation qu'il n'a jamais assumee.
+          */}
           <div>
-            <h2 className="text-lg font-semibold text-foreground mb-3">8. Responsabilité</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-3">8. Facturation électronique</h2>
+            <p>
+              Le service génère les factures du client au format{" "}
+              <strong>Factur-X (profil BASIC)</strong> : un PDF lisible auquel
+              est attaché le fichier XML structuré correspondant, conforme au
+              socle de la norme européenne EN 16931. Chaque facture est
+              contrôlée contre les règles de ce socle avant d'être émise, et
+              les manquements éventuels sont signalés au client.
+            </p>
+            <p className="mt-2">
+              <strong>Ce qui reste à la charge du client :</strong> l'éditeur
+              n'est pas immatriculé en qualité de plateforme agréée de
+              dématérialisation et n'assure donc ni la transmission des
+              factures à l'administration, ni leur acheminement vers les
+              plateformes des clients du client. Il appartient à ce dernier de
+              choisir sa plateforme et d'y déposer les fichiers que le service
+              met à sa disposition, exportables à tout moment.
+            </p>
+            <p className="mt-2">
+              L'éditeur ne garantit pas la conformité fiscale des factures du
+              client, qui dépend des données que celui-ci saisit et du régime
+              qui lui est applicable.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="text-lg font-semibold text-foreground mb-3">9. Responsabilité</h2>
             <p>
               L'éditeur est tenu d'une obligation de moyens. Sa responsabilité
               ne saurait être engagée en cas d'usage non conforme du service,
@@ -187,7 +236,7 @@ export default function CGV() {
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold text-foreground mb-3">9. Propriété intellectuelle</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-3">10. Propriété intellectuelle</h2>
             <p>
               La plateforme, son code, sa charte graphique et sa documentation
               demeurent la propriété exclusive de l'éditeur. L'abonnement confère
@@ -197,7 +246,7 @@ export default function CGV() {
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold text-foreground mb-3">10. Droit applicable et litiges</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-3">11. Droit applicable et litiges</h2>
             <p>
               Les présentes CGV sont soumises au droit français. En cas de
               litige, les parties rechercheront une solution amiable avant toute
@@ -208,7 +257,7 @@ export default function CGV() {
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold text-foreground mb-3">11. Contact</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-3">12. Contact</h2>
             <p>
               Pour toute question relative aux présentes CGV :{" "}
               <a href="mailto:legal@agentdebureau.fr" className="text-primary underline">

@@ -159,7 +159,8 @@ interface LegalDocument {
   version: string;
   mandatory: boolean;
   category: string;
-  status: "accepted" | "pending";
+  // « outdated » : accepte, mais dans une version anterieure du document.
+  status: "accepted" | "outdated" | "pending";
   agreement: {
     id: number;
     acceptedAt: string;
@@ -1898,15 +1899,29 @@ export default function OrganisationsPage() {
                             ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
                             : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
                           }>
-                            {doc.status === "accepted" ? t("organisationsPage.legalDetail.accepted") : t("organisationsPage.legalDetail.pending")}
+                            {doc.status === "accepted"
+                              ? t("organisationsPage.legalDetail.accepted")
+                              : doc.status === "outdated"
+                                ? t("organisationsPage.legalDetail.outdated")
+                                : t("organisationsPage.legalDetail.pending")}
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">{doc.description}</p>
                         <p className="text-[10px] text-muted-foreground mt-1">{t("organisationsPage.legalDetail.versionCategory", { version: doc.version, category: doc.category })}</p>
 
+                        {/*
+                          Une preuve d'acceptation perimee reste une preuve,
+                          mais elle ne prouve pas l'acceptation du texte en
+                          vigueur: un coche vert ici affirmerait le contraire.
+                        */}
                         {doc.agreement && (
-                          <div className="mt-2 p-2 rounded bg-emerald-50 dark:bg-emerald-950/20 text-xs space-y-0.5">
-                            <p className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-600" /> {t("organisationsPage.legalDetail.acceptedByLabel")} <strong>{doc.agreement.acceptedBy}</strong></p>
+                          <div className={`mt-2 p-2 rounded text-xs space-y-0.5 ${doc.status === "outdated" ? "bg-amber-50 dark:bg-amber-950/20" : "bg-emerald-50 dark:bg-emerald-950/20"}`}>
+                            {doc.status === "outdated" && (
+                              <p className="font-semibold text-amber-700 dark:text-amber-400">
+                                {t("organisationsPage.legalDetail.outdatedNotice", { version: doc.agreement.documentVersion, courante: doc.version })}
+                              </p>
+                            )}
+                            <p className="flex items-center gap-1">{doc.status === "outdated" ? <AlertTriangle className="w-3 h-3 text-amber-600" /> : <CheckCircle2 className="w-3 h-3 text-emerald-600" />} {t("organisationsPage.legalDetail.acceptedByLabel")} <strong>{doc.agreement.acceptedBy}</strong></p>
                             <p>{t("organisationsPage.legalDetail.dateLabel", { date: new Date(doc.agreement.acceptedAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }) })}</p>
                             <p>{t("organisationsPage.legalDetail.ipLabel", { ip: doc.agreement.acceptedIp })}</p>
                             {doc.agreement.notes && <p>{t("organisationsPage.legalDetail.notesLabel", { notes: doc.agreement.notes })}</p>}

@@ -18,7 +18,7 @@
  * qui n'a pas d'abord passe cette garde.
  */
 import { db } from "@workspace/db";
-import { subscriptionsTable, organisationsTable, licenseAuditLogTable } from "@workspace/db/schema";
+import { subscriptionsTable, organisationsTable, licenseAuditLogTable, PLANS, type PlanKey } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { invalidateLicenseCache } from "../middleware/license-check";
@@ -89,4 +89,75 @@ export async function reactivateSubscription(targetOrgId: number, actingUserId: 
   invalidateLicenseCache(targetOrgId);
   await audit(targetOrgId, "agent_reactivated", `Reactive (org: ${org.name})`, actingUserId, { previousState, orgName: org.name });
   return { ok: true, detail: { previousState } };
+}
+
+/**
+ * Fait passer une organisation a un autre plan.
+ *
+ * Mesure du 18/09 : cette operation n'existait NULLE PART. La seule route de
+ * changement de plan (`POST /subscription/upgrade`) lit l'organisation dans la
+ * SESSION de l'appelant — un super-admin ne pouvait donc changer que le plan
+ * de sa propre organisation. Or le parcours commercial est celui-ci : le
+ * client demande un plan depuis son espace
+ * (`/my-subscription/upgrade-request`), la demande part par mail, « vous serez
+ * contacte sous peu », et l'abonnement « se met en place sur facture ». Tant
+ * que le paiement par carte n'est pas actif, cette chaine EST le canal de
+ * vente — et son dernier maillon manquait. Un client qui demandait a payer ne
+ * pouvait pas etre servi.
+ *
+ * Les plafonds ET les fonctions sont reecrits depuis `PLANS` : l'abonnement
+ * doit decrire le plan qu'il porte, sans quoi les colonnes divergent de
+ * l'offre. `maxUsers` est aussi porte sur l'organisation, qui sert de repli
+ * quand l'abonnement est absent.
+ *
+ * Le cache de licence est invalide: sans cela, le client paie et reste bloque
+ * jusqu'a trente secondes — exactement l'instant ou on lui dit « c'est bon,
+ * essayez ».
+ */
+export async function changePlan(targetOrgId: number, plan: string, actingUserId: number): Promise<SaasActionResult> {
+  const planConfig = PLANS[plan as PlanKey];
+  if (!planConfig) return { ok: false, error: `Plan inconnu: ${String(plan).slice(0, 40)}` };
+
+  const loaded = await loadOrgSub(targetOrgId);
+  if (!loaded || !loaded.sub) return { ok: false, error: "Abonnement introuvable" };
+  const { org, sub } = loaded;
+  if (sub.plan === plan) return { ok: false, error: `L'organisation est deja sur le plan ${planConfig.name}` };
+
+  const previousState = { plan: sub.plan, status: sub.status, price: sub.price, trialEndsAt: sub.trialEndsAt };
+
+  await db.transaction(async (tx) => {
+    await tx.update(subscriptionsTable).set({
+      plan,
+      maxUsers: planConfig.maxUsers,
+      maxContacts: planConfig.maxContacts,
+      maxCallsPerMonth: planConfig.maxCallsPerMonth,
+      aiEnabled: planConfig.aiEnabled,
+      stockEnabled: planConfig.stockEnabled,
+      automationEnabled: planConfig.automationEnabled,
+      price: String(planConfig.price),
+      status: "active",
+      // Passer a un plan payant met fin a l'essai: le laisser courir ferait
+      // basculer le compte en lecture seule a son echeance alors que le
+      // client paie.
+      trialEndsAt: plan === "essai" ? new Date(Date.now() + (planConfig.trialDays || 14) * 86400000) : null,
+      // Nouvelle periode: le changement de plan ouvre le cycle facture.
+      currentPeriodStart: new Date(),
+      currentPeriodEnd: new Date(Date.now() + 30 * 86400000),
+      updatedAt: new Date(),
+    }).where(eq(subscriptionsTable.organisationId, targetOrgId));
+
+    await tx.update(organisationsTable)
+      .set({ maxUsers: planConfig.maxUsers })
+      .where(eq(organisationsTable.id, targetOrgId));
+  });
+
+  invalidateLicenseCache(targetOrgId);
+  await audit(
+    targetOrgId,
+    "plan_changed",
+    `Plan change: ${previousState.plan} -> ${plan} (org: ${org.name})`,
+    actingUserId,
+    { previousState, nouveauPlan: plan, orgName: org.name },
+  );
+  return { ok: true, detail: { plan, previousState } };
 }

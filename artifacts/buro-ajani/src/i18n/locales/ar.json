@@ -6517,7 +6517,9 @@
       "ipLabel": "عنوان IP: {{ip}}",
       "notesLabel": "ملاحظات: {{notes}}",
       "revoke": "إلغاء",
-      "accept": "قبول"
+      "accept": "قبول",
+      "outdated": "إصدار منتهٍ",
+      "outdatedNotice": "القبول يخص الإصدار {{version}}؛ الإصدار الساري هو {{courante}}."
     },
     "billingDialog": {
       "title": "الفوترة: {{name}}",

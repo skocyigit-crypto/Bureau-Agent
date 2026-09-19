@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { eq, sql } from "drizzle-orm";
 import { db, organisationsTable, subscriptionsTable, invoicesTable } from "@workspace/db";
 import { evaluatePastDueAccess } from "../services/payment-access-policy";
+import { accesFonction } from "../services/droits-plan";
 
 const EXEMPT_PATHS = [
   "/api/auth",
@@ -149,6 +150,18 @@ export async function checkLicense(orgId: number, method: string, path: string):
     if (isReadOnlyAllowed) return { allowed: true };
     return { allowed: false, reason: "trial_expired", message: "Votre periode d'essai est terminee. Vos donnees restent accessibles en lecture seule. Souscrivez un plan pour reprendre l'ecriture." };
   }
+
+  // Ce que le plan inclut. Les colonnes `aiEnabled`/`stockEnabled`/
+  // `automationEnabled` etaient ecrites puis jamais lues: le plan Starter
+  // accedait a tout ce que le plan Professionnel facture (cf.
+  // services/droits-plan.ts). Le verdict se prend sur le PLAN, pas sur la
+  // photographie stockee a la souscription.
+  //
+  // Contrairement aux regles de statut ci-dessus, celle-ci s'applique aussi
+  // aux GET: une analyse par IA coute un appel fournisseur, qu'on la demande
+  // en lecture ou non.
+  const fonction = accesFonction(sub.plan, path);
+  if (!fonction.allowed) return fonction;
 
   if (oldestUnpaidAt) {
     const invoiceAccess = evaluatePastDueAccess(oldestUnpaidAt, method, path);

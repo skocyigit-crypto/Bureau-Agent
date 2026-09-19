@@ -9,6 +9,7 @@ import { resolveEmailLang } from "../i18n/email-i18n";
 import { generateUniqueLicenseKey } from "../services/license-key";
 import { logger } from "../lib/logger";
 import { requireSuperAdmin } from "../middleware/auth";
+import { changePlan } from "../services/saas-admin-actions";
 
 const SALT_ROUNDS = 12;
 
@@ -540,48 +541,35 @@ router.put("/organisations/:id", async (req: Request, res: Response): Promise<vo
   }
 });
 
+/**
+ * Changer le plan d une organisation cliente.
+ *
+ * La mutation vit dans services/saas-admin-actions.ts, aux cotes de suspend et
+ * reactivate. Trois choses manquaient ici et que le service apporte:
+ *
+ *  - l INVALIDATION DU CACHE DE LICENCE. L etat est garde 30 s cote
+ *    middleware: le client passait au plan superieur, payait, et restait
+ *    refuse — exactement l instant ou on lui dit « c est bon, essayez ».
+ *    Tant que les droits n etaient appliques nulle part, cela ne se voyait
+ *    pas; depuis services/droits-plan.ts, si.
+ *  - la TRACE D AUDIT. Toutes les autres mutations d abonnement en laissent
+ *    une; le changement de plan, qui est l acte commercial meme, n en
+ *    laissait aucune. Rien ne permettait de dire qui avait change quoi.
+ *  - le refus d un changement vers le plan DEJA EN COURS, qui rendait
+ *    « succes » sans rien changer.
+ */
 router.put("/organisations/:id/plan", async (req: Request, res: Response): Promise<void> => {
   const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
-  const { plan } = req.body;
-  if (!plan || !PLANS[plan as PlanKey]) {
-    res.status(400).json({ error: "Plan invalide.", validPlans: Object.keys(PLANS) });
-    return;
-  }
-
-  const planConfig = PLANS[plan as PlanKey];
-
   try {
-    await db.transaction(async (tx) => {
-      const [sub] = await tx.update(subscriptionsTable).set({
-        plan,
-        maxUsers: planConfig.maxUsers,
-        maxContacts: planConfig.maxContacts,
-        maxCallsPerMonth: planConfig.maxCallsPerMonth,
-        aiEnabled: planConfig.aiEnabled,
-        stockEnabled: planConfig.stockEnabled,
-        automationEnabled: planConfig.automationEnabled,
-        price: String(planConfig.price),
-        status: "active",
-        trialEndsAt: plan === "essai" ? new Date(Date.now() + (planConfig.trialDays || 14) * 86400000) : null,
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: new Date(Date.now() + 30 * 86400000),
-      }).where(eq(subscriptionsTable.organisationId, id)).returning();
-
-      if (!sub) throw new Error("NOT_FOUND");
-
-      await tx.update(organisationsTable).set({ maxUsers: planConfig.maxUsers }).where(eq(organisationsTable.id, id));
-    });
-
-    res.json({ message: `Plan mis a jour vers ${planConfig.name}.` });
+    const resultat = await changePlan(id, String(req.body?.plan ?? ""), Number(req.session?.userId ?? 0));
+    if (!resultat.ok) { res.status(400).json({ error: resultat.error, validPlans: Object.keys(PLANS) }); return; }
+    const nom = PLANS[resultat.detail?.plan as PlanKey]?.name ?? String(resultat.detail?.plan);
+    res.json({ message: `Plan mis a jour vers ${nom}.`, ...resultat.detail });
   } catch (err: any) {
-    if (err.message === "NOT_FOUND") {
-      res.status(404).json({ error: "Abonnement non trouve pour cette organisation." });
-    } else {
-      logger.error({ err }, "Erreur mise a jour plan");
-      res.status(500).json({ error: "Erreur lors de la mise a jour du plan." });
-    }
+    logger.error({ err }, "Erreur mise a jour plan");
+    res.status(500).json({ error: "Erreur lors de la mise a jour du plan." });
   }
 });
 

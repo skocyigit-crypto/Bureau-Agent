@@ -18,6 +18,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { db, cloturesComptablesTable, encaissementsTable, facturesClientTable, organisationsTable } from "@workspace/db";
 
 import { getOrgId } from "../middleware/tenant";
+import { requireRole } from "../middleware/auth";
 import { logAudit } from "./audit";
 import {
   preparerEcriture,
@@ -26,10 +27,30 @@ import {
   type EcritureChainee,
 } from "../services/chainage-encaissements";
 import { calculerCloture, periodeClose, verifierConservation } from "../services/cloture-comptable";
+import { enregistrerEncaissement } from "../services/encaissement-enregistrement";
 import { construireArchive, nomArchive } from "../services/archivage-comptable";
 import { nomAttestation, redigerAttestation } from "../services/attestation-conformite";
 
 const router: IRouter = Router();
+
+
+/**
+ * Qui peut toucher au journal de caisse.
+ *
+ * Mesure du 19/09: AUCUNE garde de role. Le role `lecture_seule` — dont le
+ * nom dit l inverse — pouvait enregistrer un reglement, le contre-passer,
+ * CLOTURER une periode (operation irreversible par construction) et
+ * telecharger l archive comptable de toute l organisation.
+ *
+ * L encaissement reste ouvert aux agents: constater un reglement sur un
+ * chantier fait partie de leur travail. Tout le reste remonte au
+ * responsable: une contre-passation marque le journal de facon definitive,
+ * une cloture ne se defait pas, et l archive comme l attestation sont les
+ * pieces qu on remet a un controleur — elles contiennent l integralite des
+ * reglements de l organisation.
+ */
+const encaisseur = requireRole("super_admin", "administrateur", "agent");
+const responsableComptable = requireRole("super_admin", "administrateur");
 
 const MOYENS = ["especes", "virement", "cheque", "carte", "prelevement", "autre"] as const;
 
@@ -78,7 +99,7 @@ async function rafraichirCache(orgId: number, factureId: number, tx: Executeur =
     .where(and(eq(facturesClientTable.id, factureId), eq(facturesClientTable.organisationId, orgId)));
 }
 
-router.post("/encaissements", async (req: Request, res: Response): Promise<void> => {
+router.post("/encaissements", encaisseur, async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
   const { factureId, montant, moyen, dateEncaissement } = req.body ?? {};
 
@@ -111,118 +132,55 @@ router.post("/encaissements", async (req: Request, res: Response): Promise<void>
   const forcer = req.body?.forcer === true;
 
   try {
-    const resultat = await db.transaction(async (tx) => {
-      // La facture doit appartenir a l'organisation: un identifiant fourni par
-      // l'appelant n'est jamais fiable.
-      const [facture] = await tx.select({ id: facturesClientTable.id, devise: facturesClientTable.currency, total: facturesClientTable.totalAmount })
-        .from(facturesClientTable)
-        .where(and(eq(facturesClientTable.id, Number(factureId)), eq(facturesClientTable.organisationId, orgId)));
-      if (!facture) return { erreur: "Facture introuvable." as const };
-
-      if (!forcer) {
-        // Le reste du se lit dans les ECRITURES, pas dans le cache `paidAmount`:
-        // c'est la chaine d'encaissements qui fait foi (annulations comprises).
-        const lignes = await tx.select().from(encaissementsTable)
-          .where(and(eq(encaissementsTable.organisationId, orgId), eq(encaissementsTable.factureId, facture.id)))
-          .orderBy(encaissementsTable.numero);
-        const dejaRegle = soldeFacture(enEcritures(lignes), facture.id);
-        const totalCentimes = Math.round(Number(facture.total ?? 0) * 100);
-        if (totalCentimes > 0 && dejaRegle + centimes > totalCentimes) {
-          return { erreurTrop: { resteCentimes: Math.max(0, totalCentimes - dejaRegle), totalCentimes, dejaRegle } };
-        }
-      }
-
-      // Anti-datation: on REFUSE une ecriture datee dans une periode deja
-      // close. Sans ce refus, l'anti-fraude serait contournable par le bas —
-      // il suffirait d'anti-dater pour glisser un encaissement sous un cumul
-      // deja fige. La verification le signalerait bien, mais apres coup, et
-      // sans pouvoir dire lequel des deux nombres est le bon.
-      const clotures = await tx.select().from(cloturesComptablesTable)
-        .where(eq(cloturesComptablesTable.organisationId, orgId));
-      const close = periodeClose(
-        quand.toISOString(),
-        clotures.map((c) => ({
-          organisationId: c.organisationId,
-          type: c.type as "journaliere" | "mensuelle" | "annuelle",
-          periode: c.periode,
-          premierNumero: c.premierNumero,
-          dernierNumero: c.dernierNumero,
-          nbEcritures: c.nbEcritures,
-          totalPeriodeCentimes: c.totalPeriodeCentimes,
-          totalCumuleCentimes: c.totalCumuleCentimes,
-          empreintePrecedente: c.empreintePrecedente,
-          empreinte: c.empreinte,
-        })),
-      );
-      if (close) return { erreurPeriode: close.periode as string };
-
-      const [derniere] = await tx.select().from(encaissementsTable)
-        .where(eq(encaissementsTable.organisationId, orgId))
-        .orderBy(desc(encaissementsTable.numero)).limit(1);
-
-      const ecriture = preparerEcriture({
-        organisationId: orgId,
-        factureId: facture.id,
-        montantCentimes: centimes,
-        devise: facture.devise ?? "EUR",
-        moyen,
-        dateEncaissement: quand.toISOString(),
-        sens: "encaissement",
-        annuleNumero: null,
-      }, derniere ? { numero: derniere.numero, empreinte: derniere.empreinte } : null);
-
-      const [ligne] = await tx.insert(encaissementsTable).values({
-        organisationId: ecriture.organisationId,
-        numero: ecriture.numero,
-        factureId: ecriture.factureId,
-        montantCentimes: ecriture.montantCentimes,
-        devise: ecriture.devise,
-        moyen: ecriture.moyen,
-        dateEncaissement: quand,
-        sens: ecriture.sens,
-        annuleNumero: ecriture.annuleNumero,
-        empreintePrecedente: ecriture.empreintePrecedente,
-        empreinte: ecriture.empreinte,
-        createdBy: req.session?.userId ?? null,
-      }).returning({ id: encaissementsTable.id, numero: encaissementsTable.numero });
-
-      await rafraichirCache(orgId, facture.id, tx);
-      return { ligne, empreinte: ecriture.empreinte };
+    // L ECRITURE VIT DANS UN SERVICE (services/encaissement-enregistrement.ts).
+    //
+    // Elle etait ecrite ici, et les routes d administration ecrivaient de leur
+    // cote le cache paidAmount sans creer aucune ecriture — donc un reglement
+    // que la chaine ignorait, et que le prochain encaissement effacait. Une
+    // seule facon d encaisser, pour toutes les portes.
+    const resultat = await enregistrerEncaissement({
+      organisationId: orgId,
+      factureId: Number(factureId),
+      montantCentimes: centimes,
+      moyen,
+      quand,
+      forcer,
+      createdBy: req.session?.userId ?? null,
     });
 
-    if ("erreur" in resultat) { res.status(404).json({ error: resultat.erreur }); return; }
-    if ("erreurTrop" in resultat) {
-      const resteCentimes = resultat.erreurTrop?.resteCentimes ?? 0;
+    if (!resultat.ok && resultat.code === "facture_introuvable") { res.status(404).json({ error: "Facture introuvable." }); return; }
+    if (!resultat.ok && resultat.code === "depasse_reste_a_payer") {
+      const resteCentimes = resultat.resteCentimes;
       res.status(409).json({
         error: resteCentimes === 0
           ? "Cette facture est deja entierement reglee."
           : `Ce montant depasse le reste a payer (${(resteCentimes / 100).toFixed(2)}).`,
         resteAPayer: (resteCentimes / 100).toFixed(2),
         code: "depasse_reste_a_payer",
-        remediation: "Corrigez le montant, ou renvoyez la demande avec `forcer: true` s'il s'agit reellement d'un trop-percu.",
+        remediation: "Corrigez le montant, ou renvoyez la demande avec `forcer: true` s il s agit reellement d un trop-percu.",
       });
       return;
     }
-    if ("erreurPeriode" in resultat) {
+    if (!resultat.ok) {
       res.status(409).json({
-        error: `La periode ${resultat.erreurPeriode} est close: aucun encaissement ne peut y etre ajoute.`,
-        remediation: "Enregistrez l'encaissement a sa date reelle, ou passez par une ecriture sur la periode ouverte.",
+        error: `La periode ${resultat.periode} est close: aucun encaissement ne peut y etre ajoute.`,
+        remediation: "Enregistrez l encaissement a sa date reelle, ou passez par une ecriture sur la periode ouverte.",
       });
       return;
     }
 
     await logAudit(req.session?.userId, req.session?.userEmail, "encaissement_enregistre",
-      "encaissement", String(resultat.ligne.numero),
+      "encaissement", String(resultat.numero),
       { factureId: Number(factureId), montantCentimes: centimes, moyen }, req.ip, req.get("user-agent"), orgId);
 
-    res.status(201).json({ numero: resultat.ligne.numero, empreinte: resultat.empreinte });
+    res.status(201).json({ numero: resultat.numero, empreinte: resultat.empreinte });
   } catch (err: any) {
     req.log.error({ err }, "Erreur enregistrement encaissement");
-    res.status(500).json({ error: "Erreur lors de l'enregistrement." });
+    res.status(500).json({ error: "Erreur lors de l enregistrement." });
   }
 });
 
-router.post("/encaissements/annuler", async (req: Request, res: Response): Promise<void> => {
+router.post("/encaissements/annuler", responsableComptable, async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
   const numero = Number(req.body?.numero);
   if (!Number.isInteger(numero) || numero < 1) {
@@ -236,6 +194,49 @@ router.post("/encaissements/annuler", async (req: Request, res: Response): Promi
         .where(and(eq(encaissementsTable.organisationId, orgId), eq(encaissementsTable.numero, numero)));
       if (!cible) return { erreur: "Ecriture introuvable." as const };
       if (cible.sens === "annulation") return { erreur: "Une annulation ne s'annule pas." as const };
+
+      // Une ecriture ne se contre-passe qu'UNE fois.
+      //
+      // Rien ne l'empechait. Le solde, lui, ne bougeait pas — `soldeFacture`
+      // ecarte les numeros annules par un ensemble, donc annuler deux fois
+      // donne le meme montant qu'annuler une fois. C'est precisement ce qui
+      // rendait le defaut invisible: aucun total ne s'en plaignait.
+      //
+      // Le journal, lui, gardait deux contre-passations pour un seul
+      // reglement. Il est en AJOUT SEUL et chaine: ces lignes ne se retirent
+      // pas, elles consomment des numeros de sequence, et l'archive remise a
+      // un controleur montre deux annulations du meme encaissement — ce qui
+      // ressemble exactement a ce que l'inalterabilite est censee empecher.
+      const [dejaAnnulee] = await tx.select({ numero: encaissementsTable.numero })
+        .from(encaissementsTable)
+        .where(and(
+          eq(encaissementsTable.organisationId, orgId),
+          eq(encaissementsTable.sens, "annulation"),
+          eq(encaissementsTable.annuleNumero, cible.numero),
+        )).limit(1);
+      if (dejaAnnulee) return { erreur: "Cette ecriture est deja annulee." as const };
+
+      // Une periode close refuse la contre-passation comme elle refuse
+      // l'encaissement: une cloture qui fige un cumul que l'on peut encore
+      // diminuer ne fige rien, et l'anti-fraude redeviendrait contournable.
+      const cloturesConnues = await tx.select().from(cloturesComptablesTable)
+        .where(eq(cloturesComptablesTable.organisationId, orgId));
+      const periodeFermee = periodeClose(
+        new Date().toISOString(),
+        cloturesConnues.map((c) => ({
+          organisationId: c.organisationId,
+          type: c.type as "journaliere" | "mensuelle" | "annuelle",
+          periode: c.periode,
+          premierNumero: c.premierNumero,
+          dernierNumero: c.dernierNumero,
+          nbEcritures: c.nbEcritures,
+          totalPeriodeCentimes: c.totalPeriodeCentimes,
+          totalCumuleCentimes: c.totalCumuleCentimes,
+          empreintePrecedente: c.empreintePrecedente,
+          empreinte: c.empreinte,
+        })),
+      );
+      if (periodeFermee) return { erreurPeriode: String(periodeFermee.periode) };
 
       const [derniere] = await tx.select().from(encaissementsTable)
         .where(eq(encaissementsTable.organisationId, orgId))
@@ -274,6 +275,13 @@ router.post("/encaissements/annuler", async (req: Request, res: Response): Promi
     });
 
     if ("erreur" in resultat) { res.status(400).json({ error: resultat.erreur }); return; }
+    if ("erreurPeriode" in resultat) {
+      res.status(409).json({
+        error: `La periode ${resultat.erreurPeriode} est close: aucune contre-passation ne peut y etre ajoutee.`,
+        remediation: "Corrigez par une ecriture sur la periode ouverte.",
+      });
+      return;
+    }
 
     await logAudit(req.session?.userId, req.session?.userEmail, "encaissement_annule",
       "encaissement", String(resultat.numero), { annuleNumero: resultat.annule },
@@ -294,7 +302,7 @@ router.post("/encaissements/annuler", async (req: Request, res: Response): Promi
  * sont justes — elle prouve qu'ils n'ont pas ete modifies apres coup, ce qui
  * est exactement ce que demande l'inalterabilite.
  */
-router.get("/encaissements/verifier", async (req: Request, res: Response): Promise<void> => {
+router.get("/encaissements/verifier", responsableComptable, async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
   try {
     const lignes = await db.select().from(encaissementsTable)
@@ -325,7 +333,7 @@ router.get("/encaissements/verifier", async (req: Request, res: Response): Promi
  * rouvrir ne fige rien, et la condition de conservation de l'article
  * 286-I-3° bis ne serait plus satisfaite.
  */
-router.post("/encaissements/cloturer", async (req: Request, res: Response): Promise<void> => {
+router.post("/encaissements/cloturer", responsableComptable, async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
   const type = String(req.body?.type ?? "journaliere") as "journaliere" | "mensuelle" | "annuelle";
   if (!["journaliere", "mensuelle", "annuelle"].includes(type)) {
@@ -333,7 +341,13 @@ router.post("/encaissements/cloturer", async (req: Request, res: Response): Prom
     return;
   }
   const periode = String(req.body?.periode ?? "");
-  if (!/^d{4}(-d{2}(-d{2})?)?$/.test(periode)) {
+  // `\d`, pas `d`: les antislashs avaient disparu de ces deux expressions, qui
+  // ne reconnaissaient donc plus que les chaines litterales « dddd »,
+  // « dddd-dd » et « dddd-dd-dd ». Mesure du 18/09: « 2026-09 » etait refuse.
+  // Autrement dit, AUCUNE periode reelle ne pouvait etre close — la cloture,
+  // qui est la condition de conservation de l'article 286-I-3° bis du CGI,
+  // etait injoignable, et le seul message rendu disait « Periode invalide ».
+  if (!/^\d{4}(-\d{2}(-\d{2})?)?$/.test(periode)) {
     res.status(400).json({ error: "Periode invalide (AAAA, AAAA-MM ou AAAA-MM-JJ)." });
     return;
   }
@@ -413,7 +427,7 @@ router.post("/encaissements/cloturer", async (req: Request, res: Response): Prom
  * modification. Celle-ci detecte ce qu'elle laisse passer: des ecritures
  * retirees de la fin du journal, qui laissent une chaine parfaitement valide.
  */
-router.get("/encaissements/conservation", async (req: Request, res: Response): Promise<void> => {
+router.get("/encaissements/conservation", responsableComptable, async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
   const type = String(req.query.type ?? "journaliere") as "journaliere" | "mensuelle" | "annuelle";
   try {
@@ -461,7 +475,7 @@ router.get("/encaissements/conservation", async (req: Request, res: Response): P
  * avoir disparu. Une archive qui exigerait d'installer ce logiciel pour etre
  * lue ne serait pas une archive, ce serait une dependance.
  */
-router.get("/encaissements/archive", async (req: Request, res: Response): Promise<void> => {
+router.get("/encaissements/archive", responsableComptable, async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
   const type = String(req.query.type ?? "annuelle") as "journaliere" | "mensuelle" | "annuelle";
   const periode = String(req.query.periode ?? "");
@@ -469,7 +483,9 @@ router.get("/encaissements/archive", async (req: Request, res: Response): Promis
     res.status(400).json({ error: "Type de periode invalide." });
     return;
   }
-  if (!/^d{4}(-d{2}(-d{2})?)?$/.test(periode)) {
+  // Meme antislash perdu qu'a la cloture: l'archive comptable — celle qu'on
+  // remet a un controleur — etait tout aussi injoignable.
+  if (!/^\d{4}(-\d{2}(-\d{2})?)?$/.test(periode)) {
     res.status(400).json({ error: "Periode invalide (AAAA, AAAA-MM ou AAAA-MM-JJ)." });
     return;
   }
@@ -531,7 +547,7 @@ router.get("/encaissements/archive", async (req: Request, res: Response): Promis
  * saisi a la main: une attestation dont le beneficiaire serait mal orthographie
  * perdrait sa valeur au moment ou elle sert.
  */
-router.get("/encaissements/attestation", async (req: Request, res: Response): Promise<void> => {
+router.get("/encaissements/attestation", responsableComptable, async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
   try {
     const [org] = await db.select({
@@ -589,7 +605,7 @@ router.get("/encaissements/attestation", async (req: Request, res: Response): Pr
  *
  * Idempotente: une facture deja reprise ne l'est pas deux fois.
  */
-router.post("/encaissements/reprise", async (req: Request, res: Response): Promise<void> => {
+router.post("/encaissements/reprise", responsableComptable, async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
   try {
     const resultat = await db.transaction(async (tx) => {
