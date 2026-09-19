@@ -188,7 +188,7 @@ export default function CheckinsScreen() {
         }),
       });
       if (res.ok) fetchData();
-    } catch {} finally { setActing(false); }
+    } catch { Alert.alert(t("common.error"), t("common.actionFailed")); } finally { setActing(false); }
   }
 
   async function checkout() {
@@ -201,7 +201,7 @@ export default function CheckinsScreen() {
         body: JSON.stringify({ status: "termine", checkOutAt: new Date().toISOString() }),
       });
       if (res.ok) fetchData();
-    } catch {} finally { setActing(false); }
+    } catch { Alert.alert(t("common.error"), t("common.actionFailed")); } finally { setActing(false); }
   }
 
   async function togglePause() {
@@ -216,7 +216,7 @@ export default function CheckinsScreen() {
         body: JSON.stringify({ status: newStatus }),
       });
       if (res.ok) fetchData();
-    } catch {} finally { setActing(false); }
+    } catch { Alert.alert(t("common.error"), t("common.actionFailed")); } finally { setActing(false); }
   }
 
   function confirmCheckout() {
