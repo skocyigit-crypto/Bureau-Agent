@@ -112,3 +112,26 @@ describe("une liste vide et une lecture ratee ne se confondent plus", () => {
     });
   }
 });
+
+describe("un interrupteur ne ment pas sur un reglage qu'on n'a pas lu", () => {
+  const securite = readFileSync(join(APP, "securite.tsx"), "utf8");
+
+  it("une lecture ratee est retenue", () => {
+    // Sans cela, l'interrupteur restait sur sa valeur par defaut — ETEINT — et
+    // l'utilisateur lisait « le rapport hebdomadaire est desactive », qui est
+    // une affirmation, alors que la question n'avait pas pu etre posee.
+    expect((securite.match(/setReglageIllisible\(true\)/g) ?? []).length).toBe(2);
+  });
+
+  it("tant qu'on ne sait pas, on ne laisse pas toucher", () => {
+    expect(securite).toMatch(/disabled=\{weeklyEmailSaving \|\| reglageIllisible\}/);
+  });
+
+  it("et on le dit a la place de la description", () => {
+    expect(securite).toMatch(/reglageIllisible \? t\("common\.lectureEchoueeAide"\)/);
+  });
+
+  it("une lecture reussie efface l'avertissement", () => {
+    expect(securite).toMatch(/setReglageIllisible\(false\)/);
+  });
+});
