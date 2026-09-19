@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { eq, desc, sql } from "drizzle-orm";
+import { and, eq, desc, sql } from "drizzle-orm";
 import { db, invoicesTable, paymentsTable, organisationsTable } from "@workspace/db";
 import { emettreFacturePlateforme } from "../services/platform-invoice-issue";
 import { generateMonthlyInvoices, getOrgBillingSummary } from "../services/billing-engine";
@@ -8,6 +8,7 @@ import { apparier } from "../services/payment-matching";
 import { empreinte, lireCamt053, ReleveIllisible, texteRapprochement } from "../services/camt053";
 import { requireSuperAdmin } from "../middleware/auth";
 import { invalidateLicenseCache } from "../middleware/license-check";
+import { centimes, statutFacturePlateforme, type StatutFacturePlateforme } from "../services/reglement-facture-plateforme";
 
 const router = Router();
 
@@ -383,9 +384,16 @@ router.post("/billing/payments/:id/assign", async (req: Request, res: Response):
     const [invoice] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, invoiceId));
     if (!invoice) { res.status(404).json({ error: "Facture introuvable." }); return; }
 
-    // Transaction : affectation du paiement + passage de la facture en "payee"
+    // Transaction : affectation du paiement + recalcul du statut de la facture
     // doivent etre atomiques, sinon un echec entre les deux laisse un etat
     // partiel (paiement affecte mais facture toujours impayee).
+    //
+    // Le statut est DERIVE de la somme des paiements rapproches, et non pose a
+    // « payee » d'office: un virement de 5 EUR soldait une facture de 490 EUR.
+    // Voir `statutFacturePlateforme`.
+    // Objet plutot que variables: TypeScript restreint le type d'un `let`
+    // affecte dans une fermeture, et croirait le statut fige a « en_attente ».
+    const etat: { statut: StatutFacturePlateforme; encaisse: number } = { statut: "en_attente", encaisse: 0 };
     await db.transaction(async (tx) => {
       await tx.update(paymentsTable).set({
         invoiceId,
@@ -395,14 +403,30 @@ router.post("/billing/payments/:id/assign", async (req: Request, res: Response):
         status: "matched",
       }).where(eq(paymentsTable.id, id));
 
+      // Somme lue DANS la transaction, une fois l'affectation faite: la lire
+      // avant ignorerait le paiement qu'on vient d'affecter.
+      const lignes = await tx.select({ montant: paymentsTable.amount })
+        .from(paymentsTable)
+        .where(and(eq(paymentsTable.invoiceId, invoiceId), eq(paymentsTable.status, "matched")));
+      etat.encaisse = lignes.reduce((somme, l) => somme + centimes(l.montant), 0);
+
+      // `totalTtc` est ce que le client doit. `totalAmount` est le HT: le
+      // prendre pour reference soldait la facture avant la TVA.
+      etat.statut = statutFacturePlateforme(centimes(invoice.totalTtc), etat.encaisse);
+
       await tx.update(invoicesTable).set({
-        status: "payee",
-        paidAt: new Date(),
+        status: etat.statut,
+        paidAt: etat.statut === "payee" ? new Date() : null,
       }).where(eq(invoicesTable.id, invoiceId));
     });
-
     invalidateLicenseCache(invoice.organisationId);
-    res.json({ message: "Paiement affecte et facture marquee comme payee." });
+    res.json({
+      message: etat.statut === "payee"
+        ? "Paiement affecte et facture soldee."
+        : `Paiement affecte. La facture reste partiellement reglee (${(etat.encaisse / 100).toFixed(2)} EUR sur ${Number(invoice.totalTtc).toFixed(2)} EUR).`,
+      statut: etat.statut,
+      encaisse: (etat.encaisse / 100).toFixed(2),
+    });
   } catch (err: any) {
     req.log.error({ err }, "Erreur affectation paiement");
     res.status(500).json({ error: "Erreur lors de l'affectation du paiement." });
