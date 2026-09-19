@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, desc, asc, ilike, or, sql, and, type Column, type SQL } from "drizzle-orm";
+import { eq, desc, asc, ilike, isNull, or, sql, and, type Column, type SQL } from "drizzle-orm";
 import { db, prospectsTable, contactsTable, devisTable, facturesClientTable, callsTable, tasksTable } from "@workspace/db";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { requireRole } from "../middleware/auth";
@@ -238,23 +238,55 @@ router.post("/prospects/:id/convert", requireRole("agent"), async (req: Request,
     const firstName = nameParts[0] || prospect.title || "";
     const lastName = nameParts.slice(1).join(" ") || "";
 
-    const [contact] = await db.insert(contactsTable).values({
-      organisationId: prospect.organisationId,
-      firstName,
-      lastName,
-      email: prospect.email || null,
-      phone: prospect.phone || "",
-      company: prospect.company || null,
-      notes: `Converti depuis prospect: ${prospect.title}`,
-      category: "autre",
-    } as any).returning();
+    // Les deux ecritures sont ATOMIQUES, et la prise du prospect est
+    // conditionnelle.
+    //
+    // Le garde-fou ci-dessus lit `contactId` puis agit: entre les deux, rien
+    // ne tenait. Deux facons d'obtenir exactement le doublon qu'il existe
+    // pour empecher:
+    //  - le contact est insere, la mise a jour du prospect echoue (coupure,
+    //    contrainte). Le contact existe, le prospect ne le sait pas, et le
+    //    clic suivant repasse la garde et en cree un deuxieme.
+    //  - deux clics partent ensemble (double-clic, deux utilisateurs). Les
+    //    deux lisent `contactId` vide, les deux inserent.
+    //
+    // Le `WHERE ... contactId IS NULL ... RETURNING` tranche cote Postgres:
+    // un seul appel matche, le perdant n'a pas de ligne et sa transaction est
+    // annulee — contact insere compris. Meme idiome que la reclamation des
+    // cycles planifies dans `ai-agents.ts`.
+    const conflit = Symbol("deja converti");
+    let contact: typeof contactsTable.$inferSelect;
+    try {
+      contact = await db.transaction(async (tx) => {
+        const [cree] = await tx.insert(contactsTable).values({
+          organisationId: prospect.organisationId,
+          firstName,
+          lastName,
+          email: prospect.email || null,
+          phone: prospect.phone || "",
+          company: prospect.company || null,
+          notes: `Converti depuis prospect: ${prospect.title}`,
+          category: "autre",
+        } as any).returning();
 
-    await db.update(prospectsTable).set({
-      contactId: contact.id,
-      stage: "gagne",
-      ...(prospect.stage === "gagne" ? {} : datesEtape("gagne")),
-      updatedAt: new Date(),
-    }).where(ownedById(id, orgId));
+        const pris = await tx.update(prospectsTable).set({
+          contactId: cree.id,
+          stage: "gagne",
+          ...(prospect.stage === "gagne" ? {} : datesEtape("gagne")),
+          updatedAt: new Date(),
+        }).where(and(ownedById(id, orgId), isNull(prospectsTable.contactId)))
+          .returning({ id: prospectsTable.id });
+
+        if (pris.length === 0) throw conflit;
+        return cree;
+      });
+    } catch (err) {
+      if (err === conflit) {
+        res.status(409).json({ error: "Ce prospect est deja lie a un contact." });
+        return;
+      }
+      throw err;
+    }
 
     res.status(201).json({ contact, message: "Prospect converti en contact avec succès." });
   } catch (err: any) {
