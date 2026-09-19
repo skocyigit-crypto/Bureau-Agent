@@ -204,7 +204,7 @@ export default function AdminReportsScreen() {
         setShowUserForm(false);
         setUserFormValues({ role: "agent" });
         fetchTeam();
-      }
+      } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } catch (err) { console.warn("[AdminReports] user submit failed:", err); } finally { setUserFormLoading(false); }
   }
 

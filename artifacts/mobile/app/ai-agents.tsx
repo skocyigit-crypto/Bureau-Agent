@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  Alert,
   ActivityIndicator,
   Platform,
   Pressable,
@@ -172,6 +173,7 @@ function AgentsTab({ runningAll, timeline, onCancel, superStatus, externalRefres
     try {
       const res = await fetchAuth(`${API_BASE}/api/ai/agents/run/${agentId}`, { method: "POST", headers: { "Content-Type": "application/json" } });
       if (res.ok) fetchData();
+      else Alert.alert(t("common.error"), t("common.actionFailed"));
     } catch {} finally { setRunningAgent(null); }
   }
 
@@ -180,6 +182,7 @@ function AgentsTab({ runningAll, timeline, onCancel, superStatus, externalRefres
     try {
       const res = await fetchAuth(`${API_BASE}/api/ai/agents/auto-fix`, { method: "POST", headers: { "Content-Type": "application/json" } });
       if (res.ok) { const d = await res.json(); setAutoFixResult(d); }
+      else Alert.alert(t("common.error"), t("common.actionFailed"));
     } catch {} finally { setAutoFixLoading(false); }
   }
 

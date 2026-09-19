@@ -193,7 +193,7 @@ export default function LicenseManagementScreen() {
       if (res.ok) {
         const d = await res.json();
         Alert.alert(t("licenseManagementScreen.remindersSentTitle"), d.message ?? t("licenseManagementScreen.remindersSentCount", { count: d.sent ?? 0 }));
-      }
+      } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } finally { setActionLoading(null); }
   }
 

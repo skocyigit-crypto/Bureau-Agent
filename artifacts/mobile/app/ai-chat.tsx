@@ -4,6 +4,7 @@ import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  Alert,
   ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
@@ -449,7 +450,7 @@ export default function AIChatScreen() {
           serverId = typeof am.id === "number" ? am.id : undefined;
           serverTs = am.createdAt;
         }
-      }
+      } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
       const aiMsg: Message = {
         id: serverId != null ? `s-${serverId}` : `a-${Date.now()}`,
         role: "assistant",

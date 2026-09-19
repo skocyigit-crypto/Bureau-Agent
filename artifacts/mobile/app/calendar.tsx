@@ -895,6 +895,7 @@ export default function CalendarScreen() {
               try {
                 const res = await fetchAuth(`${API_BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: selected.title, status: "planifie", priority: "moyenne", progress: 0, notes: t("calendarScreen.projectNote") }) });
                 if (res.ok) { setSelected(null); router.push("/projets" as any); }
+                else Alert.alert(t("common.error"), t("common.actionFailed"));
               } catch {}
             },
           }] : undefined}

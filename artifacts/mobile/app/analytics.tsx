@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
+  Alert,
   ActivityIndicator,
   Platform,
   Pressable,
@@ -190,6 +191,7 @@ export default function AnalyticsScreen() {
               try {
                 const res = await fetchAuth(`${API_BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: t("analyticsScreen.newProjectTitle"), status: "planifie", priority: "moyenne", progress: 0, notes: t("analyticsScreen.newProjectNote") }) });
                 if (res.ok) router.push("/projets" as any);
+                else Alert.alert(t("common.error"), t("common.actionFailed"));
               } catch {}
             }} hitSlop={12}>
               <Feather name="folder" size={18} color="rgba(255,255,255,0.85)" />

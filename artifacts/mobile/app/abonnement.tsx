@@ -187,7 +187,7 @@ export default function AbonnementScreen() {
         setShowUpgrade(false);
         setUpgradeMsg("");
         Alert.alert(t("abonnementScreen.upgradeSentTitle"), t("abonnementScreen.upgradeSent"));
-      }
+      } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } finally { setUpgradeLoading(false); }
   }
 

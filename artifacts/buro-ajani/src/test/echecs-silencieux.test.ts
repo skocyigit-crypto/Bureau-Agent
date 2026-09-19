@@ -31,7 +31,7 @@ import { join } from "node:path";
  * produisait rien du tout : le chargement s'arretait, rien n'apparaissait, et
  * l'utilisateur ne pouvait qu'appuyer a nouveau.
  */
-const PLAFOND = 46;
+const PLAFOND = 34;
 
 const RACINES = [
   join(import.meta.dirname, "..", "pages"),
@@ -99,5 +99,35 @@ describe("les echecs silencieux ne se multiplient plus", () => {
       PLAFOND - total,
       `${total} echecs silencieux pour un plafond de ${PLAFOND}: abaisser PLAFOND a ${total}`,
     ).toBeLessThanOrEqual(3);
+  });
+});
+
+describe("plus aucune ECRITURE ne passe sous silence", () => {
+  /**
+   * Distinction qui a guide tout le travail : une lecture muette laisse une
+   * liste vide, qui se voit ; une ecriture muette laisse croire que c'est
+   * enregistre, ce qui ne se voit pas.
+   *
+   * Les lectures restantes sont tenues par le plafond ci-dessus. Les ecritures,
+   * elles, sont a zero — et ce controle interdit d'en rajouter une seule.
+   */
+  it("aucune", () => {
+    const restantes: string[] = [];
+    for (const racine of RACINES) {
+      for (const f of fichiers(racine)) {
+        const lignes = readFileSync(f, "utf8").split(/\r?\n/);
+        lignes.forEach((l, i) => {
+          if (!/if\s*\(\s*(?:!!)?res(?:ponse)?\d?\.ok\s*\)/.test(l)) return;
+          if (/\belse\b/.test(lignes.slice(i, i + 40).join("\n"))) return;
+          const avant = lignes.slice(Math.max(0, i - 15), i).join("\n");
+          if (!/method:\s*"(POST|PUT|PATCH|DELETE)"/.test(avant)) return;
+          restantes.push(`${f.split(/[\\/]/).slice(-1)[0]}:${i + 1}`);
+        });
+      }
+    }
+    expect(
+      restantes,
+      `une ecriture laisse a nouveau croire qu'elle a reussi: ${restantes.join(", ")}`,
+    ).toEqual([]);
   });
 });
