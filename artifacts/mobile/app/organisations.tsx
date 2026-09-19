@@ -151,6 +151,7 @@ export default function OrganisationsScreen() {
         body: JSON.stringify(formValues),
       });
       if (res.ok) { setShowForm(false); setFormValues({ plan: "essai" }); fetchOrgs(); }
+      else Alert.alert(t("common.error"), t("common.actionFailed"));
     } finally { setFormLoading(false); }
   }
 

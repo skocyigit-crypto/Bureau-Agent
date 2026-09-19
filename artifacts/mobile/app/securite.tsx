@@ -186,6 +186,7 @@ export default function SecuriteScreen() {
     try {
       const res = await fetchAuth(`${SECURITY_API}/protection-status`);
       if (res.ok) setStatus(await res.json());
+      else Alert.alert(t("common.error"), t("common.actionFailed"));
     } catch { /* ignore */ }
   }, [fetchAuth]);
 

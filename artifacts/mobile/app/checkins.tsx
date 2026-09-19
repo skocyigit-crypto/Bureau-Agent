@@ -188,6 +188,7 @@ export default function CheckinsScreen() {
         }),
       });
       if (res.ok) fetchData();
+      else Alert.alert(t("common.error"), t("common.actionFailed"));
     } catch { Alert.alert(t("common.error"), t("common.actionFailed")); } finally { setActing(false); }
   }
 
@@ -201,6 +202,7 @@ export default function CheckinsScreen() {
         body: JSON.stringify({ status: "termine", checkOutAt: new Date().toISOString() }),
       });
       if (res.ok) fetchData();
+      else Alert.alert(t("common.error"), t("common.actionFailed"));
     } catch { Alert.alert(t("common.error"), t("common.actionFailed")); } finally { setActing(false); }
   }
 
@@ -216,6 +218,7 @@ export default function CheckinsScreen() {
         body: JSON.stringify({ status: newStatus }),
       });
       if (res.ok) fetchData();
+      else Alert.alert(t("common.error"), t("common.actionFailed"));
     } catch { Alert.alert(t("common.error"), t("common.actionFailed")); } finally { setActing(false); }
   }
 
