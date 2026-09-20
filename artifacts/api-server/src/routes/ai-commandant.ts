@@ -905,7 +905,31 @@ JSON attendu:
         if (invoice?.clientEmail) {
           const html = emailWrap("Rappel de paiement", `<h2 style="color:#dc2626;">Rappel - ${escapeHtml(invoice.reference)}</h2><p>${escapeHtml(reminder.message)}</p><div style="background:#fef2f2;padding:20px;border-radius:10px;text-align:center;margin:20px 0;"><div style="font-size:24px;font-weight:700;color:#dc2626;">${(Number(invoice.totalAmount) - Number(invoice.paidAmount)).toFixed(2)} EUR</div></div>${org?.bankIban ? `<p style="font-size:12px;color:#64748b;">IBAN: ${escapeHtml(org.bankIban)} | Ref: ${escapeHtml(invoice.reference)}</p>` : ""}`);
           const sent = await sendEmailViaResend(invoice.clientEmail, `Rappel - Facture ${invoice.reference}`, html, orgId);
-          if (sent) emailsSent++;
+          if (sent) {
+            emailsSent++;
+            // La relance est MARQUEE sur la facture.
+            //
+            // Sans cela, elle reste invisible pour le detecteur de
+            // `services/payment-reminder.ts`, qui lit
+            // `factures_client.lastReminderAt` pour son espacement anti-spam.
+            // Le client relance ici pouvait donc recevoir une seconde relance
+            // des le lendemain — exactement le martelement que ce detecteur
+            // promet d'eviter.
+            //
+            // `ai-analysis.ts` fait deja ce marquage, et son commentaire
+            // explique pourquoi. La regle n'avait ete appliquee que d'un cote.
+            const relanceLe = new Date();
+            await db.update(facturesClientTable)
+              .set({
+                reminderCount: sql`${facturesClientTable.reminderCount} + 1`,
+                lastReminderAt: relanceLe,
+                updatedAt: relanceLe,
+              })
+              .where(and(
+                eq(facturesClientTable.id, invoice.id),
+                eq(facturesClientTable.organisationId, orgId),
+              ));
+          }
         }
       }
     }
