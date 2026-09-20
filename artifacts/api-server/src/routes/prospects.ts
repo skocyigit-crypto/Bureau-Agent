@@ -196,7 +196,14 @@ router.patch("/prospects/:id", async (req: Request, res: Response): Promise<void
   }
 });
 
-router.get("/prospects/export/csv", async (req: Request, res: Response): Promise<void> => {
+const exportReserveAuResponsable = requireRole("super_admin", "administrateur");
+
+// Un export rend la MEME matiere que `GET /api/export/:entity`, qui est
+// reserve au responsable depuis l'audit du 19/09. La garde n'avait pas ete
+// reportee ici: un compte `lecture_seule` retelechargeait le fichier client
+// module par module. Le plancher global de `routes/index.ts` n'y peut rien,
+// il exempte les GET par construction.
+router.get("/prospects/export/csv", exportReserveAuResponsable, async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
   try {
     const rows = await db.select().from(prospectsTable)

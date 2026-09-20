@@ -15,7 +15,7 @@ import { mintApiToken } from "../lib/api-token";
 import { clearTokenInvalidationCache, requireAuth } from "../middleware/auth";
 import { invalidateTenantIdentityCache, requireTenant } from "../middleware/tenant";
 import { checkLicense } from "../middleware/license-check";
-import { assertRoleAllowed, assertOrgOwnsUser, assertTargetNotSuperAdmin, assertCallerOutranks, assertUserQuotaNotExceeded, assertNotSelf, sanitiseUserPatch, checkSensitiveRateLimit } from "../middleware/tenant-guard";
+import { assertRoleAllowed, assertOrgOwnsUser, assertTargetNotSuperAdmin, assertCallerOutranks, rolesSousLeRang, assertUserQuotaNotExceeded, assertNotSelf, sanitiseUserPatch, checkSensitiveRateLimit } from "../middleware/tenant-guard";
 import { isUserQuotaDbError } from "../services/ensure-user-quota";
 import { documentCsv } from "../lib/csv";
 
@@ -1108,7 +1108,16 @@ router.post("/auth/users/bulk/deactivate", async (req: Request, res: Response): 
   const safeIds = ids.filter(id => id !== sessionUserId);
   if (safeIds.length === 0) { res.status(400).json({ error: "Impossible de desactiver votre propre compte." }); return; }
   try {
-    const conditions = [inArray(usersTable.id, safeIds), ne(usersTable.role, "super_admin")];
+    // Rang STRICTEMENT inferieur, pas seulement « pas super_admin ».
+    //
+    // Exclure le seul `super_admin` laissait passer le rang EGAL: un
+    // administrateur agissait sur ses pairs en une requete, alors que les
+    // routes unitaires le lui refusent explicitement (« un role superieur ou
+    // egal au votre », `assertCallerOutranks`). La voie de masse contournait
+    // l invariant que la voie unitaire fait respecter.
+    const rolesPermis = rolesSousLeRang(userRole);
+    if (rolesPermis.length === 0) { res.status(403).json({ error: "Acces interdit." }); return; }
+    const conditions = [inArray(usersTable.id, safeIds), inArray(usersTable.role, rolesPermis)];
     if (organisationId) conditions.push(eq(usersTable.organisationId, organisationId));
     // DESACTIVER, C'EST RETIRER L'ACCES — PAS SEULEMENT LE DROIT D'EN OUVRIR UN.
     //
@@ -1150,7 +1159,16 @@ router.post("/auth/users/bulk/delete", async (req: Request, res: Response): Prom
   const safeIds = ids.filter(id => id !== sessionUserId);
   if (safeIds.length === 0) { res.status(400).json({ error: "Impossible de supprimer votre propre compte." }); return; }
   try {
-    const conditions = [inArray(usersTable.id, safeIds), ne(usersTable.role, "super_admin")];
+    // Rang STRICTEMENT inferieur, pas seulement « pas super_admin ».
+    //
+    // Exclure le seul `super_admin` laissait passer le rang EGAL: un
+    // administrateur agissait sur ses pairs en une requete, alors que les
+    // routes unitaires le lui refusent explicitement (« un role superieur ou
+    // egal au votre », `assertCallerOutranks`). La voie de masse contournait
+    // l invariant que la voie unitaire fait respecter.
+    const rolesPermis = rolesSousLeRang(userRole);
+    if (rolesPermis.length === 0) { res.status(403).json({ error: "Acces interdit." }); return; }
+    const conditions = [inArray(usersTable.id, safeIds), inArray(usersTable.role, rolesPermis)];
     if (organisationId) conditions.push(eq(usersTable.organisationId, organisationId));
     const result = await db.delete(usersTable).where(and(...conditions));
     safeIds.forEach(invalidateTenantIdentityCache);
