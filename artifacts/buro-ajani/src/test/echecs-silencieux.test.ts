@@ -70,39 +70,56 @@ function fichiers(dir: string): string[] {
 const EXCEPTIONS = [
   // Recherche d'entreprise a la frappe: la saisie manuelle reste possible, et
   // la raison est ecrite sur place. Avertir a chaque frappe serait du bruit.
-  "organisations.tsx:246",
+  "organisations.tsx#1",
   // Brouillons de facture: « la section reste vide, sans message trompeur »,
   // dit le commentaire d'origine — c'est exactement le bon arbitrage.
-  "organisations.tsx:762",
+  "organisations.tsx#2",
   // Consommation d'IA: la carte ne s'affiche pas. Une carte absente ne dit
   // rien de faux.
-  "tab-intelligence-artificielle.tsx:145",
+  "tab-intelligence-artificielle.tsx#1",
   // Plateformes connectees et journal de synchronisation: meme cas, le resume
   // ne s'affiche pas. L'etat Google, lui, AFFIRMAIT et a ete corrige.
-  "tab-plateformes.tsx:301",
-  "tab-plateformes.tsx:316",
+  "tab-plateformes.tsx#1",
+  "tab-plateformes.tsx#2",
   // Sante d'un contact, statistiques d'equipe, apercu des paiements, briefing
   // du jour: ces quatre ecrans montrent un bouton « Charger » et invitent a
   // reessayer. C'est deja la bonne reponse a un echec.
-  "call-assistant.tsx:585",
-  "commandant-ia.tsx:692",
-  "commandant-ia.tsx:814",
-  "commandant-ia.tsx:884",
+  "call-assistant.tsx#1",
+  "commandant-ia.tsx#1",
+  "commandant-ia.tsx#2",
+  "commandant-ia.tsx#3",
   // Statut de la base de connaissances: non bloquant, documente comme tel.
-  "knowledge-base.tsx:67",
+  "knowledge-base.tsx#1",
 ] as const;
 
 describe("les echecs silencieux ne se multiplient plus", () => {
-  /** Chaque silence, sous la forme `fichier.tsx:ligne`. */
+  /**
+   * Chaque silence, sous la forme `fichier.tsx#rang`.
+   *
+   * Le rang est celui du silence DANS SON FICHIER, pas un numero de ligne.
+   *
+   * La premiere version designait chaque exception par `fichier.tsx:ligne`, et
+   * cette liste est devenue fausse a la premiere modification faite plus haut
+   * dans le meme fichier — retirer une carte de reglages a suffi a faire
+   * echouer le controle sur deux exceptions parfaitement inchangees. Une liste
+   * qui se declare fausse a chaque remaniement finit par etre mise a jour
+   * mecaniquement, sans que personne ne relise ce qu'elle protege ; c'est-a-dire
+   * qu'elle ne protege plus rien.
+   *
+   * Le rang, lui, ne bouge que si l'on AJOUTE ou RETIRE un silence dans ce
+   * fichier — c'est-a-dire exactement quand une relecture s'impose.
+   */
   function releve(): string[] {
     const out: string[] = [];
     for (const racine of RACINES) {
       for (const f of fichiers(racine)) {
         const lignes = readFileSync(f, "utf8").split(/\r?\n/);
+        const nom = f.split(/[\\/]/).slice(-1)[0];
+        let rang = 0;
         lignes.forEach((l, i) => {
           if (!/if\s*\(\s*(?:!!)?res(?:ponse)?\d?\.ok\s*\)/.test(l)) return;
           if (/\belse\b/.test(lignes.slice(i, i + 40).join("\n"))) return;
-          out.push(`${f.split(/[\\/]/).slice(-1)[0]}:${i + 1}`);
+          out.push(`${nom}#${++rang}`);
         });
       }
     }

@@ -145,6 +145,32 @@ describe("le magasin de sessions fait bien ce qu'on croit", () => {
   });
 });
 
+
+/**
+ * Le corps exact d'une route, accolades comptees.
+ *
+ * Ces controles decoupaient auparavant une fenetre de N caracteres apres le
+ * `router.post(...)`. Ajouter un commentaire d'explication dans la route, ou
+ * une route voisine, poussait la matiere hors de la fenetre et faisait echouer
+ * cinq assertions sur du code parfaitement correct. Un controle qui crie au
+ * loup finit desactive, et c'est le vrai defaut qui passe ensuite.
+ */
+function corpsDeLaRoute(source: string, declaration: string): string {
+  const debut = source.indexOf(declaration);
+  if (debut < 0) return "";
+  let profondeur = 0;
+  let ouvert = false;
+  for (let i = debut; i < source.length; i++) {
+    const c = source[i];
+    if (c === "{") { profondeur++; ouvert = true; }
+    else if (c === "}") {
+      profondeur--;
+      if (ouvert && profondeur === 0) return source.slice(debut, i + 1);
+    }
+  }
+  return source.slice(debut);
+}
+
 describe("desactivation : les deux moities sont appelees", () => {
   async function source(): Promise<string> {
     const { readFileSync } = await import("node:fs");
@@ -154,9 +180,8 @@ describe("desactivation : les deux moities sont appelees", () => {
 
   it("la route de desactivation invalide les sessions cookie", async () => {
     const s = await source();
-    const i = s.indexOf('router.post("/auth/users/bulk/deactivate"');
-    expect(i).toBeGreaterThan(0);
-    const bloc = s.slice(i, i + 2600);
+    const bloc = corpsDeLaRoute(s, 'router.post("/auth/users/bulk/deactivate"');
+    expect(bloc.length, "route introuvable").toBeGreaterThan(0);
     expect(bloc, "les sessions cookie ne sont pas invalidees").toContain("invalidateUserSessions(id)");
   });
 
@@ -164,8 +189,7 @@ describe("desactivation : les deux moities sont appelees", () => {
     // Defense en profondeur: la revocation ne depend plus du seul cache
     // d'invalidation, et elle survit a une reactivation.
     const s = await source();
-    const i = s.indexOf('router.post("/auth/users/bulk/deactivate"');
-    const bloc = s.slice(i, i + 2600);
+    const bloc = corpsDeLaRoute(s, 'router.post("/auth/users/bulk/deactivate"');
     expect(bloc).toContain("actif: false, tokenInvalidatedAt: new Date()");
   });
 
@@ -173,8 +197,7 @@ describe("desactivation : les deux moities sont appelees", () => {
     // `getTokenInvalidatedAt` met en cache 60 secondes: sans purge, un jeton
     // reste accepte jusqu'a une minute apres la desactivation.
     const s = await source();
-    const i = s.indexOf('router.post("/auth/users/bulk/deactivate"');
-    const bloc = s.slice(i, i + 2600);
+    const bloc = corpsDeLaRoute(s, 'router.post("/auth/users/bulk/deactivate"');
     expect(bloc).toContain("clearTokenInvalidationCache");
   });
 
@@ -196,9 +219,8 @@ describe("suppression : le compte disparait, la session aussi", () => {
 
   it("la route de suppression invalide les sessions", async () => {
     const s = await source();
-    const i = s.indexOf('router.post("/auth/users/bulk/delete"');
-    expect(i).toBeGreaterThan(0);
-    const bloc = s.slice(i, i + 2000);
+    const bloc = corpsDeLaRoute(s, 'router.post("/auth/users/bulk/delete"');
+    expect(bloc.length, "route introuvable").toBeGreaterThan(0);
     expect(bloc).toContain("invalidateUserSessions(id)");
   });
 
@@ -206,8 +228,7 @@ describe("suppression : le compte disparait, la session aussi", () => {
     // L'ordre inverse ouvrirait une fenetre ou la session est detruite et le
     // compte encore actif: l'utilisateur se reconnecterait simplement.
     const s = await source();
-    const i = s.indexOf('router.post("/auth/users/bulk/delete"');
-    const bloc = s.slice(i, i + 2000);
+    const bloc = corpsDeLaRoute(s, 'router.post("/auth/users/bulk/delete"');
     const iDelete = bloc.indexOf("db.delete(usersTable)");
     const iSessions = bloc.indexOf("invalidateUserSessions(id)");
     expect(iDelete).toBeGreaterThan(0);
@@ -246,8 +267,7 @@ describe("ce qui etait deja correct et doit le rester", () => {
 
   it("la desactivation reste bornee a l'organisation de l'appelant", async () => {
     const s = await source();
-    const i = s.indexOf('router.post("/auth/users/bulk/deactivate"');
-    const bloc = s.slice(i, i + 1200);
+    const bloc = corpsDeLaRoute(s, 'router.post("/auth/users/bulk/deactivate"');
     expect(bloc).toContain("eq(usersTable.organisationId, organisationId)");
   });
 });

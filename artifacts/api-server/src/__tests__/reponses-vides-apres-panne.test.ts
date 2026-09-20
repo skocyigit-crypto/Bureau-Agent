@@ -64,7 +64,15 @@ function corpsDuCatch(lignes: string[], debut: number): string | null {
 }
 
 /**
- * Les reponses vides servies APRES une panne, `fichier.ts:ligne`.
+ * Les reponses vides servies APRES une panne, `fichier.ts#rang`.
+ *
+ * Le rang est celui de la reponse DANS SON FICHIER, pas un numero de ligne.
+ * Designer une exception par sa ligne rend la liste fausse des qu'on modifie
+ * quoi que ce soit plus haut dans le meme fichier — ajouter une garde de role
+ * a `calls.ts` a suffi a la faire echouer sur une exception inchangee. Une
+ * liste qui se declare fausse a chaque remaniement finit mise a jour
+ * mecaniquement, sans que personne relise ce qu'elle protege ; c'est-a-dire
+ * qu'elle ne protege plus rien.
  *
  * Un bloc qui pose un statut 4xx ou 5xx ne ment pas, quoi qu'il mette dans le
  * corps ; c'est le 200 qui fait croire que la question a recu sa reponse.
@@ -73,6 +81,8 @@ function reponsesVides(): string[] {
   const out: string[] = [];
   for (const f of fichiers(ROUTES)) {
     const lignes = readFileSync(f, "utf8").split(/\r?\n/);
+    const nom = f.split(/[\\/]/).slice(-1)[0];
+    let rang = 0;
     lignes.forEach((l, i) => {
       if (!/catch\s*\(/.test(l)) return;
       const bloc = corpsDuCatch(lignes, i);
@@ -85,7 +95,7 @@ function reponsesVides(): string[] {
       // degradee HONNETE, et elle a sa place.
       if (/res\.json\(\s*\{[^}]*\berror\s*:/.test(bloc)) return;
       if (!/res\.json\(\s*(?:\[\]|\{[^}]*\[\])/.test(bloc)) return;
-      out.push(`${f.split(/[\\/]/).slice(-1)[0]}:${i + 1}`);
+      out.push(`${nom}#${++rang}`);
     });
   }
   return out.sort();
@@ -102,18 +112,18 @@ function reponsesVides(): string[] {
 const EXCEPTIONS = [
   // Recherche d'entreprise a la frappe (API externe INSEE): la saisie
   // manuelle reste ouverte, et l'echec est journalise sur place.
-  "organisations.ts:107",
+  "organisations.ts#1",
   // Suggestions de recherche web: meme cas, meme journalisation.
-  "web-search.ts:126",
+  "web-search.ts#1",
   // Taches Google: le compte EST connecte, c'est le scope Tasks qui manque
   // sur d'anciens jetons. Repondre « non_connecte » afficherait a tort
   // « Connectez votre compte » alors que Gmail, Agenda et Drive marchent.
   // L'arbitrage est ecrit sur place, et l'echec est journalise.
-  "google-workspace.ts:325",
+  "google-workspace.ts#1",
   // Briefing d'appel: le corps DIT « Informations non disponibles » a
   // l'endroit meme ou l'utilisateur le lit, et l'erreur est journalisee. Le
   // texte ne pretend pas qu'il n'y avait rien a dire.
-  "calls.ts:397",
+  "calls.ts#1",
 ] as const;
 
 describe("une panne ne se deguise pas en resultat vide", () => {
