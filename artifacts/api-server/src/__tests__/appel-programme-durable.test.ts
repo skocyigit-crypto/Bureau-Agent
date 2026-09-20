@@ -27,7 +27,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import express, { type NextFunction, type Request, type Response } from "express";
 import request from "supertest";
 import { and, eq, like } from "drizzle-orm";
-import { db, organisationsTable, tasksTable, usersTable } from "@workspace/db";
+import { db, deletedRowsTable, organisationsTable, tasksTable, usersTable } from "@workspace/db";
 import router from "../routes/telephony";
 
 const stamp = Date.now();
@@ -189,5 +189,26 @@ describe("la suppression reste bornee", () => {
     } as any);
     const r = await lister(orgId);
     expect(r.body.scheduled.every((s: any) => s.toNumber !== "")).toBe(true);
+  });
+});
+
+describe("un rappel supprime reste restaurable", () => {
+  /**
+   * `trash.test.ts` a attrape cet oubli a la premiere execution complete: la
+   * suppression ecrite ici ne passait pas par la corbeille, alors que la meme
+   * ligne supprimee depuis l'ecran des taches l'est. Deux chemins, deux
+   * comportements, et celui qu'on venait d'ecrire etait le moins sur.
+   */
+  it("la suppression passe par la corbeille", async () => {
+    const r = await programmer({ toNumber: "0601020399", scheduledAt: DEMAIN, note: "A restaurer" });
+    const id = r.body.scheduled.id;
+    await request(appli()).delete(`/api/telephony/schedule/${id}`);
+
+    const archives = await db.select().from(deletedRowsTable).where(and(
+      eq(deletedRowsTable.organisationId, orgId),
+      eq(deletedRowsTable.tableName, "tasks"),
+    ));
+    const trouve = archives.some((a) => (a.payload as any)?.id === id);
+    expect(trouve, "le rappel supprime n'est pas restaurable").toBe(true);
   });
 });

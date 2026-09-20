@@ -15,6 +15,7 @@ import {
   decryptProviderConfig,
 } from "../services/telephony-providers";
 import { requireRole } from "../middleware/auth";
+import { archiveDeletedRows, deletionContext } from "../services/trash";
 import { rowId, pageLimit } from "../lib/request-params";
 import { CONDITIONS_ENREGISTREMENT, verifierEnregistrement } from "../services/enregistrement-appels";
 import { organisationsTable } from "@workspace/db";
@@ -1053,8 +1054,15 @@ router.delete("/telephony/schedule/:id", async (req, res): Promise<void> => {
         eq(tasksTable.organisationId, orgId),
         like(tasksTable.description, `${MARQUEUR_APPEL_PROGRAMME}%`),
       ))
-      .returning({ id: tasksTable.id });
+      .returning();
     if (supprimees.length === 0) { res.status(404).json({ error: "Appel programme introuvable." }); return; }
+    // La corbeille, comme toute suppression de tache.
+    //
+    // `trash.test.ts` a attrape cet oubli: un rappel supprime par cette route
+    // n'aurait pas ete restaurable, alors que la meme ligne supprimee depuis
+    // l'ecran des taches l'est. Deux chemins, deux comportements, et celui
+    // qu'on vient d'ecrire etait le moins sur.
+    await archiveDeletedRows(tasksTable, supprimees, deletionContext(req, orgId));
     res.json({ success: true });
   } catch (err: any) {
     req.log.error({ err }, "Erreur suppression d'un appel programme");
