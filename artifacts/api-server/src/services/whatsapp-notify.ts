@@ -13,6 +13,11 @@
 import { and, eq } from "drizzle-orm";
 import { db, telephonyProvidersTable, usersTable } from "@workspace/db";
 import { logger } from "../lib/logger";
+
+/**
+ * Borne de l'appel sortant. Alignee sur les autres appels Twilio du depot.
+ */
+const DELAI_TWILIO_MS = 15_000;
 import { isWithinQuietHours } from "./quiet-hours";
 import { decryptProviderConfig } from "./telephony-providers";
 
@@ -172,6 +177,15 @@ export async function sendWhatsAppNotification(
           "Content-Type": "application/x-www-form-urlencoded",
         },
         body: params.toString(),
+        // `fetch()` n'a pas de delai d'attente par defaut.
+        //
+        // Aucune requete HTTP n'etait bloquee — tous les appelants lancent
+        // cette fonction en tache de fond — mais `notifyOrgUsers` en declenche
+        // jusqu'a vingt en parallele, et une promesse pendante par
+        // destinataire restait en memoire sans borne. Le meme appel Twilio est
+        // deja borne dans `services/telephony-providers.ts`, qui explique
+        // pourquoi sur place.
+        signal: AbortSignal.timeout(DELAI_TWILIO_MS),
       },
     );
 

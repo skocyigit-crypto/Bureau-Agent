@@ -65,6 +65,24 @@ vi.mock("@workspace/integrations-gemini-ai", () => ({
   },
 }));
 
+/**
+ * CE QUE CES LIBELLES SONT, ET CE QU'ILS NE SONT PAS.
+ *
+ * Ils ont ete ecrits a la main, pas captures depuis un appel reel. Ce bloc
+ * verifie donc que `MODEL_RETIRED_PATTERNS` couvre NOTRE TRANSCRIPTION des
+ * messages de Vertex, pas ce que Vertex renvoie vraiment.
+ *
+ * La limite est concrete: remplacer les motifs par la disjonction litterale
+ * des huit chaines ci-dessous laisserait ce test vert, et les formulations
+ * reellement servies — « Publisher Model 'projects/.../models/gemini-2.5-pro'
+ * WAS not found » (au passe), ou un corps
+ * `{"error":{"code":404,"status":"NOT_FOUND"}}` sans phrase — ne
+ * declencheraient plus le repli. L'erreur brute remonterait alors a
+ * l'utilisateur.
+ *
+ * Les cas ajoutes plus bas couvrent ces deux formes-la, pour que la detection
+ * ne se reduise pas aux phrases exactes qu'on a bien voulu ecrire.
+ */
 describe("isModelRetiredError", () => {
   it("detecte les signatures de retrait/inexistence de modele", () => {
     const retired = [
@@ -82,6 +100,18 @@ describe("isModelRetiredError", () => {
     ];
     for (const err of retired) {
       expect(isModelRetiredError(err), err.message).toBe(true);
+    }
+  });
+
+  it("detecte les formes que Vertex sert vraiment, pas seulement nos phrases", () => {
+    // Deux variantes que la table ecrite a la main ne contenait pas: le passe
+    // (« was not found ») et un corps d'erreur sans phrase.
+    const reelles = [
+      { message: "Publisher Model 'projects/p/locations/l/publishers/google/models/gemini-2.5-pro' was not found or your project does not have access to it." },
+      { error: { code: 404, status: "NOT_FOUND", message: "Publisher Model was not found" } },
+    ];
+    for (const err of reelles) {
+      expect(isModelRetiredError(err), JSON.stringify(err)).toBe(true);
     }
   });
 
