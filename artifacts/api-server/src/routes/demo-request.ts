@@ -6,6 +6,7 @@ import { db, organisationsTable, prospectsTable } from "@workspace/db";
 import { sendEmail } from "../services/email";
 import { broadcaster } from "../services/broadcaster";
 import { logger } from "../lib/logger";
+import { MESSAGE_DEMANDE_PERDUE, suiteDemande } from "../services/demande-entrante";
 
 /**
  * Lien ABSOLU vers l inscription.
@@ -41,11 +42,15 @@ async function createProspectFromDemoRequest(payload: {
   company: string;
   employeeCount?: string;
   message?: string;
-}): Promise<void> {
+}): Promise<boolean> {
+  // Rend VRAI si la piste est bien dans le CRM a l'issue de l'appel. Elle ne
+  // rendait rien et sortait silencieusement quand aucune organisation
+  // super-admin n'existe: l'appelant en deduisait « piste captee » alors que
+  // rien n'avait ete ecrit.
   const orgId = await getSuperAdminOrgId();
   if (!orgId) {
     logger.warn("[DemoRequest] Organisation super-admin introuvable, prospect non cree.");
-    return;
+    return false;
   }
 
   const emailNorm = payload.email.trim().toLowerCase();
@@ -64,7 +69,7 @@ async function createProspectFromDemoRequest(payload: {
 
   if (dup) {
     logger.info({ email: emailNorm, prospectId: dup.id }, "[DemoRequest] Prospect deja cree dans les 24h, deduplication.");
-    return;
+    return true;
   }
 
   const fullName = `${payload.firstName} ${payload.lastName}`.trim();
@@ -86,7 +91,6 @@ async function createProspectFromDemoRequest(payload: {
   }).returning({ id: prospectsTable.id });
 
   logger.info({ prospectId: created?.id, email: emailNorm, company: payload.company }, "[DemoRequest] Prospect cree depuis le site vitrine.");
-
   if (created?.id) {
     setImmediate(() => {
       broadcaster.broadcast(orgId, {
@@ -96,6 +100,7 @@ async function createProspectFromDemoRequest(payload: {
       });
     });
   }
+  return Boolean(created?.id);
 }
 
 const router = Router();
@@ -186,16 +191,42 @@ router.post("/public/demo-request", demoLimiter, async (req: Request, res: Respo
       </div>
     `;
 
-    await sendEmail(adminEmail, `[Demo] Nouvelle demande — ${company} (${firstName} ${lastName})`, adminHtml, `Demande demo de ${firstName} ${lastName} <${email}> pour ${company}`);
-    await sendEmail(email, "Votre demande de démonstration — Ajant Bureau", confirmHtml, `Bonjour ${firstName}, nous avons bien reçu votre demande de demo. Notre equipe vous contacte sous 24h.`);
-
+    // La demande est CAPTUREE avant d'etre annoncee.
+    //
+    // `sendEmail` ne leve pas en cas d'echec fournisseur: elle rend
+    // `{ success: false, error }` (voir `services/email.ts`). Ces deux appels
+    // jetaient sa valeur, puis la route repondait 200 « Votre demande a ete
+    // envoyee ». Si la chaine d'e-mail etait en panne, le visiteur repartait
+    // avec une promesse de rappel que personne n'avait recue — et l'alerte
+    // vers l'equipe n'etait pas partie non plus.
+    //
+    // Le prospect en base est le vrai filet: c'est lui qui fait que l'equipe
+    // rappellera. Il est donc cree D'ABORD, et c'est son echec — cumule a
+    // celui de l'alerte — qui decide de la reponse. Tant que l'un des deux
+    // tient, la piste est captee et la promesse est vraie.
+    let prospectCree = false;
     try {
-      await createProspectFromDemoRequest({ firstName, lastName, email, phone, company, employeeCount, message });
+      prospectCree = await createProspectFromDemoRequest({ firstName, lastName, email, phone, company, employeeCount, message });
     } catch (prospectErr: any) {
-      logger.error({ err: prospectErr, email, company }, "[DemoRequest] Echec creation prospect (email envoye quand meme)");
+      logger.error({ err: prospectErr, email, company }, "[DemoRequest] Echec creation prospect");
     }
 
-    logger.info({ email, company }, "[DemoRequest] Nouvelle demande de demo");
+    const alerte = await sendEmail(adminEmail, `[Demo] Nouvelle demande — ${company} (${firstName} ${lastName})`, adminHtml, `Demande demo de ${firstName} ${lastName} <${email}> pour ${company}`);
+    // La confirmation au visiteur est un confort: son echec ne perd pas la
+    // piste, et on ne va pas refuser une demande parce qu'un accuse n'est pas
+    // parti.
+    const confirmation = await sendEmail(email, "Votre demande de démonstration — Ajant Bureau", confirmHtml, `Bonjour ${firstName}, nous avons bien reçu votre demande de demo. Notre equipe vous contacte sous 24h.`);
+    if (!confirmation.success) {
+      logger.warn({ email, company, err: confirmation.error }, "[DemoRequest] Accuse de reception non envoye");
+    }
+
+    if (suiteDemande(prospectCree, alerte.success) === "perdue") {
+      logger.error({ email, company, err: alerte.error }, "[DemoRequest] Demande PERDUE: ni prospect ni alerte");
+      res.status(502).json({ error: MESSAGE_DEMANDE_PERDUE });
+      return;
+    }
+
+    logger.info({ email, company, prospectCree, alerte: alerte.success }, "[DemoRequest] Nouvelle demande de demo");
     res.status(200).json({ message: "Votre demande a ete envoyee. Nous vous recontactons sous 24h." });
   } catch (err: any) {
     logger.error({ err }, "[DemoRequest] Erreur envoi email");

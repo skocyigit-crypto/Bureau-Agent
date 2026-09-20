@@ -215,17 +215,31 @@ describe("ce qui ne doit jamais arriver", () => {
   });
 
   it("un echec de creation du prospect ne fait pas perdre la demande", async () => {
-    // Les deux effets sont volontairement independants: le courriel part
-    // d'abord, la base ensuite. Verifie sur la forme, car provoquer un echec
-    // de base ici casserait les autres tests.
+    // L'ORDRE A ETE INVERSE, VOLONTAIREMENT.
+    //
+    // Cette assertion decrivait le dessin precedent — « le courriel part
+    // d'abord, la base ensuite » — et exigeait le journal « email envoye
+    // quand meme ». Ce dessin reposait sur une hypothese fausse: que le
+    // courriel EST parti. `sendEmail` ne leve pas en cas d'echec
+    // fournisseur, elle rend `{ success: false }`, et la route repondait 200
+    // sans regarder. Le visiteur repartait avec une promesse que personne
+    // n'avait recue.
+    //
+    // Le prospect est donc cree D'ABORD: c'est le filet durable, celui qui
+    // fait que l'equipe rappellera. La garantie de ce controle n'a pas
+    // faibli, elle s'est renforcee: un echec du prospect SEUL ne perd
+    // toujours pas la demande, mais l'echec des DEUX est desormais dit au
+    // visiteur au lieu d'etre masque par un 200.
     const source = await import("node:fs").then((fs) =>
       fs.readFileSync(new URL("../routes/demo-request.ts", import.meta.url), "utf8"),
     );
-    expect(source).toMatch(/catch \(prospectErr[\s\S]{0,200}email envoye quand meme/);
-    // Et le 200 ne doit pas dependre du bloc de creation.
-    const i = source.indexOf("catch (prospectErr");
-    const j = source.indexOf("res.status(200)");
-    expect(j, "la reponse de succes precede-t-elle encore l'echec du prospect ?").toBeGreaterThan(i);
+    expect(source, "l'echec de creation du prospect n'est plus rattrape").toMatch(/catch \(prospectErr/);
+    expect(source, "la decision ne passe plus par la regle partagee").toMatch(/suiteDemande\(prospectCree, alerte\.success\)/);
+
+    // Un echec du prospect seul laisse la demande transmise: c'est la regle,
+    // et elle se verifie directement.
+    const { suiteDemande } = await import("../services/demande-entrante");
+    expect(suiteDemande(false, true)).toBe("transmise");
   });
 
   it("la route est limitee en frequence", async () => {
