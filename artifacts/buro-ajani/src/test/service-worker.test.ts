@@ -28,11 +28,34 @@ const sw = readFileSync(
 
 describe("mise en cache", () => {
   it("ne stocke jamais une reponse en echec", () => {
-    // Les deux branches qui ecrivent dans le cache doivent tester `res.ok`.
-    const puts = [...sw.matchAll(/cache[s]?\s*\.?\s*put\(|c\.put\(/g)];
-    expect(puts.length).toBeGreaterThan(0);
-    const okChecks = [...sw.matchAll(/if \(res\.ok\)/g)];
-    expect(okChecks.length, "une branche ecrit dans le cache sans verifier res.ok").toBe(puts.length);
+    // ON REGARDE L'IMBRICATION, PAS LES COMPTEURS.
+    //
+    // Cette assertion comparait le NOMBRE d'occurrences de `if (res.ok)` au
+    // nombre de `put(`. Une egalite de comptages ne dit rien de la structure :
+    //
+    //     if (res.ok) { /* rien */ }
+    //     c.put(request, clone);
+    //
+    // laisse les deux compteurs a un, passe le test, et remet en cache le 502
+    // servi pendant un deploiement — qui devient alors la page hors ligne,
+    // dont l'utilisateur ne sort qu'en vidant les donnees du site.
+    //
+    // On verifie donc que chaque ecriture est PRECEDEE d'un `res.ok` que rien
+    // n'a referme entre-temps.
+    const ecritures = [...sw.matchAll(/(?:caches?\.[\w.]*|c|cache)\.put\(/g)];
+    expect(ecritures.length, "aucune ecriture de cache lue: ce controle ne prouve rien").toBeGreaterThan(1);
+
+    const nues: string[] = [];
+    for (const m of ecritures) {
+      const avant = sw.slice(Math.max(0, m.index! - 200), m.index!);
+      const dernierTest = avant.lastIndexOf("if (res.ok)");
+      if (dernierTest < 0) { nues.push(avant.trim().slice(-60)); continue; }
+      // Entre le test et l'ecriture, une accolade fermante seule signifie que
+      // la branche s'est refermee: l'ecriture est alors hors du test.
+      const entre = avant.slice(dernierTest + "if (res.ok)".length);
+      if (/\}\s*$/m.test(entre.trim())) nues.push(entre.trim().slice(0, 80));
+    }
+    expect(nues, `ecriture de cache hors du test res.ok: ${nues.join(" | ")}`).toEqual([]);
   });
 
   it("laisse l'API hors du cache", () => {

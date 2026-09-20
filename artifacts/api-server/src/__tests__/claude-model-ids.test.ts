@@ -55,6 +55,30 @@ function withAnthropicEnv<T>(
   }
 }
 
+/**
+ * CE QUE CES DEUX TABLES PROUVENT, ET CE QU'ELLES NE PROUVENT PAS.
+ *
+ * Elles sont recopiees a la main depuis le catalogue d'Anthropic. Le test
+ * verifie donc que `resolveClaudeModelId` est coherent avec NOTRE
+ * TRANSCRIPTION — pas avec la realite du fournisseur.
+ *
+ * La limite n'est pas theorique. Le jour ou Anthropic retire un modele encore
+ * present dans `LIVE_MODEL_IDS`, la valeur par defaut d'`ANTHROPIC_FAST_MODEL`
+ * continue de pointer dessus, `resolveClaudeModelId` le rend inchange, la
+ * table le declare vivant — et les trois controles restent verts pendant que
+ * `POST /ai-providers/:id/test` affirme a des clients que leur cle Anthropic
+ * est invalide. C'est exactement la panne que ce fichier existe pour empecher.
+ *
+ * Aucun test ne peut lire le catalogue d'Anthropic. Ce qu'il peut faire, c'est
+ * rendre la PEREMPTION visible: la date de verification est declaree
+ * ci-dessous, et un controle echoue quand elle devient trop ancienne. Un
+ * echec de test est le seul rappel qui ne s'oublie pas.
+ */
+const CATALOGUE_VERIFIE_LE = "2026-08-28";
+
+/** Au-dela, la transcription n'engage plus personne. */
+const PEREMPTION_MOIS = 6;
+
 /** IDs servis par Anthropic aujourd'hui (catalogue du 2026-06-24). */
 const LIVE_MODEL_IDS = new Set([
   "claude-fable-5",
@@ -255,5 +279,40 @@ describe("scan statique du code serveur", () => {
     expect(providers).toContain(
       "model: resolveClaudeModelId(ANTHROPIC_FAST_MODEL)",
     );
+  });
+});
+
+describe("la transcription du catalogue ne se perime pas en silence", () => {
+  /**
+   * Un test ne peut pas lire le catalogue d'Anthropic. Il peut en revanche
+   * refuser de se taire quand notre copie devient trop vieille pour engager
+   * qui que ce soit.
+   */
+  it("la date de verification est declaree", () => {
+    expect(CATALOGUE_VERIFIE_LE).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("et elle a moins de six mois", () => {
+    const verifie = new Date(`${CATALOGUE_VERIFIE_LE}T00:00:00.000Z`);
+    const limite = new Date();
+    limite.setMonth(limite.getMonth() - PEREMPTION_MOIS);
+    expect(
+      verifie.getTime(),
+      `Les listes de modeles n'ont pas ete revues depuis le ${CATALOGUE_VERIFIE_LE}. ` +
+        "Relire platform.claude.com/docs/en/about-claude/model-deprecations, " +
+        "mettre a jour LIVE_MODEL_IDS et RETIRED_MODEL_IDS, puis avancer " +
+        "CATALOGUE_VERIFIE_LE. Sans cela, un modele retire continue d'etre " +
+        "appele et le produit accuse les clients d'avoir une cle invalide.",
+    ).toBeGreaterThan(limite.getTime());
+  });
+
+  it("les modeles par defaut du produit figurent dans la liste vivante", () => {
+    // Si une valeur par defaut pointe hors catalogue, c'est le produit qui
+    // part en appel avec un identifiant que personne n'a revu.
+    const utils = readFileSync(join(import.meta.dirname, "..", "services", "ai-utils.ts"), "utf8");
+    const defauts = [...utils.matchAll(/process\.env\.ANTHROPIC_\w+_MODEL \|\| "([^"]+)"/g)].map((m) => m[1]!);
+    expect(defauts.length, "aucun modele par defaut lu: ce controle ne prouve rien").toBeGreaterThan(0);
+    const hors = defauts.filter((d) => !LIVE_MODEL_IDS.has(d));
+    expect(hors, `modele par defaut absent du catalogue transcrit: ${hors.join(", ")}`).toEqual([]);
   });
 });

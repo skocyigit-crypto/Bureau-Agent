@@ -43,22 +43,58 @@ const lire = (...p: string[]) => readFileSync(join(SRC, ...p), "utf8");
 describe("l'export du CRM est reserve au responsable", () => {
   const source = lire("routes", "export.ts");
 
+  /**
+   * LA GARDE POSEE SUR LA ROUTE, ET SA DEFINITION — RELIEES.
+   *
+   * Ces deux assertions etaient independantes : l'une verifiait que la route
+   * porte UN middleware (`\w+` accepte n'importe quel identifiant), l'autre
+   * qu'une chaine `requireRole("super_admin", "administrateur")` existe
+   * QUELQUE PART dans le fichier. Rien ne disait que la seconde definissait la
+   * premiere.
+   *
+   * Le sabotage qui les laissait vertes est banal — un artefact de refactor :
+   * laisser `const exportReserveAuResponsable = requireRole(...)` en place,
+   * desormais inutilise, et ecrire
+   * `router.get("/export/:entity", requireAuth, ...)`. Les deux passaient, et
+   * un compte `lecture_seule` reexportait contacts, prospects, devis et
+   * factures. C'est le test qui ferme cette faille, et il ne la fermait pas.
+   *
+   * On lit donc le NOM du middleware pose sur la route, puis sa definition.
+   */
+  const gardePosee = (): string => {
+    const m = /router\.get\("\/export\/:entity",\s*([A-Za-z_$][\w$]*)\s*,/.exec(source);
+    return m?.[1] ?? "";
+  };
+
   it("la route porte une garde de role", () => {
+    const garde = gardePosee();
     expect(
-      source,
+      garde,
       "le seul filtre etait « etre authentifie »: le CRM complet en une requete",
-    ).toMatch(/router\.get\("\/export\/:entity",\s*\w+,/);
+    ).not.toBe("");
+    expect(garde, "aucun middleware avant le gestionnaire").not.toBe("async");
   });
 
-  it("la garde s'arrete au responsable", () => {
-    expect(source).toMatch(/requireRole\("super_admin",\s*"administrateur"\)/);
-    expect(source, "un agent ou un lecture_seule exporterait encore").not.toMatch(/requireRole\([^)]*"agent"/);
+  it("et c'est CETTE garde qui s'arrete au responsable", () => {
+    const garde = gardePosee();
+    const def = new RegExp(`${garde}\\s*=\\s*requireRole\\(([^)]*)\\)`).exec(source);
+    expect(def, `${garde} n'est pas defini par un requireRole dans ce fichier`).not.toBeNull();
+    const roles = def![1]!;
+    expect(roles).toMatch(/"super_admin"/);
+    expect(roles).toMatch(/"administrateur"/);
+    expect(roles, "un agent ou un lecture_seule exporterait encore").not.toMatch(/"agent"|"lecture_seule"/);
   });
 
   it("le plancher global ne suffisait pas, et le test doit s'en souvenir", () => {
     const index = lire("routes", "index.ts");
-    const plancher = index.slice(index.indexOf("requireMutationRole("));
-    expect(plancher.slice(0, 200), "si le plancher couvrait les GET, cette garde serait redondante").toBeTruthy();
+    // `indexOf` rend -1 quand la chaine est absente, et `slice(-1)` rend alors
+    // le DERNIER caractere du fichier — non vide, donc `toBeTruthy()` passait
+    // quel que soit l'etat du produit. L'assertion ne pouvait pas echouer :
+    // supprimer le plancher entier la laissait verte.
+    expect(
+      index,
+      "le plancher global a disparu de routes/index.ts",
+    ).toMatch(/router\.use\(requireMutationRole\(/);
     const middleware = lire("middleware", "auth.ts");
     expect(
       middleware,

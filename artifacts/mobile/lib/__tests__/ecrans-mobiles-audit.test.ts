@@ -37,13 +37,54 @@ describe("l'ecran des notifications ne masque plus la fonction de traduction", (
     ).not.toMatch(/\(\s*t\s*:\s*any\s*\)\s*=>/);
   });
 
+  /**
+   * Les parametres de toutes les fonctions passees a une boucle.
+   *
+   * La version precedente n'attrapait que la forme PARENTHESEE
+   * (`.map((t) => ...)`), et l'assertion au-dessus exige meme l'annotation
+   * `: any`. Le defaut d'origine revenait donc sous la forme d'arrow la plus
+   * courante — `overdue.map(t => ...)` — sans qu'aucune des deux ne bronche :
+   * `t` masquait de nouveau la traduction, la `TypeError` etait avalee par le
+   * `catch {}`, et l'ecran des notifications se vidait des la premiere tache
+   * en retard. `function (t) { ... }` passait aussi.
+   */
+  const parametresDeBoucle = (src: string): string[] => {
+    const out: string[] = [];
+    const appel = /\.(?:forEach|map|filter|find|some|flatMap|reduce)\(\s*/g;
+    for (const m of src.matchAll(appel)) {
+      const debut = m.index! + m[0].length;
+      const suite = src.slice(debut, debut + 120);
+      // Forme parenthesee: `(t)`, `(t: any)`, `(t, i)`.
+      const parenthese = /^\(([^)]*)\)\s*=>/.exec(suite);
+      if (parenthese) {
+        out.push(...parenthese[1]!.split(",").map((x) => x.split(":")[0]!.trim()).filter(Boolean));
+        continue;
+      }
+      // Forme nue: `t => ...`.
+      const nue = /^([A-Za-z_$][\w$]*)\s*=>/.exec(suite);
+      if (nue) { out.push(nue[1]!); continue; }
+      // Fonction classique: `function (t) { ... }`.
+      const fonction = /^function\s*\w*\s*\(([^)]*)\)/.exec(suite);
+      if (fonction) {
+        out.push(...fonction[1]!.split(",").map((x) => x.split(":")[0]!.trim()).filter(Boolean));
+      }
+    }
+    return out;
+  };
+
   it("aucune boucle du fichier ne nomme son parametre `t`", () => {
-    // Le defaut peut revenir par une autre boucle: on verrouille la propriete,
-    // pas la ligne.
-    const boucles = [...source.matchAll(/\.(?:forEach|map|filter|find|some)\(\s*\(([^),:]+)/g)]
-      .map((m) => m[1].trim());
+    // Le defaut peut revenir par une autre boucle, et sous une autre forme
+    // d'ecriture: on verrouille la PROPRIETE, pas la ligne ni le style.
+    const boucles = parametresDeBoucle(source);
     expect(boucles.length, "aucune boucle lue: ce controle ne prouve rien").toBeGreaterThan(2);
     expect(boucles, `parametre nomme « t »: ${boucles.join(", ")}`).not.toContain("t");
+  });
+
+  it("et les trois formes d'ecriture sont bien reconnues", () => {
+    // Garde-fou du garde-fou: une detection qui ne reconnaitrait plus la
+    // forme nue laisserait revenir le defaut exactement comme avant.
+    const echantillon = "a.map(t => 1); b.forEach((t: any) => 2); c.filter(function (t) { return 3; });";
+    expect(parametresDeBoucle(echantillon)).toEqual(["t", "t", "t"]);
   });
 
   it("la traduction reste appelee dans la boucle, donc le masquage etait fatal", () => {

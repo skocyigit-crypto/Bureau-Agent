@@ -77,7 +77,15 @@ function unnamedIconButtons(): string[] {
       if (bodyEnd < 0 || bodyEnd - bodyStart > 400) continue;
       if (!ICON_BODY.test(src.slice(bodyStart, bodyEnd))) continue;
       const attrs = tag.slice(m[1].length + 1, -1);
-      if (/aria-label|aria-labelledby|title=/.test(attrs)) continue;
+      // UN NOM VIDE N'EST PAS UN NOM.
+      //
+      // Ce test ne verifiait que la PRESENCE de l'attribut:
+      // `<Button aria-label=""><Trash2 /></Button>` passait, et le lecteur
+      // d'ecran annonce alors « bouton », sans plus — exactement ce que
+      // WCAG 4.1.2 interdit, et exactement ce que le budget a zero pretend
+      // empecher. Idem pour un `aria-labelledby` qui designe un identifiant
+      // inexistant, et pour un `title=""`.
+      if (nomAccessibleNonVide(attrs, src)) continue;
       found.push(`${path.relative(SRC, file)}:${src.slice(0, m.index).split("\n").length}`);
     }
   }
@@ -115,6 +123,39 @@ function undersizedTargets(): string[] {
     }
   }
   return found;
+}
+
+/**
+ * L'attribut porte-t-il un nom REEL ?
+ *
+ * - `aria-label` doit avoir un contenu non vide (litteral ou expression);
+ * - `aria-labelledby` doit designer un identifiant qui existe dans le meme
+ *   fichier — sinon le lecteur d'ecran n'a rien a lire;
+ * - `title` idem.
+ */
+function nomAccessibleNonVide(attrs: string, fichier: string): boolean {
+  const litteralVide = (v: string) => v.trim() === "" ;
+
+  const label = /aria-label=(?:"([^"]*)"|{([^}]*)})/.exec(attrs);
+  if (label) {
+    const valeur = label[1] ?? label[2] ?? "";
+    if (!litteralVide(valeur)) return true;
+  }
+
+  const titre = /title=(?:"([^"]*)"|{([^}]*)})/.exec(attrs);
+  if (titre) {
+    const valeur = titre[1] ?? titre[2] ?? "";
+    if (!litteralVide(valeur)) return true;
+  }
+
+  const par = /aria-labelledby=(?:"([^"]*)"|{"([^"]*)"})/.exec(attrs);
+  if (par) {
+    const id = (par[1] ?? par[2] ?? "").trim();
+    // Un identifiant qui n'existe nulle part ne nomme rien.
+    if (id && (fichier.includes(`id="${id}"`) || fichier.includes(`id={"${id}"}`))) return true;
+  }
+
+  return false;
 }
 
 describe("budget d'accessibilite", () => {
