@@ -9,7 +9,7 @@
 // doublon meme si le serveur redemarre plusieurs fois.
 
 import { db, organisationsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { and, eq, isNull, lt, or } from "drizzle-orm";
 import { sendEmail } from "./email";
 import { computeSecurityScore } from "./security-score";
 import { loadSecurityScoreInput } from "./security-score-input";
@@ -34,7 +34,7 @@ const RATING_COLOR: Record<string, string> = {
   faible: "#dc2626",
 };
 
-async function sendDigest(orgId: number, orgEmail: string, orgName: string) {
+async function sendDigest(orgId: number, orgEmail: string, orgName: string, fenetrePrecedente: Date | null) {
   const input = await loadSecurityScoreInput(orgId, logger);
   const score = computeSecurityScore(input);
   const { dangerous, suspicious } = score.threats7d;
@@ -105,12 +105,16 @@ Vous pouvez desactiver cette synthese dans Securite > Reglages.`;
     text,
   );
   if (result.success) {
-    await db
-      .update(organisationsTable)
-      .set({ lastSecurityDigestAt: new Date() })
-      .where(eq(organisationsTable.id, orgId));
+    // La fenetre a deja ete reclamee par l'appelant, avant l'envoi: la
+    // reposer ici ne ferait que la decaler de la duree de l'envoi.
     logger.info({ orgId, score: score.score, dangerous }, "[security-digest] synthese envoyee");
   } else {
+    // L'envoi a echoue: on rend la fenetre, sinon l'organisation resterait
+    // silencieuse une semaine pour une synthese jamais partie.
+    await db
+      .update(organisationsTable)
+      .set({ lastSecurityDigestAt: fenetrePrecedente })
+      .where(eq(organisationsTable.id, orgId));
     logger.warn({ orgId, err: result.error }, "[security-digest] envoi echoue");
   }
 }
@@ -135,8 +139,36 @@ async function tick() {
       if (!org.email) continue;
       const last = org.lastSecurityDigestAt ? org.lastSecurityDigestAt.getTime() : 0;
       if (Date.now() - last < WEEK_MS) continue;
+
+      // La fenetre est RECLAMEE avant l'envoi, pas posee apres.
+      //
+      // Le tic lisait `lastSecurityDigestAt`, comparait, envoyait, et
+      // n'ecrivait qu'ensuite. Entre la lecture et l'ecriture, une autre
+      // instance — il y en a jusqu'a trois — faisait la meme chose: la
+      // synthese hebdomadaire partait deux fois. L'en-tete de ce fichier
+      // promet pourtant « un envoi par semaine garanti, SANS doublon meme si
+      // le serveur redemarre plusieurs fois »: vrai pour le redemarrage, faux
+      // pour la concurrence.
+      //
+      // La fenetre est donc avancee d'abord, de facon conditionnelle: si une
+      // autre instance a deja reclame cette organisation, la ligne ne matche
+      // plus et on renonce.
+      const seuil = new Date(Date.now() - WEEK_MS);
+      const reclamee = await db
+        .update(organisationsTable)
+        .set({ lastSecurityDigestAt: new Date() })
+        .where(and(
+          eq(organisationsTable.id, org.id),
+          or(
+            isNull(organisationsTable.lastSecurityDigestAt),
+            lt(organisationsTable.lastSecurityDigestAt, seuil),
+          ),
+        ))
+        .returning({ id: organisationsTable.id });
+      if (reclamee.length === 0) continue;
+
       try {
-        await sendDigest(org.id, org.email, org.name);
+        await sendDigest(org.id, org.email, org.name, org.lastSecurityDigestAt);
       } catch (err) {
         logger.warn({ orgId: org.id, err }, "[security-digest] erreur organisation");
       }

@@ -75,6 +75,31 @@ async function runAllAutomations() {
     );
 
     for (const rule of customRules) {
+      // RECLAMATION ATOMIQUE de la cadence, avant d'executer quoi que ce soit.
+      //
+      // La selection ci-dessus prend les regles dues, et `executeRule`
+      // n'avancait `nextRun` qu'a la FIN. Entre les deux, une autre instance
+      // — il y en a jusqu'a trois — selectionnait les memes regles et les
+      // executait aussi: deux taches creees, deux notifications, deux
+      // propositions dans la file pour un seul declenchement.
+      //
+      // `UPDATE ... WHERE nextRun <= maintenant ... RETURNING` tranche cote
+      // Postgres: une seule instance obtient la ligne. Meme idiome que
+      // `reclamerAutopilot` (routes/ai-agents.ts) et que la reclamation des
+      // cycles d'auto-run.
+      const maintenant = new Date();
+      const reclamee = await db.update(automationRulesTable)
+        .set({ nextRun: calculateNextRun(rule.schedule), lastRun: maintenant })
+        .where(and(
+          eq(automationRulesTable.id, rule.id),
+          or(
+            isNull(automationRulesTable.nextRun),
+            lte(automationRulesTable.nextRun, maintenant),
+          ),
+        ))
+        .returning({ id: automationRulesTable.id });
+      if (reclamee.length === 0) continue;
+
       await executeRule(rule);
     }
   } catch (err) {
@@ -821,8 +846,6 @@ async function executeRule(rule: any) {
   const orgId: number | null = rule.organisationId ?? null;
 
   try {
-    const nextRun = calculateNextRun(rule.schedule);
-
     // Evaluate trigger to get items to act on
     const items = await getTriggerItems(rule);
 
@@ -848,12 +871,11 @@ async function executeRule(rule: any) {
       }
     }
 
+    // La cadence a deja ete avancee par la reclamation, avant l'execution:
+    // la reposer ici la decalerait de la duree du traitement, et surtout
+    // rouvrirait la fenetre que la reclamation vient de fermer.
     await db.update(automationRulesTable)
-      .set({
-        lastRun: new Date(),
-        nextRun,
-        runCount: sql`${automationRulesTable.runCount} + 1`,
-      })
+      .set({ runCount: sql`${automationRulesTable.runCount} + 1` })
       .where(eq(automationRulesTable.id, rule.id));
 
     // « partiel » plutot que « reussi » des qu'une action n'a pas abouti: la
