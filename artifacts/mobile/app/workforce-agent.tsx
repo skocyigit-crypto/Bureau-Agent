@@ -138,7 +138,26 @@ const DURUM_CONFIG = {
   mukemmel: { color: "#22c55e", bg: "#f0fdf4", border: "#86efac", labelKey: "workforceAgentScreen.durumMukemmel", icon: "star" as const },
 };
 
-const ETKI_COLORS = { yuksek: "#ef4444", orta: "#f59e0b", dusuk: "#22c55e" };
+const ETKI_COLORS = { yuksek: "#ef4444", orta: "#f59e0b", dusuk: "#22c55e" } as const;
+
+/**
+ * L'impact d'une action, avec son repli.
+ *
+ * `etki` vient du modele: `workforce-agent.ts` cote serveur parse le JSON et
+ * le type `"yuksek" | "orta" | "dusuk"` est une promesse faite au
+ * compilateur, pas une verification. Un accent, une majuscule, un terme
+ * anglais, et `ETKI_COLORS[a.etki]` valait `undefined`: la bordure prenait
+ * la valeur illisible `"undefined20"`, et surtout le libelle retombait sur le
+ * dernier terme du ternaire — « impact faible ». Un responsable classait donc
+ * en dernier une action que le modele avait jugee urgente.
+ *
+ * Tous les autres tableaux de ce fichier ont deja ce repli, et le commentaire
+ * de `RISK_CONFIG` explique pourquoi. Celui-ci etait le seul sans.
+ */
+type Etki = keyof typeof ETKI_COLORS;
+function etkiConnu(v: string | null | undefined): Etki {
+  return v === "yuksek" || v === "orta" || v === "dusuk" ? v : "orta";
+}
 const TREND_CONFIG = {
   yukselis: { icon: "trending-up" as const, color: "#22c55e", labelKey: "workforceAgentScreen.trendYukselis" },
   stabil: { icon: "minus" as const, color: "#f59e0b", labelKey: "workforceAgentScreen.trendStabil" },
@@ -549,9 +568,16 @@ export default function WorkforceAgentScreen() {
                   </View>
                   {phases.prescribe.acil_aksiyonlar?.map((a, i) => (
                     <View key={i} style={[styles.actionRow, { borderBottomColor: colors.border, borderBottomWidth: i < (phases.prescribe!.acil_aksiyonlar?.length ?? 0) - 1 ? StyleSheet.hairlineWidth : 0 }]}>
-                      <View style={[styles.actionEtki, { backgroundColor: ETKI_COLORS[a.etki] + "20", borderColor: ETKI_COLORS[a.etki] + "60" }]}>
-                        <Text style={[styles.actionEtkiText, { color: ETKI_COLORS[a.etki] }]}>{a.etki === "yuksek" ? t("workforceAgentScreen.impactHigh") : a.etki === "orta" ? t("workforceAgentScreen.impactMedium") : t("workforceAgentScreen.impactLow")}</Text>
-                      </View>
+                      {(() => {
+                        // Une valeur inconnue retombe sur « moyen », et non sur
+                        // « faible »: en cas de doute, on ne minimise pas.
+                        const etki = etkiConnu(a.etki);
+                        return (
+                          <View style={[styles.actionEtki, { backgroundColor: ETKI_COLORS[etki] + "20", borderColor: ETKI_COLORS[etki] + "60" }]}>
+                            <Text style={[styles.actionEtkiText, { color: ETKI_COLORS[etki] }]}>{etki === "yuksek" ? t("workforceAgentScreen.impactHigh") : etki === "orta" ? t("workforceAgentScreen.impactMedium") : t("workforceAgentScreen.impactLow")}</Text>
+                          </View>
+                        );
+                      })()}
                       <View style={styles.actionContent}>
                         <Text style={[styles.actionText, { color: colors.foreground }]}>{a.aksiyon}</Text>
                         <View style={styles.actionMeta}>
