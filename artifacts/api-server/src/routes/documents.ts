@@ -23,6 +23,7 @@ import { respondAiError } from "../services/ai-guard";
 import { pageLimit } from "../lib/request-params";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
 import { documentCsv } from "../lib/csv";
+import { corpsErreur } from "../lib/message-erreur";
 
 const router = Router();
 const requireMinAgent = requireRole("super_admin", "administrateur", "agent");
@@ -216,7 +217,10 @@ router.post("/documents/upload-multiple", requireMinAgent, async (req: Request, 
 
         results.push({ fileName: file.fileName, success: true, documentId: ingest.doc.id, fileSize: ingest.doc.fileSize });
       } catch (err: any) {
-        results.push({ fileName: file.fileName || "inconnu", success: false, error: err.message });
+        // Un import par lot: chaque ligne dit ce qui a echoue, sans decrire
+        // l'interieur du stockage.
+        req.log.warn({ err, fileName: file.fileName }, "[documents] import d'un fichier echoue");
+        results.push({ fileName: file.fileName || "inconnu", success: false, ...corpsErreur(err, "Ce fichier n'a pas pu etre importe.") });
       }
     }
 
