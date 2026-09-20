@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
@@ -17,7 +16,6 @@ Ban,
 Bomb,
 Bug,
 CircleAlert,
-Clock,
 Crosshair,
 Eye,
 FileText,
@@ -25,7 +23,6 @@ Fingerprint,
 Globe,
 KeyRound,
 Loader2,
-Lock,
 Network,
 Radio,
 RefreshCw,
@@ -39,9 +36,13 @@ UserCog,
 Zap
 } from "lucide-react";
 import { useCallback,useEffect,useState } from "react";
+import { useLocation } from "wouter";
+
+import { confirmAction } from "@/hooks/use-confirm";
 
 const SECURITY_API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/security";
 const AUTH_API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/auth";
+const AUDIT_API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/audit";
 
 /**
  * Securite du compte : changement de mot de passe et authentification a deux
@@ -809,12 +810,46 @@ function GuardianWafPanel() {
 export function TabSecurite() {
   const { toast } = useToast();
   const { t } = useTranslation();
-  const [zeroTrustMode, setZeroTrustMode] = useState(true);
-  const [forceReauth, setForceReauth] = useState(true);
-  const [sessionTimeout, setSessionTimeout] = useState("30");
 
-  const handleSecurityAction = (action: string) => {
-    toast({ title: t("settingsSecurite.app.securityAction"), description: action });
+  const [, setLocation] = useLocation();
+  const [revocationEnCours, setRevocationEnCours] = useState(false);
+
+  /**
+   * Ces deux actions appelaient `handleSecurityAction`, qui se contentait
+   * d'AFFICHER une phrase — « Toutes les sessions ont ete revoquees », « Le
+   * verrouillage d'urgence est actif » — sans rien envoyer au serveur. Un
+   * administrateur qui vient de decouvrir une compromission lit cette phrase,
+   * la croit, et ne fait rien de plus. C'est le pire moment du produit pour
+   * affirmer quelque chose qu'on n'a pas fait.
+   */
+  const exporterJournalAudit = () => {
+    // Telechargement direct: la route repond en CSV, avec ses propres gardes
+    // de role (`audit.ts`, reserve au responsable).
+    window.location.href = `${AUDIT_API}/export/csv`;
+  };
+
+  const revoquerToutesLesSessions = async () => {
+    if (!(await confirmAction({
+      title: t("settingsSecurite.app.revokeSessionsConfirm"),
+      description: t("settingsSecurite.app.revokeSessionsConfirmDesc"),
+      confirmLabel: t("settingsSecurite.app.revokeSessions"),
+      destructive: true,
+    }))) return;
+    setRevocationEnCours(true);
+    try {
+      const res = await fetch(`${AUTH_API}/sessions/revoke-all`, { method: "POST", credentials: "include" });
+      if (res.ok) {
+        const d = await res.json().catch(() => ({}));
+        toast({ title: t("settingsSecurite.app.revokeSessionsDone", { count: d?.revoked ?? 0 }) });
+        // La session de l'appelant est coupee elle aussi: c'est voulu, et
+        // l'ecran doit le refleter plutot que de laisser croire au contraire.
+        setTimeout(() => { window.location.href = "/"; }, 1500);
+      } else {
+        toast({ title: t("settingsSecurite.app.revokeSessionsFailed"), variant: "destructive" });
+      }
+    } catch {
+      toast({ title: t("settingsSecurite.app.revokeSessionsFailed"), variant: "destructive" });
+    } finally { setRevocationEnCours(false); }
   };
 
   return (
@@ -931,48 +966,22 @@ export function TabSecurite() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-start gap-3">
-              <ShieldBan className="w-4 h-4 text-red-500 mt-0.5" />
-              <div>
-                <Label>{t("settingsSecurite.app.zeroTrustActive")}</Label>
-                <p className="text-xs text-muted-foreground">{t("settingsSecurite.app.zeroTrustActiveDesc")}</p>
-              </div>
-            </div>
-            <Switch checked={zeroTrustMode} onCheckedChange={setZeroTrustMode} />
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <div className="flex items-start gap-3">
-              <KeyRound className="w-4 h-4 text-red-500 mt-0.5" />
-              <div>
-                <Label>{t("settingsSecurite.app.reauth")}</Label>
-                <p className="text-xs text-muted-foreground">{t("settingsSecurite.app.reauthDesc")}</p>
-              </div>
-            </div>
-            <Switch checked={forceReauth} onCheckedChange={setForceReauth} />
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <div className="flex items-start gap-3">
-              <Clock className="w-4 h-4 text-red-500 mt-0.5" />
-              <div>
-                <Label>{t("settingsSecurite.app.sessionExpiry")}</Label>
-                <p className="text-xs text-muted-foreground">{t("settingsSecurite.app.sessionExpiryDesc")}</p>
-              </div>
-            </div>
-            <Select value={sessionTimeout} onValueChange={setSessionTimeout}>
-              <SelectTrigger aria-label={t("settingsSecurite.app.sessionExpiry")} className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="15">{t("settingsSecurite.app.min15")}</SelectItem>
-                <SelectItem value="30">{t("settingsSecurite.app.min30")}</SelectItem>
-                <SelectItem value="60">{t("settingsSecurite.app.hour1")}</SelectItem>
-                <SelectItem value="120">{t("settingsSecurite.app.hour2")}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Trois reglages ont ete RETIRES ici: « Mode Zero Trust »,
+              « Re-authentification pour les actions sensibles » et
+              « Expiration de session ».
+
+              Ils avaient l'apparence de reglages — un interrupteur, une liste
+              deroulante, un etat — et n'etaient que trois `useState` locaux.
+              Aucune requete n'etait emise, rien n'etait relu, et la valeur ne
+              survivait pas au changement d'onglet. Un administrateur qui
+              reglait l'expiration de session sur 15 minutes repartait en
+              croyant l'avoir fait.
+
+              Il n'existe pas de reglage serveur correspondant (le seul que
+              `/api/security/settings` porte est la synthese hebdomadaire).
+              Plutot que de garder une commande qui ment, on la retire: le jour
+              ou le reglage existera vraiment, il reviendra avec son
+              enregistrement. */}
           <Separator />
           {/* Le badge "MFA : Actif" etait ecrit en dur et n'avait aucun rapport
               avec l'etat reel du compte — il s'affichait "Actif" y compris pour
@@ -1051,10 +1060,23 @@ export function TabSecurite() {
                   <Label>{t(`settingsSecurite.app.rgpd${item.key}`)}</Label>
                   <p className="text-xs text-muted-foreground">{t(`settingsSecurite.app.rgpd${item.key}Desc`)}</p>
                 </div>
-                <Switch defaultChecked />
+                {/* Un CONSTAT, pas un reglage.
+                    Ces six lignes portaient un `<Switch defaultChecked />`
+                    sans etat ni handler: on pouvait les basculer, rien
+                    n'etait lu ni envoye, et au rendu suivant ils repassaient
+                    tous a « actif ». Un acheteur ou un delegue a la
+                    protection des donnees lit cet ecran comme une preuve de
+                    conformite — c'est l'endroit du produit ou il faut le
+                    moins broder. Ce qui est fait est fait et se dit; ce qui
+                    se regle se regle ailleurs, et on y renvoie. */}
+                <Badge variant="secondary" className="shrink-0">{t("settingsSecurite.app.rgpdEnPlace")}</Badge>
               </div>
             </div>
           ))}
+          <Separator className="mb-4" />
+          <Button variant="outline" size="sm" onClick={() => setLocation("/protection-donnees")}>
+            {t("settingsSecurite.app.rgpdVoirDetail")}
+          </Button>
         </CardContent>
       </Card>
 
@@ -1068,21 +1090,13 @@ export function TabSecurite() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-3">
-            <Button variant="outline" className="h-auto p-4 flex flex-col items-start gap-1" onClick={() => handleSecurityAction(t("settingsSecurite.app.auditFullToast"))}>
-              <div className="flex items-center gap-2 text-sm font-medium"><ScanSearch className="w-4 h-4" /> {t("settingsSecurite.app.auditFull")}</div>
-              <p className="text-[10px] text-muted-foreground text-left">{t("settingsSecurite.app.auditFullDesc")}</p>
-            </Button>
-            <Button variant="outline" className="h-auto p-4 flex flex-col items-start gap-1" onClick={() => handleSecurityAction(t("settingsSecurite.app.exportAuditToast"))}>
+            <Button variant="outline" className="h-auto p-4 flex flex-col items-start gap-1" onClick={exporterJournalAudit}>
               <div className="flex items-center gap-2 text-sm font-medium"><FileText className="w-4 h-4" /> {t("settingsSecurite.app.exportAudit")}</div>
               <p className="text-[10px] text-muted-foreground text-left">{t("settingsSecurite.app.exportAuditDesc")}</p>
             </Button>
-            <Button variant="outline" className="h-auto p-4 flex flex-col items-start gap-1 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950/30" onClick={() => handleSecurityAction(t("settingsSecurite.app.revokeSessionsToast"))}>
+            <Button variant="outline" className="h-auto p-4 flex flex-col items-start gap-1 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950/30" onClick={revoquerToutesLesSessions} disabled={revocationEnCours}>
               <div className="flex items-center gap-2 text-sm font-medium text-red-700 dark:text-red-400"><ShieldBan className="w-4 h-4" /> {t("settingsSecurite.app.revokeSessions")}</div>
               <p className="text-[10px] text-muted-foreground text-left">{t("settingsSecurite.app.revokeSessionsDesc")}</p>
-            </Button>
-            <Button variant="outline" className="h-auto p-4 flex flex-col items-start gap-1 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950/30" onClick={() => handleSecurityAction(t("settingsSecurite.app.emergencyLockToast"))}>
-              <div className="flex items-center gap-2 text-sm font-medium text-red-700 dark:text-red-400"><Lock className="w-4 h-4" /> {t("settingsSecurite.app.emergencyLock")}</div>
-              <p className="text-[10px] text-muted-foreground text-left">{t("settingsSecurite.app.emergencyLockDesc")}</p>
             </Button>
           </div>
         </CardContent>

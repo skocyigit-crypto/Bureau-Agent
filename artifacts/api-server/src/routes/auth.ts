@@ -1190,6 +1190,53 @@ router.post("/auth/users/bulk/delete", async (req: Request, res: Response): Prom
   }
 });
 
+/**
+ * Coupe TOUTES les sessions de l'organisation, la sienne comprise.
+ *
+ * L'ecran de securite proposait deja ce bouton. Il n'appelait rien : il
+ * affichait « Toutes les sessions ont ete revoquees » et s'arretait la. Un
+ * administrateur qui vient de decouvrir une compromission lit cette phrase,
+ * la croit, et ne fait rien de plus — c'est le pire moment pour mentir.
+ *
+ * La revocation reprend les deux moities utilisees par la desactivation d'un
+ * compte : `tokenInvalidatedAt` pour les jetons Bearer (30 jours), et la
+ * suppression des sessions cookie. L'une sans l'autre laisse une porte.
+ *
+ * La session de l'appelant est incluse volontairement : une revocation qui
+ * s'epargne elle-meme laisse ouverte la session depuis laquelle l'attaquant
+ * pourrait justement agir.
+ */
+router.post("/auth/sessions/revoke-all", async (req: Request, res: Response): Promise<void> => {
+  const userRole = req.session?.userRole;
+  const organisationId = req.session?.organisationId;
+  if (userRole !== "super_admin" && userRole !== "administrateur") {
+    res.status(403).json({ error: "Acces interdit." });
+    return;
+  }
+  if (!organisationId) { res.status(403).json({ error: "Aucune organisation associee." }); return; }
+  try {
+    const membres = await db.select({ id: usersTable.id }).from(usersTable)
+      .where(eq(usersTable.organisationId, organisationId));
+
+    await db.update(usersTable)
+      .set({ tokenInvalidatedAt: new Date() })
+      .where(eq(usersTable.organisationId, organisationId));
+
+    for (const m of membres) {
+      invalidateTenantIdentityCache(m.id);
+      clearTokenInvalidationCache(m.id);
+    }
+    await Promise.all(membres.map((m) => invalidateUserSessions(m.id).catch((err) => {
+      logger.error({ err, userId: m.id }, "[auth] session non revoquee");
+    })));
+
+    res.json({ revoked: membres.length });
+  } catch (err: any) {
+    logger.error({ err }, "Revocation globale des sessions");
+    res.status(500).json({ error: "Erreur lors de la revocation des sessions." });
+  }
+});
+
 router.get("/auth/users/export/csv", async (req: Request, res: Response): Promise<void> => {
   const userRole = req.session?.userRole;
   const organisationId = req.session?.organisationId;

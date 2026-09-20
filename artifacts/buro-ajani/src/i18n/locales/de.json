@@ -3240,19 +3240,16 @@
       "rgpdConsentDesc": "Einwilligung vor jeder Datenverarbeitung einholen und aufzeichnen",
       "actionsTitle": "Sicherheitsaktionen",
       "actionsDesc": "Manuelle Sicherheitsvorgänge, die dem Superadministrator vorbehalten sind.",
-      "auditFull": "Vollständiges Sicherheitsaudit",
-      "auditFullDesc": "Alle Konfigurationen analysieren und Schwachstellen erkennen",
-      "auditFullToast": "Vollständiges Sicherheitsaudit wird gestartet...",
       "exportAudit": "Audit-Protokoll exportieren",
       "exportAuditDesc": "Vollständiges Aktionsprotokoll herunterladen (nur Superadministrator)",
-      "exportAuditToast": "Audit-Protokoll wird exportiert...",
       "revokeSessions": "Alle Sitzungen widerrufen",
       "revokeSessionsDesc": "Alle aktiven Benutzer sofort abmelden",
-      "revokeSessionsToast": "Alle aktiven Sitzungen werden widerrufen...",
-      "emergencyLock": "Notfallsperre",
-      "emergencyLockDesc": "Bei einem kritischen Vorfall jeden Zugriff außer dem Superadministrator blockieren",
-      "emergencyLockToast": "Notfallsperre aktiviert. Nur der Superadministrator kann entsperren.",
-      "securityAction": "Sicherheitsaktion"
+      "rgpdEnPlace": "Umgesetzt",
+      "rgpdVoirDetail": "Details ansehen und handeln",
+      "revokeSessionsConfirm": "Alle abmelden?",
+      "revokeSessionsConfirmDesc": "Alle Sitzungen der Organisation werden beendet, auch Ihre. Alle müssen sich neu anmelden.",
+      "revokeSessionsDone": "{{count}} Konto/Konten abgemeldet. Sie werden weitergeleitet.",
+      "revokeSessionsFailed": "Der Widerruf konnte nicht durchgeführt werden. Bitte erneut versuchen."
     }
   },
   "users": {

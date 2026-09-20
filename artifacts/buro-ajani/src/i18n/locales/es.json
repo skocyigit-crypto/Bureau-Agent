@@ -3240,19 +3240,16 @@
       "rgpdConsentDesc": "Recoger y registrar el consentimiento antes de cualquier tratamiento de datos",
       "actionsTitle": "Acciones de seguridad",
       "actionsDesc": "Operaciones manuales de seguridad reservadas al Superadministrador.",
-      "auditFull": "Auditoría de seguridad completa",
-      "auditFullDesc": "Analizar todas las configuraciones y detectar las vulnerabilidades",
-      "auditFullToast": "Iniciando la auditoría de seguridad completa...",
       "exportAudit": "Exportar el registro de auditoría",
       "exportAuditDesc": "Descargar el registro completo de las acciones (solo superadministrador)",
-      "exportAuditToast": "Exportando el registro de auditoría...",
       "revokeSessions": "Revocar todas las sesiones",
       "revokeSessionsDesc": "Cerrar la sesión de todos los usuarios activos de inmediato",
-      "revokeSessionsToast": "Revocando todas las sesiones activas...",
-      "emergencyLock": "Bloqueo de emergencia",
-      "emergencyLockDesc": "Bloquear todo acceso salvo el superadministrador en caso de incidente crítico",
-      "emergencyLockToast": "Bloqueo de emergencia activado. Solo el superadministrador puede desbloquear.",
-      "securityAction": "Acción de seguridad"
+      "rgpdEnPlace": "Implementado",
+      "rgpdVoirDetail": "Ver detalles y actuar",
+      "revokeSessionsConfirm": "¿Cerrar la sesión de todos?",
+      "revokeSessionsConfirmDesc": "Se cerrarán todas las sesiones de la organización, incluida la suya. Todos deberán volver a iniciar sesión.",
+      "revokeSessionsDone": "{{count}} cuenta(s) desconectada(s). Se le redirigirá.",
+      "revokeSessionsFailed": "No se pudo realizar la revocación. Inténtelo de nuevo."
     }
   },
   "users": {

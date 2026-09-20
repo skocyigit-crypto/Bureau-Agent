@@ -183,8 +183,6 @@ function WebhookUrlRow({ label, url }: { label: string; url: string }) {
 }
 
 export function TabAppels() {
-  const [callRingDuration, setCallRingDuration] = useState("30");
-  const [soundEnabled, setSoundEnabled] = useState(true);
   const { simulateIncomingCall } = useSimulateCall();
   const { user } = useWorkspaceUser();
   const { toast } = useToast();
@@ -249,48 +247,21 @@ export function TabAppels() {
           <CardDescription>{t("settingsAppels.incoming.desc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>{t("settingsAppels.incoming.ringLabel")}</Label>
-              <p className="text-xs text-muted-foreground">{t("settingsAppels.incoming.ringDesc")}</p>
-            </div>
-            <Select value={callRingDuration} onValueChange={setCallRingDuration}>
-              <SelectTrigger aria-label={t("settingsAppels.incoming.ringLabel")} className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="15">{t("settingsAppels.incoming.seconds", { n: 15 })}</SelectItem>
-                <SelectItem value="30">{t("settingsAppels.incoming.seconds", { n: 30 })}</SelectItem>
-                <SelectItem value="45">{t("settingsAppels.incoming.seconds", { n: 45 })}</SelectItem>
-                <SelectItem value="60">{t("settingsAppels.incoming.seconds", { n: 60 })}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>{t("settingsAppels.incoming.soundLabel")}</Label>
-              <p className="text-xs text-muted-foreground">{t("settingsAppels.incoming.soundDesc")}</p>
-            </div>
-            <Switch checked={soundEnabled} onCheckedChange={setSoundEnabled} />
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>{t("settingsAppels.incoming.autoIdLabel")}</Label>
-              <p className="text-xs text-muted-foreground">{t("settingsAppels.incoming.autoIdDesc")}</p>
-            </div>
-            <Switch defaultChecked />
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>{t("settingsAppels.incoming.autoRecLabel")}</Label>
-              <p className="text-xs text-muted-foreground">{t("settingsAppels.incoming.autoRecDesc")}</p>
-            </div>
-            <Switch defaultChecked />
-          </div>
-          <Separator />
+          {/* Quatre reglages ont ete RETIRES ici: duree de sonnerie, son de
+              sonnerie, identification automatique, enregistrement
+              automatique.
+
+              Les deux premiers etaient des `useState` locaux que personne ne
+              relisait — `grep` sur `callRingDuration` et `soundEnabled` ne
+              rendait que leur declaration et leur liaison. Les deux autres
+              etaient des `<Switch defaultChecked />` nus, donc affiches
+              ACTIFS sans rien derriere: « Enregistrer automatiquement chaque
+              appel dans l'historique » se lit comme une garantie de
+              tracabilite, et quelqu'un s'y fiera le jour d'un litige.
+
+              Le contraste rendait la chose invisible a l'oeil: la carte
+              « protection anti-fraude », juste en dessous, appelle bien
+              `PATCH /fraud-protection` et s'enregistre vraiment. */}
           <div className="flex items-center justify-between gap-4">
             <div>
               <Label className="flex items-center gap-1.5">

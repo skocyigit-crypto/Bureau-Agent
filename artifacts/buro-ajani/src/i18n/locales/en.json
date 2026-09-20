@@ -3240,19 +3240,16 @@
       "rgpdConsentDesc": "Collect and record consent before any data processing",
       "actionsTitle": "Security actions",
       "actionsDesc": "Manual security operations reserved for the Super Administrator.",
-      "auditFull": "Full security audit",
-      "auditFullDesc": "Analyze all configurations and detect vulnerabilities",
-      "auditFullToast": "Launching the full security audit...",
       "exportAudit": "Export the audit log",
       "exportAuditDesc": "Download the complete action log (super admin only)",
-      "exportAuditToast": "Exporting the audit log...",
       "revokeSessions": "Revoke all sessions",
       "revokeSessionsDesc": "Immediately log out all active users",
-      "revokeSessionsToast": "Revoking all active sessions...",
-      "emergencyLock": "Emergency lockdown",
-      "emergencyLockDesc": "Block all access except super admin in case of a critical incident",
-      "emergencyLockToast": "Emergency lockdown activated. Only the super admin can unlock.",
-      "securityAction": "Security action"
+      "rgpdEnPlace": "In place",
+      "rgpdVoirDetail": "View details and act",
+      "revokeSessionsConfirm": "Sign everyone out?",
+      "revokeSessionsConfirmDesc": "All sessions in the organisation will be cut, including yours. Everyone will have to sign in again.",
+      "revokeSessionsDone": "{{count}} account(s) signed out. You will be redirected.",
+      "revokeSessionsFailed": "The revocation could not be carried out. Try again."
     }
   },
   "users": {
