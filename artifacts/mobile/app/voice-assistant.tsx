@@ -1,5 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+
+import { ecrireSecretLocal, effacerSecretLocal, lireSecretLocal } from "@/lib/secret-local";
 import * as Haptics from "expo-haptics";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as Speech from "expo-speech";
@@ -369,10 +371,16 @@ export default function VoiceAssistantScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const [[, sLang], [, sMode], [, sDeep], [, sWake], [, sPhrase], [, sReq]] =
+        const [[, sLang], [, sMode], [, sDeep], [, sWake], [, sReq]] =
           await AsyncStorage.multiGet([
-            LANG_KEY, MODE_KEY, DEEP_KEY, WAKE_KEY, PASSPHRASE_KEY, REQUIRE_AUTH_KEY,
+            LANG_KEY, MODE_KEY, DEEP_KEY, WAKE_KEY, REQUIRE_AUTH_KEY,
           ]);
+        // Le mot de passe vocal est un SECRET: il restreint l'activation de
+        // l'assistant a son proprietaire. Il etait ecrit tel quel dans
+        // AsyncStorage, qui n'est pas chiffre. Il vit desormais dans le
+        // coffre de l'appareil, avec migration unique. Voir
+        // `lib/secret-local.ts`.
+        const sPhrase = await lireSecretLocal(PASSPHRASE_KEY);
         // Choix explicite fait dans le selecteur de l'assistant: il l'emporte
         // sur la langue de l'application, parce que quelqu'un peut vouloir
         // dicter dans une autre langue que celle de son ecran.
@@ -680,8 +688,8 @@ export default function VoiceAssistantScreen() {
       setVoiceState("idle");
     }
     try {
-      if (cleanPhrase) await AsyncStorage.setItem(PASSPHRASE_KEY, cleanPhrase);
-      else await AsyncStorage.removeItem(PASSPHRASE_KEY);
+      if (cleanPhrase) await ecrireSecretLocal(PASSPHRASE_KEY, cleanPhrase);
+      else await effacerSecretLocal(PASSPHRASE_KEY);
       await AsyncStorage.setItem(REQUIRE_AUTH_KEY, draftRequireUnlock ? "1" : "0");
     } catch {}
     setProtOpen(false);

@@ -10,6 +10,8 @@
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
+
+import { ecrireSecretLocal, effacerSecretLocal, lireSecretLocal } from "@/lib/secret-local";
 import * as LocalAuthentication from "expo-local-authentication";
 import React, {
   createContext,
@@ -93,9 +95,21 @@ const PrivacyContext = createContext<PrivacyContextType>({
   recordActivity: () => {},
 });
 
-// ── Basit PIN hash (SHA-256 kullanılamadığı için basit hash) ──────────────────
+/**
+ * Empreinte du PIN.
+ *
+ * Elle reste faible par construction — 31 bits utiles, sans sel reel, sans
+ * iteration — et une meilleure ne changerait rien: un secret a quatre
+ * chiffres s'enumere de toute facon. Son commentaire d'origine assumait
+ * « AsyncStorage n'est pas chiffre mais le PIN n'est pas en clair »: vrai au
+ * pied de la lettre, sans effet en pratique, puisqu'une simple COLLISION
+ * suffit a deverrouiller.
+ *
+ * Ce qui protege desormais, c'est l'EMPLACEMENT: l'empreinte vit dans le
+ * coffre chiffre de l'appareil (`lib/secret-local.ts`), pas dans un stockage
+ * que n'importe quelle sauvegarde rend lisible.
+ */
 function hashPin(pin: string): string {
-  // Basit ama deterministik hash — AsyncStorage şifreli değil ama PIN açık metin değil
   let hash = 0;
   const saltedPin = `adb_pin_salt_2026_${pin}_secure`;
   for (let i = 0; i < saltedPin.length; i++) {
@@ -126,7 +140,11 @@ export function PrivacyProvider({ children }: { children: React.ReactNode }) {
       try {
         const [storedSettings, storedPin] = await Promise.all([
           AsyncStorage.getItem(STORAGE_SETTINGS_KEY),
-          AsyncStorage.getItem(STORAGE_PIN_KEY),
+          // Coffre chiffre, avec migration unique depuis l'ancien slot en
+          // clair. Voir `lib/secret-local.ts`: l'empreinte d'un PIN a quatre
+          // chiffres s'enumere instantanement, donc ce qui protege n'est pas
+          // la fonction de hachage mais le fait que la valeur soit illisible.
+          lireSecretLocal(STORAGE_PIN_KEY),
         ]);
         if (storedSettings) {
           const parsed = JSON.parse(storedSettings) as Partial<PrivacySettings>;
@@ -267,13 +285,13 @@ export function PrivacyProvider({ children }: { children: React.ReactNode }) {
 
   const setPIN = useCallback(async (pin: string): Promise<void> => {
     const hash = hashPin(pin);
-    await AsyncStorage.setItem(STORAGE_PIN_KEY, hash);
+    await ecrireSecretLocal(STORAGE_PIN_KEY, hash);
     setPinHash(hash);
     await updateSettingsInternal({ hasPIN: true });
   }, []);  
 
   const removePIN = useCallback(async (): Promise<void> => {
-    await AsyncStorage.removeItem(STORAGE_PIN_KEY);
+    await effacerSecretLocal(STORAGE_PIN_KEY);
     setPinHash(null);
     await updateSettingsInternal({ hasPIN: false });
   }, []);  

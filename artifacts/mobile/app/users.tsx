@@ -40,11 +40,30 @@ const ROLE_META: Record<string, { labelKey: string; color: string }> = {
   lecture_seule: { labelKey: "usersScreen.roleReadOnly", color: "#64748b" },
 };
 
-function buildFormFields(t: TFunction) {
+/**
+ * L'ADRESSE N'EST PROPOSEE QU'A LA CREATION.
+ *
+ * Le formulaire l'offrait aussi a l'edition, et l'envoyait. Le serveur la
+ * filtre: `sanitiseUserPatch` (middleware/tenant-guard.ts) ne laisse passer
+ * que nom, prenom, departement, telephone, actif, role et password — puis
+ * repond 200 avec l'utilisateur inchange. L'administrateur corrigeait donc
+ * une adresse, voyait le formulaire se fermer sans erreur, et l'ancienne
+ * restait.
+ *
+ * C'est cette adresse qui recoit les identifiants (« Envoyer les
+ * identifiants »): on les expediait ensuite a la mauvaise boite en croyant
+ * l'avoir corrigee.
+ *
+ * L'ecran web ne l'offre qu'a la creation, pour la meme raison: l'adresse est
+ * l'identifiant de connexion, la changer demande unicite, re-verification et
+ * revocation des sessions. Tant que ce chemin n'existe pas, le champ n'a pas
+ * sa place dans l'edition.
+ */
+function buildFormFields(t: TFunction, enEdition: boolean) {
   return [
     { key: "prenom", label: t("usersScreen.fieldFirstName"), required: true },
     { key: "nom", label: t("usersScreen.fieldLastName"), required: true },
-    { key: "email", label: t("usersScreen.fieldEmail"), required: true },
+    ...(enEdition ? [] : [{ key: "email", label: t("usersScreen.fieldEmail"), required: true }]),
     { key: "role", label: t("usersScreen.fieldRole"), type: "select" as const, options: [
       { value: "administrateur", label: t("usersScreen.roleAdmin") },
       { value: "agent", label: t("usersScreen.roleAgent") },
@@ -106,14 +125,18 @@ export default function UsersScreen() {
   );
 
   async function handleSubmit() {
-    if (!formValues.prenom?.trim() || !formValues.nom?.trim() || !formValues.email?.trim()) return;
+    // L'adresse n'est requise qu'a la CREATION: le formulaire d'edition ne la
+    // propose plus, et l'exiger ici bloquerait silencieusement l'envoi.
+    if (!formValues.prenom?.trim() || !formValues.nom?.trim()) return;
+    if (!editId && !formValues.email?.trim()) return;
     setFormLoading(true);
     try {
       if (editId) {
         const body: any = {
           prenom: formValues.prenom,
           nom: formValues.nom,
-          email: formValues.email,
+          // `email` n'est PAS envoye: le serveur le filtre, et l'envoyer
+          // quand meme laissait croire qu'il avait ete pris en compte.
           role: formValues.role,
           departement: formValues.departement || null,
         };
@@ -128,6 +151,14 @@ export default function UsersScreen() {
           setEditId(null);
           setFormValues({ role: "agent" });
           fetchUsers();
+        } else {
+          // La branche d'edition n'avait pas de traitement d'echec: le
+          // formulaire se fermait, la modification n'etait pas enregistree, et
+          // rien ne le disait. Le cliquet des echecs silencieux ne l'avait pas
+          // vu parce qu'il cherche un `else` a quarante lignes de distance —
+          // et celui de la branche de CREATION, juste en dessous, suffisait a
+          // le rassurer.
+          Alert.alert(t("common.error"), t("common.actionFailed"));
         }
       } else {
         const endpoint = formValues.password?.trim()
@@ -335,7 +366,7 @@ export default function UsersScreen() {
         onClose={() => { setShowForm(false); setEditId(null); }}
         onSubmit={handleSubmit}
         title={editId ? t("usersScreen.editTitle") : t("usersScreen.newTitle")}
-        fields={buildFormFields(t)}
+        fields={buildFormFields(t, editId !== null)}
         values={formValues}
         onChange={(k, v) => setFormValues((p) => ({ ...p, [k]: v }))}
         loading={formLoading}
