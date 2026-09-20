@@ -726,11 +726,15 @@ router.post("/license-management/mark-invoice-paid", async (req: Request, res: R
       }
     }
 
-    await db.update(facturesClientTable).set({
-      status: "payee",
-      paidAt: new Date(),
-      paymentMethod: paymentMethod || "virement",
-    }).where(eq(facturesClientTable.id, facture.id));
+    // Meme raison qu'a `record-payment`: le statut et la date de reglement
+    // sont DERIVES du journal par `enregistrerEncaissement`, dans sa
+    // transaction. Les reecrire ici, hors transaction, ne pouvait au mieux
+    // que repeter ce qui etait deja juste, et au pire ecraser une derivation
+    // correcte par une valeur lue avant l'ecriture. Seul le moyen de paiement
+    // reste du ressort de cette route.
+    await db.update(facturesClientTable)
+      .set({ paymentMethod: paymentMethod || "virement" })
+      .where(and(eq(facturesClientTable.id, facture.id), eq(facturesClientTable.organisationId, orgId)));
 
     await logAudit(orgId, "invoice_marked_paid", `Facture ${facture.reference} marquee comme payee (${Number(facture.totalAmount).toFixed(2)} EUR)`, userId, { factureId: facture.id });
     res.json({ success: true, message: `Facture ${facture.reference} marquee comme payee` });
@@ -806,11 +810,22 @@ router.post("/license-management/record-payment", async (req: Request, res: Resp
     const newPaid = ecriture.payeCentimes / 100;
     const isFullyPaid = ecriture.soldee;
 
-    await db.update(facturesClientTable).set({
-      status: isFullyPaid ? "payee" : facture.status !== "brouillon" ? facture.status : "envoyee",
-      paidAt: isFullyPaid ? new Date() : facture.paidAt,
-      paymentMethod: paymentMethod || facture.paymentMethod || null,
-    }).where(eq(facturesClientTable.id, facture.id));
+    // Le statut n'est PLUS reecrit ici.
+    //
+    // `enregistrerEncaissement` l'a deja derive du journal, dans sa
+    // transaction. Ce second `update`, hors transaction, le remplacait par
+    // `facture.status` — la valeur lue AVANT l'ecriture. Un acompte laissait
+    // donc la facture en « envoyee » au lieu de « partiellement payee »:
+    // elle continuait d'etre relancee comme si rien n'avait ete recu, et le
+    // client recevait des rappels pour une somme qu'il venait de virer.
+    //
+    // Ne reste ici que ce dont le service ne s'occupe pas: le moyen de
+    // paiement, qui decrit la facture et non le reglement.
+    if (paymentMethod) {
+      await db.update(facturesClientTable)
+        .set({ paymentMethod })
+        .where(and(eq(facturesClientTable.id, facture.id), eq(facturesClientTable.organisationId, orgId)));
+    }
 
     await logAudit(orgId, "payment_recorded", `Paiement de ${amountNum.toFixed(2)} EUR enregistre pour facture ${facture.reference}${isFullyPaid ? " (soldee)" : ""}`, userId, { factureId: facture.id, amount: amountNum, isFullyPaid });
     res.json({ success: true, newPaidAmount: newPaid, isFullyPaid, message: `Paiement de ${amountNum.toFixed(2)} EUR enregistre${isFullyPaid ? " — facture soldee" : ""}` });

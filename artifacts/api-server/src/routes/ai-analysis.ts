@@ -6,7 +6,7 @@ import { sendEmail } from "../services/email";
 import { sql, eq, gte, lte, and, count, avg, desc, asc, lt, ne, isNull, isNotNull, or, not, inArray } from "drizzle-orm";
 import { NON_COLLECTIBLE_STATUSES } from "../services/payment-reminder";
 import { logger } from "../lib/logger";
-import { calculerComptesClients, chargerComptesClients, compteDuContact } from "../services/sante-comptes-clients";
+import { calculerComptesClients, chargerComptesClients, compteDuContact, type CompteClientCalcule } from "../services/sante-comptes-clients";
 import { generateText } from "../services/ai-failover";
 import { AiQuotaExceededError } from "../services/ai-quota";
 import { buildLearnedContextBlock, fingerprintLearned } from "../services/ai-learning";
@@ -2833,7 +2833,21 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
       case "account_health_check": {
         const searchName = String(target).trim();
         const searchId = parseInt(searchName, 10);
-        let accounts: any[];
+        // Le type est REMIS. Il etait `any[]`, et c'est ce qui a laissé passer
+        // la suite: six des onze champs rapportes n'existent pas sur un
+        // `CompteClientCalcule`. C'etaient les colonnes de l'ancienne table
+        // `compte_client`, abandonnee le 19/09 parce que RIEN ne l'ecrivait.
+        //
+        // Le resultat n'etait pas un trou, c'etait pire: « delai moyen:
+        // 0 jours » et « limite de credit: 0,00 € » sont des CHIFFRES, rendus
+        // a cote d'un score de sante et d'un impaye qui, eux, sont justes. Le
+        // lecteur n'a aucun moyen de distinguer les deux, et l'assistant les
+        // cite comme des donnees reelles — sa regle d'or numero 2 lui dit
+        // justement « cite des chiffres REELS, pas d'inventions ».
+        //
+        // On rapporte donc ce qui est reellement calcule. La balance agee et
+        // le retard le plus ancien valent mieux que les champs inventes.
+        let accounts: CompteClientCalcule[];
         if (searchId && !isNaN(searchId)) {
           accounts = (await chargerComptesClients(orgId)).comptes.filter((c) => c.contactId === searchId).slice(0, 5);
         } else {
@@ -2841,10 +2855,20 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         }
         if (accounts.length === 0) { result = { success: true, message: `Aucun compte client trouve pour "${searchName}".`, data: [] }; break; }
         const healthReport = accounts.map(a => ({
-          nom: a.clientName, sante: `${a.healthScore}/100`, risque: a.riskLevel, statut: a.status,
-          impaye: `${Number(a.solde || 0).toFixed(2)}€`, retard: `${Number(a.montantEnRetard || 0).toFixed(2)}€`,
-          nbFactures: a.nbFactures, nbPayees: a.nbFacturesPayees, nbRetard: a.nbFacturesEnRetard,
-          delaiMoyen: `${a.delaiMoyenPaiement || 0} jours`, limiteCredit: `${Number(a.creditLimit || 0).toFixed(2)}€`,
+          nom: a.clientName,
+          sante: `${a.healthScore}/100`,
+          risque: a.riskLevel,
+          impaye: `${a.solde.toFixed(2)}€`,
+          retard: `${a.montantEnRetard.toFixed(2)}€`,
+          facturesOuvertes: a.facturesOuvertes,
+          facturesEnRetard: a.facturesEnRetard,
+          retardLePlusAncien: `${a.joursRetardMax} jours`,
+          balanceAgee: {
+            "0-30": `${a.agingO30.toFixed(2)}€`,
+            "31-60": `${a.aging31a60.toFixed(2)}€`,
+            "61-90": `${a.aging61a90.toFixed(2)}€`,
+            "90+": `${a.aging90plus.toFixed(2)}€`,
+          },
         }));
         result = { success: true, message: `Analyse sante de ${accounts.length} compte(s) client(s):`, data: healthReport };
         break;
