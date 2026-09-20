@@ -454,9 +454,37 @@ router.patch("/depenses/:id", requireMinAgent, async (req: Request, res: Respons
     }
     if ("expenseDate" in body) update.expenseDate = parseDocumentDate(body.expenseDate);
     if ("dueDate" in body) update.dueDate = parseDocumentDate(body.dueDate);
-    if (body.amountHt !== undefined) update.amountHt = num(body.amountHt).toFixed(2);
-    if (body.amountTva !== undefined) update.amountTva = num(body.amountTva).toFixed(2);
-    if (body.amountTtc !== undefined) update.amountTtc = num(body.amountTtc).toFixed(2);
+    // Les trois montants sont RECONSTITUES ensemble, comme a la creation.
+    //
+    // Ils etaient ecrits colonne par colonne, independamment: corriger une
+    // depense de 250 EUR TTC en 300 EUR laissait l'ancien HT en place, et le
+    // registre — celui qu'on remet au comptable, et dont la TVA deductible
+    // derive — portait un triplet qui ne s'additionne pas.
+    //
+    // `montantsDepense` existe precisement pour ca et son en-tete le dit: il a
+    // ete ecrit apres le meme defaut a la CREATION, ou le TTC se retrouvait
+    // dans la colonne HT. La regle n'avait ete appliquee que d'un cote.
+    if (body.amountHt !== undefined || body.amountTva !== undefined || body.amountTtc !== undefined) {
+      // Seuls les montants FOURNIS entrent dans la reconstitution.
+      //
+      // Reprendre les anciens depuis la ligne serait pire que le defaut
+      // d'origine: `montantsDepense` fait primer un couple HT+TVA connu sur
+      // un TTC contradictoire (c'est sa premiere regle, et elle est juste).
+      // Corriger le seul TTC de 250 a 300 aurait donc rendu... 250, en
+      // silence. Ce que l'utilisateur vient de saisir fait foi; le reste se
+      // deduit.
+      const montants = montantsDepense({
+        ht: body.amountHt !== undefined ? num(body.amountHt) : 0,
+        tva: body.amountTva !== undefined ? num(body.amountTva) : 0,
+        ttc: body.amountTtc !== undefined ? num(body.amountTtc) : 0,
+        // Un TTC seul, corrige sans TVA, est reventile au taux fourni — ou
+        // laisse tel quel, comme a la creation, si aucun taux n'est connu.
+        tauxTva: body.tauxTva === undefined ? null : num(body.tauxTva),
+      });
+      update.amountHt = montants.ht.toFixed(2);
+      update.amountTva = montants.tva.toFixed(2);
+      update.amountTtc = montants.ttc.toFixed(2);
+    }
 
     if (Object.keys(update).length === 0) {
       res.status(400).json({ error: "Aucun champ à mettre à jour." });
