@@ -464,18 +464,35 @@ router.post("/billing/payments/:id/assign", async (req: Request, res: Response):
 
 router.get("/billing/summary", async (req: Request, res: Response): Promise<void> => {
   try {
+    // UNE CREANCE SE COMPTE EN TTC.
+    //
+    // `total_amount` est le HORS TAXES (`services/platform-invoice-issue.ts`
+    // le pose ainsi), et `total_ttc` porte ce que le client doit. L'encours et
+    // les impayes etaient donc annonces 20 % en dessous de la realite: le
+    // tableau de bord editeur disait « a encaisser 4 900 EUR » quand les
+    // clients devaient 5 880 EUR. `/billing/payments/:id/assign` porte deja la
+    // regle: « `totalTtc` est ce que le client doit ».
+    //
+    // `totalPaid` reste en HT plus bas, et c'est voulu: il mesure un CHIFFRE
+    // D'AFFAIRES, pas une creance.
+    //
+    // Le repli sur le HT couvre les factures anterieures a la TVA, dont le
+    // `total_ttc` vaut zero — c'etait bien le montant reclame a l'epoque.
     const [totalDue] = await db.select({
-      total: sql<string>`COALESCE(SUM(total_amount), 0)::text`,
+      total: sql<string>`COALESCE(SUM(CASE WHEN total_ttc::numeric > 0 THEN total_ttc::numeric ELSE total_amount::numeric END), 0)::text`,
       count: sql<number>`count(*)::int`,
     }).from(invoicesTable).where(sql`${invoicesTable.status} IN ('en_attente', 'retard', 'partiel')`);
 
+    // HT volontairement: c'est le chiffre d'affaires encaisse, pas une
+    // creance. La TVA collectee n'appartient pas a l'editeur.
     const [totalPaid] = await db.select({
       total: sql<string>`COALESCE(SUM(total_amount), 0)::text`,
       count: sql<number>`count(*)::int`,
     }).from(invoicesTable).where(eq(invoicesTable.status, "payee"));
 
+    // Meme regle: un impaye est une creance.
     const [overdue] = await db.select({
-      total: sql<string>`COALESCE(SUM(total_amount), 0)::text`,
+      total: sql<string>`COALESCE(SUM(CASE WHEN total_ttc::numeric > 0 THEN total_ttc::numeric ELSE total_amount::numeric END), 0)::text`,
       count: sql<number>`count(*)::int`,
     }).from(invoicesTable).where(eq(invoicesTable.status, "retard"));
 
@@ -567,8 +584,10 @@ router.get("/billing/saas-metrics", async (req: Request, res: Response): Promise
       .groupBy(sql`TO_CHAR(created_at, 'YYYY-MM')`)
       .orderBy(sql`TO_CHAR(created_at, 'YYYY-MM')`);
 
+    // Creance, donc TTC — comme `totalDue` de `/billing/summary`.
+    // `revenueTrend` juste au-dessus reste en HT: c'est un chiffre d'affaires.
     const pendingRevenue = await db.select({
-      total: sql<string>`COALESCE(SUM(total_amount), 0)::text`,
+      total: sql<string>`COALESCE(SUM(CASE WHEN total_ttc::numeric > 0 THEN total_ttc::numeric ELSE total_amount::numeric END), 0)::text`,
       count: sql<number>`count(*)::int`,
     }).from(invoicesTable)
       .where(sql`${invoicesTable.status} IN ('en_attente', 'retard', 'partiel')`);
