@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request } from "express";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, and, like, sql } from "drizzle-orm";
 import crypto from "crypto";
-import { db, telephonyProvidersTable, telephonyCallLogsTable, telephonySmsLogsTable, callsTable, contactsTable } from "@workspace/db";
+import { db, telephonyProvidersTable, telephonyCallLogsTable, telephonySmsLogsTable, callsTable, contactsTable, tasksTable } from "@workspace/db";
 import { getOrgId } from "../middleware/tenant";
 import { logger } from "../lib/logger";
 import {
@@ -929,29 +929,73 @@ router.get("/telephony/stats", async (req, res): Promise<void> => {
   }
 });
 
-// En memoire uniquement (pas de table dediee) — n'etait jamais purge: une
-// entree ne disparaissait que via un DELETE explicite. Un appel programme
-// dont l'heure est deja passee depuis longtemps n'a plus d'utilite; on la
-// laisse expirer automatiquement plutot que de la garder indefiniment.
-const SCHEDULED_CALL_RETENTION_MS = 7 * 24 * 60 * 60 * 1000; // 7 jours apres l'heure prevue
-const scheduledCallsStore: Map<number, { id: number; orgId: number; toNumber: string; scheduledAt: string; note: string; status: string; createdBy: number; createdAt: string }[]> = new Map();
-let scheduleIdCounter = 1;
+/**
+ * UN RAPPEL PROGRAMME EST UNE TACHE, PAS UNE ENTREE EN MEMOIRE.
+ *
+ * Ces trois routes rangeaient les appels programmes dans une `Map` de module.
+ * Trois consequences, toutes invisibles depuis l'ecran:
+ *
+ *  - rien ne les executait ni ne les rappelait. L'ecran affichait « Appel
+ *    planifie avec succes » et la ligne apparaissait dans la liste, mais
+ *    personne n'etait jamais prevenu — alors que le sous-titre promet
+ *    justement « programmez un rappel pour passer un appel a une heure
+ *    precise »;
+ *  - avec maxScale=3, un POST recu par une instance etait invisible du GET
+ *    servi par une autre: la liste changeait selon la requete;
+ *  - avec min-instances=0, tout disparaissait au recyclage de l'instance.
+ *
+ * Le produit a deja ce qu'il faut: une tache porte un titre, une echeance, un
+ * responsable, et la machinerie des taches en retard previent. On ecrit donc
+ * une TACHE, durable et partagee, au lieu d'une entree qui ne survit pas a la
+ * nuit.
+ *
+ * Ce qui n'est PAS fait ici, volontairement: passer l'appel automatiquement.
+ * L'ecran n'a jamais promis cela, et un appel sortant declenche tout seul est
+ * une fonction a decider, pas a deduire d'un defaut de persistance.
+ */
+const MARQUEUR_APPEL_PROGRAMME = "[appel-programme]";
 
-function pruneScheduledCalls(): void {
-  const now = Date.now();
-  for (const [orgId, list] of scheduledCallsStore) {
-    const kept = list.filter(s => now - new Date(s.scheduledAt).getTime() < SCHEDULED_CALL_RETENTION_MS);
-    if (kept.length === 0) scheduledCallsStore.delete(orgId);
-    else if (kept.length !== list.length) scheduledCallsStore.set(orgId, kept);
-  }
+/** Le numero range dans la description, pour le relire a l'affichage. */
+function descriptionRappel(toNumber: string, note: string): string {
+  return note ? `${MARQUEUR_APPEL_PROGRAMME} ${toNumber}\n${note}` : `${MARQUEUR_APPEL_PROGRAMME} ${toNumber}`;
 }
-setInterval(pruneScheduledCalls, 60 * 60 * 1000).unref?.();
+
+/** Le numero relu depuis la premiere ligne de la description. */
+function numeroDepuisDescription(description: string | null): string {
+  const premiere = (description ?? "").split("\n")[0] ?? "";
+  return premiere.slice(MARQUEUR_APPEL_PROGRAMME.length).trim();
+}
+
+/** La note: tout ce qui suit la premiere ligne. */
+function noteDepuisDescription(description: string | null): string {
+  return (description ?? "").split("\n").slice(1).join("\n");
+}
 
 router.get("/telephony/schedule", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const scheduled = scheduledCallsStore.get(orgId) || [];
-  scheduled.sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
-  res.json({ scheduled });
+  try {
+    const lignes = await db.select().from(tasksTable)
+      .where(and(
+        eq(tasksTable.organisationId, orgId),
+        like(tasksTable.description, `${MARQUEUR_APPEL_PROGRAMME}%`),
+      ))
+      .orderBy(tasksTable.dueDate);
+    res.json({
+      scheduled: lignes.map((t) => ({
+        id: t.id,
+        orgId: t.organisationId,
+        toNumber: numeroDepuisDescription(t.description),
+        scheduledAt: t.dueDate ? t.dueDate.toISOString() : "",
+        note: noteDepuisDescription(t.description),
+        status: t.status === "terminee" ? "done" : "pending",
+        createdBy: t.createdBy ?? 0,
+        createdAt: t.createdAt.toISOString(),
+      })),
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur liste des appels programmes");
+    res.status(500).json({ error: "Erreur lors de la recuperation des appels programmes." });
+  }
 });
 
 router.post("/telephony/schedule", async (req, res): Promise<void> => {
@@ -961,30 +1005,61 @@ router.post("/telephony/schedule", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Numero et date/heure requis" });
     return;
   }
-  const userId = req.session?.userId || 0;
-  const entry = {
-    id: scheduleIdCounter++,
-    orgId,
-    toNumber,
-    scheduledAt,
-    note: note || "",
-    status: "pending",
-    createdBy: userId,
-    createdAt: new Date().toISOString(),
-  };
-  if (!scheduledCallsStore.has(orgId)) scheduledCallsStore.set(orgId, []);
-  scheduledCallsStore.get(orgId)!.push(entry);
-  res.json({ success: true, scheduled: entry });
+  const quand = new Date(scheduledAt);
+  if (Number.isNaN(quand.getTime())) {
+    res.status(400).json({ error: "Date ou heure invalide." });
+    return;
+  }
+  const userId = req.session?.userId ?? null;
+  try {
+    const [tache] = await db.insert(tasksTable).values({
+      organisationId: orgId,
+      title: `Appeler ${String(toNumber).trim()}`,
+      description: descriptionRappel(String(toNumber).trim(), String(note ?? "")),
+      status: "en_attente",
+      priority: "moyenne",
+      dueDate: quand,
+      createdBy: userId,
+    }).returning();
+    res.json({
+      success: true,
+      scheduled: {
+        id: tache!.id,
+        orgId,
+        toNumber: String(toNumber).trim(),
+        scheduledAt: quand.toISOString(),
+        note: String(note ?? ""),
+        status: "pending",
+        createdBy: userId ?? 0,
+        createdAt: tache!.createdAt.toISOString(),
+      },
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur creation d'un appel programme");
+    res.status(500).json({ error: "Le rappel n'a pas pu etre enregistre." });
+  }
 });
 
 router.delete("/telephony/schedule/:id", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
   const id = rowId(req.params.id);
   if (id === null) { res.status(400).json({ error: "Identifiant invalide." }); return; }
-  const list = scheduledCallsStore.get(orgId) || [];
-  const idx = list.findIndex(s => s.id === id);
-  if (idx >= 0) { list.splice(idx, 1); }
-  res.json({ success: true });
+  try {
+    // Borne a l'organisation ET au marqueur: cette route ne doit pas devenir
+    // une suppression de tache quelconque par identifiant.
+    const supprimees = await db.delete(tasksTable)
+      .where(and(
+        eq(tasksTable.id, id),
+        eq(tasksTable.organisationId, orgId),
+        like(tasksTable.description, `${MARQUEUR_APPEL_PROGRAMME}%`),
+      ))
+      .returning({ id: tasksTable.id });
+    if (supprimees.length === 0) { res.status(404).json({ error: "Appel programme introuvable." }); return; }
+    res.json({ success: true });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur suppression d'un appel programme");
+    res.status(500).json({ error: "La suppression n'a pas pu etre effectuee." });
+  }
 });
 
 export default router;
