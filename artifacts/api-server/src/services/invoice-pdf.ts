@@ -243,7 +243,10 @@ export function buildInvoiceDocument(
     ? invoice.paidAmount
     : parseFloat(String(invoice.paidAmount ?? "0").replace(",", "."));
   const paidAmount = Number.isFinite(paidRaw) && paidRaw > 0 ? paidRaw : 0;
-  const remaining = Math.max(Math.round((totals.totalAmount - paidAmount) * 100) / 100, 0);
+  // Le « reste du » est calcule PLUS BAS, une fois la retenue de garantie
+  // connue: sans elle, le document portait deux montants contradictoires (voir
+  // `resteDu`).
+  let remaining = Math.max(Math.round((totals.totalAmount - paidAmount) * 100) / 100, 0);
 
   const warnings: string[] = [];
 
@@ -326,9 +329,9 @@ export function buildInvoiceDocument(
       .filter(Boolean).join(" — ");
     payment.push(bank);
   }
-  if (paidAmount > 0) {
-    payment.push(`Deja regle : ${formatMoney(paidAmount, currency)} — reste du : ${formatMoney(remaining, currency)}`);
-  }
+  // La ligne « deja regle / reste du » est ajoutee PLUS BAS, une fois la
+  // retenue de garantie connue: construite ici, elle capturait un « reste du »
+  // qui ignorait la retenue.
 
   // --- Mentions legales ----------------------------------------------------
   const legalMentions: string[] = [];
@@ -397,6 +400,30 @@ export function buildInvoiceDocument(
     }
   }
   if (retenueCalculee) warnings.push(...retenueCalculee.avertissements);
+
+  // LE RESTE DU TIENT COMPTE DE LA RETENUE.
+  //
+  // Il valait `total TTC - deja regle`, sans connaitre la retenue de
+  // garantie — calculee vingt lignes plus haut et poussee uniquement dans les
+  // mentions legales. Le meme document annoncait donc deux montants
+  // differents: « net a payer 9 500 EUR » dans les mentions, « reste du
+  // 10 000 EUR » dans le bloc des totaux, et 10 000 EUR dans le
+  // `DuePayableAmount` du XML Factur-X — celui que lit le systeme comptable du
+  // client.
+  //
+  // Le client paie le net a payer, qui est le bon montant (loi n° 71-584 du
+  // 16 juillet 1971, art. 1er). La facture reste alors indefiniment
+  // « partiellement payee » et relancable, pour une somme qu'il n'a pas a
+  // verser avant l'expiration du delai de garantie.
+  //
+  // La retenue redeviendra exigible a `exigibleLe`; elle ne fait pas partie du
+  // du immediat.
+  if (retenue) {
+    remaining = Math.max(Math.round((retenue.netAPayer - paidAmount) * 100) / 100, 0);
+  }
+  if (paidAmount > 0) {
+    payment.push(`Deja regle : ${formatMoney(paidAmount, currency)} — reste du : ${formatMoney(remaining, currency)}`);
+  }
 
   // Assurance professionnelle: obligatoire sur devis ET facture pour tout
   // professionnel du batiment (loi Pinel). Le produit s'adresse a des PME du
