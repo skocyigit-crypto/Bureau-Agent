@@ -26,7 +26,7 @@ import {
   verifierChaine,
   type EcritureChainee,
 } from "../services/chainage-encaissements";
-import { calculerCloture, periodeClose, verifierConservation } from "../services/cloture-comptable";
+import { calculerCloture, periodeClose, periodeCommencee, verifierConservation } from "../services/cloture-comptable";
 import { enregistrerEncaissement } from "../services/encaissement-enregistrement";
 import { deriveInvoiceStatus } from "../services/invoice-status";
 import { construireArchive, nomArchive } from "../services/archivage-comptable";
@@ -390,6 +390,16 @@ router.post("/encaissements/cloturer", responsableComptable, async (req: Request
   // etait injoignable, et le seul message rendu disait « Periode invalide ».
   if (!/^\d{4}(-\d{2}(-\d{2})?)?$/.test(periode)) {
     res.status(400).json({ error: "Periode invalide (AAAA, AAAA-MM ou AAAA-MM-JJ)." });
+    return;
+  }
+  // Une periode qui n'a pas commence ne se clot pas. Voir `periodeCommencee`:
+  // « 2062 » au lieu de « 2026 » bloquait le journal pour trente-six ans, sans
+  // aucune sortie produit — la cloture ne se supprime pas et ne se rouvre pas.
+  if (!periodeCommencee(periode)) {
+    res.status(400).json({
+      error: `La periode ${periode} n'a pas commence: une cloture atteste d'une periode ecoulee.`,
+      remediation: "Verifiez l'annee saisie. Une cloture ne peut etre ni supprimee ni rouverte.",
+    });
     return;
   }
 
