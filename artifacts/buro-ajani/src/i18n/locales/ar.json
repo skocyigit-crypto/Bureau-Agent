@@ -3246,19 +3246,16 @@
       "rgpdConsentDesc": "جمع الموافقة وتسجيلها قبل أي معالجة للبيانات",
       "actionsTitle": "إجراءات الأمان",
       "actionsDesc": "عمليات أمان يدوية مخصّصة للمسؤول الأعلى.",
-      "auditFull": "تدقيق أمني كامل",
-      "auditFullDesc": "تحليل جميع التهيئات وكشف الثغرات",
-      "auditFullToast": "جارٍ بدء التدقيق الأمني الكامل...",
       "exportAudit": "تصدير سجل التدقيق",
       "exportAuditDesc": "تنزيل السجل الكامل للإجراءات (للمسؤول الأعلى فقط)",
-      "exportAuditToast": "جارٍ تصدير سجل التدقيق...",
       "revokeSessions": "إبطال جميع الجلسات",
       "revokeSessionsDesc": "تسجيل خروج جميع المستخدمين النشطين فوراً",
-      "revokeSessionsToast": "جارٍ إبطال جميع الجلسات النشطة...",
-      "emergencyLock": "قفل طارئ",
-      "emergencyLockDesc": "حظر كل وصول باستثناء المسؤول الأعلى في حال وقوع حادث حرج",
-      "emergencyLockToast": "تم تفعيل القفل الطارئ. المسؤول الأعلى وحده يمكنه فتح القفل.",
-      "securityAction": "إجراء أمني"
+      "rgpdEnPlace": "مطبَّق",
+      "rgpdVoirDetail": "عرض التفاصيل واتخاذ إجراء",
+      "revokeSessionsConfirm": "إنهاء جلسات الجميع؟",
+      "revokeSessionsConfirmDesc": "ستُنهى جميع جلسات المؤسسة، بما فيها جلستك. على الجميع تسجيل الدخول من جديد.",
+      "revokeSessionsDone": "تم إنهاء جلسة {{count}} حساب. ستتم إعادة توجيهك.",
+      "revokeSessionsFailed": "تعذّر تنفيذ الإنهاء. حاول مرة أخرى."
     }
   },
   "users": {

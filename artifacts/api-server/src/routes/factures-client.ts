@@ -334,8 +334,19 @@ router.patch("/factures-client/:id", async (req: Request, res: Response): Promis
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   const scoped = and(eq(facturesClientTable.id, id), eq(facturesClientTable.organisationId, orgId));
   try {
-    const [existing] = await db.select({ id: facturesClientTable.id, status: facturesClientTable.status })
-      .from(facturesClientTable).where(scoped);
+    // La ligne ENTIERE, pas seulement `id` et `status`.
+    //
+    // `frozenFieldsTouched` compare la valeur proposee a la valeur actuelle,
+    // precisement pour qu'un formulaire renvoye tel quel ne compte pas comme
+    // une reecriture. Mais un champ ABSENT de l'etat actuel est traite comme
+    // modifie (`!(f in actuel)`), ce qui est la bonne regle par defaut — on ne
+    // declare pas identique ce qu'on n'a pas lu. En ne selectionnant que deux
+    // colonnes, la route ne fournissait aucun des treize champs geles : tous
+    // etaient donc declares modifies, a valeur identique, et le 409 revenait
+    // sur le simple changement de statut. La remediation que le serveur
+    // propose lui-meme — « annulez la facture » — passe par ce PATCH : plus
+    // aucune facture emise n'etait annulable depuis le produit.
+    const [existing] = await db.select().from(facturesClientTable).where(scoped);
     if (!existing) { res.status(404).json({ error: "Facture non trouvee." }); return; }
     const b = req.body ?? {};
 

@@ -221,7 +221,14 @@ router.get("/depenses/stats", async (req: Request, res: Response): Promise<void>
 // décroissant) : pas de troncature silencieuse, mémoire bornée. 500 propre
 // uniquement si la 1re requête échoue avant tout envoi.
 const EXPORT_BATCH = 1000;
-router.get("/depenses/export", async (req: Request, res: Response): Promise<void> => {
+const exportReserveAuResponsable = requireRole("super_admin", "administrateur");
+
+// Un export rend la MEME matiere que `GET /api/export/:entity`, qui est
+// reserve au responsable depuis l'audit du 19/09. La garde n'avait pas ete
+// reportee ici: un compte `lecture_seule` retelechargeait le fichier client
+// module par module. Le plancher global de `routes/index.ts` n'y peut rien,
+// il exempte les GET par construction.
+router.get("/depenses/export", exportReserveAuResponsable, async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
     const conds = buildFilterConditions(req, orgId);

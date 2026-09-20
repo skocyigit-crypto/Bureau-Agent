@@ -92,6 +92,27 @@ export function assertCallerOutranks(req: Request, res: Response, targetRole: st
   return true;
 }
 
+/**
+ * Les roles sur lesquels l'appelant a le droit d'agir, strictement sous le
+ * sien.
+ *
+ * `assertCallerOutranks` pose la regle pour UN utilisateur nomme. Les routes
+ * de masse, elles, n'ont pas de cible a nommer : elles filtrent en SQL. Sans
+ * cette liste, elles se contentaient d'exclure `super_admin`, ce qui laisse
+ * passer le rang EGAL — un `administrateur` desactivait ou SUPPRIMAIT ses
+ * pairs en une requete, alors que les routes unitaires le lui refusent
+ * (« un role superieur ou egal au votre »).
+ *
+ * Un `super_admin` garde sa portee complete hors de son propre rang, comme
+ * dans `assertCallerOutranks`.
+ */
+export function rolesSousLeRang(roleAppelant: string | undefined): string[] {
+  const rang = ROLE_HIERARCHY[roleAppelant ?? ""] ?? 0;
+  return Object.entries(ROLE_HIERARCHY)
+    .filter(([role, r]) => r < rang && role !== PROTECTED_ROLE)
+    .map(([role]) => role);
+}
+
 // ── Guard: target user must belong to caller's organisation ──────────────────
 export async function assertOrgOwnsUser(
   req: Request,

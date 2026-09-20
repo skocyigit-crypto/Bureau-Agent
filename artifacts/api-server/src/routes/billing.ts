@@ -287,11 +287,22 @@ router.post("/billing/match-payments", async (req: Request, res: Response): Prom
           }),
       );
 
-      const bestMatch = resultat.automatique
+      const factureAppariee = resultat.automatique
+        ? pendingInvoices.find((x) => x.invoice.id === resultat.automatique!.factureId)?.invoice
+        : undefined;
+
+      const bestMatch = resultat.automatique && factureAppariee
         ? {
             invoiceId: resultat.automatique.factureId,
             orgId: resultat.automatique.organisationId,
             confidence: resultat.automatique.confiance,
+            // Ce que le client doit sur CETTE facture, en centimes. C'est ce
+            // montant qui decide du statut, pas la reconnaissance de la
+            // reference. Meme repli que ci-dessus pour les factures
+            // anterieures a la TVA, dont le `totalTtc` vaut zero.
+            duCentimes: centimes(
+              Number(factureAppariee.totalTtc) > 0 ? factureAppariee.totalTtc : factureAppariee.totalAmount,
+            ),
           }
         : null;
 
@@ -313,12 +324,30 @@ router.post("/billing/match-payments", async (req: Request, res: Response): Prom
             status: "matched",
           }).where(eq(paymentsTable.id, payment.id));
 
-          if (match.confidence >= 80) {
-            await tx.update(invoicesTable).set({
-              status: "payee",
-              paidAt: new Date(),
-            }).where(eq(invoicesTable.id, match.invoiceId));
-          }
+          // Le statut est DERIVE de la somme encaissee, jamais pose a
+          // « payee » parce qu'on a reconnu la reference.
+          //
+          // `apparier` rend une confiance de 100 des qu'une reference de
+          // facture figure dans le libelle — le MONTANT n'entre pas dans
+          // cette branche. Un acompte de 10 EUR, ou un virement au mauvais
+          // montant, soldait donc une facture de 588 EUR: la licence
+          // repartait, le solde n'etait plus jamais reclame, et le client
+          // credite a tort ne dit rien.
+          //
+          // La porte jumelle `/billing/payments/:id/assign` fait cette
+          // derivation depuis toujours. Deux portes, deux regles, et c'est
+          // l'automatique — celle que personne ne relit — qui avait la
+          // mauvaise.
+          const lignes = await tx.select({ montant: paymentsTable.amount })
+            .from(paymentsTable)
+            .where(and(eq(paymentsTable.invoiceId, match.invoiceId), eq(paymentsTable.status, "matched")));
+          const encaisse = lignes.reduce((somme, l) => somme + centimes(l.montant), 0);
+          const statut = statutFacturePlateforme(match.duCentimes, encaisse);
+
+          await tx.update(invoicesTable).set({
+            status: statut,
+            paidAt: statut === "payee" ? new Date() : null,
+          }).where(eq(invoicesTable.id, match.invoiceId));
         });
 
         invalidateLicenseCache(match.orgId);

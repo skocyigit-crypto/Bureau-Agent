@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 675,
+    "runtimeOperations": 676,
     "documentedOperations": 96,
-    "undocumentedOperations": 579
+    "undocumentedOperations": 580
   },
   "operations": [
     {
@@ -977,6 +977,14 @@
     {
       "method": "post",
       "path": "/auth/reset-password",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/auth.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/auth/sessions/revoke-all",
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/auth.ts"

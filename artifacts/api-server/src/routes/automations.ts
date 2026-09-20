@@ -9,6 +9,7 @@ import { eq, desc, and, sql, gte, inArray } from "drizzle-orm";
 import { logAudit } from "./audit";
 import { documentCsv } from "../lib/csv";
 import { CADENCES, DECLENCHEURS, cadenceConnue, declencheurConnu, lireActions } from "../services/automation-declencheurs";
+import { requireRole } from "../middleware/auth";
 
 const router = Router();
 
@@ -486,7 +487,14 @@ router.post("/automations/:id/duplicate", async (req: Request, res: Response): P
   }
 });
 
-router.get("/automations/export/csv", async (req: Request, res: Response): Promise<void> => {
+const exportReserveAuResponsable = requireRole("super_admin", "administrateur");
+
+// Un export rend la MEME matiere que `GET /api/export/:entity`, qui est
+// reserve au responsable depuis l'audit du 19/09. La garde n'avait pas ete
+// reportee ici: un compte `lecture_seule` retelechargeait le fichier client
+// module par module. Le plancher global de `routes/index.ts` n'y peut rien,
+// il exempte les GET par construction.
+router.get("/automations/export/csv", exportReserveAuResponsable, async (req: Request, res: Response): Promise<void> => {
   const userId = req.session?.userId;
   const userRole = req.session?.userRole;
   const orgId = req.session?.organisationId;

@@ -4,7 +4,6 @@ import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/compone
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
@@ -852,19 +851,18 @@ export function TabPlateformes() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t("settingsPlateformes.sync.title")}</CardTitle>
-          <CardDescription>{t("settingsPlateformes.sync.desc")}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between"><div><Label>{t("settingsPlateformes.sync.autoLabel")}</Label><p className="text-xs text-muted-foreground">{t("settingsPlateformes.sync.autoDesc")}</p></div><Switch defaultChecked /></div>
-          <Separator />
-          <div className="flex items-center justify-between"><div><Label>{t("settingsPlateformes.sync.bidirLabel")}</Label><p className="text-xs text-muted-foreground">{t("settingsPlateformes.sync.bidirDesc")}</p></div><Switch defaultChecked /></div>
-          <Separator />
-          <div className="flex items-center justify-between"><div><Label>{t("settingsPlateformes.sync.importLabel")}</Label><p className="text-xs text-muted-foreground">{t("settingsPlateformes.sync.importDesc")}</p></div><Switch /></div>
-        </CardContent>
-      </Card>
+      {/* La carte « Synchronisation » a ete RETIREE.
+
+          Ses trois interrupteurs — synchronisation toutes les 15 minutes,
+          synchronisation bidirectionnelle, import automatique des contacts —
+          n'avaient ni etat ni gestionnaire, et les deux premiers s'affichaient
+          ACTIFS: l'utilisateur croyait sa synchronisation en marche.
+
+          Les cartes DLP et hameconnage, juste au-dessus, ont ete converties en
+          CONSTATS parce qu'il y avait un comportement reel a decrire. Ici il
+          n'y en a pas: rien ne synchronise a intervalle, rien n'ecrit vers les
+          plateformes connectees, rien n'importe de contacts. Il n'y avait donc
+          rien a dire, et une carte qui n'a rien a dire ne doit pas promettre. */}
     </div>
   );
 }

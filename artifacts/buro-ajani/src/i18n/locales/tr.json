@@ -3240,19 +3240,16 @@
       "rgpdConsentDesc": "Herhangi bir veri işlemeden önce rızayı topla ve kaydet",
       "actionsTitle": "Güvenlik işlemleri",
       "actionsDesc": "Süper Yöneticiye özel elle güvenlik işlemleri.",
-      "auditFull": "Tam güvenlik denetimi",
-      "auditFullDesc": "Tüm yapılandırmaları analiz et ve güvenlik açıklarını tespit et",
-      "auditFullToast": "Tam güvenlik denetimi başlatılıyor...",
       "exportAudit": "Denetim günlüğünü dışa aktar",
       "exportAuditDesc": "İşlemlerin tam günlüğünü indir (süper yöneticiye özel)",
-      "exportAuditToast": "Denetim günlüğü dışa aktarılıyor...",
       "revokeSessions": "Tüm oturumları iptal et",
       "revokeSessionsDesc": "Etkin tüm kullanıcıların bağlantısını hemen kes",
-      "revokeSessionsToast": "Tüm etkin oturumlar iptal ediliyor...",
-      "emergencyLock": "Acil kilitleme",
-      "emergencyLockDesc": "Kritik bir olay durumunda süper yönetici hariç tüm erişimi engelle",
-      "emergencyLockToast": "Acil kilitleme etkinleştirildi. Yalnızca süper yönetici kilidi açabilir.",
-      "securityAction": "Güvenlik işlemi"
+      "rgpdEnPlace": "Uygulanıyor",
+      "rgpdVoirDetail": "Ayrıntıyı gör ve işlem yap",
+      "revokeSessionsConfirm": "Herkesin oturumu kapatılsın mı?",
+      "revokeSessionsConfirmDesc": "Kuruluştaki tüm oturumlar, sizinki dahil, sonlandırılacak. Herkesin yeniden giriş yapması gerekecek.",
+      "revokeSessionsDone": "{{count}} hesabın oturumu kapatıldı. Yönlendiriliyorsunuz.",
+      "revokeSessionsFailed": "Sonlandırma gerçekleştirilemedi. Yeniden deneyin."
     }
   },
   "users": {

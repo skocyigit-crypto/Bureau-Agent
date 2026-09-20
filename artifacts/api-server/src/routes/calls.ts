@@ -23,6 +23,7 @@ import { aiForOrg } from "../services/ai-client";
 import { respondAiError } from "../services/ai-guard";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
 import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
+import { requireRole } from "../middleware/auth";
 
 const router: IRouter = Router();
 
@@ -487,7 +488,14 @@ Reponds UNIQUEMENT en JSON:
   }
 });
 
-router.get("/calls/export/csv", async (req, res): Promise<void> => {
+const exportReserveAuResponsable = requireRole("super_admin", "administrateur");
+
+// Un export rend la MEME matiere que `GET /api/export/:entity`, qui est
+// reserve au responsable depuis l'audit du 19/09. La garde n'avait pas ete
+// reportee ici: un compte `lecture_seule` retelechargeait le fichier client
+// module par module. Le plancher global de `routes/index.ts` n'y peut rien,
+// il exempte les GET par construction.
+router.get("/calls/export/csv", exportReserveAuResponsable, async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
   try {
     const rows = await db.select({

@@ -19,6 +19,7 @@ import { notifyOrgUsers, maskPhone } from "../services/whatsapp-notify";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
 import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
 import { contactDeLOrganisation } from "../services/contact-organisation";
+import { requireRole } from "../middleware/auth";
 
 /** Nom d'affichage d'un contact de l'organisation (`null` si inconnu). */
 async function nomDuContact(contactId: number, orgId: number): Promise<string | null> {
@@ -227,7 +228,14 @@ router.patch("/messages/:id", async (req, res): Promise<void> => {
 // au-dela, l'en-tete est deja parti et on termine simplement le flux.
 const MESSAGES_EXPORT_BATCH = 1000;
 
-router.get("/messages/export/csv", async (req, res): Promise<void> => {
+const exportReserveAuResponsable = requireRole("super_admin", "administrateur");
+
+// Un export rend la MEME matiere que `GET /api/export/:entity`, qui est
+// reserve au responsable depuis l'audit du 19/09. La garde n'avait pas ete
+// reportee ici: un compte `lecture_seule` retelechargeait le fichier client
+// module par module. Le plancher global de `routes/index.ts` n'y peut rien,
+// il exempte les GET par construction.
+router.get("/messages/export/csv", exportReserveAuResponsable, async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
   const headers = ["Type", "Contact", "Numéro", "Contenu", "Priorité", "Lu", "Date"];
   const escape = celluleCsv;

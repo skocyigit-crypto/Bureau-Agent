@@ -348,7 +348,9 @@ router.post("/license-management/auto-generate-invoice", async (req: Request, re
             ${extraUsers > 0 ? `<tr><td style="padding:6px 0 6px 20px;color:#94a3b8;font-size:11px;">${extraUsers} utilisateur${extraUsers > 1 ? "s" : ""} supplementaire${extraUsers > 1 ? "s" : ""}</td><td style="padding:6px 0;text-align:right;color:#94a3b8;font-size:11px;">${extraUsersAmount.toFixed(2)} EUR</td></tr>` : ""}
             ${extraContacts > 0 ? `<tr><td style="padding:6px 0 6px 20px;color:#94a3b8;font-size:11px;">${extraContacts} contacts supplementaires</td><td style="padding:6px 0;text-align:right;color:#94a3b8;font-size:11px;">${extraContactsAmount.toFixed(2)} EUR</td></tr>` : ""}
             ${extraCalls > 0 ? `<tr><td style="padding:6px 0 6px 20px;color:#94a3b8;font-size:11px;">${extraCalls} appels supplementaires</td><td style="padding:6px 0;text-align:right;color:#94a3b8;font-size:11px;">${extraCallsAmount.toFixed(2)} EUR</td></tr>` : ""}
-            <tr><td style="padding:12px 0;font-size:16px;font-weight:700;color:#0f1729;">TOTAL</td><td style="padding:12px 0;text-align:right;font-size:18px;font-weight:700;color:#0f1729;">${totalAmount.toFixed(2)} EUR</td></tr>
+            <tr><td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #e2e8f0;">Total HT</td><td style="padding:10px 0;text-align:right;font-weight:600;border-bottom:1px solid #e2e8f0;">${totalAmount.toFixed(2)} EUR</td></tr>
+            <tr><td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #e2e8f0;">TVA</td><td style="padding:10px 0;text-align:right;font-weight:600;border-bottom:1px solid #e2e8f0;">${escapeHtml(emission.vatAmount)} EUR</td></tr>
+            <tr><td style="padding:12px 0;font-size:16px;font-weight:700;color:#0f1729;">TOTAL TTC</td><td style="padding:12px 0;text-align:right;font-size:18px;font-weight:700;color:#0f1729;">${escapeHtml(emission.totalTtc)} EUR</td></tr>
           </table>
         </div>
         ${org.bankIban ? `
@@ -364,8 +366,18 @@ router.post("/license-management/auto-generate-invoice", async (req: Request, re
           <a href="${APP_URL}" style="display:inline-block;background:#0f1729;color:#fff;text-decoration:none;padding:14px 48px;border-radius:10px;font-size:15px;font-weight:600;">Voir dans Ajant Bureau</a>
         </div>`;
 
+      // Le montant annonce au client est le TTC, celui qu'il doit virer.
+      //
+      // Le corps et l'objet affichaient `totalAmount`, qui est le HORS TAXES
+      // (`services/platform-invoice-issue.ts:121`). Juste en dessous se
+      // trouvent l'IBAN et la reference a mettre en communication: le client
+      // virait 490 EUR pour une facture de 588 EUR, elle restait
+      // « partiellement reglee » pour toujours, et la TVA — due au Tresor
+      // qu'elle soit encaissee ou non — n'etait jamais recouvree.
+      // `routes/billing.ts` le dit deja pour l'autre porte: « `totalTtc` est
+      // ce que le client doit ».
       const html = generateEmailWrapper(`Facture ${monthLabel}`, invoiceBody);
-      await sendEmailViaResend(org.email, `Facture Ajant Bureau - ${monthLabel} - ${totalAmount.toFixed(2)} EUR`, html);
+      await sendEmailViaResend(org.email, `Facture Ajant Bureau - ${monthLabel} - ${emission.totalTtc} EUR`, html);
     }
 
     await logAudit(orgId, "invoice_generated", `Facture ${monthLabel} generee: ${totalAmount.toFixed(2)} EUR`, userId, { invoiceId: invoice.id, amount: totalAmount });

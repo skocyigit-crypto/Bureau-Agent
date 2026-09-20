@@ -15,7 +15,7 @@ import { mintApiToken } from "../lib/api-token";
 import { clearTokenInvalidationCache, requireAuth } from "../middleware/auth";
 import { invalidateTenantIdentityCache, requireTenant } from "../middleware/tenant";
 import { checkLicense } from "../middleware/license-check";
-import { assertRoleAllowed, assertOrgOwnsUser, assertTargetNotSuperAdmin, assertCallerOutranks, assertUserQuotaNotExceeded, assertNotSelf, sanitiseUserPatch, checkSensitiveRateLimit } from "../middleware/tenant-guard";
+import { assertRoleAllowed, assertOrgOwnsUser, assertTargetNotSuperAdmin, assertCallerOutranks, rolesSousLeRang, assertUserQuotaNotExceeded, assertNotSelf, sanitiseUserPatch, checkSensitiveRateLimit } from "../middleware/tenant-guard";
 import { isUserQuotaDbError } from "../services/ensure-user-quota";
 import { documentCsv } from "../lib/csv";
 
@@ -1108,7 +1108,16 @@ router.post("/auth/users/bulk/deactivate", async (req: Request, res: Response): 
   const safeIds = ids.filter(id => id !== sessionUserId);
   if (safeIds.length === 0) { res.status(400).json({ error: "Impossible de desactiver votre propre compte." }); return; }
   try {
-    const conditions = [inArray(usersTable.id, safeIds), ne(usersTable.role, "super_admin")];
+    // Rang STRICTEMENT inferieur, pas seulement « pas super_admin ».
+    //
+    // Exclure le seul `super_admin` laissait passer le rang EGAL: un
+    // administrateur agissait sur ses pairs en une requete, alors que les
+    // routes unitaires le lui refusent explicitement (« un role superieur ou
+    // egal au votre », `assertCallerOutranks`). La voie de masse contournait
+    // l invariant que la voie unitaire fait respecter.
+    const rolesPermis = rolesSousLeRang(userRole);
+    if (rolesPermis.length === 0) { res.status(403).json({ error: "Acces interdit." }); return; }
+    const conditions = [inArray(usersTable.id, safeIds), inArray(usersTable.role, rolesPermis)];
     if (organisationId) conditions.push(eq(usersTable.organisationId, organisationId));
     // DESACTIVER, C'EST RETIRER L'ACCES — PAS SEULEMENT LE DROIT D'EN OUVRIR UN.
     //
@@ -1150,7 +1159,16 @@ router.post("/auth/users/bulk/delete", async (req: Request, res: Response): Prom
   const safeIds = ids.filter(id => id !== sessionUserId);
   if (safeIds.length === 0) { res.status(400).json({ error: "Impossible de supprimer votre propre compte." }); return; }
   try {
-    const conditions = [inArray(usersTable.id, safeIds), ne(usersTable.role, "super_admin")];
+    // Rang STRICTEMENT inferieur, pas seulement « pas super_admin ».
+    //
+    // Exclure le seul `super_admin` laissait passer le rang EGAL: un
+    // administrateur agissait sur ses pairs en une requete, alors que les
+    // routes unitaires le lui refusent explicitement (« un role superieur ou
+    // egal au votre », `assertCallerOutranks`). La voie de masse contournait
+    // l invariant que la voie unitaire fait respecter.
+    const rolesPermis = rolesSousLeRang(userRole);
+    if (rolesPermis.length === 0) { res.status(403).json({ error: "Acces interdit." }); return; }
+    const conditions = [inArray(usersTable.id, safeIds), inArray(usersTable.role, rolesPermis)];
     if (organisationId) conditions.push(eq(usersTable.organisationId, organisationId));
     const result = await db.delete(usersTable).where(and(...conditions));
     safeIds.forEach(invalidateTenantIdentityCache);
@@ -1169,6 +1187,53 @@ router.post("/auth/users/bulk/delete", async (req: Request, res: Response): Prom
   } catch (err: any) {
     logger.error({ err }, "Bulk delete users error");
     res.status(500).json({ error: "Erreur lors de la suppression." });
+  }
+});
+
+/**
+ * Coupe TOUTES les sessions de l'organisation, la sienne comprise.
+ *
+ * L'ecran de securite proposait deja ce bouton. Il n'appelait rien : il
+ * affichait « Toutes les sessions ont ete revoquees » et s'arretait la. Un
+ * administrateur qui vient de decouvrir une compromission lit cette phrase,
+ * la croit, et ne fait rien de plus — c'est le pire moment pour mentir.
+ *
+ * La revocation reprend les deux moities utilisees par la desactivation d'un
+ * compte : `tokenInvalidatedAt` pour les jetons Bearer (30 jours), et la
+ * suppression des sessions cookie. L'une sans l'autre laisse une porte.
+ *
+ * La session de l'appelant est incluse volontairement : une revocation qui
+ * s'epargne elle-meme laisse ouverte la session depuis laquelle l'attaquant
+ * pourrait justement agir.
+ */
+router.post("/auth/sessions/revoke-all", async (req: Request, res: Response): Promise<void> => {
+  const userRole = req.session?.userRole;
+  const organisationId = req.session?.organisationId;
+  if (userRole !== "super_admin" && userRole !== "administrateur") {
+    res.status(403).json({ error: "Acces interdit." });
+    return;
+  }
+  if (!organisationId) { res.status(403).json({ error: "Aucune organisation associee." }); return; }
+  try {
+    const membres = await db.select({ id: usersTable.id }).from(usersTable)
+      .where(eq(usersTable.organisationId, organisationId));
+
+    await db.update(usersTable)
+      .set({ tokenInvalidatedAt: new Date() })
+      .where(eq(usersTable.organisationId, organisationId));
+
+    for (const m of membres) {
+      invalidateTenantIdentityCache(m.id);
+      clearTokenInvalidationCache(m.id);
+    }
+    await Promise.all(membres.map((m) => invalidateUserSessions(m.id).catch((err) => {
+      logger.error({ err, userId: m.id }, "[auth] session non revoquee");
+    })));
+
+    res.json({ revoked: membres.length });
+  } catch (err: any) {
+    logger.error({ err }, "Revocation globale des sessions");
+    res.status(500).json({ error: "Erreur lors de la revocation des sessions." });
   }
 });
 

@@ -3240,19 +3240,16 @@
       "rgpdConsentDesc": "Recueillir et enregistrer le consentement avant tout traitement de données",
       "actionsTitle": "Actions de sécurité",
       "actionsDesc": "Opérations manuelles de sécurité réservées au Super Administrateur.",
-      "auditFull": "Audit de sécurité complet",
-      "auditFullDesc": "Analyser toutes les configurations et détecter les vulnérabilités",
-      "auditFullToast": "Lancement de l'audit de sécurité complet...",
       "exportAudit": "Exporter le journal d'audit",
       "exportAuditDesc": "Télécharger le journal complet des actions (réservé super admin)",
-      "exportAuditToast": "Export du journal d'audit en cours...",
       "revokeSessions": "Révoquer toutes les sessions",
       "revokeSessionsDesc": "Déconnecter immédiatement tous les utilisateurs actifs",
-      "revokeSessionsToast": "Révocation de toutes les sessions actives...",
-      "emergencyLock": "Verrouillage d'urgence",
-      "emergencyLockDesc": "Bloquer tout accès sauf super admin en cas d'incident critique",
-      "emergencyLockToast": "Verrouillage d'urgence activé. Seul le super admin peut déverrouiller.",
-      "securityAction": "Action de sécurité"
+      "rgpdEnPlace": "En place",
+      "rgpdVoirDetail": "Voir le détail et agir",
+      "revokeSessionsConfirm": "Déconnecter tout le monde ?",
+      "revokeSessionsConfirmDesc": "Toutes les sessions de l'organisation seront coupées, y compris la vôtre. Chacun devra se reconnecter.",
+      "revokeSessionsDone": "{{count}} compte(s) déconnecté(s). Vous allez être redirigé.",
+      "revokeSessionsFailed": "La révocation n'a pas pu être effectuée. Réessayez."
     }
   },
   "users": {
