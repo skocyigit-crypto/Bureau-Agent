@@ -107,6 +107,36 @@ export function periodeDe(dateIso: string, type: TypeCloture): string {
 }
 
 /**
+ * Une periode qui n'a pas encore COMMENCE ne se clot pas.
+ *
+ * La route ne verifiait que la FORME (`AAAA`, `AAAA-MM`, `AAAA-MM-JJ`). Une
+ * faute de frappe — « 2062 » pour « 2026 » — etait donc acceptee, et
+ * `periodeClose` compare des CHAINES : « 2026 » <= « 2062 » reste vrai pendant
+ * trente-six ans. A partir de cet instant, plus aucun encaissement ni aucune
+ * contre-passation ne pouvait etre enregistre dans l'organisation, et il
+ * n'existe — par conception, pour l'inalterabilite — ni route de suppression
+ * ni route de reouverture d'une cloture. Le produit se bloquait lui-meme,
+ * definitivement, sur une faute de frappe.
+ *
+ * La regle retenue est la plus permissive qui ferme le defaut : la periode
+ * doit avoir commence. Clore le jour meme a 23 h, le mois en cours le 31, ou
+ * l'annee en cours reste possible — ce sont des usages reels. Clore octobre en
+ * septembre, non.
+ *
+ * La route refuse deja une date d'encaissement dans le futur (« un
+ * encaissement se constate, il ne s'annonce pas ») ; la meme prudence
+ * manquait du cote irreversible.
+ */
+export function periodeCommencee(periode: string, maintenant: Date = new Date()): boolean {
+  // Comparaison de CHAINES, comme partout ailleurs dans ce fichier: le fuseau
+  // de la machine qui calcule ne doit pas decider de la reponse.
+  const aujourdHui = maintenant.toISOString().slice(0, 10);
+  if (periode.length === 4) return periode <= aujourdHui.slice(0, 4);
+  if (periode.length === 7) return periode <= aujourdHui.slice(0, 7);
+  return periode <= aujourdHui;
+}
+
+/**
  * Calcule la cloture d'une periode.
  *
  * `toutes` doit contenir TOUTES les ecritures de l'organisation, dans l'ordre:

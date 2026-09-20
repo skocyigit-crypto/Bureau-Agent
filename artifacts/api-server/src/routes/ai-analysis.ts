@@ -14,6 +14,7 @@ import { GEMINI_PRO_MODEL, ANTHROPIC_MODEL, sanitizePromptInput } from "../servi
 import { getAnthropicMode } from "@workspace/integrations-anthropic-ai";
 import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 import { nextInvoiceNumber } from "../services/invoice-numbering";
+import { enregistrerEncaissement, MOYENS_ENCAISSEMENT } from "../services/encaissement-enregistrement";
 import { overdueCondition } from "../services/invoice-status";
 import { aiForOrg } from "../services/ai-client";
 import { assertAiUsable, fournisseurInjoignable, respondAiError } from "../services/ai-guard";
@@ -2712,15 +2713,52 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         if (!data.invoiceId || !data.amount) { res.status(400).json({ error: "ID facture et montant requis." }); return; }
         const [inv] = await db.select().from(facturesClientTable).where(and(eq(facturesClientTable.id, data.invoiceId), eq(facturesClientTable.organisationId, orgId)));
         if (!inv) { result = { success: false, message: "Facture non trouvee." }; break; }
-        const currentPaid = Number(inv.paidAmount || 0);
-        const newPaid = currentPaid + Number(data.amount);
-        const totalDue = Number(inv.totalAmount);
-        const remaining = totalDue - newPaid;
-        const newStatus = remaining <= 0.01 ? "payee" : "partielle";
-        const updateFields: any = { paidAmount: newPaid.toFixed(2), status: newStatus, paymentMethod: data.method || null };
-        if (newStatus === "payee") updateFields.paidAt = new Date();
-        await db.update(facturesClientTable).set(updateFields).where(eq(facturesClientTable.id, data.invoiceId));
-        result = { success: true, message: `Paiement de ${Number(data.amount).toFixed(2)}€ enregistre sur ${inv.reference}. ${newStatus === "payee" ? "Facture ENTIEREMENT payee!" : `Reste a payer: ${remaining.toFixed(2)}€`}`, entity: "invoice", id: data.invoiceId };
+        // Une seule facon d'encaisser, pour toutes les portes.
+        //
+        // Cet outil ecrivait le cache `paidAmount` en direct, sans creer la
+        // moindre ecriture au journal de caisse. Trois consequences, toutes
+        // silencieuses :
+        //  - le reglement n'apparaissait ni au journal ni a l'ecran
+        //    Encaissements, alors que ce journal est en ajout seul et
+        //    chaine (art. 286-I-3° bis du CGI) ;
+        //  - le premier encaissement REEL sur cette facture recalculait le
+        //    cache depuis les ecritures, qui ignorent celle-ci : le montant
+        //    saisi par l'assistant disparaissait ;
+        //  - le statut pose valait « partielle », un mot que le produit
+        //    n'emploie nulle part ailleurs (`partiellement_payee`), si bien
+        //    que la facture sortait de la prevision de tresorerie et perdait
+        //    son libelle d'ecran.
+        //
+        // L'`UPDATE` n'etait de surcroit borne que par l'identifiant de
+        // facture, sans l'organisation — la lecture au-dessus l'est, donc rien
+        // n'etait exploitable, mais la defense en profondeur vaut d'etre tenue.
+        //
+        // `enregistrerEncaissement` fait les quatre: numerotation, chainage,
+        // refus d'une periode close, et derivation du statut.
+        const ecritureIa = await enregistrerEncaissement({
+          organisationId: orgId,
+          factureId: inv.id,
+          montantCentimes: Math.round(Number(data.amount) * 100),
+          moyen: (MOYENS_ENCAISSEMENT as readonly string[]).includes(String(data.method))
+            ? (data.method as (typeof MOYENS_ENCAISSEMENT)[number])
+            : "virement",
+          createdBy: req.session?.userId ?? null,
+        });
+        if (!ecritureIa.ok) {
+          const pourquoi = ecritureIa.code === "depasse_reste_a_payer"
+            ? `Le montant depasse le reste du (${(ecritureIa.resteCentimes / 100).toFixed(2)}€).`
+            : ecritureIa.code === "periode_close"
+              ? `La periode ${ecritureIa.periode} est close: ce reglement ne peut plus y etre enregistre.`
+              : "Facture non trouvee.";
+          result = { success: false, message: pourquoi };
+          break;
+        }
+        result = {
+          success: true,
+          message: `Paiement de ${Number(data.amount).toFixed(2)}€ enregistre sur ${inv.reference}. ${ecritureIa.soldee ? "Facture ENTIEREMENT payee!" : `Reste a payer: ${((Number(inv.totalAmount) * 100 - ecritureIa.payeCentimes) / 100).toFixed(2)}€`}`,
+          entity: "invoice",
+          id: data.invoiceId,
+        };
         break;
       }
       case "send_invoice_email": {

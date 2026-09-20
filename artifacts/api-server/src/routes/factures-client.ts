@@ -16,6 +16,21 @@ import { supprimerFactureAutorisee } from "../services/facture-suppression";
 
 const router: IRouter = Router();
 
+/**
+ * Deux sommes d'argent sont-elles la meme ?
+ *
+ * Comparee au centime, parce que les deux cotes n'ont pas le meme type: la
+ * base rend un `numeric` en chaine (« 120.00 »), le corps JSON porte un
+ * nombre, et l'ecran renvoie parfois l'un pour l'autre. Une egalite stricte
+ * ferait refuser un formulaire qui n'a rien change.
+ */
+function memeSomme(a: unknown, b: unknown): boolean {
+  const centimes = (v: unknown) => Math.round(Number(v ?? 0) * 100);
+  const ca = centimes(a);
+  const cb = centimes(b);
+  return Number.isFinite(ca) && Number.isFinite(cb) && ca === cb;
+}
+
 const STATUSES = ["brouillon", "envoyee", "payee", "partiellement_payee", "en_retard", "annulee"] as const;
 
 // Intervalle minimal entre deux relances d'une meme facture (anti-spam serveur).
@@ -396,9 +411,28 @@ router.patch("/factures-client/:id", async (req: Request, res: Response): Promis
       if (dup) { res.status(409).json({ error: `La reference "${newRef}" existe deja.` }); return; }
       updates.reference = newRef;
     }
-    // paidAmount reste saisissable (encaissement partiel), borne >= 0; les
-    // totaux sont TOUJOURS derives des lignes, jamais du client.
-    if (b.paidAmount !== undefined) updates.paidAmount = normalizePaidAmount(b.paidAmount);
+    // `paidAmount` n'est plus saisissable ici. C'est un CACHE du journal de
+    // caisse, pas un champ de formulaire.
+    //
+    // Ecrire ce cache sans creer d'ecriture produisait un reglement que la
+    // chaine ignore : il n'apparaissait ni au journal ni a l'ecran
+    // Encaissements, et le premier encaissement REEL sur la meme facture
+    // recalculait le cache depuis les ecritures — donc l'effacait. C'est le
+    // defaut que `services/encaissement-enregistrement.ts` nomme « le pire
+    // qu'un logiciel de facturation puisse avoir », et il avait ete ferme
+    // pour deux portes d'administration seulement.
+    //
+    // L'ecran renvoie le formulaire complet, `paidAmount` compris : une
+    // valeur INCHANGEE est donc acceptee et ignoree. Une valeur differente
+    // est refusee, avec le chemin a prendre — l'ignorer en silence serait le
+    // meme defaut sous une autre forme.
+    if (b.paidAmount !== undefined && !memeSomme(b.paidAmount, existing.paidAmount)) {
+      res.status(409).json({
+        error: "Le montant encaisse ne se saisit pas sur la facture.",
+        remediation: "Enregistrez le reglement par POST /api/encaissements : il entre au journal, qui fait foi.",
+      });
+      return;
+    }
     if (b.isAutoliquidation !== undefined) updates.isAutoliquidation = !!b.isAutoliquidation;
     if (b.retenueGarantieRate !== undefined) {
       const t = Number(b.retenueGarantieRate);
@@ -422,14 +456,25 @@ router.patch("/factures-client/:id", async (req: Request, res: Response): Promis
       if (d === undefined) { res.status(400).json({ error: "Date d'échéance invalide." }); return; }
       updates.dueDate = d;
     }
-    // Coherence statut <-> paiement: si on marque "payee", on cale paidAmount
-    // sur le total; un statut "payee" avec paidAmount=0 etait incoherent (faux
-    // encaissement dans les KPI). Reciproquement `paidAt` est renseigne.
+    // Marquer « payee » a la main ne cale plus `paidAmount` sur le total.
+    //
+    // C'etait la deuxieme facon de faire entrer de l'argent sans ecriture: un
+    // clic sur le statut, et la facture se declarait soldee. Le meme
+    // recalcul depuis le journal l'effacait au premier encaissement reel, et
+    // entre-temps les tableaux de bord comptaient un encaissement qui
+    // n'existait pas.
+    //
+    // Le statut reste modifiable — annuler une facture, la repasser en
+    // envoyee — mais « payee » se DERIVE du journal, il ne se decrete pas.
+    if (b.status === "payee" && Number(existing.paidAmount ?? 0) < Number(existing.totalAmount ?? 0)) {
+      res.status(409).json({
+        error: "Une facture se solde par un encaissement, pas par un changement de statut.",
+        remediation: "Enregistrez le reglement par POST /api/encaissements : le statut suivra tout seul.",
+      });
+      return;
+    }
     if (b.status === "payee") {
       updates.paidAt = new Date();
-      const [cur] = await db.select({ totalAmount: facturesClientTable.totalAmount }).from(facturesClientTable).where(scoped);
-      if (updates.totalAmount === undefined && cur) updates.paidAmount = cur.totalAmount;
-      else if (updates.totalAmount !== undefined) updates.paidAmount = updates.totalAmount;
     } else if (b.status === undefined) {
       // Statut deduit quand l'appelant n'en impose pas: un encaissement
       // partiel doit se lire "partiellement payee", un solde atteint "payee".
