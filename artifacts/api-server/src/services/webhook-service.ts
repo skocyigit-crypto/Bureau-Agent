@@ -50,6 +50,16 @@ const MAX_BACKOFF_SEC = 6 * 60 * 60; // plafond du backoff : 6 h
 const CIRCUIT_BREAKER_THRESHOLD = 15; // échecs consécutifs avant désactivation
 const RETRY_BATCH = 50; // livraisons traitées par tick
 const STALE_PENDING_MS = 2 * 60 * 1000; // filet de sécurité crash : pending orphelin
+
+/**
+ * État transitoire : la livraison est réclamée par une instance, l'appel
+ * sortant est en cours.
+ *
+ * La colonne `status` est un `text` libre (voir le schéma), donc cet état
+ * n'exige aucune migration. Il est repris par le filet « périmé » ci-dessus :
+ * une instance tuée en plein envoi ne bloque pas la livraison.
+ */
+const STATUT_ENVOI_EN_COURS = "envoi_en_cours";
 const MAX_STORED_BODY = 1000; // tronquage des corps/erreurs stockés
 const USER_AGENT = "AgentDeBureau-Webhooks/1";
 
@@ -376,6 +386,13 @@ async function processRetryQueue(): Promise<void> {
               eq(webhookDeliveriesTable.status, "pending"),
               lt(webhookDeliveriesTable.createdAt, staleBefore),
             ),
+            // Même filet pour une livraison RÉCLAMÉE puis abandonnée : une
+            // instance tuée entre la réclamation et la réponse laisserait
+            // sinon la ligne bloquée dans cet état pour toujours.
+            and(
+              eq(webhookDeliveriesTable.status, STATUT_ENVOI_EN_COURS),
+              lt(webhookDeliveriesTable.updatedAt, staleBefore),
+            ),
           ),
         )
         .orderBy(webhookDeliveriesTable.createdAt)
@@ -404,6 +421,29 @@ async function processRetryQueue(): Promise<void> {
           .where(eq(webhookDeliveriesTable.id, delivery.id));
         continue;
       }
+      // RÉCLAMATION ATOMIQUE, avant tout appel sortant.
+      //
+      // Le seul garde était `retryRunning`, une variable de module — donc un
+      // garde PAR PROCESSUS. Le commentaire du retry manuel, plus bas,
+      // affirmait que le worker « élimine par construction tout double
+      // envoi » : c'est vrai dans un processus, faux à maxScale=3. Trois
+      // instances chaudes sélectionnaient les mêmes lignes et postaient les
+      // mêmes événements — le client recevait deux ou trois fois le même
+      // paiement, la même facture, sur SON système.
+      //
+      // `UPDATE ... WHERE status = l'ancien ... RETURNING` est atomique côté
+      // Postgres : une seule instance obtient la ligne, les autres n'ont rien
+      // et passent. Même idiome que `appointment-reminder-cron.ts`.
+      const reclamee = await db
+        .update(webhookDeliveriesTable)
+        .set({ status: STATUT_ENVOI_EN_COURS, updatedAt: new Date() })
+        .where(and(
+          eq(webhookDeliveriesTable.id, delivery.id),
+          eq(webhookDeliveriesTable.status, delivery.status),
+        ))
+        .returning({ id: webhookDeliveriesTable.id });
+      if (reclamee.length === 0) continue;
+
       await attemptDelivery(delivery, endpoint);
     }
     logger.info({ processed: due.length }, "[webhook] retry queue traitée");
@@ -419,11 +459,14 @@ async function processRetryQueue(): Promise<void> {
 //
 // CONCURRENCE : on NE rejoue PAS l'envoi directement depuis le chemin HTTP.
 // On se contente de remettre la livraison dans la file (status=retrying, due
-// maintenant) et on laisse le WORKER de retry l'exécuter. Le worker est l'UNIQUE
-// exécuteur d'une livraison (un seul tick à la fois grâce à `retryRunning`), ce
-// qui élimine par construction tout double envoi : un fan-out immédiat ici
-// pourrait entrer en collision avec le tick du worker (le filet "pending
-// périmé" rattraperait une ligne remise à pending dont le createdAt est ancien).
+// maintenant) et on laisse le WORKER de retry l'exécuter.
+//
+// Ce commentaire affirmait auparavant que le worker « élimine par
+// construction tout double envoi » grâce à `retryRunning`. C'était vrai dans
+// UN processus et faux à maxScale=3 : trois instances chaudes sélectionnaient
+// les mêmes lignes et postaient les mêmes événements chez le client. Ce qui
+// l'élimine vraiment, c'est la réclamation atomique posée dans
+// `processRetryQueue` — `UPDATE ... WHERE status = l'ancien ... RETURNING`.
 // Coût : la nouvelle tentative part au prochain tick (<= RETRY_TICK_MS).
 // ---------------------------------------------------------------------------
 

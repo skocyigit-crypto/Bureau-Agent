@@ -76,6 +76,14 @@ export const organisationsTable = pgTable("organisations", {
   autoEmailInvoice: boolean("auto_email_invoice").notNull().default(true),
   weeklySecurityEmail: boolean("weekly_security_email").notNull().default(false),
   lastSecurityDigestAt: timestamp("last_security_digest_at", { withTimezone: true }),
+  // Fenetre anti-repetition de l'alerte de quota, PERSISTEE.
+  //
+  // Elle vivait dans une `Map` de module. Avec min-instances=0, Cloud Run
+  // recycle l'instance des que le trafic cesse: la Map repartait vide, et
+  // l'organisation a 85 % recevait l'alerte a CHAQUE redemarrage au lieu de
+  // toutes les 72 heures. Trois instances chaudes avaient de surcroit trois
+  // Maps distinctes. Meme remede que `lastSecurityDigestAt` juste au-dessus.
+  lastQuotaWarningAt: timestamp("last_quota_warning_at", { withTimezone: true }),
   proactiveEngineEnabled: boolean("proactive_engine_enabled").notNull().default(true),
   // Capture automatique des dépenses : tout justificatif entrant (upload ou
   // pièce jointe e-mail) reconnu comme facture/note de frais est analysé par

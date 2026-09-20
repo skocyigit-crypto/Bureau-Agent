@@ -4,6 +4,10 @@ import { logger } from "../lib/logger";
 import { getCalendarForUser } from "../lib/google-auth";
 import { withDbRetry } from "../lib/db-retry";
 import { withHeartbeat } from "./health-agents";
+import { CRON_LOCK_NAMESPACE, tryWithLock } from "../lib/cron-lock";
+
+/** Ce que rend une synchronisation pour un utilisateur. */
+type ResultatSync = { imported: number; skipped: number; errors: number };
 
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 let isRunning = false;
@@ -168,7 +172,22 @@ async function doSync() {
 
   for (const token of calendarTokens) {
     try {
-      const result = await syncUserToday(token);
+      // Un verrou par UTILISATEUR, parce que c'est par utilisateur qu'on
+      // ecrit un pointage.
+      //
+      // `syncUserToday` cherche un pointage du jour, n'en trouve pas, puis
+      // insere: un SELECT puis un INSERT, sans verrou et sans contrainte
+      // d'unicite pour rattraper. Le garde `isRunning` ci-dessus est une
+      // variable de module, donc un garde PAR PROCESSUS. Avec maxScale=3,
+      // trois instances chaudes tiquent ensemble, les trois lisent « aucun
+      // pointage » et les trois inserent.
+      //
+      // Le resultat n'est pas cosmetique: deux lignes pour le meme salarie le
+      // meme jour, donc des heures comptees deux fois dans le suivi du temps
+      // de travail — celui qui sert a la paie. C'est exactement le cas que
+      // `lib/cron-lock.ts` decrit dans son en-tete, et que neuf autres crons
+      // de ce depot traitent deja ainsi.
+      const result = await verrouUtilisateur(token.userId, () => syncUserToday(token));
       totalImported += result.imported;
       totalSkipped += result.skipped;
       totalErrors += result.errors;
@@ -183,6 +202,28 @@ async function doSync() {
   }
 }
 
+/**
+ * Execute `fn` sous le verrou de cet utilisateur, ou renonce au cycle.
+ *
+ * `tryWithLock` rend `false` quand le verrou est deja pris ailleurs: on saute,
+ * sans compter d'erreur. Un cycle saute est sans consequence — le suivant
+ * arrive dans quinze minutes, et le pointage porte sur la journee entiere.
+ */
+async function verrouUtilisateur(
+  userId: number,
+  fn: () => Promise<ResultatSync>,
+): Promise<ResultatSync> {
+  let resultat: ResultatSync = { imported: 0, skipped: 0, errors: 0 };
+  const obtenu = await tryWithLock(CRON_LOCK_NAMESPACE.googleAutoPointage, userId, async () => {
+    resultat = await fn();
+  });
+  if (!obtenu) {
+    logger.info({ userId }, "[GoogleAutoPointage] Verrou deja pris, cycle saute pour cet utilisateur.");
+    resultat = { imported: 0, skipped: 1, errors: 0 };
+  }
+  return resultat;
+}
+
 async function syncUserToday(token: {
   tokenId: number;
   userId: number;
@@ -191,7 +232,7 @@ async function syncUserToday(token: {
   scope: string;
   expiresAt: Date | null;
   organisationId: number | null;
-}): Promise<{ imported: number; skipped: number; errors: number }> {
+}): Promise<ResultatSync> {
   const result = { imported: 0, skipped: 0, errors: 0 };
 
   const [user] = await withDbRetry(

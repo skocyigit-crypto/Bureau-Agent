@@ -1,5 +1,5 @@
 import { db, organisationsTable, subscriptionsTable, callsTable, contactsTable, usersTable } from "@workspace/db";
-import { and, eq, gte, count as sqlCount } from "drizzle-orm";
+import { and, eq, gte, isNull, lt, or, count as sqlCount } from "drizzle-orm";
 import { sendEmail } from "./email";
 import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
@@ -7,10 +7,25 @@ import { withHeartbeat } from "./health-agents";
 
 const WARN_THRESHOLD = 0.8;
 const COOLDOWN_HOURS = 72;
-const lastWarnedAt = new Map<number, number>();
 let timer: NodeJS.Timeout | null = null;
 
-async function checkOrganisation(orgId: number, orgEmail: string | null, orgName: string) {
+/**
+ * Un seul avertissement par organisation et par fenetre, meme a trois
+ * instances.
+ *
+ * La fenetre vivait dans une `Map` de module et l'envoi n'etait protege par
+ * aucun verrou. Deux defauts cumules sur un courriel qui part chez le CLIENT :
+ *
+ *  - avec min-instances=0, Cloud Run recycle l'instance des que le trafic
+ *    cesse. La Map repartait vide, et l'organisation a 85 % recevait l'alerte
+ *    a chaque redemarrage au lieu de toutes les 72 heures ;
+ *  - trois instances chaudes avaient trois Maps distinctes, donc trois
+ *    courriels pour le meme tic.
+ *
+ * La fenetre est desormais en base (`lastQuotaWarningAt`), comme
+ * `lastSecurityDigestAt` le fait deja, et l'envoi passe sous verrou.
+ */
+async function checkOrganisation(orgId: number, orgEmail: string | null, orgName: string, dernierAvertissement: Date | null) {
   const [sub] = await withDbRetry(
     () => db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, orgId)).limit(1),
     { label: "quota-warning:subscription" },
@@ -46,7 +61,7 @@ async function checkOrganisation(orgId: number, orgEmail: string | null, orgName
   if (breached.length === 0) return;
   if (!orgEmail) return;
 
-  const last = lastWarnedAt.get(orgId) ?? 0;
+  const last = dernierAvertissement ? dernierAvertissement.getTime() : 0;
   if (Date.now() - last < COOLDOWN_HOURS * 3600 * 1000) return;
 
   const html = `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f4f6f9;padding:24px;">
@@ -60,11 +75,33 @@ async function checkOrganisation(orgId: number, orgEmail: string | null, orgName
     </div></body></html>`;
   const text = `Alerte quota Ajant Bureau\n\nVotre organisation ${orgName} a atteint 80%+ de la limite du plan ${sub.plan}:\n${breached.map(b => `- ${b}`).join("\n")}\n\nEnvisagez de passer a un plan superieur.`;
 
+  // La fenetre est POSEE AVANT l'envoi, et de facon conditionnelle: c'est
+  // elle qui reclame l'organisation. Si une autre instance l'a deja
+  // reclamee, la ligne ne matche plus et on renonce — un courriel de moins
+  // vaut mieux qu'un doublon chez le client.
+  const seuil = new Date(Date.now() - COOLDOWN_HOURS * 3600 * 1000);
+  const reclamee = await db
+    .update(organisationsTable)
+    .set({ lastQuotaWarningAt: new Date() })
+    .where(and(
+      eq(organisationsTable.id, orgId),
+      or(
+        isNull(organisationsTable.lastQuotaWarningAt),
+        lt(organisationsTable.lastQuotaWarningAt, seuil),
+      ),
+    ))
+    .returning({ id: organisationsTable.id });
+  if (reclamee.length === 0) return;
+
   const result = await sendEmail(orgEmail, `[Ajant Bureau] Alerte quota 80% - ${orgName}`, html, text);
   if (result.success) {
-    lastWarnedAt.set(orgId, Date.now());
     logger.info({ orgId, breached }, "[quota-warning] alerte envoyee");
   } else {
+    // L'envoi a echoue: on rend la main, sinon l'organisation resterait
+    // silencieuse 72 heures pour un courriel qui n'est jamais parti.
+    await db.update(organisationsTable)
+      .set({ lastQuotaWarningAt: dernierAvertissement })
+      .where(eq(organisationsTable.id, orgId));
     logger.warn({ orgId, err: result.error }, "[quota-warning] envoi echoue");
   }
 }
@@ -77,13 +114,14 @@ async function tick() {
         email: organisationsTable.email,
         name: organisationsTable.name,
         actif: organisationsTable.actif,
+        lastQuotaWarningAt: organisationsTable.lastQuotaWarningAt,
       }).from(organisationsTable).where(eq(organisationsTable.actif, true)),
       { label: "quota-warning:orgs" },
     );
 
     for (const org of orgs) {
       try {
-        await checkOrganisation(org.id, org.email, org.name);
+        await checkOrganisation(org.id, org.email, org.name, org.lastQuotaWarningAt);
       } catch (err) {
         logger.warn({ orgId: org.id, err }, "[quota-warning] erreur organisation");
       }
