@@ -6,6 +6,7 @@ import { db, organisationsTable, prospectsTable } from "@workspace/db";
 import { sendEmail } from "../services/email";
 import { sendSms } from "../services/telephony-providers";
 import { logger } from "../lib/logger";
+import { MESSAGE_DEMANDE_PERDUE, suiteDemande } from "../services/demande-entrante";
 
 /**
  * Lien ABSOLU vers l inscription.
@@ -84,11 +85,20 @@ async function getSuperAdminOrgId(): Promise<number | null> {
   return row?.id ?? null;
 }
 
-async function createProspectFromContactRequest(payload: ContactPayload): Promise<void> {
+/**
+ * Rend VRAI si la piste est bien dans le CRM a l'issue de l'appel.
+ *
+ * Elle ne rendait rien, et sortait silencieusement quand aucune organisation
+ * super-admin n'existe. L'appelant en deduisait « piste captee » alors que
+ * rien n'avait ete ecrit — c'est-a-dire exactement le mensonge qu'on cherche
+ * a supprimer ici. Un doublon dedoublonne compte comme capte: la fiche EST
+ * dans le CRM.
+ */
+async function createProspectFromContactRequest(payload: ContactPayload): Promise<boolean> {
   const orgId = await getSuperAdminOrgId();
   if (!orgId) {
     logger.warn("[ContactRequest] Organisation super-admin introuvable, prospect non cree.");
-    return;
+    return false;
   }
 
   const meta = KIND_META[payload.kind];
@@ -108,7 +118,7 @@ async function createProspectFromContactRequest(payload: ContactPayload): Promis
 
   if (dup) {
     logger.info({ email: emailNorm, prospectId: dup.id, kind: payload.kind }, "[ContactRequest] Prospect deja cree dans les 24h, deduplication.");
-    return;
+    return true;
   }
 
   const fullName = `${payload.firstName} ${payload.lastName}`.trim();
@@ -131,6 +141,7 @@ async function createProspectFromContactRequest(payload: ContactPayload): Promis
   }).returning({ id: prospectsTable.id });
 
   logger.info({ prospectId: created?.id, email: emailNorm, company: payload.company, kind: payload.kind }, "[ContactRequest] Prospect cree depuis le site vitrine.");
+  return Boolean(created?.id);
 }
 
 function shouldSendAdminSms(kind: ContactKind): boolean {
@@ -298,23 +309,49 @@ router.post("/public/contact-request", contactLimiter, async (req: Request, res:
       </div>
     `;
 
-    await sendEmail(
+    // La demande est CAPTUREE avant d'etre annoncee.
+    //
+    // `sendEmail` ne leve pas en cas d'echec fournisseur: elle rend
+    // `{ success: false, error }` (voir `services/email.ts`). Ces deux appels
+    // jetaient sa valeur, puis la route repondait 200 « Votre demande a ete
+    // envoyee. Vous recevrez un devis sous 24h ouvrees. » Si la chaine
+    // d'e-mail etait en panne, le visiteur repartait avec une promesse que
+    // personne n'avait recue — et l'alerte vers l'equipe n'etait pas partie
+    // non plus.
+    //
+    // Le prospect en base est le vrai filet: c'est lui qui fait que l'equipe
+    // rappellera. Il est donc cree D'ABORD, et c'est son echec — cumule a
+    // celui de l'alerte — qui decide de la reponse.
+    let prospectCree = false;
+    try {
+      prospectCree = await createProspectFromContactRequest(payload);
+    } catch (prospectErr: any) {
+      logger.error({ err: prospectErr, email: payload.email, company: payload.company, kind }, "[ContactRequest] Echec creation prospect");
+    }
+
+    const alerte = await sendEmail(
       adminEmail,
       meta.adminSubject(payload),
       adminHtml,
       `${meta.label} de ${payload.firstName} ${payload.lastName} <${payload.email}> pour ${payload.company}`,
     );
-    await sendEmail(
+    // La confirmation au visiteur est un confort: son echec ne perd pas la
+    // piste, et on ne refuse pas une demande parce qu'un accuse n'est pas
+    // parti.
+    const confirmation = await sendEmail(
       payload.email,
       meta.confirmSubject,
       confirmHtml,
       `Bonjour ${payload.firstName}, nous avons bien recu votre demande.`,
     );
+    if (!confirmation.success) {
+      logger.warn({ email: payload.email, company: payload.company, kind, err: confirmation.error }, "[ContactRequest] Accuse de reception non envoye");
+    }
 
-    try {
-      await createProspectFromContactRequest(payload);
-    } catch (prospectErr: any) {
-      logger.error({ err: prospectErr, email: payload.email, company: payload.company, kind }, "[ContactRequest] Echec creation prospect (email envoye quand meme)");
+    if (suiteDemande(prospectCree, alerte.success) === "perdue") {
+      logger.error({ email: payload.email, company: payload.company, kind, err: alerte.error }, "[ContactRequest] Demande PERDUE: ni prospect ni alerte");
+      res.status(502).json({ error: MESSAGE_DEMANDE_PERDUE });
+      return;
     }
 
     try {

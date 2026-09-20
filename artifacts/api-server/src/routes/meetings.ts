@@ -9,6 +9,13 @@ import { recordAiUsage, wrapUntrusted, GEMINI_PRO_MODEL } from "../services/ai-u
 const router = Router();
 
 /**
+ * Borne de l alternative: au-dela, on rend la main plutot que de garder une
+ * place occupee. Alignee sur les autres appels de modele du depot (30 s dans
+ * `ai-analysis.ts`).
+ */
+const DELAI_MODELE_MS = 30_000;
+
+/**
  * Retrouve un membre a partir du nom prononce en reunion.
  *
  * La comparaison ignore la casse et les accents: le modele transcrit
@@ -142,6 +149,15 @@ Regles:
 - priorite: "haute" si urgent/critique, "basse" si secondaire, "moyenne" sinon`;
 
     const t0 = Date.now();
+    // `fetch()` n'a PAS de delai d'attente par defaut.
+    //
+    // C'etait le seul appel de modele du depot sans borne — les douze autres
+    // en ont une, et `services/telephony-providers.ts` explique pourquoi sur
+    // place. Ici, un fournisseur lent tenait la requete HTTP ouverte, et
+    // `server.requestTimeout` n'est pas pose (`src/index.ts` ne regle que
+    // `keepAliveTimeout` et `headersTimeout`): la requete occupait une
+    // connexion de l'instance jusqu'au defaut de Node, cinq minutes. Une
+    // seule requete authentifiee suffisait a immobiliser une place.
     const aiRes = await fetch(
       `${geminiBase}/v1beta/models/${GEMINI_PRO_MODEL}:generateContent?key=${geminiKey}`,
       {
@@ -151,6 +167,7 @@ Regles:
           contents: [{ role: "user", parts: [{ text: prompt }] }],
           generationConfig: { temperature: 0.3, maxOutputTokens: 2048 },
         }),
+        signal: AbortSignal.timeout(DELAI_MODELE_MS),
       }
     );
 
