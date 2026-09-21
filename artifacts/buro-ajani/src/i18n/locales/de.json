@@ -371,6 +371,8 @@
     }
   },
   "contacts": {
+    "selectOne": "{{name}} auswählen",
+    "selectAll": "Alle Kontakte auswählen",
     "title": "Kontaktverzeichnis",
     "subtitle": "Verwalten Sie Ihre professionelle Datenbank.",
     "bannerTitle": "Professionelles Verzeichnis",

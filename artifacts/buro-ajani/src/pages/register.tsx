@@ -58,6 +58,18 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  // Champ en faute (RGAA 11.10). Le message unique en tete de formulaire ne
+  // disait pas A QUEL champ il se rapportait : un lecteur d'ecran l'entendait,
+  // mais le champ ne portait ni etat d'erreur ni lien vers le message.
+  const [champEnErreur, setChampEnErreur] = useState<string | null>(null);
+  const erreurSur = (id: string, message: string) => {
+    setError(message);
+    setChampEnErreur(id);
+    // Le focus va au champ a corriger, pas au bouton qu'on vient d'actionner.
+    requestAnimationFrame(() => document.getElementById(id)?.focus());
+  };
+  const etatErreur = (id: string) =>
+    champEnErreur === id ? { "aria-invalid": true as const, "aria-describedby": "register-erreur" } : {};
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [result, setResult] = useState<any>(null);
@@ -65,38 +77,39 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setChampEnErreur(null);
 
     if (!orgName.trim() || orgName.trim().length < 2) {
-      setError(t("register.errOrgName"));
+      erreurSur("orgName", t("register.errOrgName"));
       return;
     }
     if (!firstName.trim() || !lastName.trim()) {
-      setError(t("register.errNames"));
+      erreurSur(firstName.trim() ? "lastName" : "firstName", t("register.errNames"));
       return;
     }
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setError(t("register.errEmail"));
+      erreurSur("regEmail", t("register.errEmail"));
       return;
     }
     if (!acceptedTerms) {
-      setError(t("register.errTerms"));
+      erreurSur("acceptTerms", t("register.errTerms"));
       return;
     }
     const normalizedPhone = phone.trim().replace(/[\s.\-()]/g, "");
     if (normalizedPhone && !/^(\+?\d{8,15})$/.test(normalizedPhone)) {
-      setError(t("register.errPhone"));
+      erreurSur("regPhone", t("register.errPhone"));
       return;
     }
     if (password.length < 8) {
-      setError(t("register.errPasswordShort"));
+      erreurSur("regPassword", t("register.errPasswordShort"));
       return;
     }
     if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) {
-      setError(t("register.errPasswordComplexity"));
+      erreurSur("regPassword", t("register.errPasswordComplexity"));
       return;
     }
     if (password !== confirmPassword) {
-      setError(t("register.errPasswordMismatch"));
+      erreurSur("regConfirmPassword", t("register.errPasswordMismatch"));
       return;
     }
 
@@ -270,7 +283,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-3">
             {error && (
-              <Alert variant="destructive" className="border-red-200 bg-red-50 dark:bg-red-950/30">
+              <Alert id="register-erreur" variant="destructive" className="border-red-200 bg-red-50 dark:bg-red-950/30">
                 <AlertTriangle className="w-4 h-4" />
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
@@ -281,7 +294,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
               <div className="relative">
                 <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  id="orgName" autoComplete="organization"
+                  id="orgName" {...etatErreur("orgName")} autoComplete="organization"
                   placeholder={t("register.orgPlaceholder")}
                   value={orgName}
                   onChange={e => setOrgName(e.target.value)}
@@ -315,7 +328,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
-                    id="firstName" autoComplete="given-name"
+                    id="firstName" {...etatErreur("firstName")} autoComplete="given-name"
                     placeholder={t("register.firstNamePlaceholder")}
                     value={firstName}
                     onChange={e => setFirstName(e.target.value)}
@@ -327,7 +340,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
               <div className="space-y-1.5">
                 <Label htmlFor="lastName" className="text-sm font-medium">{t("register.lastNameLabel")}</Label>
                 <Input
-                  id="lastName" autoComplete="family-name"
+                  id="lastName" {...etatErreur("lastName")} autoComplete="family-name"
                   placeholder={t("register.lastNamePlaceholder")}
                   value={lastName}
                   onChange={e => setLastName(e.target.value)}
@@ -341,7 +354,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  id="regEmail"
+                  id="regEmail" {...etatErreur("regEmail")}
                   type="email"
                   placeholder={t("register.emailPlaceholder")}
                   value={email}
@@ -358,7 +371,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  id="regPhone" autoComplete="tel"
+                  id="regPhone" {...etatErreur("regPhone")} autoComplete="tel"
                   type="tel"
                   placeholder={t("register.phonePlaceholder")}
                   value={phone}
@@ -374,7 +387,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
-                    id="regPassword"
+                    id="regPassword" {...etatErreur("regPassword")}
                     type={showPassword ? "text" : "password"}
                     placeholder={t("register.passwordPlaceholder")}
                     value={password}
@@ -400,7 +413,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
-                    id="regConfirmPassword"
+                    id="regConfirmPassword" {...etatErreur("regConfirmPassword")}
                     type={showPassword ? "text" : "password"}
                     placeholder={t("register.confirmPlaceholder")}
                     value={confirmPassword}
@@ -433,6 +446,8 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
                 rempli ne doit pas etre perdu pour lire un contrat. */}
             <label className="flex items-start gap-2 text-xs text-muted-foreground cursor-pointer">
               <input
+                id="acceptTerms"
+                {...etatErreur("acceptTerms")}
                 type="checkbox"
                 checked={acceptedTerms}
                 onChange={(e) => setAcceptedTerms(e.target.checked)}

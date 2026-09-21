@@ -514,6 +514,7 @@ export default function Contacts() {
                   <Checkbox
                     checked={data?.contacts?.length ? selectedIds.size === data.contacts.length : false}
                     onCheckedChange={toggleSelectAll}
+                    aria-label={t("contacts.selectAll")}
                   />
                 </TableHead>
                 <TableHead className="cursor-pointer select-none" onClick={() => handleSort("lastName")}>
@@ -565,14 +566,14 @@ export default function Contacts() {
                 data?.contacts.map((contact) => (
                   <TableRow key={contact.id} className={`hover:bg-muted/30 transition-colors cursor-pointer ${selectedIds.has(contact.id) ? 'bg-primary/5' : ''}`} onClick={() => setLocation(`/contacts/${contact.id}`)}>
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Checkbox checked={selectedIds.has(contact.id)} onCheckedChange={() => toggleSelect(contact.id)} />
+                      <Checkbox checked={selectedIds.has(contact.id)} onCheckedChange={() => toggleSelect(contact.id)} aria-label={t("contacts.selectOne", { name: `${contact.firstName} ${contact.lastName}` })} />
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary">
                           {contact.firstName.charAt(0)}{contact.lastName.charAt(0)}
                         </div>
-                        <div className="font-medium text-foreground">{contact.firstName} {contact.lastName}</div>
+                        <Link href={`/contacts/${contact.id}`} onClick={(e) => e.stopPropagation()} className="font-medium text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">{contact.firstName} {contact.lastName}</Link>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -670,12 +671,12 @@ export default function Contacts() {
                         {contact.firstName.charAt(0)}{contact.lastName.charAt(0)}
                       </div>
                       <div>
-                        <div className="font-semibold text-foreground">{contact.firstName} {contact.lastName}</div>
+                        <Link href={`/contacts/${contact.id}`} onClick={(e) => e.stopPropagation()} className="font-semibold text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">{contact.firstName} {contact.lastName}</Link>
                         {contact.company && <div className="text-sm text-muted-foreground flex items-center gap-1"><Building className="w-3 h-3" />{contact.company}</div>}
                       </div>
                     </div>
                     <div onClick={(e) => e.stopPropagation()}>
-                      <Checkbox checked={selectedIds.has(contact.id)} onCheckedChange={() => toggleSelect(contact.id)} />
+                      <Checkbox checked={selectedIds.has(contact.id)} onCheckedChange={() => toggleSelect(contact.id)} aria-label={t("contacts.selectOne", { name: `${contact.firstName} ${contact.lastName}` })} />
                     </div>
                   </div>
                   <div className="space-y-2 text-sm">

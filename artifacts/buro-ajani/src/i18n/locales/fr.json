@@ -371,6 +371,8 @@
     }
   },
   "contacts": {
+    "selectOne": "Sélectionner {{name}}",
+    "selectAll": "Sélectionner tous les contacts",
     "title": "Annuaire des Contacts",
     "subtitle": "Gérez votre base de données professionnelle.",
     "bannerTitle": "Annuaire professionnel",
