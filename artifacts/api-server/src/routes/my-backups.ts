@@ -25,6 +25,7 @@ import {
   TENANT_TABLES,
 } from "../services/tenant-backup";
 import { planRestore, restoreMissingRows, restaurerSequencesFactures, RESTORABLE_TABLES } from "../services/tenant-restore";
+import { corpsErreur } from "../lib/message-erreur";
 
 const router: IRouter = Router();
 
@@ -95,7 +96,9 @@ router.post("/my-backups", requireRole("administrateur", "super_admin"), async (
     res.status(201).json({ backup: saved });
   } catch (err: any) {
     req.log.error({ err }, "[my-backups] creation impossible");
-    res.status(500).json({ error: err?.message || "Erreur lors de la creation de la sauvegarde." });
+    // Le detail va au journal, pas au client: un message de stockage porte
+    // des chemins de bucket, un message Postgres porte des noms de contrainte.
+    res.status(500).json(corpsErreur(err, "La sauvegarde n'a pas pu etre creee. Reessayez dans quelques minutes."));
   }
 });
 

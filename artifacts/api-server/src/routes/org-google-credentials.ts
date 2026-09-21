@@ -19,6 +19,7 @@ import { db, googleAppCredentialsTable } from "@workspace/db";
 import { requireRole } from "../middleware/auth";
 import { getOrgId } from "../middleware/tenant";
 import { encryptSecret, getGoogleRedirectUri } from "../lib/google-auth";
+import { corpsErreur } from "../lib/message-erreur";
 
 const router: IRouter = Router();
 
@@ -88,7 +89,9 @@ router.put("/org-google-credentials", requireRole("administrateur", "super_admin
     res.json({ configured: true, clientIdMasked: maskClientId(clientId), redirectUri: getGoogleRedirectUri() });
   } catch (err: any) {
     req.log.error({ err }, "[org-google-credentials] ecriture impossible");
-    res.status(500).json({ error: err?.message || "Erreur lors de l'enregistrement." });
+    // Cette route manipule des identifiants OAuth chiffres: son message
+    // d'exception est le dernier qu'on veuille renvoyer tel quel.
+    res.status(500).json(corpsErreur(err, "Les identifiants n'ont pas pu etre enregistres."));
   }
 });
 

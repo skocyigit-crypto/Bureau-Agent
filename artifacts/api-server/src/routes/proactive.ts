@@ -19,6 +19,7 @@ import { PAYMENT_REMINDER_SUGGESTION_TYPE } from "../services/payment-reminder";
 import { sendEmail } from "../services/email";
 import { sendSms as providerSendSms } from "../services/telephony-providers";
 import { logger } from "../lib/logger";
+import { corpsErreur } from "../lib/message-erreur";
 
 const router = Router();
 
@@ -438,7 +439,10 @@ router.post("/proactive/suggestions/:id/send-reminder", async (req: Request, res
         return;
       }
       logger.error({ err, id }, "[proactive] send-reminder envoi échoué");
-      res.status(502).json({ error: err instanceof Error ? err.message : "L'envoi de la relance a échoué." });
+      // Un message de fournisseur (Twilio, Resend) porte l'identifiant de
+      // compte et le domaine expediteur. Le cas metier connu — SMS non
+      // configure — est traite juste au-dessus, avec sa propre phrase.
+      res.status(502).json(corpsErreur(err, "L'envoi de la relance a échoué."));
       return;
     }
 
