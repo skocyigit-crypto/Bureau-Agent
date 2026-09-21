@@ -256,6 +256,7 @@ async function multiAiGenerateCached(
 }
 
 import { escapeHtml } from "../lib/html-escape";
+import { pseudonyme, reidentifierNoms } from "../services/performance-garde-fous";
 
 // Stop-words used to filter the user's chat message into useful keyword tokens.
 // Kept short and French-focused since the assistant always replies in French.
@@ -2598,7 +2599,9 @@ router.get("/commandant/employee-quality", requireRole("super_admin", "administr
     const systemPrompt = `Tu es un expert RH senior spécialisé en performance et qualité de travail. Tu analyses des données objectives et génères des insights actionnables. Sois direct, précis et bienveillant. Réponds UNIQUEMENT en JSON valide.`;
     const prompt = `Analyse de ${employees.length} employés sur la période (${periode}):
 
-${employees.map(e => `${e.name} (${e.role}${e.department ? ", " + e.department : ""}): score global ${e.overallScore}/100 (qualité: ${e.qualityScore}, efficacité: ${e.efficiencyScore}), grade ${e.grade}, risque ${e.risk}
+Les employés sont désignés par un pseudonyme (Salarie-N) : reprends-le tel quel dans "name", n'invente aucun nom.
+
+${employees.map((e, i) => `${pseudonyme(i + 1)} (${e.role}): score global ${e.overallScore}/100 (qualité: ${e.qualityScore}, efficacité: ${e.efficiencyScore}), grade ${e.grade}, risque ${e.risk}
   → tâches: ${e.metrics.tasksCompleted}/${e.metrics.tasksAssigned} terminées, ${e.metrics.tasksOverdue} en retard (taux: ${e.metrics.completionRate}%)
   → présence: ${e.metrics.heuresTravaillees}h travaillées, ${e.metrics.sessionCount} sessions
   → activité: ${e.metrics.actionsTotal} actions, ${e.metrics.appelsTraites} appels, ${e.metrics.messagesEnvoyes} messages`).join("\n")}
@@ -2609,9 +2612,9 @@ Génère un rapport JSON complet:
 {
   "globalInsight": "analyse synthétique de l'équipe en 2-3 phrases",
   "teamHealth": "excellent|bon|moyen|préoccupant",
-  "topPerformers": [{"name": "nom", "score": 85, "strengths": ["point fort 1", "point fort 2"], "recognitionMessage": "message d'encouragement personnalisé"}],
-  "needsAttention": [{"name": "nom", "score": 45, "issues": ["problème détecté"], "rootCause": "analyse cause probable", "actionPlan": ["action concrète 1", "action concrète 2"]}],
-  "perEmployee": [{"name": "nom", "strengths": ["2-3 points forts"], "weaknesses": ["1-2 axes d'amélioration"], "tip": "conseil pratique personnalisé", "riskFlag": "motif si risque élevé ou null"}],
+  "topPerformers": [{"name": "Salarie-N", "score": 85, "strengths": ["point fort 1", "point fort 2"], "recognitionMessage": "message d'encouragement personnalisé"}],
+  "needsAttention": [{"name": "Salarie-N", "score": 45, "issues": ["problème détecté"], "rootCause": "analyse cause probable", "actionPlan": ["action concrète 1", "action concrète 2"]}],
+  "perEmployee": [{"name": "Salarie-N", "strengths": ["2-3 points forts"], "weaknesses": ["1-2 axes d'amélioration"], "tip": "conseil pratique personnalisé", "riskFlag": "motif si risque élevé ou null"}],
   "teamRecommendations": ["recommandation stratégique 1", "recommandation 2", "recommandation 3"],
   "workloadBalance": "analyse de la répartition de charge",
   "qualityAlert": "alerte qualité si score < 60 ou null"
@@ -2624,11 +2627,17 @@ Génère un rapport JSON complet:
       const m = aiResponse.match(/\{[\s\S]*\}/);
       analysis = m ? JSON.parse(m[0]) : { globalInsight: aiResponse };
     } catch { analysis = { globalInsight: aiResponse }; }
+    // Aucune identite n'est partie chez les fournisseurs (« Salarie-N », sans
+    // service) ; les noms sont remis ici, cote serveur. Jusqu'au 21/09/2026,
+    // nom et prenom de chaque salarie partaient en clair vers plusieurs
+    // fournisseurs, alors que le kit de conformite employeur affirmait le
+    // contraire.
+    analysis = reidentifierNoms(analysis, employees.map((e) => e.name));
 
     // Meme trace que les trois autres surfaces d evaluation (#154, #159, #160).
     // L article 5.2 du RGPD porte sur le TRAITEMENT: cette route ne conserve
-    // rien, mais elle envoie nom, prenom, temps de travail et duree des pauses
-    // de chaque salarie a une analyse. Il faut pouvoir dire qui l a demandee.
+    // rien, mais elle soumet le temps de travail et l'activite de chaque
+    // salarie a une analyse (sous pseudonyme depuis le 21/09/2026). Il faut pouvoir dire qui l a demandee.
     await logAudit(
       req.session?.userId,
       req.session?.userEmail,

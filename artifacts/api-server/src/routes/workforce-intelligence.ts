@@ -26,6 +26,7 @@ import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "../se
 import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL } from "../services/ai-utils";
 import { logger } from "../lib/logger";
 import { aiForOrg } from "../services/ai-client";
+import { pseudonyme, reidentifierNoms } from "../services/performance-garde-fous";
 
 const router = Router();
 
@@ -354,13 +355,17 @@ router.get(
       weekday: "long", year: "numeric", month: "long", day: "numeric",
     });
 
+    // Aucune identite ne part chez le fournisseur : « Salarie-N » a la place
+    // du nom, ni service ni prenom du responsable. Jusqu'au 21/09/2026, les
+    // prenoms et noms partaient en clair alors que le kit de conformite remis
+    // aux employeurs affirmait l'inverse. Les noms sont remis cote serveur.
     const employeeLines = withScores
-      .map((e) => `- ${e.prenom} ${e.nom} (${e.role}${e.departement ? ", " + e.departement : ""}): score=${e.score}/100, appels_7j=${e.calls7d} (repondus=${e.callsAnswered7d}, manques=${e.callsMissed7d}), taches_terminees_7j=${e.tasksCompleted7d}, taches_en_retard=${e.tasksOverdue}, notes_7j=${e.notes7d}, actions_7j=${e.actions7d}, actif_aujourd_hui=${e.callsToday + e.tasksCompletedToday + e.notesToday > 0 ? "oui" : "non"}, dernier_acces=${e.dernierAcces ? new Date(e.dernierAcces).toLocaleDateString("fr-FR") : "inconnu"}`)
+      .map((e, i) => `- ${pseudonyme(i + 1)} (${e.role}): score=${e.score}/100, appels_7j=${e.calls7d} (repondus=${e.callsAnswered7d}, manques=${e.callsMissed7d}), taches_terminees_7j=${e.tasksCompleted7d}, taches_en_retard=${e.tasksOverdue}, notes_7j=${e.notes7d}, actions_7j=${e.actions7d}, actif_aujourd_hui=${e.callsToday + e.tasksCompletedToday + e.notesToday > 0 ? "oui" : "non"}, dernier_acces=${e.dernierAcces ? new Date(e.dernierAcces).toLocaleDateString("fr-FR") : "inconnu"}`)
       .join("\n");
 
     const prompt = `Tu es un assistant RH IA specialise dans l'analyse de performance d'equipes en centre d'appels/bureau.
 Aujourd'hui: ${today}
-Manager: ${managerName}
+Les collaborateurs sont designes par un pseudonyme (Salarie-N) : reprends-le tel quel, n'invente aucun nom.
 Score moyen equipe: ${teamAvgScore}/100
 Nombre de collaborateurs: ${employees.length}
 
@@ -371,15 +376,15 @@ Analyse ces donnees et genere un rapport JSON complet (sans markdown, JSON brut 
 {
   "sante_equipe": <entier 0-100>,
   "tendance": "hausse" | "stable" | "baisse",
-  "message_manager": "Message bref et professionnel pour ${managerName} (2-3 phrases). Synthetise l'etat de l'equipe.",
+  "message_manager": "Message bref et professionnel pour le responsable d'equipe (2-3 phrases). Synthetise l'etat de l'equipe.",
   "top_performeurs": [
-    { "nom": "Prenom Nom", "score": <entier>, "raison": "Raison concise (1 phrase)" }
+    { "nom": "Salarie-N", "score": <entier>, "raison": "Raison concise (1 phrase)" }
   ],
   "en_difficulte": [
-    { "nom": "Prenom Nom", "score": <entier>, "probleme": "Probleme identifie", "action_recommandee": "Action concrete pour le manager" }
+    { "nom": "Salarie-N", "score": <entier>, "probleme": "Probleme identifie", "action_recommandee": "Action concrete pour le manager" }
   ],
   "alertes": [
-    { "type": "absence" | "surcharge" | "qualite" | "retard" | "inactivite", "collaborateur": "Prenom Nom", "message": "Description de l'alerte", "urgence": "haute" | "moyenne" | "basse" }
+    { "type": "absence" | "surcharge" | "qualite" | "retard" | "inactivite", "collaborateur": "Salarie-N", "message": "Description de l'alerte", "urgence": "haute" | "moyenne" | "basse" }
   ],
   "recommandations": [
     { "action": "Action concrete et actionnable pour le manager", "impact": "Impact attendu", "priorite": "haute" | "moyenne" | "basse" }
@@ -407,7 +412,10 @@ Regles:
 
     try {
       const raw = await runGemini(orgId, prompt);
-      aiResult = safeJson(raw, null);
+      aiResult = reidentifierNoms(
+        safeJson(raw, null),
+        withScores.map((e) => `${e.prenom} ${e.nom}`),
+      );
     } catch (err) {
       if (err instanceof AiQuotaExceededError) {
         logger.warn({ orgId }, "[workforce-intelligence] AI quota exceeded");
@@ -419,8 +427,8 @@ Regles:
     // Meme trace que les deux autres surfaces d'evaluation (#154, #159).
     //
     // Celle-ci ne conserve rien en base — elle lit, analyse et rend. Mais le
-    // traitement a bien lieu: le nom, le prenom, le role et un score
-    // d'activite de chaque salarie partent vers un modele, qui rend des
+    // traitement a bien lieu: le role et un score d'activite de chaque
+    // salarie (sous pseudonyme depuis le 21/09/2026) partent vers un modele, qui rend des
     // « top performeurs », des personnes « en difficulte » et des actions
     // recommandees les concernant. Ne rien stocker ne dispense pas de savoir
     // qui a declenche l'analyse, quand, et sur combien de personnes: c'est
