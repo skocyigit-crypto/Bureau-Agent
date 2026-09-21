@@ -75,8 +75,14 @@ export default function Accessibilite() {
                 d'un relevé équivalent.
               </li>
               <li>
-                Les contrastes de couleur n'ont pas fait l'objet d'un relevé
-                systématique.
+                Un audit partiel mené en septembre 2026 (revue du code sur dix
+                pages et test automatisé pa11y) relève encore : une carte de
+                contact activable à la souris mais pas au clavier (critère
+                7.1) ; des erreurs de saisie qui ne sont pas reliées aux champs
+                concernés (11.10) ; des états signalés par la seule couleur
+                sur le tableau de bord, les pointages et la facturation (3.1).
+                Les contrastes n'ont été mesurés que pour le texte ambre ; les
+                autres couleurs et le thème sombre restent à relever.
               </li>
               <li>
                 Le parcours complet au clavier et au lecteur d'écran n'a pas été
@@ -94,6 +100,17 @@ export default function Accessibilite() {
             </ul>
             <p className="mt-3">Corrections déjà apportées :</p>
             <ul className="mt-2 space-y-1 pl-4 list-disc">
+              <li>
+                Septembre 2026 : le texte ambre sur fond clair, mesuré à 2,1:1,
+                atteint désormais plus de 4,5:1 dans l'application et sur ce
+                site (3.2) ; chaque page de l'application porte un titre
+                propre (8.6) ; sur la connexion et l'inscription, le nom
+                accessible des champs est l'étiquette visible (11.2) ; les
+                champs de l'inscription portant des données personnelles
+                indiquent leur finalité pour la saisie automatique (11.13).
+                Chacune de ces corrections est vérifiée par un test
+                automatisé.
+              </li>
               <li>
                 Les commandes d'affichage du mot de passe des écrans de
                 connexion, de réinitialisation et d'inscription sont

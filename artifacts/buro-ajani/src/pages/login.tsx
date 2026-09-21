@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useTranslation } from "@/i18n";
 import { AlertTriangle,ArrowLeft,CheckCircle2,Eye,EyeOff,Lock,Mail,Phone,Shield } from "lucide-react";
 import { useEffect,useState } from "react";
+import { NOM_PRODUIT } from "@/lib/titre-page";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -19,6 +20,8 @@ type Mode = "login" | "forgot" | "reset" | "forgot_done";
 
 export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
   const { t } = useTranslation();
+  // Page hors Layout : son titre est pose ici (RGAA 8.6).
+  useEffect(() => { document.title = `${t("login.signIn")} – ${NOM_PRODUIT}`; }, [t]);
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -190,7 +193,7 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
                 <Label htmlFor="email" className="text-sm font-medium">{t("login.emailLabel")}</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input aria-label={t("login.emailPlaceholder")} id="email" type="email" placeholder={t("login.emailPlaceholder")} value={email}
+                  <Input id="email" type="email" placeholder={t("login.emailPlaceholder")} value={email}
                     onChange={e => setEmail(e.target.value)} className="pl-10" required autoComplete="email" autoFocus />
                 </div>
               </div>
@@ -204,7 +207,7 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
                 </div>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input aria-label={t("login.passwordPlaceholder")} id="password" type={showPassword ? "text" : "password"} placeholder={t("login.passwordPlaceholder")}
+                  <Input id="password" type={showPassword ? "text" : "password"} placeholder={t("login.passwordPlaceholder")}
                     value={password} onChange={e => setPassword(e.target.value)}
                     className="pl-10 pr-10" required autoComplete="current-password" />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
@@ -262,7 +265,7 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
                 <Label htmlFor="forgotEmail" className="text-sm font-medium">{t("login.emailLabel")}</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input aria-label={t("login.forgotEmailPlaceholder")} id="forgotEmail" type="email" placeholder={t("login.forgotEmailPlaceholder")} value={email}
+                  <Input id="forgotEmail" type="email" placeholder={t("login.forgotEmailPlaceholder")} value={email}
                     onChange={e => setEmail(e.target.value)} className="pl-10" required autoFocus />
                 </div>
               </div>
@@ -298,7 +301,7 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
                 <Label htmlFor="newPass" className="text-sm font-medium">{t("login.newPasswordLabel")}</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input aria-label={t("login.newPasswordPlaceholder")} id="newPass" type={showPassword ? "text" : "password"} placeholder={t("login.newPasswordPlaceholder")}
+                  <Input id="newPass" type={showPassword ? "text" : "password"} placeholder={t("login.newPasswordPlaceholder")}
                     value={newPassword} onChange={e => setNewPassword(e.target.value)}
                     className="pl-10 pr-10" required minLength={8} autoFocus />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
@@ -313,7 +316,7 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
                 <Label htmlFor="confirmPass" className="text-sm font-medium">{t("login.confirmPasswordLabel")}</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input aria-label={t("login.confirmPasswordPlaceholder")} id="confirmPass" type={showPassword ? "text" : "password"} placeholder={t("login.confirmPasswordPlaceholder")}
+                  <Input id="confirmPass" type={showPassword ? "text" : "password"} placeholder={t("login.confirmPasswordPlaceholder")}
                     value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="pl-10" required />
                 </div>
               </div>

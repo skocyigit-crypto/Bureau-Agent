@@ -401,7 +401,7 @@ export default function Home() {
           <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-border to-transparent"></div>
           <div className="container mx-auto px-4">
             <div className="text-center max-w-3xl mx-auto mb-20">
-              <span className="text-accent font-bold tracking-widest uppercase text-sm mb-4 block">Plateforme Unifiée</span>
+              <span className="text-[hsl(var(--accent-text))] font-bold tracking-widest uppercase text-sm mb-4 block">Plateforme Unifiée</span>
               <h2 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-primary mb-6 tracking-tight">
                 Tout ce dont vous avez besoin. <br/>
                 <span className="text-muted-foreground font-medium">Rien de superflu.</span>
@@ -685,7 +685,7 @@ export default function Home() {
         <section id="comment-ca-marche" className="py-32 bg-background">
           <div className="container mx-auto px-4">
             <div className="text-center max-w-3xl mx-auto mb-24">
-              <span className="text-accent font-bold tracking-widest uppercase text-sm mb-4 block">Déploiement Éclair</span>
+              <span className="text-[hsl(var(--accent-text))] font-bold tracking-widest uppercase text-sm mb-4 block">Déploiement Éclair</span>
               <h2 className="text-4xl md:text-5xl font-extrabold text-primary mb-6">Comment ça marche ?</h2>
               <p className="text-xl text-muted-foreground font-medium">
                 Mettez en place votre nouveau secrétariat virtuel en moins de temps qu'il n'en faut pour prendre un café.
