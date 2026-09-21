@@ -1,4 +1,9 @@
 {
+  "conformiteEmployeur": {
+    "titre": "İşverenin yükümlülükleri",
+    "avis": "Bu takibi kullanmadan önce işveren CSE'ye (çalışan temsilciliği) danışmalı, her çalışanı bilgilendirmeli ve gerekiyorsa bir veri koruma etki analizi (AIPD) yapmalıdır.",
+    "lien": "İşveren uyum kiti"
+  },
   "common": {
     "save": "Kaydet",
     "cancel": "İptal",

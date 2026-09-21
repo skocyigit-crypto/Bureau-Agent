@@ -57,4 +57,11 @@
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
+  <!-- Kit de conformite employeur (CSE, information des salaries, AIPD) :
+       l'employeur doit pouvoir le trouver avant d'activer le suivi. -->
+  <url>
+    <loc>https://agentdebureau.fr/conformite-employeur</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
 </urlset>

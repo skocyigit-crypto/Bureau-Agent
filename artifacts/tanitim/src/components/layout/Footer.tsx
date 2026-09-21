@@ -51,6 +51,7 @@ export function Footer() {
               <li><Link href="/cgu" className="hover:text-white transition-colors">CGU</Link></li>
               <li><Link href="/cgv" className="hover:text-white transition-colors">CGV</Link></li>
               <li><Link href="/dpa" className="hover:text-white transition-colors">Sous-traitance RGPD (DPA)</Link></li>
+              <li><Link href="/conformite-employeur" className="hover:text-white transition-colors">Kit de conformité employeur</Link></li>
               <li><Link href="/accessibilite" className="hover:text-white transition-colors">Accessibilité</Link></li>
               <li><Link href="/confidentialite" className="hover:text-white transition-colors">Politique de confidentialité</Link></li>
               <li><Link href="/gizlilik" className="hover:text-white transition-colors" hrefLang="tr" lang="tr">Gizlilik Politikası (TR)</Link></li>

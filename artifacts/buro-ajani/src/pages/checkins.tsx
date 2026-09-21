@@ -1,3 +1,4 @@
+import { AvisConformiteEmployeur } from "@/components/avis-conformite-employeur";
 import receptionImg from "@/assets/images/reception-desk.webp";
 import { useSelectionVisibleListe } from "@/lib/selection-visible";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
@@ -338,6 +339,7 @@ export default function CheckinsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={Clock} variant="slate" size="md" /> {t("checkins.title")}</h1>
           <p className="text-muted-foreground">{t("checkins.subtitle")}</p>
+          <div className="mt-3"><AvisConformiteEmployeur /></div>
         </div>
         <div className="flex gap-2">
           <a href={`${(import.meta.env.BASE_URL || "/").replace(/\/$/, "")}/api/checkins/export/csv`} download>
