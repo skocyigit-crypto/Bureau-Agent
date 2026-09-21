@@ -44,6 +44,12 @@ export const PAGE_META = {
       "Accord de sous-traitance RGPD d'Ajant Bureau : roles, securite, sous-traitants ulterieurs, transferts et sort des donnees.",
     path: "/dpa",
   },
+  conformiteEmployeur: {
+    title: "Kit de conformité employeur",
+    description:
+      "Consultation du CSE, note d'information des salariés et trame d'AIPD pour le pointage, la présence sur zone et les rapports d'évaluation d'Ajant Bureau.",
+    path: "/conformite-employeur",
+  },
   accessibilite: {
     title: "Déclaration d'accessibilité",
     description:

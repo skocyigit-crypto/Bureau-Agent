@@ -863,7 +863,7 @@ export default function Home() {
                 <p className="text-muted-foreground mb-8 min-h-[48px]">Pour les grands groupes et volumes massifs.</p>
                 <div className="mb-8">
                   <span className="text-5xl font-extrabold text-primary">199€</span>
-                  <span className="text-muted-foreground font-medium">/mois</span>
+                  <span className="text-muted-foreground font-medium">HT /mois</span>
                 </div>
                 <Button variant="outline" className="w-full h-14 rounded-xl text-lg font-bold border-2 mb-3 hover:bg-primary/5" onClick={() => openContact("devis", "Offre Entreprise (sur mesure)")}>
                   Demander un devis sur mesure
@@ -924,6 +924,16 @@ export default function Home() {
               souhaité depuis votre espace&nbsp;: nous vous adressons la facture
               et l'accès est étendu dès réception du virement. Sans engagement
               de durée, résiliable à tout moment.
+            </p>
+            {/* Facturation electronique: la limite etait ecrite, mais seulement au
+                §8 des CGV. Un artisan qui choisit un logiciel de facturation en
+                2026 doit savoir AVANT d'acheter qu'il lui faudra aussi une
+                plateforme agreee pour transmettre ses factures. */}
+            <p className="mt-3 text-center text-sm text-muted-foreground max-w-2xl mx-auto">
+              Facturation électronique&nbsp;: vos factures sont produites au format
+              Factur-X (EN&nbsp;16931). Ajant Bureau n'est pas une plateforme agréée
+              de dématérialisation&nbsp;: leur transmission passe par la plateforme
+              agréée de votre choix, où vous déposez les fichiers exportés.
             </p>
           </div>
         </section>

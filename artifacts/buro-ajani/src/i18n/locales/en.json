@@ -1,4 +1,9 @@
 {
+  "conformiteEmployeur": {
+    "titre": "Employer obligations",
+    "avis": "Before using this monitoring, the employer must consult the works council (CSE), inform each employee and, where required, carry out a data protection impact assessment (DPIA).",
+    "lien": "Employer compliance kit"
+  },
   "common": {
     "save": "Save",
     "cancel": "Cancel",

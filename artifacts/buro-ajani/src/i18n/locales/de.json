@@ -1,4 +1,9 @@
 {
+  "conformiteEmployeur": {
+    "titre": "Pflichten des Arbeitgebers",
+    "avis": "Vor der Nutzung dieser Überwachung muss der Arbeitgeber den Betriebsrat (CSE) anhören, jeden Beschäftigten informieren und gegebenenfalls eine Datenschutz-Folgenabschätzung (AIPD) durchführen.",
+    "lien": "Compliance-Kit für Arbeitgeber"
+  },
   "common": {
     "save": "Speichern",
     "cancel": "Abbrechen",

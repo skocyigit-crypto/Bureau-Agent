@@ -1,4 +1,9 @@
 {
+  "conformiteEmployeur": {
+    "titre": "Obligaciones del empleador",
+    "avis": "Antes de utilizar este seguimiento, el empleador debe consultar al comité social y económico (CSE), informar a cada empleado y, si es necesario, realizar una evaluación de impacto (AIPD).",
+    "lien": "Kit de cumplimiento del empleador"
+  },
   "common": {
     "save": "Guardar",
     "cancel": "Cancelar",

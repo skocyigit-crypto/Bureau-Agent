@@ -14,6 +14,7 @@
  * - Alt: "Gecmis" tabi - kullanici secimi + son 30g olaylari.
  */
 
+import { AvisConformiteEmployeur } from "@/components/avis-conformite-employeur";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Card,CardContent,CardHeader,CardTitle } from "@/components/ui/card";
@@ -111,6 +112,7 @@ export default function EquipeLocalisationPage() {
             {t("equipeLocalisation.subtitle")}
           </p>
         </div>
+        <AvisConformiteEmployeur />
         <Tabs defaultValue="live">
           <TabsList>
             <TabsTrigger value="live">{t("equipeLocalisation.tabLive")}</TabsTrigger>

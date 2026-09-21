@@ -9,7 +9,8 @@ import { join } from "node:path";
 
 const RACINE = join(import.meta.dirname, "..", "..", "..", "..");
 const lire = (...p: string[]) => readFileSync(join(RACINE, ...p), "utf8");
-const KIT = lire("docs", "conformite-employeur", "README.md");
+const DOSSIER_KIT = ["artifacts", "tanitim", "src", "content", "conformite-employeur"] as const;
+const KIT = lire(...DOSSIER_KIT, "README.md");
 const SRC = (...p: string[]) => lire("artifacts", "api-server", "src", ...p);
 
 describe("chaque garantie annoncee a son mecanisme", () => {
@@ -41,7 +42,7 @@ describe("chaque garantie annoncee a son mecanisme", () => {
   it("les liens internes du kit existent", () => {
     for (const f of ["dossier-consultation-cse.md", "note-information-salaries.md", "trame-aipd.md"]) {
       expect(KIT).toContain(`](${f})`);
-      expect(() => lire("docs", "conformite-employeur", f)).not.toThrow();
+      expect(() => lire(...DOSSIER_KIT, f)).not.toThrow();
     }
   });
   it("la note ne promet pas de purge des pointages que le logiciel ne fait pas", () => {

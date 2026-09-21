@@ -8,32 +8,6 @@ const ContactModal = lazy(() =>
 
 const FAB_MARKER_ATTR = "data-floating-callback-fab";
 
-function trackFabEvent(action: "shown" | "click" | "dismiss") {
-  try {
-    const w = window as unknown as {
-      gtag?: (...args: unknown[]) => void;
-      dataLayer?: unknown[];
-      plausible?: (event: string, opts?: Record<string, unknown>) => void;
-      umami?: { track: (event: string, data?: Record<string, unknown>) => void };
-    };
-    const eventName = `fab_callback_${action}`;
-    if (typeof w.gtag === "function") {
-      w.gtag("event", eventName, { event_category: "engagement" });
-    }
-    if (Array.isArray(w.dataLayer)) {
-      w.dataLayer.push({ event: eventName });
-    }
-    if (typeof w.plausible === "function") {
-      w.plausible(eventName);
-    }
-    if (w.umami && typeof w.umami.track === "function") {
-      w.umami.track(eventName);
-    }
-  } catch {
-    // analytics never blocks UI
-  }
-}
-
 export function FloatingCallbackButton() {
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -66,24 +40,14 @@ export function FloatingCallbackButton() {
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
-    if (mounted && !dismissed && !otherModalOpen && !open) {
-      trackFabEvent("shown");
-    }
-    // We intentionally only fire on first becoming visible.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted]);
-
   const visible = mounted && !dismissed && !otherModalOpen;
 
   const handleClick = () => {
-    trackFabEvent("click");
     setOpen(true);
   };
 
   const handleDismiss = (e: React.MouseEvent) => {
     e.stopPropagation();
-    trackFabEvent("dismiss");
     setDismissed(true);
   };
 

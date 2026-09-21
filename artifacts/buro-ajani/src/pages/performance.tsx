@@ -1,3 +1,4 @@
+import { AvisConformiteEmployeur } from "@/components/avis-conformite-employeur";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card,CardContent,CardHeader,CardTitle } from "@/components/ui/card";
@@ -170,6 +171,7 @@ export default function PerformancePage() {
             {t("performancePage.title")}
           </h1>
           <p className="text-muted-foreground mt-1">{t("performancePage.subtitle")}</p>
+          <div className="mt-3"><AvisConformiteEmployeur /></div>
         </div>
 
         <div className="flex items-center gap-3">

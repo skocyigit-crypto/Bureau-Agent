@@ -227,8 +227,9 @@ describe("dette de mentions legales obligatoires", () => {
    * obtenue — c'est le but de ce compteur.
    *
    * 18/09/2026: 1 — le telephone de l'hebergeur (contrat Google Cloud EMEA).
+   * 21/09/2026: 0 — renseigne (standard Google Dublin).
    */
-  const DETTE_ATTENDUE = 1;
+  const DETTE_ATTENDUE = 0;
 
   it("chaque mention obligatoire existe dans le fichier", () => {
     for (const champ of OBLIGATOIRES) {
@@ -264,6 +265,7 @@ describe("dette de mentions legales obligatoires", () => {
   it("une mention obligatoire deja obtenue ne redevient pas vide en silence", () => {
     expect(valeur("rcs")).not.toBe("");
     expect(valeur("capitalSocial")).not.toBe("");
+    expect(valeur("hebergeurTelephone")).not.toBe("");
   });
 });
 

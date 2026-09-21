@@ -128,13 +128,20 @@ describe("la vitrine dit ce que l'application fait", () => {
         "la page annonce un scan QR/code-barres qu'aucun code ne realise",
       ).toBe(false);
     }
-  });
+    // Parcourt trois arbres de sources sur disque: le delai par defaut (5 s)
+    // tombait sur une machine chargee, et le test echouait sans avoir mesure.
+  }, 30_000);
 });
+
+const IGNORES = new Set(["node_modules", "dist", "build", "android", "ios", "web-build", "static-build", "coverage"]);
 
 /** Recherche recursive d'un motif dans les sources d'un dossier. */
 function chercher(dir: string, motif: RegExp): boolean {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (e.name === "node_modules" || e.name.startsWith(".")) continue;
+    // Les dossiers GENERES (build web, projets natifs, caches Expo) ne sont pas
+    // du code ecrit: les parcourir faisait depasser le delai du test, qui
+    // echouait alors sans rien avoir mesure.
+    if (IGNORES.has(e.name) || e.name.startsWith(".")) continue;
     const p = path.join(dir, e.name);
     if (e.isDirectory()) {
       if (chercher(p, motif)) return true;

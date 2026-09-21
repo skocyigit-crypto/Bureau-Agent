@@ -14,6 +14,7 @@ const CGU = lazy(() => import("@/pages/cgu"));
 const CGV = lazy(() => import("@/pages/cgv"));
 const DPA = lazy(() => import("@/pages/dpa"));
 const Accessibilite = lazy(() => import("@/pages/accessibilite"));
+const ConformiteEmployeur = lazy(() => import("@/pages/conformite-employeur"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient();
@@ -30,6 +31,8 @@ function Router() {
         <Route path="/cgv" component={CGV} />
         <Route path="/dpa" component={DPA} />
         <Route path="/accessibilite" component={Accessibilite} />
+        <Route path="/conformite-employeur" component={ConformiteEmployeur} />
+        <Route path="/conformite-employeur/:doc" component={ConformiteEmployeur} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>

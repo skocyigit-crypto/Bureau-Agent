@@ -1,4 +1,9 @@
 {
+  "conformiteEmployeur": {
+    "titre": "Obligations de l'employeur",
+    "avis": "Avant d'utiliser ce suivi, l'employeur doit consulter le CSE, informer chaque salarié et, si nécessaire, réaliser une analyse d'impact (AIPD).",
+    "lien": "Kit de conformité employeur"
+  },
   "common": {
     "save": "Enregistrer",
     "cancel": "Annuler",
