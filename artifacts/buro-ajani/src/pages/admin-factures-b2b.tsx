@@ -1,3 +1,4 @@
+import { signalerChamp } from "@/lib/champ-en-erreur";
 import { AccessDenied } from "@/components/access-denied";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -128,8 +129,8 @@ function AdminFacturesB2BContent() {
   };
 
   const handleSave = async () => {
-    if (!form.title.trim()) { toast({ title: t("adminFacturesB2b.toast.titleRequired"), variant: "destructive" }); return; }
-    if (!form.clientName.trim()) { toast({ title: t("adminFacturesB2b.toast.clientRequired"), variant: "destructive" }); return; }
+    if (!form.title.trim()) { signalerChamp("facture-b2b-titre", t("adminFacturesB2b.toast.titleRequired")); toast({ title: t("adminFacturesB2b.toast.titleRequired"), variant: "destructive" }); return; }
+    if (!form.clientName.trim()) { signalerChamp("facture-b2b-client", t("adminFacturesB2b.toast.clientRequired")); toast({ title: t("adminFacturesB2b.toast.clientRequired"), variant: "destructive" }); return; }
     if (!editingId && !form.organisationId) { toast({ title: t("adminFacturesB2b.toast.orgRequired"), variant: "destructive" }); return; }
     setSaving(true);
     try {
@@ -295,7 +296,7 @@ function AdminFacturesB2BContent() {
                   : t("adminFacturesB2b.form.orgHelpCreate")}
               </p>
             </div>
-            <div><Label className="text-xs">{t("adminFacturesB2b.form.title")} *</Label><Input aria-label={t("adminFacturesB2b.form.title")} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
+            <div><Label className="text-xs">{t("adminFacturesB2b.form.title")} *</Label><Input id="facture-b2b-titre" aria-required="true" aria-label={t("adminFacturesB2b.form.title")} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs">{t("adminFacturesB2b.form.reference")}</Label><Input aria-label={t("adminFacturesB2b.form.reference")} value={form.reference} onChange={e => setForm(f => ({ ...f, reference: e.target.value }))} placeholder="FAC-..." /></div>
               <div><Label className="text-xs">{t("adminFacturesB2b.form.status")}</Label>
@@ -306,7 +307,7 @@ function AdminFacturesB2BContent() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">{t("adminFacturesB2b.form.client")} *</Label><Input aria-label={t("adminFacturesB2b.form.client")} value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("adminFacturesB2b.form.client")} *</Label><Input id="facture-b2b-client" aria-required="true" aria-label={t("adminFacturesB2b.form.client")} value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} /></div>
               <div><Label className="text-xs">{t("adminFacturesB2b.form.company")}</Label><Input aria-label={t("adminFacturesB2b.form.company")} value={form.clientCompany} onChange={e => setForm(f => ({ ...f, clientCompany: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">

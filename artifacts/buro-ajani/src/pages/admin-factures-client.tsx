@@ -1,3 +1,4 @@
+import { signalerChamp } from "@/lib/champ-en-erreur";
 import { LineItemsEditor,type LineItem } from "@/components/line-items-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -119,8 +120,8 @@ export default function AdminFacturesClientPage() {
   };
 
   const handleSave = async () => {
-    if (!form.title.trim()) { toast({ title: t("adminFacturesClient.toast.titleRequired"), variant: "destructive" }); return; }
-    if (!form.clientName.trim()) { toast({ title: t("adminFacturesClient.toast.clientRequired"), variant: "destructive" }); return; }
+    if (!form.title.trim()) { signalerChamp("facture-client-titre", t("adminFacturesClient.toast.titleRequired")); toast({ title: t("adminFacturesClient.toast.titleRequired"), variant: "destructive" }); return; }
+    if (!form.clientName.trim()) { signalerChamp("facture-client-client", t("adminFacturesClient.toast.clientRequired")); toast({ title: t("adminFacturesClient.toast.clientRequired"), variant: "destructive" }); return; }
     setSaving(true);
     try {
       const url = editingId ? `${BASE}/api/factures-client/${editingId}` : `${BASE}/api/factures-client`;
@@ -345,7 +346,7 @@ export default function AdminFacturesClientPage() {
           <div className="space-y-3">
             <div>
             </div>
-            <div><Label className="text-xs">{t("adminFacturesClient.form.title")} *</Label><Input aria-label={t("adminFacturesClient.form.title")} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
+            <div><Label className="text-xs">{t("adminFacturesClient.form.title")} *</Label><Input id="facture-client-titre" aria-required="true" aria-label={t("adminFacturesClient.form.title")} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs">{t("adminFacturesClient.form.reference")}</Label><Input aria-label={t("adminFacturesClient.form.reference")} value={form.reference} onChange={e => setForm(f => ({ ...f, reference: e.target.value }))} placeholder="FAC-..." /></div>
               <div><Label className="text-xs">{t("adminFacturesClient.form.status")}</Label>
@@ -356,7 +357,7 @@ export default function AdminFacturesClientPage() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">{t("adminFacturesClient.form.client")} *</Label><Input aria-label={t("adminFacturesClient.form.client")} value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("adminFacturesClient.form.client")} *</Label><Input id="facture-client-client" aria-required="true" aria-label={t("adminFacturesClient.form.client")} value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} /></div>
               <div><Label className="text-xs">{t("adminFacturesClient.form.company")}</Label><Input aria-label={t("adminFacturesClient.form.company")} value={form.clientCompany} onChange={e => setForm(f => ({ ...f, clientCompany: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">

@@ -1,3 +1,4 @@
+import { signalerChamp } from "@/lib/champ-en-erreur";
 import { Badge } from "@/components/ui/badge";
 import { useSelectionVisible } from "@/lib/selection-visible";
 import { Button } from "@/components/ui/button";
@@ -257,7 +258,7 @@ function EditRuleDialog({ rule, onSaved, onClose }: { rule: any; onSaved: () => 
   });
 
   async function submit() {
-    if (!form.name.trim()) { toast({ title: t("automationsPage.toast.nameRequired"), variant: "destructive" }); return; }
+    if (!form.name.trim()) { signalerChamp("automation-nom", t("automationsPage.toast.nameRequired")); toast({ title: t("automationsPage.toast.nameRequired"), variant: "destructive" }); return; }
     setSaving(true);
     try {
       const res = await fetch(`${baseUrl}/api/automations/${rule.id}`, {
@@ -288,7 +289,7 @@ function EditRuleDialog({ rule, onSaved, onClose }: { rule: any; onSaved: () => 
         <div className="space-y-4 py-2">
           <div>
             <Label>{t("automationsPage.dialog.ruleName")} <span className="text-red-500">*</span></Label>
-            <Input aria-label={t("automationsPage.dialog.ruleName")} className="mt-1" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+            <Input id="automation-nom" aria-required="true" aria-label={t("automationsPage.dialog.ruleName")} className="mt-1" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
           </div>
           <div>
             <Label>{t("automationsPage.dialog.description")}</Label>
@@ -342,7 +343,7 @@ function CreateRuleDialog({ onCreated }: { onCreated: () => void }) {
   }
 
   async function submit() {
-    if (!form.name.trim()) { toast({ title: t("automationsPage.toast.nameRequired"), variant: "destructive" }); return; }
+    if (!form.name.trim()) { signalerChamp("automation-nom", t("automationsPage.toast.nameRequired")); toast({ title: t("automationsPage.toast.nameRequired"), variant: "destructive" }); return; }
     if (form.actions.length === 0) { toast({ title: t("automationsPage.toast.actionRequired"), variant: "destructive" }); return; }
 
     setSaving(true);
@@ -400,7 +401,7 @@ function CreateRuleDialog({ onCreated }: { onCreated: () => void }) {
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
               <Label>{t("automationsPage.dialog.ruleName")} <span className="text-red-500">*</span></Label>
-              <Input aria-label={t("automationsPage.dialog.ruleName")} className="mt-1" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={t("automationsPage.dialog.ruleNamePlaceholder")} />
+              <Input id="automation-nom" aria-required="true" aria-label={t("automationsPage.dialog.ruleName")} className="mt-1" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={t("automationsPage.dialog.ruleNamePlaceholder")} />
             </div>
             <div className="col-span-2">
               <Label>{t("automationsPage.dialog.description")}</Label>

@@ -1,3 +1,4 @@
+import { signalerChamp } from "@/lib/champ-en-erreur";
 import { LineItemsEditor,type LineItem } from "@/components/line-items-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -105,8 +106,8 @@ export default function AdminDevisPage() {
   };
 
   const handleSave = async () => {
-    if (!form.title.trim()) { toast({ title: t("adminDevis.toast.titleRequired"), variant: "destructive" }); return; }
-    if (!form.clientName.trim()) { toast({ title: t("adminDevis.toast.clientRequired"), variant: "destructive" }); return; }
+    if (!form.title.trim()) { signalerChamp("devis-titre", t("adminDevis.toast.titleRequired")); toast({ title: t("adminDevis.toast.titleRequired"), variant: "destructive" }); return; }
+    if (!form.clientName.trim()) { signalerChamp("devis-client", t("adminDevis.toast.clientRequired")); toast({ title: t("adminDevis.toast.clientRequired"), variant: "destructive" }); return; }
     setSaving(true);
     try {
       const url = editingId ? `${BASE}/api/devis/${editingId}` : `${BASE}/api/devis`;
@@ -223,7 +224,7 @@ export default function AdminDevisPage() {
           <div className="space-y-3">
             <div>
             </div>
-            <div><Label className="text-xs">{t("adminDevis.form.title")} *</Label><Input aria-label={t("adminDevis.form.title")} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
+            <div><Label className="text-xs">{t("adminDevis.form.title")} *</Label><Input id="devis-titre" aria-required="true" aria-label={t("adminDevis.form.title")} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs">{t("adminDevis.form.reference")}</Label><Input aria-label={t("adminDevis.form.reference")} value={form.reference} onChange={e => setForm(f => ({ ...f, reference: e.target.value }))} placeholder="DEV-..." /></div>
               <div><Label className="text-xs">{t("adminDevis.form.status")}</Label>
@@ -234,7 +235,7 @@ export default function AdminDevisPage() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">{t("adminDevis.form.client")} *</Label><Input aria-label={t("adminDevis.form.client")} value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} /></div>
+              <div><Label className="text-xs">{t("adminDevis.form.client")} *</Label><Input id="devis-client" aria-required="true" aria-label={t("adminDevis.form.client")} value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} /></div>
               <div><Label className="text-xs">{t("adminDevis.form.company")}</Label><Input aria-label={t("adminDevis.form.company")} value={form.clientCompany} onChange={e => setForm(f => ({ ...f, clientCompany: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">

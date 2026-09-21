@@ -1,3 +1,4 @@
+import { signalerChamp } from "@/lib/champ-en-erreur";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
@@ -1144,7 +1145,7 @@ function RappelsTab() {
   };
 
   const sendReminder = async (taskId: number) => {
-    if (!reminderEmail) { toast({ title: t("commandantIa.rappels.emailRequired"), variant: "destructive" }); return; }
+    if (!reminderEmail) { signalerChamp("rappel-email", t("commandantIa.rappels.emailRequired")); toast({ title: t("commandantIa.rappels.emailRequired"), variant: "destructive" }); return; }
     setSendingId(taskId);
     try {
       const d = await apiPost("/commandant/send-task-reminder", { taskId, recipientEmail: reminderEmail, customMessage: customMessage || undefined });
@@ -1208,7 +1209,7 @@ function RappelsTab() {
           <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Send className="h-4 w-4 text-blue-500" />{t("commandantIa.rappels.individualTitle")}</CardTitle><CardDescription className="text-xs">{t("commandantIa.rappels.individualDesc")}</CardDescription></CardHeader>
           <CardContent className="space-y-3">
             <div><Label className="text-xs">{t("commandantIa.rappels.taskId")}</Label><Input aria-label={t("commandantIa.rappels.taskId")} placeholder="Ex: 42" type="number" value={reminderTaskId} onChange={e => setReminderTaskId(e.target.value)} /></div>
-            <div><Label className="text-xs">{t("commandantIa.rappels.recipient")}</Label><Input aria-label={t("commandantIa.rappels.recipient")} value={reminderEmail} onChange={e => setReminderEmail(e.target.value)} placeholder="collaborateur@example.com" /></div>
+            <div><Label className="text-xs">{t("commandantIa.rappels.recipient")}</Label><Input id="rappel-email" aria-required="true" aria-label={t("commandantIa.rappels.recipient")} value={reminderEmail} onChange={e => setReminderEmail(e.target.value)} placeholder="collaborateur@example.com" /></div>
             <div><Label className="text-xs">{t("commandantIa.rappels.customMessage")}</Label><Textarea aria-label={t("commandantIa.rappels.customMessage")} value={customMessage} onChange={e => setCustomMessage(e.target.value)} placeholder={t("commandantIa.rappels.customPlaceholder")} rows={3} /></div>
             <Button
               onClick={() => {

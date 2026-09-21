@@ -1,3 +1,4 @@
+import { signalerChamp } from "@/lib/champ-en-erreur";
 import orgBanner from "@/assets/images/security-server.webp";
 import { AccessDenied } from "@/components/access-denied";
 import { Icon3D } from "@/components/icon-3d";
@@ -589,7 +590,7 @@ export default function OrganisationsPage() {
   };
 
   const handleCreate = async () => {
-    if (!formName.trim()) { toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.nameRequired"), variant: "destructive" }); return; }
+    if (!formName.trim()) { signalerChamp("organisation-nom", t("organisationsPage.toast.nameRequired")); toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.nameRequired"), variant: "destructive" }); return; }
     if (formAdminPrenom || formAdminNom || formAdminEmail) {
       if (!formAdminPrenom || !formAdminNom || !formAdminEmail) {
         toast({ title: t("organisationsPage.toast.error"), description: t("organisationsPage.toast.adminFieldsRequired"), variant: "destructive" });
@@ -2167,7 +2168,7 @@ export default function OrganisationsPage() {
               <div className="relative">
                 <Label>{t("organisationsPage.createDialog.orgName")}</Label>
                 <div className="relative">
-                  <Input aria-label={t("organisationsPage.createDialog.orgName")}
+                  <Input id="organisation-nom" aria-required="true" aria-label={t("organisationsPage.createDialog.orgName")}
                     value={formName}
                     onChange={(e) => handleFormNameChange(e.target.value)}
                     onFocus={() => { if (companyResults.length > 0) setCompanySearchOpen(true); }}
@@ -2270,7 +2271,7 @@ export default function OrganisationsPage() {
           <div className="space-y-4">
             <div>
               <Label>{t("organisationsPage.editDialog.name")}</Label>
-              <Input aria-label={t("organisationsPage.editDialog.name")} value={formName} onChange={(e) => setFormName(e.target.value)} />
+              <Input id="organisation-nom" aria-required="true" aria-label={t("organisationsPage.editDialog.name")} value={formName} onChange={(e) => setFormName(e.target.value)} />
             </div>
             <div>
               <Label>{t("organisationsPage.editDialog.email")}</Label>
