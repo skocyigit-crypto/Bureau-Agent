@@ -73,7 +73,7 @@ export const voiceReceptionistRouter: IRouter = Router();
 
 // --- Langues / voix -------------------------------------------------------
 
-type RecLang = "fr" | "tr" | "en" | "es" | "de" | "ar";
+export type RecLang = "fr" | "tr" | "en" | "es" | "de" | "ar";
 
 const REC_LANGS: readonly RecLang[] = ["fr", "tr", "en", "es", "de", "ar"];
 
@@ -89,6 +89,34 @@ const DEFAULT_GREETING: Record<RecLang, string> = {
   de: "Guten Tag, Sie sind mit dem Sekretariat verbunden. Wie kann ich Ihnen helfen?",
   ar: "مرحباً، لقد وصلت إلى مكتب الاستقبال. كيف يمكنني مساعدتك؟",
 };
+/**
+ * Annonce que l'appelant parle a une IA — dite AVANT tout autre mot.
+ *
+ * Reglement (UE) 2024/1689 (AI Act), art. 50 §1: un systeme d'IA destine a
+ * interagir directement avec des personnes doit les informer qu'elles
+ * interagissent avec une IA, sauf si c'est evident. Au telephone, ca ne l'est
+ * pas: la voix est synthetique mais naturelle, et l'accueil disait « vous etes
+ * en relation avec le secretariat », puis « ravie de vous reentendre » a un
+ * appelant connu. Un client pouvait croire parler a une personne.
+ *
+ * L'annonce est posee par le CODE, pas par l'accueil: celui-ci est librement
+ * redige par l'organisation cliente, et un accueil personnalise ne doit pas
+ * pouvoir la faire disparaitre.
+ */
+export const ANNONCE_IA: Record<RecLang, string> = {
+  fr: "Vous etes en relation avec l'assistante vocale automatique, une intelligence artificielle.",
+  tr: "Otomatik sesli asistana, bir yapay zekaya baglandiniz.",
+  en: "You are speaking with an automated voice assistant, an artificial intelligence.",
+  es: "Esta hablando con un asistente de voz automatico, una inteligencia artificial.",
+  de: "Sie sprechen mit einem automatischen Sprachassistenten, einer kuenstlichen Intelligenz.",
+  ar: "أنت تتحدث مع مساعد صوتي آلي يعمل بالذكاء الاصطناعي.",
+};
+
+/** Le premier enonce de l'appel: l'annonce, puis l'accueil. */
+export function premierEnonce(lang: RecLang, accueil: string): string {
+  return `${ANNONCE_IA[lang]} ${accueil}`;
+}
+
 const DISABLED_MSG: Record<RecLang, string> = {
   fr: "Bonjour. Notre secretaire vocale n'est pas disponible pour le moment. Merci de rappeler ulterieurement.",
   tr: "Merhaba. Sesli sekreterimiz su anda musait degil. Lutfen daha sonra tekrar arayin.",
@@ -925,6 +953,7 @@ function buildSystemInstruction(
   return (
     `Tu es la secretaire telephonique IA de l'entreprise "${orgName}". ` +
     `Tu reponds AU TELEPHONE a un appelant (souvent un client ou un prospect). ` +
+    `L'appelant a ete informe en debut d'appel qu'il parle a une IA. Ne pretends JAMAIS etre une personne humaine: si on te demande si tu es humaine ou un robot, reponds honnetement que tu es une assistante vocale automatique (intelligence artificielle), et propose de transmettre un message a l'equipe. ` +
     `Parle en ${LANG_NAME[lang]}, de maniere chaleureuse, breve et naturelle: ` +
     `des reponses ORALES de 1 a 2 phrases maximum, sans listes ni emojis ni mise en forme.\n` +
     `Date et heure actuelles (Europe/Paris): ${todayStr}.\n` +
@@ -1685,8 +1714,10 @@ voiceReceptionistRouter.post("/voice/twilio/incoming", async (req: Request, res:
 
   const customGreeting =
     typeof cfg.greeting === "string" && cfg.greeting.trim() ? cfg.greeting.trim() : null;
-  const greeting =
-    customGreeting ?? (caller.name ? personalizedGreeting(lang, caller.name) : DEFAULT_GREETING[lang]);
+  const greeting = premierEnonce(
+    lang,
+    customGreeting ?? (caller.name ? personalizedGreeting(lang, caller.name) : DEFAULT_GREETING[lang]),
+  );
 
   sessions.set(callSid, {
     orgId: tenant.orgId,
