@@ -108,6 +108,18 @@ export const REDACTED_COLUMNS = new Set([
   "client_secret_enc",
   "secret",
   "secrets",
+  // Ajoutees le 21/09/2026 : la liste etait tenue a la main, et ces secrets
+  // VIVANTS partaient dans l'export telechargeable. Un jeton de reinitialisation
+  // de mot de passe ou d'invitation dans un fichier egare suffit a prendre un
+  // compte ou a entrer dans l'organisation. tenant-backup-secrets.test.ts
+  // derive desormais la liste du schema.
+  "reset_password_token",
+  "email_verification_token",
+  "token",
+  "claim_token",
+  "key_encrypted",
+  "license_key",
+  "client_secret_chiffre",
 ]);
 
 /** Au-dela, on refuse de stocker: la ligne deviendrait ingerable en base. */
