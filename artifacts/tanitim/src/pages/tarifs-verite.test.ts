@@ -142,3 +142,25 @@ describe("la page de tarifs dit la verite", () => {
     }
   });
 });
+
+describe("la page de tarifs dit aussi ce que le prix ne comprend pas", () => {
+  it("chaque prix affiche porte la mention HT", () => {
+    // Un professionnel lit « 199 €/mois » comme un montant TTC s'il n'est pas
+    // precise, et deux plans sur trois portaient « HT ». Le troisieme non.
+    for (const cle of Object.keys(PLANS)) {
+      const prix = `${PLANS[cle].price}€</span>`;
+      const i = TEXTE.indexOf(prix);
+      if (i < 0) continue; // plan gratuit ou non affiche: couvert par le test des prix
+      expect(TEXTE.slice(i, i + 160), `le prix du plan ${cle} n'est pas marque HT`).toMatch(/HT \/mois/);
+    }
+  });
+
+  it("la limite de la facturation electronique est dite avant l'achat", () => {
+    // Elle n'etait ecrite qu'au paragraphe 8 des CGV.
+    const i = TEXTE.indexOf('id="tarifs"');
+    const fin = TEXTE.indexOf("</section>", i);
+    const tarifs = TEXTE.slice(i, fin);
+    expect(tarifs).toMatch(/Factur-X/);
+    expect(tarifs).toMatch(/n'est pas une plateforme agréée/);
+  });
+});
