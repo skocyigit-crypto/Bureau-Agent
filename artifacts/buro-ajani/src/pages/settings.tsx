@@ -11,6 +11,7 @@ Layers,
 Mail,
 Monitor,Package,
 PhoneIncoming,
+PlugZap,
 Printer,
 Rocket,
 Save,
@@ -34,6 +35,7 @@ const TabIntelligenceArtificielle = lazy(() => import("./settings/tab-intelligen
 const TabMisesAJour = lazy(() => import("./settings/tab-mises-a-jour").then(m => ({ default: m.TabMisesAJour })));
 const TabNotifications = lazy(() => import("./settings/tab-notifications").then(m => ({ default: m.TabNotifications })));
 const TabPlateformes = lazy(() => import("./settings/tab-plateformes").then(m => ({ default: m.TabPlateformes })));
+const TabPlateformeAgreee = lazy(() => import("./settings/tab-plateforme-agreee").then(m => ({ default: m.TabPlateformeAgreee })));
 const TabPreferencesIa = lazy(() => import("./settings/tab-preferences-ia").then(m => ({ default: m.TabPreferencesIa })));
 const TabProfilOrg = lazy(() => import("./settings/tab-profil-org").then(m => ({ default: m.TabProfilOrg })));
 const TabSauvegardes = lazy(() => import("./settings/tab-sauvegardes").then(m => ({ default: m.TabSauvegardes })));
@@ -188,6 +190,12 @@ export default function SettingsPage() {
             </TabsTrigger>
           )}
           {isAdmin && (
+            <TabsTrigger value="plateforme-agreee" className="gap-2">
+              <PlugZap className="w-4 h-4" />
+              {t("settings.tabs.plateformeAgreee")}
+            </TabsTrigger>
+          )}
+          {isAdmin && (
             <TabsTrigger value="cles-ia" className="gap-2">
               <BrainCircuit className="w-4 h-4" />
               {t("settings.tabs.clesIa")}
@@ -258,6 +266,11 @@ export default function SettingsPage() {
         {isAdmin && (
           <TabsContent value="email-expediteur" className="space-y-6 mt-6">
             <LazySettingsTab active={activeTab === "email-expediteur"}><TabEmailExpediteur /></LazySettingsTab>
+          </TabsContent>
+        )}
+        {isAdmin && (
+          <TabsContent value="plateforme-agreee" className="space-y-6 mt-6">
+            <LazySettingsTab active={activeTab === "plateforme-agreee"}><TabPlateformeAgreee /></LazySettingsTab>
           </TabsContent>
         )}
 

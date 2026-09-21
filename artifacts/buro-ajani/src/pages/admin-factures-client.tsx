@@ -14,7 +14,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Banknote,Edit,FileCode,FileDown,Loader2,Plus,Receipt,RefreshCw,Search,Send,Shield,Trash2 } from "lucide-react";
+import { Banknote,Edit,FileCode,FileDown,Loader2,Plus,Receipt,RefreshCw,Search,Send,Shield,Trash2,UploadCloud } from "lucide-react";
+import { useWorkspaceUser } from "@/components/workspace-user";
 import { useCallback,useEffect,useState } from "react";
 import { jourLocal } from "@/lib/jour-local";
 
@@ -40,6 +41,9 @@ interface FactureClient {
   items?: LineItem[]; isAutoliquidation?: boolean;
   dueDate?: string; paymentMethod?: string; notes?: string | null; createdAt: string;
   reminderCount?: number; lastReminderAt?: string | null;
+  // Transmission a la plateforme agreee (Pending, Ok, Error).
+  paFlowId?: string | null; paStatut?: string | null;
+  paDetail?: Array<{ reasonMessage: string }> | null;
 }
 
 const EMPTY_FORM = {
@@ -204,6 +208,31 @@ export default function AdminFacturesClientPage() {
     }
   };
 
+  // Transmission a la plateforme agreee : reservee aux administrateurs, comme
+  // la route. Un brouillon ne part pas ; une facture deja deposee non plus,
+  // sauf si la plateforme l'a rejetee.
+  const { user } = useWorkspaceUser();
+  const peutTransmettre = user.role === "administrateur" || user.role === "super_admin";
+  const [transmettantId, setTransmettantId] = useState<number | null>(null);
+  const transmissible = (f: FactureClient) =>
+    peutTransmettre && f.status !== "brouillon" && (!f.paFlowId || f.paStatut === "Error");
+
+  const handleTransmettre = async (f: FactureClient) => {
+    if (!(await confirmAction({
+      title: t("adminFacturesClient.pa.confirmTitle"),
+      description: t("adminFacturesClient.pa.confirmDesc", { reference: f.reference }),
+      confirmLabel: t("adminFacturesClient.pa.transmit"),
+    }))) return;
+    setTransmettantId(f.id);
+    try {
+      const res = await fetch(`${BASE}/api/factures-client/${f.id}/transmettre`, { method: "POST", credentials: "include" });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok) { toast({ title: t("adminFacturesClient.pa.sent") }); load(); }
+      else { toast({ title: t("adminFacturesClient.pa.error"), description: d.error, variant: "destructive" }); }
+    } catch { toast({ title: t("adminFacturesClient.pa.error"), variant: "destructive" }); }
+    finally { setTransmettantId(null); }
+  };
+
   const handleRemind = async (f: FactureClient) => {
     if (!(await confirmAction({
       title: t("adminFacturesClient.toast.remindConfirmTitle"),
@@ -272,6 +301,15 @@ export default function AdminFacturesClientPage() {
                   </p>
                 </div>
                 <StatusBadge status={f.status} />
+                {f.paStatut && (
+                  <Badge
+                    variant="outline"
+                    className="text-xs"
+                    title={f.paStatut === "Error" ? f.paDetail?.map((d) => d.reasonMessage).join(" · ") : undefined}
+                  >
+                    {t(`adminFacturesClient.pa.status.${f.paStatut === "Ok" || f.paStatut === "Error" ? f.paStatut : "Pending"}`)}
+                  </Badge>
+                )}
                 <span className="text-sm font-bold text-emerald-600 hidden md:block w-24 text-right">{fmtMoney(f.totalAmount, f.currency)}</span>
                 {canRemind(f) && (
                   <Button
@@ -295,6 +333,19 @@ export default function AdminFacturesClientPage() {
                 >
                   <Banknote className="w-3 h-3" aria-hidden="true" />
                 </Button>
+                {transmissible(f) && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    title={t("adminFacturesClient.pa.transmit")}
+                    aria-label={t("adminFacturesClient.pa.transmitFor", { reference: f.reference })}
+                    disabled={transmettantId === f.id}
+                    onClick={() => handleTransmettre(f)}
+                  >
+                    {transmettantId === f.id ? <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" /> : <UploadCloud className="w-3 h-3" aria-hidden="true" />}
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="icon"

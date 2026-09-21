@@ -206,8 +206,12 @@ export default function CGV() {
               dématérialisation et n'assure donc ni la transmission des
               factures à l'administration, ni leur acheminement vers les
               plateformes des clients du client. Il appartient à ce dernier de
-              choisir sa plateforme et d'y déposer les fichiers que le service
-              met à sa disposition, exportables à tout moment.
+              choisir sa plateforme agréée et de contracter avec elle. Le
+              service peut ensuite lui transmettre les factures émises, par
+              l'interface normalisée AFNOR XP Z12-013, à l'aide des
+              identifiants que cette plateforme délivre au client ; la
+              transmission se fait à l'initiative du client, facture par
+              facture. Les fichiers restent exportables à tout moment.
             </p>
             <p className="mt-2">
               L'éditeur ne garantit pas la conformité fiscale des factures du

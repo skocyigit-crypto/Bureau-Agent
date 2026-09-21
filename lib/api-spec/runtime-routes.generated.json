@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 676,
+    "runtimeOperations": 683,
     "documentedOperations": 96,
-    "undocumentedOperations": 580
+    "undocumentedOperations": 587
   },
   "operations": [
     {
@@ -2976,6 +2976,14 @@
       ]
     },
     {
+      "method": "post",
+      "path": "/factures-client/{id}/transmettre",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/plateforme-agreee.ts"
+      ]
+    },
+    {
       "method": "get",
       "path": "/geofences",
       "documented": false,
@@ -4183,6 +4191,54 @@
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/performance.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/plateforme-agreee",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/plateforme-agreee.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/plateforme-agreee",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/plateforme-agreee.ts"
+      ]
+    },
+    {
+      "method": "put",
+      "path": "/plateforme-agreee",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/plateforme-agreee.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/plateforme-agreee/recues",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/plateforme-agreee.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/plateforme-agreee/suivi",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/plateforme-agreee.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/plateforme-agreee/test",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/plateforme-agreee.ts"
       ]
     },
     {

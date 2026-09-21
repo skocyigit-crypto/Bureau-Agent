@@ -20,6 +20,7 @@ export const CRON_LOCK_NAMESPACE = {
   accountRetention: 4309,
   trialWarning: 4310,
   googleAutoPointage: 4311,
+  plateformeAgreee: 4312,
 } as const;
 
 /**
