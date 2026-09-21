@@ -80,7 +80,13 @@ export default function DPA() {
               consultation, organisation et restitution des données déposées,
               aux fins de fournir les fonctions de la plateforme (gestion de la
               relation client, tâches, documents, téléphonie, facturation,
-              assistance par intelligence artificielle).
+              assistance par intelligence artificielle) et, lorsque le client
+              les active, le pointage du temps de travail, le suivi de présence
+              sur zone et l'évaluation d'activité des salariés assistée par
+              intelligence artificielle, sous identité pseudonymisée pour les
+              fournisseurs d'IA. Pour ces trois fonctions, le client assume les
+              démarches d'employeur décrites dans le kit de conformité employeur
+              (consultation du CSE, information des salariés, analyse d'impact).
             </p>
             <p className="mt-2">
               <strong>Catégories de personnes concernées :</strong> les
@@ -93,7 +99,10 @@ export default function DPA() {
               et de contact, données professionnelles, contenus déposés
               (documents, notes, messages), métadonnées et enregistrements
               d'appels lorsque cette fonction est activée, données de connexion
-              (adresse IP, agent utilisateur, horodatage).
+              (adresse IP, agent utilisateur, horodatage) et, si les fonctions
+              correspondantes sont activées, horaires de travail, présence sur
+              zone horodatée (sans coordonnées GPS) et appréciations d'activité
+              générées par intelligence artificielle.
             </p>
             <p className="mt-2">
               <strong>Durée :</strong> celle de l'abonnement, augmentée des

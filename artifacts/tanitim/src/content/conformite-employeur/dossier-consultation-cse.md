@@ -23,10 +23,13 @@ Mise en œuvre, dans le logiciel de gestion Ajant Bureau, des fonctionnalités s
 ## 3. Description technique (fournie par l'éditeur, vérifiée dans le code)
 
 - **Pointage** : horaires, pauses, type de présence, lieu déclaré, vérification de zone, adresse IP. Un salarié ne consulte que ses propres pointages ; l'équipe et l'export sont réservés aux administrateurs. Des constats (dépassement de durée, repos insuffisant) sont signalés sans modifier les données.
-- **Présence sur zone** : zones circulaires définies par l'employeur ; collecte limitée aux jours et heures fixés (par défaut du lundi au samedi, de 7 h à 20 h, paramétrable) ; seules l'entrée ou la sortie de zone, l'heure et la batterie sont conservées, **30 jours** ; la position GPS n'est pas conservée ; l'employeur ne voit jamais de position précise ; l'application affiche une notice avant toute collecte.
+- **Présence sur zone** : zones circulaires définies par l'employeur ; collecte limitée aux jours et heures fixés (par défaut du lundi au samedi, de 7 h à 20 h, paramétrable) ; sont conservés, **30 jours**, pour chaque relevé (horodatage ; zone(s) de travail où se trouve le salarié, ou mention « hors zone » ; état en mouvement ou immobile ; niveau de batterie), soit un historique horodaté de présence sur zone ; la position GPS n'est pas conservée ; l'employeur ne voit jamais de position précise ; l'application affiche une notice avant toute collecte.
 - **Rapports d'activité** : agrègent les actions dans le logiciel, les tâches et les pointages ; appréciation générée par IA à partir de données **pseudonymisées** ; accès réservé aux administrateurs ; chaque génération est journalisée ; pas de profil psychologique ou comportemental individuel ; aucune décision automatique.
 - **Reconnaissance faciale** : désactivée.
 - **Hébergement** : Union européenne. Sous-traitance encadrée par un contrat conforme à l'article 28 du RGPD.
+- **Fournisseurs d'IA** : Google, Anthropic ou OpenAI selon la configuration, situés aux États-Unis ; transfert encadré par les clauses contractuelles types ; ils ne reçoivent que des données pseudonymisées.
+- **Pauses** : l'application ne permet pas au salarié de suspendre le suivi pendant ses pauses. La géolocalisation n'est utilisée pour le contrôle du temps de travail que si ce contrôle ne peut être réalisé par un autre moyen : [justification ou mesure retenue].
+- **Règlement européen sur l'IA** : les rapports d'évaluation individuelle relèvent probablement de l'annexe III, point 4 b (évaluation des performances et du comportement des travailleurs). L'article 26 impose à l'employeur d'informer les représentants du personnel avant leur mise en service.
 
 ## 4. Garanties pour les salariés
 

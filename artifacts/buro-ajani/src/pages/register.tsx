@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTranslation } from "@/i18n";
 import { AlertTriangle,ArrowLeft,Building,Check,Eye,EyeOff,Lock,Mail,Monitor,Phone,Shield,Smartphone,Sparkles,User } from "lucide-react";
-import { useState } from "react";
+import { useEffect,useState } from "react";
+import { NOM_PRODUIT } from "@/lib/titre-page";
 
 interface RegisterPageProps {
   onLogin: (user: any) => void;
@@ -39,6 +40,8 @@ function planDepuisUrl(): string | undefined {
 
 export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
   const { t } = useTranslation();
+  // Page hors Layout : son titre est pose ici (RGAA 8.6).
+  useEffect(() => { document.title = `${t("register.title")} – ${NOM_PRODUIT}`; }, [t]);
   const [step, setStep] = useState<"form" | "success">("form");
   // Lu une seule fois: l'URL ne change pas sous le formulaire.
   const [planChoisi] = useState(planDepuisUrl);
@@ -277,8 +280,8 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
               <Label htmlFor="orgName" className="text-sm font-medium">{t("register.orgLabel")}</Label>
               <div className="relative">
                 <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input aria-label={t("register.orgPlaceholder")}
-                  id="orgName"
+                <Input
+                  id="orgName" autoComplete="organization"
                   placeholder={t("register.orgPlaceholder")}
                   value={orgName}
                   onChange={e => setOrgName(e.target.value)}
@@ -293,7 +296,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
               <Label htmlFor="siret" className="text-sm font-medium">{t("register.siretLabel")}</Label>
               <div className="relative">
                 <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input aria-label={t("register.siretPlaceholder")}
+                <Input
                   id="siret"
                   placeholder={t("register.siretPlaceholder")}
                   value={siret}
@@ -311,8 +314,8 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
                 <Label htmlFor="firstName" className="text-sm font-medium">{t("register.firstNameLabel")}</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input aria-label={t("register.firstNamePlaceholder")}
-                    id="firstName"
+                  <Input
+                    id="firstName" autoComplete="given-name"
                     placeholder={t("register.firstNamePlaceholder")}
                     value={firstName}
                     onChange={e => setFirstName(e.target.value)}
@@ -323,8 +326,8 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="lastName" className="text-sm font-medium">{t("register.lastNameLabel")}</Label>
-                <Input aria-label={t("register.lastNameLabel")}
-                  id="lastName"
+                <Input
+                  id="lastName" autoComplete="family-name"
                   placeholder={t("register.lastNamePlaceholder")}
                   value={lastName}
                   onChange={e => setLastName(e.target.value)}
@@ -337,7 +340,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
               <Label htmlFor="regEmail" className="text-sm font-medium">{t("register.emailLabel")}</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input aria-label={t("register.emailPlaceholder")}
+                <Input
                   id="regEmail"
                   type="email"
                   placeholder={t("register.emailPlaceholder")}
@@ -354,8 +357,8 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
               <Label htmlFor="regPhone" className="text-sm font-medium">{t("register.phoneLabel")} <span className="text-muted-foreground font-normal">{t("register.phoneOptional")}</span></Label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input aria-label={t("register.phonePlaceholder")}
-                  id="regPhone"
+                <Input
+                  id="regPhone" autoComplete="tel"
                   type="tel"
                   placeholder={t("register.phonePlaceholder")}
                   value={phone}
@@ -370,7 +373,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
                 <Label htmlFor="regPassword" className="text-sm font-medium">{t("register.passwordLabel")}</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input aria-label={t("register.passwordPlaceholder")}
+                  <Input
                     id="regPassword"
                     type={showPassword ? "text" : "password"}
                     placeholder={t("register.passwordPlaceholder")}
@@ -396,7 +399,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
                 <Label htmlFor="regConfirmPassword" className="text-sm font-medium">{t("register.confirmLabel")}</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input aria-label={t("register.confirmPlaceholder")}
+                  <Input
                     id="regConfirmPassword"
                     type={showPassword ? "text" : "password"}
                     placeholder={t("register.confirmPlaceholder")}

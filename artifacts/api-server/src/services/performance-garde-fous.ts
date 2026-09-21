@@ -77,11 +77,29 @@ export function pseudonymiser<T extends IdentiteSalarie>(metriques: T[]): {
 
 /** Remplace « Salarie-3 » par le nom reel, partout dans la reponse du modele. */
 export function reidentifier<V>(valeur: V, table: Map<number, IdentiteSalarie>): V {
+  return reidentifierPar(valeur, (rang) => {
+    const m = table.get(rang);
+    return m ? `${m.prenom} ${m.nom}` : undefined;
+  });
+}
+
+/** Le pseudonyme du salarie de rang `rang` (1..n) : la seule chose que le modele voit. */
+export function pseudonyme(rang: number): string {
+  return `${PREFIXE_PSEUDONYME}${rang}`;
+}
+
+/**
+ * Re-identification a partir d'une simple liste de noms, dans l'ordre des
+ * rangs (noms[0] = « Salarie-1 »). Pour les routes qui ne manipulent pas la
+ * forme `IdentiteSalarie` complete.
+ */
+export function reidentifierNoms<V>(valeur: V, noms: readonly string[]): V {
+  return reidentifierPar(valeur, (rang) => noms[rang - 1]);
+}
+
+function reidentifierPar<V>(valeur: V, nom: (rang: number) => string | undefined): V {
   const remplacer = (s: string) =>
-    s.replace(new RegExp(`${PREFIXE_PSEUDONYME}(\\d+)`, "g"), (brut, n) => {
-      const m = table.get(Number(n));
-      return m ? `${m.prenom} ${m.nom}` : brut;
-    });
+    s.replace(new RegExp(`${PREFIXE_PSEUDONYME}(\\d+)`, "g"), (brut, n) => nom(Number(n)) ?? brut);
   const parcourir = (v: unknown): unknown => {
     if (typeof v === "string") return remplacer(v);
     if (Array.isArray(v)) return v.map(parcourir);

@@ -39,6 +39,7 @@ import { logger } from "../lib/logger";
 import { logAudit } from "./audit";
 import { aiForOrg } from "../services/ai-client";
 import { respondAiError } from "../services/ai-guard";
+import { pseudonyme, reidentifierNoms } from "../services/performance-garde-fous";
 
 const router = Router();
 
@@ -342,7 +343,7 @@ interface ForecastResult {
   oneri_skoru: number;
 }
 
-async function runAgentLoop(orgId: number, managerName: string): Promise<{
+async function runAgentLoop(orgId: number): Promise<{
   agentLog: AgentPhaseLog[];
   scout: ScoutResult | null;
   diagnose: DiagnoseResult | null;
@@ -368,16 +369,25 @@ async function runAgentLoop(orgId: number, managerName: string): Promise<{
   const teamScore = Math.round(metrics.reduce((s, e) => s + e.score, 0) / metrics.length);
   const today = new Date().toLocaleDateString("fr-FR", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 
-  // Veri özeti — tüm aşamalarda paylaşılır
-  const dataBlock = metrics.map((e) =>
-    `• ${e.nom} (${e.role}${e.departement ? ", " + e.departement : ""}): score=${e.score}/100, appels=${e.calls7d}(rep=${e.callsAnswered7d},manq=${e.callsMissed7d}), taches_terminees=${e.tasksCompleted7d}, taches_retard=${e.tasksOverdue}, notes=${e.notes7d}, connexions=${e.logins7d}, actif_auj=${e.isActiveToday ? "oui" : "non"}, jours_sans_acces=${e.daysSinceLastAccess === 999 ? "jamais" : e.daysSinceLastAccess}`
+  // Veri özeti — tüm aşamalarda paylaşılır.
+  //
+  // Le modele ne recoit AUCUNE identite : « Salarie-1..n » a la place du nom,
+  // ni service ni nom du responsable (dans une petite equipe, « le seul
+  // commercial du service Nord » designe quelqu'un aussi surement qu'un nom).
+  // Jusqu'au 21/09/2026, prenom et nom de chaque salarie partaient en clair
+  // chez le fournisseur d'IA, alors que le kit de conformite remis aux
+  // employeurs affirmait le contraire. Les noms sont remis cote serveur, apres
+  // la derniere phase (voir `reidentifierNoms` plus bas).
+  const dataBlock = metrics.map((e, i) =>
+    `• ${pseudonyme(i + 1)} (${e.role}): score=${e.score}/100, appels=${e.calls7d}(rep=${e.callsAnswered7d},manq=${e.callsMissed7d}), taches_terminees=${e.tasksCompleted7d}, taches_retard=${e.tasksOverdue}, notes=${e.notes7d}, connexions=${e.logins7d}, actif_auj=${e.isActiveToday ? "oui" : "non"}, jours_sans_acces=${e.daysSinceLastAccess === 999 ? "jamais" : e.daysSinceLastAccess}`
   ).join("\n");
 
   // ── Phase 1: SCOUT ────────────────────────────────────────────────────────
 
   const p1Start = Date.now();
-  const scoutPrompt = `Tu es un AGENT IA de surveillance RH. Phase 1: RECONNAISSANCE RAPIDE.
-Date: ${today} | Manager: ${managerName} | Score equipe: ${teamScore}/100
+  const scoutPrompt = `Tu es un AGENT IA d'analyse d'activite d'equipe. Phase 1: RECONNAISSANCE RAPIDE.
+Les collaborateurs sont designes par un pseudonyme (Salarie-N) : reprends-le tel quel, n'invente aucun nom.
+Date: ${today} | Score equipe: ${teamScore}/100
 
 DONNEES EQUIPE (7 derniers jours):
 ${dataBlock}
@@ -394,17 +404,17 @@ Analyse rapidement et identifie les signaux CRITIQUES. Reponds en JSON brut:
 Sois direct et factuel. Max 3 items par liste.`;
 
   const scoutRaw = await callGemini(orgId, scoutPrompt, "scout");
-  const scout = safeJsonParse<ScoutResult | null>(scoutRaw, null);
-  agentLog.push({ phase: "SCOUT", label: "Reconnaissance rapide", durationMs: Date.now() - p1Start, result: scout });
+  const scoutPseudo = safeJsonParse<ScoutResult | null>(scoutRaw, null);
+  agentLog.push({ phase: "SCOUT", label: "Reconnaissance rapide", durationMs: Date.now() - p1Start, result: scoutPseudo });
 
   // ── Phase 2: DIAGNOSE ─────────────────────────────────────────────────────
 
   const p2Start = Date.now();
   const diagnosePrompt = `Tu es un AGENT IA de diagnostic RH. Phase 2: DIAGNOSTIC INDIVIDUEL APPROFONDI.
 Contexte Phase 1 (Reconnaissance):
-- Risque: ${scout?.risk_seviyesi ?? "inconnu"}
-- Signaux critiques: ${scout?.kritik_sinyaller?.join(", ") ?? "aucun"}
-- Cas urgents: ${scout?.acil_mudahale?.join(", ") ?? "aucun"}
+- Risque: ${scoutPseudo?.risk_seviyesi ?? "inconnu"}
+- Signaux critiques: ${scoutPseudo?.kritik_sinyaller?.join(", ") ?? "aucun"}
+- Cas urgents: ${scoutPseudo?.acil_mudahale?.join(", ") ?? "aucun"}
 
 DONNEES INDIVIDUELLES:
 ${dataBlock}
@@ -413,7 +423,7 @@ Effectue un diagnostic individuel pour CHAQUE collaborateur. Reponds en JSON bru
 {
   "bireysel_teshis": [
     {
-      "nom": "Prenom Nom",
+      "nom": "Salarie-N (le pseudonyme tel que fourni)",
       "durum": "kritik" | "dikkat" | "normal" | "mukemmel",
       "guc": "Principale force de cette personne (1 phrase courte)",
       "zayiflik": "Principale faiblesse detectee (1 phrase courte)",
@@ -426,20 +436,20 @@ Effectue un diagnostic individuel pour CHAQUE collaborateur. Reponds en JSON bru
 Inclure TOUS les collaborateurs dans bireysel_teshis.`;
 
   const diagnoseRaw = await callGemini(orgId, diagnosePrompt, "diagnose");
-  const diagnose = safeJsonParse<DiagnoseResult | null>(diagnoseRaw, null);
-  agentLog.push({ phase: "DIAGNOSE", label: "Diagnostic individuel", durationMs: Date.now() - p2Start, result: diagnose });
+  const diagnosePseudo = safeJsonParse<DiagnoseResult | null>(diagnoseRaw, null);
+  agentLog.push({ phase: "DIAGNOSE", label: "Diagnostic individuel", durationMs: Date.now() - p2Start, result: diagnosePseudo });
 
   // ── Phase 3: PRESCRIBE ────────────────────────────────────────────────────
 
   const p3Start = Date.now();
   const prescribePrompt = `Tu es un AGENT IA prescripteur RH. Phase 3: PLAN D'ACTION.
 Contexte cumule:
-- Phase 1 Risque: ${scout?.risk_seviyesi} | Signaux: ${scout?.kritik_sinyaller?.join("; ")}
-- Phase 2 Dynamiques: ${diagnose?.ekip_dinamikleri ?? "non analyse"}
-- Goulots: ${diagnose?.darbogazlar?.join("; ") ?? "aucun"}
-- Cas critiques: ${diagnose?.bireysel_teshis?.filter((t) => t.durum === "kritik").map((t) => t.nom).join(", ") ?? "aucun"}
+- Phase 1 Risque: ${scoutPseudo?.risk_seviyesi} | Signaux: ${scoutPseudo?.kritik_sinyaller?.join("; ")}
+- Phase 2 Dynamiques: ${diagnosePseudo?.ekip_dinamikleri ?? "non analyse"}
+- Goulots: ${diagnosePseudo?.darbogazlar?.join("; ") ?? "aucun"}
+- Cas critiques: ${diagnosePseudo?.bireysel_teshis?.filter((t) => t.durum === "kritik").map((t) => t.nom).join(", ") ?? "aucun"}
 
-Genere un PLAN D'ACTION CONCRET ET ACTIONNABLE pour le manager ${managerName}. JSON brut:
+Genere un PLAN D'ACTION CONCRET ET ACTIONNABLE pour le responsable d'equipe. JSON brut:
 {
   "acil_aksiyonlar": [
     {
@@ -456,8 +466,8 @@ Genere un PLAN D'ACTION CONCRET ET ACTIONNABLE pour le manager ${managerName}. J
 Max 4 actions urgentes. Prioritise par impact.`;
 
   const prescribeRaw = await callGemini(orgId, prescribePrompt, "prescribe");
-  const prescribe = safeJsonParse<PrescribeResult | null>(prescribeRaw, null);
-  agentLog.push({ phase: "PRESCRIBE", label: "Plan d'action", durationMs: Date.now() - p3Start, result: prescribe });
+  const prescribePseudo = safeJsonParse<PrescribeResult | null>(prescribeRaw, null);
+  agentLog.push({ phase: "PRESCRIBE", label: "Plan d'action", durationMs: Date.now() - p3Start, result: prescribePseudo });
 
   // ── Phase 4: FORECAST (geçmişe dayalı öğrenme) ───────────────────────────
 
@@ -469,9 +479,9 @@ Max 4 actions urgentes. Prioritise par impact.`;
   const forecastPrompt = `Tu es un AGENT IA de prevision RH. Phase 4: FORECAST ET APPRENTISSAGE.
 Contexte complet:
 - Score actuel equipe: ${teamScore}/100
-- Risque Phase 1: ${scout?.risk_seviyesi}
-- Energie equipe: ${scout?.ekip_enerjisi ?? "non evaluee"}
-- Plan d'action: ${prescribe?.acil_aksiyonlar?.map((a) => a.aksiyon).join("; ") ?? "non etabli"}
+- Risque Phase 1: ${scoutPseudo?.risk_seviyesi}
+- Energie equipe: ${scoutPseudo?.ekip_enerjisi ?? "non evaluee"}
+- Plan d'action: ${prescribePseudo?.acil_aksiyonlar?.map((a) => a.aksiyon).join("; ") ?? "non etabli"}
 
 HISTORIQUE DES ANALYSES PRECEDENTES:
 ${historyBlock}
@@ -487,8 +497,18 @@ Compare avec l'historique et genere des previsions intelligentes. JSON brut:
 }`;
 
   const forecastRaw = await callGemini(orgId, forecastPrompt, "forecast");
-  const forecast = safeJsonParse<ForecastResult | null>(forecastRaw, null);
-  agentLog.push({ phase: "FORECAST", label: "Prevision & apprentissage", durationMs: Date.now() - p4Start, result: forecast });
+  const forecastPseudo = safeJsonParse<ForecastResult | null>(forecastRaw, null);
+  agentLog.push({ phase: "FORECAST", label: "Prevision & apprentissage", durationMs: Date.now() - p4Start, result: forecastPseudo });
+
+  // Re-identification, cote serveur uniquement : tout ce qui est enregistre ou
+  // renvoye au responsable porte les vrais noms ; rien de ce qui est parti chez
+  // le fournisseur ne les portait.
+  const noms = metrics.map((e) => e.nom);
+  const [scout, diagnose, prescribe, forecast] = reidentifierNoms(
+    [scoutPseudo, diagnosePseudo, prescribePseudo, forecastPseudo] as const,
+    noms,
+  );
+  const journal = reidentifierNoms(agentLog, noms);
 
   // Toplam süre
   const totalMs = Date.now() - t0;
@@ -512,7 +532,7 @@ Compare avec l'historique et genere des previsions intelligentes. JSON brut:
       warningsFound: dikkatCount,
       suggestionsCount: (prescribe?.acil_aksiyonlar?.length ?? 0) + (prescribe?.haftalik_plan?.length ?? 0),
       summary: summaryText,
-      details: { scout, diagnose, prescribe, forecast, agentLog } as any,
+      details: { scout, diagnose, prescribe, forecast, agentLog: journal } as any,
       errors: (diagnose?.bireysel_teshis?.filter((t) => t.durum === "kritik") ?? []) as any,
       warnings: (diagnose?.bireysel_teshis?.filter((t) => t.durum === "dikkat") ?? []) as any,
       suggestions: (prescribe?.acil_aksiyonlar ?? []) as any,
@@ -526,7 +546,7 @@ Compare avec l'historique et genere des previsions intelligentes. JSON brut:
   }
 
   return {
-    agentLog,
+    agentLog: journal,
     scout,
     diagnose,
     prescribe,
@@ -551,7 +571,7 @@ router.get(
     if (!orgId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
     try {
-      const result = await runAgentLoop(orgId, managerName);
+      const result = await runAgentLoop(orgId);
 
       // TRACE OBLIGATOIRE — art. 5.2 RGPD (responsabilite).
       //

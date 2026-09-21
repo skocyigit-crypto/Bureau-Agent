@@ -49,3 +49,66 @@ describe("chaque garantie annoncee a son mecanisme", () => {
     expect(KIT).toContain("Aucune purge automatique");
   });
 });
+
+/**
+ * Relecture du 21/09/2026 contre les sources officielles et le code.
+ * Chaque cas ci-dessous etait faux ou absent dans le kit publie.
+ */
+describe("le kit dit ce que le code et le droit disent", () => {
+  const NOTE = lire(...DOSSIER_KIT, "note-information-salaries.md");
+  const CSE = lire(...DOSSIER_KIT, "dossier-consultation-cse.md");
+  const AIPD = lire(...DOSSIER_KIT, "trame-aipd.md");
+  const TOUT = [KIT, NOTE, CSE, AIPD].join("\n");
+
+  it("la pseudonymisation promise est tenue par les TROIS surfaces qui l'oubliaient", () => {
+    // Le kit la promettait; trois routes envoyaient pourtant nom et prenom.
+    // (Le comportement est prouve par evaluation-sans-identite-chez-l-ia.)
+    for (const f of ["workforce-agent.ts", "workforce-intelligence.ts", "ai-commandant.ts"]) {
+      expect(SRC("routes", f), `${f} n'emploie pas de pseudonyme`).toMatch(/pseudonyme\(i \+ 1\)/);
+      expect(SRC("routes", f), `${f} ne remet pas les noms`).toContain("reidentifierNoms(");
+    }
+  });
+
+  it("le transfert hors UE vers les fournisseurs d'IA est dit aux salaries", () => {
+    // RGPD art. 13.1.f; la politique de confidentialite le disait deja.
+    expect(NOTE).toMatch(/États-Unis/);
+    expect(NOTE).toMatch(/clauses contractuelles types/);
+    expect(CSE).toMatch(/États-Unis/);
+  });
+
+  it("l'AIPD est dite obligatoire pour les rapports d'evaluation", () => {
+    // Deliberation CNIL n° 2018-327: les profils a des fins RH sont sur la
+    // liste; la regle des deux criteres ne s'applique qu'hors liste.
+    expect(AIPD).toMatch(/2018-327/);
+    expect(AIPD).toMatch(/AIPD requise/);
+    expect(AIPD).not.toMatch(/l'AIPD est recommandée, et requise\s+lorsque deux critères/);
+  });
+
+  it("la presence sur zone decrit l'historique horodate que le code conserve", () => {
+    // routes/locations.ts ecrit un evenement par releve (« ping » a defaut
+    // d'entree ou de sortie): pas seulement « l'heure du dernier releve ».
+    expect(SRC("routes", "locations.ts")).toMatch(/event: "ping"/);
+    for (const doc of [KIT, NOTE, CSE]) expect(doc).toMatch(/horodat/);
+    expect(TOUT).not.toMatch(/heure du dernier relevé, (niveau de )?batterie/);
+  });
+
+  it("la limite des pauses est avouee tant que l'application ne sait pas suspendre", () => {
+    expect(KIT).toMatch(/ne permet \*\*pas\*\* au salarié de suspendre/);
+    expect(NOTE).toMatch(/Pauses/);
+  });
+
+  it("aucune duree de conservation inventee", () => {
+    // « 5 ans » n'etait rattache a aucun texte.
+    expect(TOUT).not.toMatch(/par exemple 5 ans|indique 5 ans/);
+    expect(TOUT).toMatch(/D3171-16/);
+  });
+
+  it("les salaries savent que les rapports viennent d'une IA", () => {
+    expect(NOTE).toMatch(/produits par un système d'intelligence artificielle/);
+  });
+
+  it("le reglement europeen sur l'IA est mentionne pour l'employeur", () => {
+    expect(KIT).toMatch(/annexe III, point 4 b/);
+    expect(KIT).toMatch(/article 26/);
+  });
+});

@@ -29,6 +29,7 @@ import { Activity,BarChart,BarChart3,Bell,BookOpen,Bot,Brain,Briefcase,Building2
 import { createContext,useContext,useEffect,useMemo,useRef,useState } from "react";
 import { lecturePartagee } from "@/lib/lecture-partagee";
 import { Link,useLocation } from "wouter";
+import { titreDePage } from "@/lib/titre-page";
 
 type IncomingCallContextType = { simulateIncomingCall: (phone?: string) => void };
 const IncomingCallContext = createContext<IncomingCallContextType>({ simulateIncomingCall: () => {} });
@@ -431,6 +432,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
       },
     ].filter(g => g.items.length > 0);
   }, [user.role, isSuperAdmin, badges, agentQueueCount, mutedBadges, t]);
+
+  // Chaque page a son titre (RGAA 8.6), tire de l'entree de menu courante.
+  const titrePage = useMemo(() => titreDePage(location, navGroups.flatMap((g) => g.items)), [location, navGroups]);
+  useEffect(() => {
+    document.title = titrePage;
+  }, [titrePage]);
 
 
   return (

@@ -93,6 +93,10 @@
   --popover-border: 214 32% 91%;
   
   --primary: 38 92% 50%; /* Amber */
+  /* Ambre pour le TEXTE (RGAA 3.2 / WCAG 1.4.3). L'ambre de marque sur fond
+     clair ne donne que 2,1:1 ; celui-ci donne plus de 4,5:1. Le fond et les
+     aplats gardent l'ambre de marque. Mesure par a11y-contraste.test.ts. */
+  --primary-text: 32 100% 33%;
   --primary-foreground: 222 47% 11%;
   
   --secondary: 222 47% 11%; /* Deep Navy */
@@ -315,4 +319,13 @@ html {
     0 16px 32px rgba(0, 0, 0, 0.06),
     0 24px 48px rgba(0, 0, 0, 0.04);
   transform: translateY(-1px);
+}
+
+/* Le texte ambre, en theme clair seulement : sur fond sombre, l'ambre de
+   marque depasse deja 4,5:1. Une regle plutot que 113 classes a changer : un
+   nouvel ecran qui emploie text-primary en herite sans y penser. */
+@layer utilities {
+  :root:not(.dark) .text-primary {
+    color: hsl(var(--primary-text));
+  }
 }

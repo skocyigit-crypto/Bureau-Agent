@@ -72,8 +72,9 @@ export default function Confidentialite() {
               <li>
                 <strong>Durée de conservation</strong> : 30 jours. Les
                 événements d'entrée et de sortie plus anciens sont supprimés
-                automatiquement, ainsi que la dernière position connue des
-                utilisateurs inactifs depuis 30 jours.
+                automatiquement, ainsi que le dernier état de présence des
+                utilisateurs inactifs depuis 30 jours. Les coordonnées GPS ne
+                sont jamais conservées.
               </li>
               <li>
                 <strong>Responsable</strong> : votre employeur décide d'activer

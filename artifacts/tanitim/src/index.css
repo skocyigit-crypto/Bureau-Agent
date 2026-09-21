@@ -94,6 +94,9 @@
   --muted-foreground: 221 20% 40%;
 
   --accent: 38 92% 50%;
+  /* Ambre pour le TEXTE sur fond clair (RGAA 3.2) : l'ambre de marque n'y
+     donne que 2,1:1 (mesure pa11y du 21/09/2026), celui-ci plus de 4,5:1. */
+  --accent-text: 32 100% 33%;
   --accent-foreground: 221 45% 10%;
 
   --destructive: 0 84% 60%;
