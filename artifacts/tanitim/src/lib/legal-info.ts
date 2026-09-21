@@ -40,8 +40,10 @@ export const LEGAL_INFO = {
   /**
    * Obligatoire (LCEN art. 6-III): l'hebergeur doit etre identifie par son
    * nom, son adresse ET son telephone. Les deux premiers sont deja publies.
-   * Standard de Google a Dublin, celui que les mentions legales francaises
-   * citent pour un hebergement Google Cloud (verifie le 21/09/2026).
+   * Google Cloud EMEA Limited ne publie pas de numero propre. Celui-ci est le
+   * standard du groupe a Dublin, publie par Google dans ses propres mentions
+   * legales (https://www.google.com/intl/fr_ch/contact/impressum.html),
+   * verifie le 21/09/2026. A remplacer si le contrat en donne un autre.
    */
   hebergeurTelephone: "+353 1 543 1000",
 } as const;

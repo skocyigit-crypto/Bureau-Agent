@@ -6,25 +6,30 @@ décisions restent celles de l'employeur. Outil gratuit de la CNIL : logiciel PI
 
 ## A. Faut-il une AIPD ?
 
-La CNIL inscrit sur sa liste des traitements soumis à AIPD ceux qui ont pour finalité de
-**surveiller de manière constante l'activité des employés**, et l'**évaluation systématique
-d'aspects personnels** fait partie des critères retenus. Le suivi de présence sur zone et les
-rapports d'évaluation assistés par IA s'en approchent : l'AIPD est recommandée, et requise
-lorsque deux critères sont réunis (par exemple personnes vulnérables du fait du lien de
-subordination, et évaluation ou surveillance systématique).
+La liste CNIL des traitements pour lesquels une AIPD est **obligatoire** (délibération
+n° 2018-327 du 11 octobre 2018) comprend notamment les traitements **établissant des profils de
+personnes physiques à des fins de gestion des ressources humaines** et ceux ayant pour finalité
+de **surveiller de manière constante l'activité des employés**. Figurer sur cette liste suffit :
+la règle des « deux critères » ne vaut que pour les traitements qui n'y figurent pas.
 
-Décision : [requise / non requise — justification].
+- Les **rapports d'évaluation** (notation individuelle, repérage de personnes « en difficulté »,
+  actions recommandées) établissent des profils de salariés à des fins RH : **AIPD requise**.
+- Le **suivi de présence sur zone** peut relever de la surveillance constante de l'activité,
+  selon les horaires et la fréquence retenus : à apprécier, l'AIPD étant fortement recommandée.
+
+Décision : AIPD requise avant la mise en service des rapports d'évaluation — [date, justification
+pour la présence sur zone].
 
 ## B. Description systématique (art. 35.7.a)
 
 | Élément | Pointage | Présence sur zone | Rapports d'évaluation |
 |---|---|---|---|
 | Finalité | [à compléter] | [à compléter] | [à compléter] |
-| Données | horaires, pauses, lieu déclaré, vérification de zone, IP | entrée/sortie de zone, heure, batterie (pas de GPS conservé) | nom, rôle, service, volumes d'activité, heures, pauses, appréciation IA |
+| Données | horaires, pauses, lieu déclaré, vérification de zone, IP | chaque relevé : horodatage, zone ou « hors zone », mouvement, batterie (pas de GPS conservé) | nom, rôle, service, volumes d'activité, heures, pauses, appréciation IA |
 | Personnes concernées | salariés | salariés équipés de l'application | salariés utilisateurs |
 | Destinataires | le salarié (ses données), administrateurs | administrateurs | administrateurs |
-| Sous-traitants | éditeur, hébergeur UE | éditeur, hébergeur UE | éditeur, hébergeur UE, fournisseurs d'IA (données pseudonymisées) |
-| Conservation | [à définir] | 30 jours (automatique) | [à définir] |
+| Sous-traitants | éditeur, hébergeur UE | éditeur, hébergeur UE | éditeur, hébergeur UE, fournisseurs d'IA aux États-Unis sous clauses contractuelles types (données pseudonymisées) |
+| Conservation | [durée ; repères : 1 an minimum pour les documents de décompte du temps de travail tenus à la disposition de l'inspection du travail (C. trav., art. D3171-16) ; prescription des salaires de 3 ans (art. L3245-1)] | 30 jours (automatique) | [à définir] |
 
 ## C. Nécessité et proportionnalité (art. 35.7.b)
 
