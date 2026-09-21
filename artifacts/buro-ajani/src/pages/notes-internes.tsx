@@ -1,3 +1,4 @@
+import { signalerChamp } from "@/lib/champ-en-erreur";
 import { GhostTextarea } from "@/components/ghost-textarea";
 import { useSelectionVisible } from "@/lib/selection-visible";
 import { Badge } from "@/components/ui/badge";
@@ -116,7 +117,7 @@ export default function NotesInternesPage() {
   }
 
   async function save() {
-    if (!form.content.trim()) { toast({ title: t("notesInternes.contentRequired"), variant: "destructive" }); return; }
+    if (!form.content.trim()) { signalerChamp("note-contenu", t("notesInternes.contentRequired")); toast({ title: t("notesInternes.contentRequired"), variant: "destructive" }); return; }
     setSaving(true);
     try {
       const body = {
@@ -204,7 +205,7 @@ export default function NotesInternesPage() {
         {isEditingThis && !selectMode ? (
           <>
             <Input aria-label={t("notesInternes.titlePlaceholder")} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder={t("notesInternes.titlePlaceholder")} className="text-sm font-medium bg-transparent border-none shadow-none px-0 h-7" />
-            <GhostTextarea ref={textareaRef} fieldType="note" context={{ title: form.title }} value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} rows={4} className="text-sm bg-transparent border-none shadow-none px-0 resize-none" showToggle={false} />
+            <GhostTextarea id="note-contenu" aria-required="true" ref={textareaRef} fieldType="note" context={{ title: form.title }} value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} rows={4} className="text-sm bg-transparent border-none shadow-none px-0 resize-none" showToggle={false} />
             <Input aria-label={t("notesInternes.tagsPlaceholder")} value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} placeholder={t("notesInternes.tagsPlaceholder")} className="text-xs bg-transparent border-none shadow-none px-0 h-6" />
             <div className="flex items-center gap-1.5 flex-wrap">
               {COLORS.map(c => (
@@ -313,7 +314,7 @@ export default function NotesInternesPage() {
       {creating && (
         <div className="bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800/50 rounded-xl p-4 space-y-2 ring-2 ring-primary">
           <Input aria-label={t("notesInternes.titlePlaceholder")} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder={t("notesInternes.titlePlaceholder")} className="bg-transparent border-none shadow-none px-0 font-medium" />
-          <GhostTextarea ref={textareaRef} fieldType="note" context={{ title: form.title }} value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} placeholder={t("notesInternes.contentPlaceholder")} rows={4} className="bg-transparent border-none shadow-none px-0 resize-none" />
+          <GhostTextarea id="note-contenu" aria-required="true" ref={textareaRef} fieldType="note" context={{ title: form.title }} value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} placeholder={t("notesInternes.contentPlaceholder")} rows={4} className="bg-transparent border-none shadow-none px-0 resize-none" />
           <Input aria-label={t("notesInternes.tagsPlaceholderLong")} value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} placeholder={t("notesInternes.tagsPlaceholderLong")} className="text-xs bg-transparent border-none shadow-none px-0 h-6" />
           <div className="flex items-center gap-1.5 flex-wrap">
             {COLORS.map(c => (

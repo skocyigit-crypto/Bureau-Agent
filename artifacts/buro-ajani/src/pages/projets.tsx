@@ -1,3 +1,4 @@
+import { signalerChamp } from "@/lib/champ-en-erreur";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import { useSelectionVisible } from "@/lib/selection-visible";
 import { GhostTextarea } from "@/components/ghost-textarea";
@@ -226,7 +227,7 @@ function ProjetForm({ form, setForm }: { form: any; setForm: (f: any) => void })
     <div className="space-y-4 py-1">
       <div>
         <Label>{t("projets.form.title")} <span className="text-red-500">*</span></Label>
-        <Input aria-label={t("projets.form.title")} className="mt-1" value={form.title} onChange={e => setForm((f: any) => ({ ...f, title: e.target.value }))} placeholder={t("projets.form.titlePlaceholder")} />
+        <Input id="projet-titre" aria-required="true" aria-label={t("projets.form.title")} className="mt-1" value={form.title} onChange={e => setForm((f: any) => ({ ...f, title: e.target.value }))} placeholder={t("projets.form.titlePlaceholder")} />
       </div>
       <div>
         <Label>{t("projets.form.description")}</Label>
@@ -335,7 +336,7 @@ function CreateProjetDialog({ onCreated }: { onCreated: () => void }) {
   const [form, setForm] = useState<any>(EMPTY_FORM);
 
   async function submit() {
-    if (!form.title.trim()) { toast({ title: t("projets.toast.titleRequired"), variant: "destructive" }); return; }
+    if (!form.title.trim()) { signalerChamp("projet-titre", t("projets.toast.titleRequired")); toast({ title: t("projets.toast.titleRequired"), variant: "destructive" }); return; }
     setSaving(true);
     try {
       const res = await fetch(`${BASE}/api/projets`, {
@@ -395,7 +396,7 @@ function EditProjetDialog({ projet, onSaved, onClose }: { projet: Projet; onSave
   });
 
   async function submit() {
-    if (!form.title.trim()) { toast({ title: t("projets.toast.titleRequired"), variant: "destructive" }); return; }
+    if (!form.title.trim()) { signalerChamp("projet-titre", t("projets.toast.titleRequired")); toast({ title: t("projets.toast.titleRequired"), variant: "destructive" }); return; }
     setSaving(true);
     try {
       const res = await fetch(`${BASE}/api/projets/${projet.id}`, {

@@ -1,3 +1,4 @@
+import { signalerChamp } from "@/lib/champ-en-erreur";
 import { EmptyOnboardingHint } from "@/components/empty-onboarding-hint";
 import { useSelectionVisibleListe } from "@/lib/selection-visible";
 import { GhostTextarea } from "@/components/ghost-textarea";
@@ -129,7 +130,7 @@ export default function ProspectsPage() {
   const openCreate = () => { setEditingId(null); setForm({ ...EMPTY_FORM }); setDialogOpen(true); };
 
   const handleSave = async () => {
-    if (!form.title.trim()) { toast({ title: t("prospects.toast.titleRequired"), variant: "destructive" }); return; }
+    if (!form.title.trim()) { signalerChamp("prospect-titre", t("prospects.toast.titleRequired")); toast({ title: t("prospects.toast.titleRequired"), variant: "destructive" }); return; }
     setSaving(true);
     try {
       const url = editingId ? `${BASE}/api/prospects/${editingId}` : `${BASE}/api/prospects`;
@@ -465,7 +466,7 @@ export default function ProspectsPage() {
             <DialogTitle>{editingId ? t("prospects.dialog.editTitle") : t("prospects.dialog.createTitle")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <div><Label className="text-xs">{t("prospects.dialog.titleRequired")}</Label><Input aria-label={t("prospects.dialog.titleRequired")} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder={t("prospects.dialog.titlePlaceholder")} /></div>
+            <div><Label className="text-xs">{t("prospects.dialog.titleRequired")}</Label><Input id="prospect-titre" aria-required="true" aria-label={t("prospects.dialog.titleRequired")} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder={t("prospects.dialog.titlePlaceholder")} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs">{t("prospects.dialog.stage")}</Label>
                 <Select value={form.stage} onValueChange={v => setForm(f => ({ ...f, stage: v }))}>

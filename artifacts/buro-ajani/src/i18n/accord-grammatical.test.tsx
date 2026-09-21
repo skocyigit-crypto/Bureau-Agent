@@ -189,5 +189,6 @@ describe("les six langues livrees ont la forme « other »", () => {
         `${lang}: le nombre n'apparait pas dans le libelle`,
       ).toContain("{{count}}");
     }
-  });
+    // Parcourt toutes les sources et six catalogues : meme raison.
+  }, 30_000);
 });

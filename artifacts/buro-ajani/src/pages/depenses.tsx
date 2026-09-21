@@ -1,3 +1,4 @@
+import { signalerChamp } from "@/lib/champ-en-erreur";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
@@ -392,6 +393,7 @@ export default function DepensesPage() {
 
   const save = useCallback(async () => {
     if (!form.vendor.trim()) {
+      signalerChamp("depense-fournisseur", t("depenses.toast.vendorRequired"));
       toast({ title: t("depenses.toast.vendorRequired"), variant: "destructive" });
       return;
     }
@@ -837,7 +839,7 @@ export default function DepensesPage() {
           <div className="grid gap-3">
             <div className="grid gap-1">
               <Label>{t("depenses.form.vendor")}</Label>
-              <Input aria-label={t("depenses.form.vendor")} value={form.vendor} onChange={(e) => setForm((f) => ({ ...f, vendor: e.target.value }))} />
+              <Input id="depense-fournisseur" aria-required="true" aria-label={t("depenses.form.vendor")} value={form.vendor} onChange={(e) => setForm((f) => ({ ...f, vendor: e.target.value }))} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1">

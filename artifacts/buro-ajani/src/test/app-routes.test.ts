@@ -104,7 +104,9 @@ describe("every link the product emits lands on a real page", () => {
     }
 
     expect([...new Set(broken)]).toEqual([]);
-  });
+    // Parcourt les sources de l'API sur disque : le delai par defaut (5 s)
+    // tombait sous charge, et le test echouait sans avoir mesure.
+  }, 30_000);
 
   it("points the licence and trial banners at a route that exists", () => {
     // Ces bannieres sont le seul appel a l'action quand l'essai expire ou qu'un

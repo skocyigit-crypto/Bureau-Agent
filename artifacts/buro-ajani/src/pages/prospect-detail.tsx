@@ -1,3 +1,4 @@
+import { signalerChamp } from "@/lib/champ-en-erreur";
 import { DocumentsPanel } from "@/components/file-upload";
 import { GhostTextarea } from "@/components/ghost-textarea";
 import { Badge } from "@/components/ui/badge";
@@ -185,7 +186,7 @@ export default function ProspectDetail() {
   };
 
   const handleSave = async () => {
-    if (!form.title.trim()) { toast({ title: t("prospectDetail.titleRequired"), variant: "destructive" }); return; }
+    if (!form.title.trim()) { signalerChamp("prospect-action-titre", t("prospectDetail.titleRequired")); toast({ title: t("prospectDetail.titleRequired"), variant: "destructive" }); return; }
     setSaving(true);
     try {
       const res = await fetch(`${BASE}/api/prospects/${prospectId}`, {
@@ -626,7 +627,7 @@ export default function ProspectDetail() {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("prospectDetail.editProspect")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div><Label className="text-xs">{t("prospectDetail.fTitle")}</Label><Input aria-label={t("prospectDetail.fTitle")} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
+            <div><Label className="text-xs">{t("prospectDetail.fTitle")}</Label><Input id="prospect-action-titre" aria-required="true" aria-label={t("prospectDetail.fTitle")} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs">{t("prospectDetail.stageLabel")}</Label>
                 <Select value={form.stage} onValueChange={v => setForm(f => ({ ...f, stage: v }))}>
