@@ -371,6 +371,8 @@
     }
   },
   "contacts": {
+    "selectOne": "{{name}} kişisini seç",
+    "selectAll": "Tüm kişileri seç",
     "title": "Kişi Rehberi",
     "subtitle": "Profesyonel veri tabanınızı yönetin.",
     "bannerTitle": "Profesyonel rehber",

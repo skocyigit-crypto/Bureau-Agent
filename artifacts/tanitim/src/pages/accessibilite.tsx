@@ -76,13 +76,13 @@ export default function Accessibilite() {
               </li>
               <li>
                 Un audit partiel mené en septembre 2026 (revue du code sur dix
-                pages et test automatisé pa11y) relève encore : une carte de
-                contact activable à la souris mais pas au clavier (critère
-                7.1) ; des erreurs de saisie qui ne sont pas reliées aux champs
-                concernés (11.10) ; des états signalés par la seule couleur
-                sur le tableau de bord, les pointages et la facturation (3.1).
-                Les contrastes n'ont été mesurés que pour le texte ambre ; les
-                autres couleurs et le thème sombre restent à relever.
+                pages et test automatisé pa11y) a porté sur environ 25 des 106
+                critères ; il ne permet pas de calculer un taux. Les erreurs de
+                saisie sont reliées à leur champ sur l'inscription, mais pas
+                encore sur les autres formulaires, qui les signalent par un
+                message général (11.10). Les contrastes n'ont été mesurés que
+                pour le texte ambre ; les autres couleurs et le thème sombre
+                restent à relever.
               </li>
               <li>
                 Le parcours complet au clavier et au lecteur d'écran n'a pas été
@@ -110,6 +110,13 @@ export default function Accessibilite() {
                 indiquent leur finalité pour la saisie automatique (11.13).
                 Chacune de ces corrections est vérifiée par un test
                 automatisé.
+              </li>
+              <li>
+                Septembre 2026 : une fiche contact s'ouvre désormais au clavier
+                depuis la liste et les cartes (7.1), et chaque case de
+                sélection dit quel contact elle sélectionne ; à l'inscription,
+                le champ en erreur est signalé comme tel, relié au message, et
+                reçoit le focus (11.10).
               </li>
               <li>
                 Les commandes d'affichage du mot de passe des écrans de
