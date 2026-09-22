@@ -1,3 +1,4 @@
+import { appliquerErreursServeur } from "@/lib/erreurs-serveur";
 import { AiValidationFeedback } from "@/components/ai-validation-feedback";
 import { EmailComposer } from "@/components/email-composer";
 import { DocumentsPanel } from "@/components/file-upload";
@@ -174,7 +175,8 @@ export default function ContactDetail() {
         setIsEditDialogOpen(false);
         queryClient.invalidateQueries({ queryKey: getGetContactQueryKey(contactId) });
       },
-      onError: () => {
+      onError: (err) => {
+        appliquerErreursServeur(err, form);
         toast({ title: t("contactDetail.error"), description: t("contactDetail.updateError"), variant: "destructive" });
       }
     });

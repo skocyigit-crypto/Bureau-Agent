@@ -77,10 +77,12 @@ export default function Accessibilite() {
               <li>
                 Un audit partiel mené en septembre 2026 (revue du code sur dix
                 pages et test automatisé pa11y) a porté sur environ 25 des 106
-                critères ; il ne permet pas de calculer un taux. Les erreurs
-                renvoyées par le serveur (doublon, droit insuffisant) restent
-                signalées par un message général, sans désigner de champ
-                (11.10). Les contrastes n'ont été mesurés que pour le texte
+                critères ; il ne permet pas de calculer un taux. Quand le
+                serveur refuse une saisie, les formulaires de contacts, tâches,
+                appels et messages désignent désormais le champ en cause ; les
+                refus qui ne portent sur aucun champ (doublon, droit
+                insuffisant) restent signalés par un message général (11.10).
+                Les contrastes n'ont été mesurés que pour le texte
                 ambre ; les autres couleurs et le thème sombre restent à
                 relever.
               </li>

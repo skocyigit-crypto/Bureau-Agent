@@ -1,3 +1,4 @@
+import { appliquerErreursServeur } from "@/lib/erreurs-serveur";
 import callCenterImg from "@/assets/images/call-center.webp";
 import { useSelectionVisible } from "@/lib/selection-visible";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
@@ -227,7 +228,7 @@ export default function Calls() {
           form.reset();
           queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() });
         },
-        onError: () => toast({ title: t("calls.toast.error"), description: t("calls.toast.updateError"), variant: "destructive" }),
+        onError: (err) => { appliquerErreursServeur(err, form); toast({ title: t("calls.toast.error"), description: t("calls.toast.updateError"), variant: "destructive" }); },
       });
     } else {
       createCall.mutate({ data: values }, {
@@ -238,7 +239,8 @@ export default function Calls() {
           queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() });
           setLocation(`/appels/${newCall.id}`);
         },
-        onError: () => {
+        onError: (err) => {
+          appliquerErreursServeur(err, form);
           toast({ title: t("calls.toast.error"), description: t("calls.toast.createError"), variant: "destructive" });
         }
       });
