@@ -105,6 +105,9 @@ export async function obtenirJeton(r: RaccordementPA, maintenant = Date.now()): 
     headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
     body: corps,
     signal: AbortSignal.timeout(DELAI_PA_MS),
+    // Ni le jeton ni l'API AFNOR n'ont a rediriger ; suivre une redirection
+    // enverrait identifiants et factures a une adresse jamais controlee.
+    redirect: "manual",
   });
   if (!rep.ok) {
     // Le corps n'est PAS repris dans le message : il peut contenir l'identifiant.
@@ -123,6 +126,7 @@ async function appeler(r: RaccordementPA, chemin: string, init: RequestInit): Pr
     ...init,
     headers: { ...(init.headers ?? {}), Authorization: `Bearer ${jeton}`, Accept: "application/json" },
     signal: AbortSignal.timeout(DELAI_PA_MS),
+    redirect: "manual",
   });
   if (rep.status === 401) oublierJeton(r); // jeton revoque : le prochain appel en redemande un
   return rep;

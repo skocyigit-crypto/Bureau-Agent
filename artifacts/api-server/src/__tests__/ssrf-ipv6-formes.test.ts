@@ -11,9 +11,7 @@
  * Cette garde protege toute URL fournie par un client : webhooks, plateforme
  * agreee, recherche web.
  */
-process.env.NODE_ENV = "production";
-
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { assertSafePublicUrl, isBlockedIp } from "../lib/ssrf-guard";
 
 describe("formes IPv6 d'une adresse interne", () => {
@@ -62,6 +60,13 @@ describe("adresses publiques : pas de faux positif", () => {
 });
 
 describe("de bout en bout, par l'URL", () => {
+  // Production : https exige. Pose ICI et restaure apres, jamais en tete de
+  // fichier — process.env est partage par les fichiers de la meme execution
+  // (singleFork), et un NODE_ENV=production laisse derriere soi faisait
+  // tomber les tests suivants (plateforme-agreee : 16 echecs).
+  const avant = process.env.NODE_ENV;
+  beforeAll(() => { process.env.NODE_ENV = "production"; });
+  afterAll(() => { process.env.NODE_ENV = avant; });
   for (const u of ["https://[::127.0.0.1]/", "https://[::ffff:7f00:1]/", "https://[::ffff:127.0.0.1]/", "https://[64:ff9b::a9fe:a9fe]/"]) {
     it(`refuse ${u}`, async () => {
       await expect(assertSafePublicUrl(u)).rejects.toThrow(/interdite|interne|privée/);
