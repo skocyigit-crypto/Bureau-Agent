@@ -1,4 +1,9 @@
 {
+  "cadreEvaluationIa": {
+    "titre": "Nature of this report",
+    "hypothese": "Commentary written by an artificial intelligence from an activity formula. It is a hypothesis to check with the person, not a finding: never base a decision on this report alone.",
+    "petiteEquipe": "Team of {{count}} person(s): even without names, each figure can be traced to someone."
+  },
   "common": {
     "save": "Save",
     "cancel": "Cancel",

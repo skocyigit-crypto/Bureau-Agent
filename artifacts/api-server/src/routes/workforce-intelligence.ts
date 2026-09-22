@@ -26,7 +26,7 @@ import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "../se
 import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL } from "../services/ai-utils";
 import { logger } from "../lib/logger";
 import { aiForOrg } from "../services/ai-client";
-import { pseudonyme, reidentifierNoms, scoreActivite } from "../services/performance-garde-fous";
+import { cadreEvaluation, pseudonyme, reidentifierNoms, scoreActivite } from "../services/performance-garde-fous";
 
 const router = Router();
 
@@ -447,6 +447,7 @@ Regles:
       date: today,
       managerName,
       teamSize: employees.length,
+      cadre: cadreEvaluation(employees.length),
       teamAvgScore,
       employees: withScores,
       ai: aiResult,

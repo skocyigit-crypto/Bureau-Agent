@@ -1,4 +1,9 @@
 {
+  "cadreEvaluationIa": {
+    "titre": "Raporun niteliği",
+    "hypothese": "Yorum, bir etkinlik formülünden yapay zekâ tarafından yazıldı. Bu bir tespit değil, kişiyle doğrulanması gereken bir varsayımdır: hiçbir kararı yalnızca bu rapora dayandırmayın.",
+    "petiteEquipe": "{{count}} kişilik ekip: isim olmasa da her rakam birine atfedilebilir."
+  },
   "settingsPlateformeAgreee": {
     "title": "Yetkili platform (e-fatura)",
     "description": "Faturalarınızı Ajant Bureau'dan göndermek için şirketinizin yetkili platformunu bağlayın.",

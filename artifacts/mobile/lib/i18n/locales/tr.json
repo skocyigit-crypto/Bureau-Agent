@@ -1,4 +1,9 @@
 {
+  "cadreEvaluationIa": {
+    "titre": "Raporun niteliği",
+    "hypothese": "Yorum, bir etkinlik formülünden yapay zekâ tarafından yazıldı. Bu bir tespit değil, kişiyle doğrulanması gereken bir varsayımdır: hiçbir kararı yalnızca bu rapora dayandırmayın.",
+    "petiteEquipe": "{{count}} kişilik ekip: isim olmasa da her rakam birine atfedilebilir."
+  },
   "common": {
     "save": "Kaydet",
     "cancel": "İptal",
