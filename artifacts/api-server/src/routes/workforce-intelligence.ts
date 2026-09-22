@@ -26,7 +26,7 @@ import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "../se
 import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL } from "../services/ai-utils";
 import { logger } from "../lib/logger";
 import { aiForOrg } from "../services/ai-client";
-import { pseudonyme, reidentifierNoms } from "../services/performance-garde-fous";
+import { pseudonyme, reidentifierNoms, scoreActivite } from "../services/performance-garde-fous";
 
 const router = Router();
 
@@ -293,14 +293,10 @@ async function gatherEmployeeStats(orgId: number): Promise<EmployeeStats[]> {
 // ── Bireysel performans skoru hesapla ─────────────────────────────────────────
 
 function computeScore(emp: EmployeeStats): number {
-  const callScore = Math.min(emp.calls7d * 3, 30);
-  const answerRate = emp.calls7d > 0 ? (emp.callsAnswered7d / emp.calls7d) * 20 : 10;
-  const taskScore = Math.min(emp.tasksCompleted7d * 4, 25);
-  const overdueDeduct = Math.min(emp.tasksOverdue * 5, 20);
-  const noteScore = Math.min(emp.notes7d * 2, 10);
-  const activityScore = Math.min(emp.actions7d / 10, 15);
-  const raw = callScore + answerRate + taskScore + noteScore + activityScore - overdueDeduct;
-  return Math.max(0, Math.min(100, Math.round(raw)));
+  return scoreActivite({
+    appels: emp.calls7d, appelsRepondus: emp.callsAnswered7d, tachesTerminees: emp.tasksCompleted7d,
+    tachesEnRetard: emp.tasksOverdue, notes: emp.notes7d, actions: emp.actions7d,
+  });
 }
 
 // ── Endpoints ─────────────────────────────────────────────────────────────────
