@@ -28,6 +28,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { useTranslation } from "@/lib/i18n";
+import { CadreEvaluationIa, type CadreEvaluation } from "@/components/CadreEvaluationIa";
 
 // ── Tipler ────────────────────────────────────────────────────────────────────
 
@@ -93,6 +94,7 @@ interface PhaseLog {
 }
 
 interface AgentResponse {
+  cadre?: CadreEvaluation;
   agentName: string;
   managerName: string;
   date: string;
@@ -443,6 +445,7 @@ export default function WorkforceAgentScreen() {
           {/* ── TAB: RAPPORT ── */}
           {activeTab === "rapport" && (
             <>
+              <CadreEvaluationIa cadre={data?.cadre} />
               {/* Hero banner */}
               <LinearGradient colors={riskCfg.bg} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
                 <View style={styles.heroTop}>

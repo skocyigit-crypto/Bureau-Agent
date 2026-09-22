@@ -256,7 +256,7 @@ async function multiAiGenerateCached(
 }
 
 import { escapeHtml } from "../lib/html-escape";
-import { pseudonyme, reidentifierNoms } from "../services/performance-garde-fous";
+import { cadreEvaluation, pseudonyme, reidentifierNoms } from "../services/performance-garde-fous";
 
 // Stop-words used to filter the user's chat message into useful keyword tokens.
 // Kept short and French-focused since the assistant always replies in French.
@@ -2651,7 +2651,7 @@ Génère un rapport JSON complet:
       req.log?.warn({ err }, "[commandant] trace d audit non ecrite");
     });
 
-    res.json({ success: true, periode, teamScore, teamQuality, teamEfficiency, employees, analysis });
+    res.json({ success: true, periode, teamScore, teamQuality, teamEfficiency, employees, analysis, cadre: cadreEvaluation(employees.length) });
   } catch (err: any) {
     handleCommandantError(err, res, "[Commandant/EmployeeQuality]");
   }

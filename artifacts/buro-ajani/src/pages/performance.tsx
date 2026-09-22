@@ -1,4 +1,5 @@
 import { AvisConformiteEmployeur } from "@/components/avis-conformite-employeur";
+import { CadreEvaluationIa } from "@/components/cadre-evaluation-ia";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card,CardContent,CardHeader,CardTitle } from "@/components/ui/card";
@@ -344,6 +345,7 @@ export default function PerformancePage() {
 
       {rapport?.analyseIA && (
         <div className="space-y-4">
+          <CadreEvaluationIa cadre={rapport.cadre} />
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Brain className="w-5 h-5 text-indigo-600" />
             {t("performancePage.aiReportTitle")}

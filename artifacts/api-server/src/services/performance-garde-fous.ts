@@ -141,6 +141,30 @@ export function scoreActivite(a: Activite7j): number {
   return Math.max(0, Math.min(100, Math.round(appels + taux + taches + notes + actions - retard)));
 }
 
+/** En dessous, un chiffre « pseudonymise » designe encore quelqu'un pour le responsable. */
+export const SEUIL_PETITE_EQUIPE = 5;
+
+/**
+ * Ce que chaque rapport d'evaluation dit de lui-meme, a l'ecran.
+ *
+ * Registre des risques (docs/conformite-ia) : R-1a (le rapport est une
+ * hypothese a verifier, pas un constat), R-5a (le commentaire est genere par
+ * IA — AI Act art. 50) et R-8a (petite equipe : la personne reste
+ * reconnaissable). Les quatre surfaces d'evaluation renvoient ce meme objet ;
+ * les ecrans l'affichent.
+ *
+ * `individuel` : rapport demande pour UNE personne — l'avertissement de petite
+ * equipe n'a alors pas de sens, la personne est nommee.
+ */
+export function cadreEvaluation(effectif: number, individuel = false) {
+  return {
+    genereParIa: true as const,
+    nature: "hypothese_a_verifier" as const,
+    effectif,
+    petiteEquipe: !individuel && effectif > 0 && effectif < SEUIL_PETITE_EQUIPE,
+  };
+}
+
 /** Identifiant d'employe recu en JSON : nombre entier positif ou rien. */
 export function idEmploye(v: unknown): number | undefined {
   const n = typeof v === "number" ? v : typeof v === "string" && /^\d+$/.test(v.trim()) ? Number(v) : NaN;

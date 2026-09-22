@@ -25,6 +25,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { useTranslation } from "@/lib/i18n";
+import { CadreEvaluationIa, type CadreEvaluation } from "@/components/CadreEvaluationIa";
 
 // ── Tipler ────────────────────────────────────────────────────────────────────
 
@@ -62,6 +63,7 @@ interface AiResult {
 }
 
 interface WIResponse {
+  cadre?: CadreEvaluation;
   date: string;
   managerName: string;
   teamSize: number;
@@ -389,6 +391,8 @@ export default function WorkforceIntelligenceScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
         <Animated.View style={{ opacity: fadeAnim }}>
+
+          <CadreEvaluationIa cadre={data?.cadre} />
 
           {/* Hero — santé équipe */}
           <LinearGradient

@@ -1,4 +1,9 @@
 {
+  "cadreEvaluationIa": {
+    "titre": "Art des Berichts",
+    "hypothese": "Kommentar, von einer künstlichen Intelligenz auf Grundlage einer Aktivitätsformel verfasst. Es ist eine mit der Person zu prüfende Hypothese, keine Feststellung: Stützen Sie niemals eine Entscheidung allein auf diesen Bericht.",
+    "petiteEquipe": "Team mit {{count}} Person(en): Auch ohne Namen lässt sich jede Zahl einer Person zuordnen."
+  },
   "common": {
     "save": "Speichern",
     "cancel": "Abbrechen",

@@ -1,4 +1,9 @@
 {
+  "cadreEvaluationIa": {
+    "titre": "Naturaleza del informe",
+    "hypothese": "Comentario redactado por una inteligencia artificial a partir de una fórmula de actividad. Es una hipótesis que debe verificarse con la persona, no una constatación: nunca base una decisión solo en este informe.",
+    "petiteEquipe": "Equipo de {{count}} persona(s): incluso sin nombres, cada cifra puede atribuirse a alguien."
+  },
   "settingsPlateformeAgreee": {
     "title": "Plataforma autorizada (facturación electrónica)",
     "description": "Conecte la plataforma autorizada de su empresa para enviarle sus facturas desde Ajant Bureau.",

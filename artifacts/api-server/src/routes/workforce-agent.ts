@@ -39,7 +39,7 @@ import { logger } from "../lib/logger";
 import { logAudit } from "./audit";
 import { aiForOrg } from "../services/ai-client";
 import { respondAiError } from "../services/ai-guard";
-import { pseudonyme, reidentifierNoms, scoreActivite } from "../services/performance-garde-fous";
+import { cadreEvaluation, pseudonyme, reidentifierNoms, scoreActivite } from "../services/performance-garde-fous";
 
 const router = Router();
 
@@ -604,6 +604,7 @@ router.get(
         date: new Date().toLocaleDateString("fr-FR", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
         teamScore: result.teamScore,
         employeeCount: result.employeeCount,
+        cadre: cadreEvaluation(result.employeeCount),
         phases: {
           scout: result.scout,
           diagnose: result.diagnose,
