@@ -199,8 +199,8 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
         res.status(200).json({ requiresMfa: true, message: "Code TOTP requis." });
         return;
       }
-      const { verifyMfaToken } = await import("../services/mfa");
-      if (!verifyMfaToken(totpCode, user.mfaSecret)) {
+      const { consommerCodeMfa } = await import("../services/mfa");
+      if (!(await consommerCodeMfa(user.id, totpCode, user.mfaSecret))) {
         const newAttempts = user.tentativesEchouees + 1;
         const updateData: Record<string, any> = { tentativesEchouees: newAttempts };
         if (newAttempts >= MAX_FAILED_ATTEMPTS) {
@@ -304,8 +304,8 @@ router.post("/auth/mfa/enable", mfaVerifyLimiter, async (req: Request, res: Resp
   try {
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
     if (!user || !user.mfaSecret) { res.status(400).json({ error: "Lancez d'abord la configuration MFA." }); return; }
-    const { verifyMfaToken } = await import("../services/mfa");
-    if (!verifyMfaToken(totpCode, user.mfaSecret)) { res.status(400).json({ error: "Code TOTP invalide." }); return; }
+    const { consommerCodeMfa } = await import("../services/mfa");
+    if (!(await consommerCodeMfa(user.id, totpCode, user.mfaSecret))) { res.status(400).json({ error: "Code TOTP invalide." }); return; }
     await db.update(usersTable).set({ mfaActif: true, updatedAt: new Date() }).where(eq(usersTable.id, userId));
     logAudit(userId, user.email, "mfa_enabled", "user", String(userId), undefined, req.ip, req.get("user-agent"), user.organisationId);
     res.json({ message: "Authentification a deux facteurs activee." });
@@ -326,10 +326,10 @@ router.post("/auth/mfa/disable", mfaVerifyLimiter, async (req: Request, res: Res
     const pwOk = await bcrypt.compare(password, user.passwordHash);
     if (!pwOk) { res.status(401).json({ error: "Mot de passe incorrect." }); return; }
     if (user.mfaActif && user.mfaSecret) {
-      const { verifyMfaToken } = await import("../services/mfa");
-      if (!totpCode || !verifyMfaToken(totpCode, user.mfaSecret)) { res.status(400).json({ error: "Code TOTP invalide." }); return; }
+      const { consommerCodeMfa } = await import("../services/mfa");
+      if (!totpCode || !(await consommerCodeMfa(user.id, totpCode, user.mfaSecret))) { res.status(400).json({ error: "Code TOTP invalide." }); return; }
     }
-    await db.update(usersTable).set({ mfaActif: false, mfaSecret: null, updatedAt: new Date() }).where(eq(usersTable.id, userId));
+    await db.update(usersTable).set({ mfaActif: false, mfaSecret: null, mfaDernierPas: null, updatedAt: new Date() }).where(eq(usersTable.id, userId));
     logAudit(userId, user.email, "mfa_disabled", "user", String(userId), undefined, req.ip, req.get("user-agent"), user.organisationId);
     res.json({ message: "Authentification a deux facteurs desactivee." });
   } catch (err: any) {
