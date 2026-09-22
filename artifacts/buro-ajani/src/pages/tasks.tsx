@@ -1,3 +1,4 @@
+import { appliquerErreursServeur } from "@/lib/erreurs-serveur";
 import taskManagementImg from "@/assets/images/task-management.webp";
 import { useSelectionVisible } from "@/lib/selection-visible";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
@@ -233,7 +234,7 @@ export default function Tasks() {
           setIsDialogOpen(false);
           queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
         },
-        onError: () => toast({ title: t("tasks.toast.error"), description: t("tasks.toast.updateError"), variant: "destructive" })
+        onError: (err) => { appliquerErreursServeur(err, form); toast({ title: t("tasks.toast.error"), description: t("tasks.toast.updateError"), variant: "destructive" }); }
       });
     } else {
       createTask.mutate({ data: values }, {
@@ -242,7 +243,7 @@ export default function Tasks() {
           setIsDialogOpen(false);
           queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
         },
-        onError: () => toast({ title: t("tasks.toast.error"), description: t("tasks.toast.createError"), variant: "destructive" })
+        onError: (err) => { appliquerErreursServeur(err, form); toast({ title: t("tasks.toast.error"), description: t("tasks.toast.createError"), variant: "destructive" }); }
       });
     }
   };

@@ -1,3 +1,4 @@
+import { appliquerErreursServeur } from "@/lib/erreurs-serveur";
 import messagingImg from "@/assets/images/messaging-center.webp";
 import { useSelectionVisible } from "@/lib/selection-visible";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
@@ -212,7 +213,7 @@ export default function Messages() {
           setEditingMessage(null);
           queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() });
         },
-        onError: () => toast({ title: t("messages.toast.error"), description: t("messages.toast.updateError"), variant: "destructive" }),
+        onError: (err) => { appliquerErreursServeur(err, form); toast({ title: t("messages.toast.error"), description: t("messages.toast.updateError"), variant: "destructive" }); },
       });
     } else {
       createMessage.mutate({ data: values }, {
@@ -222,7 +223,8 @@ export default function Messages() {
           form.reset();
           queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() });
         },
-        onError: () => {
+        onError: (err) => {
+          appliquerErreursServeur(err, form);
           toast({ title: t("messages.toast.error"), description: t("messages.toast.createError"), variant: "destructive" });
         }
       });

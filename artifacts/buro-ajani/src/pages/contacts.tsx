@@ -1,3 +1,4 @@
+import { appliquerErreursServeur } from "@/lib/erreurs-serveur";
 import receptionImg from "@/assets/images/reception-desk.webp";
 import { useSelectionVisible } from "@/lib/selection-visible";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
@@ -265,7 +266,7 @@ export default function Contacts() {
           form.reset();
           queryClient.invalidateQueries({ queryKey: getListContactsQueryKey() });
         },
-        onError: () => toast({ title: t("contacts.toast.error"), description: t("contacts.toast.updateError"), variant: "destructive" }),
+        onError: (err) => { appliquerErreursServeur(err, form); toast({ title: t("contacts.toast.error"), description: t("contacts.toast.updateError"), variant: "destructive" }); },
       });
     } else {
       createContact.mutate({ data: values }, {
@@ -276,7 +277,8 @@ export default function Contacts() {
           queryClient.invalidateQueries({ queryKey: getListContactsQueryKey() });
           setLocation(`/contacts/${newContact.id}`);
         },
-        onError: () => {
+        onError: (err) => {
+          appliquerErreursServeur(err, form);
           toast({ title: t("contacts.toast.error"), description: t("contacts.toast.createError"), variant: "destructive" });
         }
       });
