@@ -237,6 +237,12 @@ async function attemptDelivery(
       },
       body,
       signal: controller.signal,
+      // Aucune redirection suivie. L'URL est controlee (assertSafePublicUrl),
+      // mais fetch suit les redirections par defaut : un 307 renverrait ce POST,
+      // corps signe compris, vers n'importe quelle adresse — interne comprise —
+      // sans nouveau controle. Un recepteur de webhook n'a pas a rediriger :
+      // la redirection devient un echec de livraison, nomme comme tel.
+      redirect: "manual",
     });
     const durationMs = Date.now() - start;
 
@@ -258,7 +264,9 @@ async function attemptDelivery(
       await handleFailure(delivery, endpoint, attemptNo, durationMs, {
         responseStatus: res.status,
         responseBody: snippet,
-        error: `HTTP ${res.status}`,
+        error: res.status >= 300 && res.status < 400
+          ? `redirection refusee (HTTP ${res.status}) : un webhook ne suit pas de redirection`
+          : `HTTP ${res.status}`,
       });
     }
   } catch (err) {
