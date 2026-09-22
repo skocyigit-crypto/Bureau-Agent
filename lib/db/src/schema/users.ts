@@ -77,6 +77,9 @@ export const usersTable = pgTable("users", {
   actif: boolean("actif").notNull().default(true),
   mfaActif: boolean("mfa_actif").notNull().default(false),
   mfaSecret: text("mfa_secret"),
+  // Dernier pas de temps TOTP accepte (RFC 6238 §5.2 : un code ne sert
+  // qu'une fois). Nullable : aucun code encore utilise.
+  mfaDernierPas: integer("mfa_dernier_pas"),
   dernierAcces: timestamp("dernier_acces"),
   tentativesEchouees: integer("tentatives_echouees").notNull().default(0),
   verrouilleJusqua: timestamp("verrouille_jusqua"),
