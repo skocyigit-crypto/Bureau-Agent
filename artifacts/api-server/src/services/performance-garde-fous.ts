@@ -109,6 +109,38 @@ function reidentifierPar<V>(valeur: V, nom: (rang: number) => string | undefined
   return parcourir(valeur) as V;
 }
 
+/** Volumes d'activite d'un salarie sur 7 jours, tels que le logiciel les enregistre. */
+export interface Activite7j {
+  appels: number;
+  appelsRepondus: number;
+  tachesTerminees: number;
+  tachesEnRetard: number;
+  notes: number;
+  actions: number;
+}
+
+/**
+ * Score d'activite 0..100 — UNE formule, pour les deux surfaces qui l'affichent.
+ *
+ * Elle etait recopiee a l'identique dans workforce-agent et
+ * workforce-intelligence : la notice d'utilisation (AI Act, art. 13) dit
+ * « une formule fixe », et deux copies finissent toujours par diverger.
+ *
+ * Ce qu'elle mesure et ce qu'elle ne mesure pas est ecrit dans la notice
+ * (content/conformite-employeur/notice-utilisation-ia.md) : seule l'activite
+ * enregistree dans le logiciel, sans tenir compte des absences ni du travail
+ * hors ecran. Elle n'a jamais ete validee contre une mesure reelle.
+ */
+export function scoreActivite(a: Activite7j): number {
+  const appels = Math.min(a.appels * 3, 30);
+  const taux = a.appels > 0 ? (a.appelsRepondus / a.appels) * 20 : 10;
+  const taches = Math.min(a.tachesTerminees * 4, 25);
+  const retard = Math.min(a.tachesEnRetard * 5, 20);
+  const notes = Math.min(a.notes * 2, 10);
+  const actions = Math.min(a.actions / 10, 15);
+  return Math.max(0, Math.min(100, Math.round(appels + taux + taches + notes + actions - retard)));
+}
+
 /** Identifiant d'employe recu en JSON : nombre entier positif ou rien. */
 export function idEmploye(v: unknown): number | undefined {
   const n = typeof v === "number" ? v : typeof v === "string" && /^\d+$/.test(v.trim()) ? Number(v) : NaN;

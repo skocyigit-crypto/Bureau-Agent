@@ -39,7 +39,7 @@ import { logger } from "../lib/logger";
 import { logAudit } from "./audit";
 import { aiForOrg } from "../services/ai-client";
 import { respondAiError } from "../services/ai-guard";
-import { pseudonyme, reidentifierNoms } from "../services/performance-garde-fous";
+import { pseudonyme, reidentifierNoms, scoreActivite } from "../services/performance-garde-fous";
 
 const router = Router();
 
@@ -229,15 +229,10 @@ async function collectEmployeeData(orgId: number) {
     const callsNow = m(callsToday)[u.id] ?? 0;
 
     // Performans skoru hesabı
-    const callScore = Math.min(c.total * 3, 30);
-    const answerRate = c.total > 0 ? (c.answered / c.total) * 20 : 10;
-    const taskScore = Math.min(tasksCompleted * 4, 25);
-    const overdueDeduct = Math.min(overdue * 5, 20);
-    const noteScore = Math.min(notes * 2, 10);
-    const activityScore = Math.min(actions / 10, 15);
-    const score = Math.max(0, Math.min(100, Math.round(
-      callScore + answerRate + taskScore + noteScore + activityScore - overdueDeduct
-    )));
+    const score = scoreActivite({
+      appels: c.total, appelsRepondus: c.answered, tachesTerminees: tasksCompleted,
+      tachesEnRetard: overdue, notes, actions,
+    });
 
     const isActiveToday = callsNow + actionsNow > 0;
     const daysSinceLastAccess = u.dernierAcces

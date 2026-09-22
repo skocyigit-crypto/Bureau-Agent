@@ -13,11 +13,12 @@ contrôle de l'activité au sens du Code du travail :
 | Géolocalisation de présence | Pour chaque relevé (horodatage ; zone(s) de travail où se trouve le salarié, ou mention « hors zone » ; état en mouvement ou immobile ; niveau de batterie) — uniquement pendant les horaires définis. L'employeur dispose donc d'un historique horodaté de présence sur zone | 30 jours, purge automatique. Les coordonnées GPS ne sont **pas** conservées |
 | Évaluation d'activité (rapports de performance, analyse d'équipe) | Nom, rôle, service, volumes d'activité, heures et pauses, appréciation générée par IA | Durée du contrat (aucune purge automatique) |
 
-Avant la mise en service de ces fonctionnalités, trois démarches incombent à l'employeur :
+Avant la mise en service de ces fonctionnalités, quatre démarches incombent à l'employeur :
 
 1. **Consulter le CSE** (Code du travail, art. L2312-38), s'il en existe un — [dossier de consultation](dossier-consultation-cse.md).
 2. **Informer chaque salarié** préalablement (art. L1222-4 ; RGPD art. 13) — [note d'information](note-information-salaries.md).
 3. **Réaliser une analyse d'impact (AIPD)**, obligatoire pour les rapports d'évaluation : l'établissement de profils de salariés à des fins de gestion des ressources humaines figure sur la liste CNIL des traitements soumis à AIPD (RGPD art. 35) — [trame d'AIPD](trame-aipd.md).
+4. **Lire la notice d'utilisation des fonctions d'IA** (règlement européen sur l'IA, art. 13 et 26) : destination, limites connues, supervision humaine et obligations du déployeur — [notice d'utilisation](notice-utilisation-ia.md).
 
 Ces documents sont des **modèles** : les passages entre crochets `[…]` sont à compléter par
 l'employeur. Ils ne constituent pas un avis juridique.

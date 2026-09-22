@@ -17,7 +17,7 @@ import { rendreMarkdown } from "@/lib/markdown-simple";
 const RACINE = join(import.meta.dirname, "..", "..", "..", "..");
 const SITE = join(RACINE, "artifacts", "tanitim");
 const KIT = join(SITE, "src", "content", "conformite-employeur");
-const FICHIERS = ["README.md", "dossier-consultation-cse.md", "note-information-salaries.md", "trame-aipd.md"];
+const FICHIERS = ["README.md", "dossier-consultation-cse.md", "note-information-salaries.md", "trame-aipd.md", "notice-utilisation-ia.md"];
 const PAGE = readFileSync(join(SITE, "src", "pages", "conformite-employeur.tsx"), "utf8");
 
 const html = (md: string, lien: (c: string) => string = (c) => `/x/${c}`) =>

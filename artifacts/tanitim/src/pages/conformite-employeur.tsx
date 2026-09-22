@@ -9,6 +9,7 @@ import readme from "@/content/conformite-employeur/README.md?raw";
 import cse from "@/content/conformite-employeur/dossier-consultation-cse.md?raw";
 import note from "@/content/conformite-employeur/note-information-salaries.md?raw";
 import aipd from "@/content/conformite-employeur/trame-aipd.md?raw";
+import noticeIa from "@/content/conformite-employeur/notice-utilisation-ia.md?raw";
 
 /**
  * Kit de conformite employeur : consultation du CSE, note d'information des
@@ -28,6 +29,7 @@ export const DOCUMENTS = [
   { slug: "consultation-cse", fichier: "dossier-consultation-cse.md", titre: "Dossier de consultation du CSE", source: cse },
   { slug: "note-information-salaries", fichier: "note-information-salaries.md", titre: "Note d'information des salariés", source: note },
   { slug: "aipd", fichier: "trame-aipd.md", titre: "Trame d'analyse d'impact (AIPD)", source: aipd },
+  { slug: "notice-ia", fichier: "notice-utilisation-ia.md", titre: "Notice d'utilisation de l'IA (AI Act)", source: noticeIa },
 ] as const;
 
 const adresse = (slug: string) => (slug ? `/conformite-employeur/${slug}` : "/conformite-employeur");
