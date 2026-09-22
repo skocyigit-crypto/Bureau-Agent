@@ -1,4 +1,9 @@
 {
+  "cadreEvaluationIa": {
+    "titre": "Nature du rapport",
+    "hypothese": "Commentaire rédigé par une intelligence artificielle à partir d'une formule d'activité. C'est une hypothèse à vérifier avec la personne, pas un constat : ne fondez jamais une décision sur ce seul rapport.",
+    "petiteEquipe": "Équipe de {{count}} personne(s) : même sans nom, chaque chiffre reste attribuable à quelqu'un."
+  },
   "settingsPlateformeAgreee": {
     "title": "Plateforme agréée (facturation électronique)",
     "description": "Raccordez la plateforme agréée de votre entreprise pour lui transmettre vos factures depuis Ajant Bureau.",

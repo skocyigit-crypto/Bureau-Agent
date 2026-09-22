@@ -3,7 +3,7 @@ import { generatePerformanceReport, getPerformanceHistory, gatherUserMetrics } f
 import { requireRole } from "../middleware/auth";
 import { logAudit } from "./audit";
 import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
-import { debutPeriode, idEmploye, periodeValide } from "../services/performance-garde-fous";
+import { cadreEvaluation, debutPeriode, idEmploye, periodeValide } from "../services/performance-garde-fous";
 
 const router: IRouter = Router();
 
@@ -76,7 +76,8 @@ router.post("/performance/rapport", reserveAuxResponsables, async (req, res): Pr
       req.log.warn({ err }, "[performance] trace d'audit non ecrite");
     });
 
-    res.json(rapport);
+    const effectif = Array.isArray((rapport as { metriques?: unknown[] }).metriques) ? (rapport as { metriques: unknown[] }).metriques.length : 0;
+    res.json({ ...rapport, cadre: cadreEvaluation(effectif, Boolean(employeId)) });
   } catch (err: any) {
     req.log.error({ err }, "Erreur generation rapport performance");
     res.status(500).json({ error: "Erreur lors de la generation du rapport." });

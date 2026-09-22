@@ -238,3 +238,18 @@ describe("commandant/employee-quality (plusieurs fournisseurs)", () => {
     expect(remise).toBeLessThan(route.indexOf("res.json("));
   });
 });
+
+describe("chaque rapport dit sa nature (registre des risques R-1a, R-5a, R-8a)", () => {
+  // L'equipe de test compte trois personnes : sous le seuil de 5.
+  it("workforce-intelligence : genere par IA, hypothese, petite equipe signalee", async () => {
+    reponse = () => JSON.stringify({ sante_equipe: 50, tendance: "stable", message_manager: "-", top_performeurs: [], en_difficulte: [], alertes: [], recommandations: [], previsions: "-" });
+    const r = await request(appli(workforceIntelligence)).get("/api/workforce-intelligence");
+    expect(r.body.cadre).toEqual({ genereParIa: true, nature: "hypothese_a_verifier", effectif: 3, petiteEquipe: true });
+  });
+
+  it("workforce-agent : meme cadre", async () => {
+    reponse = () => "{}";
+    const r = await request(appli(workforceAgent)).get("/api/workforce-agent");
+    expect(r.body.cadre).toEqual({ genereParIa: true, nature: "hypothese_a_verifier", effectif: 3, petiteEquipe: true });
+  });
+});
