@@ -29,6 +29,7 @@ import { startInvoiceReminderCron } from "./services/invoice-reminder-cron";
 import { startSaasAgentCron } from "./services/saas-agent-cron";
 import { startAppAuditCron } from "./services/app-audit-cron";
 import { startHealthAgentsCron } from "./services/health-agents-cron";
+import { startPlateformeAgreeeCron } from "./services/plateforme-agreee-cron";
 import { startAgentAutoRunScheduler, startAutopilotScheduler } from "./routes/ai-agents";
 import { startWebhookEngine } from "./services/webhook-service";
 import { startPushNotifications } from "./services/push-notifications";
@@ -229,6 +230,7 @@ async function startServer(): Promise<void> {
       ["saas-agent-cron", startSaasAgentCron],
       ["app-audit-cron", startAppAuditCron],
       ["health-agents-cron", startHealthAgentsCron],
+      ["plateforme-agreee-cron", startPlateformeAgreeeCron],
       ["agent-auto-run", startAgentAutoRunScheduler],
       ["autopilot", startAutopilotScheduler],
       ["webhook-engine", startWebhookEngine],

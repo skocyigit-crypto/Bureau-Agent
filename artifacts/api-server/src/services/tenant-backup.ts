@@ -50,6 +50,10 @@ export const TENANT_TABLES = [
   // Le compteur de numerotation fait partie des donnees du client: restaurer
   // ses factures sans sa sequence rouvrirait des numeros deja utilises.
   "invoice_sequences",
+  // Le raccordement a la plateforme agreee, comme `email_providers` : le
+  // secret y est deja chiffre. Sans lui, une restauration rendrait des
+  // factures marquees « transmises » sans le moyen d'en suivre l'accuse.
+  "plateformes_agreees",
   // Le journal des reglements. Sa presence ici n'est pas un confort: le meme
   // article qui exige son inalterabilite (286-I-3° bis du CGI) exige aussi sa
   // CONSERVATION. Un journal qu'une restauration ne rendrait pas serait
@@ -104,6 +108,18 @@ export const REDACTED_COLUMNS = new Set([
   "client_secret_enc",
   "secret",
   "secrets",
+  // Ajoutees le 21/09/2026 : la liste etait tenue a la main, et ces secrets
+  // VIVANTS partaient dans l'export telechargeable. Un jeton de reinitialisation
+  // de mot de passe ou d'invitation dans un fichier egare suffit a prendre un
+  // compte ou a entrer dans l'organisation. tenant-backup-secrets.test.ts
+  // derive desormais la liste du schema.
+  "reset_password_token",
+  "email_verification_token",
+  "token",
+  "claim_token",
+  "key_encrypted",
+  "license_key",
+  "client_secret_chiffre",
 ]);
 
 /** Au-dela, on refuse de stocker: la ligne deviendrait ingerable en base. */

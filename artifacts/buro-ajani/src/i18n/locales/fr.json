@@ -1,4 +1,43 @@
 {
+  "settingsPlateformeAgreee": {
+    "title": "Plateforme agréée (facturation électronique)",
+    "description": "Raccordez la plateforme agréée de votre entreprise pour lui transmettre vos factures depuis Ajant Bureau.",
+    "why": "Depuis le 1er septembre 2026, vos factures fournisseurs vous parviennent par une plateforme agréée ; l'émission par ce canal devient obligatoire au plus tard le 1er septembre 2027. Ajant Bureau n'est pas une plateforme agréée : il transmet vos factures Factur-X à celle que vous avez choisie, par l'API normalisée AFNOR XP Z12-013. Les identifiants vous sont fournis par votre plateforme.",
+    "connected": "Raccordée",
+    "prefill": "Pré-remplir : {{name}}",
+    "fields": {
+      "nom": "Nom de la plateforme",
+      "clientId": "Identifiant client (client_id)",
+      "urlFlow": "Adresse de l'API AFNOR Flow",
+      "urlJeton": "Adresse du jeton OAuth2",
+      "clientSecret": "Secret client (client_secret)"
+    },
+    "secretHint": "Obligatoire. Il est chiffré et ne sera plus jamais affiché.",
+    "secretKept": "Un secret est enregistré. Laissez vide pour le conserver.",
+    "save": "Enregistrer",
+    "test": "Tester le raccordement",
+    "delete": "Retirer",
+    "confirmDelete": "Retirer le raccordement à la plateforme agréée ?",
+    "err": {
+      "nom": "Le nom de la plateforme est obligatoire.",
+      "clientId": "L'identifiant client est obligatoire.",
+      "secret": "Le secret client est obligatoire."
+    },
+    "toast": {
+      "loadError": "Le raccordement n'a pas pu être chargé.",
+      "saved": "Raccordement enregistré.",
+      "saveError": "Le raccordement n'a pas pu être enregistré.",
+      "testOk": "La plateforme répond et accepte vos identifiants.",
+      "testFail": "Le raccordement ne fonctionne pas.",
+      "recuesError": "Les factures reçues n'ont pas pu être lues."
+    },
+    "received": {
+      "title": "Factures reçues",
+      "description": "Les factures de vos fournisseurs arrivées sur votre plateforme agréée.",
+      "load": "Afficher les factures reçues",
+      "empty": "Aucune facture reçue."
+    }
+  },
   "conformiteEmployeur": {
     "titre": "Obligations de l'employeur",
     "avis": "Avant d'utiliser ce suivi, l'employeur doit consulter le CSE, informer chaque salarié et, si nécessaire, réaliser une analyse d'impact (AIPD).",
@@ -1807,6 +1846,7 @@
       "ia": "IA",
       "apiWebhooks": "API & Webhooks",
       "emailExpediteur": "Email expéditeur",
+      "plateformeAgreee": "Facturation électronique",
       "clesIa": "Clés IA",
       "misesAJour": "Mises a jour"
     },
@@ -5812,6 +5852,19 @@
     }
   },
   "adminFacturesClient": {
+    "pa": {
+      "transmit": "Transmettre à la plateforme agréée",
+      "transmitFor": "Transmettre la facture {{reference}} à la plateforme agréée",
+      "confirmTitle": "Transmettre cette facture ?",
+      "confirmDesc": "La facture {{reference}} sera déposée sur votre plateforme agréée, qui la transmettra à votre client et à l'administration. Une facture transmise ne se retire pas.",
+      "sent": "Facture transmise à la plateforme agréée.",
+      "error": "La facture n'a pas pu être transmise.",
+      "status": {
+        "Pending": "PA : en cours",
+        "Ok": "PA : acceptée",
+        "Error": "PA : rejetée"
+      }
+    },
     "title": "Factures client",
     "superAdmin": "Super-admin",
     "subtitle": "Vue globale SaaS — factures émises aux clients, toutes organisations confondues.",

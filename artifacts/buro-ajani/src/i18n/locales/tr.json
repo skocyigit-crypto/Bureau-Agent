@@ -1,4 +1,43 @@
 {
+  "settingsPlateformeAgreee": {
+    "title": "Yetkili platform (e-fatura)",
+    "description": "Faturalarınızı Ajant Bureau'dan göndermek için şirketinizin yetkili platformunu bağlayın.",
+    "why": "1 Eylül 2026'dan beri tedarikçi faturaları size yetkili bir platform üzerinden ulaşıyor; bu kanaldan fatura kesmek en geç 1 Eylül 2027'de zorunlu hale geliyor. Ajant Bureau yetkili bir platform değildir: Factur-X faturalarınızı, standart AFNOR XP Z12-013 API'si ile seçtiğiniz platforma iletir. Kimlik bilgilerini platformunuz verir.",
+    "connected": "Bağlı",
+    "prefill": "Doldur: {{name}}",
+    "fields": {
+      "nom": "Platform adı",
+      "clientId": "İstemci kimliği (client_id)",
+      "urlFlow": "AFNOR Flow API adresi",
+      "urlJeton": "OAuth2 jeton adresi",
+      "clientSecret": "İstemci sırrı (client_secret)"
+    },
+    "secretHint": "Zorunlu. Şifrelenir ve bir daha gösterilmez.",
+    "secretKept": "Kayıtlı bir sır var. Korumak için boş bırakın.",
+    "save": "Kaydet",
+    "test": "Bağlantıyı test et",
+    "delete": "Kaldır",
+    "confirmDelete": "Yetkili platform bağlantısı kaldırılsın mı?",
+    "err": {
+      "nom": "Platform adı zorunludur.",
+      "clientId": "İstemci kimliği zorunludur.",
+      "secret": "İstemci sırrı zorunludur."
+    },
+    "toast": {
+      "loadError": "Bağlantı yüklenemedi.",
+      "saved": "Bağlantı kaydedildi.",
+      "saveError": "Bağlantı kaydedilemedi.",
+      "testOk": "Platform yanıt veriyor ve kimlik bilgilerinizi kabul ediyor.",
+      "testFail": "Bağlantı çalışmıyor.",
+      "recuesError": "Gelen faturalar okunamadı."
+    },
+    "received": {
+      "title": "Gelen faturalar",
+      "description": "Tedarikçilerinizin yetkili platformunuza gelen faturaları.",
+      "load": "Gelen faturaları göster",
+      "empty": "Gelen fatura yok."
+    }
+  },
   "conformiteEmployeur": {
     "titre": "İşverenin yükümlülükleri",
     "avis": "Bu takibi kullanmadan önce işveren CSE'ye (çalışan temsilciliği) danışmalı, her çalışanı bilgilendirmeli ve gerekiyorsa bir veri koruma etki analizi (AIPD) yapmalıdır.",
@@ -1807,6 +1846,7 @@
       "ia": "Yapay Zeka",
       "apiWebhooks": "API ve Webhook'lar",
       "emailExpediteur": "Gönderen e-posta",
+      "plateformeAgreee": "E-fatura",
       "clesIa": "Yapay Zeka Anahtarları",
       "misesAJour": "Güncellemeler"
     },
@@ -5812,6 +5852,19 @@
     }
   },
   "adminFacturesClient": {
+    "pa": {
+      "transmit": "Yetkili platforma gönder",
+      "transmitFor": "{{reference}} faturasını yetkili platforma gönder",
+      "confirmTitle": "Bu fatura gönderilsin mi?",
+      "confirmDesc": "{{reference}} faturası yetkili platformunuza yüklenecek; platform onu müşterinize ve vergi idaresine iletecek. Gönderilen fatura geri alınamaz.",
+      "sent": "Fatura yetkili platforma gönderildi.",
+      "error": "Fatura gönderilemedi.",
+      "status": {
+        "Pending": "Platform: bekliyor",
+        "Ok": "Platform: kabul edildi",
+        "Error": "Platform: reddedildi"
+      }
+    },
     "title": "Müşteri faturaları",
     "superAdmin": "Süper-admin",
     "subtitle": "Global SaaS görünümü — tüm organizasyonlarda müşterilere düzenlenen faturalar.",

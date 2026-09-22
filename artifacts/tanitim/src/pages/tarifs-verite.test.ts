@@ -164,3 +164,17 @@ describe("la page de tarifs dit aussi ce que le prix ne comprend pas", () => {
     expect(tarifs).toMatch(/n'est pas une plateforme agréée/);
   });
 });
+
+describe("la transmission promise existe dans le produit", () => {
+  it("si la page promet de transmettre les factures, la route de transmission existe", () => {
+    // Promettre un envoi que le code ne fait pas serait un mensonge commercial.
+    // La page le promet (sinon ce test ne verifierait rien) :
+    expect(TEXTE).toMatch(/transmet\s+vos factures/);
+    const route = fs.readFileSync(
+      path.resolve(__dirname, "../../../api-server/src/routes/plateforme-agreee.ts"),
+      "utf8",
+    );
+    expect(route).toContain('router.post("/factures-client/:id/transmettre"');
+    expect(route).toContain("deposerFacture(");
+  });
+});

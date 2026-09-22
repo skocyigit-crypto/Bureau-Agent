@@ -1,4 +1,43 @@
 {
+  "settingsPlateformeAgreee": {
+    "title": "Plataforma autorizada (facturación electrónica)",
+    "description": "Conecte la plataforma autorizada de su empresa para enviarle sus facturas desde Ajant Bureau.",
+    "why": "Desde el 1 de septiembre de 2026, las facturas de proveedores le llegan a través de una plataforma autorizada; emitir por este canal será obligatorio a más tardar el 1 de septiembre de 2027. Ajant Bureau no es una plataforma autorizada: transmite sus facturas Factur-X a la que usted eligió, mediante la API estándar AFNOR XP Z12-013. Su plataforma le proporciona las credenciales.",
+    "connected": "Conectada",
+    "prefill": "Rellenar: {{name}}",
+    "fields": {
+      "nom": "Nombre de la plataforma",
+      "clientId": "Identificador de cliente (client_id)",
+      "urlFlow": "Dirección de la API AFNOR Flow",
+      "urlJeton": "Dirección del token OAuth2",
+      "clientSecret": "Secreto de cliente (client_secret)"
+    },
+    "secretHint": "Obligatorio. Se cifra y no se volverá a mostrar.",
+    "secretKept": "Hay un secreto guardado. Déjelo vacío para conservarlo.",
+    "save": "Guardar",
+    "test": "Probar la conexión",
+    "delete": "Retirar",
+    "confirmDelete": "¿Retirar la conexión con la plataforma autorizada?",
+    "err": {
+      "nom": "El nombre de la plataforma es obligatorio.",
+      "clientId": "El identificador de cliente es obligatorio.",
+      "secret": "El secreto de cliente es obligatorio."
+    },
+    "toast": {
+      "loadError": "No se pudo cargar la conexión.",
+      "saved": "Conexión guardada.",
+      "saveError": "No se pudo guardar la conexión.",
+      "testOk": "La plataforma responde y acepta sus credenciales.",
+      "testFail": "La conexión no funciona.",
+      "recuesError": "No se pudieron leer las facturas recibidas."
+    },
+    "received": {
+      "title": "Facturas recibidas",
+      "description": "Las facturas de sus proveedores recibidas en su plataforma autorizada.",
+      "load": "Mostrar las facturas recibidas",
+      "empty": "Ninguna factura recibida."
+    }
+  },
   "conformiteEmployeur": {
     "titre": "Obligaciones del empleador",
     "avis": "Antes de utilizar este seguimiento, el empleador debe consultar al comité social y económico (CSE), informar a cada empleado y, si es necesario, realizar una evaluación de impacto (AIPD).",
@@ -1807,6 +1846,7 @@
       "ia": "IA",
       "apiWebhooks": "API y Webhooks",
       "emailExpediteur": "Correo del remitente",
+      "plateformeAgreee": "Facturación electrónica",
       "clesIa": "Claves de IA",
       "misesAJour": "Actualizaciones"
     },
@@ -5812,6 +5852,19 @@
     }
   },
   "adminFacturesClient": {
+    "pa": {
+      "transmit": "Enviar a la plataforma autorizada",
+      "transmitFor": "Enviar la factura {{reference}} a la plataforma autorizada",
+      "confirmTitle": "¿Enviar esta factura?",
+      "confirmDesc": "La factura {{reference}} se depositará en su plataforma autorizada, que la transmitirá a su cliente y a la administración. Una factura enviada no se puede retirar.",
+      "sent": "Factura enviada a la plataforma autorizada.",
+      "error": "No se pudo enviar la factura.",
+      "status": {
+        "Pending": "Plataforma: en curso",
+        "Ok": "Plataforma: aceptada",
+        "Error": "Plataforma: rechazada"
+      }
+    },
     "title": "Facturas de cliente",
     "superAdmin": "Súper-admin",
     "subtitle": "Vista global SaaS — facturas emitidas a clientes de todas las organizaciones.",

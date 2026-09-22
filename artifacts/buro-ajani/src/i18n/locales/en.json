@@ -1,4 +1,43 @@
 {
+  "settingsPlateformeAgreee": {
+    "title": "Approved platform (e-invoicing)",
+    "description": "Connect your company's approved platform to send your invoices from Ajant Bureau.",
+    "why": "Since 1 September 2026, supplier invoices reach you through an approved platform; issuing through it becomes mandatory by 1 September 2027 at the latest. Ajant Bureau is not an approved platform: it sends your Factur-X invoices to the one you chose, through the standard AFNOR XP Z12-013 API. Your platform provides the credentials.",
+    "connected": "Connected",
+    "prefill": "Prefill: {{name}}",
+    "fields": {
+      "nom": "Platform name",
+      "clientId": "Client ID (client_id)",
+      "urlFlow": "AFNOR Flow API address",
+      "urlJeton": "OAuth2 token address",
+      "clientSecret": "Client secret (client_secret)"
+    },
+    "secretHint": "Required. It is encrypted and will never be shown again.",
+    "secretKept": "A secret is saved. Leave empty to keep it.",
+    "save": "Save",
+    "test": "Test the connection",
+    "delete": "Remove",
+    "confirmDelete": "Remove the connection to the approved platform?",
+    "err": {
+      "nom": "The platform name is required.",
+      "clientId": "The client ID is required.",
+      "secret": "The client secret is required."
+    },
+    "toast": {
+      "loadError": "The connection could not be loaded.",
+      "saved": "Connection saved.",
+      "saveError": "The connection could not be saved.",
+      "testOk": "The platform responds and accepts your credentials.",
+      "testFail": "The connection does not work.",
+      "recuesError": "Received invoices could not be read."
+    },
+    "received": {
+      "title": "Received invoices",
+      "description": "Your suppliers' invoices received on your approved platform.",
+      "load": "Show received invoices",
+      "empty": "No invoice received."
+    }
+  },
   "conformiteEmployeur": {
     "titre": "Employer obligations",
     "avis": "Before using this monitoring, the employer must consult the works council (CSE), inform each employee and, where required, carry out a data protection impact assessment (DPIA).",
@@ -1807,6 +1846,7 @@
       "ia": "AI",
       "apiWebhooks": "API & Webhooks",
       "emailExpediteur": "Sender email",
+      "plateformeAgreee": "E-invoicing",
       "clesIa": "AI Keys",
       "misesAJour": "Updates"
     },
@@ -5812,6 +5852,19 @@
     }
   },
   "adminFacturesClient": {
+    "pa": {
+      "transmit": "Send to the approved platform",
+      "transmitFor": "Send invoice {{reference}} to the approved platform",
+      "confirmTitle": "Send this invoice?",
+      "confirmDesc": "Invoice {{reference}} will be submitted to your approved platform, which will deliver it to your customer and to the tax administration. A submitted invoice cannot be withdrawn.",
+      "sent": "Invoice sent to the approved platform.",
+      "error": "The invoice could not be sent.",
+      "status": {
+        "Pending": "Platform: pending",
+        "Ok": "Platform: accepted",
+        "Error": "Platform: rejected"
+      }
+    },
     "title": "Client invoices",
     "superAdmin": "Super-admin",
     "subtitle": "Global SaaS view — invoices issued to clients across all organisations.",

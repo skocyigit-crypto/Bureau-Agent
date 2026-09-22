@@ -1,4 +1,43 @@
 {
+  "settingsPlateformeAgreee": {
+    "title": "Zugelassene Plattform (E-Rechnung)",
+    "description": "Verbinden Sie die zugelassene Plattform Ihres Unternehmens, um Ihre Rechnungen aus Ajant Bureau zu übermitteln.",
+    "why": "Seit dem 1. September 2026 erhalten Sie Lieferantenrechnungen über eine zugelassene Plattform; die Ausstellung über diesen Weg wird spätestens am 1. September 2027 Pflicht. Ajant Bureau ist keine zugelassene Plattform: Es übermittelt Ihre Factur-X-Rechnungen über die genormte AFNOR-XP-Z12-013-API an die von Ihnen gewählte Plattform. Die Zugangsdaten erhalten Sie von Ihrer Plattform.",
+    "connected": "Verbunden",
+    "prefill": "Vorausfüllen: {{name}}",
+    "fields": {
+      "nom": "Name der Plattform",
+      "clientId": "Client-ID (client_id)",
+      "urlFlow": "Adresse der AFNOR-Flow-API",
+      "urlJeton": "Adresse des OAuth2-Tokens",
+      "clientSecret": "Client-Geheimnis (client_secret)"
+    },
+    "secretHint": "Pflichtfeld. Es wird verschlüsselt und nie wieder angezeigt.",
+    "secretKept": "Ein Geheimnis ist gespeichert. Leer lassen, um es zu behalten.",
+    "save": "Speichern",
+    "test": "Verbindung testen",
+    "delete": "Entfernen",
+    "confirmDelete": "Verbindung zur zugelassenen Plattform entfernen?",
+    "err": {
+      "nom": "Der Name der Plattform ist erforderlich.",
+      "clientId": "Die Client-ID ist erforderlich.",
+      "secret": "Das Client-Geheimnis ist erforderlich."
+    },
+    "toast": {
+      "loadError": "Die Verbindung konnte nicht geladen werden.",
+      "saved": "Verbindung gespeichert.",
+      "saveError": "Die Verbindung konnte nicht gespeichert werden.",
+      "testOk": "Die Plattform antwortet und akzeptiert Ihre Zugangsdaten.",
+      "testFail": "Die Verbindung funktioniert nicht.",
+      "recuesError": "Empfangene Rechnungen konnten nicht gelesen werden."
+    },
+    "received": {
+      "title": "Empfangene Rechnungen",
+      "description": "Die Rechnungen Ihrer Lieferanten, die auf Ihrer zugelassenen Plattform eingegangen sind.",
+      "load": "Empfangene Rechnungen anzeigen",
+      "empty": "Keine Rechnung empfangen."
+    }
+  },
   "conformiteEmployeur": {
     "titre": "Pflichten des Arbeitgebers",
     "avis": "Vor der Nutzung dieser Überwachung muss der Arbeitgeber den Betriebsrat (CSE) anhören, jeden Beschäftigten informieren und gegebenenfalls eine Datenschutz-Folgenabschätzung (AIPD) durchführen.",
@@ -1807,6 +1846,7 @@
       "ia": "KI",
       "apiWebhooks": "API & Webhooks",
       "emailExpediteur": "Absender-E-Mail",
+      "plateformeAgreee": "E-Rechnung",
       "clesIa": "KI-Schlüssel",
       "misesAJour": "Updates"
     },
@@ -5812,6 +5852,19 @@
     }
   },
   "adminFacturesClient": {
+    "pa": {
+      "transmit": "An die zugelassene Plattform senden",
+      "transmitFor": "Rechnung {{reference}} an die zugelassene Plattform senden",
+      "confirmTitle": "Diese Rechnung senden?",
+      "confirmDesc": "Die Rechnung {{reference}} wird auf Ihrer zugelassenen Plattform eingereicht, die sie an Ihren Kunden und an die Steuerverwaltung weiterleitet. Eine übermittelte Rechnung kann nicht zurückgezogen werden.",
+      "sent": "Rechnung an die zugelassene Plattform gesendet.",
+      "error": "Die Rechnung konnte nicht gesendet werden.",
+      "status": {
+        "Pending": "Plattform: in Bearbeitung",
+        "Ok": "Plattform: angenommen",
+        "Error": "Plattform: abgelehnt"
+      }
+    },
     "title": "Kundenrechnungen",
     "superAdmin": "Super-Admin",
     "subtitle": "Globale SaaS-Ansicht — an Kunden ausgestellte Rechnungen über alle Organisationen.",

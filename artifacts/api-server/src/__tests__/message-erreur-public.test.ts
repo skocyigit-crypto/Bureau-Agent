@@ -105,7 +105,9 @@ describe("les routes qui renvoyaient l'exception sont passees par la", () => {
       const nom = f.split(/[\\/]/).slice(-1)[0]!;
       lignes.forEach((l, i) => {
         if (!/res\.status\(\d{3}\)[\s\S]*\.json\(/.test(l)) return;
-        if (!/error:\s*(err|error)\??\.(message|stack)|error:\s*\w+ instanceof Error \? \w+\.message/.test(l)) return;
+        // `\b` : `err.messagePublic` (une phrase fixe, redigee pour
+        // l'utilisateur) n'est pas `err.message`.
+        if (!/error:\s*(err|error)\??\.(message|stack)\b|error:\s*\w+ instanceof Error \? \w+\.message\b/.test(l)) return;
         if (/isProduction/.test(l)) return;
         nues.push(`${nom}:${i + 1}`);
       });

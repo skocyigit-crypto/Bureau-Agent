@@ -933,7 +933,9 @@ export default function Home() {
               Facturation électronique&nbsp;: vos factures sont produites au format
               Factur-X (EN&nbsp;16931). Ajant Bureau n'est pas une plateforme agréée
               de dématérialisation&nbsp;: leur transmission passe par la plateforme
-              agréée de votre choix, où vous déposez les fichiers exportés.
+              agréée de votre choix, avec laquelle vous contractez. Une fois
+              raccordée (interface normalisée AFNOR), Ajant Bureau lui transmet
+              vos factures en un clic et suit leur acceptation.
             </p>
           </div>
         </section>

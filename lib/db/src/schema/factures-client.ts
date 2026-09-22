@@ -98,6 +98,15 @@ export const facturesClientTable = pgTable("factures_client", {
   conditions: text("conditions"),
   reminderCount: integer("reminder_count").notNull().default(0),
   lastReminderAt: timestamp("last_reminder_at", { withTimezone: true }),
+  // Transmission a la plateforme agreee (API AFNOR XP Z12-013). Toutes
+  // nullables : une facture jamais transmise n'a rien ici.
+  /** Identifiant du flux rendu par la plateforme (flowId). */
+  paFlowId: text("pa_flow_id"),
+  /** Accuse de la plateforme : Pending, Ok ou Error (FlowAckStatus). */
+  paStatut: text("pa_statut"),
+  paTransmiseLe: timestamp("pa_transmise_le", { withTimezone: true }),
+  /** Motifs d'anomalie renvoyes par la plateforme (AcknowledgementDetails). */
+  paDetail: jsonb("pa_detail").$type<Array<{ item: string; level: string; reasonCode: string; reasonMessage: string }>>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [

@@ -6,7 +6,7 @@ export function getAvailableSettingsTabs(isAdmin: boolean, isSuperAdmin: boolean
     "preferences-ia",
     "installation",
     "notifications",
-    ...(isAdmin ? ["securite", "intelligence-artificielle", "api-webhooks", "email-expediteur", "cles-ia"] : []),
+    ...(isAdmin ? ["securite", "intelligence-artificielle", "api-webhooks", "email-expediteur", "plateforme-agreee", "cles-ia"] : []),
     ...(isSuperAdmin ? ["mises-a-jour"] : []),
   ] as const;
 }
