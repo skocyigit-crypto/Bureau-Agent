@@ -5956,7 +5956,16 @@
       "relanceFailed": "Hatırlatma gönderimi başarısız."
     },
     "pdfTitle": "Fatura PDF’ini indir",
-    "xmlTitle": "Factur-X XML dosyasini indir"
+    "xmlTitle": "Factur-X XML dosyasini indir",
+    "chorus": {
+      "deposer": "Chorus Pro'ya gonder",
+      "deposerFor": "{{reference}} faturasini Chorus Pro'ya gonder",
+      "confirmTitle": "Chorus Pro'ya gonderilsin mi?",
+      "confirmDesc": "{{reference}} faturasi kamu alicisina iletilecek. Bu islem geri alinamaz.",
+      "sent": "Fatura Chorus Pro'ya gonderildi",
+      "error": "Chorus Pro gonderimi basarisiz",
+      "badge": "Chorus: {{etat}}"
+    }
   },
   "santeTechnique": {
     "title": "Teknik sağlık",
@@ -9388,6 +9397,56 @@
       "periodeClose": "Donem kapali",
       "champsRequis": "Fatura ve tutar zorunlu",
       "verificationEchouee": "Kontrol edilemedi"
+    }
+  },
+  "settingsChorusPro": {
+    "title": "Chorus Pro (kamu sektoru)",
+    "description": "Devlete, belediyelere, hastanelere ve sosyal konut kurumlarina kesilen faturalarin gonderimi.",
+    "why": "Kamu alicisina kesilen fatura onayli platformdan gecmez: Chorus Pro'ya yuklenir. Bu baglanti olmadan fatura ne alinir ne odenir.",
+    "connected": "Bagli",
+    "env": {
+      "production": "Uretim adresleri",
+      "qualification": "Test adresleri"
+    },
+    "fields": {
+      "urlBase": "API adresi",
+      "urlJeton": "Token adresi (PISTE)",
+      "clientId": "PISTE istemci kimligi",
+      "clientSecret": "PISTE istemci sirri",
+      "compteTechnique": "Chorus Pro teknik hesabi",
+      "motDePasseTechnique": "Teknik hesap parolasi",
+      "idUtilisateurCourant": "Chorus Pro kullanici kimligi",
+      "syntaxeFlux": "Akis bicimi"
+    },
+    "secretKept": "Kayitli. Korumak icin bos birakin.",
+    "secretHint": "Uygulama olusturulurken PISTE tarafindan verilir.",
+    "motDePasseHint": "Chorus Pro'da olusturulan teknik hesabin parolasi.",
+    "save": "Kaydet",
+    "test": "Baglantiyi sina",
+    "suivi": "Durumlari guncelle",
+    "delete": "Kaldir",
+    "confirmDelete": "Chorus Pro baglantisi kaldirilsin mi?",
+    "structure": {
+      "label": "Kamu alicisini dogrula (SIRET)",
+      "search": "Ara",
+      "hint": "Fatura kesmeden once alicinin Chorus Pro'ya kayitli oldugunu dogrulayin."
+    },
+    "err": {
+      "clientId": "PISTE istemci kimligi zorunludur.",
+      "compte": "Chorus Pro teknik hesabi zorunludur.",
+      "secrets": "PISTE sirri ve teknik hesap parolasi zorunludur."
+    },
+    "toast": {
+      "loadError": "Chorus Pro baglantisi okunamadi.",
+      "saved": "Chorus Pro baglantisi kaydedildi",
+      "saveError": "Kaydetme basarisiz.",
+      "testOk": "Chorus Pro yanit veriyor, kimlik bilgileri kabul edildi",
+      "testFail": "Baglanti dogrulanamadi",
+      "suivi": "{{count}} fatura guncellendi",
+      "suiviError": "Durumlar guncellenemedi.",
+      "structureFound": "Chorus Pro'da {{count}} yapi bulundu",
+      "structureNone": "Bu SIRET icin yapi yok",
+      "structureError": "Arama basarisiz."
     }
   }
 }

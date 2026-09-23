@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Banknote,Edit,FileCode,FileDown,Loader2,Plus,Receipt,RefreshCw,Search,Send,Shield,Trash2,UploadCloud } from "lucide-react";
+import { Banknote,Building2,Edit,FileCode,FileDown,Loader2,Plus,Receipt,RefreshCw,Search,Send,Shield,Trash2,UploadCloud } from "lucide-react";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { useCallback,useEffect,useState } from "react";
 import { jourLocal } from "@/lib/jour-local";
@@ -43,6 +43,7 @@ interface FactureClient {
   reminderCount?: number; lastReminderAt?: string | null;
   // Transmission a la plateforme agreee (Pending, Ok, Error).
   paFlowId?: string | null; paStatut?: string | null;
+  chorusNumeroFlux?: string | null; chorusEtat?: string | null;
   paDetail?: Array<{ reasonMessage: string }> | null;
 }
 
@@ -233,6 +234,28 @@ export default function AdminFacturesClientPage() {
     finally { setTransmettantId(null); }
   };
 
+  // Chorus Pro : la voie du secteur public. Une facture adressee a une
+  // commune ne part pas par la plateforme agreee, et l'inverse est vrai aussi.
+  const [chorusId, setChorusId] = useState<number | null>(null);
+  const deposableChorus = (f: FactureClient) =>
+    peutTransmettre && f.status !== "brouillon" && (!f.chorusNumeroFlux || /REJET/i.test(f.chorusEtat ?? ""));
+
+  const handleChorus = async (f: FactureClient) => {
+    if (!(await confirmAction({
+      title: t("adminFacturesClient.chorus.confirmTitle"),
+      description: t("adminFacturesClient.chorus.confirmDesc", { reference: f.reference }),
+      confirmLabel: t("adminFacturesClient.chorus.deposer"),
+    }))) return;
+    setChorusId(f.id);
+    try {
+      const res = await fetch(`${BASE}/api/factures-client/${f.id}/chorus`, { method: "POST", credentials: "include" });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok) { toast({ title: t("adminFacturesClient.chorus.sent") }); load(); }
+      else { toast({ title: t("adminFacturesClient.chorus.error"), description: d.error, variant: "destructive" }); }
+    } catch { toast({ title: t("adminFacturesClient.chorus.error"), variant: "destructive" }); }
+    finally { setChorusId(null); }
+  };
+
   const handleRemind = async (f: FactureClient) => {
     if (!(await confirmAction({
       title: t("adminFacturesClient.toast.remindConfirmTitle"),
@@ -310,6 +333,11 @@ export default function AdminFacturesClientPage() {
                     {t(`adminFacturesClient.pa.status.${f.paStatut === "Ok" || f.paStatut === "Error" ? f.paStatut : "Pending"}`)}
                   </Badge>
                 )}
+                {f.chorusEtat && (
+                  <Badge variant="outline" className="text-xs" title={f.chorusNumeroFlux ?? undefined}>
+                    {t("adminFacturesClient.chorus.badge", { etat: f.chorusEtat })}
+                  </Badge>
+                )}
                 <span className="text-sm font-bold text-emerald-600 hidden md:block w-24 text-right">{fmtMoney(f.totalAmount, f.currency)}</span>
                 {canRemind(f) && (
                   <Button
@@ -344,6 +372,19 @@ export default function AdminFacturesClientPage() {
                     onClick={() => handleTransmettre(f)}
                   >
                     {transmettantId === f.id ? <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" /> : <UploadCloud className="w-3 h-3" aria-hidden="true" />}
+                  </Button>
+                )}
+                {deposableChorus(f) && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-indigo-600"
+                    title={t("adminFacturesClient.chorus.deposer")}
+                    aria-label={t("adminFacturesClient.chorus.deposerFor", { reference: f.reference })}
+                    disabled={chorusId === f.id}
+                    onClick={() => handleChorus(f)}
+                  >
+                    {chorusId === f.id ? <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" /> : <Building2 className="w-3 h-3" aria-hidden="true" />}
                   </Button>
                 )}
                 <Button
