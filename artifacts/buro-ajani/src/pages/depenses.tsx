@@ -394,6 +394,78 @@ export default function DepensesPage() {
     }
   }, [depenses, t, toast]);
 
+  /**
+   * Plan comptable : quelle categorie va dans quel compte.
+   *
+   * Le registre que le cabinet recoit portait la categorie du produit et rien
+   * d'autre ; le rapprochement vers le plan se refaisait a la main. Le compte
+   * juste dependant du cabinet et du marche, il se REGLE ici — une proposition
+   * s'affiche, elle ne s'applique pas toute seule.
+   */
+  const [comptesOuvert, setComptesOuvert] = useState(false);
+  const [comptes, setComptes] = useState<Record<string, { compteCharge: string; compteTva: string }>>({});
+  const [comptesPropose, setComptesPropose] = useState<Array<{ categorie: string; compteCharge: string; compteTva: string | null }>>([]);
+  const [comptesBusy, setComptesBusy] = useState(false);
+
+  const chargerComptes = useCallback(async () => {
+    try {
+      const res = await fetch(`${BASE}/api/depenses/comptes`, { credentials: "include" });
+      if (!res.ok) { toast({ title: t("depenses.comptes.loadError"), variant: "destructive" }); return; }
+      const d = await res.json();
+      const table: Record<string, { compteCharge: string; compteTva: string }> = {};
+      for (const c of d.comptes ?? []) table[c.categorie] = { compteCharge: c.compteCharge ?? "", compteTva: c.compteTva ?? "" };
+      setComptes(table);
+      setComptesPropose(d.propose ?? []);
+    } catch {
+      toast({ title: t("depenses.comptes.loadError"), variant: "destructive" });
+    }
+  }, [t, toast]);
+
+  const ouvrirComptes = useCallback(async () => {
+    await chargerComptes();
+    setComptesOuvert(true);
+  }, [chargerComptes]);
+
+  /** Recopie la proposition DANS LE FORMULAIRE : rien n'est enregistre avant validation. */
+  const appliquerPropose = useCallback(() => {
+    setComptes((actuel) => {
+      const copie = { ...actuel };
+      for (const p of comptesPropose) {
+        copie[p.categorie] = { compteCharge: p.compteCharge, compteTva: p.compteTva ?? "" };
+      }
+      return copie;
+    });
+  }, [comptesPropose]);
+
+  const enregistrerComptes = useCallback(async () => {
+    const lignes = Object.entries(comptes)
+      .filter(([, v]) => v.compteCharge.trim())
+      .map(([categorie, v]) => ({ categorie, compteCharge: v.compteCharge.trim(), compteTva: v.compteTva.trim() || null }));
+    if (lignes.length === 0) { setComptesOuvert(false); return; }
+    setComptesBusy(true);
+    try {
+      const res = await fetch(`${BASE}/api/depenses/comptes`, {
+        method: "PUT", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ comptes: lignes }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        // Le serveur nomme le champ fautif ; l'ecran le designe.
+        const champ = (d as any).issues?.[0]?.path;
+        if (champ) signalerChamp(`compte-${champ}`, (d as any).error ?? "");
+        toast({ title: (d as any).error ?? t("depenses.comptes.saveError"), variant: "destructive" });
+        return;
+      }
+      toast({ title: t("depenses.comptes.saved", { count: (d as any).enregistrees ?? lignes.length }) });
+      setComptesOuvert(false);
+    } catch {
+      toast({ title: t("depenses.comptes.saveError"), variant: "destructive" });
+    } finally {
+      setComptesBusy(false);
+    }
+  }, [comptes, t, toast]);
+
   const act = useCallback(
     async (id: number, action: "approve" | "reject") => {
       setBusyId(id);
@@ -555,6 +627,11 @@ export default function DepensesPage() {
               aria-label={t("depenses.virement.generateFor", { count: payables.length })}>
               {remiseEnCours ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden="true" /> : <Banknote className="mr-1.5 h-4 w-4" aria-hidden="true" />}
               {t("depenses.virement.generate")}
+            </Button>
+          )}
+          {tab === "ledger" && (
+            <Button variant="outline" size="sm" onClick={ouvrirComptes}>
+              <BookOpen className="mr-1.5 h-4 w-4" aria-hidden="true" /> {t("depenses.comptes.button")}
             </Button>
           )}
           {tab === "ledger" && (
@@ -895,6 +972,54 @@ export default function DepensesPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Plan comptable : categorie -> compte */}
+      <Dialog open={comptesOuvert} onOpenChange={setComptesOuvert}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t("depenses.comptes.title")}</DialogTitle>
+            <DialogDescription>{t("depenses.comptes.description")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Button variant="outline" size="sm" onClick={appliquerPropose} disabled={comptesPropose.length === 0}>
+              {t("depenses.comptes.loadProposed")}
+            </Button>
+            <p className="text-xs text-muted-foreground">{t("depenses.comptes.proposedHint")}</p>
+            <div className="grid gap-2">
+              {Object.keys(CATEGORY_LABELS).map((cle) => (
+                <div key={cle} className="grid grid-cols-1 sm:grid-cols-3 items-center gap-2">
+                  <Label htmlFor={`compte-charge-${cle}`} className="text-sm">
+                    {t(`depenses.categories.${cle}`)}
+                  </Label>
+                  <Input
+                    id={`compte-charge-${cle}`}
+                    inputMode="numeric"
+                    placeholder={t("depenses.comptes.chargePlaceholder")}
+                    aria-label={t("depenses.comptes.chargeFor", { categorie: t(`depenses.categories.${cle}`) })}
+                    value={comptes[cle]?.compteCharge ?? ""}
+                    onChange={(e) => setComptes((c) => ({ ...c, [cle]: { compteCharge: e.target.value, compteTva: c[cle]?.compteTva ?? "" } }))}
+                  />
+                  <Input
+                    id={`compte-tva-${cle}`}
+                    inputMode="numeric"
+                    placeholder={t("depenses.comptes.tvaPlaceholder")}
+                    aria-label={t("depenses.comptes.tvaFor", { categorie: t(`depenses.categories.${cle}`) })}
+                    value={comptes[cle]?.compteTva ?? ""}
+                    onChange={(e) => setComptes((c) => ({ ...c, [cle]: { compteCharge: c[cle]?.compteCharge ?? "", compteTva: e.target.value } }))}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setComptesOuvert(false)} disabled={comptesBusy}>{t("common.cancel")}</Button>
+            <Button onClick={enregistrerComptes} disabled={comptesBusy}>
+              {comptesBusy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden="true" /> : <Save className="mr-1.5 h-4 w-4" aria-hidden="true" />}
+              {t("common.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog édition / création */}
       <Dialog open={!!editing || creating} onOpenChange={(o) => !o && closeDialog()}>

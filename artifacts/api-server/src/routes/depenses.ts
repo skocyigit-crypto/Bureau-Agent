@@ -19,6 +19,12 @@ import { archiveDeletedRows, deletionContext } from "../services/trash";
 import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
 import { organisationsTable } from "@workspace/db";
 import { jourLocal } from "../lib/jour-local";
+import { comptesDepenseTable } from "@workspace/db";
+import {
+  ErreurCompte,
+  PLAN_PROPOSE_BTP,
+  validerLigne,
+} from "../services/comptes-depense";
 import { inArray } from "drizzle-orm";
 import {
   ErreurVirement,
@@ -252,12 +258,21 @@ router.get("/depenses/export", exportReserveAuResponsable, async (req: Request, 
       const dt = d instanceof Date ? d : new Date(d);
       return Number.isNaN(dt.getTime()) ? "" : dt.toISOString().slice(0, 10);
     };
+    // Le compte comptable de chaque categorie, s'il a ete renseigne. C'est
+    // la colonne que le cabinet reconstituait a la main.
+    const comptes = new Map<string, { charge: string; tva: string | null }>();
+    for (const c of await db.select().from(comptesDepenseTable).where(eq(comptesDepenseTable.organisationId, orgId))) {
+      comptes.set(c.categorie, { charge: c.compteCharge, tva: c.compteTva });
+    }
+
     const headers = [
       "Date",
       "Fournisseur",
       "Libellé",
       "Référence",
       "Catégorie",
+      "Compte",
+      "Compte TVA",
       "HT",
       "TVA",
       "TTC",
@@ -298,6 +313,8 @@ router.get("/depenses/export", exportReserveAuResponsable, async (req: Request, 
             escape(r.title),
             escape(r.reference),
             escape(r.category),
+            escape(comptes.get(r.category)?.charge ?? ""),
+            escape(comptes.get(r.category)?.tva ?? ""),
             escape(r.amountHt),
             escape(r.amountTva),
             escape(r.amountTtc),
@@ -724,6 +741,82 @@ router.post("/depenses/virement-sepa", requireResponsable, async (req: Request, 
     logger.error({ err }, "[depenses] remise de virements en echec");
     res.status(500).json({ error: "Le fichier de virements n'a pas pu etre produit." });
   }
+});
+
+/**
+ * GET /depenses/comptes — le plan de l'organisation, et celui qu'on propose.
+ *
+ * Les deux sont renvoyes ensemble et distinctement : ce qui est ENREGISTRE,
+ * et ce qui est SUGGERE. Melanger les deux ferait croire a un reglage
+ * applique d'office, alors que le choix du compte appartient au cabinet.
+ */
+router.get("/depenses/comptes", requireResponsable, async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const lignes = await db.select().from(comptesDepenseTable)
+    .where(eq(comptesDepenseTable.organisationId, orgId));
+  res.json({
+    comptes: lignes.map((l) => ({ categorie: l.categorie, compteCharge: l.compteCharge, compteTva: l.compteTva })),
+    propose: PLAN_PROPOSE_BTP.map(([categorie, compteCharge, compteTva]) => ({ categorie, compteCharge, compteTva })),
+    categories: EXPENSE_CATEGORIES,
+  });
+});
+
+/**
+ * PUT /depenses/comptes — enregistre le plan choisi.
+ *
+ * Remplace ce qui existe pour les categories fournies, et n'y touche pas pour
+ * les autres : un enregistrement partiel ne doit pas effacer le reste.
+ */
+router.put("/depenses/comptes", requireResponsable, async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const brutes = Array.isArray(req.body?.comptes) ? req.body.comptes : null;
+  if (!brutes) { res.status(400).json({ error: "Aucun compte a enregistrer." }); return; }
+  if (brutes.length > 100) { res.status(400).json({ error: "Trop de lignes." }); return; }
+
+  let lignes;
+  try {
+    lignes = brutes.map((b: Record<string, unknown>) => validerLigne(b));
+  } catch (err) {
+    if (err instanceof ErreurCompte) {
+      // Le champ fautif est nomme : sans lui, l'utilisateur cherche.
+      res.status(400).json({ error: err.messagePublic, issues: [{ path: err.champ ?? "comptes", message: err.messagePublic }] });
+      return;
+    }
+    throw err;
+  }
+
+  // Une categorie ne peut etre citee deux fois : la derniere ecraserait la
+  // premiere en silence, et l'ecran afficherait autre chose que ce qui a ete
+  // saisi.
+  const vues = new Set<string>();
+  for (const l of lignes) {
+    if (vues.has(l.categorie)) {
+      res.status(400).json({ error: `La categorie ${l.categorie} est citee deux fois.` });
+      return;
+    }
+    vues.add(l.categorie);
+  }
+
+  for (const l of lignes) {
+    await db.insert(comptesDepenseTable)
+      .values({ organisationId: orgId, categorie: l.categorie, compteCharge: l.compteCharge, compteTva: l.compteTva })
+      .onConflictDoUpdate({
+        target: [comptesDepenseTable.organisationId, comptesDepenseTable.categorie],
+        set: { compteCharge: l.compteCharge, compteTva: l.compteTva, updatedAt: new Date() },
+      });
+  }
+  res.json({ ok: true, enregistrees: lignes.length });
+});
+
+/** DELETE /depenses/comptes/:categorie — retire une ligne du plan. */
+router.delete("/depenses/comptes/:categorie", requireResponsable, async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const categorie = String(req.params.categorie ?? "");
+  const supprimees = await db.delete(comptesDepenseTable)
+    .where(and(eq(comptesDepenseTable.organisationId, orgId), eq(comptesDepenseTable.categorie, categorie)))
+    .returning({ id: comptesDepenseTable.id });
+  if (supprimees.length === 0) { res.status(404).json({ error: "Aucun compte pour cette categorie." }); return; }
+  res.json({ ok: true });
 });
 
 export default router;

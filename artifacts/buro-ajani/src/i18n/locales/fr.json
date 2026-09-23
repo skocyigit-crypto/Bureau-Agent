@@ -1516,6 +1516,20 @@
       "ready": "Fichier pret : {{count}} virement(s)",
       "readyDesc": "Deposez-le dans votre banque en ligne. Les depenses restent « a payer » jusqu'au rapprochement du releve.",
       "error": "Le fichier de virements n'a pas pu etre produit"
+    },
+    "comptes": {
+      "button": "Plan comptable",
+      "title": "Plan comptable des depenses",
+      "description": "Le compte ou chaque categorie doit etre enregistree. Il figure ensuite dans l'export remis au comptable.",
+      "loadProposed": "Reprendre le plan propose (batiment)",
+      "proposedHint": "Proposition seulement : votre expert-comptable tranche. La sous-traitance, par exemple, se ventile entre 604 et 611 selon le marche. Rien n'est enregistre avant validation.",
+      "chargePlaceholder": "Compte de charge (ex. 604000)",
+      "tvaPlaceholder": "Compte de TVA (ex. 445660)",
+      "chargeFor": "Compte de charge pour {{categorie}}",
+      "tvaFor": "Compte de TVA pour {{categorie}}",
+      "saved": "{{count}} compte(s) enregistre(s)",
+      "saveError": "Les comptes n'ont pas pu etre enregistres",
+      "loadError": "Le plan comptable n'a pas pu etre lu"
     }
   },
   "documents": {

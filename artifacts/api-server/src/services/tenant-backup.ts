@@ -59,6 +59,10 @@ export const TENANT_TABLES = [
   // suivre l-etat. Ses deux secrets sont chiffres, et le mot de passe du compte
   // technique est masque a l-export (liste ci-dessous).
   "raccordements_chorus_pro",
+  // Le plan comptable du client : quelle categorie de depense va dans quel
+  // compte. Sans lui, une restauration rendrait les depenses sans le lien vers
+  // la comptabilite, et le cabinet referait le rapprochement a la main.
+  "comptes_depense",
   // Le journal des reglements. Sa presence ici n'est pas un confort: le meme
   // article qui exige son inalterabilite (286-I-3° bis du CGI) exige aussi sa
   // CONSERVATION. Un journal qu'une restauration ne rendrait pas serait
