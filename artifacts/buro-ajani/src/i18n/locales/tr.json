@@ -1461,7 +1461,10 @@
       "ttc": "KDV dahil (€)",
       "paymentStatus": "Ödeme durumu",
       "notes": "Notlar",
-      "tauxTva": "KDV oranı"
+      "tauxTva": "KDV oranı",
+      "vendorIban": "Tedarikci IBAN'i",
+      "vendorIbanHint": "SEPA odeme dosyasi icin kullanilir. Istege bagli.",
+      "vendorBic": "Tedarikci BIC'i"
     },
     "categories": {
       "carburant": "Yakıt",
@@ -1504,6 +1507,15 @@
       "updated": "Gider güncellendi",
       "duplicateDetected": "⚠️ Olası bir yinelenen kayıt tespit edildi.",
       "saveError": "Kaydetme başarısız oldu."
+    },
+    "virement": {
+      "generate": "Odeme dosyasi",
+      "generateFor": "{{count}} gider icin odeme dosyasi uret",
+      "confirmTitle": "Odeme dosyasi uretilsin mi?",
+      "confirmDesc": "IBAN'i olan {{count}} odenecek gider. Dosyayi bankaniza siz yuklersiniz: bu uygulama odeme yapmaz.",
+      "ready": "Dosya hazir: {{count}} havale",
+      "readyDesc": "Internet bankaciliginiza yukleyin. Giderler, ekstre eslesene kadar “odenecek” kalir.",
+      "error": "Odeme dosyasi uretilemedi"
     }
   },
   "documents": {

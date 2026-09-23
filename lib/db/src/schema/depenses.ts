@@ -70,6 +70,11 @@ export const depensesTable = pgTable("depenses", {
   extractedFields: jsonb("extracted_fields").$type<Record<string, unknown>>(),
   aiConfidence: numeric("ai_confidence", { precision: 4, scale: 3 }),
   notes: text("notes"),
+  // Coordonnees bancaires du fournisseur, pour la remise de virements SEPA.
+  // Nullables : une depense payee en carte ou en especes n-en a pas besoin, et
+  // exiger un IBAN pour enregistrer un justificatif bloquerait la saisie.
+  vendorIban: text("vendor_iban"),
+  vendorBic: text("vendor_bic"),
   // Empreinte de déduplication : normalize(vendor)|amountTtc|YYYY-MM-DD.
   dedupeHash: text("dedupe_hash"),
   // Si renseigné, cette dépense est un doublon présumé d'une autre (même

@@ -1461,7 +1461,10 @@
       "ttc": "Brutto (€)",
       "paymentStatus": "Zahlungsstatus",
       "notes": "Notizen",
-      "tauxTva": "MwSt.-Satz"
+      "tauxTva": "MwSt.-Satz",
+      "vendorIban": "IBAN des Lieferanten",
+      "vendorIbanHint": "Fur SEPA-Zahlungsdateien. Optional.",
+      "vendorBic": "BIC des Lieferanten"
     },
     "categories": {
       "carburant": "Kraftstoff",
@@ -1504,6 +1507,15 @@
       "updated": "Ausgabe aktualisiert",
       "duplicateDetected": "⚠️ Ein mögliches Duplikat wurde erkannt.",
       "saveError": "Das Speichern ist fehlgeschlagen."
+    },
+    "virement": {
+      "generate": "Zahlungsdatei",
+      "generateFor": "Zahlungsdatei fur {{count}} Ausgabe(n) erzeugen",
+      "confirmTitle": "Zahlungsdatei erzeugen?",
+      "confirmDesc": "{{count}} zu zahlende Ausgabe(n) mit IBAN. Die Datei reichen Sie anschliessend bei Ihrer Bank ein: diese Anwendung zahlt nichts.",
+      "ready": "Datei bereit: {{count}} Uberweisung(en)",
+      "readyDesc": "Reichen Sie sie im Online-Banking ein. Die Ausgaben bleiben „zu zahlen“, bis der Kontoauszug abgeglichen ist.",
+      "error": "Die Zahlungsdatei konnte nicht erzeugt werden"
     }
   },
   "documents": {
