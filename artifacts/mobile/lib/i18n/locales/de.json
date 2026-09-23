@@ -392,7 +392,8 @@
     "unknownError": "Unbekannter Fehler.",
     "fillAllFields": "Bitte füllen Sie alle Felder aus.",
     "enterEmail": "Geben Sie Ihre E-Mail-Adresse ein.",
-    "sendError": "Fehler beim Senden. Versuchen Sie es erneut."
+    "sendError": "Fehler beim Senden. Versuchen Sie es erneut.",
+    "recoveryHint": "Telefon verloren? Geben Sie einen Ihrer Wiederherstellungscodes ein."
   },
   "calendarScreen": {
     "title": "Kalender",

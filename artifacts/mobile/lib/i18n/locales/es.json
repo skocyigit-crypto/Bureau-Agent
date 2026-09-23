@@ -392,7 +392,8 @@
     "unknownError": "Error desconocido.",
     "fillAllFields": "Por favor, completa todos los campos.",
     "enterEmail": "Introduce tu correo electrónico.",
-    "sendError": "Error al enviar. Inténtalo de nuevo."
+    "sendError": "Error al enviar. Inténtalo de nuevo.",
+    "recoveryHint": "¿Ha perdido su teléfono? Introduzca uno de sus códigos de recuperación."
   },
   "calendarScreen": {
     "title": "Calendario",

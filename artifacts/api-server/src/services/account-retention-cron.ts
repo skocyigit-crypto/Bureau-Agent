@@ -113,6 +113,8 @@ export async function anonymiserComptesExpires(): Promise<number> {
           passwordHash: "",
           actif: false,
           mfaActif: false,
+          mfaSecret: null,
+          mfaCodesSecours: null,
           emailVerificationToken: null,
         }).where(eq(usersTable.id, personne.id));
 

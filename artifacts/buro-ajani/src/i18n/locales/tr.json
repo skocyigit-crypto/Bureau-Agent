@@ -1729,7 +1729,8 @@
     "tlsEncryption": "TLS şifreleme",
     "noAccount": "Henüz hesabınız yok mu?",
     "createFreeAccount": "Ücretsiz hesap oluştur",
-    "footer": "SK GROUP - Profesyonel çözüm"
+    "footer": "SK GROUP - Profesyonel çözüm",
+    "recoveryHint": "Telefonunuzu mu kaybettiniz? Kurtarma kodlarınızdan birini girin."
   },
   "register": {
     "errOrgName": "Kuruluş adı en az 2 karakter içermelidir.",
@@ -3121,7 +3122,16 @@
       "twoFactorDisabled": "İki faktörlü doğrulama devre dışı bırakıldı",
       "disableFailed": "Devre dışı bırakma başarısız",
       "totpLabel": "Altı haneli doğrulama kodu",
-      "mfaStatusUnknown": "Durum bilinmiyor — yeniden dene"
+      "mfaStatusUnknown": "Durum bilinmiyor — yeniden dene",
+      "recoveryTitle": "Kurtarma kodları",
+      "recoveryIntro": "Telefonunuzu kaybederseniz her kod tek bir giriş sağlar. Çevrimdışı saklayın: bir daha gösterilmeyecek.",
+      "recoveryRemaining": "Kalan kurtarma kodu: {{count}}. Yenilerini üretmek için uygulamanızdaki kodu girin.",
+      "recoveryRegenerate": "Yeni kurtarma kodları",
+      "recoveryCopy": "Kopyala",
+      "recoveryDownload": "İndir",
+      "recoveryDone": "Sakladım",
+      "recoveryCopied": "Kodlar kopyalandı",
+      "recoveryCopyFailed": "Kopyalanamadı: “İndir”i kullanın"
     },
     "monitor": {
       "loading": "Güvenlik izleyicisi yükleniyor...",

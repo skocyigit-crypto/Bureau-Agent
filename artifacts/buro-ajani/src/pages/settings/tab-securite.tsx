@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { estCodeTotp, normaliserSaisieCode, saisieCodeComplete } from "@/lib/code-second-facteur";
 import { useToast } from "@/hooks/use-toast";
 import { useVisibleInterval } from "@/hooks/use-visible-interval";
 import { useTranslation } from "@/i18n";
@@ -59,7 +60,10 @@ const AUDIT_API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/audit";
 function AccountSecurityPanel() {
   const { toast } = useToast();
   const { t } = useTranslation();
-  const [mfa, setMfa] = useState<{ mfaActif: boolean; setupInProgress: boolean } | null>(null);
+  const [mfa, setMfa] = useState<{ mfaActif: boolean; setupInProgress: boolean; codesSecoursRestants?: number } | null>(null);
+  // Codes de secours en clair : montres une seule fois, apres activation ou
+  // regeneration. Le serveur n'en garde que les empreintes.
+  const [codesSecours, setCodesSecours] = useState<string[] | null>(null);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -131,13 +135,43 @@ function AccountSecurityPanel() {
   const confirmMfa = async () => {
     setMfaBusy(true);
     try {
-      await post("/mfa/enable", { totpCode });
+      const data: any = await post("/mfa/enable", { totpCode });
       setSetupData(null); setTotpCode("");
+      if (Array.isArray(data?.codesSecours)) setCodesSecours(data.codesSecours);
       await loadMfaStatus();
       toast({ title: t("settingsSecurite.account.twoFactorEnabled") });
     } catch (e: any) {
       toast({ title: t("settingsSecurite.account.codeRejected"), description: e?.message, variant: "destructive" });
     } finally { setMfaBusy(false); }
+  };
+
+  const regenererCodes = async () => {
+    setMfaBusy(true);
+    try {
+      const data: any = await post("/mfa/codes-secours", { totpCode });
+      setTotpCode("");
+      setCodesSecours(data.codesSecours);
+      await loadMfaStatus();
+    } catch (e: any) {
+      toast({ title: t("settingsSecurite.account.codeRejected"), description: e?.message, variant: "destructive" });
+    } finally { setMfaBusy(false); }
+  };
+
+  const copierCodes = async () => {
+    try {
+      await navigator.clipboard.writeText((codesSecours ?? []).join("\n"));
+      toast({ title: t("settingsSecurite.account.recoveryCopied") });
+    } catch {
+      toast({ title: t("settingsSecurite.account.recoveryCopyFailed"), variant: "destructive" });
+    }
+  };
+
+  const telechargerCodes = () => {
+    const texte = `Ajant Bureau\n${t("settingsSecurite.account.recoveryTitle")}\n\n${(codesSecours ?? []).join("\n")}\n`;
+    const url = URL.createObjectURL(new Blob([texte], { type: "text/plain;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = "ajant-bureau-codes-de-secours.txt"; a.click();
+    URL.revokeObjectURL(url);
   };
 
   const disableMfa = async () => {
@@ -222,12 +256,12 @@ function AccountSecurityPanel() {
                 <Input
                   aria-label={t("settingsSecurite.account.totpLabel")}
                   value={totpCode}
-                  onChange={e => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  onChange={e => setTotpCode(normaliserSaisieCode(e.target.value))}
                   placeholder="123456"
                   inputMode="numeric"
                   className="w-32"
                 />
-                <Button size="sm" onClick={confirmMfa} disabled={mfaBusy || totpCode.length < 6}>
+                <Button size="sm" onClick={confirmMfa} disabled={mfaBusy || !saisieCodeComplete(totpCode)}>
                   {mfaBusy && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
                   {t("settingsSecurite.account.confirmBtn")}
                 </Button>
@@ -238,8 +272,26 @@ function AccountSecurityPanel() {
             </div>
           )}
 
+          {codesSecours && (
+            <div role="region" aria-labelledby="codes-secours-titre" className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 space-y-3">
+              <p id="codes-secours-titre" className="text-sm font-medium">{t("settingsSecurite.account.recoveryTitle")}</p>
+              <p className="text-xs text-muted-foreground">{t("settingsSecurite.account.recoveryIntro")}</p>
+              <ul className="grid grid-cols-2 gap-1 font-mono text-sm" aria-label={t("settingsSecurite.account.recoveryTitle")}>
+                {codesSecours.map(c => <li key={c}>{c}</li>)}
+              </ul>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" onClick={copierCodes}>{t("settingsSecurite.account.recoveryCopy")}</Button>
+                <Button size="sm" variant="outline" onClick={telechargerCodes}>{t("settingsSecurite.account.recoveryDownload")}</Button>
+                <Button size="sm" onClick={() => setCodesSecours(null)}>{t("settingsSecurite.account.recoveryDone")}</Button>
+              </div>
+            </div>
+          )}
+
           {mfa?.mfaActif && (
             <div className="rounded-md border p-3 space-y-2">
+              <p className="text-xs text-muted-foreground">
+                {t("settingsSecurite.account.recoveryRemaining", { count: mfa.codesSecoursRestants ?? 0 })}
+              </p>
               <p className="text-xs text-muted-foreground">
                 {t("settingsSecurite.account.disableInstructions")}
               </p>
@@ -248,12 +300,15 @@ function AccountSecurityPanel() {
                 <Input
                   aria-label={t("settingsSecurite.account.totpLabel")}
                   value={totpCode}
-                  onChange={e => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  onChange={e => setTotpCode(normaliserSaisieCode(e.target.value))}
                   placeholder="123456"
                   inputMode="numeric"
                   className="w-32"
                 />
-                <Button size="sm" variant="destructive" onClick={disableMfa} disabled={mfaBusy || !disablePassword || totpCode.length < 6}>
+                <Button size="sm" variant="outline" onClick={regenererCodes} disabled={mfaBusy || !estCodeTotp(totpCode)}>
+                  {t("settingsSecurite.account.recoveryRegenerate")}
+                </Button>
+                <Button size="sm" variant="destructive" onClick={disableMfa} disabled={mfaBusy || !disablePassword || !saisieCodeComplete(totpCode)}>
                   {mfaBusy && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
                   {t("settingsSecurite.account.disableBtn")}
                 </Button>

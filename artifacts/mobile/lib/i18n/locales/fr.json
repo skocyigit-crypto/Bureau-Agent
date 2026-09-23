@@ -392,7 +392,8 @@
     "unknownError": "Erreur inconnue.",
     "fillAllFields": "Veuillez remplir tous les champs.",
     "enterEmail": "Entrez votre adresse e-mail.",
-    "sendError": "Erreur lors de l'envoi. Réessayez."
+    "sendError": "Erreur lors de l'envoi. Réessayez.",
+    "recoveryHint": "Téléphone perdu ? Saisissez l'un de vos codes de secours."
   },
   "calendarScreen": {
     "title": "Calendrier",

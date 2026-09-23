@@ -1729,7 +1729,8 @@
     "tlsEncryption": "TLS encryption",
     "noAccount": "Don't have an account yet?",
     "createFreeAccount": "Create a free account",
-    "footer": "SK GROUP - Professional solution"
+    "footer": "SK GROUP - Professional solution",
+    "recoveryHint": "Lost your phone? Enter one of your recovery codes."
   },
   "register": {
     "errOrgName": "The organization name must contain at least 2 characters.",
@@ -3121,7 +3122,16 @@
       "twoFactorDisabled": "Two-factor authentication disabled",
       "disableFailed": "Disable failed",
       "totpLabel": "Six-digit verification code",
-      "mfaStatusUnknown": "Status unknown — retry"
+      "mfaStatusUnknown": "Status unknown — retry",
+      "recoveryTitle": "Recovery codes",
+      "recoveryIntro": "Each code allows a single sign-in if you lose your phone. Keep them offline: they will not be shown again.",
+      "recoveryRemaining": "Recovery codes left: {{count}}. To generate new ones, enter a code from your app.",
+      "recoveryRegenerate": "New recovery codes",
+      "recoveryCopy": "Copy",
+      "recoveryDownload": "Download",
+      "recoveryDone": "I have saved them",
+      "recoveryCopied": "Codes copied",
+      "recoveryCopyFailed": "Could not copy: use “Download”"
     },
     "monitor": {
       "loading": "Loading the security monitor...",

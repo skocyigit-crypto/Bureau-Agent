@@ -122,7 +122,10 @@ describe("les trois portes MFA passent par la consommation", () => {
     const { join } = await import("node:path");
     const s = readFileSync(join(import.meta.dirname, "..", "routes", "auth.ts"), "utf8");
     expect(s).not.toMatch(/verifyMfaToken\(/);
-    expect((s.match(/consommerCodeMfa\(user\.id, totpCode, user\.mfaSecret\)/g) ?? []).length).toBe(3);
+    // Activation et regeneration des codes de secours : TOTP seul. Connexion
+    // et desactivation : TOTP ou code de secours, consommes l'un comme l'autre.
+    expect((s.match(/consommerCodeMfa\(user\.id, totpCode, user\.mfaSecret\)/g) ?? []).length).toBe(2);
+    expect((s.match(/verifierSecondFacteur\(user\.id, totpCode, user\.mfaSecret\)/g) ?? []).length).toBe(2);
   });
 
   it("desactiver la double authentification oublie le dernier pas", async () => {
