@@ -1461,7 +1461,10 @@
       "ttc": "TTC (€)",
       "paymentStatus": "Statut de paiement",
       "notes": "Notes",
-      "tauxTva": "Taux de TVA"
+      "tauxTva": "Taux de TVA",
+      "vendorIban": "IBAN du fournisseur",
+      "vendorIbanHint": "Sert a la remise de virements SEPA. Facultatif.",
+      "vendorBic": "BIC du fournisseur"
     },
     "categories": {
       "carburant": "Carburant",
@@ -1504,6 +1507,15 @@
       "updated": "Dépense mise à jour",
       "duplicateDetected": "⚠️ Un doublon potentiel a été détecté.",
       "saveError": "L'enregistrement a échoué."
+    },
+    "virement": {
+      "generate": "Fichier de virements",
+      "generateFor": "Produire le fichier de virements pour {{count}} depense(s)",
+      "confirmTitle": "Produire le fichier de virements ?",
+      "confirmDesc": "{{count}} depense(s) a payer, avec IBAN. Le fichier se depose ensuite chez votre banque : rien n'est paye par cette application.",
+      "ready": "Fichier pret : {{count}} virement(s)",
+      "readyDesc": "Deposez-le dans votre banque en ligne. Les depenses restent « a payer » jusqu'au rapprochement du releve.",
+      "error": "Le fichier de virements n'a pas pu etre produit"
     }
   },
   "documents": {

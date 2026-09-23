@@ -17,6 +17,16 @@ import { withDbRetry } from "../lib/db-retry";
 import { logger } from "../lib/logger";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
 import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
+import { organisationsTable } from "@workspace/db";
+import { jourLocal } from "../lib/jour-local";
+import { inArray } from "drizzle-orm";
+import {
+  ErreurVirement,
+  construireVirementSepa,
+  ibanValide,
+  normaliserIban,
+  bicValide,
+} from "../services/virement-sepa";
 
 const router = Router();
 const requireMinAgent = requireRole("super_admin", "administrateur", "agent");
@@ -448,6 +458,20 @@ router.patch("/depenses/:id", requireMinAgent, async (req: Request, res: Respons
     if (typeof body.title === "string") update.title = body.title.trim() || null;
     if (typeof body.reference === "string") update.reference = body.reference.trim() || null;
     if (typeof body.notes === "string") update.notes = body.notes.trim() || null;
+    // Coordonnees bancaires du fournisseur : refusees des la saisie si elles
+    // sont fausses. Un IBAN errone ne se rattrape pas une fois le virement
+    // parti, et le decouvrir au moment de la remise ferait rejeter le fichier
+    // entier par la banque.
+    if (typeof body.vendorIban === "string") {
+      const iban = normaliserIban(body.vendorIban);
+      if (iban && !ibanValide(iban)) { res.status(400).json({ error: "IBAN du fournisseur invalide.", issues: [{ path: "vendorIban", message: "IBAN invalide." }] }); return; }
+      update.vendorIban = iban || null;
+    }
+    if (typeof body.vendorBic === "string") {
+      const bic = body.vendorBic.replace(/\s/g, "").toUpperCase();
+      if (bic && !bicValide(bic)) { res.status(400).json({ error: "BIC du fournisseur invalide.", issues: [{ path: "vendorBic", message: "BIC invalide." }] }); return; }
+      update.vendorBic = bic || null;
+    }
     if (typeof body.category === "string" && CATEGORY_SET.has(body.category)) update.category = body.category;
     if (typeof body.paymentStatus === "string" && PAYMENT_SET.has(body.paymentStatus)) {
       update.paymentStatus = body.paymentStatus;
@@ -605,5 +629,101 @@ router.delete(
     }
   },
 );
+
+/**
+ * POST /depenses/virement-sepa — le fichier de virements a remettre a sa banque.
+ *
+ * Le produit lisait les releves (camt.053) et rapprochait les encaissements ;
+ * dans l'autre sens, payer ses fournisseurs se faisait a la main dans la
+ * banque en ligne, IBAN par IBAN. Cette route rend le fichier de remise, au
+ * format que la place bancaire francaise exige a partir du 15 novembre 2026.
+ *
+ * Elle ne paie rien et ne marque rien comme paye : c'est le responsable qui
+ * depose le fichier chez sa banque, et le rapprochement du releve constatera
+ * l'execution. Marquer « paye » ici afficherait un paiement qui n'a peut-etre
+ * jamais ete remis.
+ */
+router.post("/depenses/virement-sepa", requireResponsable, async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const corps = (req.body ?? {}) as Record<string, unknown>;
+  const ids = Array.isArray(corps.ids)
+    ? corps.ids.map((v) => Number.parseInt(String(v), 10)).filter((n) => Number.isInteger(n) && n > 0)
+    : [];
+  if (ids.length === 0) { res.status(400).json({ error: "Aucune depense selectionnee." }); return; }
+  if (ids.length > 500) { res.status(400).json({ error: "Au plus 500 paiements par remise." }); return; }
+
+  // Par defaut : demain, DANS LE FUSEAU DE L'ENTREPRISE. Calculee en UTC, a
+  // 23h30 a Paris, « demain » rendait la date du jour — une date d'execution
+  // deja passee, que la banque refuse.
+  const dateExecution = typeof corps.dateExecution === "string" && /^\d{4}-\d{2}-\d{2}$/.test(corps.dateExecution)
+    ? corps.dateExecution
+    : jourLocal(new Date(Date.now() + 86_400_000));
+
+  try {
+    const [org] = await db.select({
+      name: organisationsTable.name,
+      iban: organisationsTable.bankIban,
+      bic: organisationsTable.bankBic,
+    }).from(organisationsTable).where(eq(organisationsTable.id, orgId));
+    if (!org?.iban) {
+      res.status(409).json({ error: "Renseignez d'abord l'IBAN de l'entreprise dans les parametres." });
+      return;
+    }
+
+    // Le filtre d'organisation est dans la requete, pas apres : une depense
+    // d'un autre locataire ne doit meme pas etre lue.
+    const lignes = await db.select().from(depensesTable).where(and(
+      eq(depensesTable.organisationId, orgId),
+      inArray(depensesTable.id, ids),
+    ));
+    if (lignes.length === 0) { res.status(404).json({ error: "Aucune depense trouvee." }); return; }
+
+    const sansIban = lignes.filter((d) => !d.vendorIban);
+    if (sansIban.length > 0) {
+      res.status(409).json({
+        error: "Certaines depenses n'ont pas d'IBAN fournisseur.",
+        depenses: sansIban.map((d) => ({ id: d.id, fournisseur: d.vendor })),
+      });
+      return;
+    }
+    const dejaPayees = lignes.filter((d) => d.paymentStatus === "paye");
+    if (dejaPayees.length > 0) {
+      res.status(409).json({
+        error: "Certaines depenses sont deja payees.",
+        depenses: dejaPayees.map((d) => ({ id: d.id, fournisseur: d.vendor })),
+      });
+      return;
+    }
+
+    const { xml, nombre, total } = construireVirementSepa({
+      donneur: { nom: org.name, iban: org.iban, bic: org.bic },
+      dateExecution,
+      maintenant: new Date(),
+      identifiantRemise: `AB${orgId}-${Date.now().toString(36).toUpperCase()}`,
+      beneficiaires: lignes.map((d) => ({
+        reference: `DEP-${d.id}`,
+        nom: d.vendor || "Fournisseur",
+        iban: d.vendorIban!,
+        bic: d.vendorBic,
+        montant: num(d.amountTtc),
+        libelle: [d.reference, d.title].filter(Boolean).join(" ") || `Depense ${d.id}`,
+      })),
+    });
+
+    res.setHeader("Content-Type", "application/xml; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="virements_${dateExecution}.xml"`);
+    res.setHeader("X-Virements-Nombre", String(nombre));
+    res.setHeader("X-Virements-Total", total);
+    res.send(xml);
+  } catch (err) {
+    if (err instanceof ErreurVirement) {
+      // Le message nomme la ligne fautive : c'est ce qui permet de la corriger.
+      res.status(400).json({ error: err.messagePublic, reference: err.reference });
+      return;
+    }
+    logger.error({ err }, "[depenses] remise de virements en echec");
+    res.status(500).json({ error: "Le fichier de virements n'a pas pu etre produit." });
+  }
+});
 
 export default router;

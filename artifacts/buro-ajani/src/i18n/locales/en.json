@@ -1461,7 +1461,10 @@
       "ttc": "Gross (€)",
       "paymentStatus": "Payment status",
       "notes": "Notes",
-      "tauxTva": "VAT rate"
+      "tauxTva": "VAT rate",
+      "vendorIban": "Supplier IBAN",
+      "vendorIbanHint": "Used for SEPA payment files. Optional.",
+      "vendorBic": "Supplier BIC"
     },
     "categories": {
       "carburant": "Fuel",
@@ -1504,6 +1507,15 @@
       "updated": "Expense updated",
       "duplicateDetected": "⚠️ A potential duplicate was detected.",
       "saveError": "Saving failed."
+    },
+    "virement": {
+      "generate": "Payment file",
+      "generateFor": "Generate the payment file for {{count}} expense(s)",
+      "confirmTitle": "Generate the payment file?",
+      "confirmDesc": "{{count}} expense(s) to pay, with an IBAN. You then upload the file to your bank: nothing is paid by this application.",
+      "ready": "File ready: {{count}} transfer(s)",
+      "readyDesc": "Upload it to your online bank. Expenses stay “to pay” until the statement is reconciled.",
+      "error": "The payment file could not be produced"
     }
   },
   "documents": {

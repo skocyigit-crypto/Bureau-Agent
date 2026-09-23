@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 684,
+    "runtimeOperations": 685,
     "documentedOperations": 96,
-    "undocumentedOperations": 588
+    "undocumentedOperations": 589
   },
   "operations": [
     {
@@ -2433,6 +2433,14 @@
     {
       "method": "get",
       "path": "/depenses/stats",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/depenses.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/depenses/virement-sepa",
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/depenses.ts"

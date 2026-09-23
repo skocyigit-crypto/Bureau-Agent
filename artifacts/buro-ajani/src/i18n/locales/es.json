@@ -1461,7 +1461,10 @@
       "ttc": "Total (€)",
       "paymentStatus": "Estado de pago",
       "notes": "Notas",
-      "tauxTva": "Tipo de IVA"
+      "tauxTva": "Tipo de IVA",
+      "vendorIban": "IBAN del proveedor",
+      "vendorIbanHint": "Se usa para los ficheros de transferencias SEPA. Opcional.",
+      "vendorBic": "BIC del proveedor"
     },
     "categories": {
       "carburant": "Combustible",
@@ -1504,6 +1507,15 @@
       "updated": "Gasto actualizado",
       "duplicateDetected": "⚠️ Se detectó un posible duplicado.",
       "saveError": "El guardado falló."
+    },
+    "virement": {
+      "generate": "Fichero de transferencias",
+      "generateFor": "Generar el fichero de transferencias para {{count}} gasto(s)",
+      "confirmTitle": "Generar el fichero de transferencias?",
+      "confirmDesc": "{{count}} gasto(s) por pagar, con IBAN. Despues usted deposita el fichero en su banco: esta aplicacion no paga nada.",
+      "ready": "Fichero listo: {{count}} transferencia(s)",
+      "readyDesc": "Cargalo en su banca en linea. Los gastos siguen “por pagar” hasta la conciliacion del extracto.",
+      "error": "No se ha podido generar el fichero de transferencias"
     }
   },
   "documents": {
