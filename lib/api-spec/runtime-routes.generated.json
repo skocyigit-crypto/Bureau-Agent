@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 692,
+    "runtimeOperations": 695,
     "documentedOperations": 96,
-    "undocumentedOperations": 596
+    "undocumentedOperations": 599
   },
   "operations": [
     {
@@ -2465,6 +2465,30 @@
     {
       "method": "post",
       "path": "/depenses/{id}/reject",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/depenses.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/depenses/comptes",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/depenses.ts"
+      ]
+    },
+    {
+      "method": "put",
+      "path": "/depenses/comptes",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/depenses.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/depenses/comptes/{categorie}",
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/depenses.ts"

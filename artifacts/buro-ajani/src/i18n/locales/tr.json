@@ -1516,6 +1516,20 @@
       "ready": "Dosya hazir: {{count}} havale",
       "readyDesc": "Internet bankaciliginiza yukleyin. Giderler, ekstre eslesene kadar “odenecek” kalir.",
       "error": "Odeme dosyasi uretilemedi"
+    },
+    "comptes": {
+      "button": "Hesap plani",
+      "title": "Gider hesap plani",
+      "description": "Her kategorinin kaydedilecegi hesap. Muhasebeciye verilen dosyada da yer alir.",
+      "loadProposed": "Onerilen plani al (insaat)",
+      "proposedHint": "Yalnizca oneri: karari mali musaviriniz verir. Ornegin taseronluk, sozlesmeye gore 604 veya 611'e gider. Onaylamadan hicbir sey kaydedilmez.",
+      "chargePlaceholder": "Gider hesabi (or. 604000)",
+      "tvaPlaceholder": "KDV hesabi (or. 445660)",
+      "chargeFor": "{{categorie}} icin gider hesabi",
+      "tvaFor": "{{categorie}} icin KDV hesabi",
+      "saved": "{{count}} hesap kaydedildi",
+      "saveError": "Hesaplar kaydedilemedi",
+      "loadError": "Hesap plani okunamadi"
     }
   },
   "documents": {

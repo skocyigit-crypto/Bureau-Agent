@@ -1,6 +1,7 @@
 export * from "./organisations";
 export * from "./plateformes-agreees";
 export * from "./chorus-pro";
+export * from "./comptes-depense";
 export * from "./subscriptions";
 export * from "./stripe-webhook-events";
 export * from "./whatsapp-processed-messages";

@@ -1516,6 +1516,20 @@
       "ready": "File ready: {{count}} transfer(s)",
       "readyDesc": "Upload it to your online bank. Expenses stay “to pay” until the statement is reconciled.",
       "error": "The payment file could not be produced"
+    },
+    "comptes": {
+      "button": "Chart of accounts",
+      "title": "Expense chart of accounts",
+      "description": "The account each category is booked to. It then appears in the export handed to your accountant.",
+      "loadProposed": "Use the proposed plan (construction)",
+      "proposedHint": "A proposal only: your accountant decides. Subcontracting, for instance, goes to 604 or 611 depending on the contract. Nothing is saved until you confirm.",
+      "chargePlaceholder": "Expense account (e.g. 604000)",
+      "tvaPlaceholder": "VAT account (e.g. 445660)",
+      "chargeFor": "Expense account for {{categorie}}",
+      "tvaFor": "VAT account for {{categorie}}",
+      "saved": "{{count}} account(s) saved",
+      "saveError": "The accounts could not be saved",
+      "loadError": "The chart of accounts could not be read"
     }
   },
   "documents": {
