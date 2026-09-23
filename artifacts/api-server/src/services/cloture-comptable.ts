@@ -32,6 +32,7 @@
  * Module PUR: aucune I/O. Un controleur doit pouvoir refaire chaque calcul.
  */
 import { createHash } from "node:crypto";
+import { jourLocal } from "../lib/jour-local";
 
 import type { EcritureChainee } from "./chainage-encaissements";
 
@@ -130,7 +131,11 @@ export function periodeDe(dateIso: string, type: TypeCloture): string {
 export function periodeCommencee(periode: string, maintenant: Date = new Date()): boolean {
   // Comparaison de CHAINES, comme partout ailleurs dans ce fichier: le fuseau
   // de la machine qui calcule ne doit pas decider de la reponse.
-  const aujourdHui = maintenant.toISOString().slice(0, 10);
+  // Le jour de l-ENTREPRISE, pas celui d-UTC. Le 24 septembre a 00h30 a
+  // Paris, `toISOString` rend encore le 23 : clore la journee en cours etait
+  // refuse pendant les deux premieres heures de chaque jour — et le controle
+  // automatique ne le voyait pas, les serveurs d-integration tournant en UTC.
+  const aujourdHui = jourLocal(maintenant);
   if (periode.length === 4) return periode <= aujourdHui.slice(0, 4);
   if (periode.length === 7) return periode <= aujourdHui.slice(0, 7);
   return periode <= aujourdHui;
