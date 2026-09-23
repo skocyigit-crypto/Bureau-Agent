@@ -21,10 +21,12 @@ SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs,TabsList,TabsTrigger } from "@/components/ui/tabs";
+import { confirmAction } from "@/hooks/use-confirm";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
 import {
 AlertTriangle,
+Banknote,
 BookOpen,
 Check,
 Download,
@@ -99,6 +101,8 @@ interface Depense {
   aiConfidence: string | null;
   notes: string | null;
   duplicateOfId: number | null;
+  vendorIban: string | null;
+  vendorBic: string | null;
   createdAt: string;
 }
 
@@ -180,6 +184,8 @@ function toDateInput(d: string | null): string {
 
 interface EditForm {
   vendor: string;
+  vendorIban: string;
+  vendorBic: string;
   title: string;
   reference: string;
   category: string;
@@ -196,6 +202,8 @@ interface EditForm {
 function depenseToForm(d: Depense): EditForm {
   return {
     vendor: d.vendor || "",
+    vendorIban: d.vendorIban || "",
+    vendorBic: d.vendorBic || "",
     title: d.title || "",
     reference: d.reference || "",
     category: d.category || "autre",
@@ -212,6 +220,8 @@ function depenseToForm(d: Depense): EditForm {
 
 const EMPTY_FORM: EditForm = {
   vendor: "",
+  vendorIban: "",
+  vendorBic: "",
   title: "",
   reference: "",
   category: "autre",
@@ -329,6 +339,60 @@ export default function DepensesPage() {
       setExporting(false);
     }
   }, [ledgerParams, toast]);
+
+  /**
+   * Le fichier de virements des depenses a payer qui portent un IBAN.
+   *
+   * Il ne paie rien : il se depose chez la banque, et c'est le rapprochement
+   * du releve qui constatera l'execution. Le bouton le dit, pour qu'une
+   * remise preparee ne soit pas prise pour un paiement fait.
+   */
+  const [remiseEnCours, setRemiseEnCours] = useState(false);
+  const payables = depenses.filter((d) => d.paymentStatus === "a_payer" && d.vendorIban);
+
+  const remiseSepa = useCallback(async () => {
+    const ids = depenses.filter((d) => d.paymentStatus === "a_payer" && d.vendorIban).map((d) => d.id);
+    if (ids.length === 0) return;
+    if (!(await confirmAction({
+      title: t("depenses.virement.confirmTitle"),
+      description: t("depenses.virement.confirmDesc", { count: ids.length }),
+      confirmLabel: t("depenses.virement.generate"),
+    }))) return;
+    setRemiseEnCours(true);
+    try {
+      const res = await fetch(`${BASE}/api/depenses/virement-sepa`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        const manquantes = Array.isArray((d as any).depenses)
+          ? (d as any).depenses.map((x: { fournisseur: string }) => x.fournisseur).join(", ")
+          : undefined;
+        toast({ title: (d as any).error ?? t("depenses.virement.error"), description: manquantes, variant: "destructive" });
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `virements_${new Date().toISOString().slice(0, 10)}.xml`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast({
+        title: t("depenses.virement.ready", { count: res.headers.get("X-Virements-Nombre") ?? ids.length }),
+        description: t("depenses.virement.readyDesc"),
+      });
+    } catch {
+      toast({ title: t("depenses.virement.error"), variant: "destructive" });
+    } finally {
+      setRemiseEnCours(false);
+    }
+  }, [depenses, t, toast]);
 
   const act = useCallback(
     async (id: number, action: "approve" | "reject") => {
@@ -486,6 +550,13 @@ export default function DepensesPage() {
           <Button variant="outline" size="sm" onClick={openCreate}>
             <Plus className="mr-1.5 h-4 w-4" /> {t("depenses.newExpense")}
           </Button>
+          {tab === "ledger" && payables.length > 0 && (
+            <Button variant="outline" size="sm" onClick={remiseSepa} disabled={remiseEnCours}
+              aria-label={t("depenses.virement.generateFor", { count: payables.length })}>
+              {remiseEnCours ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden="true" /> : <Banknote className="mr-1.5 h-4 w-4" aria-hidden="true" />}
+              {t("depenses.virement.generate")}
+            </Button>
+          )}
           {tab === "ledger" && (
             <Button variant="outline" size="sm" onClick={exportCsv} disabled={exporting}>
               {exporting ? (
@@ -923,6 +994,18 @@ export default function DepensesPage() {
                   <SelectItem value="paye">{t("depenses.payment.paye")}</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="grid gap-1">
+              <Label htmlFor="depense-iban">{t("depenses.form.vendorIban")}</Label>
+              <Input id="depense-iban" value={form.vendorIban} placeholder="FR76 …"
+                aria-describedby="depense-iban-aide"
+                onChange={(e) => setForm((f) => ({ ...f, vendorIban: e.target.value }))} />
+              <p id="depense-iban-aide" className="text-xs text-muted-foreground">{t("depenses.form.vendorIbanHint")}</p>
+            </div>
+            <div className="grid gap-1">
+              <Label htmlFor="depense-bic">{t("depenses.form.vendorBic")}</Label>
+              <Input id="depense-bic" value={form.vendorBic} placeholder="AGRIFRPP"
+                onChange={(e) => setForm((f) => ({ ...f, vendorBic: e.target.value }))} />
             </div>
             <div className="grid gap-1">
               <Label>{t("depenses.form.notes")}</Label>
