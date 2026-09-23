@@ -5974,7 +5974,16 @@
       "relanceFailed": "فشل إرسال التذكير."
     },
     "pdfTitle": "تنزيل الفاتورة بصيغة PDF",
-    "xmlTitle": "تنزيل ملف Factur-X XML"
+    "xmlTitle": "تنزيل ملف Factur-X XML",
+    "chorus": {
+      "deposer": "الإيداع في Chorus Pro",
+      "deposerFor": "إيداع الفاتورة {{reference}} في Chorus Pro",
+      "confirmTitle": "الإيداع في Chorus Pro؟",
+      "confirmDesc": "سترسل الفاتورة {{reference}} إلى المشتري العمومي. لا يمكن التراجع عن هذا الإجراء.",
+      "sent": "تم إيداع الفاتورة في Chorus Pro",
+      "error": "فشل الإيداع في Chorus Pro",
+      "badge": "Chorus: {{etat}}"
+    }
   },
   "santeTechnique": {
     "title": "الصحة التقنية",
@@ -9406,6 +9415,56 @@
       "periodeClose": "الفترة مغلقة",
       "champsRequis": "الفاتورة والمبلغ مطلوبان",
       "verificationEchouee": "تعذّر التحقق"
+    }
+  },
+  "settingsChorusPro": {
+    "title": "Chorus Pro (القطاع العام)",
+    "description": "إيداع الفواتير الموجهة إلى الدولة والبلديات والمستشفيات وهيئات الإسكان الاجتماعي.",
+    "why": "الفاتورة الموجهة إلى مشترٍ عمومي لا تمر عبر المنصة المعتمدة، بل تُودع في Chorus Pro. بدون هذا الربط لا تُستلم ولا تُدفع.",
+    "connected": "مرتبط",
+    "env": {
+      "production": "عناوين الإنتاج",
+      "qualification": "عناوين الاختبار"
+    },
+    "fields": {
+      "urlBase": "عنوان واجهة البرمجة",
+      "urlJeton": "عنوان الرمز (PISTE)",
+      "clientId": "معرّف العميل في PISTE",
+      "clientSecret": "سر العميل في PISTE",
+      "compteTechnique": "الحساب التقني في Chorus Pro",
+      "motDePasseTechnique": "كلمة مرور الحساب التقني",
+      "idUtilisateurCourant": "معرّف المستخدم في Chorus Pro",
+      "syntaxeFlux": "صيغة التدفق"
+    },
+    "secretKept": "محفوظ. اتركه فارغًا للإبقاء عليه.",
+    "secretHint": "تمنحه PISTE عند إنشاء التطبيق.",
+    "motDePasseHint": "كلمة مرور الحساب التقني المنشأ في Chorus Pro.",
+    "save": "حفظ",
+    "test": "اختبار الربط",
+    "suivi": "تحديث الحالات",
+    "delete": "إزالة",
+    "confirmDelete": "هل تريد إزالة الربط مع Chorus Pro؟",
+    "structure": {
+      "label": "التحقق من مشترٍ عمومي (SIRET)",
+      "search": "بحث",
+      "hint": "قبل إصدار الفاتورة، تحقق من تسجيل المشتري في Chorus Pro."
+    },
+    "err": {
+      "clientId": "معرّف العميل في PISTE إلزامي.",
+      "compte": "الحساب التقني في Chorus Pro إلزامي.",
+      "secrets": "سر PISTE وكلمة مرور الحساب التقني إلزاميان."
+    },
+    "toast": {
+      "loadError": "تعذّرت قراءة الربط مع Chorus Pro.",
+      "saved": "تم حفظ الربط مع Chorus Pro",
+      "saveError": "فشل الحفظ.",
+      "testOk": "يستجيب Chorus Pro، وتم قبول بيانات الاعتماد",
+      "testFail": "تعذّر التحقق من الربط",
+      "suivi": "تم تحديث {{count}} فاتورة",
+      "suiviError": "تعذّر تحديث الحالات.",
+      "structureFound": "تم العثور على {{count}} هيكل في Chorus Pro",
+      "structureNone": "لا يوجد هيكل لهذا الرقم SIRET",
+      "structureError": "فشل البحث."
     }
   }
 }

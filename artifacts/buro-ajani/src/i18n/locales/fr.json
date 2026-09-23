@@ -5968,7 +5968,16 @@
       "relanceFailed": "Envoi de la relance échoué."
     },
     "pdfTitle": "Télécharger la facture PDF",
-    "xmlTitle": "Telecharger le XML Factur-X"
+    "xmlTitle": "Telecharger le XML Factur-X",
+    "chorus": {
+      "deposer": "Deposer sur Chorus Pro",
+      "deposerFor": "Deposer la facture {{reference}} sur Chorus Pro",
+      "confirmTitle": "Deposer sur Chorus Pro ?",
+      "confirmDesc": "La facture {{reference}} sera transmise a l'acheteur public. Cette action ne s'annule pas.",
+      "sent": "Facture deposee sur Chorus Pro",
+      "error": "Le depot sur Chorus Pro a echoue",
+      "badge": "Chorus : {{etat}}"
+    }
   },
   "santeTechnique": {
     "title": "Santé technique",
@@ -9400,6 +9409,56 @@
       "periodeClose": "Periode close",
       "champsRequis": "Facture et montant sont obligatoires",
       "verificationEchouee": "Verification impossible"
+    }
+  },
+  "settingsChorusPro": {
+    "title": "Chorus Pro (secteur public)",
+    "description": "Depot des factures adressees a l'Etat, aux collectivites, aux hopitaux et aux offices HLM.",
+    "why": "Une facture destinee a un acheteur public ne passe pas par la plateforme agreee : elle se depose sur Chorus Pro. Sans ce raccordement, elle n'est ni recue ni payee.",
+    "connected": "Raccorde",
+    "env": {
+      "production": "Adresses de production",
+      "qualification": "Adresses de qualification"
+    },
+    "fields": {
+      "urlBase": "Adresse de l'API",
+      "urlJeton": "Adresse du jeton (PISTE)",
+      "clientId": "Identifiant client PISTE",
+      "clientSecret": "Secret client PISTE",
+      "compteTechnique": "Compte technique Chorus Pro",
+      "motDePasseTechnique": "Mot de passe du compte technique",
+      "idUtilisateurCourant": "Identifiant utilisateur Chorus Pro",
+      "syntaxeFlux": "Syntaxe du flux"
+    },
+    "secretKept": "Enregistre. Laissez vide pour le conserver.",
+    "secretHint": "Delivre par PISTE lors de la creation de l'application.",
+    "motDePasseHint": "Celui du compte technique cree dans Chorus Pro.",
+    "save": "Enregistrer",
+    "test": "Tester le raccordement",
+    "suivi": "Mettre a jour les etats",
+    "delete": "Retirer",
+    "confirmDelete": "Retirer le raccordement a Chorus Pro ?",
+    "structure": {
+      "label": "Verifier un acheteur public (SIRET)",
+      "search": "Rechercher",
+      "hint": "Avant d'emettre, verifiez que l'acheteur est bien raccorde a Chorus Pro."
+    },
+    "err": {
+      "clientId": "L'identifiant client PISTE est obligatoire.",
+      "compte": "Le compte technique Chorus Pro est obligatoire.",
+      "secrets": "Le secret PISTE et le mot de passe du compte technique sont obligatoires."
+    },
+    "toast": {
+      "loadError": "Le raccordement Chorus Pro n'a pas pu etre lu.",
+      "saved": "Raccordement Chorus Pro enregistre",
+      "saveError": "L'enregistrement a echoue.",
+      "testOk": "Chorus Pro repond, identifiants acceptes",
+      "testFail": "Le raccordement n'a pas pu etre verifie",
+      "suivi": "{{count}} facture(s) mise(s) a jour",
+      "suiviError": "Le suivi n'a pas pu etre mis a jour.",
+      "structureFound": "{{count}} structure(s) trouvee(s) sur Chorus Pro",
+      "structureNone": "Aucune structure pour ce SIRET",
+      "structureError": "La recherche a echoue."
     }
   }
 }

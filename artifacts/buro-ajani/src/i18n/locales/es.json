@@ -5968,7 +5968,16 @@
       "relanceFailed": "Envío del recordatorio fallido."
     },
     "pdfTitle": "Descargar la factura en PDF",
-    "xmlTitle": "Descargar el XML Factur-X"
+    "xmlTitle": "Descargar el XML Factur-X",
+    "chorus": {
+      "deposer": "Depositar en Chorus Pro",
+      "deposerFor": "Depositar la factura {{reference}} en Chorus Pro",
+      "confirmTitle": "Depositar en Chorus Pro?",
+      "confirmDesc": "La factura {{reference}} se enviara al comprador publico. Esta accion no se puede deshacer.",
+      "sent": "Factura depositada en Chorus Pro",
+      "error": "El deposito en Chorus Pro ha fallado",
+      "badge": "Chorus: {{etat}}"
+    }
   },
   "santeTechnique": {
     "title": "Salud técnica",
@@ -9400,6 +9409,56 @@
       "periodeClose": "Periodo cerrado",
       "champsRequis": "Factura e importe son obligatorios",
       "verificationEchouee": "No se pudo comprobar"
+    }
+  },
+  "settingsChorusPro": {
+    "title": "Chorus Pro (sector publico)",
+    "description": "Presentacion de facturas dirigidas al Estado, a las administraciones locales, a los hospitales y a las entidades de vivienda social.",
+    "why": "Una factura destinada a un comprador publico no pasa por la plataforma autorizada: se deposita en Chorus Pro. Sin esta conexion no se recibe ni se paga.",
+    "connected": "Conectado",
+    "env": {
+      "production": "Direcciones de produccion",
+      "qualification": "Direcciones de prueba"
+    },
+    "fields": {
+      "urlBase": "Direccion de la API",
+      "urlJeton": "Direccion del token (PISTE)",
+      "clientId": "ID de cliente PISTE",
+      "clientSecret": "Secreto de cliente PISTE",
+      "compteTechnique": "Cuenta tecnica de Chorus Pro",
+      "motDePasseTechnique": "Contrasena de la cuenta tecnica",
+      "idUtilisateurCourant": "ID de usuario de Chorus Pro",
+      "syntaxeFlux": "Sintaxis del flujo"
+    },
+    "secretKept": "Guardado. Dejelo vacio para conservarlo.",
+    "secretHint": "Lo entrega PISTE al crear la aplicacion.",
+    "motDePasseHint": "La de la cuenta tecnica creada en Chorus Pro.",
+    "save": "Guardar",
+    "test": "Probar la conexion",
+    "suivi": "Actualizar estados",
+    "delete": "Retirar",
+    "confirmDelete": "Retirar la conexion con Chorus Pro?",
+    "structure": {
+      "label": "Verificar un comprador publico (SIRET)",
+      "search": "Buscar",
+      "hint": "Antes de facturar, compruebe que el comprador este registrado en Chorus Pro."
+    },
+    "err": {
+      "clientId": "El ID de cliente PISTE es obligatorio.",
+      "compte": "La cuenta tecnica de Chorus Pro es obligatoria.",
+      "secrets": "El secreto PISTE y la contrasena de la cuenta tecnica son obligatorios."
+    },
+    "toast": {
+      "loadError": "No se ha podido leer la conexion con Chorus Pro.",
+      "saved": "Conexion con Chorus Pro guardada",
+      "saveError": "No se ha podido guardar.",
+      "testOk": "Chorus Pro responde, credenciales aceptadas",
+      "testFail": "No se ha podido verificar la conexion",
+      "suivi": "{{count}} factura(s) actualizada(s)",
+      "suiviError": "No se han podido actualizar los estados.",
+      "structureFound": "{{count}} estructura(s) encontrada(s) en Chorus Pro",
+      "structureNone": "Ninguna estructura para este SIRET",
+      "structureError": "La busqueda ha fallado."
     }
   }
 }

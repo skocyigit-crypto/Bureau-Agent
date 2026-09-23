@@ -5968,7 +5968,16 @@
       "relanceFailed": "Mahnungsversand fehlgeschlagen."
     },
     "pdfTitle": "PDF-Rechnung herunterladen",
-    "xmlTitle": "Factur-X-XML herunterladen"
+    "xmlTitle": "Factur-X-XML herunterladen",
+    "chorus": {
+      "deposer": "An Chorus Pro senden",
+      "deposerFor": "Rechnung {{reference}} an Chorus Pro senden",
+      "confirmTitle": "An Chorus Pro senden?",
+      "confirmDesc": "Rechnung {{reference}} wird an den offentlichen Auftraggeber ubermittelt. Das lasst sich nicht ruckgangig machen.",
+      "sent": "Rechnung an Chorus Pro gesendet",
+      "error": "Senden an Chorus Pro fehlgeschlagen",
+      "badge": "Chorus: {{etat}}"
+    }
   },
   "santeTechnique": {
     "title": "Technische Gesundheit",
@@ -9400,6 +9409,56 @@
       "periodeClose": "Periode geschlossen",
       "champsRequis": "Rechnung und Betrag sind erforderlich",
       "verificationEchouee": "Pruefung nicht moeglich"
+    }
+  },
+  "settingsChorusPro": {
+    "title": "Chorus Pro (offentlicher Sektor)",
+    "description": "Einreichung von Rechnungen an Staat, Kommunen, Krankenhauser und Wohnungsbaugesellschaften.",
+    "why": "Eine Rechnung an einen offentlichen Auftraggeber lauft nicht uber die zugelassene Plattform, sondern uber Chorus Pro. Ohne diese Anbindung wird sie weder empfangen noch bezahlt.",
+    "connected": "Verbunden",
+    "env": {
+      "production": "Produktionsadressen",
+      "qualification": "Testadressen"
+    },
+    "fields": {
+      "urlBase": "API-Adresse",
+      "urlJeton": "Token-Adresse (PISTE)",
+      "clientId": "PISTE-Client-ID",
+      "clientSecret": "PISTE-Client-Secret",
+      "compteTechnique": "Technisches Chorus-Pro-Konto",
+      "motDePasseTechnique": "Passwort des technischen Kontos",
+      "idUtilisateurCourant": "Chorus-Pro-Benutzer-ID",
+      "syntaxeFlux": "Flussformat"
+    },
+    "secretKept": "Gespeichert. Leer lassen, um es zu behalten.",
+    "secretHint": "Wird von PISTE bei der Erstellung der Anwendung vergeben.",
+    "motDePasseHint": "Das des in Chorus Pro angelegten technischen Kontos.",
+    "save": "Speichern",
+    "test": "Verbindung testen",
+    "suivi": "Status aktualisieren",
+    "delete": "Entfernen",
+    "confirmDelete": "Chorus-Pro-Anbindung entfernen?",
+    "structure": {
+      "label": "Offentlichen Auftraggeber prufen (SIRET)",
+      "search": "Suchen",
+      "hint": "Prufen Sie vor der Rechnungsstellung, ob der Auftraggeber bei Chorus Pro registriert ist."
+    },
+    "err": {
+      "clientId": "Die PISTE-Client-ID ist erforderlich.",
+      "compte": "Das technische Chorus-Pro-Konto ist erforderlich.",
+      "secrets": "PISTE-Secret und Passwort des technischen Kontos sind erforderlich."
+    },
+    "toast": {
+      "loadError": "Die Chorus-Pro-Anbindung konnte nicht gelesen werden.",
+      "saved": "Chorus-Pro-Anbindung gespeichert",
+      "saveError": "Speichern fehlgeschlagen.",
+      "testOk": "Chorus Pro antwortet, Zugangsdaten akzeptiert",
+      "testFail": "Die Anbindung konnte nicht gepruft werden",
+      "suivi": "{{count}} Rechnung(en) aktualisiert",
+      "suiviError": "Status konnten nicht aktualisiert werden.",
+      "structureFound": "{{count}} Struktur(en) bei Chorus Pro gefunden",
+      "structureNone": "Keine Struktur fur diese SIRET",
+      "structureError": "Die Suche ist fehlgeschlagen."
     }
   }
 }

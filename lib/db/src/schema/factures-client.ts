@@ -107,6 +107,14 @@ export const facturesClientTable = pgTable("factures_client", {
   paTransmiseLe: timestamp("pa_transmise_le", { withTimezone: true }),
   /** Motifs d'anomalie renvoyes par la plateforme (AcknowledgementDetails). */
   paDetail: jsonb("pa_detail").$type<Array<{ item: string; level: string; reasonCode: string; reasonMessage: string }>>(),
+  // Depot sur Chorus Pro (sphere publique). Un acheteur public ne recoit pas
+  // sa facture par la plateforme agreee : le portail est distinct, et le suivi
+  // aussi. Nullables : une facture jamais deposee n-a rien ici.
+  /** Numero de flux rendu par Chorus Pro au depot (numeroFluxDepot). */
+  chorusNumeroFlux: text("chorus_numero_flux"),
+  /** Dernier etat connu du flux (EtatCourantFlux), tel que Chorus Pro l-ecrit. */
+  chorusEtat: text("chorus_etat"),
+  chorusDeposeeLe: timestamp("chorus_deposee_le", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [

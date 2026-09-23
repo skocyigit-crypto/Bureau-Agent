@@ -54,6 +54,11 @@ export const TENANT_TABLES = [
   // secret y est deja chiffre. Sans lui, une restauration rendrait des
   // factures marquees « transmises » sans le moyen d'en suivre l'accuse.
   "plateformes_agreees",
+  // Le raccordement a Chorus Pro (sphere publique), pour la meme raison : sans
+  // lui, une restauration laisserait des factures deposees sans le moyen d-en
+  // suivre l-etat. Ses deux secrets sont chiffres, et le mot de passe du compte
+  // technique est masque a l-export (liste ci-dessous).
+  "raccordements_chorus_pro",
   // Le journal des reglements. Sa presence ici n'est pas un confort: le meme
   // article qui exige son inalterabilite (286-I-3° bis du CGI) exige aussi sa
   // CONSERVATION. Un journal qu'une restauration ne rendrait pas serait
@@ -120,6 +125,7 @@ export const REDACTED_COLUMNS = new Set([
   "key_encrypted",
   "license_key",
   "client_secret_chiffre",
+  "mot_de_passe_technique_chiffre",
 ]);
 
 /** Au-dela, on refuse de stocker: la ligne deviendrait ingerable en base. */
