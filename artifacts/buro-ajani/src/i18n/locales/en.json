@@ -5956,7 +5956,16 @@
       "relanceFailed": "Reminder sending failed."
     },
     "pdfTitle": "Download the PDF invoice",
-    "xmlTitle": "Download the Factur-X XML"
+    "xmlTitle": "Download the Factur-X XML",
+    "chorus": {
+      "deposer": "Submit to Chorus Pro",
+      "deposerFor": "Submit invoice {{reference}} to Chorus Pro",
+      "confirmTitle": "Submit to Chorus Pro?",
+      "confirmDesc": "Invoice {{reference}} will be sent to the public buyer. This cannot be undone.",
+      "sent": "Invoice submitted to Chorus Pro",
+      "error": "Submission to Chorus Pro failed",
+      "badge": "Chorus: {{etat}}"
+    }
   },
   "santeTechnique": {
     "title": "Technical health",
@@ -9388,6 +9397,56 @@
       "periodeClose": "Period closed",
       "champsRequis": "Invoice and amount are required",
       "verificationEchouee": "Could not verify"
+    }
+  },
+  "settingsChorusPro": {
+    "title": "Chorus Pro (public sector)",
+    "description": "Submitting invoices addressed to the State, local authorities, hospitals and social housing bodies.",
+    "why": "An invoice for a public buyer does not go through the approved platform: it is submitted to Chorus Pro. Without this connection it is neither received nor paid.",
+    "connected": "Connected",
+    "env": {
+      "production": "Production addresses",
+      "qualification": "Test addresses"
+    },
+    "fields": {
+      "urlBase": "API address",
+      "urlJeton": "Token address (PISTE)",
+      "clientId": "PISTE client ID",
+      "clientSecret": "PISTE client secret",
+      "compteTechnique": "Chorus Pro technical account",
+      "motDePasseTechnique": "Technical account password",
+      "idUtilisateurCourant": "Chorus Pro user ID",
+      "syntaxeFlux": "Flow syntax"
+    },
+    "secretKept": "Saved. Leave empty to keep it.",
+    "secretHint": "Issued by PISTE when the application is created.",
+    "motDePasseHint": "The one for the technical account created in Chorus Pro.",
+    "save": "Save",
+    "test": "Test connection",
+    "suivi": "Refresh statuses",
+    "delete": "Remove",
+    "confirmDelete": "Remove the Chorus Pro connection?",
+    "structure": {
+      "label": "Check a public buyer (SIRET)",
+      "search": "Search",
+      "hint": "Before invoicing, check that the buyer is registered on Chorus Pro."
+    },
+    "err": {
+      "clientId": "The PISTE client ID is required.",
+      "compte": "The Chorus Pro technical account is required.",
+      "secrets": "The PISTE secret and the technical account password are required."
+    },
+    "toast": {
+      "loadError": "The Chorus Pro connection could not be read.",
+      "saved": "Chorus Pro connection saved",
+      "saveError": "Saving failed.",
+      "testOk": "Chorus Pro responds, credentials accepted",
+      "testFail": "The connection could not be verified",
+      "suivi": "{{count}} invoice(s) updated",
+      "suiviError": "Statuses could not be refreshed.",
+      "structureFound": "{{count}} structure(s) found on Chorus Pro",
+      "structureNone": "No structure for this SIRET",
+      "structureError": "The search failed."
     }
   }
 }

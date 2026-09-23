@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 684,
+    "runtimeOperations": 691,
     "documentedOperations": 96,
-    "undocumentedOperations": 588
+    "undocumentedOperations": 595
   },
   "operations": [
     {
@@ -1735,6 +1735,54 @@
       ]
     },
     {
+      "method": "delete",
+      "path": "/chorus-pro",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/chorus-pro.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/chorus-pro",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/chorus-pro.ts"
+      ]
+    },
+    {
+      "method": "put",
+      "path": "/chorus-pro",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/chorus-pro.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/chorus-pro/structure",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/chorus-pro.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/chorus-pro/suivi",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/chorus-pro.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/chorus-pro/test",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/chorus-pro.ts"
+      ]
+    },
+    {
       "method": "post",
       "path": "/client-errors",
       "documented": false,
@@ -2957,6 +3005,14 @@
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/factures-client.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/factures-client/{id}/chorus",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/chorus-pro.ts"
       ]
     },
     {

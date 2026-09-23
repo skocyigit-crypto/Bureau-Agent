@@ -11,6 +11,8 @@ import { signalerChamp } from "@/lib/champ-en-erreur";
 import { FileInput,Loader2,PlugZap,Save,Trash2 } from "lucide-react";
 import { useCallback,useEffect,useState } from "react";
 
+import { CarteChorusPro } from "./carte-chorus-pro";
+
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 /**
@@ -176,6 +178,8 @@ export function TabPlateformeAgreee() {
           </div>
         </CardContent>
       </Card>
+
+      <CarteChorusPro />
 
       {etat.configure && (
         <Card>
