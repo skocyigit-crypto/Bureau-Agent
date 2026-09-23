@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 683,
+    "runtimeOperations": 684,
     "documentedOperations": 96,
-    "undocumentedOperations": 587
+    "undocumentedOperations": 588
   },
   "operations": [
     {
@@ -921,6 +921,14 @@
     {
       "method": "get",
       "path": "/auth/me",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/auth.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/auth/mfa/codes-secours",
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/auth.ts"
