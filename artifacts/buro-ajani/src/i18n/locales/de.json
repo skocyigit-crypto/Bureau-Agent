@@ -1516,6 +1516,20 @@
       "ready": "Datei bereit: {{count}} Uberweisung(en)",
       "readyDesc": "Reichen Sie sie im Online-Banking ein. Die Ausgaben bleiben „zu zahlen“, bis der Kontoauszug abgeglichen ist.",
       "error": "Die Zahlungsdatei konnte nicht erzeugt werden"
+    },
+    "comptes": {
+      "button": "Kontenplan",
+      "title": "Kontenplan fur Ausgaben",
+      "description": "Das Konto, auf das jede Kategorie gebucht wird. Es erscheint danach im Export fur Ihre Buchhaltung.",
+      "loadProposed": "Vorgeschlagenen Plan ubernehmen (Bau)",
+      "proposedHint": "Nur ein Vorschlag: Ihr Steuerberater entscheidet. Subunternehmen etwa gehen je nach Vertrag auf 604 oder 611. Nichts wird ohne Bestatigung gespeichert.",
+      "chargePlaceholder": "Aufwandskonto (z. B. 604000)",
+      "tvaPlaceholder": "Vorsteuerkonto (z. B. 445660)",
+      "chargeFor": "Aufwandskonto fur {{categorie}}",
+      "tvaFor": "Vorsteuerkonto fur {{categorie}}",
+      "saved": "{{count}} Konto/Konten gespeichert",
+      "saveError": "Die Konten konnten nicht gespeichert werden",
+      "loadError": "Der Kontenplan konnte nicht gelesen werden"
     }
   },
   "documents": {

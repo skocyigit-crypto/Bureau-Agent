@@ -1516,6 +1516,20 @@
       "ready": "Fichero listo: {{count}} transferencia(s)",
       "readyDesc": "Cargalo en su banca en linea. Los gastos siguen “por pagar” hasta la conciliacion del extracto.",
       "error": "No se ha podido generar el fichero de transferencias"
+    },
+    "comptes": {
+      "button": "Plan contable",
+      "title": "Plan contable de gastos",
+      "description": "La cuenta en la que se registra cada categoria. Aparece despues en la exportacion entregada a su contable.",
+      "loadProposed": "Usar el plan propuesto (construccion)",
+      "proposedHint": "Solo una propuesta: decide su asesor contable. La subcontratacion, por ejemplo, va a 604 o a 611 segun el contrato. Nada se guarda hasta que usted lo valide.",
+      "chargePlaceholder": "Cuenta de gasto (p. ej. 604000)",
+      "tvaPlaceholder": "Cuenta de IVA (p. ej. 445660)",
+      "chargeFor": "Cuenta de gasto para {{categorie}}",
+      "tvaFor": "Cuenta de IVA para {{categorie}}",
+      "saved": "{{count}} cuenta(s) guardada(s)",
+      "saveError": "No se han podido guardar las cuentas",
+      "loadError": "No se ha podido leer el plan contable"
     }
   },
   "documents": {
