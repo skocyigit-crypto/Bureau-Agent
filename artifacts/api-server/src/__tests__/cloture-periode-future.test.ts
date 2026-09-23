@@ -70,7 +70,13 @@ describe("une periode qui n'a pas commence ne se clot pas", () => {
   it("le passage d'annee ne trompe pas la comparaison", () => {
     // Comparaison de chaines: « 2026-01 » <= « 2025-12-31 » serait faux si on
     // comparait des longueurs differentes sans les tronquer.
-    const le31Decembre2025 = new Date("2025-12-31T23:00:00.000Z");
+    //
+    // MIDI, et non 23 h : le jour se lit desormais dans le fuseau de
+    // l'entreprise, et 23 h UTC le 31 decembre est deja le 1er janvier a
+    // Paris — l'annee y a donc commence. Ce test-ci porte sur la comparaison
+    // de chaines ; le passage de minuit est verifie a part, dans
+    // cloture-jour-local.test.ts.
+    const le31Decembre2025 = new Date("2025-12-31T12:00:00.000Z");
     expect(periodeCommencee("2026", le31Decembre2025)).toBe(false);
     expect(periodeCommencee("2025", le31Decembre2025)).toBe(true);
     expect(periodeCommencee("2026-01", le31Decembre2025)).toBe(false);
