@@ -199,8 +199,12 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
         res.status(200).json({ requiresMfa: true, message: "Code TOTP requis." });
         return;
       }
-      const { consommerCodeMfa } = await import("../services/mfa");
-      if (!(await consommerCodeMfa(user.id, totpCode, user.mfaSecret))) {
+      const { verifierSecondFacteur } = await import("../services/mfa");
+      const facteur = await verifierSecondFacteur(user.id, totpCode, user.mfaSecret);
+      if (facteur === "secours") {
+        logAudit(user.id, user.email, "mfa_recovery_code_used", "user", String(user.id), undefined, req.ip, req.get("user-agent"), user.organisationId);
+      }
+      if (!facteur) {
         const newAttempts = user.tentativesEchouees + 1;
         const updateData: Record<string, any> = { tentativesEchouees: newAttempts };
         if (newAttempts >= MAX_FAILED_ATTEMPTS) {
@@ -306,9 +310,12 @@ router.post("/auth/mfa/enable", mfaVerifyLimiter, async (req: Request, res: Resp
     if (!user || !user.mfaSecret) { res.status(400).json({ error: "Lancez d'abord la configuration MFA." }); return; }
     const { consommerCodeMfa } = await import("../services/mfa");
     if (!(await consommerCodeMfa(user.id, totpCode, user.mfaSecret))) { res.status(400).json({ error: "Code TOTP invalide." }); return; }
-    await db.update(usersTable).set({ mfaActif: true, updatedAt: new Date() }).where(eq(usersTable.id, userId));
+    const { genererCodesSecours, empreinteCodeSecours } = await import("../services/mfa");
+    const codesSecours = genererCodesSecours();
+    await db.update(usersTable).set({ mfaActif: true, mfaCodesSecours: codesSecours.map(empreinteCodeSecours), updatedAt: new Date() }).where(eq(usersTable.id, userId));
     logAudit(userId, user.email, "mfa_enabled", "user", String(userId), undefined, req.ip, req.get("user-agent"), user.organisationId);
-    res.json({ message: "Authentification a deux facteurs activee." });
+    // Montres cette seule fois : seules les empreintes sont gardees.
+    res.json({ message: "Authentification a deux facteurs activee.", codesSecours });
   } catch (err: any) {
     req.log.error({ err }, "Erreur MFA enable");
     res.status(500).json({ error: "Erreur lors de l'activation MFA." });
@@ -326,10 +333,10 @@ router.post("/auth/mfa/disable", mfaVerifyLimiter, async (req: Request, res: Res
     const pwOk = await bcrypt.compare(password, user.passwordHash);
     if (!pwOk) { res.status(401).json({ error: "Mot de passe incorrect." }); return; }
     if (user.mfaActif && user.mfaSecret) {
-      const { consommerCodeMfa } = await import("../services/mfa");
-      if (!totpCode || !(await consommerCodeMfa(user.id, totpCode, user.mfaSecret))) { res.status(400).json({ error: "Code TOTP invalide." }); return; }
+      const { verifierSecondFacteur } = await import("../services/mfa");
+      if (!totpCode || !(await verifierSecondFacteur(user.id, totpCode, user.mfaSecret))) { res.status(400).json({ error: "Code TOTP invalide." }); return; }
     }
-    await db.update(usersTable).set({ mfaActif: false, mfaSecret: null, mfaDernierPas: null, updatedAt: new Date() }).where(eq(usersTable.id, userId));
+    await db.update(usersTable).set({ mfaActif: false, mfaSecret: null, mfaDernierPas: null, mfaCodesSecours: null, updatedAt: new Date() }).where(eq(usersTable.id, userId));
     logAudit(userId, user.email, "mfa_disabled", "user", String(userId), undefined, req.ip, req.get("user-agent"), user.organisationId);
     res.json({ message: "Authentification a deux facteurs desactivee." });
   } catch (err: any) {
@@ -338,12 +345,39 @@ router.post("/auth/mfa/disable", mfaVerifyLimiter, async (req: Request, res: Res
   }
 });
 
+// Nouveaux codes de secours ; les anciens cessent de valoir. Exige un code
+// TOTP (pas un code de secours) : celui qui n'a plus que des codes de
+// secours desactive puis reactive la double authentification.
+router.post("/auth/mfa/codes-secours", mfaVerifyLimiter, async (req: Request, res: Response): Promise<void> => {
+  const userId = req.session?.userId;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  const { totpCode } = req.body;
+  if (!totpCode || typeof totpCode !== "string") { res.status(400).json({ error: "Code TOTP requis." }); return; }
+  try {
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    if (!user || !user.mfaActif || !user.mfaSecret) { res.status(400).json({ error: "Double authentification non activee." }); return; }
+    const { consommerCodeMfa, genererCodesSecours, empreinteCodeSecours } = await import("../services/mfa");
+    if (!(await consommerCodeMfa(user.id, totpCode, user.mfaSecret))) { res.status(400).json({ error: "Code TOTP invalide." }); return; }
+    const codesSecours = genererCodesSecours();
+    await db.update(usersTable).set({ mfaCodesSecours: codesSecours.map(empreinteCodeSecours), updatedAt: new Date() }).where(eq(usersTable.id, userId));
+    logAudit(userId, user.email, "mfa_recovery_codes_regenerated", "user", String(userId), undefined, req.ip, req.get("user-agent"), user.organisationId);
+    res.json({ codesSecours });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur MFA codes de secours");
+    res.status(500).json({ error: "Erreur lors de la generation des codes de secours." });
+  }
+});
+
 router.get("/auth/mfa/status", async (req: Request, res: Response): Promise<void> => {
   const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
   try {
-    const [user] = await db.select({ mfaActif: usersTable.mfaActif, hasSecret: usersTable.mfaSecret }).from(usersTable).where(eq(usersTable.id, userId));
-    res.json({ mfaActif: user?.mfaActif ?? false, setupInProgress: !!user?.hasSecret && !user?.mfaActif });
+    const [user] = await db.select({ mfaActif: usersTable.mfaActif, hasSecret: usersTable.mfaSecret, codes: usersTable.mfaCodesSecours }).from(usersTable).where(eq(usersTable.id, userId));
+    res.json({
+      mfaActif: user?.mfaActif ?? false,
+      setupInProgress: !!user?.hasSecret && !user?.mfaActif,
+      codesSecoursRestants: user?.mfaActif ? (user.codes?.length ?? 0) : 0,
+    });
   } catch (err: any) {
     res.status(500).json({ error: "Erreur." });
   }

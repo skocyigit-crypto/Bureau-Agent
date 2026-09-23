@@ -306,13 +306,17 @@ export default function LoginScreen() {
                     placeholder="123456"
                     placeholderTextColor={colors.mutedForeground}
                     value={totpCode}
-                    onChangeText={(t) => setTotpCode(t.replace(/\D/g, "").slice(0, 6))}
-                    keyboardType="number-pad"
+                    onChangeText={(t) => setTotpCode(t.replace(/[^0-9A-Za-z -]/g, "").slice(0, 12))}
                     autoComplete="one-time-code"
-                    maxLength={6}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    maxLength={12}
                     testID="login-totp"
                   />
                 </View>
+                <Text style={[styles.hint, { color: colors.mutedForeground }]}>
+                  {t("loginScreen.recoveryHint")}
+                </Text>
               </View>
             )}
 
@@ -447,6 +451,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Inter_500Medium",
     marginBottom: 6,
+  },
+  hint: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    marginTop: 6,
   },
   passwordLabelRow: {
     flexDirection: "row",

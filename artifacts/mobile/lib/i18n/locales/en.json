@@ -392,7 +392,8 @@
     "unknownError": "Unknown error.",
     "fillAllFields": "Please fill in all fields.",
     "enterEmail": "Enter your email address.",
-    "sendError": "Error while sending. Try again."
+    "sendError": "Error while sending. Try again.",
+    "recoveryHint": "Lost your phone? Enter one of your recovery codes."
   },
   "calendarScreen": {
     "title": "Calendar",

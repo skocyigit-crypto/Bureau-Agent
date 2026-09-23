@@ -1729,7 +1729,8 @@
     "tlsEncryption": "TLS-Verschlüsselung",
     "noAccount": "Sie haben noch kein Konto?",
     "createFreeAccount": "Kostenloses Konto erstellen",
-    "footer": "SK GROUP - Professionelle Lösung"
+    "footer": "SK GROUP - Professionelle Lösung",
+    "recoveryHint": "Telefon verloren? Geben Sie einen Ihrer Wiederherstellungscodes ein."
   },
   "register": {
     "errOrgName": "Der Name der Organisation muss mindestens 2 Zeichen enthalten.",
@@ -3121,7 +3122,16 @@
       "twoFactorDisabled": "Zwei-Faktor-Authentifizierung deaktiviert",
       "disableFailed": "Deaktivierung nicht möglich",
       "totpLabel": "Sechsstelliger Bestätigungscode",
-      "mfaStatusUnknown": "Status unbekannt — erneut versuchen"
+      "mfaStatusUnknown": "Status unbekannt — erneut versuchen",
+      "recoveryTitle": "Wiederherstellungscodes",
+      "recoveryIntro": "Jeder Code erlaubt eine einzige Anmeldung, falls Sie Ihr Telefon verlieren. Bewahren Sie sie offline auf: Sie werden nicht erneut angezeigt.",
+      "recoveryRemaining": "Verbleibende Wiederherstellungscodes: {{count}}. Für neue Codes geben Sie einen Code aus Ihrer App ein.",
+      "recoveryRegenerate": "Neue Wiederherstellungscodes",
+      "recoveryCopy": "Kopieren",
+      "recoveryDownload": "Herunterladen",
+      "recoveryDone": "Ich habe sie gespeichert",
+      "recoveryCopied": "Codes kopiert",
+      "recoveryCopyFailed": "Kopieren nicht möglich: „Herunterladen“ verwenden"
     },
     "monitor": {
       "loading": "Sicherheitsmonitor wird geladen...",

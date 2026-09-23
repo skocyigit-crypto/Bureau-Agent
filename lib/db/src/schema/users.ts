@@ -80,6 +80,9 @@ export const usersTable = pgTable("users", {
   // Dernier pas de temps TOTP accepte (RFC 6238 §5.2 : un code ne sert
   // qu'une fois). Nullable : aucun code encore utilise.
   mfaDernierPas: integer("mfa_dernier_pas"),
+  // Codes de secours MFA : empreintes SHA-256 des codes non encore utilises.
+  // Les codes en clair ne sont montres qu'une fois, a la generation.
+  mfaCodesSecours: jsonb("mfa_codes_secours").$type<string[]>(),
   dernierAcces: timestamp("dernier_acces"),
   tentativesEchouees: integer("tentatives_echouees").notNull().default(0),
   verrouilleJusqua: timestamp("verrouille_jusqua"),

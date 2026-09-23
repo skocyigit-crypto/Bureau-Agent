@@ -392,7 +392,8 @@
     "unknownError": "Bilinmeyen hata.",
     "fillAllFields": "Lütfen tüm alanları doldurun.",
     "enterEmail": "E-posta adresinizi girin.",
-    "sendError": "Gönderim sırasında hata. Tekrar deneyin."
+    "sendError": "Gönderim sırasında hata. Tekrar deneyin.",
+    "recoveryHint": "Telefonunuzu mu kaybettiniz? Kurtarma kodlarınızdan birini girin."
   },
   "calendarScreen": {
     "title": "Takvim",

@@ -1735,7 +1735,8 @@
     "tlsEncryption": "تشفير TLS",
     "noAccount": "ليس لديك حساب بعد؟",
     "createFreeAccount": "إنشاء حساب مجاني",
-    "footer": "SK GROUP - حل احترافي"
+    "footer": "SK GROUP - حل احترافي",
+    "recoveryHint": "هل فقدت هاتفك؟ أدخل أحد رموز الاسترداد الخاصة بك."
   },
   "register": {
     "errOrgName": "يجب أن يحتوي اسم المؤسسة على حرفين على الأقل.",
@@ -3127,7 +3128,16 @@
       "twoFactorDisabled": "تم إلغاء تفعيل المصادقة الثنائية",
       "disableFailed": "تعذّر إلغاء التفعيل",
       "totpLabel": "رمز تحقق من ستة أرقام",
-      "mfaStatusUnknown": "الحالة غير معروفة — إعادة المحاولة"
+      "mfaStatusUnknown": "الحالة غير معروفة — إعادة المحاولة",
+      "recoveryTitle": "رموز الاسترداد",
+      "recoveryIntro": "يتيح كل رمز تسجيل دخول واحدًا فقط إذا فقدت هاتفك. احتفظ بها دون اتصال: لن تُعرض مرة أخرى.",
+      "recoveryRemaining": "رموز الاسترداد المتبقية: {{count}}. لإنشاء رموز جديدة، أدخل رمزًا من تطبيقك.",
+      "recoveryRegenerate": "رموز استرداد جديدة",
+      "recoveryCopy": "نسخ",
+      "recoveryDownload": "تنزيل",
+      "recoveryDone": "لقد احتفظت بها",
+      "recoveryCopied": "تم نسخ الرموز",
+      "recoveryCopyFailed": "تعذر النسخ: استخدم «تنزيل»"
     },
     "monitor": {
       "loading": "جارٍ تحميل مراقب الأمان...",

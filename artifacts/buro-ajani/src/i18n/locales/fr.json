@@ -1729,7 +1729,8 @@
     "tlsEncryption": "Chiffrement TLS",
     "noAccount": "Vous n'avez pas encore de compte ?",
     "createFreeAccount": "Créer un compte gratuit",
-    "footer": "SK GROUP - Solution professionnelle"
+    "footer": "SK GROUP - Solution professionnelle",
+    "recoveryHint": "Téléphone perdu ? Saisissez l'un de vos codes de secours."
   },
   "register": {
     "errOrgName": "Le nom de l'organisation doit contenir au moins 2 caractères.",
@@ -3121,7 +3122,16 @@
       "twoFactorDisabled": "Double authentification désactivée",
       "disableFailed": "Désactivation impossible",
       "totpLabel": "Code de verification a six chiffres",
-      "mfaStatusUnknown": "État inconnu — réessayer"
+      "mfaStatusUnknown": "État inconnu — réessayer",
+      "recoveryTitle": "Codes de secours",
+      "recoveryIntro": "Chaque code permet une seule connexion si vous perdez votre téléphone. Conservez-les hors ligne : ils ne seront plus affichés.",
+      "recoveryRemaining": "Codes de secours restants : {{count}}. Pour en générer de nouveaux, saisissez un code de votre application.",
+      "recoveryRegenerate": "Nouveaux codes de secours",
+      "recoveryCopy": "Copier",
+      "recoveryDownload": "Télécharger",
+      "recoveryDone": "Je les ai conservés",
+      "recoveryCopied": "Codes copiés",
+      "recoveryCopyFailed": "Copie impossible : utilisez « Télécharger »"
     },
     "monitor": {
       "loading": "Chargement du moniteur de sécurité...",

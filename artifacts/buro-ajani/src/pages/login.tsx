@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useTranslation } from "@/i18n";
 import { AlertTriangle,ArrowLeft,CheckCircle2,Eye,EyeOff,Lock,Mail,Phone,Shield } from "lucide-react";
 import { useEffect,useState } from "react";
+import { normaliserSaisieCode, saisieCodeComplete } from "@/lib/code-second-facteur";
 import { NOM_PRODUIT } from "@/lib/titre-page";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
@@ -235,24 +236,23 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
                     <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                       id="totp"
-                      inputMode="numeric"
                       placeholder="123456"
                       value={totpCode}
-                      onChange={e => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      onChange={e => setTotpCode(normaliserSaisieCode(e.target.value))}
                       className="pl-10 tracking-widest"
                       autoComplete="one-time-code"
                       autoFocus
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {t("login.totpHint")}
+                    {t("login.totpHint")} {t("login.recoveryHint")}
                   </p>
                 </div>
               )}
               <Button
                 type="submit"
                 className="w-full bg-gradient-to-r from-[#1a2744] to-[#2d3f5e] hover:from-[#243358] hover:to-[#3a5078] text-white font-medium h-11"
-                disabled={loading || (mfaRequired && totpCode.length < 6)}
+                disabled={loading || (mfaRequired && !saisieCodeComplete(totpCode))}
               >
                 {loading ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />{t("login.connecting")}</> : mfaRequired ? t("login.verifyCode") : t("login.signIn")}
               </Button>
