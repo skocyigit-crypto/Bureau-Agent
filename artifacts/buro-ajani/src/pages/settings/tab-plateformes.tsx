@@ -377,7 +377,7 @@ export function TabPlateformes() {
     setConnectingService(`${activePlatform}:${serviceId}`);
     try {
       const currentPlatform = platformsData.find(p => p.id === activePlatform);
-      const currentService = currentPlatform?.services.find(s => s.id === serviceId);
+      const currentService = currentPlatform?.services?.find(s => s.id === serviceId);
       const isConnected = currentService?.status === "connecté";
       const endpoint = isConnected ? "disconnect" : "connect";
       const res = await fetch(`${API_BASE}/${endpoint}/${activePlatform}/${serviceId}`, { method: "POST" });
@@ -415,8 +415,8 @@ export function TabPlateformes() {
   };
 
   const currentPlatformData = platformsData.find(p => p.id === activePlatform);
-  const getServiceStatus = (serviceId: string): string => currentPlatformData?.services.find(s => s.id === serviceId)?.status || "déconnecté";
-  const getServiceLastSync = (serviceId: string): string | null => currentPlatformData?.services.find(s => s.id === serviceId)?.lastSync || null;
+  const getServiceStatus = (serviceId: string): string => currentPlatformData?.services?.find(s => s.id === serviceId)?.status || "déconnecté";
+  const getServiceLastSync = (serviceId: string): string | null => currentPlatformData?.services?.find(s => s.id === serviceId)?.lastSync || null;
 
   return (
     <div className="space-y-6">

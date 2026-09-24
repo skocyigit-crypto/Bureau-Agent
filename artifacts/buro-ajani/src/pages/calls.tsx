@@ -382,7 +382,7 @@ export default function Calls() {
                         <FormControl><SelectTrigger aria-label={t("calls.form.chooseContact")}><SelectValue placeholder={t("calls.form.chooseContact")}/></SelectTrigger></FormControl>
                         <SelectContent>
                           <SelectItem value="none">{t("calls.form.noneUnknown")}</SelectItem>
-                          {contactsData?.contacts.map(c => (
+                          {contactsData?.contacts?.map(c => (
                             <SelectItem key={c.id} value={c.id.toString()}>{c.firstName} {c.lastName}</SelectItem>
                           ))}
                         </SelectContent>
@@ -547,7 +547,7 @@ export default function Calls() {
                   <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                 </TableRow>
               ))
-            ) : data?.calls.length === 0 ? (
+            ) : data?.calls?.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="py-8">
                   {(search !== "" || statusFilter !== "all" || directionFilter !== "all") ? (
@@ -566,7 +566,7 @@ export default function Calls() {
                 </TableCell>
               </TableRow>
             ) : (
-              data?.calls.map((call) => (
+              data?.calls?.map((call) => (
                 <TableRow key={call.id} className={`hover:bg-muted/30 transition-colors cursor-pointer ${selectedIds.has(call.id) ? 'bg-primary/5' : ''}`} onClick={() => setLocation(`/appels/${call.id}`)}>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <Checkbox
