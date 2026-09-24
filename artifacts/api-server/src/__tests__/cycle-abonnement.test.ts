@@ -38,6 +38,7 @@ const base: EtatAbonnement = {
   finPeriode: dans(10),
   impayeDepuis: null,
   echecDepuis: null,
+  stripeSubscriptionId: null,
 };
 const etat = (p: Partial<EtatAbonnement>): EtatAbonnement => ({ ...base, ...p });
 
@@ -200,6 +201,46 @@ describe("l'impaye passe AVANT le renouvellement", () => {
       MAINTENANT,
     );
     expect(d.action).toBe("rien");
+  });
+});
+
+describe("Stripe tranche ce qu il gere", () => {
+  // `services/stripe-sync.ts` ecrit EXACTEMENT les memes colonnes que ce
+  // moteur — statut, fin de periode, compteur d echecs, date de suspension —
+  // et porte sa propre regle de suspension apres N echecs. Deux mecanismes
+  // qui decident du meme fait divergent, et la divergence serait visible par
+  // le client : suspendre un compte que Stripe vient de reactiver.
+  //
+  // L arbitrage n est pas un gout : Stripe SAIT si l argent est arrive.
+  const stripe = (p: Partial<EtatAbonnement> = {}) =>
+    etat({ stripeSubscriptionId: "sub_ABC123", ...p });
+
+  it("une periode close n est PAS renouvelee par ce moteur", () => {
+    expect(deciderTransition(stripe({ finPeriode: ilYA(30) }), MAINTENANT).action).toBe("rien");
+  });
+
+  it("un impaye n est PAS constate par ce moteur", () => {
+    expect(deciderTransition(stripe({ impayeDepuis: ilYA(30) }), MAINTENANT).action).toBe("rien");
+  });
+
+  it("un retard hors delai n est PAS suspendu par ce moteur", () => {
+    const d = deciderTransition(
+      stripe({ statut: "past_due", echecDepuis: ilYA(PAYMENT_GRACE_DAYS + 10) }),
+      MAINTENANT,
+    );
+    expect(d.action).toBe("rien");
+  });
+
+  it("et la raison nomme Stripe, pour qu on sache pourquoi rien ne bouge", () => {
+    const d = deciderTransition(stripe({ finPeriode: ilYA(30) }), MAINTENANT);
+    if (d.action !== "rien") throw new Error("attendu : rien");
+    expect(d.raison).toMatch(/Stripe/);
+  });
+
+  it("le MEME abonnement sans identifiant Stripe, lui, est traite", () => {
+    // Le controle negatif : sans lui, un moteur qui ne ferait plus jamais
+    // rien passerait les quatre tests ci-dessus.
+    expect(deciderTransition(etat({ finPeriode: ilYA(30) }), MAINTENANT).action).toBe("renouveler");
   });
 });
 

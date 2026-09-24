@@ -53,6 +53,28 @@ export interface EtatAbonnement {
   impayeDepuis: Date | null;
   /** Date deja enregistree du premier echec de paiement. */
   echecDepuis: Date | null;
+  /**
+   * Identifiant de l'abonnement chez Stripe, s'il y en a un.
+   *
+   * QUAND IL EST PRESENT, CE MOTEUR NE DECIDE RIEN. `services/stripe-sync.ts`
+   * ecrit EXACTEMENT les memes colonnes — `status`, `currentPeriodEnd`,
+   * `paymentFailedCount`, `lastPaymentFailedAt`, `suspendedAt` — a la
+   * reception des evenements `invoice.paid`, `invoice.payment_failed` et
+   * `customer.subscription.updated`. Il porte meme sa propre regle de
+   * suspension apres N echecs.
+   *
+   * Deux mecanismes qui decident du meme fait finissent toujours par
+   * diverger, et ici la divergence serait visible par le client : le cycle
+   * local suspendrait un compte que Stripe vient de reactiver apres un
+   * paiement reussi, ou renouvellerait une periode que Stripe a close.
+   *
+   * L'arbitrage n'est pas un gout : Stripe SAIT si l'argent est arrive, ce
+   * moteur ne le sait pas. Il n'a que les factures que la plateforme a
+   * emises. La ou les deux savent, le mieux informe tranche ; la ou Stripe
+   * ne gere rien — c'est le cas de toutes les organisations aujourd'hui, dont
+   * aucune n'a de `stripe_subscription_id` — ce moteur reste le seul a agir.
+   */
+  stripeSubscriptionId: string | null;
 }
 
 export type Transition =
@@ -116,6 +138,13 @@ function avancer(d: Date, annuel: boolean): Date {
  * repartirait pour un mois sans avoir paye le precedent.
  */
 export function deciderTransition(etat: EtatAbonnement, maintenant: Date = new Date()): Transition {
+  // Stripe tranche ce qu il gere. Premiere regle, avant meme le statut :
+  // laisser ce moteur regarder un abonnement Stripe, ne serait-ce que pour
+  // « constater » un retard, ouvrirait la porte a deux verdicts.
+  if (etat.stripeSubscriptionId) {
+    return { action: "rien", raison: "gere par Stripe : stripe-sync fait foi" };
+  }
+
   // Un abonnement clos ne bouge plus. C'est un etat terminal : le client
   // reprend par une nouvelle souscription, pas par un renouvellement.
   if (etat.statut === "cancelled" || etat.statut === "annulee" || etat.statut === "annule") {
@@ -201,6 +230,7 @@ export async function appliquerCycleAbonnements(maintenant: Date = new Date()): 
         finPeriode: sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd) : null,
         impayeDepuis: impaye?.issuedAt ? new Date(impaye.issuedAt) : null,
         echecDepuis: sub.lastPaymentFailedAt ? new Date(sub.lastPaymentFailedAt) : null,
+        stripeSubscriptionId: sub.stripeSubscriptionId ?? null,
       }, maintenant);
 
       if (decision.action === "rien") continue;
