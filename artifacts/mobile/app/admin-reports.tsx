@@ -36,9 +36,8 @@ const CATEGORY_MAP: Record<string, { labelKey: string; color: string; icon: keyo
   general: { labelKey: "adminReportsScreen.cat.general", color: "#64748b", icon: "file-text" },
   technique: { labelKey: "adminReportsScreen.cat.technique", color: "#3b82f6", icon: "tool" },
   facturation: { labelKey: "adminReportsScreen.cat.facturation", color: "#f59e0b", icon: "credit-card" },
-  fonctionnalite: { labelKey: "adminReportsScreen.cat.fonctionnalite", color: "#8b5cf6", icon: "star" },
-  bug: { labelKey: "adminReportsScreen.cat.bug", color: "#ef4444", icon: "alert-circle" },
-  question: { labelKey: "adminReportsScreen.cat.question", color: "#22c55e", icon: "help-circle" },
+  securite: { labelKey: "adminReportsScreen.cat.securite", color: "#ef4444", icon: "shield" },
+  autre: { labelKey: "adminReportsScreen.cat.autre", color: "#8b5cf6", icon: "more-horizontal" },
 };
 
 const PRIORITY_MAP: Record<string, { labelKey: string; color: string }> = {
@@ -82,12 +81,14 @@ export default function AdminReportsScreen() {
   const FORM_FIELDS = [
     { key: "subject", label: t("adminReportsScreen.fieldSubject"), required: true },
     { key: "category", label: t("adminReportsScreen.fieldCategory"), type: "select" as const, options: [
+      // CATEGORIES_RAPPORT (routes/admin-reports.ts). « fonctionnalite »,
+      // « bug » et « question » etaient refusees par la route : l envoi
+      // repondait 400 et l ecran n affichait qu un echec sans raison.
       { value: "general", label: t("adminReportsScreen.cat.general") },
       { value: "technique", label: t("adminReportsScreen.cat.technique") },
       { value: "facturation", label: t("adminReportsScreen.cat.facturation") },
-      { value: "fonctionnalite", label: t("adminReportsScreen.cat.fonctionnalite") },
-      { value: "bug", label: t("adminReportsScreen.cat.bug") },
-      { value: "question", label: t("adminReportsScreen.cat.question") },
+      { value: "securite", label: t("adminReportsScreen.cat.securite") },
+      { value: "autre", label: t("adminReportsScreen.cat.autre") },
     ]},
     { key: "priority", label: t("adminReportsScreen.fieldPriority"), type: "select" as const, options: [
       { value: "basse", label: t("adminReportsScreen.priority.basse") },

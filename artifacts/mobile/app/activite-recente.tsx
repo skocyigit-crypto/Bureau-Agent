@@ -145,11 +145,11 @@ export default function ActiviteRecenteScreen() {
 
       const items: ActivityItem[] = [];
 
-      (devisR?.data || []).forEach((d: any) => items.push({
+      (devisR?.devis || devisR?.data || []).forEach((d: any) => items.push({
         type: "devis", title: d.reference || t("activiteRecenteScreen.titleDevis", { id: d.id }), subtitle: d.clientName,
         amount: d.totalAmount, status: d.status, createdAt: d.createdAt,
       }));
-      (facturesR?.data || []).forEach((f: any) => items.push({
+      (facturesR?.factures || facturesR?.data || []).forEach((f: any) => items.push({
         type: "facture", title: f.reference || t("activiteRecenteScreen.titleFacture", { id: f.id }), subtitle: f.clientName,
         amount: f.totalAmount, status: f.status, createdAt: f.createdAt,
       }));

@@ -5733,9 +5733,8 @@
     }
   },
   "adminDevis": {
-    "title": "Presupuestos corporativos",
-    "superAdmin": "Súper-admin",
-    "subtitle": "Vista global SaaS — propuestas comerciales B2B de todas las organizaciones.",
+    "title": "Presupuestos",
+    "subtitle": "Sus propuestas comerciales: redaccion, envio y seguimiento.",
     "new": "Nuevo presupuesto",
     "searchPlaceholder": "Buscar (título, referencia, cliente)...",
     "statusPlaceholder": "Estado",
@@ -5907,8 +5906,7 @@
       }
     },
     "title": "Facturas de cliente",
-    "superAdmin": "Súper-admin",
-    "subtitle": "Vista global SaaS — facturas emitidas a clientes de todas las organizaciones.",
+    "subtitle": "Las facturas que emite a sus clientes.",
     "new": "Nueva factura",
     "searchPlaceholder": "Buscar (título, referencia, cliente)...",
     "statusPlaceholder": "Estado",

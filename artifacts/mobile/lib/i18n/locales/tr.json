@@ -2409,9 +2409,8 @@
       "general": "Genel",
       "technique": "Teknik",
       "facturation": "Faturalandırma",
-      "fonctionnalite": "Özellik",
-      "bug": "Hata",
-      "question": "Soru"
+      "securite": "Güvenlik",
+      "autre": "Diğer"
     },
     "priority": {
       "basse": "Düşük",
@@ -2464,24 +2463,22 @@
     },
     "priority": {
       "basse": "Düşük",
-      "normale": "Normal",
+      "normal": "Normal",
       "haute": "Yüksek",
-      "critique": "Kritik"
+      "urgente": "Acil"
     },
     "category": {
-      "bug": "Hata",
-      "amelioration": "İyileştirme",
-      "question": "Soru",
+      "general": "Genel",
+      "technique": "Teknik",
       "facturation": "Faturalandırma",
-      "acces": "Erişim",
+      "securite": "Güvenlik",
       "autre": "Diğer"
     },
     "catOption": {
-      "bug": "Hata / Teknik sorun",
-      "amelioration": "İyileştirme talebi",
-      "question": "Soru",
+      "general": "Genel soru",
+      "technique": "Teknik sorun (hata)",
       "facturation": "Faturalandırma",
-      "acces": "Erişim / İzinler",
+      "securite": "Güvenlik",
       "autre": "Diğer"
     }
   },

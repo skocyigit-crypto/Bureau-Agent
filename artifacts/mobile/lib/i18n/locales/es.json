@@ -2409,9 +2409,8 @@
       "general": "General",
       "technique": "Técnico",
       "facturation": "Facturación",
-      "fonctionnalite": "Funcionalidad",
-      "bug": "Error",
-      "question": "Pregunta"
+      "securite": "Seguridad",
+      "autre": "Otro"
     },
     "priority": {
       "basse": "Baja",
@@ -2464,24 +2463,22 @@
     },
     "priority": {
       "basse": "Baja",
-      "normale": "Normal",
+      "normal": "Normal",
       "haute": "Alta",
-      "critique": "Crítica"
+      "urgente": "Urgente"
     },
     "category": {
-      "bug": "Error",
-      "amelioration": "Mejora",
-      "question": "Pregunta",
+      "general": "General",
+      "technique": "Técnico",
       "facturation": "Facturación",
-      "acces": "Acceso",
+      "securite": "Seguridad",
       "autre": "Otro"
     },
     "catOption": {
-      "bug": "Error / Problema técnico",
-      "amelioration": "Solicitud de mejora",
-      "question": "Pregunta",
+      "general": "Pregunta general",
+      "technique": "Problema técnico (error)",
       "facturation": "Facturación",
-      "acces": "Acceso / Permisos",
+      "securite": "Seguridad",
       "autre": "Otro"
     }
   },

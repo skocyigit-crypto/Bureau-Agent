@@ -2409,9 +2409,8 @@
       "general": "عام",
       "technique": "تقني",
       "facturation": "الفوترة",
-      "fonctionnalite": "ميزة",
-      "bug": "خطأ",
-      "question": "سؤال"
+      "securite": "الأمان",
+      "autre": "أخرى"
     },
     "priority": {
       "basse": "منخفضة",
@@ -2464,24 +2463,22 @@
     },
     "priority": {
       "basse": "منخفضة",
-      "normale": "عادية",
+      "normal": "عادية",
       "haute": "عالية",
-      "critique": "حرجة"
+      "urgente": "عاجلة"
     },
     "category": {
-      "bug": "خطأ",
-      "amelioration": "تحسين",
-      "question": "سؤال",
+      "general": "عام",
+      "technique": "تقني",
       "facturation": "الفوترة",
-      "acces": "الوصول",
+      "securite": "الأمان",
       "autre": "أخرى"
     },
     "catOption": {
-      "bug": "خطأ / مشكلة تقنية",
-      "amelioration": "طلب تحسين",
-      "question": "سؤال",
+      "general": "سؤال عام",
+      "technique": "مشكلة تقنية (خطأ)",
       "facturation": "الفوترة",
-      "acces": "الوصول / الأذونات",
+      "securite": "الأمان",
       "autre": "أخرى"
     }
   },
