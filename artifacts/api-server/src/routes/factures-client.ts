@@ -14,6 +14,7 @@ import { LIBELLE_CATEGORIE, verifierIdentifiant } from "../services/siren";
 import { computeInvoiceTotals, isValidCurrency, parseUserDate, clampPagination, normalizePaidAmount } from "../services/invoice-totals";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
 import { supprimerFactureAutorisee } from "../services/facture-suppression";
+import { dateHumaine } from "../lib/jour-local";
 
 const router: IRouter = Router();
 
@@ -514,7 +515,7 @@ router.post("/factures-client/:id/relance", async (req: Request, res: Response):
       maximumFractionDigits: 2,
     }).format(remaining);
 
-    const dueDateLabel = facture.dueDate ? new Date(facture.dueDate).toLocaleDateString("fr-FR") : null;
+    const dueDateLabel = facture.dueDate ? dateHumaine(new Date(facture.dueDate)) : null;
     const isOverdue = facture.status === "en_retard"
       || (facture.dueDate != null && new Date(facture.dueDate).getTime() < Date.now());
     const reminderNumber = (facture.reminderCount ?? 0) + 1;
