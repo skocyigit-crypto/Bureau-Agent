@@ -142,19 +142,48 @@ describe("aucun des deux n'annonce une portee qu'il n'a pas", () => {
 });
 
 describe("le motif, au-dela de ces deux ecrans", () => {
-  it("aucun ecran monte sans garde de role n'affiche de badge super-admin", () => {
-    // La regle generale : c'est elle qui empeche le defaut de revenir par un
-    // troisieme ecran.
+  /**
+   * Les ecrans montes sans garde de role, et ceux qu'on n'a pas pu lire.
+   *
+   * On rend les DEUX, parce qu'une liste de fautifs vide ne veut dire
+   * « aucun fautif » que si l'on a vraiment regarde. Une regex qui ne mord
+   * plus, un fichier introuvable, un import renomme : le releve devient
+   * silencieux et le controle passe au vert sans avoir rien mesure.
+   * (Distinction rapportee par la session Kaverd le 24/09/2026 : son audit a
+   * declare « pas de declencheur Cloud Build » alors que la region qui le
+   * portait n'avait simplement pas pu etre lue.)
+   */
+  function ecransSansGardeDeRole(): { fautifs: string[]; examines: string[]; illisibles: string[] } {
     const fautifs: string[] = [];
+    const examines: string[] = [];
+    const illisibles: string[] = [];
     for (const m of APP.matchAll(/<Route path="([^"]+)" component=\{with(\w+)Gate\((\w+)/g)) {
       const [, chemin, garde, composant] = m;
       if (garde === "Role") continue;
       const lazy = APP.match(new RegExp(`const ${composant} = lazy\\(\\(\\) => import\\("@/pages/([^"]+)"\\)`));
-      if (!lazy) continue;
+      if (!lazy) { illisibles.push(`${chemin} : import de ${composant} introuvable`); continue; }
       let s: string;
-      try { s = source(`${lazy[1]}.tsx`); } catch { continue; }
+      try { s = source(`${lazy[1]}.tsx`); } catch { illisibles.push(`${chemin} : ${lazy[1]}.tsx illisible`); continue; }
+      examines.push(`${chemin} (${lazy[1]})`);
       if (/superAdmin"\)/.test(s)) fautifs.push(`${chemin} (${lazy[1]})`);
     }
-    expect(fautifs, "badge super-admin sur un ecran ouvert aux clients").toEqual([]);
+    return { fautifs, examines, illisibles };
+  }
+
+  it("le releve examine vraiment des ecrans", () => {
+    // Le garde-fou du controle suivant : sans lui, une liste vide de fautifs
+    // ne distingue pas « tout va bien » de « on n'a rien regarde ».
+    expect(ecransSansGardeDeRole().examines.length).toBeGreaterThan(5);
+  });
+
+  it("et il a pu tous les lire — sinon il ne conclut pas", () => {
+    const { illisibles } = ecransSansGardeDeRole();
+    expect(illisibles, "ces ecrans n'ont pas ete mesures : l'absence de faute ne prouve rien ici").toEqual([]);
+  });
+
+  it("aucun ecran monte sans garde de role n'affiche de badge super-admin", () => {
+    // La regle generale : c'est elle qui empeche le defaut de revenir par un
+    // troisieme ecran.
+    expect(ecransSansGardeDeRole().fautifs, "badge super-admin sur un ecran ouvert aux clients").toEqual([]);
   });
 });

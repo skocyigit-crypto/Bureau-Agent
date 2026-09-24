@@ -159,6 +159,43 @@ describe("ce que l'ecran propose, la route l'accepte", () => {
   });
 });
 
+/*
+ * LE SENS INVERSE : le serveur accepte une valeur qu'aucun ecran n'offre.
+ *
+ * C'est le meme desaccord, mais il ne rend AUCUNE erreur — il n'y a rien a
+ * cliquer. Le cas « securite » ci-dessus en etait un : la route l'acceptait,
+ * `prioriteSupport` en tirait une escalade, et aucun des deux ecrans ne
+ * permettait de la choisir. Une porte ouverte sans couloir pour y mener.
+ *
+ * (Sens signale par la session Assise le 24/09/2026 : chez elle la route des
+ * documents accepte un type « acompte » que tout l'appareil comptable
+ * attend — compte 419100, reprise sur la facture de solde — et qu'aucun
+ * ecran n'offre. La comptabilite est juste, la route est ouverte, et
+ * personne ne peut emettre le document.)
+ */
+describe("ce que la route accepte, un ecran le propose", () => {
+  const offertes = (champ: "category" | "priority") =>
+    new Set(Object.values(ECRANS).flatMap((s) => valeursOffertes(s, champ)));
+
+  it("chaque categorie acceptee est atteignable depuis un ecran", () => {
+    const orphelines = CATEGORIES_RAPPORT.filter((c) => !offertes("category").has(c));
+    expect(orphelines, "acceptees par la route, offertes nulle part").toEqual([]);
+  });
+
+  it("chaque priorite acceptee est atteignable depuis un ecran", () => {
+    const orphelines = PRIORITES_RAPPORT.filter((p) => !offertes("priority").has(p));
+    expect(orphelines, "acceptees par la route, offertes nulle part").toEqual([]);
+  });
+
+  it("la comparaison porte sur une surface reelle, pas sur trois cas", () => {
+    // Un zero obtenu sur 3 % de la surface n'est pas une conformite : c'est
+    // une mesure qui n'a pas eu lieu. On compte donc ce qu'on a compare.
+    expect(offertes("category").size).toBeGreaterThanOrEqual(CATEGORIES_RAPPORT.length);
+    expect(offertes("priority").size).toBeGreaterThanOrEqual(PRIORITES_RAPPORT.length);
+  });
+
+});
+
 describe("ce que l'ecran affiche couvre ce que la base contient", () => {
   it("/reports sait nommer chaque categorie du serveur", () => {
     // Sinon le repli s'applique : un rapport « securite » s'affichait
