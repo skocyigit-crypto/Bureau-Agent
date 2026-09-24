@@ -258,10 +258,14 @@ Reponds UNIQUEMENT en JSON avec cette structure:
   const createdTasks: any[] = [];
   for (const taskDef of analysis.tasks) {
     const dueDate = new Date();
-    // Vingt lignes plus haut, la valeur etait deja bornee EN PRESERVANT le
-    // zero ; ce repli-ci le rejetait aussitot. Un mecanisme juste a un
-    // endroit et faux a l'autre coute plus cher qu'un mecanisme faux
-    // partout : on croit le sujet traite.
+    // La construction de `analysis.tasks` bornait deja cette valeur EN
+    // PRESERVANT le zero ; ce repli-ci le rejetait aussitot. Un mecanisme
+    // juste a un endroit et faux a l'autre coute plus cher qu'un mecanisme
+    // faux partout : on croit le sujet traite.
+    //
+    // (On nomme la construction, pas sa distance en lignes : « vingt lignes
+    // plus haut » etait deja faux — vingt-cinq — et le serait davantage au
+    // prochain ajout.)
     dueDate.setDate(dueDate.getDate() + delaiEnJours(taskDef.dueInDays, 1, 90));
 
     // La mention « [Cree automatiquement] » quitte la description: c'etait une

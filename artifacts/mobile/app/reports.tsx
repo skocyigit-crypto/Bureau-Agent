@@ -64,8 +64,13 @@ const PRIORITY_MAP: Record<string, { labelKey: string; color: string }> = {
 };
 
 // Idem pour CATEGORIES_RAPPORT. Sans cela, un rapport range en « securite »
-// s affichait « Autre » (valeur inconnue, repli de la ligne 240) : la categorie
-// la plus urgente etait aussi la plus invisible.
+// s affichait « Autre » : la valeur etait inconnue de ce tableau, et le rendu
+// retombait sur `CATEGORY_MAP.autre`. La categorie la plus urgente etait donc
+// aussi la plus invisible.
+//
+// (On nomme le repli au lieu de citer sa ligne : un numero de ligne dans un
+// commentaire devient faux des que quoi que ce soit change au-dessus, et le
+// lecteur suivant n a aucune raison de le soupconner.)
 const CATEGORY_MAP: Record<string, { labelKey: string; icon: keyof typeof Feather.glyphMap }> = {
   general:     { labelKey: "reportsScreen.category.general",     icon: "help-circle" },
   technique:   { labelKey: "reportsScreen.category.technique",   icon: "alert-triangle" },
