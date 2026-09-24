@@ -199,7 +199,9 @@ router.patch("/devis/:id", async (req: Request, res: Response): Promise<void> =>
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   const scoped = and(eq(devisTable.id, id), eq(devisTable.organisationId, orgId));
   try {
-    const [existing] = await db.select({ id: devisTable.id }).from(devisTable).where(scoped);
+    const [existing] = await db
+      .select({ id: devisTable.id, status: devisTable.status, validUntil: devisTable.validUntil })
+      .from(devisTable).where(scoped);
     if (!existing) { res.status(404).json({ error: "Devis non trouve." }); return; }
     const b = req.body ?? {};
     if (b.status !== undefined && !STATUSES.includes(b.status)) { res.status(400).json({ error: "Statut invalide." }); return; }
@@ -232,7 +234,31 @@ router.patch("/devis/:id", async (req: Request, res: Response): Promise<void> =>
       if (d === undefined) { res.status(400).json({ error: "Date de validité invalide." }); return; }
       updates.validUntil = d;
     }
-    if (b.status === "accepte") updates.acceptedAt = new Date();
+    // Accepter un devis perime est refuse, comme le convertir l'est deja.
+    //
+    // La conversion en facture rendait 409 « validite depassee » ; l'ACCEPTER,
+    // non. On pouvait donc marquer « accepte » un devis de l'an dernier : la
+    // fiche l'affichait accepte, il comptait dans le taux d'acceptation, et
+    // l'utilisateur n'apprenait qu'a l'etape facture que son acceptation ne
+    // valait rien. Une meme decision appliquee a un chemin et pas a l'autre
+    // coute plus cher que pas de decision du tout : on croit le sujet traite.
+    //
+    // On refuse en nommant l'action qui debloque — prolonger la validite —
+    // plutot que de decider a la place de l'entreprise si le prix tient
+    // toujours.
+    if (b.status === "accepte") {
+      const validiteVisee = updates.validUntil !== undefined ? updates.validUntil : existing.validUntil;
+      if (devisExpire(existing.status, validiteVisee) || existing.status === "expire") {
+        res.status(409).json({
+          error: "La validite de ce devis est depassee.",
+          code: "devis_expire",
+          validUntil: existing.validUntil,
+          remediation: "Prolongez la date de validite du devis si le prix tient toujours, puis acceptez-le.",
+        });
+        return;
+      }
+      updates.acceptedAt = new Date();
+    }
     if (b.status === "refuse") updates.rejectedAt = new Date();
     const [row] = await db.update(devisTable).set(updates).where(scoped).returning();
     res.json(row);
