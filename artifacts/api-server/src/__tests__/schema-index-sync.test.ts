@@ -47,10 +47,22 @@ function indexDeclares(): { tous: string[]; uniques: string[] } {
   return { tous: [...tous], uniques: [...uniques] };
 }
 
+/** Les index de la base, avec leur VALIDITE — un index invalide n'applique rien. */
+async function indexEnBaseDetail(): Promise<Map<string, boolean>> {
+  const r = await db.execute(sql`
+    SELECT c.relname AS indexname, i.indisvalid AS valide
+      FROM pg_class c
+      JOIN pg_index i ON i.indexrelid = c.oid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE n.nspname = 'public'
+  `);
+  const lignes = (r as unknown as { rows?: Array<{ indexname: string; valide: boolean }> }).rows
+    ?? (r as unknown as Array<{ indexname: string; valide: boolean }>);
+  return new Map(lignes.map((l) => [l.indexname, l.valide !== false]));
+}
+
 async function indexEnBase(): Promise<Set<string>> {
-  const r = await db.execute(sql`SELECT indexname FROM pg_indexes WHERE schemaname = 'public'`);
-  const lignes = (r as unknown as { rows?: Array<{ indexname: string }> }).rows ?? (r as unknown as Array<{ indexname: string }>);
-  return new Set(lignes.map((l) => l.indexname));
+  return new Set((await indexEnBaseDetail()).keys());
 }
 
 describe("le schema et la base disent la meme chose", () => {
@@ -96,10 +108,23 @@ describe("les unicites dont le code depend nommement", () => {
 
   for (const [nom, consequence] of CRITIQUES) {
     it(`${nom} — sinon : ${consequence}`, async () => {
-      const presents = await indexEnBase();
-      expect(presents.has(nom), `index ${nom} absent`).toBe(true);
+      // Present ET valide, nommement. Compter ne suffirait pas : un index
+      // invalide se compte comme les autres et n'applique rien. (Piege releve
+      // par la session Assise le 24/09/2026, sur son propre controle.)
+      const detail = await indexEnBaseDetail();
+      expect(detail.has(nom), `index ${nom} absent`).toBe(true);
+      expect(detail.get(nom), `index ${nom} present mais INVALIDE : il n'applique rien`).toBe(true);
     });
   }
+
+  it("aucun index declare n'est invalide", async () => {
+    // Un CREATE INDEX CONCURRENTLY interrompu laisse un index invalide, que
+    // `IF NOT EXISTS` retrouve ensuite et ignore : il porte le bon nom pour
+    // toujours, sans rien garantir.
+    const detail = await indexEnBaseDetail();
+    const invalides = indexDeclares().tous.filter((n) => detail.has(n) && detail.get(n) === false);
+    expect(invalides, "index presents mais sans effet").toEqual([]);
+  });
 });
 
 describe("le verificateur de poussee compare aussi les index", () => {
