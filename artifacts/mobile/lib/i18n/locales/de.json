@@ -2480,7 +2480,9 @@
       "facturation": "Abrechnung",
       "securite": "Sicherheit",
       "autre": "Sonstiges"
-    }
+    },
+    "sentTitle": "Bericht gesendet",
+    "sentBody": "Der Support antwortet per E-Mail."
   },
   "horairesScreen": {
     "headerTitle": "Öffnungszeiten",

@@ -2480,7 +2480,9 @@
       "facturation": "Facturation",
       "securite": "Sécurité",
       "autre": "Autre"
-    }
+    },
+    "sentTitle": "Rapport envoyé",
+    "sentBody": "Le support vous répondra par e-mail."
   },
   "horairesScreen": {
     "headerTitle": "Horaires d'ouverture",

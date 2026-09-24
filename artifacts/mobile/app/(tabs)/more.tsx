@@ -233,7 +233,18 @@ export default function MoreScreen() {
         {(user?.role === "super_admin" || user?.role === "administrateur") ? (
           <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{t("moreScreen.secAdmin")}</Text>
-            <MenuItem icon="briefcase" label={t("moreScreen.mySpace")} sublabel={t("moreScreen.mySpaceSub")} color="#14b8a6" onPress={() => nav("/admin-reports")} />
+            {/*
+              « Mon espace » ouvrait un ecran qui etait la copie reduite de
+              deux autres : le meme formulaire de rapport que « Rapports /
+              Tickets », en moins complet (ni statistiques, ni filtres, ni
+              recherche, ni fiche), et un onglet « equipe » qui listait et
+              creait des utilisateurs — ce que « Utilisateurs » fait deja,
+              edition comprise.
+
+              Deux portes vers la meme piece font hesiter sur laquelle est la
+              bonne, et obligent a corriger deux fois. L'ecran a ete retire ;
+              ses deux moities vivent dans les entrees ci-dessous.
+            */}
             <MenuItem icon="users" label={t("moreScreen.users")} sublabel={t("moreScreen.usersSub")} color="#3b82f6" onPress={() => nav("/users")} />
             <MenuItem icon="shield" label={t("moreScreen.auditLog")} sublabel={t("moreScreen.auditLogSub")} color="#ef4444" onPress={() => nav("/audit-log")} />
             <MenuItem icon="grid" label={t("moreScreen.integrations")} sublabel={t("moreScreen.integrationsSub")} color="#22c55e" onPress={() => nav("/integrations")} />

@@ -2480,7 +2480,9 @@
       "facturation": "Facturación",
       "securite": "Seguridad",
       "autre": "Otro"
-    }
+    },
+    "sentTitle": "Informe enviado",
+    "sentBody": "El soporte le responderá por correo."
   },
   "horairesScreen": {
     "headerTitle": "Horario de apertura",

@@ -2480,7 +2480,9 @@
       "facturation": "Faturalandırma",
       "securite": "Güvenlik",
       "autre": "Diğer"
-    }
+    },
+    "sentTitle": "Rapor gönderildi",
+    "sentBody": "Destek size e-posta ile dönecek."
   },
   "horairesScreen": {
     "headerTitle": "Çalışma saatleri",

@@ -2480,7 +2480,9 @@
       "facturation": "Billing",
       "securite": "Security",
       "autre": "Other"
-    }
+    },
+    "sentTitle": "Report sent",
+    "sentBody": "Support will reply by email."
   },
   "horairesScreen": {
     "headerTitle": "Opening hours",

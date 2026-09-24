@@ -2480,7 +2480,9 @@
       "facturation": "الفوترة",
       "securite": "الأمان",
       "autre": "أخرى"
-    }
+    },
+    "sentTitle": "تم إرسال التقرير",
+    "sentBody": "سيرد الدعم عبر البريد الإلكتروني."
   },
   "horairesScreen": {
     "headerTitle": "ساعات العمل",

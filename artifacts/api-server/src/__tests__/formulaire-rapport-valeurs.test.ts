@@ -6,7 +6,6 @@
  *
  *   /reports        « bug », « amelioration », « question », « acces »,
  *                   « normale », « critique »
- *   /admin-reports  « fonctionnalite », « bug », « question »
  *
  * La route n'accepte que general/technique/facturation/securite/autre et
  * basse/normal/haute/urgente. Chaque envoi repondait 400 « Categorie
@@ -43,9 +42,12 @@ import router, { CATEGORIES_RAPPORT, PRIORITES_RAPPORT } from "../routes/admin-r
 import { prioriteSupport } from "../services/transfert-rapport-admin";
 
 const MOBILE = join(import.meta.dirname, "..", "..", "..", "mobile");
+// `/admin-reports` a ete retire : il portait le meme formulaire en moins
+// complet, et l'onglet « equipe » faisait doublon avec l'ecran Utilisateurs.
+// Deux ecrans pour le meme geste, c'est deux corrections a faire a chaque
+// fois — et une oubliee tot ou tard.
 const ECRANS = {
   "/reports": readFileSync(join(MOBILE, "app", "reports.tsx"), "utf8"),
-  "/admin-reports": readFileSync(join(MOBILE, "app", "admin-reports.tsx"), "utf8"),
 };
 
 /**
@@ -209,14 +211,13 @@ describe("ce que l'ecran affiche couvre ce que la base contient", () => {
     expect(PRIORITES_RAPPORT.filter((p) => !connues.includes(p))).toEqual([]);
   });
 
-  it("/admin-reports sait nommer chaque categorie du serveur", () => {
-    const connues = clesDuTableau(ECRANS["/admin-reports"], "CATEGORY_MAP");
-    expect(CATEGORIES_RAPPORT.filter((c) => !connues.includes(c))).toEqual([]);
-  });
-
-  it("/admin-reports sait nommer chaque priorite du serveur", () => {
-    const connues = clesDuTableau(ECRANS["/admin-reports"], "PRIORITY_MAP");
-    expect(PRIORITES_RAPPORT.filter((p) => !connues.includes(p))).toEqual([]);
+  it("il ne reste qu'UN ecran a verifier", () => {
+    // Le second — `/admin-reports` — a ete retire : meme formulaire en moins
+    // complet, plus un onglet « equipe » qui doublonnait avec Utilisateurs.
+    // On le constate ici pour que le controle ne passe pas silencieusement
+    // d'une couverture de deux ecrans a une couverture d'un seul sans que
+    // personne s'en avise.
+    expect(Object.keys(ECRANS)).toEqual(["/reports"]);
   });
 
   it("aucun ecran ne garde une case d'affichage sans valeur correspondante", () => {

@@ -162,6 +162,10 @@ export default function ReportsScreen() {
         setShowForm(false);
         setFormValues({ category: "general", priority: "normal" });
         load();
+        // Le formulaire se fermait sans un mot. Pour un signalement au
+        // support, un envoi silencieux se confond avec un envoi perdu : on
+        // renvoie, ou on renonce. L ecran dit maintenant les deux issues.
+        Alert.alert(t("reportsScreen.sentTitle"), t("reportsScreen.sentBody"));
       } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } finally { setFormLoading(false); }
   }

@@ -164,7 +164,7 @@ describe("le menu n'ouvre pas une porte fermee", () => {
 
   it("le releve retrouve bien les entrees visees", () => {
     // Un menu restructure rendrait des chaines vides, satisfaites par tout.
-    for (const c of ["/reports", "/admin-reports", "/recherche"]) {
+    for (const c of ["/reports", "/recherche"]) {
       expect(entree(c), `entree ${c} introuvable`).not.toBe("");
     }
   });
@@ -175,16 +175,16 @@ describe("le menu n'ouvre pas une porte fermee", () => {
     expect(entree("/reports")).toContain(GARDE);
   });
 
-  it("« Mon espace » l'etait deja — c'est la meme API", () => {
-    expect(entree("/admin-reports")).toContain(GARDE);
+  it("l'ecran doublon a bien ete retire du menu", () => {
+    // « Mon espace » ouvrait la copie reduite de deux autres ecrans. Deux
+    // portes vers la meme piece font hesiter sur laquelle est la bonne.
+    expect(PLUS).not.toContain('nav("/admin-reports")');
   });
 
   it("les deux ecrans interrogent bien la meme route", () => {
     // S'ils divergeaient, la comparaison de roles ci-dessus ne voudrait rien
     // dire : c'est elle qui rend les deux gardes comparables.
-    for (const f of ["reports.tsx", "admin-reports.tsx"]) {
-      expect(readFileSync(join(APP, f), "utf8")).toContain("/api/admin-reports");
-    }
+    expect(readFileSync(join(APP, "reports.tsx"), "utf8")).toContain("/api/admin-reports");
   });
 
   it("la route, elle, reserve bien l'acces — sinon la garde d'ecran serait de trop", () => {
