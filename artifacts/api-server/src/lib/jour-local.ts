@@ -12,3 +12,21 @@ export const FUSEAU_ENTREPRISE = "Europe/Paris";
 export function jourLocal(instant: Date = new Date(), fuseau: string = FUSEAU_ENTREPRISE): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: fuseau, year: "numeric", month: "2-digit", day: "2-digit" }).format(instant);
 }
+
+/**
+ * Une date ECRITE POUR UN HUMAIN, dans le fuseau de l-entreprise.
+ *
+ * `toLocaleDateString("fr-FR")` sans fuseau est pire que `toISOString` : il
+ * prend celui de la MACHINE. Juste sur le poste du developpeur, faux dans un
+ * conteneur qui tourne en UTC — et c-est le conteneur qui envoie les courriels.
+ * Une echeance enregistree a 23h30 a Paris s-affichait alors la veille.
+ * (Piege signale par la session Assise, 24/09/2026.)
+ */
+export function dateHumaine(
+  instant: Date,
+  langue: string = "fr-FR",
+  fuseau: string = FUSEAU_ENTREPRISE,
+  options: Intl.DateTimeFormatOptions = { day: "2-digit", month: "2-digit", year: "numeric" },
+): string {
+  return new Intl.DateTimeFormat(langue, { ...options, timeZone: fuseau }).format(instant);
+}

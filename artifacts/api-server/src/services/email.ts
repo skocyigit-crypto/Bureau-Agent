@@ -4,6 +4,7 @@ import { logger } from "../lib/logger";
 import { escapeHtml } from "../lib/html-escape";
 import { getOrgEmailSender } from "./email-providers";
 import { emailT, type EmailLang } from "../i18n/email-i18n";
+import { dateHumaine } from "../lib/jour-local";
 
 const SMTP_HOST = process.env.SMTP_HOST || "";
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || "587");
@@ -313,7 +314,7 @@ export async function sendWelcomeEmail(params: {
   const { to, orgName, plan, licenseKey, loginEmail, adminName, trialEndsAt } = params;
 
   const trialInfo = trialEndsAt
-    ? `<p style="color:#e67e22;font-size:14px;margin:16px 0 0;">&#9888; ${emailT(lang, "welcome.trialWarning", { date: new Date(trialEndsAt).toLocaleDateString(lang, { weekday: "long", day: "numeric", month: "long", year: "numeric" }) })}</p>`
+    ? `<p style="color:#e67e22;font-size:14px;margin:16px 0 0;">&#9888; ${emailT(lang, "welcome.trialWarning", { date: dateHumaine(new Date(trialEndsAt), lang, undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" }) })}</p>`
     : "";
 
   const mobileSection = MOBILE_APP_URL ? `
@@ -565,7 +566,7 @@ export async function sendLicenseEmail(params: {
   const adminDisplay = adminName || adminEmail || "";
 
   const trialInfo = trialEndsAt
-    ? `<p style="color:#e67e22;font-size:14px;margin:16px 0 0;">${emailT(lang, "license.trialInfo", { date: new Date(trialEndsAt).toLocaleDateString(lang) })}</p>`
+    ? `<p style="color:#e67e22;font-size:14px;margin:16px 0 0;">${emailT(lang, "license.trialInfo", { date: dateHumaine(new Date(trialEndsAt), lang) })}</p>`
     : "";
 
   const resetSection = (adminEmail && resetLink) ? `
@@ -778,7 +779,7 @@ export async function sendTrialEndingEmail(params: {
   expired?: boolean;
 }): Promise<{ success: boolean; error?: string; preview?: string; provider?: string }> {
   const { to, orgName, daysLeft, trialEndsAt, expired } = params;
-  const endStr = new Date(trialEndsAt).toLocaleDateString("fr-FR");
+  const endStr = dateHumaine(new Date(trialEndsAt));
   // `/settings` n'existe pas dans le routeur: la seule route de reglages est
   // `/parametres`, et elle lit bien `?tab=`. Le bouton « Voir les plans » du
   // courriel de fin d'essai — celui qui porte la conversion — menait donc a une
