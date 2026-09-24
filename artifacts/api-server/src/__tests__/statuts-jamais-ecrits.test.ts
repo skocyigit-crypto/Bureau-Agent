@@ -172,9 +172,13 @@ describe("un devis dont la validite est passee expire", () => {
   });
 
   it("la regle, isolement", () => {
-    expect(devisExpire("envoye", new Date(Date.now() - 1000))).toBe(true);
-    expect(devisExpire("envoye", new Date(Date.now() + 1000))).toBe(false);
-    expect(devisExpire("refuse", new Date(Date.now() - 1000))).toBe(false);
+    // La validite se compte en JOURS, pas en secondes : « jusqu'au 30/09 »
+    // vaut jusqu'a la fin du 30/09. Une date d'hier expire ; une date du jour,
+    // meme passee d'une seconde, engage encore (voir validite-fin-de-journee).
+    expect(devisExpire("envoye", new Date(Date.now() - JOUR))).toBe(true);
+    expect(devisExpire("envoye", new Date(Date.now() - 1000))).toBe(false);
+    expect(devisExpire("envoye", new Date(Date.now() + JOUR))).toBe(false);
+    expect(devisExpire("refuse", new Date(Date.now() - JOUR))).toBe(false);
   });
 });
 

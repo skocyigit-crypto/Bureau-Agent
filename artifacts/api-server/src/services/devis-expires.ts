@@ -17,10 +17,18 @@
  * un terme depasse. Et seuls les devis ENVOYES sont concernes — un brouillon
  * n'a jamais ete propose, un devis accepte ou refuse a deja son issue.
  */
-import { and, eq, lt, isNotNull } from "drizzle-orm";
+import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { db, devisTable } from "@workspace/db";
+import { FUSEAU_ENTREPRISE, finDeJournee } from "../lib/jour-local";
 
-/** Vrai quand ce devis n'engage plus, a cette date. */
+/**
+ * Vrai quand ce devis n'engage plus, a cette date.
+ *
+ * « Valable jusqu'au 30/09 » vaut jusqu'a la FIN du 30/09. La date arrive de
+ * l'interface a minuit UTC — 2 h du matin a Paris : comparee telle quelle, elle
+ * faisait expirer le devis le matin meme de son dernier jour, celui ou le
+ * client se decide.
+ */
 export function devisExpire(
   statut: string,
   validUntil: Date | null,
@@ -28,7 +36,7 @@ export function devisExpire(
 ): boolean {
   if (statut !== "envoye") return false;
   if (!validUntil) return false;
-  return validUntil.getTime() < maintenant.getTime();
+  return finDeJournee(validUntil).getTime() < maintenant.getTime();
 }
 
 /**
@@ -45,7 +53,9 @@ export async function basculerDevisExpires(maintenant: Date = new Date()): Promi
       and(
         eq(devisTable.status, "envoye"),
         isNotNull(devisTable.validUntil),
-        lt(devisTable.validUntil, maintenant),
+        // La meme regle, dite en SQL : c'est le JOUR de validite qui doit etre
+        // passe dans le fuseau de l'entreprise, pas l'instant minuit UTC.
+        sql`(${devisTable.validUntil} AT TIME ZONE ${FUSEAU_ENTREPRISE})::date < (${maintenant.toISOString()}::timestamptz AT TIME ZONE ${FUSEAU_ENTREPRISE})::date`,
       ),
     )
     .returning({ id: devisTable.id });
