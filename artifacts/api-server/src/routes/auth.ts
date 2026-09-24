@@ -18,6 +18,7 @@ import { checkLicense } from "../middleware/license-check";
 import { assertRoleAllowed, assertOrgOwnsUser, assertTargetNotSuperAdmin, assertCallerOutranks, rolesSousLeRang, assertUserQuotaNotExceeded, assertNotSelf, sanitiseUserPatch, checkSensitiveRateLimit } from "../middleware/tenant-guard";
 import { isUserQuotaDbError } from "../services/ensure-user-quota";
 import { documentCsv } from "../lib/csv";
+import { cheminBaseApp } from "../lib/chemin-base-app";
 
 const router: IRouter = Router();
 
@@ -1386,7 +1387,7 @@ router.post("/auth/forgot-password", resetLimiter, async (req: Request, res: Res
       || process.env.REPLIT_DEPLOYMENT_URL
       || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
       || "https://agentdebureau.fr";
-    const appBase = process.env.APP_BASE_PATH ?? "";
+    const appBase = cheminBaseApp();
     const resetLink = `${appUrl}${appBase}?reset_token=${token}`;
     const lang = resolveEmailLang(req);
 
@@ -1535,7 +1536,7 @@ export async function issueAndSendEmailVerification(userId: number, email: strin
   const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
   await db.update(usersTable).set({ emailVerificationToken: tokenHash, emailVerificationExpiry: expiry, updatedAt: new Date() }).where(eq(usersTable.id, userId));
   const appUrl = process.env.PUBLIC_URL || process.env.APP_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "https://agentdebureau.fr");
-  const appBase = process.env.APP_BASE_PATH ?? "";
+  const appBase = cheminBaseApp();
   const link = `${appUrl}${appBase}?verify_email=${rawToken}`;
   const html = `<div style="font-family:sans-serif;max-width:520px;margin:auto;padding:24px">
     <h2 style="color:#1a2744">${emailT(lang, "verify.title")}</h2>
