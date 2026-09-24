@@ -1347,7 +1347,26 @@ router.post("/auth/forgot-password", resetLimiter, async (req: Request, res: Res
       .from(usersTable).where(eq(usersTable.email, emailClean));
 
     if (!user || !user.actif) {
-      // IMPORTANT: meme corps, meme statut, meme latence minimale.
+      // IMPORTANT: meme corps, meme statut, meme latence minimale. La reponse
+      // ne doit RIEN reveler — c'est ce qui empeche d'enumerer les comptes.
+      //
+      // Mais le silence vers l'utilisateur ne justifie pas le silence dans les
+      // journaux. Sans cette ligne, une demande qui n'envoie rien ne laisse
+      // AUCUNE trace : l'ecran annonce « un lien a ete envoye », la boite aux
+      // lettres reste vide, et personne — pas meme l'exploitant avec les
+      // journaux sous les yeux — ne peut distinguer « compte inexistant »,
+      // « compte desactive » et « panne du fournisseur d'envoi ».
+      //
+      // Mesure du 24/09/2026 en production : deux demandes, une seule suivie
+      // d'un envoi. La premiere n'avait laisse que son code 200.
+      //
+      // Le niveau est `warn` et non `error` : ce n'est pas une panne, c'est
+      // une demande sans destinataire. Et la raison est nommee, parce que les
+      // deux cas se reparent differemment — creer le compte, ou le reactiver.
+      req.log.warn(
+        { to: emailClean, raison: user ? "compte desactive" : "aucun compte a cette adresse" },
+        "forgot-password: aucun envoi",
+      );
       await respondGeneric();
       return;
     }
