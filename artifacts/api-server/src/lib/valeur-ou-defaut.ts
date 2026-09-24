@@ -45,7 +45,13 @@ export function noteAgent(valeur: unknown, defaut = 50): number {
   return Math.round(nombreOuDefaut(valeur, defaut, { min: 0, max: 100 }));
 }
 
-/** Un delai en jours propose par l'IA : zero veut dire « aujourd'hui ». */
-export function delaiEnJours(valeur: unknown, defaut = 3): number {
-  return nombreOuDefaut(valeur, defaut, { min: 0, max: 365 });
+/**
+ * Un delai en jours propose par l'IA : zero veut dire « aujourd'hui ».
+ *
+ * Le plafond se passe, parce qu'il differe d'un appelant a l'autre : le
+ * depouillement d'appel borne a 90 jours, les autres a l'annee. Imposer un
+ * plafond unique ici aurait elargi en silence celui qui etait deja pose.
+ */
+export function delaiEnJours(valeur: unknown, defaut = 3, max = 365): number {
+  return nombreOuDefaut(valeur, defaut, { min: 0, max });
 }

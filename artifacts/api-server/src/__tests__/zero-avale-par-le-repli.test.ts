@@ -99,3 +99,82 @@ describe("la route n'emploie plus la forme qui avale le zero", () => {
     expect(ROUTE).toMatch(/0-30 si problemes critiques/);
   });
 });
+
+/*
+ * COMPTER LES SITES, pas corriger celui qu'on a sous les yeux.
+ *
+ * La premiere passe a corrige trois notes et deux echeances. Il en restait
+ * SIX — dont une, dans `call-processor.ts`, ou la valeur etait deja bornee
+ * vingt lignes plus haut EN PRESERVANT le zero, avant qu'un
+ * `|| 1` ne le rejette aussitot. Un mecanisme juste a un endroit et faux a
+ * l'autre coute plus cher qu'un mecanisme faux partout : on croit le sujet
+ * traite.
+ *
+ * (Methode rappelee par la session BTP-ULTRA le 24/09/2026, qui a trouve le
+ * meme mecanisme sur NEUF sites chez elle — le delai de paiement, ou zero
+ * jour veut dire « comptant » — dont deux dans le generateur de PDF : le
+ * document contractuel envoye au client annoncait « 30 jours » quand
+ * l'accord disait comptant.)
+ */
+describe("plus aucun site du mecanisme n'avale le zero", () => {
+  const FICHIERS = [
+    "routes/ai-agents.ts",
+    "routes/ai-commandant.ts",
+    "routes/meetings.ts",
+    "services/call-processor.ts",
+  ] as const;
+
+  const source = (f: string) => readFileSync(join(import.meta.dirname, "..", f), "utf8");
+
+  it("le releve lit bien les quatre fichiers", () => {
+    // Un fichier deplace rendrait une source vide, et une source vide ne
+    // contient aucune forme fautive : le controle passerait au vert.
+    for (const f of FICHIERS) expect(source(f).length, `${f} vide`).toBeGreaterThan(1000);
+  });
+
+  it("aucun `dueInDays ||` ni `echeanceJours ||` ne subsiste", () => {
+    const fautifs = FICHIERS.filter((f) => /(dueInDays|echeanceJours)\s*\|\|/.test(source(f)));
+    expect(fautifs, "0 || defaut : « aujourd'hui » devient « dans N jours »").toEqual([]);
+  });
+
+  it("aucun delai n'est teste par sa seule verite", () => {
+    // `task.dueInDays ? ... : defaut` est la meme faute ecrite autrement.
+    const fautifs = FICHIERS.filter((f) => /(dueInDays|echeanceJours)\s*\?\s/.test(source(f)));
+    expect(fautifs, "un zero est faux en JavaScript : il prendrait la branche du repli").toEqual([]);
+  });
+
+  it("ni par un `> 0` qui rejette le zero", () => {
+    const fautifs = FICHIERS.filter((f) => /(dueInDays|echeanceJours)\s*>\s*0/.test(source(f)));
+    expect(fautifs, "zero est un delai, pas une absence de delai").toEqual([]);
+  });
+
+  it("les onze sites passent par le garde commun", () => {
+    // Onze, comptes un par un : TROIS notes (ai-agents) et HUIT echeances —
+    // deux dans ai-agents, trois dans ai-commandant, une dans meetings, deux
+    // dans call-processor. Le nombre est ecrit en dur pour qu'un douzieme
+    // site, ajoute sans garde, fasse tomber ce controle plutot que de passer.
+    //
+    // J'avais d'abord ecrit huit, de tete. Le controle a rendu onze et c'est
+    // lui qui avait raison : un nombre qu'on pose sans compter ne verifie
+    // rien, il enregistre une croyance.
+    const parFichier = FICHIERS.map((f) => [f, source(f).match(/\b(noteAgent|delaiEnJours)\(/g)?.length ?? 0] as const);
+    expect(Object.fromEntries(parFichier), "un site du mecanisme est passe hors du garde").toEqual({
+      "routes/ai-agents.ts": 5,
+      "routes/ai-commandant.ts": 3,
+      "routes/meetings.ts": 1,
+      "services/call-processor.ts": 2,
+    });
+  });
+
+  it("le plafond deja pose n'a pas ete elargi au passage", () => {
+    // `call-processor` bornait a 90 jours : reprendre le garde sans lui
+    // passer ce plafond l'aurait porte a 365, en silence.
+    expect(source("services/call-processor.ts")).toMatch(/delaiEnJours\([^)]*,\s*1,\s*90\)/);
+  });
+
+  it("et le garde honore un plafond qu'on lui passe", () => {
+    expect(delaiEnJours(200, 1, 90)).toBe(90);
+    expect(delaiEnJours(45, 1, 90)).toBe(45);
+    expect(delaiEnJours(0, 1, 90)).toBe(0);
+  });
+});
