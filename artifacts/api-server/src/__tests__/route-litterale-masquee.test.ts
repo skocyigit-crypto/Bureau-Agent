@@ -55,7 +55,25 @@ interface Vue { methode: string; chemin: string; fichier: string; rang: number }
  *
  * L'ordre compte : c'est lui, et lui seul, qui decide laquelle repond.
  */
+/**
+ * Ce que le releve N'A PAS PU LIRE.
+ *
+ * Un `catch { continue; }` fait disparaitre un fichier de routeur en silence,
+ * et ses routes avec lui : une route litterale masquee dans ce fichier ne
+ * serait plus vue, et le controle rendrait « aucune collision » — c'est-a-dire
+ * la meme sortie que « tout va bien ».
+ *
+ * (Panne mesuree par la session BTP-ULTRA le 24/09/2026 sur son propre
+ * detecteur : il appelait `grep` via cmd.exe, ou `grep` n'existe pas. L'outil
+ * n'a JAMAIS regarde, et a rapporte son incapacite sous la forme d'une
+ * absence — sept commentaires justes allaient etre « corriges ». La famille du
+ * jour appliquee a l'instrument : une impossibilite de repondre rendue sous la
+ * forme d'une reponse.)
+ */
+const illisibles: string[] = [];
+
 function routesMontees(): Vue[] {
+  illisibles.length = 0;
   const fichierDe = new Map<string, string>();
   for (const m of INDEX.matchAll(/import\s+(\w+)\s+from\s+"\.\/([a-z0-9-]+)"/g)) {
     fichierDe.set(m[1]!, m[2]!);
@@ -66,7 +84,7 @@ function routesMontees(): Vue[] {
     const fichier = fichierDe.get(m[3]!);
     if (!fichier) continue;
     let src: string;
-    try { src = lire(fichier); } catch { continue; }
+    try { src = lire(fichier); } catch (e) { illisibles.push(`${fichier} (${String(e).slice(0, 60)})`); continue; }
     for (const r of src.matchAll(/router\.(get|post|put|patch|delete)\(\s*"([^"]+)"/g)) {
       vues.push({
         methode: r[1]!,
@@ -154,6 +172,14 @@ describe("le releve mesure bien quelque chose", () => {
 
   it("il voit bien des routes a parametre — sinon il n'y a rien a masquer", () => {
     expect(routesMontees().filter((v) => v.chemin.includes(":")).length).toBeGreaterThan(50);
+  });
+
+  it("et il a pu lire CHAQUE fichier de routeur — sinon il ne conclut pas", () => {
+    // Le compte total ne suffit pas : 665 routes sur 666 passeraient pour un
+    // releve complet, et la route manquante serait justement celle dont on ne
+    // saurait rien. On echoue en nommant ce qu'on n'a pas mesure.
+    routesMontees();
+    expect(illisibles, "ces routeurs n'ont pas ete lus : « aucune collision » ne veut alors rien dire").toEqual([]);
   });
 
   it("il tient compte du prefixe de montage", () => {
