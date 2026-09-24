@@ -78,3 +78,8 @@ Thumbs.db
 # chercher lui-meme.
 /cloud-sql-proxy
 /cloud-sql-proxy.exe
+
+# Mots de passe generes par scripts/creer-super-admin.mjs. Le depot est
+# PUBLIC : ce motif est un filet, pas la protection principale — le script
+# ecrit hors de l arbre de travail.
+super-admin-*.txt
