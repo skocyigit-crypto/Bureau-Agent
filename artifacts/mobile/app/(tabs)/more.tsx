@@ -192,7 +192,16 @@ export default function MoreScreen() {
           <MenuItem icon="users" label={t("moreScreen.teamIntelligence")} sublabel={t("moreScreen.teamIntelligenceSub")} color="#6366f1" onPress={() => nav("/workforce-intelligence")} />
           <MenuItem icon="bar-chart-2" label={t("moreScreen.teamPerformance")} sublabel={t("moreScreen.teamPerformanceSub")} color="#0f4c81" onPress={() => nav("/performance")} />
           <MenuItem icon="award" label={t("moreScreen.executiveReport")} sublabel={t("moreScreen.executiveReportSub")} color="#1e293b" onPress={() => nav("/rapport-executif")} />
-          <MenuItem icon="file-text" label={t("moreScreen.reportsTickets")} sublabel={t("moreScreen.reportsTicketsSub")} color="#7c3aed" onPress={() => nav("/reports")} />
+          {/*
+            L entree ne s affiche qu aux roles qui peuvent s en servir.
+            « /api/admin-reports » repond 403 « Acces reserve aux
+            administrateurs » a tous les autres : l ecran s ouvrait vide, sans
+            rien dire, et le formulaire echouait de meme. Une porte visible
+            mais fermee use la confiance plus surement qu une porte absente.
+          */}
+          {(user?.role === "super_admin" || user?.role === "administrateur") ? (
+            <MenuItem icon="file-text" label={t("moreScreen.reportsTickets")} sublabel={t("moreScreen.reportsTicketsSub")} color="#7c3aed" onPress={() => nav("/reports")} />
+          ) : null}
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -224,7 +233,18 @@ export default function MoreScreen() {
         {(user?.role === "super_admin" || user?.role === "administrateur") ? (
           <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{t("moreScreen.secAdmin")}</Text>
-            <MenuItem icon="briefcase" label={t("moreScreen.mySpace")} sublabel={t("moreScreen.mySpaceSub")} color="#14b8a6" onPress={() => nav("/admin-reports")} />
+            {/*
+              « Mon espace » ouvrait un ecran qui etait la copie reduite de
+              deux autres : le meme formulaire de rapport que « Rapports /
+              Tickets », en moins complet (ni statistiques, ni filtres, ni
+              recherche, ni fiche), et un onglet « equipe » qui listait et
+              creait des utilisateurs — ce que « Utilisateurs » fait deja,
+              edition comprise.
+
+              Deux portes vers la meme piece font hesiter sur laquelle est la
+              bonne, et obligent a corriger deux fois. L'ecran a ete retire ;
+              ses deux moities vivent dans les entrees ci-dessous.
+            */}
             <MenuItem icon="users" label={t("moreScreen.users")} sublabel={t("moreScreen.usersSub")} color="#3b82f6" onPress={() => nav("/users")} />
             <MenuItem icon="shield" label={t("moreScreen.auditLog")} sublabel={t("moreScreen.auditLogSub")} color="#ef4444" onPress={() => nav("/audit-log")} />
             <MenuItem icon="grid" label={t("moreScreen.integrations")} sublabel={t("moreScreen.integrationsSub")} color="#22c55e" onPress={() => nav("/integrations")} />

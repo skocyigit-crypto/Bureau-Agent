@@ -17,8 +17,25 @@ describe("verif-ecrans : un ecran non juge n'est pas vert", () => {
   it("un defaut reel garde le code 1 (prioritaire)", () => {
     expect(ECRANS.indexOf("process.exitCode = 1;")).toBeLessThan(ECRANS.indexOf("process.exitCode = 2;"));
   });
-  it("un ecran limite (429) n'est jamais declare « en probleme »", () => {
-    expect(ECRANS).toContain("const probleme = limite.length === 0 && (");
+  it("un ecran limite (429) n'est jamais declare « en probleme »", async () => {
+    // On APPELLE le verdict au lieu de chercher sa ligne dans le script.
+    //
+    // La version precedente exigeait le texte
+    // `const probleme = limite.length === 0 && (`. Sortir cette regle dans
+    // `juger-ecran.mjs` — pour qu'elle devienne testable — a donc fait tomber
+    // le controle alors que le comportement etait intact. Un controle qui
+    // verrouille la FORME du code empeche de le reorganiser sans rien
+    // garantir de plus ; celui-ci verrouille la decision.
+    const { jugerEcran } = await import("../../../../scripts/juger-ecran.mjs");
+    expect(jugerEcran({ texte: "", limite: ["429 /api/devis"] }).etat).toBe("non_juge");
+    expect(jugerEcran({ texte: "x", reseau: ["500 /api/x"], limite: ["429 /api/y"] }).etat).toBe("non_juge");
+  });
+
+  it("et la regle vit bien dans le module que le script importe", () => {
+    // Sinon le controle ci-dessus mesurerait un module que plus personne
+    // n'appelle — le defaut que ce depot s'est deja inflige.
+    expect(ECRANS).toContain('from "./juger-ecran.mjs"');
+    expect(ECRANS).toContain("jugerEcran({");
   });
   it("la tolerance doit etre explicite", () => expect(ECRANS).toContain('process.env.NON_JUGES_TOLERES !== "1"'));
 });

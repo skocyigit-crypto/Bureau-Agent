@@ -5733,9 +5733,8 @@
     }
   },
   "adminDevis": {
-    "title": "Firmenangebote",
-    "superAdmin": "Super-Admin",
-    "subtitle": "Globale SaaS-Ansicht — B2B-Verkaufsangebote über alle Organisationen.",
+    "title": "Angebote",
+    "subtitle": "Ihre Angebote: erstellen, senden, Antworten verfolgen.",
     "new": "Neues Angebot",
     "searchPlaceholder": "Suchen (Titel, Referenz, Kunde)...",
     "statusPlaceholder": "Status",
@@ -5907,8 +5906,7 @@
       }
     },
     "title": "Kundenrechnungen",
-    "superAdmin": "Super-Admin",
-    "subtitle": "Globale SaaS-Ansicht — an Kunden ausgestellte Rechnungen über alle Organisationen.",
+    "subtitle": "Die Rechnungen, die Sie Ihren Kunden stellen.",
     "new": "Neue Rechnung",
     "searchPlaceholder": "Suchen (Titel, Referenz, Kunde)...",
     "statusPlaceholder": "Status",

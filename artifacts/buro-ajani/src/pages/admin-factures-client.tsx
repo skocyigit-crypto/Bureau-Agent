@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Banknote,Building2,Edit,FileCode,FileDown,Loader2,Plus,Receipt,RefreshCw,Search,Send,Shield,Trash2,UploadCloud } from "lucide-react";
+import { Banknote,Building2,Edit,FileCode,FileDown,Loader2,Plus,Receipt,RefreshCw,Search,Send,Trash2,UploadCloud } from "lucide-react";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { useCallback,useEffect,useState } from "react";
 import { jourLocal } from "@/lib/jour-local";
@@ -280,9 +280,6 @@ export default function AdminFacturesClientPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
             <Receipt className="w-6 h-6 text-primary" /> {t("adminFacturesClient.title")}
-            <Badge variant="outline" className="text-red-700 border-red-300 bg-red-50 dark:bg-red-950/30">
-              <Shield className="w-3 h-3 mr-1" /> {t("adminFacturesClient.superAdmin")}
-            </Badge>
           </h1>
           <p className="text-muted-foreground text-sm">{t("adminFacturesClient.subtitle")}</p>
         </div>

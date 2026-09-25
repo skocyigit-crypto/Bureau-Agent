@@ -236,7 +236,7 @@ router.post("/legal/accept-all", async (req: Request, res: Response): Promise<vo
 });
 
 router.post("/legal/revoke", async (req: Request, res: Response): Promise<void> => {
-  // Ce routeur entier est monte derriere requireSuperAdmin (ligne 14) — tout
+  // Ce routeur entier est monte derriere `router.use("/legal", requireSuperAdmin)` — tout
   // appelant ici est deja un super-admin gerant potentiellement N'IMPORTE
   // QUELLE organisation depuis le panneau Organisations (pas seulement la
   // sienne). Le precedent filtre `eq(organisationId, getOrgId(req))` (destine

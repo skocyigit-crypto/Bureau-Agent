@@ -546,7 +546,7 @@ export default function Contacts() {
                     <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                   </TableRow>
                 ))
-              ) : data?.contacts.length === 0 ? (
+              ) : data?.contacts?.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="py-8">
                     {(search !== "" || categoryFilter !== "all") ? (
@@ -565,7 +565,7 @@ export default function Contacts() {
                   </TableCell>
                 </TableRow>
               ) : (
-                data?.contacts.map((contact) => (
+                data?.contacts?.map((contact) => (
                   <TableRow key={contact.id} className={`hover:bg-muted/30 transition-colors cursor-pointer ${selectedIds.has(contact.id) ? 'bg-primary/5' : ''}`} onClick={() => setLocation(`/contacts/${contact.id}`)}>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Checkbox checked={selectedIds.has(contact.id)} onCheckedChange={() => toggleSelect(contact.id)} aria-label={t("contacts.selectOne", { name: `${contact.firstName} ${contact.lastName}` })} />
@@ -647,7 +647,7 @@ export default function Contacts() {
             Array.from({ length: 6 }).map((_, i) => (
               <Card key={i}><CardContent className="p-6"><Skeleton className="h-32 w-full" /></CardContent></Card>
             ))
-          ) : data?.contacts.length === 0 ? (
+          ) : data?.contacts?.length === 0 ? (
             <div className="col-span-full py-4">
               {(search !== "" || categoryFilter !== "all") ? (
                 <p className="text-center text-muted-foreground py-8" data-testid="no-results-contacts-grid">{t("contacts.empty.filtered")}</p>
@@ -664,7 +664,7 @@ export default function Contacts() {
               )}
             </div>
           ) : (
-            data?.contacts.map((contact) => (
+            data?.contacts?.map((contact) => (
               <Card key={contact.id} className={`cursor-pointer hover:shadow-md transition-shadow ${selectedIds.has(contact.id) ? 'ring-2 ring-primary' : ''}`} onClick={() => setLocation(`/contacts/${contact.id}`)}>
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between mb-3">

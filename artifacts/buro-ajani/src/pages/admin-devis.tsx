@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { ArrowRight,Edit,FileText,Loader2,Plus,RefreshCw,Search,Shield,Trash2 } from "lucide-react";
+import { ArrowRight,Edit,FileText,Loader2,Plus,RefreshCw,Search,Trash2 } from "lucide-react";
 import { useCallback,useEffect,useState } from "react";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
@@ -153,9 +153,6 @@ export default function AdminDevisPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
             <FileText className="w-6 h-6 text-primary" /> {t("adminDevis.title")}
-            <Badge variant="outline" className="text-red-700 border-red-300 bg-red-50 dark:bg-red-950/30">
-              <Shield className="w-3 h-3 mr-1" /> {t("adminDevis.superAdmin")}
-            </Badge>
           </h1>
           <p className="text-muted-foreground text-sm">{t("adminDevis.subtitle")}</p>
         </div>

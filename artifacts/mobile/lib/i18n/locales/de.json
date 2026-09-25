@@ -2409,9 +2409,8 @@
       "general": "Allgemein",
       "technique": "Technik",
       "facturation": "Abrechnung",
-      "fonctionnalite": "Funktion",
-      "bug": "Fehler",
-      "question": "Frage"
+      "securite": "Sicherheit",
+      "autre": "Sonstiges"
     },
     "priority": {
       "basse": "Niedrig",
@@ -2464,26 +2463,26 @@
     },
     "priority": {
       "basse": "Niedrig",
-      "normale": "Normal",
+      "normal": "Normal",
       "haute": "Hoch",
-      "critique": "Kritisch"
+      "urgente": "Dringend"
     },
     "category": {
-      "bug": "Fehler",
-      "amelioration": "Verbesserung",
-      "question": "Frage",
+      "general": "Allgemein",
+      "technique": "Technik",
       "facturation": "Abrechnung",
-      "acces": "Zugriff",
+      "securite": "Sicherheit",
       "autre": "Sonstiges"
     },
     "catOption": {
-      "bug": "Fehler / Technisches Problem",
-      "amelioration": "Verbesserungswunsch",
-      "question": "Frage",
+      "general": "Allgemeine Frage",
+      "technique": "Technisches Problem (Fehler)",
       "facturation": "Abrechnung",
-      "acces": "Zugriff / Berechtigungen",
+      "securite": "Sicherheit",
       "autre": "Sonstiges"
-    }
+    },
+    "sentTitle": "Bericht gesendet",
+    "sentBody": "Der Support antwortet per E-Mail."
   },
   "horairesScreen": {
     "headerTitle": "Öffnungszeiten",

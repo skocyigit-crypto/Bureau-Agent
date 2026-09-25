@@ -1,6 +1,7 @@
 import { db, callsTable, tasksTable, calendarEventsTable, notificationsTable } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
 import { logAudit } from "../routes/audit";
+import { delaiEnJours } from "../lib/valeur-ou-defaut";
 import { safeJsonParse, aiCallWithRetry, sanitizePromptInput, wrapUntrusted, recordAiUsage, extractGeminiTokens, geminiActualModel, GEMINI_PRO_MODEL } from "./ai-utils";
 import { AGENTS, creerTacheIa } from "./tache-ia";
 import { assertAiQuota, invalidateQuotaCache } from "./ai-quota";
@@ -236,7 +237,7 @@ Reponds UNIQUEMENT en JSON avec cette structure:
           title: String(t.title).slice(0, 200),
           description: typeof t.description === "string" ? t.description.slice(0, 1000) : "",
           priority: allowedPriorities.has(t.priority) ? t.priority : "moyenne",
-          dueInDays: Number.isFinite(t.dueInDays) ? Math.max(0, Math.min(90, Number(t.dueInDays))) : 1,
+          dueInDays: delaiEnJours(t.dueInDays, 1, 90),
         }))
       : [],
     followUpNeeded: !!parsed.followUpNeeded,
@@ -257,7 +258,15 @@ Reponds UNIQUEMENT en JSON avec cette structure:
   const createdTasks: any[] = [];
   for (const taskDef of analysis.tasks) {
     const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + (taskDef.dueInDays || 1));
+    // La construction de `analysis.tasks` bornait deja cette valeur EN
+    // PRESERVANT le zero ; ce repli-ci le rejetait aussitot. Un mecanisme
+    // juste a un endroit et faux a l'autre coute plus cher qu'un mecanisme
+    // faux partout : on croit le sujet traite.
+    //
+    // (On nomme la construction, pas sa distance en lignes : « vingt lignes
+    // plus haut » etait deja faux — vingt-cinq — et le serait davantage au
+    // prochain ajout.)
+    dueDate.setDate(dueDate.getDate() + delaiEnJours(taskDef.dueInDays, 1, 90));
 
     // La mention « [Cree automatiquement] » quitte la description: c'etait une
     // convention appliquee par deux agents sur neuf, invisible aux filtres et

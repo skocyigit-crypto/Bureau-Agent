@@ -366,16 +366,16 @@ router.patch("/contacts/:id/tags", async (req, res): Promise<void> => {
   if (!Array.isArray(tags)) { res.status(400).json({ error: "tags doit être un tableau." }); return; }
 
   try {
+    // Une seule ecriture, par le schema : la version precedente posait
+    // `updatedAt` avec Drizzle puis les etiquettes en SQL brut sur une colonne
+    // qui n-existait pas. Le premier UPDATE passait, le second echouait, et la
+    // reponse etait un 500 alors que la fiche avait deja bouge.
     const [contact] = await db.update(contactsTable)
-      .set({ updatedAt: new Date() } as any)
+      .set({ tags, updatedAt: new Date() })
       .where(and(eq(contactsTable.id, id), eq(contactsTable.organisationId, orgId)))
       .returning();
     if (!contact) { res.status(404).json({ error: "Contact non trouvé." }); return; }
-
-    await db.execute(
-      sql`UPDATE contacts SET tags = ${tags}::text[] WHERE id = ${id} AND organisation_id = ${orgId}`
-    );
-    res.json({ ...contact, tags });
+    res.json(contact);
   } catch (err: any) {
     req.log.error({ err }, "Erreur mise a jour tags contact");
     res.status(500).json({ error: "Erreur lors de la mise à jour des tags." });

@@ -5733,9 +5733,8 @@
     }
   },
   "adminDevis": {
-    "title": "Devis kurumsal",
-    "superAdmin": "Super-admin",
-    "subtitle": "Vue globale SaaS — propositions commerciales B2B toutes organisations confondues.",
+    "title": "Devis",
+    "subtitle": "Vos propositions commerciales : rédaction, envoi, suivi des réponses.",
     "new": "Nouveau devis",
     "searchPlaceholder": "Rechercher (titre, référence, client)...",
     "statusPlaceholder": "Statut",
@@ -5907,8 +5906,7 @@
       }
     },
     "title": "Factures client",
-    "superAdmin": "Super-admin",
-    "subtitle": "Vue globale SaaS — factures émises aux clients, toutes organisations confondues.",
+    "subtitle": "Les factures que vous émettez à vos clients.",
     "new": "Nouvelle facture",
     "searchPlaceholder": "Rechercher (titre, référence, client)...",
     "statusPlaceholder": "Statut",

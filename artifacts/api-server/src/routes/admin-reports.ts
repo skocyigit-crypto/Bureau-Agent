@@ -6,6 +6,24 @@ import {
   LONGUEUR_MAX_MESSAGE, LONGUEUR_MAX_SUJET, prioriteSupport, versEmailSupport,
 } from "../services/transfert-rapport-admin";
 
+/**
+ * Les categories et priorites qu un rapport peut porter.
+ *
+ * Exportees parce que les ECRANS doivent proposer exactement cela. Le
+ * 24/09/2026, les deux ecrans mobiles offraient « bug », « amelioration »,
+ * « question », « acces », « fonctionnalite », « normale » et « critique » :
+ * aucune de ces valeurs n existe ici. L envoi partait, la route repondait 400,
+ * et l utilisateur ne lisait que « L action a echoue ». Pire, la categorie par
+ * defaut de l ecran /reports etait « bug » : le formulaire echouait meme sans
+ * que personne ne touche au menu.
+ *
+ * « securite » compte a part : prioriteSupport() la fait toujours remonter en
+ * priorite haute. Elle n etait proposee par AUCUN ecran — le chemin
+ * d escalade existait sans porte d entree.
+ */
+export const CATEGORIES_RAPPORT = ["general", "technique", "facturation", "securite", "autre"] as const;
+export const PRIORITES_RAPPORT = ["basse", "normal", "haute", "urgente"] as const;
+
 const router: IRouter = Router();
 
 router.get("/admin-reports", async (req, res): Promise<void> => {
@@ -82,8 +100,8 @@ router.post("/admin-reports", async (req, res): Promise<void> => {
   if (subject.trim().length > LONGUEUR_MAX_SUJET || message.trim().length > LONGUEUR_MAX_MESSAGE) {
     res.status(400).json({ error: `Sujet limite a ${LONGUEUR_MAX_SUJET} caracteres, message a ${LONGUEUR_MAX_MESSAGE}.` }); return;
   }
-  const validCategories = ["general", "technique", "facturation", "securite", "autre"];
-  const validPriorities = ["basse", "normal", "haute", "urgente"];
+  const validCategories = [...CATEGORIES_RAPPORT];
+  const validPriorities = [...PRIORITES_RAPPORT];
   if (category && !validCategories.includes(category)) {
     res.status(400).json({ error: "Categorie invalide" }); return;
   }

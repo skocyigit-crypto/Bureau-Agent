@@ -59,6 +59,16 @@ export const contactsTable = pgTable("contacts", {
    */
   relancesAutoDesactivees: boolean("relances_auto_desactivees").notNull().default(false),
   address: text("address"),
+  /**
+   * Etiquettes libres, comme sur les prospects et les projets.
+   *
+   * La colonne manquait alors que la route `PATCH /contacts/:id/tags` et le
+   * bouton de la fiche contact existaient tous les deux : la requete tombait
+   * en `42703 column "tags" does not exist`, et l'utilisateur ne voyait que
+   * « Erreur lors de la mise a jour des etiquettes ». Un bouton qui echoue
+   * toujours vaut moins qu'un bouton absent — il fait douter du reste.
+   */
+  tags: text("tags").array(),
   notes: text("notes"),
   totalCalls: integer("total_calls").notNull().default(0),
   lastCallAt: timestamp("last_call_at", { withTimezone: true }),

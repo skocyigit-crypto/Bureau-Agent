@@ -2409,9 +2409,8 @@
       "general": "General",
       "technique": "Technical",
       "facturation": "Billing",
-      "fonctionnalite": "Feature",
-      "bug": "Bug",
-      "question": "Question"
+      "securite": "Security",
+      "autre": "Other"
     },
     "priority": {
       "basse": "Low",
@@ -2464,26 +2463,26 @@
     },
     "priority": {
       "basse": "Low",
-      "normale": "Normal",
+      "normal": "Normal",
       "haute": "High",
-      "critique": "Critical"
+      "urgente": "Urgent"
     },
     "category": {
-      "bug": "Bug",
-      "amelioration": "Improvement",
-      "question": "Question",
+      "general": "General",
+      "technique": "Technical",
       "facturation": "Billing",
-      "acces": "Access",
+      "securite": "Security",
       "autre": "Other"
     },
     "catOption": {
-      "bug": "Bug / Technical issue",
-      "amelioration": "Improvement request",
-      "question": "Question",
+      "general": "General question",
+      "technique": "Technical issue (bug)",
       "facturation": "Billing",
-      "acces": "Access / Permissions",
+      "securite": "Security",
       "autre": "Other"
-    }
+    },
+    "sentTitle": "Report sent",
+    "sentBody": "Support will reply by email."
   },
   "horairesScreen": {
     "headerTitle": "Opening hours",

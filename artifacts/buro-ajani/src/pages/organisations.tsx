@@ -1885,7 +1885,7 @@ export default function OrganisationsPage() {
             <DialogDescription>
               {legalDetailOrg?.isCompliant
                 ? t("organisationsPage.legalDetail.compliantDesc")
-                : t("organisationsPage.legalDetail.missingDesc", { count: legalDetailOrg?.missingDocuments.length ?? 0 })
+                : t("organisationsPage.legalDetail.missingDesc", { count: legalDetailOrg?.missingDocuments?.length ?? 0 })
               }
             </DialogDescription>
           </DialogHeader>

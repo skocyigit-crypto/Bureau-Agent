@@ -5733,9 +5733,8 @@
     }
   },
   "adminDevis": {
-    "title": "Kurumsal teklifler",
-    "superAdmin": "Süper-admin",
-    "subtitle": "Global SaaS görünümü — tüm organizasyonlarda B2B ticari teklifler.",
+    "title": "Teklifler",
+    "subtitle": "Ticari tekliflerinizi hazırlayın, gönderin ve yanıtları izleyin.",
     "new": "Yeni teklif",
     "searchPlaceholder": "Ara (başlık, referans, müşteri)...",
     "statusPlaceholder": "Durum",
@@ -5907,8 +5906,7 @@
       }
     },
     "title": "Müşteri faturaları",
-    "superAdmin": "Süper-admin",
-    "subtitle": "Global SaaS görünümü — tüm organizasyonlarda müşterilere düzenlenen faturalar.",
+    "subtitle": "Müşterilerinize kestiğiniz faturalar.",
     "new": "Yeni fatura",
     "searchPlaceholder": "Ara (başlık, referans, müşteri)...",
     "statusPlaceholder": "Durum",

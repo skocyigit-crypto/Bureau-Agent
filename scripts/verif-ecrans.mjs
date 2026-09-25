@@ -18,6 +18,7 @@
  * inutilisable.
  */
 import { chromium } from "@playwright/test";
+import { jugerEcran } from "./juger-ecran.mjs";
 
 const APP = process.env.APP ?? "http://127.0.0.1:5173";
 const EMAIL = process.env.EMAIL ?? "verif@local.test";
@@ -144,14 +145,14 @@ for (const chemin of A_VISITER) {
     .map((m) => m[0])
     .filter((c) => !c.includes("..") && !/\.(js|ts|tsx|json|png|svg|fr|com|io)$/.test(c));
 
-  const vide = texte.length < 60;
-  // Un ecran qui a recu des 429 n'est PAS jugeable : une page vide ou un appel en
-  // echec peut venir de la limite elle-meme. Constat du 17/09 : /base-connaissances
-  // declare « VIDE » avec deux 429 — ce que l'outil mesurait, c'etait sa cadence.
-  const probleme = limite.length === 0 && (vide || erreurs.length > 0 || reseau.length > 0 || clesNues.length > 0);
+  // Le verdict vit dans juger-ecran.mjs : il decide si la porte s'ouvre, donc
+  // il doit pouvoir etre teste. En ligne ici, rien ne le verifiait.
+  const verdict = jugerEcran({ texte, erreurs, reseau, limite, clesNues });
+  const { vide, frontiere } = verdict;
+  const probleme = verdict.etat === "probleme";
 
   if (probleme) {
-    casses.push({ chemin, vide, erreurs, reseau, clesNues: [...new Set(clesNues)].slice(0, 3) });
+    casses.push({ chemin, vide, frontiere, erreurs, reseau, clesNues: [...new Set(clesNues)].slice(0, 3) });
   }
   // Un ecran limite n'est ni bon ni mauvais: il n'a pas ete juge. Le dire
   // separement est la seule facon d'avoir un rapport utilisable.
@@ -159,6 +160,7 @@ for (const chemin of A_VISITER) {
 
   const etat = probleme ? "PROBLEME" : limite.length > 0 ? "NON JUGE" : "OK      ";
   console.log(`${etat} ${chemin.padEnd(24)} ${texte.length} car.` +
+    (frontiere ? " [TOMBE]" : "") +
     (vide ? " [VIDE]" : "") +
     (erreurs.length ? ` [${erreurs.length} err]` : "") +
     (reseau.length ? ` [${reseau.length} x 4xx/5xx]` : "") +
@@ -185,6 +187,7 @@ if (casses.length === 0) {
   console.log(`${casses.length} ecran(s) sur ${A_VISITER.length} a regarder:\n`);
   for (const c of casses) {
     console.log(`  ${c.chemin}`);
+    if (c.frontiere) console.log("      FRONTIERE D'ERREUR : l'ecran est tombe au rendu");
     if (c.vide) console.log("      page quasi vide");
     for (const e of c.erreurs.slice(0, 2)) console.log(`      erreur: ${e}`);
     for (const r of c.reseau.slice(0, 2)) console.log(`      reseau: ${r}`);

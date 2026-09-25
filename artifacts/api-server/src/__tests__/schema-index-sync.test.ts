@@ -47,18 +47,31 @@ function indexDeclares(): { tous: string[]; uniques: string[] } {
   return { tous: [...tous], uniques: [...uniques] };
 }
 
-/** Les index de la base, avec leur VALIDITE — un index invalide n'applique rien. */
-async function indexEnBaseDetail(): Promise<Map<string, boolean>> {
+/**
+ * Les index de la base, avec leurs DEUX etats — mesures le 24/09/2026 sur une
+ * vraie base, apres qu'une session voisine (BTP Ultra) a conteste la premiere
+ * version de ce fichier. Elle avait raison : « invalide » ne veut pas dire
+ * « sans effet ».
+ *
+ *   indisvalid=false, indisready=true  -> index TENU A JOUR. L'unicite
+ *     s'applique encore (doublon refuse, 23505) ; seul le planificateur
+ *     l'ignore. Construction interrompue, a reconstruire.
+ *   indisready=false                   -> index PLUS TENU A JOUR. Mesure :
+ *     doublon ACCEPTE, deux lignes sur la meme cle. C'est l'etat dangereux.
+ */
+interface EtatIndex { valide: boolean; prete: boolean }
+
+async function indexEnBaseDetail(): Promise<Map<string, EtatIndex>> {
   const r = await db.execute(sql`
-    SELECT c.relname AS indexname, i.indisvalid AS valide
+    SELECT c.relname AS indexname, i.indisvalid AS valide, i.indisready AS prete
       FROM pg_class c
       JOIN pg_index i ON i.indexrelid = c.oid
       JOIN pg_namespace n ON n.oid = c.relnamespace
      WHERE n.nspname = 'public'
   `);
-  const lignes = (r as unknown as { rows?: Array<{ indexname: string; valide: boolean }> }).rows
-    ?? (r as unknown as Array<{ indexname: string; valide: boolean }>);
-  return new Map(lignes.map((l) => [l.indexname, l.valide !== false]));
+  type Ligne = { indexname: string; valide: boolean; prete: boolean };
+  const lignes = (r as unknown as { rows?: Ligne[] }).rows ?? (r as unknown as Ligne[]);
+  return new Map(lignes.map((l) => [l.indexname, { valide: l.valide !== false, prete: l.prete !== false }]));
 }
 
 async function indexEnBase(): Promise<Set<string>> {
@@ -108,22 +121,30 @@ describe("les unicites dont le code depend nommement", () => {
 
   for (const [nom, consequence] of CRITIQUES) {
     it(`${nom} — sinon : ${consequence}`, async () => {
-      // Present ET valide, nommement. Compter ne suffirait pas : un index
-      // invalide se compte comme les autres et n'applique rien. (Piege releve
-      // par la session Assise le 24/09/2026, sur son propre controle.)
+      // Present, TENU A JOUR et valide, nommement. Compter ne suffirait pas :
+      // un index dans l'un de ces deux etats se compte comme les autres.
       const detail = await indexEnBaseDetail();
       expect(detail.has(nom), `index ${nom} absent`).toBe(true);
-      expect(detail.get(nom), `index ${nom} present mais INVALIDE : il n'applique rien`).toBe(true);
+      expect(detail.get(nom)!.prete, `index ${nom} n'est plus tenu a jour : les doublons passent`).toBe(true);
+      expect(detail.get(nom)!.valide, `index ${nom} invalide : construction interrompue, a reconstruire`).toBe(true);
     });
   }
 
-  it("aucun index declare n'est invalide", async () => {
-    // Un CREATE INDEX CONCURRENTLY interrompu laisse un index invalide, que
-    // `IF NOT EXISTS` retrouve ensuite et ignore : il porte le bon nom pour
-    // toujours, sans rien garantir.
+  it("aucun index declare n'a cesse d'etre tenu a jour", async () => {
+    // L'etat DANGEREUX, mesure : indisready=false, insertion d'un doublon
+    // acceptee, deux lignes sur la meme cle. Une unicite qui n'existe plus.
     const detail = await indexEnBaseDetail();
-    const invalides = indexDeclares().tous.filter((n) => detail.has(n) && detail.get(n) === false);
-    expect(invalides, "index presents mais sans effet").toEqual([]);
+    const nonTenus = indexDeclares().tous.filter((n) => detail.get(n)?.prete === false);
+    expect(nonTenus, "unicites qui laissent passer les doublons").toEqual([]);
+  });
+
+  it("aucun index declare n'est invalide", async () => {
+    // L'etat MOINS grave, mesure aussi : indisvalid=false avec indisready=true
+    // -> l'unicite s'applique encore (doublon refuse, 23505), mais le
+    // planificateur ignore l'index. Construction interrompue, a reconstruire.
+    const detail = await indexEnBaseDetail();
+    const invalides = indexDeclares().tous.filter((n) => detail.get(n)?.valide === false);
+    expect(invalides, "index ignores par le planificateur").toEqual([]);
   });
 });
 

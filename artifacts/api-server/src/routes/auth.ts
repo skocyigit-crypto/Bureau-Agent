@@ -18,6 +18,7 @@ import { checkLicense } from "../middleware/license-check";
 import { assertRoleAllowed, assertOrgOwnsUser, assertTargetNotSuperAdmin, assertCallerOutranks, rolesSousLeRang, assertUserQuotaNotExceeded, assertNotSelf, sanitiseUserPatch, checkSensitiveRateLimit } from "../middleware/tenant-guard";
 import { isUserQuotaDbError } from "../services/ensure-user-quota";
 import { documentCsv } from "../lib/csv";
+import { cheminBaseApp } from "../lib/chemin-base-app";
 
 const router: IRouter = Router();
 
@@ -1347,7 +1348,26 @@ router.post("/auth/forgot-password", resetLimiter, async (req: Request, res: Res
       .from(usersTable).where(eq(usersTable.email, emailClean));
 
     if (!user || !user.actif) {
-      // IMPORTANT: meme corps, meme statut, meme latence minimale.
+      // IMPORTANT: meme corps, meme statut, meme latence minimale. La reponse
+      // ne doit RIEN reveler — c'est ce qui empeche d'enumerer les comptes.
+      //
+      // Mais le silence vers l'utilisateur ne justifie pas le silence dans les
+      // journaux. Sans cette ligne, une demande qui n'envoie rien ne laisse
+      // AUCUNE trace : l'ecran annonce « un lien a ete envoye », la boite aux
+      // lettres reste vide, et personne — pas meme l'exploitant avec les
+      // journaux sous les yeux — ne peut distinguer « compte inexistant »,
+      // « compte desactive » et « panne du fournisseur d'envoi ».
+      //
+      // Mesure du 24/09/2026 en production : deux demandes, une seule suivie
+      // d'un envoi. La premiere n'avait laisse que son code 200.
+      //
+      // Le niveau est `warn` et non `error` : ce n'est pas une panne, c'est
+      // une demande sans destinataire. Et la raison est nommee, parce que les
+      // deux cas se reparent differemment — creer le compte, ou le reactiver.
+      req.log.warn(
+        { to: emailClean, raison: user ? "compte desactive" : "aucun compte a cette adresse" },
+        "forgot-password: aucun envoi",
+      );
       await respondGeneric();
       return;
     }
@@ -1367,7 +1387,7 @@ router.post("/auth/forgot-password", resetLimiter, async (req: Request, res: Res
       || process.env.REPLIT_DEPLOYMENT_URL
       || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
       || "https://agentdebureau.fr";
-    const appBase = process.env.APP_BASE_PATH ?? "";
+    const appBase = cheminBaseApp();
     const resetLink = `${appUrl}${appBase}?reset_token=${token}`;
     const lang = resolveEmailLang(req);
 
@@ -1516,7 +1536,7 @@ export async function issueAndSendEmailVerification(userId: number, email: strin
   const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
   await db.update(usersTable).set({ emailVerificationToken: tokenHash, emailVerificationExpiry: expiry, updatedAt: new Date() }).where(eq(usersTable.id, userId));
   const appUrl = process.env.PUBLIC_URL || process.env.APP_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "https://agentdebureau.fr");
-  const appBase = process.env.APP_BASE_PATH ?? "";
+  const appBase = cheminBaseApp();
   const link = `${appUrl}${appBase}?verify_email=${rawToken}`;
   const html = `<div style="font-family:sans-serif;max-width:520px;margin:auto;padding:24px">
     <h2 style="color:#1a2744">${emailT(lang, "verify.title")}</h2>
