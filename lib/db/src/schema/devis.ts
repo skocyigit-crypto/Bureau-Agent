@@ -2,6 +2,7 @@ import { pgTable, serial, integer, text, timestamp, numeric, jsonb, index } from
 import { organisationsTable } from "./organisations";
 import { contactsTable } from "./contacts";
 import { prospectsTable } from "./prospects";
+import { usersTable } from "./users";
 
 export const devisTable = pgTable("devis", {
   id: serial("id").primaryKey(),
@@ -30,6 +31,19 @@ export const devisTable = pgTable("devis", {
   status: text("status").notNull().default("brouillon"),
   validUntil: timestamp("valid_until", { withTimezone: true }),
   acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+  /**
+   * QUI a accepte le devis.
+   *
+   * La date existait, le nom non. Un devis pouvait donc porter « accepte le
+   * 12 mars » sans que personne ne sache de qui venait l engagement — ni
+   * pour le defendre devant le client, ni pour le reprendre en interne.
+   *
+   * Accepter un devis engage l entreprise sur un PRIX. C est la seule action
+   * du parcours commercial qui la lie, et c etait la seule sans trace
+   * nominative. La date seule ne repond pas a la question qu on pose quand
+   * un differend survient : qui a dit oui.
+   */
+  acceptedBy: integer("accepted_by").references(() => usersTable.id, { onDelete: "set null" }),
   rejectedAt: timestamp("rejected_at", { withTimezone: true }),
   convertedToInvoice: integer("converted_to_invoice"),
   notes: text("notes"),
