@@ -20,6 +20,7 @@ import { broadcaster } from "./broadcaster";
 import { sendSms, decryptProviderConfig } from "./telephony-providers";
 import { enqueueProposal } from "./proposal-queue";
 import { withHeartbeat } from "./health-agents";
+import { executerFlux, validerFlux } from "./flux-automatisation";
 import { CRON_LOCK_NAMESPACE, tryWithLock } from "../lib/cron-lock";
 
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
@@ -523,7 +524,10 @@ export async function getTriggerItems(rule: any, fenetre?: { depuis: Date | null
           .where(and(
             eq(callsTable.status, "manque"),
             gte(callsTable.createdAt, since),
-            lt(callsTable.createdAt, jusqua),
+            // Borne haute seulement pour une reclamation du moteur : l horloge
+            // de la base et celle du serveur different de quelques ms, et un
+            // appel sans fenetre (test, execution manuelle) reste ouvert.
+            ...(fenetre ? [lt(callsTable.createdAt, jusqua)] : []),
             ...(orgId ? [eq(callsTable.organisationId, orgId)] : []),
           ))
           .limit(50),
@@ -578,22 +582,30 @@ export async function getTriggerItems(rule: any, fenetre?: { depuis: Date | null
     }
 
     case "projet_created": {
-      // Projets crees depuis le dernier passage (2x l'intervalle pour ne rien
-      // rater entre deux executions, comme pour les appels manques).
+      // Projets crees depuis le passage precedent de la regle, jusqu'a sa
+      // reclamation (meme fenetre que les appels manques) : la fenetre de
+      // deux intervalles voyait chaque projet dans deux passages successifs.
       const intervalMs = scheduleToMs(rule.schedule) || 60 * 60 * 1000;
-      const since = new Date(Date.now() - intervalMs * 2);
+      const jusquaProjet = fenetre?.jusqua ?? new Date();
+      const since = fenetre?.depuis ?? new Date(jusquaProjet.getTime() - intervalMs);
       return await withDbRetry(
         () => db
           .select({ id: projetsTable.id, title: projetsTable.title, clientName: projetsTable.clientName, createdAt: projetsTable.createdAt })
           .from(projetsTable)
           .where(and(
             gte(projetsTable.createdAt, since),
+            ...(fenetre ? [lt(projetsTable.createdAt, jusquaProjet)] : []),
             ...(orgId ? [eq(projetsTable.organisationId, orgId)] : []),
           ))
           .limit(20),
         { label: "automation:getTriggerItems:projet_created" },
       );
     }
+
+    case "nouvelle_demande":
+      // Evenementiel : declenche par l'arrivee d'une demande
+      // (POST /ajans/demandes), jamais par la cadence.
+      return [];
 
     default:
       // Declencheur inconnu : ne RIEN declencher. Le `default` renvoyait un
@@ -613,13 +625,13 @@ const OUTBOUND_ACTIONS = new Set(["send_sms", "send_email"]);
  * client sans que personne ne l'ait relu. Les actions internes (notification,
  * tache) restent automatiques — elles ne quittent pas l'organisation.
  */
-function needsApproval(actionType: string, requiresApproval: boolean | null): boolean {
+export function needsApproval(actionType: string, requiresApproval: boolean | null): boolean {
   if (requiresApproval === false) return false;
   if (requiresApproval === true) return true;
   return OUTBOUND_ACTIONS.has(actionType);
 }
 
-async function executeAction(
+export async function executeAction(
   orgId: number | null,
   action: { type: string; params?: Record<string, any> },
   context: Record<string, any>,
@@ -891,6 +903,11 @@ async function executeRule(rule: any, fenetre?: { depuis: Date | null; jusqua: D
     // Parse actions list
     const actions: Array<{ type: string; params?: Record<string, any> }> =
       Array.isArray(rule.actions) ? rule.actions : [];
+    // Flux du studio : s'il existe, c'est lui qui s'execute (conditions,
+    // approbation, actions). Invalide en base = erreur visible, jamais un
+    // repli silencieux sur la liste a plat.
+    const flux = rule.flow ? validerFlux(rule.flow, rule.trigger) : null;
+    if (flux && !flux.ok) throw new Error(`Flux invalide : ${flux.erreurs[0]?.message ?? "?"}`);
 
     let itemsProcessed = 0;
     // Ce qui a ete tente et n'a pas abouti — sans exception, donc sans trace
@@ -898,6 +915,15 @@ async function executeRule(rule: any, fenetre?: { depuis: Date | null; jusqua: D
     let sansEffet = 0;
 
     for (const item of items) {
+      if (flux?.ok) {
+        const r = await executerFlux(flux.flux, { element: item, approbationRegle: rule.requiresApproval ?? null }, {
+          executerAction: (a, el, appr) => executeAction(orgId, a, el, rule.name, appr),
+          iraEnFile: needsApproval,
+        });
+        for (const a of r.actions) { if (a.effet === "sans_effet") sansEffet++; else itemsProcessed++; }
+        if (r.erreur) { sansEffet++; logger.warn({ rule: rule.name, erreur: r.erreur }, "[Automation] Flux interrompu"); }
+        continue;
+      }
       for (const action of actions) {
         try {
           const effectuee = await executeAction(orgId, action, item, rule.name, rule.requiresApproval ?? null);
@@ -935,6 +961,7 @@ async function executeRule(rule: any, fenetre?: { depuis: Date | null; jusqua: D
       sansEffet > 0
         ? `${sansEffet} action(s) n'ont pas abouti (destinataire, fournisseur ou type d'action manquant).`
         : undefined,
+      rule.id,
     );
   } catch (err: any) {
     await db.update(automationRulesTable)
@@ -952,9 +979,13 @@ async function executeRule(rule: any, fenetre?: { depuis: Date | null; jusqua: D
       0,
       performance.now() - start,
       err?.message,
+      rule.id,
     );
   }
 }
+
+/** Execution d une regle (reclamee par l appelant). Exportee pour les tests. */
+export const executerRegle = executeRule;
 
 function calculateNextRun(schedule: string | null): Date {
   const now = new Date();
@@ -976,10 +1007,14 @@ async function logAutomationRun(
   details: any,
   itemsProcessed: number,
   duration: number,
-  error?: string
+  error?: string,
+  // Les journaux des regles personnalisees etaient ecrits sans ruleId, et
+  // GET /automations/logs filtre par les regles de l'organisation : ils
+  // n'apparaissaient jamais a l'ecran. null = controle integre.
+  ruleId: number | null = null,
 ) {
   await db.insert(automationLogsTable).values({
-    ruleId: null,
+    ruleId,
     ruleName,
     status,
     details,

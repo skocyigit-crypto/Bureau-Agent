@@ -21,6 +21,7 @@ import { rateLimitKey } from "../lib/request-ip";
 import { CATALOGUE_AGENTS } from "../services/catalogue-agents";
 import { STATUTS_EXECUTION, marquerExecutionsInterrompues, refExecution } from "../services/journal-agents";
 import { traiterDemande, CANAUX_DEMANDE } from "../services/orchestrateur";
+import { executerFluxDemande, regleDemandeActive } from "../services/flux-demande";
 import { getQuotaStatus } from "../services/ai-quota";
 
 const router: IRouter = Router();
@@ -196,7 +197,12 @@ router.post("/ajans/demandes", demandeLimiter, async (req: Request, res: Respons
   try {
     const orgId = getOrgId(req);
     const userId = req.session?.userId as number;
-    const resultat = await traiterDemande(orgId, userId, lu.data);
+    // Le flux « Nouvelle demande » de l'organisation, s'il est actif ; sinon
+    // le routage par defaut (classificateur → support / vente).
+    const regle = await regleDemandeActive(orgId);
+    const resultat = regle
+      ? await executerFluxDemande(orgId, userId, regle, lu.data)
+      : await traiterDemande(orgId, userId, lu.data);
     res.status(201).json(resultat);
   } catch (err) {
     req.log.error({ err }, "[ajans] demande");

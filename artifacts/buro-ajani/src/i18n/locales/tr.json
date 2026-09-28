@@ -206,7 +206,8 @@
       "postDiagnostic": "Bilgisayar kontrolu",
       "encaissements": "Tahsilatlar",
       "taskDesk": "İş masası",
-      "agentCatalog": "Ajan kataloğu"
+      "agentCatalog": "Ajan kataloğu",
+      "flowStudio": "Akış stüdyosu"
     }
   },
   "userMenu": {
@@ -9648,6 +9649,91 @@
       "failed": "Talep tamamlanamadı: {{raison}}",
       "tab_one": "{{statut}}: {{count}} çalıştırma",
       "tab_other": "{{statut}}: {{count}} çalıştırma"
+    }
+  },
+  "studioFlux": {
+    "title": "Akış stüdyosu",
+    "subtitle": "Bir otomasyonun ne yaptığını çizin: tetikleyici, ajan, koşul, onay, işlem. Adım listesi aynı akıştır ve tamamen klavyeyle düzenlenebilir.",
+    "regle": "Otomasyon",
+    "choisir": "Bir otomasyon seçin",
+    "nouvelleDemande": "Yeni \"Yeni talep\" akışı",
+    "nomNouveau": "Akış adı",
+    "nomParDefaut": "Talep yönlendirme",
+    "aucune": "Henüz özel otomasyon yok: Otomasyonlar'da bir tane ya da bir \"Yeni talep\" akışı oluşturun.",
+    "canvas": "Akışın grafik görünümü",
+    "canvasAide": "Adımları sürükleyin, tutamaklarından birbirine bağlayın. Delete seçili adımı ya da bağlantıyı siler.",
+    "liste": "Akış adımları",
+    "etape": "Adım {{n}}: {{type}}",
+    "types": {
+      "declencheur": "Tetikleyici",
+      "agent": "Ajan",
+      "condition": "Koşul",
+      "approbation": "İnsan onayı",
+      "action": "İşlem"
+    },
+    "agents": {
+      "classificateur": "Sınıflandırıcı",
+      "agent-support": "Destek ajanı",
+      "agent-vente": "Satış ajanı"
+    },
+    "operateurs": {
+      "egal": "eşittir",
+      "different": "farklıdır",
+      "contient": "içerir",
+      "superieur": "büyüktür",
+      "inferieur": "küçüktür",
+      "vide": "boştur",
+      "non_vide": "boş değildir"
+    },
+    "actions": {
+      "send_notification": "Uygulama içi bildirim",
+      "create_task": "Görev oluştur",
+      "send_sms": "SMS gönder",
+      "send_email": "E-posta gönder"
+    },
+    "champ": "Alan",
+    "operateur": "İşleç",
+    "valeur": "Değer",
+    "agentChoisi": "Ajan",
+    "actionChoisie": "İşlem",
+    "param": {
+      "title": "Başlık",
+      "message": "Mesaj",
+      "description": "Açıklama",
+      "priority": "Öncelik",
+      "subject": "Konu",
+      "body": "Metin",
+      "to": "Alıcı (boş: öğenin kendisi)"
+    },
+    "priorites": {
+      "haute": "Yüksek",
+      "moyenne": "Orta",
+      "basse": "Düşük"
+    },
+    "ensuite": "Sonraki adım",
+    "siOui": "Evet ise",
+    "siNon": "Hayır ise",
+    "fin": "— son —",
+    "ajouterSuite": "Başka bir sonraki adım",
+    "declencheurDemande": "Her yeni talepte başlar (İş masası, form).",
+    "declencheurRegle": "Otomasyonun tetikleyicisi ve sıklığıyla başlar.",
+    "approbationInfo": "Bundan sonraki her şey onay kuyruğunda onayınızı bekler.",
+    "typeAjout": "Adım türü",
+    "ajouter": "Adım ekle",
+    "supprimer": "Adımı sil",
+    "enregistrer": "Akışı kaydet",
+    "enregistrement": "Kaydediliyor…",
+    "erreurGlobale": "Akış geçerli değil",
+    "annonce": {
+      "ajoutee": "Adım eklendi: {{type}}. Önceki adımdan buna bağlayın.",
+      "supprimee": "Adım silindi.",
+      "lien": "Bağlantı eklendi.",
+      "lienRetire": "Bağlantı kaldırıldı.",
+      "chargee": "Akış yüklendi: {{n}} adım.",
+      "enregistre": "Akış kaydedildi.",
+      "invalide_one": "Akış kaydedilmedi: {{count}} hata.",
+      "invalide_other": "Akış kaydedilmedi: {{count}} hata.",
+      "erreur": "Kayıt başarısız: {{raison}}"
     }
   }
 }

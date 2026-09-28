@@ -16,6 +16,9 @@ export const DECLENCHEURS = [
   "task_overdue",
   "projet_overdue",
   "projet_created",
+  // Une demande entrante (Bureau des taches, formulaire) : le flux de
+  // l'organisation route la demande. Evenementiel, pas de cadence.
+  "nouvelle_demande",
 ] as const;
 
 export const CADENCES = ["5min", "15min", "30min", "1h", "6h", "12h", "24h"] as const;

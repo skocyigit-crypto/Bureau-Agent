@@ -206,7 +206,8 @@
       "postDiagnostic": "Diagnostic du poste",
       "encaissements": "Reglements",
       "taskDesk": "Bureau des tâches",
-      "agentCatalog": "Catalogue des agents"
+      "agentCatalog": "Catalogue des agents",
+      "flowStudio": "Studio de flux"
     }
   },
   "userMenu": {
@@ -9648,6 +9649,91 @@
       "failed": "La demande n'a pas abouti : {{raison}}",
       "tab_one": "{{statut}} : {{count}} exécution",
       "tab_other": "{{statut}} : {{count}} exécutions"
+    }
+  },
+  "studioFlux": {
+    "title": "Studio de flux",
+    "subtitle": "Dessinez ce que fait une automatisation : déclencheur, agent, condition, approbation, action. La liste des étapes est le même flux, entièrement modifiable au clavier.",
+    "regle": "Automatisation",
+    "choisir": "Choisir une automatisation",
+    "nouvelleDemande": "Nouveau flux « Nouvelle demande »",
+    "nomNouveau": "Nom du flux",
+    "nomParDefaut": "Routage des demandes",
+    "aucune": "Aucune automatisation personnalisée : créez-en une dans Automatisations, ou un flux « Nouvelle demande ».",
+    "canvas": "Vue graphique du flux",
+    "canvasAide": "Glissez les étapes et reliez-les par leurs poignées. Suppr retire l'étape ou le lien sélectionné.",
+    "liste": "Étapes du flux",
+    "etape": "Étape {{n}} : {{type}}",
+    "types": {
+      "declencheur": "Déclencheur",
+      "agent": "Agent",
+      "condition": "Condition",
+      "approbation": "Approbation humaine",
+      "action": "Action"
+    },
+    "agents": {
+      "classificateur": "Classificateur",
+      "agent-support": "Agent support",
+      "agent-vente": "Agent commercial"
+    },
+    "operateurs": {
+      "egal": "est égal à",
+      "different": "est différent de",
+      "contient": "contient",
+      "superieur": "est supérieur à",
+      "inferieur": "est inférieur à",
+      "vide": "est vide",
+      "non_vide": "n'est pas vide"
+    },
+    "actions": {
+      "send_notification": "Notification interne",
+      "create_task": "Créer une tâche",
+      "send_sms": "Envoyer un SMS",
+      "send_email": "Envoyer un e-mail"
+    },
+    "champ": "Champ",
+    "operateur": "Opérateur",
+    "valeur": "Valeur",
+    "agentChoisi": "Agent",
+    "actionChoisie": "Action",
+    "param": {
+      "title": "Titre",
+      "message": "Message",
+      "description": "Description",
+      "priority": "Priorité",
+      "subject": "Objet",
+      "body": "Texte",
+      "to": "Destinataire (vide : celui de l'élément)"
+    },
+    "priorites": {
+      "haute": "Haute",
+      "moyenne": "Moyenne",
+      "basse": "Basse"
+    },
+    "ensuite": "Étape suivante",
+    "siOui": "Si oui",
+    "siNon": "Si non",
+    "fin": "— fin —",
+    "ajouterSuite": "Autre étape suivante",
+    "declencheurDemande": "Démarre à chaque nouvelle demande (Bureau des tâches, formulaire).",
+    "declencheurRegle": "Démarre selon le déclencheur et la cadence de l'automatisation.",
+    "approbationInfo": "Tout ce qui suit attend votre accord dans la file d'approbation.",
+    "typeAjout": "Type d'étape",
+    "ajouter": "Ajouter une étape",
+    "supprimer": "Supprimer l'étape",
+    "enregistrer": "Enregistrer le flux",
+    "enregistrement": "Enregistrement…",
+    "erreurGlobale": "Le flux n'est pas valide",
+    "annonce": {
+      "ajoutee": "Étape ajoutée : {{type}}. Reliez-la depuis l'étape qui la précède.",
+      "supprimee": "Étape supprimée.",
+      "lien": "Lien ajouté.",
+      "lienRetire": "Lien retiré.",
+      "chargee": "Flux chargé : {{n}} étapes.",
+      "enregistre": "Flux enregistré.",
+      "invalide_one": "Le flux n'est pas enregistré : {{count}} erreur.",
+      "invalide_other": "Le flux n'est pas enregistré : {{count}} erreurs.",
+      "erreur": "Échec de l'enregistrement : {{raison}}"
     }
   }
 }

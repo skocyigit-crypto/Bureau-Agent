@@ -206,7 +206,8 @@
       "postDiagnostic": "Diagnostico del equipo",
       "encaissements": "Cobros",
       "taskDesk": "Mesa de tareas",
-      "agentCatalog": "Catálogo de agentes"
+      "agentCatalog": "Catálogo de agentes",
+      "flowStudio": "Estudio de flujos"
     }
   },
   "userMenu": {
@@ -9648,6 +9649,91 @@
       "failed": "La solicitud no se completó: {{raison}}",
       "tab_one": "{{statut}}: {{count}} ejecución",
       "tab_other": "{{statut}}: {{count}} ejecuciones"
+    }
+  },
+  "studioFlux": {
+    "title": "Estudio de flujos",
+    "subtitle": "Dibuje lo que hace una automatización: disparador, agente, condición, aprobación, acción. La lista de pasos es el mismo flujo, editable por completo con el teclado.",
+    "regle": "Automatización",
+    "choisir": "Elija una automatización",
+    "nouvelleDemande": "Nuevo flujo «Nueva solicitud»",
+    "nomNouveau": "Nombre del flujo",
+    "nomParDefaut": "Enrutamiento de solicitudes",
+    "aucune": "Aún no hay automatizaciones personalizadas: cree una en Automatizaciones, o un flujo «Nueva solicitud».",
+    "canvas": "Vista gráfica del flujo",
+    "canvasAide": "Arrastre los pasos y únalos por sus conectores. Supr elimina el paso o enlace seleccionado.",
+    "liste": "Pasos del flujo",
+    "etape": "Paso {{n}}: {{type}}",
+    "types": {
+      "declencheur": "Disparador",
+      "agent": "Agente",
+      "condition": "Condición",
+      "approbation": "Aprobación humana",
+      "action": "Acción"
+    },
+    "agents": {
+      "classificateur": "Clasificador",
+      "agent-support": "Agente de soporte",
+      "agent-vente": "Agente comercial"
+    },
+    "operateurs": {
+      "egal": "es igual a",
+      "different": "es distinto de",
+      "contient": "contiene",
+      "superieur": "es mayor que",
+      "inferieur": "es menor que",
+      "vide": "está vacío",
+      "non_vide": "no está vacío"
+    },
+    "actions": {
+      "send_notification": "Notificación interna",
+      "create_task": "Crear una tarea",
+      "send_sms": "Enviar un SMS",
+      "send_email": "Enviar un e-mail"
+    },
+    "champ": "Campo",
+    "operateur": "Operador",
+    "valeur": "Valor",
+    "agentChoisi": "Agente",
+    "actionChoisie": "Acción",
+    "param": {
+      "title": "Título",
+      "message": "Mensaje",
+      "description": "Descripción",
+      "priority": "Prioridad",
+      "subject": "Asunto",
+      "body": "Texto",
+      "to": "Destinatario (vacío: el del elemento)"
+    },
+    "priorites": {
+      "haute": "Alta",
+      "moyenne": "Media",
+      "basse": "Baja"
+    },
+    "ensuite": "Paso siguiente",
+    "siOui": "Si sí",
+    "siNon": "Si no",
+    "fin": "— fin —",
+    "ajouterSuite": "Otro paso siguiente",
+    "declencheurDemande": "Empieza con cada nueva solicitud (Mesa de tareas, formulario).",
+    "declencheurRegle": "Empieza según el disparador y la cadencia de la automatización.",
+    "approbationInfo": "Todo lo que sigue espera su aprobación en la cola de aprobación.",
+    "typeAjout": "Tipo de paso",
+    "ajouter": "Añadir un paso",
+    "supprimer": "Eliminar el paso",
+    "enregistrer": "Guardar el flujo",
+    "enregistrement": "Guardando…",
+    "erreurGlobale": "El flujo no es válido",
+    "annonce": {
+      "ajoutee": "Paso añadido: {{type}}. Enlácelo desde el paso anterior.",
+      "supprimee": "Paso eliminado.",
+      "lien": "Enlace añadido.",
+      "lienRetire": "Enlace eliminado.",
+      "chargee": "Flujo cargado: {{n}} pasos.",
+      "enregistre": "Flujo guardado.",
+      "invalide_one": "El flujo no se guardó: {{count}} error.",
+      "invalide_other": "El flujo no se guardó: {{count}} errores.",
+      "erreur": "Error al guardar: {{raison}}"
     }
   }
 }

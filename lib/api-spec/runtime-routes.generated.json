@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 700,
+    "runtimeOperations": 701,
     "documentedOperations": 96,
-    "undocumentedOperations": 604
+    "undocumentedOperations": 605
   },
   "operations": [
     {
@@ -1177,6 +1177,14 @@
     {
       "method": "get",
       "path": "/automations/export/csv",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/automations.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/automations/flux/modele-demande",
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/automations.ts"

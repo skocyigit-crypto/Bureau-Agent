@@ -43,7 +43,7 @@ const ECRANS = [
   // fait sortir /devis et /diagnostic-poste du lot 0–24 que le CI ouvre.
   // Elargir ce lot touche .github/workflows/ci.yml (jeton avec la portee
   // `workflow`). Couverts entre-temps par src/test/agents-ecrans.test.tsx.
-  "/agents-catalogue", "/bureau-taches",
+  "/agents-catalogue", "/bureau-taches", "/studio-flux",
 ];
 
 /**
