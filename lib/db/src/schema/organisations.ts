@@ -124,6 +124,17 @@ export const organisationsTable = pgTable("organisations", {
    * doit pas modifier le comportement de facturation d un client en cours.
    */
   billingRequiresApproval: boolean("billing_requires_approval").notNull().default(false),
+  /**
+   * Relances de paiement vers les clients de l'organisation : envoyees seules
+   * (false) ou deposees en file d'approbation (true).
+   *
+   * Elles suivaient `billingRequiresApproval`, qui regle AUSSI l'emission des
+   * factures de la plateforme et qu'aucun ecran n'exposait : l'organisation ne
+   * pouvait ni exiger de voir ses relances avant envoi, ni s'en dispenser.
+   * NULL = pas encore choisi : la valeur de `billingRequiresApproval` s'applique,
+   * comme avant — ajouter la colonne ne change le comportement d'aucun client.
+   */
+  remindersRequireApproval: boolean("reminders_require_approval"),
   agentAutoRunEnabled: boolean("agent_auto_run_enabled").notNull().default(false),
   agentAutoRunLastRunAt: timestamp("agent_auto_run_last_run_at", { withTimezone: true }),
   // Oto-Pilot. Son etat vivait dans une Map en memoire, alimentee par un

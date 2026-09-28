@@ -18,6 +18,7 @@ import { archiveDeletedRows, deletionContext } from "../services/trash";
 import { normaliserRecurrence, planifierProchaine } from "../services/taches-recurrentes";
 import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
 import { requireRole } from "../middleware/auth";
+import { referencesRefusees, refuserReferences } from "../services/appartenance";
 
 const router: IRouter = Router();
 
@@ -97,6 +98,13 @@ router.post("/tasks", async (req, res): Promise<void> => {
 
   const orgId = getOrgId(req);
   const userId = req.session?.userId;
+
+  // Une tache ne pointe que vers le contact et l'appel de SON organisation.
+  const refuseesCreation = await referencesRefusees(orgId, [
+    { champ: "relatedContactId", genre: "contact", valeur: parsed.data.relatedContactId },
+    { champ: "relatedCallId", genre: "appel", valeur: parsed.data.relatedCallId },
+  ]);
+  if (refuseesCreation.length > 0) { refuserReferences(res, refuseesCreation); return; }
 
   try {
     const recurrence = normaliserRecurrence(parsed.data, false);
@@ -197,6 +205,12 @@ router.patch("/tasks/:id", async (req, res): Promise<void> => {
 
   const orgId = getOrgId(req);
   const userId = req.session?.userId;
+
+  const refuseesMaj = await referencesRefusees(orgId, [
+    { champ: "relatedContactId", genre: "contact", valeur: parsed.data.relatedContactId },
+    { champ: "relatedCallId", genre: "appel", valeur: parsed.data.relatedCallId },
+  ]);
+  if (refuseesMaj.length > 0) { refuserReferences(res, refuseesMaj); return; }
 
   try {
     const [task] = await db.update(tasksTable)

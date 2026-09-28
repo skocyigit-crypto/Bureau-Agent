@@ -53,29 +53,40 @@ afterAll(async () => {
 
 // ── La relance de paiement laisse une trace ─────────────────────────────────
 
-describe("une relance envoyee par le commandant se voit", () => {
-  const source = readFileSync(join(SRC, "routes", "ai-commandant.ts"), "utf8");
+// 28/09 : le Commandant n'envoie plus lui-meme (le texte du modele va en file
+// d'approbation). Le marquage vit la ou la relance PART : consignerRelance,
+// appele par l'execution de la proposition approuvee et par le cron.
+describe("une relance partie se voit, quel que soit son chemin", () => {
+  const commandant = readFileSync(join(SRC, "routes", "ai-commandant.ts"), "utf8");
   const bloc = (() => {
-    const i = source.indexOf("Rappel - Facture ${invoice.reference}");
-    return source.slice(i, i + 1600);
+    const i = commandant.indexOf('router.post("/commandant/overdue-reminders"');
+    return commandant.slice(i, commandant.indexOf("router.post(", i + 10));
   })();
+  const consigner = (() => {
+    const src = readFileSync(join(SRC, "services", "relances-factures.ts"), "utf8");
+    return src.slice(src.indexOf("export async function consignerRelance"), src.indexOf("export async function proposerRelancesRedigees"));
+  })();
+  const execution = readFileSync(join(SRC, "services", "autonomous-secretary.ts"), "utf8");
 
-  it("la facture est marquee apres l'envoi", () => {
-    expect(bloc, "la relance reste invisible pour l'anti-spam").toMatch(/lastReminderAt: relanceLe/);
+  it("le Commandant ne relance plus directement : il met en file", () => {
+    expect(bloc).toMatch(/proposerRelancesRedigees\(/);
+    expect(bloc).not.toMatch(/sendEmailViaResend\(/);
   });
 
-  it("et le compteur de relances avance", () => {
-    expect(bloc).toMatch(/reminderCount.*\+ 1/);
+  it("la facture est marquee, et le compteur de relances avance", () => {
+    expect(consigner, "la relance reste invisible pour l'anti-spam").toMatch(/lastReminderAt: maintenant/);
+    expect(consigner).toMatch(/reminderCount.*\+ 1/);
   });
 
   it("le marquage est borne a l'organisation", () => {
-    expect(bloc).toMatch(/eq\(facturesClientTable\.organisationId, orgId\)/);
+    expect(consigner).toMatch(/eq\(facturesClientTable\.organisationId, input\.orgId\)/);
   });
 
   it("il ne se declenche que si l'envoi a reussi", () => {
     // Marquer une relance qui n'est pas partie ferait taire l'anti-spam
     // pendant des jours pour rien.
-    expect(bloc).toMatch(/if \(sent\) \{/);
+    expect(consigner).toMatch(/if \(input\.envoyee\) \{/);
+    expect(execution).toMatch(/if \(exec\.ok && proposal\.sourceType === SOURCE_RELANCE\) \{/);
   });
 
   it("c'est le meme champ que lit l'anti-spam", () => {
@@ -146,7 +157,7 @@ describe("une regle d'automatisation ne tourne qu'une fois par cadence", () => {
     // surtout rouvrirait la fenetre que la reclamation vient de fermer.
     const source = readFileSync(join(SRC, "services", "automation-engine.ts"), "utf8");
     const iReclame = source.indexOf("const reclamee = await db.update(automationRulesTable)");
-    const iExecute = source.indexOf("await executeRule(rule);", iReclame);
+    const iExecute = source.indexOf("await executeRule(rule,", iReclame);
     expect(iReclame, "la reclamation a disparu").toBeGreaterThan(0);
     expect(iExecute).toBeGreaterThan(iReclame);
     expect(source.slice(iReclame, iExecute)).toMatch(/if \(reclamee\.length === 0\) continue;/);

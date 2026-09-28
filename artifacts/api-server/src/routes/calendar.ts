@@ -17,6 +17,7 @@ import {
 } from "../services/google-calendar-sync";
 import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
 import { requireRole } from "../middleware/auth";
+import { referencesRefusees, refuserReferences } from "../services/appartenance";
 
 const router = Router();
 
@@ -272,6 +273,12 @@ router.post("/calendar/events", async (req: Request, res: Response): Promise<voi
     return;
   }
 
+  const refuseesCreation = await referencesRefusees(orgId, [
+    { champ: "relatedContactId", genre: "contact", valeur: parsed.data.relatedContactId },
+    { champ: "relatedTaskId", genre: "tache", valeur: parsed.data.relatedTaskId },
+  ]);
+  if (refuseesCreation.length > 0) { refuserReferences(res, refuseesCreation); return; }
+
   // Verifier que la date de debut ne tombe pas sur un jour de fermeture.
   // La date est interpretee dans le fuseau de l'organisation (meme logique que
   // computeFreeSlots / isSlotFree) pour eviter les faux positifs/negatifs en
@@ -404,6 +411,12 @@ router.patch("/calendar/events/:id", async (req: Request, res: Response): Promis
   }
 
   const updateData: Record<string, any> = { ...parsedUpdate.data, updatedBy: userId };
+
+  const refuseesMaj = await referencesRefusees(orgId, [
+    { champ: "relatedContactId", genre: "contact", valeur: updateData.relatedContactId },
+    { champ: "relatedTaskId", genre: "tache", valeur: updateData.relatedTaskId },
+  ]);
+  if (refuseesMaj.length > 0) { refuserReferences(res, refuseesMaj); return; }
 
   // Guard: if the update moves the event to a different day, verify that day
   // is not a closure day (same check as POST /calendar/events).

@@ -80,3 +80,4 @@ export * from "./platform-invoice-sequences";
 export * from "./security-scans";
 export * from "./push-tokens";
 export * from "./violations-donnees";
+export * from "./cron-executions";

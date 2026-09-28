@@ -15,6 +15,8 @@ const router = Router();
 
 import { escapeHtml } from "../lib/html-escape";
 import { enqueueProposal } from "../services/proposal-queue";
+import { SOURCE_RELANCE, consignerRelance, niveauRelanceSuivant, refRelance, relancesSurApprobation } from "../services/relances-factures";
+import { CRON_LOCK_NAMESPACE, tryWithLock } from "../lib/cron-lock";
 import { invalidateLicenseCache } from "../middleware/license-check";
 
 const APP_URL = process.env.PUBLIC_URL || process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "agentdebureau.fr"}`;
@@ -109,7 +111,7 @@ router.get("/license-management/dashboard", async (req: Request, res: Response):
     }
 
     res.json({
-      organisation: { id: org?.id, name: org?.name, bankIban: org?.bankIban ? `****${org.bankIban.slice(-4)}` : null, bankBic: org?.bankBic, siret: org?.siret, tvaNumber: org?.tvaNumber, autoInvoiceEnabled: org?.autoInvoiceEnabled, autoEmailInvoice: org?.autoEmailInvoice },
+      organisation: { id: org?.id, name: org?.name, bankIban: org?.bankIban ? `****${org.bankIban.slice(-4)}` : null, bankBic: org?.bankBic, siret: org?.siret, tvaNumber: org?.tvaNumber, autoInvoiceEnabled: org?.autoInvoiceEnabled, autoEmailInvoice: org?.autoEmailInvoice, autoRemindersEnabled: org?.autoRemindersEnabled ?? true, remindersRequireApproval: org ? relancesSurApprobation(org) : false },
       subscription: sub ? { plan: sub.plan, status: sub.status, price: Number(sub.price), licenseKey: sub.licenseKey, trialEndsAt: sub.trialEndsAt, currentPeriodStart: sub.currentPeriodStart, currentPeriodEnd: sub.currentPeriodEnd, trialDaysLeft, aiEnabled: sub.aiEnabled, stockEnabled: sub.stockEnabled, automationEnabled: sub.automationEnabled, maxUsers: sub.maxUsers, maxContacts: sub.maxContacts, maxCallsPerMonth: sub.maxCallsPerMonth, currentUsers: userCount?.c || 0, currentContacts: contactCount?.c || 0, currentCallsMonth: callCount?.c || 0 } : null,
       billing: { totalOwed, totalPaid, pendingCount: pendingInvoices.length, paidCount: paidInvoices.length, invoices: invoices.map(i => ({ ...i, totalAmount: Number(i.totalAmount), baseAmount: Number(i.baseAmount), overageAmount: Number(i.overageAmount) })) },
       clientBilling: { totalClientOwed, totalClientPaid, overdueCount: overdueClientInvoices.length, pendingCount: pendingClientInvoices.length, recentInvoices: clientInvoices.slice(0, 10).map(f => ({ id: f.id, reference: f.reference, clientName: f.clientName, clientEmail: f.clientEmail, totalAmount: Number(f.totalAmount), paidAmount: Number(f.paidAmount), status: f.status, dueDate: f.dueDate, createdAt: f.createdAt })) },
@@ -528,8 +530,7 @@ export async function runAutoRemindersForOrg(
 
       if (recentReminder.length > 0) { skipped++; continue; }
 
-      const prevCount = await db.select({ c: sql<number>`count(*)::int` }).from(paymentRemindersTable).where(and(eq(paymentRemindersTable.factureClientId, facture.id), eq(paymentRemindersTable.status, "sent")));
-      const level = (prevCount[0]?.c || 0) + 1;
+      const level = await niveauRelanceSuivant(facture.id);
 
       const remaining = Number(facture.totalAmount) - Number(facture.paidAmount);
       const daysOverdue = Math.ceil((now.getTime() - new Date(facture.dueDate!).getTime()) / 86400000);
@@ -565,8 +566,8 @@ export async function runAutoRemindersForOrg(
           args: { to: facture.clientEmail, subject, body: html },
           category: "relance",
           priority: level >= 3 ? "haute" : "moyenne",
-          sourceType: "invoice_reminder",
-          sourceRef: `relance:${facture.id}:${level}`,
+          sourceType: SOURCE_RELANCE,
+          sourceRef: refRelance(facture.id, level),
         });
         if (res.ok && !res.duplicate) proposed++; else skipped++;
         continue;
@@ -574,10 +575,11 @@ export async function runAutoRemindersForOrg(
 
       const emailSent = await sendEmailViaResend(facture.clientEmail, subject, html);
 
-      await db.insert(paymentRemindersTable).values({
-        organisationId: orgId, factureClientId: facture.id, type: "auto_reminder",
-        recipientEmail: facture.clientEmail, recipientName: facture.clientName, subject,
-        status: emailSent ? "sent" : "failed", sentAt: emailSent ? new Date() : null, reminderLevel: level,
+      // Enregistree comme toute relance : la ligne ET, si elle est partie, le
+      // compteur et la date sur la facture (lus par payment-reminder.ts).
+      await consignerRelance({
+        orgId, factureId: facture.id, niveau: level, destinataire: facture.clientEmail,
+        nom: facture.clientName, sujet: subject, envoyee: emailSent,
         metadata: { daysOverdue, amount: remaining },
       });
 
@@ -592,14 +594,59 @@ export async function runAutoRemindersForOrg(
     return { total: overdueInvoices.length, sent, skipped, proposed };
 }
 
+/**
+ * Relances declenchees HORS du cron quotidien : agent SaaS, outil SaaS
+ * (approuve par le super-admin), bouton « Lancer les rappels ».
+ *
+ * Ces chemins appelaient runAutoRemindersForOrg en mode « send » force, sans
+ * le verrou du cron : ils ignoraient l'approbation exigee par l'organisation
+ * (`billingRequiresApproval`), son desabonnement (`autoRemindersEnabled`),
+ * et pouvaient relancer le meme client deux fois le meme jour en croisant le
+ * cron. Les relances partent vers les clients de l'ORGANISATION : c'est elle
+ * qui decide, pas la plateforme.
+ *
+ * `manuel` : un administrateur de l'organisation a clique. Son clic vaut
+ * decision (le modele de relance est fixe, non redige par une IA) et passe
+ * outre le desabonnement du cron ; le verrou s'applique quand meme.
+ */
+export async function relancerOrganisation(
+  orgId: number,
+  opts: { declenchePar?: number; manuel?: boolean } = {},
+): Promise<
+  | { statut: "fait"; mode: "send" | "propose"; resultat: Awaited<ReturnType<typeof runAutoRemindersForOrg>> }
+  | { statut: "en_cours" | "desactivee" | "introuvable" }
+> {
+  const [org] = await db.select({
+    remindersRequireApproval: organisationsTable.remindersRequireApproval,
+    billingRequiresApproval: organisationsTable.billingRequiresApproval,
+    actives: organisationsTable.autoRemindersEnabled,
+  }).from(organisationsTable).where(eq(organisationsTable.id, orgId));
+  if (!org) return { statut: "introuvable" };
+  if (!opts.manuel && !org.actives) return { statut: "desactivee" };
+  const mode: "send" | "propose" = opts.manuel ? "send" : (relancesSurApprobation(org) ? "propose" : "send");
+  let resultat: Awaited<ReturnType<typeof runAutoRemindersForOrg>> | undefined;
+  const obtenu = await tryWithLock(CRON_LOCK_NAMESPACE.invoiceReminder, orgId, async () => {
+    resultat = await runAutoRemindersForOrg(orgId, opts.declenchePar, { mode });
+  });
+  if (!obtenu || !resultat) return { statut: "en_cours" };
+  return { statut: "fait", mode, resultat };
+}
+
 router.post("/license-management/auto-reminders", async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
     const userRole = req.session?.userRole;
     if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces refuse" }); return; }
 
-    const result = await runAutoRemindersForOrg(orgId, req.session?.userId);
-    res.json({ success: true, ...result });
+    // Sous le verrou du cron : un clic pendant le passage du cron (ou un
+    // double clic) ne relance pas deux fois le meme client.
+    const r = await relancerOrganisation(orgId, { declenchePar: req.session?.userId, manuel: true });
+    if (r.statut === "en_cours") {
+      res.status(409).json({ success: false, error: "Un cycle de relances est deja en cours pour votre organisation." });
+      return;
+    }
+    if (r.statut !== "fait") { res.status(404).json({ success: false, error: "Organisation introuvable" }); return; }
+    res.json({ success: true, ...r.resultat });
   } catch (err: any) {
     logger.error({ err: err }, "Erreur auto-reminders:");
     res.status(500).json({ error: "Erreur" });
@@ -852,7 +899,12 @@ router.post("/license-management/update-billing-settings", async (req: Request, 
     const userRole = req.session?.userRole;
     if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces refuse" }); return; }
 
-    const { bankName, bankIban, bankBic, siret, tvaNumber, legalForm, capital, invoiceFooter, autoInvoiceEnabled, autoEmailInvoice } = req.body;
+    const { bankName, bankIban, bankBic, siret, tvaNumber, legalForm, capital, invoiceFooter, autoInvoiceEnabled, autoEmailInvoice, autoRemindersEnabled, remindersRequireApproval } = req.body;
+    // Deux choix sur les relances envoyees a VOS clients : les couper, ou les
+    // voir avant envoi. Booleens stricts : une chaine « false » vaudrait true.
+    for (const [nom, v] of [["autoRemindersEnabled", autoRemindersEnabled], ["remindersRequireApproval", remindersRequireApproval]] as const) {
+      if (v !== undefined && typeof v !== "boolean") { res.status(400).json({ error: `${nom} doit etre true ou false` }); return; }
+    }
 
     const updateData: Record<string, any> = {};
     if (bankName !== undefined) updateData.bankName = bankName;
@@ -865,6 +917,8 @@ router.post("/license-management/update-billing-settings", async (req: Request, 
     if (invoiceFooter !== undefined) updateData.invoiceFooter = invoiceFooter;
     if (autoInvoiceEnabled !== undefined) updateData.autoInvoiceEnabled = autoInvoiceEnabled;
     if (autoEmailInvoice !== undefined) updateData.autoEmailInvoice = autoEmailInvoice;
+    if (autoRemindersEnabled !== undefined) updateData.autoRemindersEnabled = autoRemindersEnabled;
+    if (remindersRequireApproval !== undefined) updateData.remindersRequireApproval = remindersRequireApproval;
 
     if (Object.keys(updateData).length === 0) { res.status(400).json({ error: "Aucune donnee a mettre a jour" }); return; }
 

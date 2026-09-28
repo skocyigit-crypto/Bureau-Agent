@@ -10,6 +10,7 @@ import { getOrgId } from "../middleware/tenant";
 import { computeInvoiceTotals, isValidCurrency, parseUserDate, clampPagination } from "../services/invoice-totals";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
 import { logAudit } from "./audit";
+import { referencesRefusees, refuserReferences } from "../services/appartenance";
 
 const router: IRouter = Router();
 
@@ -146,6 +147,11 @@ router.post("/devis", async (req: Request, res: Response): Promise<void> => {
   if (validUntilDate === undefined) { res.status(400).json({ error: "Date de validité invalide." }); return; }
   const totalsPre = computeInvoiceTotals(Array.isArray(items) ? items : []);
   if (totalsPre.overflow) { res.status(400).json({ error: "Montant trop élevé (dépasse la limite autorisée)." }); return; }
+  const refusees = await referencesRefusees(targetOrg, [
+    { champ: "contactId", genre: "contact", valeur: contactId },
+    { champ: "prospectId", genre: "prospect", valeur: prospectId },
+  ]);
+  if (refusees.length > 0) { refuserReferences(res, refusees); return; }
   try {
     const checkExists = async (candidate: string): Promise<boolean> => {
       const [existing] = await db.select({ id: devisTable.id }).from(devisTable)

@@ -1304,7 +1304,8 @@
     "tabEquipe": "Ekip",
     "tabEmail": "E-posta",
     "tabSearch": "Arama",
-    "tabFinance": "Finans"
+    "tabFinance": "Finans",
+    "statRemindersQueued": "Onaylanacak hatırlatmalar"
   },
   "callAssistantScreen": {
     "tabPreparer": "Hazırla",

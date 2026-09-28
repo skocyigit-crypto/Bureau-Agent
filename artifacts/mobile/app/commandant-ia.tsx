@@ -449,7 +449,7 @@ function TachesSection() {
           <StatCard label={t("commandantIaScreen.statTasksOverdue")} value={data.overdue?.tasks ?? 0} color="#ef4444" icon="check-square" />
           <StatCard label={t("commandantIaScreen.statInvoicesDue")} value={data.overdue?.invoices ?? 0} color="#f59e0b" icon="file-text" />
           <StatCard label={t("commandantIaScreen.statEvents48h")} value={data.overdue?.events ?? 0} color="#8b5cf6" icon="calendar" />
-          {data.emailsSent > 0 && <StatCard label={t("commandantIaScreen.statEmailsSent")} value={data.emailsSent} color="#22c55e" icon="send" />}
+          {data.remindersQueued > 0 && <StatCard label={t("commandantIaScreen.statRemindersQueued")} value={data.remindersQueued} color="#f59e0b" icon="inbox" />}
         </View>
       )}
 

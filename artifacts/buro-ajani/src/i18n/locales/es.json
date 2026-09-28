@@ -7480,6 +7480,12 @@
       "concerns": "Puntos de vigilancia",
       "priorities": "Prioridades",
       "outlook": "Perspectivas: "
+    },
+    "relancesEnFile": {
+      "title": "Recordatorios por aprobar",
+      "desc_one": "{{count}} recordatorio añadido a la cola de aprobación: no se envía nada sin su aprobación.",
+      "desc_other": "{{count}} recordatorios añadidos a la cola de aprobación: no se envía nada sin su aprobación.",
+      "aucune": "Ningún recordatorio nuevo que aprobar (ya en cola, o cliente sin e-mail)."
     }
   },
   "licenseManagement": {
@@ -7672,7 +7678,11 @@
       "autoMonthlyDesc": "Genera automáticamente las facturas de suscripción cada mes",
       "autoEmailTitle": "Envío automático por correo",
       "autoEmailDesc": "Envía las facturas y recordatorios por correo automáticamente",
-      "saveSettings": "Guardar los ajustes"
+      "saveSettings": "Guardar los ajustes",
+      "autoRemindersTitle": "Recordatorios de pago automáticos",
+      "autoRemindersDesc": "Cada día, sus clientes con facturas vencidas reciben un recordatorio por e-mail.",
+      "remindersApprovalTitle": "Revisar los recordatorios antes del envío",
+      "remindersApprovalDesc": "Los recordatorios esperan su aprobación en la cola en lugar de enviarse solos."
     },
     "licenceAudit": {
       "title": "Registro de auditoría — Licencia y Facturación",

@@ -1058,11 +1058,15 @@ function BillingSettingsTab({ data, onRefresh }: { data: any; onRefresh: () => v
   const [tvaNumber, setTvaNumber] = useState(data.organisation?.tvaNumber || "");
   const [invoiceFooter, setInvoiceFooter] = useState(data.organisation?.invoiceFooter || "");
   const [autoInvoice, setAutoInvoice] = useState(data.organisation?.autoInvoiceEnabled ?? true);
+  // Relances vers VOS clients : les couper, ou les voir avant envoi. Ces deux
+  // reglages existaient cote serveur sans aucun ecran pour les changer.
+  const [autoReminders, setAutoReminders] = useState<boolean>(data.organisation?.autoRemindersEnabled ?? true);
+  const [remindersApproval, setRemindersApproval] = useState<boolean>(data.organisation?.remindersRequireApproval ?? false);
   const [autoEmail, setAutoEmail] = useState(data.organisation?.autoEmailInvoice ?? true);
 
   const save = async () => {
     setSaving(true);
-    const payload: Record<string, any> = { bankBic, siret, tvaNumber, invoiceFooter, autoInvoiceEnabled: autoInvoice, autoEmailInvoice: autoEmail };
+    const payload: Record<string, any> = { bankBic, siret, tvaNumber, invoiceFooter, autoInvoiceEnabled: autoInvoice, autoEmailInvoice: autoEmail, autoRemindersEnabled: autoReminders, remindersRequireApproval: remindersApproval };
     if (bankIban.trim()) payload.bankIban = bankIban.trim();
     try {
       const r = await fetch(`${API}/api/license-management/update-billing-settings`, {
@@ -1128,6 +1132,22 @@ function BillingSettingsTab({ data, onRefresh }: { data: any; onRefresh: () => v
               <div className="text-xs text-muted-foreground">{t("licenseManagement.settings.autoEmailDesc")}</div>
             </div>
             <Switch checked={autoEmail} onCheckedChange={setAutoEmail} />
+          </div>
+          <Separator />
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-medium" id="reglage-relances-auto">{t("licenseManagement.settings.autoRemindersTitle")}</div>
+              <div className="text-xs text-muted-foreground">{t("licenseManagement.settings.autoRemindersDesc")}</div>
+            </div>
+            <Switch checked={autoReminders} onCheckedChange={setAutoReminders} aria-labelledby="reglage-relances-auto" />
+          </div>
+          <Separator />
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-medium" id="reglage-relances-approbation">{t("licenseManagement.settings.remindersApprovalTitle")}</div>
+              <div className="text-xs text-muted-foreground">{t("licenseManagement.settings.remindersApprovalDesc")}</div>
+            </div>
+            <Switch checked={remindersApproval} onCheckedChange={setRemindersApproval} disabled={!autoReminders} aria-labelledby="reglage-relances-approbation" />
           </div>
         </CardContent>
       </Card>

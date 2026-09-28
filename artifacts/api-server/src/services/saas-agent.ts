@@ -130,9 +130,16 @@ export interface SaasAgentRunResult {
  */
 async function appliquerRelance(organisationId: number): Promise<{ ok: boolean }> {
   try {
-    const { runAutoRemindersForOrg } = await import("../routes/license-management");
-    await runAutoRemindersForOrg(organisationId, undefined, { mode: "send" });
-    logger.info({ organisationId }, "[SaasAgent] relance de facture envoyee");
+    // La relance va a l'organisation qui doit son abonnement, pas a SES
+    // clients : c'etait runAutoRemindersForOrg, qui relancait les clients de
+    // l'organisation pour leurs propres factures (voir relance-abonnement.ts).
+    const { relancerAbonnementPlateforme } = await import("./relance-abonnement");
+    const r = await relancerAbonnementPlateforme(organisationId);
+    if (r.statut === "echec" || r.statut === "sans_destinataire") {
+      logger.error({ organisationId, statut: r.statut }, "[SaasAgent] relance de facture en echec");
+      return { ok: false };
+    }
+    logger.info({ organisationId, statut: r.statut }, "[SaasAgent] relance de facture envoyee");
     return { ok: true };
   } catch (err) {
     logger.error({ err, organisationId }, "[SaasAgent] relance de facture en echec");

@@ -2762,9 +2762,11 @@ Beş eksen kodda ayrı ayrı tarandı; aşağıdakiler ölçülerek bulundu.
 1. `/commandant/overdue-reminders` `sendEmails:true` — LLM'in yazdığı metni,
    önizlenenden FARKLI (yeni çağrı) olarak müşterilere doğrudan gönderiyor
    (`routes/ai-commandant.ts` ~895-936). Onay kuyruğuna alınmalı.
+   **Kapandı 28/09 (Lot G):** LLM metni artık onay kuyruğuna gidiyor (`proposerRelancesRedigees`), alıcıyı model değil fatura belirliyor.
 2. SaaS ajanı platform ödeme sinyalinde kiracının KENDİ müşterilerine
    hatırlatma gönderiyor, kiracının `billingRequiresApproval`'ını atlıyor
    (`services/saas-agent.ts` ~131; `license-management.ts` 503-575).
+   **Kapandı 28/09 (Lot G):** hedef yanlıştı — kiracının müşterileri değil, kiracının kendisi relance ediliyor (`relance-abonnement.ts`); 7 günde bir, kilitli.
 3. Super Agent Gmail / commandant auto-create / call-compile: güvenilmeyen
    içerikten doğrudan görev/etkinlik yaratıyor, yalnız `sanitizePromptInput`
    (`ai-agents.ts` ~3033-3057, `ai-commandant.ts` 596-736).
@@ -2772,13 +2774,16 @@ Beş eksen kodda ayrı ayrı tarandı; aşağıdakiler ölçülerek bulundu.
 4. Stripe çağrılarında `idempotencyKey` yok (`routes/stripe.ts`); Resend
    gönderiminde yok, sağlayıcı yedek zinciri (org → platform → SMTP) zaman
    aşımında aynı e-postayı iki kez gönderebilir (`services/email.ts` 209-291).
+   **Kapandı 28/09 (Lot G):** müşteri ve checkout oluşturma anahtarlı. Resend/yedek zinciri AÇIK.
 5. Manuel fatura hatırlatması rotası kilitsiz ve işaretsiz; `payment_reminders`
    (facture, niveau) benzersiz değil. Platform faturası (org, dönem) benzersiz
    değil, manuel rota cron kilidini atlıyor (`billing-engine.ts` 38-45).
+   **Kapandı 28/09 (Lot G):** rota cron kilidinde (409); onaylanan relance da `payment_reminders` + fatura işaretine yazılıyor.
 6. ~~Twilio sesli mesaj tekrarı yalnız bellekte~~ — kapandı 28/09: tekrar engeli
    `voice_call_sessions` satırında (aşağıda "Telefon sekreteri", senaryo 10).
 7. Kilitsiz cronlar: autonomous-inbox (AI maliyeti çift), app-audit,
    health-alert, cycle-abonnement (compare-and-set yok).
+   **Kapandı 28/09 (Lot G):** 7 görev ölçüldü (otomasyon motoru, webhook retry, missed_call penceresi, app-audit, ai-insights, autonomous-inbox, data-protection, super-agent) — kilit + `cron_executions` talebi.
 **Ajan mimarisi (eksen 1):**
 8. Koordinatör/handoff yok; ~15 ajan bağımsız uç nokta. Önce bildirimsel ajan
    kaydı (talimat + izinli araçlar + çıktı şeması), sonra yönlendirme.
@@ -2813,6 +2818,7 @@ Beş eksen kodda ayrı ayrı tarandı; aşağıdakiler ölçülerek bulundu.
     kaydı başka kiracıya taşıyordu. Bizde `tenant-scope-check` yalnız bloğun
     org'dan söz edip etmediğine bakıyor, gövde anahtarını ölçmüyor.
 
+   **Kapandı 28/09 (Lot G):** 10 yol `referencesRefusees` ile; alan listesi zod şemalarından türetilen testle korunuyor.
 ## İlk sürüm modülleri ve iş yürütücüsü — 2026-09-28 (Lot 1)
 
 Kullanıcı ilk sürüm için dokuz modüllük bir tablo, bir yönlendirme akışı
@@ -2967,3 +2973,38 @@ sorguyu adıyla düşürüyor; UTC günüyle hesaplanan sınırlar 2 testi düş
 Aynı rapordaki NULL tuzağı (`NOT(...)` NULL alabilen sütunda) bizde
 ölçüldü, yok: `!=` / `not(inArray)` süzgeçlerinin kullanıldığı `status`
 sütunlarının hepsi `notNull`; takvim durumu zaten `coalesce`'lı.
+
+## Yeniden inceleme: yazdıklarım karşısında durum — 2026-09-28 (akşam)
+
+Kullanıcı "sohbete yazdıklarımı yeniden incele" dedi. Dört istek tam metinden
+yeniden okundu (beş eksen tablosu; "bekleyenleri yap, demo üzerinden test et";
+dokuz modül + iki akış şeması; telefon sekreteri) ve kodla karşılaştırıldı.
+Son rapor yalnız telefona odaklanmıştı; ilk iki istekteki zorunlu maddeler açık
+kalmıştı.
+
+| İstek | Durum | Açık |
+|---|---|---|
+| Eksen 1 — koordinatör + uzmanlar | kısmi | asistan 36 aracı katalogsuz alıyor; eski ajanlar yürütücüye bağlı değil |
+| Eksen 2 — hassas işlem önce onay | **Lot G ile kapandı** (relance yolları) | Super Agent/Commandant'ın güvenilmeyen içerikten iç kayıt yaratması (madde 3) |
+| Eksen 3 — tekrar = çift e-posta/ödeme yok | **Lot G ile büyük ölçüde kapandı** | e-posta sağlayıcı yedeğinde zaman aşımında çift gönderim (madde 4b) |
+| Eksen 4 — sürükle-bırak editör + erişilebilir liste | **eksik** | Lot 2 (görsel akış stüdyosu) |
+| Eksen 5 — saklama/silme/dışa aktarma | kısmi | maddeler 14–19 |
+| Modül: görsel akış stüdyosu | **eksik** | Lot 2 |
+| Modül: onay kutusu | kısmi | üç kutu tek değil |
+| Telefon: ekibe yönlendirme | kısmi | tek numara |
+| Telefon: ekran görüntüsü / gerçek arama | eksik | hesap yok; yerel ekran için geçici DB gerekli |
+
+### Lot G (dal `fix/onay-idempotency`)
+- Relanslar: Commandant LLM metni kuyruğa; onaylanan relance kaydediliyor ve
+  onay anında hâlâ geçerli mi bakılıyor; SaaS ajanının yanlış hedefi
+  düzeltildi; iki ayar (kapat / önce gör) ekrana geldi, yeni sütun NULL =
+  eski davranış (mevcut müşteri etkilenmez).
+- Periyodik görevler: 7 çift-etki yolu kapandı; yeni `cron_executions`.
+- Kiracı: gövdeden gelen yabancı anahtar 10 yolda denetleniyor.
+- Stripe: idempotency anahtarı.
+
+### Kullanıcı kararı bekleyen
+- Yeni kuruluşlarda relansların varsayılanı "önce gör" olsun mu? Bugün
+  varsayılan otomatik gönderim (eski `billingRequiresApproval=false`). Tek
+  satır: `reminders_require_approval` varsayılanı. Mevcut kuruluşlar için
+  toplu geçiş bir veri değişikliği — onaysız yapılmadı.

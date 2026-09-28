@@ -11,6 +11,7 @@ import {
 } from "@workspace/db";
 import { and, eq, gte, lte, sql, count, lt, isNull, or } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { abandonnerExecution, reclamerExecution, tranche } from "../lib/execution-unique";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "./ai-quota";
 import { extractGeminiTokens, recordAiUsage, geminiActualModel, safeJsonParse, GEMINI_FLASH_MODEL } from "./ai-utils";
 import { buildAiCacheKey, getOrCompute, AI_CACHE_TTL, withProviderTimeout } from "./ai-cache";
@@ -448,8 +449,20 @@ async function runCronCycle(): Promise<void> {
         // instances Cloud Run peuvent generer la meme organisation en meme
         // temps: chacune paie son appel IA, puis la seconde marque
         // "dismissed" les insights que la premiere venait d'inserer.
+        // Le verrou empeche deux generations SIMULTANEES, pas deux
+        // successives : une instance qui avait lu la liste avant qu'une autre
+        // traite l'organisation la regenerait ensuite (second appel paye), et
+        // chaque demarrage d'instance regenerait tout. Une periode reclamee
+        // par organisation, rendue si la generation echoue.
         await withCronLock(CRON_LOCK_NAMESPACE.aiInsights, o.id, async () => {
-          total += await generateInsightsForOrg(o.id);
+          const periode = tranche(CRON_INTERVAL_MS);
+          if (!(await reclamerExecution("ai-insights", o.id, periode))) return;
+          try {
+            total += await generateInsightsForOrg(o.id);
+          } catch (err) {
+            await abandonnerExecution("ai-insights", o.id, periode).catch(() => {});
+            throw err;
+          }
         });
       } catch (err) {
         logger.warn({ err, orgId: o.id }, "[ai-insights] org generation failed");

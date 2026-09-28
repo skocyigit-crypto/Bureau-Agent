@@ -11,7 +11,7 @@ import {
   projetsTable,
   telephonyProvidersTable,
 } from "@workspace/db/schema";
-import { eq, lte, and, gte, sql, isNull, isNotNull, or } from "drizzle-orm";
+import { eq, lte, lt, and, gte, sql, isNull, isNotNull, or } from "drizzle-orm";
 import { AGENTS, creerTacheIa } from "./tache-ia";
 import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
@@ -20,6 +20,7 @@ import { broadcaster } from "./broadcaster";
 import { sendSms, decryptProviderConfig } from "./telephony-providers";
 import { enqueueProposal } from "./proposal-queue";
 import { withHeartbeat } from "./health-agents";
+import { CRON_LOCK_NAMESPACE, tryWithLock } from "../lib/cron-lock";
 
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 
@@ -48,7 +49,23 @@ export function stopAutomationEngine() {
   }
 }
 
+/**
+ * Un seul passage a la fois, sur toute la plateforme.
+ *
+ * Les controles integres (taches en retard, rendez-vous imminents, projets en
+ * retard...) cherchent « deja notifie ? » puis inserent : un test puis une
+ * action, sans garde en base. Deux instances qui passaient en meme temps — au
+ * deploiement, les trois demarrent ensemble et lancent un passage immediat —
+ * envoyaient deux fois le meme « Rappel imminent » en notification push a
+ * tous les appareils de l'organisation, et deux fois le webhook
+ * `reminder.created` chez le client. Sous verrou, le passage suivant voit
+ * les notifications du precedent et ne les refait pas.
+ */
 async function runAllAutomations() {
+  await tryWithLock(CRON_LOCK_NAMESPACE.automationEngine, 0, runAllAutomationsSousVerrou);
+}
+
+async function runAllAutomationsSousVerrou() {
   try {
     await checkOverdueTasks();
     await checkUpcomingCalendarEvents();
@@ -100,7 +117,9 @@ async function runAllAutomations() {
         .returning({ id: automationRulesTable.id });
       if (reclamee.length === 0) continue;
 
-      await executeRule(rule);
+      // Fenetre = depuis le passage precedent de CETTE regle jusqu'a
+      // l'instant de la reclamation : chaque evenement est vu une fois.
+      await executeRule(rule, { depuis: rule.lastRun ? new Date(rule.lastRun) : null, jusqua: maintenant });
     }
   } catch (err) {
     logger.error({ err: err }, "[Automation] Erreur:");
@@ -477,7 +496,7 @@ export async function checkMissedCalls() {
 // ---------------------------------------------------------------------------
 
 /** Exporte pour les tests : c'est ici que se decide ce qui declenche une regle. */
-export async function getTriggerItems(rule: any): Promise<any[]> {
+export async function getTriggerItems(rule: any, fenetre?: { depuis: Date | null; jusqua: Date }): Promise<any[]> {
   const orgId: number | null = rule.organisationId ?? null;
   const conditions = rule.conditions ?? {};
 
@@ -487,9 +506,16 @@ export async function getTriggerItems(rule: any): Promise<any[]> {
       return [{ type: "schedule" }];
 
     case "missed_call": {
-      // Find missed calls in the last execution interval
+      // Appels manques depuis le passage precedent de la regle.
+      //
+      // La fenetre etait « deux intervalles en arriere » (« pour ne pas avoir
+      // de trou ») : le meme appel manque tombait dans deux passages
+      // successifs, et une regle « SMS a l'appelant » lui ecrivait deux fois.
+      // Avec la fenetre de la reclamation [passage precedent, reclamation[,
+      // ni trou ni doublon ; sans passage precedent, un intervalle.
       const intervalMs = scheduleToMs(rule.schedule) || 5 * 60 * 1000;
-      const since = new Date(Date.now() - intervalMs * 2); // 2x interval to avoid gaps
+      const jusqua = fenetre?.jusqua ?? new Date();
+      const since = fenetre?.depuis ?? new Date(jusqua.getTime() - intervalMs);
       return await withDbRetry(
         () => db
           .select({ id: callsTable.id, phoneNumber: callsTable.phoneNumber, createdAt: callsTable.createdAt })
@@ -497,6 +523,7 @@ export async function getTriggerItems(rule: any): Promise<any[]> {
           .where(and(
             eq(callsTable.status, "manque"),
             gte(callsTable.createdAt, since),
+            lt(callsTable.createdAt, jusqua),
             ...(orgId ? [eq(callsTable.organisationId, orgId)] : []),
           ))
           .limit(50),
@@ -853,13 +880,13 @@ function scheduleToMs(schedule: string | null): number {
   }
 }
 
-async function executeRule(rule: any) {
+async function executeRule(rule: any, fenetre?: { depuis: Date | null; jusqua: Date }) {
   const start = performance.now();
   const orgId: number | null = rule.organisationId ?? null;
 
   try {
     // Evaluate trigger to get items to act on
-    const items = await getTriggerItems(rule);
+    const items = await getTriggerItems(rule, fenetre);
 
     // Parse actions list
     const actions: Array<{ type: string; params?: Record<string, any> }> =

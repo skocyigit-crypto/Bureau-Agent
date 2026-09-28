@@ -138,11 +138,15 @@ describe("une livraison de webhook ne part qu'une fois", () => {
 
   it("le service pose bien cette revendication avant l'appel sortant", async () => {
     const source = readFileSync(join(import.meta.dirname, "..", "services", "webhook-service.ts"), "utf8");
-    const i = source.indexOf("const reclamee = await db");
+    // La revendication vit dans reclamerLivraison (28/09 : elle compare aussi
+    // l'horodatage lu) ; la boucle l'appelle avant l'envoi et saute sinon.
+    const i = source.indexOf("if (!(await reclamerLivraison(delivery))) continue;");
     const j = source.indexOf("await attemptDelivery(delivery, endpoint);", i);
     expect(i, "la revendication a disparu").toBeGreaterThan(0);
     expect(j, "l'envoi ne suit plus la revendication").toBeGreaterThan(i);
-    expect(source.slice(i, j)).toMatch(/if \(reclamee\.length === 0\) continue;/);
+    const fn = source.slice(source.indexOf("export async function reclamerLivraison"), source.indexOf("let retryRunning"));
+    expect(fn).toMatch(/eq\(webhookDeliveriesTable\.status, delivery\.status\)/);
+    expect(fn).toMatch(/return reclamee\.length > 0;/);
   });
 });
 

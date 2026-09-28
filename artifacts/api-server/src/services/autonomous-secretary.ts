@@ -31,6 +31,7 @@ import { noterDecisionApprobation } from "./journal-agents";
 import { getTool, validateArgs, executeTool, type ToolContext } from "./assistant-tools";
 import { isSaasTool, executeSaasTool } from "./saas-tools";
 import { enqueueProposals } from "./proposal-queue";
+import { SOURCE_RELANCE, consignerRelance, lireRefRelance, relanceEncoreDue } from "./relances-factures";
 
 import { GEMINI_FLASH_MODEL, sanitizePromptInput } from "./ai-utils";
 
@@ -334,6 +335,22 @@ async function executerSousVerrou(proposalId: number, ctx: ToolContext): Promise
     return { ok: false, status: "expiree", error: "Cette proposition a expiré : relancez l'agent pour en obtenir une à jour." };
   }
 
+  // Une relance de facture approuvee n'est envoyee que si elle est encore
+  // due : la facture a pu etre reglee, ou la relance de ce niveau partir par
+  // un autre chemin, entre la proposition et le clic.
+  if (proposal.sourceType === SOURCE_RELANCE) {
+    const verdict = await relanceEncoreDue(ctx.orgId, proposal.sourceRef);
+    if (!verdict.due) {
+      await db.update(agentProposalsTable).set({
+        status: "expiree",
+        result: { error: verdict.raison },
+        decidedBy: ctx.userId,
+        decidedAt: new Date(),
+      }).where(eq(agentProposalsTable.id, proposalId));
+      return { ok: false, status: "expiree", error: verdict.raison };
+    }
+  }
+
   // Les propositions SaaS (cross-organisation) passent par un executeur
   // distinct qui applique sa propre garde super-admin. Le chemin org-scoped
   // `executeTool` ne connait pas ces outils et ne peut donc pas les executer.
@@ -349,6 +366,25 @@ async function executerSousVerrou(proposalId: number, ctx: ToolContext): Promise
     decidedAt: new Date(),
     executedAt: new Date(),
   }).where(eq(agentProposalsTable.id, proposalId));
+
+  // Une relance partie est enregistree comme les autres : sans cela, le garde
+  // « pas deux relances en 7 jours » ne la voyait pas et la meme relance
+  // etait reproposee le lendemain.
+  if (exec.ok && proposal.sourceType === SOURCE_RELANCE) {
+    const ref = lireRefRelance(proposal.sourceRef);
+    const args = (proposal.args ?? {}) as Record<string, unknown>;
+    if (ref) {
+      try {
+        await consignerRelance({
+          orgId: ctx.orgId, factureId: ref.factureId, niveau: ref.niveau,
+          destinataire: String(args.to ?? ""), sujet: String(args.subject ?? ""),
+          envoyee: true, type: "approved_reminder", metadata: { proposalId },
+        });
+      } catch (err) {
+        logger.error({ err, proposalId, orgId: ctx.orgId }, "[Queue] relance envoyee mais non enregistree");
+      }
+    }
+  }
 
   // La proposition venait peut-etre d'une execution d'agent qui l'attend.
   await noterDecisionApprobation({

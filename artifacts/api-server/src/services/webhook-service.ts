@@ -152,7 +152,11 @@ async function enqueueEventDeliveries(orgId: number, event: SyncEvent): Promise<
           eventType: type,
           eventId: envelope.id,
           payload: envelope,
-          status: "pending",
+          // Nee « envoi en cours » : la premiere tentative part tout de suite
+          // d'ici. Nee « pending », elle etait reprise par le filet de securite
+          // des 2 minutes si cette tentative trainait encore — et envoyee deux
+          // fois. En cours, elle n'est reprise que si elle est abandonnee.
+          status: STATUT_ENVOI_EN_COURS,
         })
         .returning();
       if (row) void attemptDelivery(row, endpoint);
@@ -369,6 +373,32 @@ async function handleFailure(
 // Worker de retry : rejoue les livraisons dues (backoff échu) + filet crash.
 // ---------------------------------------------------------------------------
 
+/**
+ * RECLAMATION ATOMIQUE d'une livraison, avant tout appel sortant : une seule
+ * instance l'obtient. Exportee pour les tests.
+ */
+export async function reclamerLivraison(delivery: { id: number; status: string; updatedAt: Date }): Promise<boolean> {
+  const reclamee = await db
+    .update(webhookDeliveriesTable)
+    .set({ status: STATUT_ENVOI_EN_COURS, updatedAt: new Date() })
+    .where(and(
+      eq(webhookDeliveriesTable.id, delivery.id),
+      eq(webhookDeliveriesTable.status, delivery.status),
+      // Le statut seul ne suffisait pas : il revient a la meme valeur
+      // (« envoi en cours » repris apres abandon, « retrying » repose par
+      // un echec). Une instance qui tenait une lecture ancienne de la ligne
+      // la reclamait encore et reenvoyait l'evenement chez le client. On
+      // exige la ligne TELLE QU'ELLE A ETE LUE : meme horodatage, a une
+      // milliseconde pres — Postgres garde la microseconde, JavaScript relit
+      // la milliseconde (arrondie). Toute ecriture ulterieure de la ligne
+      // (reclamation, echec reprogramme) intervient des secondes plus tard.
+      sql`${webhookDeliveriesTable.updatedAt} > ${new Date(delivery.updatedAt.getTime() - 1)}
+        AND ${webhookDeliveriesTable.updatedAt} < ${new Date(delivery.updatedAt.getTime() + 1)}`,
+    ))
+    .returning({ id: webhookDeliveriesTable.id });
+  return reclamee.length > 0;
+}
+
 let retryRunning = false;
 let retryTimer: NodeJS.Timeout | null = null;
 
@@ -442,15 +472,7 @@ async function processRetryQueue(): Promise<void> {
       // `UPDATE ... WHERE status = l'ancien ... RETURNING` est atomique côté
       // Postgres : une seule instance obtient la ligne, les autres n'ont rien
       // et passent. Même idiome que `appointment-reminder-cron.ts`.
-      const reclamee = await db
-        .update(webhookDeliveriesTable)
-        .set({ status: STATUT_ENVOI_EN_COURS, updatedAt: new Date() })
-        .where(and(
-          eq(webhookDeliveriesTable.id, delivery.id),
-          eq(webhookDeliveriesTable.status, delivery.status),
-        ))
-        .returning({ id: webhookDeliveriesTable.id });
-      if (reclamee.length === 0) continue;
+      if (!(await reclamerLivraison(delivery))) continue;
 
       await attemptDelivery(delivery, endpoint);
     }

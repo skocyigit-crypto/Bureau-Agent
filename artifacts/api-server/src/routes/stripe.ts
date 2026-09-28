@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { Router, type Request, type Response, raw } from "express";
 import type Stripe from "stripe";
 import { db, subscriptionsTable, organisationsTable, usersTable, stripeWebhookEventsTable, PLANS } from "@workspace/db";
@@ -184,10 +185,19 @@ router.post("/stripe/create-checkout-session", requireTenantAdmin, async (req: R
       const [user] = userId
         ? await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1)
         : [undefined];
-      const customer = await stripe.customers.create({
+      const donneesClient = {
         email: user?.email || org?.email || undefined,
         name: org?.name || undefined,
         metadata: { organisationId: String(orgId) },
+      };
+      // Cle d'idempotence : deux clics simultanes (ou un rejeu reseau)
+      // creaient deux clients Stripe pour la meme organisation — le second
+      // restait orphelin, et la session payee pouvait viser l'un ou l'autre.
+      // Stripe rend le MEME client pour la meme cle pendant 24 h ; la cle
+      // inclut les donnees envoyees (une cle reutilisee avec d'autres
+      // parametres serait refusee par Stripe).
+      const customer = await stripe.customers.create(donneesClient, {
+        idempotencyKey: cleIdempotence("client", orgId, donneesClient),
       });
       customerId = customer.id;
       await db
@@ -218,13 +228,23 @@ router.post("/stripe/create-checkout-session", requireTenantAdmin, async (req: R
       params.customer_update = { address: "auto", name: "auto" };
       params.tax_id_collection = { enabled: true };
     }
-    const session = await stripe.checkout.sessions.create(params);
+    // Meme organisation, meme offre, meme minute : la meme session (double
+    // clic, rejeu) au lieu de deux sessions ouvertes pour un seul achat.
+    const session = await stripe.checkout.sessions.create(params, {
+      idempotencyKey: cleIdempotence("checkout", orgId, { params, minute: Math.floor(Date.now() / 60_000) }),
+    });
     res.json({ url: session.url, sessionId: session.id });
   } catch (err) {
     logger.error({ err, orgId, plan }, "[stripe] create-checkout-session failed");
     res.status(500).json({ error: "Impossible de creer la session de paiement" });
   }
 });
+
+/** Cle d'idempotence Stripe stable pour (usage, organisation, donnees envoyees). */
+export function cleIdempotence(usage: string, orgId: number, donnees: unknown): string {
+  const empreinte = crypto.createHash("sha256").update(JSON.stringify(donnees)).digest("hex").slice(0, 32);
+  return `ajant-${usage}-org${orgId}-${empreinte}`;
+}
 
 router.post("/stripe/create-portal-session", requireTenantAdmin, async (req: Request, res: Response) => {
   const stripe = await getStripeClient();

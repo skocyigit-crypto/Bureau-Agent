@@ -77,19 +77,19 @@ const SAAS_TOOLS: SaasToolDef[] = [
   },
   {
     name: "saas_send_invoice_reminder",
-    description: "Déclenche les relances de facture pour une organisation cliente (respecte ses garde-fous anti-doublon).",
+    description: "Relance une organisation cliente pour ses factures d'abonnement en retard ou son paiement en échec (e-mail à l'organisation et à ses administrateurs ; au plus une fois par 7 jours).",
     fields: {
       organisationId: { kind: "number", required: true, min: 1 },
     },
-    summarize: (a) => `Envoyer les relances de facture en attente pour l'organisation #${a.organisationId}.`,
-    // On force le mode "send": la proposition ELLE-MEME est deja l'etape
-    // d'approbation humaine, inutile de re-proposer dans la file de l'org cible.
-    // Import dynamique: license-management importe deja la file d'approbation,
-    // un import statique ici creerait un cycle (queue -> saas-tools ->
-    // license-management -> queue).
+    summarize: (a) => `Relancer l'organisation #${a.organisationId} pour son abonnement impayé.`,
+    // La relance va a l'organisation qui doit son abonnement. Elle appelait
+    // runAutoRemindersForOrg — les relances de l'organisation vers SES
+    // clients, pour LEURS factures : un impaye de plateforme faisait relancer
+    // les clients du locataire (voir relance-abonnement.ts).
+    // Import dynamique: evite un cycle (queue -> saas-tools -> ... -> queue).
     run: async (a) => {
-      const { runAutoRemindersForOrg } = await import("../routes/license-management");
-      return runAutoRemindersForOrg(Number(a.organisationId), undefined, { mode: "send" });
+      const { relancerAbonnementPlateforme } = await import("./relance-abonnement");
+      return relancerAbonnementPlateforme(Number(a.organisationId));
     },
   },
 ];
