@@ -99,6 +99,7 @@ import {
   creerDemandeRappel,
   type DecisionRdv,
 } from "../services/standard-telephonique";
+import { cibleDeTransfert, lireEquipes, transfertPossible } from "../services/equipes-transfert";
 import { voiceCallSessionsTable } from "@workspace/db";
 
 export const voiceReceptionistRouter: IRouter = Router();
@@ -248,7 +249,8 @@ interface CallSession {
   /** Rendez-vous enregistre pendant cet appel. */
   rdvCree: { eventId: number; debutIso: string; fuseau: string } | null;
   /** Transfert vers un conseiller et son issue. */
-  transfert: { cible: string; statut: "en_cours" | "reussi" | "echoue"; raison: string } | null;
+  /** `cible` = premier numero appele (journal) ; `numeros` = tous ceux qui sonnent ; `equipe` = equipe choisie. */
+  transfert: { cible: string; statut: "en_cours" | "reussi" | "echoue"; raison: string; numeros?: string[]; equipe?: string | null } | null;
   /** Demande de rappel creee (id du message « rappel »). */
   rappelMessageId: number | null;
   /** Ce que l'appelant demande, en ses mots (pour la note et le rappel). */
@@ -849,12 +851,16 @@ async function sendVoiceSms(
  * (DialCallStatus) — sans elle, un conseiller absent terminait l'appel sans
  * que personne ne le sache, et sans rappel.
  */
-export function dialTwiml(targetNumber: string, callerId: string, intro: string, lang: RecLang, voice: string): string {
+export function dialTwiml(cibles: string | string[], callerId: string, intro: string, lang: RecLang, voice: string): string {
   const speechLang = SPEECH_LANG[lang];
+  // Une equipe : ses numeros sonnent ENSEMBLE (<Number> multiples), le premier
+  // qui decroche prend l'appel. Un seul numero : forme simple, inchangee.
+  const numeros = (Array.isArray(cibles) ? cibles : [cibles]).filter(Boolean);
+  const corps = numeros.length === 1 ? escapeXml(numeros[0]!) : numeros.map((n) => `<Number>${escapeXml(n)}</Number>`).join("");
   return (
     `<?xml version="1.0" encoding="UTF-8"?><Response>` +
     `<Say voice="${escapeXml(voice)}" language="${speechLang}">${escapeXml(intro)}</Say>` +
-    `<Dial timeout="20" callerId="${escapeXml(callerId)}" action="/api/voice/twilio/transfert-resultat" method="POST">${escapeXml(targetNumber)}</Dial>` +
+    `<Dial timeout="20" callerId="${escapeXml(callerId)}" action="/api/voice/twilio/transfert-resultat" method="POST">${corps}</Dial>` +
     `</Response>`
   );
 }
@@ -1031,6 +1037,8 @@ interface ReceptionistResult {
   urgent: boolean;
   /** L'appelant demande a parler a un humain / conseiller. */
   transfer: boolean;
+  /** Equipe demandee (nom EXACT d'une equipe reglee), sinon null. */
+  transferTeam: string | null;
   /** Langue detectee de l'appelant (pour bascule auto si activee). */
   lang: RecLang | null;
   /** Reponse de l'appelant a un creneau propose, si elle est claire. */
@@ -1044,7 +1052,7 @@ function buildSystemInstruction(
   knowledgeBlock?: string,
   busyBlock?: string,
   callerContext?: string,
-  opts?: { autoDetectLang?: boolean; allowCancellation?: boolean; transferEnabled?: boolean; fuseau?: string; creneauPropose?: string | null },
+  opts?: { autoDetectLang?: boolean; allowCancellation?: boolean; transferEnabled?: boolean; equipes?: string[]; fuseau?: string; creneauPropose?: string | null },
   freeBlock?: string,
 ): string {
   const now = new Date();
@@ -1100,7 +1108,10 @@ function buildSystemInstruction(
     `- Prendre un RENDEZ-VOUS: recueille le nom de l'appelant (sauf s'il est deja connu ci-dessus), le motif, et le jour et l'heure souhaites. Des que tu as un jour ET une heure, mets outcome="appointment": le SYSTEME verifie l'agenda, lit le creneau (date, heure, fuseau) a l'appelant et lui demande de confirmer. Ne confirme JAMAIS toi-meme un rendez-vous et ne dis pas qu'il est pris.\n` +
     `- Prendre un MESSAGE: recueille le nom de l'appelant (sauf s'il est deja connu ci-dessus) et le contenu du message.\n` +
     (opts?.transferEnabled
-      ? `- TRANSFERER vers un humain: si l'appelant demande explicitement a parler a une personne / un conseiller, ou si la demande depasse ton role, mets "transfer": true (et dis poliment que tu le mets en relation). N'abuse pas du transfert: privilegie d'abord de repondre ou prendre un message.\n`
+      ? `- TRANSFERER vers un humain: si l'appelant demande explicitement a parler a une personne / un conseiller, ou si la demande depasse ton role, mets "transfer": true (et dis poliment que tu le mets en relation). N'abuse pas du transfert: privilegie d'abord de repondre ou prendre un message.\n` +
+        (opts.equipes?.length
+          ? `  Equipes joignables : ${opts.equipes.map((e) => `« ${e} »`).join(", ")}. Si l'appelant demande l'une d'elles (ou un sujet qui la concerne clairement), mets aussi "transferTeam" avec son nom EXACT ; sinon "transferTeam": null. N'invente jamais d'equipe.\n`
+          : "")
       : "") +
     (opts?.allowCancellation && caller?.name
       ? `- ANNULER un rendez-vous: si CET appelant connu demande d'annuler SON rendez-vous (celui indique dans son contexte personnel), mets outcome="cancel". IMPORTANT: tu ne peux PAS annuler toi-meme — la demande est transmise pour validation. Dis donc "je transmets votre demande d'annulation, vous recevrez une confirmation rapidement", et JAMAIS "c'est annule". Ne traite jamais la demande d'une autre personne.\n`
@@ -1116,6 +1127,7 @@ function buildSystemInstruction(
     `  "confirmation": null,\n` +
     `  "message": { "name": "string", "content": "string" },\n` +
     `  "transfer": false,\n` +
+    `  "transferTeam": null,\n` +
     `  "urgent": false,\n` +
     `  "sentiment": "neutre",\n` +
     `  "summary": "",\n` +
@@ -1193,7 +1205,8 @@ async function runReceptionistTurn(session: CallSession): Promise<ReceptionistRe
           {
             autoDetectLang: session.cfg.autoDetectLanguage === true,
             allowCancellation: session.cfg.allowPhoneCancellation === true,
-            transferEnabled: typeof session.cfg.forwardToNumber === "string" && (session.cfg.forwardToNumber as string).trim().length > 0,
+            transferEnabled: transfertPossible(session.cfg),
+            equipes: lireEquipes(session.cfg).map((e) => e.nom),
             fuseau: session.fuseau,
             creneauPropose: session.rdvPropose
               ? creneauParle(new Date(session.rdvPropose.debutIso), session.rdvPropose.fuseau, session.lang)
@@ -1245,6 +1258,7 @@ async function runReceptionistTurn(session: CallSession): Promise<ReceptionistRe
     sentiment: "neutre",
     urgent: false,
     transfer: false,
+    transferTeam: null,
     lang: null,
     confirmation: null,
   };
@@ -1293,6 +1307,9 @@ async function runReceptionistTurn(session: CallSession): Promise<ReceptionistRe
       : "neutre";
   const summary = typeof parsed.summary === "string" ? parsed.summary.slice(0, 500) : "";
   const transfer = parsed.transfer === true;
+  // Nom d'equipe du modele : verifie plus loin contre les equipes reglees
+  // (un nom inconnu est ignore — le modele n'invente pas de destinataire).
+  const transferTeam = typeof parsed.transferTeam === "string" && parsed.transferTeam.trim() ? parsed.transferTeam.trim().slice(0, 40) : null;
   const lang =
     typeof parsed.lang === "string" && (REC_LANGS as readonly string[]).includes(parsed.lang)
       ? (parsed.lang as RecLang)
@@ -1321,6 +1338,7 @@ async function runReceptionistTurn(session: CallSession): Promise<ReceptionistRe
     sentiment,
     urgent: parsed.urgent === true,
     transfer,
+    transferTeam,
     lang,
     confirmation,
   };
@@ -1801,19 +1819,26 @@ async function finalizeCall(callSid: string, session: CallSession): Promise<void
     .where(and(eq(voiceCallSessionsTable.callSid, callSid), eq(voiceCallSessionsTable.organisationId, session.orgId)));
 }
 
-/** Numero du conseiller vers qui transferer, ou "" si aucun n'est configure. */
-function cibleTransfert(session: CallSession): string {
-  return typeof session.cfg.forwardToNumber === "string" ? (session.cfg.forwardToNumber as string).trim() : "";
+/**
+ * Vers qui transferer : l'equipe demandee (nommee par le modele, ou dont le
+ * nom / un mot-cle a ete prononce), sinon le numero par defaut. Aucun numero =
+ * personne a joindre (l'appelant obtient une demande de rappel).
+ */
+function cibleTransfert(session: CallSession, equipeModele?: string | null): { equipe: string | null; numeros: string[] } {
+  const derniere = [...session.turns].reverse().find((t) => t.role === "user")?.text ?? "";
+  return cibleDeTransfert(session.cfg, { equipeModele, texte: `${derniere} ${session.demande ?? ""}` });
 }
 
 /** Relaie l'appel vers le conseiller ; l'issue arrive sur /transfert-resultat. */
-async function transferer(session: CallSession, raison: string, intro?: string): Promise<string> {
-  const cible = cibleTransfert(session);
-  session.transfert = { cible, statut: "en_cours", raison };
-  session.journal.push(`Transfert vers un conseiller (${maskPhone(cible)}) : ${raison}`);
-  await journaliserAppel(session.orgId, session.callSid, "transfer.requested", { cible: maskPhone(cible), raison });
+async function transferer(session: CallSession, raison: string, intro?: string, equipeModele?: string | null): Promise<string> {
+  const { equipe, numeros } = cibleTransfert(session, equipeModele);
+  const cible = numeros[0] ?? "";
+  const masques = numeros.map(maskPhone).join(", ");
+  session.transfert = { cible, statut: "en_cours", raison, numeros, equipe };
+  session.journal.push(`Transfert vers ${equipe ? `l'équipe « ${equipe} »` : "un conseiller"} (${masques}) : ${raison}`);
+  await journaliserAppel(session.orgId, session.callSid, "transfer.requested", { cible: masques, equipe, raison });
   const callerId = session.toNumber || session.providerConfig.fromNumber || session.providerConfig.phoneNumber || cible;
-  return dialTwiml(cible, callerId, intro && intro.trim() ? intro.trim() : TRANSFER_INTRO[session.lang], session.lang, session.voice);
+  return dialTwiml(numeros, callerId, intro && intro.trim() ? intro.trim() : TRANSFER_INTRO[session.lang], session.lang, session.voice);
 }
 
 /**
@@ -1846,7 +1871,7 @@ async function rappelEtFin(session: CallSession, raison: string, prefixe = ""): 
 
 /** L'agent ne peut pas conclure : un conseiller s'il y en a un, sinon un rappel. */
 async function escalader(session: CallSession, raison: string, prefixe = ""): Promise<string> {
-  return cibleTransfert(session) ? transferer(session, raison, `${prefixe} ${TRANSFER_INTRO[session.lang]}`) : rappelEtFin(session, raison, prefixe);
+  return cibleTransfert(session).numeros.length ? transferer(session, raison, `${prefixe} ${TRANSFER_INTRO[session.lang]}`) : rappelEtFin(session, raison, prefixe);
 }
 
 /**
@@ -2198,8 +2223,8 @@ voiceReceptionistRouter.post("/voice/twilio/respond", async (req: Request, res: 
 
   // L'appelant veut un humain : un conseiller s'il y en a un, sinon un rappel.
   if (result.transfer) {
-    const twiml = cibleTransfert(session)
-      ? await transferer(session, "l'appelant demande un conseiller", say)
+    const twiml = cibleTransfert(session, result.transferTeam).numeros.length
+      ? await transferer(session, "l'appelant demande un conseiller", say, result.transferTeam)
       : await rappelEtFin(session, "l'appelant demande un conseiller, aucun numéro de transfert configuré");
     await repondre(twiml, statutApresTwiml());
     return;
@@ -2251,7 +2276,7 @@ voiceReceptionistRouter.post("/voice/twilio/transfert-resultat", async (req: Req
   };
   const statut = String(body.DialCallStatus ?? "");
   if (!session.transfert) {
-    session.transfert = { cible: cibleTransfert(session), statut: "en_cours", raison: "inconnue" };
+    session.transfert = { cible: cibleTransfert(session).numeros[0] ?? "", statut: "en_cours", raison: "inconnue" };
   }
 
   if (statut === "completed" || statut === "answered") {

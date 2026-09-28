@@ -2339,7 +2339,16 @@
       "saveBtn": "Einstellungen speichern",
       "saved": "Einstellungen gespeichert",
       "error": "Fehler",
-      "saveFailed": "Speichern fehlgeschlagen."
+      "saveFailed": "Speichern fehlgeschlagen.",
+      "teamsTitle": "Weiterleitungsteams",
+      "teamsDesc": "Wer ein Team verlangt (per Name oder Stichwort), wird mit dessen Nummern verbunden, die gleichzeitig klingeln. Sonst: die Weiterleitungsnummer oben, andernfalls eine Rückrufbitte.",
+      "teamName": "Name von Team {{n}}",
+      "teamNamePlaceholder": "Buchhaltung",
+      "teamNumbers": "Nummern von Team {{n}}",
+      "teamKeywords": "Stichwörter von Team {{n}}",
+      "teamKeywordsPlaceholder": "Rechnung, Zahlung",
+      "teamRemove": "Team {{n}} entfernen",
+      "teamAdd": "Team hinzufügen"
     },
     "days": {
       "mon": "Mo",

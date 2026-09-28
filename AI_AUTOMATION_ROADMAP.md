@@ -2947,10 +2947,15 @@ tamamlandı sayılmaz."
    bakılmadı.
 2. ~~Eski `a_confirmer` sesli randevular takvimde ham görünüyor~~ — kapandı
    28/09: ekranda "beklemede" (`statutAgenda`); veri değiştirilmedi.
-3. Aktarma hedefi tek numara. Ekip/sıra yönlendirmesi, meşgulde sıradaki kişi
-   yok.
-4. Ayarlar ekranının dil seçimi fr/tr/en. Sunucu 6 dili (es, de, ar dahil)
-   konuşuyor.
+3. ~~Aktarma hedefi tek numara~~ — kapandı 29/09: ekip listesi (ad, numaralar,
+   anahtar kelimeler); modelin adlandırdığı ya da arayanın söylediği ekip,
+   numaraları birlikte çalıyor; yoksa varsayılan numara, o da yoksa rappel.
+4. ~~Ayarlar ekranının dil seçimi fr/tr/en~~ — kapandı 29/09: 6 dil.
+5. **Ayarlar > Appels sekmesi canlıda bütün uygulamayı çökertiyordu** (29/09,
+   tezgâhta gerçek tarayıcıyla bulundu): ses listesinde `value=""` olan
+   Radix SelectItem render sırasında hata atıyordu, ErrorBoundary tüm ekranı
+   kapatıyordu — sekreter ayarları hiç açılamıyordu. Düzeltildi; test
+   `reglages-secretaire.test.tsx`.
 
 ## SQL'de "bugün" Postgres oturumunun günüydü — 2026-09-28
 

@@ -2339,7 +2339,16 @@
       "saveBtn": "Ayarları kaydet",
       "saved": "Ayarlar kaydedildi",
       "error": "Hata",
-      "saveFailed": "Kayıt başarısız."
+      "saveFailed": "Kayıt başarısız.",
+      "teamsTitle": "Aktarma ekipleri",
+      "teamsDesc": "Bir ekibi (adıyla ya da anahtar kelimeyle) isteyen arayan, o ekibin numaralarına bağlanır; numaralar birlikte çalar. Aksi halde yukarıdaki aktarma numarası, o da yoksa geri arama talebi.",
+      "teamName": "{{n}}. ekibin adı",
+      "teamNamePlaceholder": "Muhasebe",
+      "teamNumbers": "{{n}}. ekibin numaraları",
+      "teamKeywords": "{{n}}. ekibin anahtar kelimeleri",
+      "teamKeywordsPlaceholder": "fatura, ödeme",
+      "teamRemove": "{{n}}. ekibi kaldır",
+      "teamAdd": "Ekip ekle"
     },
     "days": {
       "mon": "Pzt",

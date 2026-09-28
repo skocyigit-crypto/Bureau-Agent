@@ -71,6 +71,18 @@ pool.on("error", (err) => {
 // transaction longue: idle_in_transaction_session_timeout libere la
 // connexion si la transaction reste oisive trop longtemps.
 pool.on("connect", async (client) => {
+  // Ecouteur d'erreur PROPRE au client, pose a sa creation. pg-pool ne
+  // surveille que les clients au repos : il retire son ecouteur quand il
+  // prete le client (pool.connect) et le remet au retour. Un client prete —
+  // verrou consultatif tenu pendant tout un cycle, transaction longue — dont
+  // la connexion tombait (coupure reseau, redemarrage de la base,
+  // idle_in_transaction_session_timeout pose ci-dessous) emettait 'error'
+  // sans ecouteur : exception non rattrapee, instance arretee. Signale par
+  // les sessions Kaverd et BatiFlow (29/09), constate chez elles en
+  // production. La requete en cours echoue quand meme, proprement.
+  client.on("error", (err) => {
+    console.error("[DB Pool] Connexion perdue sur un client prete:", err.message);
+  });
   try {
     await client.query(`SET lock_timeout = ${LOCK_TIMEOUT_MS}`);
     await client.query(`SET idle_in_transaction_session_timeout = ${IDLE_TX_TIMEOUT_MS}`);

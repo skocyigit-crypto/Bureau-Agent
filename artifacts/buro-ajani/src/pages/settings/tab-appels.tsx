@@ -21,7 +21,15 @@ const REC_VOICES: Record<string, { label: string; value: string }[]> = {
   fr: [{ label: "Léa", value: "" }, { label: "Céline", value: "Polly.Celine" }, { label: "Mathieu", value: "Polly.Mathieu" }],
   tr: [{ label: "Filiz", value: "" }],
   en: [{ label: "Joanna", value: "" }, { label: "Matthew", value: "Polly.Matthew" }, { label: "Amy", value: "Polly.Amy" }],
+  es: [{ label: "Conchita", value: "" }, { label: "Enrique", value: "Polly.Enrique" }],
+  de: [{ label: "Marlene", value: "" }, { label: "Hans", value: "Polly.Hans" }],
+  ar: [{ label: "Zeina", value: "" }],
 };
+const LANGUES_SECRETAIRE: [string, string][] = [
+  ["fr", "Français"], ["tr", "Türkçe"], ["en", "English"], ["es", "Español"], ["de", "Deutsch"], ["ar", "العربية"],
+];
+type EquipeSaisie = { nom: string; numeros: string; motsCles: string };
+const VOIX_PAR_DEFAUT = "__defaut__";
 const DAY_LABELS: [string, string][] = [
   ["mon", "Lun"], ["tue", "Mar"], ["wed", "Mer"], ["thu", "Jeu"], ["fri", "Ven"], ["sat", "Sam"], ["sun", "Dim"],
 ];
@@ -38,11 +46,13 @@ function AiReceptionistSettings() {
   const [cfg, setCfg] = useState<Record<string, any> | null>(null);
   const [saving, setSaving] = useState(false);
   const set = (patch: Record<string, any>) => setCfg((c) => ({ ...(c ?? {}), ...patch }));
+  const equipes: EquipeSaisie[] = (cfg?.equipesSaisie ?? []) as EquipeSaisie[];
+  const majEquipe = (i: number, patch: Partial<EquipeSaisie>) => set({ equipesSaisie: equipes.map((e, k) => (k === i ? { ...e, ...patch } : e)) });
 
   useEffect(() => {
     fetch(`${TELEPHONY_API}/ai-receptionist`, { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d) setCfg(d); })
+      .then((d) => { if (d) setCfg({ ...d, equipesSaisie: (d.equipesTransfert ?? []).map((e: { nom: string; numeros?: string[]; motsCles?: string[] }) => ({ nom: e.nom, numeros: (e.numeros ?? []).join(", "), motsCles: (e.motsCles ?? []).join(", ") })) }); })
       .catch(() => {});
   }, []);
 
@@ -71,6 +81,9 @@ function AiReceptionistSettings() {
           autoFollowupTask: cfg.autoFollowupTask !== false, autoSmsOnMissed: cfg.autoSmsOnMissed !== false,
           autoSmsTemplate: cfg.autoSmsTemplate || "", emailRecapEnabled: cfg.emailRecapEnabled !== false,
           businessHours: cfg.businessHours ?? null,
+          equipesTransfert: ((cfg.equipesSaisie ?? []) as EquipeSaisie[])
+            .filter((e) => e.nom.trim() || e.numeros.trim())
+            .map((e) => ({ nom: e.nom.trim(), numeros: e.numeros.split(/[,;\n]/).map((n) => n.trim()).filter(Boolean), motsCles: e.motsCles.split(/[,;\n]/).map((m) => m.trim()).filter(Boolean) })),
         }),
       });
       const d = await res.json();
@@ -105,13 +118,17 @@ function AiReceptionistSettings() {
           <div><Label className="text-xs">{t("settingsAppels.recept.language")}</Label>
             <Select value={cfg.language || "fr"} onValueChange={(v) => set({ language: v, voice: "" })}>
               <SelectTrigger aria-label={t("settingsAppels.recept.language")}><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="fr">Français</SelectItem><SelectItem value="tr">Türkçe</SelectItem><SelectItem value="en">English</SelectItem></SelectContent>
+              <SelectContent>{LANGUES_SECRETAIRE.map(([code, nom]) => <SelectItem key={code} value={code}>{nom}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div><Label className="text-xs">{t("settingsAppels.recept.voice")}</Label>
-            <Select value={cfg.voice || ""} onValueChange={(v) => set({ voice: v })}>
+            {/* Radix Select refuse une option de valeur "" : elle levait une
+                exception au rendu, et l'ErrorBoundary remplacait TOUTE
+                l'application (onglet Appels inaccessible — vu au banc, navigateur
+                reel, 29/09). La voix par defaut a donc une valeur-sentinelle. */}
+            <Select value={cfg.voice || VOIX_PAR_DEFAUT} onValueChange={(v) => set({ voice: v === VOIX_PAR_DEFAUT ? "" : v })}>
               <SelectTrigger aria-label={t("settingsAppels.recept.voice")}><SelectValue /></SelectTrigger>
-              <SelectContent>{voices.map((v) => <SelectItem key={v.value || "default"} value={v.value}>{v.label}{v.value ? "" : t("settingsAppels.voiceDefaultSuffix")}</SelectItem>)}</SelectContent>
+              <SelectContent>{voices.map((v) => <SelectItem key={v.value || VOIX_PAR_DEFAUT} value={v.value || VOIX_PAR_DEFAUT}>{v.label}{v.value ? "" : t("settingsAppels.voiceDefaultSuffix")}</SelectItem>)}</SelectContent>
             </Select>
           </div>
         </div>
@@ -123,6 +140,26 @@ function AiReceptionistSettings() {
           <div><Label className="text-xs">{t("settingsAppels.recept.forwardLabel")}</Label><Input aria-label={t("settingsAppels.recept.forwardLabel")} value={cfg.forwardToNumber || ""} onChange={(e) => set({ forwardToNumber: e.target.value })} placeholder="+33…" /></div>
           <div><Label className="text-xs">{t("settingsAppels.recept.ownerLabel")}</Label><Input aria-label={t("settingsAppels.recept.ownerLabel")} value={cfg.ownerAlertNumber || ""} onChange={(e) => set({ ownerAlertNumber: e.target.value })} placeholder="+33…" /></div>
         </div>
+        {/* Equipes : l'appelant qui demande « la comptabilite » est relie aux
+            numeros de cette equipe (ils sonnent ensemble). Sans equipe
+            reconnue, le numero de transfert ci-dessus ; sans lui, un rappel. */}
+        <fieldset className="space-y-2">
+          <legend className="text-xs font-medium">{t("settingsAppels.recept.teamsTitle")}</legend>
+          <p className="text-[10px] text-muted-foreground">{t("settingsAppels.recept.teamsDesc")}</p>
+          {equipes.map((e, i) => (
+            <div key={i} className="grid gap-2 rounded-md border p-2 sm:grid-cols-[1fr_1.4fr_1.4fr_auto]">
+              <Input aria-label={t("settingsAppels.recept.teamName", { n: i + 1 })} value={e.nom} onChange={(ev) => majEquipe(i, { nom: ev.target.value })} placeholder={t("settingsAppels.recept.teamNamePlaceholder")} />
+              <Input aria-label={t("settingsAppels.recept.teamNumbers", { n: i + 1 })} value={e.numeros} onChange={(ev) => majEquipe(i, { numeros: ev.target.value })} placeholder="+33…, +33…" />
+              <Input aria-label={t("settingsAppels.recept.teamKeywords", { n: i + 1 })} value={e.motsCles} onChange={(ev) => majEquipe(i, { motsCles: ev.target.value })} placeholder={t("settingsAppels.recept.teamKeywordsPlaceholder")} />
+              <Button type="button" variant="ghost" size="sm" onClick={() => set({ equipesSaisie: equipes.filter((_, k) => k !== i) })} aria-label={t("settingsAppels.recept.teamRemove", { n: i + 1 })}>✕</Button>
+            </div>
+          ))}
+          {equipes.length < 6 && (
+            <Button type="button" variant="outline" size="sm" onClick={() => set({ equipesSaisie: [...equipes, { nom: "", numeros: "", motsCles: "" }] })}>
+              {t("settingsAppels.recept.teamAdd")}
+            </Button>
+          )}
+        </fieldset>
         <Separator />
         {toggle("smsConfirmation", t("settingsAppels.recept.smsConfirmLabel"), t("settingsAppels.recept.smsConfirmDesc"), true)}
         {toggle("autoFollowupTask", t("settingsAppels.recept.followupLabel"), t("settingsAppels.recept.followupDesc"), true)}

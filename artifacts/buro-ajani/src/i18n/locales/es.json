@@ -2339,7 +2339,16 @@
       "saveBtn": "Guardar los ajustes",
       "saved": "Ajustes guardados",
       "error": "Error",
-      "saveFailed": "Guardado fallido."
+      "saveFailed": "Guardado fallido.",
+      "teamsTitle": "Equipos de transferencia",
+      "teamsDesc": "Quien pida un equipo (por su nombre o una palabra clave) se conecta con sus números, que suenan a la vez. Si no: el número de transferencia de arriba y, en su defecto, una solicitud de devolución de llamada.",
+      "teamName": "Nombre del equipo {{n}}",
+      "teamNamePlaceholder": "Contabilidad",
+      "teamNumbers": "Números del equipo {{n}}",
+      "teamKeywords": "Palabras clave del equipo {{n}}",
+      "teamKeywordsPlaceholder": "factura, pago",
+      "teamRemove": "Quitar el equipo {{n}}",
+      "teamAdd": "Añadir un equipo"
     },
     "days": {
       "mon": "Lun",

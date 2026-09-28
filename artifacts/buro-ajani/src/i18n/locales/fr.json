@@ -2339,7 +2339,16 @@
       "saveBtn": "Enregistrer les réglages",
       "saved": "Réglages enregistrés",
       "error": "Erreur",
-      "saveFailed": "Enregistrement échoué."
+      "saveFailed": "Enregistrement échoué.",
+      "teamsTitle": "Équipes de transfert",
+      "teamsDesc": "L'appelant qui demande une équipe (par son nom ou un mot-clé) est relié à ses numéros, qui sonnent ensemble. Sinon : le numéro de transfert ci-dessus, et à défaut une demande de rappel.",
+      "teamName": "Nom de l'équipe {{n}}",
+      "teamNamePlaceholder": "Comptabilité",
+      "teamNumbers": "Numéros de l'équipe {{n}}",
+      "teamKeywords": "Mots-clés de l'équipe {{n}}",
+      "teamKeywordsPlaceholder": "facture, paiement",
+      "teamRemove": "Retirer l'équipe {{n}}",
+      "teamAdd": "Ajouter une équipe"
     },
     "days": {
       "mon": "Lun",

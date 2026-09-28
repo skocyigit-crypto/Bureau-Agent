@@ -1,3 +1,4 @@
+import { lireEquipes, validerEquipes } from "../services/equipes-transfert";
 import { Router, type IRouter, type Request } from "express";
 import { eq, desc, and, like, sql } from "drizzle-orm";
 import crypto from "crypto";
@@ -291,7 +292,10 @@ router.patch("/telephony/fraud-protection", async (req, res): Promise<void> => {
 // seul champ config.aiReceptionist) — meme precaution que fraud-protection:
 // ne JAMAIS toucher aux identifiants du fournisseur (le PATCH generique
 // remplace tout le config et masque les secrets, ce qui les corromprait).
-const REC_LANGS = ["fr", "tr", "en"] as const;
+// Les six langues que la secretaire parle (voice-receptionist.ts). L'ecran et
+// cette route n'en acceptaient que trois : es, de et ar n'etaient pas
+// reglables alors que le moteur les servait.
+const REC_LANGS = ["fr", "tr", "en", "es", "de", "ar"] as const;
 type RecLangCfg = (typeof REC_LANGS)[number];
 
 function receptionistBaseUrl(req: Request): string {
@@ -346,6 +350,7 @@ router.get("/telephony/ai-receptionist", async (req, res): Promise<void> => {
       voice: typeof cfg.voice === "string" ? cfg.voice : "",
       autoDetectLanguage: cfg.autoDetectLanguage === true,
       forwardToNumber: typeof cfg.forwardToNumber === "string" ? cfg.forwardToNumber : "",
+      equipesTransfert: lireEquipes(cfg),
       ownerAlertNumber: typeof cfg.ownerAlertNumber === "string" ? cfg.ownerAlertNumber : "",
       allowPhoneCancellation: cfg.allowPhoneCancellation === true,
       smsConfirmation: cfg.smsConfirmation !== false, // defaut true
@@ -398,6 +403,13 @@ router.put("/telephony/ai-receptionist", async (req, res): Promise<void> => {
     if (b.fraudAction !== undefined && !FRAUD_ACTIONS.includes(b.fraudAction)) {
       res.status(400).json({ error: "'fraudAction' invalide (off|voicemail|reject)." }); return;
     }
+    // Equipes de transfert : nom, numeros (qui sonnent ensemble), mots-cles.
+    let equipes: ReturnType<typeof lireEquipes> | undefined;
+    if (b.equipesTransfert !== undefined) {
+      const v = validerEquipes(b.equipesTransfert);
+      if (!v.ok) { res.status(400).json({ error: v.erreur }); return; }
+      equipes = v.equipes;
+    }
     let bh: ReturnType<typeof sanitizeBusinessHours> | undefined;
     if (b.businessHours !== undefined) {
       bh = sanitizeBusinessHours(b.businessHours);
@@ -434,6 +446,7 @@ router.put("/telephony/ai-receptionist", async (req, res): Promise<void> => {
     if (typeof b.autoSmsTemplate === "string") nextRec.autoSmsTemplate = b.autoSmsTemplate.slice(0, 320);
     if (b.fraudAction !== undefined) nextRec.fraudAction = b.fraudAction;
     if (bh !== undefined) nextRec.businessHours = bh;
+    if (equipes !== undefined) nextRec.equipesTransfert = equipes;
 
     const nextConfig = { ...prevCfg, aiReceptionist: nextRec };
     await db.update(telephonyProvidersTable)
