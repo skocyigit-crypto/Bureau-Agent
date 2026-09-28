@@ -211,25 +211,46 @@ export default function StudioFluxPage() {
       case "action": return t(`studioFlux.actions.${n.action.type}`);
     }
   };
-  const noeudsRf: Node[] = (flux?.noeuds ?? []).map((n, i) => ({
-    id: n.id, position: n.position ?? { x: 0, y: i * 120 }, data: { label: libelle(n) },
-    deletable: n.type !== "declencheur",
-    className: erreurs.some((e) => e.noeud === n.id) ? "!border-red-500 !border-2" : undefined,
-  }));
+  // Etat propre au canevas : React Flow 12 n'affiche un noeud qu'une fois
+  // MESURE, et la mesure arrive par onNodesChange (« dimensions »). Des noeuds
+  // recalcules a chaque rendu perdaient cette mesure : le canevas restait vide
+  // (vu sur capture d'ecran au banc, invisible en jsdom). On garde donc les
+  // noeuds du canevas, resynchronises depuis le flux sans perdre mesure ni
+  // selection.
+  const [noeudsRf, setNoeudsRf] = useState<Node[]>([]);
+  useEffect(() => {
+    setNoeudsRf((precedents) => {
+      const parId = new Map(precedents.map((n) => [n.id, n]));
+      return (flux?.noeuds ?? []).map((n, i) => {
+        const ancien = parId.get(n.id);
+        return {
+          ...(ancien ?? {}),
+          id: n.id,
+          position: n.position ?? ancien?.position ?? { x: 0, y: i * 120 },
+          data: { label: libelle(n) },
+          deletable: n.type !== "declencheur",
+          className: erreurs.some((e) => e.noeud === n.id) ? "!border-red-500 !border-2" : undefined,
+        };
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flux, erreurs, t]);
   const liensRf: Edge[] = (flux?.liens ?? []).map((l) => ({
     id: `${l.de}>${l.vers}`, source: l.de, target: l.vers,
     label: l.branche ? t(`studioFlux.${l.branche === "oui" ? "siOui" : "siNon"}`) : undefined,
   }));
   const surNoeuds = (changes: NodeChange[]) => {
+    // Le canevas applique tout (mesure, selection, deplacement en cours).
+    setNoeudsRf((nds) => applyNodeChanges(changes, nds));
+    // Le flux ne retient qu'un deplacement TERMINE et les suppressions.
+    const poses = changes.filter((c): c is Extract<NodeChange, { type: "position" }> => c.type === "position" && !c.dragging && !!c.position);
     const suppr = changes.filter((c) => c.type === "remove").map((c) => (c as { id: string }).id);
-    maj((x) => {
-      const deplaces = applyNodeChanges(changes.filter((c) => c.type === "position"), noeudsRf);
-      const pos = new Map(deplaces.map((n) => [n.id, n.position]));
-      return {
-        noeuds: x.noeuds.filter((n) => n.type === "declencheur" || !suppr.includes(n.id)).map((n) => ({ ...n, position: pos.get(n.id) ?? n.position })),
-        liens: x.liens.filter((l) => !suppr.includes(l.de) && !suppr.includes(l.vers)),
-      };
-    });
+    if (!poses.length && !suppr.length) return;
+    const pos = new Map(poses.map((c) => [c.id, c.position!]));
+    maj((x) => ({
+      noeuds: x.noeuds.filter((n) => n.type === "declencheur" || !suppr.includes(n.id)).map((n) => ({ ...n, position: pos.get(n.id) ?? n.position })),
+      liens: x.liens.filter((l) => !suppr.includes(l.de) && !suppr.includes(l.vers)),
+    }));
     if (suppr.length) dire(t("studioFlux.annonce.supprimee"));
   };
   const surLiens = (changes: EdgeChange[]) => {
