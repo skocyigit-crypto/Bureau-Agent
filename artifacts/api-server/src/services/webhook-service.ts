@@ -392,8 +392,6 @@ export async function reclamerLivraison(delivery: { id: number; status: string; 
       // milliseconde pres — Postgres garde la microseconde, JavaScript relit
       // la milliseconde (arrondie). Toute ecriture ulterieure de la ligne
       // (reclamation, echec reprogramme) intervient des secondes plus tard.
-      sql`${webhookDeliveriesTable.updatedAt} > ${new Date(delivery.updatedAt.getTime() - 1)}
-        AND ${webhookDeliveriesTable.updatedAt} < ${new Date(delivery.updatedAt.getTime() + 1)}`,
     ))
     .returning({ id: webhookDeliveriesTable.id });
   return reclamee.length > 0;
