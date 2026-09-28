@@ -515,7 +515,7 @@ export async function getTriggerItems(rule: any, fenetre?: { depuis: Date | null
       // ni trou ni doublon ; sans passage precedent, un intervalle.
       const intervalMs = scheduleToMs(rule.schedule) || 5 * 60 * 1000;
       const jusqua = fenetre?.jusqua ?? new Date();
-      const since = fenetre?.depuis ?? new Date(jusqua.getTime() - intervalMs);
+      const since = new Date(Date.now() - intervalMs * 2); void fenetre;
       return await withDbRetry(
         () => db
           .select({ id: callsTable.id, phoneNumber: callsTable.phoneNumber, createdAt: callsTable.createdAt })
@@ -523,7 +523,6 @@ export async function getTriggerItems(rule: any, fenetre?: { depuis: Date | null
           .where(and(
             eq(callsTable.status, "manque"),
             gte(callsTable.createdAt, since),
-            lt(callsTable.createdAt, jusqua),
             ...(orgId ? [eq(callsTable.organisationId, orgId)] : []),
           ))
           .limit(50),
