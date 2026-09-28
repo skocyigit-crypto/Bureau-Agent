@@ -5084,6 +5084,7 @@
     "emptyPendingDesc": "Derzeit ist keine proaktive Maßnahme erforderlich. Der Assistent benachrichtigt Sie, sobald er etwas erkennt.",
     "emptyOtherDesc": "Keine Vorschläge in dieser Kategorie.",
     "reminderVia": "Erinnerung per {{channel}} an {{recipient}}",
+    "reminderManagerOnly": "Zahlungserinnerungen versendet eine verantwortliche Person.",
     "channelSms": "SMS",
     "channelEmail": "E-Mail",
     "subject": "Betreff",

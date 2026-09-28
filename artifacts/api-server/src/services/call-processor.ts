@@ -1,5 +1,5 @@
 import { db, callsTable, tasksTable, calendarEventsTable, notificationsTable } from "@workspace/db";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { logAudit } from "../routes/audit";
 import { delaiEnJours } from "../lib/valeur-ou-defaut";
 import { safeJsonParse, aiCallWithRetry, sanitizePromptInput, wrapUntrusted, recordAiUsage, extractGeminiTokens, geminiActualModel, GEMINI_PRO_MODEL } from "./ai-utils";
@@ -7,6 +7,7 @@ import { AGENTS, creerTacheIa } from "./tache-ia";
 import { assertAiQuota, invalidateQuotaCache } from "./ai-quota";
 import { logger } from "../lib/logger";
 import { aiForOrg } from "./ai-client";
+import { tryWithLock } from "../lib/cron-lock";
 
 const CALL_LOCK_NAMESPACE = 4242;
 
@@ -48,24 +49,23 @@ export async function processCallWithAI(callId: number, orgId: number): Promise<
     throw new Error("Cet appel est deja en cours de traitement.");
   }
 
-  const lockResult = await db.execute(
-    sql`SELECT pg_try_advisory_lock(${CALL_LOCK_NAMESPACE}, ${callId}) AS acquired`
-  );
-  const acquired = (lockResult as any).rows?.[0]?.acquired ?? (lockResult as any)[0]?.acquired;
-  if (!acquired) {
-    throw new Error("Cet appel est deja en cours de traitement par une autre instance.");
-  }
-
+  // Prise et liberation sur UNE connexion dediee (`tryWithLock`). Par
+  // `db.execute`, elles partaient sur deux connexions du pool : la liberation
+  // etait refusee et le verrou restait detenu, si bien que retraiter le meme
+  // appel repondait « deja en cours ... par une autre instance » alors que
+  // rien ne tournait.
+  let resultat: Awaited<ReturnType<typeof _processCallInternal>> | undefined;
   processingCalls.add(callId);
   try {
-    return await _processCallInternal(callId, orgId);
+    const obtenu = await tryWithLock(CALL_LOCK_NAMESPACE, callId, async () => {
+      resultat = await _processCallInternal(callId, orgId);
+    });
+    if (!obtenu || !resultat) {
+      throw new Error("Cet appel est deja en cours de traitement par une autre instance.");
+    }
+    return resultat;
   } finally {
     processingCalls.delete(callId);
-    try {
-      await db.execute(sql`SELECT pg_advisory_unlock(${CALL_LOCK_NAMESPACE}, ${callId})`);
-    } catch (unlockErr) {
-      logger.error({ err: unlockErr }, `[call-processor] Failed to release advisory lock for call ${callId}:`);
-    }
   }
 }
 

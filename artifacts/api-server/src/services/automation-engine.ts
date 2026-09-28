@@ -257,90 +257,114 @@ async function checkUpcomingCalendarEvents() {
   }
 }
 
-async function checkUnreadMessages() {
+/**
+ * Une alerte « en lot » par ORGANISATION.
+ *
+ * Les controles des messages non lus, des contacts inactifs et des appels
+ * manques comptaient sur TOUTES les organisations a la fois, puis ecrivaient
+ * une notification sans `organisationId` ni `userId`. Le filtre de lecture
+ * (`visiblesPour`, routes/automations.ts) ne montre une notification sans
+ * destinataire qu'a SON organisation : celle-ci n'etait montree a personne.
+ * L'ecran des automatisations listait pourtant ces regles comme actives. La
+ * deduplication, sans organisation elle aussi, laissait en outre une seule
+ * alerte non lue bloquer celles de tous les autres clients.
+ */
+async function notifierLotParOrganisation(
+  comptes: Array<{ organisationId: number; count: number }>,
+  lot: {
+    sourceType: string;
+    /** Deduplication bornee dans le temps (sinon : tant qu'une alerte n'est pas lue). */
+    depuis?: Date;
+    notification: (count: number) => { type: string; title: string; message: string; priority: string; actionUrl: string };
+  },
+): Promise<number> {
+  let total = 0;
+  for (const { organisationId, count } of comptes) {
+    if (!count) continue;
+    const conds = [
+      eq(notificationsTable.sourceType, lot.sourceType),
+      eq(notificationsTable.organisationId, organisationId),
+      eq(notificationsTable.read, false),
+    ];
+    if (lot.depuis) conds.push(gte(notificationsTable.createdAt, lot.depuis));
+    const [existing] = await db
+      .select({ id: notificationsTable.id })
+      .from(notificationsTable)
+      .where(and(...conds))
+      .limit(1);
+    if (existing) continue;
+
+    await db.insert(notificationsTable).values({
+      organisationId,
+      ...lot.notification(count),
+      sourceType: lot.sourceType,
+      sourceId: `batch-${Date.now()}`,
+    });
+    total += count;
+  }
+  return total;
+}
+
+/** Exporte pour les tests. */
+export async function checkUnreadMessages() {
   const start = performance.now();
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
-  const unread = await withDbRetry(
+  const parOrg = await withDbRetry(
     () => db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ organisationId: messagesTable.organisationId, count: sql<number>`count(*)::int` })
       .from(messagesTable)
       .where(
         and(
           eq(messagesTable.isRead, false),
           lte(messagesTable.createdAt, oneHourAgo)
         )
-      ),
+      )
+      .groupBy(messagesTable.organisationId),
     { label: "automation:checkUnreadMessages" },
   );
 
-  const count = unread[0]?.count || 0;
-  if (count === 0) return;
-
-  const existing = await db
-    .select({ id: notificationsTable.id })
-    .from(notificationsTable)
-    .where(
-      and(
-        eq(notificationsTable.sourceType, "unread_messages"),
-        eq(notificationsTable.read, false),
-        gte(notificationsTable.createdAt, oneHourAgo)
-      )
-    )
-    .limit(1);
-
-  if (existing.length > 0) return;
-
-  await db.insert(notificationsTable).values({
-    type: "info",
-    title: "Messages non lus",
-    message: `Vous avez ${count} message(s) non lu(s) depuis plus d'une heure.`,
-    priority: count > 10 ? "haute" : "normale",
-    actionUrl: "/messages",
+  const count = await notifierLotParOrganisation(parOrg, {
     sourceType: "unread_messages",
-    sourceId: `batch-${Date.now()}`,
+    depuis: oneHourAgo,
+    notification: (n) => ({
+      type: "info",
+      title: "Messages non lus",
+      message: `Vous avez ${n} message(s) non lu(s) depuis plus d'une heure.`,
+      priority: n > 10 ? "haute" : "normale",
+      actionUrl: "/messages",
+    }),
   });
+  if (count === 0) return;
 
   await logAutomationRun("Messages non lus", "success", { count }, count, performance.now() - start);
 }
 
-async function checkInactiveContacts() {
+/** Exporte pour les tests. */
+export async function checkInactiveContacts() {
   const start = performance.now();
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-  const inactive = await withDbRetry(
+  const parOrg = await withDbRetry(
     () => db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ organisationId: contactsTable.organisationId, count: sql<number>`count(*)::int` })
       .from(contactsTable)
-      .where(lte(contactsTable.updatedAt, thirtyDaysAgo)),
+      .where(lte(contactsTable.updatedAt, thirtyDaysAgo))
+      .groupBy(contactsTable.organisationId),
     { label: "automation:checkInactiveContacts" },
   );
 
-  const count = inactive[0]?.count || 0;
-  if (count === 0) return;
-
-  const existing = await db
-    .select({ id: notificationsTable.id })
-    .from(notificationsTable)
-    .where(
-      and(
-        eq(notificationsTable.sourceType, "inactive_contacts"),
-        eq(notificationsTable.read, false)
-      )
-    )
-    .limit(1);
-
-  if (existing.length > 0) return;
-
-  await db.insert(notificationsTable).values({
-    type: "suggestion",
-    title: "Contacts inactifs",
-    message: `${count} contact(s) n'ont pas ete mis a jour depuis 30 jours. Pensez a les recontacter.`,
-    priority: "normale",
-    actionUrl: "/contacts",
+  const count = await notifierLotParOrganisation(parOrg, {
     sourceType: "inactive_contacts",
-    sourceId: `batch-${Date.now()}`,
+    notification: (n) => ({
+      type: "suggestion",
+      title: "Contacts inactifs",
+      message: `${n} contact(s) n'ont pas ete mis a jour depuis 30 jours. Pensez a les recontacter.`,
+      priority: "normale",
+      actionUrl: "/contacts",
+    }),
   });
+  if (count === 0) return;
 
   await logAutomationRun("Contacts inactifs", "success", { count }, count, performance.now() - start);
 }
@@ -412,50 +436,38 @@ async function checkOverdueProjects() {
   await logAutomationRun("Projets en retard", "success", { count: overdueProjects.length }, overdueProjects.length, performance.now() - start);
 }
 
-async function checkMissedCalls() {
+/** Exporte pour les tests. */
+export async function checkMissedCalls() {
   const start = performance.now();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const missed = await withDbRetry(
+  const parOrg = await withDbRetry(
     () => db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ organisationId: callsTable.organisationId, count: sql<number>`count(*)::int` })
       .from(callsTable)
       .where(
         and(
           eq(callsTable.status, "manque"),
           gte(callsTable.createdAt, today)
         )
-      ),
+      )
+      .groupBy(callsTable.organisationId),
     { label: "automation:checkMissedCalls" },
   );
 
-  const count = missed[0]?.count || 0;
-  if (count === 0) return;
-
-  const existing = await db
-    .select({ id: notificationsTable.id })
-    .from(notificationsTable)
-    .where(
-      and(
-        eq(notificationsTable.sourceType, "missed_calls"),
-        eq(notificationsTable.read, false),
-        gte(notificationsTable.createdAt, today)
-      )
-    )
-    .limit(1);
-
-  if (existing.length > 0) return;
-
-  await db.insert(notificationsTable).values({
-    type: "alerte",
-    title: "Appels manques",
-    message: `${count} appel(s) manque(s) aujourd'hui. Rappel recommande.`,
-    priority: count > 5 ? "urgente" : "haute",
-    actionUrl: "/appels",
+  const count = await notifierLotParOrganisation(parOrg, {
     sourceType: "missed_calls",
-    sourceId: `batch-${Date.now()}`,
+    depuis: today,
+    notification: (n) => ({
+      type: "alerte",
+      title: "Appels manques",
+      message: `${n} appel(s) manque(s) aujourd'hui. Rappel recommande.`,
+      priority: n > 5 ? "urgente" : "haute",
+      actionUrl: "/appels",
+    }),
   });
+  if (count === 0) return;
 
   await logAutomationRun("Appels manques", "success", { count }, count, performance.now() - start);
 }

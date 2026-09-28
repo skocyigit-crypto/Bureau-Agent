@@ -55,7 +55,13 @@ export const LEGAL_DOCUMENTS = {
     code: "dpa",
     title: "Accord de Traitement des Donnees (DPA)",
     description: "Contrat entre le responsable du traitement (client) et le sous-traitant (Ajant Bureau) definissant les mesures de securite, la localisation des donnees et les procedures en cas de violation.",
-    version: "1.0",
+    // 1.1 (28/09/2026) : annexe 1 completee — Expo (notifications mobiles) et
+    // OpenStreetMap Nominatim (position -> adresse) etaient deja appeles sans
+    // y figurer. L'article 28.2 du RGPD veut que le responsable en soit
+    // INFORME ; un numero de version distinct fait apparaitre le DPA « a
+    // accepter » chez chaque client (page Protection des donnees) et nomme,
+    // cote plateforme, qui n'a pas encore pris connaissance du texte.
+    version: "1.1",
     mandatory: true,
     category: "privacy",
   },

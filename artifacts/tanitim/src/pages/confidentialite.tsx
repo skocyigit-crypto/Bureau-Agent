@@ -12,7 +12,7 @@ export default function Confidentialite() {
       <Navbar onDemoClick={() => setDemoOpen(true)} />
       <main id="contenu" className="container mx-auto px-4 pt-32 pb-20 max-w-3xl">
         <h1 className="text-3xl font-bold mb-2">Politique de confidentialité</h1>
-        <p className="text-muted-foreground mb-10">Dernière mise à jour : janvier 2026 — Conforme RGPD</p>
+        <p className="text-muted-foreground mb-10">Dernière mise à jour : septembre 2026 — Conforme RGPD</p>
 
         <section className="space-y-8 text-sm leading-relaxed text-foreground/80">
           <div>
@@ -222,9 +222,11 @@ export default function Confidentialite() {
               <li><strong>Google Cloud EMEA Limited</strong> — hébergement, base de données et sauvegardes. Union européenne.</li>
               <li><strong>Resend</strong> — e-mails transactionnels. États-Unis, sous Clauses Contractuelles Types.</li>
               <li><strong>Cloudflare</strong> — DNS et acheminement des e-mails entrants. Réseau mondial, sous Clauses Contractuelles Types.</li>
+              <li><strong>Expo (650 Industries, Inc.)</strong> — acheminement des notifications de l'application mobile (titre et texte de la notification). États-Unis, sous Clauses Contractuelles Types.</li>
+              <li><strong>OpenStreetMap Foundation</strong> — conversion d'une position en adresse, à votre demande, sans identifiant. Royaume-Uni, décision d'adéquation.</li>
               <li><strong>Google, Anthropic, OpenAI</strong> — fonctions d'intelligence artificielle, selon la configuration. États-Unis, sous Clauses Contractuelles Types. Lorsque vous renseignez vos propres clés, vous contractez directement avec le fournisseur choisi.</li>
             </ul>
-            <p className="mt-2">Une copie des garanties (Clauses Contractuelles Types) peut être demandée à <a href="mailto:privacy@agentdebureau.fr" className="text-primary underline">privacy@agentdebureau.fr</a>. La liste complète, avec les finalités, figure à l'annexe 2 du <a href="/dpa" className="text-primary underline">DPA</a>.</p>
+            <p className="mt-2">Une copie des garanties (Clauses Contractuelles Types) peut être demandée à <a href="mailto:privacy@agentdebureau.fr" className="text-primary underline">privacy@agentdebureau.fr</a>. La liste complète, avec les finalités, figure à l'annexe 1 du <a href="/dpa" className="text-primary underline">DPA</a>.</p>
           </div>
 
           <div>

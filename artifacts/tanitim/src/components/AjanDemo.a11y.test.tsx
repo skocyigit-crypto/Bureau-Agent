@@ -78,4 +78,16 @@ describe("AjanDemo — keyboard accessibility", () => {
       ),
     );
   });
+
+  // AI Act, art. 50.1 : la personne doit savoir qu'elle echange avec une IA —
+  // l'en-tete disait « En ligne » avec un point vert, comme un conseiller.
+  it("annonce une IA, dans l'en-tete et a cote du champ de saisie", () => {
+    render(<AjanDemo />);
+    expect(screen.getByText(/Assistant IA/)).toBeTruthy();
+    expect(screen.queryByText(/En ligne/)).toBeNull();
+    const input = screen.getByLabelText("Posez votre question à l'Ajant Bureau");
+    const avisId = input.getAttribute("aria-describedby");
+    expect(avisId).toBeTruthy();
+    expect(document.getElementById(avisId!)?.textContent).toMatch(/intelligence artificielle/);
+  });
 });

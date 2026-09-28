@@ -5090,6 +5090,7 @@
     "emptyPendingDesc": "لا حاجة إلى أي إجراء استباقي حاليًا. سينبهك المساعد بمجرد أن يكتشف شيئًا.",
     "emptyOtherDesc": "لا اقتراح في هذه الفئة.",
     "reminderVia": "تذكير عبر {{channel}} إلى {{recipient}}",
+    "reminderManagerOnly": "تذكيرات الدفع يرسلها أحد المسؤولين.",
     "channelSms": "SMS",
     "channelEmail": "بريد إلكتروني",
     "subject": "الموضوع",

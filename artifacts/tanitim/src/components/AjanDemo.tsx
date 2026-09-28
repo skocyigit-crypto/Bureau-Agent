@@ -362,9 +362,14 @@ export function AjanDemo() {
                   </div>
                   <div>
                     <p className="font-bold text-white text-sm">Ajant Bureau</p>
+                    {/* AI Act, art. 50.1 (applicable depuis le 2 aout 2026) :
+                        la personne doit savoir qu'elle echange avec une IA.
+                        « En ligne » et le point vert pulse evoquaient un
+                        conseiller ; les reponses viennent d'un modele
+                        (routes/public-demo-chat.ts, generateText). */}
                     <p className="text-xs text-emerald-400 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      En ligne · Demo
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true" />
+                      Assistant IA · Démo
                     </p>
                   </div>
                 </div>
@@ -510,6 +515,7 @@ export function AjanDemo() {
                     onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }}
                     placeholder={recording ? "Ecoute en cours…" : "Posez votre question en français…"}
                     aria-label="Posez votre question à l'Ajant Bureau"
+                    aria-describedby="ajan-demo-avis-ia"
                     disabled={sending}
                     className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-amber-400/70 focus:border-amber-400/60 focus:bg-white/10 transition disabled:opacity-50"
                   />
@@ -538,6 +544,9 @@ export function AjanDemo() {
                     {sending ? <Loader2 className="w-5 h-5 text-slate-900 animate-spin" aria-hidden="true" /> : <Send className="w-5 h-5 text-slate-900" aria-hidden="true" />}
                   </button>
                 </div>
+                <p id="ajan-demo-avis-ia" className="mt-2 text-[11px] text-white/60">
+                  Vous échangez avec une intelligence artificielle : ses réponses peuvent contenir des erreurs.
+                </p>
                 {history.length > 0 && (
                   <div className="mt-3 space-y-2">
                     <a

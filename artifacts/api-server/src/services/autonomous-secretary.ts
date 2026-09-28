@@ -26,6 +26,7 @@ import {
 } from "@workspace/db/schema";
 import { and, eq, gte, lte, desc, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { tryWithLock } from "../lib/cron-lock";
 import { getTool, validateArgs, executeTool, type ToolContext } from "./assistant-tools";
 import { isSaasTool, executeSaasTool } from "./saas-tools";
 import { enqueueProposals } from "./proposal-queue";
@@ -274,73 +275,81 @@ export interface ExecuteProposalResult {
 }
 
 // Espace de verrous consultatifs Postgres pour l'execution des propositions.
-// Distinct des namespaces de cron (lib/cron-lock.ts) pour ne jamais collisionner.
-const PROPOSAL_LOCK_NAMESPACE = 4310;
+// Il valait 4310 avec la promesse « distinct des namespaces de cron » — mais
+// `CRON_LOCK_NAMESPACE.trialWarning` vaut aussi 4310 : la proposition n°N et le
+// cron d'avertissement d'essai de l'organisation n°N se disputaient le meme
+// verrou. `verrous-consultatifs.test.ts` garde desormais l'unicite.
+const PROPOSAL_LOCK_NAMESPACE = 4330;
 
 export async function executeProposal(proposalId: number, ctx: ToolContext): Promise<ExecuteProposalResult> {
-  // Verrou consultatif BLOQUANT, porte sur (namespace, proposalId).
+  // Verrou consultatif porte sur (namespace, proposalId), pris ET relache sur
+  // UNE connexion dediee (`tryWithLock`, lib/cron-lock.ts).
   //
-  // Sans lui, deux approbations concurrentes de la MEME proposition (double
+  // Sans verrou, deux approbations concurrentes de la MEME proposition (double
   // clic sur "Approuver", rejeu reseau, deux instances Cloud Run) chargeaient
   // toutes deux le statut `en_attente` et appelaient toutes deux executeTool:
-  // l'action s'executait en double — un e-mail parti deux fois, une tache creee
-  // en double. `rejectProposal` se protegeait deja via un `WHERE status =
-  // 'en_attente'` atomique; l'execution, elle, ne verifiait meme pas le statut
-  // en attente avant d'agir.
+  // l'action s'executait en double — un e-mail parti deux fois.
   //
-  // On serialise donc les approbations d'une meme proposition. La seconde
-  // attend, puis relit le statut a l'interieur du verrou: la premiere l'ayant
-  // passe a `executee`, elle renvoie le resultat memoise sans re-executer.
-  // Un verrou (plutot qu'un statut "en cours" persistant) evite tout etat
-  // bloque si le processus tombe en cours d'execution.
-  const lockRes = await db.execute(
-    sql`SELECT pg_advisory_lock(${PROPOSAL_LOCK_NAMESPACE}, ${proposalId})`,
-  );
-  void lockRes;
-  try {
-    const [proposal] = await db.select().from(agentProposalsTable)
-      .where(and(eq(agentProposalsTable.id, proposalId), eq(agentProposalsTable.organisationId, ctx.orgId)))
-      .limit(1);
-
-    if (!proposal) return { ok: false, status: "echouee", error: "Proposition introuvable" };
-    if (proposal.status === "executee") return { ok: true, status: "executee", result: proposal.result };
-    if (proposal.status === "rejetee") return { ok: false, status: "rejetee", error: "Proposition déjà rejetée" };
-    // Une proposition expiree ne s'execute plus.
-    //
-    // `expireStaleProposals` (services/proposal-queue.ts) passe a `expiree` ce
-    // qui dort depuis 14 jours, precisement parce que « l'action proposee il y
-    // a trois semaines n'est de toute facon plus pertinente ». Rien n'empechait
-    // pourtant de l'approuver ensuite : la relance d'une facture deja reglee,
-    // le rappel d'un rendez-vous passe, le SMS d'un chantier termine partaient
-    // quand meme. L'agent doit reproposer avec un contexte a jour.
-    if (proposal.status === "expiree") {
-      return { ok: false, status: "expiree", error: "Cette proposition a expiré : relancez l'agent pour en obtenir une à jour." };
-    }
-
-    // Les propositions SaaS (cross-organisation) passent par un executeur
-    // distinct qui applique sa propre garde super-admin. Le chemin org-scoped
-    // `executeTool` ne connait pas ces outils et ne peut donc pas les executer.
-    const exec = isSaasTool(proposal.toolName)
-      ? await executeSaasTool(proposal.toolName, proposal.args, ctx)
-      : await executeTool(proposal.toolName, proposal.args, ctx, { skipConfirmation: true });
-    const newStatus: AgentProposal["status"] = exec.ok ? "executee" : "echouee";
-
-    await db.update(agentProposalsTable).set({
-      status: newStatus,
-      result: (exec.result ?? (exec.error ? { error: exec.error } : {})) as Record<string, unknown>,
-      decidedBy: ctx.userId,
-      decidedAt: new Date(),
-      executedAt: new Date(),
-    }).where(eq(agentProposalsTable.id, proposalId));
-
-    return { ok: exec.ok, status: newStatus, result: exec.result, error: exec.error };
-  } finally {
-    try {
-      await db.execute(sql`SELECT pg_advisory_unlock(${PROPOSAL_LOCK_NAMESPACE}, ${proposalId})`);
-    } catch (err) {
-      logger.error({ err, proposalId }, "[proposal] Echec de liberation du verrou d'execution");
-    }
+  // La version precedente prenait et relachait ce verrou par `db.execute`,
+  // donc sur deux connexions du pool prises au hasard — le piege que
+  // cron-lock.ts et la conversion de devis documentent. La liberation etait
+  // refusee (« you don't own a lock of this type »), le verrou restait sur une
+  // connexion rendue au pool, et une seconde approbation qui retombait sur
+  // CETTE connexion le reprenait aussitot (un verrou de session est
+  // reentrant) : le double envoi que le verrou devait empecher. Celle qui
+  // tombait sur une autre attendait en immobilisant une connexion.
+  //
+  // On n'attend plus : la seconde approbation apprend que la premiere est en
+  // cours (409 cote route) et relira `executee` au rafraichissement. Un verrou
+  // de session (plutot qu'un statut "en cours" persistant) tombe avec la
+  // connexion si le processus meurt : pas d'etat bloque.
+  let resultat: ExecuteProposalResult | undefined;
+  const obtenu = await tryWithLock(PROPOSAL_LOCK_NAMESPACE, proposalId, async () => {
+    resultat = await executerSousVerrou(proposalId, ctx);
+  });
+  if (!obtenu || !resultat) {
+    return { ok: false, status: "en_cours", error: "Cette proposition est deja en cours d'execution." };
   }
+  return resultat;
+}
+
+async function executerSousVerrou(proposalId: number, ctx: ToolContext): Promise<ExecuteProposalResult> {
+  const [proposal] = await db.select().from(agentProposalsTable)
+    .where(and(eq(agentProposalsTable.id, proposalId), eq(agentProposalsTable.organisationId, ctx.orgId)))
+    .limit(1);
+
+  if (!proposal) return { ok: false, status: "echouee", error: "Proposition introuvable" };
+  if (proposal.status === "executee") return { ok: true, status: "executee", result: proposal.result };
+  if (proposal.status === "rejetee") return { ok: false, status: "rejetee", error: "Proposition déjà rejetée" };
+  // Une proposition expiree ne s'execute plus.
+  //
+  // `expireStaleProposals` (services/proposal-queue.ts) passe a `expiree` ce
+  // qui dort depuis 14 jours, precisement parce que « l'action proposee il y
+  // a trois semaines n'est de toute facon plus pertinente ». Rien n'empechait
+  // pourtant de l'approuver ensuite : la relance d'une facture deja reglee,
+  // le rappel d'un rendez-vous passe, le SMS d'un chantier termine partaient
+  // quand meme. L'agent doit reproposer avec un contexte a jour.
+  if (proposal.status === "expiree") {
+    return { ok: false, status: "expiree", error: "Cette proposition a expiré : relancez l'agent pour en obtenir une à jour." };
+  }
+
+  // Les propositions SaaS (cross-organisation) passent par un executeur
+  // distinct qui applique sa propre garde super-admin. Le chemin org-scoped
+  // `executeTool` ne connait pas ces outils et ne peut donc pas les executer.
+  const exec = isSaasTool(proposal.toolName)
+    ? await executeSaasTool(proposal.toolName, proposal.args, ctx)
+    : await executeTool(proposal.toolName, proposal.args, ctx, { skipConfirmation: true });
+  const newStatus: AgentProposal["status"] = exec.ok ? "executee" : "echouee";
+
+  await db.update(agentProposalsTable).set({
+    status: newStatus,
+    result: (exec.result ?? (exec.error ? { error: exec.error } : {})) as Record<string, unknown>,
+    decidedBy: ctx.userId,
+    decidedAt: new Date(),
+    executedAt: new Date(),
+  }).where(eq(agentProposalsTable.id, proposalId));
+
+  return { ok: exec.ok, status: newStatus, result: exec.result, error: exec.error };
 }
 
 export async function rejectProposal(
