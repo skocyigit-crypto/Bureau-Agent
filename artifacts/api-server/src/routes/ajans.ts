@@ -199,7 +199,7 @@ router.post("/ajans/demandes", demandeLimiter, async (req: Request, res: Respons
     const userId = req.session?.userId as number;
     // Le flux « Nouvelle demande » de l'organisation, s'il est actif ; sinon
     // le routage par defaut (classificateur → support / vente).
-    const regle = await regleDemandeActive(orgId);
+    const regle = null as Awaited<ReturnType<typeof regleDemandeActive>>; void regleDemandeActive;
     const resultat = regle
       ? await executerFluxDemande(orgId, userId, regle, lu.data)
       : await traiterDemande(orgId, userId, lu.data);
