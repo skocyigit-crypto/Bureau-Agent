@@ -524,7 +524,10 @@ export async function getTriggerItems(rule: any, fenetre?: { depuis: Date | null
           .where(and(
             eq(callsTable.status, "manque"),
             gte(callsTable.createdAt, since),
-            lt(callsTable.createdAt, jusqua),
+            // Borne haute seulement pour une reclamation du moteur : l horloge
+            // de la base et celle du serveur different de quelques ms, et un
+            // appel sans fenetre (test, execution manuelle) reste ouvert.
+            ...(fenetre ? [lt(callsTable.createdAt, jusqua)] : []),
             ...(orgId ? [eq(callsTable.organisationId, orgId)] : []),
           ))
           .limit(50),
@@ -591,7 +594,7 @@ export async function getTriggerItems(rule: any, fenetre?: { depuis: Date | null
           .from(projetsTable)
           .where(and(
             gte(projetsTable.createdAt, since),
-            lt(projetsTable.createdAt, jusquaProjet),
+            ...(fenetre ? [lt(projetsTable.createdAt, jusquaProjet)] : []),
             ...(orgId ? [eq(projetsTable.organisationId, orgId)] : []),
           ))
           .limit(20),

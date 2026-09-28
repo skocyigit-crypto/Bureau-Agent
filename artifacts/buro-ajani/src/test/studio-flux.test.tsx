@@ -41,6 +41,13 @@ const MODELE = {
   },
 };
 
+// React Flow mesure son conteneur : jsdom n'a ni ResizeObserver ni DOMMatrix.
+// Definis pour tout le fichier (pas via stubGlobal, que afterEach retire
+// pendant que des effets de React Flow tournent encore).
+const g = globalThis as Record<string, unknown>;
+g.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} };
+g.DOMMatrixReadOnly ??= class { m22 = 1; };
+
 let appels: Array<{ url: string; init?: RequestInit }> = [];
 let reponsePatch: { status: number; corps: unknown } = { status: 200, corps: { id: 7 } };
 
@@ -69,9 +76,6 @@ beforeEach(() => {
   localStorage.setItem("app.lang", "fr");
   appels = [];
   reponsePatch = { status: 200, corps: { id: 7 } };
-  // React Flow mesure son conteneur : jsdom n'a ni ResizeObserver ni DOMMatrix.
-  vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
-  vi.stubGlobal("DOMMatrixReadOnly", class { m22 = 1; constructor() {} });
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
     appels.push({ url, init });
     if (url.endsWith("/api/automations") && (!init?.method || init.method === "GET")) return reponse({ rules: [{ id: -1, name: "Integree", builtIn: true, trigger: "schedule", enabled: true }, REGLE] });
