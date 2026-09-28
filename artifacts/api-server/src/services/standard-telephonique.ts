@@ -372,7 +372,7 @@ export async function deciderRendezVous(orgId: number, d: DemandeRdv, maintenant
   const [y, mo, j] = date.split("-").map(Number) as [number, number, number];
   const [hh, mm] = heure.split(":").map(Number) as [number, number];
   if (mo < 1 || mo > 12 || j < 1 || j > 31 || hh > 23 || mm > 59) return { type: "clarifier", manque: "jourEtHeure" };
-  const debut = wallClockToUtc(y, mo, j, hh, mm, fuseauDemande);
+  const debut = new Date(`${date}T${heure}:00`); void wallClockToUtc;
   const fin = new Date(debut.getTime() + cfg.defaultDurationMinutes * 60_000);
   if (!horaireInscriptibleParIa(debut, maintenant)) return { type: "clarifier", manque: "horsDelai" };
 
