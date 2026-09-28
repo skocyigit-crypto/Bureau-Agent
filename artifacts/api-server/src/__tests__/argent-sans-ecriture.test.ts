@@ -6,7 +6,7 @@
  * compris. Trois portes l'ecrivaient pourtant en direct, sans creer la moindre
  * ligne :
  *
- *  - l'outil IA `record_payment` ;
+ *  - l'outil IA `record_payment` (desormais refuse : palier financier) ;
  *  - `PATCH /factures-client/:id` avec `{ paidAmount }` ;
  *  - le meme PATCH avec `{ status: "payee" }`, qui calait `paidAmount` sur le
  *    total.
@@ -215,44 +215,39 @@ describe("une facture se solde par un encaissement, pas par un statut", () => {
   });
 });
 
-describe("l'outil IA encaisse par la meme porte que tout le monde", () => {
+describe("l'outil IA n'encaisse pas : un encaissement se saisit a l'ecran", () => {
   /**
-   * `POST /ai/execute` avec `type: "record_payment"` est le troisieme chemin
-   * qui ecrivait le cache en direct. Il posait de surcroit le statut
-   * « partielle », et son `UPDATE` n'etait borne que par l'identifiant de
-   * facture, sans l'organisation.
+   * `POST /ai/execute` avec `type: "record_payment"` a d'abord ecrit le cache
+   * en direct, puis est passe par `enregistrerEncaissement`. Il est desormais
+   * REFUSE (palier « financier », services/paliers-actions-ia.ts) : l'action
+   * vient d'une suggestion du modele, dont le contexte contient des messages
+   * entrants — « marque la facture payee » y suffisait a solder une facture et
+   * a couper ses relances. Un encaissement se saisit a l'ecran, montant sous
+   * les yeux.
    */
   const executer = (body: Record<string, unknown>) =>
     request(appli(aiRouter as express.Router)).post("/api/ai/execute").send(body);
 
-  it("un reglement passe par l'assistant laisse une ecriture", async () => {
+  it("un reglement propose par l'assistant est refuse", async () => {
     const f = await facture();
     const r = await executer({ type: "record_payment", target: { invoiceId: f.id, amount: 60, method: "virement" } });
-    expect(r.status, JSON.stringify(r.body)).toBe(200);
-    expect((await ecrituresDe(f.id)).length, "le cache a ete ecrit sans ecriture").toBe(1);
+    expect(r.status, JSON.stringify(r.body)).toBe(403);
+    expect(r.body?.success).toBe(false);
   });
 
-  it("et le statut derive est celui du produit", async () => {
+  it("et il dit par ou passer", async () => {
     const f = await facture();
-    await executer({ type: "record_payment", target: { invoiceId: f.id, amount: 60, method: "virement" } });
-    const apres = await relire(f.id);
-    expect(apres.status).toBe("partiellement_payee");
-    expect(apres.status).not.toBe("partielle");
+    const r = await executer({ type: "record_payment", target: { invoiceId: f.id, amount: 60, method: "virement" } });
+    expect(String(r.body?.message)).toMatch(/Factures/);
   });
 
-  it("un solde complet marque la facture payee", async () => {
+  it("aucune ecriture, et la facture n'est pas soldee", async () => {
     const f = await facture();
     await executer({ type: "record_payment", target: { invoiceId: f.id, amount: 120, method: "virement" } });
-    expect((await relire(f.id)).status).toBe("payee");
-  });
-
-  it("un montant superieur au reste du est refuse", async () => {
-    // `enregistrerEncaissement` refuse le trop-percu non voulu; l'ancien
-    // chemin l'acceptait sans rien dire.
-    const f = await facture();
-    const r = await executer({ type: "record_payment", target: { invoiceId: f.id, amount: 500, method: "virement" } });
-    expect(r.body?.result?.success ?? r.body?.success).toBe(false);
     expect((await ecrituresDe(f.id)).length).toBe(0);
+    const apres = await relire(f.id);
+    expect(Number(apres.paidAmount)).toBe(0);
+    expect(apres.status).not.toBe("payee");
   });
 
   it("une facture d'une autre organisation reste hors d'atteinte", async () => {

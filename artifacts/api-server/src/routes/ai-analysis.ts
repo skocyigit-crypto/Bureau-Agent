@@ -1,10 +1,7 @@
-import { computeInvoiceTotals } from "../services/invoice-totals";
 import { Router } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, platformConnectionsTable, notificationsTable, stockArticlesTable, calendarEventsTable, projetsTable, prospectsTable, facturesClientTable, organisationsTable } from "@workspace/db";
 import { AGENTS, creerTacheIa } from "../services/tache-ia";
-import { sendEmail } from "../services/email";
 import { sql, eq, gte, lte, and, count, avg, desc, asc, lt, ne, isNull, isNotNull, or, not, inArray } from "drizzle-orm";
-import { NON_COLLECTIBLE_STATUSES } from "../services/payment-reminder";
 import { logger } from "../lib/logger";
 import { calculerComptesClients, chargerComptesClients, compteDuContact, type CompteClientCalcule } from "../services/sante-comptes-clients";
 import { generateText } from "../services/ai-failover";
@@ -13,11 +10,12 @@ import { buildLearnedContextBlock, fingerprintLearned } from "../services/ai-lea
 import { GEMINI_PRO_MODEL, ANTHROPIC_MODEL, sanitizePromptInput } from "../services/ai-utils";
 import { getAnthropicMode } from "@workspace/integrations-anthropic-ai";
 import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
-import { nextInvoiceNumber } from "../services/invoice-numbering";
-import { enregistrerEncaissement, MOYENS_ENCAISSEMENT } from "../services/encaissement-enregistrement";
 import { overdueCondition } from "../services/invoice-status";
 import { aiForOrg } from "../services/ai-client";
 import { assertAiUsable, fournisseurInjoignable, respondAiError } from "../services/ai-guard";
+import { enqueueProposal } from "../services/proposal-queue";
+import { palierAction, lireEmailSuggere, REFUS_FINANCIER } from "../services/paliers-actions-ia";
+import crypto from "node:crypto";
 
 const router = Router();
 
@@ -2244,10 +2242,48 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
     const orgId = req.session?.organisationId;
     const userId = req.session?.userId;
     if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
-        try { await assertAiUsable(orgId); } catch (qe) { if (respondAiError(qe, res)) return; throw qe; }
 
     const { type, target } = req.body;
     if (!type) { res.status(400).json({ error: "Type d'action requis." }); return; }
+
+    // Palier de l'action (services/paliers-actions-ia.ts). Place AVANT le
+    // switch : les etapes de `chain_actions` rappellent cette route et
+    // repassent donc ici, une par une. Et avant le controle de quota : refuser
+    // ou mettre en file ne consomme pas d'IA.
+    const palier = palierAction(String(type));
+    if (palier === "financier") {
+      res.status(403).json({ success: false, error: REFUS_FINANCIER, message: REFUS_FINANCIER });
+      return;
+    }
+    if (palier === "externe") {
+      const email = lireEmailSuggere(target);
+      if (!email) { res.status(400).json({ error: "Destinataire, sujet et corps requis." }); return; }
+      const empreinte = crypto.createHash("sha256")
+        .update(`${email.to}\n${email.subject}\n${email.body}`).digest("hex").slice(0, 32);
+      const file = await enqueueProposal({
+        orgId,
+        toolName: "send_email",
+        title: `E-mail a ${email.to}`,
+        summary: `Sujet : « ${email.subject.slice(0, 200)} »`,
+        reason: `Suggere par l'assistant IA, demande par l'utilisateur #${userId ?? "?"}.`,
+        args: { ...email },
+        category: "email",
+        sourceType: "ai_execute",
+        // Deux clics sur la meme suggestion ne font qu'une proposition.
+        sourceRef: `ai-execute:${empreinte}`,
+        runId: `ai-execute-${new Date().toISOString().slice(0, 10)}`,
+      });
+      if (!file.ok) { res.status(400).json({ success: false, error: file.error, message: file.error }); return; }
+      res.json({
+        success: true,
+        queued: true,
+        proposalId: file.id,
+        message: `E-mail a ${email.to} soumis a la file d'approbation : il partira quand un administrateur l'aura approuve.`,
+      });
+      return;
+    }
+
+    try { await assertAiUsable(orgId); } catch (qe) { if (respondAiError(qe, res)) return; throw qe; }
 
     let result: any = { success: false };
 
@@ -2398,20 +2434,9 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         result = { success: true, message: `${contacts.length} contact(s) trouve(s) pour "${searchTerm}".`, data: contacts, count: contacts.length };
         break;
       }
-      case "send_email": {
-        let data: any;
-        try { data = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Donnees d'email invalides." }); return; }
-        if (!data.to || !data.subject || !data.body) { res.status(400).json({ error: "Destinataire, sujet et corps requis." }); return; }
-        try {
-          const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;"><h2 style="color:#6366f1;">${data.subject}</h2><div style="line-height:1.6;color:#333;">${data.body.replace(/\n/g, '<br>')}</div><hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;"><p style="font-size:12px;color:#9ca3af;">Envoye via Ajant Bureau — Votre assistant de bureau intelligent</p></div>`;
-          const sendRes = await sendEmail(Array.isArray(data.to) ? data.to[0] : data.to, data.subject, html, data.body, { orgId });
-          if (!sendRes.success) { result = { success: false, message: sendRes.error || "Service email non configure." }; break; }
-          result = { success: true, message: `Email envoye a ${data.to} — Sujet: "${data.subject}"` };
-        } catch (emailErr: any) {
-          result = { success: false, message: `Erreur d'envoi: ${emailErr.message}` };
-        }
-        break;
-      }
+      // `send_email` n'a plus de branche ici : palier « externe », il est mis
+      // en file d'approbation avant ce switch (le sujet etait en outre insere
+      // tel quel dans le HTML de l'e-mail).
       case "create_event": {
         let data: any;
         try { data = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Donnees d'evenement invalides." }); return; }
@@ -2635,201 +2660,10 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         result = { success: true, message: `Export ${exportLabel}: ${exportData.length} enregistrements.`, data: exportData, count: exportData.length };
         break;
       }
-      case "create_invoice": {
-        let data: any;
-        try { data = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Donnees de facture invalides." }); return; }
-        if (!data.clientName || !data.items || !data.items.length) { res.status(400).json({ error: "Nom client et articles requis." }); return; }
-        if (data.contactId) {
-          const [contactCheck] = await db.select({ id: contactsTable.id }).from(contactsTable).where(and(eq(contactsTable.id, data.contactId), eq(contactsTable.organisationId, orgId)));
-          if (!contactCheck) { res.status(400).json({ error: "Contact non trouve dans votre organisation." }); return; }
-        }
-        // Le calcul passe par `computeInvoiceTotals`, comme toutes les autres
-        // voies d'emission. Il ne le faisait pas, et l'ecart n'etait pas
-        // theorique: la formule d'ici prenait UN taux (`data.tvaRate ?? 20`) et
-        // l'appliquait a chaque ligne, alors que le taux est une propriete de
-        // la LIGNE, pas de la facture.
-        //
-        // Mesure sur un chantier ordinaire — main d'oeuvre de renovation a 10 %
-        // (1350 EUR HT) plus materiaux a 20 % (1200 EUR HT):
-        //
-        //     moteur central : HT 2550   TVA 375,00   TTC 2925,00
-        //     formule d'ici  : HT 2550   TVA 255,00   TTC 2805,00
-        //
-        // Soit 120 EUR de TVA manquants sur une facture de 2550 EUR HT. Une
-        // facture sous-declarant la TVA n'est pas un defaut d'affichage: c'est
-        // une piece comptable fausse, opposable a son emetteur.
-        //
-        // Les factures a taux unique, elles, tombaient juste — c'est pourquoi le
-        // defaut a pu durer. Il n'apparait qu'en presence de taux MELANGES,
-        // c'est-a-dire dans le cas normal du batiment: 10 % en renovation,
-        // 5,5 % en amelioration energetique, 20 % sur le neuf et les
-        // fournitures.
-        const tauxParDefaut = data.tvaRate ?? 20;
-        const lignesSaisies = data.items.map((item: any) => ({
-          description: item.description,
-          quantity: item.quantity || 1,
-          unitPrice: item.unitPrice || 0,
-          // Le taux de la ligne prime; `data.tvaRate` n'est plus qu'un repli
-          // pour les lignes qui n'en portent pas.
-          taxRate: Number(item.taxRate ?? tauxParDefaut),
-        }));
-        const totaux = computeInvoiceTotals(lignesSaisies);
-        const lines = totaux.lines;
-        const subtotalCalc = totaux.subtotal;
-        const taxAmountCalc = totaux.taxAmount;
-        const totalAmountCalc = totaux.totalAmount;
-        // Meme sequence que les factures creees a la main: une facture emise par
-        // l'agent IA ne doit pas porter un numero d'une autre nature, sinon la
-        // suite chronologique de l'organisation comporte deux series.
-        // Numero et insertion dans UNE transaction: si l'insertion echoue, le
-        // compteur revient en arriere avec elle. Sinon un numero est consomme
-        // sans facture — un trou dans la sequence continue exigee par
-        // l'article 242 nonies A ann. II CGI.
-        const { invoiceRef, invoice } = await db.transaction(async (tx) => {
-        const invoiceRef = await nextInvoiceNumber(tx, orgId);
-        const [invoice] = await tx.insert(facturesClientTable).values({
-          organisationId: orgId,
-          reference: invoiceRef,
-          title: data.title || `Facture ${invoiceRef}`,
-          clientName: data.clientName,
-          contactId: data.contactId || null,
-          items: lines,
-          subtotal: subtotalCalc.toFixed(2),
-          taxAmount: taxAmountCalc.toFixed(2),
-          totalAmount: totalAmountCalc.toFixed(2),
-          status: "brouillon",
-          notes: data.notes || null,
-          dueDate: data.dueDate ? new Date(data.dueDate) : new Date(Date.now() + 30 * 86400000),
-          paidAmount: "0",
-        }).returning();
-        return { invoiceRef, invoice };
-        });
-        result = { success: true, message: `Facture ${invoiceRef} creee pour ${data.clientName} — Total TTC: ${totalAmountCalc.toFixed(2)}€ (HT: ${subtotalCalc.toFixed(2)}€ + TVA: ${taxAmountCalc.toFixed(2)}€)`, entity: "invoice", id: invoice.id, data: { reference: invoiceRef, subtotal: subtotalCalc.toFixed(2), taxAmount: taxAmountCalc.toFixed(2), totalAmount: totalAmountCalc.toFixed(2) } };
-        break;
-      }
-      case "record_payment": {
-        let data: any;
-        try { data = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Donnees de paiement invalides." }); return; }
-        if (!data.invoiceId || !data.amount) { res.status(400).json({ error: "ID facture et montant requis." }); return; }
-        const [inv] = await db.select().from(facturesClientTable).where(and(eq(facturesClientTable.id, data.invoiceId), eq(facturesClientTable.organisationId, orgId)));
-        if (!inv) { result = { success: false, message: "Facture non trouvee." }; break; }
-        // Une seule facon d'encaisser, pour toutes les portes.
-        //
-        // Cet outil ecrivait le cache `paidAmount` en direct, sans creer la
-        // moindre ecriture au journal de caisse. Trois consequences, toutes
-        // silencieuses :
-        //  - le reglement n'apparaissait ni au journal ni a l'ecran
-        //    Encaissements, alors que ce journal est en ajout seul et
-        //    chaine (art. 286-I-3° bis du CGI) ;
-        //  - le premier encaissement REEL sur cette facture recalculait le
-        //    cache depuis les ecritures, qui ignorent celle-ci : le montant
-        //    saisi par l'assistant disparaissait ;
-        //  - le statut pose valait « partielle », un mot que le produit
-        //    n'emploie nulle part ailleurs (`partiellement_payee`), si bien
-        //    que la facture sortait de la prevision de tresorerie et perdait
-        //    son libelle d'ecran.
-        //
-        // L'`UPDATE` n'etait de surcroit borne que par l'identifiant de
-        // facture, sans l'organisation — la lecture au-dessus l'est, donc rien
-        // n'etait exploitable, mais la defense en profondeur vaut d'etre tenue.
-        //
-        // `enregistrerEncaissement` fait les quatre: numerotation, chainage,
-        // refus d'une periode close, et derivation du statut.
-        const ecritureIa = await enregistrerEncaissement({
-          organisationId: orgId,
-          factureId: inv.id,
-          montantCentimes: Math.round(Number(data.amount) * 100),
-          moyen: (MOYENS_ENCAISSEMENT as readonly string[]).includes(String(data.method))
-            ? (data.method as (typeof MOYENS_ENCAISSEMENT)[number])
-            : "virement",
-          createdBy: req.session?.userId ?? null,
-        });
-        if (!ecritureIa.ok) {
-          const pourquoi = ecritureIa.code === "depasse_reste_a_payer"
-            ? `Le montant depasse le reste du (${(ecritureIa.resteCentimes / 100).toFixed(2)}€).`
-            : ecritureIa.code === "periode_close"
-              ? `La periode ${ecritureIa.periode} est close: ce reglement ne peut plus y etre enregistre.`
-              : "Facture non trouvee.";
-          result = { success: false, message: pourquoi };
-          break;
-        }
-        result = {
-          success: true,
-          message: `Paiement de ${Number(data.amount).toFixed(2)}€ enregistre sur ${inv.reference}. ${ecritureIa.soldee ? "Facture ENTIEREMENT payee!" : `Reste a payer: ${((Number(inv.totalAmount) * 100 - ecritureIa.payeCentimes) / 100).toFixed(2)}€`}`,
-          entity: "invoice",
-          id: data.invoiceId,
-        };
-        break;
-      }
-      case "send_invoice_email": {
-        const invoiceId = parseInt(String(target), 10);
-        if (!invoiceId) { res.status(400).json({ error: "ID facture requis." }); return; }
-        const [inv2] = await db.select().from(facturesClientTable).where(and(eq(facturesClientTable.id, invoiceId), eq(facturesClientTable.organisationId, orgId)));
-        if (!inv2) { result = { success: false, message: "Facture non trouvee." }; break; }
-        const contact2 = inv2.contactId ? (await db.select().from(contactsTable).where(and(eq(contactsTable.id, inv2.contactId), eq(contactsTable.organisationId, orgId))))[0] : null;
-        const email2 = contact2?.email;
-        if (!email2) { result = { success: false, message: "Aucun email trouve pour ce client." }; break; }
-        try {
-          const invHtml = `<h2>Facture ${inv2.reference}</h2><p>Cher(e) ${inv2.clientName},</p><p>Veuillez trouver ci-joint votre facture d'un montant de <strong>${inv2.totalAmount}€ TTC</strong>.</p><p>Date d'echeance: ${inv2.dueDate ? new Date(inv2.dueDate).toLocaleDateString("fr-FR") : "30 jours"}</p><p>Cordialement,<br>Ajant Bureau</p>`;
-          const invText = `Facture ${inv2.reference} - ${inv2.totalAmount} EUR TTC. Echeance: ${inv2.dueDate ? new Date(inv2.dueDate).toLocaleDateString("fr-FR") : "30 jours"}.`;
-          const sendRes2 = await sendEmail(email2, `Facture ${inv2.reference} — ${inv2.totalAmount}€ TTC`, invHtml, invText, { orgId });
-          if (!sendRes2.success) { result = { success: false, message: sendRes2.error || "Service email non configure." }; break; }
-          await db.update(facturesClientTable).set({ status: inv2.status === "brouillon" ? "envoyee" : inv2.status }).where(eq(facturesClientTable.id, invoiceId));
-          result = { success: true, message: `Facture ${inv2.reference} envoyee a ${email2}.` };
-        } catch (e: any) { result = { success: false, message: `Erreur envoi email: ${e.message}` }; }
-        break;
-      }
-      case "send_payment_reminder": {
-        const accountId = parseInt(String(target), 10);
-        if (!accountId) { res.status(400).json({ error: "ID compte client requis." }); return; }
-        const acct = await compteDuContact(orgId, accountId);
-        if (!acct) { result = { success: false, message: "Compte client non trouve." }; break; }
-        const contactForAcct = acct.contactId ? (await db.select().from(contactsTable).where(and(eq(contactsTable.id, acct.contactId), eq(contactsTable.organisationId, orgId))))[0] : null;
-        const acctEmail = contactForAcct?.email;
-        if (!acctEmail) { result = { success: false, message: "Aucun email pour ce client." }; break; }
-        try {
-          const remHtml = `<h2>Rappel de paiement</h2><p>Cher(e) ${acct.clientName},</p><p>Nous vous rappelons que vous avez un solde impaye de <strong>${Number(acct.solde || 0).toFixed(2)}€</strong> dont <strong>${Number(acct.montantEnRetard || 0).toFixed(2)}€ en retard</strong>.</p><p>Merci de regulariser votre situation dans les meilleurs delais.</p><p>Cordialement,<br>Ajant Bureau</p>`;
-          const remText = `Rappel de paiement: solde impaye ${Number(acct.solde || 0).toFixed(2)} EUR dont ${Number(acct.montantEnRetard || 0).toFixed(2)} EUR en retard.`;
-          const sendRes3 = await sendEmail(acctEmail, `Rappel de paiement — ${Number(acct.montantEnRetard || 0).toFixed(2)}€ en retard`, remHtml, remText, { orgId });
-          if (!sendRes3.success) { result = { success: false, message: sendRes3.error || "Service email non configure." }; break; }
-          const remindedAt = new Date();
-          // L'ecriture qui se trouvait ici visait `compte_client`, une table
-          // qu'aucun code ne remplit: elle ne touchait donc JAMAIS une ligne.
-          // Le compteur de relances et la date du dernier rappel n'ont jamais
-          // ete conserves de ce cote. Ce qui suit — le marquage des factures
-          // echues — est la seule trace qui ait jamais eu un effet, et c'est
-          // aussi celle que lit l'anti-spam.
-          // Marque aussi les factures echues du client comme relancees.
-          //
-          // Sans cela, cette relance restait invisible pour le detecteur de
-          // services/payment-reminder.ts, qui lit `factures_client.lastReminderAt`
-          // pour son espacement anti-spam. Le client relance ici pouvait donc
-          // recevoir une seconde relance des le lendemain — exactement le
-          // martelement que ce detecteur promet d'eviter. Le message envoye
-          // ci-dessus porte sur le solde en retard du compte, il couvre donc
-          // bien ces factures.
-          if (acct.contactId) {
-            await db
-              .update(facturesClientTable)
-              .set({
-                reminderCount: sql`${facturesClientTable.reminderCount} + 1`,
-                lastReminderAt: remindedAt,
-                updatedAt: remindedAt,
-              })
-              .where(
-                and(
-                  eq(facturesClientTable.organisationId, orgId),
-                  eq(facturesClientTable.contactId, acct.contactId),
-                  not(inArray(facturesClientTable.status, NON_COLLECTIBLE_STATUSES as unknown as string[])),
-                  lt(facturesClientTable.dueDate, remindedAt),
-                  sql`(${facturesClientTable.totalAmount} - ${facturesClientTable.paidAmount}) > 0`,
-                ),
-              );
-          }
-          result = { success: true, message: `Rappel de paiement envoye a ${acctEmail} pour ${acct.clientName} (${Number(acct.montantEnRetard || 0).toFixed(2)}€ en retard).` };
-        } catch (e: any) { result = { success: false, message: `Erreur envoi rappel: ${e.message}` }; }
-        break;
-      }
+      // `create_invoice`, `record_payment`, `send_invoice_email` et
+      // `send_payment_reminder` n'ont plus de branche : palier « financier »,
+      // refuses avant ce switch (services/paliers-actions-ia.ts). Aucun n'etait
+      // propose par l'ecran ; `chain_actions` les atteignait quand meme.
       case "account_health_check": {
         const searchName = String(target).trim();
         const searchId = parseInt(searchName, 10);

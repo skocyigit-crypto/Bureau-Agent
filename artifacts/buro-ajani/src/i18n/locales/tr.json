@@ -5084,6 +5084,7 @@
     "emptyPendingDesc": "Şu an için proaktif bir eylem gerekmiyor. Asistan bir şey tespit ettiğinde sizi uyaracak.",
     "emptyOtherDesc": "Bu kategoride öneri yok.",
     "reminderVia": "{{channel}} ile {{recipient}} adresine hatırlatma",
+    "reminderManagerOnly": "Ödeme hatırlatmalarını bir yönetici gönderir.",
     "channelSms": "SMS",
     "channelEmail": "e-posta",
     "subject": "Konu",

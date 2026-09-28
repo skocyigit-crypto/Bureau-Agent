@@ -4,7 +4,7 @@
 > hale gelmesi için yapılan denetimlerin ve kalan işlerin **kalıcı** kaydıdır. Her
 > oturumda güncellenir, silinmez — yeni bulgu/tamamlanan iş oldukça buraya eklenir.
 >
-> Son güncelleme: 2026-09-03 (silinen veri artık geri gelebiliyor — çöp kutusu 24 silme
+> Son güncelleme: 2026-09-28 (beş eksenli tasarım denetimi — son bölüm; önceki güncelleme 2026-09-03: silinen veri artık geri gelebiliyor — çöp kutusu 24 silme
 > noktasını kapsıyor ve kapsam testi bütçe değil kural — altı haftadır bağlanmamış
 > güvenlik taraması purge'ü cron'a bağlandı ve beyan edildi, eksik tek tablonun bütün
 > müşterilerin yedeğini yok ettiği hata düzeltildi; **üretim şeması aynı gün 17:11'de
@@ -2702,3 +2702,113 @@ sonra merge. Betiğin başına da yazıldı.
 
 `verify-schema-sync.mjs` artık üç konum kolonunu da kontrol ediyor — üretim
 push'unun sonunda çalışıyor (PR #45).
+
+## Beş eksenli tasarım denetimi (ajanlar · onay · SaaS · görsel modül · veri/mevzuat) — 2026-09-28
+
+Kullanıcı beş tasarım kararından oluşan bir tablo verdi: (1) koordinatör + uzman
+ajanlar, talimat/araç/çıktı açıkça tanımlı; (2) okuma / taslak / dış dünyada
+işlem yetkileri ayrı, hassas işlem önce onay kuyruğu, araç çıktısı talimat
+sayılmaz; (3) her kayıt bir kuruluşa bağlı, uzun iş duraklayıp sürebilir, aynı
+e-posta/ödeme iki kez üretilmez, kullanım ve abonelik hakları ayrı ölçülür;
+(4) sürükle-bırak akış editörü + erişilebilir liste görünümü; (5) saklama,
+silme, dışa aktarma, işlem kaydı, veri işleyen ilişkisi, GDPR + AI Act.
+Beş eksen kodda ayrı ayrı tarandı; aşağıdakiler ölçülerek bulundu.
+
+### Bu lotta yapılanlar (dal `feat/conception-agents-garde-fous`)
+
+- **Asistan onayı çağrı başına ve bir kez** (`services/assistant-engine.ts`):
+  "zaten işlendi" kontrolü araç ADINA bakıyordu — aynı sohbette ikinci
+  `send_email`/`create_task` hiç onaylanamıyordu; kontrol+yürütme atomik
+  değildi, çift tık iki kez yürütüyordu. Karar artık `tool_call` satırına
+  koşullu UPDATE ile yazılıyor (Postgres serileştiriyor). Yalnız onay gerektiren
+  araçlar `/confirm` edilebiliyor. Test: `assistant-une-decision-par-appel`.
+- **Oturum kilitleri havuzdan alınmıyor** (onay kuyruğu, davetiye, çağrı
+  işleme): `db.execute` ile alınıp bırakılan `pg_advisory_lock` iki farklı
+  bağlantıya düşüyordu — kilit sızıyor, aynı bağlantıya düşen ikinci onay
+  kilidi yeniden alıp **e-postayı ikinci kez gönderebiliyordu**. `tryWithLock`
+  (ayrılmış bağlantı). Onay kilidinin ad alanı 4310 = `trialWarning` ile
+  çakışıyordu → 4330. Yapısal test: `verrous-consultatifs` (havuzdan oturum
+  kilidi yasak + ad alanı benzersizliği).
+- **`/ai/execute` kademeli** (`services/paliers-actions-ia.ts`): okuma / iç /
+  dış / finansal. Modelin yazdığı düğmeye tek tık `send_email`'i anında
+  gönderiyordu (konu HTML'e kaçışsız); artık onay kuyruğuna giriyor (alıcı,
+  konu, gövde görünür ve düzenlenebilir). `create_invoice`, `record_payment`,
+  `send_invoice_email`, `send_payment_reminder` reddediliyor (ekran zaten
+  sunmuyordu; `chain_actions` onlara ulaşıyordu). Yeni bir `case` kademesiz
+  eklenirse `paliers-actions-ia` testi düşer.
+- **SEPA remise yalnız onaylı giderle** (`routes/depenses.ts`): Gmail ekinden
+  `en_attente` yakalanan gider IBAN girilince ödenebiliyordu.
+- **Ödeme hatırlatması yönetici işi** (`routes/proactive.ts` + ekran): her
+  çalışan organizasyon genelindeki öneriden müşteriye impayé hatırlatması
+  gönderebiliyordu; ekran çalışana düğme yerine açıklama gösteriyor.
+- **Araç çıktısı veri** : asistan sistem talimatına kural; belge analizi ve
+  içe aktarma metni `delimitUntrusted` ile sınırlandı (filtre YOK — filtre
+  aksanları siliyordu, "Hélène" → "Helene").
+- **Toplu uyarılar organizasyona bağlı** (`services/automation-engine.ts`):
+  okunmamış mesaj / pasif kişi / cevapsız arama uyarıları tüm müşterileri tek
+  sayıda topluyor ve organizasyonsuz yazılıyordu — kimse görmüyordu, ekran
+  kuralları "aktif" gösteriyordu. Test: `alertes-par-organisation`.
+- **Alt işleyen listesi koda bağlandı**: Expo (push bildirim başlık/metni) ve
+  OpenStreetMap Nominatim (konum → adres) DPA Ek 1'de ve gizlilik
+  politikasında yoktu; eklendi, politika yanlış eke ("annexe 2") yolluyordu.
+  Test: `tanitim/src/pages/sous-traitants-verite`.
+- **AI Act md. 50** (2 Ağustos 2026'dan beri uygulanıyor): demo sohbet "En
+  ligne" + yeşil nokta ile insan temsilci izlenimi veriyordu; "Assistant IA"
+  ve alan altına "intelligence artificielle" bildirimi.
+
+### Kalanlar — öncelik sırasıyla (kanıt dosya:satır, 2026-09-28 ölçümü)
+
+**Güvenlik / para (PR #285 birleşince, onun dosyalarında):**
+1. `/commandant/overdue-reminders` `sendEmails:true` — LLM'in yazdığı metni,
+   önizlenenden FARKLI (yeni çağrı) olarak müşterilere doğrudan gönderiyor
+   (`routes/ai-commandant.ts` ~895-936). Onay kuyruğuna alınmalı.
+2. SaaS ajanı platform ödeme sinyalinde kiracının KENDİ müşterilerine
+   hatırlatma gönderiyor, kiracının `billingRequiresApproval`'ını atlıyor
+   (`services/saas-agent.ts` ~131; `license-management.ts` 503-575).
+3. Super Agent Gmail / commandant auto-create / call-compile: güvenilmeyen
+   içerikten doğrudan görev/etkinlik yaratıyor, yalnız `sanitizePromptInput`
+   (`ai-agents.ts` ~3033-3057, `ai-commandant.ts` 596-736).
+**İdempotency:**
+4. Stripe çağrılarında `idempotencyKey` yok (`routes/stripe.ts`); Resend
+   gönderiminde yok, sağlayıcı yedek zinciri (org → platform → SMTP) zaman
+   aşımında aynı e-postayı iki kez gönderebilir (`services/email.ts` 209-291).
+5. Manuel fatura hatırlatması rotası kilitsiz ve işaretsiz; `payment_reminders`
+   (facture, niveau) benzersiz değil. Platform faturası (org, dönem) benzersiz
+   değil, manuel rota cron kilidini atlıyor (`billing-engine.ts` 38-45).
+6. Twilio sesli mesaj tekrarı yalnız bellekte (`voice-receptionist.ts` ~228) —
+   başka instance SMS + e-postayı tekrar gönderir.
+7. Kilitsiz cronlar: autonomous-inbox (AI maliyeti çift), app-audit,
+   health-alert, cycle-abonnement (compare-and-set yok).
+**Ajan mimarisi (eksen 1):**
+8. Koordinatör/handoff yok; ~15 ajan bağımsız uç nokta. Önce bildirimsel ajan
+   kaydı (talimat + izinli araçlar + çıktı şeması), sonra yönlendirme.
+9. Asistan ve Voice Live 36 aracın hepsini alıyor; onay yürütücüsü üretici
+   ajanın izin listesini yeniden kontrol etmiyor (`proposal-queue.ts` 73-74).
+10. LLM çıktısı hiçbir yerde şemayla (zod/responseSchema) doğrulanmıyor;
+    DB'ye yazan parse'lar: `ai-commandant.ts` 625/697/989, `ai-agents.ts`
+    3049/3294, `autonomous-inbox.ts` 248, `workforce-agent.ts` 402-495.
+11. Koşu izi yok: `ai_usage`'da run/adım kimliği yok, çoğu hata kaydedilmiyor;
+    Voice Live araç çağrıları ve kullanımı hiç kaydedilmiyor.
+**Görsel modül (eksen 4):**
+12. Akış editörü yok; model tek tetikleyici + düz eylem listesi (dal yok).
+    Kural oluşturulduktan sonra tetikleyici/eylemler düzenlenemiyor ve
+    görüntülenemiyor. Önce erişilebilir liste görünümü + düzenleme + ortak
+    aria-live duyurucu; React Flow editörü motor dal desteklediğinde anlamlı.
+13. Otomasyon sayfası: aria-live yok, her yenilemede odak kayboluyor, seçim
+    modu yalnız fare; yerleşik kural adları çevrilmiyor.
+**Veri / mevzuat (eksen 5):**
+14. Kullanıcı/organizasyon silme append-only tetikleyicilere takılıyor
+    (`audit_logs.user_id` SET NULL ve `license_audit_log` cascade reddediliyor).
+15. DPA "sözleşme bitiminden 30 gün sonra silme" ve "self-servis silme"
+    vaat ediyor; kod yapmıyor. Anonimleştirme yalnız Stripe iptalinde.
+16. Yedi beyan edilmiş süre uygulanmıyor (kişiler, aramalar, görevler...);
+    `calls.notes` içindeki transkript 12 ay temizliğinden kaçıyor.
+17. Md. 30 kaydı yok; envanter ~15 kategori eksik, şemayla testle bağlı değil.
+18. Kişisel dışa aktarma kişi hakkındaki değerlendirmeleri içermiyor; iki
+    dışa aktarma da denetim kaydına yazılmıyor.
+19. AI Act sınıflandırması yalnız çalışan değerlendirmesi için var.
+20. (BatiFlow'dan aktarılan ders, 28/09) PATCH/PUT gövdesinden gelen yabancı
+    anahtarların (contactId, projetId, assignedTo...) çağıranın kiracısına ait
+    olduğu doğrulanmalı; BatiFlow'da `WHERE` koşulunda tenant olmayan dört rota
+    kaydı başka kiracıya taşıyordu. Bizde `tenant-scope-check` yalnız bloğun
+    org'dan söz edip etmediğine bakıyor, gövde anahtarını ölçmüyor.

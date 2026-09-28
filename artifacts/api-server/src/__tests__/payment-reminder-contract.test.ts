@@ -29,13 +29,11 @@ const detector = read("services/payment-reminder.ts");
 const proactive = read("routes/proactive.ts");
 const aiAnalysis = read("routes/ai-analysis.ts");
 
-/** Corps du `case "send_payment_reminder"` de POST /ai/execute. */
-const assistantCase = (() => {
-  const start = aiAnalysis.indexOf('case "send_payment_reminder": {');
-  expect(start, "case send_payment_reminder introuvable").toBeGreaterThan(-1);
-  return aiAnalysis.slice(start, aiAnalysis.indexOf('case "account_health_check"', start));
-})();
-
+// L'assistant (POST /ai/execute, `send_payment_reminder`) etait le second
+// chemin d'envoi. Il est desormais refuse (palier « financier »,
+// services/paliers-actions-ia.ts) : la relance d'un client se decide depuis
+// la suggestion du detecteur, approuvee par un humain — le seul chemin qui
+// reste, et celui qui inscrit la relance sur la facture.
 describe("detecteur de relances", () => {
   it("n'envoie jamais lui-meme", () => {
     // La regle d'or du module: il depose une suggestion, l'envoi appartient a
@@ -58,23 +56,10 @@ describe("chaque chemin d'envoi inscrit la relance sur la facture", () => {
     expect(tail).toMatch(/lastReminderAt/);
   });
 
-  it("l'assistant le fait aussi", () => {
-    // La regression exacte: seul `compte_client` etait mis a jour.
-    expect(assistantCase).toMatch(/update\(facturesClientTable\)/);
-    expect(assistantCase).toMatch(/lastReminderAt: remindedAt/);
-  });
-
-  it("l'assistant ne relance que les factures echues et recouvrables", () => {
-    // Marquer une facture payee ou annulee comme relancee fausserait le
-    // compteur et l'historique du client.
-    expect(assistantCase).toContain("NON_COLLECTIBLE_STATUSES");
-    expect(assistantCase).toMatch(/lt\(facturesClientTable\.dueDate/);
-    expect(assistantCase).toMatch(/totalAmount\} - \$\{facturesClientTable\.paidAmount\}\) > 0/);
-  });
-
-  it("reste borne a l'organisation et au client", () => {
-    expect(assistantCase).toMatch(/eq\(facturesClientTable\.organisationId, orgId\)/);
-    expect(assistantCase).toMatch(/eq\(facturesClientTable\.contactId, acct\.contactId\)/);
+  it("l'assistant ne relance plus du tout : aucun second chemin a tenir d'accord", () => {
+    expect(aiAnalysis).not.toMatch(/case "send_payment_reminder"/);
+    expect(aiAnalysis, "l'assistant envoie de nouveau des e-mails lui-meme").not.toMatch(/\bsendEmail\s*\(/);
+    expect(aiAnalysis).toMatch(/palierAction\(/);
   });
 });
 

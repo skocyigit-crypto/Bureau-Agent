@@ -232,9 +232,10 @@ router.post("/agent-queue/:id/approve", requireAdmin, async (req: Request, res: 
       res.status(404).json({ error: result.error });
       return;
     }
-    // Deja tranchee ou expiree : 409, pour que l'ecran le dise au lieu
-    // d'afficher un « ok » trompeur.
-    if (!result.ok && (result.status === "expiree" || result.status === "rejetee")) {
+    // Deja tranchee, expiree, ou en cours d'execution par une autre
+    // approbation : 409, pour que l'ecran le dise au lieu d'afficher un « ok »
+    // trompeur.
+    if (!result.ok && (result.status === "expiree" || result.status === "rejetee" || result.status === "en_cours")) {
       res.status(409).json(result);
       return;
     }

@@ -695,6 +695,20 @@ router.post("/depenses/virement-sepa", requireResponsable, async (req: Request, 
     ));
     if (lignes.length === 0) { res.status(404).json({ error: "Aucune depense trouvee." }); return; }
 
+    // Seule une depense APPROUVEE se paie. Une depense captee automatiquement
+    // (piece jointe Gmail, document) entre `en_attente` : sans ce controle,
+    // il suffisait d'y saisir un IBAN pour qu'elle parte dans la remise sans
+    // que personne ne l'ait validee. L'ecran ne propose que le registre
+    // approuve ; la route, elle, acceptait n'importe quel identifiant.
+    const nonApprouvees = lignes.filter((d) => d.status !== "approuve");
+    if (nonApprouvees.length > 0) {
+      res.status(409).json({
+        error: "Certaines depenses ne sont pas approuvees.",
+        depenses: nonApprouvees.map((d) => ({ id: d.id, fournisseur: d.vendor, statut: d.status })),
+      });
+      return;
+    }
+
     const sansIban = lignes.filter((d) => !d.vendorIban);
     if (sansIban.length > 0) {
       res.status(409).json({

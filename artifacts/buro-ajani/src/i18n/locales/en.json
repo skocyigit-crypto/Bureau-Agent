@@ -5084,6 +5084,7 @@
     "emptyPendingDesc": "No proactive action required for now. The assistant will alert you as soon as it detects something.",
     "emptyOtherDesc": "No suggestion in this category.",
     "reminderVia": "Reminder by {{channel}} to {{recipient}}",
+    "reminderManagerOnly": "Payment reminders are sent by a manager.",
     "channelSms": "SMS",
     "channelEmail": "email",
     "subject": "Subject",

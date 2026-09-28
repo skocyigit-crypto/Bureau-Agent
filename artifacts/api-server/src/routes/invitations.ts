@@ -3,6 +3,7 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { eq, and, sql } from "drizzle-orm";
 import { db, usersTable, organisationsTable, subscriptionsTable, invitationsTable } from "@workspace/db";
+import { tryWithLock } from "../lib/cron-lock";
 import { escapeHtml } from "../lib/html-escape";
 import { sendEmail } from "../services/email";
 import { logAudit } from "./audit";
@@ -22,15 +23,17 @@ const INVITATION_EXPIRY_HOURS = 72;
 const INVITATION_LOCK_NAMESPACE = 4401;
 const LOCK_BUSY = Symbol("invitation-lock-busy");
 
+// Prise et liberation sur UNE connexion dediee (`tryWithLock`). Par
+// `db.execute`, elles partaient sur deux connexions du pool : la liberation
+// etait refusee, le verrou restait detenu par une connexion rendue au pool, et
+// l'invitation suivante de la meme organisation recevait « occupe » a tort —
+// ou, retombant sur cette connexion, reprenait le verrou sans attendre.
 async function withOrgInvitationLock<T>(organisationId: number, fn: () => Promise<T>): Promise<T | typeof LOCK_BUSY> {
-  const lockResult = await db.execute(sql`SELECT pg_try_advisory_lock(${INVITATION_LOCK_NAMESPACE}, ${organisationId}) AS acquired`);
-  const acquired = (lockResult as any).rows?.[0]?.acquired ?? (lockResult as any)[0]?.acquired;
-  if (!acquired) return LOCK_BUSY;
-  try {
-    return await fn();
-  } finally {
-    await db.execute(sql`SELECT pg_advisory_unlock(${INVITATION_LOCK_NAMESPACE}, ${organisationId})`);
-  }
+  let valeur: { v: T } | undefined;
+  const obtenu = await tryWithLock(INVITATION_LOCK_NAMESPACE, organisationId, async () => {
+    valeur = { v: await fn() };
+  });
+  return obtenu && valeur ? valeur.v : LOCK_BUSY;
 }
 
 function generateSecureToken(): string {
