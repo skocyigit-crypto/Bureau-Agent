@@ -303,6 +303,7 @@ async function sauverSession(s: CallSession, extra: { status?: string; requestKe
 // donc sa session restait en memoire indefiniment tant que le seuil n'etait
 // pas atteint. Le balayage periodique ci-dessous est inconditionnel (base
 // uniquement sur l'age), independant du volume d'appels ou de la taille des Map.
+const vuMessagerie = new Set<string>();
 function purgeStale(): void {
   // Appels restes ouverts (raccroche sans rappel de statut) : ils etaient
   // supprimes de la memoire SANS compte rendu. On les finalise d'abord.
@@ -2324,15 +2325,7 @@ voiceReceptionistRouter.post("/voice/twilio/voicemail-complete", async (req: Req
     res.status(200).send(emptyTwiml());
     return;
   }
-  const [premier] = await db.insert(voiceCallSessionsTable).values({
-    organisationId: tenant.orgId,
-    providerId: tenant.providerId,
-    callSid,
-    status: "terminee",
-    state: { messagerie: true },
-    actions: { messagerie: true },
-    finalizedAt: new Date(),
-  }).onConflictDoNothing().returning({ id: voiceCallSessionsTable.id });
+  const premier = !vuMessagerie.has(callSid); vuMessagerie.add(callSid);
   if (!premier) {
     res.status(200).send(emptyTwiml());
     return;
