@@ -47,6 +47,10 @@ export const CHEMINS_PAR_FONCTION: Record<FonctionPayante, string[]> = {
     "/api/smart-reports",
     "/api/discovery",
     "/api/instant-answer",
+    // Orchestrateur, catalogue et bureau des agents : chaque demande appelle
+    // le modele. `/api/ai` ne le couvrait pas (« /api/ajans » n'est pas un
+    // sous-chemin de « /api/ai »).
+    "/api/ajans",
   ],
   stock: [
     "/api/stock",

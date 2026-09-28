@@ -204,7 +204,9 @@
       "clientInvoices": "Müşteri faturaları",
       "trash": "Çöp kutusu",
       "postDiagnostic": "Bilgisayar kontrolu",
-      "encaissements": "Tahsilatlar"
+      "encaissements": "Tahsilatlar",
+      "taskDesk": "İş masası",
+      "agentCatalog": "Ajan kataloğu"
     }
   },
   "userMenu": {
@@ -9472,6 +9474,161 @@
       "structureFound": "Chorus Pro'da {{count}} yapi bulundu",
       "structureNone": "Bu SIRET icin yapi yok",
       "structureError": "Arama basarisiz."
+    }
+  },
+  "agentsCatalogue": {
+    "title": "Ajan kataloğu",
+    "subtitle": "Her ajanın okuyabildikleri ve yapabildikleri, sınırları ve son 30 günlük etkinliği.",
+    "loading": "Katalog yükleniyor…",
+    "error": "Katalog yüklenemedi.",
+    "listLabel": "Ajanlar",
+    "count_one": "{{count}} ajan",
+    "count_other": "{{count}} ajan",
+    "execution": {
+      "orchestrateur": "İş yürütücüsü",
+      "assistant": "Asistan",
+      "cron": "Zamanlanmış görev",
+      "cron-plateforme": "Platform görevi"
+    },
+    "model": "Model",
+    "sources": "Kaynaklar",
+    "knowledgeBase": "Bilgi merkezi",
+    "none": "yok",
+    "tools": "Araçlar",
+    "noTools": "Aracı yok: yalnızca okur ve karar verir.",
+    "tier": {
+      "lecture": "okuma",
+      "interne": "iç",
+      "externe": "dış",
+      "destructif": "silme"
+    },
+    "needsApproval": "onaya tabi",
+    "limits": "Sınırlar",
+    "maxCost": "Çalıştırma başına azami maliyet",
+    "maxModelCalls": "Model çağrısı",
+    "maxActions": "Azami işlem",
+    "limitsInModule": "Kendi modülü tarafından yönetilir.",
+    "activity30d": "Etkinlik (30 gün)",
+    "runs_one": "{{count}} çalıştırma",
+    "runs_other": "{{count}} çalıştırma",
+    "failures_one": "{{count}} hata",
+    "failures_other": "{{count}} hata",
+    "agents": {
+      "classificateur": {
+        "nom": "Sınıflandırıcı",
+        "mission": "Gelen talebi okur ve hangi ajana verileceğine karar verir: destek, satış veya hiçbiri."
+      },
+      "agent-support": {
+        "nom": "Destek ajanı",
+        "mission": "Bir müşterinin destek talebine yanıtı ve gerekirse takip görevini hazırlar."
+      },
+      "agent-vente": {
+        "nom": "Satış ajanı",
+        "mission": "Satış talebini niteler: potansiyel müşteriyi oluşturur, yanıtı ve takibi hazırlar."
+      },
+      "assistant": {
+        "nom": "Asistan",
+        "mission": "Sohbette yanıt verir ve istek üzerine işlem yapar: her yazma işlemini kullanıcı onaylar."
+      },
+      "secretaire-autonome": {
+        "nom": "Otonom sekreter",
+        "mission": "Etkinliği (gecikmeler, cevapsız aramalar, mesajlar) inceler ve onay kuyruğuna işlem önerir."
+      },
+      "auto-audit": {
+        "nom": "Otomatik denetim",
+        "mission": "Kuruluş verilerinin tutarlılığını denetler ve düzeltmeler önerir."
+      },
+      "agent-saas": {
+        "nom": "Platform ajanı",
+        "mission": "Platform müşterilerinin aboneliklerini izler ve mekanik olanı uygular."
+      }
+    }
+  },
+  "bureauTaches": {
+    "title": "İş masası",
+    "subtitle": "Ajanların yaptıkları: çalışan, onay bekleyen, tamamlanan, hata veren — ve maliyeti.",
+    "newRequest": "Yeni talep",
+    "form": {
+      "channel": "Kanal",
+      "subject": "Konu",
+      "senderName": "Gönderenin adı",
+      "senderEmail": "Gönderenin e-postası",
+      "content": "Gelen mesaj",
+      "help": "Sınıflandırıcı talebi destek ya da satış ajanına verir; her gönderim onay kuyruğundan geçer.",
+      "submit": "Talebi işle",
+      "sending": "İşleniyor…"
+    },
+    "channel": {
+      "formulaire": "Form",
+      "email": "E-posta",
+      "whatsapp": "WhatsApp",
+      "telephone": "Telefon",
+      "demo": "Demo"
+    },
+    "runs": "Çalıştırmalar",
+    "filterLabel": "Duruma göre süz",
+    "error": "Çalıştırmalar yüklenemedi.",
+    "empty": "Bu durumda çalıştırma yok.",
+    "loading": "Yükleniyor…",
+    "status": {
+      "en_cours": "Çalışan",
+      "en_attente": "Onay bekleyen",
+      "terminee": "Tamamlanan",
+      "echouee": "Hata veren"
+    },
+    "tableCaption": "Çalıştırmalar — {{statut}}",
+    "col": {
+      "date": "Tarih",
+      "request": "Talep",
+      "agent": "Ajan",
+      "status": "Durum",
+      "cost": "Maliyet",
+      "actions": "İşlemler",
+      "runs": "Çalıştırma",
+      "limit": "Sınır"
+    },
+    "noSubject": "(konu yok)",
+    "openDetail": "Ayrıntıyı gör: {{sujet}}",
+    "detail": "Ayrıntı",
+    "costsTitle": "Ajan maliyetleri ({{jours}} gün)",
+    "costsTotal": "Toplam: {{total}}",
+    "quota": "Bu ayki yapay zeka kotası: {{used}} $ / {{max}} $ (%{{pct}})",
+    "costsCaption": "Ajan başına maliyet",
+    "perRun": "çalıştırma",
+    "tokens": "token",
+    "detailTitle": "Çalıştırma #{{id}}",
+    "detailDescription": "Bu çalıştırmanın adımları, kararları, maliyetleri ve onayları.",
+    "totalCost": "Toplam maliyet: {{cout}}",
+    "stepsOf": "Adımlar — {{agent}}",
+    "draft": "Yanıt taslağı",
+    "approvals": "Onaylar",
+    "goToApprovals": "Onay kuyruğunu aç",
+    "kind": {
+      "llm": "Model",
+      "decision": "Karar",
+      "outil": "Araç",
+      "approbation": "Onay",
+      "devolution": "Devredildi"
+    },
+    "stepStatus": {
+      "ok": "tamam",
+      "echec": "hata",
+      "en_attente": "bekliyor",
+      "refuse": "reddedildi"
+    },
+    "proposalStatus": {
+      "en_attente": "bekliyor",
+      "approuvee": "onaylandı",
+      "rejetee": "reddedildi",
+      "executee": "yürütüldü",
+      "echouee": "başarısız",
+      "expiree": "süresi doldu"
+    },
+    "announce": {
+      "done": "Talep işlendi: {{statut}}. Onay bekleyen {{attente}} işlem, yürütülen {{executees}}.",
+      "failed": "Talep tamamlanamadı: {{raison}}",
+      "tab_one": "{{statut}}: {{count}} çalıştırma",
+      "tab_other": "{{statut}}: {{count}} çalıştırma"
     }
   }
 }

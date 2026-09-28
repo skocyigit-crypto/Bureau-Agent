@@ -204,7 +204,9 @@
       "clientInvoices": "Facturas de clientes",
       "trash": "Papelera",
       "postDiagnostic": "Diagnostico del equipo",
-      "encaissements": "Cobros"
+      "encaissements": "Cobros",
+      "taskDesk": "Mesa de tareas",
+      "agentCatalog": "Catálogo de agentes"
     }
   },
   "userMenu": {
@@ -9472,6 +9474,161 @@
       "structureFound": "{{count}} estructura(s) encontrada(s) en Chorus Pro",
       "structureNone": "Ninguna estructura para este SIRET",
       "structureError": "La busqueda ha fallado."
+    }
+  },
+  "agentsCatalogue": {
+    "title": "Catálogo de agentes",
+    "subtitle": "Lo que cada agente puede leer y hacer, sus límites y su actividad de los últimos 30 días.",
+    "loading": "Cargando el catálogo…",
+    "error": "No se pudo cargar el catálogo.",
+    "listLabel": "Agentes",
+    "count_one": "{{count}} agente",
+    "count_other": "{{count}} agentes",
+    "execution": {
+      "orchestrateur": "Orquestador",
+      "assistant": "Asistente",
+      "cron": "Tarea programada",
+      "cron-plateforme": "Tarea de la plataforma"
+    },
+    "model": "Modelo",
+    "sources": "Fuentes",
+    "knowledgeBase": "Base de conocimiento",
+    "none": "ninguna",
+    "tools": "Herramientas",
+    "noTools": "Sin herramientas: solo lee y decide.",
+    "tier": {
+      "lecture": "lectura",
+      "interne": "interna",
+      "externe": "saliente",
+      "destructif": "destructiva"
+    },
+    "needsApproval": "sujeta a aprobación",
+    "limits": "Límites",
+    "maxCost": "Coste máx. por ejecución",
+    "maxModelCalls": "Llamadas al modelo",
+    "maxActions": "Acciones máx.",
+    "limitsInModule": "Gestionados por su propio módulo.",
+    "activity30d": "Actividad (30 días)",
+    "runs_one": "{{count}} ejecución",
+    "runs_other": "{{count}} ejecuciones",
+    "failures_one": "{{count}} fallo",
+    "failures_other": "{{count}} fallos",
+    "agents": {
+      "classificateur": {
+        "nom": "Clasificador",
+        "mission": "Lee una solicitud entrante y decide a qué agente confiarla: soporte, ventas o ninguno."
+      },
+      "agent-support": {
+        "nom": "Agente de soporte",
+        "mission": "Prepara la respuesta a una solicitud de asistencia de un cliente y, si hace falta, la tarea de seguimiento."
+      },
+      "agent-vente": {
+        "nom": "Agente comercial",
+        "mission": "Califica una solicitud comercial: crea el prospecto, prepara la respuesta y el seguimiento."
+      },
+      "assistant": {
+        "nom": "Asistente",
+        "mission": "Responde en conversación y actúa a petición: cada escritura la confirma el usuario."
+      },
+      "secretaire-autonome": {
+        "nom": "Secretaria autónoma",
+        "mission": "Revisa la actividad (retrasos, llamadas perdidas, mensajes) y propone acciones en la cola de aprobación."
+      },
+      "auto-audit": {
+        "nom": "Autoauditoría",
+        "mission": "Controla la coherencia de los datos de la organización y propone correcciones."
+      },
+      "agent-saas": {
+        "nom": "Agente de plataforma",
+        "mission": "Supervisa las suscripciones de los clientes de la plataforma y aplica lo que es mecánico."
+      }
+    }
+  },
+  "bureauTaches": {
+    "title": "Mesa de tareas",
+    "subtitle": "Lo que hacen los agentes: en curso, pendiente de aprobación, terminado, con error — y lo que ha costado.",
+    "newRequest": "Nueva solicitud",
+    "form": {
+      "channel": "Canal",
+      "subject": "Asunto",
+      "senderName": "Nombre del remitente",
+      "senderEmail": "Correo del remitente",
+      "content": "Mensaje recibido",
+      "help": "El clasificador la confía al agente de soporte o comercial; todo envío pasa por la cola de aprobación.",
+      "submit": "Procesar la solicitud",
+      "sending": "Procesando…"
+    },
+    "channel": {
+      "formulaire": "Formulario",
+      "email": "Correo",
+      "whatsapp": "WhatsApp",
+      "telephone": "Teléfono",
+      "demo": "Demostración"
+    },
+    "runs": "Ejecuciones",
+    "filterLabel": "Filtrar por estado",
+    "error": "No se pudieron cargar las ejecuciones.",
+    "empty": "No hay ejecuciones en este estado.",
+    "loading": "Cargando…",
+    "status": {
+      "en_cours": "En curso",
+      "en_attente": "Pendientes de aprobación",
+      "terminee": "Terminadas",
+      "echouee": "Con error"
+    },
+    "tableCaption": "Ejecuciones — {{statut}}",
+    "col": {
+      "date": "Fecha",
+      "request": "Solicitud",
+      "agent": "Agente",
+      "status": "Estado",
+      "cost": "Coste",
+      "actions": "Acciones",
+      "runs": "Ejecuciones",
+      "limit": "Límite"
+    },
+    "noSubject": "(sin asunto)",
+    "openDetail": "Ver el detalle: {{sujet}}",
+    "detail": "Detalle",
+    "costsTitle": "Costes de los agentes ({{jours}} días)",
+    "costsTotal": "Total: {{total}}",
+    "quota": "Cuota de IA del mes: {{used}} $ / {{max}} $ ({{pct}} %)",
+    "costsCaption": "Coste por agente",
+    "perRun": "ejecución",
+    "tokens": "tokens",
+    "detailTitle": "Ejecución n.º {{id}}",
+    "detailDescription": "Pasos, decisiones, costes y aprobaciones de esta ejecución.",
+    "totalCost": "Coste total: {{cout}}",
+    "stepsOf": "Pasos — {{agent}}",
+    "draft": "Borrador de respuesta",
+    "approvals": "Aprobaciones",
+    "goToApprovals": "Abrir la cola de aprobación",
+    "kind": {
+      "llm": "Modelo",
+      "decision": "Decisión",
+      "outil": "Herramienta",
+      "approbation": "Aprobación",
+      "devolution": "Confiada a"
+    },
+    "stepStatus": {
+      "ok": "ok",
+      "echec": "fallo",
+      "en_attente": "pendiente",
+      "refuse": "rechazado"
+    },
+    "proposalStatus": {
+      "en_attente": "pendiente",
+      "approuvee": "aprobada",
+      "rejetee": "rechazada",
+      "executee": "ejecutada",
+      "echouee": "fallida",
+      "expiree": "caducada"
+    },
+    "announce": {
+      "done": "Solicitud procesada: {{statut}}. {{attente}} acción(es) pendiente(s) de aprobación, {{executees}} ejecutada(s).",
+      "failed": "La solicitud no se completó: {{raison}}",
+      "tab_one": "{{statut}}: {{count}} ejecución",
+      "tab_other": "{{statut}}: {{count}} ejecuciones"
     }
   }
 }

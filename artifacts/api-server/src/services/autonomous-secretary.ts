@@ -27,6 +27,7 @@ import {
 import { and, eq, gte, lte, desc, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { tryWithLock } from "../lib/cron-lock";
+import { noterDecisionApprobation } from "./journal-agents";
 import { getTool, validateArgs, executeTool, type ToolContext } from "./assistant-tools";
 import { isSaasTool, executeSaasTool } from "./saas-tools";
 import { enqueueProposals } from "./proposal-queue";
@@ -34,7 +35,7 @@ import { enqueueProposals } from "./proposal-queue";
 import { GEMINI_FLASH_MODEL, sanitizePromptInput } from "./ai-utils";
 
 /** Outils que l'agent autonome a le droit de proposer. */
-const ALLOWED_TOOLS = ["create_task", "send_email", "send_sms", "create_calendar_event", "create_contact", "propose_appointment_slots"] as const;
+export const ALLOWED_TOOLS = ["create_task", "send_email", "send_sms", "create_calendar_event", "create_contact", "propose_appointment_slots"] as const;
 type AllowedTool = (typeof ALLOWED_TOOLS)[number];
 
 const MAX_PROPOSALS_PER_RUN = 6;
@@ -349,6 +350,12 @@ async function executerSousVerrou(proposalId: number, ctx: ToolContext): Promise
     executedAt: new Date(),
   }).where(eq(agentProposalsTable.id, proposalId));
 
+  // La proposition venait peut-etre d'une execution d'agent qui l'attend.
+  await noterDecisionApprobation({
+    orgId: ctx.orgId, proposalRunRef: proposal.runId, proposalId, toolName: proposal.toolName,
+    decision: exec.ok ? "executee" : "echouee", erreur: exec.error ?? null,
+  });
+
   return { ok: exec.ok, status: newStatus, result: exec.result, error: exec.error };
 }
 
@@ -367,6 +374,11 @@ export async function rejectProposal(
     eq(agentProposalsTable.id, proposalId),
     eq(agentProposalsTable.organisationId, ctx.orgId),
     eq(agentProposalsTable.status, "en_attente"),
-  )).returning({ id: agentProposalsTable.id });
+  )).returning({ id: agentProposalsTable.id, runId: agentProposalsTable.runId, toolName: agentProposalsTable.toolName });
+  for (const r of res) {
+    await noterDecisionApprobation({
+      orgId: ctx.orgId, proposalRunRef: r.runId, proposalId: r.id, toolName: r.toolName, decision: "rejetee",
+    });
+  }
   return res.length > 0;
 }

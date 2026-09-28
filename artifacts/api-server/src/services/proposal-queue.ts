@@ -178,8 +178,22 @@ export async function expireStaleProposals(olderThanDays = 14): Promise<number> 
         eq(agentProposalsTable.status, "en_attente"),
         lt(agentProposalsTable.createdAt, cutoff),
       ))
-      .returning({ id: agentProposalsTable.id });
+      .returning({
+        id: agentProposalsTable.id,
+        organisationId: agentProposalsTable.organisationId,
+        runId: agentProposalsTable.runId,
+        toolName: agentProposalsTable.toolName,
+      });
     if (rows.length > 0) logger.info({ count: rows.length, olderThanDays }, "[Queue] Propositions expirées");
+    // Une execution d'agent qui attendait cette decision ne l'aura jamais :
+    // elle se clot au lieu de rester « en attente » sans fin.
+    const { noterDecisionApprobation } = await import("./journal-agents");
+    for (const r of rows) {
+      await noterDecisionApprobation({
+        orgId: r.organisationId, proposalRunRef: r.runId, proposalId: r.id,
+        toolName: r.toolName, decision: "expiree",
+      });
+    }
     return rows.length;
   } catch (err) {
     logger.error({ err }, "[Queue] Échec expiration des propositions");

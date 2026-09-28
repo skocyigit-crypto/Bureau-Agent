@@ -367,6 +367,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
               { name: t("sidebar.items.aiTeam"), href: "/equipe-ia", icon: Brain },
               { name: t("sidebar.items.aiCommander"), href: "/commandant-ia", icon: Crown },
               { name: t("sidebar.items.approvalQueue"), href: "/file-approbation", icon: Inbox, badge: mutedBadges.agentQueue ? 0 : agentQueueCount },
+              { name: t("sidebar.items.taskDesk"), href: "/bureau-taches", icon: ClipboardList },
+              { name: t("sidebar.items.agentCatalog"), href: "/agents-catalogue", icon: Bot },
               { name: t("sidebar.items.universalAssistant"), href: "/asistan", icon: Sparkles },
               { name: t("sidebar.items.aiAgents"), href: "/agents-ia", icon: Bot },
             ],

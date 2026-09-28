@@ -33,7 +33,7 @@ import { withDbRetry } from "../lib/db-retry";
  * qu'une table tenant est ajoutee sans etre couverte ici.
  */
 export const TENANT_TABLES = [
-  "admin_reports", "agent_proposals", "ai_agent_reports", "ai_inline_suggest_events",
+  "admin_reports", "agent_proposals", "agent_run_steps", "agent_runs", "ai_agent_reports", "ai_inline_suggest_events",
   "ai_insights", "ai_learned_preferences", "ai_recurring_patterns", "ai_user_profile_facts",
   "ai_providers", "ai_usage", "api_keys", "app_audit_findings", "appointment_offers",
   "assistant_conversations", "assistant_messages", "audit_logs", "automation_rules",

@@ -495,6 +495,8 @@ export interface RecordAiUsageOpts {
   durationMs: number;
   status?: "success" | "error";
   errorMessage?: string | null;
+  /** Execution d'agent (agent_runs.id) a laquelle rattacher cet appel. */
+  runId?: number | null;
 }
 
 export function sanitizeAiErrorMessage(raw: string | null | undefined): string | null {
@@ -546,6 +548,7 @@ export async function recordAiUsage(opts: RecordAiUsageOpts): Promise<void> {
       durationMs: opts.durationMs,
       status: opts.status ?? "success",
       errorMessage: sanitizeAiErrorMessage(opts.errorMessage),
+      runId: opts.runId ?? null,
     });
   } catch (err) {
     logger.error({ err: err }, "[ai-utils] Failed to record AI usage:");
@@ -583,6 +586,10 @@ export function startAiUsagePurgeJob(): void {
     // plus serait une tache de plus a surveiller pour trois lignes supprimees.
     const { purgeExpiredBans } = await import("./ip-ban-store");
     await purgeExpiredBans();
+    // Journal des agents : meme duree de retention que ai_usage, meme menage.
+    const { purgerExecutionsAnciennes, marquerExecutionsInterrompues } = await import("./journal-agents");
+    await marquerExecutionsInterrompues();
+    await purgerExecutionsAnciennes();
   }), 24 * 60 * 60 * 1000);
   purgeTimer.unref?.();
   logger.info(`[ai-utils] Purge job started (retention: ${RETENTION_DAYS}j)`);

@@ -2812,3 +2812,52 @@ Beş eksen kodda ayrı ayrı tarandı; aşağıdakiler ölçülerek bulundu.
     olduğu doğrulanmalı; BatiFlow'da `WHERE` koşulunda tenant olmayan dört rota
     kaydı başka kiracıya taşıyordu. Bizde `tenant-scope-check` yalnız bloğun
     org'dan söz edip etmediğine bakıyor, gövde anahtarını ölçmüyor.
+
+## İlk sürüm modülleri ve iş yürütücüsü — 2026-09-28 (Lot 1)
+
+Kullanıcı ilk sürüm için dokuz modüllük bir tablo, bir yönlendirme akışı
+(yeni talep → sınıflandırıcı → destek/satış ajanı → dış işlem varsa insan
+onayı → sonuç) ve bir mimari şema (API → iş yürütücüsü → ajan çalışma katmanı
+→ izin denetimli araçlar; olaylar ve izler; kullanım ve abonelik) verdi.
+
+| Modül | Durum (28/09) |
+|---|---|
+| Bürolar | Var: organizasyon, kullanıcı, roller. "Çalışma alanı" = organizasyon. |
+| Ajan kataloğu | **Bu lotta**: `services/catalogue-agents.ts` + `/agents-catalogue`. |
+| Görsel akış stüdyosu | **Yok — Lot 2.** Otomasyonlar düz liste (tetik → eylemler). |
+| İş masası | **Bu lotta**: `agent_runs` + `/bureau-taches` (çalışan/bekleyen/tamam/hata). |
+| Onay kutusu | Var: `/file-approbation`; yürütücünün dış işlemleri buraya düşer ve karar koşuyu kapatır. Assistant bekleyenleri ve proaktif taslaklar hâlâ ayrı kutularda. |
+| Bağlantılar | Var: Gmail/Google OAuth, webhook, telefon BYOK (ayarlar sekmeleri). |
+| Bilgi merkezi | Var: `/base-connaissances`; kapsam = belge kategorisi (dışa yanıt veren ajan yalnız "public"). |
+| İzleme ve maliyet | **Bu lotta**: koşu/adım izleri, token, maliyet, hata nedeni, ajan limitleri, aylık kota. |
+| Abonelik | Var (#285 ile döngü otomatik; Stripe yapılandırılmadı). |
+
+### Lot 1'de yapılanlar
+- `agent_runs` / `agent_run_steps` + `ai_usage.run_id`: her LLM çağrısı,
+  karar, araç, onay ve devir bir adım; token ve maliyet koşuya toplanır.
+- Yürütücü (`services/orchestrateur.ts`): sınıflandırıcı → devir (alt koşu) →
+  uzman ajan. Ajan araç çağırmaz, zod ile doğrulanan JSON'da ÖNERİR; katalog
+  karar verir: katalog dışı araç, geçersiz argüman, limit fazlası → ret;
+  dış/yıkıcı → onay kuyruğu; iç → yürütülür. E-posta yalnız talebi
+  gönderene gidebilir. Sağlayıcı yedeğinde de çalışır (araç taşımaz).
+- Onay kararı (yürüt/ret/süre dolumu) alt ve kök koşuyu kapatır; 15 dk'dan
+  uzun `en_cours` koşu "kesildi" olarak kapanır; 180 gün saklama + temizlik.
+- Katalog mevcut ajanları KENDİ modüllerinden okur (sekreter, auto-audit,
+  asistan, SaaS) — test sapmayı yakalar; uygulanmayan limit beyan edilmez.
+- `/api/ajans` yapay zeka plan modülüne bağlandı; RGPD envanterine
+  "Exécutions des agents IA" (180 gün) eklendi.
+
+### Kalanlar (modüller)
+1. **Görsel akış stüdyosu (Lot 2):** düğüm/kenar modeli (tetik, ajan, koşul,
+   onay, işlem), yürütücüyü kullanan akış motoru, React Flow editörü + aynı
+   akışın erişilebilir liste görünümü ve klavye ile düzenleme.
+2. Gerçek giriş kanallarını yürütücüye bağlamak: Gmail triyajı, WhatsApp,
+   web formu (şu an yalnız İş masası'ndaki "Yeni talep").
+3. Onay kutusunu birleştirmek: assistant bekleyenleri + proaktif taslaklar.
+4. Asistanın 36 aracını kataloga göre daraltmak (şu an katalog "tümü" diyor).
+5. Ajan başına aylık bütçe (şu an koşu başına limit + organizasyon kotası).
+6. CI'nin gerçek tarayıcı turu (`verif-ecrans`, DEBUT=0 FIN=24) yeni iki ekranı
+   açmıyor: listenin sonuna eklendiler. Pencereyi 26'ya genişletmek
+   `.github/workflows/ci.yml` değişikliği ister; bu oturumun GitHub jetonunda
+   `workflow` kapsamı yok (push reddedildi). Kullanıcı `gh auth refresh -s
+   workflow` yapınca FIN=26 + iki ekranı alfabetik yerine almak yeterli.

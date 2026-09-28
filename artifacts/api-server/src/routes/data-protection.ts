@@ -11,6 +11,7 @@ import {
   securityScansTable,
   aiAgentReportsTable,
   performanceReportsTable,
+  agentRunsTable,
 } from "@workspace/db";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
@@ -55,7 +56,7 @@ router.get("/data-protection/summary", async (req, res): Promise<void> => {
     const orgId = req.session?.organisationId;
     if (!userId || !orgId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
-    const [users, contacts, calls, tasks, prospects, checkins, notes, scans, evaluations, rapportsPerf, passagesZone] = await Promise.all([
+    const [users, contacts, calls, tasks, prospects, checkins, notes, scans, evaluations, rapportsPerf, passagesZone, executionsAgents] = await Promise.all([
       db.select({ count: sql<number>`count(*)::int` }).from(usersTable).where(eq(usersTable.organisationId, orgId)),
       db.select({ count: sql<number>`count(*)::int` }).from(contactsTable).where(eq(contactsTable.organisationId, orgId)),
       db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(eq(callsTable.organisationId, orgId)),
@@ -67,6 +68,7 @@ router.get("/data-protection/summary", async (req, res): Promise<void> => {
       db.select({ count: sql<number>`count(*)::int` }).from(aiAgentReportsTable).where(eq(aiAgentReportsTable.organisationId, orgId)),
       db.select({ count: sql<number>`count(*)::int` }).from(performanceReportsTable).where(eq(performanceReportsTable.organisationId, orgId)),
       db.select({ count: sql<number>`count(*)::int` }).from(locationEventsTable).where(eq(locationEventsTable.organisationId, orgId)),
+      db.select({ count: sql<number>`count(*)::int` }).from(agentRunsTable).where(eq(agentRunsTable.organisationId, orgId)),
     ]);
 
     const agreements = await db.select().from(legalAgreementsTable)
@@ -139,6 +141,11 @@ router.get("/data-protection/summary", async (req, res): Promise<void> => {
         // La duree est lue depuis la constante de la purge. Depuis la meme date, les
         // coordonnees GPS ne sont plus conservees : seule la zone et l'heure le sont.
         { category: "Géolocalisation (présence sur zone)", description: "Entrées et sorties de zones de travail, heure du dernier relevé, batterie — pendant les horaires définis ; coordonnées GPS utilisées pour le calcul puis non conservées", count: passagesZone[0]?.count || 0, retention: `${GEOLOC_RETENTION_DAYS} jours`, legalBasis: "Intérêt légitime (Art. 6(1)(f)) — sous réserve de consultation du CSE (L2312-38) et d'information préalable des salariés (L1222-4)", sensitive: true },
+        // Categorie ajoutee le 2026-09-28 avec l'orchestrateur d'agents : chaque
+        // execution garde un EXTRAIT de la demande entrante (280 caracteres),
+        // l'expediteur et le brouillon produit. Duree : celle de la purge
+        // (journal-agents.ts, alignee sur ai_usage).
+        { category: "Exécutions des agents IA", description: "Extrait de la demande entrante (canal, sujet, expéditeur, 280 premiers caractères), classement, brouillon de réponse, actions proposées ou exécutées, coût", count: executionsAgents[0]?.count || 0, retention: "180 jours", legalBasis: "Exécution du contrat (Art. 6(1)(b)) — traitement des demandes adressées au client", sensitive: false },
         { category: "Évaluations automatisées de salariés", description: "Nom, rôle, service, score d'activité, heures travaillées, minutes de pause et diagnostic individuel — produits par l'agent d'analyse d'équipe et par l'analyseur de performance", count: (evaluations[0]?.count || 0) + (rapportsPerf[0]?.count || 0), retention: "Durée du contrat", legalBasis: "Intérêt légitime (Art. 6(1)(f)) — sous réserve de consultation du CSE (L2312-38), d'information préalable des salariés (L1222-4) et d'une AIPD", sensitive: true },
       ],
       legalDocuments: Object.entries(LEGAL_DOCUMENTS).map(([code, doc]) => {

@@ -51,6 +51,8 @@ vi.mock("../services/ai-key-policy", () => ({
 }));
 vi.mock("../services/ai-utils", () => ({
   recordAiUsage: vi.fn().mockResolvedValue(undefined),
+  // generateText rend la consommation de chaque appel (journal des agents).
+  estimateAiCostUsd: () => 0,
   extractGeminiTokens: (r: any) => ({
     input: r?.usageMetadata?.promptTokenCount ?? 0,
     output: r?.usageMetadata?.candidatesTokenCount ?? 0,

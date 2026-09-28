@@ -39,6 +39,11 @@ const ECRANS = [
   "/protection-donnees", "/rapport-executif", "/rapports", "/recherche-web",
   "/reglements", "/saisie-chantier", "/sante-technique", "/securite", "/taches",
   "/telecharger", "/telephonie", "/tresorerie", "/utilisateurs", "/whatsapp",
+  // Ajoutes a la FIN (28/09) : inseres a leur place alphabetique, ils auraient
+  // fait sortir /devis et /diagnostic-poste du lot 0–24 que le CI ouvre.
+  // Elargir ce lot touche .github/workflows/ci.yml (jeton avec la portee
+  // `workflow`). Couverts entre-temps par src/test/agents-ecrans.test.tsx.
+  "/agents-catalogue", "/bureau-taches",
 ];
 
 /**
