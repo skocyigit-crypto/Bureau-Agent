@@ -10,6 +10,7 @@ import { startAiUsagePurgeJob, installGeminiModelFallback, onGeminiModelFallback
 import { startRetentionCron } from "./services/retention-cron";
 import { startAiCachePurgeJob } from "./services/ai-cache";
 import { startBillingCron } from "./services/billing-cron";
+import { startCycleAbonnementCron } from "./services/cycle-abonnement-cron";
 import { startQuotaWarningCron } from "./services/quota-warning-cron";
 import { startTrialWarningCron } from "./services/trial-warning-cron";
 import { startClotureCron } from "./services/cloture-cron";
@@ -207,6 +208,12 @@ async function startServer(): Promise<void> {
       ["retention-cron", () => void startRetentionCron()],
       ["ai-cache-purge", startAiCachePurgeJob],
       ["billing-cron", startBillingCron],
+      // Le cycle de vie des abonnements : renouvellement, retard de paiement,
+      // suspension. Mesure du 24/09/2026 : les cinq abonnements de production
+      // portaient « active » avec des periodes closes depuis un a deux mois,
+      // parce qu-AUCUNE ligne du depot n-ecrivait `current_period_end`.
+      // L-application, elle, existait deja dans license-check.
+      ["cycle-abonnement-cron", startCycleAbonnementCron],
       ["quota-warning-cron", startQuotaWarningCron],
       ["trial-warning-cron", startTrialWarningCron],
       // Cloture comptable: la conservation exigee par l'article 286-I-3 bis

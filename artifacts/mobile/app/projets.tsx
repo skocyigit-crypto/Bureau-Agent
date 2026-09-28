@@ -48,14 +48,12 @@ const STATUS_MAP: Record<string, { labelKey: string; color: string; icon: keyof 
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
-  critique: "#dc2626",
   haute: "#ef4444",
   moyenne: "#f59e0b",
   basse: "#22c55e",
 };
 
 const PRIORITY_LABEL_KEYS: Record<string, string> = {
-  critique: "projetsScreen.priorities.critique",
   haute: "projetsScreen.priorities.haute",
   moyenne: "projetsScreen.priorities.moyenne",
   basse: "projetsScreen.priorities.basse",
@@ -81,7 +79,6 @@ function buildFormFields(t: TFunction) {
         { value: "basse", label: t("projetsScreen.priorities.basse") },
         { value: "moyenne", label: t("projetsScreen.priorities.moyenne") },
         { value: "haute", label: t("projetsScreen.priorities.haute") },
-        { value: "critique", label: t("projetsScreen.priorities.critique") },
       ],
     },
     {

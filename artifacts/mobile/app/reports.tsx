@@ -53,20 +53,30 @@ const STATUS_MAP: Record<string, { labelKey: string; color: string; icon: keyof 
   rejete:    { labelKey: "reportsScreen.status.rejete",   color: "#ef4444", icon: "slash" },
 };
 
+// Les valeurs sont celles de PRIORITES_RAPPORT (routes/admin-reports.ts) : ce
+// sont les seules que la base stocke et que la route accepte. « normale » et
+// « critique » n existaient nulle part ailleurs qu ici.
 const PRIORITY_MAP: Record<string, { labelKey: string; color: string }> = {
-  basse:    { labelKey: "reportsScreen.priority.basse",    color: "#22c55e" },
-  normale:  { labelKey: "reportsScreen.priority.normale",  color: "#64748b" },
-  haute:    { labelKey: "reportsScreen.priority.haute",    color: "#f59e0b" },
-  critique: { labelKey: "reportsScreen.priority.critique", color: "#ef4444" },
+  basse:   { labelKey: "reportsScreen.priority.basse",   color: "#22c55e" },
+  normal:  { labelKey: "reportsScreen.priority.normal",  color: "#64748b" },
+  haute:   { labelKey: "reportsScreen.priority.haute",   color: "#f59e0b" },
+  urgente: { labelKey: "reportsScreen.priority.urgente", color: "#ef4444" },
 };
 
+// Idem pour CATEGORIES_RAPPORT. Sans cela, un rapport range en « securite »
+// s affichait « Autre » : la valeur etait inconnue de ce tableau, et le rendu
+// retombait sur `CATEGORY_MAP.autre`. La categorie la plus urgente etait donc
+// aussi la plus invisible.
+//
+// (On nomme le repli au lieu de citer sa ligne : un numero de ligne dans un
+// commentaire devient faux des que quoi que ce soit change au-dessus, et le
+// lecteur suivant n a aucune raison de le soupconner.)
 const CATEGORY_MAP: Record<string, { labelKey: string; icon: keyof typeof Feather.glyphMap }> = {
-  bug:          { labelKey: "reportsScreen.category.bug",          icon: "alert-triangle" },
-  amelioration: { labelKey: "reportsScreen.category.amelioration", icon: "trending-up" },
-  question:     { labelKey: "reportsScreen.category.question",     icon: "help-circle" },
-  facturation:  { labelKey: "reportsScreen.category.facturation",  icon: "credit-card" },
-  acces:        { labelKey: "reportsScreen.category.acces",        icon: "lock" },
-  autre:        { labelKey: "reportsScreen.category.autre",        icon: "file-text" },
+  general:     { labelKey: "reportsScreen.category.general",     icon: "help-circle" },
+  technique:   { labelKey: "reportsScreen.category.technique",   icon: "alert-triangle" },
+  facturation: { labelKey: "reportsScreen.category.facturation", icon: "credit-card" },
+  securite:    { labelKey: "reportsScreen.category.securite",    icon: "shield" },
+  autre:       { labelKey: "reportsScreen.category.autre",       icon: "file-text" },
 };
 
 const STATUS_FILTERS = [
@@ -92,18 +102,17 @@ export default function ReportsScreen() {
     { key: "subject", label: t("reportsScreen.fieldSubject"), required: true },
     { key: "message", label: t("reportsScreen.fieldMessage"), required: true, type: "multiline" as const },
     { key: "category", label: t("reportsScreen.fieldCategory"), type: "select" as const, options: [
-      { value: "bug",          label: t("reportsScreen.catOption.bug") },
-      { value: "amelioration", label: t("reportsScreen.catOption.amelioration") },
-      { value: "question",     label: t("reportsScreen.catOption.question") },
-      { value: "facturation",  label: t("reportsScreen.catOption.facturation") },
-      { value: "acces",        label: t("reportsScreen.catOption.acces") },
-      { value: "autre",        label: t("reportsScreen.catOption.autre") },
+      { value: "general",     label: t("reportsScreen.catOption.general") },
+      { value: "technique",   label: t("reportsScreen.catOption.technique") },
+      { value: "facturation", label: t("reportsScreen.catOption.facturation") },
+      { value: "securite",    label: t("reportsScreen.catOption.securite") },
+      { value: "autre",       label: t("reportsScreen.catOption.autre") },
     ]},
     { key: "priority", label: t("reportsScreen.fieldPriority"), type: "select" as const, options: [
-      { value: "basse",    label: t("reportsScreen.priority.basse") },
-      { value: "normale",  label: t("reportsScreen.priority.normale") },
-      { value: "haute",    label: t("reportsScreen.priority.haute") },
-      { value: "critique", label: t("reportsScreen.priority.critique") },
+      { value: "basse",   label: t("reportsScreen.priority.basse") },
+      { value: "normal",  label: t("reportsScreen.priority.normal") },
+      { value: "haute",   label: t("reportsScreen.priority.haute") },
+      { value: "urgente", label: t("reportsScreen.priority.urgente") },
     ]},
   ];
 
@@ -115,7 +124,7 @@ export default function ReportsScreen() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<AdminReport | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [formValues, setFormValues] = useState<Record<string, string>>({ category: "bug", priority: "normale" });
+  const [formValues, setFormValues] = useState<Record<string, string>>({ category: "general", priority: "normal" });
   const [formLoading, setFormLoading] = useState(false);
 
   const load = useCallback(async () => {
@@ -151,8 +160,12 @@ export default function ReportsScreen() {
       });
       if (res.ok) {
         setShowForm(false);
-        setFormValues({ category: "bug", priority: "normale" });
+        setFormValues({ category: "general", priority: "normal" });
         load();
+        // Le formulaire se fermait sans un mot. Pour un signalement au
+        // support, un envoi silencieux se confond avec un envoi perdu : on
+        // renvoie, ou on renonce. L ecran dit maintenant les deux issues.
+        Alert.alert(t("reportsScreen.sentTitle"), t("reportsScreen.sentBody"));
       } else { Alert.alert(t("common.error"), t("common.actionFailed")); }
     } finally { setFormLoading(false); }
   }
@@ -236,7 +249,7 @@ export default function ReportsScreen() {
           }
           renderItem={({ item }) => {
             const st = STATUS_MAP[item.status] ?? STATUS_MAP.nouveau;
-            const pr = PRIORITY_MAP[item.priority] ?? PRIORITY_MAP.normale;
+            const pr = PRIORITY_MAP[item.priority] ?? PRIORITY_MAP.normal;
             const cat = CATEGORY_MAP[item.category] ?? CATEGORY_MAP.autre;
             return (
               <Pressable accessibilityRole="button"

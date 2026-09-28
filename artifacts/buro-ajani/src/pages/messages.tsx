@@ -346,7 +346,7 @@ export default function Messages() {
                         <FormControl><SelectTrigger aria-label={t("messages.form.chooseContact")}><SelectValue placeholder={t("messages.form.chooseContact")}/></SelectTrigger></FormControl>
                         <SelectContent>
                           <SelectItem value="none">{t("messages.form.none")}</SelectItem>
-                          {contactsData?.contacts.map(c => (
+                          {contactsData?.contacts?.map(c => (
                             <SelectItem key={c.id} value={c.id.toString()}>{c.firstName} {c.lastName}</SelectItem>
                           ))}
                         </SelectContent>
@@ -358,7 +358,7 @@ export default function Messages() {
                   <FormField control={form.control} name="content" render={({ field }) => {
                     const cidStr = form.getValues("contactId")?.toString();
                     const linkedContact = cidStr && cidStr !== "none"
-                      ? contactsData?.contacts.find(c => c.id.toString() === cidStr)
+                      ? contactsData?.contacts?.find(c => c.id.toString() === cidStr)
                       : null;
                     return (
                       <FormItem>
@@ -475,7 +475,7 @@ export default function Messages() {
                   <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                 </TableRow>
               ))
-            ) : data?.messages.length === 0 ? (
+            ) : data?.messages?.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="py-8">
                   {(search !== "" || readFilter !== "all" || typeFilter !== "all" || priorityFilter !== "all") ? (
@@ -494,7 +494,7 @@ export default function Messages() {
                 </TableCell>
               </TableRow>
             ) : (
-              data?.messages.map((message) => (
+              data?.messages?.map((message) => (
                 <TableRow key={message.id} className={`hover:bg-muted/30 transition-colors ${!message.isRead ? 'bg-primary/5' : ''} ${selectedIds.has(message.id) ? 'ring-1 ring-inset ring-primary/20' : ''}`}>
                   <TableCell>
                     <Checkbox checked={selectedIds.has(message.id)} onCheckedChange={() => toggleSelect(message.id)} />

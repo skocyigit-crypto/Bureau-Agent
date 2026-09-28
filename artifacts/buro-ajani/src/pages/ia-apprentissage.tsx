@@ -262,7 +262,7 @@ export default function IaApprentissagePage() {
   }, [isManager]);
 
   const ug = groupUserFacts(userProfile?.facts ?? []);
-  const userEmpty = !userLoading && (userProfile?.facts.length ?? 0) === 0;
+  const userEmpty = !userLoading && (userProfile?.facts?.length ?? 0) === 0;
   const viewingSelf = selectedUserId === user.id;
 
   const liked = profile.preferences.filter((p) => p.score >= 0.34 && p.upCount + p.downCount >= 1);

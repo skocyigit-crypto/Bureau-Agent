@@ -27,6 +27,7 @@ import {
   type SuperAgentStats,
 } from "../services/super-agent-state";
 import { jourLocal } from "../lib/jour-local";
+import { delaiEnJours, noteAgent } from "../lib/valeur-ou-defaut";
 
 const router = Router();
 
@@ -1156,7 +1157,7 @@ ${trendHistory.map(h => `  ${h.reportDate}: score ${h.score}, ${h.errorsFound} e
       organisationId: orgId,
       reportDate: today,
       status: "termine",
-      score: parsed.score || 50,
+      score: noteAgent(parsed.score),
       errorsFound: parsed.errors?.length || 0,
       warningsFound: parsed.warnings?.length || 0,
       suggestionsCount: parsed.suggestions?.length || 0,
@@ -1367,7 +1368,7 @@ Rapports des agents:\n${JSON.stringify(reportsSummary, null, 2)}`
       organisationId: orgId,
       reportDate: today,
       status: "termine",
-      score: parsed.score || 50,
+      score: noteAgent(parsed.score),
       errorsFound: parsed.errors?.length || 0,
       warningsFound: parsed.warnings?.length || 0,
       suggestionsCount: parsed.suggestions?.length || 0,
@@ -1765,7 +1766,7 @@ router.post("/ai/agents/run/:agentId/stream", requireAdmin, async (req, res) => 
       organisationId: orgId,
       reportDate: today,
       status: "termine",
-      score: parsed.score || 50,
+      score: noteAgent(parsed.score),
       errorsFound: parsed.errors?.length || 0,
       warningsFound: parsed.warnings?.length || 0,
       suggestionsCount: parsed.suggestions?.length || 0,
@@ -3049,7 +3050,7 @@ export async function runSuperAgentCycle(orgId: number, userId: number) {
 
             if (parsed.tasks?.length > 0) {
               for (const t of parsed.tasks) {
-                const dueDate = new Date(Date.now() + (t.dueInDays || 3) * 86400000);
+                const dueDate = new Date(Date.now() + delaiEnJours(t.dueInDays) * 86400000);
                 try {
                   // Le prefixe « [Email] » etait la seule trace de l'auteur, et
                   // seulement ici. Elle devient une colonne, posee partout.
@@ -3295,7 +3296,7 @@ router.post("/ai/super-agent/process-report", requireAdmin, async (req, res): Pr
     const createdTasks: any[] = [];
     for (const t of (parsed.tasks ?? [])) {
       try {
-        const dueDate = new Date(Date.now() + (t.dueInDays || 3) * 86400000);
+        const dueDate = new Date(Date.now() + delaiEnJours(t.dueInDays) * 86400000);
         // « Assigné à: <texte du modele> » disparait: c'etait une intention
         // d'attribution que rien ne lisait, et qui pouvait nommer quelqu'un
         // qui n'existe pas. La tache est desormais reellement adressee.

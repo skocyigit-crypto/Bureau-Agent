@@ -99,11 +99,31 @@ export const organisationsTable = pgTable("organisations", {
   // les couper entierement (avant: aucun moyen de le faire, le cron passait
   // sur toutes les organisations sans condition).
   autoRemindersEnabled: boolean("auto_reminders_enabled").notNull().default(true),
-  // Quand true (defaut), les relances de paiement et les factures mensuelles
-  // generees automatiquement passent par la file d'approbation au lieu d'etre
-  // envoyees/finalisees directement. Ce sont des actions visibles par le
-  // client final et difficiles a rattraper: un humain doit les voir d'abord.
-  billingRequiresApproval: boolean("billing_requires_approval").notNull().default(true),
+  /**
+   * Quand true, les relances de paiement et les factures mensuelles passent
+   * par la file d approbation au lieu d etre finalisees directement.
+   *
+   * LE DEFAUT ETAIT true, et la raison ecrite ici tenait : une facture
+   * numerotee ne se supprime pas, elle s annule par un avoir. Une erreur part
+   * chez le client et se rattrape mal.
+   *
+   * MESURE DU 24/09/2026 : les cinq organisations de production portaient
+   * toutes ce defaut, personne ne l avait choisi. Resultat, aucune facture
+   * n avait jamais ete emise — trois periodes a 199 EUR restees en brouillon,
+   * la table de numerotation vide, et donc la sequence continue exigee par
+   * l article 242 nonies A jamais commencee. Une garde que personne ne leve
+   * n est pas une garde : c est un arret.
+   *
+   * Le defaut devient donc false, mais la protection ne disparait pas — elle
+   * se deplace la ou le risque est reel. Le moteur de facturation force
+   * l approbation des qu une facture porte un DEPASSEMENT, quel que soit ce
+   * reglage : un mois ordinaire au tarif du plan part seul, un mois qui
+   * ajoute des frais inattendus attend un regard.
+   *
+   * Les organisations existantes gardent leur valeur : changer un defaut ne
+   * doit pas modifier le comportement de facturation d un client en cours.
+   */
+  billingRequiresApproval: boolean("billing_requires_approval").notNull().default(false),
   agentAutoRunEnabled: boolean("agent_auto_run_enabled").notNull().default(false),
   agentAutoRunLastRunAt: timestamp("agent_auto_run_last_run_at", { withTimezone: true }),
   // Oto-Pilot. Son etat vivait dans une Map en memoire, alimentee par un

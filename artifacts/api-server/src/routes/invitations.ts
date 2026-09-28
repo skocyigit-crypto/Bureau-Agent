@@ -9,6 +9,7 @@ import { sendEmail } from "../services/email";
 import { logAudit } from "./audit";
 import { validatePasswordStrength } from "./auth";
 import { rowId } from "../lib/request-params";
+import { cheminBaseApp } from "../lib/chemin-base-app";
 
 const router: IRouter = Router();
 const SALT_ROUNDS = 12;
@@ -50,7 +51,7 @@ function getAppUrl(): string {
     || process.env.REPLIT_DEPLOYMENT_URL
     || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
     || "https://agentdebureau.fr";
-  const appPath = process.env.APP_BASE_PATH ?? "";
+  const appPath = cheminBaseApp();
   return `${base}${appPath}`;
 }
 

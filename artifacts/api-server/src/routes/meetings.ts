@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db, projetsTable, usersTable } from "@workspace/db";
 import { eq, and, isNotNull } from "drizzle-orm";
+import { delaiEnJours } from "../lib/valeur-ou-defaut";
 import { AGENTS, creerTacheIa } from "../services/tache-ia";
 import { logger } from "../lib/logger";
 import { assertAiQuota, invalidateQuotaCache } from "../services/ai-quota";
@@ -224,7 +225,9 @@ Regles:
       const title = item.titre.substring(0, 255);
       const description = item.description ? String(item.description).substring(0, 1000) : null;
       const priority = ["haute", "moyenne", "basse"].includes(item.priorite) ? item.priorite : "moyenne";
-      const days = typeof item.echeanceJours === "number" && item.echeanceJours > 0 ? item.echeanceJours : 7;
+      // Zero veut dire « aujourd'hui » : la consigne donnee a l'IA numerote
+      // bien « 1=demain ». L'ancienne forme le relisait « semaine prochaine ».
+      const days = delaiEnJours(item.echeanceJours, 7);
       const dueDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 
       // Le nom prononce en reunion n'est qu'une suggestion: on ne lui fait

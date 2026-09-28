@@ -253,10 +253,28 @@ export async function gatherSaasAttention(): Promise<SaasAttentionSummary> {
           total: sql<string>`coalesce(sum(${invoicesTable.totalAmount}), 0)::text`,
         })
         .from(invoicesTable)
+        // Une facture JAMAIS EMISE ne peut pas etre en retard.
+        //
+        // Elle n'a ni numero, ni date d'emission, ni TVA, et n'est jamais
+        // partie chez le client : rien ne lui a ete demande, donc rien n'est
+        // en retard. Sans cette condition, la plateforme reclamerait le
+        // paiement d'un document qui n'existe pas juridiquement.
+        //
+        // Ce n'etait pas theorique. En production le 24/09/2026, la facture #1
+        // (juin, 199 EUR) portait `status = 'en_attente'` avec
+        // `issued_at = NULL` et `reference = NULL`, heritee d'avant
+        // l'existence de l'emission. Elle etait comptee « en retard », et
+        // l'agent super-admin — devenu capable d'AGIR — aurait envoye une
+        // relance de paiement au seul client payant de la plateforme, pour
+        // une facture qu'il n'a jamais recue.
+        //
+        // Meme regle que dans `cycle-abonnement.ts`, et pour la meme raison :
+        // l'emission est ce qui rend une facture opposable.
         .where(
-          sql`${invoicesTable.status} = 'retard'
-            OR (${invoicesTable.status} = 'en_attente'
-                AND ${invoicesTable.periodEnd} < ${new Date(now.getTime() - ATTENTION_THRESHOLDS.invoiceGraceDays * 86400000)})`,
+          sql`${invoicesTable.issuedAt} IS NOT NULL
+            AND (${invoicesTable.status} = 'retard'
+                 OR (${invoicesTable.status} = 'en_attente'
+                     AND ${invoicesTable.periodEnd} < ${new Date(now.getTime() - ATTENTION_THRESHOLDS.invoiceGraceDays * 86400000)}))`,
         )
         .groupBy(invoicesTable.organisationId),
     ]);

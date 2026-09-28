@@ -8,11 +8,14 @@
     "optimize:buro-images": "tsx ./src/optimize-buro-images.ts",
     "backfill-message-contact-names": "tsx ./src/backfill-message-contact-names.ts",
     "broadcast-presentation": "tsx ./src/broadcast-presentation-email.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "creer-super-admin": "node ./creer-super-admin.mjs"
   },
   "dependencies": {
     "@workspace/db": "workspace:*",
-    "resend": "4.0.0"
+    "resend": "4.0.0",
+    "bcryptjs": "^3.0.3",
+    "pg": "^8.20.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",

@@ -148,7 +148,21 @@ export async function generateMonthlyInvoices(
           },
         };
 
-        const emiseDirectement = mode === "direct" || !org.billingRequiresApproval;
+        // Un DEPASSEMENT force l'approbation, quel que soit le reglage.
+        //
+        // Le reglage `billingRequiresApproval` est passe a false par defaut
+        // pour que la plateforme facture seule : mesure du 24/09/2026, aucune
+        // facture n'avait jamais ete emise, trois periodes a 199 EUR restees
+        // en brouillon et la sequence de numerotation jamais commencee.
+        //
+        // Mais la raison qui avait motive le defaut inverse reste vraie pour
+        // UNE partie des cas : une facture numerotee ne se supprime pas, elle
+        // s'annule par un avoir. Le risque n'est pas le mois ordinaire au
+        // tarif du plan — c'est le mois qui ajoute des frais que le client
+        // n'attend pas. On automatise donc le premier et on fait regarder le
+        // second, au lieu de choisir entre tout automatiser et tout bloquer.
+        const depassement = overageAmount > 0;
+        const emiseDirectement = mode === "direct" || (!org.billingRequiresApproval && !depassement);
 
         const [creee] = await db.insert(invoicesTable).values({
           organisationId: org.id,

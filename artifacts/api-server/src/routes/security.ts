@@ -285,7 +285,7 @@ router.get("/security/lists", async (req, res) => {
   res.json({ entries: await listSecurityEntries(orgId) });
 });
 
-// requireAdmin comme la mutation soeur /security/settings (ligne 256): sans ce
+// requireAdmin comme la mutation soeur `PATCH /security/settings`: sans ce
 // garde, un membre `agent` ou `lecture_seule` pouvait ajouter/retirer des
 // entrees des listes blanche/noire de l'organisation — autoriser un expediteur
 // malveillant ou bloquer un contact legitime. Le controle etait plus faible

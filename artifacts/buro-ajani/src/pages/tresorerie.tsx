@@ -165,7 +165,7 @@ export default function TresoreriePage() {
     }
   };
 
-  const prob = risk?.simulation.insolvencyProbability ?? 0;
+  const prob = risk?.simulation?.insolvencyProbability ?? 0;
   const level = riskLevel(prob);
 
   return (

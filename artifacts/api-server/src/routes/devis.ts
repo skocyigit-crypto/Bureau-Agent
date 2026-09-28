@@ -9,6 +9,7 @@ import { nextInvoiceNumber } from "../services/invoice-numbering";
 import { getOrgId } from "../middleware/tenant";
 import { computeInvoiceTotals, isValidCurrency, parseUserDate, clampPagination } from "../services/invoice-totals";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
+import { logAudit } from "./audit";
 
 const router: IRouter = Router();
 
@@ -199,7 +200,12 @@ router.patch("/devis/:id", async (req: Request, res: Response): Promise<void> =>
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   const scoped = and(eq(devisTable.id, id), eq(devisTable.organisationId, orgId));
   try {
-    const [existing] = await db.select({ id: devisTable.id }).from(devisTable).where(scoped);
+    const [existing] = await db
+      .select({
+        id: devisTable.id, status: devisTable.status, validUntil: devisTable.validUntil,
+        acceptedAt: devisTable.acceptedAt, totalAmount: devisTable.totalAmount,
+      })
+      .from(devisTable).where(scoped);
     if (!existing) { res.status(404).json({ error: "Devis non trouve." }); return; }
     const b = req.body ?? {};
     if (b.status !== undefined && !STATUSES.includes(b.status)) { res.status(400).json({ error: "Statut invalide." }); return; }
@@ -232,7 +238,88 @@ router.patch("/devis/:id", async (req: Request, res: Response): Promise<void> =>
       if (d === undefined) { res.status(400).json({ error: "Date de validité invalide." }); return; }
       updates.validUntil = d;
     }
-    if (b.status === "accepte") updates.acceptedAt = new Date();
+    // Accepter un devis perime est refuse, comme le convertir l'est deja.
+    //
+    // La conversion en facture rendait 409 « validite depassee » ; l'ACCEPTER,
+    // non. On pouvait donc marquer « accepte » un devis de l'an dernier : la
+    // fiche l'affichait accepte, il comptait dans le taux d'acceptation, et
+    // l'utilisateur n'apprenait qu'a l'etape facture que son acceptation ne
+    // valait rien. Une meme decision appliquee a un chemin et pas a l'autre
+    // coute plus cher que pas de decision du tout : on croit le sujet traite.
+    //
+    // On refuse en nommant l'action qui debloque — prolonger la validite —
+    // plutot que de decider a la place de l'entreprise si le prix tient
+    // toujours.
+    // UN DEVIS ACCEPTE NE CHANGE PLUS DE PRIX.
+    //
+    // Accepter engage l'entreprise sur un montant. Laisser modifier ensuite
+    // les lignes ou le total revient a reecrire un accord apres coup, sans
+    // que rien ne le dise — ni au client, ni au dossier. Les champs
+    // commerciaux sont donc figes des l'acceptation.
+    //
+    // Ce qui reste modifiable : les notes, les conditions, les coordonnees
+    // du client. Corriger un numero de telephone n'est pas renegocier.
+    //
+    // La sortie n'est pas bloquee : refuser le devis rouvre le dossier, et
+    // un nouveau devis porte le nouveau prix. C'est la forme que prend une
+    // renegociation quand elle laisse une trace.
+    // Ce qui peut REELLEMENT changer le montant, mesure sur cette route :
+    // les totaux sont recalcules cote serveur a partir des LIGNES, et
+    // `totalAmount` envoye directement est ignore — il ne figure pas dans la
+    // liste des champs appliques. Figer un champ qui ne peut de toute facon
+    // pas etre ecrit rendrait une erreur pour une action impossible, ce qui
+    // egare plus que cela ne protege.
+    const CHAMPS_FIGES = ["items", "currency"] as const;
+    if (existing.acceptedAt || existing.status === "accepte") {
+      const touches = CHAMPS_FIGES.filter((k) => b[k] !== undefined);
+      if (touches.length > 0) {
+        res.status(409).json({
+          error: "Un devis accepte ne peut plus changer de montant.",
+          code: "devis_accepte_fige",
+          champs: touches,
+          remediation: "Refusez ce devis et emettez-en un nouveau au prix revise, pour que le changement laisse une trace.",
+        });
+        return;
+      }
+    }
+
+    if (b.status === "accepte") {
+      // ACCEPTER ENGAGE L'ENTREPRISE : ce n'est pas un geste de saisie.
+      //
+      // Le plancher global de mutation laisse passer le role `agent`, qui
+      // prepare les devis — et pouvait donc lier l'entreprise a un prix.
+      // L'acceptation rejoint les actions reservees a l'administration, comme
+      // les reglages de securite ou la facturation.
+      const role = req.session?.userRole;
+      if (role !== "super_admin" && role !== "administrateur") {
+        res.status(403).json({
+          error: "Seul un administrateur peut accepter un devis.",
+          code: "acceptation_reservee",
+          remediation: "Demandez a un administrateur de valider l'acceptation.",
+        });
+        return;
+      }
+
+      const validiteVisee = updates.validUntil !== undefined ? updates.validUntil : existing.validUntil;
+      if (devisExpire(existing.status, validiteVisee) || existing.status === "expire") {
+        res.status(409).json({
+          error: "La validite de ce devis est depassee.",
+          code: "devis_expire",
+          validUntil: existing.validUntil,
+          remediation: "Prolongez la date de validite du devis si le prix tient toujours, puis acceptez-le.",
+        });
+        return;
+      }
+      updates.acceptedAt = new Date();
+      // QUI a accepte. La date existait seule : un devis pouvait porter
+      // « accepte le 12 mars » sans qu'on sache de qui venait l'engagement.
+      updates.acceptedBy = req.session?.userId ?? null;
+      void logAudit(
+        req.session?.userId, req.session?.userEmail,
+        "devis.accepte", "devis", String(id),
+        { totalAmount: existing.totalAmount },
+      ).catch(() => {});
+    }
     if (b.status === "refuse") updates.rejectedAt = new Date();
     const [row] = await db.update(devisTable).set(updates).where(scoped).returning();
     res.json(row);

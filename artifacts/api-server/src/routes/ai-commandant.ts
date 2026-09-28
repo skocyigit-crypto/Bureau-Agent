@@ -19,6 +19,7 @@ import { logger } from "../lib/logger";
 import { scanBase64Content } from "../middleware/security";
 import { aiForOrg } from "../services/ai-client";
 import { respondAiError } from "../services/ai-guard";
+import { delaiEnJours } from "../lib/valeur-ou-defaut";
 
 function handleCommandantError(err: unknown, res: Response, logLabel: string): void {
   // Quota atteint (429) ou cle d'IA manquante (402): deux refus voulus, pas
@@ -634,7 +635,7 @@ JSON attendu:
     if (parsed.tasksToCreate?.length) {
       for (const task of parsed.tasksToCreate) {
         try {
-          const dueDate = task.dueInDays ? new Date(Date.now() + task.dueInDays * 86400000) : new Date(Date.now() + 3 * 86400000);
+          const dueDate = new Date(Date.now() + delaiEnJours(task.dueInDays, 3) * 86400000);
           // Le prefixe « [Appel] » quitte le titre: l'auteur est desormais une
           // colonne, donc filtrable, et affiche partout de la meme facon.
           const t = await creerTacheIa({
@@ -699,7 +700,7 @@ JSON attendu:
     const createdTasks: any[] = [];
     for (const task of (parsed.tasks || [])) {
       try {
-        const dueDate = new Date(Date.now() + (task.dueInDays || 3) * 86400000);
+        const dueDate = new Date(Date.now() + delaiEnJours(task.dueInDays, 3) * 86400000);
         const t = await creerTacheIa({
           organisationId: orgId, agent: AGENTS.commandant, nature: "commercial",
           title: task.title, description: task.description,
@@ -991,7 +992,7 @@ JSON attendu:
     const createdTasks: any[] = [];
     for (const action of (parsed.actionItems || [])) {
       try {
-        const dueDate = new Date(Date.now() + (action.dueInDays || 7) * 86400000);
+        const dueDate = new Date(Date.now() + delaiEnJours(action.dueInDays, 7) * 86400000);
         // « Assigne a: <texte libre> » disparait de la description: c'etait
         // une intention d'attribution que rien ne lisait. La tache est
         // desormais reellement adressee, par role.

@@ -35,7 +35,19 @@ type ResultCategory = {
   labelKey: string;
   icon: keyof typeof Feather.glyphMap;
   color: string;
-  route: string;
+  /**
+   * Ecran a ouvrir, quand il existe.
+   *
+   * Il est OPTIONNEL a dessein. La recherche serveur rend aussi des devis, des
+   * factures et du stock, mais ces trois ecrans n existent pas dans
+   * `artifacts/mobile/app/` : la ligne partait vers « /devis », expo-router ne
+   * trouvait rien, et l utilisateur qui venait de voir SON devis tombait sur
+   * « Page introuvable ». Un resultat juste menant a une impasse fait douter
+   * du resultat lui-meme.
+   *
+   * Sans destination, la ligne reste lisible et ne se donne pas pour un lien.
+   */
+  route?: string;
   getTitle: (item: any, t: TFunction) => string;
   getSub: (item: any) => string;
 };
@@ -64,7 +76,6 @@ const CATEGORIES: ResultCategory[] = [
     labelKey: "rechercheScreen.catDevis",
     icon: "file-text",
     color: "#3b82f6",
-    route: "/devis",
     getTitle: (d, t) => d.reference || d.title || t("rechercheScreen.devisFallback", { id: d.id }),
     getSub: (d) => d.clientName || "",
   },
@@ -73,7 +84,6 @@ const CATEGORIES: ResultCategory[] = [
     labelKey: "rechercheScreen.catFactures",
     icon: "dollar-sign",
     color: "#22c55e",
-    route: "/factures",
     getTitle: (f, t) => f.reference || f.title || t("rechercheScreen.factureFallback", { id: f.id }),
     getSub: (f) => f.clientName || "",
   },
@@ -118,7 +128,6 @@ const CATEGORIES: ResultCategory[] = [
     labelKey: "rechercheScreen.catStock",
     icon: "package",
     color: "#7c3aed",
-    route: "/stock",
     getTitle: (s) => s.name || s.reference || "",
     getSub: (s) => s.category || s.reference || "",
   },
@@ -132,12 +141,13 @@ function ResultRow({ item, colors }: { item: FlatResultItem & { kind: "result" }
   const { t } = useTranslation();
   const { cat } = item;
   return (
-    <Pressable accessibilityRole="button"
-      onPress={() => router.push(cat.route as any)}
+    <Pressable accessibilityRole={cat.route ? "button" : "text"}
+      disabled={!cat.route}
+      onPress={cat.route ? () => router.push(cat.route as any) : undefined}
       style={({ pressed }) => [
         styles.resultRow,
         { backgroundColor: colors.card, borderColor: colors.border },
-        pressed && { opacity: 0.8 },
+        pressed && cat.route ? { opacity: 0.8 } : null,
       ]}
     >
       <View style={[styles.resultIcon, { backgroundColor: cat.color + "18" }]}>
@@ -153,7 +163,7 @@ function ResultRow({ item, colors }: { item: FlatResultItem & { kind: "result" }
           </Text>
         )}
       </View>
-      <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
+      {cat.route ? <Feather name="chevron-right" size={14} color={colors.mutedForeground} /> : null}
     </Pressable>
   );
 }
@@ -252,7 +262,7 @@ export default function RechercheScreen() {
             {t("rechercheScreen.emptySub")}
           </Text>
           <View style={styles.categoryGrid}>
-            {CATEGORIES.map(cat => (
+            {CATEGORIES.filter(cat => cat.route).map(cat => (
               <Pressable accessibilityRole="button"
                 key={cat.key}
                 onPress={() => router.push(cat.route as any)}

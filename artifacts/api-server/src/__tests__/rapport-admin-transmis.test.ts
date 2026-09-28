@@ -5,7 +5,11 @@ import { appliquerAuthentification } from "../services/support-inbox";
 import { LONGUEUR_MAX_SUJET, prioriteSupport, versEmailSupport } from "../services/transfert-rapport-admin";
 
 const ROUTE = readFileSync(join(import.meta.dirname, "..", "routes", "admin-reports.ts"), "utf8");
-const MOBILE = readFileSync(join(import.meta.dirname, "..", "..", "..", "mobile", "app", "admin-reports.tsx"), "utf8");
+// L ecran /admin-reports a ete retire : il portait le meme formulaire en
+// moins complet, et son onglet « equipe » faisait doublon avec Utilisateurs.
+// Les deux invariants qu il verifiait valent pour l ecran qui RESTE — ils
+// decrivent ce que le produit doit faire, pas quel fichier le fait.
+const MOBILE = readFileSync(join(import.meta.dirname, "..", "..", "..", "mobile", "app", "reports.tsx"), "utf8");
 const rapport = { id: 42, userEmail: "a@b.fr", userName: "A B", orgName: "SARL X", subject: "Fuite", message: "Detail", category: "securite", priority: "normal" };
 
 describe("le rapport arrive au support", () => {
@@ -58,7 +62,10 @@ describe("ce qui cassait autrement", () => {
     expect(MOBILE).not.toContain("updateReportStatus");
   });
   it("le mobile annonce l'envoi et l'echec", () => {
-    expect(MOBILE).toContain('t("adminReportsScreen.sentTitle")');
-    expect(MOBILE).toContain('t("adminReportsScreen.sendFailed")');
+    // L ecran qui reste fermait son formulaire sans un mot. Pour un
+    // signalement au support, un envoi silencieux se confond avec un envoi
+    // perdu : on renvoie, ou on renonce.
+    expect(MOBILE).toContain('t("reportsScreen.sentTitle")');
+    expect(MOBILE).toContain('t("common.actionFailed")');
   });
 });

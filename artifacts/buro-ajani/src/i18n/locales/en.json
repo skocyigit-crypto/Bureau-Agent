@@ -5734,9 +5734,8 @@
     }
   },
   "adminDevis": {
-    "title": "Corporate quotes",
-    "superAdmin": "Super-admin",
-    "subtitle": "Global SaaS view — B2B sales proposals across all organisations.",
+    "title": "Quotes",
+    "subtitle": "Your commercial proposals: drafting, sending, follow-up.",
     "new": "New quote",
     "searchPlaceholder": "Search (title, reference, client)...",
     "statusPlaceholder": "Status",
@@ -5907,9 +5906,8 @@
         "Error": "Platform: rejected"
       }
     },
-    "title": "Client invoices",
-    "superAdmin": "Super-admin",
-    "subtitle": "Global SaaS view — invoices issued to clients across all organisations.",
+    "title": "Customer invoices",
+    "subtitle": "The invoices you issue to your customers.",
     "new": "New invoice",
     "searchPlaceholder": "Search (title, reference, client)...",
     "statusPlaceholder": "Status",

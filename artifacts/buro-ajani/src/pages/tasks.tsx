@@ -508,7 +508,7 @@ export default function Tasks() {
                   <FormControl><SelectTrigger aria-label={t("tasks.form.chooseContact")}><SelectValue placeholder={t("tasks.form.chooseContact")}/></SelectTrigger></FormControl>
                   <SelectContent>
                     <SelectItem value="none">{t("tasks.form.none")}</SelectItem>
-                    {contactsData?.contacts.map(c => (
+                    {contactsData?.contacts?.map(c => (
                       <SelectItem key={c.id} value={c.id.toString()}>{c.firstName} {c.lastName}</SelectItem>
                     ))}
                   </SelectContent>
@@ -824,7 +824,7 @@ export default function Tasks() {
                       <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                     </TableRow>
                   ))
-                ) : data?.tasks.length === 0 ? (
+                ) : data?.tasks?.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="py-8">
                       {(search !== "" || statusFilter !== "all" || priorityFilter !== "all") ? (
@@ -843,7 +843,7 @@ export default function Tasks() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  data?.tasks.map((task) => {
+                  data?.tasks?.map((task) => {
                     const contactName = getContactName(task.relatedContactId);
                     return (
                       <TableRow key={task.id} className={`hover:bg-muted/30 transition-colors ${selectedIds.has(task.id) ? 'bg-primary/5' : ''}`}>

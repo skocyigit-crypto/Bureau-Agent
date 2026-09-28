@@ -2409,13 +2409,12 @@
       "general": "Général",
       "technique": "Technique",
       "facturation": "Facturation",
-      "fonctionnalite": "Fonctionnalité",
-      "bug": "Bug",
-      "question": "Question"
+      "securite": "Sécurité",
+      "autre": "Autre"
     },
     "priority": {
       "basse": "Basse",
-      "normal": "Normal",
+      "normal": "Normale",
       "haute": "Haute",
       "urgente": "Urgente"
     },
@@ -2464,26 +2463,26 @@
     },
     "priority": {
       "basse": "Basse",
-      "normale": "Normale",
+      "normal": "Normale",
       "haute": "Haute",
-      "critique": "Critique"
+      "urgente": "Urgente"
     },
     "category": {
-      "bug": "Bug",
-      "amelioration": "Amélioration",
-      "question": "Question",
+      "general": "Général",
+      "technique": "Technique",
       "facturation": "Facturation",
-      "acces": "Accès",
+      "securite": "Sécurité",
       "autre": "Autre"
     },
     "catOption": {
-      "bug": "Bug / Problème technique",
-      "amelioration": "Demande d'amélioration",
-      "question": "Question",
+      "general": "Question générale",
+      "technique": "Problème technique (bug)",
       "facturation": "Facturation",
-      "acces": "Accès / Permissions",
+      "securite": "Sécurité",
       "autre": "Autre"
-    }
+    },
+    "sentTitle": "Rapport envoyé",
+    "sentBody": "Le support vous répondra par e-mail."
   },
   "horairesScreen": {
     "headerTitle": "Horaires d'ouverture",
