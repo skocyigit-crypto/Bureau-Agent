@@ -13,6 +13,13 @@ export const automationRulesTable = pgTable("automation_rules", {
   trigger: text("trigger").notNull(),
   conditions: jsonb("conditions"),
   actions: jsonb("actions").notNull(),
+  /**
+   * Flux dessine au studio (noeuds + liens), valide par
+   * services/flux-automatisation.ts. NULL = regle lineaire historique
+   * (declencheur puis `actions`). Quand il existe, `actions` en garde la
+   * liste a plat pour les ecrans qui la lisent.
+   */
+  flow: jsonb("flow"),
   enabled: boolean("enabled").notNull().default(true),
   /**
    * Politique d'approbation de la regle:

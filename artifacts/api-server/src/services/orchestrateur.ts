@@ -164,71 +164,70 @@ function promptSpecialiste(agent: AgentDuCatalogue, d: DemandeEntrante, extraits
   ].join("\n");
 }
 
+export type ClasseDemande = z.infer<typeof SortieClassificateur>;
+
 /**
- * Traite une demande entrante de bout en bout. Ne leve pas pour une panne du
- * modele ou une limite : l'execution est close `echouee` avec sa cause, et le
- * resultat le dit.
+ * Etape 1 — classe la demande dans l'execution `runId` (journalisee).
+ * Leve ErreurOrchestration si la reponse est illisible ou la limite depassee.
+ * Exportee : le studio de flux l'appelle depuis un noeud « agent ».
  */
-export async function traiterDemande(
-  orgId: number,
-  userId: number,
-  demande: DemandeEntrante,
-  trigger = "demande_manuelle",
-): Promise<ResultatOrchestration> {
+export async function classerDemande(orgId: number, runId: number, demande: DemandeEntrante): Promise<ClasseDemande> {
   const classificateur = agentDuCatalogue("classificateur")!;
-  const entree = {
-    canal: demande.canal,
-    sujet: (demande.sujet ?? "").slice(0, 200),
-    expediteur: demande.expediteur.email ?? demande.expediteur.nom ?? null,
-    // Minimisation : le journal garde un extrait, pas la demande entiere.
-    extrait: demande.contenu.slice(0, 280),
-  };
-  const runId = await demarrerExecution({ orgId, agentId: classificateur.id, trigger, entree, requestedBy: userId });
-  const resultat: ResultatOrchestration = {
-    runId, statut: "en_cours", type: null, agent: null, brouillon: null,
-    actionsEnAttente: 0, actionsExecutees: 0, actionsRefusees: 0, erreur: null,
-  };
-
-  // ── 1. Classification ────────────────────────────────────────────────────
-  let classe: z.infer<typeof SortieClassificateur>;
-  try {
-    const { texte, usage } = await appelModele(classificateur, orgId, runId, promptClassificateur(demande));
-    let brut: unknown;
-    try { brut = jsonDe(texte); } catch { brut = null; }
-    const lu = SortieClassificateur.safeParse(brut);
-    await ajouterEtape(runId, orgId, {
-      kind: "llm", name: "classification", status: lu.success ? "ok" : "echec", usage,
-      detail: lu.success ? lu.data : { apercu: texte.slice(0, 200) },
-      error: lu.success ? null : "Reponse du modele hors format attendu.",
-    });
-    if (!lu.success) throw new ErreurOrchestration("Reponse du classificateur illisible.");
-    await verifierLimiteCout(classificateur, runId, orgId);
-    classe = lu.data;
-  } catch (err) {
-    return echouer(resultat, runId, orgId, err);
-  }
-  resultat.type = classe.type;
-
-  if (classe.type === "autre" || classe.confiance < CONFIANCE_MIN) {
-    await ajouterEtape(runId, orgId, {
-      kind: "decision", name: "aucun agent", status: "ok",
-      detail: { type: classe.type, confiance: classe.confiance, raison: classe.type === "autre" ? "hors support et vente" : "confiance insuffisante" },
-    });
-    await terminerExecution(runId, orgId, { status: "terminee", output: { type: classe.type, resume: classe.resume } });
-    resultat.statut = "terminee";
-    return resultat;
-  }
-
-  // ── 2. Devolution au specialiste ─────────────────────────────────────────
-  const specialiste = agentDuCatalogue(classe.type === "support" ? "agent-support" : "agent-vente")!;
-  resultat.agent = specialiste.id;
-  const enfantId = await demarrerExecution({
-    orgId, agentId: specialiste.id, trigger: "devolution", entree, parentRunId: runId, requestedBy: userId,
-  });
+  const { texte, usage } = await appelModele(classificateur, orgId, runId, promptClassificateur(demande));
+  let brut: unknown;
+  try { brut = jsonDe(texte); } catch { brut = null; }
+  const lu = SortieClassificateur.safeParse(brut);
   await ajouterEtape(runId, orgId, {
-    kind: "devolution", name: specialiste.id, status: "ok",
-    detail: { type: classe.type, confiance: classe.confiance, executionEnfant: enfantId },
+    kind: "llm", name: "classification", status: lu.success ? "ok" : "echec", usage,
+    detail: lu.success ? lu.data : { apercu: texte.slice(0, 200) },
+    error: lu.success ? null : "Reponse du modele hors format attendu.",
   });
+  if (!lu.success) throw new ErreurOrchestration("Reponse du classificateur illisible.");
+  await verifierLimiteCout(classificateur, runId, orgId);
+  return lu.data;
+}
+
+export interface ResultatSpecialiste {
+  enfantId: number;
+  ok: boolean;
+  erreur: unknown;
+  brouillon: string | null;
+  actionsEnAttente: number;
+  actionsExecutees: number;
+  actionsRefusees: number;
+  statut: StatutExecution;
+}
+
+/**
+ * Etapes 2 et 3 — devolution a un specialiste dans une execution ENFANT de
+ * `parentRunId` : sources, redaction, puis actions decidees par le catalogue
+ * (hors catalogue / invalide → refuse ; externe ou destructif → file ;
+ * interne → execute). L'execution enfant est close ici.
+ * Exportee : le studio de flux l'appelle depuis un noeud « agent ».
+ */
+export async function executerSpecialiste(input: {
+  orgId: number;
+  userId: number;
+  parentRunId: number;
+  specialisteId: "agent-support" | "agent-vente";
+  demande: DemandeEntrante;
+  entree: Record<string, unknown>;
+  decision?: Record<string, unknown>;
+  output?: Record<string, unknown>;
+}): Promise<ResultatSpecialiste> {
+  const { orgId, userId, parentRunId, demande } = input;
+  const specialiste = agentDuCatalogue(input.specialisteId)!;
+  const enfantId = await demarrerExecution({
+    orgId, agentId: specialiste.id, trigger: "devolution", entree: input.entree, parentRunId, requestedBy: userId,
+  });
+  await ajouterEtape(parentRunId, orgId, {
+    kind: "devolution", name: specialiste.id, status: "ok",
+    detail: { ...(input.decision ?? {}), executionEnfant: enfantId },
+  });
+  const r: ResultatSpecialiste = {
+    enfantId, ok: true, erreur: null, brouillon: null,
+    actionsEnAttente: 0, actionsExecutees: 0, actionsRefusees: 0, statut: "en_cours",
+  };
 
   let sortie: z.infer<typeof SortieSpecialiste>;
   try {
@@ -259,15 +258,15 @@ export async function traiterDemande(
     sortie = lu.data;
   } catch (err) {
     await terminerExecution(enfantId, orgId, { status: "echouee", error: messageErreur(err) });
-    return echouer(resultat, runId, orgId, err);
+    return { ...r, ok: false, erreur: err, statut: "echouee" };
   }
-  resultat.brouillon = sortie.reponse;
+  r.brouillon = sortie.reponse;
 
-  // ── 3. Actions : le catalogue decide, pas le modele ─────────────────────
+  // Actions : le catalogue decide, pas le modele.
   const max = specialiste.limites?.actionsMax ?? 0;
   for (const [i, action] of sortie.actions.entries()) {
     const refuser = async (raison: string) => {
-      resultat.actionsRefusees++;
+      r.actionsRefusees++;
       await ajouterEtape(enfantId, orgId, { kind: "outil", name: action.outil, status: "refuse", detail: { raison }, error: raison });
     };
     if (i >= max) { await refuser(`Au-dela de la limite de ${max} actions.`); continue; }
@@ -298,7 +297,7 @@ export async function traiterDemande(
         runId: refExecution(enfantId),
       });
       if (file.ok && file.id != null) {
-        resultat.actionsEnAttente++;
+        r.actionsEnAttente++;
         await ajouterEtape(enfantId, orgId, {
           kind: "approbation", name: action.outil, status: "en_attente",
           detail: { proposalId: file.id, palier, resume: summary },
@@ -311,7 +310,7 @@ export async function traiterDemande(
 
     const t0 = Date.now();
     const exec = await executeTool(action.outil, args.data as Record<string, unknown>, { orgId, userId }, { skipConfirmation: true });
-    if (exec.ok) resultat.actionsExecutees++;
+    if (exec.ok) r.actionsExecutees++;
     await ajouterEtape(enfantId, orgId, {
       kind: "outil", name: action.outil, status: exec.ok ? "ok" : "echec",
       detail: { palier, resultat: exec.ok ? resumeResultat(exec.result) : null },
@@ -320,11 +319,76 @@ export async function traiterDemande(
     });
   }
 
+  r.statut = r.actionsEnAttente > 0 ? "en_attente" : "terminee";
+  await terminerExecution(enfantId, orgId, { status: r.statut, output: { ...(input.output ?? {}), brouillon: sortie.reponse } });
+  return r;
+}
+
+/** Ce que le journal garde d'une demande : un extrait, pas la demande entiere. */
+export function entreeJournal(demande: DemandeEntrante): Record<string, unknown> {
+  return {
+    canal: demande.canal,
+    sujet: (demande.sujet ?? "").slice(0, 200),
+    expediteur: demande.expediteur.email ?? demande.expediteur.nom ?? null,
+    extrait: demande.contenu.slice(0, 280),
+  };
+}
+
+/**
+ * Traite une demande entrante de bout en bout. Ne leve pas pour une panne du
+ * modele ou une limite : l'execution est close `echouee` avec sa cause, et le
+ * resultat le dit.
+ */
+export async function traiterDemande(
+  orgId: number,
+  userId: number,
+  demande: DemandeEntrante,
+  trigger = "demande_manuelle",
+): Promise<ResultatOrchestration> {
+  const classificateur = agentDuCatalogue("classificateur")!;
+  const entree = entreeJournal(demande);
+  const runId = await demarrerExecution({ orgId, agentId: classificateur.id, trigger, entree, requestedBy: userId });
+  const resultat: ResultatOrchestration = {
+    runId, statut: "en_cours", type: null, agent: null, brouillon: null,
+    actionsEnAttente: 0, actionsExecutees: 0, actionsRefusees: 0, erreur: null,
+  };
+
+  // ── 1. Classification ────────────────────────────────────────────────────
+  let classe: ClasseDemande;
+  try {
+    classe = await classerDemande(orgId, runId, demande);
+  } catch (err) {
+    return echouer(resultat, runId, orgId, err);
+  }
+  resultat.type = classe.type;
+
+  if (classe.type === "autre" || classe.confiance < CONFIANCE_MIN) {
+    await ajouterEtape(runId, orgId, {
+      kind: "decision", name: "aucun agent", status: "ok",
+      detail: { type: classe.type, confiance: classe.confiance, raison: classe.type === "autre" ? "hors support et vente" : "confiance insuffisante" },
+    });
+    await terminerExecution(runId, orgId, { status: "terminee", output: { type: classe.type, resume: classe.resume } });
+    resultat.statut = "terminee";
+    return resultat;
+  }
+
+  // ── 2 et 3. Devolution au specialiste, actions ───────────────────────────
+  const specialisteId = classe.type === "support" ? "agent-support" : "agent-vente";
+  resultat.agent = specialisteId;
+  const s = await executerSpecialiste({
+    orgId, userId, parentRunId: runId, specialisteId, demande, entree,
+    decision: { type: classe.type, confiance: classe.confiance },
+    output: { type: classe.type, resume: classe.resume },
+  });
+  if (!s.ok) return echouer(resultat, runId, orgId, s.erreur);
+  resultat.brouillon = s.brouillon;
+  resultat.actionsEnAttente = s.actionsEnAttente;
+  resultat.actionsExecutees = s.actionsExecutees;
+  resultat.actionsRefusees = s.actionsRefusees;
+
   // ── 4. Resultat enregistre ───────────────────────────────────────────────
-  const statut: StatutExecution = resultat.actionsEnAttente > 0 ? "en_attente" : "terminee";
-  const output = { type: classe.type, resume: classe.resume, brouillon: sortie.reponse };
-  await terminerExecution(enfantId, orgId, { status: statut, output });
-  await terminerExecution(runId, orgId, { status: statut, output });
+  const statut: "en_attente" | "terminee" = s.actionsEnAttente > 0 ? "en_attente" : "terminee";
+  await terminerExecution(runId, orgId, { status: statut, output: { type: classe.type, resume: classe.resume, brouillon: s.brouillon } });
   resultat.statut = statut;
   return resultat;
 }
