@@ -39,6 +39,7 @@ import { getOrgGeminiClient, getOrgOpenAIClient, getOrgAnthropicClient } from ".
 import { assertAiQuota, invalidateQuotaCache } from "./ai-quota";
 import {
   recordAiUsage,
+  estimateAiCostUsd,
   extractGeminiTokens,
   extractAnthropicTokens,
   extractOpenAITokens,
@@ -600,12 +601,19 @@ export interface GenerateOptions {
   model?: string;
   /** Chemin enregistre dans les statistiques d'usage. */
   route: string;
+  /** Execution d'agent a laquelle rattacher l'usage (journal des agents). */
+  runId?: number;
 }
 
 export interface GenerateResult {
   text: string;
   provider: AiProviderName;
   model: string;
+  /**
+   * Consommation de CET appel, pour qu'une execution d'agent puisse la porter
+   * sur son etape. Absent des reponses anterieures a ce champ : optionnel.
+   */
+  usage?: { inputTokens: number; outputTokens: number; costUsd: number; durationMs: number };
 }
 
 async function callGemini(opts: GenerateOptions, messages: PortableMessage[], payerOrgId: number | null): Promise<GenerateResult & { tokens: { input: number; output: number } }> {
@@ -711,6 +719,7 @@ export async function generateText(opts: GenerateOptions): Promise<GenerateResul
       if (!res.text.trim()) {
         throw new EmptyResponseError(`${name}: reponse vide`);
       }
+      const durationMs = Date.now() - t0;
       if (opts.orgId != null) {
         recordAiUsage({
         organisationId: opts.orgId,
@@ -719,7 +728,8 @@ export async function generateText(opts: GenerateOptions): Promise<GenerateResul
         route: opts.route,
         inputTokens: res.tokens.input,
         outputTokens: res.tokens.output,
-        durationMs: Date.now() - t0,
+        durationMs,
+        runId: opts.runId ?? null,
         }).catch(() => {});
         invalidateQuotaCache(opts.orgId);
       }
@@ -730,7 +740,15 @@ export async function generateText(opts: GenerateOptions): Promise<GenerateResul
           "[ai-failover] repli sur un autre fournisseur",
         );
       }
-      return { text: res.text, provider: res.provider, model: res.model };
+      return {
+        text: res.text, provider: res.provider, model: res.model,
+        usage: {
+          inputTokens: res.tokens.input,
+          outputTokens: res.tokens.output,
+          costUsd: estimateAiCostUsd(res.model, res.tokens.input, res.tokens.output),
+          durationMs,
+        },
+      };
     } catch (err: any) {
       const msg = String(err?.message ?? err);
       if (!shouldFailover(err)) {
