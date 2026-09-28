@@ -388,9 +388,12 @@ export async function reclamerLivraison(delivery: { id: number; status: string; 
       // (« envoi en cours » repris apres abandon, « retrying » repose par
       // un echec). Une instance qui tenait une lecture ancienne de la ligne
       // la reclamait encore et reenvoyait l'evenement chez le client. On
-      // exige la ligne TELLE QU'ELLE A ETE LUE (a la milliseconde : la
-      // precision que JavaScript relit).
-      sql`date_trunc('milliseconds', ${webhookDeliveriesTable.updatedAt}) = ${delivery.updatedAt}`,
+      // exige la ligne TELLE QU'ELLE A ETE LUE : meme horodatage, a une
+      // milliseconde pres — Postgres garde la microseconde, JavaScript relit
+      // la milliseconde (arrondie). Toute ecriture ulterieure de la ligne
+      // (reclamation, echec reprogramme) intervient des secondes plus tard.
+      sql`${webhookDeliveriesTable.updatedAt} > ${new Date(delivery.updatedAt.getTime() - 1)}
+        AND ${webhookDeliveriesTable.updatedAt} < ${new Date(delivery.updatedAt.getTime() + 1)}`,
     ))
     .returning({ id: webhookDeliveriesTable.id });
   return reclamee.length > 0;
