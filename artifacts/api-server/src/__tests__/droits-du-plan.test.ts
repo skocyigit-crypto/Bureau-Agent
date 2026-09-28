@@ -34,6 +34,10 @@ const RACINE = join(import.meta.dirname, "..", "..", "..", "..");
 describe("chaque chemin sait de quelle fonction il releve", () => {
   it("l'assistant releve de l'IA", () => expect(fonctionRequise("/api/ai/analyse")).toBe("ia"));
   it("le commandant aussi", () => expect(fonctionRequise("/api/commandant/briefing")).toBe("ia"));
+  it("l'orchestrateur d'agents aussi : « /api/ajans » n'est pas un sous-chemin de « /api/ai »", () => {
+    expect(fonctionRequise("/api/ajans/demandes")).toBe("ia");
+    expect(fonctionRequise("/api/ajans/executions?statut=echouee")).toBe("ia");
+  });
   it("les automatisations sont une fonction distincte", () =>
     expect(fonctionRequise("/api/automations")).toBe("automations"));
   it("le stock aussi", () => expect(fonctionRequise("/api/stock/articles")).toBe("stock"));

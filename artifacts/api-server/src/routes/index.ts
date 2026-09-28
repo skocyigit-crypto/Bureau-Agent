@@ -83,6 +83,7 @@ import userPreferencesRouter from "./user-preferences";
 import aiInlineSuggestEventsRouter from "./ai-inline-suggest-events";
 import assistantRouter from "./assistant";
 import agentQueueRouter from "./agent-queue";
+import ajansRouter from "./ajans";
 import appAuditRouter from "./app-audit";
 import healthAgentsRouter from "./health-agents";
 import workforceIntelligenceRouter from "./workforce-intelligence";
@@ -290,6 +291,8 @@ router.use(userPreferencesRouter);
 router.use(aiInlineSuggestEventsRouter);
 router.use(assistantRouter);
 router.use(agentQueueRouter);
+// Agents : catalogue, bureau des taches, suivi et couts, orchestrateur.
+router.use(ajansRouter);
 router.use(appAuditRouter);
 router.use(healthAgentsRouter);
 router.use(workforceIntelligenceRouter);

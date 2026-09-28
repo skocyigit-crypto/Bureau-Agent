@@ -33,7 +33,7 @@ import { enqueueProposal } from "./proposal-queue";
 import { GEMINI_FLASH_MODEL } from "./ai-utils";
 
 /** Outils que l'agent d'audit a le droit de proposer (mêmes que l'agent autonome). */
-const ALLOWED_TOOLS = ["create_task", "send_email", "send_sms", "create_calendar_event", "create_contact"] as const;
+export const ALLOWED_TOOLS = ["create_task", "send_email", "send_sms", "create_calendar_event", "create_contact"] as const;
 type AllowedTool = (typeof ALLOWED_TOOLS)[number];
 
 const MAX_FINDINGS_PER_RUN = 8;
