@@ -50,7 +50,6 @@ describe("motifs d'expression reguliere dans les gabarits sql", () => {
 
   it("ce que la regle interdit est bien ce que drizzle deforme (controle de l'instrument)", () => {
     const d = new PgDialect();
-    // eslint-disable-next-line no-useless-escape
     expect(d.sqlToQuery(sql`regexp_replace(x, '\D', '', 'g')`).sql).toContain("'D'");
     expect(d.sqlToQuery(sql`regexp_replace(x, '\\D', '', 'g')`).sql).toContain("'\\D'");
     expect(SIMPLE_BARRE.test(String.raw`regexp_replace(x, '\D', '')`)).toBe(true);

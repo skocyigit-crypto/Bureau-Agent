@@ -25,7 +25,7 @@ import request from "supertest";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import {
   db, organisationsTable, contactsTable, calendarEventsTable, messagesTable, callsTable,
-  telephonyProvidersTable, auditLogsTable, voiceCallSessionsTable, tasksTable,
+  telephonyProvidersTable, auditLogsTable, voiceCallSessionsTable, tasksTable, telephonyCallLogsTable,
 } from "@workspace/db";
 
 const simu = vi.hoisted(() => ({
@@ -96,8 +96,8 @@ function signer(chemin: string, params: Record<string, string>, token: string): 
   for (const k of Object.keys(params).sort()) s += k + params[k];
   return crypto.createHmac("sha1", token).update(s).digest("base64");
 }
-function twilio(chemin: string, params: Record<string, string>, token: string) {
-  return request(app).post(chemin)
+function twilio(chemin: string, params: Record<string, string>, token: string, cible: express.Express = app) {
+  return request(cible).post(chemin)
     .set("x-forwarded-proto", "https").set("x-forwarded-host", "test.local")
     .set("x-twilio-signature", signer(chemin, params, token))
     .type("form").send(params);
@@ -192,6 +192,7 @@ afterAll(async () => {
       await db.delete(messagesTable).where(eq(messagesTable.organisationId, o.id));
       await db.delete(callsTable).where(eq(callsTable.organisationId, o.id));
       await db.delete(tasksTable).where(eq(tasksTable.organisationId, o.id));
+      await db.delete(telephonyCallLogsTable).where(eq(telephonyCallLogsTable.organisationId, o.id));
       await db.delete(telephonyProvidersTable).where(eq(telephonyProvidersTable.organisationId, o.id));
     } catch { /* best-effort ; audit_logs est en ajout seul */ }
   }
@@ -450,6 +451,41 @@ describe("9. pannes et nouvelles tentatives sans doublon", () => {
     await finaliserAppelsAbandonnes();
     expect((await etat(sid)).status).toBe("terminee");
     expect(await audit(sid)).toContain("voice.call.ended");
+  });
+});
+
+describe("10. messagerie vocale redelivree a une autre instance", () => {
+  // La garde etait une Map en memoire : un retry Twilio tombant sur une autre
+  // instance Cloud Run consignait le message et renvoyait SMS + e-mail une
+  // seconde fois. vi.resetModules() donne un second exemplaire du routeur,
+  // avec sa propre memoire — comme une seconde instance.
+  it("le meme message recu par deux instances n'est consigne qu'une fois", async () => {
+    vi.resetModules();
+    const { voiceReceptionistRouter: routeurB } = await import("../routes/voice-receptionist");
+    expect(routeurB).not.toBe(voiceReceptionistRouter);
+    const instanceB = express();
+    instanceB.use(express.urlencoded({ extended: false }));
+    instanceB.use("/api", routeurB);
+
+    const sid = `CA${stamp}vm`;
+    const chemin = `/api/voice/twilio/voicemail-complete?callSid=${sid}`;
+    const params = { AccountSid: A.accountSid, CallSid: sid, From: APPELANT, To: A.numero, RecordingDuration: "12" };
+    expect((await twilio(chemin, params, A.token)).status).toBe(200);
+    expect((await twilio(chemin, params, A.token, instanceB)).status).toBe(200);
+
+    const journaux = await db.select().from(telephonyCallLogsTable)
+      .where(and(eq(telephonyCallLogsTable.organisationId, A.id), eq(telephonyCallLogsTable.providerCallSid, sid)));
+    expect(journaux, "message consigne deux fois").toHaveLength(1);
+    const evenements = await audit(sid);
+    expect(evenements.filter((a) => a === "voice.voicemail.received")).toHaveLength(1);
+    const ligne = await etat(sid);
+    expect(ligne.status).toBe("terminee");
+    // Vieillie de deux heures, elle n'est pas reprise par le balayage des
+    // appels abandonnes (elle naît terminee) : pas de second compte rendu.
+    await db.update(voiceCallSessionsTable).set({ updatedAt: new Date(Date.now() - 2 * 3600_000) }).where(eq(voiceCallSessionsTable.id, ligne.id));
+    await finaliserAppelsAbandonnes();
+    expect(await audit(sid)).not.toContain("voice.call.ended");
+    preuve("10 messagerie rejouee", { callSid: sid, telephonyLogIds: journaux.map((j) => j.id), sessionId: ligne.id, audit: evenements });
   });
 });
 

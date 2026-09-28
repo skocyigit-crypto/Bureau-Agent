@@ -1,5 +1,4 @@
 // Secretaire telephonique IA (entrante) via Twilio Voice.
-import { horaireInscriptibleParIa } from "../services/garde-rendez-vous";
 //
 // Flux:
 //   - Twilio appelle POST /api/voice/twilio/incoming quand un client appelle le
@@ -70,7 +69,7 @@ import {
 } from "../services/ai-utils";
 import { assertAiQuota, invalidateQuotaCache } from "../services/ai-quota";
 import { KB_CATEGORIES_PUBLIQUES, searchKnowledge } from "../services/knowledge-base";
-import { isSlotFree, computeFreeSlots } from "../services/availability";
+import { computeFreeSlots } from "../services/availability";
 import { sendEmail } from "../services/email";
 import { evaluatePhoneReputation } from "../services/phone-reputation";
 import { recordSecurityScan } from "../services/security-scans";
@@ -182,15 +181,6 @@ const NO_INPUT_BYE: Record<RecLang, string> = {
   de: "Ich habe nichts gehoert. Rufen Sie gerne erneut an. Einen schoenen Tag noch.",
   ar: "لم أسمع شيئاً. يمكنك معاودة الاتصال. أتمنى لك يوماً سعيداً.",
 };
-const AI_ERROR_BYE: Record<RecLang, string> = {
-  fr: "Desole, un probleme technique m'empeche de continuer. Votre appel a ete note, on vous rappellera. Au revoir.",
-  tr: "Uzgunum, teknik bir sorun nedeniyle devam edemiyorum. Aramaniz kaydedildi, sizi arayacagiz. Hosca kalin.",
-  en: "Sorry, a technical issue prevents me from continuing. Your call was noted and we'll call you back. Goodbye.",
-  es: "Lo siento, un problema tecnico me impide continuar. Su llamada ha sido registrada, le devolveremos la llamada. Adios.",
-  de: "Entschuldigung, ein technisches Problem hindert mich am Fortfahren. Ihr Anruf wurde notiert, wir rufen Sie zurueck. Auf Wiederhoeren.",
-  ar: "عذراً، مشكلة تقنية تمنعني من المتابعة. تم تسجيل مكالمتك وسنعاود الاتصال بك. مع السلامة.",
-};
-
 function normalizeLang(x: unknown): RecLang {
   return typeof x === "string" && (REC_LANGS as readonly string[]).includes(x) ? (x as RecLang) : "fr";
 }
@@ -306,12 +296,6 @@ async function sauverSession(s: CallSession, extra: { status?: string; requestKe
   for (const k of ["_status", "_lastKey", "_lastResponse"]) delete etat[k];
   await sauverSessionAppel(s.callSid, s.orgId, etat, extra);
 }
-// Dedup des retries webhook Twilio sur /voice/twilio/voicemail-complete (pas
-// de verrou DB ici — un seul process traite un CallSid donne a la fois côté
-// Twilio, donc une Map en memoire suffit; contrairement a finalizedCalls, un
-// meme CallSid ne passe jamais par les deux chemins).
-const processedVoicemails = new Map<string, number>();
-
 // Avant: le nettoyage n'etait declenche que depuis /voice/twilio/incoming (un
 // nouvel appel entrant) ET seulement au-dela d'un seuil de taille (2000/5000
 // entrees) — un appelant qui raccroche avant le premier Gather (faux numeros,
@@ -320,10 +304,6 @@ const processedVoicemails = new Map<string, number>();
 // pas atteint. Le balayage periodique ci-dessous est inconditionnel (base
 // uniquement sur l'age), independant du volume d'appels ou de la taille des Map.
 function purgeStale(): void {
-  const now = Date.now();
-  for (const [sid, ts] of processedVoicemails) {
-    if (now - ts > SESSION_TTL_MS) processedVoicemails.delete(sid);
-  }
   // Appels restes ouverts (raccroche sans rappel de statut) : ils etaient
   // supprimes de la memoire SANS compte rendu. On les finalise d'abord.
   void finaliserAppelsAbandonnes().catch((err) => logger.warn({ err }, "[voice] finalisation des appels abandonnes echouee"));
@@ -2335,13 +2315,28 @@ voiceReceptionistRouter.post("/voice/twilio/voicemail-complete", async (req: Req
   // Twilio peut re-livrer ce webhook (timeout depasse cote Twilio pendant la
   // transcription Gemini synchrone ci-dessous) — sans garde, chaque retry
   // re-inserterait message/notification/log d'appel et renverrait SMS + email
-  // recap en double. Voir aussi le nettoyage periodique de processedVoicemails
-  // dans purgeStale().
-  if (!callSid || processedVoicemails.has(callSid)) {
+  // recap en double. La garde etait une Map en memoire : le retry tombant sur
+  // une autre instance Cloud Run refaisait tout. Elle est en base : la
+  // premiere requete qui insere la ligne de l'appel (CallSid unique) traite le
+  // message, les suivantes repondent sans rien refaire. La ligne naît
+  // « terminee » : le balayage des appels abandonnes ne la reprend pas.
+  if (!callSid) {
     res.status(200).send(emptyTwiml());
     return;
   }
-  processedVoicemails.set(callSid, Date.now());
+  const [premier] = await db.insert(voiceCallSessionsTable).values({
+    organisationId: tenant.orgId,
+    providerId: tenant.providerId,
+    callSid,
+    status: "terminee",
+    state: { messagerie: true },
+    actions: { messagerie: true },
+    finalizedAt: new Date(),
+  }).onConflictDoNothing().returning({ id: voiceCallSessionsTable.id });
+  if (!premier) {
+    res.status(200).send(emptyTwiml());
+    return;
+  }
 
   const callerNumber = body.From ?? "";
   let transcript: string | null = null;
@@ -2385,6 +2380,10 @@ voiceReceptionistRouter.post("/voice/twilio/voicemail-complete", async (req: Req
   } catch (err) {
     logger.error({ err, orgId: tenant.orgId }, "[voice] echec persistance message vocal");
   }
+  await journaliserAppel(tenant.orgId, callSid, "voicemail.received", {
+    transcrit: Boolean(transcript),
+    duree: parseInt(body.RecordingDuration || "0", 10) || 0,
+  });
 
   await sendMissedCallSms({
     orgId: tenant.orgId,
