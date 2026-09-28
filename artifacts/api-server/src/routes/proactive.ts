@@ -340,7 +340,13 @@ router.post("/proactive/suggestions/:id/send-reply", async (req: Request, res: R
 // selon le canal stocké dans le payload. La suggestion passe en `accepted` +
 // feedback 👍, et la facture est marquée comme relancée (compteur + date) pour
 // l'espacement anti-spam. Aucune action autonome : SEUL chemin d'envoi.
-router.post("/proactive/suggestions/:id/send-reminder", async (req: Request, res: Response): Promise<void> => {
+//
+// Reserve aux responsables (administrateur et au-dessus). La suggestion est a
+// l'echelle de l'organisation (`userId` nul) donc visible de tous : sans cette
+// garde, n'importe quel employe relancait un client sur un impaye — alors que
+// les autres gestes d'argent (file d'approbation, validation et remise des
+// depenses, relances manuelles) sont deja des actes de direction.
+router.post("/proactive/suggestions/:id/send-reminder", requireRole("administrateur"), async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
     const id = Number(req.params.id);

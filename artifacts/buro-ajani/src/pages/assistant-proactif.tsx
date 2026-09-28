@@ -32,6 +32,7 @@ X,
 } from "lucide-react";
 import { useCallback,useEffect,useState } from "react";
 import { useLocation } from "wouter";
+import { useWorkspaceUser } from "@/components/workspace-user";
 
 const PROACTIVE_API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/proactive";
 
@@ -90,6 +91,11 @@ export default function AssistantProactifPage() {
   const { toast } = useToast();
   const { t } = useTranslation();
   const [, setLocation] = useLocation();
+  // Relancer un client sur un impaye est un acte de direction : la route
+  // `send-reminder` le reserve aux responsables. Montrer « Envoyer » a un
+  // employe, c'etait lui offrir un bouton qui repond toujours « refuse ».
+  const { user } = useWorkspaceUser();
+  const estResponsable = user?.role === "administrateur" || user?.role === "super_admin";
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [counts, setCounts] = useState({ urgent: 0, warning: 0, info: 0 });
   const [loading, setLoading] = useState(true);
@@ -491,10 +497,14 @@ export default function AssistantProactifPage() {
                       <Button variant="outline" size="sm" onClick={() => (isReminder ? rejectReminder(s.id) : rejectEmail(s.id))} disabled={sendingId === s.id}>
                         <X className="h-4 w-4 mr-1" /> {isReminder ? t("assistantProactif.ignore") : t("assistantProactif.reject")}
                       </Button>
-                      <Button size="sm" onClick={() => sendReply(s)} disabled={sendingId === s.id}>
-                        {sendingId === s.id ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />}
-                        {t("assistantProactif.send")}
-                      </Button>
+                      {isReminder && !estResponsable ? (
+                        <span className="text-xs text-muted-foreground">{t("assistantProactif.reminderManagerOnly")}</span>
+                      ) : (
+                        <Button size="sm" onClick={() => sendReply(s)} disabled={sendingId === s.id}>
+                          {sendingId === s.id ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />}
+                          {t("assistantProactif.send")}
+                        </Button>
+                      )}
                     </>
                   )}
                   {s.status === "pending" && !isDraftable && (

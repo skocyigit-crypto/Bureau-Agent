@@ -5084,6 +5084,7 @@
     "emptyPendingDesc": "Ninguna acción proactiva necesaria por ahora. El asistente le avisará en cuanto detecte algo.",
     "emptyOtherDesc": "Ninguna sugerencia en esta categoría.",
     "reminderVia": "Recordatorio por {{channel}} a {{recipient}}",
+    "reminderManagerOnly": "Los recordatorios de pago los envía un responsable.",
     "channelSms": "SMS",
     "channelEmail": "correo electrónico",
     "subject": "Asunto",

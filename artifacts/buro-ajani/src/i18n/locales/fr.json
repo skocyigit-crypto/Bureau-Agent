@@ -5084,6 +5084,7 @@
     "emptyPendingDesc": "Aucune action proactive requise pour l'instant. L'assistant vous préviendra dès qu'il détecte quelque chose.",
     "emptyOtherDesc": "Aucune suggestion dans cette catégorie.",
     "reminderVia": "Relance par {{channel}} à {{recipient}}",
+    "reminderManagerOnly": "Une relance de paiement est envoyée par un responsable.",
     "channelSms": "SMS",
     "channelEmail": "e-mail",
     "subject": "Objet",
