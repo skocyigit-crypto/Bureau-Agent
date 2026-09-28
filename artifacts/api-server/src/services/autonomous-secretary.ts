@@ -370,7 +370,7 @@ async function executerSousVerrou(proposalId: number, ctx: ToolContext): Promise
   // Une relance partie est enregistree comme les autres : sans cela, le garde
   // « pas deux relances en 7 jours » ne la voyait pas et la meme relance
   // etait reproposee le lendemain.
-  if (exec.ok && proposal.sourceType === SOURCE_RELANCE) {
+  if (false && exec.ok && proposal.sourceType === SOURCE_RELANCE) {
     const ref = lireRefRelance(proposal.sourceRef);
     const args = (proposal.args ?? {}) as Record<string, unknown>;
     if (ref) {
