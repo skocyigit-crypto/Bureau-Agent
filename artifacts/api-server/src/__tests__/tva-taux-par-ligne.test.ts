@@ -83,11 +83,13 @@ describe("les voies d'emission", () => {
     "utf8",
   );
 
-  it("la route IA delegue le calcul au moteur central", () => {
-    expect(
-      routeIa.includes("computeInvoiceTotals"),
-      "la route recalcule les montants elle-meme: deux moteurs, deux reponses",
-    ).toBe(true);
+  it("la route IA n'emet plus de facture : elle n'a donc plus de calcul a elle", () => {
+    // Elle deleguait le calcul a `computeInvoiceTotals` ; elle n'emet plus du
+    // tout (palier « financier », services/paliers-actions-ia.ts). Ce qui
+    // compte desormais : aucune facture ne s'y insere, par aucun calcul.
+    expect(routeIa, "la route IA insere de nouveau des factures").not.toMatch(/insert\(facturesClientTable\)/);
+    expect(routeIa).not.toMatch(/case "create_invoice"/);
+    expect(routeIa).toMatch(/palierAction\(/);
   });
 
   it("elle n'applique plus un taux unique a toutes les lignes", () => {
