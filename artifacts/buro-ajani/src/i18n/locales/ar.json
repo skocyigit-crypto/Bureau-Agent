@@ -206,7 +206,8 @@
       "postDiagnostic": "فحص جهاز العمل",
       "encaissements": "التحصيلات",
       "taskDesk": "مكتب المهام",
-      "agentCatalog": "دليل الوكلاء"
+      "agentCatalog": "دليل الوكلاء",
+      "flowStudio": "استوديو المسارات"
     }
   },
   "userMenu": {
@@ -9645,6 +9646,91 @@
       "failed": "لم يكتمل الطلب: {{raison}}",
       "tab_one": "{{statut}}: تشغيل واحد",
       "tab_other": "{{statut}}: {{count}} تشغيلات"
+    }
+  },
+  "studioFlux": {
+    "title": "استوديو المسارات",
+    "subtitle": "ارسم ما تفعله الأتمتة: المُشغِّل، الوكيل، الشرط، الموافقة، الإجراء. قائمة الخطوات هي المسار نفسه وقابلة للتعديل كاملاً بلوحة المفاتيح.",
+    "regle": "الأتمتة",
+    "choisir": "اختر أتمتة",
+    "nouvelleDemande": "مسار جديد «طلب جديد»",
+    "nomNouveau": "اسم المسار",
+    "nomParDefaut": "توجيه الطلبات",
+    "aucune": "لا توجد أتمتة مخصصة بعد: أنشئ واحدة في الأتمتة، أو مسار «طلب جديد».",
+    "canvas": "العرض الرسومي للمسار",
+    "canvasAide": "اسحب الخطوات واربطها بمقابضها. يحذف مفتاح Delete الخطوة أو الرابط المحدد.",
+    "liste": "خطوات المسار",
+    "etape": "الخطوة {{n}}: {{type}}",
+    "types": {
+      "declencheur": "المُشغِّل",
+      "agent": "وكيل",
+      "condition": "شرط",
+      "approbation": "موافقة بشرية",
+      "action": "إجراء"
+    },
+    "agents": {
+      "classificateur": "المُصنِّف",
+      "agent-support": "وكيل الدعم",
+      "agent-vente": "وكيل المبيعات"
+    },
+    "operateurs": {
+      "egal": "يساوي",
+      "different": "يختلف عن",
+      "contient": "يحتوي على",
+      "superieur": "أكبر من",
+      "inferieur": "أصغر من",
+      "vide": "فارغ",
+      "non_vide": "غير فارغ"
+    },
+    "actions": {
+      "send_notification": "إشعار داخلي",
+      "create_task": "إنشاء مهمة",
+      "send_sms": "إرسال رسالة نصية",
+      "send_email": "إرسال بريد إلكتروني"
+    },
+    "champ": "الحقل",
+    "operateur": "المعامل",
+    "valeur": "القيمة",
+    "agentChoisi": "الوكيل",
+    "actionChoisie": "الإجراء",
+    "param": {
+      "title": "العنوان",
+      "message": "الرسالة",
+      "description": "الوصف",
+      "priority": "الأولوية",
+      "subject": "الموضوع",
+      "body": "النص",
+      "to": "المستلم (فارغ: مستلم العنصر نفسه)"
+    },
+    "priorites": {
+      "haute": "عالية",
+      "moyenne": "متوسطة",
+      "basse": "منخفضة"
+    },
+    "ensuite": "الخطوة التالية",
+    "siOui": "إذا نعم",
+    "siNon": "إذا لا",
+    "fin": "— النهاية —",
+    "ajouterSuite": "خطوة تالية أخرى",
+    "declencheurDemande": "يبدأ مع كل طلب جديد (مكتب المهام، النموذج).",
+    "declencheurRegle": "يبدأ وفق مُشغِّل الأتمتة ووتيرتها.",
+    "approbationInfo": "كل ما يلي ينتظر موافقتك في قائمة الموافقة.",
+    "typeAjout": "نوع الخطوة",
+    "ajouter": "إضافة خطوة",
+    "supprimer": "حذف الخطوة",
+    "enregistrer": "حفظ المسار",
+    "enregistrement": "جارٍ الحفظ…",
+    "erreurGlobale": "المسار غير صالح",
+    "annonce": {
+      "ajoutee": "أُضيفت خطوة: {{type}}. اربطها من الخطوة التي تسبقها.",
+      "supprimee": "حُذفت الخطوة.",
+      "lien": "أُضيف رابط.",
+      "lienRetire": "أُزيل الرابط.",
+      "chargee": "تم تحميل المسار: {{n}} خطوات.",
+      "enregistre": "تم حفظ المسار.",
+      "invalide_one": "لم يُحفظ المسار: {{count}} خطأ.",
+      "invalide_other": "لم يُحفظ المسار: {{count}} أخطاء.",
+      "erreur": "فشل الحفظ: {{raison}}"
     }
   }
 }

@@ -981,6 +981,9 @@ async function executeRule(rule: any, fenetre?: { depuis: Date | null; jusqua: D
   }
 }
 
+/** Execution d une regle (reclamee par l appelant). Exportee pour les tests. */
+export const executerRegle = executeRule;
+
 function calculateNextRun(schedule: string | null): Date {
   const now = new Date();
   switch (schedule) {

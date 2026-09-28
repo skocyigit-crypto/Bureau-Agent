@@ -71,6 +71,7 @@ const CheckinsPage = lazy(() => import("@/pages/checkins"));
 const AiAgentsPage = lazy(() => import("@/pages/ai-agents"));
 const CalendarPage = lazy(() => import("@/pages/calendar"));
 const AutomationsPage = lazy(() => import("@/pages/automations"));
+const StudioFluxPage = lazy(() => import("@/pages/studio-flux"));
 const PerformancePage = lazy(() => import("@/pages/performance"));
 const OrganisationsPage = lazy(() => import("@/pages/organisations"));
 const NotificationsPage = lazy(() => import("@/pages/notifications"));
@@ -340,6 +341,7 @@ function AppRoutes() {
         <Route path="/calendrier" component={withLicenseGate(CalendarPage)} />
         <Route path="/audit" component={() => <RedirectTo to="/auto-audit" />} />
         <Route path="/automatisations" component={withRoleGate(AutomationsPage, ADMIN_ROLES)} />
+        <Route path="/studio-flux" component={withRoleGate(StudioFluxPage, ADMIN_ROLES)} />
         <Route path="/performance" component={withRoleGate(PerformancePage, ADMIN_ROLES)} />
         <Route path="/google-workspace" component={withLicenseGate(GoogleWorkspacePage)} />
         <Route path="/gmail-agent" component={withLicenseGate(GmailAgentPage)} />
