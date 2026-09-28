@@ -56,11 +56,11 @@ beforeAll(async () => {
     if (suffixe === "a") A = o!.id; else B = o!.id;
   }
   const contact = async (org: number) => (await db.insert(contactsTable).values({ organisationId: org, firstName: "C", lastName: `${org}`, phone: "+33611223344" }).returning({ id: contactsTable.id }))[0]!.id;
-  const appel = async (org: number) => (await db.insert(callsTable).values({ organisationId: org, phoneNumber: "+33600000000", direction: "entrant", status: "termine" } as any).returning({ id: callsTable.id }))[0]!.id;
+  const appel = async (org: number) => (await db.insert(callsTable).values({ organisationId: org, phoneNumber: "+33600000000", direction: "entrant", status: "termine" }).returning({ id: callsTable.id }))[0]!.id;
   contactA = await contact(A); contactB = await contact(B);
   appelA = await appel(A); appelB = await appel(B);
-  prospectB = (await db.insert(prospectsTable).values({ organisationId: B, name: "Prospect B" } as any).returning({ id: prospectsTable.id }))[0]!.id;
-  tacheB = (await db.insert(tasksTable).values({ organisationId: B, title: "Tache B" } as any).returning({ id: tasksTable.id }))[0]!.id;
+  prospectB = (await db.insert(prospectsTable).values({ organisationId: B, title: "Prospect B" }).returning({ id: prospectsTable.id }))[0]!.id;
+  tacheB = (await db.insert(tasksTable).values({ organisationId: B, title: "Tache B" }).returning({ id: tasksTable.id }))[0]!.id;
 }, 60_000);
 
 afterAll(async () => {

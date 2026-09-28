@@ -90,7 +90,7 @@ describe("reclamation d'une periode", () => {
 describe("relance de webhook : on reclame la ligne telle qu'elle a ete lue", () => {
   async function livraison(status: string) {
     const [e] = await db.insert(webhookEndpointsTable).values({
-      organisationId: org, url: "https://exemple.test/hook", secret: "s",
+      organisationId: org, url: "https://exemple.test/hook", secret: "enc:v1:test",
     } as any).returning({ id: webhookEndpointsTable.id });
     const [d] = await db.insert(webhookDeliveriesTable).values({
       organisationId: org, endpointId: e!.id, eventType: "test.event", eventId: `ev-${stamp}-${Math.random()}`,
