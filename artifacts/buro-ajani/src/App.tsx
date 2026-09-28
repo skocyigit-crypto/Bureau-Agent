@@ -109,6 +109,8 @@ const IaApprentissagePage = lazy(() => import("@/pages/ia-apprentissage"));
 const RechercheWebPage = lazy(() => import("@/pages/recherche-web"));
 const EquipeLocalisationPage = lazy(() => import("@/pages/equipe-localisation"));
 const FileApprobationPage = lazy(() => import("@/pages/file-approbation"));
+const AgentsCataloguePage = lazy(() => import("@/pages/agents-catalogue"));
+const BureauTachesPage = lazy(() => import("@/pages/bureau-taches"));
 const EquipeIaPage = lazy(() => import("@/pages/equipe-ia"));
 const AuditDenetimPage = lazy(() => import("@/pages/audit-denetim"));
 const VoiceSiteOpsPage = lazy(() => import("@/pages/voice-site-ops"));
@@ -382,6 +384,8 @@ function AppRoutes() {
         <Route path="/recherche-web" component={withLicenseGate(RechercheWebPage)} />
         <Route path="/equipe/localisation" component={withRoleGate(EquipeLocalisationPage, ADMIN_ROLES)} />
         <Route path="/file-approbation" component={withLicenseGate(FileApprobationPage)} />
+        <Route path="/agents-catalogue" component={withLicenseGate(AgentsCataloguePage)} />
+        <Route path="/bureau-taches" component={withLicenseGate(BureauTachesPage)} />
         <Route path="/equipe-ia" component={withLicenseGate(EquipeIaPage)} />
         <Route path="/auto-audit" component={withRoleGate(AuditDenetimPage, ADMIN_ROLES)} />
         <Route component={NotFound} />

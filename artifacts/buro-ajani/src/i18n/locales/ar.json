@@ -204,7 +204,9 @@
       "clientInvoices": "فواتير العملاء",
       "trash": "سلة المحذوفات",
       "postDiagnostic": "فحص جهاز العمل",
-      "encaissements": "التحصيلات"
+      "encaissements": "التحصيلات",
+      "taskDesk": "مكتب المهام",
+      "agentCatalog": "دليل الوكلاء"
     }
   },
   "userMenu": {
@@ -9478,6 +9480,161 @@
       "structureFound": "تم العثور على {{count}} هيكل في Chorus Pro",
       "structureNone": "لا يوجد هيكل لهذا الرقم SIRET",
       "structureError": "فشل البحث."
+    }
+  },
+  "agentsCatalogue": {
+    "title": "دليل الوكلاء",
+    "subtitle": "ما يمكن لكل وكيل قراءته وفعله، وحدوده، ونشاطه خلال آخر 30 يومًا.",
+    "loading": "جارٍ تحميل الدليل…",
+    "error": "تعذّر تحميل الدليل.",
+    "listLabel": "الوكلاء",
+    "count_one": "وكيل واحد",
+    "count_other": "{{count}} وكلاء",
+    "execution": {
+      "orchestrateur": "المنسِّق",
+      "assistant": "المساعد",
+      "cron": "مهمة مجدولة",
+      "cron-plateforme": "مهمة المنصة"
+    },
+    "model": "النموذج",
+    "sources": "المصادر",
+    "knowledgeBase": "قاعدة المعرفة",
+    "none": "لا شيء",
+    "tools": "الأدوات",
+    "noTools": "لا أدوات: يقرأ ويقرر فقط.",
+    "tier": {
+      "lecture": "قراءة",
+      "interne": "داخلي",
+      "externe": "صادر",
+      "destructif": "حذف"
+    },
+    "needsApproval": "يخضع للموافقة",
+    "limits": "الحدود",
+    "maxCost": "أقصى تكلفة لكل تشغيل",
+    "maxModelCalls": "استدعاءات النموذج",
+    "maxActions": "أقصى عدد للإجراءات",
+    "limitsInModule": "تُدار من وحدته الخاصة.",
+    "activity30d": "النشاط (30 يومًا)",
+    "runs_one": "تشغيل واحد",
+    "runs_other": "{{count}} تشغيلات",
+    "failures_one": "إخفاق واحد",
+    "failures_other": "{{count}} إخفاقات",
+    "agents": {
+      "classificateur": {
+        "nom": "المصنِّف",
+        "mission": "يقرأ الطلب الوارد ويقرر إلى أي وكيل يُسنده: الدعم أو المبيعات أو لا أحد."
+      },
+      "agent-support": {
+        "nom": "وكيل الدعم",
+        "mission": "يُعِدّ الرد على طلب مساعدة من عميل، ومهمة المتابعة عند الحاجة."
+      },
+      "agent-vente": {
+        "nom": "الوكيل التجاري",
+        "mission": "يؤهّل الطلب التجاري: ينشئ العميل المحتمل ويُعِدّ الرد والمتابعة."
+      },
+      "assistant": {
+        "nom": "المساعد",
+        "mission": "يجيب في المحادثة ويتصرف عند الطلب: يؤكد المستخدم كل عملية كتابة."
+      },
+      "secretaire-autonome": {
+        "nom": "السكرتير المستقل",
+        "mission": "يراجع النشاط (التأخيرات، المكالمات الفائتة، الرسائل) ويقترح إجراءات في قائمة الموافقة."
+      },
+      "auto-audit": {
+        "nom": "التدقيق الذاتي",
+        "mission": "يتحقق من اتساق بيانات المؤسسة ويقترح التصحيحات."
+      },
+      "agent-saas": {
+        "nom": "وكيل المنصة",
+        "mission": "يراقب اشتراكات عملاء المنصة ويطبّق ما هو آلي."
+      }
+    }
+  },
+  "bureauTaches": {
+    "title": "مكتب المهام",
+    "subtitle": "ما يفعله الوكلاء: قيد التنفيذ، بانتظار الموافقة، منتهٍ، بخطأ — وكم كلّف.",
+    "newRequest": "طلب جديد",
+    "form": {
+      "channel": "القناة",
+      "subject": "الموضوع",
+      "senderName": "اسم المرسل",
+      "senderEmail": "بريد المرسل",
+      "content": "الرسالة الواردة",
+      "help": "يُسند المصنِّف الطلب إلى وكيل الدعم أو الوكيل التجاري؛ وكل إرسال يمر عبر قائمة الموافقة.",
+      "submit": "معالجة الطلب",
+      "sending": "جارٍ المعالجة…"
+    },
+    "channel": {
+      "formulaire": "نموذج",
+      "email": "بريد إلكتروني",
+      "whatsapp": "واتساب",
+      "telephone": "هاتف",
+      "demo": "عرض توضيحي"
+    },
+    "runs": "التشغيلات",
+    "filterLabel": "التصفية حسب الحالة",
+    "error": "تعذّر تحميل التشغيلات.",
+    "empty": "لا توجد تشغيلات بهذه الحالة.",
+    "loading": "جارٍ التحميل…",
+    "status": {
+      "en_cours": "قيد التنفيذ",
+      "en_attente": "بانتظار الموافقة",
+      "terminee": "منتهية",
+      "echouee": "بخطأ"
+    },
+    "tableCaption": "التشغيلات — {{statut}}",
+    "col": {
+      "date": "التاريخ",
+      "request": "الطلب",
+      "agent": "الوكيل",
+      "status": "الحالة",
+      "cost": "التكلفة",
+      "actions": "الإجراءات",
+      "runs": "التشغيلات",
+      "limit": "الحد"
+    },
+    "noSubject": "(بدون موضوع)",
+    "openDetail": "عرض التفاصيل: {{sujet}}",
+    "detail": "التفاصيل",
+    "costsTitle": "تكاليف الوكلاء ({{jours}} يومًا)",
+    "costsTotal": "الإجمالي: {{total}}",
+    "quota": "حصة الذكاء الاصطناعي لهذا الشهر: {{used}} $ / {{max}} $ ({{pct}}٪)",
+    "costsCaption": "التكلفة لكل وكيل",
+    "perRun": "تشغيل",
+    "tokens": "رموز",
+    "detailTitle": "التشغيل رقم {{id}}",
+    "detailDescription": "خطوات هذا التشغيل وقراراته وتكاليفه وموافقاته.",
+    "totalCost": "التكلفة الإجمالية: {{cout}}",
+    "stepsOf": "الخطوات — {{agent}}",
+    "draft": "مسودة الرد",
+    "approvals": "الموافقات",
+    "goToApprovals": "فتح قائمة الموافقة",
+    "kind": {
+      "llm": "النموذج",
+      "decision": "قرار",
+      "outil": "أداة",
+      "approbation": "موافقة",
+      "devolution": "أُسند إلى"
+    },
+    "stepStatus": {
+      "ok": "تم",
+      "echec": "إخفاق",
+      "en_attente": "بالانتظار",
+      "refuse": "مرفوض"
+    },
+    "proposalStatus": {
+      "en_attente": "بالانتظار",
+      "approuvee": "مُوافَق عليه",
+      "rejetee": "مرفوض",
+      "executee": "مُنفَّذ",
+      "echouee": "فشل",
+      "expiree": "منتهي الصلاحية"
+    },
+    "announce": {
+      "done": "عولج الطلب: {{statut}}. {{attente}} إجراء بانتظار الموافقة، و{{executees}} مُنفَّذ.",
+      "failed": "لم يكتمل الطلب: {{raison}}",
+      "tab_one": "{{statut}}: تشغيل واحد",
+      "tab_other": "{{statut}}: {{count}} تشغيلات"
     }
   }
 }

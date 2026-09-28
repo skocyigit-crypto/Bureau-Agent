@@ -204,7 +204,9 @@
       "clientInvoices": "Client invoices",
       "trash": "Trash",
       "postDiagnostic": "Workstation check-up",
-      "encaissements": "Payments"
+      "encaissements": "Payments",
+      "taskDesk": "Task desk",
+      "agentCatalog": "Agent catalog"
     }
   },
   "userMenu": {
@@ -9472,6 +9474,161 @@
       "structureFound": "{{count}} structure(s) found on Chorus Pro",
       "structureNone": "No structure for this SIRET",
       "structureError": "The search failed."
+    }
+  },
+  "agentsCatalogue": {
+    "title": "Agent catalog",
+    "subtitle": "What each agent can read and do, its limits, and its activity over the last 30 days.",
+    "loading": "Loading the catalog…",
+    "error": "The catalog could not be loaded.",
+    "listLabel": "Agents",
+    "count_one": "{{count}} agent",
+    "count_other": "{{count}} agents",
+    "execution": {
+      "orchestrateur": "Orchestrator",
+      "assistant": "Assistant",
+      "cron": "Scheduled job",
+      "cron-plateforme": "Platform job"
+    },
+    "model": "Model",
+    "sources": "Sources",
+    "knowledgeBase": "Knowledge base",
+    "none": "none",
+    "tools": "Tools",
+    "noTools": "No tools: it only reads and decides.",
+    "tier": {
+      "lecture": "read",
+      "interne": "internal",
+      "externe": "outbound",
+      "destructif": "destructive"
+    },
+    "needsApproval": "requires approval",
+    "limits": "Limits",
+    "maxCost": "Max cost per run",
+    "maxModelCalls": "Model calls",
+    "maxActions": "Max actions",
+    "limitsInModule": "Managed by its own module.",
+    "activity30d": "Activity (30 days)",
+    "runs_one": "{{count}} run",
+    "runs_other": "{{count}} runs",
+    "failures_one": "{{count}} failure",
+    "failures_other": "{{count}} failures",
+    "agents": {
+      "classificateur": {
+        "nom": "Classifier",
+        "mission": "Reads an incoming request and decides which agent should handle it: support, sales, or none."
+      },
+      "agent-support": {
+        "nom": "Support agent",
+        "mission": "Prepares the reply to a customer's support request, and a follow-up task if needed."
+      },
+      "agent-vente": {
+        "nom": "Sales agent",
+        "mission": "Qualifies a sales request: creates the prospect, prepares the reply and the follow-up."
+      },
+      "assistant": {
+        "nom": "Assistant",
+        "mission": "Answers in conversation and acts on request: every write is confirmed by the user."
+      },
+      "secretaire-autonome": {
+        "nom": "Autonomous secretary",
+        "mission": "Reviews activity (overdue items, missed calls, messages) and proposes actions in the approval queue."
+      },
+      "auto-audit": {
+        "nom": "Self-audit",
+        "mission": "Checks the consistency of the organisation's data and proposes corrections."
+      },
+      "agent-saas": {
+        "nom": "Platform agent",
+        "mission": "Monitors the platform customers' subscriptions and applies what is mechanical."
+      }
+    }
+  },
+  "bureauTaches": {
+    "title": "Task desk",
+    "subtitle": "What the agents are doing: running, awaiting approval, done, failed — and what it cost.",
+    "newRequest": "New request",
+    "form": {
+      "channel": "Channel",
+      "subject": "Subject",
+      "senderName": "Sender name",
+      "senderEmail": "Sender email",
+      "content": "Message received",
+      "help": "The classifier hands it to the support or sales agent; anything sent goes through the approval queue.",
+      "submit": "Process the request",
+      "sending": "Processing…"
+    },
+    "channel": {
+      "formulaire": "Form",
+      "email": "Email",
+      "whatsapp": "WhatsApp",
+      "telephone": "Phone",
+      "demo": "Demo"
+    },
+    "runs": "Runs",
+    "filterLabel": "Filter by status",
+    "error": "Could not load the runs.",
+    "empty": "No run in this status.",
+    "loading": "Loading…",
+    "status": {
+      "en_cours": "Running",
+      "en_attente": "Awaiting approval",
+      "terminee": "Done",
+      "echouee": "Failed"
+    },
+    "tableCaption": "Runs — {{statut}}",
+    "col": {
+      "date": "Date",
+      "request": "Request",
+      "agent": "Agent",
+      "status": "Status",
+      "cost": "Cost",
+      "actions": "Actions",
+      "runs": "Runs",
+      "limit": "Limit"
+    },
+    "noSubject": "(no subject)",
+    "openDetail": "View details: {{sujet}}",
+    "detail": "Details",
+    "costsTitle": "Agent costs ({{jours}} days)",
+    "costsTotal": "Total: {{total}}",
+    "quota": "AI quota this month: {{used}} $ / {{max}} $ ({{pct}}%)",
+    "costsCaption": "Cost per agent",
+    "perRun": "run",
+    "tokens": "tokens",
+    "detailTitle": "Run #{{id}}",
+    "detailDescription": "Steps, decisions, costs and approvals of this run.",
+    "totalCost": "Total cost: {{cout}}",
+    "stepsOf": "Steps — {{agent}}",
+    "draft": "Draft reply",
+    "approvals": "Approvals",
+    "goToApprovals": "Open the approval queue",
+    "kind": {
+      "llm": "Model",
+      "decision": "Decision",
+      "outil": "Tool",
+      "approbation": "Approval",
+      "devolution": "Handed to"
+    },
+    "stepStatus": {
+      "ok": "ok",
+      "echec": "failed",
+      "en_attente": "pending",
+      "refuse": "refused"
+    },
+    "proposalStatus": {
+      "en_attente": "pending",
+      "approuvee": "approved",
+      "rejetee": "rejected",
+      "executee": "executed",
+      "echouee": "failed",
+      "expiree": "expired"
+    },
+    "announce": {
+      "done": "Request processed: {{statut}}. {{attente}} action(s) awaiting approval, {{executees}} executed.",
+      "failed": "The request did not complete: {{raison}}",
+      "tab_one": "{{statut}}: {{count}} run",
+      "tab_other": "{{statut}}: {{count}} runs"
     }
   }
 }

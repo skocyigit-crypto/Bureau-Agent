@@ -204,7 +204,9 @@
       "clientInvoices": "Kundenrechnungen",
       "trash": "Papierkorb",
       "postDiagnostic": "Arbeitsplatz-Diagnose",
-      "encaissements": "Zahlungen"
+      "encaissements": "Zahlungen",
+      "taskDesk": "Aufgabenpult",
+      "agentCatalog": "Agentenkatalog"
     }
   },
   "userMenu": {
@@ -9472,6 +9474,161 @@
       "structureFound": "{{count}} Struktur(en) bei Chorus Pro gefunden",
       "structureNone": "Keine Struktur fur diese SIRET",
       "structureError": "Die Suche ist fehlgeschlagen."
+    }
+  },
+  "agentsCatalogue": {
+    "title": "Agentenkatalog",
+    "subtitle": "Was jeder Agent lesen und tun darf, seine Grenzen und seine Aktivität der letzten 30 Tage.",
+    "loading": "Katalog wird geladen…",
+    "error": "Der Katalog konnte nicht geladen werden.",
+    "listLabel": "Agenten",
+    "count_one": "{{count}} Agent",
+    "count_other": "{{count}} Agenten",
+    "execution": {
+      "orchestrateur": "Orchestrator",
+      "assistant": "Assistent",
+      "cron": "Geplante Aufgabe",
+      "cron-plateforme": "Plattformaufgabe"
+    },
+    "model": "Modell",
+    "sources": "Quellen",
+    "knowledgeBase": "Wissensdatenbank",
+    "none": "keine",
+    "tools": "Werkzeuge",
+    "noTools": "Keine Werkzeuge: liest nur und entscheidet.",
+    "tier": {
+      "lecture": "lesen",
+      "interne": "intern",
+      "externe": "ausgehend",
+      "destructif": "löschend"
+    },
+    "needsApproval": "freigabepflichtig",
+    "limits": "Grenzen",
+    "maxCost": "Max. Kosten pro Lauf",
+    "maxModelCalls": "Modellaufrufe",
+    "maxActions": "Max. Aktionen",
+    "limitsInModule": "Von seinem eigenen Modul verwaltet.",
+    "activity30d": "Aktivität (30 Tage)",
+    "runs_one": "{{count}} Lauf",
+    "runs_other": "{{count}} Läufe",
+    "failures_one": "{{count}} Fehler",
+    "failures_other": "{{count}} Fehler",
+    "agents": {
+      "classificateur": {
+        "nom": "Klassifikator",
+        "mission": "Liest eine eingehende Anfrage und entscheidet, welchem Agenten sie übergeben wird: Support, Vertrieb oder keinem."
+      },
+      "agent-support": {
+        "nom": "Support-Agent",
+        "mission": "Bereitet die Antwort auf eine Supportanfrage eines Kunden vor und bei Bedarf die Folgeaufgabe."
+      },
+      "agent-vente": {
+        "nom": "Vertriebsagent",
+        "mission": "Qualifiziert eine Vertriebsanfrage: legt den Interessenten an, bereitet Antwort und Nachfassen vor."
+      },
+      "assistant": {
+        "nom": "Assistent",
+        "mission": "Antwortet im Gespräch und handelt auf Anfrage: jeder Schreibvorgang wird vom Benutzer bestätigt."
+      },
+      "secretaire-autonome": {
+        "nom": "Autonome Sekretärin",
+        "mission": "Prüft die Aktivität (Verzüge, verpasste Anrufe, Nachrichten) und schlägt Aktionen in der Freigabewarteschlange vor."
+      },
+      "auto-audit": {
+        "nom": "Selbstprüfung",
+        "mission": "Prüft die Konsistenz der Daten der Organisation und schlägt Korrekturen vor."
+      },
+      "agent-saas": {
+        "nom": "Plattform-Agent",
+        "mission": "Überwacht die Abonnements der Plattformkunden und wendet an, was mechanisch ist."
+      }
+    }
+  },
+  "bureauTaches": {
+    "title": "Aufgabenpult",
+    "subtitle": "Was die Agenten tun: laufend, wartet auf Freigabe, erledigt, fehlgeschlagen — und was es gekostet hat.",
+    "newRequest": "Neue Anfrage",
+    "form": {
+      "channel": "Kanal",
+      "subject": "Betreff",
+      "senderName": "Name des Absenders",
+      "senderEmail": "E-Mail des Absenders",
+      "content": "Eingegangene Nachricht",
+      "help": "Der Klassifikator übergibt sie dem Support- oder Vertriebsagenten; jede Sendung läuft über die Freigabewarteschlange.",
+      "submit": "Anfrage bearbeiten",
+      "sending": "Wird bearbeitet…"
+    },
+    "channel": {
+      "formulaire": "Formular",
+      "email": "E-Mail",
+      "whatsapp": "WhatsApp",
+      "telephone": "Telefon",
+      "demo": "Demo"
+    },
+    "runs": "Läufe",
+    "filterLabel": "Nach Status filtern",
+    "error": "Die Läufe konnten nicht geladen werden.",
+    "empty": "Kein Lauf in diesem Status.",
+    "loading": "Wird geladen…",
+    "status": {
+      "en_cours": "Laufend",
+      "en_attente": "Wartet auf Freigabe",
+      "terminee": "Erledigt",
+      "echouee": "Fehlgeschlagen"
+    },
+    "tableCaption": "Läufe — {{statut}}",
+    "col": {
+      "date": "Datum",
+      "request": "Anfrage",
+      "agent": "Agent",
+      "status": "Status",
+      "cost": "Kosten",
+      "actions": "Aktionen",
+      "runs": "Läufe",
+      "limit": "Grenze"
+    },
+    "noSubject": "(kein Betreff)",
+    "openDetail": "Details anzeigen: {{sujet}}",
+    "detail": "Details",
+    "costsTitle": "Kosten der Agenten ({{jours}} Tage)",
+    "costsTotal": "Summe: {{total}}",
+    "quota": "KI-Kontingent diesen Monat: {{used}} $ / {{max}} $ ({{pct}} %)",
+    "costsCaption": "Kosten pro Agent",
+    "perRun": "Lauf",
+    "tokens": "Tokens",
+    "detailTitle": "Lauf Nr. {{id}}",
+    "detailDescription": "Schritte, Entscheidungen, Kosten und Freigaben dieses Laufs.",
+    "totalCost": "Gesamtkosten: {{cout}}",
+    "stepsOf": "Schritte — {{agent}}",
+    "draft": "Antwortentwurf",
+    "approvals": "Freigaben",
+    "goToApprovals": "Freigabewarteschlange öffnen",
+    "kind": {
+      "llm": "Modell",
+      "decision": "Entscheidung",
+      "outil": "Werkzeug",
+      "approbation": "Freigabe",
+      "devolution": "Übergeben an"
+    },
+    "stepStatus": {
+      "ok": "ok",
+      "echec": "fehlgeschlagen",
+      "en_attente": "wartend",
+      "refuse": "abgelehnt"
+    },
+    "proposalStatus": {
+      "en_attente": "wartend",
+      "approuvee": "freigegeben",
+      "rejetee": "abgelehnt",
+      "executee": "ausgeführt",
+      "echouee": "fehlgeschlagen",
+      "expiree": "abgelaufen"
+    },
+    "announce": {
+      "done": "Anfrage bearbeitet: {{statut}}. {{attente}} Aktion(en) warten auf Freigabe, {{executees}} ausgeführt.",
+      "failed": "Die Anfrage wurde nicht abgeschlossen: {{raison}}",
+      "tab_one": "{{statut}}: {{count}} Lauf",
+      "tab_other": "{{statut}}: {{count}} Läufe"
     }
   }
 }
