@@ -20,7 +20,7 @@ vi.mock("../services/availability", async (importOriginal) => {
 
 import { eq } from "drizzle-orm";
 import { calendarEventsTable, db, messagesTable, organisationsTable } from "@workspace/db";
-import { persistOutcome } from "../routes/voice-receptionist";
+import { persistOutcome, traiterConfirmation } from "../routes/voice-receptionist";
 import { horaireInscriptibleParIa } from "../services/garde-rendez-vous";
 
 const stamp = Date.now();
@@ -33,13 +33,16 @@ function session() {
     lang: "fr", voice: "alice", orgName: "Test", turns: [], fulfilled: false, persisting: false,
     startedAt: Date.now(), emptyCount: 0, callerName: null, callCount: 0, busyBlock: "", freeBlock: "",
     callerContactId: null, cfg: { smsConfirmation: false, autoFollowupTask: false },
+    callSid: `CA-rdv-${Math.random().toString(36).slice(2)}`, fuseau: "Europe/Paris",
+    rdvPropose: null, rdvCree: null, transfert: null, rappelMessageId: null, demande: "", journal: [], echecsModele: 0,
   } as any;
 }
-function resultat(startIso: string | null) {
+/** Le modele rend date et heure MURALES ; le code en fait un instant. */
+function resultat(date: string | null, time: string | null) {
   return {
     say: "", done: true, outcome: "appointment",
-    appointment: { name: "Jean Dupont", reason: "Devis", whenText: "mardi 9h", startIso },
-    message: null, summary: "", sentiment: "neutre", urgent: false, wantsHuman: false,
+    appointment: { name: "Jean Dupont", reason: "Devis", date, time, timezone: null },
+    message: null, summary: "", sentiment: "neutre", urgent: false, transfer: false, confirmation: null,
   } as any;
 }
 const evenements = async () => db.select().from(calendarEventsTable).where(eq(calendarEventsTable.organisationId, orgId));
@@ -72,39 +75,64 @@ describe("regle pure", () => {
   });
 });
 
-describe("fin d'appel : ce qui est ecrit", () => {
-  it("un horaire dans le passe ne cree aucun evenement", async () => {
-    await persistOutcome(session(), resultat(new Date(Date.now() - 48 * H).toISOString()));
+describe("demande de rendez-vous : ce qui est ecrit", () => {
+  // Contrat depuis le 28/09 : persistOutcome n'ECRIT plus de rendez-vous. Il
+  // propose un creneau verifie ; seul le « oui » de l'appelant
+  // (traiterConfirmation) l'inscrit. Un horaire hors delai ne cree ni
+  // rendez-vous ni message : l'appelant est interroge a nouveau.
+  const jourOuvre = (jours: number) => {
+    let d = new Date(Date.now() + jours * 86400_000);
+    const dow = (x: Date) => new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "Europe/Paris" }).format(x);
+    while (["Sat", "Sun"].includes(dow(d))) d = new Date(d.getTime() + 86400_000);
+    return new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Europe/Paris" }).format(d);
+  };
+  const dateParis = (x: Date) => new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Europe/Paris" }).format(x);
+
+  it("un horaire dans le passe ne cree aucun evenement et redemande un moment", async () => {
+    const hier = dateParis(new Date(Date.now() - 48 * H));
+    const suite = await persistOutcome(session(), resultat(hier, "10:00"));
+    expect(suite?.say).toMatch(/au moins une heure à l'avance/);
     expect(await evenements()).toEqual([]);
   });
 
-  it("… et laisse une trace exploitable pour rappeler l'appelant", async () => {
-    expect((await messages()).length).toBeGreaterThan(0);
+  it("… et ne fabrique pas de message a la place", async () => {
+    expect(await messages()).toEqual([]);
   });
 
   it("un horaire en 2090 ne cree aucun evenement", async () => {
-    await persistOutcome(session(), resultat("2090-03-05T09:00:00.000Z"));
+    await persistOutcome(session(), resultat("2090-03-05", "09:00"));
     expect(await evenements()).toEqual([]);
   });
 
-  it("un horaire valide cree bien le rendez-vous", async () => {
-    const debut = new Date(Date.now() + 48 * H);
-    await persistOutcome(session(), resultat(debut.toISOString()));
-    const evts = await evenements();
-    expect(evts.length).toBe(1);
-    expect(evts[0]!.status).toBe("a_confirmer");
-    expect(new Date(evts[0]!.startDate).getTime()).toBe(debut.getTime());
+  it("un horaire valide est PROPOSE, pas ecrit", async () => {
+    const s = session();
+    const suite = await persistOutcome(s, resultat(jourOuvre(3), "10:00"));
+    expect(suite?.say).toMatch(/Confirmez-vous ce rendez-vous/);
+    expect(s.rdvPropose).not.toBeNull();
+    expect(await evenements()).toEqual([]);
   });
 
-  it("le rendez-vous cree porte le numero de l'appelant", async () => {
+  it("le « oui » cree le rendez-vous au bon instant, avec le numero de l'appelant", async () => {
+    const s = session();
+    const jour = jourOuvre(4);
+    await persistOutcome(s, resultat(jour, "10:00"));
+    await traiterConfirmation(s, "oui");
     const evts = await evenements();
+    expect(evts.length).toBe(1);
+    expect(evts[0]!.status).toBe("confirme");
+    expect(dateParis(new Date(evts[0]!.startDate))).toBe(jour);
+    expect(new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" }).format(new Date(evts[0]!.startDate))).toBe("10:00");
     expect(evts[0]!.contactPhone).toBe("+33612345678");
   });
 
-  it("une session deja traitee n'ecrit pas deux fois", async () => {
+  it("une confirmation repetee pour le meme appel n'ecrit pas deux fois", async () => {
     const s = session();
-    s.fulfilled = true;
-    await persistOutcome(s, resultat(new Date(Date.now() + 72 * H).toISOString()));
-    expect((await evenements()).length).toBe(1);
+    s.callSid = "CA-meme-appel";
+    await persistOutcome(s, resultat(jourOuvre(5), "11:00"));
+    const propose = s.rdvPropose;
+    await traiterConfirmation(s, "oui");
+    s.rdvPropose = propose;
+    await traiterConfirmation(s, "oui");
+    expect((await evenements()).filter((e) => e.externalRef === "voice:CA-meme-appel").length).toBe(1);
   });
 });

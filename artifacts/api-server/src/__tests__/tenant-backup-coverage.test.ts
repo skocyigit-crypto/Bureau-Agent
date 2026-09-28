@@ -28,7 +28,10 @@ import { TENANT_TABLES } from "../services/tenant-backup";
  * ferait grossir chaque sauvegarde de toutes les precedentes, a chaque
  * execution — la table la plus lourde du schema, recopiee en boucle.
  */
-const EXCLUSIONS_JUSTIFIEES = new Set(["organisation_backups"]);
+// `voice_call_sessions` : etat TRANSITOIRE d'un appel en cours, purge a 24 h ;
+// ce qui compte de l'appel (compte rendu, rendez-vous, rappel, note client)
+// est ecrit dans les tables metier, qui, elles, sont sauvegardees.
+const EXCLUSIONS_JUSTIFIEES = new Set(["organisation_backups", "voice_call_sessions"]);
 
 const SCHEMA_DIR = path.resolve(__dirname, "../../../../lib/db/src/schema");
 

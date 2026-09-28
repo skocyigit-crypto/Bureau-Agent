@@ -119,7 +119,7 @@ function tzOffsetMinutes(instant: Date, tz: string): number {
 }
 
 /** Convertit une heure murale (dans `tz`) en instant UTC. Gere les bascules DST. */
-function wallClockToUtc(y: number, mo: number, d: number, hh: number, mm: number, tz: string): Date {
+export function wallClockToUtc(y: number, mo: number, d: number, hh: number, mm: number, tz: string): Date {
   const guess = Date.UTC(y, mo - 1, d, hh, mm, 0);
   const offset1 = tzOffsetMinutes(new Date(guess), tz);
   let utc = guess - offset1 * 60000;

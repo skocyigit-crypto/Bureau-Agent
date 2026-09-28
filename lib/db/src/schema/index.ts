@@ -41,6 +41,7 @@ export * from "./app-audit";
 export * from "./payment-reminders";
 export * from "./face-profiles";
 export * from "./telephony";
+export * from "./voice-call-sessions";
 export * from "./email-providers";
 export * from "./ai-providers";
 export * from "./ai-provider-observations";
