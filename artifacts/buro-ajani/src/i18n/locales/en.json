@@ -206,7 +206,8 @@
       "postDiagnostic": "Workstation check-up",
       "encaissements": "Payments",
       "taskDesk": "Task desk",
-      "agentCatalog": "Agent catalog"
+      "agentCatalog": "Agent catalog",
+      "flowStudio": "Flow studio"
     }
   },
   "userMenu": {
@@ -9648,6 +9649,91 @@
       "failed": "The request did not complete: {{raison}}",
       "tab_one": "{{statut}}: {{count}} run",
       "tab_other": "{{statut}}: {{count}} runs"
+    }
+  },
+  "studioFlux": {
+    "title": "Flow studio",
+    "subtitle": "Draw what an automation does: trigger, agent, condition, approval, action. The step list is the same flow, fully editable with the keyboard.",
+    "regle": "Automation",
+    "choisir": "Choose an automation",
+    "nouvelleDemande": "New \"New request\" flow",
+    "nomNouveau": "Flow name",
+    "nomParDefaut": "Request routing",
+    "aucune": "No custom automation yet: create one in Automations, or a \"New request\" flow.",
+    "canvas": "Flow diagram",
+    "canvasAide": "Drag steps and connect them by their handles. Delete removes the selected step or link.",
+    "liste": "Flow steps",
+    "etape": "Step {{n}}: {{type}}",
+    "types": {
+      "declencheur": "Trigger",
+      "agent": "Agent",
+      "condition": "Condition",
+      "approbation": "Human approval",
+      "action": "Action"
+    },
+    "agents": {
+      "classificateur": "Classifier",
+      "agent-support": "Support agent",
+      "agent-vente": "Sales agent"
+    },
+    "operateurs": {
+      "egal": "equals",
+      "different": "differs from",
+      "contient": "contains",
+      "superieur": "is greater than",
+      "inferieur": "is less than",
+      "vide": "is empty",
+      "non_vide": "is not empty"
+    },
+    "actions": {
+      "send_notification": "In-app notification",
+      "create_task": "Create a task",
+      "send_sms": "Send an SMS",
+      "send_email": "Send an e-mail"
+    },
+    "champ": "Field",
+    "operateur": "Operator",
+    "valeur": "Value",
+    "agentChoisi": "Agent",
+    "actionChoisie": "Action",
+    "param": {
+      "title": "Title",
+      "message": "Message",
+      "description": "Description",
+      "priority": "Priority",
+      "subject": "Subject",
+      "body": "Text",
+      "to": "Recipient (empty: the item's own)"
+    },
+    "priorites": {
+      "haute": "High",
+      "moyenne": "Medium",
+      "basse": "Low"
+    },
+    "ensuite": "Next step",
+    "siOui": "If yes",
+    "siNon": "If no",
+    "fin": "— end —",
+    "ajouterSuite": "Another next step",
+    "declencheurDemande": "Starts on every new request (Task desk, form).",
+    "declencheurRegle": "Starts on the automation's trigger and schedule.",
+    "approbationInfo": "Everything after this waits for your approval in the approval queue.",
+    "typeAjout": "Step type",
+    "ajouter": "Add a step",
+    "supprimer": "Delete step",
+    "enregistrer": "Save flow",
+    "enregistrement": "Saving…",
+    "erreurGlobale": "The flow is not valid",
+    "annonce": {
+      "ajoutee": "Step added: {{type}}. Link it from the step before it.",
+      "supprimee": "Step deleted.",
+      "lien": "Link added.",
+      "lienRetire": "Link removed.",
+      "chargee": "Flow loaded: {{n}} steps.",
+      "enregistre": "Flow saved.",
+      "invalide_one": "The flow was not saved: {{count}} error.",
+      "invalide_other": "The flow was not saved: {{count}} errors.",
+      "erreur": "Saving failed: {{raison}}"
     }
   }
 }

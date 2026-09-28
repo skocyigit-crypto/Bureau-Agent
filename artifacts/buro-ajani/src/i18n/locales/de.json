@@ -206,7 +206,8 @@
       "postDiagnostic": "Arbeitsplatz-Diagnose",
       "encaissements": "Zahlungen",
       "taskDesk": "Aufgabenpult",
-      "agentCatalog": "Agentenkatalog"
+      "agentCatalog": "Agentenkatalog",
+      "flowStudio": "Flow-Studio"
     }
   },
   "userMenu": {
@@ -9648,6 +9649,91 @@
       "failed": "Die Anfrage wurde nicht abgeschlossen: {{raison}}",
       "tab_one": "{{statut}}: {{count}} Lauf",
       "tab_other": "{{statut}}: {{count}} Läufe"
+    }
+  },
+  "studioFlux": {
+    "title": "Flow-Studio",
+    "subtitle": "Zeichnen Sie, was eine Automatisierung tut: Auslöser, Agent, Bedingung, Freigabe, Aktion. Die Schrittliste ist derselbe Ablauf und vollständig per Tastatur bearbeitbar.",
+    "regle": "Automatisierung",
+    "choisir": "Automatisierung wählen",
+    "nouvelleDemande": "Neuer Ablauf „Neue Anfrage“",
+    "nomNouveau": "Name des Ablaufs",
+    "nomParDefaut": "Anfragen-Routing",
+    "aucune": "Noch keine eigene Automatisierung: Legen Sie eine unter Automatisierungen an oder einen Ablauf „Neue Anfrage“.",
+    "canvas": "Grafische Ansicht des Ablaufs",
+    "canvasAide": "Schritte ziehen und über ihre Griffe verbinden. Entf entfernt den gewählten Schritt oder die Verbindung.",
+    "liste": "Schritte des Ablaufs",
+    "etape": "Schritt {{n}}: {{type}}",
+    "types": {
+      "declencheur": "Auslöser",
+      "agent": "Agent",
+      "condition": "Bedingung",
+      "approbation": "Menschliche Freigabe",
+      "action": "Aktion"
+    },
+    "agents": {
+      "classificateur": "Klassifizierer",
+      "agent-support": "Support-Agent",
+      "agent-vente": "Vertriebs-Agent"
+    },
+    "operateurs": {
+      "egal": "ist gleich",
+      "different": "ist ungleich",
+      "contient": "enthält",
+      "superieur": "ist größer als",
+      "inferieur": "ist kleiner als",
+      "vide": "ist leer",
+      "non_vide": "ist nicht leer"
+    },
+    "actions": {
+      "send_notification": "Interne Benachrichtigung",
+      "create_task": "Aufgabe erstellen",
+      "send_sms": "SMS senden",
+      "send_email": "E-Mail senden"
+    },
+    "champ": "Feld",
+    "operateur": "Operator",
+    "valeur": "Wert",
+    "agentChoisi": "Agent",
+    "actionChoisie": "Aktion",
+    "param": {
+      "title": "Titel",
+      "message": "Nachricht",
+      "description": "Beschreibung",
+      "priority": "Priorität",
+      "subject": "Betreff",
+      "body": "Text",
+      "to": "Empfänger (leer: der des Elements)"
+    },
+    "priorites": {
+      "haute": "Hoch",
+      "moyenne": "Mittel",
+      "basse": "Niedrig"
+    },
+    "ensuite": "Nächster Schritt",
+    "siOui": "Wenn ja",
+    "siNon": "Wenn nein",
+    "fin": "— Ende —",
+    "ajouterSuite": "Weiterer nächster Schritt",
+    "declencheurDemande": "Startet bei jeder neuen Anfrage (Aufgabenzentrale, Formular).",
+    "declencheurRegle": "Startet nach Auslöser und Takt der Automatisierung.",
+    "approbationInfo": "Alles danach wartet in der Freigabewarteschlange auf Ihre Zustimmung.",
+    "typeAjout": "Schritttyp",
+    "ajouter": "Schritt hinzufügen",
+    "supprimer": "Schritt löschen",
+    "enregistrer": "Ablauf speichern",
+    "enregistrement": "Wird gespeichert…",
+    "erreurGlobale": "Der Ablauf ist ungültig",
+    "annonce": {
+      "ajoutee": "Schritt hinzugefügt: {{type}}. Verbinden Sie ihn vom vorherigen Schritt aus.",
+      "supprimee": "Schritt gelöscht.",
+      "lien": "Verbindung hinzugefügt.",
+      "lienRetire": "Verbindung entfernt.",
+      "chargee": "Ablauf geladen: {{n}} Schritte.",
+      "enregistre": "Ablauf gespeichert.",
+      "invalide_one": "Der Ablauf wurde nicht gespeichert: {{count}} Fehler.",
+      "invalide_other": "Der Ablauf wurde nicht gespeichert: {{count}} Fehler.",
+      "erreur": "Speichern fehlgeschlagen: {{raison}}"
     }
   }
 }

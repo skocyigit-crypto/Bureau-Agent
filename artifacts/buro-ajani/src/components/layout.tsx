@@ -25,7 +25,7 @@ import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 import { useTranslation } from "@/i18n";
 import { getGetMyPreferencesQueryKey,useGetMyPreferences,type BadgeMuteFlags } from "@workspace/api-client-react";
 import { motion } from "framer-motion";
-import { Activity,BarChart,BarChart3,Bell,BookOpen,Bot,Brain,Briefcase,Building2,Calendar,CheckSquare,ClipboardCheck,ClipboardList,Clock,CreditCard,Crown,Download,FileSignature,FileText,Globe,GraduationCap,HardHat,Inbox,KeyRound,LayoutDashboard,Mail,MapPin,MessageCircle,MessageSquare,Monitor,Phone,PhoneCall,PhoneIncoming,Plug,Plus,Puzzle,Radar,Receipt,ReceiptText,Rocket,ScanSearch,Search,Settings,Shield,ShieldCheck,Smartphone,Sparkles,StickyNote,Tablet,Trophy,UserCog,Users,Wallet,Wifi,WifiOff,Zap,Trash2,Stethoscope} from "lucide-react";
+import { Activity,BarChart,BarChart3,Bell,BookOpen,Bot,Brain,Briefcase,Building2,Calendar,CheckSquare,ClipboardCheck,ClipboardList,Clock,CreditCard,Crown,Download,FileSignature,FileText,Globe,GraduationCap,HardHat,Inbox,KeyRound,LayoutDashboard,Mail,MapPin,MessageCircle,MessageSquare,Monitor,Phone,PhoneCall,PhoneIncoming,Plug,Plus,Puzzle,Radar,Receipt,ReceiptText,Rocket,ScanSearch,Search,Settings,Shield,ShieldCheck,Smartphone,Sparkles,StickyNote,Tablet,Trophy,UserCog,Users,Wallet,Wifi,WifiOff,Zap,Trash2,Stethoscope,Workflow} from "lucide-react";
 import { createContext,useContext,useEffect,useMemo,useRef,useState } from "react";
 import { lecturePartagee } from "@/lib/lecture-partagee";
 import { Link,useLocation } from "wouter";
@@ -405,6 +405,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               { name: t("sidebar.items.teamPerformance"), href: "/performance", icon: Trophy },
               ...(canUseAi ? [{ name: t("sidebar.items.autoAudit"), href: "/auto-audit", icon: ClipboardCheck }] : []),
               ...(canUseAi ? [{ name: t("sidebar.items.automations"), href: "/automatisations", icon: Zap }] : []),
+              ...(canUseAi ? [{ name: t("sidebar.items.flowStudio"), href: "/studio-flux", icon: Workflow }] : []),
             ],
           }]
         : []),

@@ -49,7 +49,7 @@ const VALID_ROUTES = [
   "/rapports", "/rapport-executif", "/analyse", "/performance",
   "/agents-ia", "/agents-catalogue", "/bureau-taches", "/commandant-ia", "/document-ia", "/documents",
   "/import", "/pointage", "/telephonie", "/google-workspace",
-  "/logiciels", "/utilisateurs", "/audit", "/automatisations",
+  "/logiciels", "/utilisateurs", "/audit", "/automatisations", "/studio-flux",
   "/organisations", "/abonnement", "/parametres", "/notifications",
   "/telecharger", "/gestion-licence", "/projets",
   // Chaine commerciale.
