@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, boolean, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -30,12 +30,20 @@ export const calendarEventsTable = pgTable("calendar_events", {
   status: text("status").default("confirme"),
   priority: text("priority").default("normale"),
   googleEventId: text("google_event_id"),
+  /**
+   * Reference de l'origine qui a cree l'evenement, unique par organisation
+   * (ex. « voice:<CallSid> » pour un rendez-vous pris par la secretaire
+   * telephonique). Un retry, une seconde instance ou une confirmation repetee
+   * ne peuvent pas creer un second rendez-vous pour le meme appel.
+   */
+  externalRef: text("external_ref"),
   createdBy: integer("created_by").references(() => usersTable.id, { onDelete: "set null" }),
   updatedBy: integer("updated_by").references(() => usersTable.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [
   index("cal_events_start_date_idx").on(table.startDate),
+  uniqueIndex("cal_events_org_external_ref_uq").on(table.organisationId, table.externalRef),
   index("cal_events_end_date_idx").on(table.endDate),
   index("cal_events_related_contact_idx").on(table.relatedContactId),
   index("cal_events_type_idx").on(table.type),

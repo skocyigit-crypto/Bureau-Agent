@@ -100,6 +100,7 @@ export const TENANT_TABLES = [
  */
 export const EXCLUDED_TABLES: Record<string, string> = {
   organisation_backups: "les sauvegardes elles-memes (croissance exponentielle)",
+  voice_call_sessions: "etat transitoire des appels en cours, purge a 24 h (le compte rendu est dans calls, messages, contacts)",
 };
 
 /**

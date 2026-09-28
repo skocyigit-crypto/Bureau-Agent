@@ -2775,8 +2775,8 @@ Beş eksen kodda ayrı ayrı tarandı; aşağıdakiler ölçülerek bulundu.
 5. Manuel fatura hatırlatması rotası kilitsiz ve işaretsiz; `payment_reminders`
    (facture, niveau) benzersiz değil. Platform faturası (org, dönem) benzersiz
    değil, manuel rota cron kilidini atlıyor (`billing-engine.ts` 38-45).
-6. Twilio sesli mesaj tekrarı yalnız bellekte (`voice-receptionist.ts` ~228) —
-   başka instance SMS + e-postayı tekrar gönderir.
+6. ~~Twilio sesli mesaj tekrarı yalnız bellekte~~ — kapandı 28/09: tekrar engeli
+   `voice_call_sessions` satırında (aşağıda "Telefon sekreteri", senaryo 10).
 7. Kilitsiz cronlar: autonomous-inbox (AI maliyeti çift), app-audit,
    health-alert, cycle-abonnement (compare-and-set yok).
 **Ajan mimarisi (eksen 1):**
@@ -2861,3 +2861,87 @@ onayı → sonuç) ve bir mimari şema (API → iş yürütücüsü → ajan ça
    `.github/workflows/ci.yml` değişikliği ister; bu oturumun GitHub jetonunda
    `workflow` kapsamı yok (push reddedildi). Kullanıcı `gh auth refresh -s
    workflow` yapınca FIN=26 + iki ekranı alfabetik yerine almak yeterli.
+
+## Telefon sekreteri: çalışıyor görünen, ölçünce çalışmayan — 2026-09-28
+
+İstek: aramayı yanıtla ve konuş → talebi anla, doğru takvimde uygunluğa bak →
+arayanın onayıyla randevu, tarih + saat + saat dilimi sesli okunur → özet,
+talep ve eylemler müşteri kaydına not → istekte ya da arızada insana aktar,
+aktarma başarısızsa geri arama → her şey doğru org'da, denetlenebilir olay
+günlüğüyle. "Ekran maketi, sahte başarı mesajı, yalnız fonksiyon tanımı
+tamamlandı sayılmaz."
+
+### Ölçülen kusurlar (dal `feat/standard-telephonique`, düzeltmeden önce)
+- **Yanlış saat:** model `startIso`'yu ofsetsiz veriyordu, `new Date()` sunucu
+  saatinde (UTC) okuyordu: Paris 14:30 → 16:30 yazılıyordu.
+- **Onay yoktu:** randevu modelin cümlesiyle yazılıyordu. Arayan, kaydedileni
+  değil modelin söylediğini duyuyordu.
+- **Arama durumu bellekteydi:** Cloud Run'da 3 instance var. Başka instance'a
+  düşen tur "görüşmemiz kesildi" diyordu. Durum geri çağrısı gelmeden kapanan
+  arama raporsuz siliniyordu.
+- **`<Dial>`'da `action` yoktu:** danışman açmazsa arama geri arama kaydı
+  oluşmadan bitiyordu. Model arızasında "sizi arayacağız" deniyor ama hiçbir
+  şey oluşturulmuyordu.
+- **Müşteri kaydına bağlanmıyordu:** `calls.contact_id` boştu, dosyaya not
+  düşülmüyordu.
+- **Numara eşleşmiyordu:** `sql` şablonunda `'\D'` → `'D'` pişiyor. Boşluklu
+  kayıtlı numara ("+33 6 11 11 11 11") hiç tanınmıyordu (3 sorgu).
+- **Denetim kaydı yoktu:** `audit_logs`'a tek olay yazılmıyordu.
+- **Ayarlar okunamıyordu:** mesai saatleri, cevapsız arama SMS'i ve özet
+  e-postası `aiReceptionist` altına kaydediliyor, üst seviyeden okunuyordu.
+- **Sesli mesaj tekrarı:** tekrar engeli bellekteydi (yukarıdaki 6. madde).
+
+### Yapılan
+- **Arama durumu:** CallSid başına durum veritabanında, `voice_call_sessions`
+  tablosunda; sır içermiyor, 24 saatte siliniyor. Randevu, geri arama,
+  finalizasyon ve sesli mesaj gibi eylemler koşullu `UPDATE` ya da benzersiz
+  satırla sahipleniliyor. Tekrarlanan Twilio isteği aynı TwiML'i alıyor ve
+  model yeniden çağrılmıyor.
+- **Randevu kararı kodda:**
+  - model duvar saati tarih ve saati (`date`, `time`, `timezone`) veriyor
+  - `wallClockToUtc` bunu org'un saat diliminde bir ana çeviriyor (yaz saati dahil)
+  - kod süreyi, mesai saatini ve uygunluğu kontrol ediyor
+  - dolu slotta boş seçenekler öneriliyor
+  - gün, saat ya da dilim eksikse soru soruluyor
+  - tarih, saat ve saat dilimi okunuyor ve **"evet" şart**
+  - yazma tek sefer (`calendar_events.external_ref`, org başına benzersiz); ardından kaydedilen okunuyor
+- **Aktarma:** `<Dial action=/transfert-resultat>`. Açılırsa rapor yazılıyor;
+  açılmazsa geri arama (mesaj + görev + bildirim) oluşuyor ve kişiye bağlanıyor.
+- **Model arızası (8 sn):** danışman varsa ona aktarılıyor, yoksa gerçek bir
+  geri arama oluşuyor.
+- **Arama sonu:** rapor kişiye bağlanıyor (kişi yoksa ve arama bir şey ürettiyse
+  oluşturuluyor). Dosyaya talep, özet ve eylemler notu düşülüyor;
+  `totalCalls` ve `lastCallAt` güncelleniyor.
+- **Denetim:** `voice.*` olayları yazılıyor:
+  - call.started, call.ended
+  - appointment.requested, proposed, created, declined, failed
+  - transfer.requested, succeeded, failed, unknown
+  - callback.created, message.created, note.added
+  - voicemail.received, call.fraud_blocked
+- **Koruma testi:** `sql-echappement-regex.test.ts` tüm `sql` şablonlarında
+  tek eğik çizgili `\d \D \s \S \w \W \b` yasaklıyor. Mutasyonla sınandı:
+  eski dosya 3 sorguyu adıyla düşürüyor.
+
+### Durum
+| Özellik | Durum | Nasıl doğrulandı | Kalan |
+|---|---|---|---|
+| Aramayı yanıtla, konuş | çalışıyor (HTTP) | imzalı Twilio istekleri, gerçek rota + DB | gerçek ağda arama yapılmadı: Twilio hesabı/numarası yok |
+| Uygunluk, doğru takvim | çalışıyor | senaryo 1, 2, 8 | tek takvim; ekip/kaynak bazlı değil |
+| Onayla randevu + okuma | çalışıyor | senaryo 1, 3, 4, 9 | ayarlar ekranı yalnız fr/tr/en dil seçtiriyor |
+| Müşteri kaydına not | çalışıyor | senaryo 7, 8 | — |
+| İnsana aktarma / geri arama | çalışıyor | senaryo 5, 6 | tek hedef numara, ekip yönlendirmesi yok |
+| Org izolasyonu + denetim | çalışıyor | senaryo 8, gardes | — |
+| Tekrarda çift kayıt yok | çalışıyor | senaryo 9, 10 (iki instance) | — |
+
+### Kalanlar
+1. **Gerçek arama:** Twilio (deneme) hesabı ve numarası gerekiyor. Numaranın
+   Voice webhook'u `https://app.agentdebureau.fr/api/voice/twilio/incoming`
+   olmalı; ayarlar ekranından BYOK. Platform ortamında ve Secret Manager'da
+   Twilio kimliği yok (yalnız adlara bakıldı); org'ların BYOK kayıtlarına
+   bakılmadı.
+2. ~~Eski `a_confirmer` sesli randevular takvimde ham görünüyor~~ — kapandı
+   28/09: ekranda "beklemede" (`statutAgenda`); veri değiştirilmedi.
+3. Aktarma hedefi tek numara. Ekip/sıra yönlendirmesi, meşgulde sıradaki kişi
+   yok.
+4. Ayarlar ekranının dil seçimi fr/tr/en. Sunucu 6 dili (es, de, ar dahil)
+   konuşuyor.

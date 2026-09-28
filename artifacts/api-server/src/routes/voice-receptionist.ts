@@ -1,5 +1,4 @@
 // Secretaire telephonique IA (entrante) via Twilio Voice.
-import { horaireInscriptibleParIa } from "../services/garde-rendez-vous";
 //
 // Flux:
 //   - Twilio appelle POST /api/voice/twilio/incoming quand un client appelle le
@@ -21,10 +20,21 @@ import { horaireInscriptibleParIa } from "../services/garde-rendez-vous";
 // d'Origin et la transcription vocale peut contenir des chaines anodines que les
 // patterns d'injection signaleraient a tort.
 //
-// Etat conversationnel: Twilio est sans etat entre les requetes HTTP. On stocke
-// la transcription en memoire, indexee par CallSid (TTL 30 min). LIMITATION
-// connue: en multi-instance, les tours d'un meme appel doivent tomber sur la
-// meme instance. Acceptable pour le mono-process actuel; durcir via DB si besoin.
+// Etat conversationnel: Twilio est sans etat entre les requetes HTTP. L'etat
+// d'un appel est en BASE (voice_call_sessions, par CallSid) : il etait en
+// memoire, et avec plusieurs instances Cloud Run un tour tombant ailleurs
+// perdait l'appel entier. Les ecritures sont revendiquees par action (rendez-
+// vous, rappel, note, finalisation) : un retry Twilio ne les refait jamais.
+//
+// Rendez-vous: le CODE decide (services/standard-telephonique.ts). Le modele
+// extrait date et heure; le code verifie delai, ouverture et disponibilite,
+// propose des creneaux libres si besoin, LIT date/heure/fuseau et attend un
+// « oui » explicite avant d'ecrire — puis relit ce qui a ete enregistre.
+//
+// Transfert: <Dial action="/api/voice/twilio/transfert-resultat">. Sans
+// reponse du conseiller, une demande de rappel est creee. Tout evenement
+// (appel, rendez-vous, message, transfert, rappel, note) est journalise dans
+// audit_logs (voice.*).
 
 import { Router, type IRouter, type Request, type Response } from "express";
 import crypto from "crypto";
@@ -59,7 +69,7 @@ import {
 } from "../services/ai-utils";
 import { assertAiQuota, invalidateQuotaCache } from "../services/ai-quota";
 import { KB_CATEGORIES_PUBLIQUES, searchKnowledge } from "../services/knowledge-base";
-import { isSlotFree, computeFreeSlots } from "../services/availability";
+import { computeFreeSlots } from "../services/availability";
 import { sendEmail } from "../services/email";
 import { evaluatePhoneReputation } from "../services/phone-reputation";
 import { recordSecurityScan } from "../services/security-scans";
@@ -68,6 +78,28 @@ import { checkPhoneList } from "../services/security-lists";
 import { maskPhone } from "../services/whatsapp-notify";
 import { enqueueProposal } from "../services/proposal-queue";
 import { logger } from "../lib/logger";
+import { getWorkingHoursConfig } from "../services/availability";
+import {
+  creerSessionAppel,
+  chargerSessionAppel,
+  sauverSessionAppel,
+  revendiquerAction,
+  libererAction,
+  poserAction,
+  cleRequete,
+  journaliserAppel,
+  deciderRendezVous,
+  phraseDecision,
+  phrase,
+  ouiOuNon,
+  creneauParle,
+  contactDeLAppelant,
+  noterAuDossier,
+  creerRendezVousConfirme,
+  creerDemandeRappel,
+  type DecisionRdv,
+} from "../services/standard-telephonique";
+import { voiceCallSessionsTable } from "@workspace/db";
 
 export const voiceReceptionistRouter: IRouter = Router();
 
@@ -149,15 +181,6 @@ const NO_INPUT_BYE: Record<RecLang, string> = {
   de: "Ich habe nichts gehoert. Rufen Sie gerne erneut an. Einen schoenen Tag noch.",
   ar: "لم أسمع شيئاً. يمكنك معاودة الاتصال. أتمنى لك يوماً سعيداً.",
 };
-const AI_ERROR_BYE: Record<RecLang, string> = {
-  fr: "Desole, un probleme technique m'empeche de continuer. Votre appel a ete note, on vous rappellera. Au revoir.",
-  tr: "Uzgunum, teknik bir sorun nedeniyle devam edemiyorum. Aramaniz kaydedildi, sizi arayacagiz. Hosca kalin.",
-  en: "Sorry, a technical issue prevents me from continuing. Your call was noted and we'll call you back. Goodbye.",
-  es: "Lo siento, un problema tecnico me impide continuar. Su llamada ha sido registrada, le devolveremos la llamada. Adios.",
-  de: "Entschuldigung, ein technisches Problem hindert mich am Fortfahren. Ihr Anruf wurde notiert, wir rufen Sie zurueck. Auf Wiederhoeren.",
-  ar: "عذراً، مشكلة تقنية تمنعني من المتابعة. تم تسجيل مكالمتك وسنعاود الاتصال بك. مع السلامة.",
-};
-
 function normalizeLang(x: unknown): RecLang {
   return typeof x === "string" && (REC_LANGS as readonly string[]).includes(x) ? (x as RecLang) : "fr";
 }
@@ -216,17 +239,63 @@ interface CallSession {
   urgent: boolean;
   /** Issue enregistree (pour l'e-mail recapitulatif de fin d'appel). */
   lastOutcome: "appointment" | "message" | "cancel" | null;
+  /** CallSid Twilio : cle de l'etat en base et des revendications. */
+  callSid: string;
+  /** Fuseau des rendez-vous de l'organisation (IANA). */
+  fuseau: string;
+  /** Creneau lu a l'appelant, en attente de SON « oui ». */
+  rdvPropose: { debutIso: string; finIso: string; fuseau: string; nom: string; motif: string } | null;
+  /** Rendez-vous enregistre pendant cet appel. */
+  rdvCree: { eventId: number; debutIso: string; fuseau: string } | null;
+  /** Transfert vers un conseiller et son issue. */
+  transfert: { cible: string; statut: "en_cours" | "reussi" | "echoue"; raison: string } | null;
+  /** Demande de rappel creee (id du message « rappel »). */
+  rappelMessageId: number | null;
+  /** Ce que l'appelant demande, en ses mots (pour la note et le rappel). */
+  demande: string;
+  /** Actions prises, lisibles, pour la note au dossier client. */
+  journal: string[];
+  /** Echecs consecutifs du modele (panne, delai, reponse illisible). */
+  echecsModele: number;
 }
 
 const SESSION_TTL_MS = 30 * 60 * 1000;
-const sessions = new Map<string, CallSession>();
-const finalizedCalls = new Map<string, number>();
-// Dedup des retries webhook Twilio sur /voice/twilio/voicemail-complete (pas
-// de verrou DB ici — un seul process traite un CallSid donne a la fois côté
-// Twilio, donc une Map en memoire suffit; contrairement a finalizedCalls, un
-// meme CallSid ne passe jamais par les deux chemins).
-const processedVoicemails = new Map<string, number>();
+/** Au-dela, un etat d'appel est supprime (le compte rendu est deja ecrit). */
+const SESSION_RETENTION_MS = 24 * 3600 * 1000;
 
+/** Champs de la session qui ne vont JAMAIS en base (secrets, verrous locaux). */
+const HORS_ETAT = new Set(["providerConfig", "cfg", "persisting"]);
+
+function etatPersiste(s: CallSession): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(s).filter(([k]) => !HORS_ETAT.has(k)));
+}
+
+/**
+ * Relit l'etat d'un appel. La configuration du fournisseur (jeton Twilio
+ * dechiffre) vient de la requete en cours, jamais de la base.
+ */
+async function chargerSession(callSid: string, providerConfig: Record<string, unknown>): Promise<(CallSession & { _status: string; _lastKey: string | null; _lastResponse: string | null }) | null> {
+  const row = await chargerSessionAppel(callSid);
+  if (!row) return null;
+  const cfg = (providerConfig.aiReceptionist as Record<string, unknown> | undefined) ?? {};
+  return {
+    ...(row.etat as unknown as CallSession),
+    orgId: row.orgId,
+    providerId: row.providerId ?? 0,
+    providerConfig: providerConfig as TelephonyProviderConfig,
+    cfg,
+    persisting: false,
+    _status: row.status,
+    _lastKey: row.lastRequestKey,
+    _lastResponse: row.lastResponse,
+  };
+}
+
+async function sauverSession(s: CallSession, extra: { status?: string; requestKey?: string | null; response?: string | null } = {}): Promise<void> {
+  const etat = etatPersiste(s);
+  for (const k of ["_status", "_lastKey", "_lastResponse"]) delete etat[k];
+  await sauverSessionAppel(s.callSid, s.orgId, etat, extra);
+}
 // Avant: le nettoyage n'etait declenche que depuis /voice/twilio/incoming (un
 // nouvel appel entrant) ET seulement au-dela d'un seuil de taille (2000/5000
 // entrees) — un appelant qui raccroche avant le premier Gather (faux numeros,
@@ -235,16 +304,9 @@ const processedVoicemails = new Map<string, number>();
 // pas atteint. Le balayage periodique ci-dessous est inconditionnel (base
 // uniquement sur l'age), independant du volume d'appels ou de la taille des Map.
 function purgeStale(): void {
-  const now = Date.now();
-  for (const [sid, s] of sessions) {
-    if (now - s.startedAt > SESSION_TTL_MS) sessions.delete(sid);
-  }
-  for (const [sid, ts] of finalizedCalls) {
-    if (now - ts > SESSION_TTL_MS) finalizedCalls.delete(sid);
-  }
-  for (const [sid, ts] of processedVoicemails) {
-    if (now - ts > SESSION_TTL_MS) processedVoicemails.delete(sid);
-  }
+  // Appels restes ouverts (raccroche sans rappel de statut) : ils etaient
+  // supprimes de la memoire SANS compte rendu. On les finalise d'abord.
+  void finaliserAppelsAbandonnes().catch((err) => logger.warn({ err }, "[voice] finalisation des appels abandonnes echouee"));
 }
 
 setInterval(purgeStale, 5 * 60 * 1000).unref?.();
@@ -502,7 +564,7 @@ async function sendMissedCallSms(args: {
 }): Promise<void> {
   try {
     if (!args.callerNumber || !args.callerNumber.startsWith("+")) return; // pas de numero masque/anonyme
-    const cfg = args.config as ReceptionistExtraConfig & TelephonyProviderConfig;
+    const cfg = { ...(args.config as TelephonyProviderConfig), ...reglagesSecretaire(args.config) } as ReceptionistExtraConfig & TelephonyProviderConfig;
     if (cfg.autoSmsOnMissed === false) return;
     const fromNumber = cfg.fromNumber || cfg.phoneNumber || "";
     if (!fromNumber) return;
@@ -550,7 +612,7 @@ async function sendCallRecapEmail(args: {
   voicemailTranscript?: string | null;
 }): Promise<void> {
   try {
-    const cfg = args.config as ReceptionistExtraConfig;
+    const cfg = reglagesSecretaire(args.config);
     if (cfg.emailRecapEnabled === false) return;
 
     const recipients = await db.select({ email: usersTable.email }).from(usersTable)
@@ -614,7 +676,10 @@ function ownAppointmentMatch(contactId: number | null, phoneLike: string, hasDig
   const byPhone = hasDigits
     ? and(
         isNull(calendarEventsTable.relatedContactId),
-        sql`regexp_replace(coalesce(${calendarEventsTable.contactPhone}, ''), '\D', '', 'g') LIKE ${phoneLike}`,
+        // '\\D' et non '\D' : dans un gabarit etiquete, « \D » devient « D » —
+        // Postgres recevait regexp_replace(x, 'D', ...) et ne retirait QUE la
+        // lettre D. Un numero enregistre avec espaces ne se rapprochait jamais.
+        sql`regexp_replace(coalesce(${calendarEventsTable.contactPhone}, ''), '\\D', '', 'g') LIKE ${phoneLike}`,
       )
     : undefined;
   if (contactId) {
@@ -640,15 +705,22 @@ async function lookupCaller(orgId: number, phone: string): Promise<CallerInfo> {
         .from(contactsTable)
         .where(and(
           eq(contactsTable.organisationId, orgId),
-          sql`regexp_replace(coalesce(${contactsTable.phone}, ''), '\D', '', 'g') LIKE ${like}`,
+          sql`regexp_replace(coalesce(${contactsTable.phone}, ''), '\\D', '', 'g') LIKE ${like}`,
         ))
+        // Ordre stable : l'egalite exacte des chiffres d'abord, puis le plus
+        // recent. Un `limit(1)` sans ordre choisissait au hasard entre deux
+        // contacts partageant les 9 derniers chiffres.
+        .orderBy(
+          desc(sql`regexp_replace(coalesce(${contactsTable.phone}, ''), '\\D', '', 'g') = ${digits}`),
+          desc(contactsTable.updatedAt),
+        )
         .limit(1),
       db
         .select({ c: sql<number>`count(*)::int` })
         .from(callsTable)
         .where(and(
           eq(callsTable.organisationId, orgId),
-          sql`regexp_replace(coalesce(${callsTable.phoneNumber}, ''), '\D', '', 'g') LIKE ${like}`,
+          sql`regexp_replace(coalesce(${callsTable.phoneNumber}, ''), '\\D', '', 'g') LIKE ${like}`,
         )),
     ]);
     const c = contactRow[0];
@@ -772,15 +844,40 @@ async function sendVoiceSms(
   }
 }
 
-/** TwiML de transfert vers un humain: on relaie l'appel vers le numero conseiller. */
-function dialTwiml(targetNumber: string, callerId: string, intro: string, lang: RecLang, voice: string): string {
+/**
+ * TwiML de transfert vers un humain. `action` : Twilio y rapporte l'issue
+ * (DialCallStatus) — sans elle, un conseiller absent terminait l'appel sans
+ * que personne ne le sache, et sans rappel.
+ */
+export function dialTwiml(targetNumber: string, callerId: string, intro: string, lang: RecLang, voice: string): string {
   const speechLang = SPEECH_LANG[lang];
   return (
     `<?xml version="1.0" encoding="UTF-8"?><Response>` +
     `<Say voice="${escapeXml(voice)}" language="${speechLang}">${escapeXml(intro)}</Say>` +
-    `<Dial timeout="25" callerId="${escapeXml(callerId)}">${escapeXml(targetNumber)}</Dial>` +
+    `<Dial timeout="20" callerId="${escapeXml(callerId)}" action="/api/voice/twilio/transfert-resultat" method="POST">${escapeXml(targetNumber)}</Dial>` +
     `</Response>`
   );
+}
+
+/**
+ * Reglages de la secretaire. L'ecran les enregistre SOUS `aiReceptionist`
+ * (routes/telephony.ts) ; ce fichier les lisait au premier niveau de la
+ * configuration : horaires d'ouverture, SMS d'appel manque, gabarit et
+ * recapitulatif e-mail n'etaient jamais appliques. On lit les deux,
+ * `aiReceptionist` d'abord. `fraudAction` a son propre ecran, qui l'ecrit au
+ * premier niveau : lui d'abord.
+ */
+function reglagesSecretaire(config: Record<string, unknown>): ReceptionistExtraConfig {
+  const r = (config.aiReceptionist as Record<string, unknown> | undefined) ?? {};
+  const top = config as ReceptionistExtraConfig;
+  const rec = r as ReceptionistExtraConfig;
+  return {
+    autoSmsOnMissed: rec.autoSmsOnMissed ?? top.autoSmsOnMissed,
+    autoSmsTemplate: rec.autoSmsTemplate ?? top.autoSmsTemplate,
+    emailRecapEnabled: rec.emailRecapEnabled ?? top.emailRecapEnabled,
+    businessHours: rec.businessHours ?? top.businessHours,
+    fraudAction: top.fraudAction ?? rec.fraudAction,
+  };
 }
 
 const TRANSFER_INTRO: Record<RecLang, string> = {
@@ -902,11 +999,19 @@ async function fetchFreeSlots(orgId: number): Promise<string> {
 
 // --- Moteur IA (persona secretaire contrainte) ----------------------------
 
+/**
+ * Demande de rendez-vous telle que le modele la COMPREND : date et heure
+ * MURALES (sans decalage), fuseau seulement si l'appelant en cite un. Le code
+ * en fait un instant avec le fuseau de l'organisation — il ne lit plus
+ * `startIso`, que Node interpretait dans le fuseau du serveur (UTC en
+ * production) : 14 h 30 a Paris etait inscrit a 16 h 30.
+ */
 interface ReceptionistAppointment {
   name: string;
   reason: string;
-  startIso: string | null;
-  whenText: string;
+  date: string | null;
+  time: string | null;
+  timezone: string | null;
 }
 interface ReceptionistMessage {
   name: string;
@@ -928,6 +1033,8 @@ interface ReceptionistResult {
   transfer: boolean;
   /** Langue detectee de l'appelant (pour bascule auto si activee). */
   lang: RecLang | null;
+  /** Reponse de l'appelant a un creneau propose, si elle est claire. */
+  confirmation: "oui" | "non" | null;
 }
 
 function buildSystemInstruction(
@@ -937,10 +1044,11 @@ function buildSystemInstruction(
   knowledgeBlock?: string,
   busyBlock?: string,
   callerContext?: string,
-  opts?: { autoDetectLang?: boolean; allowCancellation?: boolean; transferEnabled?: boolean },
+  opts?: { autoDetectLang?: boolean; allowCancellation?: boolean; transferEnabled?: boolean; fuseau?: string; creneauPropose?: string | null },
   freeBlock?: string,
 ): string {
   const now = new Date();
+  const fuseau = opts?.fuseau || "Europe/Paris";
   const todayStr = new Intl.DateTimeFormat("fr-FR", {
     weekday: "long",
     year: "numeric",
@@ -948,15 +1056,19 @@ function buildSystemInstruction(
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-    timeZone: "Europe/Paris",
+    timeZone: fuseau,
   }).format(now);
+  const dateIsoDuJour = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: fuseau }).format(now);
   return (
     `Tu es la secretaire telephonique IA de l'entreprise "${orgName}". ` +
     `Tu reponds AU TELEPHONE a un appelant (souvent un client ou un prospect). ` +
     `L'appelant a ete informe en debut d'appel qu'il parle a une IA. Ne pretends JAMAIS etre une personne humaine: si on te demande si tu es humaine ou un robot, reponds honnetement que tu es une assistante vocale automatique (intelligence artificielle), et propose de transmettre un message a l'equipe. ` +
     `Parle en ${LANG_NAME[lang]}, de maniere chaleureuse, breve et naturelle: ` +
     `des reponses ORALES de 1 a 2 phrases maximum, sans listes ni emojis ni mise en forme.\n` +
-    `Date et heure actuelles (Europe/Paris): ${todayStr}.\n` +
+    `Date et heure actuelles (${fuseau}): ${todayStr} (date ISO du jour: ${dateIsoDuJour}).\n` +
+    (opts?.creneauPropose
+      ? `UN CRENEAU A ETE PROPOSE a l'appelant et attend SA confirmation: ${opts.creneauPropose}. Mets "confirmation": "oui" s'il accepte clairement, "non" s'il refuse ou veut un autre moment, sinon null. Ne dis JAMAIS que le rendez-vous est enregistre: le systeme le fait et le lui relit.\n`
+      : "") +
     (caller?.name
       ? `L'appelant est un contact CONNU de l'entreprise: ${caller.name}` +
         (caller.callCount > 0 ? ` (deja ${caller.callCount} appel(s) enregistre(s))` : "") +
@@ -985,7 +1097,7 @@ function buildSystemInstruction(
     `Ton role d'accueil, que tu remplis avec competence:\n` +
     `- Saluer et comprendre la demande de l'appelant.\n` +
     `- REPONDRE aux questions sur l'entreprise (horaires, services, tarifs, adresse, etc.) en t'appuyant sur les CONNAISSANCES ci-dessus si elles sont fournies. Si l'info n'y figure pas, ne l'invente pas: propose de prendre un message.\n` +
-    `- Prendre un RENDEZ-VOUS: recueille le nom de l'appelant (sauf s'il est deja connu ci-dessus), le motif, et une date/heure souhaitee. Verifie qu'elle ne chevauche pas un CRENEAU DEJA OCCUPE; sinon propose une alternative libre. Confirme oralement.\n` +
+    `- Prendre un RENDEZ-VOUS: recueille le nom de l'appelant (sauf s'il est deja connu ci-dessus), le motif, et le jour et l'heure souhaites. Des que tu as un jour ET une heure, mets outcome="appointment": le SYSTEME verifie l'agenda, lit le creneau (date, heure, fuseau) a l'appelant et lui demande de confirmer. Ne confirme JAMAIS toi-meme un rendez-vous et ne dis pas qu'il est pris.\n` +
     `- Prendre un MESSAGE: recueille le nom de l'appelant (sauf s'il est deja connu ci-dessus) et le contenu du message.\n` +
     (opts?.transferEnabled
       ? `- TRANSFERER vers un humain: si l'appelant demande explicitement a parler a une personne / un conseiller, ou si la demande depasse ton role, mets "transfer": true (et dis poliment que tu le mets en relation). N'abuse pas du transfert: privilegie d'abord de repondre ou prendre un message.\n`
@@ -993,14 +1105,15 @@ function buildSystemInstruction(
     (opts?.allowCancellation && caller?.name
       ? `- ANNULER un rendez-vous: si CET appelant connu demande d'annuler SON rendez-vous (celui indique dans son contexte personnel), mets outcome="cancel". IMPORTANT: tu ne peux PAS annuler toi-meme — la demande est transmise pour validation. Dis donc "je transmets votre demande d'annulation, vous recevrez une confirmation rapidement", et JAMAIS "c'est annule". Ne traite jamais la demande d'une autre personne.\n`
       : "") +
-    `Tu ne dois JAMAIS inventer d'informations confidentielles ni garantir une disponibilite definitive: ` +
-    `pour un rendez-vous, precise qu'il reste "a confirmer" par l'equipe.\n\n` +
+    `Tu ne dois JAMAIS inventer d'informations confidentielles ni garantir une disponibilite: ` +
+    `c'est le systeme qui verifie l'agenda.\n\n` +
     `Renvoie UNIQUEMENT un JSON valide, sans aucun texte autour, avec cette structure exacte:\n` +
     `{\n` +
     `  "say": "ce que tu dis a voix haute maintenant",\n` +
     `  "done": false,\n` +
     `  "outcome": null,\n` +
-    `  "appointment": { "name": "string", "reason": "string", "startIso": "2026-06-05T14:30:00" ou null, "whenText": "string" },\n` +
+    `  "appointment": { "name": "string", "reason": "string", "date": "AAAA-MM-JJ" ou null, "time": "HH:MM" ou null, "timezone": null },\n` +
+    `  "confirmation": null,\n` +
     `  "message": { "name": "string", "content": "string" },\n` +
     `  "transfer": false,\n` +
     `  "urgent": false,\n` +
@@ -1015,7 +1128,8 @@ function buildSystemInstruction(
     (opts?.allowCancellation
       ? `- Pour transmettre une demande d'annulation de l'appelant connu, mets outcome="cancel" (la demande part en validation, elle n'est pas appliquee tout de suite).\n`
       : "") +
-    `- startIso doit etre une date/heure ISO 8601 si tu peux la determiner a partir de la demande et de la date du jour, sinon null.\n` +
+    `- "date" (AAAA-MM-JJ) et "time" (HH:MM, 24 h) sont l'heure MURALE que l'appelant dit, calculee a partir de la date du jour ("mardi" = le prochain mardi). Si le jour OU l'heure manque ou est ambigu ("en fin de journee", "la semaine prochaine"), mets null a ce champ: le systeme posera la question.\n` +
+    `- "timezone": null, SAUF si l'appelant parle explicitement d'un autre fuseau ("heure de New York"): alors son identifiant IANA ("America/New_York"). Ne devine jamais.\n` +
     `- "urgent": mets true UNIQUEMENT si l'appelant exprime une urgence reelle (incident, panne, delai critique, mecontentement grave).\n` +
     `- "sentiment": evalue l'humeur globale de l'appelant parmi "positif", "neutre", "negatif", "tres_negatif".\n` +
     `- "summary": quand done=true, redige un resume FACTUEL en une phrase de l'appel (motif + issue), sinon laisse "".\n` +
@@ -1023,8 +1137,22 @@ function buildSystemInstruction(
       ? `- "lang": indique la langue PRINCIPALE parlee par l'appelant ("fr", "tr", "en", "es", "de" ou "ar"). Si elle differe, je basculerai et tu repondras desormais dans cette langue.\n`
       : `- "lang": laisse "${lang}".\n`) +
     `- Quand l'appelant n'a plus rien a ajouter, mets done=true et termine poliment.\n` +
-    `- Mets outcome une SEULE fois dans l'appel (ne le repete pas aux tours suivants).`
+    `- Pour un message ou une annulation, mets outcome une SEULE fois. Pour un rendez-vous, remets outcome="appointment" a chaque nouveau jour/heure donne par l'appelant (apres un refus ou un creneau indisponible), jamais sans nouvelle demande.`
   );
+}
+
+/** Delai max d'un tour de modele sur un appel en cours. */
+const VOICE_LLM_TIMEOUT_MS = Math.max(2000, Number(process.env.VOICE_LLM_TIMEOUT_MS ?? 8000));
+
+class DelaiModeleDepasse extends Error {
+  constructor() { super(`modele: pas de reponse en ${VOICE_LLM_TIMEOUT_MS} ms`); this.name = "DelaiModeleDepasse"; }
+}
+
+function delaiMaxModele<T>(p: Promise<T>): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new DelaiModeleDepasse()), VOICE_LLM_TIMEOUT_MS);
+    p.then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); });
+  });
 }
 
 async function runReceptionistTurn(session: CallSession): Promise<ReceptionistResult> {
@@ -1049,7 +1177,9 @@ async function runReceptionistTurn(session: CallSession): Promise<ReceptionistRe
   try {
     // Client Gemini per-org (BYOK) : cle de l'org si configuree, repli
     // plateforme automatique si la cle org est absente OU invalide a l'exec.
-    response = (await callOrgGemini(session.orgId, (client) => client.models.generateContent({
+    // Borne de latence : Twilio attend la reponse ~15 s. Sans borne, un modele
+    // lent laissait l'appelant dans le silence puis coupait l'appel.
+    response = (await delaiMaxModele(callOrgGemini(session.orgId, (client) => client.models.generateContent({
       model: GEMINI_FLASH_MODEL,
       contents: contents as unknown as Parameters<GoogleGenAI["models"]["generateContent"]>[0]["contents"],
       config: {
@@ -1064,6 +1194,10 @@ async function runReceptionistTurn(session: CallSession): Promise<ReceptionistRe
             autoDetectLang: session.cfg.autoDetectLanguage === true,
             allowCancellation: session.cfg.allowPhoneCancellation === true,
             transferEnabled: typeof session.cfg.forwardToNumber === "string" && (session.cfg.forwardToNumber as string).trim().length > 0,
+            fuseau: session.fuseau,
+            creneauPropose: session.rdvPropose
+              ? creneauParle(new Date(session.rdvPropose.debutIso), session.rdvPropose.fuseau, session.lang)
+              : null,
           },
           session.freeBlock,
         ),
@@ -1072,7 +1206,7 @@ async function runReceptionistTurn(session: CallSession): Promise<ReceptionistRe
         temperature: 0.5,
         thinkingConfig: { thinkingBudget: 0 },
       },
-    }))) as { text?: string };
+    })))) as { text?: string };
   } catch (err) {
     await recordAiUsage({
       organisationId: session.orgId,
@@ -1112,6 +1246,7 @@ async function runReceptionistTurn(session: CallSession): Promise<ReceptionistRe
     urgent: false,
     transfer: false,
     lang: null,
+    confirmation: null,
   };
   const parsed = safeJsonParse<Partial<ReceptionistResult>>(response.text, fallback);
 
@@ -1132,13 +1267,17 @@ async function runReceptionistTurn(session: CallSession): Promise<ReceptionistRe
   let appointment: ReceptionistAppointment | null = null;
   if (outcome === "appointment" && parsed.appointment && typeof parsed.appointment === "object") {
     const a = parsed.appointment as unknown as Record<string, unknown>;
+    // Formats verifies ici : ce qui ne ressemble pas a AAAA-MM-JJ / HH:MM /
+    // un fuseau est ecarte (null), et le code posera la question.
     appointment = {
       name: typeof a.name === "string" ? a.name.slice(0, 200) : "",
       reason: typeof a.reason === "string" ? a.reason.slice(0, 500) : "",
-      startIso: typeof a.startIso === "string" ? a.startIso.slice(0, 40) : null,
-      whenText: typeof a.whenText === "string" ? a.whenText.slice(0, 200) : "",
+      date: typeof a.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(a.date) ? a.date : null,
+      time: typeof a.time === "string" && /^\d{1,2}:\d{2}$/.test(a.time) ? a.time : null,
+      timezone: typeof a.timezone === "string" && /^[A-Za-z_]+(\/[A-Za-z0-9_+-]+)+$/.test(a.timezone) ? a.timezone : null,
     };
   }
+  const confirmation = parsed.confirmation === "oui" || parsed.confirmation === "non" ? parsed.confirmation : null;
   let message: ReceptionistMessage | null = null;
   if (outcome === "message" && parsed.message && typeof parsed.message === "object") {
     const m = parsed.message as unknown as Record<string, unknown>;
@@ -1183,6 +1322,7 @@ async function runReceptionistTurn(session: CallSession): Promise<ReceptionistRe
     urgent: parsed.urgent === true,
     transfer,
     lang,
+    confirmation,
   };
 }
 
@@ -1207,36 +1347,36 @@ function smsConfirmText(
   const org = session.orgName;
   if (session.lang === "tr") {
     if (kind === "appointment")
-      return `Randevu talebiniz${whenText ? ` (${whenText})` : ""} alindi, ekibimiz onaylayacaktir. — ${org}`;
+      return `Randevunuz onaylandi${whenText ? `: ${whenText}` : ""}. — ${org}`;
     if (kind === "cancel") return `Randevunuz iptal edildi. — ${org}`;
     return `Mesajiniz ekibimize iletildi. En kisa surede donus yapacagiz. — ${org}`;
   }
   if (session.lang === "en") {
     if (kind === "appointment")
-      return `Your appointment request${whenText ? ` (${whenText})` : ""} is noted, our team will confirm it. — ${org}`;
+      return `Your appointment is confirmed${whenText ? `: ${whenText}` : ""}. — ${org}`;
     if (kind === "cancel") return `Your appointment has been cancelled. — ${org}`;
     return `Your message has been passed to our team. We'll get back to you shortly. — ${org}`;
   }
   if (session.lang === "es") {
     if (kind === "appointment")
-      return `Su solicitud de cita${whenText ? ` (${whenText})` : ""} ha sido registrada, nuestro equipo la confirmara. — ${org}`;
+      return `Su cita queda confirmada${whenText ? `: ${whenText}` : ""}. — ${org}`;
     if (kind === "cancel") return `Su solicitud de cancelacion ha sido registrada. Se lo confirmaremos en breve. — ${org}`;
     return `Su mensaje ha sido transmitido a nuestro equipo. Nos pondremos en contacto con usted en breve. — ${org}`;
   }
   if (session.lang === "de") {
     if (kind === "appointment")
-      return `Ihre Terminanfrage${whenText ? ` (${whenText})` : ""} ist notiert, unser Team wird sie bestaetigen. — ${org}`;
+      return `Ihr Termin ist bestaetigt${whenText ? `: ${whenText}` : ""}. — ${org}`;
     if (kind === "cancel") return `Ihre Stornierungsanfrage wurde registriert. Wir bestaetigen sie Ihnen in Kuerze. — ${org}`;
     return `Ihre Nachricht wurde an unser Team weitergeleitet. Wir melden uns in Kuerze bei Ihnen. — ${org}`;
   }
   if (session.lang === "ar") {
     if (kind === "appointment")
-      return `تم تسجيل طلب موعدك${whenText ? ` (${whenText})` : ""}، وسيؤكده فريقنا. — ${org}`;
+      return `تم تأكيد موعدك${whenText ? `: ${whenText}` : ""}. — ${org}`;
     if (kind === "cancel") return `تم تسجيل طلب الإلغاء الخاص بك. سنؤكده لك قريباً. — ${org}`;
     return `تم إرسال رسالتك إلى فريقنا. سنعاود التواصل معك قريباً. — ${org}`;
   }
   if (kind === "appointment")
-    return `Votre demande de rendez-vous${whenText ? ` (${whenText})` : ""} est bien enregistree, a confirmer par notre equipe. — ${org}`;
+    return `Votre rendez-vous est confirme${whenText ? ` : ${whenText}` : ""}. — ${org}`;
   // Ne jamais annoncer une annulation effective: elle attend encore la
   // validation d'un humain (cf. mise en file dans persistOutcome).
   if (kind === "cancel") return `Votre demande d'annulation a bien ete enregistree. Nous vous confirmons rapidement. — ${org}`;
@@ -1249,160 +1389,81 @@ function smsConfirmText(
 // bloquer la reponse de l'appelant sur un aller-retour d'API SMS ajoutait de la
 // latence et risquait un timeout Twilio. Le SMS part en arriere-plan; son echec
 // eventuel n'interrompt pas la conversation.
-/** Exporte pour les tests : c'est ici que l'appel devient un rendez-vous. */
-export async function persistOutcome(session: CallSession, result: ReceptionistResult): Promise<void> {
-  if (session.fulfilled || session.persisting || !result.outcome) return;
-  // Pose synchrone AVANT tout `await`: en JS single-thread, aucun autre appel
-  // concurrent a persistOutcome() ne peut s'intercaler entre ce check et cette
-  // affectation — ferme la fenetre de course sur un retry webhook Twilio.
-  session.persisting = true;
+/** Ce que la route doit dire, et s'il faut passer la main (transfert ou rappel). */
+export interface SuiteTour {
+  say: string;
+  /** Raison d'escalade : l'agent ne peut pas conclure seul. */
+  escalade?: string;
+}
+
+/**
+ * Exporte pour les tests : c'est ici que la demande de l'appelant devient une
+ * proposition de rendez-vous, un message ou une demande d'annulation.
+ *
+ * Un rendez-vous n'est PLUS ecrit ici : le creneau est verifie puis LU a
+ * l'appelant, qui doit dire « oui » (traiterConfirmation). Rend la phrase a
+ * dire quand elle vient du code, `null` quand celle du modele convient.
+ */
+export async function persistOutcome(session: CallSession, result: ReceptionistResult): Promise<SuiteTour | null> {
+  if (!result.outcome) return null;
   const caller = session.callerNumber || "inconnu";
   const smsEnabled = session.cfg.smsConfirmation !== false; // defaut ON
 
-  // `fulfilled` n'est passe a true qu'APRES une ecriture reussie: si un insert
-  // echoue, on laisse la porte ouverte a une nouvelle tentative au tour suivant
-  // plutot que de perdre silencieusement le rendez-vous / message.
-  try {
-    if (result.outcome === "appointment" && result.appointment) {
-      const a = result.appointment;
-      const start = a.startIso ? new Date(a.startIso) : null;
-      // Un horaire passe, imminent (moins d'une heure) ou trop lointain n'est
-      // pas inscriptible : le modele lit parfois mal l'intention de l'appelant
-      // (« mardi » de la semaine passee, annee erronee). On bascule alors sur
-      // le chemin « demande a planifier », comme pour un conflit d'agenda —
-      // l'equipe rappelle, au lieu d'un rendez-vous que personne ne verra.
-      const validStart = start && horaireInscriptibleParIa(start) ? start : null;
-
-      // Garde-fou anti-chevauchement: meme si l'IA a propose un horaire libre,
-      // on revalide AVANT d'ecrire (l'agenda a pu bouger pendant l'appel). En
-      // cas de conflit, on NE cree PAS d'evenement qui chevauche — on bascule
-      // sur le chemin "demande a planifier" (message), exactement comme une
-      // demande sans date exploitable.
-      let slotFree = true;
-      if (validStart) {
-        const candidateEnd = new Date(validStart.getTime() + 30 * 60000);
-        slotFree = await withTimeout(
-          isSlotFree({ orgId: session.orgId, start: validStart, end: candidateEnd }),
-          VOICE_RETRIEVAL_TIMEOUT_MS,
-          true, // en cas de timeout: on n'invente pas de conflit, on laisse passer
-        );
-      }
-
-      if (validStart && slotFree) {
-        const end = new Date(validStart.getTime() + 30 * 60000);
-        const [event] = await db
-          .insert(calendarEventsTable)
-          .values({
-            organisationId: session.orgId,
-            title: `RDV (appel): ${a.name || caller}`,
-            description:
-              `Motif: ${a.reason || "non precise"}\n` +
-              `Demande via la secretaire telephonique IA.\n` +
-              `Horaire demande: ${a.whenText || "—"}\n` +
-              `Telephone: ${caller}`,
-            type: "rendez_vous",
-            startDate: validStart,
-            endDate: end,
-            color: "#f59e0b",
-            reminder: "15min",
-            contactName: a.name || null,
-            contactPhone: caller,
-            // Liaison forte au contact connu: permet une annulation/contexte
-            // ulterieurs surs (par contactId, pas par suffixe de numero).
-            relatedContactId: session.callerContactId,
-            status: "a_confirmer",
-            priority: "normale",
-          })
-          .returning({ id: calendarEventsTable.id });
-        session.fulfilled = true;
-        session.lastOutcome = "appointment";
-
-        await db.insert(notificationsTable).values({
-          organisationId: session.orgId,
-          type: "info",
-          title: "Nouveau rendez-vous (secretaire IA)",
-          message:
-            `${a.name || caller} a demande un rendez-vous (${a.whenText || "horaire a confirmer"}) ` +
-            `par telephone. A confirmer.`,
-          priority: "haute",
-          actionUrl: "/calendrier",
-          sourceType: "ai_receptionist_appointment",
-          sourceId: event ? String(event.id) : null,
-        });
-
-        // Tache de suivi automatique (defaut ON): rappeler a l'equipe de
-        // confirmer ce RDV pris par telephone (echeance = horaire du RDV).
-        if (session.cfg.autoFollowupTask !== false) {
-          // Personne n'a demande cette tache: la secretaire telephonique a
-          // pris un rendez-vous seule, pendant que le bureau etait ferme. Elle
-          // doit donc trouver un destinataire par elle-meme — et un rendez-vous
-          // a confirmer est un travail commercial.
-          await creerTacheIa({
-            organisationId: session.orgId,
-            agent: AGENTS.secretaireAutonome,
-            nature: "commercial",
-            title: `Confirmer le RDV telephonique: ${a.name || caller}`,
-            description:
-              `Motif: ${a.reason || "non precise"}\n` +
-              `Horaire: ${a.whenText || "-"}\n` +
-              `Telephone: ${caller}`,
-            priority: "haute",
-            dueDate: validStart,
-            relatedContactId: session.callerContactId,
-          }).catch((err) => {
-            logger.warn({ err, orgId: session.orgId }, "[voice] creation tache de suivi echouee");
-          });
-        }
-
-        // SMS de confirmation a l'appelant (defaut ON, uniquement +E.164).
-        if (smsEnabled) {
-          void sendVoiceSms(session, caller, smsConfirmText("appointment", session, a.whenText), "appointment-confirm").catch(() => {});
-        }
-        return;
-      }
-
-      // Pas de date exploitable -> on enregistre une demande de rappel (message).
-      await db.insert(messagesTable).values({
-        organisationId: session.orgId,
-        phoneNumber: caller,
-        contactName: a.name || null,
-        content:
-          `Demande de rendez-vous (a planifier).\n` +
-          `Motif: ${a.reason || "non precise"}\n` +
-          `Horaire souhaite: ${a.whenText || "non precise"}`,
-        type: "rappel",
-        priority: "haute",
-      });
-      session.fulfilled = true;
-      session.lastOutcome = "message";
-      await db.insert(notificationsTable).values({
-        organisationId: session.orgId,
-        type: "info",
-        title: "Demande de rendez-vous a planifier (secretaire IA)",
-        message: `${a.name || caller} souhaite un rendez-vous (${a.whenText || "horaire a preciser"}).`,
-        priority: "haute",
-        actionUrl: "/messages",
-        sourceType: "ai_receptionist_callback",
-        sourceId: null,
-      });
-      if (smsEnabled) {
-        void sendVoiceSms(session, caller, smsConfirmText("message", session), "callback-confirm").catch(() => {});
-      }
-      return;
+  if (result.outcome === "appointment") {
+    const a = result.appointment ?? { name: "", reason: "", date: null, time: null, timezone: null };
+    if (a.reason) session.demande = a.reason;
+    let dec: DecisionRdv;
+    try {
+      dec = await deciderRendezVous(session.orgId, { date: a.date, heure: a.time, fuseau: a.timezone });
+    } catch (err) {
+      logger.warn({ err, orgId: session.orgId }, "[voice] decision de rendez-vous impossible");
+      dec = { type: "agenda_indisponible" };
     }
+    await journaliserAppel(session.orgId, session.callSid, "appointment.requested", {
+      date: a.date, heure: a.time, fuseau: a.timezone, decision: dec.type,
+    });
+    if (dec.type === "proposer") {
+      session.rdvPropose = {
+        debutIso: dec.debutIso, finIso: dec.finIso, fuseau: dec.fuseau,
+        nom: a.name || session.callerName || "", motif: a.reason,
+      };
+      await journaliserAppel(session.orgId, session.callSid, "appointment.proposed", {
+        debut: dec.debutIso, fuseau: dec.fuseau, fuseauDemande: dec.fuseauDemande,
+      });
+    } else {
+      session.rdvPropose = null;
+    }
+    if (dec.type === "alternatives") {
+      session.journal.push(`Créneau demandé indisponible, ${dec.creneaux.length} alternative(s) proposée(s)`);
+    }
+    if (dec.type === "agenda_indisponible" || dec.type === "aucun_creneau") {
+      return { say: phraseDecision(dec, session.lang), escalade: dec.type === "aucun_creneau" ? "aucun créneau libre" : "agenda indisponible" };
+    }
+    return { say: phraseDecision(dec, session.lang) };
+  }
 
+  if (session.fulfilled || session.persisting) return null;
+  session.persisting = true;
+  try {
     if (result.outcome === "message" && result.message) {
       const m = result.message;
-      await db.insert(messagesTable).values({
+      if (m.content) session.demande = session.demande || m.content.slice(0, 300);
+      const contactId = await contactDeLAppelant(session.orgId, caller, m.name || session.callerName, true)
+        .catch(() => session.callerContactId);
+      const [msg] = await db.insert(messagesTable).values({
         organisationId: session.orgId,
+        contactId: contactId ?? null,
         phoneNumber: caller,
         contactName: m.name || null,
         content: m.content || "(message vide)",
         type: "appel",
         priority: "moyenne",
-      });
+      }).returning({ id: messagesTable.id });
+      if (contactId) session.callerContactId = contactId;
       session.fulfilled = true;
       session.lastOutcome = "message";
+      session.journal.push(`Message transmis à l'équipe (#${msg?.id})`);
+      await journaliserAppel(session.orgId, session.callSid, "message.created", { messageId: msg?.id, contactId });
       await db.insert(notificationsTable).values({
         organisationId: session.orgId,
         type: "info",
@@ -1411,34 +1472,25 @@ export async function persistOutcome(session: CallSession, result: ReceptionistR
         priority: "normale",
         actionUrl: "/messages",
         sourceType: "ai_receptionist_message",
-        sourceId: null,
+        sourceId: msg ? String(msg.id) : null,
       });
       if (smsEnabled) {
         void sendVoiceSms(session, caller, smsConfirmText("message", session), "message-confirm").catch(() => {});
       }
-      return;
+      return null;
     }
 
     // Demande d'annulation par telephone. L'IA ne l'applique JAMAIS elle-meme:
     // l'identite de l'appelant ne repose ici que sur un nom enonce a l'oral et
     // un numero presente (tous deux usurpables), alors qu'une annulation est
-    // destructive et irreversible du point de vue du client. On se contente
-    // donc d'IDENTIFIER le rendez-vous concerne et de deposer une proposition
+    // destructive. On IDENTIFIE le rendez-vous et on depose une proposition
     // dans la file d'approbation; un humain tranche.
     if (result.outcome === "cancel") {
       const digits = (session.callerNumber || "").replace(/\D/g, "");
-      if (!session.callerName || digits.length < 6) return; // garde-fou
+      if (!session.callerName || digits.length < 6) return null; // garde-fou
       const like = `%${digits.slice(-9)}`;
-      // Meme scoping strict qu'avant: uniquement SES propres RDV a venir,
-      // liaison forte par contactId, repli numero seulement sur les lignes
-      // sans contact rattache (jamais le RDV d'un tiers dont le suffixe de
-      // numero coinciderait).
       const candidates = await db
-        .select({
-          id: calendarEventsTable.id,
-          title: calendarEventsTable.title,
-          startDate: calendarEventsTable.startDate,
-        })
+        .select({ id: calendarEventsTable.id, title: calendarEventsTable.title, startDate: calendarEventsTable.startDate })
         .from(calendarEventsTable)
         .where(and(
           eq(calendarEventsTable.organisationId, session.orgId),
@@ -1450,10 +1502,10 @@ export async function persistOutcome(session: CallSession, result: ReceptionistR
 
       session.fulfilled = true;
       session.lastOutcome = "cancel";
-      if (candidates.length === 0) return;
+      if (candidates.length === 0) return null;
 
       for (const ev of candidates) {
-        const quand = new Date(ev.startDate).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" });
+        const quand = creneauParle(new Date(ev.startDate), session.fuseau || "Europe/Paris", "fr");
         await enqueueProposal({
           orgId: session.orgId,
           toolName: "cancel_calendar_event",
@@ -1466,11 +1518,11 @@ export async function persistOutcome(session: CallSession, result: ReceptionistR
           category: "rappel",
           priority: "haute",
           sourceType: "ai_receptionist_cancel",
-          // Une meme demande re-signalee pendant un second appel ne doit pas
-          // creer un doublon dans la file.
           sourceRef: `voice-cancel:${ev.id}`,
         });
       }
+      session.journal.push(`Demande d'annulation transmise pour validation (${candidates.length} rendez-vous)`);
+      await journaliserAppel(session.orgId, session.callSid, "cancellation.requested", { eventIds: candidates.map((c) => c.id) });
 
       await db.insert(notificationsTable).values({
         organisationId: session.orgId,
@@ -1485,18 +1537,133 @@ export async function persistOutcome(session: CallSession, result: ReceptionistR
       if (smsEnabled) {
         void sendVoiceSms(session, caller, smsConfirmText("cancel", session), "cancel-confirm").catch(() => {});
       }
-      return;
+      return null;
     }
   } catch (err) {
     logger.error({ err, orgId: session.orgId }, "[voice] echec persistance outcome");
   } finally {
     session.persisting = false;
   }
+  return null;
 }
 
+/**
+ * Reponse de l'appelant au creneau lu. « oui » → rendez-vous cree UNE fois
+ * (cle unique par appel) puis relu tel qu'enregistre ; « non » → rien n'est
+ * cree ; pas clair → question fermee.
+ */
+export async function traiterConfirmation(session: CallSession, reponse: "oui" | "non" | null): Promise<SuiteTour> {
+  const p = session.rdvPropose;
+  if (!p) return { say: REPROMPT_MSG[session.lang] };
+  if (reponse === "non") {
+    session.rdvPropose = null;
+    session.journal.push("Créneau proposé refusé par l'appelant, aucun rendez-vous créé");
+    await journaliserAppel(session.orgId, session.callSid, "appointment.declined", { debut: p.debutIso, fuseau: p.fuseau });
+    return { say: phrase("refuse", session.lang) };
+  }
+  if (reponse !== "oui") return { say: phrase("ouiOuNon", session.lang) };
+
+  const caller = session.callerNumber || "inconnu";
+  const debut = new Date(p.debutIso);
+  let resultat: Awaited<ReturnType<typeof creerRendezVousConfirme>>;
+  try {
+    const contactId = await contactDeLAppelant(session.orgId, caller, p.nom || session.callerName, true);
+    if (contactId) session.callerContactId = contactId;
+    resultat = await creerRendezVousConfirme({
+      orgId: session.orgId, callSid: session.callSid, debut, fin: new Date(p.finIso),
+      nom: p.nom, motif: p.motif, telephone: caller, contactId: session.callerContactId,
+    });
+  } catch (err) {
+    // Rien n'est perdu : le creneau reste propose, un nouveau « oui » (ou le
+    // meme, rejoue par Twilio) retentera — et la cle unique empeche le doublon.
+    logger.error({ err, orgId: session.orgId }, "[voice] ecriture du rendez-vous echouee");
+    await journaliserAppel(session.orgId, session.callSid, "appointment.failed", { debut: p.debutIso, erreur: String((err as Error)?.message ?? err).slice(0, 200) });
+    return { say: phrase("erreurEnregistrement", session.lang) };
+  }
+
+  if ("occupe" in resultat) {
+    // Pris entre la proposition et le « oui » : d'autres creneaux.
+    session.rdvPropose = null;
+    const [y, mo, d] = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: p.fuseau }).format(debut).split("-");
+    const heure = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: p.fuseau }).format(debut);
+    const dec = await deciderRendezVous(session.orgId, { date: `${y}-${mo}-${d}`, heure, fuseau: p.fuseau });
+    await journaliserAppel(session.orgId, session.callSid, "appointment.slot_taken", { debut: p.debutIso, decision: dec.type });
+    return { say: phraseDecision(dec, session.lang) };
+  }
+
+  session.rdvPropose = null;
+  session.rdvCree = { eventId: resultat.eventId, debutIso: p.debutIso, fuseau: p.fuseau };
+  session.fulfilled = true;
+  session.lastOutcome = "appointment";
+  const lu = creneauParle(debut, p.fuseau, session.lang);
+  if (resultat.nouveau) {
+    session.journal.push(`Rendez-vous #${resultat.eventId} créé et confirmé par l'appelant : ${creneauParle(debut, p.fuseau, "fr")}`);
+    await journaliserAppel(session.orgId, session.callSid, "appointment.created", {
+      eventId: resultat.eventId, debut: p.debutIso, fuseau: p.fuseau, contactId: session.callerContactId,
+    });
+    await apresRendezVousCree(session, resultat.eventId, debut, p);
+  }
+  return { say: phrase("enregistre", session.lang, { creneau: lu }) };
+}
+
+/** Notification, tache de suivi, SMS : une fois, apres la creation. */
+async function apresRendezVousCree(
+  session: CallSession, eventId: number, debut: Date,
+  p: { nom: string; motif: string; fuseau: string },
+): Promise<void> {
+  const caller = session.callerNumber || "inconnu";
+  const quand = creneauParle(debut, p.fuseau, "fr");
+  await db.insert(notificationsTable).values({
+    organisationId: session.orgId,
+    type: "info",
+    title: "Nouveau rendez-vous (secretaire IA)",
+    message: `${p.nom || caller} a pris rendez-vous par telephone : ${quand}.`,
+    priority: "haute",
+    actionUrl: "/calendrier",
+    sourceType: "ai_receptionist_appointment",
+    sourceId: String(eventId),
+  }).catch((err) => logger.warn({ err }, "[voice] notification de rendez-vous non creee"));
+  if (session.cfg.autoFollowupTask !== false) {
+    await creerTacheIa({
+      organisationId: session.orgId,
+      agent: AGENTS.secretaireAutonome,
+      nature: "commercial",
+      title: `Preparer le RDV telephonique: ${p.nom || caller}`,
+      description: `Motif: ${p.motif || "non precise"}\nHoraire: ${quand}\nTelephone: ${caller}`,
+      priority: "haute",
+      dueDate: debut,
+      relatedContactId: session.callerContactId,
+    }).catch((err) => logger.warn({ err, orgId: session.orgId }, "[voice] creation tache de suivi echouee"));
+  }
+  if (session.cfg.smsConfirmation !== false) {
+    void sendVoiceSms(session, caller, smsConfirmText("appointment", session, creneauParle(debut, p.fuseau, session.lang)), "appointment-confirm").catch(() => {});
+  }
+}
+
+/** Bloc de note ajoute au dossier du client a la fin de l'appel. */
+function noteDossier(session: CallSession, callId: number | null): string {
+  const tz = session.fuseau || "Europe/Paris";
+  const quand = new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeStyle: "short", timeZone: tz }).format(new Date(session.startedAt));
+  const lignes = [
+    `[Appel traité par la secrétaire IA — ${quand} (${tz})${callId ? ` — appel #${callId}` : ""}]`,
+    `Demande : ${session.demande || (session.summary ? session.summary : "non précisée")}`,
+    `Résumé : ${session.summary || "—"}`,
+    "Actions :",
+    ...(session.journal.length ? session.journal.map((j) => `- ${j}`) : ["- aucune action enregistrée"]),
+  ];
+  return lignes.join("\n").slice(0, 3000);
+}
+
+/**
+ * Clot l'appel : compte rendu (calls, rattache au client), note au dossier du
+ * client avec la demande, le resume et les actions, alerte si urgent, journal
+ * telephonie, recapitulatif e-mail, audit. Une seule fois par appel — la
+ * revendication « finalisation » en base tient face aux retries Twilio et aux
+ * autres instances (elle etait en memoire).
+ */
 async function finalizeCall(callSid: string, session: CallSession): Promise<void> {
-  if (!callSid || finalizedCalls.has(callSid)) return;
-  finalizedCalls.set(callSid, Date.now());
+  if (!callSid) return;
+  if (!(await revendiquerAction(callSid, session.orgId, "finalisation"))) return;
   const caller = session.callerNumber || "inconnu";
   const duration = Math.max(0, Math.round((Date.now() - session.startedAt) / 1000));
   const transcript = transcriptText(session);
@@ -1504,13 +1671,26 @@ async function finalizeCall(callSid: string, session: CallSession): Promise<void
   const tags = ["secretaire-ia"];
   if (session.urgent) tags.push("urgent");
   if (session.sentiment === "negatif" || session.sentiment === "tres_negatif") tags.push("mecontent");
+  if (session.rdvCree) tags.push("rendez-vous");
+  if (session.transfert) tags.push(session.transfert.statut === "reussi" ? "transfere" : "transfert-echoue");
+  if (session.rappelMessageId) tags.push("rappel-demande");
   const notes =
     (summary ? `[Resume IA] ${summary}\n\n` : "") +
     `[Secretaire telephonique IA]\n${transcript}`;
 
+  // Le client : celui qui appelle. Cree s'il est inconnu ET que l'appel a
+  // produit quelque chose a rattacher (rendez-vous, rappel, message).
+  const aProduit = !!(session.rdvCree || session.rappelMessageId || session.lastOutcome);
+  let contactId = session.callerContactId;
+  if (!contactId) {
+    contactId = await contactDeLAppelant(session.orgId, caller, session.callerName, aProduit).catch(() => null);
+  }
+
+  let callId: number | null = null;
   try {
-    await db.insert(callsTable).values({
+    const [row] = await db.insert(callsTable).values({
       organisationId: session.orgId,
+      contactId: contactId ?? null,
       phoneNumber: caller,
       contactName: session.callerName,
       direction: "entrant",
@@ -1519,9 +1699,19 @@ async function finalizeCall(callSid: string, session: CallSession): Promise<void
       notes,
       sentiment: session.sentiment || "neutre",
       tags,
-    });
+    }).returning({ id: callsTable.id });
+    callId = row?.id ?? null;
   } catch (err) {
     logger.error({ err, orgId: session.orgId }, "[voice] echec insertion callsTable");
+  }
+
+  if (contactId) {
+    try {
+      await noterAuDossier(session.orgId, contactId, noteDossier(session, callId));
+      await journaliserAppel(session.orgId, callSid, "note.added", { contactId, callId });
+    } catch (err) {
+      logger.error({ err, orgId: session.orgId }, "[voice] note au dossier client non ecrite");
+    }
   }
 
   // Alerte patron instantanee si l'appel est urgent ou tres negatif: une
@@ -1542,7 +1732,7 @@ async function finalizeCall(callSid: string, session: CallSession): Promise<void
         priority: "haute",
         actionUrl: "/appels",
         sourceType: "ai_receptionist_urgent",
-        sourceId: null,
+        sourceId: callId ? String(callId) : null,
       });
       const ownerNumber =
         typeof session.cfg.ownerAlertNumber === "string" ? (session.cfg.ownerAlertNumber as string).trim() : "";
@@ -1574,6 +1764,11 @@ async function finalizeCall(callSid: string, session: CallSession): Promise<void
         aiReceptionist: true,
         fulfilled: session.fulfilled,
         turns: session.turns.length,
+        callId,
+        contactId,
+        rendezVousId: session.rdvCree?.eventId ?? null,
+        rappelMessageId: session.rappelMessageId,
+        transfert: session.transfert?.statut ?? null,
       },
       startedAt: new Date(session.startedAt),
       endedAt: new Date(),
@@ -1582,8 +1777,7 @@ async function finalizeCall(callSid: string, session: CallSession): Promise<void
     logger.error({ err, orgId: session.orgId }, "[voice] echec insertion telephonyCallLogsTable");
   }
 
-  // E-mail recapitulatif a l'equipe (opt-out via cfg.emailRecapEnabled).
-  // Best-effort, ne bloque jamais la finalisation de l'appel.
+  // E-mail recapitulatif a l'equipe (opt-out via emailRecapEnabled).
   sendCallRecapEmail({
     orgId: session.orgId,
     config: session.providerConfig,
@@ -1595,10 +1789,123 @@ async function finalizeCall(callSid: string, session: CallSession): Promise<void
     outcome: session.lastOutcome,
   }).catch(() => {});
 
-  sessions.delete(callSid);
+  await journaliserAppel(session.orgId, callSid, "call.ended", {
+    duree: duration, callId, contactId,
+    rendezVousId: session.rdvCree?.eventId ?? null,
+    rappelMessageId: session.rappelMessageId,
+    transfert: session.transfert?.statut ?? null,
+  });
+  if (contactId) session.callerContactId = contactId;
+  await sauverSession(session, { status: "terminee" });
+  await db.update(voiceCallSessionsTable).set({ finalizedAt: new Date() })
+    .where(and(eq(voiceCallSessionsTable.callSid, callSid), eq(voiceCallSessionsTable.organisationId, session.orgId)));
 }
 
+/** Numero du conseiller vers qui transferer, ou "" si aucun n'est configure. */
+function cibleTransfert(session: CallSession): string {
+  return typeof session.cfg.forwardToNumber === "string" ? (session.cfg.forwardToNumber as string).trim() : "";
+}
+
+/** Relaie l'appel vers le conseiller ; l'issue arrive sur /transfert-resultat. */
+async function transferer(session: CallSession, raison: string, intro?: string): Promise<string> {
+  const cible = cibleTransfert(session);
+  session.transfert = { cible, statut: "en_cours", raison };
+  session.journal.push(`Transfert vers un conseiller (${maskPhone(cible)}) : ${raison}`);
+  await journaliserAppel(session.orgId, session.callSid, "transfer.requested", { cible: maskPhone(cible), raison });
+  const callerId = session.toNumber || session.providerConfig.fromNumber || session.providerConfig.phoneNumber || cible;
+  return dialTwiml(cible, callerId, intro && intro.trim() ? intro.trim() : TRANSFER_INTRO[session.lang], session.lang, session.voice);
+}
+
+/**
+ * Demande de rappel puis fin d'appel. C'est ce qui rend VRAIE la phrase « on
+ * vous rappellera » : elle etait dite apres une panne du modele sans que rien
+ * ne soit cree. Une seule demande par appel (revendication « rappel »).
+ */
+async function rappelEtFin(session: CallSession, raison: string, prefixe = ""): Promise<string> {
+  const caller = session.callerNumber || "inconnu";
+  if (await revendiquerAction(session.callSid, session.orgId, "rappel")) {
+    try {
+      const contactId = await contactDeLAppelant(session.orgId, caller, session.callerName, true);
+      if (contactId) session.callerContactId = contactId;
+      const id = await creerDemandeRappel({
+        orgId: session.orgId, callSid: session.callSid, telephone: caller, nom: session.callerName,
+        contactId: session.callerContactId, raison, demande: session.demande || session.summary,
+      });
+      session.rappelMessageId = id;
+      await poserAction(session.callSid, session.orgId, "rappel", id);
+      session.journal.push(`Demande de rappel #${id} créée : ${raison}`);
+      await journaliserAppel(session.orgId, session.callSid, "callback.created", { messageId: id, raison, contactId: session.callerContactId });
+    } catch (err) {
+      logger.error({ err, orgId: session.orgId }, "[voice] demande de rappel non creee");
+      await libererAction(session.callSid, session.orgId, "rappel");
+    }
+  }
+  await finalizeCall(session.callSid, session);
+  return hangupTwiml(`${prefixe} ${phrase("rappelCree", session.lang)}`.trim(), session.lang, session.voice);
+}
+
+/** L'agent ne peut pas conclure : un conseiller s'il y en a un, sinon un rappel. */
+async function escalader(session: CallSession, raison: string, prefixe = ""): Promise<string> {
+  return cibleTransfert(session) ? transferer(session, raison, `${prefixe} ${TRANSFER_INTRO[session.lang]}`) : rappelEtFin(session, raison, prefixe);
+}
+
+/**
+ * Appels restes ouverts plus de 30 minutes (l'appelant a raccroche, le rappel
+ * de statut n'est jamais arrive) : compte rendu ecrit, puis etat supprime
+ * apres 24 h. Avant, la session etait effacee de la memoire sans rien ecrire.
+ */
+export async function finaliserAppelsAbandonnes(): Promise<number> {
+  const limite = new Date(Date.now() - SESSION_TTL_MS);
+  const rows = await db.select({ callSid: voiceCallSessionsTable.callSid, providerId: voiceCallSessionsTable.providerId, orgId: voiceCallSessionsTable.organisationId })
+    .from(voiceCallSessionsTable)
+    .where(and(inArray(voiceCallSessionsTable.status, ["en_cours", "transfert"]), lt(voiceCallSessionsTable.updatedAt, limite)))
+    .limit(50);
+  let n = 0;
+  for (const r of rows) {
+    const [p] = r.providerId
+      ? await db.select({ config: telephonyProvidersTable.config }).from(telephonyProvidersTable)
+        .where(and(eq(telephonyProvidersTable.id, r.providerId), eq(telephonyProvidersTable.organisationId, r.orgId)))
+      : [];
+    const config = p ? decryptProviderConfig("twilio", (p.config as Record<string, unknown>) ?? {}) : {};
+    const s = await chargerSession(r.callSid, config as Record<string, unknown>);
+    if (!s) continue;
+    if (s.transfert?.statut === "en_cours") {
+      // L'issue du transfert n'est jamais arrivee : on ne sait pas si
+      // quelqu'un a repondu. On le dit, et on cree le rappel par prudence.
+      s.transfert.statut = "echoue";
+      await journaliserAppel(s.orgId, r.callSid, "transfer.unknown", {});
+      await rappelEtFin(s, "issue du transfert inconnue");
+    } else {
+      await finalizeCall(r.callSid, s);
+    }
+    n++;
+  }
+  await db.delete(voiceCallSessionsTable).where(lt(voiceCallSessionsTable.createdAt, new Date(Date.now() - SESSION_RETENTION_MS)));
+  return n;
+}
+
+
 // --- Webhooks -------------------------------------------------------------
+
+/**
+ * Plusieurs organisations peuvent partager un compte Twilio : le numero
+ * appele (`To`) designe la bonne. On essaie d'abord le fournisseur dont le
+ * numero correspond, puis les autres (signature verifiee pour chacun).
+ */
+function ordonnerParNumeroAppele(tenants: TenantMatch[], to: string): TenantMatch[] {
+  const chiffres = (to || "").replace(/\D/g, "");
+  if (chiffres.length < 6) return tenants;
+  const correspond = (t: TenantMatch) => {
+    const c = t.config as Record<string, unknown>;
+    const nums = [c.fromNumber, c.phoneNumber].filter((x): x is string => typeof x === "string");
+    return nums.some((n) => n.replace(/\D/g, "").slice(-9) === chiffres.slice(-9));
+  };
+  return [...tenants.filter(correspond), ...tenants.filter((t) => !correspond(t))];
+}
+
+function twimlVide(): string {
+  return `<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>`;
+}
 
 voiceReceptionistRouter.post("/voice/twilio/incoming", async (req: Request, res: Response): Promise<void> => {
   res.type("text/xml");
@@ -1611,7 +1918,7 @@ voiceReceptionistRouter.post("/voice/twilio/incoming", async (req: Request, res:
     return;
   }
 
-  const tenants = await resolveTenants(accountSid);
+  const tenants = ordonnerParNumeroAppele(await resolveTenants(accountSid), body.To ?? "");
   if (tenants.length === 0) {
     logger.warn({ accountSid }, "[voice] AccountSid inconnu");
     res.status(403).send(emptyTwiml());
@@ -1624,7 +1931,7 @@ voiceReceptionistRouter.post("/voice/twilio/incoming", async (req: Request, res:
     return;
   }
 
-  const extraCfg = tenant.config as ReceptionistExtraConfig & TelephonyProviderConfig;
+  const extraCfg = reglagesSecretaire(tenant.config);
 
   // Protection anti-fraude (opt-in, "off" par defaut): s'applique avant tout,
   // qu'importe l'etat de la secretaire IA — un appelant bloque/a risque ne
@@ -1644,6 +1951,7 @@ voiceReceptionistRouter.post("/voice/twilio/incoming", async (req: Request, res:
         detail: `${decision.reason} (${fraudAction === "reject" ? "appel rejete" : "redirige vers messagerie"})`,
         notifyWhatsApp: true,
       });
+      await journaliserAppel(tenant.orgId, callSid, "call.fraud_blocked", { from: masked, action: fraudAction });
       if (fraudAction === "reject") {
         res.status(200).send(twimlReject());
         return;
@@ -1688,18 +1996,28 @@ voiceReceptionistRouter.post("/voice/twilio/incoming", async (req: Request, res:
       de: "Guten Tag. Wir haben derzeit geschlossen. Bitte hinterlassen Sie Ihre Nachricht nach dem Signalton.",
       ar: "مرحباً. نحن مغلقون حالياً. يرجى ترك رسالتك بعد الصافرة.",
     };
-    const closedMsg = CLOSED_MSG[lang];
-    res.status(200).send(twimlRecord(recordUrl, closedMsg, lang, voice));
+    res.status(200).send(twimlRecord(recordUrl, CLOSED_MSG[lang], lang, voice));
+    return;
+  }
+
+  // Retry Twilio d'un `incoming` deja traite : on rejoue l'accueil, on ne
+  // recree rien.
+  const deja = await chargerSessionAppel(callSid);
+  if (deja) {
+    if (deja.orgId !== tenant.orgId) { res.status(403).send(emptyTwiml()); return; }
+    const accueil = ((deja.etat.turns as Turn[] | undefined) ?? [])[0]?.text ?? premierEnonce(lang, DEFAULT_GREETING[lang]);
+    res.status(200).send(deja.lastResponse ?? gatherTwiml(accueil, lang, voice));
     return;
   }
 
   // Reconnaissance appelant (contact connu -> salutation personnalisee + nom
   // injecte dans la persona) + creneaux occupes, en parallele (best-effort, une
   // seule fois en debut d'appel: les disponibilites sont injectees a chaque tour).
-  const [caller, busyBlock, freeBlock] = await Promise.all([
+  const [caller, busyBlock, freeBlock, horaires] = await Promise.all([
     withTimeout(lookupCaller(tenant.orgId, body.From ?? ""), VOICE_RETRIEVAL_TIMEOUT_MS, { name: null, callCount: 0, contactId: null }),
     withTimeout(fetchBusySlots(tenant.orgId), VOICE_RETRIEVAL_TIMEOUT_MS, ""),
     withTimeout(fetchFreeSlots(tenant.orgId), VOICE_RETRIEVAL_TIMEOUT_MS, ""),
+    withTimeout(getWorkingHoursConfig(tenant.orgId).then((c) => c.timezone), VOICE_RETRIEVAL_TIMEOUT_MS, "Europe/Paris"),
   ]);
 
   // Contexte personnel de l'appelant CONNU (ses propres taches / prochain RDV),
@@ -1719,7 +2037,7 @@ voiceReceptionistRouter.post("/voice/twilio/incoming", async (req: Request, res:
     customGreeting ?? (caller.name ? personalizedGreeting(lang, caller.name) : DEFAULT_GREETING[lang]),
   );
 
-  sessions.set(callSid, {
+  const session: CallSession = {
     orgId: tenant.orgId,
     providerId: tenant.providerId,
     callerNumber: body.From ?? "",
@@ -1744,9 +2062,25 @@ voiceReceptionistRouter.post("/voice/twilio/incoming", async (req: Request, res:
     sentiment: "neutre",
     urgent: false,
     lastOutcome: null,
-  });
-
-  res.status(200).send(gatherTwiml(greeting, lang, voice));
+    callSid,
+    fuseau: horaires,
+    rdvPropose: null,
+    rdvCree: null,
+    transfert: null,
+    rappelMessageId: null,
+    demande: "",
+    journal: [],
+    echecsModele: 0,
+  };
+  const twiml = gatherTwiml(greeting, lang, voice);
+  const cree = await creerSessionAppel({ orgId: tenant.orgId, providerId: tenant.providerId, callSid, etat: etatPersiste(session) });
+  if (cree) {
+    await sauverSession(session, { response: twiml });
+    await journaliserAppel(tenant.orgId, callSid, "call.started", {
+      from: maskPhone(body.From ?? ""), to: body.To ?? "", contactId: caller.contactId, langue: lang,
+    });
+  }
+  res.status(200).send(twiml);
 });
 
 voiceReceptionistRouter.post("/voice/twilio/respond", async (req: Request, res: Response): Promise<void> => {
@@ -1762,7 +2096,7 @@ voiceReceptionistRouter.post("/voice/twilio/respond", async (req: Request, res: 
     return;
   }
 
-  const session = callSid ? sessions.get(callSid) : undefined;
+  const session = callSid ? await chargerSession(callSid, tenant.config) : null;
   if (!session) {
     const cfg = (tenant.config.aiReceptionist as Record<string, unknown> | undefined) ?? {};
     const lang = normalizeLang(cfg.language);
@@ -1779,59 +2113,165 @@ voiceReceptionistRouter.post("/voice/twilio/respond", async (req: Request, res: 
     return;
   }
 
+  // Twilio rejoue une requete dont il n'a pas eu la reponse a temps : meme
+  // empreinte → meme reponse, sans rappeler le modele ni ajouter un tour.
+  const cle = cleRequete(body);
+  if (session._lastKey === cle && session._lastResponse) {
+    res.status(200).send(session._lastResponse);
+    return;
+  }
+  const repondre = async (twiml: string, status?: string) => {
+    await sauverSession(session, { requestKey: cle, response: twiml, ...(status ? { status } : {}) });
+    res.status(200).send(twiml);
+  };
+  const statutApresTwiml = () => (session.transfert?.statut === "en_cours" ? "transfert" : undefined);
+
   const speech = (body.SpeechResult ?? "").trim();
   if (!speech) {
     session.emptyCount += 1;
     if (session.emptyCount >= 2) {
       await finalizeCall(callSid, session);
-      res.status(200).send(hangupTwiml(NO_INPUT_BYE[session.lang], session.lang, session.voice));
+      await repondre(hangupTwiml(NO_INPUT_BYE[session.lang], session.lang, session.voice));
       return;
     }
-    res.status(200).send(gatherTwiml(REPROMPT_MSG[session.lang], session.lang, session.voice));
+    await repondre(gatherTwiml(REPROMPT_MSG[session.lang], session.lang, session.voice));
     return;
   }
   session.emptyCount = 0;
-  session.turns.push({ role: "user", text: sanitizePromptInput(speech, 1000) || speech });
+  const parole = sanitizePromptInput(speech, 1000) || speech;
+  session.turns.push({ role: "user", text: parole });
+  if (!session.demande) session.demande = parole.slice(0, 300);
 
-  let result: ReceptionistResult;
-  try {
-    result = await runReceptionistTurn(session);
-  } catch (err) {
-    logger.error({ err, orgId: session.orgId }, "[voice] echec tour IA");
-    await finalizeCall(callSid, session);
-    res.status(200).send(hangupTwiml(AI_ERROR_BYE[session.lang], session.lang, session.voice));
+  // ── Un creneau attend le « oui » de l'appelant ─────────────────────────
+  if (session.rdvPropose) {
+    let reponse = ouiOuNon(speech, session.lang);
+    let modele: ReceptionistResult | null = null;
+    if (reponse === null) {
+      try { modele = await runReceptionistTurn(session); reponse = modele.confirmation; } catch { /* question fermee */ }
+    }
+    let suite: SuiteTour;
+    if (reponse === null && modele?.outcome === "appointment") {
+      // « Plutot jeudi a 10 h » : une nouvelle demande, pas un oui ni un non.
+      session.rdvPropose = null;
+      suite = (await persistOutcome(session, modele)) ?? { say: modele.say };
+    } else {
+      suite = await traiterConfirmation(session, reponse);
+    }
+    session.turns.push({ role: "assistant", text: suite.say });
+    if (suite.escalade) {
+      await repondre(await escalader(session, suite.escalade, suite.say), statutApresTwiml());
+      return;
+    }
+    await repondre(gatherTwiml(suite.say, session.lang, session.voice));
     return;
   }
 
-  session.turns.push({ role: "assistant", text: result.say });
-
-  if (result.outcome && !session.fulfilled) {
-    await persistOutcome(session, result);
+  // ── Tour de conversation ───────────────────────────────────────────────
+  let result: ReceptionistResult;
+  try {
+    result = await runReceptionistTurn(session);
+    session.echecsModele = 0;
+  } catch (err) {
+    // L'agent ne peut pas continuer : un conseiller s'il y en a un, sinon une
+    // VRAIE demande de rappel (la phrase « on vous rappellera » etait dite sans
+    // que rien ne soit cree).
+    session.echecsModele += 1;
+    logger.error({ err, orgId: session.orgId }, "[voice] echec tour IA");
+    await journaliserAppel(session.orgId, callSid, "agent.failed", { erreur: String((err as Error)?.name ?? "erreur") });
+    await repondre(await escalader(session, "l'assistant n'a pas pu traiter la demande"), statutApresTwiml());
+    return;
   }
 
-  // Transfert vers un humain (opt-in via cfg.forwardToNumber): si l'IA estime
-  // qu'il faut relayer l'appel et qu'un numero conseiller est configure, on
-  // finalise (trace l'appel) puis on relaie via <Dial>. callerId = numero
-  // Twilio de l'org (le numero appele) pour rester un appel sortant legitime.
-  const forwardTo =
-    typeof session.cfg.forwardToNumber === "string" ? (session.cfg.forwardToNumber as string).trim() : "";
-  if (result.transfer && forwardTo) {
-    const intro = result.say && result.say.trim() ? result.say.trim() : TRANSFER_INTRO[session.lang];
-    const callerId = session.toNumber || session.providerConfig.fromNumber || session.providerConfig.phoneNumber || forwardTo;
-    await finalizeCall(callSid, session);
-    res.status(200).send(dialTwiml(forwardTo, callerId, intro, session.lang, session.voice));
+  let say = result.say;
+  if (result.outcome) {
+    const suite = await persistOutcome(session, result);
+    if (suite) {
+      say = suite.say;
+      if (suite.escalade) {
+        session.turns.push({ role: "assistant", text: say });
+        await repondre(await escalader(session, suite.escalade, say), statutApresTwiml());
+        return;
+      }
+    }
+  }
+  session.turns.push({ role: "assistant", text: say });
+
+  // L'appelant veut un humain : un conseiller s'il y en a un, sinon un rappel.
+  if (result.transfer) {
+    const twiml = cibleTransfert(session)
+      ? await transferer(session, "l'appelant demande un conseiller", say)
+      : await rappelEtFin(session, "l'appelant demande un conseiller, aucun numéro de transfert configuré");
+    await repondre(twiml, statutApresTwiml());
     return;
   }
 
   const userTurns = session.turns.filter((t) => t.role === "user").length;
-  const done = result.done || userTurns >= 12;
+  const done = (result.done && !session.rdvPropose) || userTurns >= 12;
   if (done) {
     await finalizeCall(callSid, session);
-    res.status(200).send(hangupTwiml(result.say, session.lang, session.voice));
+    await repondre(hangupTwiml(say, session.lang, session.voice));
     return;
   }
 
-  res.status(200).send(gatherTwiml(result.say, session.lang, session.voice));
+  await repondre(gatherTwiml(say, session.lang, session.voice));
+});
+
+/**
+ * Issue du transfert (<Dial action>). Repondu → compte rendu et fin. Pas de
+ * reponse, occupe, echec → demande de rappel, dite a l'appelant, puis fin.
+ */
+voiceReceptionistRouter.post("/voice/twilio/transfert-resultat", async (req: Request, res: Response): Promise<void> => {
+  res.type("text/xml");
+  const body = (req.body ?? {}) as Record<string, string>;
+  const callSid = body.CallSid;
+  const tenants = await resolveTenants(body.AccountSid ?? "");
+  const tenant = tenants.find((t) => validateTwilioSignature(req, t.authToken));
+  if (!tenant || !callSid) {
+    res.status(403).send(emptyTwiml());
+    return;
+  }
+  const session = await chargerSession(callSid, tenant.config);
+  if (!session || session.orgId !== tenant.orgId) {
+    res.status(session ? 403 : 200).send(session ? emptyTwiml() : twimlVide());
+    return;
+  }
+  // Issue rejouee par Twilio, ou appel deja clos : meme reponse, rien de refait.
+  const cle = cleRequete(body);
+  if (session._lastKey === cle && session._lastResponse) {
+    res.status(200).send(session._lastResponse);
+    return;
+  }
+  if (session._status === "terminee") {
+    res.status(200).send(twimlVide());
+    return;
+  }
+  const repondre = async (twiml: string) => {
+    await sauverSession(session, { requestKey: cle, response: twiml });
+    res.status(200).send(twiml);
+  };
+  const statut = String(body.DialCallStatus ?? "");
+  if (!session.transfert) {
+    session.transfert = { cible: cibleTransfert(session), statut: "en_cours", raison: "inconnue" };
+  }
+
+  if (statut === "completed" || statut === "answered") {
+    session.transfert.statut = "reussi";
+    session.journal.push(`Appel pris par un conseiller (${body.DialCallDuration ?? "?"} s)`);
+    await journaliserAppel(session.orgId, callSid, "transfer.succeeded", {
+      dialCallStatus: statut, duree: body.DialCallDuration ?? null, cible: maskPhone(session.transfert.cible),
+    });
+    await finalizeCall(callSid, session);
+    await repondre(twimlVide());
+    return;
+  }
+
+  session.transfert.statut = "echoue";
+  session.journal.push(`Transfert sans réponse (${statut || "statut inconnu"})`);
+  await journaliserAppel(session.orgId, callSid, "transfer.failed", {
+    dialCallStatus: statut || null, cible: maskPhone(session.transfert.cible),
+  });
+  const twiml = await rappelEtFin(session, `transfert sans réponse (${statut || "inconnu"})`, phrase("transfertEchoue", session.lang));
+  await repondre(twiml);
 });
 
 voiceReceptionistRouter.post("/voice/twilio/status", async (req: Request, res: Response): Promise<void> => {
@@ -1839,18 +2279,21 @@ voiceReceptionistRouter.post("/voice/twilio/status", async (req: Request, res: R
   const body = (req.body ?? {}) as Record<string, string>;
   const callSid = body.CallSid;
   const status = body.CallStatus;
-  const session = callSid ? sessions.get(callSid) : undefined;
   const terminal = ["completed", "failed", "busy", "no-answer", "canceled"].includes(status ?? "");
-  if (session && terminal) {
+  if (callSid && terminal) {
     const tenants = await resolveTenants(body.AccountSid ?? "");
     const tenant = tenants.find((t) => validateTwilioSignature(req, t.authToken));
+    const session = tenant ? await chargerSession(callSid, tenant.config) : null;
     // Signature valide ET meme organisation que la session (anti cross-tenant).
-    if (tenant && tenant.orgId === session.orgId) {
+    // Un transfert en cours est clos par /transfert-resultat, qui cree le
+    // rappel si personne n'a repondu.
+    if (tenant && session && tenant.orgId === session.orgId && session.transfert?.statut !== "en_cours") {
       await finalizeCall(callSid, session);
     }
   }
   res.status(200).send(emptyTwiml());
 });
+
 
 // Appel dirige vers la messagerie vocale (fraude ou hors horaires — voir
 // /voice/twilio/incoming). Twilio POST ici une fois l'enregistrement termine
@@ -1872,13 +2315,28 @@ voiceReceptionistRouter.post("/voice/twilio/voicemail-complete", async (req: Req
   // Twilio peut re-livrer ce webhook (timeout depasse cote Twilio pendant la
   // transcription Gemini synchrone ci-dessous) — sans garde, chaque retry
   // re-inserterait message/notification/log d'appel et renverrait SMS + email
-  // recap en double. Voir aussi le nettoyage periodique de processedVoicemails
-  // dans purgeStale().
-  if (!callSid || processedVoicemails.has(callSid)) {
+  // recap en double. La garde etait une Map en memoire : le retry tombant sur
+  // une autre instance Cloud Run refaisait tout. Elle est en base : la
+  // premiere requete qui insere la ligne de l'appel (CallSid unique) traite le
+  // message, les suivantes repondent sans rien refaire. La ligne naît
+  // « terminee » : le balayage des appels abandonnes ne la reprend pas.
+  if (!callSid) {
     res.status(200).send(emptyTwiml());
     return;
   }
-  processedVoicemails.set(callSid, Date.now());
+  const [premier] = await db.insert(voiceCallSessionsTable).values({
+    organisationId: tenant.orgId,
+    providerId: tenant.providerId,
+    callSid,
+    status: "terminee",
+    state: { messagerie: true },
+    actions: { messagerie: true },
+    finalizedAt: new Date(),
+  }).onConflictDoNothing().returning({ id: voiceCallSessionsTable.id });
+  if (!premier) {
+    res.status(200).send(emptyTwiml());
+    return;
+  }
 
   const callerNumber = body.From ?? "";
   let transcript: string | null = null;
@@ -1922,6 +2380,10 @@ voiceReceptionistRouter.post("/voice/twilio/voicemail-complete", async (req: Req
   } catch (err) {
     logger.error({ err, orgId: tenant.orgId }, "[voice] echec persistance message vocal");
   }
+  await journaliserAppel(tenant.orgId, callSid, "voicemail.received", {
+    transcrit: Boolean(transcript),
+    duree: parseInt(body.RecordingDuration || "0", 10) || 0,
+  });
 
   await sendMissedCallSms({
     orgId: tenant.orgId,

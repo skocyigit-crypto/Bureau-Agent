@@ -41,6 +41,7 @@ Users
 import { useEffect,useMemo,useRef,useState } from "react";
 
 import { useMutation,useQuery,useQueryClient } from "@tanstack/react-query";
+import { statutAgenda } from "@/lib/statut-agenda";
 import { chevauchements, messageChevauchement } from "@/lib/chevauchement-agenda";
 import { heureDOuverture, positionDansLHeure } from "@/lib/position-heure-courante";
 import { jourLocal } from "@/lib/jour-local";
@@ -1184,7 +1185,7 @@ export default function CalendarPage() {
 
   const allEvents = useMemo(() => {
     if (!data) return [];
-    const calendar = (data.events || []).map((e: any) => ({ ...e, source: "calendar" }));
+    const calendar = (data.events || []).map((e: any) => ({ ...e, status: statutAgenda(e.status), source: "calendar" }));
     const tasks = (data.taskEvents || []).map((e: any) => ({ ...e, source: "task" }));
     const projets = (data.projetEvents || []).map((e: any) => ({ ...e, source: "projet" }));
     // Evenements venant de Google Agenda (lecture seule). Le serveur exclut
