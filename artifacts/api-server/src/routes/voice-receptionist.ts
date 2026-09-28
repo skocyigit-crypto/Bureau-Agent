@@ -679,7 +679,7 @@ function ownAppointmentMatch(contactId: number | null, phoneLike: string, hasDig
         // '\\D' et non '\D' : dans un gabarit etiquete, « \D » devient « D » —
         // Postgres recevait regexp_replace(x, 'D', ...) et ne retirait QUE la
         // lettre D. Un numero enregistre avec espaces ne se rapprochait jamais.
-        sql`regexp_replace(coalesce(${calendarEventsTable.contactPhone}, ''), '\\D', '', 'g') LIKE ${phoneLike}`,
+        sql`regexp_replace(coalesce(${calendarEventsTable.contactPhone}, ''), '\D', '', 'g') LIKE ${phoneLike}`,
       )
     : undefined;
   if (contactId) {
@@ -705,13 +705,13 @@ async function lookupCaller(orgId: number, phone: string): Promise<CallerInfo> {
         .from(contactsTable)
         .where(and(
           eq(contactsTable.organisationId, orgId),
-          sql`regexp_replace(coalesce(${contactsTable.phone}, ''), '\\D', '', 'g') LIKE ${like}`,
+          sql`regexp_replace(coalesce(${contactsTable.phone}, ''), '\D', '', 'g') LIKE ${like}`,
         ))
         // Ordre stable : l'egalite exacte des chiffres d'abord, puis le plus
         // recent. Un `limit(1)` sans ordre choisissait au hasard entre deux
         // contacts partageant les 9 derniers chiffres.
         .orderBy(
-          desc(sql`regexp_replace(coalesce(${contactsTable.phone}, ''), '\\D', '', 'g') = ${digits}`),
+          desc(sql`regexp_replace(coalesce(${contactsTable.phone}, ''), '\D', '', 'g') = ${digits}`),
           desc(contactsTable.updatedAt),
         )
         .limit(1),
@@ -720,7 +720,7 @@ async function lookupCaller(orgId: number, phone: string): Promise<CallerInfo> {
         .from(callsTable)
         .where(and(
           eq(callsTable.organisationId, orgId),
-          sql`regexp_replace(coalesce(${callsTable.phoneNumber}, ''), '\\D', '', 'g') LIKE ${like}`,
+          sql`regexp_replace(coalesce(${callsTable.phoneNumber}, ''), '\D', '', 'g') LIKE ${like}`,
         )),
     ]);
     const c = contactRow[0];

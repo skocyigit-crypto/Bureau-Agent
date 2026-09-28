@@ -441,10 +441,10 @@ export async function contactDeLAppelant(orgId: number, telephone: string, nom: 
     const [c] = await db.select({ id: contactsTable.id }).from(contactsTable)
       .where(and(
         eq(contactsTable.organisationId, orgId),
-        sql`regexp_replace(coalesce(${contactsTable.phone}, ''), '\\D', '', 'g') LIKE ${suffixe}`,
+        sql`regexp_replace(coalesce(${contactsTable.phone}, ''), '\D', '', 'g') LIKE ${suffixe}`,
       ))
       .orderBy(
-        desc(sql`regexp_replace(coalesce(${contactsTable.phone}, ''), '\\D', '', 'g') = ${chiffres}`),
+        desc(sql`regexp_replace(coalesce(${contactsTable.phone}, ''), '\D', '', 'g') = ${chiffres}`),
         desc(contactsTable.updatedAt),
       )
       .limit(1);
