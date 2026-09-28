@@ -2807,3 +2807,8 @@ Beş eksen kodda ayrı ayrı tarandı; aşağıdakiler ölçülerek bulundu.
 18. Kişisel dışa aktarma kişi hakkındaki değerlendirmeleri içermiyor; iki
     dışa aktarma da denetim kaydına yazılmıyor.
 19. AI Act sınıflandırması yalnız çalışan değerlendirmesi için var.
+20. (BatiFlow'dan aktarılan ders, 28/09) PATCH/PUT gövdesinden gelen yabancı
+    anahtarların (contactId, projetId, assignedTo...) çağıranın kiracısına ait
+    olduğu doğrulanmalı; BatiFlow'da `WHERE` koşulunda tenant olmayan dört rota
+    kaydı başka kiracıya taşıyordu. Bizde `tenant-scope-check` yalnız bloğun
+    org'dan söz edip etmediğine bakıyor, gövde anahtarını ölçmüyor.
