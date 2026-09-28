@@ -2799,6 +2799,7 @@ Beş eksen kodda ayrı ayrı tarandı; aşağıdakiler ölçülerek bulundu.
     Kural oluşturulduktan sonra tetikleyici/eylemler düzenlenemiyor ve
     görüntülenemiyor. Önce erişilebilir liste görünümü + düzenleme + ortak
     aria-live duyurucu; React Flow editörü motor dal desteklediğinde anlamlı.
+   **Kapandı 28/09 (Lot 2):** `/studio-flux` — React Flow tuvali + aynı akışın erişilebilir liste görünümü; tetik/eylem/akış oluşturulduktan sonra düzenlenebiliyor.
 13. Otomasyon sayfası: aria-live yok, her yenilemede odak kayboluyor, seçim
     modu yalnız fare; yerleşik kural adları çevrilmiyor.
 **Veri / mevzuat (eksen 5):**
@@ -2857,6 +2858,7 @@ onayı → sonuç) ve bir mimari şema (API → iş yürütücüsü → ajan ça
 1. **Görsel akış stüdyosu (Lot 2):** düğüm/kenar modeli (tetik, ajan, koşul,
    onay, işlem), yürütücüyü kullanan akış motoru, React Flow editörü + aynı
    akışın erişilebilir liste görünümü ve klavye ile düzenleme.
+   **Kapandı 28/09 (Lot 2):** model (`flux-automatisation.ts`, sunucuda doğrulanan), motor (koşul dalları, onay düğümü, ajan düğümleri), `nouvelle_demande` tetikleyicisi, React Flow + klavyeyle düzenlenen liste + aria-live, 6 dil.
 2. Gerçek giriş kanallarını yürütücüye bağlamak: Gmail triyajı, WhatsApp,
    web formu (şu an yalnız İş masası'ndaki "Yeni talep").
 3. Onay kutusunu birleştirmek: assistant bekleyenleri + proaktif taslaklar.
@@ -3008,3 +3010,48 @@ kalmıştı.
   varsayılan otomatik gönderim (eski `billingRequiresApproval=false`). Tek
   satır: `reminders_require_approval` varsayılanı. Mevcut kuruluşlar için
   toplu geçiş bir veri değişikliği — onaysız yapılmadı.
+
+## Görsel akış stüdyosu — 2026-09-28 (Lot 2)
+
+İstek (mesaj 1, eksen 4 + mesaj 12, "zorunlu"): sürükle-bırak akış editörü,
+her akışın erişilebilir liste görünümü, klavye ve durum mesajları; akış
+şeması "yeni talep → sınıflandırıcı → destek/satış → dış işlem → insan onayı
+→ sonuç".
+
+### Yapılan
+- **Model:** `automation_rules.flow` (düğüm + bağlantı + konum; NULL = eski
+  doğrusal kural). Sunucu doğruluyor:
+  - tek tetikleyici, döngü yok, her adım tetikleyiciden erişilebilir;
+  - koşulda tek "evet" ve en fazla bir "hayır";
+  - ajan yalnız "Yeni talep" akışında; ajan koşulundan önce bir ajan olmalı.
+  Hatalar adım kimliğiyle dönüyor.
+- **Motor:**
+  - koşullar kodda değerlendiriliyor (model dal seçmiyor);
+  - onay düğümü sonraki bütün işlemleri kuyruğa zorluyor;
+  - ajan düğümleri yürütücünün adımlarını kullanıyor (`classerDemande`,
+    `executerSpecialiste`; aynı katalog ve aynı onay kuralları);
+  - hata veren adım akışı durduruyor.
+- **"Yeni talep":** `POST /ajans/demandes` kuruluşun etkin akışıyla
+  yönlendiriliyor, yoksa varsayılan yönlendirme kullanılıyor. Varsayılan akış
+  şemanın kendisi: sınıflandırıcı → destek / satış → "sıralanacak" görevi.
+- **Ekran (`/studio-flux`):**
+  - React Flow tuvali ve aynı akışın sıralı listesi;
+  - listede her adımın ayarları, "sonraki adım" ile evet/hayır dalları
+    yerel denetimlerle klavyeden kullanılabiliyor;
+  - ekleme, silme, bağlama ve kaydetme aria-live ile duyuruluyor;
+  - sunucu hataları adımın yanında gösteriliyor ve acil duyuruluyor;
+  - 6 dil.
+- **Yol üstünde kapananlar:**
+  - özel kural günlükleri hiç görünmüyordu (`ruleId: null`);
+  - kopyalanan kural onay politikasını kaybediyordu;
+  - `projet_created` iki aralık geriye bakıyordu.
+- **Testler:**
+  - `flux-automatisation.test.ts` (20, iki mutasyon düştü);
+  - `studio-flux-integration.test.ts` (9, DB);
+  - `studio-flux.test.tsx` (10, duyuru mutasyonu düştü).
+
+### Açık
+- Tuvalde düğüm üstünde doğrudan düzenleme yok (ayarlar liste görünümünde).
+- Akış işlemlerinin onay önerileri koşuya bağlı değil: onaylanınca koşu
+  kendiliğinden kapanmıyor, yalnız sayılıyor.
+- Gmail / WhatsApp / web formu henüz "Yeni talep" üretmiyor (modül kalanı 2).
