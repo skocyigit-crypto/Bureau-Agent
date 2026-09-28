@@ -7480,6 +7480,12 @@
       "concerns": "Points of attention",
       "priorities": "Priorities",
       "outlook": "Outlook: "
+    },
+    "relancesEnFile": {
+      "title": "Reminders to approve",
+      "desc_one": "{{count}} reminder added to the approval queue: nothing is sent until you approve it.",
+      "desc_other": "{{count}} reminders added to the approval queue: nothing is sent until you approve them.",
+      "aucune": "No new reminder to approve (already queued, or client without e-mail)."
     }
   },
   "licenseManagement": {
@@ -7672,7 +7678,11 @@
       "autoMonthlyDesc": "Automatically generates subscription invoices every month",
       "autoEmailTitle": "Automatic email sending",
       "autoEmailDesc": "Sends invoices and reminders by email automatically",
-      "saveSettings": "Save settings"
+      "saveSettings": "Save settings",
+      "autoRemindersTitle": "Automatic payment reminders",
+      "autoRemindersDesc": "Every day, clients with overdue invoices receive an e-mail reminder.",
+      "remindersApprovalTitle": "Review reminders before sending",
+      "remindersApprovalDesc": "Reminders wait for your approval in the approval queue instead of being sent automatically."
     },
     "licenceAudit": {
       "title": "Audit log — License & Billing",

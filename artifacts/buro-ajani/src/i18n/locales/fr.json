@@ -7480,6 +7480,12 @@
       "concerns": "Points de vigilance",
       "priorities": "Priorités",
       "outlook": "Perspectives : "
+    },
+    "relancesEnFile": {
+      "title": "Relances à approuver",
+      "desc_one": "{{count}} relance déposée dans la file d'approbation : rien n'est envoyé avant votre accord.",
+      "desc_other": "{{count}} relances déposées dans la file d'approbation : rien n'est envoyé avant votre accord.",
+      "aucune": "Aucune nouvelle relance à approuver (déjà en file, ou client sans e-mail)."
     }
   },
   "licenseManagement": {
@@ -7672,7 +7678,11 @@
       "autoMonthlyDesc": "Génère automatiquement les factures d'abonnement chaque mois",
       "autoEmailTitle": "Envoi automatique par email",
       "autoEmailDesc": "Envoie les factures et rappels par email automatiquement",
-      "saveSettings": "Enregistrer les paramètres"
+      "saveSettings": "Enregistrer les paramètres",
+      "autoRemindersTitle": "Relances de paiement automatiques",
+      "autoRemindersDesc": "Chaque jour, vos clients en retard de paiement reçoivent un rappel par e-mail.",
+      "remindersApprovalTitle": "Voir les relances avant envoi",
+      "remindersApprovalDesc": "Les relances attendent votre accord dans la file d'approbation au lieu de partir seules."
     },
     "licenceAudit": {
       "title": "Journal d'audit — Licence & Facturation",

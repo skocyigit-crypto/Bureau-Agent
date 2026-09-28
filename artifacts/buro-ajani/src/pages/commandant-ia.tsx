@@ -758,7 +758,8 @@ function TasksTab() {
   const sendReminders = async () => {
     try {
       const d = await apiPost("/commandant/overdue-reminders", { sendEmails: true });
-      if (d.success) toast({ title: t("commandantIa.tasks.remindersSentTitle"), description: t("commandantIa.tasks.remindersSentDesc", { count: d.emailsSent }) });
+      // Rien ne part d'ici : les relances attendent dans la file d'approbation.
+      if (d.success) toast({ title: t("commandantIa.relancesEnFile.title"), description: d.remindersQueued > 0 ? t("commandantIa.relancesEnFile.desc", { count: d.remindersQueued }) : t("commandantIa.relancesEnFile.aucune") });
     } catch (err: any) { toast({ title: t("commandantIa.toast.error"), description: err.message, variant: "destructive" }); }
   };
 
@@ -1159,7 +1160,7 @@ function RappelsTab() {
     setLoading(true);
     try {
       const d = await apiPost("/commandant/overdue-reminders", { sendEmails: true });
-      if (d.success) toast({ title: t("commandantIa.rappels.bulkSentTitle"), description: t("commandantIa.rappels.bulkSentDesc", { count: d.emailsSent || 0 }) });
+      if (d.success) toast({ title: t("commandantIa.relancesEnFile.title"), description: d.remindersQueued > 0 ? t("commandantIa.relancesEnFile.desc", { count: d.remindersQueued }) : t("commandantIa.relancesEnFile.aucune") });
     } catch (err: any) { toast({ title: t("commandantIa.toast.error"), description: err.message, variant: "destructive" }); }
     setLoading(false);
   };

@@ -20,6 +20,7 @@ import { scanBase64Content } from "../middleware/security";
 import { aiForOrg } from "../services/ai-client";
 import { respondAiError } from "../services/ai-guard";
 import { delaiEnJours } from "../lib/valeur-ou-defaut";
+import { proposerRelancesRedigees } from "../services/relances-factures";
 
 function handleCommandantError(err: unknown, res: Response, logLabel: string): void {
   // Quota atteint (429) ou cle d'IA manquante (402): deux refus voulus, pas
@@ -899,42 +900,26 @@ JSON attendu:
       parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { dailySummary: aiResponse };
     } catch { parsed = { dailySummary: aiResponse }; }
 
-    let emailsSent = 0;
+    // Les relances redigees par le modele ne partent plus d'ici : elles vont
+    // en FILE D'APPROBATION, avec le texte exact qui partira.
+    //
+    // Avant (mesure 28/09), `sendEmails: true` envoyait directement aux
+    // clients le message produit par CET appel au modele — pas celui que
+    // l'ecran avait montre (le chargement `sendEmails: false` en faisait un
+    // autre). Personne n'avait lu ce qui partait, ni a qui ; le contexte du
+    // modele contient en outre des noms et des references saisis par des
+    // tiers. Voir services/paliers-actions-ia.ts : « externe » = jamais
+    // directement.
     const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, orgId));
-    if (req.body.sendEmails && parsed.invoiceReminders?.length) {
-      for (const reminder of parsed.invoiceReminders) {
-        const invoice = overdueInvoices.find(f => f.reference === reminder.invoiceRef || f.clientName === reminder.clientName);
-        if (invoice?.clientEmail) {
-          const html = emailWrap("Rappel de paiement", `<h2 style="color:#dc2626;">Rappel - ${escapeHtml(invoice.reference)}</h2><p>${escapeHtml(reminder.message)}</p><div style="background:#fef2f2;padding:20px;border-radius:10px;text-align:center;margin:20px 0;"><div style="font-size:24px;font-weight:700;color:#dc2626;">${(Number(invoice.totalAmount) - Number(invoice.paidAmount)).toFixed(2)} EUR</div></div>${org?.bankIban ? `<p style="font-size:12px;color:#64748b;">IBAN: ${escapeHtml(org.bankIban)} | Ref: ${escapeHtml(invoice.reference)}</p>` : ""}`);
-          const sent = await sendEmailViaResend(invoice.clientEmail, `Rappel - Facture ${invoice.reference}`, html, orgId);
-          if (sent) {
-            emailsSent++;
-            // La relance est MARQUEE sur la facture.
-            //
-            // Sans cela, elle reste invisible pour le detecteur de
-            // `services/payment-reminder.ts`, qui lit
-            // `factures_client.lastReminderAt` pour son espacement anti-spam.
-            // Le client relance ici pouvait donc recevoir une seconde relance
-            // des le lendemain — exactement le martelement que ce detecteur
-            // promet d'eviter.
-            //
-            // `ai-analysis.ts` fait deja ce marquage, et son commentaire
-            // explique pourquoi. La regle n'avait ete appliquee que d'un cote.
-            const relanceLe = new Date();
-            await db.update(facturesClientTable)
-              .set({
-                reminderCount: sql`${facturesClientTable.reminderCount} + 1`,
-                lastReminderAt: relanceLe,
-                updatedAt: relanceLe,
-              })
-              .where(and(
-                eq(facturesClientTable.id, invoice.id),
-                eq(facturesClientTable.organisationId, orgId),
-              ));
-          }
-        }
-      }
-    }
+    const remindersQueued = req.body.sendEmails
+      ? await proposerRelancesRedigees({
+          orgId,
+          factures: overdueInvoices,
+          relances: Array.isArray(parsed.invoiceReminders) ? parsed.invoiceReminders : [],
+          iban: org?.bankIban ?? null,
+          habiller: emailWrap,
+        })
+      : 0;
 
     const userId = req.session?.userId;
     for (const alert of (parsed.criticalAlerts || [])) {
@@ -947,7 +932,9 @@ JSON attendu:
       // Normalise: un modele n est pas une source de donnees de confiance, et
       // le repli ne portait que `dailySummary`. Voir `normaliserAnalyse`.
       aiAnalysis: normaliserAnalyse(parsed),
-      emailsSent,
+      // Rien n'est envoye d'ici : les relances attendent dans la file.
+      emailsSent: 0,
+      remindersQueued,
     });
   } catch (err: any) {
     handleCommandantError(err, res, "[Commandant/OverdueReminders]");

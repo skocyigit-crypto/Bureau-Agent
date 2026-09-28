@@ -1304,7 +1304,8 @@
     "tabEquipe": "الفريق",
     "tabEmail": "البريد",
     "tabSearch": "بحث",
-    "tabFinance": "المالية"
+    "tabFinance": "المالية",
+    "statRemindersQueued": "تذكيرات للموافقة"
   },
   "callAssistantScreen": {
     "tabPreparer": "التحضير",

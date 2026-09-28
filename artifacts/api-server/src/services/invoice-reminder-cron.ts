@@ -25,6 +25,7 @@ import { registerRunnableCron } from "./cron-registry";
 import { withDbRetry } from "../lib/db-retry";
 import { withCronLock, CRON_LOCK_NAMESPACE } from "../lib/cron-lock";
 import { runAutoRemindersForOrg } from "../routes/license-management";
+import { relancesSurApprobation } from "./relances-factures";
 import { recordCronHeartbeat } from "./health-agents";
 
 const TICK_MS = 60 * 60 * 1000; // 1h — verifie a chaque heure si c'est l'heure d'envoi
@@ -59,7 +60,11 @@ async function tick(): Promise<void> {
     // organisations sans condition — il n'existait aucun moyen de s'en
     // desinscrire alors que ces e-mails partent vers leurs propres clients.
     const orgs = await withDbRetry(
-      () => db.select({ id: organisationsTable.id, requiresApproval: organisationsTable.billingRequiresApproval })
+      () => db.select({
+        id: organisationsTable.id,
+        remindersRequireApproval: organisationsTable.remindersRequireApproval,
+        billingRequiresApproval: organisationsTable.billingRequiresApproval,
+      })
         .from(organisationsTable)
         .where(eq(organisationsTable.autoRemindersEnabled, true)),
       { label: "invoice-reminder-cron:orgs" },
@@ -86,11 +91,10 @@ async function tick(): Promise<void> {
           );
           if (already.length > 0) return;
 
-          const result = await runAutoRemindersForOrg(org.id, undefined, {
-            mode: org.requiresApproval ? "propose" : "send",
-          });
+          const mode = relancesSurApprobation(org) ? "propose" : "send";
+          const result = await runAutoRemindersForOrg(org.id, undefined, { mode });
           logger.info(
-            { orgId: org.id, mode: org.requiresApproval ? "propose" : "send", ...result },
+            { orgId: org.id, mode, ...result },
             "[InvoiceReminderCron] Cycle de relances termine pour une organisation",
           );
         });

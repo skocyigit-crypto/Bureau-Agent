@@ -140,7 +140,12 @@ describe("les invariants de la file restent intacts", () => {
   });
 
   it("il appelle l'action elle-meme, nommement", () => {
-    expect(AGENT).toMatch(/runAutoRemindersForOrg/);
-    expect(AGENT).toMatch(/mode: "send"/);
+    // L'action relance l'ORGANISATION qui doit son abonnement. Elle appelait
+    // runAutoRemindersForOrg en mode « send » — les relances de l'organisation
+    // vers SES clients : ce test figeait le defaut (28/09).
+    expect(AGENT).toMatch(/relancerAbonnementPlateforme\(organisationId\)/);
+    expect(AGENT).not.toMatch(/runAutoRemindersForOrg\(/);
+    expect(OUTILS).toMatch(/relancerAbonnementPlateforme\(Number\(a\.organisationId\)\)/);
+    expect(OUTILS).not.toMatch(/runAutoRemindersForOrg\(/);
   });
 });

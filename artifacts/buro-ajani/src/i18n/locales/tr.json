@@ -7480,6 +7480,12 @@
       "concerns": "Dikkat noktaları",
       "priorities": "Öncelikler",
       "outlook": "Öngörüler: "
+    },
+    "relancesEnFile": {
+      "title": "Onaylanacak hatırlatmalar",
+      "desc_one": "{{count}} hatırlatma onay kuyruğuna eklendi: onayınız olmadan hiçbir şey gönderilmez.",
+      "desc_other": "{{count}} hatırlatma onay kuyruğuna eklendi: onayınız olmadan hiçbir şey gönderilmez.",
+      "aucune": "Onaylanacak yeni hatırlatma yok (zaten kuyrukta ya da müşterinin e-postası yok)."
     }
   },
   "licenseManagement": {
@@ -7672,7 +7678,11 @@
       "autoMonthlyDesc": "Her ay abonelik faturalarını otomatik oluşturur",
       "autoEmailTitle": "Otomatik e-posta gönderimi",
       "autoEmailDesc": "Faturaları ve hatırlatmaları otomatik olarak e-posta ile gönderir",
-      "saveSettings": "Ayarları kaydet"
+      "saveSettings": "Ayarları kaydet",
+      "autoRemindersTitle": "Otomatik ödeme hatırlatmaları",
+      "autoRemindersDesc": "Ödemesi geciken müşterilerinize her gün e-postayla hatırlatma gider.",
+      "remindersApprovalTitle": "Hatırlatmaları göndermeden önce gör",
+      "remindersApprovalDesc": "Hatırlatmalar kendiliğinden gitmez; onay kuyruğunda onayınızı bekler."
     },
     "licenceAudit": {
       "title": "Denetim günlüğü — Lisans ve Faturalandırma",

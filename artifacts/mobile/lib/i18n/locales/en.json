@@ -1304,7 +1304,8 @@
     "tabEquipe": "Team",
     "tabEmail": "Email",
     "tabSearch": "Search",
-    "tabFinance": "Finance"
+    "tabFinance": "Finance",
+    "statRemindersQueued": "Reminders to approve"
   },
   "callAssistantScreen": {
     "tabPreparer": "Prepare",

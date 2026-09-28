@@ -7480,6 +7480,12 @@
       "concerns": "Aufmerksamkeitspunkte",
       "priorities": "Prioritäten",
       "outlook": "Ausblick: "
+    },
+    "relancesEnFile": {
+      "title": "Mahnungen zur Freigabe",
+      "desc_one": "{{count}} Mahnung in die Freigabewarteschlange gestellt: Ohne Ihre Freigabe wird nichts versendet.",
+      "desc_other": "{{count}} Mahnungen in die Freigabewarteschlange gestellt: Ohne Ihre Freigabe wird nichts versendet.",
+      "aucune": "Keine neue Mahnung zur Freigabe (bereits in der Warteschlange oder Kunde ohne E-Mail)."
     }
   },
   "licenseManagement": {
@@ -7672,7 +7678,11 @@
       "autoMonthlyDesc": "Generiert automatisch jeden Monat die Abonnementrechnungen",
       "autoEmailTitle": "Automatischer E-Mail-Versand",
       "autoEmailDesc": "Sendet Rechnungen und Erinnerungen automatisch per E-Mail",
-      "saveSettings": "Einstellungen speichern"
+      "saveSettings": "Einstellungen speichern",
+      "autoRemindersTitle": "Automatische Zahlungserinnerungen",
+      "autoRemindersDesc": "Kunden mit überfälligen Rechnungen erhalten täglich eine Erinnerung per E-Mail.",
+      "remindersApprovalTitle": "Erinnerungen vor dem Versand prüfen",
+      "remindersApprovalDesc": "Erinnerungen warten in der Freigabewarteschlange auf Ihre Freigabe, statt automatisch versendet zu werden."
     },
     "licenceAudit": {
       "title": "Audit-Protokoll — Lizenz & Abrechnung",
