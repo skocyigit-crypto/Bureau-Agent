@@ -2339,7 +2339,16 @@
       "saveBtn": "Save settings",
       "saved": "Settings saved",
       "error": "Error",
-      "saveFailed": "Save failed."
+      "saveFailed": "Save failed.",
+      "teamsTitle": "Transfer teams",
+      "teamsDesc": "A caller asking for a team (by name or keyword) is connected to its numbers, which ring together. Otherwise: the transfer number above, and failing that a callback request.",
+      "teamName": "Team {{n}} name",
+      "teamNamePlaceholder": "Accounting",
+      "teamNumbers": "Team {{n}} numbers",
+      "teamKeywords": "Team {{n}} keywords",
+      "teamKeywordsPlaceholder": "invoice, payment",
+      "teamRemove": "Remove team {{n}}",
+      "teamAdd": "Add a team"
     },
     "days": {
       "mon": "Mon",

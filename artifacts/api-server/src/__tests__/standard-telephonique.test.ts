@@ -126,11 +126,23 @@ const rdv = (date: string | null, time: string | null, extra: Record<string, unk
   appointment: { name: "Claire Martin", reason: "Devis cuisine", date, time, timezone: null, ...extra },
 });
 
-/** Prochain jour ouvre (lundi-vendredi) a Paris, au moins `jours` jours plus tard. */
-function jourOuvre(jours: number): string {
-  let d = new Date(Date.now() + jours * 86400_000);
+/**
+ * Le n-ieme jour ouvre (lundi-vendredi) apres aujourd'hui, a Paris : deux n
+ * differents donnent toujours deux jours differents.
+ *
+ * Il rendait « n jours plus tard, repousse au lundi si week-end » : un mardi,
+ * n=4 (samedi) et n=5 (dimanche) tombaient sur le MEME lundi, et le creneau
+ * « occupe » du scenario 2 bloquait celui du scenario 3 — echec selon le jour
+ * de la semaine (vu en local un mardi, passe en CI un lundi).
+ */
+function jourOuvre(n: number): string {
   const dow = (x: Date) => new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "Europe/Paris" }).format(x);
-  while (["Sat", "Sun"].includes(dow(d))) d = new Date(d.getTime() + 86400_000);
+  let d = new Date();
+  let compte = 0;
+  while (compte < n) {
+    d = new Date(d.getTime() + 86400_000);
+    if (!["Sat", "Sun"].includes(dow(d))) compte++;
+  }
   return new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Europe/Paris" }).format(d);
 }
 const heureParis = (d: Date) => new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" }).format(d);
@@ -308,6 +320,53 @@ describe("5. transfert vers un conseiller reussi", () => {
     const journal = await audit(sid);
     expect(journal).toEqual(expect.arrayContaining(["voice.transfer.requested", "voice.transfer.succeeded", "voice.call.ended"]));
     preuve("transfert-reussi", { callSid: sid, audit: journal });
+  });
+});
+
+describe("5b. transfert vers la bonne equipe", () => {
+  // Demande : « rediriger vers la bonne personne ou equipe ». Les numeros
+  // d'une equipe sonnent ensemble ; le modele ne peut pas inventer d'equipe.
+  const EQUIPES = [
+    { nom: "Comptabilité", numeros: ["+33700000011", "+33700000012"], motsCles: ["facture", "paiement"] },
+    { nom: "Chantiers", numeros: ["+33700000021"], motsCles: ["chantier", "travaux"] },
+  ];
+  const regler = (equipesTransfert: unknown[]) => db.update(telephonyProvidersTable).set({
+    config: encryptProviderConfig("twilio", {
+      accountSid: A.accountSid, authToken: A.token, fromNumber: A.numero,
+      aiReceptionist: {
+        enabled: true, language: "fr", orgName: "Standard a", smsConfirmation: true, autoFollowupTask: true,
+        forwardToNumber: CONSEILLER, equipesTransfert,
+      },
+    }),
+  }).where(eq(telephonyProvidersTable.organisationId, A.id));
+  const detailsTransfert = async (sid: string) => (await db.select({ d: auditLogsTable.details }).from(auditLogsTable)
+    .where(and(eq(auditLogsTable.resourceId, sid), eq(auditLogsTable.action, "voice.transfer.requested"))))[0]?.d as { equipe?: string | null } | undefined;
+  beforeAll(async () => { await regler(EQUIPES); });
+  afterAll(async () => { await regler([]); });
+
+  it("l'equipe demandee : ses numeros sonnent ensemble, et l'audit nomme l'equipe", async () => {
+    const sid = await appel(A);
+    simu.reponses.push(reponse({ say: "Je vous passe la comptabilite.", transfer: true, transferTeam: "Comptabilité" }));
+    const twiml = await parle(A, sid, "Je voudrais parler a la comptabilite");
+    expect(twiml).toMatch(/<Dial [^>]*action="\/api\/voice\/twilio\/transfert-resultat"[^>]*><Number>\+33700000011<\/Number><Number>\+33700000012<\/Number><\/Dial>/);
+    expect((await detailsTransfert(sid))?.equipe).toBe("Comptabilité");
+    preuve("transfert-equipe", { callSid: sid, equipe: "Comptabilité", audit: await audit(sid) });
+  });
+
+  it("une equipe inventee par le modele est ignoree : le mot-cle de l'appelant choisit", async () => {
+    const sid = await appel(A);
+    simu.reponses.push(reponse({ say: "Je vous mets en relation.", transfer: true, transferTeam: "Direction generale" }));
+    const twiml = await parle(A, sid, "C'est pour le chantier de la rue Victor Hugo");
+    expect(twiml).toMatch(/<Dial [^>]*>\+33700000021<\/Dial>/);
+    expect((await detailsTransfert(sid))?.equipe).toBe("Chantiers");
+  });
+
+  it("aucune equipe reconnue : le numero de transfert par defaut", async () => {
+    const sid = await appel(A);
+    simu.reponses.push(reponse({ say: "Je vous passe un conseiller.", transfer: true }));
+    const twiml = await parle(A, sid, "Je veux parler a quelqu'un");
+    expect(twiml).toMatch(new RegExp(`<Dial [^>]*>\\${CONSEILLER}</Dial>`));
+    expect((await detailsTransfert(sid))?.equipe ?? null).toBeNull();
   });
 });
 
