@@ -21,6 +21,7 @@ import { aiForOrg } from "../services/ai-client";
 import { respondAiError } from "../services/ai-guard";
 import { delaiEnJours } from "../lib/valeur-ou-defaut";
 import { proposerRelancesRedigees } from "../services/relances-factures";
+import { referenceOuNull } from "../services/appartenance";
 
 function handleCommandantError(err: unknown, res: Response, logLabel: string): void {
   // Quota atteint (429) ou cle d'IA manquante (402): deux refus voulus, pas
@@ -675,7 +676,9 @@ JSON attendu:
 router.post("/commandant/auto-create-from-interaction", async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
-    const { interactionType, content, contactId, contactName } = req.body;
+    const { interactionType, content, contactId: contactDemande, contactName } = req.body;
+    // Un contact d'une autre organisation n'est pas lie.
+    const contactId = await referenceOuNull(orgId, "contact", contactDemande);
 
     const systemPrompt = `Tu es un expert en productivite de bureau. A partir d'une interaction (email, appel, reunion), tu dois extraire automatiquement les taches et rendez-vous a creer. Sois precis et actionnable.`;
     const prompt = `Analyse cette interaction et extrait les actions:

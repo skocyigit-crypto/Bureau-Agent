@@ -24,6 +24,7 @@ import { respondAiError } from "../services/ai-guard";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
 import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
 import { requireRole } from "../middleware/auth";
+import { referencesRefusees, refuserReferences } from "../services/appartenance";
 
 const router: IRouter = Router();
 
@@ -293,6 +294,9 @@ router.patch("/calls/:id", async (req, res): Promise<void> => {
 
   const orgId = getOrgId(req);
   const userId = req.session?.userId;
+  // Comme a la creation : le contact doit etre de l'organisation.
+  const refusees = await referencesRefusees(orgId, [{ champ: "contactId", genre: "contact", valeur: parsed.data.contactId }]);
+  if (refusees.length > 0) { refuserReferences(res, refusees); return; }
   const [call] = await db.update(callsTable)
     .set({ ...parsed.data, updatedBy: userId })
     .where(and(eq(callsTable.id, params.data.id), eq(callsTable.organisationId, orgId)))

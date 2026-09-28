@@ -86,7 +86,11 @@ async function _processCallInternal(callId: number, orgId: number): Promise<{
   if (call.sentiment && call.sentiment !== "neutre") {
     throw new Error("Cet appel a deja ete traite par l'IA.");
   }
-  const existingTasks = await db.select({ id: tasksTable.id }).from(tasksTable).where(eq(tasksTable.relatedCallId, callId)).limit(1);
+  // Filtre par organisation : une tache d'une AUTRE organisation pointant
+  // cet appel (relatedCallId etait accepte sans controle) bloquait
+  // definitivement son analyse ici.
+  const existingTasks = await db.select({ id: tasksTable.id }).from(tasksTable)
+    .where(and(eq(tasksTable.relatedCallId, callId), eq(tasksTable.organisationId, orgId))).limit(1);
   if (existingTasks.length > 0) {
     throw new Error("Cet appel a deja ete traite par l'IA.");
   }

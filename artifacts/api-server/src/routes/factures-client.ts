@@ -15,6 +15,7 @@ import { computeInvoiceTotals, isValidCurrency, parseUserDate, clampPagination, 
 import { archiveDeletedRows, deletionContext } from "../services/trash";
 import { supprimerFactureAutorisee } from "../services/facture-suppression";
 import { dateHumaine } from "../lib/jour-local";
+import { referencesRefusees, refuserReferences } from "../services/appartenance";
 
 const router: IRouter = Router();
 
@@ -218,6 +219,9 @@ router.post("/factures-client", async (req: Request, res: Response): Promise<voi
   const categorieValide = operationCategory ? String(operationCategory) : null;
   const totalsPre = computeInvoiceTotals(Array.isArray(items) ? items : [], { autoliquidation: !!isAutoliquidation });
   if (totalsPre.overflow) { res.status(400).json({ error: "Montant trop élevé (dépasse la limite autorisée)." }); return; }
+  // Le contact, comme le devis, doit etre de la meme organisation.
+  const refusees = await referencesRefusees(targetOrg, [{ champ: "contactId", genre: "contact", valeur: contactId }]);
+  if (refusees.length > 0) { refuserReferences(res, refusees); return; }
   try {
     // Un devis lie doit appartenir a la meme organisation: sans ce controle,
     // une facture pourrait pointer vers le devis d'un autre client.

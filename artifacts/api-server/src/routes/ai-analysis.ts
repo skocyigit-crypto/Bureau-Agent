@@ -16,6 +16,7 @@ import { assertAiUsable, fournisseurInjoignable, respondAiError } from "../servi
 import { enqueueProposal } from "../services/proposal-queue";
 import { palierAction, lireEmailSuggere, REFUS_FINANCIER } from "../services/paliers-actions-ia";
 import crypto from "node:crypto";
+import { referenceOuNull } from "../services/appartenance";
 
 const router = Router();
 
@@ -2304,7 +2305,8 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           description: data.description || "",
           priority: data.priority || "moyenne",
           dueDate: data.dueDate ? new Date(data.dueDate) : null,
-          relatedContactId: data.relatedContactId || null,
+          // Suggestion du modele : on ne lie qu'un contact de l'organisation.
+          relatedContactId: await referenceOuNull(orgId, "contact", data.relatedContactId),
         });
         result = { success: true, message: `Tache "${data.title}" creee avec succes.`, entity: "task", id: task.id };
         break;

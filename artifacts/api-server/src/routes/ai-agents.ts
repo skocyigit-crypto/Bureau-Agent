@@ -28,6 +28,7 @@ import {
 } from "../services/super-agent-state";
 import { jourLocal } from "../lib/jour-local";
 import { delaiEnJours, noteAgent } from "../lib/valeur-ou-defaut";
+import { referenceOuNull } from "../services/appartenance";
 
 const router = Router();
 
@@ -3277,8 +3278,11 @@ router.post("/ai/super-agent/process-report", requireAdmin, async (req, res): Pr
   const userId = req.session?.userId;
   if (!orgId || !userId) { res.status(403).json({ error: "Organisation requise." }); return; }
 
-  const { report, reportType = "chantier", contactId, projectId } = req.body;
+  const { report, reportType = "chantier", contactId: contactDemande, projectId } = req.body;
   if (!report || !report.trim()) { res.status(400).json({ error: "Rapport requis." }); return; }
+  // Un contact d'une autre organisation n'est pas lie (et ne fait pas echouer
+  // l'insertion : le nombre d'evenements crees ne renseigne pas sur les autres).
+  const contactId = await referenceOuNull(orgId, "contact", contactDemande);
 
   try {
     await assertAiQuota(orgId);
