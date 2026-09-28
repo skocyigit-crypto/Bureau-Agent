@@ -56,3 +56,27 @@ export function finDeJournee(jour: Date, fuseau: string = FUSEAU_ENTREPRISE): Da
   }).format(new Date(midiUtc)).replace(" ", "T") + "Z").getTime();
   return new Date(Date.UTC(a, m - 1, j + 1) + ecart - 1);
 }
+
+/**
+ * Bornes [debut, fin[ du jour local qui contient `instant`.
+ *
+ * `DATE(col) = CURRENT_DATE` compare dans le fuseau de la SESSION Postgres —
+ * UTC en production (la connexion ne le fixe pas) : entre minuit et 2 h a
+ * Paris (1 h en hiver), « aujourd'hui » y designe encore HIER. Les appels du
+ * jour, les rendez-vous du jour et le briefing vocal comptaient alors ceux de
+ * la veille. Comparer l'horodatage a ces deux instants est juste quel que soit
+ * le fuseau de la session et la nature de la colonne (avec ou sans fuseau),
+ * et garde son index utilisable. 23 h ou 25 h les jours de changement d'heure.
+ * (Piege signale par la session Assise, 28/09/2026.)
+ */
+export function bornesDuJour(instant: Date = new Date(), fuseau: string = FUSEAU_ENTREPRISE): { debut: Date; fin: Date } {
+  const [a, m, j] = jourLocal(instant, fuseau).split("-").map(Number) as [number, number, number];
+  // Midi UTC tombe le meme jour calendaire a Paris : finDeJournee y mesure
+  // l'ecart du jour vise, pas celui d'aujourd'hui.
+  const veille = new Date(Date.UTC(a, m - 1, j - 1, 12));
+  const jour = new Date(Date.UTC(a, m - 1, j, 12));
+  return {
+    debut: new Date(finDeJournee(veille, fuseau).getTime() + 1),
+    fin: new Date(finDeJournee(jour, fuseau).getTime() + 1),
+  };
+}

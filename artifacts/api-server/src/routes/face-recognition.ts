@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { db, faceProfilesTable, faceRecognitionLogsTable, contactsTable } from "@workspace/db";
-import { eq, sql, and, desc, or } from "drizzle-orm";
+import { eq, sql, and, desc, or, gte } from "drizzle-orm";
+import { bornesDuJour } from "../lib/jour-local";
 import { getOrgId } from "../middleware/tenant";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { logger } from "../lib/logger";
@@ -303,7 +304,7 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
       .from(faceRecognitionLogsTable)
       .where(and(
         eq(faceRecognitionLogsTable.organisationId, orgId),
-        sql`${faceRecognitionLogsTable.createdAt} >= CURRENT_DATE`
+        gte(faceRecognitionLogsTable.createdAt, bornesDuJour().debut)
       ));
 
     const recentProfiles = await db.select().from(faceProfilesTable)

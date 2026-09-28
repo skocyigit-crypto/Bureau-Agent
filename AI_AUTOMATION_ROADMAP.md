@@ -2945,3 +2945,25 @@ tamamlandı sayılmaz."
    yok.
 4. Ayarlar ekranının dil seçimi fr/tr/en. Sunucu 6 dili (es, de, ar dahil)
    konuşuyor.
+
+## SQL'de "bugün" Postgres oturumunun günüydü — 2026-09-28
+
+Assise oturumunun bildirdiği kalıp bizde ölçüldü. Bağlantı saat dilimi
+ayarlamıyor, oturum UTC'de. `DATE(col) = CURRENT_DATE` Paris'te 00:00–02:00
+arasında dünü sayıyordu:
+- sesli komutlar: günlük brifing, "bugün kaç arama", "bugünkü ajandam"
+  (`voice-command.ts`, 4 sorgu)
+- yüz tanımanın günlük sayacı (`face-recognition.ts`)
+
+Yerine `bornesDuJour()` (`lib/jour-local.ts`) geldi. Yerel günün [başlangıç,
+bitiş) anları hesaplanıyor; yaz saati günlerinde gün 23 ya da 25 saat sürüyor.
+Karşılaştırma sütun türünden bağımsız ve indeks kullanılabiliyor.
+
+`aujourdhui-sql.test.ts` (11 test) bir koruma: tüm `sql` şablonlarında
+`CURRENT_DATE`, `now()::date`, `localtimestamp` ve
+`date_trunc('day', now())` yasak. Mutasyonla sınandı: kalıp geri gelince
+sorguyu adıyla düşürüyor; UTC günüyle hesaplanan sınırlar 2 testi düşürüyor.
+
+Aynı rapordaki NULL tuzağı (`NOT(...)` NULL alabilen sütunda) bizde
+ölçüldü, yok: `!=` / `not(inArray)` süzgeçlerinin kullanıldığı `status`
+sütunlarının hepsi `notNull`; takvim durumu zaten `coalesce`'lı.
