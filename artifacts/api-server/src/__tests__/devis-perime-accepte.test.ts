@@ -36,6 +36,7 @@ import request from "supertest";
 import { eq } from "drizzle-orm";
 import { db, devisTable, organisationsTable, usersTable } from "@workspace/db";
 import routeur from "../routes/devis";
+import { jourLocal } from "../lib/jour-local";
 
 const stamp = Date.now();
 let orgId = 0, userId = 0;
@@ -157,8 +158,10 @@ describe("ce que le refus ne doit pas emporter", () => {
   it("le dernier jour de validite compte encore", async () => {
     // « Valable jusqu'au 30/09 » vaut jusqu'a la FIN du 30/09 : c'est le jour
     // ou le client se decide, et il a deja fait l'objet d'un correctif.
-    const aujourdHui = new Date();
-    aujourdHui.setHours(0, 0, 0, 0);
+    // Le jour de l'ENTREPRISE (Paris), pas celui du processus : en CI (UTC),
+    // entre 22 h et minuit UTC, « aujourd'hui » a minuit UTC etait deja
+    // HIER a Paris, et le test echouait chaque nuit (vu le 29/09 a 01 h).
+    const aujourdHui = new Date(`${jourLocal()}T12:00:00Z`);
     const d = await devis({ validUntil: aujourdHui });
     expect((await accepter(d.id)).status, "le devis mourrait le matin de son dernier jour").toBe(200);
   });
