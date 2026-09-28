@@ -77,7 +77,8 @@ export async function runSuperAgentCronTick(): Promise<void> {
   running = true;
 
   try {
-    const due = await listOrgsDueForAutoRun(new Date(Date.now() - DAY_MS));
+    const dueSince = new Date(Date.now() - DAY_MS);
+    const due = await listOrgsDueForAutoRun(dueSince);
 
     for (const orgId of due) {
       try {
@@ -103,7 +104,7 @@ export async function runSuperAgentCronTick(): Promise<void> {
             return;
           }
 
-          if (!(await tryStartSuperAgentCycle(orgId))) return;
+          if (!(await tryStartSuperAgentCycle(orgId, dueSince))) return;
           try {
             await runSuperAgentCycle(orgId, userId);
           } catch (err) {

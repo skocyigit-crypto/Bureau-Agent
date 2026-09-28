@@ -18,6 +18,8 @@
 import { logger } from "../lib/logger";
 import { runInboxScanTick } from "./autonomous-inbox";
 import { withHeartbeat } from "./health-agents";
+import { CRON_LOCK_NAMESPACE, tryWithLock } from "../lib/cron-lock";
+import { reclamerExecution, tranche } from "../lib/execution-unique";
 
 const TICK_MS = Number(process.env.AUTONOMOUS_INBOX_TICK_MS ?? 30 * 60 * 1000);
 const FIRST_RUN_MS = 2 * 60 * 1000; // premier passage 2 min après le démarrage
@@ -29,7 +31,14 @@ async function tick(): Promise<void> {
   if (running) return; // garde anti-recouvrement (un scan peut être long)
   running = true;
   try {
-    await runInboxScanTick();
+    // Le garde `running` ne vaut que pour CE processus : deux instances
+    // triaient la meme boite en meme temps et payaient deux fois le triage et
+    // les brouillons (le doublon de suggestion etait ensuite ecarte, pas le
+    // cout). Un scan par tranche de cadence, sous verrou.
+    await tryWithLock(CRON_LOCK_NAMESPACE.autonomousInbox, 0, async () => {
+      if (!(await reclamerExecution("autonomous-inbox", 0, tranche(TICK_MS)))) return;
+      await runInboxScanTick();
+    });
   } catch (err) {
     logger.error({ err }, "[autonomous-inbox-cron] erreur du cycle");
   } finally {

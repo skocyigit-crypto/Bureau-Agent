@@ -17,6 +17,8 @@ import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
 import { runAuditForOrg } from "./app-audit";
 import { withHeartbeat } from "./health-agents";
+import { abandonnerExecution, reclamerExecution } from "../lib/execution-unique";
+import { jourLocal } from "../lib/jour-local";
 
 const TICK_MS = 60 * 60 * 1000; // 1h
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
@@ -74,7 +76,19 @@ async function tick(): Promise<void> {
         );
         if (existing.length > 0) { attemptedToday.orgIds.add(org.id); continue; }
 
-        await runAuditForOrg(org.id, runId);
+        // Reclamation durable du jour : un audit sans constat n'ecrivait
+        // aucune ligne, et chaque instance (et chaque redemarrage) le
+        // relancait toutes les heures — un appel au modele a chaque fois ;
+        // deux instances pouvaient aussi auditer la meme organisation
+        // ensemble et deposer deux fois les memes propositions.
+        const periode = jourLocal();
+        if (!(await reclamerExecution("app-audit", org.id, periode))) { attemptedToday.orgIds.add(org.id); continue; }
+        try {
+          await runAuditForOrg(org.id, runId);
+        } catch (err) {
+          await abandonnerExecution("app-audit", org.id, periode).catch(() => {});
+          throw err;
+        }
         // Marque comme tenté seulement après succès (une erreur transitoire
         // pourra être réessayée au prochain tick).
         attemptedToday.orgIds.add(org.id);

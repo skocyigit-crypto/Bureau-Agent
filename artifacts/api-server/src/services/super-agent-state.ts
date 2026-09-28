@@ -142,7 +142,14 @@ async function ensureRow(orgId: number): Promise<void> {
  * pas la gagner toutes les deux, ce qu'un `if (state.running)` en memoire ne
  * garantissait pas.
  */
-export async function tryStartSuperAgentCycle(orgId: number): Promise<boolean> {
+/**
+ * `dueSince` (cron) : ne reclame le cycle que si le dernier passage est
+ * anterieur — dans la MEME requete. La liste des organisations dues est lue
+ * avant le verrou ; sans cette condition, une instance qui la tenait depuis
+ * longtemps relancait un cycle complet (e-mails relus, taches recreees) sur
+ * une organisation qu'une autre venait de traiter.
+ */
+export async function tryStartSuperAgentCycle(orgId: number, dueSince?: Date): Promise<boolean> {
   return withFallback(async () => {
     await ensureRow(orgId);
     const staleBefore = new Date(Date.now() - STALE_CYCLE_MS);
@@ -159,6 +166,7 @@ export async function tryStartSuperAgentCycle(orgId: number): Promise<boolean> {
           eq(superAgentStateTable.running, false),
           lt(superAgentStateTable.runningSince, staleBefore),
         ),
+        ...(dueSince ? [or(isNull(superAgentStateTable.lastRun), lt(superAgentStateTable.lastRun, dueSince))] : []),
       ))
       .returning({ organisationId: superAgentStateTable.organisationId });
     return updated.length > 0;

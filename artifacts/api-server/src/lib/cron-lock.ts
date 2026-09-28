@@ -22,6 +22,9 @@ export const CRON_LOCK_NAMESPACE = {
   googleAutoPointage: 4311,
   plateformeAgreee: 4312,
   relanceAbonnement: 4313,
+  automationEngine: 4314,
+  dataProtection: 4315,
+  autonomousInbox: 4316,
 } as const;
 
 /**

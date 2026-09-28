@@ -590,6 +590,9 @@ export function startAiUsagePurgeJob(): void {
     const { purgerExecutionsAnciennes, marquerExecutionsInterrompues } = await import("./journal-agents");
     await marquerExecutionsInterrompues();
     await purgerExecutionsAnciennes();
+    // Reclamations des taches periodiques : 60 jours suffisent largement.
+    const { purgerExecutions } = await import("../lib/execution-unique");
+    await purgerExecutions();
   }), 24 * 60 * 60 * 1000);
   purgeTimer.unref?.();
   logger.info(`[ai-utils] Purge job started (retention: ${RETENTION_DAYS}j)`);

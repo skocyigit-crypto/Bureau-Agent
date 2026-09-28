@@ -69,7 +69,17 @@ export function stopDataProtectionMonitor() {
   }
 }
 
+/**
+ * Un passage a la fois sur la plateforme : les controles cherchent « deja
+ * notifie ? » puis inserent ; deux instances simultanees donnaient deux
+ * notifications « Protection des donnees critique » a chaque administrateur.
+ */
 async function runDataProtectionCheck() {
+  const { CRON_LOCK_NAMESPACE, tryWithLock } = await import("../lib/cron-lock");
+  await tryWithLock(CRON_LOCK_NAMESPACE.dataProtection, 0, runDataProtectionCheckSousVerrou);
+}
+
+async function runDataProtectionCheckSousVerrou() {
   const start = performance.now();
   logger.info("[DataProtection] Verification de la protection des donnees...");
 
