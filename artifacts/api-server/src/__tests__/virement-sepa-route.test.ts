@@ -49,7 +49,7 @@ async function organisation(suffixe: string, iban: string | null): Promise<numbe
 
 async function depense(options: Partial<{
   vendor: string; iban: string | null; bic: string | null; ttc: string;
-  paiement: string; org: number; reference: string;
+  paiement: string; org: number; reference: string; statut: string;
 }> = {}): Promise<number> {
   const [d] = await db.insert(depensesTable).values({
     organisationId: options.org ?? orgId,
@@ -58,7 +58,7 @@ async function depense(options: Partial<{
     title: "Ciment",
     category: "materiel",
     amountHt: "100.00", amountTva: "20.00", amountTtc: options.ttc ?? "120.00",
-    status: "approuve",
+    status: options.statut ?? "approuve",
     paymentStatus: options.paiement ?? "a_payer",
     vendorIban: options.iban === undefined ? IBAN_FOURNISSEUR : options.iban,
     vendorBic: options.bic ?? null,
@@ -148,6 +148,24 @@ describe("ce que la remise refuse", () => {
     const r = await remise([bonne, sans]);
     expect(r.status).toBe(409);
     expect(r.body.depenses).toEqual([{ id: sans, fournisseur: "Sans IBAN" }]);
+  });
+
+  it("une depense en attente de validation : personne ne l'a approuvee", async () => {
+    // Une piece jointe captee par Gmail entre `en_attente` ; il suffisait d'y
+    // saisir un IBAN pour la payer sans validation.
+    const bonne = await depense();
+    const captee = await depense({ vendor: "Captee auto", statut: "en_attente" });
+    const r = await remise([bonne, captee]);
+    expect(r.status).toBe(409);
+    expect(r.body.depenses).toEqual([{ id: captee, fournisseur: "Captee auto", statut: "en_attente" }]);
+  });
+
+  it("une depense rejetee ne se paie pas", async () => {
+    const rejetee = await depense({ vendor: "Rejetee", statut: "rejete" });
+    const r = await remise([rejetee]);
+    expect(r.status).toBe(409);
+    expect(r.body.depenses).toEqual([{ id: rejetee, fournisseur: "Rejetee", statut: "rejete" }]);
+    expect(r.headers["content-type"] ?? "").not.toMatch(/xml/);
   });
 
   it("une depense deja payee : la remettre paierait deux fois", async () => {
