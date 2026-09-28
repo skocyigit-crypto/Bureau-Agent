@@ -9,6 +9,7 @@ import { eq, desc, and, sql, gte, inArray } from "drizzle-orm";
 import { logAudit } from "./audit";
 import { documentCsv } from "../lib/csv";
 import { CADENCES, DECLENCHEURS, cadenceConnue, declencheurConnu, lireActions } from "../services/automation-declencheurs";
+import { DECLENCHEUR_DEMANDE, actionsDuFlux, fluxDemandeParDefaut, fluxDepuisRegle, validerFlux } from "../services/flux-automatisation";
 import { requireRole } from "../middleware/auth";
 
 const router = Router();
@@ -224,7 +225,10 @@ router.get("/automations", async (req: Request, res: Response): Promise<void> =>
       },
     ];
 
-    res.json({ rules: [...builtInRules, ...rules] });
+    // Chaque regle porte son flux : le dessin enregistre, ou la liste
+    // historique vue comme un flux lineaire (le studio l'ouvre tel quel).
+    const avecFlux = rules.map((r) => ({ ...r, flux: r.flow ?? fluxDepuisRegle(r) }));
+    res.json({ rules: [...builtInRules, ...avecFlux] });
   } catch (err: any) {
     req.log.error({ err }, "Erreur liste automations");
     res.status(500).json({ error: "Erreur lors de la recuperation des automations." });
@@ -241,7 +245,7 @@ router.post("/automations", async (req: Request, res: Response): Promise<void> =
     res.status(403).json({ error: "Acces refuse." }); return;
   }
 
-  const { name, description, type, trigger, conditions, actions, schedule } = req.body ?? {};
+  const { name, description, type, trigger, conditions, actions, schedule, flow } = req.body ?? {};
   if (typeof name !== "string" || !name.trim() || !type || !trigger) {
     res.status(400).json({ error: "Champs obligatoires manquants (name, type, trigger, actions)." });
     return;
@@ -261,7 +265,16 @@ router.post("/automations", async (req: Request, res: Response): Promise<void> =
     res.status(400).json({ error: "Cadence inconnue.", cadences: [...CADENCES] });
     return;
   }
-  const actionsLues = lireActions(actions);
+  // Un flux dessine remplace la liste d'actions ; « Nouvelle demande »
+  // n'existe qu'en flux (le modele de routage par defaut si rien n'est fourni).
+  const fluxSaisi = flow !== undefined && flow !== null ? flow : (trigger === DECLENCHEUR_DEMANDE ? fluxDemandeParDefaut() : null);
+  let fluxValide: ReturnType<typeof fluxDemandeParDefaut> | null = null;
+  if (fluxSaisi) {
+    const v = validerFlux(fluxSaisi, trigger);
+    if (!v.ok) { res.status(400).json({ error: "Flux invalide.", erreurs: v.erreurs }); return; }
+    fluxValide = v.flux;
+  }
+  const actionsLues = fluxValide ? { ok: true as const, actions: actionsDuFlux(fluxValide) } : lireActions(actions);
   if (!actionsLues.ok) {
     res.status(400).json({ error: actionsLues.erreur });
     return;
@@ -276,8 +289,9 @@ router.post("/automations", async (req: Request, res: Response): Promise<void> =
       trigger,
       conditions: conditions && typeof conditions === "object" && !Array.isArray(conditions) ? conditions : null,
       actions: actionsLues.actions,
-      schedule: schedule || null,
-      nextRun: schedule ? new Date() : null,
+      flow: fluxValide,
+      schedule: trigger === DECLENCHEUR_DEMANDE ? null : (schedule || null),
+      nextRun: trigger !== DECLENCHEUR_DEMANDE && schedule ? new Date() : null,
       createdBy: userId,
     }).returning();
 
@@ -302,7 +316,7 @@ router.patch("/automations/:id", async (req: Request, res: Response): Promise<vo
   const id = parseInt(String(req.params.id));
   if (isNaN(id) || id < 1) { res.status(400).json({ error: "ID invalide." }); return; }
 
-  const { enabled, name, description, schedule, requiresApproval } = req.body;
+  const { enabled, name, description, schedule, requiresApproval, flow, trigger } = req.body;
   const updateData: Record<string, any> = {};
   if (typeof enabled === "boolean") updateData.enabled = enabled;
   if (typeof name === "string") {
@@ -318,6 +332,29 @@ router.patch("/automations/:id", async (req: Request, res: Response): Promise<vo
   // sortantes passent par la file, les internes non), pas une absence.
   if (typeof requiresApproval === "boolean" || requiresApproval === null) {
     updateData.requiresApproval = requiresApproval;
+  }
+
+  // Le flux — et avec lui le declencheur — se modifie apres la creation
+  // (auparavant : declencheur et actions figes, seule la suppression restait).
+  if (flow !== undefined || trigger !== undefined) {
+    const [actuelle] = await db.select({ trigger: automationRulesTable.trigger, flow: automationRulesTable.flow, actions: automationRulesTable.actions, requiresApproval: automationRulesTable.requiresApproval })
+      .from(automationRulesTable)
+      .where(and(eq(automationRulesTable.id, id), eq(automationRulesTable.organisationId, orgId)));
+    if (!actuelle) { res.status(404).json({ error: "Regle non trouvee." }); return; }
+    const nouveauDeclencheur = trigger ?? actuelle.trigger;
+    if (!declencheurConnu(nouveauDeclencheur)) { res.status(400).json({ error: "Declencheur inconnu.", declencheurs: [...DECLENCHEURS] }); return; }
+    const fluxSaisi = flow === undefined ? (actuelle.flow ?? fluxDepuisRegle(actuelle)) : flow;
+    if (fluxSaisi === null) {
+      if (nouveauDeclencheur === DECLENCHEUR_DEMANDE) { res.status(400).json({ error: "« Nouvelle demande » s'execute toujours en flux." }); return; }
+      updateData.flow = null;
+    } else {
+      const v = validerFlux(fluxSaisi, nouveauDeclencheur);
+      if (!v.ok) { res.status(400).json({ error: "Flux invalide.", erreurs: v.erreurs }); return; }
+      updateData.flow = v.flux;
+      updateData.actions = actionsDuFlux(v.flux);
+    }
+    updateData.trigger = nouveauDeclencheur;
+    if (nouveauDeclencheur === DECLENCHEUR_DEMANDE) { updateData.schedule = null; updateData.nextRun = null; }
   }
 
   if (Object.keys(updateData).length === 0) {
@@ -455,6 +492,12 @@ router.get("/automations/logs", async (req: Request, res: Response): Promise<voi
   }
 });
 
+/** Le modele de routage des demandes (classificateur → support / vente → a trier). */
+router.get("/automations/flux/modele-demande", (req: Request, res: Response): void => {
+  if (!req.session?.userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  res.json({ flux: fluxDemandeParDefaut() });
+});
+
 router.post("/automations/:id/duplicate", async (req: Request, res: Response): Promise<void> => {
   const userId = req.session?.userId;
   const userRole = req.session?.userRole;
@@ -476,6 +519,10 @@ router.post("/automations/:id/duplicate", async (req: Request, res: Response): P
       trigger: original.trigger,
       conditions: original.conditions,
       actions: original.actions,
+      // La copie gardait tout sauf le flux et la politique d'approbation :
+      // une regle « sur approbation » devenait « par defaut » en copie.
+      flow: original.flow,
+      requiresApproval: original.requiresApproval,
       schedule: original.schedule,
       enabled: false,
       createdBy: userId,
