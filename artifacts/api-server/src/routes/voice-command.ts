@@ -2,7 +2,8 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import crypto from "crypto";
 import { db, callsTable, contactsTable, tasksTable, calendarEventsTable, projetsTable, messagesTable } from "@workspace/db";
 import { AGENTS, creerTacheIa } from "../services/tache-ia";
-import { eq, desc, and, sql, or } from "drizzle-orm";
+import { eq, desc, and, sql, or, gte, lt } from "drizzle-orm";
+import { bornesDuJour } from "../lib/jour-local";
 import { getOrgId } from "../middleware/tenant";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { safeJsonParse, aiCallWithRetry, sanitizePromptInput } from "../services/ai-utils";
@@ -569,6 +570,8 @@ async function dispatchReadIntent(
   lang: Lang = "fr",
 ): Promise<{ spoken: string; data: any; action: string | null; navigate: string | null }> {
   let spokenResponse = "";
+  // Le jour de l'entreprise, pas celui de la session Postgres (UTC).
+  const jour = bornesDuJour();
   let data: any = null;
   let action: string | null = null;
   let navigate: string | null = null;
@@ -577,13 +580,13 @@ async function dispatchReadIntent(
     case "daily_briefing": {
       const [calls, tasks, contacts, events] = await Promise.all([
         db.select({ count: sql<number>`count(*)::int` }).from(callsTable)
-          .where(and(eq(callsTable.organisationId, orgId), sql`DATE(${callsTable.createdAt}) = CURRENT_DATE`)),
+          .where(and(eq(callsTable.organisationId, orgId), gte(callsTable.createdAt, jour.debut), lt(callsTable.createdAt, jour.fin))),
         db.select({ count: sql<number>`count(*)::int` }).from(tasksTable)
           .where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.status, "en_attente"))),
         db.select({ count: sql<number>`count(*)::int` }).from(contactsTable)
           .where(eq(contactsTable.organisationId, orgId)),
         db.select({ count: sql<number>`count(*)::int` }).from(calendarEventsTable)
-          .where(and(eq(calendarEventsTable.organisationId, orgId), sql`DATE(${calendarEventsTable.startDate}) = CURRENT_DATE`)),
+          .where(and(eq(calendarEventsTable.organisationId, orgId), gte(calendarEventsTable.startDate, jour.debut), lt(calendarEventsTable.startDate, jour.fin))),
       ]);
       const c = calls[0]?.count || 0;
       const tk = tasks[0]?.count || 0;
@@ -601,7 +604,7 @@ async function dispatchReadIntent(
     }
     case "count_calls": {
       const [r] = await db.select({ count: sql<number>`count(*)::int` }).from(callsTable)
-        .where(and(eq(callsTable.organisationId, orgId), sql`DATE(${callsTable.createdAt}) = CURRENT_DATE`));
+        .where(and(eq(callsTable.organisationId, orgId), gte(callsTable.createdAt, jour.debut), lt(callsTable.createdAt, jour.fin)));
       const n = r?.count || 0;
       spokenResponse = t(lang, "count_calls", { n, nS: plural(n, lang) });
       data = { count: n }; navigate = "/appels"; break;
@@ -710,7 +713,7 @@ async function dispatchReadIntent(
     }
     case "calendar": {
       const events = await db.select().from(calendarEventsTable)
-        .where(and(eq(calendarEventsTable.organisationId, orgId), sql`DATE(${calendarEventsTable.startDate}) = CURRENT_DATE`))
+        .where(and(eq(calendarEventsTable.organisationId, orgId), gte(calendarEventsTable.startDate, jour.debut), lt(calendarEventsTable.startDate, jour.fin)))
         .orderBy(calendarEventsTable.startDate).limit(5);
       spokenResponse = events.length > 0
         ? t(lang, "calendar_some", { n: events.length, nS: plural(events.length, lang), titles: events.map(e => e.title).join(", ") })
