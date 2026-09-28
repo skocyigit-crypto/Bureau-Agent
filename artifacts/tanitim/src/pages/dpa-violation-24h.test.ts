@@ -21,5 +21,5 @@ describe("DPA — notification d'une violation", () => {
     for (const e of ["nature de la violation", "nombre approximatif", "conséquences probables", "mesures prises"]) expect(DPA).toContain(e);
   });
   it("prevoit une notification par etapes", () => expect(DPA).toContain("au fur et à mesure"));
-  it("date de mise a jour revue", () => expect(DPA).toContain("Dernière mise à jour : 17 septembre 2026"));
+  it("date de mise a jour revue", () => expect(DPA).toContain("Dernière mise à jour : 28 septembre 2026"));
 });

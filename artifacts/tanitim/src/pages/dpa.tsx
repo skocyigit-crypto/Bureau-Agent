@@ -41,7 +41,7 @@ export default function DPA() {
       <Navbar onDemoClick={() => setDemoOpen(true)} />
       <main id="contenu" className="container mx-auto px-4 pt-32 pb-20 max-w-3xl">
         <h1 className="text-3xl font-bold mb-2">Accord de sous-traitance (DPA)</h1>
-        <p className="text-muted-foreground mb-10">Dernière mise à jour : 17 septembre 2026</p>
+        <p className="text-muted-foreground mb-10">Dernière mise à jour : 28 septembre 2026</p>
 
         <section className="space-y-8 text-sm leading-relaxed text-foreground/80">
           <div>
@@ -228,6 +228,19 @@ export default function DPA() {
                 <strong>Cloudflare</strong> — résolution DNS et acheminement des
                 e-mails entrants du domaine. Réseau mondial, sous Clauses
                 Contractuelles Types.
+              </li>
+              <li>
+                <strong>Expo (650 Industries, Inc.)</strong> — acheminement des
+                notifications de l'application mobile vers les téléphones ; le
+                titre et le texte de la notification (par exemple l'intitulé
+                d'un rendez-vous ou le nom d'un correspondant) transitent par ses
+                serveurs. États-Unis, sous Clauses Contractuelles Types.
+              </li>
+              <li>
+                <strong>OpenStreetMap Foundation (service Nominatim)</strong> —
+                conversion, à la demande de l'utilisateur, de sa position en
+                adresse ; les coordonnées sont transmises sans identifiant.
+                Royaume-Uni, pays bénéficiant d'une décision d'adéquation.
               </li>
               <li>
                 <strong>
