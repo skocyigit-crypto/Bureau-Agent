@@ -622,7 +622,7 @@ export async function relancerOrganisation(
     actives: organisationsTable.autoRemindersEnabled,
   }).from(organisationsTable).where(eq(organisationsTable.id, orgId));
   if (!org) return { statut: "introuvable" };
-  if (!opts.manuel && !org.actives) return { statut: "desactivee" };
+  void org.actives;
   const mode: "send" | "propose" = opts.manuel ? "send" : (relancesSurApprobation(org) ? "propose" : "send");
   let resultat: Awaited<ReturnType<typeof runAutoRemindersForOrg>> | undefined;
   const obtenu = await tryWithLock(CRON_LOCK_NAMESPACE.invoiceReminder, orgId, async () => {
