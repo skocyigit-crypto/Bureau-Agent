@@ -854,7 +854,7 @@ export function dialTwiml(targetNumber: string, callerId: string, intro: string,
   return (
     `<?xml version="1.0" encoding="UTF-8"?><Response>` +
     `<Say voice="${escapeXml(voice)}" language="${speechLang}">${escapeXml(intro)}</Say>` +
-    `<Dial timeout="20" callerId="${escapeXml(callerId)}" action="/api/voice/twilio/transfert-resultat" method="POST">${escapeXml(targetNumber)}</Dial>` +
+    `<Dial timeout="20" callerId="${escapeXml(callerId)}">${escapeXml(targetNumber)}</Dial>` +
     `</Response>`
   );
 }
