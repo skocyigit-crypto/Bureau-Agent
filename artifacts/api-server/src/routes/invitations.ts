@@ -3,12 +3,12 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { eq, and, sql } from "drizzle-orm";
 import { db, usersTable, organisationsTable, subscriptionsTable, invitationsTable } from "@workspace/db";
+import { tryWithLock } from "../lib/cron-lock";
 import { escapeHtml } from "../lib/html-escape";
 import { sendEmail } from "../services/email";
 import { logAudit } from "./audit";
 import { validatePasswordStrength } from "./auth";
 import { rowId } from "../lib/request-params";
-import { tryWithLock } from "../lib/cron-lock";
 
 const router: IRouter = Router();
 const SALT_ROUNDS = 12;
