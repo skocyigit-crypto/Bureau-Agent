@@ -100,22 +100,25 @@ describe("referencesRefusees", () => {
 
 describe("routes : une reference d'ailleurs est refusee, sans rien dire des autres", () => {
   it("tache pointant l'appel d'une autre organisation : 400, rien d'ecrit", async () => {
-    const r = await request(app(A, tasksRouter)).post("/api/tasks").send({ title: "Rappeler", relatedCallId: appelB });
+    const r = await request(app(A, tasksRouter)).post("/api/tasks").send({ title: "Rappeler", status: "en_attente", priority: "moyenne", relatedCallId: appelB });
     expect(r.status).toBe(400);
     expect(r.body.error).toMatch(/relatedCallId/);
     expect(await db.select().from(tasksTable).where(eq(tasksTable.relatedCallId, appelB))).toEqual([]);
   });
 
   it("meme reponse pour un identifiant qui n'existe nulle part (pas de sondage possible)", async () => {
-    const ailleurs = await request(app(A, tasksRouter)).post("/api/tasks").send({ title: "X", relatedContactId: contactB });
-    const nulle = await request(app(A, tasksRouter)).post("/api/tasks").send({ title: "X", relatedContactId: 2_000_000_000 });
+    const ailleurs = await request(app(A, tasksRouter)).post("/api/tasks").send({ title: "X", status: "en_attente", priority: "moyenne", relatedContactId: contactB });
+    const nulle = await request(app(A, tasksRouter)).post("/api/tasks").send({ title: "X", status: "en_attente", priority: "moyenne", relatedContactId: 2_000_000_000 });
     expect(ailleurs.status).toBe(400);
     expect(nulle.status).toBe(400);
+    // C'est bien le refus de la reference (et pas une erreur de validation
+    // qui rendrait les deux reponses egales pour une autre raison).
+    expect(ailleurs.body.error).toMatch(/relatedContactId/);
     expect(nulle.body).toEqual(ailleurs.body);
   });
 
   it("sa propre reference passe", async () => {
-    const r = await request(app(A, tasksRouter)).post("/api/tasks").send({ title: "Rappeler", relatedCallId: appelA, relatedContactId: contactA });
+    const r = await request(app(A, tasksRouter)).post("/api/tasks").send({ title: "Rappeler", status: "en_attente", priority: "moyenne", relatedCallId: appelA, relatedContactId: contactA });
     expect(r.status, JSON.stringify(r.body)).toBe(201);
   });
 
