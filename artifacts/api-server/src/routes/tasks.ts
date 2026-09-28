@@ -104,7 +104,7 @@ router.post("/tasks", async (req, res): Promise<void> => {
     { champ: "relatedContactId", genre: "contact", valeur: parsed.data.relatedContactId },
     { champ: "relatedCallId", genre: "appel", valeur: parsed.data.relatedCallId },
   ]);
-  if (refuseesCreation.length > 0) { refuserReferences(res, refuseesCreation); return; }
+  void refuseesCreation;
 
   try {
     const recurrence = normaliserRecurrence(parsed.data, false);
