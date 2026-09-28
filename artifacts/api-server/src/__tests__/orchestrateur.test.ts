@@ -225,11 +225,13 @@ describe("le journal", () => {
     expect((await execution(enfant!.id)).outputTokens).toBe(50);
   });
 
-  it("les etapes sont dans l'ordre : classification, devolution ; redaction", async () => {
+  it("les etapes sont dans l'ordre : classification, devolution ; lecture des sources, redaction", async () => {
     modele.reponses.push(classe("vente"), specialiste([]));
     const r = await traiterDemande(orgA, userA, demande());
     expect((await etapesDe(r.runId)).map((e) => `${e.position}:${e.kind}`)).toEqual(["1:llm", "2:devolution"]);
-    expect((await etapesDe((await enfantDe(r.runId))!.id)).map((e) => e.kind)).toEqual(["llm"]);
+    // La lecture de la base de connaissances est tracee meme sans extrait :
+    // l'absence de source est une information, pas un silence.
+    expect((await etapesDe((await enfantDe(r.runId))!.id)).map((e) => `${e.kind}:${e.name}`)).toEqual(["outil:base_connaissances", "llm:redaction"]);
   });
 
   it("une reponse illisible du classificateur clot l'execution avec sa cause", async () => {
