@@ -2939,8 +2939,8 @@ tamamlandı sayılmaz."
    olmalı; ayarlar ekranından BYOK. Platform ortamında ve Secret Manager'da
    Twilio kimliği yok (yalnız adlara bakıldı); org'ların BYOK kayıtlarına
    bakılmadı.
-2. Eski `a_confirmer` durumundaki sesli randevular takvimde ham görünüyor;
-   bir kerelik dönüşüm ya da etiket gerekiyor.
+2. ~~Eski `a_confirmer` sesli randevular takvimde ham görünüyor~~ — kapandı
+   28/09: ekranda "beklemede" (`statutAgenda`); veri değiştirilmedi.
 3. Aktarma hedefi tek numara. Ekip/sıra yönlendirmesi, meşgulde sıradaki kişi
    yok.
 4. Ayarlar ekranının dil seçimi fr/tr/en. Sunucu 6 dili (es, de, ar dahil)
