@@ -41,7 +41,9 @@ const TRACEES_AUTREMENT: Record<string, { raison: string; trace: RegExp | null }
   },
 };
 
-const EST_EXTRACTION = /(^|\/)(export|download|my-data)(\/|$|-)|\/export\//;
+// `/csv$` : un telechargement CSV qui ne dit pas « export » dans son chemin
+// (`/data-protection/registre/csv`) en est un quand meme.
+const EST_EXTRACTION = /(^|\/)(export|download|my-data)(\/|$|-)|\/export\/|\/csv$/;
 
 function routesDExtraction(): { cle: string; fichier: string; texte: string }[] {
   const out: { cle: string; fichier: string; texte: string }[] = [];

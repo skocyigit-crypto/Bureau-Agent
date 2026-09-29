@@ -23,6 +23,11 @@ import { RETENTION_DAYS as GEOLOC_RETENTION_DAYS } from "../services/location-cl
 import { violationsDonneesTable } from "@workspace/db/schema";
 import { ELEMENTS_REQUIS, echeanceCnilDuClient, etatViolation } from "../services/violation-donnees";
 import { mentionsDe, nomAmbigu } from "../services/mentions-personne";
+import { registre } from "../services/registre-traitements";
+import { DELAI_EXPORT_JOURS, modeEffacement } from "../services/purge-fin-contrat";
+import { EXCLUSIONS_EXAMINEES, REGISTRE_IA } from "../services/registre-ia";
+import { documentCsv } from "../lib/csv";
+import { jourLocal } from "../lib/jour-local";
 
 const router = Router();
 
@@ -51,6 +56,21 @@ function withDeadline<T extends { createdAt: Date; status: string }>(r: T) {
   if (r.status !== "pending") return { ...r, dueAt: null, daysLeft: null, overdue: false };
   return { ...r, ...requestDeadline(r.createdAt) };
 }
+
+/**
+ * Les durees de l'inventaire pour les donnees DU CLIENT.
+ *
+ * L'inventaire affichait « Appels : 3 ans », « Contacts : 5 ans »,
+ * « Taches : 3 ans » — rien ne les appliquait (mesure du 28/09). Pour ces
+ * donnees, le client est responsable de traitement : c'est lui qui fixe la
+ * duree, et la plateforme, sous-traitante, n'efface pas de sa propre
+ * initiative. On dit donc ce qui est vrai : la duree est la sienne, voici le
+ * repere, et voici ce que la plateforme efface d'elle-meme (le registre,
+ * `GET /data-protection/registre`, le detaille table par table).
+ */
+const RETENTION_FIXEE_PAR_LE_CLIENT = (repere: string | null) =>
+  `Fixée par vous${repere ? ` (repère : ${repere})` : ""} ; effacement ${DELAI_EXPORT_JOURS} jours après la fin du contrat` +
+  (modeEffacement() === "effacer" ? "" : " (en cours d'activation)");
 
 router.get("/data-protection/summary", async (req, res): Promise<void> => {
   try {
@@ -88,12 +108,12 @@ router.get("/data-protection/summary", async (req, res): Promise<void> => {
 
     res.json({
       dataInventory: [
-        { category: "Utilisateurs & agents", description: "Noms, prénoms, emails, rôles, mots de passe chiffrés", count: users[0]?.count || 0, retention: "Durée du contrat + 3 ans", legalBasis: "Exécution du contrat (Art. 6(1)(b))", sensitive: false },
-        { category: "Contacts & clients", description: "Noms, coordonnées, historique de communication", count: contacts[0]?.count || 0, retention: "5 ans après dernier contact", legalBasis: "Intérêt légitime (Art. 6(1)(f))", sensitive: false },
-        { category: "Appels téléphoniques", description: "Numéros, durées, notes, enregistrements éventuels", count: calls[0]?.count || 0, retention: "3 ans", legalBasis: "Exécution du contrat (Art. 6(1)(b))", sensitive: false },
-        { category: "Tâches & activités", description: "Titres, descriptions, assignations, statuts", count: tasks[0]?.count || 0, retention: "3 ans", legalBasis: "Exécution du contrat (Art. 6(1)(b))", sensitive: false },
-        { category: "Prospects", description: "Noms, entreprises, statuts de prospection", count: prospects[0]?.count || 0, retention: "3 ans", legalBasis: "Intérêt légitime (Art. 6(1)(f))", sensitive: false },
-        { category: "Pointages & présences", description: "Heures d'arrivée/départ, statuts de présence", count: checkins[0]?.count || 0, retention: "5 ans (obligations légales)", legalBasis: "Obligation légale (Art. 6(1)(c))", sensitive: false },
+        { category: "Utilisateurs & agents", description: "Noms, prénoms, emails, rôles, mots de passe chiffrés", count: users[0]?.count || 0, retention: "Durée du contrat + 3 ans (anonymisation automatique)", legalBasis: "Exécution du contrat (Art. 6(1)(b))", sensitive: false },
+        { category: "Contacts & clients", description: "Noms, coordonnées, historique de communication", count: contacts[0]?.count || 0, retention: RETENTION_FIXEE_PAR_LE_CLIENT("3 ans après le dernier contact pour un prospect ; durée de la relation pour un client"), legalBasis: "Intérêt légitime (Art. 6(1)(f))", sensitive: false },
+        { category: "Appels téléphoniques", description: "Numéros, durées, notes, enregistrements éventuels", count: calls[0]?.count || 0, retention: "Transcriptions et enregistrements : 12 mois (effacement automatique) ; fiche d'appel : fixée par vous", legalBasis: "Exécution du contrat (Art. 6(1)(b))", sensitive: false },
+        { category: "Tâches & activités", description: "Titres, descriptions, assignations, statuts", count: tasks[0]?.count || 0, retention: RETENTION_FIXEE_PAR_LE_CLIENT(null), legalBasis: "Exécution du contrat (Art. 6(1)(b))", sensitive: false },
+        { category: "Prospects", description: "Noms, entreprises, statuts de prospection", count: prospects[0]?.count || 0, retention: RETENTION_FIXEE_PAR_LE_CLIENT("3 ans après le dernier contact"), legalBasis: "Intérêt légitime (Art. 6(1)(f))", sensitive: false },
+        { category: "Pointages & présences", description: "Heures d'arrivée/départ, statuts de présence", count: checkins[0]?.count || 0, retention: RETENTION_FIXEE_PAR_LE_CLIENT("5 ans, prescription des salaires"), legalBasis: "Obligation légale (Art. 6(1)(c))", sensitive: false },
         { category: "Notes internes", description: "Mémos, contenus des notes, auteurs", count: notes[0]?.count || 0, retention: "Durée du contrat", legalBasis: "Exécution du contrat (Art. 6(1)(b))", sensitive: false },
         // Categorie ajoutee le 2026-09-03. Elle manquait: le journal d'analyses
         // porte un `userId` et une `target` — le fichier, l'adresse ou le
@@ -555,6 +575,63 @@ router.get("/data-protection/status", requireRole("super_admin", "administrateur
  * l'EXISTENCE du rattachement est rendue: le fait qu'un compte soit lie est
  * une donnee personnelle, les jetons sont des identifiants d'acces.
  */
+/**
+ * Le registre des activites de traitement (art. 30), avec le volume reel de
+ * chaque activite pour l'organisation. Reserve au responsable : c'est son
+ * registre, pas une information de collaborateur.
+ */
+async function registreDeLOrganisation(orgId: number) {
+  const lignes = registre();
+  const tables = [...new Set(lignes.flatMap((l) => l.tables))];
+  // Une seule requete : ~95 tables, un aller-retour.
+  const r = await db.execute(sql`${sql.join(
+    tables.map((t) => sql`SELECT ${t}::text AS t, count(*)::int AS n FROM ${sql.identifier(t)} WHERE organisation_id = ${orgId}`),
+    sql` UNION ALL `,
+  )}`);
+  const parTable = new Map((r as unknown as { rows: { t: string; n: number }[] }).rows.map((x) => [x.t, x.n]));
+  return lignes.map((l) => ({ ...l, enregistrements: l.tables.reduce((s, t) => s + (parTable.get(t) ?? 0), 0) }));
+}
+
+router.get("/data-protection/registre", requireRole("super_admin", "administrateur"), async (req, res): Promise<void> => {
+  const orgId = req.session?.organisationId;
+  if (!orgId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  try {
+    res.json({ activites: await registreDeLOrganisation(orgId) });
+  } catch (err: any) {
+    logger.error({ err }, "Registre des traitements");
+    res.status(500).json({ error: "Registre indisponible." });
+  }
+});
+
+router.get("/data-protection/registre/csv", requireRole("super_admin", "administrateur"), async (req, res): Promise<void> => {
+  const orgId = req.session?.organisationId;
+  if (!orgId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  try {
+    const lignes = await registreDeLOrganisation(orgId);
+    const entetes = ["Activite", "Finalite", "Role de l'editeur", "Personnes concernees", "Donnees", "Base legale",
+      "Duree (reperes)", "Effacement applique par la plateforme", "Destinataires", "Sensible", "Statut", "Enregistrements", "Tables"];
+    const csv = documentCsv(entetes, lignes.map((l) => [
+      l.nom, l.finalite, l.roleEditeur, l.personnes, l.donnees, l.baseLegale, l.dureeAnnoncee,
+      l.appliquee ?? "Aucun : duree fixee par le client", l.destinataires, l.sensible ? "oui" : "non", l.statut ?? "",
+      l.enregistrements, l.tables.join(" "),
+    ]));
+    await tracerExtraction(req, "registre_traitements", { format: "csv", lignes: lignes.length });
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="registre-traitements-${jourLocal()}.csv"`);
+    res.send(csv);
+  } catch (err: any) {
+    logger.error({ err }, "Registre des traitements (CSV)");
+    res.status(500).json({ error: "Registre indisponible." });
+  }
+});
+
+router.get("/data-protection/registre-ia", requireRole("super_admin", "administrateur"), async (_req, res): Promise<void> => {
+  res.json({
+    systemes: Object.entries(REGISTRE_IA).filter(([, s]) => s.classe !== "infrastructure").map(([id, s]) => ({ id, ...s })),
+    exclusionsExaminees: EXCLUSIONS_EXAMINEES,
+  });
+});
+
 router.get("/data-protection/my-data", async (req, res): Promise<void> => {
   try {
     const userId = req.session?.userId;
