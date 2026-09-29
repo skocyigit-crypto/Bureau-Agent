@@ -40,6 +40,8 @@ interface Proposal {
   summary: string;
   reason: string;
   args: Record<string, unknown>;
+  /** Empreinte des arguments affiches : une action sensible s'approuve sur elle. */
+  empreinte?: string;
   category: string;
   priority: string;
   status: string;
@@ -153,6 +155,9 @@ export default function FileApprobationScreen() {
     setBusyId(p.id);
     try {
       const edited = edits[p.id];
+      // L'empreinte de ce qui est affiche : le serveur refuse d'executer autre
+      // chose que ce qu'on vient de lire (action qui sort du bureau).
+      let empreinte = p.empreinte;
       if (edited && Object.keys(edited).length > 0) {
         // Fusion avec les args d'origine: seuls certains champs sont exposés
         // ici, et en texte — les identifiants numériques doivent repartir
@@ -167,8 +172,13 @@ export default function FileApprobationScreen() {
           Alert.alert(t("fileApprobationScreen.editRejectedTitle"), err.error || t("fileApprobationScreen.editRejectedMsg"));
           return;
         }
+        empreinte = (await patch.json().catch(() => ({})))?.empreinte ?? empreinte;
       }
-      const res = await fetchAuth(`${QUEUE_API}/${p.id}/approve`, { method: "POST" });
+      const res = await fetchAuth(`${QUEUE_API}/${p.id}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ empreinte }),
+      });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.ok) {
         setProposals((prev) => prev.filter((x) => x.id !== p.id));

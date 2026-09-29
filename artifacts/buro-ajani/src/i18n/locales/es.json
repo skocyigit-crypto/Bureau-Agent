@@ -4871,7 +4871,8 @@
       "actionImpossible": "Acción no posible.",
       "error": "Error",
       "proposalRejected": "Propuesta rechazada"
-    }
+    },
+    "reviewInQueue": "Revisar y aprobar"
   },
   "auditDenetim": {
     "title": "Auditoría de la aplicación",
@@ -6262,6 +6263,25 @@
       "approveActionTitle": "¿Aprobar esta acción?",
       "sendEmailConfirm": "Enviar",
       "executeImmediately": "La acción se ejecutará de inmediato."
+    },
+    "fiche": {
+      "nature": "Tipo:",
+      "dossier": "Registro:",
+      "ouvrir": "abrir el registro",
+      "aucunDossier": "ningún registro vinculado",
+      "demandeur": "Solicitado por:",
+      "echeance": "Decidir antes del:"
+    },
+    "nature": {
+      "interne": "interna: nada sale de la oficina",
+      "externe": "mensaje a un cliente o tercero",
+      "financier": "dinero o suscripción",
+      "planning": "cita o planificación",
+      "suppression": "eliminación de datos"
+    },
+    "lot": {
+      "unParUn": "Esta acción sale de la oficina: se aprueba una a una, sobre su vista previa.",
+      "melange": "Aprobación en bloque: solo acciones internas del mismo tipo."
     }
   },
   "rendezVousPublic": {

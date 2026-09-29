@@ -39,6 +39,7 @@ Users2,
 X,
 } from "lucide-react";
 import { useState } from "react";
+import { Link } from "wouter";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -92,6 +93,9 @@ interface Proposal {
   confidence: number;
   status: string;
   createdAt: string;
+  /** Action qui sort du bureau (message, rendez-vous, argent, suppression). */
+  sensible?: boolean;
+  empreinte?: string;
 }
 
 function scoreColor(score: number) {
@@ -199,7 +203,7 @@ export default function EquipeIaPage() {
   });
 
   const approve = useMutation({
-    mutationFn: (id: number) => api<{ ok: boolean; error?: string }>(`/agent-queue/${id}/approve`, { method: "POST" }),
+    mutationFn: (p: Proposal) => api<{ ok: boolean; error?: string }>(`/agent-queue/${p.id}/approve`, { method: "POST", body: JSON.stringify({ empreinte: p.empreinte }) }),
     onSuccess: (r) => {
       if (r.ok) toast({ title: t("equipeIa.toast.actionExecuted"), description: t("equipeIa.toast.actionExecutedDesc") });
       else toast({ title: t("equipeIa.toast.executionFailed"), description: r.error || t("equipeIa.toast.actionImpossible"), variant: "destructive" });
@@ -229,10 +233,10 @@ export default function EquipeIaPage() {
       description: `${p.summary}\n\n${t("equipeIa.approveConfirm.descSuffix")}`,
       confirmLabel: t("equipeIa.approveConfirm.confirmLabel"),
     });
-    if (ok) approve.mutate(p.id);
+    if (ok) approve.mutate(p);
   };
 
-  const busyQueueId = approve.isPending ? approve.variables : reject.isPending ? reject.variables : null;
+  const busyQueueId = approve.isPending ? approve.variables?.id : reject.isPending ? reject.variables : null;
 
   return (
     <div className="space-y-6">
@@ -432,9 +436,18 @@ export default function EquipeIaPage() {
                         {p.reason && <p className="text-xs text-muted-foreground/80 mt-2 italic">{t("equipeIa.reason", { reason: p.reason })}</p>}
                         {canRun && (
                           <div className="flex items-center gap-2 mt-4">
-                            <Button size="sm" onClick={() => handleApprove(p)} disabled={busy} className="bg-emerald-600 hover:bg-emerald-700">
-                              <Check className="h-4 w-4 mr-1.5" />{t("common.approve")}
-                            </Button>
+                            {/* Une action qui sort du bureau ne s'approuve pas ici,
+                                sans apercu : elle s'approuve dans la file, sur ce qui
+                                partira reellement. */}
+                            {p.sensible ? (
+                              <Button size="sm" asChild>
+                                <Link href="/file-approbation">{t("equipeIa.reviewInQueue")}</Link>
+                              </Button>
+                            ) : (
+                              <Button size="sm" onClick={() => handleApprove(p)} disabled={busy}>
+                                <Check className="h-4 w-4 mr-1.5" />{t("common.approve")}
+                              </Button>
+                            )}
                             <Button size="sm" variant="outline" onClick={() => reject.mutate(p.id)} disabled={busy}>
                               <X className="h-4 w-4 mr-1.5" />{t("common.reject")}
                             </Button>

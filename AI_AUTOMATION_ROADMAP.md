@@ -235,9 +235,55 @@ Son sınav tek senaryodur. Müşteri arar, ajan talebi alır ve CRM'de affaire a
 - **`scripts/verif-parcours.mjs`:** önce kabul ediyor, sonra faturalıyor, şantiyeyi de tekliften açıyor.
 - **Testler:** 13 veritabanı testi ve 3 ekran testi. Mevcut iki test bilinçli olarak güncellendi: artık geçerli teklifin de önce kabul edilmesi gerekiyor.
 
+### Onay ekranı (`feat/onay-onizleme`, bölüm 10)
+
+- **Kaynak:** `services/sensibilite-propositions.ts`. Her aracın bir türü var: `interne`, `externe`, `financier`, `planning` ya da `suppression`. Tanınmayan araç **dışarı çıkan** sayılıyor; bir işlemin zararsız olduğu tahmin edilmiyor.
+- **Önizleme şartı:** hassas işlem yalnız okunan önizlemenin parmak iziyle onaylanabiliyor. Parmak izi argümanların sha256'sı (anahtar sırasından bağımsız).
+  - Parmak izi yoksa 409 `apercu_requis` dönüyor.
+  - Öneri o arada değiştiyse 409 `apercu_perime` dönüyor ve hiçbir şey yürütülmüyor.
+  - Düzenleme (PATCH) yeni parmak izini geri döndürüyor.
+- **Toplu onay:** yalnız aynı türden iç işlemler için. Diğer durumlar 409 dönüyor ve hiçbir etki başlamıyor:
+  - `lot_sensible`: listede hassas bir işlem var; on farklı müşteriye on hatırlatma, on ayrı karar demektir;
+  - `lot_heterogene`: listede farklı türden işlemler var.
+  
+  Toplu reddetme her zaman serbest.
+- **Liste:** her öneri kendi türünü, bağlı kaydını (yalnız argümanlardaki kimliklerden, tahminsiz), isteyen kişiyi (`agent-run:<id>` üzerinden) ya da kaynağını ve son karar zamanını (+14 gün) veriyor.
+- **İstemciler:** üç istemci de parmak izini gönderiyor: web onay ekranı, mobil onay ekranı ve "Ajan hedefleri" sayfası. Bu sayfada hassas bir öneri için "Önizle ve onayla" bağlantısı çıkıyor; önizlemesiz hızlı onay kalktı.
+- **Renkler:** onay düğmeleri mavi, sayaç turuncu; yeşil kalmadı.
+- **Testler:** 15 veritabanı testi ve 6 ekran testi. Mevcut `agent-queue-expiree` testi bilinçli olarak güncellendi. 13 mutasyon.
+
+### 2. aşama (İletişim Merkezi + CRM) için ölçülen durum (29/09)
+
+- **`calls` tablosu:** `prospect_id`, `projet_id` ya da `callSid` sütunu yok. Bu yüzden bir çağrı bir affaire'e bağlanamıyor. Prospect geçmişi metinden tahmin ediliyor: aynı kişinin bütün çağrıları, o kişinin bütün prospect'lerinde görünüyor.
+- **Arayan eşleştirme her yolda farklı:** son 9 hane, yalnız boşlukları silmek, `+33`→`0` dönüşümü ya da isimde bulanık arama. Birden çok eşleşme çıkınca ilk bulunan sessizce seçiliyor. Elle giriş, giden arama ve `ai-agent-save` hiç eşleştirme yapmıyor. `contacts.phone` ham saklanıyor ve mükerrer kaydı engelleyen bir kontrol yok.
+- **Telefon sekreteri:**
+  - `calls.status` alanına `"termine"` yazıyor. Bu değer izin verilen değerler listesinde yok, bu yüzden bu çağrılar istatistik ve filtrelerde görünmüyor ve otomatik analize girmiyor.
+  - Sesli mesaj için `calls` kaydı açılmıyor.
+  - Açılan görevlerde `relatedCallId` yok.
+- **Sesli komut `log_call`:** zorunlu (NOT NULL) `direction` alanını yazmıyor; büyük olasılıkla hiç çalışmıyor.
+- **WhatsApp ve Gmail:** kişiye bağlanmıyor. `whatsapp_conversations.contactId` sütunu var ama hiçbir kod yazmıyor. Kişi ya da prospect için tek bir zaman çizelgesi uç noktası yok.
+- **Karardan bağımsız, ilk düzeltilecekler:** `termine`→`repondu`, `log_call` yönü, eşleştirmede tek bir kural ve belirsizliği bildirme, sesli mesaja `calls` kaydı, göreve `relatedCallId`.
+
+### ❓ Kullanıcı kararı bekliyor: iş kayıtlarının sahibi
+
+BatiFlow oturumu 29/09'da GESTION-BTP Pro'nun Ajan Bureau'ya açılan entegrasyon API'sini tamamladığını bildirdi. Belgesi: `C:\Users\serkan\Desktop\BatiFlow\docs\integration-ajan-bureau.md`. API şunları sunuyor: telefonla kişi arama, talep oluşturma, boş saatler, randevu, etkileşim kaydı ve zaman çizelgesi.
+
+Aktarılana göre kullanıcının BatiFlow'a verdiği şartnamede şunlar yazıyor:
+- "İş kayıtlarının asıl sahibi BTP Logiciel olmalı".
+- "Ajan Bureau için ikinci bir müşteri, planning veya fatura veritabanı kurma".
+
+Bu bilgi bir eş oturumdan aktarıldı; kaynağından doğrulanmadı.
+
+Ajan Bureau bugün kendi `prospects`, `devis`, `projets` ve `factures_client` tablolarını tutuyor. Bu yüzden 2., 4. ve 5. aşamaların affaire, şantiye dosyası ve finans işleri ya bu tablolarda ya da GESTION-BTP Pro API'si üzerinden yapılacak. **Karar verilmeden bu aşamaların veri kısmına girilmiyor.** Karardan bağımsız işler sürüyor: ortak katman, telefon, onay, ajanlar, ekran durumları.
+
+Webhook biçimi BatiFlow'a yalnız öneri olarak gönderildi, uygulanmadı:
+- HMAC imzası: `X-Signature: t=,v1=`, 5 dakika tolerans;
+- `Idempotency-Key` = olay kimliği;
+- tutar ya da kişisel veri taşımıyor.
+
 ### Aşama 1'den kalanlar
 
-- Onay ekranının kendisi (bölüm 10) henüz yapılmadı: satır başına önizleme; müşteriye giden ve finansal işlemlerde kör toplu onay yasağı. Karar masası şimdilik yalnız listeliyor.
+- ~~Onay ekranının kendisi (bölüm 10)~~ → `feat/onay-onizleme` ile yapıldı (yukarıda).
 - "Canlı çağrı" satırı çağrının kendi ekranına değil `/appels` sayfasına gidiyor, çünkü `voice_call_sessions` kayıtları `calls` tablosuna bağlı değil (aşama 2).
 - Web'de mobil alt gezinme (bölüm 12). Telefonda yan menü şimdilik açılır menü olarak çalışıyor.
 - `/gestion-licence` rotası herkese açık, çünkü lisans bitince her kullanıcı oraya yönlendiriliyor. Veriler ise yalnız yöneticiye veriliyor. Yönetici olmayan kullanıcı için "yetki yok" ekranı gerekiyor.

@@ -4871,7 +4871,8 @@
       "actionImpossible": "Eylem mümkün değil.",
       "error": "Hata",
       "proposalRejected": "Öneri reddedildi"
-    }
+    },
+    "reviewInQueue": "Önizle ve onayla"
   },
   "auditDenetim": {
     "title": "Uygulama denetimi",
@@ -6262,6 +6263,25 @@
       "approveActionTitle": "Bu eylem onaylansın mı?",
       "sendEmailConfirm": "Gönder",
       "executeImmediately": "Eylem hemen yürütülecek."
+    },
+    "fiche": {
+      "nature": "Türü:",
+      "dossier": "İlgili kayıt:",
+      "ouvrir": "kaydı aç",
+      "aucunDossier": "bağlı kayıt yok",
+      "demandeur": "Kim istedi:",
+      "echeance": "Son karar:"
+    },
+    "nature": {
+      "interne": "iç işlem — büro dışına bir şey çıkmaz",
+      "externe": "müşteriye ya da üçüncü kişiye mesaj",
+      "financier": "para ya da abonelik",
+      "planning": "randevu ya da plan",
+      "suppression": "veri silme"
+    },
+    "lot": {
+      "unParUn": "Bu işlem büro dışına çıkar: tek tek, önizlemesine bakılarak onaylanır.",
+      "melange": "Toplu onay: yalnız aynı türden iç işlemler."
     }
   },
   "rendezVousPublic": {

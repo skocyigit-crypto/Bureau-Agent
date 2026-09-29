@@ -4871,7 +4871,8 @@
       "actionImpossible": "Aktion nicht möglich.",
       "error": "Fehler",
       "proposalRejected": "Vorschlag abgelehnt"
-    }
+    },
+    "reviewInQueue": "Prüfen und freigeben"
   },
   "auditDenetim": {
     "title": "App-Selbstprüfung",
@@ -6262,6 +6263,25 @@
       "approveActionTitle": "Diese Aktion genehmigen?",
       "sendEmailConfirm": "Senden",
       "executeImmediately": "Die Aktion wird sofort ausgeführt."
+    },
+    "fiche": {
+      "nature": "Art:",
+      "dossier": "Vorgang:",
+      "ouvrir": "Vorgang öffnen",
+      "aucunDossier": "kein verknüpfter Vorgang",
+      "demandeur": "Angefragt von:",
+      "echeance": "Entscheiden bis:"
+    },
+    "nature": {
+      "interne": "intern – nichts verlässt das Büro",
+      "externe": "Nachricht an Kunden oder Dritte",
+      "financier": "Geld oder Abonnement",
+      "planning": "Termin oder Planung",
+      "suppression": "Datenlöschung"
+    },
+    "lot": {
+      "unParUn": "Diese Aktion verlässt das Büro: sie wird einzeln, anhand der Vorschau, freigegeben.",
+      "melange": "Sammelfreigabe: nur interne Aktionen desselben Typs."
     }
   },
   "rendezVousPublic": {

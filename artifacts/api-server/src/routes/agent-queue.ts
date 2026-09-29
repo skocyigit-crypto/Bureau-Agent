@@ -6,7 +6,7 @@
  */
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
-import { agentProposalsTable } from "@workspace/db/schema";
+import { agentProposalsTable, agentRunsTable, usersTable } from "@workspace/db/schema";
 import { and, eq, desc, gte, inArray, sql } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
@@ -18,6 +18,7 @@ import {
 import { bumpProposalPreference } from "../services/ai-learning";
 import { getTool, validateArgs } from "../services/assistant-tools";
 import { getSaasTool } from "../services/saas-tools";
+import { dossierDe, echeanceDecision, empreinteArgs, estSensible, lotAutorise, natureAction } from "../services/sensibilite-propositions";
 
 const router: IRouter = Router();
 
@@ -62,7 +63,31 @@ router.get("/agent-queue", async (req: Request, res: Response): Promise<void> =>
       .orderBy(desc(agentProposalsTable.createdAt))
       .limit(limit);
 
-    res.json({ proposals: rows });
+    // Qui a demande : seul le format `agent-run:<id>` mene a une personne.
+    const execs = [...new Set(rows.map((r) => /^agent-run:(\d+)$/.exec(r.runId)?.[1]).filter(Boolean).map(Number))];
+    const demandeurs = new Map<number, string>();
+    if (execs.length) {
+      const lignes = await db.select({ run: agentRunsTable.id, prenom: usersTable.prenom, nom: usersTable.nom })
+        .from(agentRunsTable)
+        .innerJoin(usersTable, and(eq(usersTable.id, agentRunsTable.requestedBy), eq(usersTable.organisationId, orgId)))
+        .where(and(eq(agentRunsTable.organisationId, orgId), inArray(agentRunsTable.id, execs)));
+      for (const l of lignes) demandeurs.set(l.run, [l.prenom, l.nom].filter(Boolean).join(" ").trim());
+    }
+
+    res.json({
+      proposals: rows.map((r) => {
+        const exec = /^agent-run:(\d+)$/.exec(r.runId)?.[1];
+        return {
+          ...r,
+          nature: natureAction(r.toolName),
+          sensible: estSensible(r.toolName),
+          empreinte: empreinteArgs(r.args),
+          echeance: echeanceDecision(r.createdAt).toISOString(),
+          dossier: dossierDe(r.args),
+          demandeur: exec ? demandeurs.get(Number(exec)) ?? null : null,
+        };
+      }),
+    });
   } catch (err) {
     req.log.error({ err }, "Erreur liste file d'approbation");
     res.status(500).json({ error: "Erreur lors du chargement de la file" });
@@ -212,7 +237,7 @@ router.patch("/agent-queue/:id/args", requireAdmin, async (req: Request, res: Re
       .set({ args: parsed.data })
       .where(and(eq(agentProposalsTable.id, id), eq(agentProposalsTable.organisationId, orgId)));
 
-    res.json({ ok: true, args: parsed.data });
+    res.json({ ok: true, args: parsed.data, empreinte: empreinteArgs(parsed.data) });
   } catch (err) {
     req.log.error({ err }, "Erreur modification arguments proposition");
     res.status(500).json({ error: "Erreur lors de la modification" });
@@ -226,6 +251,23 @@ router.post("/agent-queue/:id/approve", requireAdmin, async (req: Request, res: 
     const userId = req.session?.userId as number;
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) { res.status(400).json({ error: "id invalide" }); return; }
+
+    const [courante] = await db.select({ toolName: agentProposalsTable.toolName, args: agentProposalsTable.args, status: agentProposalsTable.status })
+      .from(agentProposalsTable)
+      .where(and(eq(agentProposalsTable.id, id), eq(agentProposalsTable.organisationId, orgId)));
+    // Seulement pour ce qui peut encore partir : une proposition expiree ou
+    // tranchee dit d'abord ce qu'elle est (executeProposal ci-dessous).
+    if (courante && courante.status === "en_attente" && estSensible(courante.toolName)) {
+      const vue = typeof req.body?.empreinte === "string" ? req.body.empreinte : null;
+      if (!vue) {
+        res.status(409).json({ error: "Cette action sort du bureau : elle s'approuve sur son apercu.", code: "apercu_requis" });
+        return;
+      }
+      if (vue !== empreinteArgs(courante.args)) {
+        res.status(409).json({ error: "La proposition a change depuis que vous l'avez lue. Relisez l'apercu avant d'approuver.", code: "apercu_perime" });
+        return;
+      }
+    }
 
     const result = await executeProposal(id, { orgId, userId });
     if (!result.ok && result.status === "echouee" && result.error === "Proposition introuvable") {
@@ -293,7 +335,7 @@ router.post("/agent-queue/bulk-decide", requireAdmin, async (req: Request, res: 
     // On ne traite que ce qui est RÉELLEMENT en attente dans CETTE organisation:
     // un identifiant d'une autre organisation ou déjà tranché est écarté ici,
     // avant tout effet, plutôt que de compter sur chaque exécuteur.
-    const eligible = await db.select({ id: agentProposalsTable.id })
+    const eligible = await db.select({ id: agentProposalsTable.id, toolName: agentProposalsTable.toolName })
       .from(agentProposalsTable)
       .where(and(
         eq(agentProposalsTable.organisationId, orgId),
@@ -301,6 +343,23 @@ router.post("/agent-queue/bulk-decide", requireAdmin, async (req: Request, res: 
         inArray(agentProposalsTable.id, ids),
       ));
     const eligibleIds = new Set(eligible.map((r) => r.id));
+
+    // Un lot d'approbations ne reunit que des actions internes du meme type.
+    // Dix relances a dix clients, ce sont dix decisions : refuse AVANT tout
+    // effet, et on dit lesquelles sont a trancher une par une.
+    if (decision === "approve") {
+      const lot = lotAutorise(eligible);
+      if (!lot.ok) {
+        res.status(409).json({
+          error: lot.code === "lot_sensible"
+            ? "Ces actions sortent du bureau (message, rendez-vous, argent ou suppression) : elles s'approuvent une par une, sur leur apercu."
+            : "Un lot ne reunit que des actions du meme type.",
+          code: lot.code,
+          ids: lot.ids,
+        });
+        return;
+      }
+    }
 
     const results: Array<{ id: number; ok: boolean; status?: string; error?: string }> = [];
     for (const id of ids) {

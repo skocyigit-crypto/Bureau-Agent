@@ -4871,7 +4871,8 @@
       "actionImpossible": "Action not possible.",
       "error": "Error",
       "proposalRejected": "Proposal rejected"
-    }
+    },
+    "reviewInQueue": "Review and approve"
   },
   "auditDenetim": {
     "title": "App self-audit",
@@ -6262,6 +6263,25 @@
       "approveActionTitle": "Approve this action?",
       "sendEmailConfirm": "Send",
       "executeImmediately": "The action will be executed immediately."
+    },
+    "fiche": {
+      "nature": "Type:",
+      "dossier": "Record:",
+      "ouvrir": "open the record",
+      "aucunDossier": "no linked record",
+      "demandeur": "Requested by:",
+      "echeance": "Decide by:"
+    },
+    "nature": {
+      "interne": "internal — nothing leaves the office",
+      "externe": "message to a customer or third party",
+      "financier": "money or subscription",
+      "planning": "appointment or schedule",
+      "suppression": "data deletion"
+    },
+    "lot": {
+      "unParUn": "This action leaves the office: it is approved one at a time, on its preview.",
+      "melange": "Bulk approval: internal actions of the same type only."
     }
   },
   "rendezVousPublic": {

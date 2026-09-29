@@ -4871,7 +4871,8 @@
       "actionImpossible": "Action impossible.",
       "error": "Erreur",
       "proposalRejected": "Proposition rejetée"
-    }
+    },
+    "reviewInQueue": "Examiner et approuver"
   },
   "auditDenetim": {
     "title": "Audit de l'application",
@@ -6262,6 +6263,25 @@
       "approveActionTitle": "Approuver cette action ?",
       "sendEmailConfirm": "Envoyer",
       "executeImmediately": "L'action sera exécutée immédiatement."
+    },
+    "fiche": {
+      "nature": "Nature :",
+      "dossier": "Dossier :",
+      "ouvrir": "ouvrir la fiche",
+      "aucunDossier": "aucune fiche liée",
+      "demandeur": "Demandé par :",
+      "echeance": "Décider avant :"
+    },
+    "nature": {
+      "interne": "interne — rien ne sort du bureau",
+      "externe": "message à un client ou un tiers",
+      "financier": "argent ou abonnement",
+      "planning": "rendez-vous ou planning",
+      "suppression": "suppression de données"
+    },
+    "lot": {
+      "unParUn": "Cette action sort du bureau : elle s'approuve une par une, sur son aperçu.",
+      "melange": "Approbation groupée : seulement des actions internes du même type."
     }
   },
   "rendezVousPublic": {
