@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 704,
+    "runtimeOperations": 705,
     "documentedOperations": 96,
-    "undocumentedOperations": 608
+    "undocumentedOperations": 609
   },
   "operations": [
     {
@@ -1284,6 +1284,14 @@
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/billing.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/bugun",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/bugun.ts"
       ]
     },
     {
