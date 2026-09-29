@@ -548,6 +548,66 @@ describe("10. messagerie vocale redelivree a une autre instance", () => {
   });
 });
 
+describe("11. la fiche d'appel dit ce qui s'est passe (29/09)", () => {
+  const appelDe = async (o: Org) => (await db.select().from(callsTable).where(eq(callsTable.organisationId, o.id)).orderBy(desc(callsTable.id)))[0]!;
+
+  it("un appel pris par la secretaire est « repondu » — plus « termine », hors vocabulaire", async () => {
+    const sid = await appel(A);
+    simu.reponses.push(reponse({ say: "Au revoir.", done: true, summary: "Question sur les horaires." }));
+    await parle(A, sid, "Vous etes ouverts samedi ?");
+    const c = await appelDe(A);
+    expect(c.status).toBe("repondu");
+    expect(c.direction).toBe("entrant");
+    preuve("11 statut repondu", { callSid: sid, callId: c.id, status: c.status });
+  });
+
+  it("la tache de preparation du rendez-vous pointe vers la fiche d'appel", async () => {
+    const sid = await appel(A);
+    simu.reponses.push(rdv(jourOuvre(8), "10:00"));
+    await parle(A, sid, "Un rendez-vous a 10h");
+    await parle(A, sid, "Oui");
+    simu.reponses.push(reponse({ say: "Au revoir.", done: true, summary: "RDV pris." }));
+    await parle(A, sid, "C'est tout");
+    const c = await appelDe(A);
+    const taches = await db.select().from(tasksTable).where(and(eq(tasksTable.organisationId, A.id), eq(tasksTable.relatedCallId, c.id)));
+    expect(taches.map((t) => t.title).join(" | ")).toMatch(/Preparer le RDV telephonique/);
+    preuve("11 tache rattachee", { callSid: sid, callId: c.id, taches: taches.map((t) => t.id) });
+  });
+
+  it("la tache de rappel pointe aussi vers la fiche d'appel, et l'appel n'est plus « a rappeler »", async () => {
+    const sid = await appel(B);
+    simu.reponses.push(reponse({ say: "Je vous passe quelqu'un.", transfer: true }));
+    await parle(B, sid, "Je veux parler a quelqu'un");
+    const [c] = await db.select().from(callsTable).where(eq(callsTable.organisationId, B.id)).orderBy(desc(callsTable.id));
+    expect(c, "pas de fiche d'appel").toBeDefined();
+    const taches = await db.select().from(tasksTable).where(and(eq(tasksTable.organisationId, B.id), eq(tasksTable.relatedCallId, c!.id)));
+    expect(taches.map((t) => t.title).join(" | ")).toMatch(/Rappeler/);
+  });
+
+  it("un message vocal laisse une fiche d'appel « messagerie », rattachee au client connu", async () => {
+    const sid = `CA${stamp}vm2`;
+    const chemin = `/api/voice/twilio/voicemail-complete?callSid=${sid}`;
+    const params = { AccountSid: A.accountSid, CallSid: sid, From: APPELANT, To: A.numero, RecordingDuration: "9" };
+    expect((await twilio(chemin, params, A.token)).status).toBe(200);
+    expect((await twilio(chemin, params, A.token)).status).toBe(200);
+    const fiches = await db.select().from(callsTable).where(and(eq(callsTable.organisationId, A.id), eq(callsTable.status, "messagerie")));
+    const siennes = fiches.filter((f) => f.duration === 9);
+    expect(siennes, "une seule fiche, meme rejoue").toHaveLength(1);
+    expect(siennes[0]).toMatchObject({ direction: "entrant", contactId: A.contactId });
+    preuve("11 messagerie", { callSid: sid, callId: siennes[0]!.id, contactId: siennes[0]!.contactId });
+  });
+
+  it("un numero inconnu qui laisse un message n'ouvre pas de fiche client", async () => {
+    const sid = `CA${stamp}vm3`;
+    const avant = (await db.select().from(contactsTable).where(eq(contactsTable.organisationId, A.id))).length;
+    const params = { AccountSid: A.accountSid, CallSid: sid, From: "+33799999999", To: A.numero, RecordingDuration: "7" };
+    expect((await twilio(`/api/voice/twilio/voicemail-complete?callSid=${sid}`, params, A.token)).status).toBe(200);
+    const [f] = await db.select().from(callsTable).where(and(eq(callsTable.organisationId, A.id), eq(callsTable.phoneNumber, "+33799999999")));
+    expect(f).toMatchObject({ status: "messagerie", contactId: null });
+    expect((await db.select().from(contactsTable).where(eq(contactsTable.organisationId, A.id))).length).toBe(avant);
+  });
+});
+
 describe("gardes transverses", () => {
   it("un appel inconnu du compte est refuse sans rien creer", async () => {
     const r = await twilio("/api/voice/twilio/incoming", { AccountSid: "ACinconnu", CallSid: "CAx", From: APPELANT }, "rien");

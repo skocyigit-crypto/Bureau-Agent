@@ -211,7 +211,8 @@ export default function CallsScreen() {
     const today = new Date().toDateString();
     const todayCalls = calls.filter((c) => new Date(c.createdAt).toDateString() === today);
     const missed = todayCalls.filter((c) => c.status === "manque").length;
-    const answered = todayCalls.filter((c) => c.status === "repondu").length;
+    // « termine » : ancien statut des appels pris par la secretaire IA.
+    const answered = todayCalls.filter((c) => c.status === "repondu" || (c.status as string) === "termine").length;
     const totalDuration = todayCalls.reduce((sum, c) => sum + (c.duration || 0), 0);
     return { total: todayCalls.length, missed, answered, totalDuration };
   }, [calls]);

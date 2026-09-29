@@ -264,6 +264,26 @@ Son sınav tek senaryodur. Müşteri arar, ajan talebi alır ve CRM'de affaire a
 - **WhatsApp ve Gmail:** kişiye bağlanmıyor. `whatsapp_conversations.contactId` sütunu var ama hiçbir kod yazmıyor. Kişi ya da prospect için tek bir zaman çizelgesi uç noktası yok.
 - **Karardan bağımsız, ilk düzeltilecekler:** `termine`→`repondu`, `log_call` yönü, eşleştirmede tek bir kural ve belirsizliği bildirme, sesli mesaja `calls` kaydı, göreve `relatedCallId`.
 
+### Çağrı kayıtları (`fix/cagri-kayitlari`, karardan bağımsız 2. aşama işleri)
+
+- **Telefon sekreteri artık `status: "repondu"` yazıyor.** Eskiden hiçbir yerde okunmayan `"termine"` değerini yazıyordu.
+  - Üretimdeki eski `"termine"` satırlarına **dokunulmadı**, çünkü üretim verisini değiştirmek yasak.
+  - Onun yerine istatistikler (günlük karşılama, ekip performansı), web rozetleri ve mobil sayaç bu satırları "yanıtlandı" sayıyor.
+  - Eski satırları kalıcı düzeltmek için tek satırlık bir UPDATE yeterli; bu kullanıcının onayına kalmış.
+- **Görevler çağrıya bağlanıyor.** Çağrı sırasında açılan görevler ("RDV hazırla", "Geri ara") kapanışta `tasks.related_call_id` ile çağrı kaydına bağlanıyor. Bu sayede Bugün masası takibi yapılmış çağrıyı "geri aranacak" olarak göstermiyor.
+- **Sesli mesaj kayıt bırakıyor.** Artık `calls` tablosunda "messagerie" durumunda bir kayıt açılıyor ve bilinen müşteriye bağlanıyor.
+  - Bilinmeyen numara için müşteri kaydı açılmıyor.
+  - Mevcut koruma nedeniyle (oturum satırı) aynı çağrıdan tek kayıt çıkıyor.
+- **Sesli komut "çağrı kaydet" çalışır oldu.** Yapılanlar:
+  - Zorunlu `direction` alanı yazılmıyordu, bu yüzden kayıt her seferinde başarısız oluyordu; artık yazılıyor. Varsayılan "sortant", `direction=entrant` verilirse o.
+  - Durum olarak "repondu" yazılıyor.
+  - Çağrı yalnız **tek** bir kişi eşleşirse kişi kaydına bağlanıyor. Birden fazla eşleşmede, söylenen isimle bağlantısız kalıyor; rastgele seçim yapılmıyor.
+- **Testler:** `standard-telephonique` dosyasına 5 senaryo, `journal-appel-vocal-db` dosyasına 5 test eklendi. 7 mutasyonun hepsi yakalandı.
+- **Hâlâ açık (2. aşama):**
+  - Diğer yollarda telefon eşleştirmesi tek bir kurala bağlanmadı (son 9 hane, belirsizlik bildirimi).
+  - `calls.prospect_id` yok. Affaire bağlantısı, kayıtların sahibi kararına bağlı.
+  - WhatsApp ve Gmail kişiye bağlanmıyor.
+
 ### ❓ Kullanıcı kararı bekliyor: iş kayıtlarının sahibi
 
 BatiFlow oturumu 29/09'da GESTION-BTP Pro'nun Ajan Bureau'ya açılan entegrasyon API'sini tamamladığını bildirdi. Belgesi: `C:\Users\serkan\Desktop\BatiFlow\docs\integration-ajan-bureau.md`. API şunları sunuyor: telefonla kişi arama, talep oluşturma, boş saatler, randevu, etkileşim kaydı ve zaman çizelgesi.
@@ -275,6 +295,14 @@ Aktarılana göre kullanıcının BatiFlow'a verdiği şartnamede şunlar yazıy
 Bu bilgi bir eş oturumdan aktarıldı; kaynağından doğrulanmadı.
 
 Ajan Bureau bugün kendi `prospects`, `devis`, `projets` ve `factures_client` tablolarını tutuyor. Bu yüzden 2., 4. ve 5. aşamaların affaire, şantiye dosyası ve finans işleri ya bu tablolarda ya da GESTION-BTP Pro API'si üzerinden yapılacak. **Karar verilmeden bu aşamaların veri kısmına girilmiyor.** Karardan bağımsız işler sürüyor: ortak katman, telefon, onay, ajanlar, ekran durumları.
+
+**Aynı gün ikinci teklif geldi.** BTP-Ultra oturumu da Ajan Bureau için bir API yazdı; commit 19b6cb61, henüz dağıtılmadı. Ayrıntılar:
+- **Sözleşme:** BTP deposunda `docs/integrations/agent-bureau.md`.
+- **Kimlik doğrulama:** `x-api-key` ile, yalnız `agent:bureau` kapsamında.
+- **Uç noktalar:** kişi arama (son 9 hane, belirsizlikte 409 `PERSONNE_AMBIGUE`), talep, uygunluk, randevu (`confirmeParAppelant`, kilitli kontrol), not, zaman çizelgesi.
+- **Tekrar koruması:** her POST isteğinde `Idempotency-Key` başlığı gerekiyor.
+
+Yani ortada iki ayrı BTP ürünü var: GESTION-BTP Pro (BatiFlow) ve BTP Ultra. **Hangisinin, ya da hangilerinin, kayıt sahibi olacağı da kullanıcı kararı.**
 
 Webhook biçimi BatiFlow'a yalnız öneri olarak gönderildi, uygulanmadı:
 - HMAC imzası: `X-Signature: t=,v1=`, 5 dakika tolerans;
