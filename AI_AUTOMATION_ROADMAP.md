@@ -2794,6 +2794,7 @@ Beş eksen kodda ayrı ayrı tarandı; aşağıdakiler ölçülerek bulundu.
 10. LLM çıktısı hiçbir yerde şemayla (zod/responseSchema) doğrulanmıyor;
     DB'ye yazan parse'lar: `ai-commandant.ts` 625/697/989, `ai-agents.ts`
     3049/3294, `autonomous-inbox.ts` 248, `workforce-agent.ts` 402-495.
+   **Büyük ölçüde kapandı 29/09 (Lot S2):** `services/sortie-ia.ts` — zod okuyucu (geçersiz öğe ayıklanır, lot kalır); commandant call-compile / auto-create / meeting-compile, Super Agent e-posta ve rapor, arama işleyicisinin randevusu artık buradan geçiyor. AI randevusu hiçbir yerde "confirme" değil: `en_attente` + "Propose par l'IA", Paris saatiyle (`instantMural`; `new Date("…T14:30")` ve `setHours(10)` UTC'ydi → 1-2 saat kayma). `creerTacheIa` 13 çağıranın hepsi için başlığı ve önceliği sınırlıyor. Ayrıca: Super Agent aynı okunmamış e-postayı her çevrimde yeniden işleyip görev çoğaltıyordu → `reclamerExecution` ile e-posta başına bir kez; call-compile kişinin notunu siliyordu → özet ekleniyor; arama işleyicisinin bildirimleri org'suzdu (kimse görmüyordu) ve "undefined" başlık taşıyordu. Açık: `workforce-agent` / `autonomous-inbox` çıktıları (rapor/taslak yazıyorlar, kayıt değil), `/ai/execute` ve Document IA'nın insan tıklamasıyla yazdığı alanlar.
 11. Koşu izi yok: `ai_usage`'da run/adım kimliği yok, çoğu hata kaydedilmiyor;
     Voice Live araç çağrıları ve kullanımı hiç kaydedilmiyor.
 **Görsel modül (eksen 4):**

@@ -50,6 +50,13 @@ function statutsEcritsParLeServeur(): Map<string, string> {
       for (const s of src.slice(debut, i).matchAll(/\bstatus:\s*"([a-z_]+)"/g)) trouves.set(s[1]!, f.slice(API.length + 1));
     }
   }
+  // Les rendez-vous proposes par un modele sont construits par
+  // `rendezVousPropose` (services/sortie-ia.ts) puis inseres avec
+  // `.values(valeurs)` : le statut n'est pas dans la parenthese. Sans cette
+  // lecture, l'instrument perdait `en_attente` et tombait sous son plancher.
+  const constructeur = readFileSync(join(API, "services", "sortie-ia.ts"), "utf8");
+  const corps = constructeur.slice(constructeur.indexOf("export function rendezVousPropose"));
+  for (const s of corps.slice(0, corps.indexOf("\n}\n")).matchAll(/\bstatus:\s*"([a-z_]+)"/g)) trouves.set(s[1]!, "services/sortie-ia.ts");
   return trouves;
 }
 
