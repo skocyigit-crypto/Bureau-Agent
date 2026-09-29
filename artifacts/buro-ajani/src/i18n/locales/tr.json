@@ -7909,7 +7909,11 @@
       "contacts": "Kişiler",
       "callsThisMonth": "Bu ayki aramalar"
     },
-    "print": "Yazdır"
+    "print": "Yazdır",
+    "nonAdmin": {
+      "title": "Abonelik yönetici tarafından yönetilir",
+      "message": "Büronun aboneliği ve faturalaması yöneticileri tarafından yönetilir. Erişim askıya alındıysa aboneliği bir yöneticinin yenilemesi gerekir; ona haber verin."
+    }
   },
   "whatsappPage": {
     "title": "WhatsApp",

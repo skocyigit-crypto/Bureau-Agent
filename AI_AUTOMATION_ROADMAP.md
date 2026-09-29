@@ -331,7 +331,7 @@ Webhook biçimi BatiFlow'a yalnız öneri olarak gönderildi, uygulanmadı:
 - ~~Onay ekranının kendisi (bölüm 10)~~ → `feat/onay-onizleme` ile yapıldı (yukarıda).
 - "Canlı çağrı" satırı çağrının kendi ekranına değil `/appels` sayfasına gidiyor, çünkü `voice_call_sessions` kayıtları `calls` tablosuna bağlı değil (aşama 2).
 - Web'de mobil alt gezinme (bölüm 12). Telefonda yan menü şimdilik açılır menü olarak çalışıyor.
-- `/gestion-licence` rotası herkese açık, çünkü lisans bitince her kullanıcı oraya yönlendiriliyor. Veriler ise yalnız yöneticiye veriliyor. Yönetici olmayan kullanıcı için "yetki yok" ekranı gerekiyor.
+- ~~`/gestion-licence` yönetici olmayanlar için~~ → `fix/abonelik-yonetici-degil` ile yapıldı. Yönetici olmayan kullanıcı artık 403 isteği atmıyor ve yanıltıcı "yüklenemedi" uyarısını görmüyor. Ekran, aboneliği yöneticinin yönettiğini ve erişim askıdaysa yöneticinin yenilemesi gerektiğini söylüyor (4 test, 2 mutasyon).
 - `/asistan` sayfasında `<h1>` yok. Expo uygulamasındaki "Daha fazla" ekranı yeni yapıya göre düzenlenmedi.
 
 ## ⚠️ 2026-07-14 — Kritik altyapı incidenti (çözüldü)

@@ -7909,7 +7909,11 @@
       "contacts": "Contacts",
       "callsThisMonth": "Appels ce mois"
     },
-    "print": "Imprimer"
+    "print": "Imprimer",
+    "nonAdmin": {
+      "title": "Abonnement géré par un administrateur",
+      "message": "L'abonnement et la facturation du bureau sont gérés par ses administrateurs. Si l'accès est suspendu, un administrateur doit renouveler l'abonnement ; prévenez-le."
+    }
   },
   "whatsappPage": {
     "title": "WhatsApp",
