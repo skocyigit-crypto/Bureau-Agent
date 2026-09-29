@@ -9,6 +9,8 @@ import { confirmAction } from "@/hooks/use-confirm";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
 import { useSelectionVisibleListe } from "@/lib/selection-visible";
+import { cleSource } from "@/components/masa-bugun";
+import { Link } from "wouter";
 import { useMutation,useQuery,useQueryClient } from "@tanstack/react-query";
 import {
 AlertCircle,
@@ -61,6 +63,13 @@ interface Proposal {
   args: Record<string, unknown>;
   createdAt: string;
   decidedAt: string | null;
+  /** Rendus par le serveur (services/sensibilite-propositions.ts). */
+  nature?: "interne" | "externe" | "financier" | "planning" | "suppression";
+  sensible?: boolean;
+  empreinte?: string;
+  echeance?: string;
+  dossier?: string | null;
+  demandeur?: string | null;
 }
 
 const CATEGORY_META: Record<string, { icon: typeof Mail; labelKey: string; color: string }> = {
@@ -218,23 +227,32 @@ export default function FileApprobationPage() {
   const approve = useMutation({
     mutationFn: async (p: Proposal) => {
       const edited = drafts[p.id];
+      // Le serveur n'execute une action qui sort du bureau que sur l'empreinte
+      // de ce qu'on a lu : si la proposition a change entre-temps, il refuse.
+      let empreinte = p.empreinte;
       if (edited && Object.keys(edited).length > 0) {
         // Fusion avec les args d'origine: l'apercu n'expose qu'une partie des
         // champs (et uniquement en texte), les autres — dont les identifiants
         // numeriques — doivent repartir intacts, sinon validateArgs rejette.
-        await api(`/agent-queue/${p.id}/args`, {
+        const r = await api<{ empreinte?: string }>(`/agent-queue/${p.id}/args`, {
           method: "PATCH",
           body: JSON.stringify({ args: { ...(p.args as Record<string, unknown>), ...edited } }),
         });
+        empreinte = r.empreinte ?? empreinte;
       }
-      return api<{ ok: boolean; status: string; error?: string }>(`/agent-queue/${p.id}/approve`, { method: "POST" });
+      return api<{ ok: boolean; status: string; error?: string }>(`/agent-queue/${p.id}/approve`, { method: "POST", body: JSON.stringify({ empreinte }) });
     },
     onSuccess: (r) => {
       if (r.ok) toast({ title: t("fileApprobation.toast.actionExecuted"), description: t("fileApprobation.toast.actionExecutedDesc") });
       else toast({ title: t("fileApprobation.toast.executionFailed"), description: r.error || t("fileApprobation.toast.executionFailedDesc"), variant: "destructive" });
       qc.invalidateQueries({ queryKey: ["agent-queue"] });
     },
-    onError: (e: Error) => toast({ title: t("fileApprobation.toast.error"), description: e.message, variant: "destructive" }),
+    // Un apercu perime se relit : on recharge la file pour montrer la version
+    // qui partirait vraiment.
+    onError: (e: Error) => {
+      toast({ title: t("fileApprobation.toast.error"), description: e.message, variant: "destructive" });
+      qc.invalidateQueries({ queryKey: ["agent-queue"] });
+    },
   });
 
   const reject = useMutation({
@@ -271,6 +289,9 @@ export default function FileApprobationPage() {
   };
 
   const pendingCount = proposals.length;
+  const choisies = proposals.filter((p) => selected.includes(p.id));
+  const lotApprouvable = choisies.length > 0 && choisies.every((p) => !p.sensible) && new Set(choisies.map((p) => p.toolName)).size === 1;
+  const formatEcheance = (iso: string) => new Intl.DateTimeFormat(undefined, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" }).format(new Date(iso));
   const busyId = approve.isPending ? approve.variables?.id : reject.isPending ? reject.variables : null;
 
   return (
@@ -278,8 +299,8 @@ export default function FileApprobationPage() {
       {/* En-tête */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-start gap-3">
-          <div className="rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 p-2.5 text-white shadow-lg shadow-emerald-500/20">
-            <Inbox className="h-6 w-6" />
+          <div className="rounded-xl bg-muted p-2.5 text-foreground">
+            <Inbox className="h-6 w-6" aria-hidden="true" />
           </div>
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">{t("fileApprobation.title")}</h1>
@@ -291,7 +312,8 @@ export default function FileApprobationPage() {
         <Button
           onClick={() => runNow.mutate()}
           disabled={runNow.isPending}
-          className="shrink-0 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
+          variant="outline"
+          className="shrink-0"
         >
           {runNow.isPending
             ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />{t("fileApprobation.analyzing")}</>
@@ -334,7 +356,7 @@ export default function FileApprobationPage() {
         <TabButton active={tab === "en_attente"} onClick={() => setTab("en_attente")}>
           <Clock className="h-4 w-4 mr-1.5" />{t("fileApprobation.tabPending")}
           {tab === "en_attente" && pendingCount > 0 && (
-            <span className="ml-2 rounded-full bg-emerald-500 text-white text-xs px-1.5 py-0.5">{pendingCount}</span>
+            <span className="ml-2 rounded-full bg-orange-400 text-slate-950 text-xs font-semibold px-1.5 py-0.5">{pendingCount}</span>
           )}
         </TabButton>
         <TabButton active={tab === "history"} onClick={() => setTab("history")}>
@@ -381,16 +403,19 @@ export default function FileApprobationPage() {
           {/* Barre de decision groupee: n'apparait qu'une fois une selection
               faite, pour ne jamais suggerer un "tout approuver" aveugle. */}
           {tab === "en_attente" && selected.length > 0 && (
-            <div className="sticky top-2 z-10 flex flex-wrap items-center gap-2 rounded-xl border border-emerald-500/40 bg-background/95 px-4 py-2.5 shadow-sm backdrop-blur">
+            <div className="sticky top-2 z-10 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-background/95 px-4 py-2.5 shadow-sm backdrop-blur">
               <span className="text-sm font-medium">{t("fileApprobation.selectedCount", { count: selected.length })}</span>
               <Button
                 size="sm"
-                className="bg-emerald-600 hover:bg-emerald-700"
-                disabled={bulk.isPending}
+                disabled={bulk.isPending || !lotApprouvable}
                 onClick={() => handleBulk("approve")}
+                aria-describedby={!lotApprouvable ? "lot-refuse" : undefined}
               >
                 <Check className="h-4 w-4 mr-1.5" />{t("fileApprobation.approve")}
               </Button>
+              {!lotApprouvable && (
+                <span id="lot-refuse" className="text-xs text-muted-foreground">{t("fileApprobation.lot.melange")}</span>
+              )}
               <Button size="sm" variant="outline" disabled={bulk.isPending} onClick={() => handleBulk("reject")}>
                 <X className="h-4 w-4 mr-1.5" />{t("fileApprobation.reject")}
               </Button>
@@ -412,10 +437,13 @@ export default function FileApprobationPage() {
                     {!isHistory && (
                       <input
                         type="checkbox"
-                        className="mt-3 h-4 w-4 shrink-0 accent-emerald-600"
+                        className="mt-3 h-4 w-4 shrink-0 accent-blue-600 disabled:opacity-40"
                         checked={selected.includes(p.id)}
                         onChange={() => toggleSelected(p.id)}
                         aria-label={t("fileApprobation.selectAria", { title: p.title })}
+                        // Une action qui sort du bureau ne se decide pas en lot.
+                        disabled={p.sensible === true}
+                        title={p.sensible ? t("fileApprobation.lot.unParUn") : undefined}
                       />
                     )}
                     <div className={`rounded-lg p-2 shrink-0 ${meta.color}`}>
@@ -441,6 +469,31 @@ export default function FileApprobationPage() {
                       {p.reason && (
                         <p className="text-xs text-muted-foreground/80 mt-2 italic">{t("fileApprobation.why", { reason: p.reason })}</p>
                       )}
+                      <dl className="mt-3 grid gap-x-6 gap-y-1 text-xs sm:grid-cols-2" data-testid={`fiche-${p.id}`}>
+                        {p.nature && (
+                          <div className="flex gap-1.5">
+                            <dt className="text-muted-foreground">{t("fileApprobation.fiche.nature")}</dt>
+                            <dd className={p.sensible ? "font-medium text-orange-700 dark:text-orange-300" : "font-medium"}>{t(`fileApprobation.nature.${p.nature}`)}</dd>
+                          </div>
+                        )}
+                        <div className="flex gap-1.5">
+                          <dt className="text-muted-foreground">{t("fileApprobation.fiche.dossier")}</dt>
+                          <dd>{p.dossier ? <Link href={p.dossier} className="text-blue-700 dark:text-blue-300 underline underline-offset-2">{t("fileApprobation.fiche.ouvrir")}</Link> : t("fileApprobation.fiche.aucunDossier")}</dd>
+                        </div>
+                        <div className="flex gap-1.5">
+                          <dt className="text-muted-foreground">{t("fileApprobation.fiche.demandeur")}</dt>
+                          <dd>{p.demandeur || t(`bugun.kaynak.${cleSource(p.sourceType || "")}`)}</dd>
+                        </div>
+                        {p.echeance && !isHistory && (
+                          <div className="flex gap-1.5">
+                            <dt className="text-muted-foreground">{t("fileApprobation.fiche.echeance")}</dt>
+                            <dd className="tabular-nums">{formatEcheance(p.echeance)}</dd>
+                          </div>
+                        )}
+                      </dl>
+                      {p.sensible && !isHistory && (
+                        <p className="mt-2 text-xs text-orange-800 dark:text-orange-200">{t("fileApprobation.lot.unParUn")}</p>
+                      )}
 
                       {!isHistory && (
                         <ActionPreview
@@ -456,7 +509,6 @@ export default function FileApprobationPage() {
                             size="sm"
                             onClick={() => handleApprove(p)}
                             disabled={busy}
-                            className="bg-emerald-600 hover:bg-emerald-700"
                           >
                             <Check className="h-4 w-4 mr-1.5" />{t("fileApprobation.approve")}
                           </Button>

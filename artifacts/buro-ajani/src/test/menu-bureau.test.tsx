@@ -258,11 +258,13 @@ const menu = () => screen.getByRole("navigation", { name: "Ana menü" });
 /** Le turc est charge a la demande : on attend qu'il soit la avant de lire les libelles. */
 async function monterEnTurc(role: string, adresse = "/") {
   const rendu = monter(role, adresse);
-  await screen.findAllByText(adresse.startsWith("/organisations") ? "Platform konsolu" : "Büro Ayarları", {}, { timeout: 5000 });
+  await screen.findAllByText(adresse.startsWith("/organisations") ? "Platform konsolu" : "Büro Ayarları", {}, { timeout: 15000 });
   return rendu;
 }
 
-describe("la mise en page montee", () => {
+// La mise en page entiere, plus le chargement du turc : sur une machine
+// chargee (CI, suite complete), le delai par defaut de 5 s ne suffit pas.
+describe("la mise en page montee", { timeout: 30000 }, () => {
   it("montre les huit sections a l'administrateur, sans la console plateforme", async () => {
     await monterEnTurc("administrateur");
     for (const nom of ["Bugün", "İletişim Merkezi", "CRM ve Satış", "Şantiyeler ve İşler", "Planlama", "Finans", "Ajan Bureau", "Bilgi ve Analiz"]) {
@@ -313,7 +315,7 @@ describe("la mise en page montee", () => {
   });
 });
 
-describe("le bouton « Commande vocale »", () => {
+describe("le bouton « Commande vocale »", { timeout: 30000 }, () => {
   it("n'apparait que si l'assistant vocal est disponible, et le pilote", async () => {
     await monterEnTurc("agent");
     expect(screen.queryByTestId("bouton-commande-vocale")).toBeNull();

@@ -4877,7 +4877,8 @@
       "actionImpossible": "الإجراء غير ممكن.",
       "error": "خطأ",
       "proposalRejected": "تم رفض الاقتراح"
-    }
+    },
+    "reviewInQueue": "مراجعة والموافقة"
   },
   "auditDenetim": {
     "title": "تدقيق التطبيق",
@@ -6268,6 +6269,25 @@
       "approveActionTitle": "الموافقة على هذا الإجراء؟",
       "sendEmailConfirm": "إرسال",
       "executeImmediately": "سيتم تنفيذ الإجراء فورًا."
+    },
+    "fiche": {
+      "nature": "النوع:",
+      "dossier": "السجل:",
+      "ouvrir": "فتح السجل",
+      "aucunDossier": "لا يوجد سجل مرتبط",
+      "demandeur": "طلبه:",
+      "echeance": "القرار قبل:"
+    },
+    "nature": {
+      "interne": "داخلي — لا يخرج شيء من المكتب",
+      "externe": "رسالة إلى عميل أو طرف ثالث",
+      "financier": "مال أو اشتراك",
+      "planning": "موعد أو جدول",
+      "suppression": "حذف البيانات"
+    },
+    "lot": {
+      "unParUn": "هذا الإجراء يخرج من المكتب: يُوافق عليه واحدًا تلو الآخر، بعد معاينته.",
+      "melange": "الموافقة الجماعية: إجراءات داخلية من النوع نفسه فقط."
     }
   },
   "rendezVousPublic": {

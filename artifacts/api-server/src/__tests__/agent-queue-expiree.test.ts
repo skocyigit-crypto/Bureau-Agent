@@ -26,6 +26,7 @@ import request from "supertest";
 import { eq } from "drizzle-orm";
 import { agentProposalsTable, db, organisationsTable, usersTable } from "@workspace/db";
 import { expireStaleProposals } from "../services/proposal-queue";
+import { empreinteArgs } from "../services/sensibilite-propositions";
 import router from "../routes/agent-queue";
 
 const stamp = Date.now();
@@ -91,18 +92,22 @@ describe("file d'approbation et expiration", () => {
 
   it("approuver une proposition en attente l'execute", async () => {
     const p = await proposition();
-    const r = await request(appli()).post(`/api/agent-queue/${p.id}/approve`);
+    // Un e-mail sort du bureau : il s'approuve sur l'empreinte de l'apercu lu
+    // (onay-onizleme-db.test.ts).
+    const r = await request(appli()).post(`/api/agent-queue/${p.id}/approve`).send({ empreinte: empreinteArgs(p.args) });
     expect(r.status).toBe(200);
     expect(outilsExecutes).toEqual(["send_email"]);
     expect((await lire(p.id)).status).toBe("executee");
   });
 
   it("le lot n'approuve pas une proposition expiree", async () => {
-    const expiree = await proposition({ status: "expiree" });
-    const attente = await proposition();
+    // Un lot n'admet que des actions internes (un e-mail s'approuve seul, sur
+    // son apercu) : le lot porte donc sur des taches.
+    const expiree = await proposition({ status: "expiree", toolName: "create_task", args: { title: "Rappeler" } });
+    const attente = await proposition({ toolName: "create_task", args: { title: "Rappeler" } });
     const r = await request(appli()).post("/api/agent-queue/bulk-decide").send({ decision: "approve", ids: [expiree.id, attente.id] });
     expect(r.status).toBe(200);
-    expect(outilsExecutes).toEqual(["send_email"]);
+    expect(outilsExecutes).toEqual(["create_task"]);
     expect((await lire(expiree.id)).status).toBe("expiree");
   });
 
