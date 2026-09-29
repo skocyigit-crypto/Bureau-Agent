@@ -1,12 +1,21 @@
-import { pgTable, serial, integer, text, timestamp, numeric, jsonb, index, doublePrecision, boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, numeric, jsonb, index, uniqueIndex, doublePrecision, boolean } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { organisationsTable } from "./organisations";
 import { contactsTable } from "./contacts";
+import { devisTable } from "./devis";
+import { prospectsTable } from "./prospects";
 
 export const projetsTable = pgTable("projets", {
   id: serial("id").primaryKey(),
   organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
   contactId: integer("contact_id").references(() => contactsTable.id, { onDelete: "set null" }),
+  // Le devis accepte dont ce chantier est l'execution, et l'opportunite d'ou
+  // il vient. Ouvrir un chantier depuis un devis est un geste explicite
+  // (POST /devis/:id/chantier), jamais automatique ; un devis n'ouvre qu'UN
+  // chantier (index unique partiel ci-dessous) — deux fiches pour le meme
+  // travail, c'est deux budgets, deux plannings et une facture de trop.
+  devisId: integer("devis_id").references(() => devisTable.id, { onDelete: "set null" }),
+  prospectId: integer("prospect_id").references(() => prospectsTable.id, { onDelete: "set null" }),
   title: text("title").notNull(),
   description: text("description"),
   status: text("status").notNull().default("planifie"),
@@ -62,6 +71,8 @@ export const projetsTable = pgTable("projets", {
   index("projets_org_id_idx").on(table.organisationId),
   index("projets_status_idx").on(table.status),
   index("projets_contact_id_idx").on(table.contactId),
+  uniqueIndex("projets_devis_unique_idx").on(table.devisId).where(sql`${table.devisId} is not null`),
+  index("projets_prospect_id_idx").on(table.prospectId),
   // Accent-insensitive trigram search index used by the Commandant chat
   // (find_project) and smart search. Requires `pg_trgm` + `unaccent` and the
   // IMMUTABLE `f_unaccent()` wrapper (see lib/db/scripts/ensure-search-extensions.sql).

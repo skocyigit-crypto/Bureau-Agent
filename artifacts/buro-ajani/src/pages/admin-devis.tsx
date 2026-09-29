@@ -14,7 +14,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { ArrowRight,Edit,FileText,Loader2,Plus,RefreshCw,Search,Trash2 } from "lucide-react";
+import { ArrowRight,Edit,FileText,HardHat,Loader2,Plus,RefreshCw,Search,Trash2 } from "lucide-react";
+import { useLocation } from "wouter";
 import { useCallback,useEffect,useState } from "react";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
@@ -72,6 +73,8 @@ export default function AdminDevisPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [convertingId, setConvertingId] = useState<number | null>(null);
+  const [openingSiteId, setOpeningSiteId] = useState<number | null>(null);
+  const [, navigate] = useLocation();
   const [form, setForm] = useState({ ...EMPTY_FORM });
 
   const load = useCallback(async () => {
@@ -122,6 +125,26 @@ export default function AdminDevisPage() {
       } else { const d = await res.json(); toast({ title: t("adminDevis.toast.error"), description: d.error, variant: "destructive" }); }
     } catch { toast({ title: t("adminDevis.toast.error"), description: t("adminDevis.toast.saveFailed"), variant: "destructive" }); }
     finally { setSaving(false); }
+  };
+
+  // Ouvrir le chantier d'un devis accepte : geste explicite, un seul chantier
+  // par devis (le serveur rend le chantier existant au second appel).
+  const handleOpenSite = async (d: Devis) => {
+    setOpeningSiteId(d.id);
+    try {
+      const res = await fetch(`${BASE}/api/devis/${d.id}/chantier`, { method: "POST", credentials: "include" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast({ title: data.dejaOuvert ? t("adminDevis.toast.siteAlreadyOpen") : t("adminDevis.toast.siteOpened"), description: data.projet?.title ?? "" });
+        navigate("/projets");
+      } else {
+        toast({ title: t("adminDevis.toast.siteFailed"), description: data.error ?? "", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: t("adminDevis.toast.siteFailed"), variant: "destructive" });
+    } finally {
+      setOpeningSiteId(null);
+    }
   };
 
   const handleConvert = async (d: Devis) => {
@@ -193,9 +216,19 @@ export default function AdminDevisPage() {
                 </div>
                 <StatusBadge status={d.status} />
                 <span className="text-sm font-bold text-emerald-600 hidden md:block w-24 text-right">{fmtMoney(d.totalAmount, d.currency)}</span>
-                <Button variant="ghost" size="sm" className="h-7 text-xs text-blue-600" onClick={() => handleConvert(d)} disabled={convertingId === d.id} title={t("adminDevis.convertTitle")}>
-                  {convertingId === d.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <><ArrowRight className="w-3 h-3 mr-1" />{t("adminDevis.invoice")}</>}
-                </Button>
+                {/* Facturer et ouvrir le chantier : seulement un devis ACCEPTE.
+                    Le bouton « Facture » s'offrait sur tout devis, brouillon ou
+                    refuse compris. */}
+                {d.status === "accepte" && (
+                  <>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleOpenSite(d)} disabled={openingSiteId === d.id} title={t("adminDevis.openSiteTitle")} data-testid={`ouvrir-chantier-${d.id}`}>
+                      {openingSiteId === d.id ? <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" /> : <><HardHat className="w-3 h-3 mr-1" aria-hidden="true" />{t("adminDevis.openSite")}</>}
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs text-blue-600" onClick={() => handleConvert(d)} disabled={convertingId === d.id} title={t("adminDevis.convertTitle")} data-testid={`facturer-${d.id}`}>
+                      {convertingId === d.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <><ArrowRight className="w-3 h-3 mr-1" />{t("adminDevis.invoice")}</>}
+                    </Button>
+                  </>
+                )}
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(d)} aria-label={t("common.edit")}><Edit className="w-3 h-3" aria-hidden="true" /></Button>
                 <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => handleDelete(d.id)} aria-label={t("common.delete")}><Trash2 className="w-3 h-3" aria-hidden="true" /></Button>
               </div>

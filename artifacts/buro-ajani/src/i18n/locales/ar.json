@@ -5864,8 +5864,13 @@
       "conversionFailed": "فشل التحويل.",
       "deleteConfirmTitle": "حذف عرض السعر هذا؟",
       "deleteConfirmLabel": "حذف",
-      "deleted": "تم حذف عرض السعر"
-    }
+      "deleted": "تم حذف عرض السعر",
+      "siteOpened": "تم فتح الورشة",
+      "siteAlreadyOpen": "ورشة هذا العرض مفتوحة بالفعل",
+      "siteFailed": "تعذر فتح الورشة"
+    },
+    "openSite": "فتح الورشة",
+    "openSiteTitle": "فتح ورشة هذا العرض المقبول (ورشة واحدة لكل عرض)"
   },
   "adminAudit": {
     "accessTitle": "الوصول محظور",

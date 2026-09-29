@@ -5858,8 +5858,13 @@
       "conversionFailed": "Umwandlung fehlgeschlagen.",
       "deleteConfirmTitle": "Dieses Angebot löschen?",
       "deleteConfirmLabel": "Löschen",
-      "deleted": "Angebot gelöscht"
-    }
+      "deleted": "Angebot gelöscht",
+      "siteOpened": "Baustelle eröffnet",
+      "siteAlreadyOpen": "Die Baustelle dieses Angebots ist bereits eröffnet",
+      "siteFailed": "Die Baustelle konnte nicht eröffnet werden"
+    },
+    "openSite": "Baustelle eröffnen",
+    "openSiteTitle": "Baustelle für dieses angenommene Angebot eröffnen (eine Baustelle pro Angebot)"
   },
   "adminAudit": {
     "accessTitle": "Zugriff eingeschränkt",

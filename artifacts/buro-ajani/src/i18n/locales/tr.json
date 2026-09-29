@@ -5858,8 +5858,13 @@
       "conversionFailed": "Dönüştürme başarısız.",
       "deleteConfirmTitle": "Bu teklif silinsin mi?",
       "deleteConfirmLabel": "Sil",
-      "deleted": "Teklif silindi"
-    }
+      "deleted": "Teklif silindi",
+      "siteOpened": "Şantiye açıldı",
+      "siteAlreadyOpen": "Bu teklifin şantiyesi zaten açık",
+      "siteFailed": "Şantiye açılamadı"
+    },
+    "openSite": "Şantiye aç",
+    "openSiteTitle": "Kabul edilen bu teklifin şantiyesini aç (teklif başına tek şantiye)"
   },
   "adminAudit": {
     "accessTitle": "Erişim kısıtlı",

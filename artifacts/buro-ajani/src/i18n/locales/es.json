@@ -5858,8 +5858,13 @@
       "conversionFailed": "Conversión fallida.",
       "deleteConfirmTitle": "¿Eliminar este presupuesto?",
       "deleteConfirmLabel": "Eliminar",
-      "deleted": "Presupuesto eliminado"
-    }
+      "deleted": "Presupuesto eliminado",
+      "siteOpened": "Obra abierta",
+      "siteAlreadyOpen": "La obra de este presupuesto ya está abierta",
+      "siteFailed": "No se pudo abrir la obra"
+    },
+    "openSite": "Abrir la obra",
+    "openSiteTitle": "Abrir la obra de este presupuesto aceptado (una obra por presupuesto)"
   },
   "adminAudit": {
     "accessTitle": "Acceso restringido",
