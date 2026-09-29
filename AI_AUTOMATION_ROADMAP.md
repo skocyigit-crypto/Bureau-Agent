@@ -2789,6 +2789,8 @@ Beş eksen kodda ayrı ayrı tarandı; aşağıdakiler ölçülerek bulundu.
    kaydı (talimat + izinli araçlar + çıktı şeması), sonra yönlendirme.
 9. Asistan ve Voice Live 36 aracın hepsini alıyor; onay yürütücüsü üretici
    ajanın izin listesini yeniden kontrol etmiyor (`proposal-queue.ts` 73-74).
+   **Kısmen kapandı 29/09 (Lot S1):** Voice Live Express zincirinin DIŞINDAydı: rol/lisans/kota yoktu, `lecture_seule` sesle `send_email` onaylayabiliyordu, kullanım hiç yazılmıyordu. Artık açılışta `admettreVoiceLive` (rol, lisans YAZMA gibi, AI kotası); salt-okur rol yalnız okuma araçlarını görüyor ve hiçbir şey onaylayamıyor; kullanım tur başına bir satır. `support-inbox` kuyruğu atlıyordu (doğrudan insert) → `enqueueProposal`; yapısal test: öneri tablosuna yalnız `proposal-queue.ts` yazar. Açık: yürütmede üretici↔araç denetimi (öneride ajan kimliği yok), asistanın 36 aracı.
+   **E-posta (madde 4b) kapandı 29/09:** yedek zincir her hatada geçiyordu → ağ kesintisi/5xx/istisnada (e-posta gitmiş olabilir) zincir DURUYOR, "envoi incertain" dönüyor; yalnız 4xx (kesin ret) sonraki sağlayıcıya geçiyor. `send_email`/`send_sms` başarısızlığı `executeTool`'da artık başarısızlık: öneri `echouee`, fatura hatırlatması "gönderildi" diye kaydedilmiyor. Arama özeti e-postası yalnız ETKİN hesaplara; randevu ve otomasyon e-postalarında üçüncü taraf değerleri HTML'de kaçışlanıyor.
 10. LLM çıktısı hiçbir yerde şemayla (zod/responseSchema) doğrulanmıyor;
     DB'ye yazan parse'lar: `ai-commandant.ts` 625/697/989, `ai-agents.ts`
     3049/3294, `autonomous-inbox.ts` 248, `workforce-agent.ts` 402-495.

@@ -617,8 +617,11 @@ async function sendCallRecapEmail(args: {
     const cfg = reglagesSecretaire(args.config);
     if (cfg.emailRecapEnabled === false) return;
 
+    // Comptes ACTIFS seulement : un compte desactive est souvent celui d'un
+    // ancien salarie, qui recevait encore le resume et la transcription de
+    // chaque appel (mesure du 29/09).
     const recipients = await db.select({ email: usersTable.email }).from(usersTable)
-      .where(eq(usersTable.organisationId, args.orgId)).limit(20);
+      .where(and(eq(usersTable.organisationId, args.orgId), eq(usersTable.actif, true))).limit(20);
     const emails = recipients.map((r) => r.email).filter((e): e is string => !!e);
     if (emails.length === 0) return;
 

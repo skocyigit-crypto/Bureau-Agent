@@ -6,6 +6,7 @@ import { sendSms as providerSendSms } from "./telephony-providers";
 import { computeFreeSlots, isSlotFree, isSlotWithinWorkingHours, type TimeSlot } from "./availability";
 import { notifyOrgUsers } from "./whatsapp-notify";
 import { logger } from "../lib/logger";
+import { escapeHtml } from "../lib/html-escape";
 import {
   pushAppointmentToGoogleCalendar,
   updateAppointmentInGoogleCalendar,
@@ -212,13 +213,15 @@ export async function sendOfferMessage(
         )}</a></td></tr>`,
     )
     .join("");
+  // Nom du contact, motif (souvent redige par un modele) et nom de
+  // l'organisation sont des donnees : echappes dans le HTML (29/09).
   const html = `
     <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;color:#0f1729;">
-      <p>${greeting}</p>
-      <p>Voici nos creneaux disponibles pour votre rendez-vous (<strong>${offer.reason}</strong>). Cliquez sur celui qui vous convient pour le confirmer&nbsp;:</p>
+      <p>${escapeHtml(greeting)}</p>
+      <p>Voici nos creneaux disponibles pour votre rendez-vous (<strong>${escapeHtml(offer.reason)}</strong>). Cliquez sur celui qui vous convient pour le confirmer&nbsp;:</p>
       <table role="presentation" style="margin:16px 0;">${htmlSlots}</table>
       <p style="font-size:13px;color:#475569;">Ou ouvrez ce lien&nbsp;: <a href="${link}">${link}</a></p>
-      <p style="font-size:13px;color:#94a3b8;">${orgName}</p>
+      <p style="font-size:13px;color:#94a3b8;">${escapeHtml(orgName)}</p>
     </div>`;
   const text =
     `${greeting}\n\nVoici nos creneaux disponibles pour votre rendez-vous (${offer.reason}). Choisissez celui qui vous convient:\n\n` +
@@ -286,7 +289,7 @@ function announceBooking(
 ): void {
   const greeting = `Bonjour${offer.contactName ? ` ${offer.contactName}` : ""},`;
   const verb = reprogramme ? "a bien ete reprogramme pour" : "est confirme pour";
-  const html = `<div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;color:#0f1729;"><p>${greeting}</p><p>Votre rendez-vous (<strong>${offer.reason}</strong>) ${verb}&nbsp;:</p><p style="font-size:16px;font-weight:700;">${whenStr}</p><p style="font-size:13px;color:#94a3b8;">${orgName}</p></div>`;
+  const html = `<div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;color:#0f1729;"><p>${escapeHtml(greeting)}</p><p>Votre rendez-vous (<strong>${escapeHtml(offer.reason)}</strong>) ${verb}&nbsp;:</p><p style="font-size:16px;font-weight:700;">${whenStr}</p><p style="font-size:13px;color:#94a3b8;">${escapeHtml(orgName)}</p></div>`;
   const text = `${greeting}\n\nVotre rendez-vous (${offer.reason}) ${verb}:\n${whenStr}\n\n${orgName}`;
   const subject = reprogramme ? `Rendez-vous reprogramme — ${orgName}` : `Rendez-vous confirme — ${orgName}`;
   const sms = `${orgName}: votre rendez-vous (${offer.reason}) est ${reprogramme ? "reprogramme" : "confirme"} pour ${whenStr}.`;
@@ -513,7 +516,7 @@ export async function cancelOffer(token: string): Promise<CancelResult> {
       ? fmtSlot({ start: offer.selectedStart.toISOString(), end: offer.selectedEnd.toISOString() }, tz)
       : "";
   const greeting = `Bonjour${offer.contactName ? ` ${offer.contactName}` : ""},`;
-  const html = `<div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;color:#0f1729;"><p>${greeting}</p><p>Votre rendez-vous (<strong>${offer.reason}</strong>)${whenStr ? ` du ${whenStr}` : ""} a bien ete annule.</p><p style="font-size:13px;color:#94a3b8;">${orgName}</p></div>`;
+  const html = `<div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;color:#0f1729;"><p>${escapeHtml(greeting)}</p><p>Votre rendez-vous (<strong>${escapeHtml(offer.reason)}</strong>)${whenStr ? ` du ${whenStr}` : ""} a bien ete annule.</p><p style="font-size:13px;color:#94a3b8;">${escapeHtml(orgName)}</p></div>`;
   const text = `${greeting}\n\nVotre rendez-vous (${offer.reason})${whenStr ? ` du ${whenStr}` : ""} a bien ete annule.\n\n${orgName}`;
   const sms = `${orgName}: votre rendez-vous (${offer.reason})${whenStr ? ` du ${whenStr}` : ""} a bien ete annule.`;
   void notifyClient(offer, `Rendez-vous annule — ${orgName}`, html, text, sms);

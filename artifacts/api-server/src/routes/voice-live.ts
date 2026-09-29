@@ -34,10 +34,13 @@ import { originesWebSocket, originWebSocketAutorisee } from "../lib/origines-aut
 import { sessionMiddleware } from "../app";
 import {
   executeTool,
-  getGeminiToolDeclarations,
   getTool,
   type ToolContext,
 } from "../services/assistant-tools";
+import { admettreVoiceLive, CompteurConsommation, declarationsPourRole, peutEcrire } from "../services/admission-voice-live";
+import { recordAiUsage } from "../services/ai-utils";
+
+const TEXTE_STATUT: Record<number, string> = { 403: "Forbidden", 429: "Too Many Requests", 503: "Service Unavailable" };
 
 // Modeles Gemini Live disponibles. On utilise le modele audio dialog
 // natif (preview) pour avoir une vraie voix conversationnelle. Si le
@@ -196,6 +199,7 @@ async function openLiveSession(
   client: GoogleGenAI,
   voice: VoiceName,
   resumeHandle: string | undefined,
+  declarations: ReturnType<typeof declarationsPourRole>,
   onMessage: (msg: LiveServerMessage) => void,
   onError: (err: unknown) => void,
   onClose: () => void,
@@ -264,8 +268,10 @@ async function openLiveSession(
       sessionResumption: resumeHandle ? { handle: resumeHandle } : {},
       // Outils. Live API n'autorise pas googleSearch + functionDeclarations
       // dans la MEME entry mais accepte des entries separees.
+      // Les outils selon le role (services/admission-voice-live.ts) : un
+      // compte en lecture seule ne recoit que la lecture.
       tools: [
-        { functionDeclarations: getGeminiToolDeclarations().functionDeclarations },
+        { functionDeclarations: declarations },
         { googleSearch: {} },
         { codeExecution: {} },
       ],
@@ -442,10 +448,25 @@ export function attachVoiceLiveWs(server: Server): void {
         socket.destroy();
         return;
       }
-      const session = fakeReq.session as { userId?: number; organisationId?: number } | undefined;
+      const session = fakeReq.session as { userId?: number; organisationId?: number; userRole?: string } | undefined;
       if (!session?.userId || !session?.organisationId) {
         logger.warn({ url }, "[VoiceLive] Upgrade rejected — no session");
         socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+        socket.destroy();
+        return;
+      }
+      void accepter(session as { userId: number; organisationId: number; userRole?: string });
+    });
+
+    // 3. Les regles de l'HTTP que la chaine Express n'applique pas ici :
+    // role, licence, quota IA (services/admission-voice-live.ts).
+    // Declaration de fonction (remontee) : le rappel de session peut revenir
+    // avant que cette ligne ne soit atteinte.
+    async function accepter(session: { userId: number; organisationId: number; userRole?: string }): Promise<void> {
+      const admission = await admettreVoiceLive({ organisationId: session.organisationId, userRole: session.userRole });
+      if (!admission.ok) {
+        logger.warn({ url, userId: session.userId, raison: admission.raison }, "[VoiceLive] Upgrade refuse");
+        socket.write(`HTTP/1.1 ${admission.statut} ${TEXTE_STATUT[admission.statut] ?? "Refused"}\r\n\r\n`);
         socket.destroy();
         return;
       }
@@ -477,9 +498,9 @@ export function attachVoiceLiveWs(server: Server): void {
       } catch { /* ignore */ }
 
       wss.handleUpgrade(req, socket, head, (ws) => {
-        bridgeConnection(ws, session.userId!, session.organisationId!, voice, resumeHandle);
+        bridgeConnection(ws, session.userId, session.organisationId, voice, resumeHandle, session.userRole);
       });
-    });
+    }
   });
 
   logger.info("[VoiceLive] WebSocket server attached at /api/voice/live");
@@ -490,7 +511,8 @@ function bridgeConnection(
   userId: number,
   orgId: number,
   voice: VoiceName,
-  resumeHandle?: string,
+  resumeHandle: string | undefined,
+  role: string | undefined,
 ): void {
   const liveClient = buildLiveClient();
   if ("error" in liveClient) {
@@ -505,10 +527,19 @@ function bridgeConnection(
   // Tool-calls en attente de confirmation utilisateur (pour les outils
   // requiresConfirmation comme envoi d'email/SMS, suppression, etc.).
   const pendingToolCalls = new Map<string, { name: string; args: Record<string, unknown> }>();
+  // La consommation n'etait jamais enregistree : ni quota, ni cout visible.
+  const conso = new CompteurConsommation((inputTokens, outputTokens) => {
+    void recordAiUsage({
+      organisationId: orgId, userId, provider: "gemini", model: LIVE_MODEL, route: "/voice/live",
+      inputTokens, outputTokens, durationMs: 0,
+    });
+  });
+  const refusRole = { error: "Votre role (lecture seule) ne permet pas d'executer cette action." };
 
   const cleanup = (): void => {
     if (closed) return;
     closed = true;
+    conso.finDeTour();
     // Avant de fermer la session Gemini, rejette tous les tool-calls
     // en attente: sans reponse, Gemini reste bloque cote serveur et ne
     // pourra pas etre reutilise proprement. Garantie cote serveur en
@@ -552,6 +583,13 @@ function bridgeConnection(
     // Confirmation utilisateur pour les outils risques (envoi externe,
     // suppression). On stocke la call, on previent l'UI, et on attend
     // un message `confirm_tool` du client avant d'executer.
+    if (tool?.requiresConfirmation && !peutEcrire(role)) {
+      // Non declare pour ce role ; si le modele l'invente quand meme, refus
+      // immediat plutot qu'une confirmation que ce role ne peut pas donner.
+      sendFrame(ws, { type: "tool_step", toolName: name, toolArgs: args, toolResult: refusRole, toolCallId: callId });
+      try { gSession.sendToolResponse({ functionResponses: [{ id: callId, name, response: refusRole }] }); } catch { /* ignore */ }
+      return;
+    }
     if (tool?.requiresConfirmation) {
       pendingToolCalls.set(callId, { name, args });
       const summary = tool.summarize?.(args as never) ?? `Confirmer ${name}`;
@@ -578,6 +616,7 @@ function bridgeConnection(
     liveClient.client,
     voice,
     resumeHandle,
+    declarationsPourRole(role),
     (msg: LiveServerMessage) => {
       // Garde global: si on est en train de fermer, on ignore tout
       // message Gemini residual (audio en vol, tool_call tardif).
@@ -651,8 +690,10 @@ function bridgeConnection(
       if (sc?.interrupted) {
         sendFrame(ws, { type: "interrupted" });
       }
+      conso.vu(msg.usageMetadata as { promptTokenCount?: number; responseTokenCount?: number; totalTokenCount?: number } | undefined);
       if (sc?.turnComplete) {
         sendFrame(ws, { type: "turn_complete" });
+        conso.finDeTour();
       }
       // Grounding (Google Search): sources web utilisees par le modele.
       const gm = sc?.groundingMetadata as unknown as {
@@ -790,6 +831,14 @@ function bridgeConnection(
               functionResponses: [{ id: frame.toolCallId, name: pending.name, response: payload }],
             });
           } catch (err) { logger.error({ err }, "[VoiceLive] sendToolResponse(reject) failed"); }
+          return;
+        }
+        // Le meme plancher qu'en HTTP : un compte en lecture seule n'approuve rien.
+        if (!peutEcrire(role)) {
+          sendFrame(ws, { type: "tool_step", toolName: pending.name, toolArgs: pending.args, toolResult: refusRole, toolCallId: frame.toolCallId });
+          try {
+            gSession?.sendToolResponse({ functionResponses: [{ id: frame.toolCallId, name: pending.name, response: refusRole }] });
+          } catch (err) { logger.error({ err }, "[VoiceLive] sendToolResponse(refus role) failed"); }
           return;
         }
         // Approve: on execute reellement, en bypassant le gate confirmation.

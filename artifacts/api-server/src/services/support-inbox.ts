@@ -16,6 +16,7 @@ import { assertAiQuota, invalidateQuotaCache } from "./ai-quota";
 import { recordAiUsage, extractGeminiTokens, geminiActualModel, GEMINI_FLASH_MODEL, wrapUntrusted } from "./ai-utils";
 import { logger } from "../lib/logger";
 import { aiForOrg } from "./ai-client";
+import { enqueueProposal } from "./proposal-queue";
 
 const SUPER_ADMIN_ORG_SLUG = "agent-de-bureau-sas";
 const BODY_MAX = 6000;
@@ -197,33 +198,37 @@ export async function processIncomingSupportEmail(email: IncomingSupportEmail, o
 
     const replySubject = /^re:/i.test(email.subject) ? email.subject : `Re: ${email.subject}`;
 
-    await db.insert(agentProposalsTable).values({
-      organisationId: orgId,
+    // Par la file commune, comme tous les producteurs : l'insertion directe
+    // sautait la validation des arguments (une adresse invalide produisait
+    // une proposition inapprouvable) et ne prevenait personne. Le message
+    // recu va dans la raison : c'est ce que l'approbateur doit lire pour
+    // juger la reponse (l'ancien `args.originalEmail` n'etait affiche nulle
+    // part et etait retire a l'execution).
+    const origine = options.authentifie
+      ? `Rapport envoye depuis l'application (${classification.category})`
+      : `E-mail entrant (${classification.category}) via support@agentdebureau.fr`;
+    const r = await enqueueProposal({
+      orgId,
       runId: `support-email-${sourceRef}`,
       toolName: "send_email",
       title: `Répondre à ${email.fromName || email.from}`,
       summary: classification.summary,
-      reason: options.authentifie
-        ? `Rapport envoye depuis l'application (${classification.category})`
-        : `E-mail entrant (${classification.category}) via support@agentdebureau.fr`,
+      reason: `${origine}\n\nMessage reçu de ${email.from} — « ${email.subject} » :\n${email.text.slice(0, 1500)}`,
       args: {
         to: email.from,
         subject: replySubject,
         body: classification.draftReply || "(Aucun brouillon généré automatiquement — à rédiger manuellement.)",
-        originalEmail: {
-          from: email.from,
-          fromName: email.fromName ?? null,
-          subject: email.subject,
-          text: email.text.slice(0, 4000),
-        },
       },
       category: "email",
       priority: classification.priority,
       confidence: classification.confidence,
       sourceType: "support_email",
       sourceRef,
-      status: "en_attente",
     });
+    if (!r.ok) {
+      logger.error({ from: email.from, error: r.error }, "[support-inbox] proposition refusee par la file");
+      return;
+    }
 
     logger.info({ from: email.from, category: classification.category }, "[support-inbox] proposition de réponse créée");
   } catch (err) {
