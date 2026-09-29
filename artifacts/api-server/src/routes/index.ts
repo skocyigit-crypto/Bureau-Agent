@@ -11,6 +11,7 @@ import contactsRouter from "./contacts";
 import tasksRouter from "./tasks";
 import messagesRouter from "./messages";
 import dashboardRouter from "./dashboard";
+import bugunRouter from "./bugun";
 import aiAnalysisRouter from "./ai-analysis";
 import workspaceRouter from "./workspace";
 import integrationsRouter from "./integrations";
@@ -195,6 +196,8 @@ router.use(contactsRouter);
 router.use(tasksRouter);
 router.use(messagesRouter);
 router.use(dashboardRouter);
+// Table de decision « Aujourd'hui » : chaque ligne est un enregistrement.
+router.use(bugunRouter);
 router.use(aiAnalysisRouter);
 router.use(aiAgentsRouter);
 router.use(calendarRouter);

@@ -60,14 +60,17 @@ function defaultPos(minimized: boolean): Pos {
 export function FloatingAvatar() {
   const { t } = useTranslation();
   const GREETING = t("floatingAvatar.greeting");
+  // Reduit par defaut : ouvert, le panneau couvrait la table de decision
+  // « Aujourd'hui ». Le choix de l'utilisateur, une fois fait, est garde.
   const [minimized, setMinimized] = useState<boolean>(() => {
     try {
-      return localStorage.getItem(MIN_KEY) === "1";
+      const choix = localStorage.getItem(MIN_KEY);
+      return choix === null ? true : choix === "1";
     } catch {
-      return false;
+      return true;
     }
   });
-  const [pos, setPos] = useState<Pos>(() => loadPos() ?? defaultPos(false));
+  const [pos, setPos] = useState<Pos>(() => loadPos() ?? defaultPos(minimized));
   const dragging = useRef(false);
   const moved = useRef(false);
   const start = useRef<{ px: number; py: number; ox: number; oy: number }>({

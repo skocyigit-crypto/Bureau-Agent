@@ -9825,5 +9825,89 @@
       "invalide_other": "Akış kaydedilmedi: {{count}} hata.",
       "erreur": "Kayıt başarısız: {{raison}}"
     }
+  },
+  "bugun": {
+    "panneau": {
+      "simdi": "Şimdi ilgilen",
+      "onaylar": "Onay bekleyenler",
+      "plan": "Bugünün planı",
+      "dosyalar": "İş dosyaları",
+      "finans": "Finansal dikkat",
+      "ajanlar": "Ajan durumu"
+    },
+    "bos": {
+      "simdi": "Şu an acil bir şey yok.",
+      "onaylar": "Onay bekleyen işlem yok.",
+      "plan": "Bugün için randevu, görev ya da teslim yok.",
+      "dosyalar": "Yeni talep, yanıt bekleyen teklif ya da geciken şantiye yok.",
+      "finans": "Vadesi geçen fatura, bütçe aşımı ya da faturalanmamış kabul yok.",
+      "ajanlar": "Son 24 saatte hata ya da insana devredilen iş yok; bağlantılar tamam."
+    },
+    "tur": {
+      "cagri_canli": "Canlı çağrı",
+      "cagri_aktariliyor": "Aktarılıyor",
+      "geri_arama": "Geri aranacak (cevapsız)",
+      "sesli_mesaj": "Sesli mesaj bıraktı",
+      "geri_arama_istegi": "Geri arama isteği",
+      "acil_saha": "Acil saha sorunu",
+      "onay_suresi": "Onay süresi doluyor",
+      "onay": "Onay bekliyor",
+      "onay_email": "E-posta gönderimi",
+      "onay_sms": "SMS gönderimi",
+      "onay_tache": "Görev oluşturma",
+      "onay_rappel": "Hatırlatma",
+      "onay_relance": "Ödeme hatırlatması",
+      "onay_contact": "Kişi kaydı",
+      "randevu": "Randevu",
+      "kesif": "Keşif ziyareti",
+      "randevu_onaysiz": "Önerilen randevu (onaysız)",
+      "gorev_bugun": "Bugünkü görev",
+      "teslim": "Yaklaşan teslim",
+      "talep_yeni": "Yeni talep",
+      "teklif_bekliyor": "Yanıt bekleyen teklif",
+      "santiye_gecikti": "Geciken şantiye",
+      "fatura_gecikti": "Vadesi geçen fatura",
+      "butce_asimi": "Bütçe aşımı",
+      "faturasiz_kabul": "Kabul edildi, faturalanmadı",
+      "ajan_hata": "Ajan hata aldı",
+      "ajan_devretti": "İnsana devretti",
+      "ajan_calisiyor": "Çalışıyor",
+      "baglanti_telefon": "Bağlantı eksik",
+      "baglanti_google": "Bağlantı eksik",
+      "baglanti_ia": "Bağlantı eksik"
+    },
+    "baglanti": {
+      "baglanti_telefon": "Telefon hattı bağlı değil — telefon ajanı çağrı alamaz",
+      "baglanti_google": "Google hesabı bağlı değil — e-posta ve takvim ajanı çalışamaz",
+      "baglanti_ia": "Yapay zekâ sağlayıcısı yapılandırılmamış — ajanlar çalışamaz"
+    },
+    "kaynak": {
+      "orchestrateur": "Ajan, bir talep üzerine",
+      "automation_rule": "Otomatik kural",
+      "app_audit": "Uygulama denetimi",
+      "saas_agent": "Platform ajanı",
+      "invoice_reminder": "Fatura hatırlatma kuralı",
+      "sekreter": "Otomatik sekreter",
+      "telefon": "Telefon sekreteri",
+      "support_email": "Destek e-postası",
+      "ai_execute": "Yapay zekâ komutu",
+      "autre": "Diğer kaynak"
+    },
+    "zaman": {
+      "karar": "Son karar",
+      "vade": "Vade",
+      "gecerlilik": "Geçerlilik",
+      "bitis": "Bitiş"
+    },
+    "sorumlu": "Sorumlu",
+    "tumu": "Tümü",
+    "fazlasi": "Daha fazlası var — tümünü görün",
+    "kaynakManuel": "Harcama şantiyede elle girilmiş",
+    "onayToplam": "işlem kararınızı bekliyor",
+    "sayac": "Son 24 saat: {{calisiyor}} çalışıyor · {{bekliyor}} insana devretti · {{hata}} hata",
+    "yukleniyor": "Bugünün tablosu yükleniyor",
+    "hata": "Bugünün tablosu yüklenemedi. Hiçbir şey değişmedi; yeniden deneyebilirsiniz.",
+    "tekrar": "Yeniden dene",
+    "gostergeler": "Göstergeler"
   }
 }

@@ -9825,5 +9825,89 @@
       "invalide_other": "El flujo no se guardó: {{count}} errores.",
       "erreur": "Error al guardar: {{raison}}"
     }
+  },
+  "bugun": {
+    "panneau": {
+      "simdi": "Atender ahora",
+      "onaylar": "Aprobaciones pendientes",
+      "plan": "Plan del día",
+      "dosyalar": "Expedientes",
+      "finans": "Atención financiera",
+      "ajanlar": "Estado de los agentes"
+    },
+    "bos": {
+      "simdi": "Nada urgente por ahora.",
+      "onaylar": "No hay aprobaciones pendientes.",
+      "plan": "No hay citas, tareas ni entregas hoy.",
+      "dosyalar": "No hay solicitudes nuevas, presupuestos pendientes ni obras retrasadas.",
+      "finans": "No hay facturas vencidas, sobrecostes ni presupuestos aceptados sin facturar.",
+      "ajanlar": "Sin errores ni traspasos en las últimas 24 h; las conexiones están listas."
+    },
+    "tur": {
+      "cagri_canli": "Llamada en curso",
+      "cagri_aktariliyor": "Transfiriendo",
+      "geri_arama": "Devolver llamada (perdida)",
+      "sesli_mesaj": "Dejó un mensaje de voz",
+      "geri_arama_istegi": "Solicitud de llamada",
+      "acil_saha": "Urgencia en obra",
+      "onay_suresi": "Aprobación a punto de expirar",
+      "onay": "Por aprobar",
+      "onay_email": "Envío de correo",
+      "onay_sms": "Envío de SMS",
+      "onay_tache": "Creación de tarea",
+      "onay_rappel": "Recordatorio",
+      "onay_relance": "Recordatorio de pago",
+      "onay_contact": "Ficha de contacto",
+      "randevu": "Cita",
+      "kesif": "Visita técnica",
+      "randevu_onaysiz": "Cita propuesta (sin confirmar)",
+      "gorev_bugun": "Tarea de hoy",
+      "teslim": "Entrega próxima",
+      "talep_yeni": "Nueva solicitud",
+      "teklif_bekliyor": "Presupuesto sin respuesta",
+      "santiye_gecikti": "Obra retrasada",
+      "fatura_gecikti": "Factura vencida",
+      "butce_asimi": "Sobrecoste",
+      "faturasiz_kabul": "Aceptado, sin facturar",
+      "ajan_hata": "Agente con error",
+      "ajan_devretti": "Traspasado a una persona",
+      "ajan_calisiyor": "En curso",
+      "baglanti_telefon": "Conexión ausente",
+      "baglanti_google": "Conexión ausente",
+      "baglanti_ia": "Conexión ausente"
+    },
+    "baglanti": {
+      "baglanti_telefon": "Sin línea telefónica: el agente telefónico no puede atender llamadas",
+      "baglanti_google": "Sin cuenta de Google: el agente de correo y agenda no puede trabajar",
+      "baglanti_ia": "Ningún proveedor de IA configurado: los agentes no pueden trabajar"
+    },
+    "kaynak": {
+      "orchestrateur": "Agente, por una solicitud",
+      "automation_rule": "Regla automática",
+      "app_audit": "Auditoría de la aplicación",
+      "saas_agent": "Agente de la plataforma",
+      "invoice_reminder": "Regla de recordatorio de facturas",
+      "sekreter": "Secretaria automática",
+      "telefon": "Recepcionista telefónica",
+      "support_email": "Correo de soporte",
+      "ai_execute": "Comando de IA",
+      "autre": "Otra fuente"
+    },
+    "zaman": {
+      "karar": "Decidir antes del",
+      "vade": "Vence",
+      "gecerlilik": "Válido hasta",
+      "bitis": "Fin"
+    },
+    "sorumlu": "Responsable",
+    "tumu": "Ver todo",
+    "fazlasi": "Hay más: ver todo",
+    "kaynakManuel": "Gasto introducido a mano en la obra",
+    "onayToplam": "acción(es) esperan su decisión",
+    "sayac": "Últimas 24 h: {{calisiyor}} en curso · {{bekliyor}} traspasados · {{hata}} con error",
+    "yukleniyor": "Cargando la mesa del día",
+    "hata": "No se pudo cargar la mesa del día. No cambió nada; puede reintentar.",
+    "tekrar": "Reintentar",
+    "gostergeler": "Indicadores"
   }
 }
