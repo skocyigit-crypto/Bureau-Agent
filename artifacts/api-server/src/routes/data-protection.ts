@@ -1,3 +1,4 @@
+import { tracerExtraction } from "../lib/tracer-extraction";
 import { Router } from "express";
 import { db } from "@workspace/db";
 import {
@@ -21,6 +22,7 @@ import { SECURITY_SCAN_RETENTION_DAYS } from "../services/security-scans";
 import { RETENTION_DAYS as GEOLOC_RETENTION_DAYS } from "../services/location-cleanup-cron";
 import { violationsDonneesTable } from "@workspace/db/schema";
 import { ELEMENTS_REQUIS, echeanceCnilDuClient, etatViolation } from "../services/violation-donnees";
+import { mentionsDe, nomAmbigu } from "../services/mentions-personne";
 
 const router = Router();
 
@@ -285,6 +287,7 @@ router.post("/data-protection/export", requireRole("super_admin", "administrateu
       responseNotes: "Export automatique via portail en libre-service",
     });
 
+    await tracerExtraction(req, "portabilite", { format: "json", statistiques: exportData.statistics });
     res.setHeader("Content-Type", "application/json");
     res.setHeader("Content-Disposition", `attachment; filename="agent-de-bureau-export-${new Date().toISOString().slice(0, 10)}.json"`);
     res.json(exportData);
@@ -679,6 +682,57 @@ router.get("/data-protection/my-data", async (req, res): Promise<void> => {
 
     if (profile.length === 0) { res.status(404).json({ error: "Compte introuvable." }); return; }
 
+    // Les appreciations portees sur la personne (art. 15) : voir
+    // services/mentions-personne.ts pour la regle d'extraction.
+    const moi = profile[0]!;
+    const rapportsPerformance = await db.select({
+      periode: performanceReportsTable.periode,
+      dateDebut: performanceReportsTable.dateDebut,
+      dateFin: performanceReportsTable.dateFin,
+      scoreGlobal: performanceReportsTable.scoreGlobal,
+      metriques: performanceReportsTable.metriques,
+      analyseIA: performanceReportsTable.analyseIA,
+      pointsForts: performanceReportsTable.pointsForts,
+      pointsAmelioration: performanceReportsTable.pointsAmelioration,
+      recommandations: performanceReportsTable.recommandations,
+      createdAt: performanceReportsTable.createdAt,
+    }).from(performanceReportsTable)
+      .where(and(eq(performanceReportsTable.userId, userId), eq(performanceReportsTable.organisationId, orgId)))
+      .orderBy(desc(performanceReportsTable.createdAt));
+
+    const comptes = await db.select({ id: usersTable.id, prenom: usersTable.prenom, nom: usersTable.nom })
+      .from(usersTable).where(eq(usersTable.organisationId, orgId));
+    const nomComplet = `${moi.prenom} ${moi.nom}`.trim();
+    let rapportsEquipe: { rapport: number; agent: string; date: string; passages: ReturnType<typeof mentionsDe> }[] | { nonExtrait: string };
+    if (nomAmbigu({ id: moi.id, prenom: moi.prenom, nom: moi.nom }, comptes)) {
+      rapportsEquipe = {
+        nonExtrait:
+          "Un autre compte de l'organisation porte le meme nom : les rapports d'equipe " +
+          "ne permettent pas de distinguer les deux personnes. Adressez la demande au " +
+          "responsable, qui l'instruira a la main.",
+      };
+    } else {
+      const motif = `%${nomComplet.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+      const rapports = await db.select({
+        id: aiAgentReportsTable.id, agentName: aiAgentReportsTable.agentName,
+        reportDate: aiAgentReportsTable.reportDate, summary: aiAgentReportsTable.summary,
+        details: aiAgentReportsTable.details,
+      }).from(aiAgentReportsTable)
+        .where(and(
+          eq(aiAgentReportsTable.organisationId, orgId),
+          sql`(${aiAgentReportsTable.details}::text ILIKE ${motif} OR ${aiAgentReportsTable.summary} ILIKE ${motif})`,
+        ))
+        .orderBy(desc(aiAgentReportsTable.createdAt))
+        .limit(500);
+      rapportsEquipe = rapports
+        .map((r) => ({
+          rapport: r.id, agent: r.agentName, date: r.reportDate,
+          passages: mentionsDe({ summary: r.summary, details: r.details }, nomComplet),
+        }))
+        .filter((r) => r.passages.length > 0);
+    }
+
+    await tracerExtraction(req, "donnees_personnelles", { format: "json" });
     res.setHeader("Content-Type", "application/json");
     res.setHeader("Content-Disposition", `attachment; filename="mes-donnees-${new Date().toISOString().slice(0, 10)}.json"`);
     res.json({
@@ -702,6 +756,7 @@ router.get("/data-protection/my-data", async (req, res): Promise<void> => {
         comptesGoogleRattaches: google,
         analysesSecurite,
         demandesRgpd: demandes,
+        evaluations: { rapportsPerformance, rapportsEquipe },
       },
     });
   } catch (err: any) {

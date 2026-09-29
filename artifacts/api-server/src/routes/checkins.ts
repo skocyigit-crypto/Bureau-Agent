@@ -1,3 +1,4 @@
+import { tracerExtraction } from "../lib/tracer-extraction";
 import { Router, type IRouter } from "express";
 import { eq, desc, asc, and, gte, lte, lt, sql, or, isNull } from "drizzle-orm";
 import { db, checkinsTable, usersTable, userLocationStateTable } from "@workspace/db";
@@ -514,6 +515,7 @@ router.get("/checkins/export/csv", requireRole("administrateur"), async (req, re
       escape(fmtDate(r.checkInAt)), escape(fmtDate(r.checkOutAt)),
       escape(r.location), escape(r.notes),
     ].join(SEPARATEUR_CSV))];
+    await tracerExtraction(req, "pointages", { format: "csv", lignes: rows.length });
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="pointages_${Date.now()}.csv"`);
     res.send("\uFEFF" + lines.join("\n"));

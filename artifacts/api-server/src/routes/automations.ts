@@ -1,3 +1,4 @@
+import { tracerExtraction } from "../lib/tracer-extraction";
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import {
@@ -557,6 +558,7 @@ router.get("/automations/export/csv", exportReserveAuResponsable, async (req: Re
         r.runCount, r.lastRun ? new Date(r.lastRun).toLocaleDateString("fr-FR") : "",
         r.createdAt ? new Date(r.createdAt).toLocaleDateString("fr-FR") : ""]
     );
+    await tracerExtraction(req, "automatisations", { format: "csv", lignes: rules.length });
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="automations_${Date.now()}.csv"`);
     res.send(documentCsv(header, rows));

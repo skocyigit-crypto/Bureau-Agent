@@ -1,3 +1,4 @@
+import { tracerExtraction } from "../lib/tracer-extraction";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, desc, and } from "drizzle-orm";
 import { db, notesInternesTable } from "@workspace/db";
@@ -122,6 +123,7 @@ router.get("/notes-internes/export/csv", requireRole("agent"), async (req: Reque
       r.pinned ? "Oui" : "Non", escape(Array.isArray(r.tags) ? r.tags.join(";") : ""),
       escape(fmtDate(r.createdAt)), escape(fmtDate(r.updatedAt)),
     ].join(SEPARATEUR_CSV))];
+    await tracerExtraction(req, "notes_internes", { format: "csv", lignes: rows.length });
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="notes_${Date.now()}.csv"`);
     res.send("\uFEFF" + lines.join("\n"));

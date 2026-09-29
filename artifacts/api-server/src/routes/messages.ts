@@ -1,3 +1,4 @@
+import { tracerExtraction } from "../lib/tracer-extraction";
 import { Router, type IRouter } from "express";
 import { eq, desc, asc, or, sql, and, lt } from "drizzle-orm";
 import { db, messagesTable, contactsTable } from "@workspace/db";
@@ -260,6 +261,7 @@ router.get("/messages/export/csv", exportReserveAuResponsable, async (req, res):
         { label: "messages.export.batch" },
       );
       if (!wroteHeader) {
+        await tracerExtraction(req, "messages", { format: "csv", flux: true });
         res.setHeader("Content-Type", "text/csv; charset=utf-8");
         res.setHeader("Content-Disposition", `attachment; filename="messages_${Date.now()}.csv"`);
         res.write("\uFEFF" + headers.join(SEPARATEUR_CSV) + "\n");

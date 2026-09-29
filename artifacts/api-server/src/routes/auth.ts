@@ -1,3 +1,4 @@
+import { tracerExtraction } from "../lib/tracer-extraction";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { rateLimitKey } from "../lib/request-ip";
 import bcrypt from "bcryptjs";
@@ -1294,6 +1295,7 @@ router.get("/auth/users/export/csv", async (req: Request, res: Response): Promis
       [u.id, u.email, u.prenom || "", u.nom || "", u.role, u.departement || "", u.actif ? "oui" : "non",
         u.createdAt ? new Date(u.createdAt).toLocaleDateString("fr-FR") : ""]
     );
+    await tracerExtraction(req, "utilisateurs", { format: "csv", lignes: users.length });
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="utilisateurs_${Date.now()}.csv"`);
     res.send(documentCsv(header, rows));

@@ -1,3 +1,4 @@
+import { tracerExtraction } from "../lib/tracer-extraction";
 import { Router, type Request, type Response } from "express";
 import { performGoogleDriveBackup, listGoogleDriveBackups, isConnectorAvailable, downloadAndDecryptBackup, verifyBackup, restoreFromBackup, exportBackupAsJSON } from "../services/google-drive-backup";
 import { db, autoBackupsTable, backupConfigTable } from "@workspace/db";
@@ -324,6 +325,7 @@ router.get("/google-drive-backup/export-local", async (req: Request, res: Respon
       return;
     }
 
+    await tracerExtraction(req, "sauvegarde_plateforme", { format: "json", octets: result.size });
     res.setHeader("Content-Type", "application/json");
     res.setHeader("Content-Disposition", `attachment; filename="${result.fileName}"`);
     res.setHeader("Content-Length", String(result.size));
@@ -338,6 +340,7 @@ router.get("/google-drive-backup/export-encrypted", async (req: Request, res: Re
   try {
     const backupResult = await performGoogleDriveBackup();
     if (backupResult.success) {
+      await tracerExtraction(req, "sauvegarde_plateforme", { format: "json-chiffre", destination: "google-drive" });
       res.json({
         message: "Sauvegarde chiffree creee et uploadee sur Google Drive.",
         ...backupResult,

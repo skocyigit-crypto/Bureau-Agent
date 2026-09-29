@@ -1,3 +1,4 @@
+import { tracerExtraction } from "../lib/tracer-extraction";
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { auditLogsTable } from "@workspace/db/schema";
@@ -176,6 +177,7 @@ router.get("/audit/export/csv", async (req: Request, res: Response): Promise<voi
         { label: "audit.export.batch" },
       );
       if (!wroteHeader) {
+        await tracerExtraction(req, "journal_audit", { format: "csv", flux: true });
         res.setHeader("Content-Type", "text/csv; charset=utf-8");
         res.setHeader("Content-Disposition", `attachment; filename="audit_${Date.now()}.csv"`);
         res.write("\uFEFF" + headers.join(SEPARATEUR_CSV) + "\n");

@@ -56,7 +56,9 @@ afterAll(async () => {
   for (const o of [orgId, orgVoisine]) {
     await db.delete(comptesDepenseTable).where(eq(comptesDepenseTable.organisationId, o));
     await db.delete(depensesTable).where(eq(depensesTable.organisationId, o));
-    await db.delete(organisationsTable).where(eq(organisationsTable.id, o));
+    // L'export des depenses ecrit desormais sa trace d'audit (append-only) :
+    // l'organisation qu'elle designe ne peut plus etre supprimee.
+    try { await db.delete(organisationsTable).where(eq(organisationsTable.id, o)); } catch { /* journaux append-only */ }
   }
 });
 

@@ -1,3 +1,4 @@
+import { tracerExtraction } from "../lib/tracer-extraction";
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { calendarEventsTable, insertCalendarEventSchema, tasksTable, projetsTable, organisationClosuresTable } from "@workspace/db/schema";
@@ -603,6 +604,7 @@ router.get("/calendar/events/export/csv", exportReserveAuResponsable, async (req
       escape(fmtDate(r.startDate)), escape(fmtDate(r.endDate)), escape(r.location),
       escape(r.contactName), escape(r.priority), escape(fmtDate(r.createdAt)),
     ].join(SEPARATEUR_CSV))];
+    await tracerExtraction(req, "evenements", { format: "csv", lignes: rows.length });
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="evenements_${Date.now()}.csv"`);
     res.send("\uFEFF" + lines.join("\n"));

@@ -2812,6 +2812,8 @@ Beş eksen kodda ayrı ayrı tarandı; aşağıdakiler ölçülerek bulundu.
 17. Md. 30 kaydı yok; envanter ~15 kategori eksik, şemayla testle bağlı değil.
 18. Kişisel dışa aktarma kişi hakkındaki değerlendirmeleri içermiyor; iki
     dışa aktarma da denetim kaydına yazılmıyor.
+   **Kapandı 29/09 (Lot 4a):** 22 çıkarım yolunun 19'u `tracerExtraction` ile yanıttan ÖNCE denetim kaydına yazıyor (Cloud Run CPU'yu yanıttan sonra kısıyor); 3 istisna gerekçeli. `my-data` artık kişinin performans raporlarını ve ekip raporlarında onu anan parçaları veriyor — düz fiş, meslektaş fişi asla; organizasyonda eşad varsa çıkarım yok ve söyleniyor. Ayrıca 5 değerlendirme/teklif kaydı `organisation_id`'siz yazılıyordu (yöneticinin kaydında görünmüyordu) — düzeltildi, yapısal testle korunuyor.
+   **Madde 14 notu (29/09):** append-only tetikleyicisine "yalnız FK SET NULL, derinlik>1" istisnası eklemek ölçüldü (doğrudan UPDATE derinlik 1, FK işlemi derinlik 2) ama değişiklik izin sınıflandırıcısınca "denetim kaydına müdahale" sayılıp reddedildi. Kullanıcı kararı bekliyor; silme bugün hâlâ imkânsız.
 19. AI Act sınıflandırması yalnız çalışan değerlendirmesi için var.
 20. (BatiFlow'dan aktarılan ders, 28/09) PATCH/PUT gövdesinden gelen yabancı
     anahtarların (contactId, projetId, assignedTo...) çağıranın kiracısına ait

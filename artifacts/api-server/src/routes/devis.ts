@@ -324,6 +324,7 @@ router.patch("/devis/:id", async (req: Request, res: Response): Promise<void> =>
         req.session?.userId, req.session?.userEmail,
         "devis.accepte", "devis", String(id),
         { totalAmount: existing.totalAmount },
+        req.ip, req.get("user-agent"), req.session?.organisationId ?? null,
       ).catch(() => {});
     }
     if (b.status === "refuse") updates.rejectedAt = new Date();

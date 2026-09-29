@@ -72,6 +72,7 @@ router.post("/performance/rapport", reserveAuxResponsables, async (req, res): Pr
       { periode: p, employeId: employeId || null },
       req.ip,
       req.get("user-agent"),
+      orgId,
     ).catch((err: unknown) => {
       req.log.warn({ err }, "[performance] trace d'audit non ecrite");
     });
@@ -122,7 +123,9 @@ router.get("/performance/metriques/export/csv", reserveAuxResponsables, async (r
     // Exporter les heures et pauses nominatives est une extraction de donnees de
     // salaries : tracee comme le rapport (RGPD art. 5.2).
     await logAudit(userId, req.session?.userEmail, "performance_export_csv", "evaluation_salaries", String(orgId),
-      { periode, lignes: metriques.length }, req.ip, req.get("user-agent"),
+      // L'organisation manquait : la trace existait, invisible dans le journal
+      // que l'administrateur consulte (filtre par organisation).
+      { periode, lignes: metriques.length }, req.ip, req.get("user-agent"), orgId,
     ).catch((err: unknown) => { req.log.warn({ err }, "[performance] trace d'audit export non ecrite"); });
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="performance_${periode}_${Date.now()}.csv"`);

@@ -46,7 +46,9 @@ const JAMAIS_EXPORTES = [
 let orgId = 0;
 
 afterAll(async () => {
-  if (orgId) await db.delete(organisationsTable).where(eq(organisationsTable.id, orgId));
+  // L'export ecrit desormais sa trace d'audit (append-only) : l'organisation
+  // qu'elle designe ne peut plus etre supprimee.
+  try { if (orgId) await db.delete(organisationsTable).where(eq(organisationsTable.id, orgId)); } catch { /* journaux append-only */ }
 });
 
 describe("l'export RGPD remis a la personne", () => {
