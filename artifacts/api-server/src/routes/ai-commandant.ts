@@ -20,6 +20,7 @@ import { scanBase64Content } from "../middleware/security";
 import { aiForOrg } from "../services/ai-client";
 import { respondAiError } from "../services/ai-guard";
 import { delaiEnJours } from "../lib/valeur-ou-defaut";
+import { dansNJours, extraireObjetJson, listeValide, RappelExtrait, rendezVousPropose, RendezVousExtrait, TacheExtraite, texteOuVide } from "../services/sortie-ia";
 import { proposerRelancesRedigees } from "../services/relances-factures";
 import { referenceOuNull } from "../services/appartenance";
 
@@ -621,28 +622,39 @@ JSON attendu:
 }`;
 
     const aiResponse = await multiAiGenerate(prompt, systemPrompt, orgId, req.path);
-    let parsed: any;
-    try {
-      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-      parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { summary: aiResponse };
-    } catch (pe) { logger.warn({ err: pe }, "[Commandant/CallCompile] JSON parse fallback:"); parsed = { summary: aiResponse }; }
+    // Valide avant d'ecrire (services/sortie-ia.ts) : les notes d'appel sont
+    // la parole d'un tiers.
+    const brut = extraireObjetJson(aiResponse) ?? {};
+    const summary = texteOuVide(brut.summary, 2000) || texteOuVide(aiResponse, 2000);
+    const sentiment = ["positif", "neutre", "negatif"].includes(String(brut.sentiment)) ? String(brut.sentiment) : "neutre";
+    const topics = Array.isArray(brut.topics) ? brut.topics.filter((x): x is string => typeof x === "string").map((x) => x.slice(0, 50)).slice(0, 10) : [];
+    const parsed = { ...brut, summary, sentiment, topics };
 
     if (callId) {
       try {
-        await db.update(callsTable).set({ notes: parsed.summary, sentiment: parsed.sentiment, tags: parsed.topics || [] }).where(and(eq(callsTable.id, parseInt(String(callId))), eq(callsTable.organisationId, orgId)));
+        // Le resume s'AJOUTE aux notes : il les remplacait, et les notes
+        // prises par la personne pendant l'appel disparaissaient (29/09).
+        const idAppel = parseInt(String(callId));
+        const [appel] = await db.select({ notes: callsTable.notes }).from(callsTable)
+          .where(and(eq(callsTable.id, idAppel), eq(callsTable.organisationId, orgId)));
+        if (appel) {
+          const notes = [appel.notes?.trim(), `[Resume IA] ${summary}`].filter(Boolean).join("\n\n");
+          await db.update(callsTable).set({ notes, sentiment, tags: topics })
+            .where(and(eq(callsTable.id, idAppel), eq(callsTable.organisationId, orgId)));
+        }
       } catch (e) { logger.error({ err: e }, "[Commandant] call update failed:"); }
     }
 
     const createdTasks: any[] = [];
-    if (parsed.tasksToCreate?.length) {
-      for (const task of parsed.tasksToCreate) {
+    {
+      for (const task of listeValide(brut.tasksToCreate, TacheExtraite)) {
         try {
           const dueDate = new Date(Date.now() + delaiEnJours(task.dueInDays, 3) * 86400000);
           // Le prefixe « [Appel] » quitte le titre: l'auteur est desormais une
           // colonne, donc filtrable, et affiche partout de la meme facon.
           const t = await creerTacheIa({
             organisationId: orgId, agent: AGENTS.commandant, nature: "commercial",
-            title: task.title, description: task.description || parsed.summary,
+            title: task.title, description: task.description || summary,
             priority: task.priority || "moyenne", dueDate,
           });
           createdTasks.push(t);
@@ -650,18 +662,16 @@ JSON attendu:
       }
     }
 
+    // « confirme », sans trace de l'IA, a l'heure UTC : le rendez-vous
+    // propose arrive desormais en attente, marque, a l'heure de Paris.
     const createdEvents: any[] = [];
-    if (parsed.appointmentsToCreate?.length) {
-      for (const appt of parsed.appointmentsToCreate) {
-        try {
-          const startDate = new Date(`${appt.date}T${appt.time || "10:00"}:00`);
-          const endDate = new Date(startDate.getTime() + 3600000);
-          const [e] = await db.insert(calendarEventsTable).values({
-            organisationId: orgId, title: `[Appel] ${appt.title}`, type: appt.type || "rendez_vous", startDate, endDate, status: "confirme",
-          }).returning();
-          createdEvents.push(e);
-        } catch (e) { logger.error({ err: e }, "[Commandant/CallCompile] event insert failed:"); }
-      }
+    for (const appt of listeValide(brut.appointmentsToCreate, RendezVousExtrait)) {
+      try {
+        const valeurs = rendezVousPropose({ ...appt, title: `[Appel] ${appt.title}`.slice(0, 200) }, { organisationId: orgId, source: "compte rendu d'appel" });
+        if (!valeurs) continue;
+        const [e] = await db.insert(calendarEventsTable).values(valeurs).returning();
+        createdEvents.push(e);
+      } catch (e) { logger.error({ err: e }, "[Commandant/CallCompile] event insert failed:"); }
     }
 
     res.json({ success: true, compilation: parsed, createdTasks, createdEvents });
@@ -695,14 +705,18 @@ JSON attendu:
 }`;
 
     const aiResponse = await multiAiGenerate(prompt, systemPrompt, orgId, req.path);
-    let parsed: any;
-    try {
-      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-      parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { tasks: [], appointments: [], reminders: [], summary: aiResponse };
-    } catch (pe) { logger.warn({ err: pe }, "[Commandant/AutoCreate] JSON parse fallback:"); parsed = { tasks: [], appointments: [], reminders: [], summary: aiResponse }; }
+    // Le contenu (e-mail, appel, reunion) vient souvent d'un tiers : ce que
+    // le modele en tire est valide avant toute ecriture.
+    const brut = extraireObjetJson(aiResponse) ?? {};
+    const parsed = {
+      tasks: listeValide(brut.tasks, TacheExtraite),
+      appointments: listeValide(brut.appointments, RendezVousExtrait),
+      reminders: listeValide(brut.reminders, RappelExtrait),
+      summary: texteOuVide(brut.summary, 2000) || texteOuVide(aiResponse, 2000),
+    };
 
     const createdTasks: any[] = [];
-    for (const task of (parsed.tasks || [])) {
+    for (const task of parsed.tasks) {
       try {
         const dueDate = new Date(Date.now() + delaiEnJours(task.dueInDays, 3) * 86400000);
         const t = await creerTacheIa({
@@ -715,25 +729,23 @@ JSON attendu:
     }
 
     const createdEvents: any[] = [];
-    for (const appt of (parsed.appointments || [])) {
+    for (const appt of parsed.appointments) {
       try {
-        const startDate = new Date(`${appt.date}T${appt.time || "10:00"}:00`);
-        const endDate = new Date(startDate.getTime() + (appt.duration || 60) * 60000);
-        const [e] = await db.insert(calendarEventsTable).values({
-          organisationId: orgId, title: appt.title, type: appt.type || "rendez_vous", startDate, endDate, status: "en_attente", relatedContactId: contactId || null,
-        }).returning();
+        const valeurs = rendezVousPropose(appt, { organisationId: orgId, source: `interaction ${String(interactionType ?? "").slice(0, 20)}`.trim(), relatedContactId: contactId || null });
+        if (!valeurs) continue;
+        const [e] = await db.insert(calendarEventsTable).values(valeurs).returning();
         createdEvents.push(e);
       } catch (e) { logger.error({ err: e }, "[Commandant/AutoCreate] event insert failed:"); }
     }
 
     const userId = req.session?.userId;
-    for (const reminder of (parsed.reminders || [])) {
+    for (const reminder of parsed.reminders) {
       try {
-        await createNotification(orgId, userId ?? null, reminder.title, reminder.message, "rappel");
+        await createNotification(orgId, userId ?? null, reminder.title, reminder.message ?? "", "rappel");
       } catch (e) { logger.error({ err: e }, "[Commandant/AutoCreate] reminder failed:"); }
     }
 
-    res.json({ success: true, summary: parsed.summary, createdTasks, createdEvents, reminders: parsed.reminders?.length || 0 });
+    res.json({ success: true, summary: parsed.summary, createdTasks, createdEvents, reminders: parsed.reminders.length });
   } catch (err: any) {
     handleCommandantError(err, res, "[Commandant/AutoCreate]");
   }
@@ -973,14 +985,17 @@ JSON attendu:
 }`;
 
     const aiResponse = await multiAiGenerate(prompt, systemPrompt, orgId, req.path);
-    let parsed: any;
-    try {
-      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-      parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { summary: aiResponse };
-    } catch { parsed = { summary: aiResponse }; }
+    const brut = extraireObjetJson(aiResponse) ?? {};
+    const summary = texteOuVide(brut.summary, 3000) || texteOuVide(aiResponse, 3000);
+    const parsed = { ...brut, summary };
+    // Suivis de reunion : « dans N jours », ramenes a une date de Paris.
+    const suivis = (Array.isArray(brut.appointments) ? brut.appointments : []).slice(0, 10).map((a: any) => ({
+      rdv: RendezVousExtrait.safeParse({ title: a?.title, date: dansNJours(Number(a?.dateInDays ?? 14)), time: "10:00", type: "reunion" }),
+      participants: Array.isArray(a?.participants) ? a.participants.filter((p: unknown): p is string => typeof p === "string").map((p: string) => p.slice(0, 80)).slice(0, 20) : [],
+    }));
 
     const createdTasks: any[] = [];
-    for (const action of (parsed.actionItems || [])) {
+    for (const action of listeValide(brut.actionItems, TacheExtraite, 20)) {
       try {
         const dueDate = new Date(Date.now() + delaiEnJours(action.dueInDays, 7) * 86400000);
         // « Assigne a: <texte libre> » disparait de la description: c'etait
@@ -996,25 +1011,26 @@ JSON attendu:
       } catch (e) { logger.error({ err: e }, "[Commandant/MeetingCompile] task insert failed:"); }
     }
 
+    // `setHours(10)` posait le suivi a 10 h UTC, soit midi a Paris.
     const createdEvents: any[] = [];
-    for (const appt of (parsed.appointments || [])) {
+    for (const s of suivis) {
       try {
-        const startDate = new Date(Date.now() + (appt.dateInDays || 14) * 86400000);
-        startDate.setHours(10, 0, 0, 0);
-        const endDate = new Date(startDate.getTime() + 3600000);
-        const [e] = await db.insert(calendarEventsTable).values({
-          organisationId: orgId, title: appt.title, type: "reunion", startDate, endDate, status: "en_attente", description: `Participants: ${(appt.participants || []).join(", ")}`,
-        }).returning();
+        if (!s.rdv.success) continue;
+        const valeurs = rendezVousPropose(s.rdv.data, { organisationId: orgId, source: "compte rendu de reunion" });
+        if (!valeurs) continue;
+        const description = s.participants.length ? `${valeurs.description}\nParticipants : ${s.participants.join(", ")}` : valeurs.description;
+        const [e] = await db.insert(calendarEventsTable).values({ ...valeurs, description }).returning();
         createdEvents.push(e);
       } catch (e) { logger.error({ err: e }, "[Commandant/MeetingCompile] event insert failed:"); }
     }
 
     const userId = req.session?.userId;
-    for (const reminder of (parsed.reminders || [])) {
-      await createNotification(orgId, userId ?? null, `[Reunion] ${reminder.title}`, reminder.message, "rappel");
+    const rappels = listeValide(brut.reminders, RappelExtrait);
+    for (const reminder of rappels) {
+      await createNotification(orgId, userId ?? null, `[Reunion] ${reminder.title}`, reminder.message ?? "", "rappel");
     }
 
-    res.json({ success: true, compilation: parsed, createdTasks, createdEvents, remindersCreated: (parsed.reminders || []).length });
+    res.json({ success: true, compilation: parsed, createdTasks, createdEvents, remindersCreated: rappels.length });
   } catch (err: any) {
     handleCommandantError(err, res, "[Commandant/MeetingCompile]");
   }

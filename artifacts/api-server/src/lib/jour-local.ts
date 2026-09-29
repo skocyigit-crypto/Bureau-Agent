@@ -57,6 +57,38 @@ export function finDeJournee(jour: Date, fuseau: string = FUSEAU_ENTREPRISE): Da
   return new Date(Date.UTC(a, m - 1, j + 1) + ecart - 1);
 }
 
+/** Ecart (ms) entre l'heure murale du fuseau et UTC, a cet instant. */
+function decalageMs(instant: Date, fuseau: string): number {
+  const p: Record<string, string> = {};
+  for (const { type, value } of new Intl.DateTimeFormat("en-US", {
+    timeZone: fuseau, hour12: false, year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+  }).formatToParts(instant)) p[type] = value;
+  const murale = Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour) % 24, Number(p.minute), Number(p.second));
+  return murale - (instant.getTime() - instant.getMilliseconds());
+}
+
+/**
+ * L'instant d'une date et d'une heure ECRITES a Paris (« 2026-10-01 », « 14:30 »).
+ *
+ * `new Date("2026-10-01T14:30:00")` se lit dans le fuseau du SERVEUR : UTC sur
+ * Cloud Run, donc 16 h 30 a Paris. Les rendez-vous que les modeles extraient
+ * d'un appel ou d'un rapport etaient ainsi decales de une ou deux heures
+ * (et `setHours(10)` posait les suivis de reunion a midi). Deux passes :
+ * la seconde reevalue l'ecart au bon instant, les jours de changement d'heure.
+ * `null` si la date ou l'heure ne sont pas bien formees.
+ */
+export function instantMural(date: string, heure = "09:00", fuseau: string = FUSEAU_ENTREPRISE): Date | null {
+  const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  const h = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(heure);
+  if (!d || !h) return null;
+  const cible = Date.UTC(Number(d[1]), Number(d[2]) - 1, Number(d[3]), Number(h[1]), Number(h[2]));
+  if (Number.isNaN(cible) || new Date(cible).getUTCDate() !== Number(d[3])) return null;
+  let t = cible;
+  for (let i = 0; i < 2; i++) t = cible - decalageMs(new Date(t), fuseau);
+  return new Date(t);
+}
+
 /**
  * Bornes [debut, fin[ du jour local qui contient `instant`.
  *

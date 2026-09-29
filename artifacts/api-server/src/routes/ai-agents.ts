@@ -28,6 +28,8 @@ import {
 } from "../services/super-agent-state";
 import { jourLocal } from "../lib/jour-local";
 import { delaiEnJours, noteAgent } from "../lib/valeur-ou-defaut";
+import { abandonnerExecution, reclamerExecution } from "../lib/execution-unique";
+import { extraireObjetJson, listeValide, rendezVousPropose, RendezVousExtrait, TacheExtraite, texteOuVide } from "../services/sortie-ia";
 import { referenceOuNull } from "../services/appartenance";
 
 const router = Router();
@@ -3005,6 +3007,12 @@ export async function runSuperAgentCycle(orgId: number, userId: number) {
         const messages = listRes?.data?.messages ?? [];
 
         for (const msg of messages.slice(0, 10)) {
+          // Un courriel n'est depouille qu'UNE fois. Le cycle relisait les
+          // non-lus a chaque passage (rien ne marque le message lu, et on ne
+          // touche pas a la boite de la personne) : le meme courriel recreait
+          // ses taches a chaque cycle, et repayait l'analyse (29/09).
+          const refCourriel = `gmail:${msg.id}`;
+          if (!msg.id || !(await reclamerExecution("super-agent-courriel", orgId, refCourriel))) continue;
           try {
             // The cycle-level assertAiQuota above is checked once, but this
             // loop can call superAgentAI up to 10 times — re-check (and
@@ -3046,10 +3054,16 @@ export async function runSuperAgentCycle(orgId: number, userId: number) {
               releaseEmailQuota();
             }
 
-            let parsed: any = {};
-            try { const m = aiText.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : {}; } catch {}
+            // Le contenu vient d'un tiers : ce que le modele en tire est
+            // valide avant toute ecriture (services/sortie-ia.ts).
+            const brut = extraireObjetJson(aiText) ?? {};
+            const parsed = {
+              tasks: listeValide(brut.tasks, TacheExtraite, 5),
+              urgency: texteOuVide(brut.urgency, 20),
+              summary: texteOuVide(brut.summary, 1000),
+            };
 
-            if (parsed.tasks?.length > 0) {
+            if (parsed.tasks.length > 0) {
               for (const t of parsed.tasks) {
                 const dueDate = new Date(Date.now() + delaiEnJours(t.dueInDays) * 86400000);
                 try {
@@ -3076,6 +3090,10 @@ export async function runSuperAgentCycle(orgId: number, userId: number) {
             }
             state.stats.emailsProcessed++;
           } catch (err) {
+            // Echec AVANT toute tache (lecture, quota, modele) : le courriel
+            // sera repris au prochain cycle. Les echecs d'insertion, eux,
+            // sont attrapes plus haut et ne rendent pas la reclamation.
+            await abandonnerExecution("super-agent-courriel", orgId, refCourriel).catch(() => {});
             if (err instanceof AiQuotaExceededError) break; // quota exhausted mid-cycle — stop, don't keep trying remaining emails
             /* skip this email */
           }
@@ -3294,11 +3312,17 @@ router.post("/ai/super-agent/process-report", requireAdmin, async (req, res): Pr
       `Tu es le Super Agent IA d'Ajant Bureau. Tu analyses des rapports de chantier, de visite ou de réunion professionnels. Tu extrais TOUTES les actions concrètes à réaliser. Sois exhaustif et précis. Réponds UNIQUEMENT en JSON valide.`
     );
 
-    let parsed: any = {};
-    try { const m = aiText.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : {}; } catch {}
+    const brut = extraireObjetJson(aiText) ?? {};
+    const parsed = {
+      tasks: listeValide(brut.tasks, TacheExtraite, 20),
+      appointments: listeValide(brut.appointments, RendezVousExtrait, 10),
+      issues: Array.isArray(brut.issues) ? brut.issues.slice(0, 20) : [],
+      summary: texteOuVide(brut.summary, 2000),
+      nextStepUrgency: texteOuVide(brut.nextStepUrgency, 20),
+    };
 
     const createdTasks: any[] = [];
-    for (const t of (parsed.tasks ?? [])) {
+    for (const t of parsed.tasks) {
       try {
         const dueDate = new Date(Date.now() + delaiEnJours(t.dueInDays) * 86400000);
         // « Assigné à: <texte du modele> » disparait: c'etait une intention
@@ -3320,14 +3344,15 @@ router.post("/ai/super-agent/process-report", requireAdmin, async (req, res): Pr
       }
     }
 
+    // Un rendez-vous tire d'un rapport par un modele etait insere
+    // « confirme », sans trace de l'IA, a l'heure UTC du serveur. Il arrive
+    // desormais en attente de confirmation, marque, a l'heure de Paris.
     const createdEvents: any[] = [];
-    for (const a of (parsed.appointments ?? [])) {
+    for (const a of parsed.appointments) {
       try {
-        const startDate = new Date(`${a.date}T${a.time || "09:00"}:00`);
-        const endDate = new Date(startDate.getTime() + 3600000);
-        const [inserted] = await db.insert(calendarEventsTable).values({
-          organisationId: orgId, title: a.title, type: a.type || "rendez_vous", startDate, endDate, status: "confirme", relatedContactId: contactId || null,
-        }).returning();
+        const valeurs = rendezVousPropose(a, { organisationId: orgId, source: `rapport ${String(reportType).slice(0, 40)}`, relatedContactId: contactId || null, heureParDefaut: "09:00" });
+        if (!valeurs) continue;
+        const [inserted] = await db.insert(calendarEventsTable).values(valeurs).returning();
         createdEvents.push(inserted);
       } catch (err: any) {
         logger.warn({ err, orgId, title: a?.title }, "[SuperAgent/ProcessReport] echec insertion RDV extrait par IA");

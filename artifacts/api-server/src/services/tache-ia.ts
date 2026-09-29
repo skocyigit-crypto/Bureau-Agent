@@ -22,6 +22,7 @@ import { and, eq } from "drizzle-orm";
 import { db as dbParDefaut, tasksTable, usersTable } from "@workspace/db";
 
 import { attribuer, nomAffichable, type Membre, type NatureTache } from "./attribution-role";
+import { prioriteTache } from "./sortie-ia";
 
 /**
  * Les agents autorises a creer des taches.
@@ -161,10 +162,13 @@ export async function creerTacheIa(
     .insert(tasksTable)
     .values({
       organisationId: demande.organisationId,
-      title: demande.title,
+      // Titre et priorite viennent le plus souvent d'un modele : bornes ici,
+      // une fois pour les treize appelants (services/sortie-ia.ts). Une
+      // priorite « urgentissime » n'existait pour aucun ecran.
+      title: String(demande.title ?? "").trim().slice(0, 300) || "Tache proposee par l'IA",
       description,
       status: "en_attente",
-      priority: demande.priority ?? "moyenne",
+      priority: prioriteTache(demande.priority),
       dueDate: demande.dueDate ?? null,
       assignedTo: choix.membre ? String(choix.membre.id) : null,
       relatedContactId: demande.relatedContactId ?? null,

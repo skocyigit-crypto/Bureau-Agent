@@ -2,6 +2,8 @@ import { db, callsTable, tasksTable, calendarEventsTable, notificationsTable } f
 import { eq, and } from "drizzle-orm";
 import { logAudit } from "../routes/audit";
 import { delaiEnJours } from "../lib/valeur-ou-defaut";
+import { dateHumaine } from "../lib/jour-local";
+import { rendezVousPropose, RendezVousExtrait, texteOuVide } from "./sortie-ia";
 import { safeJsonParse, aiCallWithRetry, sanitizePromptInput, wrapUntrusted, recordAiUsage, extractGeminiTokens, geminiActualModel, GEMINI_PRO_MODEL } from "./ai-utils";
 import { AGENTS, creerTacheIa } from "./tache-ia";
 import { assertAiQuota, invalidateQuotaCache } from "./ai-quota";
@@ -260,6 +262,7 @@ Reponds UNIQUEMENT en JSON avec cette structure:
   }).where(eq(callsTable.id, callId));
 
   const createdTasks: any[] = [];
+  const titresCrees: string[] = [];
   for (const taskDef of analysis.tasks) {
     const dueDate = new Date();
     // La construction de `analysis.tasks` bornait deja cette valeur EN
@@ -289,6 +292,7 @@ Reponds UNIQUEMENT en JSON avec cette structure:
     });
 
     createdTasks.push(task);
+    titresCrees.push(taskDef.title);
   }
 
   if (analysis.followUpNeeded) {
@@ -308,43 +312,49 @@ Reponds UNIQUEMENT en JSON avec cette structure:
     });
 
     createdTasks.push(followUpTask);
+    titresCrees.push(`Suivi: ${call.contactName || call.phoneNumber}`);
   }
 
+  // Le rendez-vous n'etait pas valide (seulement « est un objet ») : titre,
+  // lieu et type allaient tels quels en base, une date illisible devenait
+  // « dans deux jours a 10 h UTC », et l'heure lue etait celle du serveur.
+  // Il passe desormais par la meme lecture que les autres (sortie-ia.ts) et
+  // arrive en attente de confirmation. Pas de date lisible : pas de rendez-vous.
   let createdAppointment = null;
-  if (analysis.appointmentRequested && analysis.appointment) {
-    const apt = analysis.appointment;
-    const startDate = new Date(`${apt.suggestedDate}T${apt.suggestedTime}:00`);
-    if (isNaN(startDate.getTime())) {
-      startDate.setDate(startDate.getDate() + 2);
-      startDate.setHours(10, 0, 0, 0);
-    }
-    const endDate = new Date(startDate.getTime() + (apt.duration || 60) * 60000);
-
+  const apt = analysis.appointmentRequested && analysis.appointment ? analysis.appointment : null;
+  const lu = apt ? RendezVousExtrait.safeParse({
+    title: apt.title, date: apt.suggestedDate, time: apt.suggestedTime, duration: apt.duration,
+    type: apt.type === "visite" ? "visite" : apt.type === "reunion" ? "reunion" : apt.type === "appel" ? "appel" : "rendez_vous",
+  }) : null;
+  const valeurs = apt && lu?.success
+    ? rendezVousPropose(lu.data, { organisationId: call.organisationId!, source: `appel #${callId}`, relatedContactId: call.contactId })
+    : null;
+  if (apt && valeurs) {
     const typeColorMap: Record<string, string> = {
       rdv: "#3b82f6",
       visite: "#22c55e",
       reunion: "#8b5cf6",
       appel: "#f59e0b",
     };
+    const startDate = valeurs.startDate;
 
     const [event] = await db.insert(calendarEventsTable).values({
-      organisationId: call.organisationId!,
-      title: apt.title,
-      description: `${apt.description}\n\n[Cree automatiquement - Appel #${callId} avec ${call.contactName || call.phoneNumber}]`,
-      type: apt.type === "visite" ? "rendez_vous" : apt.type === "reunion" ? "reunion" : apt.type === "appel" ? "appel" : "rendez_vous",
-      startDate,
-      endDate,
-      location: apt.location || null,
-      color: typeColorMap[apt.type] || "#3b82f6",
-      relatedContactId: call.contactId,
+      ...valeurs,
+      type: valeurs.type === "visite" ? "rendez_vous" : valeurs.type,
+      description: `${texteOuVide(apt.description, 2000)}\n\n${valeurs.description} Appel #${callId} avec ${call.contactName || call.phoneNumber}.`.trim(),
+      location: texteOuVide(apt.location, 300) || null,
+      color: typeColorMap[String(apt.type)] || "#3b82f6",
     }).returning();
 
     createdAppointment = event;
 
+    // L'organisation manquait : la lecture des notifications filtre dessus,
+    // celle-ci n'etait visible de personne.
     await db.insert(notificationsTable).values({
+      organisationId: call.organisationId,
       type: "info",
       title: "Rendez-vous cree automatiquement",
-      message: `"${apt.title}" le ${startDate.toLocaleDateString("fr-FR")} a ${startDate.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}${apt.location ? ` - ${apt.location}` : ""}. Cree suite a l'appel avec ${call.contactName || call.phoneNumber}.`,
+      message: `"${valeurs.title}" le ${dateHumaine(startDate)} a ${dateHumaine(startDate, "fr-FR", undefined, { hour: "2-digit", minute: "2-digit" })} — a confirmer. Propose suite a l'appel avec ${call.contactName || call.phoneNumber}.`,
       priority: "haute",
       actionUrl: "/calendrier",
       sourceType: "auto_appointment",
@@ -354,9 +364,11 @@ Reponds UNIQUEMENT en JSON avec cette structure:
 
   if (createdTasks.length > 0) {
     await db.insert(notificationsTable).values({
+      organisationId: call.organisationId,
       type: "info",
       title: `${createdTasks.length} tache(s) creee(s) automatiquement`,
-      message: `Suite a l'appel avec ${call.contactName || call.phoneNumber}: ${createdTasks.map(t => t.title).join(", ")}.`,
+      // `TacheIaCreee` ne porte pas le titre : le message affichait « undefined ».
+      message: `Suite a l'appel avec ${call.contactName || call.phoneNumber}: ${titresCrees.join(", ")}.`,
       priority: "normale",
       actionUrl: "/taches",
       sourceType: "auto_tasks",
