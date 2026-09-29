@@ -86,6 +86,7 @@ const LicenseManagementPage = lazy(() => import("@/pages/license-management"));
 const CommandantIAPage = lazy(() => import("@/pages/commandant-ia"));
 const AsistanPage = lazy(() => import("@/pages/asistan"));
 const TelephonyPage = lazy(() => import("@/pages/telephony"));
+const TelephonieUsagePage = lazy(() => import("@/pages/telephony").then((m) => ({ default: m.TelephonieUsagePage })));
 const TelechargerPage = lazy(() => import("@/pages/telecharger"));
 const InvitationAcceptPage = lazy(() => import("@/pages/invitation-accept"));
 const RendezVousPublicPage = lazy(() => import("@/pages/rendez-vous-public"));
@@ -359,6 +360,7 @@ function AppRoutes() {
         <Route path="/commandant-ia" component={withLicenseGate(CommandantIAPage)} />
         <Route path="/asistan" component={withLicenseGate(AsistanPage)} />
         <Route path="/telephonie" component={withLicenseGate(TelephonyPage)} />
+        <Route path="/telefon" component={withLicenseGate(TelephonieUsagePage)} />
         <Route path="/telecharger" component={TelechargerPage} />
         <Route path="/notifications" component={NotificationsPage} />
         <Route path="/onboarding" component={() => <OnboardingPage />} />

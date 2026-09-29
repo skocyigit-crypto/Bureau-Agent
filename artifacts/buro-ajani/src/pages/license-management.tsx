@@ -78,11 +78,18 @@ function AccessDenied() {
   );
 }
 
+const ONGLETS_LICENCE: readonly string[] = ["overview", "abonnement", "client-invoices", "payments", "reminders", "settings", "licence-audit", "audit-systeme"];
+
 export default function LicenseManagementPage() {
   const { isAtLeast } = useWorkspaceUser();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState("overview");
+  // `?tab=audit-systeme` : la palette de commandes (« Journal d'audit »)
+  // ouvre directement l'onglet, au lieu de l'apercu.
+  const [tab, setTab] = useState(() => {
+    const demande = new URLSearchParams(window.location.search).get("tab");
+    return demande && ONGLETS_LICENCE.includes(demande) ? demande : "overview";
+  });
   const [deepLinkInvoice, setDeepLinkInvoice] = useState<any>(null);
   const { toast } = useToast();
   const { t } = useTranslation();

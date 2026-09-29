@@ -179,7 +179,8 @@ describe("studio de flux", () => {
   it("la page est routee, reservee aux responsables, et dans le menu", () => {
     const app = readFileSync(join(import.meta.dirname, "..", "App.tsx"), "utf8");
     expect(app).toMatch(/<Route path="\/studio-flux" component=\{withRoleGate\(StudioFluxPage, ADMIN_ROLES\)\} \/>/);
-    const menu = readFileSync(join(import.meta.dirname, "..", "components", "layout.tsx"), "utf8");
-    expect(menu).toMatch(/href: "\/studio-flux"/);
+    // Le plan du menu vit dans lib/gezinti.ts depuis la refonte du 29/09.
+    const menu = readFileSync(join(import.meta.dirname, "..", "lib", "gezinti.ts"), "utf8");
+    expect(menu).toMatch(/href: "\/studio-flux", acces: "admin"/);
   });
 });

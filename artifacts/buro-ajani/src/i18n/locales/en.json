@@ -136,79 +136,86 @@
   "sidebar": {
     "groups": {
       "today": "Today",
-      "communication": "Communication",
-      "addressBook": "Address book",
-      "work": "Work organization",
-      "docsReports": "Documents & Reports",
-      "aiAssistants": "AI Assistants",
-      "analysis": "Analysis",
-      "integrations": "Integrations",
-      "administration": "Administration",
-      "superAdmin": "Super Admin",
-      "system": "System",
-      "sales": "Sales"
+      "communication": "Communication centre",
+      "work": "Sites & jobs",
+      "sales": "CRM & sales",
+      "planning": "Planning",
+      "finance": "Finance",
+      "agentBureau": "Agent Bureau",
+      "knowledge": "Knowledge & analysis",
+      "officeSettings": "Office settings",
+      "platformConsole": "Platform console"
     },
     "items": {
       "dashboard": "Dashboard",
-      "proactiveAssistant": "Proactive Assistant",
+      "proactiveAssistant": "Proactive suggestions",
       "aiLearned": "What the AI learned",
       "calendar": "Calendar",
       "reminders": "Reminders",
       "recentActivity": "Recent activity",
       "calls": "Calls",
       "messages": "Messages",
-      "whatsapp": "WhatsApp clients",
-      "mailAgent": "AI Mail Agent",
-      "securityCenter": "Security center",
-      "webSearch": "Web search",
+      "whatsapp": "WhatsApp",
+      "mailAgent": "Email",
+      "securityCenter": "Security centre",
+      "webSearch": "Safe web search",
       "contacts": "Contacts",
       "tasks": "Tasks",
-      "projects": "Projects",
-      "treasury": "Treasury & Risk",
+      "projects": "Sites & projects",
+      "treasury": "Cash & risk",
       "expenses": "Expenses",
-      "siteVoice": "Site voice input",
+      "siteVoice": "Site voice report",
       "internalNotes": "Internal notes",
-      "checkin": "Check-in",
+      "checkin": "Time clock",
       "documents": "Documents",
       "knowledgeBase": "Knowledge base",
-      "documentAi": "Document AI",
+      "documentAi": "Document sorting",
       "reports": "Reports",
-      "aiTeam": "AI Team",
-      "aiCommander": "AI Commander",
-      "approvalQueue": "Approval queue",
-      "universalAssistant": "Universal Assistant",
-      "aiAgents": "AI Agents",
+      "aiTeam": "Agent goals",
+      "aiCommander": "Analysis commands",
+      "approvalQueue": "Pending approvals",
+      "universalAssistant": "Chat assistant",
+      "aiAgents": "Specialist agents",
       "statistics": "Statistics",
       "googleWorkspace": "Google Workspace",
-      "telephony": "Telephony",
-      "connectors": "Connectors",
+      "telephony": "Phone line",
+      "connectors": "Connected software",
       "users": "Users",
-      "license": "License & Billing",
+      "license": "Subscription & billing",
       "dataProtection": "Data protection",
       "teamLocation": "Team location",
       "executiveReport": "Executive report",
       "teamPerformance": "Team performance",
-      "autoAudit": "Auto-audit",
-      "automations": "Automations",
+      "autoAudit": "App self-audit",
+      "automations": "Automatic rules",
       "saasBackoffice": "SaaS Backoffice",
       "organisations": "Organizations",
-      "prospects": "Prospects",
+      "prospects": "Requests & opportunities",
       "globalAuditLog": "Global audit log",
       "techHealth": "Technical health",
-      "guide": "User guide",
+      "guide": "Help & guide",
       "settings": "Settings",
-      "smartImport": "Smart import",
+      "smartImport": "Data import",
       "initialSetup": "Initial setup",
       "mobileApp": "Mobile app",
       "quotes": "Quotes",
       "clientInvoices": "Client invoices",
-      "trash": "Trash",
-      "postDiagnostic": "Workstation check-up",
-      "encaissements": "Payments",
-      "taskDesk": "Task desk",
-      "agentCatalog": "Agent catalog",
-      "flowStudio": "Flow studio"
-    }
+      "trash": "Deleted items",
+      "postDiagnostic": "Computer check",
+      "encaissements": "Payments received",
+      "taskDesk": "Agent runs",
+      "agentCatalog": "Agent profiles",
+      "flowStudio": "Flow studio",
+      "phoneOps": "Call & text",
+      "agents": "Agents",
+      "flows": "Flows",
+      "runs": "Runs",
+      "connections": "Connections",
+      "security": "Security"
+    },
+    "mainNav": "Main menu",
+    "sectionTabs": "“{{name}}” pages",
+    "newItems": "new: {{count}}"
   },
   "userMenu": {
     "level": "Level {{n}}",
@@ -263,7 +270,15 @@
     "device": "Device",
     "appMode": "App mode",
     "newBadgeAria": "{{count}} new {{name}}",
-    "newBadgeAriaPlural": "{{count}} new {{name}}"
+    "newBadgeAriaPlural": "{{count}} new {{name}}",
+    "approvalsWaiting": "Awaiting approval: {{count}}",
+    "approvalsNone": "No approvals waiting",
+    "voiceCommand": "Voice command",
+    "voiceWake": "waiting for the wake word",
+    "voiceListening": "listening",
+    "quickAction": "Quick action",
+    "backToOffice": "Back to the office",
+    "tools": "Device tools"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -675,7 +690,7 @@
     "projectNotes": "Created from task #{{id}}"
   },
   "calls": {
-    "title": "Call Log",
+    "title": "Calls",
     "subtitle": "Manage and track all phone communications.",
     "bannerTitle": "Communication center",
     "bannerSubtitle": "Real-time tracking of all incoming and outgoing communications.",
@@ -905,7 +920,7 @@
     "projectNotes": "Created from a message"
   },
   "prospects": {
-    "title": "Prospects & CRM Pipeline",
+    "title": "Requests & opportunities",
     "subtitle": "Sales pipeline management and opportunity tracking.",
     "csv": "CSV",
     "print": "Print",
@@ -1029,7 +1044,7 @@
     }
   },
   "projets": {
-    "title": "Projects",
+    "title": "Sites & projects",
     "totalCount": "{{total}} project(s) total",
     "loading": "Loading...",
     "searchPlaceholder": "Search a project...",
@@ -1331,7 +1346,7 @@
     }
   },
   "tresorerie": {
-    "title": "Treasury & Risk Radar",
+    "title": "Cash & risk",
     "subtitle": "Estimate the risk of a cash-flow squeeze over 90 days based on your real invoices and a Monte Carlo simulation. No automatic action: alerts only.",
     "risk": {
       "high": "High risk",
@@ -3688,10 +3703,17 @@
       "callLaunched": "Call launched via {{provider}} (SID: {{sid}})",
       "smsSent": "SMS sent via {{provider}}",
       "failed": "Failed: {{error}}"
-    }
+    },
+    "titleSettings": "Phone line",
+    "subtitleSettings": "Providers, numbers and AI receptionist: the line's technical settings.",
+    "titleUsage": "Call and send texts",
+    "subtitleUsage": "Outgoing calls, texts, bulk sends, scheduled callbacks and logs.",
+    "noLineTitle": "No active phone line",
+    "noLineBody": "Without a connected line, no call or text can be sent from here. Nothing is simulated.",
+    "noLineAction": "Connect a line (Office settings › Connections)"
   },
   "securitePage": {
-    "title": "Security Center",
+    "title": "Security centre",
     "subtitle": "Your digital concierge: analyze links, files, calls and messages in one place.",
     "rating": {
       "excellent": "Excellent",
@@ -4294,7 +4316,7 @@
     }
   },
   "checkins": {
-    "title": "Check-in & Attendance",
+    "title": "Time clock",
     "subtitle": "Manage your arrival, departure hours and working time.",
     "csv": "CSV",
     "print": "Print",
@@ -4438,7 +4460,7 @@
     "projectNotes": "Created from a check-in by {{name}}"
   },
   "knowledgeBase": {
-    "title": "Knowledge Base",
+    "title": "Knowledge base",
     "subtitle": "Ask a question, get an answer grounded in your documents, with sources.",
     "indexing": "Indexing…",
     "indexDocuments": "Index documents",
@@ -4773,7 +4795,7 @@
     }
   },
   "equipeIa": {
-    "title": "AI Team",
+    "title": "Agent goals",
     "description": "Your team of intelligent agents. Give each one a goal, run it whenever you want, and approve all their proposals in one place — nothing runs without you.",
     "councilBadge": "AI Council · Gemini + GPT + Claude",
     "councilNote": "Each agent consults several leading AIs then learns from your decisions.",
@@ -4852,7 +4874,7 @@
     }
   },
   "auditDenetim": {
-    "title": "Self-audit",
+    "title": "App self-audit",
     "description": "An agent continuously inspects your app: it spots gaps (eksik) and proposes improvements (yenilik). Actionable items land in your approval queue — nothing is applied without your consent.",
     "auditRunning": "Audit in progress…",
     "runAudit": "Run an audit",
@@ -4900,7 +4922,7 @@
     }
   },
   "voiceSiteOps": {
-    "title": "Site voice input",
+    "title": "Site voice report",
     "subtitle": "Dictate a site note — the AI prepares stock deductions, tasks and progress. Nothing is saved without your confirmation.",
     "noteTitle": "Site manager's note",
     "noteExample": "Example: “On the Rivoli site, deduct 20 bags of cement, the 2nd-floor formwork is done, progress at 60%.”",
@@ -5104,7 +5126,7 @@
     }
   },
   "assistantProactif": {
-    "title": "Proactive assistant",
+    "title": "Proactive suggestions",
     "subtitle": "Your agent continuously monitors tasks, calls and calendar, then suggests actions to take.",
     "analyzeNow": "Analyze now",
     "autoMonitoring": "Automatic monitoring {{state}}",
@@ -5207,7 +5229,7 @@
     }
   },
   "iaApprentissage": {
-    "title": "What the AI has learned",
+    "title": "What the AI learned",
     "subtitle": "From your feedback (👍/👎) and your habits, the assistant adapts its responses to your organization.",
     "reanalyze": "Re-analyze",
     "emptyTitle": "The AI hasn't learned anything yet",
@@ -5311,7 +5333,7 @@
     }
   },
   "documentImport": {
-    "title": "Smart Import",
+    "title": "Data import",
     "subtitle": "Drop a file — the AI will analyze it, show you what it understood, and write the data into the right module",
     "restart": "Start over",
     "steps": {
@@ -5390,7 +5412,7 @@
     }
   },
   "software": {
-    "title": "Software & Integrations",
+    "title": "Connected software",
     "subtitle": "Connect your professional tools so the agent works within your ecosystem.",
     "available": "{{count}} software available",
     "createProject": "Create a project",
@@ -5622,7 +5644,7 @@
     }
   },
   "documentAi": {
-    "title": "Document AI",
+    "title": "Document sorting",
     "subtitle": "Drop any document — the AI will analyze it, identify it and automatically classify it into the right module.",
     "expensesTitle": "Expense register",
     "expenses": "Expenses",
@@ -6079,7 +6101,7 @@
     "description": "This page does not exist or no longer exists. Check the address or return to the home page."
   },
   "rechercheWeb": {
-    "title": "Secure web search",
+    "title": "Safe web search",
     "subtitle": "Search the web from your workspace. Every link is analyzed by the built-in antivirus before you click.",
     "placeholder": "Search the web…",
     "searchButton": "Search",
@@ -6134,7 +6156,7 @@
     "checkConnection": "Check your connection and try again."
   },
   "fileApprobation": {
-    "title": "Approval queue",
+    "title": "Pending approvals",
     "subtitle": "Your digital secretary continuously analyzes activity and proposes actions. Nothing is executed without your consent — approve or reject with one click.",
     "analyzing": "Analyzing…",
     "runAnalysis": "Run analysis",
@@ -6276,7 +6298,7 @@
     }
   },
   "automationsPage": {
-    "title": "Automations",
+    "title": "Automatic rules",
     "subtitle": "Intelligent automation engine - monitoring and automatic actions",
     "refresh": "Refresh",
     "exportCsv": "Export CSV",
@@ -6836,7 +6858,7 @@
     "chargementEchoue": "Loading failed. Close and reopen this window."
   },
   "aiAgents": {
-    "title": "AI Agents",
+    "title": "Specialist agents",
     "subtitle": "10 specialised agents + Super AI that manage, analyse and improve every aspect of your office.",
     "autoFix": "Auto-fix",
     "print": "Print",
@@ -7054,7 +7076,7 @@
     }
   },
   "gmailAgent": {
-    "title": "AI Mail Agent",
+    "title": "Email",
     "connected": "Connected",
     "refresh": "Refresh",
     "print": "Print",
@@ -7252,7 +7274,7 @@
     }
   },
   "commandantIa": {
-    "title": "AI Commandant",
+    "title": "Analysis commands",
     "subtitle": "Intelligent command center — 18 super-capabilities powered by Gemini, OpenAI and Anthropic",
     "print": "Print",
     "tabs": {
@@ -7576,7 +7598,7 @@
       "success": "Success"
     },
     "header": {
-      "title": "License & Billing Management",
+      "title": "Subscription & billing",
       "subtitle": "{{org}} — Security, payments and invoices",
       "refresh": "Refresh",
       "print": "Print"
@@ -7865,7 +7887,7 @@
     "print": "Print"
   },
   "whatsappPage": {
-    "title": "WhatsApp customer inbox",
+    "title": "WhatsApp",
     "subtitle": "Your customers' messages arrive here. The AI prepares a reply — you validate before sending.",
     "searchPlaceholder": "Search for a customer…",
     "tabOpen": "Open",
@@ -8672,7 +8694,10 @@
       "settings": "Settings",
       "notifications": "Notifications",
       "projets": "Projects",
-      "google-workspace": "Google Workspace"
+      "google-workspace": "Google Workspace",
+      "approvals": "Pending approvals",
+      "quotes": "Quotes",
+      "invoices": "Customer invoices"
     }
   },
   "centralIntelligence": {
@@ -9414,7 +9439,7 @@
     }
   },
   "corbeille": {
-    "title": "Trash",
+    "title": "Deleted items",
     "subtitle": "Deleted items can be recovered for {{days}} days.",
     "subtitleGeneric": "Deleted items can be recovered for a while.",
     "empty": "The trash is empty",
@@ -9434,7 +9459,7 @@
     }
   },
   "diagnosticPoste": {
-    "titre": "Workstation check-up",
+    "titre": "Computer check",
     "sousTitre": "See what a computer is missing, and what to do about it.",
     "commentTitre": "How it works",
     "etape1": "Download the script and save it on the computer to examine.",
@@ -9462,7 +9487,7 @@
     "aLaMainDesc": "These are deliberately not automated: they delete data, need a reboot you choose, or produce a key that must be kept safe. A human step is the right answer here."
   },
   "encaissements": {
-    "titre": "Payments ledger",
+    "titre": "Payments received",
     "sousTitre": "Record payments, and be able to prove it.",
     "etat": {
       "titre": "Compliance status",
@@ -9562,7 +9587,7 @@
     }
   },
   "agentsCatalogue": {
-    "title": "Agent catalog",
+    "title": "Agent profiles",
     "subtitle": "What each agent can read and do, its limits, and its activity over the last 30 days.",
     "loading": "Loading the catalog…",
     "error": "The catalog could not be loaded.",
@@ -9630,7 +9655,7 @@
     }
   },
   "bureauTaches": {
-    "title": "Task desk",
+    "title": "Agent runs",
     "subtitle": "What the agents are doing: running, awaiting approval, done, failed — and what it cost.",
     "newRequest": "New request",
     "form": {

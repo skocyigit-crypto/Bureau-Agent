@@ -1,6 +1,7 @@
 import { useTranslation } from "@/i18n";
 import { Brain,Check,Globe,HelpCircle,LayoutGrid,MessageCircle,MessagesSquare,Mic,MicOff,Radio,Send,Sparkles,Volume2,X,XCircle,Zap } from "lucide-react";
 import { lecturePartagee } from "@/lib/lecture-partagee";
+import { enregistrerBascule, publierCommandeVocale, type EcouteVocale } from "@/lib/commande-vocale";
 import { useCallback,useEffect,useRef,useState } from "react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -423,6 +424,14 @@ interface VoiceResult {
 }
 
 type VoiceState = "idle" | "listening_wake" | "listening_command" | "processing" | "speaking";
+
+const ECOUTE_DE: Record<VoiceState, EcouteVocale> = {
+  idle: "arret",
+  listening_wake: "veille",
+  listening_command: "commande",
+  processing: "traitement",
+  speaking: "parole",
+};
 
 interface VoiceAssistantProps {
   onOpenLive?: () => void;
@@ -961,6 +970,15 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
     };
   }, [stopAllListeners]);
 
+  // Le bouton « Commande vocale » de l'en-tete lit cet etat et pilote
+  // l'ouverture. Ouvert, il referme ; ferme, il ouvre et ecoute.
+  useEffect(() => {
+    publierCommandeVocale({ disponible: supported, ouverte: expanded, ecoute: ECOUTE_DE[state] });
+  }, [supported, expanded, state]);
+  const basculeRef = useRef<() => void>(() => {});
+  basculeRef.current = () => (expanded ? closeAssistant() : toggleVoice());
+  useEffect(() => enregistrerBascule(() => basculeRef.current()), []);
+
   if (!supported) return null;
 
   const stateLabels: Record<VoiceState, string> = {
@@ -973,59 +991,27 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
 
   return (
     <>
-      {!expanded ? (
-        <div className="fixed bottom-6 left-6 z-50">
-          {/* Animated outer rings during active states — premium "alive" feel */}
-          {(state === "listening_command" || state === "listening_wake" || state === "speaking") && (
-            <>
-              <span className={`absolute inset-0 rounded-full ${state === "listening_command" ? "bg-red-500/40" : state === "speaking" ? "bg-emerald-500/40" : "bg-amber-500/40"} animate-ping`} />
-              <span className={`absolute -inset-2 rounded-full ${state === "listening_command" ? "bg-red-500/20" : state === "speaking" ? "bg-emerald-500/20" : "bg-amber-500/20"} blur-md animate-pulse`} />
-            </>
-          )}
-          {/* Animated gradient ring */}
-          <span className="absolute -inset-[2px] rounded-full bg-gradient-to-tr from-amber-400 via-amber-500 to-orange-500 opacity-90 blur-[2px]" />
-          <button
-            onClick={toggleVoice}
-            className={`relative w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 backdrop-blur-xl border border-white/20 ${
-              state === "listening_command"
-                ? "bg-gradient-to-br from-red-500 to-red-600"
-                : state === "processing"
-                  ? "bg-gradient-to-br from-blue-500 to-blue-600"
-                  : state === "speaking"
-                    ? "bg-gradient-to-br from-emerald-500 to-emerald-600"
-                    : state === "listening_wake"
-                      ? "bg-gradient-to-br from-amber-400 to-amber-600"
-                      : "bg-gradient-to-br from-slate-700 to-slate-900"
-            }`}
-            title={stateLabels[state]}
-          >
-            {state === "processing" ? (
-              <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <Mic className="w-6 h-6 text-white drop-shadow-md" />
-            )}
-            {state === "listening_wake" && (
-              <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-300 rounded-full animate-ping shadow-lg shadow-amber-400/50" />
-            )}
-          </button>
-          {onOpenLive && (
-            <button
-              onClick={onOpenLive}
-              className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-gradient-to-br from-cyan-400 via-violet-500 to-fuchsia-500 shadow-lg shadow-violet-500/40 flex items-center justify-center text-white text-[10px] font-bold border-2 border-slate-900 hover:scale-110 transition"
-              title={t("voiceAssistant.live_mode_title")}
-            >
-              ✦
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="fixed bottom-6 left-6 z-50 w-80 rounded-2xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.6)] overflow-hidden border border-white/10 backdrop-blur-2xl bg-gradient-to-br from-slate-900/95 to-slate-950/95 ring-1 ring-amber-500/20">
+      {/* Ferme, l'assistant n'affiche rien : le bouton « Commande vocale » de
+          l'en-tete l'ouvre et montre s'il ecoute. Ouvert, le panneau se pose
+          sous l'en-tete, a droite — plus sur la barre laterale. */}
+      {expanded && (
+        <div role="region" aria-label={t("voiceAssistant.title")} className="fixed top-16 right-4 z-50 w-80 max-w-[calc(100vw-2rem)] rounded-2xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.6)] overflow-hidden border border-white/10 backdrop-blur-2xl bg-gradient-to-br from-slate-900/95 to-slate-950/95 ring-1 ring-amber-500/20">
           <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-slate-800/80 via-slate-900/60 to-slate-800/80 border-b border-white/10">
             <div className="flex items-center gap-2">
               <div className={`w-2.5 h-2.5 rounded-full ${state === "listening_command" ? "bg-red-500 animate-pulse" : state === "processing" ? "bg-blue-400 animate-pulse" : state === "speaking" ? "bg-green-400" : state === "listening_wake" ? "bg-amber-400 animate-pulse" : "bg-slate-500"}`} />
               <span className="text-sm font-semibold text-white">{t("voiceAssistant.title")}</span>
             </div>
             <div className="flex gap-1.5">
+              {onOpenLive && (
+                <button
+                  onClick={onOpenLive}
+                  className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                  aria-label={t("voiceAssistant.live_mode_title")}
+                  title={t("voiceAssistant.live_mode_title")}
+                >
+                  <Sparkles className="w-4 h-4" aria-hidden="true" />
+                </button>
+              )}
               <button
                 onClick={() => { setShowLibrary(v => !v); if (!showLibrary) setShowHelp(false); }}
                 className={`p-1.5 rounded-lg transition-colors ${showLibrary ? "bg-amber-500/20 text-amber-300" : "hover:bg-slate-700 text-slate-400 hover:text-white"}`}

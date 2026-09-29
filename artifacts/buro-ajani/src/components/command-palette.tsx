@@ -1,29 +1,27 @@
 import { Dialog,DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useTranslation } from "@/i18n";
-import { BarChart,BarChart3,Brain,Calendar,CheckSquare,Clock,FileText,FolderKanban,KeyRound,LayoutDashboard,MessageSquare,Phone,Search,Settings,Shield,UserCog,Users,Zap } from "lucide-react";
+import { BarChart,BarChart3,Brain,Calendar,CheckSquare,Clock,FileSignature,FileText,FolderKanban,Inbox,KeyRound,LayoutDashboard,MessageSquare,Phone,Receipt,Search,Settings,Shield,UserCog,Users,Zap } from "lucide-react";
+import { accesDeLAdresse,peutOuvrir } from "@/lib/gezinti";
 import { useCallback,useEffect,useState } from "react";
 import { useLocation } from "wouter";
 
 import { useWorkspaceUser } from "@/components/workspace-user";
 
 /**
- * Qui a le droit d'ouvrir la destination.
- *
- * "tous" par defaut. Les deux autres valeurs reprennent EXACTEMENT les gardes
- * de `layout.tsx` — une porte ouverte ici et fermee la-bas n'est pas une
- * nuance d'affichage: c'est une promesse que le serveur refuse ensuite.
+ * Qui a le droit d'ouvrir la destination : lu dans le plan du menu
+ * (`lib/gezinti.ts`), le meme qui construit la barre laterale. Une porte
+ * ouverte ici et fermee la-bas n'est pas une nuance d'affichage : c'est une
+ * promesse que le serveur refuse ensuite. La palette offrait
+ * « Automatisations » et « Performance » a tous, et son « Journal d'audit »
+ * ouvrait l'apercu de la licence.
  */
-type Acces = "tous" | "admin" | "super_admin";
-
 type CommandItem = {
   id: string;
   icon: any;
-  action: () => void;
+  href: string;
   category: string;
   keywords?: string[];
-  /** Defaut: "tous". */
-  acces?: Acces;
 };
 
 export function CommandPalette() {
@@ -33,8 +31,6 @@ export function CommandPalette() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const { t } = useTranslation();
   const { user } = useWorkspaceUser();
-  const estSuperAdmin = user.role === "super_admin";
-  const estAdmin = estSuperAdmin || user.role === "administrateur";
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -51,26 +47,29 @@ export function CommandPalette() {
 
   // `category` = slug stable; libelle rendu via t(`commandPalette.category.${category}`).
   const commands: CommandItem[] = [
-    { id: "dashboard", icon: LayoutDashboard, action: () => navigate("/"), category: "navigation", keywords: ["accueil", "home"] },
-    { id: "calls", icon: Phone, action: () => navigate("/appels"), category: "navigation", keywords: ["telephone", "phone"] },
-    { id: "contacts", icon: Users, action: () => navigate("/contacts"), category: "navigation", keywords: ["client", "carnet"] },
-    { id: "tasks", icon: CheckSquare, action: () => navigate("/taches"), category: "navigation", keywords: ["todo", "travail"] },
-    { id: "messages", icon: MessageSquare, action: () => navigate("/messages"), category: "navigation", keywords: ["sms", "chat"] },
-    { id: "calendar", icon: Calendar, action: () => navigate("/calendrier"), category: "navigation", keywords: ["agenda", "rdv"] },
-    { id: "reports", icon: FileText, action: () => navigate("/rapports"), category: "navigation" },
-    { id: "analytics", icon: BarChart, action: () => navigate("/analyse"), category: "navigation" },
-    { id: "performance", icon: BarChart3, action: () => navigate("/performance"), category: "navigation" },
-    { id: "checkins", icon: Clock, action: () => navigate("/pointage"), category: "navigation" },
-    { id: "ai", icon: Brain, action: () => navigate("/agents-ia"), category: "navigation" },
-    { id: "automations", icon: Zap, action: () => navigate("/automatisations"), category: "administration" },
-    { id: "users", icon: UserCog, action: () => navigate("/utilisateurs"), category: "administration", acces: "admin" },
-    { id: "audit", icon: Shield, action: () => navigate("/gestion-licence"), category: "administration", keywords: ["audit", "log", "journal"], acces: "admin" },
-    { id: "organisations", icon: KeyRound, action: () => navigate("/organisations"), category: "administration", acces: "super_admin" },
-    { id: "abonnement", icon: KeyRound, action: () => navigate("/gestion-licence"), category: "navigation", keywords: ["licence", "plan", "subscription", "abonnement", "facturation"], acces: "admin" },
-    { id: "settings", icon: Settings, action: () => navigate("/parametres"), category: "administration" },
-    { id: "notifications", icon: MessageSquare, action: () => navigate("/notifications"), category: "navigation" },
-    { id: "projets", icon: FolderKanban, action: () => navigate("/projets"), category: "navigation", keywords: ["chantier", "project", "kanban"] },
-    { id: "google-workspace", icon: Search, action: () => navigate("/google-workspace"), category: "navigation", keywords: ["gmail", "drive", "docs", "sheets", "calendar", "google"] },
+    { id: "dashboard", icon: LayoutDashboard, href: "/", category: "navigation", keywords: ["accueil", "home", "bugun"] },
+    { id: "approvals", icon: Inbox, href: "/file-approbation", category: "navigation", keywords: ["approbation", "onay", "approval", "valider"] },
+    { id: "calls", icon: Phone, href: "/appels", category: "navigation", keywords: ["telephone", "phone"] },
+    { id: "contacts", icon: Users, href: "/contacts", category: "navigation", keywords: ["client", "carnet"] },
+    { id: "quotes", icon: FileSignature, href: "/devis", category: "navigation", keywords: ["devis", "teklif", "quote"] },
+    { id: "invoices", icon: Receipt, href: "/factures", category: "navigation", keywords: ["facture", "fatura", "invoice"] },
+    { id: "tasks", icon: CheckSquare, href: "/taches", category: "navigation", keywords: ["todo", "travail"] },
+    { id: "messages", icon: MessageSquare, href: "/messages", category: "navigation", keywords: ["sms", "chat"] },
+    { id: "calendar", icon: Calendar, href: "/calendrier", category: "navigation", keywords: ["agenda", "rdv"] },
+    { id: "reports", icon: FileText, href: "/rapports", category: "navigation" },
+    { id: "analytics", icon: BarChart, href: "/analyse", category: "navigation" },
+    { id: "performance", icon: BarChart3, href: "/performance", category: "navigation" },
+    { id: "checkins", icon: Clock, href: "/pointage", category: "navigation" },
+    { id: "ai", icon: Brain, href: "/agents-catalogue", category: "navigation" },
+    { id: "automations", icon: Zap, href: "/automatisations", category: "administration" },
+    { id: "users", icon: UserCog, href: "/utilisateurs", category: "administration" },
+    { id: "audit", icon: Shield, href: "/gestion-licence?tab=audit-systeme", category: "administration", keywords: ["audit", "log", "journal"] },
+    { id: "organisations", icon: KeyRound, href: "/organisations", category: "administration" },
+    { id: "abonnement", icon: KeyRound, href: "/gestion-licence", category: "navigation", keywords: ["licence", "plan", "subscription", "abonnement", "facturation"] },
+    { id: "settings", icon: Settings, href: "/parametres", category: "administration" },
+    { id: "notifications", icon: MessageSquare, href: "/notifications", category: "navigation" },
+    { id: "projets", icon: FolderKanban, href: "/projets", category: "navigation", keywords: ["chantier", "project", "kanban", "santiye"] },
+    { id: "google-workspace", icon: Search, href: "/google-workspace", category: "navigation", keywords: ["gmail", "drive", "docs", "sheets", "calendar", "google"] },
   ];
 
   // Le filtre d'acces vient AVANT celui de la recherche: une commande
@@ -82,11 +81,7 @@ export function CommandPalette() {
   // seule y trouvait « Utilisateurs », « Licence », « Organisations », et
   // tombait sur un refus a chaque fois. Un produit qui propose des portes
   // qu'il claque ensuite se lit comme un produit casse.
-  const autorisees = commands.filter(cmd => {
-    if (cmd.acces === "super_admin") return estSuperAdmin;
-    if (cmd.acces === "admin") return estAdmin;
-    return true;
-  });
+  const autorisees = commands.filter(cmd => peutOuvrir(accesDeLAdresse(cmd.href), user.role));
 
   const filtered = autorisees.filter(cmd => {
     if (!search) return true;
@@ -99,9 +94,9 @@ export function CommandPalette() {
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") { e.preventDefault(); setSelectedIndex(i => Math.min(i + 1, filtered.length - 1)); }
     else if (e.key === "ArrowUp") { e.preventDefault(); setSelectedIndex(i => Math.max(i - 1, 0)); }
-    else if (e.key === "Enter" && filtered[selectedIndex]) { filtered[selectedIndex].action(); setOpen(false); }
+    else if (e.key === "Enter" && filtered[selectedIndex]) { navigate(filtered[selectedIndex].href); setOpen(false); }
     else if (e.key === "Escape") { setOpen(false); }
-  }, [filtered, selectedIndex]);
+  }, [filtered, selectedIndex, navigate]);
 
   const categories = [...new Set(filtered.map(c => c.category))];
 
@@ -124,7 +119,7 @@ export function CommandPalette() {
                 const Icon = cmd.icon;
                 return (
                   <button key={cmd.id} className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${globalIdx === selectedIndex ? "bg-accent text-accent-foreground" : "hover:bg-accent/50"}`}
-                    onClick={() => { cmd.action(); setOpen(false); }} onMouseEnter={() => setSelectedIndex(globalIdx)}>
+                    onClick={() => { navigate(cmd.href); setOpen(false); }} onMouseEnter={() => setSelectedIndex(globalIdx)}>
                     <Icon className="h-4 w-4 shrink-0" />
                     <span>{t(`commandPalette.cmd.${cmd.id}`)}</span>
                   </button>

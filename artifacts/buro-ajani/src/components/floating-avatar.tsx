@@ -2,6 +2,7 @@ import { useTranslation } from "@/i18n";
 import { AvatarDock } from "@workspace/ai-avatar";
 import { GripVertical,Minus,Plus } from "lucide-react";
 import { useCallback,useEffect,useRef,useState } from "react";
+import { bordGaucheDuContenu,dansLeContenu } from "@/lib/zone-contenu";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Avatar flottant déplaçable ("Canvas" vivant).
@@ -33,6 +34,7 @@ function clamp(v: number, min: number, max: number) {
   return Math.min(Math.max(v, min), max);
 }
 
+
 function loadPos(): Pos | null {
   try {
     const raw = localStorage.getItem(POS_KEY);
@@ -48,9 +50,9 @@ function loadPos(): Pos | null {
 function defaultPos(minimized: boolean): Pos {
   if (typeof window === "undefined") return { x: 24, y: 120 };
   const h = minimized ? PILL : PANEL_H;
-  // Coin bas-gauche par défaut (le bouton assistant occupe le bas-droit).
+  // Coin bas-gauche du CONTENU par défaut (le bouton assistant occupe le bas-droit).
   return {
-    x: 24,
+    x: bordGaucheDuContenu() + 24,
     y: clamp(window.innerHeight - h - 24, 16, window.innerHeight - h - 8),
   };
 }
@@ -89,11 +91,7 @@ export function FloatingAvatar() {
       setPos((p) => {
         const w = minimized ? PILL : PANEL_W;
         const h = minimized ? PILL : PANEL_H;
-        const next = {
-          x: clamp(p.x, 8, Math.max(8, window.innerWidth - w - 8)),
-          y: clamp(p.y, 8, Math.max(8, window.innerHeight - h - 8)),
-        };
-        return next;
+        return dansLeContenu(p, w, h);
       });
     };
     // Reclampe immédiatement aussi au mont + à chaque bascule réduit/agrandi :
@@ -101,7 +99,15 @@ export function FloatingAvatar() {
     // déborder hors de l'écran.
     onResize();
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    // La barre laterale se replie et se deploie sans redimensionner la
+    // fenetre : on suit la zone de contenu elle-meme.
+    const contenu = document.getElementById("contenu");
+    const suivi = contenu && typeof ResizeObserver !== "undefined" ? new ResizeObserver(onResize) : null;
+    if (contenu && suivi) suivi.observe(contenu);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      suivi?.disconnect();
+    };
   }, [minimized]);
 
   const onPointerDown = useCallback(
@@ -123,10 +129,7 @@ export function FloatingAvatar() {
       if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved.current = true;
       const w = minimized ? PILL : PANEL_W;
       const h = minimized ? PILL : PANEL_H;
-      setPos({
-        x: clamp(start.current.ox + dx, 8, Math.max(8, window.innerWidth - w - 8)),
-        y: clamp(start.current.oy + dy, 8, Math.max(8, window.innerHeight - h - 8)),
-      });
+      setPos(dansLeContenu({ x: start.current.ox + dx, y: start.current.oy + dy }, w, h));
     },
     [minimized],
   );

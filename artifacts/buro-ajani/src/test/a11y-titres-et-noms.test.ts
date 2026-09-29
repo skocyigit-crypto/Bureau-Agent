@@ -53,7 +53,9 @@ describe("chaque page a son titre", () => {
 
   it("le Layout pose le titre", () => {
     const layout = readFileSync(join(import.meta.dirname, "..", "components", "layout.tsx"), "utf8");
-    expect(layout).toMatch(/titreDePage\(location, navGroups\.flatMap/);
+    // Toutes les pages du menu, onglets de section compris (refonte du 29/09).
+    expect(layout).toMatch(/titreDePage\(location, pagesNommees\)/);
+    expect(layout).toMatch(/pagesDe\(toutesLesEntrees\)\.map/);
     expect(layout).toMatch(/document\.title = titrePage/);
   });
 

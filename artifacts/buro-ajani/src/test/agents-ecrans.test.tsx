@@ -169,7 +169,8 @@ describe("les deux ecrans sont atteignables", () => {
   it("routes declarees et entrees de menu presentes", () => {
     expect(src("App.tsx")).toMatch(/path="\/agents-catalogue"/);
     expect(src("App.tsx")).toMatch(/path="\/bureau-taches"/);
-    expect(src("components", "layout.tsx")).toMatch(/href: "\/bureau-taches"/);
-    expect(src("components", "layout.tsx")).toMatch(/href: "\/agents-catalogue"/);
+    // Le plan du menu vit dans lib/gezinti.ts depuis la refonte du 29/09.
+    expect(src("lib", "gezinti.ts")).toMatch(/href: "\/bureau-taches"/);
+    expect(src("lib", "gezinti.ts")).toMatch(/href: "\/agents-catalogue"/);
   });
 });

@@ -136,79 +136,86 @@
   "sidebar": {
     "groups": {
       "today": "Bugün",
-      "communication": "İletişim",
-      "addressBook": "Adres Defteri",
-      "work": "İş Organizasyonu",
-      "docsReports": "Belgeler & Raporlar",
-      "aiAssistants": "Yapay Zeka Asistanları",
-      "analysis": "Analiz",
-      "integrations": "Entegrasyonlar",
-      "administration": "Yönetim",
-      "superAdmin": "Süper Yönetici",
-      "system": "Sistem",
-      "sales": "Satış"
+      "communication": "İletişim Merkezi",
+      "work": "Şantiyeler ve İşler",
+      "sales": "CRM ve Satış",
+      "planning": "Planlama",
+      "finance": "Finans",
+      "agentBureau": "Ajan Bureau",
+      "knowledge": "Bilgi ve Analiz",
+      "officeSettings": "Büro Ayarları",
+      "platformConsole": "Platform konsolu"
     },
     "items": {
       "dashboard": "Kontrol Paneli",
-      "proactiveAssistant": "Proaktif Asistan",
-      "aiLearned": "Yapay Zekanın Öğrendikleri",
+      "proactiveAssistant": "Proaktif öneriler",
+      "aiLearned": "Yapay zekânın öğrendikleri",
       "calendar": "Takvim",
       "reminders": "Hatırlatmalar",
       "recentActivity": "Son Etkinlikler",
-      "calls": "Aramalar",
+      "calls": "Çağrılar",
       "messages": "Mesajlar",
-      "whatsapp": "WhatsApp Müşteriler",
-      "mailAgent": "Yapay Zeka Mail Ajanı",
-      "securityCenter": "Güvenlik Merkezi",
-      "webSearch": "Web Araması",
+      "whatsapp": "WhatsApp",
+      "mailAgent": "E-posta",
+      "securityCenter": "Güvenlik merkezi",
+      "webSearch": "Güvenli web araması",
       "contacts": "Kişiler",
       "tasks": "Görevler",
-      "projects": "Projeler",
-      "treasury": "Hazine & Risk",
+      "projects": "Şantiyeler ve projeler",
+      "treasury": "Nakit ve risk",
       "expenses": "Giderler",
-      "siteVoice": "Sesli Şantiye Girişi",
+      "siteVoice": "Sahadan sesli rapor",
       "internalNotes": "Dahili Notlar",
-      "checkin": "Puantaj",
+      "checkin": "Giriş-çıkış saatleri",
       "documents": "Belgeler",
-      "knowledgeBase": "Bilgi Bankası",
-      "documentAi": "Belge Yapay Zekası",
+      "knowledgeBase": "Bilgi tabanı",
+      "documentAi": "Belge sınıflandırma",
       "reports": "Raporlar",
-      "aiTeam": "Yapay Zeka Ekibi",
-      "aiCommander": "Yapay Zeka Komutanı",
-      "approvalQueue": "Onay Kuyruğu",
-      "universalAssistant": "Evrensel Asistan",
-      "aiAgents": "Yapay Zeka Ajanları",
+      "aiTeam": "Ajan hedefleri",
+      "aiCommander": "Analiz komutları",
+      "approvalQueue": "Onay bekleyenler",
+      "universalAssistant": "Sohbet asistanı",
+      "aiAgents": "Uzman ajanlar",
       "statistics": "İstatistikler",
       "googleWorkspace": "Google Workspace",
-      "telephony": "Telefon Sistemi",
-      "connectors": "Bağlayıcılar",
+      "telephony": "Telefon hattı",
+      "connectors": "Bağlı yazılımlar",
       "users": "Kullanıcılar",
-      "license": "Lisans & Faturalama",
+      "license": "Abonelik ve faturalama",
       "dataProtection": "Veri Koruma",
       "teamLocation": "Ekip Konumu",
       "executiveReport": "Yönetici Raporu",
       "teamPerformance": "Ekip Performansı",
-      "autoAudit": "Oto-Denetim",
-      "automations": "Otomasyonlar",
+      "autoAudit": "Uygulama denetimi",
+      "automations": "Otomatik kurallar",
       "saasBackoffice": "SaaS Yönetim Paneli",
       "organisations": "Organizasyonlar",
-      "prospects": "Potansiyel müşteriler",
+      "prospects": "Talepler ve fırsatlar",
       "globalAuditLog": "Küresel Denetim Günlüğü",
       "techHealth": "Teknik Sağlık",
-      "guide": "Kullanma Kılavuzu",
+      "guide": "Yardım ve kılavuz",
       "settings": "Ayarlar",
-      "smartImport": "Akıllı İçe Aktarma",
-      "initialSetup": "İlk Kurulum",
+      "smartImport": "Veri içe aktarma",
+      "initialSetup": "İlk yapılandırma",
       "mobileApp": "Mobil Uygulama",
       "quotes": "Teklifler",
       "clientInvoices": "Müşteri faturaları",
-      "trash": "Çöp kutusu",
-      "postDiagnostic": "Bilgisayar kontrolu",
-      "encaissements": "Tahsilatlar",
-      "taskDesk": "İş masası",
-      "agentCatalog": "Ajan kataloğu",
-      "flowStudio": "Akış stüdyosu"
-    }
+      "trash": "Silinen kayıtlar",
+      "postDiagnostic": "Bilgisayar kontrolü",
+      "encaissements": "Tahsilat defteri",
+      "taskDesk": "Ajan çalışmaları",
+      "agentCatalog": "Ajan profilleri",
+      "flowStudio": "Akış stüdyosu",
+      "phoneOps": "Arama ve SMS",
+      "agents": "Ajanlar",
+      "flows": "Akışlar",
+      "runs": "Çalışmalar",
+      "connections": "Bağlantılar",
+      "security": "Güvenlik"
+    },
+    "mainNav": "Ana menü",
+    "sectionTabs": "“{{name}}” sayfaları",
+    "newItems": "yeni: {{count}}"
   },
   "userMenu": {
     "level": "Seviye {{n}}",
@@ -263,7 +270,15 @@
     "device": "Cihaz",
     "appMode": "Uygulama modu",
     "newBadgeAria": "{{count}} yeni {{name}}",
-    "newBadgeAriaPlural": "{{count}} yeni {{name}}"
+    "newBadgeAriaPlural": "{{count}} yeni {{name}}",
+    "approvalsWaiting": "Onay bekleyen: {{count}}",
+    "approvalsNone": "Onay bekleyen işlem yok",
+    "voiceCommand": "Sesli komut",
+    "voiceWake": "uyandırma sözcüğünü bekliyor",
+    "voiceListening": "dinliyor",
+    "quickAction": "Hızlı işlem",
+    "backToOffice": "Büroya dön",
+    "tools": "Cihaz araçları"
   },
   "dashboard": {
     "title": "Kontrol Paneli",
@@ -675,7 +690,7 @@
     "projectNotes": "#{{id}} numaralı görevden oluşturuldu"
   },
   "calls": {
-    "title": "Arama Günlüğü",
+    "title": "Çağrılar",
     "subtitle": "Tüm telefon iletişimlerini yönetin ve takip edin.",
     "bannerTitle": "İletişim merkezi",
     "bannerSubtitle": "Tüm gelen ve giden iletişimlerin gerçek zamanlı takibi.",
@@ -905,7 +920,7 @@
     "projectNotes": "Bir mesajdan oluşturuldu"
   },
   "prospects": {
-    "title": "Müşteri Adayları & CRM Pipeline",
+    "title": "Talepler ve fırsatlar",
     "subtitle": "Satış pipeline yönetimi ve fırsat takibi.",
     "csv": "CSV",
     "print": "Yazdır",
@@ -1029,7 +1044,7 @@
     }
   },
   "projets": {
-    "title": "Projeler",
+    "title": "Şantiyeler ve projeler",
     "totalCount": "Toplam {{total}} proje",
     "loading": "Yükleniyor...",
     "searchPlaceholder": "Proje ara...",
@@ -1331,7 +1346,7 @@
     }
   },
   "tresorerie": {
-    "title": "Nakit Akışı & Risk Radarı",
+    "title": "Nakit ve risk",
     "subtitle": "Gerçek faturalarınızdan ve bir Monte Carlo simülasyonundan yola çıkarak 90 günlük nakit sıkışıklığı riskini tahmin edin. Otomatik işlem yok: yalnızca uyarılar.",
     "risk": {
       "high": "Yüksek risk",
@@ -3688,10 +3703,17 @@
       "callLaunched": "Arama {{provider}} üzerinden başlatıldı (SID: {{sid}})",
       "smsSent": "SMS {{provider}} üzerinden gönderildi",
       "failed": "Başarısız: {{error}}"
-    }
+    },
+    "titleSettings": "Telefon hattı",
+    "subtitleSettings": "Sağlayıcılar, numaralar ve yapay zekâ sekreteri: hattın teknik ayarları.",
+    "titleUsage": "Arama yap ve SMS gönder",
+    "subtitleUsage": "Giden aramalar, SMS, toplu gönderim, planlı geri aramalar ve kayıtlar.",
+    "noLineTitle": "Etkin telefon hattı yok",
+    "noLineBody": "Bağlı bir hat olmadan buradan arama ya da SMS gönderilemez. Hiçbir şey taklit edilmez.",
+    "noLineAction": "Hat bağla (Büro Ayarları › Bağlantılar)"
   },
   "securitePage": {
-    "title": "Güvenlik Merkezi",
+    "title": "Güvenlik merkezi",
     "subtitle": "Dijital asistanınız: bağlantıları, dosyaları, aramaları ve mesajları tek yerde analiz edin.",
     "rating": {
       "excellent": "Mükemmel",
@@ -4294,7 +4316,7 @@
     }
   },
   "checkins": {
-    "title": "Giriş-Çıkış & Devam",
+    "title": "Giriş-çıkış saatleri",
     "subtitle": "Geliş, gidiş saatlerinizi ve çalışma sürenizi yönetin.",
     "csv": "CSV",
     "print": "Yazdır",
@@ -4438,7 +4460,7 @@
     "projectNotes": "{{name}} kaydından oluşturuldu"
   },
   "knowledgeBase": {
-    "title": "Bilgi Bankası",
+    "title": "Bilgi tabanı",
     "subtitle": "Bir soru sorun, belgelerinize dayalı, kaynaklı bir yanıt alın.",
     "indexing": "Dizinleniyor…",
     "indexDocuments": "Belgeleri dizinle",
@@ -4773,7 +4795,7 @@
     }
   },
   "equipeIa": {
-    "title": "Yapay Zeka Ekibi",
+    "title": "Ajan hedefleri",
     "description": "Akıllı ajanlardan oluşan ekibiniz. Her birine bir hedef verin, istediğiniz zaman çalıştırın ve tüm önerilerini tek yerde onaylayın — siz olmadan hiçbir şey çalışmaz.",
     "councilBadge": "Yapay Zeka Konseyi · Gemini + GPT + Claude",
     "councilNote": "Her ajan birden fazla önde gelen Yapay Zeka'ya danışır, ardından kararlarınızdan öğrenir.",
@@ -4852,7 +4874,7 @@
     }
   },
   "auditDenetim": {
-    "title": "Otomatik denetim",
+    "title": "Uygulama denetimi",
     "description": "Bir ajan uygulamanızı sürekli inceler: eksikleri (eksik) tespit eder ve iyileştirmeler (yenilik) önerir. İşleme alınabilir eylemler onay kuyruğunuza düşer — onayınız olmadan hiçbir şey uygulanmaz.",
     "auditRunning": "Denetim sürüyor…",
     "runAudit": "Denetim başlat",
@@ -4900,7 +4922,7 @@
     }
   },
   "voiceSiteOps": {
-    "title": "Şantiye sesli giriş",
+    "title": "Sahadan sesli rapor",
     "subtitle": "Bir şantiye notu dikte edin — Yapay Zeka stok çıkışlarını, görevleri ve ilerlemeyi hazırlar. Onayınız olmadan hiçbir şey kaydedilmez.",
     "noteTitle": "Şantiye şefi notu",
     "noteExample": "Örnek: « Rivoli şantiyesinde 20 torba çimento çıkışı, 2. kat kalıbı tamamlandı, ilerleme %60. »",
@@ -5104,7 +5126,7 @@
     }
   },
   "assistantProactif": {
-    "title": "Proaktif asistan",
+    "title": "Proaktif öneriler",
     "subtitle": "Ajanınız görevleri, çağrıları ve takvimi sürekli izler, ardından yapılacak eylemleri önerir.",
     "analyzeNow": "Şimdi analiz et",
     "autoMonitoring": "Otomatik izleme {{state}}",
@@ -5207,7 +5229,7 @@
     }
   },
   "iaApprentissage": {
-    "title": "Yapay Zekânın öğrendikleri",
+    "title": "Yapay zekânın öğrendikleri",
     "subtitle": "Geri bildirimlerinizden (👍/👎) ve alışkanlıklarınızdan yola çıkarak asistan yanıtlarını kuruluşunuza uyarlar.",
     "reanalyze": "Yeniden analiz et",
     "emptyTitle": "Yapay Zekâ henüz bir şey öğrenmedi",
@@ -5311,7 +5333,7 @@
     }
   },
   "documentImport": {
-    "title": "Akıllı İçe Aktarma",
+    "title": "Veri içe aktarma",
     "subtitle": "Bir dosya bırakın — Yapay Zekâ onu analiz eder, ne anladığını gösterir ve verileri doğru modüle yazar",
     "restart": "Yeniden başlat",
     "steps": {
@@ -5390,7 +5412,7 @@
     }
   },
   "software": {
-    "title": "Yazılımlar ve Entegrasyonlar",
+    "title": "Bağlı yazılımlar",
     "subtitle": "Profesyonel araçlarınızı bağlayın; ajan ekosisteminizde çalışsın.",
     "available": "{{count}} yazılım mevcut",
     "createProject": "Proje oluştur",
@@ -5622,7 +5644,7 @@
     }
   },
   "documentAi": {
-    "title": "Belge Yapay Zeka",
+    "title": "Belge sınıflandırma",
     "subtitle": "Herhangi bir belge bırakın — Yapay Zeka onu analiz eder, tanımlar ve otomatik olarak doğru modüle sınıflandırır.",
     "expensesTitle": "Gider kaydı",
     "expenses": "Giderler",
@@ -6134,7 +6156,7 @@
     "checkConnection": "Bağlantınızı kontrol edip tekrar deneyin."
   },
   "fileApprobation": {
-    "title": "Onay kuyruğu",
+    "title": "Onay bekleyenler",
     "subtitle": "Dijital sekreteriniz etkinliği sürekli analiz eder ve size eylemler önerir. Onayınız olmadan hiçbir şey yürütülmez — tek tıkla onaylayın veya reddedin.",
     "analyzing": "Analiz ediliyor…",
     "runAnalysis": "Analizi başlat",
@@ -6276,7 +6298,7 @@
     }
   },
   "automationsPage": {
-    "title": "Otomasyonlar",
+    "title": "Otomatik kurallar",
     "subtitle": "Akıllı otomasyon motoru - izleme ve otomatik eylemler",
     "refresh": "Yenile",
     "exportCsv": "CSV dışa aktar",
@@ -6836,7 +6858,7 @@
     "chargementEchoue": "Yükleme başarısız oldu. Bu pencereyi kapatıp yeniden açın."
   },
   "aiAgents": {
-    "title": "Yapay Zeka Ajanları",
+    "title": "Uzman ajanlar",
     "subtitle": "Büronuzun her yönünü yöneten, analiz eden ve iyileştiren 10 uzman ajan + Süper Yapay Zeka.",
     "autoFix": "Otomatik düzeltme",
     "print": "Yazdır",
@@ -7054,7 +7076,7 @@
     }
   },
   "gmailAgent": {
-    "title": "Yapay Zeka Mail Ajanı",
+    "title": "E-posta",
     "connected": "Bağlı",
     "refresh": "Yenile",
     "print": "Yazdır",
@@ -7252,7 +7274,7 @@
     }
   },
   "commandantIa": {
-    "title": "Yapay Zeka Komutanı",
+    "title": "Analiz komutları",
     "subtitle": "Akıllı komuta merkezi — Gemini, OpenAI ve Anthropic tarafından desteklenen 18 süper yetenek",
     "print": "Yazdır",
     "tabs": {
@@ -7576,7 +7598,7 @@
       "success": "Başarılı"
     },
     "header": {
-      "title": "Lisans ve Faturalandırma Yönetimi",
+      "title": "Abonelik ve faturalama",
       "subtitle": "{{org}} — Güvenlik, ödemeler ve faturalar",
       "refresh": "Yenile",
       "print": "Yazdır"
@@ -7865,7 +7887,7 @@
     "print": "Yazdır"
   },
   "whatsappPage": {
-    "title": "WhatsApp müşteri kutusu",
+    "title": "WhatsApp",
     "subtitle": "Müşterilerinizin mesajları burada görünür. Yapay Zeka bir yanıt hazırlar — göndermeden önce siz onaylarsınız.",
     "searchPlaceholder": "Müşteri ara…",
     "tabOpen": "Açık",
@@ -8672,7 +8694,10 @@
       "settings": "Ayarlar",
       "notifications": "Bildirimler",
       "projets": "Projeler",
-      "google-workspace": "Google Workspace"
+      "google-workspace": "Google Workspace",
+      "approvals": "Onay bekleyenler",
+      "quotes": "Teklifler",
+      "invoices": "Müşteri faturaları"
     }
   },
   "centralIntelligence": {
@@ -9414,7 +9439,7 @@
     }
   },
   "corbeille": {
-    "title": "Çöp kutusu",
+    "title": "Silinen kayıtlar",
     "subtitle": "Silinenler {{days}} gün boyunca geri alınabilir.",
     "subtitleGeneric": "Silinenler bir süre geri alınabilir.",
     "empty": "Çöp kutusu boş",
@@ -9434,7 +9459,7 @@
     }
   },
   "diagnosticPoste": {
-    "titre": "Bilgisayar kontrolu",
+    "titre": "Bilgisayar kontrolü",
     "sousTitre": "Bir bilgisayarda ne eksik, ne yapilmali.",
     "commentTitre": "Nasil calisir",
     "etape1": "Betigi indirin ve incelenecek bilgisayara kaydedin.",
@@ -9562,7 +9587,7 @@
     }
   },
   "agentsCatalogue": {
-    "title": "Ajan kataloğu",
+    "title": "Ajan profilleri",
     "subtitle": "Her ajanın okuyabildikleri ve yapabildikleri, sınırları ve son 30 günlük etkinliği.",
     "loading": "Katalog yükleniyor…",
     "error": "Katalog yüklenemedi.",
@@ -9630,7 +9655,7 @@
     }
   },
   "bureauTaches": {
-    "title": "İş masası",
+    "title": "Ajan çalışmaları",
     "subtitle": "Ajanların yaptıkları: çalışan, onay bekleyen, tamamlanan, hata veren — ve maliyeti.",
     "newRequest": "Yeni talep",
     "form": {
