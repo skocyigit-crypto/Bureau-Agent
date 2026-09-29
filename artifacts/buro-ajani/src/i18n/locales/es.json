@@ -3329,15 +3329,15 @@
       "rgpdEncryption": "Cifrado de los datos en reposo",
       "rgpdEncryptionDesc": "Los datos sensibles se cifran en la base de datos (AES-256)",
       "rgpdAuditLog": "Registro de auditoría",
-      "rgpdAuditLogDesc": "Registrar todas las acciones de los usuarios con marca de tiempo y dirección IP",
+      "rgpdAuditLogDesc": "Las acciones sensibles (inicio de sesión, exportación, eliminación, cambio de permisos) se registran con fecha y dirección IP, sin posibilidad de modificación",
       "rgpdRightErasure": "Derecho al olvido",
-      "rgpdRightErasureDesc": "Permitir la eliminación completa de los datos de un contacto",
+      "rgpdRightErasureDesc": "Un contacto eliminado permanece 30 días en la papelera y luego se borra; su nombre y número siguen en el historial de llamadas y mensajes",
       "rgpdExport": "Exportación de datos personales",
       "rgpdExportDesc": "Permitir la exportación de los datos en formato estándar (RGPD Art. 20)",
       "rgpdRetention": "Conservación limitada de datos",
-      "rgpdRetentionDesc": "Eliminación automática de los datos más allá del plazo legal de conservación",
-      "rgpdConsent": "Consentimiento explícito",
-      "rgpdConsentDesc": "Recoger y registrar el consentimiento antes de cualquier tratamiento de datos",
+      "rgpdRetentionDesc": "Borrado automático: transcripciones de llamadas a los 12 meses, presencia en zona a los 30 días, datos del cliente 30 días después del fin del contrato (en activación). Los demás plazos los fija usted: vea el registro.",
+      "rgpdConsent": "Bases jurídicas documentadas",
+      "rgpdConsentDesc": "Cada tratamiento tiene su base jurídica en el registro (contrato, obligación legal, interés legítimo); el consentimiento solo se pide donde es la base adecuada",
       "actionsTitle": "Acciones de seguridad",
       "actionsDesc": "Operaciones manuales de seguridad reservadas al Superadministrador.",
       "exportAudit": "Exportar el registro de auditoría",
@@ -3349,7 +3349,8 @@
       "revokeSessionsConfirm": "¿Cerrar la sesión de todos?",
       "revokeSessionsConfirmDesc": "Se cerrarán todas las sesiones de la organización, incluida la suya. Todos deberán volver a iniciar sesión.",
       "revokeSessionsDone": "{{count}} cuenta(s) desconectada(s). Se le redirigirá.",
-      "revokeSessionsFailed": "No se pudo realizar la revocación. Inténtelo de nuevo."
+      "revokeSessionsFailed": "No se pudo realizar la revocación. Inténtelo de nuevo.",
+      "rgpdPartiel": "Parcial"
     }
   },
   "users": {
@@ -5006,7 +5007,8 @@
       "inventory": "Datos recopilados",
       "documents": "Documentos legales",
       "requests": "Mis solicitudes",
-      "contact": "Contacto DPO"
+      "contact": "Contacto DPO",
+      "registre": "Registro"
     },
     "rightsTitle": "Sus derechos como interesado",
     "rightsDesc": "De conformidad con el Reglamento General de Protección de Datos (UE 2016/679), usted dispone de los siguientes derechos:",
@@ -5070,7 +5072,33 @@
     "processNotes": "Motivo o respuesta comunicada a la persona",
     "processNotesPlaceholder": "Obligatorio en caso de denegación: los motivos y el recordatorio del derecho a reclamar ante la autoridad de control (art. 12(4)).",
     "processComplete": "Marcar como tratada",
-    "processRefuse": "Denegar"
+    "processRefuse": "Denegar",
+    "registre": {
+      "title": "Registro de actividades de tratamiento",
+      "desc": "Artículo 30 del RGPD, mantenido por el software: cada tabla de datos está vinculada y se distingue lo que se borra automáticamente de lo que decide usted. El contenido está en francés.",
+      "csv": "Descargar (CSV)",
+      "finalite": "Finalidad",
+      "personnes": "Interesados",
+      "donnees": "Datos",
+      "baseLegale": "Base jurídica",
+      "duree": "Plazo (referencia)",
+      "appliquee": "Borrado automáticamente",
+      "aucunEffacement": "Sin borrado automático: plazo fijado por usted",
+      "destinataires": "Destinatarios",
+      "role": "Papel del proveedor",
+      "sensible": "Sensible",
+      "iaTitle": "Sistemas de IA (AI Act)",
+      "iaDesc": "Clasificación técnica, no un dictamen jurídico.",
+      "obligation": "Obligación",
+      "tenue": "Cómo se cumple",
+      "exposees": "Personas expuestas",
+      "exclusions": "Examinado y descartado",
+      "erreur": "Registro no disponible.",
+      "classe_interdit": "Prohibido",
+      "classe_haut_risque": "Alto riesgo",
+      "classe_transparence": "Transparencia (art. 50)",
+      "classe_risque_minimal": "Riesgo mínimo"
+    }
   },
   "assistantProactif": {
     "title": "Asistente proactivo",

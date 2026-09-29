@@ -3329,15 +3329,15 @@
       "rgpdEncryption": "Durağan verilerin şifrelenmesi",
       "rgpdEncryptionDesc": "Hassas veriler veritabanında şifrelenir (AES-256)",
       "rgpdAuditLog": "Denetim günlüğü",
-      "rgpdAuditLogDesc": "Tüm kullanıcı işlemlerini zaman damgası ve IP adresiyle kaydet",
+      "rgpdAuditLogDesc": "Hassas işlemler (giriş, dışa aktarma, silme, yetki değişikliği) zaman damgası ve IP adresiyle, değiştirilemez biçimde kaydedilir",
       "rgpdRightErasure": "Unutulma hakkı",
-      "rgpdRightErasureDesc": "Bir kişinin verilerinin tamamen silinmesine izin ver",
+      "rgpdRightErasureDesc": "Silinen bir kişi 30 gün çöp kutusunda kalır, sonra silinir; adı ve numarası arama ve mesaj geçmişinde kalır",
       "rgpdExport": "Kişisel verilerin dışa aktarımı",
       "rgpdExportDesc": "Verilerin standart biçimde dışa aktarılmasına izin ver (GDPR Md. 20)",
       "rgpdRetention": "Sınırlı veri saklama",
-      "rgpdRetentionDesc": "Yasal saklama süresini aşan verilerin otomatik silinmesi",
-      "rgpdConsent": "Açık rıza",
-      "rgpdConsentDesc": "Herhangi bir veri işlemeden önce rızayı topla ve kaydet",
+      "rgpdRetentionDesc": "Otomatik silme: arama transkriptleri 12 ay, bölge varlığı 30 gün, müşteri verileri sözleşme bitiminden 30 gün sonra (etkinleştiriliyor). Diğer süreleri siz belirlersiniz: kayda bakın.",
+      "rgpdConsent": "Belgelenmiş hukuki dayanaklar",
+      "rgpdConsentDesc": "Her işlemenin hukuki dayanağı kayıtta yazılı (sözleşme, yasal yükümlülük, meşru menfaat); açık rıza yalnız doğru dayanak olduğu yerde istenir",
       "actionsTitle": "Güvenlik işlemleri",
       "actionsDesc": "Süper Yöneticiye özel elle güvenlik işlemleri.",
       "exportAudit": "Denetim günlüğünü dışa aktar",
@@ -3349,7 +3349,8 @@
       "revokeSessionsConfirm": "Herkesin oturumu kapatılsın mı?",
       "revokeSessionsConfirmDesc": "Kuruluştaki tüm oturumlar, sizinki dahil, sonlandırılacak. Herkesin yeniden giriş yapması gerekecek.",
       "revokeSessionsDone": "{{count}} hesabın oturumu kapatıldı. Yönlendiriliyorsunuz.",
-      "revokeSessionsFailed": "Sonlandırma gerçekleştirilemedi. Yeniden deneyin."
+      "revokeSessionsFailed": "Sonlandırma gerçekleştirilemedi. Yeniden deneyin.",
+      "rgpdPartiel": "Kısmi"
     }
   },
   "users": {
@@ -5006,7 +5007,8 @@
       "inventory": "Toplanan veriler",
       "documents": "Yasal belgeler",
       "requests": "Taleplerim",
-      "contact": "DPO iletişim"
+      "contact": "DPO iletişim",
+      "registre": "Kayıt"
     },
     "rightsTitle": "İlgili kişi olarak haklarınız",
     "rightsDesc": "Genel Veri Koruma Tüzüğü (AB 2016/679) uyarınca aşağıdaki haklara sahipsiniz:",
@@ -5070,7 +5072,33 @@
     "processNotes": "Kişiye iletilen gerekçe veya yanıt",
     "processNotesPlaceholder": "Reddederken zorunlu: gerekçeler ve denetim makamına şikâyet hakkının hatırlatılması (md. 12(4)).",
     "processComplete": "İşlendi olarak işaretle",
-    "processRefuse": "Reddet"
+    "processRefuse": "Reddet",
+    "registre": {
+      "title": "İşleme faaliyetleri kaydı",
+      "desc": "RGPD madde 30, yazılım tarafından tutulur: her veri tablosu buraya bağlıdır; otomatik silinen ile sizin karar verdiğiniz ayrı gösterilir. İçerik Fransızcadır.",
+      "csv": "İndir (CSV)",
+      "finalite": "Amaç",
+      "personnes": "İlgili kişiler",
+      "donnees": "Veriler",
+      "baseLegale": "Hukuki dayanak",
+      "duree": "Süre (referans)",
+      "appliquee": "Otomatik silinen",
+      "aucunEffacement": "Otomatik silme yok: süreyi siz belirlersiniz",
+      "destinataires": "Alıcılar",
+      "role": "Sağlayıcının rolü",
+      "sensible": "Hassas",
+      "iaTitle": "Yapay zekâ sistemleri (AI Act)",
+      "iaDesc": "Teknik sınıflandırma, hukuki görüş değildir.",
+      "obligation": "Yükümlülük",
+      "tenue": "Nasıl karşılanıyor",
+      "exposees": "Etkilenen kişiler",
+      "exclusions": "İncelendi ve dışlandı",
+      "erreur": "Kayıt kullanılamıyor.",
+      "classe_interdit": "Yasak",
+      "classe_haut_risque": "Yüksek risk",
+      "classe_transparence": "Şeffaflık (md. 50)",
+      "classe_risque_minimal": "Asgari risk"
+    }
   },
   "assistantProactif": {
     "title": "Proaktif asistan",

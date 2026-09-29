@@ -3329,15 +3329,15 @@
       "rgpdEncryption": "Verschlüsselung ruhender Daten",
       "rgpdEncryptionDesc": "Sensible Daten werden in der Datenbank verschlüsselt (AES-256)",
       "rgpdAuditLog": "Audit-Protokoll",
-      "rgpdAuditLogDesc": "Alle Benutzeraktionen mit Zeitstempel und IP-Adresse aufzeichnen",
+      "rgpdAuditLogDesc": "Sensible Aktionen (Anmeldung, Export, Löschung, Rechteänderung) werden mit Zeitstempel und IP-Adresse unveränderbar protokolliert",
       "rgpdRightErasure": "Recht auf Vergessenwerden",
-      "rgpdRightErasureDesc": "Vollständige Löschung der Daten eines Kontakts ermöglichen",
+      "rgpdRightErasureDesc": "Ein gelöschter Kontakt bleibt 30 Tage im Papierkorb und wird dann gelöscht; Name und Nummer bleiben im Anruf- und Nachrichtenverlauf",
       "rgpdExport": "Export personenbezogener Daten",
       "rgpdExportDesc": "Export der Daten in einem Standardformat ermöglichen (DSGVO Art. 20)",
       "rgpdRetention": "Begrenzte Datenaufbewahrung",
-      "rgpdRetentionDesc": "Automatische Löschung von Daten über die gesetzliche Aufbewahrungsfrist hinaus",
-      "rgpdConsent": "Ausdrückliche Einwilligung",
-      "rgpdConsentDesc": "Einwilligung vor jeder Datenverarbeitung einholen und aufzeichnen",
+      "rgpdRetentionDesc": "Automatische Löschung: Anruftranskripte nach 12 Monaten, Zonenanwesenheit nach 30 Tagen, Kundendaten 30 Tage nach Vertragsende (wird aktiviert). Die übrigen Fristen legen Sie fest: siehe Verzeichnis.",
+      "rgpdConsent": "Dokumentierte Rechtsgrundlagen",
+      "rgpdConsentDesc": "Jede Verarbeitung hat ihre Rechtsgrundlage im Verzeichnis (Vertrag, rechtliche Pflicht, berechtigtes Interesse); eine Einwilligung wird nur dort eingeholt, wo sie die richtige Grundlage ist",
       "actionsTitle": "Sicherheitsaktionen",
       "actionsDesc": "Manuelle Sicherheitsvorgänge, die dem Superadministrator vorbehalten sind.",
       "exportAudit": "Audit-Protokoll exportieren",
@@ -3349,7 +3349,8 @@
       "revokeSessionsConfirm": "Alle abmelden?",
       "revokeSessionsConfirmDesc": "Alle Sitzungen der Organisation werden beendet, auch Ihre. Alle müssen sich neu anmelden.",
       "revokeSessionsDone": "{{count}} Konto/Konten abgemeldet. Sie werden weitergeleitet.",
-      "revokeSessionsFailed": "Der Widerruf konnte nicht durchgeführt werden. Bitte erneut versuchen."
+      "revokeSessionsFailed": "Der Widerruf konnte nicht durchgeführt werden. Bitte erneut versuchen.",
+      "rgpdPartiel": "Teilweise"
     }
   },
   "users": {
@@ -5006,7 +5007,8 @@
       "inventory": "Erfasste Daten",
       "documents": "Rechtsdokumente",
       "requests": "Meine Anfragen",
-      "contact": "DSB-Kontakt"
+      "contact": "DSB-Kontakt",
+      "registre": "Verzeichnis"
     },
     "rightsTitle": "Ihre Rechte als betroffene Person",
     "rightsDesc": "Gemäß der Datenschutz-Grundverordnung (EU 2016/679) verfügen Sie über die folgenden Rechte:",
@@ -5070,7 +5072,33 @@
     "processNotes": "Begründung oder Antwort an die Person",
     "processNotesPlaceholder": "Bei Ablehnung verpflichtend: die Gründe und der Hinweis auf das Beschwerderecht bei der Aufsichtsbehörde (Art. 12(4)).",
     "processComplete": "Als bearbeitet markieren",
-    "processRefuse": "Ablehnen"
+    "processRefuse": "Ablehnen",
+    "registre": {
+      "title": "Verzeichnis von Verarbeitungstätigkeiten",
+      "desc": "Art. 30 DSGVO, von der Software geführt: jede Datentabelle ist zugeordnet, und automatisch Gelöschtes wird von Ihren Entscheidungen getrennt. Inhalt auf Französisch.",
+      "csv": "Herunterladen (CSV)",
+      "finalite": "Zweck",
+      "personnes": "Betroffene Personen",
+      "donnees": "Daten",
+      "baseLegale": "Rechtsgrundlage",
+      "duree": "Frist (Richtwert)",
+      "appliquee": "Automatisch gelöscht",
+      "aucunEffacement": "Keine automatische Löschung: Frist legen Sie fest",
+      "destinataires": "Empfänger",
+      "role": "Rolle des Anbieters",
+      "sensible": "Sensibel",
+      "iaTitle": "KI-Systeme (AI Act)",
+      "iaDesc": "Technische Einstufung, keine Rechtsberatung.",
+      "obligation": "Pflicht",
+      "tenue": "Wie sie erfüllt wird",
+      "exposees": "Betroffene",
+      "exclusions": "Geprüft und ausgeschlossen",
+      "erreur": "Verzeichnis nicht verfügbar.",
+      "classe_interdit": "Verboten",
+      "classe_haut_risque": "Hohes Risiko",
+      "classe_transparence": "Transparenz (Art. 50)",
+      "classe_risque_minimal": "Minimales Risiko"
+    }
   },
   "assistantProactif": {
     "title": "Proaktiver Assistent",
