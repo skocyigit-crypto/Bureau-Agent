@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Verifie que chaque requete sur une table appartenant a un locataire porte
  * bien un filtre d'organisation.
@@ -241,9 +240,14 @@ function lineOf(src, index) {
  * demande une relecture humaine, pas une barriere de build qui crierait a
  * chaque commit jusqu'a ce qu'on la desactive.
  */
-function blocks(src) {
+export function blocks(src) {
   const marks = [];
-  const re = /^(?:export )?(?:async )?function (\w+)|^router\.(get|post|put|patch|delete)\(\s*["'`]([^"'`]+)/gm;
+  // Un gestionnaire indente (`  router.post(`) etait replie dans le bloc
+  // precedent et heritait de SA mention de l'organisation : un gestionnaire
+  // non protege pouvait passer ainsi (defaut signale par BatiFlow le 29/09 :
+  // un controle par FICHIER — ici par bloc mal decoupe — laisse passer un
+  // voisin). Le decoupage reconnait desormais aussi les lignes indentees.
+  const re = /^(?:export )?(?:async )?function (\w+)|^[ \t]*router\.(get|post|put|patch|delete)\(\s*["'`]([^"'`]+)/gm;
   let m;
   while ((m = re.exec(src))) {
     marks.push({
@@ -256,6 +260,56 @@ function blocks(src) {
     start: mark.index,
     text: src.slice(mark.index, i + 1 < marks.length ? marks[i + 1].index : src.length),
   }));
+}
+
+/**
+ * Le verdict d'un fichier : ses blocs qui touchent une table de locataire, et
+ * parmi eux ceux qui ne savent pas dans quelle organisation ils travaillent.
+ * Separe de la lecture du disque pour que le test appelle LA decision sur un
+ * texte construit, au lieu de verifier la forme de l'expression reguliere.
+ */
+export function blocsSansOrganisation(src, scoped, scopedSql) {
+  const ids = scopedIdentifiers(src);
+  let examined = 0;
+  const unaware = [];
+  for (const block of blocks(src)) {
+    const stmts = statements(block.text).filter(
+      (st) => touchedTables(st, scoped, scopedSql).length > 0,
+    );
+    if (stmts.length === 0) continue;
+    examined++;
+
+    // Le bloc sait-il seulement dans quelle organisation il travaille ?
+    //
+    // Quatre formes d'isolation legitimes, apprises en relisant les
+    // premiers signalements — toutes etaient de vrais faux positifs, et
+    // les ignorer aurait rendu ce script inutilisable:
+    //
+    //  1. le filtre explicite sur la colonne;
+    //  2. les helpers de portee du depot (`getOrgId`, `tenantCondition`);
+    //  3. une condition pre-calculee dans le fichier;
+    //  4. la portee par UTILISATEUR. Une notification ou une preference
+    //     filtree sur `userId` issu de la session est deja isolee: un
+    //     utilisateur appartient a une seule organisation, donc filtrer sur
+    //     lui est plus etroit que filtrer sur elle. Exiger en plus le
+    //     filtre d'organisation serait une redondance, pas une securite.
+    const userScoped =
+      /session\?\.userId|session\.userId/.test(block.text) &&
+      /\.userId\b/.test(block.text);
+    const aware =
+      /organisation(?:Id|_id)/i.test(block.text) ||
+      /\b(?:getOrgId|tenantCondition|getSuperAdminOrgId)\s*\(/.test(block.text) ||
+      userScoped ||
+      [...ids].some((id) => new RegExp(`\\b${id}\\b`).test(block.text));
+    if (aware) continue;
+
+    unaware.push({
+      name: block.name,
+      start: block.start,
+      tables: [...new Set(stmts.flatMap((st) => touchedTables(st, scoped, scopedSql)))],
+    });
+  }
+  return { examined, unaware };
 }
 
 function analyse() {
@@ -275,47 +329,14 @@ function analyse() {
 
       const rel = path.relative(path.join(here, ".."), full).split(path.sep).join("/");
       const src = fs.readFileSync(full, "utf8");
-      const ids = scopedIdentifiers(src);
-
-      for (const block of blocks(src)) {
-        const stmts = statements(block.text).filter(
-          (st) => touchedTables(st, scoped, scopedSql).length > 0,
-        );
-        if (stmts.length === 0) continue;
-        examined++;
-
-        // Le bloc sait-il seulement dans quelle organisation il travaille ?
-        //
-        // Quatre formes d'isolation legitimes, apprises en relisant les
-        // premiers signalements — toutes etaient de vrais faux positifs, et
-        // les ignorer aurait rendu ce script inutilisable:
-        //
-        //  1. le filtre explicite sur la colonne;
-        //  2. les helpers de portee du depot (`getOrgId`, `tenantCondition`);
-        //  3. une condition pre-calculee dans le fichier;
-        //  4. la portee par UTILISATEUR. Une notification ou une preference
-        //     filtree sur `userId` issu de la session est deja isolee: un
-        //     utilisateur appartient a une seule organisation, donc filtrer sur
-        //     lui est plus etroit que filtrer sur elle. Exiger en plus le
-        //     filtre d'organisation serait une redondance, pas une securite.
-        const userScoped =
-          /session\?\.userId|session\.userId/.test(block.text) &&
-          /\.userId\b/.test(block.text);
-        const aware =
-          /organisation(?:Id|_id)/i.test(block.text) ||
-          /\b(?:getOrgId|tenantCondition|getSuperAdminOrgId)\s*\(/.test(block.text) ||
-          userScoped ||
-          [...ids].some((id) => new RegExp(`\\b${id}\\b`).test(block.text));
-        if (aware) continue;
-
-        const tables = [...new Set(
-          stmts.flatMap((st) => touchedTables(st, scoped, scopedSql)),
-        )];
+      const verdict = blocsSansOrganisation(src, scoped, scopedSql);
+      examined += verdict.examined;
+      for (const b of verdict.unaware) {
         findings.push({
           file: rel,
-          line: lineOf(src, block.start),
-          kind: block.name,
-          tables: tables.slice(0, 4),
+          line: lineOf(src, b.start),
+          kind: b.name,
+          tables: b.tables.slice(0, 4),
           allowed: allowlisted(rel, src),
         });
       }
@@ -327,7 +348,13 @@ function analyse() {
 }
 
 // ── 4. Rapport ───────────────────────────────────────────────────────────────
+//
+// Seulement quand le script est lance : le test importe `blocsSansOrganisation`
+// sans parcourir le depot ni appeler `process.exit`.
 
+if (path.basename(process.argv[1] ?? "") === "tenant-scope-check.mjs") rapport();
+
+function rapport() {
 const { findings, examined, scopedCount } = analyse();
 const unexplained = findings.filter((f) => !f.allowed);
 
@@ -360,4 +387,5 @@ if (process.argv.includes("--check") && unexplained.length > 0) {
     `ALLOWLIST avec sa raison (scripts/tenant-scope-check.mjs).`,
   );
   process.exit(1);
+}
 }
