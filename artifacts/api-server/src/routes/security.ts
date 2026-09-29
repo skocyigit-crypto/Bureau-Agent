@@ -341,7 +341,10 @@ router.delete("/security/lists/:id", requireAdmin, async (req, res) => {
 // requireSuperAdmin: meme raison que Guardian ci-dessous — getSecurityStats/
 // getSecurityEvents/getBlacklistedIps n'ont aucune dimension organisationId,
 // ce sont des donnees globales a la plateforme (legacy, en parallele de
-// Guardian). Aucun frontend web/mobile ne consomme ces routes actuellement.
+// Guardian). Consommees par Parametres > Securite (tab-securite.tsx), qui
+// ne monte ces panneaux que pour le super-administrateur : montes pour un
+// administrateur, chaque appel etait refuse et inscrit comme tentative
+// d'acces au journal d'audit (29/09).
 router.get("/security/dashboard", requireSuperAdmin, (_req, res) => {
   const stats = getSecurityStats();
   const recentEvents = getSecurityEvents(20);

@@ -3209,7 +3209,8 @@
       "unblockFailed": "Impossible de débloquer cette IP.",
       "networkError": "Erreur réseau.",
       "multiLayerTitle": "Protection Multi-Couches Active",
-      "multiLayerDesc": "Vos données client sont protégées par 9 couches de sécurité : chiffrement AES-256-GCM, scanner antivirus de fichiers, détection XSS/injection SQL, protection CSRF, limitation de débit, liste noire IP automatique, en-têtes de sécurité (Helmet/CSP/HSTS), isolation multi-tenant et journalisation d'audit."
+      "multiLayerDesc": "Vos données client sont protégées par 9 couches de sécurité : chiffrement AES-256-GCM, scanner antivirus de fichiers, détection XSS/injection SQL, protection CSRF, limitation de débit, liste noire IP automatique, en-têtes de sécurité (Helmet/CSP/HSTS), isolation multi-tenant et journalisation d'audit.",
+      "unavailable": "Surveillance indisponible (réponse {{code}}). Aucun état n'est affiché plutôt qu'un « Normal » qui ne serait pas vérifié."
     },
     "guardian": {
       "title": "Guardian WAF — Pare-feu Applicatif",
@@ -3350,7 +3351,9 @@
       "revokeSessionsConfirmDesc": "Toutes les sessions de l'organisation seront coupées, y compris la vôtre. Chacun devra se reconnecter.",
       "revokeSessionsDone": "{{count}} compte(s) déconnecté(s). Vous allez être redirigé.",
       "revokeSessionsFailed": "La révocation n'a pas pu être effectuée. Réessayez.",
-      "rgpdPartiel": "Partiel"
+      "rgpdPartiel": "Partiel",
+      "platformOnlyTitle": "Surveillance de la plateforme",
+      "platformOnlyDesc": "Le pare-feu applicatif et les adresses bannies concernent toute la plateforme : l'éditeur les surveille. Les actions sensibles de votre organisation figurent dans le journal d'audit."
     }
   },
   "users": {
@@ -6420,7 +6423,41 @@
       "smsMessage": "Message SMS",
       "smsMessagePlaceholder": "Bonjour, nous avons manque votre appel...",
       "actionType": "Type d'action"
-    }
+    },
+    "builtin": {
+      "tachesRetard": {
+        "name": "Tâches en retard",
+        "description": "Détecte les tâches qui dépassent leur échéance et crée des alertes."
+      },
+      "rappelsCalendrier": {
+        "name": "Rappels d'agenda",
+        "description": "Envoie un rappel 30 minutes avant chaque événement de l'agenda."
+      },
+      "messagesNonLus": {
+        "name": "Messages non lus",
+        "description": "Alerte quand des messages restent non lus depuis plus d'une heure."
+      },
+      "contactsInactifs": {
+        "name": "Contacts inactifs",
+        "description": "Repère les contacts sans activité depuis 30 jours."
+      },
+      "appelsManques": {
+        "name": "Appels manqués",
+        "description": "Détecte les appels manqués du jour et propose un rappel."
+      },
+      "projetsRetard": {
+        "name": "Projets en retard",
+        "description": "Détecte les projets qui ont dépassé leur date de fin et crée des alertes."
+      }
+    },
+    "cadence": {
+      "minute": "Chaque minute",
+      "quarter": "Toutes les 15 minutes",
+      "hour": "Toutes les heures",
+      "day": "Chaque jour"
+    },
+    "loading": "Chargement des automatisations…",
+    "selectRule": "Sélectionner « {{name}} »"
   },
   "organisationsPage": {
     "header": {

@@ -3209,7 +3209,8 @@
       "unblockFailed": "Unable to unblock this IP.",
       "networkError": "Network error.",
       "multiLayerTitle": "Multi-Layer Protection Active",
-      "multiLayerDesc": "Your client data is protected by 9 security layers: AES-256-GCM encryption, file antivirus scanner, XSS/SQL injection detection, CSRF protection, rate limiting, automatic IP blacklist, security headers (Helmet/CSP/HSTS), multi-tenant isolation and audit logging."
+      "multiLayerDesc": "Your client data is protected by 9 security layers: AES-256-GCM encryption, file antivirus scanner, XSS/SQL injection detection, CSRF protection, rate limiting, automatic IP blacklist, security headers (Helmet/CSP/HSTS), multi-tenant isolation and audit logging.",
+      "unavailable": "Monitoring unavailable (response {{code}}). No status is shown rather than an unverified “Normal”."
     },
     "guardian": {
       "title": "Guardian WAF — Application Firewall",
@@ -3350,7 +3351,9 @@
       "revokeSessionsConfirmDesc": "All sessions in the organisation will be cut, including yours. Everyone will have to sign in again.",
       "revokeSessionsDone": "{{count}} account(s) signed out. You will be redirected.",
       "revokeSessionsFailed": "The revocation could not be carried out. Try again.",
-      "rgpdPartiel": "Partial"
+      "rgpdPartiel": "Partial",
+      "platformOnlyTitle": "Platform monitoring",
+      "platformOnlyDesc": "The application firewall and banned addresses cover the whole platform: the provider monitors them. Your organisation's sensitive actions are in the audit log."
     }
   },
   "users": {
@@ -6420,7 +6423,41 @@
       "smsMessage": "SMS message",
       "smsMessagePlaceholder": "Hello, we missed your call...",
       "actionType": "Action type"
-    }
+    },
+    "builtin": {
+      "tachesRetard": {
+        "name": "Overdue tasks",
+        "description": "Detects tasks past their due date and creates alerts."
+      },
+      "rappelsCalendrier": {
+        "name": "Calendar reminders",
+        "description": "Sends a reminder 30 minutes before each calendar event."
+      },
+      "messagesNonLus": {
+        "name": "Unread messages",
+        "description": "Alerts when messages stay unread for more than an hour."
+      },
+      "contactsInactifs": {
+        "name": "Inactive contacts",
+        "description": "Flags contacts with no activity for 30 days."
+      },
+      "appelsManques": {
+        "name": "Missed calls",
+        "description": "Detects today's missed calls and suggests a call back."
+      },
+      "projetsRetard": {
+        "name": "Overdue projects",
+        "description": "Detects projects past their end date and creates alerts."
+      }
+    },
+    "cadence": {
+      "minute": "Every minute",
+      "quarter": "Every 15 minutes",
+      "hour": "Every hour",
+      "day": "Every day"
+    },
+    "loading": "Loading automations…",
+    "selectRule": "Select “{{name}}”"
   },
   "organisationsPage": {
     "header": {

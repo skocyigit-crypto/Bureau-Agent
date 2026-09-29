@@ -16,6 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs,TabsContent,TabsList,TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { confirmAction } from "@/hooks/use-confirm";
+import { RegionAnnonce } from "@/components/region-annonce";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
 import {
@@ -54,20 +55,34 @@ import { useEffect,useState } from "react";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-const TYPE_ICONS: Record<string, any> = {
-  "Taches en retard": FileText,
-  "Rappels calendrier": CalendarClock,
-  "Messages non lus": Mail,
-  "Contacts inactifs": Users,
-  "Appels manques": Phone,
+/**
+ * Les regles systeme, par IDENTIFIANT (routes/automations.ts, ids negatifs).
+ *
+ * Icones et couleurs etaient indexees par le nom francais envoye par le
+ * serveur, et ce nom s'affichait tel quel dans toutes les langues ; « Projets
+ * en retard » manquait a la table et retombait sur l'icone par defaut.
+ */
+const REGLES_SYSTEME: Record<number, { cle: string; icon: any; couleur: string }> = {
+  [-1]: { cle: "tachesRetard", icon: FileText, couleur: "text-red-500 bg-red-500/10" },
+  [-2]: { cle: "rappelsCalendrier", icon: CalendarClock, couleur: "text-blue-500 bg-blue-500/10" },
+  [-3]: { cle: "messagesNonLus", icon: Mail, couleur: "text-purple-500 bg-purple-500/10" },
+  [-4]: { cle: "contactsInactifs", icon: Users, couleur: "text-amber-500 bg-amber-500/10" },
+  [-5]: { cle: "appelsManques", icon: Phone, couleur: "text-green-500 bg-green-500/10" },
+  [-6]: { cle: "projetsRetard", icon: CalendarClock, couleur: "text-orange-500 bg-orange-500/10" },
 };
 
-const TYPE_COLORS: Record<string, string> = {
-  "Taches en retard": "text-red-500 bg-red-500/10",
-  "Rappels calendrier": "text-blue-500 bg-blue-500/10",
-  "Messages non lus": "text-purple-500 bg-purple-500/10",
-  "Contacts inactifs": "text-amber-500 bg-amber-500/10",
-  "Appels manques": "text-green-500 bg-green-500/10",
+/**
+ * La cadence telle que le serveur l'envoie. Les regles systeme affichaient
+ * toutes « toutes les 5 minutes » en dur, alors que le serveur annonce 1 min
+ * (et 1 h pour les projets).
+ */
+const CADENCES: Record<string, string> = {
+  "1min": "automationsPage.cadence.minute",
+  "5min": "automationsPage.every5min",
+  "15min": "automationsPage.cadence.quarter",
+  "1h": "automationsPage.cadence.hour",
+  "24h": "automationsPage.cadence.day",
+  "1d": "automationsPage.cadence.day",
 };
 
 const TRIGGER_LABELS: Record<string, string> = {
@@ -496,9 +511,19 @@ export default function AutomationsPage() {
   const [editingRule, setEditingRule] = useState<any>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  // Les etats (regle supprimee, suspendue, politique changee...) n'etaient dits
+  // que par un toast : rien pour un lecteur d'ecran (WCAG 4.1.3).
+  const [annonce, setAnnonce] = useState("");
+  const dire = (titre: string, opts: { description?: string; variant?: "destructive" } = {}) => {
+    toast({ title: titre, ...opts });
+    setAnnonce(opts.description ? `${titre} — ${opts.description}` : titre);
+  };
 
+  // `loading` ne vaut que pour le PREMIER chargement. Le remettre a vrai a
+  // chaque rechargement remplacait toute la page par un indicateur : le bouton
+  // qui avait le focus disparaissait (focus perdu), et l'onglet « Journal »
+  // revenait a « Regles » apres chaque action.
   async function fetchData() {
-    setLoading(true);
     try {
       const [rulesRes, logsRes] = await Promise.all([
         fetch(`${baseUrl}/api/automations`, { credentials: "include" }),
@@ -508,18 +533,18 @@ export default function AutomationsPage() {
         const data = await rulesRes.json();
         setRules(data.rules);
       } else {
-        toast({ title: t("automationsPage.toast.error"), description: t("automationsPage.toast.loadRulesError"), variant: "destructive" });
+        dire(t("automationsPage.toast.error"), { description: t("automationsPage.toast.loadRulesError"), variant: "destructive" });
       }
       if (logsRes.ok) {
         const data = await logsRes.json();
         setLogs(data.logs);
         setStats(data.stats);
       } else {
-        toast({ title: t("automationsPage.toast.error"), description: t("automationsPage.toast.loadLogsError"), variant: "destructive" });
+        dire(t("automationsPage.toast.error"), { description: t("automationsPage.toast.loadLogsError"), variant: "destructive" });
       }
     } catch (err) {
       console.error("[Automations] fetch failed:", err);
-      toast({ title: t("automationsPage.toast.error"), description: t("automationsPage.toast.loadError"), variant: "destructive" });
+      dire(t("automationsPage.toast.error"), { description: t("automationsPage.toast.loadError"), variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -530,10 +555,10 @@ export default function AutomationsPage() {
     try {
       const res = await fetch(`${baseUrl}/api/automations/${id}`, { method: "DELETE", credentials: "include" });
       if (!res.ok) throw new Error("Erreur serveur");
-      toast({ title: t("automationsPage.toast.ruleDeleted") });
+      dire(t("automationsPage.toast.ruleDeleted"));
       fetchData();
     } catch {
-      toast({ title: t("automationsPage.toast.error"), description: t("automationsPage.toast.deleteError"), variant: "destructive" });
+      dire(t("automationsPage.toast.error"), { description: t("automationsPage.toast.deleteError"), variant: "destructive" });
     }
   }
 
@@ -546,9 +571,10 @@ export default function AutomationsPage() {
         body: JSON.stringify({ enabled: !enabled }),
       });
       if (!res.ok) throw new Error("Erreur serveur");
+      dire(enabled ? t("automationsPage.toast.rulesSuspended") : t("automationsPage.toast.rulesActivated"));
       fetchData();
     } catch {
-      toast({ title: t("automationsPage.toast.error"), description: t("automationsPage.toast.updateError"), variant: "destructive" });
+      dire(t("automationsPage.toast.error"), { description: t("automationsPage.toast.updateError"), variant: "destructive" });
     }
   }
 
@@ -567,10 +593,10 @@ export default function AutomationsPage() {
         body: JSON.stringify({ requiresApproval: next }),
       });
       if (!res.ok) throw new Error("Erreur serveur");
-      toast({ title: t(APPROVAL_META(next).toastKey) });
+      dire(t(APPROVAL_META(next).toastKey));
       fetchData();
     } catch {
-      toast({ title: t("automationsPage.toast.error"), description: t("automationsPage.toast.approvalError"), variant: "destructive" });
+      dire(t("automationsPage.toast.error"), { description: t("automationsPage.toast.approvalError"), variant: "destructive" });
     }
   }
 
@@ -587,15 +613,15 @@ export default function AutomationsPage() {
     if (!(await confirmAction({ title: t("automationsPage.confirmBulkDelete", { count: selectedIds.size }), confirmLabel: t("automationsPage.confirmDeleteLabel"), destructive: true }))) return;
     const ids = Array.from(selectedIds);
     const res = await fetch(`${baseUrl}/api/automations/bulk/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
-    if (res.ok) { toast({ title: t("automationsPage.toast.bulkDeleted", { count: selectedIds.size }) }); setSelectedIds(new Set()); setSelectMode(false); fetchData(); }
-    else { const d = await res.json(); toast({ title: t("automationsPage.toast.error"), description: d.error, variant: "destructive" }); }
+    if (res.ok) { dire(t("automationsPage.toast.bulkDeleted", { count: selectedIds.size })); setSelectedIds(new Set()); setSelectMode(false); fetchData(); }
+    else { const d = await res.json(); dire(t("automationsPage.toast.error"), { description: d.error, variant: "destructive" }); }
   };
   const handleBulkToggle = async (enabled: boolean) => {
     if (selectedIds.size === 0) return;
     const ids = Array.from(selectedIds);
     const res = await fetch(`${baseUrl}/api/automations/bulk/toggle`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids, enabled }) });
-    if (res.ok) { toast({ title: enabled ? t("automationsPage.toast.rulesActivated") : t("automationsPage.toast.rulesSuspended") }); setSelectedIds(new Set()); setSelectMode(false); fetchData(); }
-    else { const d = await res.json(); toast({ title: t("automationsPage.toast.error"), description: d.error, variant: "destructive" }); }
+    if (res.ok) { dire(enabled ? t("automationsPage.toast.rulesActivated") : t("automationsPage.toast.rulesSuspended")); setSelectedIds(new Set()); setSelectMode(false); fetchData(); }
+    else { const d = await res.json(); dire(t("automationsPage.toast.error"), { description: d.error, variant: "destructive" }); }
   };
 
   function timeAgo(date: string | null): string {
@@ -621,8 +647,9 @@ export default function AutomationsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="flex items-center justify-center h-96" role="status">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" aria-hidden="true" />
+        <span className="sr-only">{t("automationsPage.loading")}</span>
       </div>
     );
   }
@@ -632,6 +659,7 @@ export default function AutomationsPage() {
 
   return (
     <div className="space-y-6">
+      <RegionAnnonce message={annonce} />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -727,8 +755,11 @@ export default function AutomationsPage() {
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {builtInRules.map(rule => {
-              const Icon = TYPE_ICONS[rule.name] || Zap;
-              const colorClass = TYPE_COLORS[rule.name] || "text-gray-500 bg-gray-500/10";
+              const systeme = REGLES_SYSTEME[rule.id];
+              const Icon = systeme?.icon || Zap;
+              const colorClass = systeme?.couleur || "text-gray-500 bg-gray-500/10";
+              const nom = systeme ? t(`automationsPage.builtin.${systeme.cle}.name`) : rule.name;
+              const description = systeme ? t(`automationsPage.builtin.${systeme.cle}.description`) : rule.description;
               return (
                 <Card key={rule.id} className="hover:shadow-md transition-shadow">
                   <CardContent className="pt-6">
@@ -738,15 +769,15 @@ export default function AutomationsPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-semibold text-sm">{rule.name}</h4>
+                          <h4 className="font-semibold text-sm">{nom}</h4>
                           <Badge variant="outline" className="text-[10px] bg-green-500/10 text-green-600 border-green-500/30">
                             <PlayCircle className="w-2.5 h-2.5 mr-0.5" /> {t("automationsPage.active")}
                           </Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground line-clamp-2">{rule.description}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{description}</p>
                         <div className="flex items-center gap-3 mt-2">
                           <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> {t("automationsPage.every5min")}
+                            <Clock className="w-3 h-3" aria-hidden="true" /> {CADENCES[rule.schedule] ? t(CADENCES[rule.schedule]) : (rule.schedule || t("automationsPage.manual"))}
                           </span>
                           <Badge variant="secondary" className="text-[10px]">{t("automationsPage.system")}</Badge>
                         </div>
@@ -797,7 +828,7 @@ export default function AutomationsPage() {
             <>
               {selectMode && (
                 <div className="flex items-center gap-2 pb-1">
-                  <button onClick={() => toggleAll(customRules.map(r => r.id))} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground">
+                  <button type="button" aria-pressed={selectedIds.size === customRules.length && customRules.length > 0} onClick={() => toggleAll(customRules.map(r => r.id))} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground">
                     {selectedIds.size === customRules.length && customRules.length > 0
                       ? <CheckSquare className="w-4 h-4 text-primary" />
                       : <Square className="w-4 h-4" />}
@@ -809,9 +840,20 @@ export default function AutomationsPage() {
               {customRules.map(rule => (
                 <Card key={rule.id} className={`hover:shadow-md transition-shadow ${selectMode && selectedIds.has(rule.id) ? "ring-2 ring-primary" : ""}`} onClick={selectMode ? () => toggleId(rule.id) : undefined} style={selectMode ? { cursor: "pointer" } : undefined}>
                   <CardContent className="pt-5 pb-4">
+                    {/* Une vraie case a cocher : la selection se faisait au clic
+                        sur la carte (un div), inatteignable au clavier et muette
+                        pour un lecteur d'ecran. Le clic sur la carte reste un
+                        raccourci a la souris. */}
                     {selectMode && (
                       <div className="flex justify-end mb-2">
-                        {selectedIds.has(rule.id) ? <CheckSquare className="w-4 h-4 text-primary" /> : <Square className="w-4 h-4 text-muted-foreground" />}
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 accent-primary cursor-pointer"
+                          checked={selectedIds.has(rule.id)}
+                          onChange={() => toggleId(rule.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={t("automationsPage.selectRule", { name: rule.name })}
+                        />
                       </div>
                     )}
                     <div className="flex items-start gap-3">
@@ -827,7 +869,7 @@ export default function AutomationsPage() {
                         </div>
                         {rule.description && <p className="text-xs text-muted-foreground truncate">{rule.description}</p>}
                         <div className="flex items-center gap-2 mt-2 text-[10px] text-muted-foreground">
-                          <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {rule.schedule || t("automationsPage.manual")}</span>
+                          <span className="flex items-center gap-1"><Clock className="w-3 h-3" aria-hidden="true" /> {CADENCES[rule.schedule] ? t(CADENCES[rule.schedule]) : (rule.schedule || t("automationsPage.manual"))}</span>
                           <span>{t("automationsPage.execCount", { count: rule.runCount })}</span>
                           {rule.lastRun && <span>{timeAgo(rule.lastRun)}</span>}
                         </div>
@@ -839,8 +881,12 @@ export default function AutomationsPage() {
                             <span className="text-[10px] text-muted-foreground">{t("automationsPage.actionCount", { count: rule.actions.length })}</span>
                           )}
                           <button
-                            onClick={() => cycleApproval(rule.id, rule.requiresApproval ?? null)}
+                            type="button"
+                            // Sans stopPropagation, en mode selection, un clic
+                            // changeait la selection ET la politique d'approbation.
+                            onClick={(e) => { e.stopPropagation(); cycleApproval(rule.id, rule.requiresApproval ?? null); }}
                             title={t("automationsPage.approvalPolicyTitle")}
+                            aria-label={`${t("automationsPage.approvalPolicyTitle")} : ${t(APPROVAL_META(rule.requiresApproval ?? null).labelKey)}`}
                           >
                             <Badge variant="outline" className={`text-[10px] cursor-pointer ${APPROVAL_META(rule.requiresApproval ?? null).cls}`}>
                               <ShieldCheck className="w-2.5 h-2.5 mr-0.5" />
@@ -861,8 +907,8 @@ export default function AutomationsPage() {
                         </Button>
                         <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" title={t("automationsPage.duplicateTitle")} onClick={async () => {
                           const res = await fetch(`${baseUrl}/api/automations/${rule.id}/duplicate`, { method: "POST", credentials: "include" });
-                          if (res.ok) { toast({ title: t("automationsPage.toast.duplicated") }); fetchData(); }
-                          else toast({ title: t("automationsPage.toast.error"), variant: "destructive" });
+                          if (res.ok) { dire(t("automationsPage.toast.duplicated")); fetchData(); }
+                          else dire(t("automationsPage.toast.error"), { variant: "destructive" });
                         }}>
                           <Copy className="w-3.5 h-3.5" />
                         </Button>
