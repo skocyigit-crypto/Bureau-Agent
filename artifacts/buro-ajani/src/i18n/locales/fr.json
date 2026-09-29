@@ -3329,15 +3329,15 @@
       "rgpdEncryption": "Chiffrement des données au repos",
       "rgpdEncryptionDesc": "Les données sensibles sont chiffrées dans la base de données (AES-256)",
       "rgpdAuditLog": "Journal d'audit",
-      "rgpdAuditLogDesc": "Enregistrer toutes les actions des utilisateurs avec horodatage et adresse IP",
+      "rgpdAuditLogDesc": "Les actions sensibles (connexion, export, suppression, changement de droits) sont tracées avec l'horodatage et l'adresse IP, sans modification possible",
       "rgpdRightErasure": "Droit à l'oubli",
-      "rgpdRightErasureDesc": "Permettre la suppression complète des données d'un contact",
+      "rgpdRightErasureDesc": "Un contact supprimé passe 30 jours en corbeille puis est effacé ; son nom et son numéro restent dans l'historique des appels et des messages",
       "rgpdExport": "Export des données personnelles",
       "rgpdExportDesc": "Permettre l'export des données au format standard (RGPD Art. 20)",
       "rgpdRetention": "Conservation limitée des données",
-      "rgpdRetentionDesc": "Suppression automatique des données au-delà de la durée légale de conservation",
-      "rgpdConsent": "Consentement explicite",
-      "rgpdConsentDesc": "Recueillir et enregistrer le consentement avant tout traitement de données",
+      "rgpdRetentionDesc": "Effacement automatique : transcriptions d'appel à 12 mois, présence sur zone à 30 jours, données du client 30 jours après la fin du contrat (en cours d'activation). Les autres durées sont fixées par vous : voir le registre.",
+      "rgpdConsent": "Bases légales documentées",
+      "rgpdConsentDesc": "Chaque traitement a sa base légale au registre (contrat, obligation légale, intérêt légitime) ; le consentement n'est demandé que là où il est la bonne base",
       "actionsTitle": "Actions de sécurité",
       "actionsDesc": "Opérations manuelles de sécurité réservées au Super Administrateur.",
       "exportAudit": "Exporter le journal d'audit",
@@ -3349,7 +3349,8 @@
       "revokeSessionsConfirm": "Déconnecter tout le monde ?",
       "revokeSessionsConfirmDesc": "Toutes les sessions de l'organisation seront coupées, y compris la vôtre. Chacun devra se reconnecter.",
       "revokeSessionsDone": "{{count}} compte(s) déconnecté(s). Vous allez être redirigé.",
-      "revokeSessionsFailed": "La révocation n'a pas pu être effectuée. Réessayez."
+      "revokeSessionsFailed": "La révocation n'a pas pu être effectuée. Réessayez.",
+      "rgpdPartiel": "Partiel"
     }
   },
   "users": {
@@ -5006,7 +5007,8 @@
       "inventory": "Données collectées",
       "documents": "Documents légaux",
       "requests": "Mes demandes",
-      "contact": "Contact DPO"
+      "contact": "Contact DPO",
+      "registre": "Registre"
     },
     "rightsTitle": "Vos droits en tant que personne concernée",
     "rightsDesc": "Conformément au Règlement Général sur la Protection des Données (UE 2016/679), vous disposez des droits suivants :",
@@ -5070,7 +5072,33 @@
     "processNotes": "Motif ou réponse communiquée à la personne",
     "processNotesPlaceholder": "Obligatoire en cas de refus : motifs, et rappel du droit de réclamation auprès de la CNIL (art. 12(4)).",
     "processComplete": "Marquer traitée",
-    "processRefuse": "Refuser"
+    "processRefuse": "Refuser",
+    "registre": {
+      "title": "Registre des activités de traitement",
+      "desc": "Article 30 du RGPD, tenu par le logiciel : chaque table de données y est rattachée, et ce qui est effacé automatiquement est distingué de ce que vous décidez.",
+      "csv": "Télécharger (CSV)",
+      "finalite": "Finalité",
+      "personnes": "Personnes concernées",
+      "donnees": "Données",
+      "baseLegale": "Base légale",
+      "duree": "Durée (repère)",
+      "appliquee": "Effacé automatiquement",
+      "aucunEffacement": "Aucun effacement automatique : durée fixée par vous",
+      "destinataires": "Destinataires",
+      "role": "Rôle de l'éditeur",
+      "sensible": "Sensible",
+      "iaTitle": "Systèmes d'IA (AI Act)",
+      "iaDesc": "Classement technique, pas un avis juridique.",
+      "obligation": "Obligation",
+      "tenue": "Comment elle est tenue",
+      "exposees": "Personnes exposées",
+      "exclusions": "Examiné et écarté",
+      "erreur": "Registre indisponible.",
+      "classe_interdit": "Interdit",
+      "classe_haut_risque": "Haut risque",
+      "classe_transparence": "Transparence (art. 50)",
+      "classe_risque_minimal": "Risque minimal"
+    }
   },
   "assistantProactif": {
     "title": "Assistant proactif",

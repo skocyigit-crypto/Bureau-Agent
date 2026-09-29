@@ -1,4 +1,5 @@
 import { Icon3D } from "@/components/icon-3d";
+import { RegistreTraitements } from "@/components/registre-traitements";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
@@ -245,6 +246,7 @@ export default function DataProtectionPage() {
         <TabsList>
           <TabsTrigger value="rights">{t("dataProtection.tabs.rights")}</TabsTrigger>
           <TabsTrigger value="inventory">{t("dataProtection.tabs.inventory")}</TabsTrigger>
+          {isAdmin && <TabsTrigger value="registre">{t("dataProtection.tabs.registre")}</TabsTrigger>}
           <TabsTrigger value="documents">{t("dataProtection.tabs.documents")}</TabsTrigger>
           <TabsTrigger value="requests">{t("dataProtection.tabs.requests")}</TabsTrigger>
           <TabsTrigger value="contact">{t("dataProtection.tabs.contact")}</TabsTrigger>
@@ -414,6 +416,14 @@ export default function DataProtectionPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Le registre (art. 30) est celui du responsable de traitement : le
+            serveur le reserve a l'administrateur, l'onglet aussi. */}
+        {isAdmin && (
+          <TabsContent value="registre" className="space-y-4">
+            <RegistreTraitements />
+          </TabsContent>
+        )}
 
         <TabsContent value="documents" className="space-y-4">
           <div className="grid gap-3">

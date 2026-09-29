@@ -3329,15 +3329,15 @@
       "rgpdEncryption": "Encryption of data at rest",
       "rgpdEncryptionDesc": "Sensitive data is encrypted in the database (AES-256)",
       "rgpdAuditLog": "Audit log",
-      "rgpdAuditLogDesc": "Record all user actions with timestamp and IP address",
+      "rgpdAuditLogDesc": "Sensitive actions (sign-in, export, deletion, permission changes) are recorded with timestamp and IP address and cannot be altered",
       "rgpdRightErasure": "Right to erasure",
-      "rgpdRightErasureDesc": "Allow the complete deletion of a contact's data",
+      "rgpdRightErasureDesc": "A deleted contact stays 30 days in the trash, then is erased; its name and number remain in the call and message history",
       "rgpdExport": "Personal data export",
       "rgpdExportDesc": "Allow the export of data in a standard format (GDPR Art. 20)",
       "rgpdRetention": "Limited data retention",
-      "rgpdRetentionDesc": "Automatic deletion of data beyond the legal retention period",
-      "rgpdConsent": "Explicit consent",
-      "rgpdConsentDesc": "Collect and record consent before any data processing",
+      "rgpdRetentionDesc": "Automatic erasure: call transcripts after 12 months, zone presence after 30 days, customer data 30 days after the contract ends (being activated). Other periods are set by you: see the register.",
+      "rgpdConsent": "Documented legal bases",
+      "rgpdConsentDesc": "Each processing activity has its legal basis in the register (contract, legal obligation, legitimate interest); consent is only sought where it is the right basis",
       "actionsTitle": "Security actions",
       "actionsDesc": "Manual security operations reserved for the Super Administrator.",
       "exportAudit": "Export the audit log",
@@ -3349,7 +3349,8 @@
       "revokeSessionsConfirm": "Sign everyone out?",
       "revokeSessionsConfirmDesc": "All sessions in the organisation will be cut, including yours. Everyone will have to sign in again.",
       "revokeSessionsDone": "{{count}} account(s) signed out. You will be redirected.",
-      "revokeSessionsFailed": "The revocation could not be carried out. Try again."
+      "revokeSessionsFailed": "The revocation could not be carried out. Try again.",
+      "rgpdPartiel": "Partial"
     }
   },
   "users": {
@@ -5006,7 +5007,8 @@
       "inventory": "Collected data",
       "documents": "Legal documents",
       "requests": "My requests",
-      "contact": "DPO contact"
+      "contact": "DPO contact",
+      "registre": "Register"
     },
     "rightsTitle": "Your rights as a data subject",
     "rightsDesc": "In accordance with the General Data Protection Regulation (EU 2016/679), you have the following rights:",
@@ -5070,7 +5072,33 @@
     "processNotes": "Reason or answer given to the person",
     "processNotesPlaceholder": "Mandatory when refusing: the reasons, and a reminder of the right to complain to the supervisory authority (art. 12(4)).",
     "processComplete": "Mark as handled",
-    "processRefuse": "Refuse"
+    "processRefuse": "Refuse",
+    "registre": {
+      "title": "Record of processing activities",
+      "desc": "GDPR Article 30, maintained by the software: every data table is linked to it, and what is erased automatically is kept apart from what you decide. Content is in French.",
+      "csv": "Download (CSV)",
+      "finalite": "Purpose",
+      "personnes": "Data subjects",
+      "donnees": "Data",
+      "baseLegale": "Legal basis",
+      "duree": "Retention (guideline)",
+      "appliquee": "Erased automatically",
+      "aucunEffacement": "No automatic erasure: period set by you",
+      "destinataires": "Recipients",
+      "role": "Provider's role",
+      "sensible": "Sensitive",
+      "iaTitle": "AI systems (AI Act)",
+      "iaDesc": "Technical classification, not legal advice.",
+      "obligation": "Obligation",
+      "tenue": "How it is met",
+      "exposees": "People exposed",
+      "exclusions": "Examined and ruled out",
+      "erreur": "Register unavailable.",
+      "classe_interdit": "Prohibited",
+      "classe_haut_risque": "High risk",
+      "classe_transparence": "Transparency (Art. 50)",
+      "classe_risque_minimal": "Minimal risk"
+    }
   },
   "assistantProactif": {
     "title": "Proactive assistant",

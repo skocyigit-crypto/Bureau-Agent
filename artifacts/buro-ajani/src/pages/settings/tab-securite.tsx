@@ -1100,14 +1100,22 @@ export function TabSecurite() {
           <CardDescription>{t("settingsSecurite.app.rgpdDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {[
-            { key: "Encryption" },
-            { key: "AuditLog" },
-            { key: "RightErasure" },
-            { key: "Export" },
-            { key: "Retention" },
-            { key: "Consent" },
-          ].map((item, i) => (
+          {/* L'etat de chaque ligne est celui qu'on a MESURE (29/09), pas un
+              « en place » uniforme : l'effacement d'un contact laisse son nom
+              dans l'historique des appels et des messages, et seule une partie
+              des durees est appliquee automatiquement (le reste est fixe par
+              le client, cf. le registre). « Consentement avant tout
+              traitement » etait faux en droit (la plupart des traitements
+              reposent sur le contrat ou l'interet legitime) : la ligne dit
+              desormais que chaque base legale est documentee au registre. */}
+          {([
+            { key: "Encryption", etat: "enPlace" },
+            { key: "AuditLog", etat: "enPlace" },
+            { key: "RightErasure", etat: "partiel" },
+            { key: "Export", etat: "enPlace" },
+            { key: "Retention", etat: "partiel" },
+            { key: "Consent", etat: "enPlace" },
+          ] as const).map((item, i) => (
             <div key={item.key}>
               {i > 0 && <Separator className="mb-4" />}
               <div className="flex items-center justify-between">
@@ -1124,7 +1132,9 @@ export function TabSecurite() {
                     conformite — c'est l'endroit du produit ou il faut le
                     moins broder. Ce qui est fait est fait et se dit; ce qui
                     se regle se regle ailleurs, et on y renvoie. */}
-                <Badge variant="secondary" className="shrink-0">{t("settingsSecurite.app.rgpdEnPlace")}</Badge>
+                <Badge variant={item.etat === "enPlace" ? "secondary" : "outline"} className="shrink-0">
+                  {t(item.etat === "enPlace" ? "settingsSecurite.app.rgpdEnPlace" : "settingsSecurite.app.rgpdPartiel")}
+                </Badge>
               </div>
             </div>
           ))}
