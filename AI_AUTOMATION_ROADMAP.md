@@ -2805,6 +2805,12 @@ Beş eksen kodda ayrı ayrı tarandı; aşağıdakiler ölçülerek bulundu.
    **Kapandı 28/09 (Lot 2):** `/studio-flux` — React Flow tuvali + aynı akışın erişilebilir liste görünümü; tetik/eylem/akış oluşturulduktan sonra düzenlenebiliyor.
 13. Otomasyon sayfası: aria-live yok, her yenilemede odak kayboluyor, seçim
     modu yalnız fare; yerleşik kural adları çevrilmiyor.
+   **Kapandı 29/09 (Lot S3):**
+   - Sayfa her işlemden sonra tamamen demonte oluyordu (`setLoading(true)` → tam ekran gösterge): odak ve "Journal" sekmesi kayboluyordu. Artık yalnız ilk yükleme.
+   - İşlemler `RegionAnnonce` ile duyuruluyor.
+   - Seçim gerçek, adlandırılmış onay kutusu. Onay politikası düğmesi seçim modunda seçimi de değiştiriyordu (`stopPropagation` yoktu).
+   - Yerleşik kural adı ve açıklaması kimliğe göre 6 dilde. Sıklık sunucudan geliyor ("5 dk" yazıyordu; gerçek 1 dk / 1 sa).
+   - Ayrıca Ayarlar > Güvenlik: yöneticiye süper-yönetici panelleri açılıyordu. Sonuç: 5 × 403, dördü her 20 sn'de, her biri denetim kaydına "erişim denemesi" olarak yazılıyor; ekranda sahte bir yeşil "Normal". Artık yalnız super_admin'e; hata durumunda açık uyarı.
 **Veri / mevzuat (eksen 5):**
 14. Kullanıcı/organizasyon silme append-only tetikleyicilere takılıyor
     (`audit_logs.user_id` SET NULL ve `license_audit_log` cascade reddediliyor).

@@ -40,6 +40,7 @@ import { useCallback,useEffect,useState } from "react";
 import { useLocation } from "wouter";
 
 import { confirmAction } from "@/hooks/use-confirm";
+import { useWorkspaceUser } from "@/components/workspace-user";
 
 const SECURITY_API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/security";
 const AUTH_API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/auth";
@@ -327,6 +328,9 @@ function SecurityMonitorPanel() {
   const [blacklist, setBlacklist] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  // Un echec affichait l'etat « Normal » en vert et « aucune menace » :
+  // l'ecran rassurait precisement quand il ne savait rien (29/09).
+  const [erreur, setErreur] = useState<string | null>(null);
   const { toast } = useToast();
   const { t } = useTranslation();
 
@@ -338,10 +342,11 @@ function SecurityMonitorPanel() {
         setStats(data.stats);
         setEvents(data.recentEvents || []);
         setBlacklist(data.blacklistedIps || []);
+        setErreur(null);
       } else {
-        console.error("[Securite] dashboard HTTP error:", res.status);
+        setErreur(String(res.status));
       }
-    } catch (err) { console.error("[Securite] dashboard fetch failed:", err); } finally {
+    } catch { setErreur("reseau"); } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -379,6 +384,18 @@ function SecurityMonitorPanel() {
         <CardContent className="p-8 flex items-center justify-center gap-2">
           <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
           <span className="text-sm text-muted-foreground">{t("settingsSecurite.monitor.loading")}</span>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (erreur && !stats) {
+    return (
+      <Card className="border-amber-200 dark:border-amber-900/50">
+        <CardContent className="p-6">
+          <p role="alert" className="text-sm text-amber-700 dark:text-amber-400">
+            {t("settingsSecurite.monitor.unavailable", { code: erreur })}
+          </p>
         </CardContent>
       </Card>
     );
@@ -556,6 +573,9 @@ function GuardianWafPanel() {
   const [refreshing, setRefreshing] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [activeTab, setActiveTab] = useState<"events" | "banned" | "profiles">("events");
+  // Les echecs etaient ignores en silence : compteurs a zero, listes vides
+  // « aucun evenement », pastille verte qui pulse. On dit qu'on ne sait pas.
+  const [erreur, setErreur] = useState<string | null>(null);
   const { toast } = useToast();
   const { t } = useTranslation();
 
@@ -568,11 +588,15 @@ function GuardianWafPanel() {
         fetch(`${SECURITY_API}/guardian/banned`, { credentials: "include" }),
         fetch(`${SECURITY_API}/guardian/profiles`, { credentials: "include" }),
       ]);
+      const echec = [statsRes, eventsRes, bannedRes, profilesRes].find((r) => !r.ok);
+      setErreur(echec ? String(echec.status) : null);
+      // Un refus de droit ne se resout pas en redemandant toutes les 20 s.
+      if (echec && (echec.status === 401 || echec.status === 403)) setAutoRefresh(false);
       if (statsRes.ok) setStats(await statsRes.json());
       if (eventsRes.ok) setEvents((await eventsRes.json()).events || []);
       if (bannedRes.ok) setBannedIps((await bannedRes.json()).bannedIps || []);
       if (profilesRes.ok) setProfiles((await profilesRes.json()).profiles || []);
-    } catch { /* silently ignore */ } finally {
+    } catch { setErreur("reseau"); } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -628,6 +652,18 @@ function GuardianWafPanel() {
         <CardContent className="p-8 flex items-center justify-center gap-2">
           <Loader2 className="w-5 h-5 animate-spin text-purple-500" />
           <span className="text-sm text-muted-foreground">{t("settingsSecurite.guardian.loading")}</span>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (erreur && !stats) {
+    return (
+      <Card className="border-amber-200 dark:border-amber-900/50">
+        <CardContent className="p-6">
+          <p role="alert" className="text-sm text-amber-700 dark:text-amber-400">
+            {t("settingsSecurite.monitor.unavailable", { code: erreur })}
+          </p>
         </CardContent>
       </Card>
     );
@@ -868,6 +904,12 @@ export function TabSecurite() {
 
   const [, setLocation] = useLocation();
   const [revocationEnCours, setRevocationEnCours] = useState(false);
+  // Surveillance et pare-feu portent sur TOUTE la plateforme : leurs routes
+  // sont reservees au super-administrateur. Montes pour un administrateur, ils
+  // recevaient cinq 403 (dont quatre toutes les 20 s), chacun inscrit au
+  // journal d'audit comme tentative d'acces, et affichaient un faux « Normal ».
+  const { user } = useWorkspaceUser();
+  const superAdmin = user.role === "super_admin";
 
   /**
    * Ces deux actions appelaient `handleSecurityAction`, qui se contentait
@@ -1059,9 +1101,22 @@ export function TabSecurite() {
 
       <AccountSecurityPanel />
 
-      <SecurityMonitorPanel />
-
-      <GuardianWafPanel />
+      {superAdmin ? (
+        <>
+          <SecurityMonitorPanel />
+          <GuardianWafPanel />
+        </>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5" aria-hidden="true" />
+              {t("settingsSecurite.app.platformOnlyTitle")}
+            </CardTitle>
+            <CardDescription>{t("settingsSecurite.app.platformOnlyDesc")}</CardDescription>
+          </CardHeader>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

@@ -3209,7 +3209,8 @@
       "unblockFailed": "No se pudo desbloquear esta IP.",
       "networkError": "Error de red.",
       "multiLayerTitle": "Protección Multicapa Activa",
-      "multiLayerDesc": "Los datos de sus clientes están protegidos por 9 capas de seguridad: cifrado AES-256-GCM, escáner antivirus de archivos, detección XSS/inyección SQL, protección CSRF, limitación de tasa, lista negra de IP automática, cabeceras de seguridad (Helmet/CSP/HSTS), aislamiento multiinquilino y registro de auditoría."
+      "multiLayerDesc": "Los datos de sus clientes están protegidos por 9 capas de seguridad: cifrado AES-256-GCM, escáner antivirus de archivos, detección XSS/inyección SQL, protección CSRF, limitación de tasa, lista negra de IP automática, cabeceras de seguridad (Helmet/CSP/HSTS), aislamiento multiinquilino y registro de auditoría.",
+      "unavailable": "Supervisión no disponible (respuesta {{code}}). No se muestra ningún estado en lugar de un « Normal » no verificado."
     },
     "guardian": {
       "title": "Guardian WAF — Cortafuegos de Aplicaciones",
@@ -3350,7 +3351,9 @@
       "revokeSessionsConfirmDesc": "Se cerrarán todas las sesiones de la organización, incluida la suya. Todos deberán volver a iniciar sesión.",
       "revokeSessionsDone": "{{count}} cuenta(s) desconectada(s). Se le redirigirá.",
       "revokeSessionsFailed": "No se pudo realizar la revocación. Inténtelo de nuevo.",
-      "rgpdPartiel": "Parcial"
+      "rgpdPartiel": "Parcial",
+      "platformOnlyTitle": "Supervisión de la plataforma",
+      "platformOnlyDesc": "El cortafuegos de aplicaciones y las direcciones bloqueadas afectan a toda la plataforma: el proveedor los supervisa. Las acciones sensibles de su organización figuran en el registro de auditoría."
     }
   },
   "users": {
@@ -6420,7 +6423,41 @@
       "smsMessage": "Mensaje SMS",
       "smsMessagePlaceholder": "Hola, no pudimos atender su llamada...",
       "actionType": "Tipo de acción"
-    }
+    },
+    "builtin": {
+      "tachesRetard": {
+        "name": "Tareas atrasadas",
+        "description": "Detecta las tareas que superan su plazo y crea alertas."
+      },
+      "rappelsCalendrier": {
+        "name": "Recordatorios de agenda",
+        "description": "Envía un recordatorio 30 minutos antes de cada evento."
+      },
+      "messagesNonLus": {
+        "name": "Mensajes no leídos",
+        "description": "Avisa cuando hay mensajes sin leer desde hace más de una hora."
+      },
+      "contactsInactifs": {
+        "name": "Contactos inactivos",
+        "description": "Señala los contactos sin actividad desde hace 30 días."
+      },
+      "appelsManques": {
+        "name": "Llamadas perdidas",
+        "description": "Detecta las llamadas perdidas del día y propone devolverlas."
+      },
+      "projetsRetard": {
+        "name": "Proyectos atrasados",
+        "description": "Detecta los proyectos que superaron su fecha de fin y crea alertas."
+      }
+    },
+    "cadence": {
+      "minute": "Cada minuto",
+      "quarter": "Cada 15 minutos",
+      "hour": "Cada hora",
+      "day": "Cada día"
+    },
+    "loading": "Cargando automatizaciones…",
+    "selectRule": "Seleccionar « {{name}} »"
   },
   "organisationsPage": {
     "header": {

@@ -3209,7 +3209,8 @@
       "unblockFailed": "Bu IP'nin engeli kaldırılamadı.",
       "networkError": "Ağ hatası.",
       "multiLayerTitle": "Çok Katmanlı Koruma Etkin",
-      "multiLayerDesc": "Müşteri verileriniz 9 güvenlik katmanıyla korunur: AES-256-GCM şifreleme, dosya antivirüs tarayıcısı, XSS/SQL enjeksiyon tespiti, CSRF koruması, hız sınırlama, otomatik IP kara listesi, güvenlik başlıkları (Helmet/CSP/HSTS), çok kiracılı izolasyon ve denetim günlüğü."
+      "multiLayerDesc": "Müşteri verileriniz 9 güvenlik katmanıyla korunur: AES-256-GCM şifreleme, dosya antivirüs tarayıcısı, XSS/SQL enjeksiyon tespiti, CSRF koruması, hız sınırlama, otomatik IP kara listesi, güvenlik başlıkları (Helmet/CSP/HSTS), çok kiracılı izolasyon ve denetim günlüğü.",
+      "unavailable": "İzleme kullanılamıyor (yanıt {{code}}). Doğrulanmamış bir « Normal » yerine hiçbir durum gösterilmiyor."
     },
     "guardian": {
       "title": "Guardian WAF — Uygulama Güvenlik Duvarı",
@@ -3350,7 +3351,9 @@
       "revokeSessionsConfirmDesc": "Kuruluştaki tüm oturumlar, sizinki dahil, sonlandırılacak. Herkesin yeniden giriş yapması gerekecek.",
       "revokeSessionsDone": "{{count}} hesabın oturumu kapatıldı. Yönlendiriliyorsunuz.",
       "revokeSessionsFailed": "Sonlandırma gerçekleştirilemedi. Yeniden deneyin.",
-      "rgpdPartiel": "Kısmi"
+      "rgpdPartiel": "Kısmi",
+      "platformOnlyTitle": "Platform izlemesi",
+      "platformOnlyDesc": "Uygulama güvenlik duvarı ve engellenen adresler tüm platformu kapsar: bunları sağlayıcı izler. Kuruluşunuzun hassas işlemleri denetim kaydındadır."
     }
   },
   "users": {
@@ -6420,7 +6423,41 @@
       "smsMessage": "SMS mesajı",
       "smsMessagePlaceholder": "Merhaba, çağrınızı kaçırdık...",
       "actionType": "Eylem türü"
-    }
+    },
+    "builtin": {
+      "tachesRetard": {
+        "name": "Geciken görevler",
+        "description": "Süresi geçen görevleri bulur ve uyarı oluşturur."
+      },
+      "rappelsCalendrier": {
+        "name": "Takvim hatırlatmaları",
+        "description": "Her takvim etkinliğinden 30 dakika önce hatırlatma gönderir."
+      },
+      "messagesNonLus": {
+        "name": "Okunmamış mesajlar",
+        "description": "Mesajlar bir saatten uzun süre okunmadan kalırsa uyarır."
+      },
+      "contactsInactifs": {
+        "name": "Etkin olmayan kişiler",
+        "description": "30 gündür etkinliği olmayan kişileri belirler."
+      },
+      "appelsManques": {
+        "name": "Cevapsız aramalar",
+        "description": "Günün cevapsız aramalarını bulur ve geri arama önerir."
+      },
+      "projetsRetard": {
+        "name": "Geciken projeler",
+        "description": "Bitiş tarihini geçen projeleri bulur ve uyarı oluşturur."
+      }
+    },
+    "cadence": {
+      "minute": "Her dakika",
+      "quarter": "15 dakikada bir",
+      "hour": "Saatte bir",
+      "day": "Her gün"
+    },
+    "loading": "Otomasyonlar yükleniyor…",
+    "selectRule": "« {{name}} » seç"
   },
   "organisationsPage": {
     "header": {

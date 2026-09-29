@@ -3209,7 +3209,8 @@
       "unblockFailed": "Diese IP kann nicht entsperrt werden.",
       "networkError": "Netzwerkfehler.",
       "multiLayerTitle": "Mehrschichtiger Schutz aktiv",
-      "multiLayerDesc": "Ihre Kundendaten sind durch 9 Sicherheitsschichten geschützt: AES-256-GCM-Verschlüsselung, Datei-Antivirus-Scanner, XSS-/SQL-Injektionserkennung, CSRF-Schutz, Ratenbegrenzung, automatische IP-Sperrliste, Sicherheits-Header (Helmet/CSP/HSTS), Mandantentrennung und Audit-Protokollierung."
+      "multiLayerDesc": "Ihre Kundendaten sind durch 9 Sicherheitsschichten geschützt: AES-256-GCM-Verschlüsselung, Datei-Antivirus-Scanner, XSS-/SQL-Injektionserkennung, CSRF-Schutz, Ratenbegrenzung, automatische IP-Sperrliste, Sicherheits-Header (Helmet/CSP/HSTS), Mandantentrennung und Audit-Protokollierung.",
+      "unavailable": "Überwachung nicht verfügbar (Antwort {{code}}). Statt eines ungeprüften „Normal“ wird kein Status angezeigt."
     },
     "guardian": {
       "title": "Guardian WAF — Anwendungs-Firewall",
@@ -3350,7 +3351,9 @@
       "revokeSessionsConfirmDesc": "Alle Sitzungen der Organisation werden beendet, auch Ihre. Alle müssen sich neu anmelden.",
       "revokeSessionsDone": "{{count}} Konto/Konten abgemeldet. Sie werden weitergeleitet.",
       "revokeSessionsFailed": "Der Widerruf konnte nicht durchgeführt werden. Bitte erneut versuchen.",
-      "rgpdPartiel": "Teilweise"
+      "rgpdPartiel": "Teilweise",
+      "platformOnlyTitle": "Plattformüberwachung",
+      "platformOnlyDesc": "Die Anwendungs-Firewall und gesperrte Adressen betreffen die gesamte Plattform: der Anbieter überwacht sie. Sensible Aktionen Ihrer Organisation stehen im Audit-Protokoll."
     }
   },
   "users": {
@@ -6420,7 +6423,41 @@
       "smsMessage": "SMS-Nachricht",
       "smsMessagePlaceholder": "Hallo, wir haben Ihren Anruf verpasst...",
       "actionType": "Aktionstyp"
-    }
+    },
+    "builtin": {
+      "tachesRetard": {
+        "name": "Überfällige Aufgaben",
+        "description": "Erkennt Aufgaben nach Fälligkeit und erstellt Warnungen."
+      },
+      "rappelsCalendrier": {
+        "name": "Kalendererinnerungen",
+        "description": "Sendet 30 Minuten vor jedem Termin eine Erinnerung."
+      },
+      "messagesNonLus": {
+        "name": "Ungelesene Nachrichten",
+        "description": "Warnt, wenn Nachrichten länger als eine Stunde ungelesen bleiben."
+      },
+      "contactsInactifs": {
+        "name": "Inaktive Kontakte",
+        "description": "Markiert Kontakte ohne Aktivität seit 30 Tagen."
+      },
+      "appelsManques": {
+        "name": "Verpasste Anrufe",
+        "description": "Erkennt heutige verpasste Anrufe und schlägt einen Rückruf vor."
+      },
+      "projetsRetard": {
+        "name": "Verspätete Projekte",
+        "description": "Erkennt Projekte nach ihrem Enddatum und erstellt Warnungen."
+      }
+    },
+    "cadence": {
+      "minute": "Jede Minute",
+      "quarter": "Alle 15 Minuten",
+      "hour": "Stündlich",
+      "day": "Täglich"
+    },
+    "loading": "Automatisierungen werden geladen…",
+    "selectRule": "„{{name}}“ auswählen"
   },
   "organisationsPage": {
     "header": {
