@@ -29,7 +29,7 @@ import {
   voiceCallSessionsTable,
 } from "@workspace/db";
 import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, notExists, notInArray, sql } from "drizzle-orm";
-import { getAnthropicMode } from "@workspace/integrations-anthropic-ai";
+import { iaUtilisable } from "./ai-providers";
 import { bornesDuJour } from "../lib/jour-local";
 import { overdueCondition } from "./invoice-status";
 
@@ -91,15 +91,6 @@ export function echeanceProposition(creeLe: Date): Date {
   return new Date(creeLe.getTime() + DUREE_DE_VIE_PROPOSITION_JOURS * JOUR);
 }
 
-/** Un fournisseur d'IA est-il configure ? Meme regle que GET /ai/status. */
-export function iaDisponible(env: NodeJS.ProcessEnv = process.env): boolean {
-  const gemini = !!(env.AI_INTEGRATIONS_GEMINI_BASE_URL && env.AI_INTEGRATIONS_GEMINI_API_KEY)
-    || !!(env.GEMINI_API_KEY || env.GOOGLE_API_KEY || env.GOOGLE_GENERATIVE_AI_API_KEY);
-  const openai = !!(env.AI_INTEGRATIONS_OPENAI_BASE_URL && env.AI_INTEGRATIONS_OPENAI_API_KEY) || !!env.OPENAI_API_KEY;
-  let anthropic = false;
-  try { anthropic = getAnthropicMode() !== "none"; } catch { anthropic = false; }
-  return gemini || openai || anthropic;
-}
 
 /**
  * `assigned_to` est un texte libre : un identifiant d'utilisateur (ecrit par
@@ -391,7 +382,7 @@ export async function construireMasaBugun(orgId: number, maintenant: Date = new 
   const connexions: Satir[] = [];
   if ((lignes[0]?.n ?? 0) === 0) connexions.push({ cle: "baglanti_eksik:telefon", tur: "baglanti_telefon", baslik: "telephony", detay: null, href: "/telephonie", sorumlu: null, zaman: null, ton: "acil" });
   if ((jetonsGoogle[0]?.n ?? 0) === 0) connexions.push({ cle: "baglanti_eksik:google", tur: "baglanti_google", baslik: "google", detay: null, href: "/google-workspace", sorumlu: null, zaman: null, ton: "acil" });
-  if (!iaDisponible()) connexions.push({ cle: "baglanti_eksik:ia", tur: "baglanti_ia", baslik: "ia", detay: null, href: "/parametres?tab=cles-ia", sorumlu: null, zaman: null, ton: "acil" });
+  if (!(await iaUtilisable(orgId))) connexions.push({ cle: "baglanti_eksik:ia", tur: "baglanti_ia", baslik: "ia", detay: null, href: "/parametres?tab=cles-ia", sorumlu: null, zaman: null, ton: "acil" });
   const ajanlar = {
     ...rubrique([
       recentes.filter((r) => r.status === "echouee").map(ligneExecution("ajan_hata", "acil")),

@@ -21,6 +21,7 @@ import {
 import { construireMasaBugun, echeanceProposition, type MasaBugun, type Satir } from "../services/masa-bugun";
 import { bornesDuJour } from "../lib/jour-local";
 import bugunRouter from "../routes/bugun";
+import { iaUtilisable } from "../services/ai-providers";
 
 const stamp = Date.now();
 const JOUR = 24 * 60 * 60 * 1000;
@@ -243,6 +244,12 @@ describe("agents", () => {
     expect(ligne(masa, `ajan_devretti:${ids.rendu}`)).toMatchObject({ ton: "onay" });
     expect(ligne(masa, `ajan_hata:${ids.vieilleErreur}`)).toBeUndefined();
     expect(masa.ajanlar.sayac).toEqual({ calisiyor: 0, bekliyor: 1, hata: 1 });
+  });
+
+  it("tient pour utilisable un fournisseur d'IA configure sur la plateforme", async () => {
+    // La lecture de configuration vit dans services/ai-providers.ts (classe au
+    // registre IA) : la table du jour ne touche pas elle-meme a un modele.
+    expect(await iaUtilisable(ids.orgA, { OPENAI_API_KEY: "sk-test" } as NodeJS.ProcessEnv)).toBe(true);
   });
 
   it("signale la ligne telephonique manquante — pour ce bureau, pas pour celui qui en a une", async () => {

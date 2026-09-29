@@ -216,6 +216,30 @@ export async function getOrgAnthropicClient(orgId?: number | null): Promise<any>
   return mod.anthropic;
 }
 
+/**
+ * Un fournisseur d'IA est-il utilisable par cette organisation : cle de la
+ * plateforme (meme regle que GET /ai/status) ou cle propre de l'organisation.
+ * Ne cree aucun client et n'appelle aucun modele — c'est une lecture de
+ * configuration, pour dire « connexion manquante » quand il n'y en a aucune.
+ */
+export async function iaUtilisable(orgId: number, env: NodeJS.ProcessEnv = process.env): Promise<boolean> {
+  const gemini = !!(env.AI_INTEGRATIONS_GEMINI_BASE_URL && env.AI_INTEGRATIONS_GEMINI_API_KEY)
+    || !!(env.GEMINI_API_KEY || env.GOOGLE_API_KEY || env.GOOGLE_GENERATIVE_AI_API_KEY);
+  const openai = !!(env.AI_INTEGRATIONS_OPENAI_BASE_URL && env.AI_INTEGRATIONS_OPENAI_API_KEY) || !!env.OPENAI_API_KEY;
+  let anthropic = false;
+  try {
+    const mod = await import("@workspace/integrations-anthropic-ai");
+    anthropic = mod.getAnthropicMode() !== "none";
+  } catch { anthropic = false; }
+  if (gemini || openai || anthropic) return true;
+  try {
+    const propres = await getOrgAiKeyPresence(orgId);
+    return propres.gemini || propres.openai || propres.anthropic;
+  } catch {
+    return false;
+  }
+}
+
 /** Indique, par fournisseur, si l'org utilise sa propre cle (pour l'UI/test). */
 export async function getOrgAiKeyPresence(orgId: number): Promise<Record<AiProviderName, boolean>> {
   const keys = await getOrgAiKeys(orgId);
