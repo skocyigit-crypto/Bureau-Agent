@@ -125,6 +125,19 @@ describe("les chemins qui ecrivent passent par cette lecture", () => {
     expect(boucle.indexOf("reclamerExecution(\"super-agent-courriel\"")).toBeLessThan(boucle.indexOf("superAgentAI("));
     expect(boucle).toMatch(/catch \(err\) \{[\s\S]{0,400}abandonnerExecution\("super-agent-courriel"/);
   });
+  it("une panne des modeles n'est pas « rien a faire » (sinon le courriel reclame serait perdu)", () => {
+    const src = lire("routes/ai-agents.ts");
+    const fn = src.slice(src.indexOf("async function superAgentAI"), src.indexOf("\n}\n", src.indexOf("async function superAgentAI")));
+    expect(fn).not.toMatch(/catch \{ return "\{\}"; \}/);
+    expect(fn).toMatch(/throw new Error\(`Super Agent : modeles indisponibles/);
+    // Reponse tronquee (jetons de reflexion) : repli, pas un JSON vide.
+    expect(fn).toMatch(/finishReason === "MAX_TOKENS"/);
+  });
+  it("une sortie illisible fait rendre la reclamation du courriel", () => {
+    const src = lire("routes/ai-agents.ts");
+    const boucle = src.slice(src.indexOf("for (const msg of messages.slice(0, 10))"));
+    expect(boucle).toMatch(/const brut = extraireObjetJson\(aiText\);\s*if \(!brut\) throw/);
+  });
   it("les notifications de l'analyse d'appel portent l'organisation", () => {
     const src = lire("services/call-processor.ts");
     for (const m of src.matchAll(/insert\(notificationsTable\)\.values\(\{([\s\S]{0,120})/g)) {

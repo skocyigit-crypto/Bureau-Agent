@@ -2952,9 +2952,14 @@ async function superAgentAI(orgId: number, prompt: string, systemPrompt: string)
       ai.models.generateContent({
         model: GEMINI_FLASH_MODEL,
         contents: [{ role: "user", parts: [{ text: `${systemPrompt}\n\n${prompt}` }] }],
-        config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
+        // Les jetons de reflexion des modeles 2.5+ se deduisent de ce plafond :
+        // a 4096, un JSON pouvait sortir tronque, donc illisible, donc « rien
+        // a faire » (signale par la session Kaverd, 29/09).
+        config: { maxOutputTokens: 8192, responseMimeType: "application/json" },
       }),
     );
+    // Une reponse coupee n'est pas une reponse : on passe au repli.
+    if (response?.candidates?.[0]?.finishReason === "MAX_TOKENS") throw new Error("reponse tronquee (MAX_TOKENS)");
     const text = response.text ?? "{}";
     const tokens = extractGeminiTokens(response);
     recordAiUsage({ organisationId: orgId, provider: "gemini", model: geminiActualModel(response, GEMINI_FLASH_MODEL), route: "/ai/super-agent", inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
@@ -2970,8 +2975,15 @@ async function superAgentAI(orgId: number, prompt: string, systemPrompt: string)
           max_tokens: 3000,
         }),
       );
-      return fb.choices?.[0]?.message?.content ?? "{}";
-    } catch { return "{}"; }
+      const contenu = fb.choices?.[0]?.message?.content;
+      if (!contenu) throw new Error("repli sans contenu");
+      return contenu;
+    } catch (fbErr) {
+      // Renvoyer « {} » faisait croire a « rien a faire » : depuis que chaque
+      // courriel est reclame une seule fois, une panne des deux fournisseurs
+      // l'aurait PERDU. On echoue ; l'appelant rend la reclamation.
+      throw new Error(`Super Agent : modeles indisponibles (${err?.message ?? "gemini"} ; ${(fbErr as Error)?.message ?? "openai"})`);
+    }
   }
 }
 
@@ -3055,8 +3067,11 @@ export async function runSuperAgentCycle(orgId: number, userId: number) {
             }
 
             // Le contenu vient d'un tiers : ce que le modele en tire est
-            // valide avant toute ecriture (services/sortie-ia.ts).
-            const brut = extraireObjetJson(aiText) ?? {};
+            // valide avant toute ecriture (services/sortie-ia.ts). Une sortie
+            // ILLISIBLE n'est pas « aucune action » : on echoue, la
+            // reclamation est rendue, le courriel sera repris.
+            const brut = extraireObjetJson(aiText);
+            if (!brut) throw new Error("sortie du modele illisible");
             const parsed = {
               tasks: listeValide(brut.tasks, TacheExtraite, 5),
               urgency: texteOuVide(brut.urgency, 20),
