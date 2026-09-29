@@ -99,21 +99,54 @@ function createSmtpTransport() {
   });
 }
 
+/**
+ * Un refus du fournisseur qui garantit que RIEN n'est parti.
+ *
+ * La chaine d'envoi (cle de l'organisation -> cle plateforme -> SMTP)
+ * passait au fournisseur suivant sur N'IMPORTE QUEL echec. Or le SDK Resend
+ * transforme une coupure reseau, un delai depasse ou une reponse 2xx
+ * illisible en `{ name: "application_error" }` : l'e-mail a pu etre accepte.
+ * Le repli le renvoyait alors par un autre compte — deux, voire trois
+ * exemplaires chez le destinataire (mesure du 29/09).
+ *
+ * Seul un refus 4xx (cle invalide, domaine non verifie, adresse refusee,
+ * limite de debit) dit que l'envoi n'a pas eu lieu. Tout le reste est
+ * INCERTAIN : on s'arrete, on le dit, et on ne renvoie pas.
+ */
+const REFUS_SANS_ENVOI = new Set([
+  "validation_error", "missing_required_field", "invalid_parameter", "missing_api_key",
+  "invalid_api_key", "restricted_api_key", "invalid_from_address", "invalid_access",
+  "invalid_attachment", "not_found", "method_not_allowed", "rate_limit_exceeded",
+  "daily_quota_exceeded", "monthly_quota_exceeded", "security_error",
+]);
+
+export function refusSansEnvoi(erreur: unknown): boolean {
+  const e = (erreur ?? {}) as { statusCode?: unknown; name?: unknown };
+  const code = typeof e.statusCode === "number" ? e.statusCode : NaN;
+  if (code >= 400 && code < 500) return true;
+  return typeof e.name === "string" && REFUS_SANS_ENVOI.has(e.name);
+}
+
+export const MESSAGE_ENVOI_INCERTAIN =
+  "Envoi incertain : le fournisseur n'a pas confirme. Aucun second envoi n'a ete tente, pour ne pas doubler le message.";
+
 // Envoi via un client Resend donné, avec retry "domaine non vérifié" ->
 // onboarding@resend.dev. Partagé entre la clé plateforme et la clé BYOK
 // d'une organisation. `tag` distingue les logs (platform / org / test).
+// `incertain` : l'echec ne garantit pas que rien n'est parti (voir plus haut).
 async function sendViaResend(
   client: Resend,
   from: string,
   usedFallback: boolean,
   mail: { to: string; subject: string; html: string; text: string },
   tag: string,
-): Promise<{ success: boolean; error?: string; provider?: string }> {
+): Promise<{ success: boolean; error?: string; provider?: string; incertain?: boolean }> {
   try {
     const result = await client.emails.send({ from, to: [mail.to], subject: mail.subject, html: mail.html, text: mail.text });
     if (result.error) {
       const errMsg = (result.error as any)?.message || JSON.stringify(result.error);
       logger.error({ err: result.error, from, to: mail.to }, `[Email/Resend:${tag}] Erreur envoi a ${mail.to}`);
+      if (!refusSansEnvoi(result.error)) return { success: false, error: `Resend: ${errMsg}`, incertain: true };
       if (!usedFallback && /domain|verif|forbidden|not allowed/i.test(errMsg)) {
         try {
           const retry = await client.emails.send({ from: "Ajant Bureau <onboarding@resend.dev>", to: [mail.to], subject: mail.subject, html: mail.html, text: mail.text });
@@ -121,9 +154,9 @@ async function sendViaResend(
             logger.info(`[Email/Resend:${tag}] Envoye via fallback onboarding@resend.dev a ${mail.to}: ${retry.data?.id}`);
             return { success: true, provider: `resend-${tag}-fallback` };
           }
-          return { success: false, error: `Resend retry: ${(retry.error as any)?.message || JSON.stringify(retry.error)}` };
+          return { success: false, error: `Resend retry: ${(retry.error as any)?.message || JSON.stringify(retry.error)}`, incertain: !refusSansEnvoi(retry.error) };
         } catch (retryErr: any) {
-          return { success: false, error: `Resend retry exception: ${retryErr.message}` };
+          return { success: false, error: `Resend retry exception: ${retryErr.message}`, incertain: true };
         }
       }
       return { success: false, error: `Resend: ${errMsg}` };
@@ -132,7 +165,7 @@ async function sendViaResend(
     return { success: true, provider: `resend-${tag}` };
   } catch (err: any) {
     logger.error({ err: err }, `[Email/Resend:${tag}] Exception envoi a ${mail.to}:`);
-    return { success: false, error: `Resend exception: ${err.message}` };
+    return { success: false, error: `Resend exception: ${err.message}`, incertain: true };
   }
 }
 
@@ -214,6 +247,10 @@ export async function sendEmail(to: string, subject: string, html: string, text:
         const orgClient = new Resend(sender.apiKey);
         const r = await sendViaResend(orgClient, picked.from, picked.usedFallback, { to, subject, html, text }, "org");
         if (r.success) return r;
+        if (r.incertain) {
+          logger.warn({ orgId: opts.orgId, error: r.error, to }, "[Email] Envoi incertain (cle organisation) : pas de repli, pour ne pas doubler");
+          return { success: false, error: `${MESSAGE_ENVOI_INCERTAIN} (${r.error})` };
+        }
         lastError = r.error;
         logger.warn({ orgId: opts.orgId, lastError }, "[Email] Clé d'organisation en échec, repli sur la plateforme");
       }
@@ -237,6 +274,10 @@ export async function sendEmail(to: string, subject: string, html: string, text:
         const errMsg = (result.error as any)?.message || JSON.stringify(result.error);
         logger.error({ err: result.error, from: resend.from, to }, `[Email/Resend] Erreur envoi a ${to}`);
         lastError = `Resend: ${errMsg}`;
+        if (!refusSansEnvoi(result.error)) {
+          logger.warn({ to, error: errMsg }, "[Email] Envoi incertain (cle plateforme) : pas de repli SMTP, pour ne pas doubler");
+          return { success: false, error: `${MESSAGE_ENVOI_INCERTAIN} (${lastError})` };
+        }
         // Cas typique: domaine non verifie. Si on n'a PAS deja utilise le
         // fallback, on retente immediatement avec onboarding@resend.dev.
         if (!resend.usedFallback && /domain|verif|forbidden|not allowed/i.test(errMsg)) {
@@ -255,8 +296,9 @@ export async function sendEmail(to: string, subject: string, html: string, text:
               return { success: true, provider: "resend-fallback" };
             }
             lastError = `Resend retry: ${(retry.error as any)?.message || JSON.stringify(retry.error)}`;
+            if (!refusSansEnvoi(retry.error)) return { success: false, error: `${MESSAGE_ENVOI_INCERTAIN} (${lastError})` };
           } catch (retryErr: any) {
-            lastError = `Resend retry exception: ${retryErr.message}`;
+            return { success: false, error: `${MESSAGE_ENVOI_INCERTAIN} (Resend retry exception: ${retryErr.message})` };
           }
         }
       } else {
@@ -265,7 +307,8 @@ export async function sendEmail(to: string, subject: string, html: string, text:
       }
     } catch (err: any) {
       logger.error({ err: err }, `[Email/Resend] Exception envoi a ${to}:`);
-      lastError = `Resend exception: ${err.message}`;
+      // Une exception en cours d'appel ne dit pas que rien n'est parti.
+      return { success: false, error: `${MESSAGE_ENVOI_INCERTAIN} (Resend exception: ${err.message})` };
     }
   }
 

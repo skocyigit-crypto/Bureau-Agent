@@ -15,6 +15,7 @@ import { eq, lte, lt, and, gte, sql, isNull, isNotNull, or } from "drizzle-orm";
 import { AGENTS, creerTacheIa } from "./tache-ia";
 import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
+import { escapeHtml } from "../lib/html-escape";
 import { sendEmail } from "./email";
 import { broadcaster } from "./broadcaster";
 import { sendSms, decryptProviderConfig } from "./telephony-providers";
@@ -768,7 +769,10 @@ export async function executeAction(
       }
       const subject = interpolate(p.subject ?? ruleName, context);
       const bodyText = interpolate(p.body ?? `Automatisation: ${ruleName}`, context);
-      const html = `<p>${bodyText.replace(/\n/g, "<br>")}</p>`;
+      // Les VALEURS viennent de tiers (contenu d'une demande entrante, nom
+      // d'un contact) : echappees dans la version HTML. Le modele, ecrit par
+      // l'administrateur, garde sa mise en forme.
+      const html = `<p>${interpolateHtml(p.body ?? `Automatisation: ${ruleName}`, context).replace(/\n/g, "<br>")}</p>`;
       const result = await sendEmail(to, subject, html, bodyText, { orgId: orgId ?? undefined });
       if (!result.success) {
         logger.warn({ to, err: result.error }, "[Automation] send_email: echec envoi");
@@ -877,6 +881,11 @@ function hashText(text: string): string {
 /** Replace {{key}} tokens in a string with context values */
 function interpolate(template: string, ctx: Record<string, any>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => String(ctx[key] ?? ""));
+}
+
+/** Meme chose pour une sortie HTML : chaque valeur est echappee. */
+export function interpolateHtml(template: string, ctx: Record<string, any>): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => escapeHtml(String(ctx[key] ?? "")));
 }
 
 function scheduleToMs(schedule: string | null): number {

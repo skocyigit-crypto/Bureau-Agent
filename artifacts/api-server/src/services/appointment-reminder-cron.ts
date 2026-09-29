@@ -33,6 +33,7 @@ import { db, appointmentOffersTable, organisationsTable } from "@workspace/db";
 import { and, eq, isNull, lte, gt, inArray, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
+import { escapeHtml } from "../lib/html-escape";
 import { sendEmail } from "./email";
 import { sendSms as providerSendSms } from "./telephony-providers";
 import { publicBaseUrl } from "./appointment-offers";
@@ -77,13 +78,13 @@ async function sendReminderForOffer(
   if (offer.contactEmail) {
     const html = `
       <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;color:#0f1729;">
-        <p>${greeting}</p>
-        <p>Ceci est un rappel pour votre rendez-vous <strong>${offer.reason}</strong> prevu le&nbsp;:</p>
+        <p>${escapeHtml(greeting)}</p>
+        <p>Ceci est un rappel pour votre rendez-vous <strong>${escapeHtml(offer.reason)}</strong> prevu le&nbsp;:</p>
         <p style="font-size:18px;font-weight:700;margin:16px 0;">${whenStr}</p>
         <p>Pour annuler ou reprogrammer, cliquez ici&nbsp;:</p>
         <p><a href="${link}" style="display:inline-block;background:#0f1729;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600;">Gerer mon rendez-vous</a></p>
         <p style="font-size:13px;color:#475569;">Ou copiez ce lien dans votre navigateur&nbsp;: <a href="${link}">${link}</a></p>
-        <p style="font-size:13px;color:#94a3b8;">${orgName}</p>
+        <p style="font-size:13px;color:#94a3b8;">${escapeHtml(orgName)}</p>
       </div>`;
     const text =
       `${greeting}\n\nRappel: votre rendez-vous (${offer.reason}) est prevu le ${whenStr}.\n\n` +

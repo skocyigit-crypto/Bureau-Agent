@@ -1704,6 +1704,17 @@ export async function executeTool(
 
   try {
     const result = await tool.execute(args, ctx);
+    // Un resultat qui dit lui-meme `success: false` n'est pas un succes.
+    //
+    // `send_email` et `send_sms` rendent le resultat du fournisseur sans
+    // lever d'exception. Un e-mail qu'aucun fournisseur n'avait pris etait
+    // donc « ok » : la proposition passait a `executee`, et une relance de
+    // facture etait consignee comme ENVOYEE — le garde « pas deux relances
+    // en 7 jours » bloquait ensuite la vraie (mesure du 29/09).
+    if (result && typeof result === "object" && (result as { success?: unknown }).success === false) {
+      const e = (result as { error?: unknown }).error;
+      return { ok: false, result, error: trim(typeof e === "string" && e ? e : `${name} a echoue`, 500) };
+    }
     return { ok: true, result };
   } catch (err) {
     logger.error({ err, tool: name }, "[assistant] tool execution failed");
