@@ -284,6 +284,23 @@ Son sınav tek senaryodur. Müşteri arar, ajan talebi alır ve CRM'de affaire a
   - `calls.prospect_id` yok. Affaire bağlantısı, kayıtların sahibi kararına bağlı.
   - WhatsApp ve Gmail kişiye bağlanmıyor.
 
+### API anahtarı kimlik yönetemez (`sec/cle-api-identite`, güvenlik)
+
+**Açık:** API anahtarları, oluşturan kişinin adına ve **bütün rolüyle** çalışıyor. `api_keys.scopes` alanı saklanıyor ama hiçbir yerde uygulanmıyor. Bu yüzden bir yönetici anahtarını ele geçiren kişi şunları yapabiliyordu:
+- `POST /auth/users` ile yeni bir yönetici hesabı açmak;
+- `PATCH /auth/users/:id` ile yöneticinin e-postasını değiştirmek;
+- `/api-keys` üzerinden yeni anahtar üretmek.
+
+Böylece **anahtar iptal edildikten sonra da erişimini koruyordu.**
+
+- **Bulan:** BTP-Ultra oturumu kendi tarafındaki aynı zinciri 29/09'da bildirdi. Ajan Bureau'da ölçüldü: korumasız halde anahtarla yönetici hesabı açılıyor.
+- **Çözüm:** `middleware/auth.ts` içinde `routeInterditeAuxCles`. Anahtar kimlik kazandığı anda üç koruma noktasında (`requireAuth`, `requireRole`, `requireSuperAdmin`) kontrol ediliyor. İhlalde 403 `cle_api_interdite` dönüyor.
+  - **Tüm yöntemlerde kapalı:** `/auth/*`, `/api-keys`, `/invitations`, `/webhooks`, `/organisations`, `/license-management`, `/admin`.
+  - **Yalnız okumaya açık:** `/data-protection` (silme ve dışa aktarma gibi değiştiren istekler kapalı).
+  - Kayıtlara ait rotalar (kişiler, çağrılar, teklifler…) anahtarla çalışmaya devam ediyor.
+- **Hâlâ açık:** gerçek kapsam uygulaması, yani salt okunur anahtar, rota bazında izin ve anahtara özel rol. Anahtar hâlâ oluşturanın bütün kayıt yetkisini taşıyor.
+- **Testler:** 8 veritabanı testi (gerçek anahtar ve `routes/index.ts` ile aynı bağlanma sırası), 4 mutasyon.
+
 ### ❓ Kullanıcı kararı bekliyor: iş kayıtlarının sahibi
 
 BatiFlow oturumu 29/09'da GESTION-BTP Pro'nun Ajan Bureau'ya açılan entegrasyon API'sini tamamladığını bildirdi. Belgesi: `C:\Users\serkan\Desktop\BatiFlow\docs\integration-ajan-bureau.md`. API şunları sunuyor: telefonla kişi arama, talep oluşturma, boş saatler, randevu, etkileşim kaydı ve zaman çizelgesi.

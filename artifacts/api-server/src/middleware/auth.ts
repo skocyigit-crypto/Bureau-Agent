@@ -81,6 +81,8 @@ export async function hydrateFromBearer(req: Request): Promise<void> {
     s.userEmail = apiCtx.userEmail;
     s.prenom = apiCtx.prenom;
     s.nom = apiCtx.nom;
+    // La requete vient d'une cle, pas d'une personne : voir routeInterditeAuxCles.
+    s.viaCleApi = apiCtx.apiKeyId;
     return;
   }
 
@@ -103,6 +105,40 @@ export async function hydrateFromBearer(req: Request): Promise<void> {
   s.nom = payload.nom;
 }
 
+/**
+ * Ce qu'une cle API ne fait jamais, quel que soit le role de son createur.
+ *
+ * Une cle authentifie AU NOM de son createur, avec tout son role (les scopes
+ * ne sont pas appliques, cf. lib/api-key-auth.ts). Elle sert aux integrations :
+ * lire et ecrire des dossiers. Mais celui qui la detient pouvait aussi creer
+ * un administrateur, changer l'e-mail d'un compte, emettre d'autres cles ou
+ * inviter quelqu'un — et GARDER l'acces apres la revocation de la cle. Le
+ * meme enchainement a ete trouve et ferme cote BTP le 29/09 (prise de compte
+ * par une cle via la modification de profil).
+ *
+ * Refuse ici, a l'endroit ou la cle devient une identite : identite et
+ * comptes, cles et webhooks, invitations, plateforme et facturation, et toute
+ * ecriture de la protection des donnees (effacement, exports).
+ */
+const INTERDIT_AUX_CLES = /^\/api\/(auth|api-keys|invitations|webhooks|organisations|license-management|admin)(\/|$)/;
+const LECTURE_SEULE_AUX_CLES = /^\/api\/data-protection(\/|$)/;
+
+export function routeInterditeAuxCles(methode: string, chemin: string): boolean {
+  const p = chemin.split("?")[0] ?? "";
+  if (INTERDIT_AUX_CLES.test(p)) return true;
+  return LECTURE_SEULE_AUX_CLES.test(p) && methode.toUpperCase() !== "GET";
+}
+
+function refuserCle(req: Request, res: Response): boolean {
+  if (!(req.session as unknown as Record<string, unknown> | undefined)?.viaCleApi) return false;
+  if (!routeInterditeAuxCles(req.method, req.originalUrl || req.url)) return false;
+  res.status(403).json({
+    error: "Une cle API ne gere ni les comptes, ni les cles, ni la plateforme. Faites-le depuis l'application.",
+    code: "cle_api_interdite",
+  });
+  return true;
+}
+
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   await hydrateFromBearer(req);
   const userId = req.session?.userId;
@@ -110,6 +146,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     res.status(401).json({ error: "Non authentifie. Veuillez vous connecter." });
     return;
   }
+  if (refuserCle(req, res)) return;
   next();
 }
 
@@ -161,6 +198,7 @@ export async function requireSuperAdmin(req: Request, res: Response, next: NextF
     res.status(401).json({ error: "Non authentifie." });
     return;
   }
+  if (refuserCle(req, res)) return;
   if (req.session?.userRole !== "super_admin") {
     logTenantViolation(req, "require_super_admin", "Attempt to access super-admin-only route");
     res.status(403).json({ error: "Acces reserve au super administrateur." });
@@ -193,6 +231,7 @@ export function requireRole(...roles: string[]) {
       res.status(401).json({ error: "Non authentifie." });
       return;
     }
+    if (refuserCle(req, res)) return;
     const userRole = req.session?.userRole as string | undefined;
     if (!userHasAccess(userRole, roles)) {
       res.status(403).json({ error: "Acces refuse. Permissions insuffisantes." });
