@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 701,
+    "runtimeOperations": 704,
     "documentedOperations": 96,
-    "undocumentedOperations": 605
+    "undocumentedOperations": 608
   },
   "operations": [
     {
@@ -2393,6 +2393,30 @@
     {
       "method": "get",
       "path": "/data-protection/my-data",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/data-protection.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/data-protection/registre",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/data-protection.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/data-protection/registre-ia",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/data-protection.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/data-protection/registre/csv",
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/data-protection.ts"
