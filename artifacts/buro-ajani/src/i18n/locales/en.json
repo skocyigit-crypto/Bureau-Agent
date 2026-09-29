@@ -9825,5 +9825,89 @@
       "invalide_other": "The flow was not saved: {{count}} errors.",
       "erreur": "Saving failed: {{raison}}"
     }
+  },
+  "bugun": {
+    "panneau": {
+      "simdi": "Act now",
+      "onaylar": "Pending approvals",
+      "plan": "Today's plan",
+      "dosyalar": "Job files",
+      "finans": "Financial attention",
+      "ajanlar": "Agent status"
+    },
+    "bos": {
+      "simdi": "Nothing urgent right now.",
+      "onaylar": "No approvals waiting.",
+      "plan": "No appointments, tasks or handovers today.",
+      "dosyalar": "No new requests, quotes awaiting an answer or late sites.",
+      "finans": "No overdue invoices, budget overruns or accepted quotes left to invoice.",
+      "ajanlar": "No errors or hand-offs in the last 24 h; connections are in place."
+    },
+    "tur": {
+      "cagri_canli": "Live call",
+      "cagri_aktariliyor": "Being transferred",
+      "geri_arama": "Call back (missed call)",
+      "sesli_mesaj": "Left a voicemail",
+      "geri_arama_istegi": "Callback request",
+      "acil_saha": "Urgent site issue",
+      "onay_suresi": "Approval expiring",
+      "onay": "Needs approval",
+      "onay_email": "Email to send",
+      "onay_sms": "Text to send",
+      "onay_tache": "Task to create",
+      "onay_rappel": "Reminder",
+      "onay_relance": "Payment reminder",
+      "onay_contact": "Contact record",
+      "randevu": "Appointment",
+      "kesif": "Site visit",
+      "randevu_onaysiz": "Proposed appointment (unconfirmed)",
+      "gorev_bugun": "Due today",
+      "teslim": "Upcoming handover",
+      "talep_yeni": "New request",
+      "teklif_bekliyor": "Quote awaiting answer",
+      "santiye_gecikti": "Late site",
+      "fatura_gecikti": "Overdue invoice",
+      "butce_asimi": "Budget overrun",
+      "faturasiz_kabul": "Accepted, not invoiced",
+      "ajan_hata": "Agent failed",
+      "ajan_devretti": "Handed to a person",
+      "ajan_calisiyor": "Running",
+      "baglanti_telefon": "Missing connection",
+      "baglanti_google": "Missing connection",
+      "baglanti_ia": "Missing connection"
+    },
+    "baglanti": {
+      "baglanti_telefon": "No phone line — the phone agent cannot take calls",
+      "baglanti_google": "No Google account — the email and calendar agent cannot work",
+      "baglanti_ia": "No AI provider configured — agents cannot work"
+    },
+    "kaynak": {
+      "orchestrateur": "Agent, on a request",
+      "automation_rule": "Automatic rule",
+      "app_audit": "App self-audit",
+      "saas_agent": "Platform agent",
+      "invoice_reminder": "Invoice reminder rule",
+      "sekreter": "Automatic secretary",
+      "telefon": "Phone receptionist",
+      "support_email": "Support email",
+      "ai_execute": "AI command",
+      "autre": "Other source"
+    },
+    "zaman": {
+      "karar": "Decide by",
+      "vade": "Due",
+      "gecerlilik": "Valid until",
+      "bitis": "Ends"
+    },
+    "sorumlu": "Owner",
+    "tumu": "See all",
+    "fazlasi": "There are more — see all",
+    "kaynakManuel": "Spend entered by hand on the site",
+    "onayToplam": "action(s) awaiting your decision",
+    "sayac": "Last 24 h: {{calisiyor}} running · {{bekliyor}} handed to a person · {{hata}} failed",
+    "yukleniyor": "Loading today's desk",
+    "hata": "Today's desk could not be loaded. Nothing changed; you can retry.",
+    "tekrar": "Retry",
+    "gostergeler": "Indicators"
   }
 }

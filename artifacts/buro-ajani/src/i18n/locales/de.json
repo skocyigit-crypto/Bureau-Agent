@@ -9825,5 +9825,89 @@
       "invalide_other": "Der Ablauf wurde nicht gespeichert: {{count}} Fehler.",
       "erreur": "Speichern fehlgeschlagen: {{raison}}"
     }
+  },
+  "bugun": {
+    "panneau": {
+      "simdi": "Jetzt kümmern",
+      "onaylar": "Offene Freigaben",
+      "plan": "Tagesplan",
+      "dosyalar": "Vorgänge",
+      "finans": "Finanzen im Blick",
+      "ajanlar": "Agentenstatus"
+    },
+    "bos": {
+      "simdi": "Gerade nichts Dringendes.",
+      "onaylar": "Keine offenen Freigaben.",
+      "plan": "Heute keine Termine, Aufgaben oder Übergaben.",
+      "dosyalar": "Keine neuen Anfragen, offenen Angebote oder verspäteten Baustellen.",
+      "finans": "Keine überfälligen Rechnungen, Budgetüberschreitungen oder unfakturierten Angebote.",
+      "ajanlar": "Keine Fehler oder Übergaben in 24 h; Verbindungen stehen."
+    },
+    "tur": {
+      "cagri_canli": "Laufender Anruf",
+      "cagri_aktariliyor": "Wird weitergeleitet",
+      "geri_arama": "Rückruf (verpasst)",
+      "sesli_mesaj": "Sprachnachricht hinterlassen",
+      "geri_arama_istegi": "Rückrufwunsch",
+      "acil_saha": "Dringend auf der Baustelle",
+      "onay_suresi": "Freigabe läuft ab",
+      "onay": "Freigabe nötig",
+      "onay_email": "E-Mail-Versand",
+      "onay_sms": "SMS-Versand",
+      "onay_tache": "Aufgabe anlegen",
+      "onay_rappel": "Erinnerung",
+      "onay_relance": "Zahlungserinnerung",
+      "onay_contact": "Kontakteintrag",
+      "randevu": "Termin",
+      "kesif": "Ortstermin",
+      "randevu_onaysiz": "Vorgeschlagener Termin (unbestätigt)",
+      "gorev_bugun": "Heute fällig",
+      "teslim": "Anstehende Übergabe",
+      "talep_yeni": "Neue Anfrage",
+      "teklif_bekliyor": "Angebot ohne Antwort",
+      "santiye_gecikti": "Verspätete Baustelle",
+      "fatura_gecikti": "Überfällige Rechnung",
+      "butce_asimi": "Budgetüberschreitung",
+      "faturasiz_kabul": "Angenommen, nicht fakturiert",
+      "ajan_hata": "Agent fehlgeschlagen",
+      "ajan_devretti": "An Menschen übergeben",
+      "ajan_calisiyor": "Läuft",
+      "baglanti_telefon": "Verbindung fehlt",
+      "baglanti_google": "Verbindung fehlt",
+      "baglanti_ia": "Verbindung fehlt"
+    },
+    "baglanti": {
+      "baglanti_telefon": "Keine Telefonleitung – der Telefonagent kann keine Anrufe annehmen",
+      "baglanti_google": "Kein Google-Konto – der E-Mail- und Kalenderagent kann nicht arbeiten",
+      "baglanti_ia": "Kein KI-Anbieter eingerichtet – Agenten können nicht arbeiten"
+    },
+    "kaynak": {
+      "orchestrateur": "Agent, auf Anfrage",
+      "automation_rule": "Automatische Regel",
+      "app_audit": "App-Selbstprüfung",
+      "saas_agent": "Plattform-Agent",
+      "invoice_reminder": "Mahnregel",
+      "sekreter": "Automatisches Sekretariat",
+      "telefon": "Telefonempfang",
+      "support_email": "Support-E-Mail",
+      "ai_execute": "KI-Befehl",
+      "autre": "Andere Quelle"
+    },
+    "zaman": {
+      "karar": "Entscheiden bis",
+      "vade": "Fällig",
+      "gecerlilik": "Gültig bis",
+      "bitis": "Ende"
+    },
+    "sorumlu": "Verantwortlich",
+    "tumu": "Alle anzeigen",
+    "fazlasi": "Es gibt mehr – alle anzeigen",
+    "kaynakManuel": "Ausgaben manuell auf der Baustelle erfasst",
+    "onayToplam": "Aktion(en) warten auf Ihre Entscheidung",
+    "sayac": "Letzte 24 h: {{calisiyor}} laufen · {{bekliyor}} übergeben · {{hata}} fehlgeschlagen",
+    "yukleniyor": "Tagesübersicht wird geladen",
+    "hata": "Die Tagesübersicht konnte nicht geladen werden. Nichts wurde geändert; erneut versuchen.",
+    "tekrar": "Erneut versuchen",
+    "gostergeler": "Kennzahlen"
   }
 }

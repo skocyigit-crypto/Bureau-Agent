@@ -183,9 +183,46 @@ Son sınav tek senaryodur. Müşteri arar, ajan talebi alır ve CRM'de affaire a
   - Erişim kuralları menü planından okunuyor. Otomasyonlar ve Performans artık yalnız yöneticiye görünüyor.
   - "Denetim günlüğü" komutu doğrudan kendi sekmesini açıyor.
 
+### Bugün karar masası (`feat/bugun-karar-masasi`, bölüm 3 + 10'un ilk adımı)
+
+- **Sunucu:** `GET /api/bugun`, kaynak `services/masa-bugun.ts`. Altı panel var ve her satır bir kayda gidiyor. Satır sorumluyu ve zamanı gösteriyor, rengi turuncu (onay), kırmızı (acil) ya da nötr oluyor.
+  - **Şimdi ilgilen:**
+    - canlı çağrı: sekreter oturumu; 30 dakikadır sessiz olan oturum dışarıda kalır;
+    - geri aranacak cevapsız çağrı: 7 gün içindeki, `tasks.related_call_id` ile bir göreve bağlanmamış çağrılar;
+    - okunmamış geri arama isteği;
+    - şantiyeye bağlı acil görev;
+    - süresi 3 günden az kalan onay.
+  - **Onay bekleyenler:**
+    - toplam sayı ve en eski önerilerden başlayan liste;
+    - her satırda son karar zamanı (oluşturma + 14 gün), ajanın dayanağı (`reason`) ve kaynak (orkestratör, otomatik kural, telefon sekreteri, otomatik sekreter…);
+    - isteyen kişi, `agent-run:<id>` üzerinden bulunabiliyorsa gösteriliyor.
+  - **Bugünün planı:** keşif ziyareti (`type=visite`) randevudan ayrı gösteriliyor; onaysız yapay zekâ önerisi ayrıca işaretleniyor. Bugünkü görevler ve 7 gün içindeki teslimler de burada.
+  - **İş dosyaları:**
+    - 7 gün içindeki yeni talepler;
+    - yanıt bekleyen devisler; sorumlu prospect üzerinden bulunuyor;
+    - geciken şantiyeler.
+  - **Finansal dikkat:**
+    - vadesi geçen faturalar: `overdueCondition` kullanılıyor, çünkü `status='en_retard'` alanını hiçbir kod yazmıyor;
+    - bütçe aşımı, "harcama elle girilmiş" diye kaynağıyla birlikte;
+    - kabul edilip faturalanmamış devisler.
+  - **Ajan durumu:**
+    - son 24 saatteki hatalar (hata metniyle) ve insana devredilen işler;
+    - sayaç;
+    - eksik bağlantılar: telefon hattı, Google, yapay zekâ sağlayıcısı.
+- **Kontrol Paneli masayla açılıyor.** Kaldırılan süsler:
+  - bina fotoğrafı;
+  - web arama kutusu;
+  - Türkçe arayüzde bile Fransızca tarih yazan saat;
+  - kaynağı ve sorumlusu olmayan dört yapay zekâ paneli (AI Spot, Central Intelligence, Tanıma, Öneriler);
+  - pied de page'de gerçek duruma bakmadan sabit yazılmış "Korumalı" ve "Yedekleme etkin" etiketleri.
+  
+  Gerçek sayılar "Göstergeler" başlığı altında duruyor. Yüzen avatar ilk açılışta küçültülmüş geliyor.
+- **Testler:** 15 veritabanı testi (kurumlar arası yalıtım ve route dahil) ve 13 ekran testi. 13 mutasyonun hepsi yakalandı. Gerçek tarayıcıda 15 satır görüldü ve her biri kendi kaydına gidiyor; 1366 px ve 390 px genişlikte taşma 0.
+
 ### Aşama 1'den kalanlar
 
-- Bugün ekranında onaylar için bir iş listesi. Bu, sıradaki partide bölüm 3 ve 10 ile birlikte yapılacak.
+- Onay ekranının kendisi (bölüm 10) henüz yapılmadı: satır başına önizleme; müşteriye giden ve finansal işlemlerde kör toplu onay yasağı. Karar masası şimdilik yalnız listeliyor.
+- "Canlı çağrı" satırı çağrının kendi ekranına değil `/appels` sayfasına gidiyor, çünkü `voice_call_sessions` kayıtları `calls` tablosuna bağlı değil (aşama 2).
 - Web'de mobil alt gezinme (bölüm 12). Telefonda yan menü şimdilik açılır menü olarak çalışıyor.
 - `/gestion-licence` rotası herkese açık, çünkü lisans bitince her kullanıcı oraya yönlendiriliyor. Veriler ise yalnız yöneticiye veriliyor. Yönetici olmayan kullanıcı için "yetki yok" ekranı gerekiyor.
 - `/asistan` sayfasında `<h1>` yok. Expo uygulamasındaki "Daha fazla" ekranı yeni yapıya göre düzenlenmedi.

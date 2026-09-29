@@ -9825,5 +9825,89 @@
       "invalide_other": "Le flux n'est pas enregistré : {{count}} erreurs.",
       "erreur": "Échec de l'enregistrement : {{raison}}"
     }
+  },
+  "bugun": {
+    "panneau": {
+      "simdi": "À traiter maintenant",
+      "onaylar": "Approbations en attente",
+      "plan": "Plan du jour",
+      "dosyalar": "Dossiers",
+      "finans": "Vigilance financière",
+      "ajanlar": "État des agents"
+    },
+    "bos": {
+      "simdi": "Rien d'urgent pour l'instant.",
+      "onaylar": "Aucune approbation en attente.",
+      "plan": "Aucun rendez-vous, tâche ni livraison aujourd'hui.",
+      "dosyalar": "Pas de nouvelle demande, de devis en attente ni de chantier en retard.",
+      "finans": "Pas de facture échue, de dépassement de budget ni de devis accepté à facturer.",
+      "ajanlar": "Aucune erreur ni travail rendu à un humain en 24 h ; les connexions sont en place."
+    },
+    "tur": {
+      "cagri_canli": "Appel en cours",
+      "cagri_aktariliyor": "Transfert en cours",
+      "geri_arama": "À rappeler (appel manqué)",
+      "sesli_mesaj": "Message vocal laissé",
+      "geri_arama_istegi": "Demande de rappel",
+      "acil_saha": "Urgence chantier",
+      "onay_suresi": "Approbation bientôt expirée",
+      "onay": "À approuver",
+      "onay_email": "Envoi d'e-mail",
+      "onay_sms": "Envoi de SMS",
+      "onay_tache": "Création de tâche",
+      "onay_rappel": "Rappel",
+      "onay_relance": "Relance de paiement",
+      "onay_contact": "Fiche contact",
+      "randevu": "Rendez-vous",
+      "kesif": "Visite technique",
+      "randevu_onaysiz": "Rendez-vous proposé (non confirmé)",
+      "gorev_bugun": "Tâche du jour",
+      "teslim": "Livraison proche",
+      "talep_yeni": "Nouvelle demande",
+      "teklif_bekliyor": "Devis en attente de réponse",
+      "santiye_gecikti": "Chantier en retard",
+      "fatura_gecikti": "Facture échue",
+      "butce_asimi": "Dépassement de budget",
+      "faturasiz_kabul": "Accepté, pas encore facturé",
+      "ajan_hata": "Agent en erreur",
+      "ajan_devretti": "Rendu à un humain",
+      "ajan_calisiyor": "En cours",
+      "baglanti_telefon": "Connexion manquante",
+      "baglanti_google": "Connexion manquante",
+      "baglanti_ia": "Connexion manquante"
+    },
+    "baglanti": {
+      "baglanti_telefon": "Aucune ligne téléphonique — l'agent téléphonique ne peut pas prendre d'appel",
+      "baglanti_google": "Aucun compte Google — l'agent e-mail et agenda ne peut pas travailler",
+      "baglanti_ia": "Aucun fournisseur d'IA configuré — les agents ne peuvent pas travailler"
+    },
+    "kaynak": {
+      "orchestrateur": "Agent, sur une demande",
+      "automation_rule": "Règle automatique",
+      "app_audit": "Audit de l'application",
+      "saas_agent": "Agent de la plateforme",
+      "invoice_reminder": "Règle de relance des factures",
+      "sekreter": "Secrétaire automatique",
+      "telefon": "Secrétaire téléphonique",
+      "support_email": "E-mail de support",
+      "ai_execute": "Commande IA",
+      "autre": "Autre source"
+    },
+    "zaman": {
+      "karar": "Décider avant",
+      "vade": "Échéance",
+      "gecerlilik": "Valable jusqu'au",
+      "bitis": "Fin"
+    },
+    "sorumlu": "Responsable",
+    "tumu": "Tout voir",
+    "fazlasi": "Il y en a d'autres — tout voir",
+    "kaynakManuel": "Dépense saisie à la main sur le chantier",
+    "onayToplam": "action(s) attendent votre décision",
+    "sayac": "Dernières 24 h : {{calisiyor}} en cours · {{bekliyor}} rendus à un humain · {{hata}} en erreur",
+    "yukleniyor": "Chargement de la table du jour",
+    "hata": "La table du jour n'a pas pu être chargée. Rien n'a changé ; vous pouvez réessayer.",
+    "tekrar": "Réessayer",
+    "gostergeler": "Indicateurs"
   }
 }

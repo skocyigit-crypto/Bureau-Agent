@@ -1,12 +1,8 @@
-import officeTeamImg from "@/assets/images/office-team.webp";
-import { AiRecognitionPanel } from "@/components/ai-recognition-panel";
-import { AiSpot } from "@/components/ai-spot";
-import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
-import { CentralIntelligence } from "@/components/central-intelligence";
 import { EmailComposer } from "@/components/email-composer";
 import { FloatingAvatar } from "@/components/floating-avatar";
 import { Icon3D,type Icon3DVariant } from "@/components/icon-3d";
 import { LiveActivityFeed } from "@/components/live-activity-feed";
+import { MasaBugun } from "@/components/masa-bugun";
 import { PressableCard,SlideUp,StaggerContainer,StaggerItem } from "@/components/premium-animations";
 import { QuickActionHub } from "@/components/quick-action-hub";
 import { QueryErrorAlert,SafeComponent } from "@/components/safe-component";
@@ -14,7 +10,6 @@ import { SmartPulsePanel } from "@/components/smart-pulse-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card,CardContent,CardDescription,CardHeader,CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkspaceUser } from "@/components/workspace-user";
@@ -23,22 +18,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useGetDashboardSummary,useGetHourlyPerformance,useGetRecentActivity,useGetTaskStats,useGetTopContacts,useGetWeeklyReport } from "@workspace/api-client-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Activity,ArrowDownRight,ArrowUpRight,BarChart3,Brain,CheckSquare,Circle,CircleCheck,Clock,FolderKanban,Globe,HardDriveDownload,LayoutDashboard,Lightbulb,MessageSquare,Phone,Plus,Printer,Rocket,Search,Send,Shield,ShieldAlert,ShieldCheck,ShieldQuestion,StickyNote,TrendingUp,Upload,UserCheck,Users,X,Zap } from "lucide-react";
+import { Activity,ArrowDownRight,ArrowUpRight,BarChart3,Brain,CheckSquare,Circle,CircleCheck,Clock,FolderKanban,LayoutDashboard,Lightbulb,MessageSquare,Phone,Plus,Printer,Rocket,Send,Shield,ShieldAlert,ShieldCheck,ShieldQuestion,StickyNote,TrendingUp,Upload,UserCheck,Users,X,Zap } from "lucide-react";
 import { useEffect,useState } from "react";
 import { Bar,BarChart,CartesianGrid,Cell,Legend,Line,LineChart,Tooltip as RechartsTooltip,ResponsiveContainer,XAxis,YAxis } from "recharts";
-import { Link,useLocation } from "wouter";
+import { Link } from "wouter";
 import { affichageVariation, valeurOuTiret } from "@/lib/variation";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
-
-function useLiveClock() {
-  const [now, setNow] = useState(new Date());
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(t);
-  }, []);
-  return now;
-}
 
 function useDocumentSecurity() {
   const [verdict, setVerdict] = useState<{ safe: number; dangerous: number; unscanned: number } | null>(null);
@@ -160,28 +146,6 @@ function useOrgProfileComplete() {
       .catch(() => {});
   }, []);
   return complete;
-}
-
-function useSystemHealth() {
-  const [healthy, setHealthy] = useState<boolean | null>(null);
-  useEffect(() => {
-    let mounted = true;
-    const check = async () => {
-      try {
-        const r = await fetch(`${API}/api/healthz`, { credentials: "include" });
-        if (!mounted) return;
-        if (!r.ok) { setHealthy(false); return; }
-        const d = await r.json();
-        setHealthy(d?.status === "ok" || d?.status === "healthy" || d?.success === true);
-      } catch {
-        if (mounted) setHealthy(false);
-      }
-    };
-    check();
-    const t = setInterval(check, 60000);
-    return () => { mounted = false; clearInterval(t); };
-  }, []);
-  return healthy;
 }
 
 function useCommercialStats() {
@@ -334,64 +298,16 @@ function SecuritySummary() {
   );
 }
 
-function DashboardWebSearch() {
-  const { t } = useTranslation();
-  const [, navigate] = useLocation();
-  const [q, setQ] = useState("");
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const term = q.trim();
-    if (term.length < 2) {
-      navigate("/recherche-web");
-      return;
-    }
-    navigate(`/recherche-web?q=${encodeURIComponent(term)}`);
-  };
-  return (
-    <Card className="overflow-hidden border-0 shadow-md bg-gradient-to-br from-indigo-50/70 to-purple-50/40 dark:from-indigo-950/30 dark:to-purple-950/20">
-      <CardContent className="p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="p-2 rounded-xl bg-primary/10">
-            <Globe className="w-4 h-4 text-primary" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold leading-tight">{t("dashboard.webSearch.title")}</p>
-            <p className="text-xs text-muted-foreground">{t("dashboard.webSearch.description")}</p>
-          </div>
-        </div>
-        <form onSubmit={submit} className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input aria-label={t("dashboard.webSearch.placeholder")}
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder={t("dashboard.webSearch.placeholder")}
-              className="h-11 rounded-full pl-10 pr-4 text-base shadow-sm bg-background"
-              maxLength={300}
-            />
-          </div>
-          <Button type="submit" className="h-11 rounded-full px-5">
-            <Search className="w-4 h-4 mr-2" />
-            {t("dashboard.webSearch.button")}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
-  );
-}
 
 export default function Dashboard() {
   const { t } = useTranslation();
-  const { user } = useWorkspaceUser();
   const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
   const [quickActionOpen, setQuickActionOpen] = useState(false);
   const [quickActionTab, setQuickActionTab] = useState<"contact" | "tache" | "appel" | "message" | "evenement" | "projet">("contact");
   const openQuickAction = (tab: typeof quickActionTab) => { setQuickActionTab(tab); setQuickActionOpen(true); };
-  const now = useLiveClock();
   const { team: teamMembers, isLoading: teamLoading, error: teamError } = useTeamStatus();
   const { isTrial, dismissed, dismiss } = useTrialStatus();
   const orgProfileComplete = useOrgProfileComplete();
-  const systemHealthy = useSystemHealth();
   const { data: weekComparison, error: weekCompError } = useWeekComparison();
   const { quota: aiQuota, isLoading: aiQuotaLoading } = useAiQuota();
   const { data: summary, isLoading: isLoadingSummary, error: summaryError } = useGetDashboardSummary({ query: { queryKey: ["dashboardSummary"] } });
@@ -463,7 +379,7 @@ export default function Dashboard() {
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={LayoutDashboard} variant="navy" size="md" /> {t("dashboard.title")}</h1>
           <p className="text-muted-foreground mt-1">{t("dashboard.subtitle")}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link href="/appels">
             <Button variant="outline" size="sm">
               <Plus className="w-4 h-4 mr-2" />
@@ -476,16 +392,16 @@ export default function Dashboard() {
               {t("dashboard.actions.task")}
             </Button>
           </Link>
-          <Button size="sm" onClick={() => window.dispatchEvent(new Event("open-ai-assistant"))} className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700">
+          <Button size="sm" variant="outline" onClick={() => window.dispatchEvent(new Event("open-ai-assistant"))}>
             <Brain className="w-4 h-4 mr-2" />
             {t("dashboard.actions.aiAssistant")}
           </Button>
-          <Button size="sm" onClick={() => setIsEmailComposerOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+          <Button size="sm" variant="outline" onClick={() => setIsEmailComposerOpen(true)}>
             <Send className="w-4 h-4 mr-2" />
             {t("dashboard.actions.aiEmail")}
           </Button>
           <Link href="/analyse">
-            <Button size="sm" className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700">
+            <Button size="sm" variant="outline">
               <BarChart3 className="w-4 h-4 mr-2" />
               {t("dashboard.actions.analysis")}
             </Button>
@@ -494,31 +410,11 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <SlideUp>
-      <Card className="overflow-hidden border-0 shadow-lg premium-shadow">
-        <div className="relative h-40 md:h-48">
-          <img src={officeTeamImg} alt={t("dashboard.hero.imageAlt")} className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#1a2744]/80 via-[#1a2744]/50 to-transparent" />
-          <div className="absolute inset-0 flex items-center p-6 md:p-8">
-            <div className="text-white">
-              <h2 className="text-xl md:text-2xl font-bold">{t("dashboard.hero.welcome", { name: user.prenom || user.nom })}</h2>
-              <p className="text-white/80 text-sm mt-1">{t("dashboard.hero.subtitle")}</p>
-              <div className="flex items-center gap-4 mt-3">
-                <div className={`flex items-center gap-1.5 text-sm ${systemHealthy === false ? "text-red-300" : systemHealthy === null ? "text-white/60" : "text-emerald-300"}`}>
-                  <div className={`w-2 h-2 rounded-full ${systemHealthy === false ? "bg-red-400" : systemHealthy === null ? "bg-white/40" : "bg-emerald-400 animate-pulse"}`} />
-                  {systemHealthy === false ? t("dashboard.hero.systemDown") : systemHealthy === null ? t("dashboard.hero.systemChecking") : t("dashboard.hero.systemActive")}
-                </div>
-                <div className="text-sm text-amber-300">{user.organisation || t("dashboard.hero.defaultOffice")}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Card>
-      </SlideUp>
-
-      <SlideUp>
-        <DashboardWebSearch />
-      </SlideUp>
+      {/* La table de decision : chaque ligne est un enregistrement du bureau,
+          avec son responsable et son echeance (plan du 29/09, section 3). Elle
+          remplace le bandeau photo et la recherche web, qui ne menaient a
+          aucun dossier. */}
+      <MasaBugun />
 
       {isTrial && !dismissed && (() => {
         const steps = [
@@ -582,23 +478,8 @@ export default function Dashboard() {
         );
       })()}
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="bg-gradient-to-br from-slate-50 to-slate-100/50 dark:from-slate-950/30 dark:to-slate-900/10 border-slate-200/50 dark:border-slate-800/30">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-primary/10">
-              <Clock className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <div className="text-3xl font-bold tabular-nums tracking-tight">
-                {format(now, "HH:mm:ss")}
-              </div>
-              <div className="text-sm text-muted-foreground capitalize">
-                {format(now, "EEEE d MMMM yyyy", { locale: fr })}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
+      <h2 className="text-lg font-semibold pt-2">{t("bugun.gostergeler")}</h2>
+      <div className="grid gap-4 md:grid-cols-2">
         <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-950/30 dark:to-indigo-900/10 border-indigo-200/50 dark:border-indigo-800/30">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
@@ -649,15 +530,6 @@ export default function Dashboard() {
         </div>
       </SafeComponent>
 
-      <SafeComponent fallbackTitle={t("dashboard.panels.aiSpot")}>
-        <SlideUp>
-          <AiSpot />
-        </SlideUp>
-      </SafeComponent>
-
-      <SafeComponent fallbackTitle={t("dashboard.panels.centralIntelligence")}>
-        <CentralIntelligence />
-      </SafeComponent>
 
       <StaggerContainer className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {kpiCards.map((kpi) => (
@@ -736,13 +608,6 @@ export default function Dashboard() {
         <SmartPulsePanel />
       </SafeComponent>
 
-      <SafeComponent fallbackTitle={t("dashboard.panels.aiRecognition")}>
-        <AiRecognitionPanel />
-      </SafeComponent>
-
-      <SafeComponent fallbackTitle={t("dashboard.panels.aiSuggestions")}>
-        <AiSuggestionsCard page="dashboard" title={t("dashboard.panels.aiBriefing")} />
-      </SafeComponent>
 
       {weeklyReport && !isLoadingWeekly && (
         <div className="grid gap-4 md:grid-cols-4">
@@ -945,27 +810,7 @@ export default function Dashboard() {
 
       <Card className="bg-gradient-to-r from-[#1a2744] to-[#2d3a54] text-white border-0 shadow-lg">
         <CardContent className="p-4 md:p-6">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-emerald-500/20">
-                <Shield className="w-5 h-5 text-emerald-400" />
-              </div>
-              <div>
-                <p className="text-xs text-white/60">{t("dashboard.footer.security")}</p>
-                <p className="font-semibold text-emerald-300">{t("dashboard.footer.protected")}</p>
-                <p className="text-xs text-white/50">{t("dashboard.footer.compliance")}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-blue-500/20">
-                <HardDriveDownload className="w-5 h-5 text-blue-400" />
-              </div>
-              <div>
-                <p className="text-xs text-white/60">{t("dashboard.footer.autoBackup")}</p>
-                <p className="font-semibold text-blue-300">{t("dashboard.footer.active")}</p>
-                <p className="text-xs text-white/50">{t("dashboard.footer.backupInterval")}</p>
-              </div>
-            </div>
+          <div className="grid gap-4">
             <Link href="/parametres?tab=intelligence-artificielle" className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer">
               <div className={`p-2.5 rounded-xl ${aiQuota && (aiQuota.percentCost >= 95 || aiQuota.percentCalls >= 95) ? "bg-red-500/20" : aiQuota && (aiQuota.percentCost >= 80 || aiQuota.percentCalls >= 80) ? "bg-orange-500/20" : "bg-amber-500/20"}`}>
                 <Zap className={`w-5 h-5 ${aiQuota && (aiQuota.percentCost >= 95 || aiQuota.percentCalls >= 95) ? "text-red-400" : aiQuota && (aiQuota.percentCost >= 80 || aiQuota.percentCalls >= 80) ? "text-orange-400" : "text-amber-400"}`} />
