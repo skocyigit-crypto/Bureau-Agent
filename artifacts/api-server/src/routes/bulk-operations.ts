@@ -1,3 +1,4 @@
+import { tracerExtraction } from "../lib/tracer-extraction";
 import { Router, type Request, type Response } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, prospectsTable, devisTable, facturesClientTable, commandesFournisseurTable, stockArticlesTable, checkinsTable, documentsTable, notesInternesTable, objectifsCommerciauxTable, projetsTable } from "@workspace/db";
 import { eq, and, inArray } from "drizzle-orm";
@@ -365,6 +366,7 @@ router.get("/export/:entity", requireMinAdmin, async (req: Request, res: Respons
         return;
     }
 
+    await tracerExtraction(req, entity, { format, lignes: data.length });
     if (format === "csv") {
       if (data.length === 0) { res.set("Content-Type", "text/csv; charset=utf-8").send(BOM_CSV); return; }
       const headers = Object.keys(data[0]);

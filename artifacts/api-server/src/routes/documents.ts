@@ -1,3 +1,4 @@
+import { tracerExtraction } from "../lib/tracer-extraction";
 import { Router, type NextFunction, type Request, type Response } from "express";
 import crypto from "crypto";
 import multer from "multer";
@@ -1590,6 +1591,7 @@ router.get("/documents/export/csv", requireMinAgent, async (req: Request, res: R
     const headers = ["id", "fileName", "originalName", "mimeType", "fileSize", "category", "entityType", "status", "createdAt"];
     // Le nom d'origine vient de l'utilisateur : « =cmd|... .pdf » est un nom de fichier valide.
     const csv = documentCsv(headers, docs.map(d => headers.map(h => (d as any)[h])));
+    await tracerExtraction(req, "documents", { format: "csv", lignes: docs.length });
     res.set("Content-Type", "text/csv; charset=utf-8");
     res.set("Content-Disposition", `attachment; filename="documents_${new Date().toISOString().slice(0,10)}.csv"`);
     res.send(csv);

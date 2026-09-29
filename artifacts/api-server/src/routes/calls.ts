@@ -1,3 +1,4 @@
+import { tracerExtraction } from "../lib/tracer-extraction";
 import { Router, type IRouter } from "express";
 import { eq, desc, asc, or, sql, and, gte, lte } from "drizzle-orm";
 import { db, callsTable, contactsTable, tasksTable, calendarEventsTable, messagesTable, organisationsTable } from "@workspace/db";
@@ -514,6 +515,7 @@ router.get("/calls/export/csv", exportReserveAuResponsable, async (req, res): Pr
       escape(r.contactName), escape(r.phoneNumber), escape(r.direction),
       escape(r.status), escape(r.duration), escape(r.notes), escape(fmtDate(r.createdAt)),
     ].join(SEPARATEUR_CSV))];
+    await tracerExtraction(req, "appels", { format: "csv", lignes: rows.length });
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="appels_${Date.now()}.csv"`);
     res.send("\uFEFF" + lines.join("\n"));

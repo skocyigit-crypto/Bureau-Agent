@@ -1,3 +1,4 @@
+import { tracerExtraction } from "../lib/tracer-extraction";
 import { Router, type IRouter } from "express";
 import { eq, desc, asc, or, sql, and, type Column, type SQL } from "drizzle-orm";
 import { db, tasksTable, usersTable } from "@workspace/db";
@@ -292,6 +293,7 @@ router.get("/tasks/export/csv", exportReserveAuResponsable, async (req, res): Pr
       escape(fmtDate(r.dueDate)), escape(r.isRecurring ? "Oui" : "Non"),
       escape(r.recurrenceRule), escape(fmtDate(r.createdAt)),
     ].join(SEPARATEUR_CSV))];
+    await tracerExtraction(req, "taches", { format: "csv", lignes: rows.length });
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="taches_${Date.now()}.csv"`);
     res.send("\uFEFF" + lines.join("\n"));

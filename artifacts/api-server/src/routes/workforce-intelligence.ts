@@ -439,6 +439,7 @@ Regles:
       { employeeCount: employees.length, avecIA: aiResult !== null },
       req.ip,
       req.get("user-agent"),
+      orgId,
     ).catch((err: unknown) => {
       req.log?.warn({ err }, "[workforce-intelligence] trace d'audit non ecrite");
     });

@@ -9,6 +9,7 @@
  * contient l'integralite des donnees clients, contacts et factures — ce n'est
  * pas un export que tout utilisateur doit pouvoir emporter.
  */
+import { tracerExtraction } from "../lib/tracer-extraction";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, desc, eq } from "drizzle-orm";
 import { db, organisationBackupsTable, organisationsTable } from "@workspace/db";
@@ -127,6 +128,7 @@ router.get("/my-backups/:id/download", requireRole("administrateur", "super_admi
     const [org] = await db.select({ name: organisationsTable.name })
       .from(organisationsTable).where(eq(organisationsTable.id, orgId));
 
+    await tracerExtraction(req, "sauvegarde", { format: "gzip", sauvegardeId: id, octets: row.content.length });
     res.setHeader("Content-Type", "application/gzip");
     res.setHeader("Content-Length", String(row.content.length));
     res.setHeader("X-Backup-Checksum", row.checksum);

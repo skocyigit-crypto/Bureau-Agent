@@ -2638,6 +2638,7 @@ Génère un rapport JSON complet:
       { employeeCount: employees.length, periode },
       req.ip,
       req.get("user-agent"),
+      orgId,
     ).catch((err: unknown) => {
       req.log?.warn({ err }, "[commandant] trace d audit non ecrite");
     });

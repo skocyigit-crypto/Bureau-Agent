@@ -1,3 +1,4 @@
+import { tracerExtraction } from "../lib/tracer-extraction";
 import { Router, type Request, type Response } from "express";
 import { deductibiliteTva, totalDeductible } from "../services/tva-deductible";
 import {
@@ -299,6 +300,7 @@ router.get("/depenses/export", exportReserveAuResponsable, async (req: Request, 
         { label: "depenses.export.batch" },
       );
       if (!wroteHeader) {
+        await tracerExtraction(req, "depenses", { format: "csv", flux: true });
         res.setHeader("Content-Type", "text/csv; charset=utf-8");
         res.setHeader("Content-Disposition", `attachment; filename="depenses_${Date.now()}.csv"`);
         res.write("\uFEFF" + headers.join(SEPARATEUR_CSV) + "\n");

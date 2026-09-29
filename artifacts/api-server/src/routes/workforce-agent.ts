@@ -591,6 +591,7 @@ router.get(
         { employeeCount: result.employeeCount, teamScore: result.teamScore },
         req.ip,
         req.get("user-agent"),
+        orgId,
       ).catch((err: unknown) => {
         // Une trace manquante doit se voir, mais ne doit pas priver
         // l'exploitant du rapport qu'il vient de demander.

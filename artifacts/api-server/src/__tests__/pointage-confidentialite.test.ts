@@ -47,7 +47,9 @@ beforeAll(async () => {
   await inserer("homonymeProche", { employeeName: "Alice Martinez", createdBy: null });
 }, 60_000);
 
-afterAll(async () => { if (orgId) await db.delete(organisationsTable).where(eq(organisationsTable.id, orgId)); });
+// L'export des pointages ecrit desormais sa trace d'audit (append-only) :
+// l'organisation qu'elle designe ne peut plus etre supprimee.
+afterAll(async () => { try { if (orgId) await db.delete(organisationsTable).where(eq(organisationsTable.id, orgId)); } catch { /* journaux append-only */ } });
 
 describe("lecture (routes reelles)", () => {
   it("un agent ne voit que SES pointages dans la liste", async () => {

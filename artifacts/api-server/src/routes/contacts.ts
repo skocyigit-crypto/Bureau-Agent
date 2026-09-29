@@ -1,3 +1,4 @@
+import { tracerExtraction } from "../lib/tracer-extraction";
 import { Router, type IRouter } from "express";
 import { eq, desc, asc, ilike, or, sql, and, isNull, type Column, type SQL } from "drizzle-orm";
 import { motifDeRapprochement } from "../lib/rapprochement-contact";
@@ -498,6 +499,7 @@ router.get("/contacts/export/csv", exportReserveAuResponsable, async (req, res):
       escape(r.mobile), escape(r.company), escape(r.category), escape(r.address),
       escape(r.notes), escape(r.createdAt ? new Date(r.createdAt).toLocaleDateString("fr-FR") : ""),
     ].join(SEPARATEUR_CSV))];
+    await tracerExtraction(req, "contacts", { format: "csv", lignes: rows.length });
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="contacts_${Date.now()}.csv"`);
     res.send("\uFEFF" + lines.join("\n"));

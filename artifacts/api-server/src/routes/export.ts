@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { contactsTable, callsTable, tasksTable, messagesTable, prospectsTable, devisTable, facturesClientTable, stockArticlesTable, commandesFournisseurTable, projetsTable } from "@workspace/db/schema";
 import { desc, eq } from "drizzle-orm";
-import { logAudit } from "./audit";
+import { tracerExtraction } from "../lib/tracer-extraction";
 import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
 import { jourLocal } from "../lib/jour-local";
@@ -232,7 +232,7 @@ router.get("/export/:entity", exportReserveAuResponsable, async (req: Request, r
       break;
   }
 
-  logAudit(userId, req.session?.userEmail, "export", entity, undefined, { count: data.length }, req.ip, req.get("user-agent"), req.session?.organisationId);
+  await tracerExtraction(req, entity, { format: "csv", lignes: data.length });
 
   const csv = toCsv(data, columns);
   const date = jourLocal(); // date du jour dans le nom de fichier, a Paris
